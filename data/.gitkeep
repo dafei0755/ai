@@ -1,0 +1,4 @@
+# This directory stores project data
+# - archived_sessions.db: Session archive database
+# - uploads/: User uploaded files
+# - debug/: Debug logs and temporary data
