@@ -44,27 +44,8 @@ interface CoreAnswerSectionProps {
   coreAnswer: CoreAnswer | null | undefined;
 }
 
-/** 提取角色显示名称 */
-function getRoleDisplayName(roleId: string): string {
-  const roleMap: Record<string, string> = {
-    'V2_设计总监': '设计总监',
-    'V3_叙事与体验专家': '叙事与体验专家',
-    'V3_人物及叙事专家': '人物及叙事专家',
-    'V4_设计研究专员': '设计研究专员',
-    'V4_设计研究员': '设计研究员',
-    'V5_场景策划师': '场景策划师',
-    'V5_场景与用户生态专家': '场景与用户生态专家',
-    'V6_专业总工程师': '专业总工程师',
-    'V6_工程师': '工程师',
-  };
-  
-  for (const [prefix, name] of Object.entries(roleMap)) {
-    if (roleId.startsWith(prefix)) {
-      return name;
-    }
-  }
-  return roleId;
-}
+// 🔥 v7.6: 使用统一的格式化函数
+import { formatExpertName as getRoleDisplayName } from '@/lib/formatters';
 
 /** 单个交付物卡片组件 */
 function DeliverableCard({ deliverable, index }: { deliverable: DeliverableAnswer; index: number }) {

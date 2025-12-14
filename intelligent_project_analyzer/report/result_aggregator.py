@@ -549,10 +549,20 @@ class ResultAggregatorAgent(LLMAgent):
         review_result = state.get("review_result") or {}  # 🔥 修复：确保不为 None
         review_history = state.get("review_history") or []  # 🔥 修复：确保不为 None
         
-        # 🆕 获取问卷数据
+        # 🆕 获取问卷数据（🔧 修复: 同时获取 calibration_answers 作为备用）
         calibration_questionnaire = state.get("calibration_questionnaire") or {}
         questionnaire_responses = state.get("questionnaire_responses") or {}
         questionnaire_summary = state.get("questionnaire_summary") or {}
+        calibration_answers = state.get("calibration_answers") or {}
+        
+        # 🔧 修复: 如果 questionnaire_responses 为空，尝试从 calibration_answers 构建
+        if not questionnaire_responses.get("entries") and not questionnaire_responses.get("answers"):
+            if calibration_answers:
+                logger.info(f"🔧 [问卷数据恢复] questionnaire_responses 为空，从 calibration_answers 恢复 ({len(calibration_answers)} 个答案)")
+                questionnaire_responses = {
+                    "answers": calibration_answers,
+                    "source": "calibration_answers_fallback"
+                }
 
         # 提取项目总监的战略分析信息
         query_type = strategic_analysis.get("query_type", "深度优先探询")
@@ -806,6 +816,34 @@ class ResultAggregatorAgent(LLMAgent):
                 if "expert_reports" not in final_report or not final_report["expert_reports"]:
                     final_report["expert_reports"] = self._extract_expert_reports(state)
                 final_report["challenge_resolutions"] = self._extract_challenge_resolutions(state)
+                
+                # 🔥 v7.5修复: fallback 路径也必须提取问卷数据
+                # 原因：问卷数据提取逻辑原本只在成功解析路径，导致 fallback 时前端显示空问卷
+                self._update_progress(state, "[Fallback] 提取校准问卷回答", 0.7)
+                calibration_questionnaire = state.get("calibration_questionnaire") or {}
+                questionnaire_responses_state = state.get("questionnaire_responses") or {}
+                questionnaire_summary = state.get("questionnaire_summary") or {}
+                
+                if calibration_questionnaire or questionnaire_responses_state or questionnaire_summary:
+                    real_questionnaire_data = self._extract_questionnaire_data(
+                        calibration_questionnaire,
+                        questionnaire_responses_state,
+                        questionnaire_summary
+                    )
+                    if real_questionnaire_data and real_questionnaire_data.get("responses"):
+                        final_report["questionnaire_responses"] = real_questionnaire_data
+                        logger.info(f"✅ [Fallback] 已提取 questionnaire_responses: {len(real_questionnaire_data['responses'])} 条回答")
+                    else:
+                        logger.debug("ℹ️ [Fallback] 无问卷数据可提取")
+                
+                # 🔥 v7.5修复: fallback 路径也必须提取需求分析结果
+                # 原因：需求分析师的输出需要正确传递到前端
+                if "requirements_analysis" not in final_report or not final_report.get("requirements_analysis"):
+                    structured_requirements = state.get("structured_requirements") or {}
+                    if structured_requirements:
+                        final_report["requirements_analysis"] = structured_requirements
+                        logger.info(f"✅ [Fallback] 已提取 requirements_analysis")
+                
                 # ✅ P2修复: 确保 raw_content 保存原始LLM响应
                 final_report["raw_content"] = raw_message.content
                 final_report["metadata"] = {
@@ -834,6 +872,30 @@ class ResultAggregatorAgent(LLMAgent):
                         if "expert_reports" not in final_report or not final_report["expert_reports"]:
                             final_report["expert_reports"] = self._extract_expert_reports(state)
                         final_report["challenge_resolutions"] = self._extract_challenge_resolutions(state)
+                        
+                        # 🔥 v7.5修复: fallback_none_parsed 路径也必须提取问卷和需求分析
+                        self._update_progress(state, "[Fallback-None] 提取校准问卷回答", 0.74)
+                        calibration_questionnaire = state.get("calibration_questionnaire") or {}
+                        questionnaire_responses_state = state.get("questionnaire_responses") or {}
+                        questionnaire_summary = state.get("questionnaire_summary") or {}
+                        
+                        if calibration_questionnaire or questionnaire_responses_state or questionnaire_summary:
+                            real_questionnaire_data = self._extract_questionnaire_data(
+                                calibration_questionnaire,
+                                questionnaire_responses_state,
+                                questionnaire_summary
+                            )
+                            if real_questionnaire_data and real_questionnaire_data.get("responses"):
+                                final_report["questionnaire_responses"] = real_questionnaire_data
+                                logger.info(f"✅ [Fallback-None] 已提取 questionnaire_responses: {len(real_questionnaire_data['responses'])} 条回答")
+                        
+                        # 提取需求分析
+                        if "requirements_analysis" not in final_report or not final_report.get("requirements_analysis"):
+                            structured_requirements = state.get("structured_requirements") or {}
+                            if structured_requirements:
+                                final_report["requirements_analysis"] = structured_requirements
+                                logger.info(f"✅ [Fallback-None] 已提取 requirements_analysis")
+                        
                         # ✅ P2修复: 确保 raw_content 保存原始LLM响应
                         final_report["raw_content"] = raw_message.content
                         final_report["metadata"] = {
@@ -909,13 +971,91 @@ class ResultAggregatorAgent(LLMAgent):
 
                 # 添加元数据
                 self._update_progress(state, "生成报告元数据", 0.9)
+                
+                # 🆕 v7.4: 增强执行元数据，提升用户体验
+                # 收集更多统计数据
+                agent_results = state.get("agent_results", {})
+                questionnaire_responses = final_report.get("questionnaire_responses", {})
+                batches = state.get("batches", [])
+                review_iterations = state.get("review_iterations", 0)
+                
+                # 计算问卷回答数量
+                questionnaire_count = 0
+                if questionnaire_responses:
+                    responses = questionnaire_responses.get("responses", [])
+                    questionnaire_count = len([r for r in responses if r.get("answer") and r.get("answer") != "未回答"])
+                
+                # 计算平均置信度
+                confidence_values = []
+                for role_id, result in agent_results.items():
+                    if isinstance(result, dict):
+                        # 从任务导向专家输出中提取置信度
+                        exec_meta = result.get("execution_metadata", {})
+                        if exec_meta and isinstance(exec_meta, dict):
+                            conf = exec_meta.get("confidence")
+                            if conf is not None:
+                                confidence_values.append(float(conf))
+                
+                avg_confidence = sum(confidence_values) / len(confidence_values) if confidence_values else None
+                
+                # 获取复杂度级别
+                task_complexity = state.get("task_complexity", "complex")
+                complexity_display = {
+                    "simple": "简单",
+                    "medium": "中等",
+                    "complex": "复杂"
+                }.get(task_complexity, "复杂")
+                
+                # 计算分析耗时（如果有开始时间）
+                analysis_duration = None
+                created_at = state.get("created_at")
+                if created_at:
+                    try:
+                        if isinstance(created_at, str):
+                            analysis_start_time = datetime.fromisoformat(created_at.replace('Z', '+00:00'))
+                        else:
+                            analysis_start_time = created_at
+                        duration_seconds = (datetime.now() - analysis_start_time.replace(tzinfo=None)).total_seconds()
+                        if duration_seconds < 60:
+                            analysis_duration = f"{int(duration_seconds)}秒"
+                        elif duration_seconds < 3600:
+                            minutes = int(duration_seconds // 60)
+                            seconds = int(duration_seconds % 60)
+                            analysis_duration = f"{minutes}分{seconds}秒"
+                        else:
+                            hours = int(duration_seconds // 3600)
+                            minutes = int((duration_seconds % 3600) // 60)
+                            analysis_duration = f"{hours}时{minutes}分"
+                    except Exception as e:
+                        logger.debug(f"计算分析耗时失败: {e}")
+                
+                # 🔥 修复: 从 deliberation_process 中提取 inquiry_architecture
+                inquiry_arch = "深度优先探询"  # 默认值
+                deliberation = final_report.get("deliberation_process")
+                if deliberation:
+                    if isinstance(deliberation, dict):
+                        inquiry_arch = deliberation.get("inquiry_architecture", inquiry_arch)
+                    elif hasattr(deliberation, "inquiry_architecture"):
+                        inquiry_arch = deliberation.inquiry_architecture or inquiry_arch
+                # 也同步到顶层，方便其他地方使用
+                final_report["inquiry_architecture"] = inquiry_arch
+                
                 final_report["metadata"] = {
                     "generated_at": datetime.now().isoformat(),
                     "session_id": state.get("session_id"),
-                    "total_agents": len(state.get("agent_results", {})),
+                    "total_agents": len(agent_results),
                     "overall_confidence": self._calculate_overall_confidence(state),
                     "estimated_pages": self._estimate_report_pages(final_report),
-                    "inquiry_architecture": final_report.get("inquiry_architecture", "深度优先探询")
+                    "inquiry_architecture": inquiry_arch,
+                    # 🆕 v7.4 新增字段
+                    "total_batches": len(batches) if batches else 1,
+                    "complexity_level": complexity_display,
+                    "questionnaire_answered": questionnaire_count,
+                    "review_rounds": review_iterations,
+                    "confidence_average": avg_confidence,
+                    "analysis_duration": analysis_duration,
+                    # 专家分布统计
+                    "expert_distribution": self._get_expert_distribution(agent_results),
                 }
 
                 # 保存原始 LLM 响应内容
@@ -1345,9 +1485,33 @@ class ResultAggregatorAgent(LLMAgent):
                 content = agent_result.get("content", "")
                 structured_data = agent_result.get("structured_data", {})
 
-                # 组合成完整的报告
-                if structured_data:
-                    report_content = json.dumps(structured_data, ensure_ascii=False, indent=2)
+                # 🔥 v7.9.2: 智能提取实际内容,与前端逻辑一致
+                # 检测 TaskOrientedExpertOutput 结构,提取 deliverable_outputs
+                if structured_data and isinstance(structured_data, dict):
+                    # 检查是否有 task_execution_report 嵌套结构
+                    ter = structured_data.get("task_execution_report")
+                    if ter and isinstance(ter, dict):
+                        deliverable_outputs = ter.get("deliverable_outputs")
+                        if deliverable_outputs and isinstance(deliverable_outputs, list):
+                            # 只提取交付物内容,忽略元数据
+                            extracted_content = {
+                                "deliverable_outputs": deliverable_outputs
+                            }
+                            # 可选: 添加额外信息(但不包括元数据)
+                            if ter.get("task_completion_summary"):
+                                extracted_content["task_completion_summary"] = ter["task_completion_summary"]
+                            if ter.get("additional_insights"):
+                                extracted_content["additional_insights"] = ter["additional_insights"]
+                            if ter.get("execution_challenges"):
+                                extracted_content["execution_challenges"] = ter["execution_challenges"]
+
+                            report_content = json.dumps(extracted_content, ensure_ascii=False, indent=2)
+                        else:
+                            # 没有 deliverable_outputs,使用整个 structured_data
+                            report_content = json.dumps(structured_data, ensure_ascii=False, indent=2)
+                    else:
+                        # 没有 task_execution_report,使用整个 structured_data
+                        report_content = json.dumps(structured_data, ensure_ascii=False, indent=2)
                 elif content:
                     report_content = content
                 else:
@@ -1600,6 +1764,39 @@ class ResultAggregatorAgent(LLMAgent):
         # 计算加权平均置信度
         return sum(confidences) / len(confidences)
     
+    def _get_expert_distribution(self, agent_results: Dict[str, Any]) -> Dict[str, int]:
+        """
+        获取专家分布统计
+        
+        Args:
+            agent_results: 专家执行结果
+            
+        Returns:
+            按专家层级（V2-V6）分类的数量统计
+        """
+        distribution = {
+            "V2_设计总监": 0,
+            "V3_领域专家": 0,
+            "V4_研究专家": 0,
+            "V5_创新专家": 0,
+            "V6_实施专家": 0,
+        }
+        
+        for role_id in agent_results.keys():
+            if isinstance(role_id, str):
+                if role_id.startswith("2-"):
+                    distribution["V2_设计总监"] += 1
+                elif role_id.startswith("3-"):
+                    distribution["V3_领域专家"] += 1
+                elif role_id.startswith("4-"):
+                    distribution["V4_研究专家"] += 1
+                elif role_id.startswith("5-"):
+                    distribution["V5_创新专家"] += 1
+                elif role_id.startswith("6-"):
+                    distribution["V6_实施专家"] += 1
+        
+        # 只返回有值的分布
+        return {k: v for k, v in distribution.items() if v > 0}
 
     def _estimate_report_pages(self, report: Dict[str, Any]) -> int:
         """估算报告页数"""
@@ -1774,6 +1971,7 @@ class ResultAggregatorAgent(LLMAgent):
             格式化的问卷数据，如果所有问题都未回答则返回 None
 
         🔧 修复: 过滤掉未回答的问题，避免前端显示"未回答"
+        🔧 v7.5 修复: 增加对 entries 中 answer 字段的支持（前端提交格式）
         """
         from datetime import datetime
 
@@ -1786,8 +1984,10 @@ class ResultAggregatorAgent(LLMAgent):
         responses = []
 
         if summary_entries:
+            logger.debug(f"🔍 [问卷提取] 从 entries 提取，共 {len(summary_entries)} 项")
             for idx, entry in enumerate(summary_entries, 1):
-                answer_value = entry.get("value")
+                # 🔧 v7.5 修复: 同时检查 value 和 answer 字段（前端提交格式兼容）
+                answer_value = entry.get("value") or entry.get("answer")
                 # 🔧 修复: 跳过未回答的问题
                 if answer_value is None or answer_value == "" or answer_value == []:
                     continue
@@ -1798,7 +1998,7 @@ class ResultAggregatorAgent(LLMAgent):
                     continue
 
                 responses.append({
-                    "question_id": entry.get("id", f"Q{idx}"),
+                    "question_id": entry.get("id") or entry.get("question_id", f"Q{idx}"),
                     "question": entry.get("question", ""),
                     "answer": answer_str,
                     "context": entry.get("context", "")
@@ -1806,6 +2006,8 @@ class ResultAggregatorAgent(LLMAgent):
         else:
             questions = calibration_questionnaire.get("questions", [])
             answers = questionnaire_responses.get("answers", {})
+            logger.debug(f"🔍 [问卷提取] 从 questions/answers 提取，{len(questions)} 问题，{len(answers)} 答案")
+            
             for idx, q in enumerate(questions, 1):
                 question_id = q.get("id", f"Q{idx}")
                 raw_answer = (
@@ -2138,12 +2340,35 @@ class ResultAggregatorAgent(LLMAgent):
         从责任者输出中提取针对特定交付物的答案
         
         优先顺序：
-        1. structured_output.task_results 中匹配 deliverable_id 的内容
-        2. structured_data 中的主要内容
-        3. analysis 或 content 字段
+        1. structured_data.task_execution_report.deliverable_outputs 中匹配的内容
+        2. structured_output.task_results 中匹配 deliverable_id 的内容
+        3. structured_data 中的主要内容
+        4. analysis 或 content 字段
+        
+        🔧 v7.6: 增强处理嵌套 JSON 字符串和重复内容
         """
         if not owner_result:
             return "暂无输出"
+        
+        # 🔧 v7.6: 优先从 structured_data.task_execution_report.deliverable_outputs 提取
+        structured_data = owner_result.get("structured_data", {})
+        if structured_data and isinstance(structured_data, dict):
+            task_execution_report = structured_data.get("task_execution_report", {})
+            if task_execution_report and isinstance(task_execution_report, dict):
+                deliverable_outputs = task_execution_report.get("deliverable_outputs", [])
+                if deliverable_outputs and isinstance(deliverable_outputs, list):
+                    for output in deliverable_outputs:
+                        if not isinstance(output, dict):
+                            continue
+                        output_name = output.get("deliverable_name", "")
+                        content = output.get("content", "")
+                        
+                        if content:
+                            # 🔧 处理嵌套 JSON 字符串（LLM 可能返回 markdown 代码块）
+                            cleaned_content = self._clean_nested_json_content(content)
+                            if cleaned_content:
+                                logger.debug(f"✅ 从 deliverable_outputs 提取内容: {output_name[:30]}")
+                                return cleaned_content
         
         # 尝试从 TaskOrientedExpertOutput 结构中提取
         structured_output = owner_result.get("structured_output", {})
@@ -2153,44 +2378,147 @@ class ResultAggregatorAgent(LLMAgent):
                 if task.get("deliverable_id") == deliverable_id:
                     content = task.get("content", "")
                     if content:
-                        return content
+                        return self._clean_nested_json_content(content)
             
             # 如果没有匹配的 deliverable_id，返回第一个 task 的内容
             if task_results:
                 first_task = task_results[0]
                 content = first_task.get("content", "")
                 if content:
-                    return content
+                    return self._clean_nested_json_content(content)
         
-        # 从 structured_data 中提取
-        structured_data = owner_result.get("structured_data", {})
+        # 从 structured_data 中提取核心输出字段
         if structured_data and isinstance(structured_data, dict):
             # 尝试提取核心输出字段
             for key in ["core_output", "deliverable_output", "main_content", "analysis_result", "recommendation"]:
                 if key in structured_data:
                     value = structured_data[key]
                     if isinstance(value, str) and value:
-                        return value
+                        return self._clean_nested_json_content(value)
                     elif isinstance(value, dict):
-                        return json.dumps(value, ensure_ascii=False, indent=2)
+                        return self._format_dict_as_readable(value)
             
-            # 如果没有特定字段，返回整个 structured_data 的 JSON 表示
-            # 但要限制长度
-            full_json = json.dumps(structured_data, ensure_ascii=False, indent=2)
-            if len(full_json) > 5000:
-                return full_json[:5000] + "\n... (内容过长，已截断)"
-            return full_json
+            # 🔧 v7.6: 不再将整个 structured_data 作为 JSON 返回
+            # 而是尝试提取有意义的内容
+            # 跳过元数据字段
+            skip_keys = {"protocol_execution", "execution_metadata", "task_completion_summary", "content"}
+            meaningful_data = {k: v for k, v in structured_data.items() if k not in skip_keys and v}
+            if meaningful_data:
+                return self._format_dict_as_readable(meaningful_data)
         
         # 回退到 analysis 或 content 字段
         analysis = owner_result.get("analysis", "")
         if analysis:
-            return analysis
+            return self._clean_nested_json_content(analysis)
         
         content = owner_result.get("content", "")
         if content:
-            return content
+            return self._clean_nested_json_content(content)
         
         return "暂无输出"
+
+    def _clean_nested_json_content(self, content: Any) -> str:
+        """
+        清理嵌套的 JSON 内容
+        
+        处理 LLM 返回的 markdown 代码块包裹的 JSON，
+        提取实际有意义的内容而不是原始 JSON 字符串
+        """
+        if not content:
+            return ""
+        
+        # 如果是字典或列表，转换为可读格式
+        if isinstance(content, (dict, list)):
+            return self._format_dict_as_readable(content)
+        
+        # 如果是字符串
+        if isinstance(content, str):
+            text = content.strip()
+            
+            # 移除 markdown 代码块包裹
+            if text.startswith("```json"):
+                text = text[7:]
+            elif text.startswith("```"):
+                text = text[3:]
+            if text.endswith("```"):
+                text = text[:-3]
+            text = text.strip()
+            
+            # 尝试解析为 JSON
+            if text.startswith("{") or text.startswith("["):
+                try:
+                    parsed = json.loads(text)
+                    # 如果解析成功，检查是否包含嵌套的 task_execution_report
+                    if isinstance(parsed, dict):
+                        # 提取有意义的内容
+                        if "task_execution_report" in parsed:
+                            ter = parsed["task_execution_report"]
+                            if isinstance(ter, dict) and "deliverable_outputs" in ter:
+                                outputs = ter["deliverable_outputs"]
+                                if outputs and isinstance(outputs, list):
+                                    # 递归提取第一个交付物的内容
+                                    first_output = outputs[0]
+                                    if isinstance(first_output, dict):
+                                        inner_content = first_output.get("content", "")
+                                        if inner_content:
+                                            return self._clean_nested_json_content(inner_content)
+                        # 格式化为可读内容
+                        return self._format_dict_as_readable(parsed)
+                    elif isinstance(parsed, list):
+                        return self._format_dict_as_readable(parsed)
+                except json.JSONDecodeError:
+                    pass
+            
+            # 返回清理后的文本
+            return text
+        
+        return str(content)
+
+    def _format_dict_as_readable(self, data: Any, indent: int = 0) -> str:
+        """
+        将字典/列表格式化为人类可读的 Markdown 格式
+        而不是原始 JSON
+        """
+        if data is None:
+            return ""
+        
+        lines = []
+        prefix = "  " * indent
+        
+        if isinstance(data, dict):
+            for key, value in data.items():
+                # 跳过元数据字段
+                if key in {"completion_status", "completion_rate", "quality_self_assessment", "notes",
+                           "protocol_status", "compliance_confirmation", "challenge_details", "reinterpretation",
+                           "confidence", "execution_time_estimate", "execution_notes", "dependencies_satisfied"}:
+                    continue
+                
+                # 格式化键名
+                readable_key = key.replace("_", " ").title()
+                
+                if isinstance(value, dict):
+                    lines.append(f"{prefix}**{readable_key}**:")
+                    lines.append(self._format_dict_as_readable(value, indent + 1))
+                elif isinstance(value, list):
+                    lines.append(f"{prefix}**{readable_key}**:")
+                    for item in value:
+                        if isinstance(item, dict):
+                            lines.append(self._format_dict_as_readable(item, indent + 1))
+                        else:
+                            lines.append(f"{prefix}  - {item}")
+                elif value:
+                    lines.append(f"{prefix}**{readable_key}**: {value}")
+        elif isinstance(data, list):
+            for item in data:
+                if isinstance(item, dict):
+                    lines.append(self._format_dict_as_readable(item, indent))
+                    lines.append("")  # 空行分隔
+                else:
+                    lines.append(f"{prefix}- {item}")
+        else:
+            lines.append(f"{prefix}{data}")
+        
+        return "\n".join(lines)
 
     def _extract_quality_score(self, owner_result: Dict[str, Any]) -> Optional[float]:
         """从专家输出中提取质量分数"""

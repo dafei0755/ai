@@ -2,6 +2,32 @@
 
 欢迎来到 `intelligent_project_analyzer` 项目！本说明专为 AI 编程助手（如 Copilot、GPT-4.1）设计，帮助你高效理解和贡献代码。
 
+## ⚠️ 重要：开发规范与稳定性保障
+
+**在修改代码前，请务必阅读以下规范文档**：
+- **[开发规范](DEVELOPMENT_RULES.md)**：代码复用、数据契约、测试要求、**LLM提示词规范**
+- **[变更检查清单](PRE_CHANGE_CHECKLIST.md)**：修改前必须完成的检查项
+
+### 核心规则速查
+
+1. **代码复用**：公共函数放 `lib/`（前端）或 `utils/`（后端），禁止重复实现
+2. **专家名称格式化**：统一使用 `lib/formatters.ts` 的 `formatExpertName`
+3. **修改前搜索**：`grep -rn "函数名" --include="*.tsx" frontend-nextjs/`
+4. **测试覆盖**：公共函数必须有单元测试
+5. **🆕 问卷/LLM相关**：修改前必读 `DEVELOPMENT_RULES.md` 第10-11章
+
+### 问卷系统专项规范（易出错区域）
+
+**修改问卷相关代码前必须检查**：
+- `llm_generator.py` 的 `_build_analysis_summary` 是否覆盖所有字段
+- `questionnaire_generator.yaml` 是否包含禁止/必须规则
+- 生成的问题是否引用用户原话关键词
+
+**已知陷阱**：
+- ❌ 字段提取不完整 → 问卷变成泛化模板
+- ❌ 提示词缺乏强制约束 → LLM 生成通用问题
+- ❌ 未验证相关性 → 问题与用户输入脱节
+
 ## 项目架构总览
 - **模块化设计**：项目分为 agents、core、services、tools、utils、report、review、workflow、interaction、frontend、api 等子模块，每个模块有独立职责。
 - **LangGraph 工作流**：核心分析流程由 `workflow/` 下的 MainWorkflow/DynamicWorkflow 组织，支持多智能体协作与动态节点。
@@ -43,6 +69,7 @@
 - `frontend/app.py`：Streamlit 主界面
 - `api/server.py`：FastAPI 服务主入口
 - `config/roles/`、`config/prompts/`：角色与提示词配置
+- **🆕 `interaction/questionnaire/`**：问卷生成核心模块（易出错）
 
 ## 代码风格与模式
 - **强类型/Pydantic**：数据结构统一用 Pydantic

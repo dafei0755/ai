@@ -80,13 +80,16 @@ class KeywordExtractor:
     }
 
     # 核心概念提取模式
+    # 🔥 v7.4.2: 简化正则模式，避免灾难性回溯
+    # 🔥 v7.4.4: 新增单引号支持，匹配更多用户输入格式
     CONCEPT_PATTERNS = [
-        r'"([^""]{2,20})"',  # 中文引号包裹的概念（左右引号配对）
-        r'"([^"]{2,20})"',  # 英文引号包裹的概念
-        r'「([^」]{2,20})」',  # 日式引号
-        r'【([^】]{2,20})】',  # 方括号
-        r'(?:具备|实现|打造|创建|设计)(?:一个)?[「"""]?([^，。,.\s""]{2,15})[」"""]?(?:的|属性|功能|特性)',  # 动词+概念
-        r'(?:要求|需要|希望)[^，。]{0,10}([^，。,.\s""]{2,15})(?:的|属性|功能)',  # 需求+概念
+        r'"([^""]{2,15})"',  # 中文引号包裹的概念（左右引号配对），限制到15
+        r'"([^"]{2,15})"',  # 英文引号包裹的概念，限制到15
+        r"'([^'']{2,15})'",  # 🆕 中文单引号（弯引号），限制到15
+        r"'([^']{2,15})'",  # 🆕 英文单引号，限制到15
+        r'「([^」]{2,15})」',  # 日式引号，限制到15
+        r'【([^】]{2,15})】',  # 方括号，限制到15
+        # 🔥 移除复杂的动词+概念模式，这些容易导致回溯
     ]
 
     @classmethod
@@ -109,26 +112,51 @@ class KeywordExtractor:
         if not user_input:
             return cls._empty_result()
 
+        # 🔥 v7.4.2: 更严格的输入验证和长度限制
+        if len(user_input) > 5000:
+            logger.warning(f"🔍 [KeywordExtractor] 输入过长 ({len(user_input)} 字符)，截断到 5000")
+            user_input = user_input[:5000]
+
+        # 🔥 v7.4.2: 限制 structured_data 中的长字段，避免正则挂起
+        if structured_data:
+            for key in ["design_challenge", "project_task", "project_overview", "character_narrative", "core_tension"]:
+                if key in structured_data and isinstance(structured_data[key], str):
+                    if len(structured_data[key]) > 300:  # 从500降到300
+                        structured_data[key] = structured_data[key][:300]
+                        logger.debug(f"🔍 [KeywordExtractor] 截断 {key} 字段到 300 字符")
+
         # 🆕 v7.4.1: 检查缓存
         cache_key = cls._generate_cache_key(user_input, structured_data)
         if cache_key in cls._cache:
-            logger.debug(f"🔍 [KeywordExtractor] 使用缓存结果 (cache_key={cache_key[:16]}...)")
+            logger.info(f"🔍 [KeywordExtractor] 使用缓存结果")
             return cls._cache[cache_key]
 
+        logger.info(f"🔍 [KeywordExtractor] 开始提取，输入长度: {len(user_input)}")
+
         # 1. 提取关键词（使用简单的词频+位置权重，避免依赖jieba）
+        logger.info("🔍 [KeywordExtractor] Step 1: 开始提取关键词...")
         keywords = cls._extract_keywords_simple(user_input)
+        logger.info(f"🔍 [KeywordExtractor] Step 1 完成: 提取了 {len(keywords)} 个关键词")
 
         # 2. 识别领域
+        logger.info("🔍 [KeywordExtractor] Step 2: 开始识别领域...")
         domain = cls._identify_domain(user_input, keywords)
+        logger.info(f"🔍 [KeywordExtractor] Step 2 完成: 领域={domain.get('label', 'unknown')}")
 
         # 3. 提取核心概念
+        logger.info("🔍 [KeywordExtractor] Step 3: 开始提取核心概念...")
         core_concepts = cls._extract_core_concepts(user_input, structured_data)
+        logger.info(f"🔍 [KeywordExtractor] Step 3 完成: 提取了 {len(core_concepts)} 个概念")
 
         # 4. 检测用户提及的约束
+        logger.info("🔍 [KeywordExtractor] Step 4: 开始检测约束...")
         mentioned_constraints = cls._detect_constraints(user_input)
+        logger.info(f"🔍 [KeywordExtractor] Step 4 完成: 检测到 {len(mentioned_constraints)} 个约束")
 
         # 5. 确定问题聚焦方向
+        logger.info("🔍 [KeywordExtractor] Step 5: 开始确定聚焦方向...")
         question_focus = cls._determine_question_focus(domain, core_concepts)
+        logger.info(f"🔍 [KeywordExtractor] Step 5 完成: {len(question_focus)} 个聚焦方向")
 
         result = {
             "keywords": keywords,
@@ -203,26 +231,32 @@ class KeywordExtractor:
         """简单关键词提取（不依赖jieba）"""
         keywords = []
 
+        # 🔥 紧急修复: 限制文本长度，避免正则表达式挂起
+        safe_text = text[:1000] if len(text) > 1000 else text  # 从2000降到1000
+        logger.debug(f"🔍 [KeywordExtractor] _extract_keywords_simple: 输入长度={len(text)}, 处理长度={len(safe_text)}")
+
         # 从所有领域关键词中匹配
         for domain_info in cls.DOMAIN_KEYWORDS.values():
             for kw in domain_info["keywords"]:
-                if kw.lower() in text.lower():
+                if kw.lower() in safe_text.lower():
                     # 权重：出现位置越靠前权重越高
-                    pos = text.lower().find(kw.lower())
-                    weight = 1.0 - (pos / len(text)) * 0.5
+                    pos = safe_text.lower().find(kw.lower())
+                    weight = 1.0 - (pos / len(safe_text)) * 0.5
                     keywords.append((kw, weight))
 
         # 提取引号内的词作为高权重关键词
+        # 🔥 v7.4.2: 使用更安全的正则模式，避免灾难性回溯
         quoted_patterns = [
-            r'"([^""]{2,20})"',  # 中文引号（左右配对）
-            r'"([^"]{2,20})"',   # 英文引号
-            r'「([^」]{2,20})」',  # 日式引号
-            r'【([^】]{2,20})】'   # 方括号
+            r'"([^""]{2,15})"',  # 中文引号（左右配对），限制长度到15
+            r'"([^"]{2,15})"',   # 英文引号，限制长度到15
+            r'「([^」]{2,15})」',  # 日式引号，限制长度到15
+            r'【([^】]{2,15})】'   # 方括号，限制长度到15
         ]
         for pattern in quoted_patterns:
             try:
-                matches = re.findall(pattern, text)
-                for match in matches:
+                # 🔥 v7.4.2: 限制匹配次数，避免过多匹配导致性能问题
+                matches = re.findall(pattern, safe_text[:500])  # 只在前500字符中匹配
+                for match in matches[:10]:  # 最多取10个匹配
                     # 清理匹配结果，去除残留引号
                     clean_match = match.strip().strip('"').strip('"').strip('"')
                     if clean_match and len(clean_match) >= 2 and clean_match not in [k[0] for k in keywords]:
@@ -243,13 +277,18 @@ class KeywordExtractor:
         """识别项目领域"""
         domain_scores = {}
 
+        # 🔥 v7.4.2: 更严格的限制
+        safe_text = text[:1000] if len(text) > 1000 else text  # 从2000降到1000
+
         for domain_type, domain_info in cls.DOMAIN_KEYWORDS.items():
             score = 0
             matched_keywords = []
             for kw in domain_info["keywords"]:
-                if kw.lower() in text.lower():
+                if kw.lower() in safe_text.lower():
                     score += 1
                     matched_keywords.append(kw)
+                    if len(matched_keywords) >= 10:  # 🔥 v7.4.2: 限制匹配数量
+                        break
 
             if score > 0:
                 domain_scores[domain_type] = {
@@ -280,10 +319,13 @@ class KeywordExtractor:
         concepts = []
 
         # 从正则模式提取
+        # 🔥 v7.4.2: 更严格的限制，避免正则表达式挂起
+        safe_text = text[:500] if len(text) > 500 else text  # 从1000降到500
         for pattern in cls.CONCEPT_PATTERNS:
             try:
-                matches = re.findall(pattern, text)
-                concepts.extend(matches)
+                # 🔥 v7.4.2: 限制匹配次数
+                matches = re.findall(pattern, safe_text)
+                concepts.extend(matches[:5])  # 每个模式最多取5个
             except re.error as e:
                 logger.warning(f"⚠️ Regex error in concept extraction (pattern: {pattern[:50]}...): {e}")
                 continue
@@ -295,27 +337,48 @@ class KeywordExtractor:
         if structured_data:
             # 从 design_challenge 提取
             design_challenge = structured_data.get("design_challenge", "")
-            if design_challenge:
-                # 提取 [xxx] 格式的概念
-                bracket_matches = re.findall(r'\[([^\]]{2,20})\]', design_challenge)
-                concepts.extend(bracket_matches)
+            if design_challenge and isinstance(design_challenge, str):
+                # 🔥 v7.4.2: 更严格的限制
+                safe_challenge = design_challenge[:300] if len(design_challenge) > 300 else design_challenge
+                try:
+                    # 🔥 v7.4.2: 使用更安全的正则，限制长度
+                    bracket_matches = re.findall(r'\[([^\]]{2,15})\]', safe_challenge)
+                    concepts.extend(bracket_matches[:5])  # 最多取5个
+                except Exception as e:
+                    logger.warning(f"⚠️ Error extracting from design_challenge: {e}")
 
             # 从 project_task 提取
             project_task = structured_data.get("project_task", "")
-            if project_task:
-                bracket_matches = re.findall(r'\[([^\]]{2,20})\]', project_task)
-                concepts.extend(bracket_matches)
+            if project_task and isinstance(project_task, str):
+                # 🔥 v7.4.2: 更严格的限制
+                safe_task = project_task[:300] if len(project_task) > 300 else project_task
+                try:
+                    # 🔥 v7.4.2: 使用更安全的正则，限制长度
+                    bracket_matches = re.findall(r'\[([^\]]{2,15})\]', safe_task)
+                    concepts.extend(bracket_matches[:5])  # 最多取5个
+                except Exception as e:
+                    logger.warning(f"⚠️ Error extracting from project_task: {e}")
 
         # 去重并保持顺序，清理残留引号
         seen = set()
         unique_concepts = []
-        for c in concepts:
+        
+        # 🔥 v7.4.4: 黑名单 - 过滤掉系统生成的标题/提示文本
+        blacklist = {
+            "用户需求描述", "附件材料", "附件", "说明", "摘要", "内容", 
+            "背景资料", "参考信息", "明确要求", "背景信息", "项目背景",
+            "需求描述", "详细需求", "具体需求", "基本需求", "核心需求"
+        }
+        
+        for c in concepts[:20]:  # 🔥 v7.4.2: 限制处理数量
             # 清理残留引号和空白
             c_clean = c.strip().strip('"').strip('"').strip('"').strip('「').strip('」').strip()
             # 过滤无效概念
             if (c_clean
                 and c_clean not in seen
+                and c_clean not in blacklist  # 🔥 v7.4.4: 过滤黑名单词汇
                 and len(c_clean) >= 2
+                and len(c_clean) <= 20  # 🔥 v7.4.2: 添加最大长度限制
                 and not c_clean.endswith('"')  # 排除不完整的引号
                 and not c_clean.startswith('"')):
                 seen.add(c_clean)

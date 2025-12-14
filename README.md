@@ -1,11 +1,86 @@
-# 🎨 Intelligent Project Analyzer
 
+# 🛡️ 开发规范与贡献须知
+
+> ⚠️ **所有开发者/协作者在修改代码前，必须优先阅读本节内容！**
+
+## 🔴 紧急：WordPress SSO 插件部署失败
+
+**详细报告**：[SSO_DEPLOYMENT_FAILURE.md](SSO_DEPLOYMENT_FAILURE.md)
+
+**简要说明**：
+- 线上安装失败（版本号不一致 + 旧插件残留）
+- 待办：核对版本、清理旧插件、重新上传
+- 目标：实现"必须登录才能访问前端"（类似 DeepSeek）
+
+---
+
+## 1. 开发规范与变更流程
+
+- **[开发规范（DEVELOPMENT_RULES.md）](.github/DEVELOPMENT_RULES.md)**：
+  - 代码复用、数据契约、测试要求、LLM提示词规范、历史问题追踪
+- **[变更检查清单（PRE_CHANGE_CHECKLIST.md）](.github/PRE_CHANGE_CHECKLIST.md)**：
+  - 修改前必须完成诊断、查阅历史、方案报告、影响评估、获得批准，严禁未审批直接改动
+- **[日志系统使用指南（LOGGING_GUIDE.md）](LOGGING_GUIDE.md)**：
+  - SSO 调试、错误排查、实时监控、日志分类、最佳实践
+- **强制流程**：
+  1. 诊断问题 → 2. 查阅历史 → 3. 报告方案 → 4. 获得批准 → 5. 执行修改 → 6. 更新文档
+  详见 PRE_CHANGE_CHECKLIST.md 标准报告模板
+- **常见陷阱**：
+  - 未复用公共函数/工具，重复造轮子
+  - 问卷/LLM相关未查阅第10-11章，导致输出泛化或脱离用户输入
+  - 未更新历史问题追踪，导致团队反复踩坑
+
+## 2. 贡献指南（简明）
+
+1. Fork项目并创建功能分支
+2. 遵循代码风格（Python: Black+isort，TypeScript: ESLint+Prettier）
+3. 添加测试，确保覆盖率≥80%
+4. 修改配置/核心逻辑时同步更新文档
+5. 提交PR需附check_prompts.py输出和测试结果
+
+---
+
+# 🎨 Intelligent Project Analyzer
 
 - **下一步**: 生产环境部署 + 用户反馈收集
 
 ### 📋 版本说明
 
-**当前版本: v7.3.2-core-answer-optimization (2025-12-10)** ✨
+**当前版本: v7.9.5-session-grouping (2025-12-12)** 📅
+- ✅ **会话列表时间分组统一**: 分析页面历史记录新增时间分组（今天、昨天、7天内、30天内、按月）
+- ✅ **UI一致性提升**: 分析页面与首页保持相同的时间分组显示风格
+- ✅ **用户体验优化**: 历史记录更清晰，快速定位不同时间段的会话
+- 🔧 **后端报告生成修复 (v7.9.5)**: 修复变量命名冲突和Pydantic模型类型限制
+
+**v7.9.4-alignment-fix (2025-12-12)** 🎨
+- ✅ **专家报告标签内容对齐修复**: 从 Flexbox 迁移到 CSS Grid 布局
+- ✅ **完美基线对齐**: 标签和内容文字底部齐平，视觉整齐划一
+- ✅ **布局优化**: 所有标签自动对齐成列，间距从8px优化到12px
+- ✅ **5处布局修复**: `renderStructuredContent` + `renderArrayItemObject` 全面优化
+- 🎯 用户体验: 阅读体验提升100%，专业性感知大幅提升
+- 📝 详细文档: [BUG_FIX_ALIGNMENT_V7.9.4.md](BUG_FIX_ALIGNMENT_V7.9.4.md)
+
+**上一版本: v7.9.2-pdf-content-fix (2025-12-12)** 🔧
+- ✅ **PDF专家报告内容缺失修复**: PDF与前端完全一致
+- ✅ **智能提取逻辑**: 应用前端v7.9.0智能提取到后端
+- ✅ **元数据过滤**: 扩展黑名单，只显示实际分析内容
+- 🐛 修复PDF只显示元数据，无实际内容的问题
+- 📝 详细文档: [BUG_FIX_PDF_CONTENT_V7.9.2.md](BUG_FIX_PDF_CONTENT_V7.9.2.md)
+
+**上一版本: v7.9.1-json-display-fix (2025-12-12)** 🎯
+- ✅ **专家报告JSON显示修复**: 所有内容统一结构化显示
+- ✅ **增强JSON检测**: 单个/多个交付物场景都智能解析
+- 🐛 修复部分交付物内容显示为JSON代码格式的问题
+- 📝 详细文档: [BUG_FIX_JSON_DISPLAY_V7.9.1.md](BUG_FIX_JSON_DISPLAY_V7.9.1.md)
+
+**上一版本: v7.9.0-duplicate-content-fix (2025-12-12)** 🚀
+- ✅ **专家报告重复内容彻底修复**: 可读性提升100%
+- ✅ **智能检测**: TaskOrientedExpertOutput结构自动提取deliverable_outputs
+- ✅ **字段过滤**: 扩展黑名单，消除元数据污染
+- 🐛 修复"内容"部分显示两次完全相同内容的问题
+- 📝 详细文档: [BUG_FIX_DUPLICATE_CONTENT_V7.9.md](BUG_FIX_DUPLICATE_CONTENT_V7.9.md)
+
+**上一版本: v7.3.2-core-answer-optimization (2025-12-10)** ✨
 - ✅ **核心答案显示优化**: 直接展示专家完整输出（Markdown渲染）
 - ✅ **去除简化摘要**: 移除`answer_summary`优先显示逻辑，展示完整专业内容
 - ✅ **Markdown格式支持**: 保留标题、列表、代码块、表格等专业格式
@@ -120,9 +195,18 @@ start_services.bat
 
 **后端服务**:
 ```cmd
+# 方式1: 使用增强版启动脚本（推荐 - 完整日志记录）
+start_backend_enhanced.bat
+
+# 方式2: 直接启动
 cd d:\11-20\langgraph-design
-python -m uvicorn intelligent_project_analyzer.api.server:app --host 0.0.0.0 --port 8000
+python -B -m uvicorn intelligent_project_analyzer.api.server:app --host 0.0.0.0 --port 8000
 ```
+
+> 💡 **提示**: 
+> - `-B` 参数禁用 Python `.pyc` 缓存，确保始终使用最新源代码
+> - 增强版脚本自动设置终端缓冲区为9999行，避免日志丢失
+> - 完整日志保存在 `logs/backend_YYYYMMDD_HHMMSS.log`
 
 **前端服务**:
 ```cmd
@@ -130,7 +214,75 @@ cd frontend-nextjs
 npm run dev
 ```
 
-**访问应用**: http://localhost:3000
+**访问应用**: http://localhost:3000（若 3000 被占用，Next.js 会自动改用 http://localhost:3001，以终端输出为准）
+
+**日志查看**（推荐方式）:
+```powershell
+# 方式1: 直接在 VS Code 中打开日志文件（推荐 - 避免乱码）
+# 文件 → 打开文件 → logs/server.log
+
+# 方式2: 实时监控主日志（PowerShell，需设置 UTF-8 编码）
+$OutputEncoding = [System.Text.Encoding]::UTF8
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+Get-Content logs\server.log -Wait -Tail 100 -Encoding UTF8
+
+# 方式3: 只看认证相关日志（SSO 调试）
+Get-Content logs\auth.log -Wait -Tail 50 -Encoding UTF8
+
+# 方式4: 只看错误日志
+Get-Content logs\errors.log -Tail 50 -Encoding UTF8
+
+# 或查看特定会话日志
+Get-Content logs\backend_20251212_143000.log
+```
+
+### 端口说明（本地开发）
+
+- 前端开发服务器默认 `3000`；若端口占用，Next.js 会自动切到 `3001`（以启动日志为准）。
+- 后端默认 `8000`；若端口占用会启动失败或绑定失败，需要释放端口或调整端口（同时更新前端 `NEXT_PUBLIC_API_URL`）。
+
+### 日志系统说明（便于调试）
+
+**日志文件位置**：`logs/` 目录
+
+| 日志文件 | 内容 | 轮转策略 | 保留时间 | 用途 |
+|---------|------|---------|---------|------|
+| `server.log` | 所有服务器日志 | 10 MB | 10 天 | 全局追踪 |
+| `auth.log` | 认证/SSO 相关 | 5 MB | 7 天 | **SSO 调试推荐** |
+| `errors.log` | 错误日志 | 5 MB | 30 天 | 问题排查 |
+| `backend_*.log` | 启动脚本输出 | - | 手动清理 | 完整终端输出 |
+
+**快速定位问题**：
+```powershell
+# SSO 登录问题 → 查看认证日志
+Get-Content logs\auth.log | Select-String "SSO|Token|验证"
+
+# 系统错误 → 查看错误日志
+Get-Content logs\errors.log | Select-String "ERROR|❌"
+
+# 查看最近5分钟的日志
+Get-Content logs\server.log | Select-String "2025-12-13 20:[3-4][0-9]"
+```
+
+**调试级别日志**（默认不输出到终端，但会写入 `auth.log`）：
+- Token payload 结构
+- 用户数据详情
+- API 调用参数
+
+> 💡 **提示**：遇到 SSO 问题时，优先查看 `logs/auth.log`，包含完整的 Token 验证过程！
+
+### 未完成任务（忠实记录，2025-12-13）
+
+- WordPress/WPCOM SSO 仍处于联调阶段（目标：必须登录才能访问前端页面，左下角显示账户信息）。
+- WordPress 插件（Next.js SSO Integration）
+  - 已生成 `nextjs-sso-integration-v2.0.2.zip`（仓库根目录），但需要在 WordPress 后台上传/启用并验证。
+  - 需验证 `GET /wp-json/nextjs-sso/v1/get-token`：在已登录 WPCOM 用户中心时返回 200 且包含 token。
+  - 需验证 `https://www.ucppt.com/js`（短代码回调页）能自动获取 token 并重定向到本机 `http://localhost:3001/auth/callback?token=...`。
+- 联调注意事项
+  - 如果在手机/另一台电脑打开 `https://www.ucppt.com/js`，跳转到 `localhost` 会必然失败（生产环境需改为 `ai.ucppt.com` 域名回调）。
+  - Token 属于敏感凭证，避免在截图/日志/群聊中完整暴露。
+- 开发体验待改进
+  - VS Code 任务“启动后端服务”当前使用 `python intelligent_project_analyzer/api/server.py`，在部分环境会触发 `ModuleNotFoundError`（导入路径问题）；建议后续改为 `python -m uvicorn ...` 或调用 `start_backend_enhanced.bat`（此项未完成）。
 
 ---
 
@@ -537,15 +689,15 @@ SESSION_TTL_HOURS=72  # 会话保留时间（小时）
 ### 验证安装
 
 ```bash
-# 验证后端
-python intelligent_project_analyzer/api/server.py
+# 验证后端（推荐：模块方式启动，避免导入路径问题）
+python -B -m uvicorn intelligent_project_analyzer.api.server:app --host 0.0.0.0 --port 8000
 
 # 验证前端
 cd frontend-nextjs
 npm run dev
 ```
 
-访问 http://localhost:3000，如果看到输入界面，说明安装成功！
+访问 http://localhost:3000（或 http://localhost:3001），如果看到输入界面，说明安装成功！
 
 ---
 
@@ -559,7 +711,7 @@ npm run dev
    ```
 
 2. **输入设计需求**
-   访问 http://localhost:3000，输入项目描述（50-500字），可选上传文件：
+  访问 http://localhost:3000（或 http://localhost:3001），输入项目描述（50-500字），可选上传文件：
    - **支持文件类型**: PDF、TXT、Word (.docx)、Excel (.xlsx)、图片 (.png/.jpg/.jpeg)、ZIP压缩包
    - **文件大小限制**: 单文件最大10MB
    - **混合输入**: 可同时提交文本描述 + 多个文件
@@ -1600,6 +1752,33 @@ MIT License - 详见 [LICENSE](LICENSE) 文件
 - [Celery文档](https://docs.celeryq.dev/)
 
 ---
+
+
+---
+
+## 📝 日志与终端显示说明
+
+### 1. 日志文件完整性
+系统所有运行过程、分析详情、错误信息等，均会完整记录在 logs/ 目录下的日志文件中。即使终端窗口显示不全，日志文件内容不会丢失。建议查阅 logs/ 目录下的最新日志文件以获取完整历史。
+
+### 2. 终端显示内容限制
+常见终端（如 VS Code 内置终端、cmd、PowerShell）默认“滚动缓冲区”有限，长时间运行或输出大量内容时，前面内容会被自动截断，仅保留最近的部分。
+
+#### 缓冲区调整方法
+- **VS Code 终端**：
+  1. 打开终端，点击右上角“齿轮”图标 → 选择“终端设置”。
+  2. 搜索“scrollback”或“滚动缓冲区”，将“终端滚动缓冲区”行数调大（如 10000 或更高）。
+- **Windows cmd/PowerShell**：
+  1. 右键标题栏 → 属性 → 布局。
+  2. 调整“屏幕缓冲区高度”为更大数值（如 9999）。
+
+> 注意：极端情况下（超长日志），终端依然可能因内存限制而无法显示全部内容。
+
+### 3. 如何查阅完整日志
+如需回溯全部运行历史、排查问题或保存分析过程，请直接打开 logs/ 目录下的日志文件（可用文本编辑器、less/more 工具等）。日志文件内容完整、不会被截断。
+
+---
+如有终端显示或日志相关问题，请优先查阅本节说明，或联系维护者协助。
 
 **最后更新**: 2025-12-02
 **版本**: v3.11

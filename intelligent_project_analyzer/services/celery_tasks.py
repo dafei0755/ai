@@ -205,10 +205,15 @@ async def _run_workflow(
                     }
                 
                 # 更新进度
-                progress = node_progress_map.get(node_name, 0.5)
+                new_progress = node_progress_map.get(node_name, 0.5)
                 detail = ""
                 if isinstance(node_output, dict):
                     detail = node_output.get("detail", node_output.get("current_stage", ""))
+                
+                # 🔥 防止进度回退：获取当前进度并取最大值
+                current_data = await session_manager.get(session_id)
+                old_progress = current_data.get("progress", 0) if current_data else 0
+                progress = max(new_progress, old_progress if isinstance(old_progress, (int, float)) else 0)
                 
                 await session_manager.update(session_id, {
                     "progress": progress,

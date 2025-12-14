@@ -231,7 +231,7 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         rehypePlugins={[rehypeRaw, rehypeSanitize]}
-        components={components}
+        components={components as any}
       >
         {processedContent}
       </ReactMarkdown>

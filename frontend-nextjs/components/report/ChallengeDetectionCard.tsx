@@ -28,6 +28,9 @@ const DECISION_MAP: Record<string, { label: string; color: string }> = {
   'pending': { label: '待处理', color: 'text-gray-400' },
 };
 
+// 🔥 v7.6: 使用统一的格式化函数
+import { formatExpertName } from '@/lib/formatters';
+
 const ChallengeItemCard: FC<{ challenge: ChallengeItem; index: number }> = ({ challenge, index }) => {
   const [expanded, setExpanded] = useState(false);
   const isMustFix = challenge.severity === 'must-fix';
@@ -84,7 +87,7 @@ const ChallengeItemCard: FC<{ challenge: ChallengeItem; index: number }> = ({ ch
             {/* 专家信息 */}
             <div className="flex items-center gap-1.5 mt-1.5 text-xs text-gray-500">
               <User className="w-3 h-3" />
-              <span>{challenge.expert_name || challenge.expert_id}</span>
+              <span>{formatExpertName(challenge.expert_name || challenge.expert_id)}</span>
             </div>
           </div>
         </div>

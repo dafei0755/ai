@@ -89,35 +89,54 @@ class FallbackQuestionGenerator:
         tension_a = ""
         tension_b = ""
 
+        # 🔥 v7.4.4: 过滤无效的核心概念（系统生成的标题等）
+        valid_concepts = [c for c in core_concepts if c and c not in {
+            "用户需求描述", "附件材料", "附件", "说明", "摘要", "内容", 
+            "背景资料", "参考信息", "明确要求", "背景信息", "项目背景"
+        }]
+
         # 方法1: 从核心概念中提取对立面
-        if len(core_concepts) >= 2:
+        if len(valid_concepts) >= 2:
             # 尝试识别对立概念
-            tension_a = core_concepts[0]
-            tension_b = core_concepts[1] if len(core_concepts) > 1 else ""
+            tension_a = valid_concepts[0]
+            tension_b = valid_concepts[1]
             logger.info(f"[Fallback补齐] 从核心概念提取矛盾: \"{tension_a}\" vs \"{tension_b}\"")
 
         # 方法2: 从design_challenge中提取（原有逻辑）
         if not tension_a or not tension_b:
             if design_challenge:
-                # 模式1: "A"...与..."B" 格式（中文引号）
-                # 🔧 修复: 移除错误的 ? 语法，使用正确的非贪婪匹配
+                # 模式1: "A"...与..."B" 格式（中文双引号）
                 match = re.search(r'"([^"]{2,30})"[^"]{0,50}与[^"]{0,50}"([^"]{2,30})"', design_challenge)
                 if match:
                     tension_a = match.group(1).strip()
                     tension_b = match.group(2).strip()
-                    logger.info(f"[Fallback补齐] 从design_challenge提取核心矛盾: \"{tension_a}\" vs \"{tension_b}\"")
+                    logger.info(f"[Fallback补齐] 从design_challenge提取核心矛盾(双引号): \"{tension_a}\" vs \"{tension_b}\"")
                 else:
-                    # 模式2: A vs B 或 A与其对B 格式
-                    match = re.search(r'(.{5,30}?)[的需求]*(?:vs|与其对)(.{5,30}?)[的需求]*', design_challenge)
+                    # 🆕 模式1b: 'A'...与...'B' 格式（中文单引号/英文单引号）
+                    match = re.search(r"'([^']{2,30})'[^']{0,50}与[^']{0,50}'([^']{2,30})'", design_challenge)
                     if match:
                         tension_a = match.group(1).strip()
                         tension_b = match.group(2).strip()
-                        logger.info(f"[Fallback补齐] 提取核心矛盾(模式2): {tension_a} vs {tension_b}")
+                        logger.info(f"[Fallback补齐] 从design_challenge提取核心矛盾(单引号): \"{tension_a}\" vs \"{tension_b}\"")
+                    else:
+                        # 模式2: A vs B 或 A与其对B 格式
+                        match = re.search(r'(.{5,30}?)[的需求]*(?:vs|与其对)(.{5,30}?)[的需求]*', design_challenge)
+                        if match:
+                            tension_a = match.group(1).strip()
+                            tension_b = match.group(2).strip()
+                            logger.info(f"[Fallback补齐] 提取核心矛盾(模式2): {tension_a} vs {tension_b}")
 
         # 方法3: 从用户输入中提取引号内容
         if not tension_a or not tension_b:
             if user_input:
+                # 🆕 v7.4.4: 支持多种引号格式
+                # 优先尝试中文双引号
                 quoted_matches = re.findall(r'"([^"]{2,20})"', user_input)
+                # 如果没有，尝试单引号
+                if len(quoted_matches) < 2:
+                    single_matches = re.findall(r"'([^']{2,20})'", user_input)
+                    quoted_matches.extend(single_matches)
+                
                 if len(quoted_matches) >= 2:
                     tension_a = quoted_matches[0]
                     tension_b = quoted_matches[1]
@@ -155,9 +174,9 @@ class FallbackQuestionGenerator:
         # === 单选题部分（2-3个）===
 
         # 🆕 v7.4: 科技创新领域专用问题
-        if is_tech and core_concepts:
+        if is_tech and valid_concepts:
             # 科技领域：核心概念实现路径
-            primary_concept = core_concepts[0] if core_concepts else "核心功能"
+            primary_concept = valid_concepts[0] if valid_concepts else "核心功能"
             questions.append({
                 "id": "tech_core_concept",
                 "question": f"对于'{primary_concept}'的实现，您更看重？(单选)",
@@ -216,18 +235,44 @@ class FallbackQuestionGenerator:
                 ]
             })
         else:
-            # 兜底：通用但有洞察力的核心选择题
-            questions.append({
-                "id": "orientation_preference",
-                "question": f"在当前的{type_label}中，我们在『身份表达』与『身体体验』之间应优先满足哪一端？(单选)",
-                "context": "帮助确定战略焦点：是打造令人惊艳的首因效应，还是提升日常使用时的细腻体验。",
-                "type": "single_choice",
-                "options": [
-                    "优先强化空间的表现力与叙事张力",
-                    "优先确保日常动线、舒适度与可维护性",
-                    "寻求两者之间的平衡，通过策略分区实现"
-                ]
-            })
+            # 🆕 v7.5: 优化兜底问题，使用更具体的设计维度
+            # 根据项目类型选择不同的核心问题
+            if is_residential:
+                questions.append({
+                    "id": "residential_priority",
+                    "question": f"在这个{type_label}项目中，您更看重哪个方面？(单选)",
+                    "context": "帮助我们确定设计的核心出发点：实用功能还是生活氛围。",
+                    "type": "single_choice",
+                    "options": [
+                        "功能实用性：收纳充足、动线合理、使用便捷",
+                        "生活氛围感：光影变化、空间层次、情感温度",
+                        "两者平衡：在实用基础上追求氛围感"
+                    ]
+                })
+            elif is_commercial:
+                questions.append({
+                    "id": "commercial_priority",
+                    "question": f"在这个{type_label}项目中，您更看重哪个方面？(单选)",
+                    "context": "帮助我们确定设计的核心出发点：运营效率还是品牌体验。",
+                    "type": "single_choice",
+                    "options": [
+                        "运营效率：坪效最大化、动线优化、维护便捷",
+                        "品牌体验：第一印象、情感连接、记忆点塑造",
+                        "两者平衡：在保证效率基础上打造独特体验"
+                    ]
+                })
+            else:
+                questions.append({
+                    "id": "general_priority",
+                    "question": f"在这个{type_label}项目中，您更看重哪个方面？(单选)",
+                    "context": "帮助我们确定设计的核心出发点：功能需求还是空间体验。",
+                    "type": "single_choice",
+                    "options": [
+                        "功能优先：满足所有使用需求，确保空间效率",
+                        "体验优先：打造独特的空间感受和氛围",
+                        "两者平衡：在满足功能基础上追求体验升级"
+                    ]
+                })
 
         # 单选题2: 资源分配策略（基于resource_constraints）
         if resource_constraints:
@@ -325,17 +370,18 @@ class FallbackQuestionGenerator:
                 ]
             })
         else:
+            # 🆕 v7.5: 优化通用多选题，使用更具体的功能维度
             questions.append({
-                "id": "must_have_capabilities",
-                "question": "以下哪些能力是该空间必须具备的？(多选)",
-                "context": "用于识别后续专家协作中必须保障的基础能力。",
+                "id": "general_experience",
+                "question": "在日常使用中，以下哪些体验对您最重要？(多选)",
+                "context": "帮助我们确定设计在感官和功能层面的侧重点。",
                 "type": "multiple_choice",
                 "options": [
-                    "支持不同场景的灯光/声学切换",
-                    "为潮玩/藏品提供可更换的展示体系",
-                    "具备可快速恢复的派对或社交布置",
-                    "提供可完全隐身的私人冥想/疗愈角落",
-                    "强化玄关/公共区域的尊贵迎宾动线"
+                    "采光与通风：自然光充足、空气流通",
+                    "视觉舒适度：色彩搭配、材质质感",
+                    "声学环境：安静或适度的背景音",
+                    "空间灵活性：可适应不同使用场景",
+                    "易维护性：清洁方便、耐用持久"
                 ]
             })
 
@@ -369,17 +415,18 @@ class FallbackQuestionGenerator:
                 ]
             })
         else:
+            # 🆕 v7.5: 优化通用功能优先级题，使用更具体的表达
             questions.append({
                 "id": "space_allocation",
                 "question": "在空间分配上，以下哪些区域是必须保证的？(多选)",
-                "context": "帮助我们理解空间使用的核心需求。",
+                "context": "帮助我们理解空间使用的核心需求，确保关键功能不被压缩。",
                 "type": "multiple_choice",
                 "options": [
-                    "核心功能区",
-                    "辅助支持区",
-                    "社交互动区",
-                    "私密独处区",
-                    "灵活多用区"
+                    "主要活动区：日常使用最频繁的核心空间",
+                    "储物收纳区：保证物品有处可放",
+                    "工作/学习区：需要专注的独立空间",
+                    "休息放松区：身心恢复的舒适空间",
+                    "社交接待区：可以招待朋友/客户的场所"
                 ]
             })
 
@@ -401,8 +448,8 @@ class FallbackQuestionGenerator:
         # === 开放题部分（2个）===
 
         # 🆕 v7.4: 科技领域专用开放题
-        if is_tech and core_concepts:
-            primary_concept = core_concepts[0] if core_concepts else "核心功能"
+        if is_tech and valid_concepts:
+            primary_concept = valid_concepts[0] if valid_concepts else "核心功能"
             questions.append({
                 "id": "tech_ideal_scenario",
                 "question": f"描述一个理想的'{primary_concept}'应用场景：什么触发了空间调整？调整了什么？员工感受如何？(开放题)",
@@ -627,9 +674,10 @@ class PhilosophyQuestionGenerator:
             logger.debug("🔍 [TRACE] 处理 design_challenge...")
             # 提取核心矛盾 (格式: 作为[身份]的[需求A]与[需求B]的对立)
             # 限制正则匹配的字符串长度，避免潜在的性能问题
-            safe_challenge = design_challenge[:2000] if len(design_challenge) > 2000 else design_challenge
-            # 🔧 修复: 使用非贪婪匹配和长度限制，避免灾难性回溯
-            match = re.search(r'作为\[([^\]]{1,50}?)\]的\[([^\]]{1,50}?)\]与\[([^\]]{1,50}?)\]', safe_challenge)
+            safe_challenge = design_challenge[:500] if len(design_challenge) > 500 else design_challenge
+            # 🔧 修复: 使用更简单的正则，避免灾难性回溯
+            # 🔥 紧急修复: 改用贪婪匹配 + 更短的限制，避免挂起
+            match = re.search(r'作为\[([^\]]{1,30})\]的\[([^\]]{1,30})\]与\[([^\]]{1,30})\]', safe_challenge)
             logger.debug(f"🔍 [TRACE] 正则匹配完成: match={bool(match)}")
             if match:
                 identity = match.group(1)

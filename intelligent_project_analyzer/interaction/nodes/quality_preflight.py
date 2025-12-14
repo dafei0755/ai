@@ -98,7 +98,21 @@ class QualityPreflightNode:
             for i, role_id in enumerate(active_agents, 1):
                 role_info = role_info_map.get(role_id, {})
                 dynamic_name = role_info.get("dynamic_role_name", role_info.get("role_name", role_id))
-                tasks = role_info.get("assigned_tasks", [])
+                
+                # 🔧 修复: 从 task_instruction.deliverables 提取任务
+                # RoleObject.model_dump() 后，tasks 作为 @property 不会被序列化
+                # 需要从 task_instruction.deliverables 中提取
+                tasks = []
+                task_instruction = role_info.get("task_instruction", {})
+                if isinstance(task_instruction, dict):
+                    deliverables = task_instruction.get("deliverables", [])
+                    tasks = [
+                        f"【{d.get('name', '')}】{d.get('description', '')}"
+                        for d in deliverables if isinstance(d, dict)
+                    ]
+                # 兼容旧格式: assigned_tasks
+                if not tasks:
+                    tasks = role_info.get("assigned_tasks", [])
 
                 evaluation_tasks.append({
                     "index": i,
@@ -263,9 +277,24 @@ class QualityPreflightNode:
 3. 重点关注：需求模糊、数据缺失、主观臆断、工具不足
 """
 
-            # 🚀 P1优化：使用异步LLM调用
-            llm = self.llm_factory.create_llm(temperature=0.3)
-            response = await llm.ainvoke(prompt)
+            # 🚀 P1优化：使用异步LLM调用，增加重试机制
+            import asyncio
+            max_retries = 2
+            last_error = None
+            
+            for attempt in range(max_retries + 1):
+                try:
+                    llm = self.llm_factory.create_llm(temperature=0.3)
+                    response = await llm.ainvoke(prompt)
+                    break  # 成功则跳出循环
+                except Exception as e:
+                    last_error = e
+                    if attempt < max_retries:
+                        wait_time = (attempt + 1) * 2  # 2秒, 4秒
+                        logger.warning(f"⚠️ LLM调用失败 (尝试 {attempt + 1}/{max_retries + 1}): {e}, {wait_time}秒后重试...")
+                        await asyncio.sleep(wait_time)
+                    else:
+                        raise last_error
             
             # 解析响应
             import json

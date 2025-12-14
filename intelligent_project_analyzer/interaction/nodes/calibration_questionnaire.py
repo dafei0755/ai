@@ -301,6 +301,9 @@ class CalibrationQuestionnaireNode:
 
         logger.info(f"📊 分析结果字段: {list(structured_data.keys())}")
 
+        # 🔥 v7.4.3: 获取 user_input（在所有代码块之前定义，确保全局可用）
+        user_input = state.get("user_input", "")
+
         # 🆕 v7.3: 新架构 - 问卷动态生成逻辑
         # 优先使用基于分析结果的动态生成，而非依赖预生成问卷
         questionnaire = None
@@ -318,29 +321,68 @@ class CalibrationQuestionnaireNode:
 
         # Step 2: 如果没有预生成问卷，或标记为需要重新生成，则动态生成
         if not questionnaire or not questionnaire.get("questions"):
-            logger.info("🚀 v7.4新架构：基于深度分析结果 + 智能关键词提取动态生成问卷")
+            logger.info("🚀 v7.5新架构：LLM驱动的智能问卷生成（提升问题与用户需求的结合度）")
 
-            # 🆕 v7.4: 智能提取关键信息
-            from ..questionnaire.context import KeywordExtractor
-            extracted_info = KeywordExtractor.extract(user_input, structured_data)
+            # 🆕 v7.5: 优先使用 LLM 驱动的问卷生成
+            # LLM 能够深度理解用户意图，生成更有针对性的问题
+            try:
+                from ..questionnaire.llm_generator import LLMQuestionGenerator
+                
+                logger.info("🤖 [v7.5] 尝试使用 LLM 生成问卷...")
+                base_questions, generation_method = LLMQuestionGenerator.generate(
+                    user_input=user_input,
+                    structured_data=structured_data,
+                    llm_model=None,  # 使用默认LLM实例
+                    timeout=30
+                )
+                
+                if base_questions and generation_method == "llm_generated":
+                    logger.info(f"✅ [v7.5] LLM生成成功：{len(base_questions)} 个定制问题")
+                    questionnaire = {
+                        "introduction": "以下问题基于您的具体需求定制，旨在深入理解您的期望和偏好",
+                        "questions": base_questions,
+                        "note": "这些问题直接针对您提到的具体内容，帮助我们提供更精准的设计建议",
+                        "source": "llm_generated",
+                        "generation_method": "llm_driven"
+                    }
+                    generation_source = "llm_generated"
+                else:
+                    logger.warning(f"⚠️ [v7.5] LLM生成返回回退方案，将使用规则生成")
+                    raise Exception("LLM返回回退方案")
+                    
+            except Exception as llm_error:
+                logger.warning(f"⚠️ [v7.5] LLM生成失败: {llm_error}，使用回退方案")
+                
+                # 🔄 回退到原有的 FallbackQuestionGenerator
+                logger.info("🔄 [v7.5] 回退到规则驱动的问卷生成...")
+                
+                # 智能提取关键信息
+                from ..questionnaire.context import KeywordExtractor
+                import sys
 
-            # 使用 FallbackQuestionGenerator 生成基础问题集
-            # 🆕 v7.4: 传递 user_input 和 extracted_info 以生成定制问题
-            base_questions = FallbackQuestionGenerator.generate(
-                structured_data,
-                user_input=user_input,
-                extracted_info=extracted_info
-            )
+                try:
+                    extracted_info = KeywordExtractor.extract(user_input, structured_data)
+                    logger.info(f"🔍 关键词提取完成，提取了 {len(extracted_info)} 个字段")
+                except Exception as e:
+                    logger.error(f"❌ KeywordExtractor.extract() 失败: {e}")
+                    extracted_info = KeywordExtractor._empty_result()
 
-            questionnaire = {
-                "introduction": "以下问题旨在深入理解您的需求和期望，帮助我们提供更精准的设计建议",
-                "questions": base_questions,
-                "note": "基于您的需求深度分析结果生成的定制问卷",
-                "source": "dynamic_generation",
-                "generation_method": "analysis_based"
-            }
-            generation_source = "dynamic_generation"
-            logger.info(f"✅ 动态生成问卷完成：{len(base_questions)} 个基础问题")
+                # 使用 FallbackQuestionGenerator 生成基础问题集
+                base_questions = FallbackQuestionGenerator.generate(
+                    structured_data,
+                    user_input=user_input,
+                    extracted_info=extracted_info
+                )
+                logger.info(f"✅ 规则生成完成：{len(base_questions)} 个问题")
+
+                questionnaire = {
+                    "introduction": "以下问题旨在深入理解您的需求和期望，帮助我们提供更精准的设计建议",
+                    "questions": base_questions,
+                    "note": "基于您的需求深度分析结果生成的定制问卷",
+                    "source": "dynamic_generation",
+                    "generation_method": "rule_based_fallback"
+                }
+                generation_source = "dynamic_generation"
 
         logger.info(f"🔍 问卷源: {generation_source}, 问题数: {len(questionnaire.get('questions', []))}")
 
@@ -359,7 +401,7 @@ class CalibrationQuestionnaireNode:
 
         # 🚀 P0优化：识别场景类型，避免生成无关问题
         logger.info(f"🔍 [DEBUG] Step 2.5: 识别场景类型...")
-        user_input = state.get("user_input", "")
+        # user_input 已在第305行定义
         scenario_type = CalibrationQuestionnaireNode._identify_scenario_type(user_input, structured_data)
         logger.info(f"🔍 [DEBUG] Step 2.5 完成: scenario_type={scenario_type}")
 
@@ -643,8 +685,25 @@ class CalibrationQuestionnaireNode:
         elif intent == "add":
             logger.info(f"📝 User provided additional information: {content[:100]}")
             supplement_text = notes or content
+            
+            # ✅ 修复: 无论是否有补充文本，都要保存问卷答案（用于后续聚合）
             if answers_map:
                 updated_state["calibration_answers"] = answers_map
+                
+                # 🔧 新增: 构建并保存 questionnaire_summary/responses（与 approve 分支一致）
+                summary_entries = entries
+                summary_payload = {
+                    "entries": summary_entries,
+                    "answers": answers_map,
+                    "submitted_at": timestamp,
+                    "timestamp": timestamp,
+                    "notes": notes,
+                    "source": "calibration_questionnaire"
+                }
+                updated_state["questionnaire_summary"] = summary_payload
+                updated_state["questionnaire_responses"] = summary_payload
+                logger.info(f"✅ [add 意图] 已保存 {len(answers_map)} 个问卷答案到 questionnaire_summary")
+            
             if supplement_text:
                 updated_state["additional_requirements"] = supplement_text
 

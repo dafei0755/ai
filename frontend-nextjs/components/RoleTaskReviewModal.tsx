@@ -327,7 +327,7 @@ export function RoleTaskReviewModal({ isOpen, data, onConfirm }: RoleTaskReviewM
 							<AlertCircle className="w-5 h-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
 							<div className="flex-1">
 								<p className="text-sm text-blue-800 dark:text-blue-200 font-medium mb-1">编辑模式</p>
-								<p className="text-sm text-blue-700 dark:text-blue-300">您可以修改、添加或删除任务。点击"保存并继续"提交修改。</p>
+								<p className="text-sm text-blue-700 dark:text-blue-300">您可以修改、添加或删除任务。点击&ldquo;保存并继续&rdquo;提交修改。</p>
 							</div>
 						</div>
 					)}

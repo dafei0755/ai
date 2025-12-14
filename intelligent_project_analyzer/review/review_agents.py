@@ -13,6 +13,10 @@ from ..core.types import AnalysisResult
 from ..core.state import ProjectAnalysisState
 from ..core.prompt_manager import PromptManager
 
+# 🔥 v7.8: 导入异常类型用于LLM服务连接异常处理
+import openai
+import httpcore
+
 
 class ReviewerRole:
     """审核专家角色基类"""
@@ -37,6 +41,31 @@ class ReviewerRole:
         Returns:
             审核结果
         """
+        try:
+            return self._review_impl(agent_results, requirements)
+        except (openai.APIConnectionError, httpcore.ConnectError, ConnectionError) as e:
+            logger.error(f"❌ LLM服务连接异常: {e}")
+            return {
+                "reviewer": self.role_name,
+                "perspective": self.perspective,
+                "content": "LLM服务连接异常，请稍后重试。",
+                "improvements": [],
+                "critical_issues_count": 0,
+                "total_improvements": 0,
+                "issues_found": [],
+                "risk_level": "未知",
+                "agents_to_rerun": [],
+                "score": 0
+            }
+        except Exception as e:
+            logger.error(f"❌ 审核专家review异常: {e}")
+            raise
+
+    def _review_impl(
+        self, 
+        agent_results: Dict[str, Any],
+        requirements: Dict[str, Any]
+    ) -> Dict[str, Any]:
         raise NotImplementedError
     
     def _validate_and_fix_agent_ids(self, improvements: List[Dict[str, Any]], agent_ids: List[str], agent_results: Dict[str, Any]):
@@ -103,14 +132,11 @@ class RedTeamReviewer(ReviewerRole):
 
         # 初始化提示词管理器
         self.prompt_manager = PromptManager()
-    
-    def review(
+    def _review_impl(
         self, 
         agent_results: Dict[str, Any],
         requirements: Dict[str, Any]
     ) -> Dict[str, Any]:
-        """红队审核 - 寻找漏洞和问题"""
-        
         logger.info(f"🔴 {self.role_name} 开始审核")
 
         # 从外部配置加载审核提示词
@@ -167,6 +193,7 @@ class RedTeamReviewer(ReviewerRole):
         
         logger.info(f"🔴 {self.role_name} 审核完成，发现 {review_result['total_improvements']} 个改进点（{review_result['critical_issues_count']} 个高优先级）")
         
+        return review_result
         return review_result
     
     def _format_results_for_review(self, agent_results: Dict[str, Any]) -> str:

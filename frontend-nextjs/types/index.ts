@@ -196,6 +196,12 @@ export interface ExecutionMetadata {
   total_tokens_used?: number;
   confidence_average?: number;
   review_rounds?: number;
+  // 🆕 v7.4 新增字段
+  total_batches?: number;
+  complexity_level?: string;
+  questionnaire_answered?: number;
+  expert_distribution?: Record<string, number>;
+  generated_at?: string;
 }
 
 /** 🔥 Phase 1.4+ 新增：核心答案区块（向后兼容版） */

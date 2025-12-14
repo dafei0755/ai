@@ -681,7 +681,12 @@ class DynamicProjectDirector:
 
         # 🆕 生成默认的TaskInstruction
         default_task_instruction = generate_task_instruction_template(mapped_role_type)
-        
+
+        # 🔥 v7.10: 为V3叙事专家标记创意模式
+        if base_type == "V3_叙事与体验专家" or role_id.startswith("3-"):
+            default_task_instruction.is_creative_narrative = True
+            logger.info(f"🎨 为叙事专家 {role_name} 启用创意叙事模式")
+
         # 尝试从策略管理器获取更详细的任务模板
         try:
             from intelligent_project_analyzer.core.strategy_manager import StrategyManager
@@ -805,7 +810,9 @@ class DynamicProjectDirector:
                         "输出符合预期格式和质量要求"
                     ],
                     "constraints": [],
-                    "context_requirements": []
+                    "context_requirements": [],
+                    # 🔥 v7.10: 为V3叙事专家标记创意模式
+                    "is_creative_narrative": role_data.get("role_id", "").startswith("3-")
                 }
                 
                 # 构造v2格式的RoleObject

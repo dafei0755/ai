@@ -81,6 +81,65 @@ class LLMFactory:
                     logger.warning(f"⚠️ OpenRouter 负载均衡创建失败: {e}")
                     # 继续使用原始方法
 
+        # 全局捕获 LLM 连接异常，返回友好提示
+        try:
+            # ...existing code...
+            # 如果禁用自动降级，直接使用原始方法
+            if not auto_fallback:
+                logger.info(f"📌 自动降级已禁用，只使用 {primary_provider}")
+                return LLMFactory._create_llm_original(config, **kwargs)
+
+            # 尝试使用多LLM工厂创建(支持自动降级)
+            from intelligent_project_analyzer.services.multi_llm_factory import MultiLLMFactory, FallbackLLM
+            fallback_chain = [primary_provider]
+            if primary_provider == "openai":
+                if os.getenv("OPENROUTER_API_KEY") and os.getenv("OPENROUTER_API_KEY") != "your_openrouter_api_key_here":
+                    fallback_chain.append("openrouter")
+                if os.getenv("DEEPSEEK_API_KEY") and os.getenv("DEEPSEEK_API_KEY") != "your_deepseek_api_key_here":
+                    fallback_chain.append("deepseek")
+            elif primary_provider == "openrouter":
+                if os.getenv("OPENAI_API_KEY") and os.getenv("OPENAI_API_KEY") != "your_openai_api_key_here":
+                    fallback_chain.append("openai")
+                if os.getenv("DEEPSEEK_API_KEY") and os.getenv("DEEPSEEK_API_KEY") != "your_deepseek_api_key_here":
+                    fallback_chain.append("deepseek")
+            elif primary_provider == "qwen":
+                if os.getenv("OPENAI_API_KEY") and os.getenv("OPENAI_API_KEY") != "your_openai_api_key_here":
+                    fallback_chain.append("openai")
+                if os.getenv("OPENROUTER_API_KEY") and os.getenv("OPENROUTER_API_KEY") != "your_openrouter_api_key_here":
+                    fallback_chain.append("openrouter")
+                if os.getenv("DEEPSEEK_API_KEY") and os.getenv("DEEPSEEK_API_KEY") != "your_deepseek_api_key_here":
+                    fallback_chain.append("deepseek")
+            elif primary_provider == "deepseek":
+                if os.getenv("OPENROUTER_API_KEY") and os.getenv("OPENROUTER_API_KEY") != "your_openrouter_api_key_here":
+                    fallback_chain.append("openrouter")
+                if os.getenv("OPENAI_API_KEY") and os.getenv("OPENAI_API_KEY") != "your_openai_api_key_here":
+                    fallback_chain.append("openai")
+            # 使用降级链创建LLM
+            if len(fallback_chain) > 1:
+                logger.info(f"🔄 启用自动降级: {' → '.join(fallback_chain)}")
+                return FallbackLLM(
+                    providers=fallback_chain,
+                    temperature=kwargs.get("temperature", config.temperature if config else settings.llm.temperature),
+                    max_tokens=kwargs.get("max_tokens", config.max_tokens if config else settings.llm.max_tokens),
+                    timeout=kwargs.get("timeout", config.timeout if config else settings.llm.timeout),
+                    max_retries=kwargs.get("max_retries", config.max_retries if config else settings.llm.max_retries),
+                )
+            else:
+                return MultiLLMFactory.create_llm(
+                    provider=primary_provider,
+                    temperature=kwargs.get("temperature", config.temperature if config else settings.llm.temperature),
+                    max_tokens=kwargs.get("max_tokens", config.max_tokens if config else settings.llm.max_tokens),
+                    timeout=kwargs.get("timeout", config.timeout if config else settings.llm.timeout),
+                    max_retries=kwargs.get("max_retries", config.max_retries if config else settings.llm.max_retries),
+                    **kwargs
+                )
+        except (openai.APIConnectionError, httpcore.ConnectError, ConnectionError) as e:
+            logger.error(f"❌ LLM服务连接异常: {e}")
+            raise RuntimeError("LLM服务连接异常，请稍后重试。");
+        except Exception as e:
+            logger.error(f"❌ LLM实例创建异常: {e}")
+            raise
+
         # 如果禁用自动降级，直接使用原始方法
         if not auto_fallback:
             logger.info(f"📌 自动降级已禁用，只使用 {primary_provider}")

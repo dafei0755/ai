@@ -67,12 +67,8 @@ const DIMENSION_CONFIG = {
   }
 } as const;
 
-// 辅助函数：格式化专家名称
-function formatExpertName(expertId: string): string {
-  // V2_设计总监_2-2 → 设计总监
-  const parts = expertId.split('_');
-  return parts.length >= 2 ? parts[1] : expertId;
-}
+// 🔥 v7.6: 使用统一的格式化函数
+import { formatExpertName } from '@/lib/formatters';
 
 export default function RecommendationsSection({ recommendations }: RecommendationsSectionProps) {
   if (!recommendations || !recommendations.recommendations || recommendations.recommendations.length === 0) {
@@ -187,7 +183,7 @@ export default function RecommendationsSection({ recommendations }: Recommendati
       {/* 提示信息 */}
       <div className="mt-6 bg-gradient-to-r from-green-500/5 to-blue-500/5 border border-green-500/20 rounded-lg p-4">
         <p className="text-xs text-gray-400 text-center">
-          💡 建议按"重点-难点-易忽略-有风险-理想"五个维度组织，帮助您全面把控项目
+          💡 建议按&ldquo;重点-难点-易忽略-有风险-理想&rdquo;五个维度组织，帮助您全面把控项目
         </p>
       </div>
     </div>

@@ -4,10 +4,11 @@
 'use client';
 
 import { FC, useState } from 'react';
-import { ChevronDown, ChevronUp, User, Briefcase, Download, Loader2 } from 'lucide-react';
+import { ChevronDown, ChevronUp, User, Briefcase, Download, Loader2, FileText, Package, CheckCircle, Lightbulb, AlertTriangle } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import ReactDOMServer from 'react-dom/server';
+import { formatExpertName, getExpertLevel } from '@/lib/formatters';
 
 interface ExpertReportAccordionProps {
   expertReports: Record<string, string>;
@@ -59,8 +60,49 @@ const FIELD_LABELS: Record<string, string> = {
   'implementation_priorities': '实施优先级',
   'expert_handoff_response': '专家交接响应',
   'challenge_flags': '挑战标记',
-  'confidence': '置信度',
-  
+
+  // 🔥 v7.9: 任务导向输出字段映射
+  'deliverable_outputs': '交付物输出',
+  'deliverable_name': '交付物名称',
+  'task_completion_summary': '任务完成摘要',
+  'additional_insights': '额外洞察',
+  'execution_challenges': '执行挑战',
+
+  // 🔥 v7.9.2: 叙事与体验专家字段映射（截图2）
+  'family_structure_and_role_analysis': '用户家庭结构与角色分析报告',
+  'family结构分析': '家庭结构分析',
+  'family': '家庭',
+  'overview': '概述',
+  'role': '角色',
+  'roles': '角色',
+  'entrepreneur': '企业家本人',
+  'spouse': '配偶',
+  'children': '子女',
+  'grandparents': '祖辈',
+  'guests': '访客',
+  'habits': '习惯',
+  'emotional_needs': '情感需求',
+  'emotionalneeds': '情感需求',
+  'interaction_model': '互动模式',
+  'summary': '总结',
+  'details': '详情',
+  'shared_spaces': '共享空间',
+  'partially_shared_spaces': '半共享空间',
+  'private_spaces': '私密空间',
+  'design_guidance': '设计指导',
+
+  // 叙事与体验相关字段
+  'roles_and_insights': '角色与洞察',
+  'strategy_overview': '策略概述',
+  'privacy_and_sharing_principles': '隐私与共享原则',
+  'privacy': '隐私',
+  'sharing': '共享',
+  'design_elements': '设计元素',
+  'spatial_strategies': '空间策略',
+  'public_to_private_gradient': '公共到私密梯度',
+
+  // 'confidence' 已在黑名单中定义为空字符串
+
   // 截图中出现的字段
   'pattern_name': '模式名称',
   'description': '描述',
@@ -410,6 +452,7 @@ const WORD_TRANSLATIONS: Record<string, string> = {
   'perfect': '完美',
   'performance': '绩效', 'performances': '绩效',
   'period': '周期', 'periods': '周期',
+  'perspective': '视角', 'perspectives': '视角',  // 🔥 v7.10.1: 补充叙事专家常用词
   'phase': '阶段', 'phases': '阶段',
   'philosophies': '哲学', 'philosophy': '哲学',
   'photo': '照片', 'photos': '照片',
@@ -533,6 +576,7 @@ const WORD_TRANSLATIONS: Record<string, string> = {
   'style': '风格', 'styles': '风格',
   'subsystem': '子系统', 'subsystems': '子系统',
   'success': '成功', 'successful': '成功',
+  'suggestion': '建议', 'suggestions': '建议',  // 🔥 v7.10.1: 补充叙事专家常用词
   'sum': '求和', 'summaries': '摘要', 'summary': '摘要', 'sums': '求和',
   'support': '支持', 'supports': '支持',
   'sustainability': '可持续性', 'sustainable': '可持续',
@@ -679,8 +723,11 @@ const ExpertReportAccordion: FC<ExpertReportAccordionProps> = ({ expertReports, 
         <MarkdownContent content={expertContent} />
       );
       
+      // 🔥 v7.5: 格式化专家名称
+      const displayName = formatExpertName(expertName);
+      
       content += `<div class="expert-section">
-        <h2 class="expert-title">${expertName}</h2>
+        <h2 class="expert-title">${displayName}</h2>
         <div class="expert-content">${expertHtml}</div>
       </div>`;
     });
@@ -788,12 +835,10 @@ const ExpertReportAccordion: FC<ExpertReportAccordionProps> = ({ expertReports, 
     }
   };
 
+  // 🔥 v7.6: 使用统一的 lib/formatters.ts 函数
   const getExpertColor = (expertName: string) => {
-    const match = expertName.match(/V(\d)/);
-    if (match) {
-      return EXPERT_COLORS[`V${match[1]}`] || EXPERT_COLORS['V2'];
-    }
-    return EXPERT_COLORS['V2'];
+    const level = getExpertLevel(expertName);
+    return EXPERT_COLORS[`V${level}`] || EXPERT_COLORS['V2'];
   };
 
   // 获取字段的中文标签 - 智能翻译
@@ -828,9 +873,26 @@ const ExpertReportAccordion: FC<ExpertReportAccordionProps> = ({ expertReports, 
       }
       return WORD_TRANSLATIONS[word] || word;
     }).filter(w => w.length > 0);
-    
-    // 5. 组合返回
-    return translatedWords.join('');
+
+    // 🔥 v7.9.2: 彻底解决方案 - 如果所有单词都无法翻译，返回格式化的原始键名
+    // 检查是否有任何中文翻译成功
+    const hasChineseTranslation = translatedWords.some(word => {
+      // 检查是否包含中文字符
+      return /[\u4e00-\u9fa5]/.test(word);
+    });
+
+    // 如果有中文翻译，正常组合返回
+    if (hasChineseTranslation) {
+      return translatedWords.join('');
+    }
+
+    // 如果完全没有中文翻译，返回格式化的原始键名（首字母大写，下划线转空格）
+    return key
+      .replace(/_/g, ' ')
+      .replace(/([a-z])([A-Z])/g, '$1 $2')
+      .split(' ')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join(' ');
   };
 
   // 提取公共的 Markdown 处理逻辑
@@ -963,9 +1025,16 @@ const ExpertReportAccordion: FC<ExpertReportAccordionProps> = ({ expertReports, 
     let parsedContent: Record<string, any> | null = null;
     
     try {
+      // 🔥 v7.4: 先处理 Markdown 代码块包裹的 JSON
+      let processedContent = content.trim();
+      const codeBlockMatch = processedContent.match(/^```(?:json)?\s*\n?([\s\S]*?)\n?```$/);
+      if (codeBlockMatch) {
+        processedContent = codeBlockMatch[1].trim();
+      }
+      
       // 处理可能的 JSON 字符串
-      if (content.trim().startsWith('{')) {
-        parsedContent = JSON.parse(content);
+      if (processedContent.startsWith('{')) {
+        parsedContent = JSON.parse(processedContent);
       }
     } catch {
       // 不是有效的 JSON，按普通文本处理
@@ -973,31 +1042,233 @@ const ExpertReportAccordion: FC<ExpertReportAccordionProps> = ({ expertReports, 
 
     // 如果成功解析为 JSON 对象
     if (parsedContent && typeof parsedContent === 'object') {
-      return renderStructuredContent(parsedContent);
+      // 🔥 v7.9: 检测 TaskOrientedExpertOutput 结构，提取 deliverable_outputs
+      // 这是彻底解决重复内容的关键修复
+      if (parsedContent.task_execution_report && typeof parsedContent.task_execution_report === 'object') {
+        const ter = parsedContent.task_execution_report;
+
+        // 提取 deliverable_outputs 数组
+        if (ter.deliverable_outputs && Array.isArray(ter.deliverable_outputs)) {
+          // 如果只有一个交付物，直接展开其内容
+          if (ter.deliverable_outputs.length === 1) {
+            const singleDeliverable = ter.deliverable_outputs[0];
+            const content = singleDeliverable.content;
+
+            // 🔥 v7.9.1: 增强 JSON 检测和解析逻辑
+            if (typeof content === 'string') {
+              const trimmed = content.trim();
+              // 检测是否为 JSON 字符串
+              if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+                try {
+                  const nestedJson = JSON.parse(trimmed);
+                  return renderStructuredContent(nestedJson);
+                } catch {
+                  // 解析失败，按 Markdown 渲染
+                  return renderTextContent(content);
+                }
+              } else {
+                // 普通文本，按 Markdown 渲染
+                return renderTextContent(content);
+              }
+            } else if (typeof content === 'object') {
+              return renderStructuredContent(content);
+            } else {
+              return renderTextContent(String(content));
+            }
+          } else {
+            // 多个交付物，渲染为列表
+            return (
+              <div className="space-y-12">
+                {ter.deliverable_outputs.map((deliverable: any, idx: number) => {
+                  const deliverableName = deliverable.deliverable_name || `交付物${idx + 1}`;
+                  const deliverableContent = deliverable.content;
+
+                  // 🔥 v7.9.1: 智能处理字符串内容，检测是否为 JSON
+                  let contentToRender;
+                  if (typeof deliverableContent === 'string') {
+                    const trimmed = deliverableContent.trim();
+                    // 检测是否为 JSON 字符串
+                    if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+                      try {
+                        const parsed = JSON.parse(trimmed);
+                        contentToRender = renderStructuredContent(parsed);
+                      } catch {
+                        // 解析失败，按 Markdown 渲染
+                        contentToRender = renderTextContent(deliverableContent);
+                      }
+                    } else {
+                      // 普通文本，按 Markdown 渲染
+                      contentToRender = renderTextContent(deliverableContent);
+                    }
+                  } else {
+                    // 对象类型，结构化渲染
+                    contentToRender = renderStructuredContent(deliverableContent);
+                  }
+
+                  return (
+                    <div key={idx} className="bg-[var(--sidebar-bg)]/30 rounded-lg p-4 border border-[var(--border-color)]/50">
+                      <div className="flex items-start gap-3 mb-3">
+                        <div className="w-8 h-8 bg-blue-500/20 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
+                          <Package className="w-4 h-4 text-blue-400" />
+                        </div>
+                        <h4 className="text-base font-semibold text-blue-400 flex-1">{deliverableName}</h4>
+                      </div>
+                      <div className="ml-11">
+                        {contentToRender}
+                      </div>
+                    </div>
+                  );
+                })}
+                {/* 显示额外信息 */}
+                {ter.task_completion_summary && (
+                  <div className="bg-[var(--sidebar-bg)]/20 rounded-lg p-4 border border-green-500/30">
+                    <div className="flex items-start gap-3 mb-2">
+                      <div className="w-7 h-7 bg-green-500/20 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <CheckCircle className="w-4 h-4 text-green-400" />
+                      </div>
+                      <h4 className="text-sm font-semibold text-green-400">任务完成摘要</h4>
+                    </div>
+                    <p className="text-sm text-gray-300 ml-10">{ter.task_completion_summary}</p>
+                  </div>
+                )}
+                {ter.additional_insights && ter.additional_insights.length > 0 && (
+                  <div className="bg-[var(--sidebar-bg)]/20 rounded-lg p-4 border border-purple-500/30">
+                    <div className="flex items-start gap-3 mb-2">
+                      <div className="w-7 h-7 bg-purple-500/20 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <Lightbulb className="w-4 h-4 text-purple-400" />
+                      </div>
+                      <h4 className="text-sm font-semibold text-purple-400">额外洞察</h4>
+                    </div>
+                    <ul className="space-y-1 ml-10">
+                      {ter.additional_insights.map((insight: string, i: number) => (
+                        <li key={i} className="text-sm text-gray-300 flex items-start gap-2">
+                          <span className="text-gray-500 mt-0.5">•</span>
+                          <span>{insight}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {ter.execution_challenges && ter.execution_challenges.length > 0 && (
+                  <div className="bg-[var(--sidebar-bg)]/20 rounded-lg p-4 border border-yellow-500/30">
+                    <div className="flex items-start gap-3 mb-2">
+                      <div className="w-7 h-7 bg-yellow-500/20 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <AlertTriangle className="w-4 h-4 text-yellow-400" />
+                      </div>
+                      <h4 className="text-sm font-semibold text-yellow-400">执行挑战</h4>
+                    </div>
+                    <ul className="space-y-1 ml-10">
+                      {ter.execution_challenges.map((challenge: string, i: number) => (
+                        <li key={i} className="text-sm text-gray-300 flex items-start gap-2">
+                          <span className="text-gray-500 mt-0.5">•</span>
+                          <span>{challenge}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            );
+          }
+        }
+      }
+
+      // 🔥 v7.5: 如果对象同时包含 structured_data 和 narrative_summary，
+      // 只渲染 structured_data，避免重复显示
+      if (parsedContent.structured_data && typeof parsedContent.structured_data === 'object') {
+        return renderStructuredContent(parsedContent.structured_data);
+      }
+
+      // 🔥 v7.6: 检测并移除重复的 protocol执行 字段
+      // 如果 task_execution_report 和 protocol执行.内容 都存在且相同，只保留前者
+      const cleanedContent = { ...parsedContent };
+      if (cleanedContent['protocol执行'] || cleanedContent['protocol_execution']) {
+        delete cleanedContent['protocol执行'];
+        delete cleanedContent['protocol_execution'];
+      }
+      // 同时删除其他可能重复的元数据字段
+      delete cleanedContent['protocol状态'];
+      delete cleanedContent['protocol_status'];
+      delete cleanedContent['execution_metadata'];  // 🔥 v7.9: 新增
+      delete cleanedContent['task_execution_report'];  // 🔥 v7.9: 新增
+
+      return renderStructuredContent(cleanedContent);
     }
 
     // 普通文本渲染
     return renderTextContent(content);
   };
 
+  // 🔥 v7.7: LLM 乱码清洗函数
+  const cleanLLMGarbage = (text: string): string => {
+    if (!text || typeof text !== 'string') return text;
+    
+    // 检测并清除常见的 LLM 乱码模式
+    const garbagePatterns = [
+      // 泰米尔语/印度语乱码
+      /[\u0B80-\u0BFF]+/g,  // Tamil
+      /[\u0900-\u097F]+/g,  // Devanagari (Hindi)
+      // 混乱的代码片段
+      /\s*அவர்[\s\S]*?\)\]!?/g,
+      // JSON 语法残留
+      /\s*'\]\]\]\s*JSON\),[^\n]*/g,
+      // 乱码英文残留
+      /\s*validated system saf[^\n]*/gi,
+      /\s*Remaining_input[^\n]*/gi,
+      /\s*pertinance"?\+?open\.List[^\n]*/gi,
+      /\s*Systematic-Layer\)?"?[^\n]*/gi,
+      // 不完整的 hypotheses 调用
+      /\s*hypotheses\(\)\)[,\s]*/gi,
+      // 主要-specific 等混合语言乱码
+      /\s*cle主要-specific[^\n]*/g,
+    ];
+    
+    let cleaned = text;
+    garbagePatterns.forEach(pattern => {
+      cleaned = cleaned.replace(pattern, '');
+    });
+    
+    // 清理多余空行
+    cleaned = cleaned.replace(/\n{3,}/g, '\n\n').trim();
+    
+    return cleaned;
+  };
+
   // 渲染结构化内容（JSON 对象）
   const renderStructuredContent = (obj: Record<string, any>, depth: number = 0) => {
-    // 🚫 字段黑名单（只过滤技术元数据，保留主要交付内容）
+    // 🚫 字段黑名单（过滤技术元数据和重复内容）
     const fieldBlacklist = new Set([
+      // 🔥 v7.9: 任务导向输出结构 - 防止重复显示 (CRITICAL FIX)
+      'task_execution_report',        // ⚠️ 关键！避免显示整个嵌套的任务报告
+      'taskexecutionreport',
+      '任务执行report',
+      // 协议/执行元数据（完全重复内容）
       'protocol_status',
       'protocol执行',
+      'protocol_execution',
       'protocol状态',
+      // 合规确认
       'complianceconfirmation',
       'compliance_confirmation',
+      // 执行元数据
       'execution_metadata',
       'executionmetadata',
+      // 技术字段（v7.7 扩展）
       'confidence',
       '置信度',
       'completion_status',
       'completion记录',
       'completion_ratio',
+      'completion_rate',  // 🔥 v7.7: 新增
       'quality_self_assessment',
       'dependencies_satisfied',
+      'notes',  // 🔥 v7.7: 新增 - 通常是技术备注
+      // 🔥 v7.10.1: 过滤无意义的图片占位符字段
+      'image', 'images', '图片', 'illustration', 'illustrations',
+      'image_1_url', 'image_2_url', 'image_3_url', 'image_4_url', 'image_5_url', 'image_6_url',
+      'image_url', 'image_urls', '图片链接',
+      // 🔥 v7.5: 如果同时存在 structured_data，则忽略 narrative_summary（避免重复）
+      ...(obj.structured_data ? ['narrative_summary', 'validation_warnings'] : []),
     ]);
     
     return (
@@ -1054,11 +1325,22 @@ const ExpertReportAccordion: FC<ExpertReportAccordionProps> = ({ expertReports, 
           
           // 处理字符串 - 检查是否是 JSON 字符串
           if (typeof value === 'string') {
-            const trimmed = value.trim();
-            if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+            let trimmed = value.trim();
+            
+            // 🔥 v7.4: 处理 Markdown 代码块包裹的 JSON
+            // 匹配 ```json\n{...}\n``` 或 ```\n{...}\n``` 格式
+            const codeBlockMatch = trimmed.match(/^```(?:json)?\s*\n?([\s\S]*?)\n?```$/);
+            if (codeBlockMatch) {
+              trimmed = codeBlockMatch[1].trim();
+            }
+            
+            // 🔥 v7.5: 增强 JSON 检测 - 支持带缩进或空白开头的 JSON
+            const jsonMatch = trimmed.match(/^\s*(\{[\s\S]*\}|\[[\s\S]*\])\s*$/);
+            if (jsonMatch || trimmed.startsWith('{') || trimmed.startsWith('[')) {
               try {
                 const parsed = JSON.parse(trimmed);
-                if (typeof parsed === 'object') {
+                if (typeof parsed === 'object' && parsed !== null) {
+                  // 成功解析为对象，递归渲染
                   return (
                     <div key={key} className="space-y-2">
                       <h4 className="text-sm font-semibold text-blue-400">{label}</h4>
@@ -1076,19 +1358,28 @@ const ExpertReportAccordion: FC<ExpertReportAccordionProps> = ({ expertReports, 
                     </div>
                   );
                 }
-              } catch {
+              } catch (e) {
                 // 不是有效 JSON，继续普通处理
+                console.debug(`[renderStructuredContent] JSON parse failed for key "${key}":`, e);
               }
             }
           }
           
           // 处理字符串/数字等基本类型
-          const stringValue = String(value);
-          
+          // 🔥 v7.7: 应用 LLM 乱码清洗
+          const stringValue = cleanLLMGarbage(String(value));
+
+          // 如果清洗后为空，跳过
+          if (!stringValue.trim()) return null;
+
+          // 🔥 v7.9.3: 修复对齐问题 - 使用flex布局让标签和内容水平对齐
+          // 🔥 v7.9.4: 改进对齐 - 确保标签和内容在同一行且左对齐
           return (
-            <div key={key} className="space-y-1">
-              <h4 className="text-sm font-semibold text-blue-400">{label}</h4>
-              <MarkdownContent content={stringValue} />
+            <div key={key} className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0 items-baseline">
+              <h4 className="text-sm font-semibold text-blue-400 whitespace-nowrap pr-1">{label}:</h4>
+              <div className="text-sm text-gray-300">
+                <MarkdownContent content={stringValue} />
+              </div>
             </div>
           );
         })}
@@ -1098,35 +1389,99 @@ const ExpertReportAccordion: FC<ExpertReportAccordionProps> = ({ expertReports, 
 
   // 渲染数组项中的对象
   const renderArrayItemObject = (item: Record<string, any>, index: number) => {
+    // 🔥 v7.7: 黑名单过滤（与 renderStructuredContent 保持一致）
+    const fieldBlacklist = new Set([
+      'completion_status', 'completion_rate', 'completion_ratio',
+      'quality_self_assessment', 'notes', 'confidence',
+      'protocol_status', 'protocol执行', 'protocol_execution',
+      // 🔥 v7.10.1: 图片占位符字段
+      'image', 'images', '图片', 'illustration', 'illustrations',
+      'image_1_url', 'image_2_url', 'image_3_url', 'image_4_url', 'image_5_url', 'image_6_url',
+      'image_url', 'image_urls', '图片链接',
+    ]);
+    
     return (
       <div className="space-y-2">
         {Object.entries(item).map(([itemKey, itemValue]) => {
+          // 🔥 v7.7: 黑名单过滤
+          if (fieldBlacklist.has(itemKey) || fieldBlacklist.has(itemKey.toLowerCase())) {
+            return null;
+          }
+          
           if (itemValue === null || itemValue === undefined || itemValue === '') return null;
           
           const itemLabel = getFieldLabel(itemKey);
           
+          // 🔥 v7.7: 优先检查字符串是否是 JSON，如果是则解析
+          if (typeof itemValue === 'string') {
+            const trimmed = itemValue.trim();
+            if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+              try {
+                const parsed = JSON.parse(trimmed);
+                if (typeof parsed === 'object' && parsed !== null) {
+                  // 🔥 v7.9.4: 改进对齐 - 使用grid布局
+                  return (
+                    <div key={itemKey} className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0 items-baseline">
+                      <span className="text-xs font-medium text-purple-400 whitespace-nowrap pr-1">{itemLabel}：</span>
+                      <div className="text-sm text-gray-300">
+                        {Array.isArray(parsed) ? (
+                          <ul className="space-y-1">
+                            {parsed.map((subItem, subIndex) => (
+                              <li key={subIndex} className="text-sm text-gray-300">
+                                {typeof subItem === 'object' ? (
+                                  <div className="ml-2 mt-1">
+                                    {renderArrayItemObject(subItem, subIndex)}
+                                  </div>
+                                ) : String(subItem)}
+                              </li>
+                            ))}
+                          </ul>
+                        ) : (
+                          renderArrayItemObject(parsed, 0)
+                        )}
+                      </div>
+                    </div>
+                  );
+                }
+              } catch {
+                // 不是有效 JSON，继续普通处理
+              }
+            }
+          }
+
           // 嵌套对象递归
           if (typeof itemValue === 'object' && !Array.isArray(itemValue)) {
+            // 🔥 v7.9.4: 改进对齐 - 使用grid布局
             return (
-              <div key={itemKey} className="space-y-1">
-                <span className="text-xs font-medium text-purple-400">{itemLabel}：</span>
-                <div className="ml-3">
+              <div key={itemKey} className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0 items-baseline">
+                <span className="text-xs font-medium text-purple-400 whitespace-nowrap pr-1">{itemLabel}：</span>
+                <div className="text-sm text-gray-300">
                   {renderArrayItemObject(itemValue, 0)}
                 </div>
               </div>
             );
           }
-          
+
           // 嵌套数组
           if (Array.isArray(itemValue)) {
+            // 🔥 v7.9.4: 改进对齐 - 使用grid布局
             return (
-              <div key={itemKey} className="space-y-1">
-                <span className="text-xs font-medium text-purple-400">{itemLabel}：</span>
-                <ul className="ml-3 space-y-1">
+              <div key={itemKey} className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0 items-start">
+                <span className="text-xs font-medium text-purple-400 whitespace-nowrap pr-1 pt-0.5">{itemLabel}：</span>
+                <ul className="text-sm text-gray-300 space-y-2">
                   {itemValue.map((subItem, subIndex) => (
-                    <li key={subIndex} className="text-sm text-gray-300 flex items-start gap-1">
-                      <span className="text-gray-500">-</span>
-                      <span>{typeof subItem === 'object' ? JSON.stringify(subItem) : String(subItem)}</span>
+                    <li key={subIndex} className="text-sm text-gray-300">
+                      {typeof subItem === 'object' && subItem !== null ? (
+                        // 🔧 修复: 递归渲染对象而不是 JSON.stringify
+                        <div className="bg-[var(--sidebar-bg)]/30 rounded p-2 border border-[var(--border-color)]/50">
+                          {renderArrayItemObject(subItem, subIndex)}
+                        </div>
+                      ) : (
+                        <div className="flex items-start gap-1">
+                          <span className="text-gray-500">-</span>
+                          <span>{String(subItem)}</span>
+                        </div>
+                      )}
                     </li>
                   ))}
                 </ul>
@@ -1134,11 +1489,49 @@ const ExpertReportAccordion: FC<ExpertReportAccordionProps> = ({ expertReports, 
             );
           }
           
+          // 🔥 v7.5: 检查字符串是否是 JSON，如果是则解析并递归渲染
+          if (typeof itemValue === 'string') {
+            const trimmed = itemValue.trim();
+            if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+              try {
+                const parsed = JSON.parse(trimmed);
+                if (typeof parsed === 'object' && parsed !== null) {
+                  return (
+                    <div key={itemKey} className="space-y-1">
+                      <span className="text-xs font-medium text-purple-400">{itemLabel}：</span>
+                      <div className="ml-3">
+                        {Array.isArray(parsed) ? (
+                          <ul className="space-y-1">
+                            {parsed.map((subItem, subIndex) => (
+                              <li key={subIndex} className="text-sm text-gray-300">
+                                {typeof subItem === 'object' ? (
+                                  <div className="ml-2 mt-1">
+                                    {renderArrayItemObject(subItem, subIndex)}
+                                  </div>
+                                ) : String(subItem)}
+                              </li>
+                            ))}
+                          </ul>
+                        ) : (
+                          renderArrayItemObject(parsed, 0)
+                        )}
+                      </div>
+                    </div>
+                  );
+                }
+              } catch {
+                // 不是有效 JSON，继续普通处理
+              }
+            }
+          }
+          
+          // 🔥 v7.9.4: 改进对齐 - 使用grid布局确保基线对齐
           return (
-            <div key={itemKey} className="flex items-start gap-2">
-              <span className="text-xs font-medium text-purple-400 whitespace-nowrap">{itemLabel}：</span>
-              <div className="flex-1">
-                <MarkdownContent content={String(itemValue)} />
+            <div key={itemKey} className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0 items-baseline">
+              <span className="text-xs font-medium text-purple-400 whitespace-nowrap pr-1">{itemLabel}：</span>
+              <div className="text-sm text-gray-300">
+                {/* 🔥 v7.7: 应用 LLM 乱码清洗 */}
+                <MarkdownContent content={cleanLLMGarbage(String(itemValue))} />
               </div>
             </div>
           );
@@ -1209,7 +1602,7 @@ const ExpertReportAccordion: FC<ExpertReportAccordionProps> = ({ expertReports, 
                   <div className={`w-8 h-8 rounded-full ${colors.bg} flex items-center justify-center`}>
                     <User className={`w-4 h-4 ${colors.text}`} />
                   </div>
-                  <span className="text-sm font-medium text-white">{expertName}</span>
+                  <span className="text-sm font-medium text-white">{formatExpertName(expertName)}</span>
                 </button>
                 <div className="flex items-center gap-3">
                   <span className="text-xs text-gray-500">{contentLength}</span>

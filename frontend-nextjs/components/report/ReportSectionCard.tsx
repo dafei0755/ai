@@ -903,17 +903,17 @@ const ReportSectionCard: FC<ReportSectionCardProps> = ({ section, defaultExpande
       console.log('⚠️ 未检测到分段，执行强制分段逻辑');
       
       // 按句号分割，然后重新组合
-      const sentences = processed.split(/([。！？])/).reduce((acc, part, idx) => {
+      const sentences = processed.split(/([。！？])/).reduce((acc: string[], part, idx) => {
         if (idx % 2 === 0 && part.trim()) {
           acc.push(part.trim());
-        } else if (idx % 2 === 1) {
+        } else if (idx % 2 === 1 && acc.length > 0) {
           acc[acc.length - 1] += part;
         }
         return acc;
-      }, []);
+      }, [] as string[]);
       
       // 每2个句子组成一段
-      const paragraphGroups = [];
+      const paragraphGroups: string[] = [];
       for (let i = 0; i < sentences.length; i += 2) {
         const group = sentences.slice(i, i + 2).join(' ');
         if (group.trim()) paragraphGroups.push(group.trim());
@@ -935,14 +935,14 @@ const ReportSectionCard: FC<ReportSectionCardProps> = ({ section, defaultExpande
     if (paragraphs.length < 3 && processed.length > 300) {
       console.log('🚨 最后保险分段逻辑执行');
       
-      paragraphs = processed.split(/([。！？])/).reduce((acc, part, idx) => {
+      paragraphs = processed.split(/([。！？])/).reduce((acc: string[], part, idx) => {
         if (idx % 2 === 0 && part.trim()) {
           acc.push(part.trim());
         } else if (idx % 2 === 1 && acc.length > 0) {
           acc[acc.length - 1] += part;
         }
         return acc;
-      }, []).filter(p => p.trim() && p.length > 5);
+      }, [] as string[]).filter(p => p.trim() && p.length > 5);
     }
     
     console.log('✅ 最终段落处理结果:', {

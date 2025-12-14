@@ -18,10 +18,10 @@
 [data-theme="light"] {
   --background: #ffffff;
   --foreground: #1a1a1a;
-  --foreground-secondary: #666666;
-  --sidebar-bg: #f5f5f5;
+  --foreground-secondary: #4a5568;  /* 加深对比度 */
+  --sidebar-bg: #f7fafc;  /* 更明显的侧边栏背景 */
   --card-bg: #ffffff;
-  --border-color: #e0e0e0;
+  --border-color: #cbd5e0;  /* 加深边框颜色 */
   --primary: #4d6bfe;
   --primary-hover: #3b5bdb;
 }
@@ -31,10 +31,10 @@
   [data-theme="system"] {
     --background: #ffffff;
     --foreground: #1a1a1a;
-    --foreground-secondary: #666666;
-    --sidebar-bg: #f5f5f5;
+    --foreground-secondary: #4a5568;  /* 加深对比度 */
+    --sidebar-bg: #f7fafc;  /* 更明显的侧边栏背景 */
     --card-bg: #ffffff;
-    --border-color: #e0e0e0;
+    --border-color: #cbd5e0;  /* 加深边框颜色 */
     --primary: #4d6bfe;
     --primary-hover: #3b5bdb;
   }
@@ -90,6 +90,87 @@ body {
 @layer utilities {
   .text-balance {
     text-wrap: balance;
+  }
+
+  /* 🎨 自适应文字颜色工具类 */
+  .text-adaptive-primary {
+    color: var(--foreground);
+  }
+
+  .text-adaptive-secondary {
+    color: var(--foreground-secondary);
+  }
+
+  /* 浅色模式下文字颜色调整 */
+  [data-theme="light"] .text-gray-400 {
+    color: #4a5568 !important;  /* 深灰色，确保对比度 */
+  }
+
+  [data-theme="light"] .text-gray-500 {
+    color: #718096 !important;  /* 中灰色 */
+  }
+
+  [data-theme="light"] .text-gray-600 {
+    color: #2d3748 !important;  /* 深灰色 */
+  }
+
+  [data-theme="light"] .text-gray-200 {
+    color: #1a202c !important;  /* 深色文字 */
+  }
+
+  [data-theme="light"] .text-gray-300 {
+    color: #2d3748 !important;  /* 深色文字 */
+  }
+
+  /* 🔥 浅色模式下标题文字颜色修正 */
+  [data-theme="light"] .text-white {
+    color: #1a202c !important;  /* 深黑色，确保对比度 */
+  }
+
+  [data-theme="light"] h1.text-white,
+  [data-theme="light"] h2.text-white,
+  [data-theme="light"] h3.text-white,
+  [data-theme="light"] h4.text-white,
+  [data-theme="light"] h5.text-white,
+  [data-theme="light"] h6.text-white {
+    color: #1a202c !important;
+  }
+
+  /* 系统模式跟随 */
+  @media (prefers-color-scheme: light) {
+    [data-theme="system"] .text-gray-400 {
+      color: #4a5568 !important;
+    }
+
+    [data-theme="system"] .text-gray-500 {
+      color: #718096 !important;
+    }
+
+    [data-theme="system"] .text-gray-600 {
+      color: #2d3748 !important;
+    }
+
+    [data-theme="system"] .text-gray-200 {
+      color: #1a202c !important;
+    }
+
+    [data-theme="system"] .text-gray-300 {
+      color: #2d3748 !important;
+    }
+
+    /* 标题文字颜色修正 */
+    [data-theme="system"] .text-white {
+      color: #1a202c !important;
+    }
+
+    [data-theme="system"] h1.text-white,
+    [data-theme="system"] h2.text-white,
+    [data-theme="system"] h3.text-white,
+    [data-theme="system"] h4.text-white,
+    [data-theme="system"] h5.text-white,
+    [data-theme="system"] h6.text-white {
+      color: #1a202c !important;
+    }
   }
 }
 

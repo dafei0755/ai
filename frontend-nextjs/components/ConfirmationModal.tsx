@@ -134,7 +134,7 @@ export function ConfirmationModal({
           {isEditing && (
             <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
               <p className="text-sm text-blue-800 dark:text-blue-200">
-                编辑模式：您可以修改标题和内容，点击"保存并继续"提交修改。
+                编辑模式：您可以修改标题和内容，点击&ldquo;保存并继续&rdquo;提交修改。
               </p>
             </div>
           )}

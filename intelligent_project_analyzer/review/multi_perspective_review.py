@@ -757,6 +757,34 @@ class MultiPerspectiveReviewCoordinator:
             judge_review=pseudo_judge_review
         )
 
+        # ✅ 修复：从红蓝对抗结果生成 accepted_improvements（ClientReviewer未返回此字段）
+        if 'accepted_improvements' not in client_review or not client_review['accepted_improvements']:
+            # 将validated_issues转换为accepted_improvements格式
+            accepted_improvements = []
+            for issue in validated_issues:
+                priority = issue.get("priority", "medium")
+                # 映射优先级到business_priority
+                business_priority = {
+                    "critical": "must_fix",
+                    "high": "must_fix", 
+                    "medium": "should_fix",
+                    "low": "nice_to_have"
+                }.get(priority, "should_fix")
+                
+                accepted_improvements.append({
+                    "issue_id": issue.get("issue_id", f"issue_{len(accepted_improvements)+1}"),
+                    "issue": issue.get("issue", ""),
+                    "suggestion": issue.get("suggestion", ""),
+                    "priority": priority,
+                    "business_priority": business_priority,
+                    "affected_agents": issue.get("affected_agents", []),
+                    "deadline": "本轮修复" if business_priority == "must_fix" else "后续优化"
+                })
+            
+            client_review['accepted_improvements'] = accepted_improvements
+            client_review['rejected_improvements'] = []
+            logger.info(f"✅ 已从红蓝对抗结果生成 {len(accepted_improvements)} 项改进建议")
+
         accepted = client_review.get('accepted_improvements', [])
         rejected = client_review.get('rejected_improvements', [])
         must_fix = sum(1 for a in accepted if a.get('business_priority') == 'must_fix')

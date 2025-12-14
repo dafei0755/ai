@@ -127,9 +127,22 @@ class TaskOrientedExpertFactory:
                 }
             }
             
-            # 验证任务完成情况
-            self._validate_task_completion(structured_output, role_object.get("task_instruction", {}))
-            
+            # 🔥 v7.9.3: 验证任务完成情况，如果有缺失则自动补全
+            validation_passed = self._validate_task_completion(structured_output, role_object.get("task_instruction", {}))
+
+            # 🔥 v7.9.3: 如果验证未通过且有缺失交付物，尝试自动补全
+            if not validation_passed and structured_output.get('validation_result', {}).get('needs_completion'):
+                logger.info("🔄 检测到缺失交付物，开始自动补全...")
+                structured_output = await self._complete_missing_deliverables(
+                    structured_output=structured_output,
+                    role_object=role_object,
+                    context=context,
+                    state=state
+                )
+                # 更新result中的structured_output
+                result["structured_output"] = structured_output
+                logger.info("✅ 交付物补全完成")
+
             return result
             
         except Exception as e:
@@ -186,17 +199,35 @@ class TaskOrientedExpertFactory:
             
             # 获取TaskInstruction
             task_instruction = role_object.get('task_instruction', {})
-            
+
+            # 🔥 v7.10: 检测创意叙事模式
+            is_creative_narrative = task_instruction.get('is_creative_narrative', False)
+
             # 加载专家自主性协议
             autonomy_protocol = load_yaml_config("prompts/expert_autonomy_protocol_v4.yaml")
-            
+
+            # 🔥 v7.10: 创意叙事模式的特殊说明
+            creative_mode_note = ""
+            if is_creative_narrative:
+                creative_mode_note = f"""
+# 🎨 创意叙事模式 (Creative Narrative Mode)
+
+⚠️ **特别说明**: 你正在创意叙事模式下工作，以下约束放宽：
+- `completion_rate` 和 `quality_self_assessment` **可选填**（如不适用可省略或设为默认值）
+- `execution_time_estimate` **可选填**（创意过程难以精确量化时间）
+- 允许更自由的叙事结构和表达方式
+- 输出重点在于**叙事质量和情感共鸣**，而非量化指标
+
+💡 **建议**: 如果叙事内容本身就包含完整性和质量的体现，可以简化或省略这些量化字段。
+"""
+
             # 构建任务导向的系统提示词
             system_prompt = f"""
 {base_system_prompt}
 
 # 🎯 动态角色定义
 你在本次分析中的具体角色：{role_object.get('dynamic_role_name', role_object.get('role_name'))}
-
+{creative_mode_note}
 # 📋 TaskInstruction - 你的明确任务指令
 
 ## 核心目标
@@ -276,6 +307,11 @@ class TaskOrientedExpertFactory:
 4. **protocol_status**：必须是 "complied"、"challenged" 或 "reinterpreted" 之一
 5. **内容完整性**：每个deliverable的content要详细完整，不要简化
 6. **专业标准**：所有分析要符合你的专业领域标准
+7. **🔥 v7.10.1: 中文字段名要求**：
+   - 如果content是JSON对象（如用户画像、案例库等），所有字段名必须使用中文
+   - ✅ 正确："案例名称"、"设计依据"、"视角"、"建议"
+   - ❌ 错误："case_name"、"design_rationale"、"perspective"、"suggestions"
+   - 内容中的专业术语可以使用英文，但字段名必须是中文
 
 # 🚫 禁止事项
 
@@ -285,6 +321,9 @@ class TaskOrientedExpertFactory:
 - 不要添加额外的建议或观察
 - 不要使用markdown代码块包裹JSON
 - 不要使用旧格式字段如 expert_summary、task_results、validation_checklist
+- 🔥 v7.10.1: **不要输出图片占位符字段**（如"图片": ["image_1_url", "image_2_url"]）
+  - 系统不支持专家生成图片，请专注于文本分析内容
+  - 如需引用视觉元素，在文字内容中描述即可
 
 **记住：你的输出将被严格验证，必须包含 task_execution_report、protocol_execution 和 execution_metadata 三个必填字段。**
             """
@@ -328,6 +367,8 @@ class TaskOrientedExpertFactory:
         """
         解析并验证专家输出是否符合TaskOrientedExpertOutput结构
         如果验证失败，使用降级策略构造默认结构
+        
+        🔧 v7.5 增强: 多种 JSON 修复策略
         """
         try:
             # 提取JSON内容
@@ -341,8 +382,11 @@ class TaskOrientedExpertFactory:
                 logger.warning("输出不包含有效JSON，尝试整体解析")
                 json_str = expert_output.strip()
             
-            # 解析JSON
-            parsed_output = json.loads(json_str)
+            # 🔧 尝试解析JSON（多种修复策略）
+            parsed_output = self._try_parse_json_with_fixes(json_str)
+            
+            if parsed_output is None:
+                raise json.JSONDecodeError("所有JSON修复策略都失败了", json_str, 0)
             
             # 验证结构（使用Pydantic模型验证）
             task_oriented_output = TaskOrientedExpertOutput(**parsed_output)
@@ -360,18 +404,100 @@ class TaskOrientedExpertFactory:
         logger.warning(f"⚠️ 使用降级策略为 {role_object.get('role_name', 'Unknown')} 构造默认输出")
         return self._create_fallback_output(expert_output, role_object)
     
+    def _try_parse_json_with_fixes(self, json_str: str) -> Optional[Dict[str, Any]]:
+        """
+        尝试多种策略修复并解析 JSON
+        
+        常见问题:
+        1. 缺少逗号分隔符
+        2. 多余的逗号
+        3. 转义字符问题
+        4. 截断的 JSON
+        """
+        import re
+        
+        # 策略1: 直接解析
+        try:
+            return json.loads(json_str)
+        except json.JSONDecodeError:
+            pass
+        
+        # 策略2: 移除控制字符并重试
+        try:
+            cleaned = re.sub(r'[\x00-\x1f\x7f-\x9f]', '', json_str)
+            return json.loads(cleaned)
+        except json.JSONDecodeError:
+            pass
+        
+        # 策略3: 修复常见的逗号问题
+        try:
+            # 移除数组/对象末尾多余的逗号
+            fixed = re.sub(r',\s*([}\]])', r'\1', json_str)
+            # 添加缺失的逗号（对象属性之间）
+            fixed = re.sub(r'"\s*\n\s*"', '",\n"', fixed)
+            # 添加缺失的逗号（数组元素之间）
+            fixed = re.sub(r'}\s*\n\s*{', '},\n{', fixed)
+            return json.loads(fixed)
+        except json.JSONDecodeError:
+            pass
+        
+        # 策略4: 尝试修复截断的 JSON
+        try:
+            # 计算未闭合的括号
+            open_braces = json_str.count('{') - json_str.count('}')
+            open_brackets = json_str.count('[') - json_str.count(']')
+            
+            if open_braces > 0 or open_brackets > 0:
+                # 尝试补全括号
+                fixed = json_str
+                fixed += '}' * open_braces
+                fixed += ']' * open_brackets
+                return json.loads(fixed)
+        except json.JSONDecodeError:
+            pass
+        
+        # 策略5: 提取最外层的有效 JSON 对象
+        try:
+            # 找到第一个 { 到最后一个对应的 }
+            depth = 0
+            start = -1
+            end = -1
+            for i, c in enumerate(json_str):
+                if c == '{':
+                    if depth == 0:
+                        start = i
+                    depth += 1
+                elif c == '}':
+                    depth -= 1
+                    if depth == 0:
+                        end = i + 1
+                        break
+            
+            if start >= 0 and end > start:
+                return json.loads(json_str[start:end])
+        except json.JSONDecodeError:
+            pass
+        
+        logger.warning("⚠️ 所有JSON修复策略都失败了")
+        return None
+    
     def _create_fallback_output(self, raw_output: str, role_object: Dict[str, Any]) -> Dict[str, Any]:
         """
         创建降级输出结构（当Pydantic验证失败时）
+        
+        🔧 v7.6: 增强对嵌套 JSON 的处理，避免显示原始代码
         """
         role_name = role_object.get('dynamic_role_name', role_object.get('role_name', 'Unknown Expert'))
+        
+        # 🔧 尝试提取实际内容而不是原始 JSON
+        cleaned_content = self._extract_meaningful_content(raw_output)
         
         return {
             "task_execution_report": {
                 "deliverable_outputs": [
                     {
                         "deliverable_name": "分析报告",
-                        "content": raw_output,
+                        "content": cleaned_content,
                         "completion_status": "completed",
                         "completion_rate": 1.0,
                         "notes": "使用降级策略生成的输出",
@@ -397,52 +523,343 @@ class TaskOrientedExpertFactory:
             }
         }
 
+    def _extract_meaningful_content(self, raw_output: str) -> Any:
+        """
+        从原始输出中提取有意义的内容
+        
+        处理:
+        1. Markdown 代码块包裹的 JSON
+        2. 嵌套的 task_execution_report
+        3. 直接返回解析后的结构化数据
+        """
+        if not raw_output:
+            return "暂无输出"
+        
+        text = raw_output.strip()
+        
+        # 移除 markdown 代码块
+        if text.startswith("```json"):
+            text = text[7:]
+        elif text.startswith("```"):
+            text = text[3:]
+        if text.endswith("```"):
+            text = text[:-3]
+        text = text.strip()
+        
+        # 尝试解析 JSON
+        if text.startswith("{") or text.startswith("["):
+            try:
+                parsed = json.loads(text)
+                
+                # 如果是完整的 TaskOrientedExpertOutput 结构
+                if isinstance(parsed, dict):
+                    # 提取 deliverable_outputs 中的内容
+                    ter = parsed.get("task_execution_report", {})
+                    if ter:
+                        deliverable_outputs = ter.get("deliverable_outputs", [])
+                        if deliverable_outputs:
+                            # 返回第一个交付物的内容
+                            first = deliverable_outputs[0]
+                            if isinstance(first, dict):
+                                content = first.get("content")
+                                if content:
+                                    # 如果内容本身也是 JSON 字符串，递归处理
+                                    if isinstance(content, str) and (content.strip().startswith("{") or content.strip().startswith("[")):
+                                        return self._extract_meaningful_content(content)
+                                    return content
+                    
+                    # 返回解析后的结构（让前端自行渲染）
+                    return parsed
+                
+            except json.JSONDecodeError:
+                pass
+        
+        # 返回清理后的文本
+        return text
+
     
     def _validate_task_completion(self, structured_output: Dict[str, Any], task_instruction: Dict[str, Any]) -> bool:
         """
         验证任务完成情况，确保所有deliverables都已处理
+
+        🔥 v7.9.3: 增强验证 - 检测到缺失交付物时标记需要补全，而非直接通过
+
+        Returns:
+            bool: True表示验证通过，False表示需要补全
         """
         if not structured_output:
             logger.warning("⚠️ 无结构化输出，无法验证任务完成情况")
             return False
-        
+
         try:
             # 获取任务指令中的预期交付物
             expected_deliverables = task_instruction.get('deliverables', [])
-            
+
             # 获取实际的交付物输出（修复字段路径）
             task_exec_report = structured_output.get('task_execution_report', {})
             actual_results = task_exec_report.get('deliverable_outputs', [])
-            
+
             # 如果没有预期交付物，则直接通过（降级场景）
             if not expected_deliverables:
                 logger.info("✅ 无预期交付物要求，验证通过")
                 return True
-            
+
             expected_names = {d.get('name', f'交付物{i}') for i, d in enumerate(expected_deliverables, 1)}
             actual_names = {r.get('deliverable_name', '') for r in actual_results}
-            
+
             missing_deliverables = expected_names - actual_names
             if missing_deliverables:
                 logger.warning(f"⚠️ 缺失交付物: {missing_deliverables}")
-                # 降级场景下不强制失败
-                return True
-            
+                # 🔥 v7.9.3: 不再直接返回True，而是标记需要补全
+                if 'validation_result' not in structured_output:
+                    structured_output['validation_result'] = {}
+                structured_output['validation_result']['missing_deliverables'] = list(missing_deliverables)
+                structured_output['validation_result']['needs_completion'] = True
+                structured_output['validation_result']['expected_deliverables'] = expected_deliverables
+                logger.info(f"📝 标记需要补全的交付物: {missing_deliverables}")
+                return False  # 🔥 返回False表示验证未通过，需要补全
+
             # 验证协议执行状态（修复字段名）
             protocol_execution = structured_output.get('protocol_execution', {})
             if not protocol_execution.get('protocol_status'):
                 logger.warning("⚠️ 协议执行状态缺失")
                 # 降级场景下不强制失败
                 return True
-            
+
             logger.info("✅ 任务完成验证通过")
             return True
-            
+
         except Exception as e:
             logger.error(f"❌ 验证任务完成时出错: {str(e)}")
             # 发生错误时也返回True，避免阻塞流程
             return True
     
+    async def _complete_missing_deliverables(
+        self,
+        structured_output: Dict[str, Any],
+        role_object: Dict[str, Any],
+        context: str,
+        state: ProjectAnalysisState
+    ) -> Dict[str, Any]:
+        """
+        🔥 v7.9.3: 自动补全缺失的交付物
+
+        当检测到专家输出缺少部分交付物时，自动调用LLM补充缺失部分
+
+        Args:
+            structured_output: 当前的结构化输出（包含validation_result）
+            role_object: 角色对象
+            context: 项目上下文
+            state: 当前状态
+
+        Returns:
+            Dict: 补全后的结构化输出
+        """
+        try:
+            validation_result = structured_output.get('validation_result', {})
+            missing_deliverables = validation_result.get('missing_deliverables', [])
+            expected_deliverables = validation_result.get('expected_deliverables', [])
+
+            if not missing_deliverables:
+                logger.warning("⚠️ 没有缺失的交付物，无需补全")
+                return structured_output
+
+            logger.info(f"🔄 开始补全缺失的交付物: {missing_deliverables}")
+
+            # 构建补全提示词
+            completion_prompt = self._build_completion_prompt(
+                role_object=role_object,
+                context=context,
+                state=state,
+                missing_deliverables=missing_deliverables,
+                expected_deliverables=expected_deliverables,
+                existing_output=structured_output
+            )
+
+            # 调用LLM生成补充内容
+            llm = self._get_llm()
+            messages = [
+                {"role": "system", "content": completion_prompt["system_prompt"]},
+                {"role": "user", "content": completion_prompt["user_prompt"]}
+            ]
+
+            response = await llm.ainvoke(messages)
+            completion_output = response.content if hasattr(response, 'content') else str(response)
+
+            # 解析补充的交付物
+            completed_deliverables = self._parse_completion_output(completion_output, missing_deliverables)
+
+            # 合并到原始输出
+            task_exec_report = structured_output.get('task_execution_report', {})
+            deliverable_outputs = task_exec_report.get('deliverable_outputs', [])
+
+            # 添加补充的交付物
+            for deliverable in completed_deliverables:
+                deliverable_outputs.append(deliverable)
+                logger.info(f"✅ 已补全交付物: {deliverable.get('deliverable_name')}")
+
+            # 更新结构化输出
+            task_exec_report['deliverable_outputs'] = deliverable_outputs
+            structured_output['task_execution_report'] = task_exec_report
+
+            # 清除validation_result标记
+            if 'validation_result' in structured_output:
+                del structured_output['validation_result']
+
+            logger.info(f"✅ 成功补全 {len(completed_deliverables)} 个交付物")
+            return structured_output
+
+        except Exception as e:
+            logger.error(f"❌ 补全缺失交付物时出错: {str(e)}")
+            # 发生错误时返回原始输出，不阻塞流程
+            logger.warning("⚠️ 补全失败，使用原始输出")
+            return structured_output
+
+    def _build_completion_prompt(
+        self,
+        role_object: Dict[str, Any],
+        context: str,
+        state: ProjectAnalysisState,
+        missing_deliverables: List[str],
+        expected_deliverables: List[Dict[str, Any]],
+        existing_output: Dict[str, Any]
+    ) -> Dict[str, str]:
+        """
+        🔥 v7.9.3: 构建补全提示词，只要求LLM输出缺失的交付物
+
+        Args:
+            role_object: 角色对象
+            context: 项目上下文
+            state: 当前状态
+            missing_deliverables: 缺失的交付物名称列表
+            expected_deliverables: 预期的所有交付物定义
+            existing_output: 已有的输出（用于上下文）
+
+        Returns:
+            Dict: 包含system_prompt和user_prompt的字典
+        """
+        # 筛选出缺失的交付物定义
+        missing_defs = [d for d in expected_deliverables if d.get('name') in missing_deliverables]
+
+        # 获取已完成的交付物（作为参考）
+        existing_deliverables = existing_output.get('task_execution_report', {}).get('deliverable_outputs', [])
+        existing_names = [d.get('deliverable_name') for d in existing_deliverables]
+
+        system_prompt = f"""
+你是 {role_object.get('dynamic_role_name', role_object.get('role_name'))}。
+
+# 🎯 补全任务
+
+你之前已经完成了部分交付物：{', '.join(existing_names)}
+
+但还有以下交付物**尚未完成**，需要你现在补充：
+
+"""
+        for i, deliverable in enumerate(missing_defs, 1):
+            system_prompt += f"""
+**缺失交付物 {i}: {deliverable.get('name')}**
+- 描述: {deliverable.get('description', '')}
+- 格式: {deliverable.get('format', 'analysis')}
+- 成功标准: {', '.join(deliverable.get('success_criteria', []))}
+"""
+
+        system_prompt += """
+
+# 📊 输出要求
+
+**请只输出缺失的交付物**，格式如下：
+
+```json
+{
+  "deliverable_outputs": [
+    {
+      "deliverable_name": "缺失交付物的名称（必须与上面列出的名称完全一致）",
+      "content": "详细的分析内容（完整、专业、符合成功标准）",
+      "completion_status": "completed",
+      "completion_rate": 0.95,
+      "notes": "补充说明",
+      "quality_self_assessment": 0.9
+    }
+  ]
+}
+```
+
+# ⚠️ 关键要求
+
+1. **只输出缺失的交付物**，不要重复已完成的交付物
+2. **deliverable_name必须与任务指令中的名称完全一致**
+3. **content要详细完整**，不要简化或省略
+4. **返回有效的JSON格式**，不要有额外文字
+5. **不要使用markdown代码块包裹JSON**
+
+开始补充缺失的交付物：
+"""
+
+        user_prompt = f"""
+# 📂 项目上下文
+{context}
+
+# 📊 当前项目状态
+- 项目阶段: {state.get('current_phase', '分析阶段')}
+- 已完成分析: {len(state.get('expert_analyses', {}))}个专家
+
+# 🎯 你的任务
+
+请基于上述项目上下文，补充以下缺失的交付物：
+{', '.join(missing_deliverables)}
+
+**记住**：只输出缺失的交付物，格式为JSON，不要有任何额外文字。
+"""
+
+        return {
+            "system_prompt": system_prompt,
+            "user_prompt": user_prompt
+        }
+
+    def _parse_completion_output(self, completion_output: str, missing_deliverables: List[str]) -> List[Dict[str, Any]]:
+        """
+        🔥 v7.9.3: 解析补全输出，提取交付物列表
+
+        Args:
+            completion_output: LLM返回的补全内容
+            missing_deliverables: 预期的缺失交付物名称列表
+
+        Returns:
+            List[Dict]: 解析后的交付物列表
+        """
+        try:
+            # 提取JSON内容
+            if "```json" in completion_output:
+                json_start = completion_output.find("```json") + 7
+                json_end = completion_output.find("```", json_start)
+                json_str = completion_output[json_start:json_end].strip()
+            elif "{" in completion_output and "}" in completion_output:
+                json_str = completion_output[completion_output.find("{"):completion_output.rfind("}")+1]
+            else:
+                logger.warning("补全输出不包含有效JSON")
+                json_str = completion_output.strip()
+
+            # 解析JSON
+            parsed = json.loads(json_str)
+
+            # 提取deliverable_outputs
+            if isinstance(parsed, dict):
+                deliverables = parsed.get('deliverable_outputs', [])
+                if deliverables:
+                    logger.info(f"✅ 成功解析 {len(deliverables)} 个补全交付物")
+                    return deliverables
+
+            logger.warning("⚠️ 解析的JSON中没有deliverable_outputs字段")
+            return []
+
+        except json.JSONDecodeError as e:
+            logger.error(f"❌ 解析补全输出JSON失败: {str(e)}")
+            logger.error(f"原始输出: {completion_output[:200]}...")
+            return []
+        except Exception as e:
+            logger.error(f"❌ 处理补全输出时出错: {str(e)}")
+            return []
+
     def _get_timestamp(self) -> str:
         """获取当前时间戳"""
         return datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")

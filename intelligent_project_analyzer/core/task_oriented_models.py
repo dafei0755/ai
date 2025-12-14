@@ -11,7 +11,7 @@
 """
 
 from typing import List, Optional, Literal, Dict, Any, Union
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, validator
 from enum import Enum
 
 
@@ -47,15 +47,19 @@ class DeliverableSpec(BaseModel):
     
     
 class TaskInstruction(BaseModel):
-    """统一的任务执行指令（合并tasks+expected_output+focus_areas）"""
+    """
+    统一的任务执行指令（合并tasks+expected_output+focus_areas）
+
+    🆕 v7.10: 支持创意叙事模式标识
+    """
     objective: str = Field(
         title="核心目标",
         description="这个角色在本项目中的核心目标（1句话明确表述）"
     )
     deliverables: List[DeliverableSpec] = Field(
         title="交付物清单",
-        description="具体的交付物要求列表", 
-        min_items=1, 
+        description="具体的交付物要求列表",
+        min_items=1,
         max_items=5
     )
     success_criteria: List[str] = Field(
@@ -66,13 +70,19 @@ class TaskInstruction(BaseModel):
     )
     constraints: List[str] = Field(
         title="执行约束",
-        default_factory=list, 
+        default_factory=list,
         description="执行约束条件（如时间、预算、技术限制）"
     )
     context_requirements: List[str] = Field(
         title="上下文需求",
         default_factory=list,
         description="执行此任务需要的上下文信息"
+    )
+    # 🔥 v7.10: 创意叙事模式标识
+    is_creative_narrative: bool = Field(
+        title="创意叙事模式",
+        default=False,
+        description="是否为创意叙事类任务（V3专家）- 此模式下放宽量化指标要求"
     )
 
 
@@ -150,17 +160,43 @@ class CompletionStatus(str, Enum):
 
 
 class DeliverableOutput(BaseModel):
-    """交付物输出"""
+    """
+    交付物输出
+
+    🆕 v7.10: 支持创意模式 - 叙事类交付物可选填量化指标
+    """
     deliverable_name: str = Field(title="交付物名称", description="对应TaskInstruction中的deliverable名称")
-    content: str = Field(title="内容", description="交付物具体内容")
-    completion_status: CompletionStatus = Field(title="完成状态", description="完成状态")
-    completion_rate: float = Field(title="完成度", ge=0.0, le=1.0, description="完成度百分比")
-    notes: Optional[str] = Field(title="备注", default=None, description="说明或备注")
-    quality_self_assessment: float = Field(
-        title="质量自评",
-        ge=0.0, le=1.0, 
-        description="质量自评分数（0-1）"
+    content: Union[str, Dict[str, Any], List[Any]] = Field(
+        title="内容",
+        description="交付物具体内容（可以是文本、结构化数据或列表）"
     )
+    completion_status: CompletionStatus = Field(title="完成状态", description="完成状态")
+    # 🔥 v7.10: 放宽量化指标约束 - 创意叙事模式下可选
+    completion_rate: Optional[float] = Field(
+        title="完成度",
+        ge=0.0, le=1.0,
+        default=1.0,  # 默认完成
+        description="完成度百分比（创意叙事模式下可省略，默认1.0）"
+    )
+    notes: Optional[str] = Field(title="备注", default=None, description="说明或备注")
+    quality_self_assessment: Optional[float] = Field(
+        title="质量自评",
+        ge=0.0, le=1.0,
+        default=None,  # 创意模式下可不填
+        description="质量自评分数（0-1）（创意叙事模式下可省略）"
+    )
+
+    @validator('content', pre=True)
+    def serialize_content(cls, v):
+        """
+        序列化content为JSON字符串（如果是dict或list）
+
+        这样可以兼容LLM返回结构化数据的情况，同时保持模型的一致性
+        """
+        if isinstance(v, (dict, list)):
+            import json
+            return json.dumps(v, ensure_ascii=False, indent=2)
+        return v
 
 
 class TaskExecutionReport(BaseModel):
@@ -187,10 +223,24 @@ class TaskExecutionReport(BaseModel):
 
 
 class ExecutionMetadata(BaseModel):
-    """执行元数据"""
+    """
+    执行元数据
+
+    🆕 v7.10: 支持创意叙事模式 - 部分字段可选
+    """
     confidence: float = Field(title="置信度", ge=0.0, le=1.0, description="整体执行置信度")
-    completion_rate: float = Field(title="完成度", ge=0.0, le=1.0, description="整体完成度")
-    execution_time_estimate: str = Field(title="执行时间估算", description="执行时间估算")
+    # 🔥 v7.10: 创意叙事模式下可省略 completion_rate
+    completion_rate: Optional[float] = Field(
+        title="完成度",
+        ge=0.0, le=1.0,
+        default=1.0,
+        description="整体完成度（创意叙事模式下默认1.0）"
+    )
+    execution_time_estimate: Optional[str] = Field(
+        title="执行时间估算",
+        default=None,
+        description="执行时间估算（创意叙事模式下可省略）"
+    )
     execution_notes: Optional[str] = Field(title="执行备注", default=None, description="执行备注")
     dependencies_satisfied: bool = Field(
         title="依赖满足",

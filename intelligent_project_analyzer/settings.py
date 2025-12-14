@@ -141,15 +141,52 @@ class Settings(BaseSettings):
     @model_validator(mode='after')
     def load_from_flat_env(self):
         """从扁平环境变量加载配置(兼容旧.env格式)"""
-        # 读取LLM配置
-        if not self.llm.api_key and os.getenv('OPENAI_API_KEY'):
-            self.llm.api_key = os.getenv('OPENAI_API_KEY', '')
-        # 🔄 兼容旧版 .env 字段
+        # 读取LLM配置 - 根据提供商选择正确的API Key
+        provider = os.getenv('LLM_PROVIDER', 'openai').lower()
+
+        if provider == 'openrouter':
+            # OpenRouter: 优先使用 OPENROUTER_API_KEY
+            if not self.llm.api_key and os.getenv('OPENROUTER_API_KEY'):
+                self.llm.api_key = os.getenv('OPENROUTER_API_KEY', '')
+        elif provider == 'deepseek':
+            # DeepSeek
+            if not self.llm.api_key and os.getenv('DEEPSEEK_API_KEY'):
+                self.llm.api_key = os.getenv('DEEPSEEK_API_KEY', '')
+        elif provider == 'qwen':
+            # Qwen
+            if not self.llm.api_key and os.getenv('QWEN_API_KEY'):
+                self.llm.api_key = os.getenv('QWEN_API_KEY', '')
+        else:
+            # OpenAI (默认)
+            if not self.llm.api_key and os.getenv('OPENAI_API_KEY'):
+                self.llm.api_key = os.getenv('OPENAI_API_KEY', '')
+
+        # 🔄 兼容旧版 .env 字段 (最后的后备选项)
         if not self.llm.api_key and os.getenv('LLM_API_KEY'):
             self.llm.api_key = os.getenv('LLM_API_KEY', '')
-        if os.getenv('LLM_MODEL_NAME'):
+
+        # 加载模型名称 - 根据提供商选择
+        if provider == 'openrouter' and os.getenv('OPENROUTER_MODEL'):
+            self.llm.model = os.getenv('OPENROUTER_MODEL', self.llm.model)
+        elif provider == 'deepseek' and os.getenv('DEEPSEEK_MODEL'):
+            self.llm.model = os.getenv('DEEPSEEK_MODEL', self.llm.model)
+        elif provider == 'qwen' and os.getenv('QWEN_MODEL'):
+            self.llm.model = os.getenv('QWEN_MODEL', self.llm.model)
+        elif os.getenv('OPENAI_MODEL'):
+            self.llm.model = os.getenv('OPENAI_MODEL', self.llm.model)
+        elif os.getenv('LLM_MODEL_NAME'):
             self.llm.model = os.getenv('LLM_MODEL_NAME', self.llm.model)
-        if os.getenv('LLM_BASE_URL'):
+
+        # 加载 Base URL - 根据提供商选择
+        if provider == 'openrouter' and os.getenv('OPENROUTER_BASE_URL'):
+            self.llm.api_base = os.getenv('OPENROUTER_BASE_URL', self.llm.api_base)
+        elif provider == 'deepseek' and os.getenv('DEEPSEEK_BASE_URL'):
+            self.llm.api_base = os.getenv('DEEPSEEK_BASE_URL', self.llm.api_base)
+        elif provider == 'qwen' and os.getenv('QWEN_BASE_URL'):
+            self.llm.api_base = os.getenv('QWEN_BASE_URL', self.llm.api_base)
+        elif os.getenv('OPENAI_BASE_URL'):
+            self.llm.api_base = os.getenv('OPENAI_BASE_URL', self.llm.api_base)
+        elif os.getenv('LLM_BASE_URL'):
             self.llm.api_base = os.getenv('LLM_BASE_URL', self.llm.api_base)
         if os.getenv('MAX_TOKENS'):
             self.llm.max_tokens = int(os.getenv('MAX_TOKENS', self.llm.max_tokens))

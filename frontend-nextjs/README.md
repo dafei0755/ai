@@ -16,6 +16,9 @@ npm run dev
 
 打开浏览器访问 [http://localhost:3000](http://localhost:3000)
 
+> 💡 端口提示：如果 `3000` 被占用，Next.js 会自动切换到 `3001`。
+> 请以终端输出的 Local 地址为准（例如 `http://localhost:3001`）。
+
 ## 构建生产版本
 
 ```bash

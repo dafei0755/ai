@@ -28,6 +28,37 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse, Response
 from pydantic import BaseModel, Field
 from loguru import logger
+
+# 日志文件输出配置，确保主流程日志完整写入 logs/server.log
+log_dir = Path(__file__).parent.parent.parent / "logs"
+log_dir.mkdir(exist_ok=True)
+
+# 主日志文件（所有级别）
+logger.add(str(log_dir / "server.log"),
+           rotation="10 MB",
+           retention="10 days",
+           encoding="utf-8",
+           enqueue=True,
+           backtrace=True,
+           diagnose=True,
+           level="INFO")
+
+# 认证相关日志（方便 SSO 调试）
+logger.add(str(log_dir / "auth.log"),
+           rotation="5 MB",
+           retention="7 days",
+           encoding="utf-8",
+           enqueue=True,
+           filter=lambda record: "auth" in record["name"].lower() or "sso" in record["message"].lower() or "token" in record["message"].lower(),
+           level="DEBUG")
+
+# 错误日志（只记录 ERROR 及以上）
+logger.add(str(log_dir / "errors.log"),
+           rotation="5 MB",
+           retention="30 days",
+           encoding="utf-8",
+           enqueue=True,
+           level="ERROR")
 from typing import List
 from fpdf import FPDF
 
@@ -228,6 +259,22 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# ✅ v7.10新增: 注册 WordPress JWT 认证路由
+try:
+    from intelligent_project_analyzer.api.auth_routes import router as auth_router
+    app.include_router(auth_router)
+    logger.info("✅ WordPress JWT 认证路由已注册")
+except Exception as e:
+    logger.warning(f"⚠️ WordPress JWT 认证路由加载失败: {e}")
+
+# ✅ v7.10.1新增: 注册 WPCOM Member 会员信息路由
+try:
+    from intelligent_project_analyzer.api.member_routes import router as member_router
+    app.include_router(member_router)
+    logger.info("✅ WPCOM Member 会员信息路由已注册")
+except Exception as e:
+    logger.warning(f"⚠️ WPCOM Member 会员信息路由加载失败: {e}")
 
 # ✅ v3.9新增: 注册 Celery 路由（可选）
 try:
@@ -530,6 +577,8 @@ class StructuredReportResponse(BaseModel):
     questionnaire_responses: Optional[QuestionnaireResponseData] = Field(default=None, description="问卷回答数据")
     review_visualization: Optional[ReviewVisualizationResponse] = None
     challenge_detection: Optional[ChallengeDetectionResponse] = Field(default=None, description="挑战检测结果")
+    # 🆕 v7.4: 执行元数据汇总
+    execution_metadata: Optional[Dict[str, Any]] = Field(default=None, description="执行元数据汇总")
 
 
 class ReportResponse(BaseModel):
@@ -1131,7 +1180,14 @@ async def run_workflow_async(session_id: str, user_input: str):
                 }
                 
                 # 使用节点映射或回退到计数
-                progress = node_progress_map.get(current_node_name, min(0.9, len(events) * 0.1))
+                new_progress = node_progress_map.get(current_node_name, min(0.9, len(events) * 0.1))
+                
+                # 🔥 防止进度回退：只有新进度 ≥ 旧进度时才更新
+                old_progress = current_session.get("progress", 0)
+                progress = max(new_progress, old_progress if isinstance(old_progress, (int, float)) else 0)
+                
+                if new_progress < old_progress:
+                    logger.debug(f"⚠️ 检测到进度回退: {old_progress:.0%} → {new_progress:.0%}，使用旧进度 {progress:.0%}")
                 
                 # ✅ 单次更新 Redis（避免重复写入和竞态条件）
                 await session_manager.update(session_id, {
@@ -2925,7 +2981,9 @@ async def get_analysis_report(session_id: str):
                 review_feedback=review_feedback,
                 questionnaire_responses=questionnaire_data,  # 🔥 添加问卷数据
                 review_visualization=review_viz,
-                challenge_detection=challenge_detection
+                challenge_detection=challenge_detection,
+                # 🆕 v7.4: 添加执行元数据汇总
+                execution_metadata=final_report.get("metadata")
             )
             
             logger.info(f"✅ 成功解析结构化报告，包含 {len(sections)} 个章节")
@@ -3919,7 +3977,25 @@ def _get_field_label(key: str) -> str:
 
 
 # 需要跳过的重复/内部字段
-SKIP_FIELDS = {'content', 'raw_content', 'raw_response', 'original_content'}
+# 🔥 v7.9.2: 扩展黑名单,过滤元数据字段(与前端ExpertReportAccordion.tsx保持一致)
+SKIP_FIELDS = {
+    # 原有字段
+    'content', 'raw_content', 'raw_response', 'original_content',
+    # 🔥 v7.9.2: 任务导向输出元数据(避免显示技术字段)
+    'task_execution_report',  # 已被提取,不再需要显示
+    'protocol_execution', 'protocol执行', 'protocol_status', 'protocol状态',
+    'execution_metadata', 'executionmetadata',
+    'compliance_confirmation', 'complianceconfirmation',
+    # 技术字段
+    'confidence', '置信度',
+    'completion_status', 'completion记录', 'completion_ratio', 'completion_rate',
+    'quality_self_assessment', 'dependencies_satisfied',
+    'notes',  # 通常是技术备注
+    # 🔥 v7.10.1: 过滤无意义的图片占位符字段
+    'image', 'images', '图片', 'illustration', 'illustrations',
+    'image_1_url', 'image_2_url', 'image_3_url', 'image_4_url', 'image_5_url', 'image_6_url',
+    'image_url', 'image_urls', '图片链接',
+}
 
 # ============ 内容翻译函数（处理 LLM 输出中的英文短语） ============
 CONTENT_TRANSLATIONS = {

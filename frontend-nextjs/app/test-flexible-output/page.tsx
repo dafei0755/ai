@@ -417,7 +417,7 @@ export default function TestFlexibleOutputPage() {
             <div>
               <h3 className="text-blue-400 font-medium mb-2">场景 5 (V2-1)</h3>
               <ul className="space-y-1 text-gray-400">
-                <li>□ decision_rationale显示为"决策依据"</li>
+                <li>□ decision_rationale显示为&ldquo;决策依据&rdquo;</li>
                 <li>□ V2特殊命名正确</li>
               </ul>
             </div>
@@ -444,10 +444,10 @@ export default function TestFlexibleOutputPage() {
         <div className="bg-gray-800 rounded-lg border border-gray-700">
           <ReportSectionCard
             section={{
-              section_name: allScenarios[selectedScenario].section_name,
+              section_id: `test-scenario-${selectedScenario + 1}`,
+              title: allScenarios[selectedScenario].section_name,
               content: allScenarios[selectedScenario].content,
-              confidence: 0.9,
-              role_id: `test-scenario-${selectedScenario + 1}`
+              confidence: 0.9
             }}
           />
         </div>
