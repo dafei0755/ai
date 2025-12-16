@@ -27,19 +27,21 @@
 - ⭐⭐⭐⭐⭐ **快速开始**: [V3.0.20_QUICK_START.md](V3.0.20_QUICK_START.md) - 5分钟快速部署
 - ⭐⭐⭐⭐⭐ **完整部署指南**: [WORDPRESS_SSO_V3.0.20_DEPLOYMENT_GUIDE.md](WORDPRESS_SSO_V3.0.20_DEPLOYMENT_GUIDE.md)
 - ⭐⭐⭐⭐⭐ **发布说明**: [WORDPRESS_SSO_V3.0.20_RELEASE_NOTES.md](WORDPRESS_SSO_V3.0.20_RELEASE_NOTES.md)
-- ⭐⭐⭐⭐⭐ **清理总结**: [V3.0.20_CLEANUP_SUMMARY.md](V3.0.20_CLEANUP_SUMMARY.md)
-- ⭐⭐⭐⭐ **技术解决方案**: [CROSS_DOMAIN_COOKIE_FIX.md](CROSS_DOMAIN_COOKIE_FIX.md) - 跨域Cookie完整解决方案
-- ⭐⭐⭐⭐ **架构设计**: [WORDPRESS_HIDDEN_BLOCK_ARCHITECTURE.md](WORDPRESS_HIDDEN_BLOCK_ARCHITECTURE.md)
-- ⭐⭐⭐⭐ **死循环修复**: [EMERGENCY_FIX_INFINITE_LOOP.md](EMERGENCY_FIX_INFINITE_LOOP.md)
-- ⭐⭐⭐ **自动化测试**: [CROSS_DOMAIN_FIX_AUTO_TEST_GUIDE.md](CROSS_DOMAIN_FIX_AUTO_TEST_GUIDE.md)
-- ⭐⭐⭐ **无痕模式测试**: [INCOGNITO_MODE_TEST_GUIDE.md](INCOGNITO_MODE_TEST_GUIDE.md)
+
+**技术文档** (详见 [docs/wordpress/](docs/wordpress/)):
+- ⭐⭐⭐⭐ **技术解决方案**: [CROSS_DOMAIN_COOKIE_FIX.md](docs/wordpress/CROSS_DOMAIN_COOKIE_FIX.md) - 跨域Cookie完整解决方案
+- ⭐⭐⭐⭐ **架构设计**: [WORDPRESS_HIDDEN_BLOCK_ARCHITECTURE.md](docs/wordpress/WORDPRESS_HIDDEN_BLOCK_ARCHITECTURE.md)
+- ⭐⭐⭐⭐ **死循环修复**: [EMERGENCY_FIX_INFINITE_LOOP.md](docs/wordpress/EMERGENCY_FIX_INFINITE_LOOP.md)
+- ⭐⭐⭐⭐ **完整解决方案**: [CROSS_DOMAIN_FIX_COMPLETE_SOLUTION.md](docs/wordpress/CROSS_DOMAIN_FIX_COMPLETE_SOLUTION.md)
+- ⭐⭐⭐ **自动化测试**: [CROSS_DOMAIN_FIX_AUTO_TEST_GUIDE.md](docs/wordpress/CROSS_DOMAIN_FIX_AUTO_TEST_GUIDE.md)
+- ⭐⭐⭐ **无痕模式测试**: [INCOGNITO_MODE_TEST_GUIDE.md](docs/wordpress/INCOGNITO_MODE_TEST_GUIDE.md)
 
 **历史文档**:
-- [PROJECT_CLEANUP_SUMMARY_20251214.md](PROJECT_CLEANUP_SUMMARY_20251214.md) - 项目清理总结（v3.0.6）
-- [SSO_WORDPRESS_LAYER_FIX_20251215.md](SSO_WORDPRESS_LAYER_FIX_20251215.md) - WordPress层修复（v3.0.6）
 - [docs/WORDPRESS_INTEGRATION_GUIDE.md](docs/WORDPRESS_INTEGRATION_GUIDE.md) - 综合开发指南
-- [docs/wordpress/](docs/wordpress/) - 历史WordPress文档
-- [archive/](archive/) - 历史版本归档（16个历史插件 + 64个历史文档 + 17个测试文件）
+- [docs/wordpress/](docs/wordpress/) - WordPress技术文档
+- [archive/docs/](archive/docs/) - 历史版本文档归档（67个文件，包含v3.0.6-v3.0.19相关）
+- [archive/plugins/](archive/plugins/) - 历史插件版本（16个版本）
+- [archive/tests/](archive/tests/) - 历史测试文件（17个文件）
 
 **插件下载**:
 - 文件: `nextjs-sso-integration-v3.0.20.zip`
@@ -245,8 +247,8 @@ start_backend_enhanced.bat
 
 # 方式2: 直接启动
 cd d:\11-20\langgraph-design
-<!-- python -B -m uvicorn intelligent_project_analyzer.api.server:app --host 0.0.0.0 --port 8000 -->
-```
+python -B -m uvicorn intelligent_project_analyzer.api.server:app --host 0.0.0.0 --port 8000
+<!--  -->```
 
 > 💡 **提示**: 
 > - `-B` 参数禁用 Python `.pyc` 缓存，确保始终使用最新源代码
@@ -619,7 +621,13 @@ langgraph-design/
 │   │   ├── BUG_FIX_REPORT_INFINITE_LOOP.md
 │   │   ├── P2_P3_FIX_SUMMARY.md
 │   │   └── CONVERSATION_BUGFIX_REPORT.md
-│   ├── wordpress/                 # WordPress历史文档
+│   ├── wordpress/                 # WordPress技术文档（v3.0.20）
+│   │   ├── CROSS_DOMAIN_COOKIE_FIX.md  # 跨域Cookie修复
+│   │   ├── WORDPRESS_HIDDEN_BLOCK_ARCHITECTURE.md  # 架构设计
+│   │   ├── EMERGENCY_FIX_INFINITE_LOOP.md  # 死循环修复
+│   │   ├── CROSS_DOMAIN_FIX_COMPLETE_SOLUTION.md  # 完整解决方案
+│   │   ├── CROSS_DOMAIN_FIX_AUTO_TEST_GUIDE.md  # 自动化测试
+│   │   └── INCOGNITO_MODE_TEST_GUIDE.md  # 无痕模式测试
 │   ├── bug_fix_summary_20251129_2315.md  # Bug修复总结
 │   ├── followup_questions_fix_20251130.md  # 追问功能修复
 │   ├── complete_fix_summary_20251129.md   # 完整修复记录
@@ -629,7 +637,7 @@ langgraph-design/
 │
 ├── archive/                       # 历史版本归档 🆕
 │   ├── plugins/                   # 16个历史WordPress插件版本（v3.0.6-v3.0.17）
-│   ├── docs/                      # 64个历史文档（v3.0.6-v3.0.19相关）
+│   ├── docs/                      # 67个历史文档（v3.0.6-v3.0.19 + 清理报告）
 │   └── tests/                     # 17个历史测试文件和诊断工具
 │
 ├── e2e-tests/                     # E2E测试
@@ -648,13 +656,6 @@ langgraph-design/
 ├── V3.0.20_QUICK_START.md         # v3.0.20快速开始 ⭐⭐⭐⭐⭐
 ├── WORDPRESS_SSO_V3.0.20_DEPLOYMENT_GUIDE.md  # 完整部署指南 ⭐⭐⭐⭐⭐
 ├── WORDPRESS_SSO_V3.0.20_RELEASE_NOTES.md     # 发布说明 ⭐⭐⭐⭐⭐
-├── V3.0.20_CLEANUP_SUMMARY.md     # 清理总结 ⭐⭐⭐⭐⭐
-├── CROSS_DOMAIN_COOKIE_FIX.md     # 跨域Cookie修复 ⭐⭐⭐⭐
-├── WORDPRESS_HIDDEN_BLOCK_ARCHITECTURE.md  # 架构设计 ⭐⭐⭐⭐
-├── EMERGENCY_FIX_INFINITE_LOOP.md # 死循环修复 ⭐⭐⭐⭐
-├── CROSS_DOMAIN_FIX_AUTO_TEST_GUIDE.md  # 自动化测试 ⭐⭐⭐
-├── INCOGNITO_MODE_TEST_GUIDE.md   # 无痕模式测试 ⭐⭐⭐
-├── PROJECT_FILE_ORGANIZATION_REPORT.md  # 文件整理报告 ✅
 │
 ├── .env                           # 环境变量配置
 ├── requirements.txt               # Python依赖
@@ -1858,10 +1859,12 @@ MIT License - 详见 [LICENSE](LICENSE) 文件
 **状态**: ✅ 生产就绪
 **重要更新**:
 - ✅ WordPress SSO v3.0.20 稳定版发布 - 跨域Cookie问题完美解决
-- ✅ 16个历史插件版本已归档到 `archive/plugins/`
-- ✅ 64个历史文档已归档到 `archive/docs/`
-- ✅ 17个测试文件已归档到 `archive/tests/`
+- ✅ 根目录整理完成 - 从14个MD减少到5个核心文档
+- ✅ 技术文档迁移到 `docs/wordpress/` 目录（6个文件）
+- ✅ 历史文档归档到 `archive/docs/`（67个文件）
+- ✅ 16个历史插件版本归档到 `archive/plugins/`
+- ✅ 17个测试文件归档到 `archive/tests/`
 - ✅ 完整的v3.0.20部署文档和测试指南
-- ✅ 项目文件结构优化完成
+- ✅ 项目文件结构优化完成 - 清晰、易查找、易维护
 
 感谢使用 **Intelligent Project Analyzer** - 让设计分析更智能！🎨
