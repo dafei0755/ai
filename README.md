@@ -39,7 +39,7 @@
 - [SSO_WORDPRESS_LAYER_FIX_20251215.md](SSO_WORDPRESS_LAYER_FIX_20251215.md) - WordPress层修复（v3.0.6）
 - [docs/WORDPRESS_INTEGRATION_GUIDE.md](docs/WORDPRESS_INTEGRATION_GUIDE.md) - 综合开发指南
 - [docs/wordpress/](docs/wordpress/) - 历史WordPress文档
-- [archive/](archive/) - 历史版本归档（14个历史插件版本 + 历史文档）
+- [archive/](archive/) - 历史版本归档（16个历史插件 + 64个历史文档 + 17个测试文件）
 
 **插件下载**:
 - 文件: `nextjs-sso-integration-v3.0.20.zip`
@@ -245,7 +245,7 @@ start_backend_enhanced.bat
 
 # 方式2: 直接启动
 cd d:\11-20\langgraph-design
-python -B -m uvicorn intelligent_project_analyzer.api.server:app --host 0.0.0.0 --port 8000
+<!-- python -B -m uvicorn intelligent_project_analyzer.api.server:app --host 0.0.0.0 --port 8000 -->
 ```
 
 > 💡 **提示**: 
@@ -628,9 +628,9 @@ langgraph-design/
 │   └── PROJECT_STRUCTURE.md       # 详细结构说明
 │
 ├── archive/                       # 历史版本归档 🆕
-│   ├── plugins/                   # 14个历史WordPress插件版本（v3.0.6-v3.0.15）
-│   ├── docs/                      # 历史文档（待手动移动）
-│   └── tests/                     # 历史测试文件（待手动移动）
+│   ├── plugins/                   # 16个历史WordPress插件版本（v3.0.6-v3.0.17）
+│   ├── docs/                      # 64个历史文档（v3.0.6-v3.0.19相关）
+│   └── tests/                     # 17个历史测试文件和诊断工具
 │
 ├── e2e-tests/                     # E2E测试
 │   ├── test-v3.0.20-cross-domain-fix.js  # v3.0.20自动化测试 ✅
@@ -1858,7 +1858,9 @@ MIT License - 详见 [LICENSE](LICENSE) 文件
 **状态**: ✅ 生产就绪
 **重要更新**:
 - ✅ WordPress SSO v3.0.20 稳定版发布 - 跨域Cookie问题完美解决
-- ✅ 14个历史插件版本已归档到 `archive/plugins/`
+- ✅ 16个历史插件版本已归档到 `archive/plugins/`
+- ✅ 64个历史文档已归档到 `archive/docs/`
+- ✅ 17个测试文件已归档到 `archive/tests/`
 - ✅ 完整的v3.0.20部署文档和测试指南
 - ✅ 项目文件结构优化完成
 
