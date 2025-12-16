@@ -360,8 +360,8 @@ pip install httpx python-decouple
 
 ```env
 WORDPRESS_URL=https://www.ucppt.com
-WORDPRESS_ADMIN_USERNAME=8pdwoxj8
-WORDPRESS_ADMIN_PASSWORD=M2euRVQMdpzJp%*KLtD0#kK1
+WORDPRESS_ADMIN_USERNAME=YOUR_WORDPRESS_USERNAME
+WORDPRESS_ADMIN_PASSWORD=YOUR_WORDPRESS_PASSWORD
 ```
 
 ### Python 客户端代码
@@ -515,7 +515,7 @@ if __name__ == "__main__":
 ```json
 {
   "user_id": 1,
-  "username": "8pdwoxj8",
+  "username": "YOUR_WORDPRESS_USERNAME",
   "nickname": "宋词",
   "email": "42841287@qq.com",
   "roles": ["administrator"],

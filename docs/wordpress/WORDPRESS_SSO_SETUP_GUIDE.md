@@ -164,7 +164,7 @@
    ```bash
    curl -X POST https://www.ucppt.com/wp-json/simple-jwt-login/v1/auth \
      -H "Content-Type: application/json" \
-     -d '{"username": "8pdwoxj8", "password": "YOUR_PASSWORD"}'
+     -d '{"username": "YOUR_WORDPRESS_USERNAME", "password": "YOUR_PASSWORD"}'
    ```
 
 ---

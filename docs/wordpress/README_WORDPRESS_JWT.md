@@ -2,7 +2,7 @@
 
 > **项目完成日期**：2025-12-12  
 > **状态**：✅ **100% 完成** - 生产就绪  
-> **关键凭证**：用户名 `8pdwoxj8` | WordPress URL `https://www.ucppt.com`
+> **关键凭证**：用户名 `YOUR_WORDPRESS_USERNAME` | WordPress URL `https://www.ucppt.com`
 
 ---
 
@@ -77,7 +77,7 @@ start_wordpress_jwt.bat
 自动打开：`http://localhost:3000/auth/login`
 
 输入凭证：
-- 用户名：`8pdwoxj8`
+- 用户名：`YOUR_WORDPRESS_USERNAME`
 - 密码：**您的 WordPress 管理员密码**
 
 ✅ 成功登录并重定向到首页！
@@ -422,7 +422,7 @@ async def protected_endpoint(
 # 获取 Token
 curl -X POST http://localhost:8000/api/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"username":"8pdwoxj8","password":"your_password"}'
+  -d '{"username":"YOUR_WORDPRESS_USERNAME","password":"your_password"}'
 
 # 使用 Token
 curl -X GET http://localhost:8000/api/auth/me \

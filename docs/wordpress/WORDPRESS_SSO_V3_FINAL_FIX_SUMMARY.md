@@ -14,10 +14,10 @@
 - 修改 `nextjs-sso-integration-v3.php` 第 349 行：
   ```php
   // 修复前: 硬编码密钥
-  $secret = '$d4@5fg54ll_t_45gH';
+  $secret = 'YOUR_JWT_SECRET_KEY';
 
   // 修复后: 从 wp-config.php 读取
-  $secret = defined('PYTHON_JWT_SECRET') ? PYTHON_JWT_SECRET : '$d4@5fg54ll_t_45gH';
+  $secret = defined('PYTHON_JWT_SECRET') ? PYTHON_JWT_SECRET : 'YOUR_JWT_SECRET_KEY';
   ```
 
 - 添加条件日志输出（仅 WP_DEBUG 模式）：
@@ -27,7 +27,7 @@
   }
   ```
 
-**验证**: ✅ wp-config.php 第 100 行已配置 `define('PYTHON_JWT_SECRET', '$d4@5fg54ll_t_45gH');`
+**验证**: ✅ wp-config.php 第 100 行已配置 `define('PYTHON_JWT_SECRET', 'YOUR_JWT_SECRET_KEY');`
 
 ---
 
@@ -120,14 +120,14 @@ if isinstance(wallet_result, dict):
 ## 📋 配置清单
 
 ### WordPress 配置 ✅
-1. **wp-config.php** 第 100 行: `define('PYTHON_JWT_SECRET', '$d4@5fg54ll_t_45gH');`
+1. **wp-config.php** 第 100 行: `define('PYTHON_JWT_SECRET', 'YOUR_JWT_SECRET_KEY');`
 2. **Next.js SSO Integration v3.0.4** 插件已激活
 3. **WPCOM Member Custom API v1.0.0** 插件已激活
 4. **Simple JWT Login v3.6.4** 插件已配置
 
 ### Python 后端配置 ✅
 - **文件**: `.env`
-- **JWT密钥**: `JWT_SECRET_KEY=$d4@5fg54ll_t_45gH`
+- **JWT密钥**: `JWT_SECRET_KEY=YOUR_JWT_SECRET_KEY`
 - **服务状态**: 运行中 (端口 8000)
 
 ### Next.js 前端配置 ✅
@@ -151,7 +151,7 @@ if isinstance(wallet_result, dict):
 
 3. **WordPress 登录**:
    - 如果未登录，点击 "立即登录"
-   - 输入凭证: `8pdwoxj8` / `M2euRVQMdpzJp%*KLtD0#kK1`
+   - 输入凭证: `YOUR_WORDPRESS_USERNAME` / `YOUR_WORDPRESS_PASSWORD`
 
 4. **验证显示**:
    - 左下角点击用户头像打开面板
@@ -160,8 +160,8 @@ if isinstance(wallet_result, dict):
 
 ### 后端日志验证：
 ```
-✅ JWT Token 验证成功 (WordPress 插件格式): 8pdwoxj8
-✅ 用户认证成功: 8pdwoxj8
+✅ JWT Token 验证成功 (WordPress 插件格式): YOUR_WORDPRESS_USERNAME
+✅ 用户认证成功: YOUR_WORDPRESS_USERNAME
 INFO:     127.0.0.1:52658 - "GET /api/member/my-membership HTTP/1.1" 200 OK
 ```
 

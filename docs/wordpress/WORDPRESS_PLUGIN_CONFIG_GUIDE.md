@@ -8,7 +8,7 @@
 ## ✅ 已完成的配置
 
 ### 1. General 设置（已配置）
-- **JWT Decryption Key**: `$d4@5fg54ll_t_45gH`
+- **JWT Decryption Key**: `YOUR_JWT_SECRET_KEY`
 - **JWT Decryption Algorithm**: HS256
 - **Expiration time**: 604800 秒（7天）
 
@@ -44,7 +44,7 @@ POST /wp-json/simple-jwt-login/v1/auth
 
 | 配置项 | 值 |
 |--------|-----|
-| **JWT Decryption Key** | `$d4@5fg54ll_t_45gH` |
+| **JWT Decryption Key** | `YOUR_JWT_SECRET_KEY` |
 | **JWT Decryption Algorithm** | `HS256` |
 | **JWT Expiration time** | `604800` (可选，默认即可) |
 
@@ -83,7 +83,7 @@ Exception: Token获取失败: {"code":"rest_no_route","message":"未找到匹配
 ```bash
 curl -X POST https://www.ucppt.com/wp-json/simple-jwt-login/v1/auth \
   -H "Content-Type: application/json" \
-  -d '{"username": "8pdwoxj8", "password": "M2euRVQMdpzJp%*KLtD0#kK1"}'
+  -d '{"username": "YOUR_WORDPRESS_USERNAME", "password": "YOUR_WORDPRESS_PASSWORD"}'
 ```
 
 **预期响应（成功）:**
@@ -170,7 +170,7 @@ npm run dev
 ### 4. 验证前端显示
 
 1. 访问 http://localhost:3000
-2. 使用 WordPress 登录（用户: 8pdwoxj8）
+2. 使用 WordPress 登录（用户: YOUR_WORDPRESS_USERNAME）
 3. 点击左下角用户面板，打开设置菜单
 4. 在 **账号管理** 部分，应该能看到：
    - VIP 等级徽章（VIP 1 / VIP 2 / VIP 3）
@@ -198,8 +198,8 @@ npm run dev
 **解决方案**:
 检查 `.env` 文件中的凭据：
 ```bash
-WORDPRESS_ADMIN_USERNAME=8pdwoxj8
-WORDPRESS_ADMIN_PASSWORD=M2euRVQMdpzJp%*KLtD0#kK1
+WORDPRESS_ADMIN_USERNAME=YOUR_WORDPRESS_USERNAME
+WORDPRESS_ADMIN_PASSWORD=YOUR_WORDPRESS_PASSWORD
 ```
 
 ### 问题 3: JWT 验证失败
@@ -212,7 +212,7 @@ WORDPRESS_ADMIN_PASSWORD=M2euRVQMdpzJp%*KLtD0#kK1
 2. WordPress Simple JWT Login → Authentication → JWT Decryption Key
 3. Python `.env` → `JWT_SECRET_KEY`
 
-当前统一使用: `$d4@5fg54ll_t_45gH`
+当前统一使用: `YOUR_JWT_SECRET_KEY`
 
 ### 问题 4: 会员信息获取失败
 

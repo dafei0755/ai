@@ -48,6 +48,9 @@ plotly>=5.17.0
 redis>=5.0.0
 aioredis>=2.0.0
 
+# 告警系统
+aiohttp>=3.9.0
+
 # 🔥 v3.9新增: 任务队列（多用户并发支持）
 celery>=5.3.0
 kombu>=5.3.0  # Celery 消息传输库

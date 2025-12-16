@@ -80,7 +80,7 @@ Get-Content logs\auth.log | Select-String "Token|验证" -Context 2
 ```log
 🔐 开始验证 Token (前20字符): eyJhbGciOiJIUzI1NiIsI...
 📦 Token payload 结构: ['iss', 'iat', 'exp', 'data']
-✅ SSO Token 验证成功 (WordPress SSO 格式): 8pdwoxj8
+✅ SSO Token 验证成功 (WordPress SSO 格式): YOUR_WORDPRESS_USERNAME
 📋 用户数据: ID=123, Email=user@example.com, Roles=['subscriber']
 ```
 
@@ -163,7 +163,7 @@ Get-Content logs\server.log | Select-String $time -Context 5
 Get-Content logs\server.log | Select-String "SSO|Token|认证" | Select-String "ERROR|❌"
 
 # 特定用户的操作
-Get-Content logs\auth.log | Select-String "8pdwoxj8"
+Get-Content logs\auth.log | Select-String "YOUR_WORDPRESS_USERNAME"
 ```
 
 ### 3. 导出筛选结果

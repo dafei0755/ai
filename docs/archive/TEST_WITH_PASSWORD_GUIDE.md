@@ -26,7 +26,7 @@ python test_wordpress_with_password.py
 **预期输出**：
 ```
 ✅ WordPress URL: https://www.ucppt.com
-✅ 管理员用户名: 8pdwoxj8
+✅ 管理员用户名: YOUR_WORDPRESS_USERNAME
 ✅ 密码已配置: **(掩盖)
 
 ✅ WordPress REST API 可访问
@@ -40,7 +40,7 @@ python test_wordpress_with_password.py
 Token 长度: 350 字符
 
 ✅ Token 验证成功
-  用户: 8pdwoxj8
+  用户: YOUR_WORDPRESS_USERNAME
   过期时间: 2025-12-19 ...
 ```
 
@@ -62,7 +62,7 @@ python -m uvicorn intelligent_project_analyzer.api.server:app --reload
 # 步骤 2：调用登录端点
 curl -X POST http://localhost:8000/api/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"username": "8pdwoxj8", "password": "xUc5 SkfQ GF5S gp0i 0IHR Ohb3"}'
+  -d '{"username": "YOUR_WORDPRESS_USERNAME", "password": "xUc5 SkfQ GF5S gp0i 0IHR Ohb3"}'
 
 # 预期响应：
 # {
@@ -71,7 +71,7 @@ curl -X POST http://localhost:8000/api/auth/login \
 #   "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
 #   "user": {
 #     "user_id": 1,
-#     "username": "8pdwoxj8",
+#     "username": "YOUR_WORDPRESS_USERNAME",
 #     "email": "admin@ucppt.com",
 #     "display_name": "Admin",
 #     "roles": ["administrator"]
@@ -96,7 +96,7 @@ Select-String "WORDPRESS_" .env | Select-Object -First 3
 
 # 预期输出
 WORDPRESS_URL=https://www.ucppt.com
-WORDPRESS_ADMIN_USERNAME=8pdwoxj8
+WORDPRESS_ADMIN_USERNAME=YOUR_WORDPRESS_USERNAME
 WORDPRESS_ADMIN_PASSWORD=xUc5 SkfQ GF5S gp0i 0IHR Ohb3
 ```
 
@@ -129,7 +129,7 @@ python test_wordpress_with_password.py
 curl -X POST http://localhost:8000/api/auth/login \
   -H "Content-Type: application/json" \
   -d '{
-    "username": "8pdwoxj8",
+    "username": "YOUR_WORDPRESS_USERNAME",
     "password": "xUc5 SkfQ GF5S gp0i 0IHR Ohb3"
   }' | jq .
 ```
@@ -264,7 +264,7 @@ WORDPRESS_ADMIN_PASSWORD=xUc5 SkfQ GF5S gp0i 0IHR Ohb3
 curl -I https://www.ucppt.com/wp-json/wp/v2/
 
 # 2. 使用 Basic Auth 测试凭证
-curl -u 8pdwoxj8:xUc5SkfQGF5Sgp0i0IHROhb3 \
+curl -u YOUR_WORDPRESS_USERNAME:xUc5SkfQGF5Sgp0i0IHROhb3 \
   https://www.ucppt.com/wp-json/wp/v2/users/me
 
 # 3. 检查 WordPress 后台密码是否与应用密码一致
@@ -283,7 +283,7 @@ curl -u 8pdwoxj8:xUc5SkfQGF5Sgp0i0IHROhb3 \
 # 生成新 Token（重新登录）
 curl -X POST http://localhost:8000/api/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"username": "8pdwoxj8", "password": "..."}'
+  -d '{"username": "YOUR_WORDPRESS_USERNAME", "password": "..."}'
 
 # 使用新 Token 验证
 curl http://localhost:8000/api/auth/me \
@@ -326,7 +326,7 @@ cd frontend-nextjs && npm run dev
 
 # 3. 使用浏览器测试登录
 # http://localhost:3000/auth/login
-# 输入：8pdwoxj8 / xUc5 SkfQ GF5S gp0i 0IHR Ohb3
+# 输入：YOUR_WORDPRESS_USERNAME / xUc5 SkfQ GF5S gp0i 0IHR Ohb3
 
 # 4. 用 curl 测试 API
 test_with_password.bat  # 选择 [2] API 登录测试
@@ -360,7 +360,7 @@ python health_check.py
    Token 长度: ~350 字符
 
 ✅ Token 验证成功
-   用户: 8pdwoxj8
+   用户: YOUR_WORDPRESS_USERNAME
 
 ✅ 成功获取公开文章
    标题: ...
@@ -401,7 +401,7 @@ python health_check.py
 ======================================================================
 
 ✅ WordPress URL: https://www.ucppt.com
-✅ 管理员用户名: 8pdwoxj8
+✅ 管理员用户名: YOUR_WORDPRESS_USERNAME
 ✅ 密码已配置: ******* (掩盖)
 
 ======================================================================
@@ -422,7 +422,7 @@ python health_check.py
 ======================================================================
 
 ℹ️  使用凭证验证:
-ℹ️    用户名: 8pdwoxj8
+ℹ️    用户名: YOUR_WORDPRESS_USERNAME
 ℹ️    密码: ******* (掩盖)
 ✅ WordPress 认证成功！
 ℹ️    用户 ID: 1
@@ -443,7 +443,7 @@ python health_check.py
 ======================================================================
 
 ✅ Token 验证成功
-ℹ️    用户: 8pdwoxj8
+ℹ️    用户: YOUR_WORDPRESS_USERNAME
 ℹ️    User ID: 1
 ℹ️    邮箱: admin@ucppt.com
 ℹ️    角色: ['administrator']

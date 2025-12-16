@@ -26,25 +26,19 @@ import { api } from '@/lib/api';
 import { useWorkflowStore } from '@/store/useWorkflowStore';
 import { formatFileSize } from '@/lib/formatters';
 import { UserPanel } from '@/components/layout/UserPanel';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function HomePage() {
   const router = useRouter();
   const { setSessionId, setIsLoading, isLoading, setError, error } = useWorkflowStore();
+  const { user, isLoading: authLoading } = useAuth(); // 🆕 获取认证状态
   const [userInput, setUserInput] = useState('');
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
-  // 🔥 检测是否在 iframe 中运行，如果不是则重定向到 WordPress 嵌入页面
-  useEffect(() => {
-    // 检测是否在 iframe 中
-    const isInIframe = window.self !== window.top;
+  // 🔥 检测是否在 iframe 中（用于显示主网站链接）
+  const isInIframe = typeof window !== 'undefined' && window.self !== window.top;
 
-    // 如果不在 iframe 中，重定向到 WordPress 嵌入页面
-    if (!isInIframe) {
-      // 开发环境和生产环境的 WordPress 嵌入页面 URL
-      const wordpressEmbedUrl = process.env.NEXT_PUBLIC_WORDPRESS_EMBED_URL || 'https://www.ucppt.com/nextjs';
-      window.location.href = wordpressEmbedUrl;
-    }
-  }, []);
+  // 🔥 已移除：之前的自动重定向逻辑（v3.0.8改为显示登录提示界面）
 
   // 🔥 新增：文件上传相关状态
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
@@ -131,8 +125,15 @@ export default function HomePage() {
   // 会话菜单状态
   const [menuOpenSessionId, setMenuOpenSessionId] = useState<string | null>(null);
 
-  // 加载历史会话列表
+  // 加载历史会话列表（仅在已登录时）
   useEffect(() => {
+    // 🔒 安全检查：只有已登录用户才能获取会话列表
+    if (!user) {
+      console.log('[HomePage] 用户未登录，清空会话列表');
+      setSessions([]);
+      return;
+    }
+
     const fetchSessions = async () => {
       try {
         const data = await api.getSessions();
@@ -143,7 +144,7 @@ export default function HomePage() {
     };
 
     fetchSessions();
-  }, [dedupeSessions]);
+  }, [dedupeSessions, user]); // 🔒 依赖user，登录状态变化时重新获取
 
   // 🔥 新增：文件选择处理
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -411,11 +412,94 @@ export default function HomePage() {
     }
   };
 
+  // 🎯 v3.0.15: 未登录时显示简化登录界面
+  // 应用内部处理登录检测，显示"立即登录"按钮
+  if (!authLoading && !user) {
+    return (
+      <div className="flex h-screen bg-[var(--background)] text-[var(--foreground)] items-center justify-center p-4 relative">
+        {/* 🔗 左上角跳转到主网站链接 */}
+        <div className="absolute top-4 left-4 z-10">
+          <a
+            href="https://www.ucppt.com/js"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="px-3 py-2 text-sm text-[var(--foreground-secondary)] hover:text-[var(--foreground)] hover:bg-[var(--card-bg)] rounded-lg transition-colors flex items-center gap-1"
+            title="返回 ucppt.com/js"
+          >
+            <span>返回网站</span>
+            <svg
+              className="w-3 h-3"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+              />
+            </svg>
+          </a>
+        </div>
+
+        <div className="max-w-md w-full space-y-6 text-center">
+          <div className="flex items-center justify-center gap-2 mb-6">
+            <div className="w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center text-white text-2xl">
+              AI
+            </div>
+          </div>
+          <h1 className="text-2xl font-semibold text-[var(--foreground)]">
+            极致概念 设计高参
+          </h1>
+
+          {/* 🎯 v3.0.15: 简化登录界面 - 只有一个"立即登录"按钮 */}
+          <div className="bg-[var(--card-bg)] border border-[var(--border-color)] rounded-lg p-6 space-y-4">
+            <div className="text-lg text-[var(--foreground-secondary)] mb-4">
+              请先登录以使用应用
+            </div>
+
+            <button
+              onClick={() => {
+                // 🎯 新架构：跳转到宣传页面（包含WPCOM隐藏区块的应用入口）
+                // 用户在宣传页面登录后，会看到应用入口链接，点击即可进入应用
+                window.location.href = 'https://www.ucppt.com/js';
+              }}
+              className="w-full px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-medium rounded-lg transition-all"
+            >
+              前往登录
+            </button>
+
+            <div className="text-xs text-[var(--foreground-secondary)]">
+              登录后在网站页面中找到应用入口
+            </div>
+          </div>
+
+          <div className="text-sm text-[var(--foreground-secondary)]">
+            ucppt.com
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // 🔒 认证加载中，显示加载状态
+  if (authLoading) {
+    return (
+      <div className="flex h-screen bg-[var(--background)] text-[var(--foreground)] items-center justify-center">
+        <div className="text-center space-y-4">
+          <Loader2 className="w-8 h-8 animate-spin mx-auto text-blue-500" />
+          <p className="text-[var(--foreground-secondary)]">正在验证身份...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex h-screen bg-[var(--background)] text-[var(--foreground)] overflow-hidden relative">
       {/* Mobile Overlay */}
       {isSidebarOpen && (
-        <div 
+        <div
           className="fixed inset-0 bg-black/50 z-30 md:hidden"
           onClick={() => setIsSidebarOpen(false)}
         />
@@ -789,14 +873,40 @@ export default function HomePage() {
       {/* Main Content */}
       <div className="flex-1 flex flex-col relative w-full">
         {/* Header / Toggle */}
-        <div className="absolute top-4 left-4 z-10">
-          <button 
+        <div className="absolute top-4 left-4 z-10 flex items-center gap-2">
+          <button
             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
             className="p-2 text-[var(--foreground-secondary)] hover:text-[var(--foreground)] hover:bg-[var(--card-bg)] rounded-lg transition-colors"
             title={isSidebarOpen ? "关闭侧边栏" : "打开侧边栏"}
           >
             <PanelLeft size={20} />
           </button>
+
+          {/* 🔗 跳转到主网站链接（独立模式专用） */}
+          {!isInIframe && (
+            <a
+              href="https://www.ucppt.com/js"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-3 py-2 text-sm text-[var(--foreground-secondary)] hover:text-[var(--foreground)] hover:bg-[var(--card-bg)] rounded-lg transition-colors flex items-center gap-1"
+              title="返回 ucppt.com/js"
+            >
+              <span>返回设计知外</span>
+              <svg
+                className="w-3 h-3"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                />
+              </svg>
+            </a>
+          )}
         </div>
 
         <div className="flex-1 flex flex-col items-center justify-center p-4 sm:p-8">

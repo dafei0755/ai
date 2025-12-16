@@ -1,0 +1,29 @@
+# v3.0.15 WordPress SSO 自动化测试
+# 使用VSCode的REST Client扩展运行这些测试
+
+### 1. 测试WordPress REST API - 已登录用户
+# 期望: 200 + Token
+GET https://www.ucppt.com/wp-json/nextjs-sso/v1/get-token
+Accept: application/json
+
+###
+
+### 2. 测试Python后端健康检查
+# 期望: {"status": "healthy"}
+GET http://127.0.0.1:8000/health
+
+###
+
+### 3. 测试Token验证 (需要先从步骤1获取Token)
+# 将下面的YOUR_TOKEN_HERE替换为实际Token
+POST http://127.0.0.1:8000/api/auth/verify
+Content-Type: application/json
+Authorization: Bearer YOUR_TOKEN_HERE
+
+###
+
+### 4. 测试会员API
+GET http://127.0.0.1:8000/api/membership/profile
+Authorization: Bearer YOUR_TOKEN_HERE
+
+###

@@ -244,7 +244,7 @@ https://www.ucppt.com/wp-json/nextjs-sso/v1/get-token
   "token": "eyJ0eXAiOiJKV1QiLCJhbGci...",
   "user": {
     "id": 1,
-    "username": "8pdwoxj8",
+    "username": "YOUR_WORDPRESS_USERNAME",
     "email": "user@example.com",
     "display_name": "宋词"
   }

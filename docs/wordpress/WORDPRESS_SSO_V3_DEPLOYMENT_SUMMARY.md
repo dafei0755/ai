@@ -7,7 +7,7 @@
 **配置详情**:
 - **插件**: Simple JWT Login Plugin
 - **版本**: 已配置（Authentication 功能已启用）
-- **JWT 密钥**: `$d4@5fg54ll_t_45gH` (HS256 算法)
+- **JWT 密钥**: `YOUR_JWT_SECRET_KEY` (HS256 算法)
 - **端点**: `/wp-json/simple-jwt-login/v1/auth` ✅ 可用
 - **测试结果**: ✅ Token 获取成功（长度 291 字符）
 
@@ -18,8 +18,8 @@
 **文件修改**:
 1. **`.env` 文件** - 已更新 JWT 密钥
    ```bash
-   JWT_SECRET_KEY=$d4@5fg54ll_t_45gH
-   WORDPRESS_ADMIN_PASSWORD='M2euRVQMdpzJp%*KLtD0#kK1'
+   JWT_SECRET_KEY=YOUR_JWT_SECRET_KEY
+   WORDPRESS_ADMIN_PASSWORD='YOUR_WORDPRESS_PASSWORD'
    ```
 
 2. **`wpcom_member_api.py`** - 已修复
@@ -69,7 +69,7 @@
 **版本更新内容**:
 ```
 🆕 v3.0.2 关键修复 (2025-12-14):
-✅ 修复 JWT 密钥配置：优先使用 Simple JWT Login 的 $d4@5fg54ll_t_45gH 密钥
+✅ 修复 JWT 密钥配置：优先使用 Simple JWT Login 的 YOUR_JWT_SECRET_KEY 密钥
 ✅ 与 WPCOM Custom API 插件配合工作
 ✅ 支持从 WordPress meta 字段读取会员等级 (wp_vip_type, wp_vip_end_date)
 ✅ 完整的 SSO 流程：WordPress → iframe URL Token → Next.js 前端
@@ -148,7 +148,7 @@ python -c "from wpcom_member_api import WPCOMMemberAPI; api = WPCOMMemberAPI(); 
   "data": {
     "user": {
       "id": 1,
-      "username": "8pdwoxj8",
+      "username": "YOUR_WORDPRESS_USERNAME",
       "email": "user@example.com"
     }
   }
@@ -159,7 +159,7 @@ python -c "from wpcom_member_api import WPCOMMemberAPI; api = WPCOMMemberAPI(); 
 ```json
 {
   "user_id": 1,
-  "username": "8pdwoxj8",
+  "username": "YOUR_WORDPRESS_USERNAME",
   "email": "user@example.com"
 }
 ```
@@ -258,16 +258,16 @@ npm run dev
 
 ### JWT 密钥（3处一致）✅
 ```
-WordPress Simple JWT Login (General) → JWT Decryption Key: $d4@5fg54ll_t_45gH
-WordPress Simple JWT Login (Authentication) → JWT Decryption Key: $d4@5fg54ll_t_45gH
-WordPress wp-config.php → PYTHON_JWT_SECRET: $d4@5fg54ll_t_45gH
-Python .env → JWT_SECRET_KEY: $d4@5fg54ll_t_45gH
+WordPress Simple JWT Login (General) → JWT Decryption Key: YOUR_JWT_SECRET_KEY
+WordPress Simple JWT Login (Authentication) → JWT Decryption Key: YOUR_JWT_SECRET_KEY
+WordPress wp-config.php → PYTHON_JWT_SECRET: YOUR_JWT_SECRET_KEY
+Python .env → JWT_SECRET_KEY: YOUR_JWT_SECRET_KEY
 ```
 
 ### WordPress 管理员凭证
 ```
-用户名: 8pdwoxj8
-密码: M2euRVQMdpzJp%*KLtD0#kK1
+用户名: YOUR_WORDPRESS_USERNAME
+密码: YOUR_WORDPRESS_PASSWORD
 ```
 
 ### API 端点
@@ -291,7 +291,7 @@ Next.js SSO: https://www.ucppt.com/wp-json/nextjs-sso/v1/*
 
 ### 3. JWT 密钥不一致 ✅
 - **原因**: Python 使用旧密钥 `auto_generated_secure_key_2025_wordpress`
-- **解决**: 更新 `.env` 为 `$d4@5fg54ll_t_45gH`
+- **解决**: 更新 `.env` 为 `YOUR_JWT_SECRET_KEY`
 
 ### 4. JWT Token 格式不兼容 ✅
 - **原因**: WordPress 插件生成嵌套格式 `{data: {user: {...}}}`
@@ -317,7 +317,7 @@ Next.js SSO: https://www.ucppt.com/wp-json/nextjs-sso/v1/*
 WordPress (www.ucppt.com)
 ├─ Simple JWT Login Plugin ✅
 │  ├─ Authentication: /wp-json/simple-jwt-login/v1/auth
-│  └─ JWT Key: $d4@5fg54ll_t_45gH
+│  └─ JWT Key: YOUR_JWT_SECRET_KEY
 │
 ├─ WPCOM Member Pro Plugin ✅
 │  └─ 会员等级、订单、钱包数据

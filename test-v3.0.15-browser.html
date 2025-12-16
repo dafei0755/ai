@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>v3.0.15 浏览器端测试工具</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1000px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #1e1e1e;
+            color: #d4d4d4;
+        }
+        .container {
+            background: #252526;
+            border-radius: 8px;
+            padding: 30px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+        h1 {
+            color: #4ec9b0;
+            margin-top: 0;
+        }
+        button {
+            background: #0e639c;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px;
+            transition: background 0.2s;
+        }
+        button:hover {
+            background: #1177bb;
+        }
+        button:disabled {
+            background: #3c3c3c;
+            cursor: not-allowed;
+        }
+        .result {
+            background: #1e1e1e;
+            border-left: 4px solid #4ec9b0;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+            font-family: 'Consolas', 'Courier New', monospace;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        .success {
+            border-left-color: #4ec9b0;
+            color: #4ec9b0;
+        }
+        .error {
+            border-left-color: #f48771;
+            color: #f48771;
+        }
+        .warning {
+            border-left-color: #dcdcaa;
+            color: #dcdcaa;
+        }
+        .info {
+            border-left-color: #569cd6;
+            color: #569cd6;
+        }
+        .test-section {
+            margin: 30px 0;
+            padding: 20px;
+            background: #2d2d30;
+            border-radius: 6px;
+        }
+        .test-section h2 {
+            color: #569cd6;
+            margin-top: 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 WordPress SSO v3.0.15 浏览器端测试</h1>
+        <p>这个工具会在浏览器中测试完整的SSO流程，确保Cookie正确传递</p>
+
+        <div class="test-section">
+            <h2>测试 1: WordPress REST API</h2>
+            <button onclick="testWordPressAPI()">测试 WordPress Token 获取</button>
+            <div id="wordpress-result"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>测试 2: Python 后端</h2>
+            <button onclick="testPythonBackend()">测试 Python 健康检查</button>
+            <div id="python-result"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>测试 3: Token 验证</h2>
+            <button id="verify-btn" onclick="testTokenVerify()" disabled>验证 Token（需先完成测试1）</button>
+            <div id="verify-result"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>测试 4: 完整流程模拟</h2>
+            <button onclick="testFullFlow()">模拟用户点击"立即使用"按钮</button>
+            <div id="flow-result"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>测试 5: Next.js 应用测试</h2>
+            <button onclick="openNextApp()">在新窗口打开应用（模拟宣传页按钮）</button>
+            <p style="color: #858585; font-size: 14px;">
+                点击后会在新窗口打开应用，请查看新窗口的控制台日志
+            </p>
+        </div>
+    </div>
+
+    <script>
+        let currentToken = null;
+
+        async function testWordPressAPI() {
+            const resultDiv = document.getElementById('wordpress-result');
+            resultDiv.innerHTML = '<div class="result info">正在测试...</div>';
+
+            try {
+                const response = await fetch('https://www.ucppt.com/wp-json/nextjs-sso/v1/get-token', {
+                    method: 'GET',
+                    credentials: 'include', // 关键: 发送Cookie
+                    headers: {
+                        'Accept': 'application/json'
+                    }
+                });
+
+                const statusCode = response.status;
+                console.log('[Test] WordPress API Status:', statusCode);
+
+                if (statusCode === 200) {
+                    const data = await response.json();
+                    currentToken = data.token;
+
+                    resultDiv.innerHTML = `
+                        <div class="result success">
+                            ✅ 测试通过！
+                            HTTP状态码: ${statusCode}
+                            Token长度: ${data.token ? data.token.length : 0} 字符
+                            用户ID: ${data.user?.ID || 'N/A'}
+                            用户名: ${data.user?.user_login || 'N/A'}
+
+                            完整响应:
+                            ${JSON.stringify(data, null, 2)}
+                        </div>
+                    `;
+
+                    document.getElementById('verify-btn').disabled = false;
+                } else if (statusCode === 401) {
+                    resultDiv.innerHTML = `
+                        <div class="result error">
+                            ❌ 测试失败！
+                            HTTP状态码: 401 (未登录)
+
+                            原因分析:
+                            1. 您未在 WordPress 登录
+                            2. 或 WPCOM Member Pro 的 Cookie 不被 WordPress 识别
+
+                            解决方案:
+                            1. 访问 https://www.ucppt.com
+                            2. 使用 WPCOM 用户中心登录
+                            3. 确认右上角显示用户名
+                            4. 返回此页面重新测试
+                        </div>
+                    `;
+                } else {
+                    const text = await response.text();
+                    resultDiv.innerHTML = `
+                        <div class="result error">
+                            ❌ 意外的状态码: ${statusCode}
+                            响应内容: ${text}
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="result error">
+                        ❌ 网络错误: ${error.message}
+                    </div>
+                `;
+                console.error('[Test] WordPress API Error:', error);
+            }
+        }
+
+        async function testPythonBackend() {
+            const resultDiv = document.getElementById('python-result');
+            resultDiv.innerHTML = '<div class="result info">正在测试...</div>';
+
+            try {
+                const response = await fetch('http://127.0.0.1:8000/health', {
+                    method: 'GET'
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    resultDiv.innerHTML = `
+                        <div class="result success">
+                            ✅ 测试通过！
+                            Python后端运行正常
+                            状态: ${data.status}
+                        </div>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `
+                        <div class="result error">
+                            ❌ Python后端状态异常
+                            HTTP状态码: ${response.status}
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="result error">
+                        ❌ Python后端无法连接
+                        错误: ${error.message}
+
+                        请启动后端服务:
+                        python -m uvicorn intelligent_project_analyzer.api.server:app --host 0.0.0.0 --port 8000
+                    </div>
+                `;
+                console.error('[Test] Python Backend Error:', error);
+            }
+        }
+
+        async function testTokenVerify() {
+            const resultDiv = document.getElementById('verify-result');
+
+            if (!currentToken) {
+                resultDiv.innerHTML = '<div class="result error">❌ 请先完成测试1获取Token</div>';
+                return;
+            }
+
+            resultDiv.innerHTML = '<div class="result info">正在验证Token...</div>';
+
+            try {
+                const response = await fetch('http://127.0.0.1:8000/api/auth/verify', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${currentToken}`
+                    }
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    resultDiv.innerHTML = `
+                        <div class="result success">
+                            ✅ Token验证成功！
+                            用户名: ${data.user?.username || 'N/A'}
+                            用户ID: ${data.user?.user_id || 'N/A'}
+
+                            完整响应:
+                            ${JSON.stringify(data, null, 2)}
+                        </div>
+                    `;
+                } else {
+                    const errorData = await response.json().catch(() => ({}));
+                    resultDiv.innerHTML = `
+                        <div class="result error">
+                            ❌ Token验证失败
+                            HTTP状态码: ${response.status}
+                            错误信息: ${JSON.stringify(errorData, null, 2)}
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="result error">
+                        ❌ Token验证异常: ${error.message}
+                    </div>
+                `;
+                console.error('[Test] Token Verify Error:', error);
+            }
+        }
+
+        async function testFullFlow() {
+            const resultDiv = document.getElementById('flow-result');
+            resultDiv.innerHTML = '<div class="result info">开始完整流程测试...</div>';
+
+            let log = '完整流程日志:\n\n';
+
+            // 步骤1: 获取Token
+            log += '步骤1: 调用 WordPress REST API 获取 Token...\n';
+            try {
+                const tokenResponse = await fetch('https://www.ucppt.com/wp-json/nextjs-sso/v1/get-token', {
+                    method: 'GET',
+                    credentials: 'include',
+                    headers: { 'Accept': 'application/json' }
+                });
+
+                log += `  状态码: ${tokenResponse.status}\n`;
+
+                if (tokenResponse.status === 200) {
+                    const tokenData = await tokenResponse.json();
+                    log += `  ✅ Token获取成功\n`;
+                    log += `  Token长度: ${tokenData.token.length}\n\n`;
+
+                    // 步骤2: 验证Token
+                    log += '步骤2: 验证 Token...\n';
+                    const verifyResponse = await fetch('http://127.0.0.1:8000/api/auth/verify', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${tokenData.token}`
+                        }
+                    });
+
+                    log += `  状态码: ${verifyResponse.status}\n`;
+
+                    if (verifyResponse.ok) {
+                        const verifyData = await verifyResponse.json();
+                        log += `  ✅ Token验证成功\n`;
+                        log += `  用户: ${verifyData.user.username}\n\n`;
+
+                        log += '步骤3: 模拟跳转到 /analysis\n';
+                        log += '  ✅ 应该自动跳转到分析页面\n\n';
+
+                        log += '🎉 完整流程测试通过！\n';
+                        log += '\n下一步: 在实际应用中测试（点击"测试5"）';
+
+                        resultDiv.innerHTML = `<div class="result success">${log}</div>`;
+                    } else {
+                        log += `  ❌ Token验证失败\n`;
+                        resultDiv.innerHTML = `<div class="result error">${log}</div>`;
+                    }
+                } else if (tokenResponse.status === 401) {
+                    log += '  ❌ WordPress未登录\n';
+                    log += '\n请先登录 https://www.ucppt.com';
+                    resultDiv.innerHTML = `<div class="result error">${log}</div>`;
+                } else {
+                    log += `  ❌ 意外错误\n`;
+                    resultDiv.innerHTML = `<div class="result error">${log}</div>`;
+                }
+            } catch (error) {
+                log += `  ❌ 异常: ${error.message}\n`;
+                resultDiv.innerHTML = `<div class="result error">${log}</div>`;
+            }
+        }
+
+        function openNextApp() {
+            const appUrl = 'http://localhost:3000';
+            console.log('[Test] Opening Next.js app in new window:', appUrl);
+
+            const newWindow = window.open(appUrl, '_blank', 'noopener,noreferrer');
+
+            const resultDiv = document.getElementById('flow-result');
+            if (newWindow) {
+                resultDiv.innerHTML = `
+                    <div class="result success">
+                        ✅ 新窗口已打开！
+
+                        请在新窗口的控制台查看以下日志:
+                        1. [AuthContext] 尝试通过 WordPress REST API 获取 Token...
+                        2. [AuthContext] ✅ 通过 REST API 获取到 Token，验证中...
+                        3. [AuthContext] ✅ REST API Token 验证成功
+                        4. [AuthContext] 🔀 检测到已登录，跳转到分析页面
+
+                        如果看到以上日志，说明v3.0.15工作正常！
+                    </div>
+                `;
+            } else {
+                resultDiv.innerHTML = `
+                    <div class="result error">
+                        ❌ 弹窗被浏览器拦截
+                        请允许此网站的弹窗后重试
+                    </div>
+                `;
+            }
+        }
+
+        // 页面加载时显示提示
+        window.addEventListener('load', () => {
+            console.log('[v3.0.15 Test Tool] Ready. Start testing!');
+        });
+    </script>
+</body>
+</html>

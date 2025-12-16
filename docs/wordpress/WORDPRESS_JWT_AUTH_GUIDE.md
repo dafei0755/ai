@@ -35,7 +35,7 @@
 ✅ **更新 `.env`**
 ```env
 WORDPRESS_URL=https://www.ucppt.com
-WORDPRESS_ADMIN_USERNAME=8pdwoxj8
+WORDPRESS_ADMIN_USERNAME=YOUR_WORDPRESS_USERNAME
 JWT_SECRET_KEY=auto_generated_secure_key_2025_wordpress
 JWT_ALGORITHM=HS256
 JWT_EXPIRY=604800
@@ -72,7 +72,7 @@ http://localhost:3000/auth/login
 curl -X POST http://localhost:8000/api/auth/login \
   -H "Content-Type: application/json" \
   -d '{
-    "username": "8pdwoxj8",
+    "username": "YOUR_WORDPRESS_USERNAME",
     "password": "your_password"
   }'
 
@@ -82,7 +82,7 @@ curl -X POST http://localhost:8000/api/auth/login \
 #   "token": "eyJ0eXAiOiJKV1QiLCJhbGc...",
 #   "user": {
 #     "user_id": 1,
-#     "username": "8pdwoxj8",
+#     "username": "YOUR_WORDPRESS_USERNAME",
 #     "email": "admin@ucppt.com",
 #     "name": "Administrator",
 #     "roles": ["administrator"]
@@ -163,7 +163,7 @@ export function MyComponent() {
   return (
     <div>
       <p>当前用户: {getCurrentUser()?.name}</p>
-      <button onClick={() => handleLogin('8pdwoxj8', 'password')}>登录</button>
+      <button onClick={() => handleLogin('YOUR_WORDPRESS_USERNAME', 'password')}>登录</button>
       <button onClick={handleFetchData}>获取数据</button>
     </div>
   );

@@ -2,11 +2,12 @@
 
 /**
  * 会员信息卡片组件
- * 显示用户的 WPCOM Member Pro 会员等级、到期时间等信息
+ * v7.10.2: 移除余额显示，保持简洁
+ * 显示用户的 WPCOM Member Pro 会员等级、到期时间
  */
 
 import React, { useState, useEffect } from 'react';
-import { Crown, Calendar, Wallet, TrendingUp } from 'lucide-react';
+import { Crown, Calendar, TrendingUp } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
 interface MembershipInfo {
@@ -29,8 +30,25 @@ export function MembershipCard() {
       return;
     }
 
-    // ✅ 启用 API 调用，获取真实会员数据
-    fetchMembershipInfo();
+    // ⚠️ 临时方案：如果后端 API 不可用，跳过会员信息获取
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
+
+    // 检查 API 是否可访问
+    fetch(`${API_URL}/health`, { method: 'GET' })
+      .then(response => {
+        if (response.ok) {
+          // API 可用，获取真实会员数据
+          fetchMembershipInfo();
+        } else {
+          // API 不可用，跳过获取
+          console.warn('[MembershipCard] 后端 API 不可用，跳过会员信息获取');
+          setLoading(false);
+        }
+      })
+      .catch(error => {
+        console.warn('[MembershipCard] 无法连接到后端 API:', error);
+        setLoading(false);
+      });
   }, [user]);
 
   const fetchMembershipInfo = async () => {
@@ -133,14 +151,6 @@ export function MembershipCard() {
             <span>
               到期: {new Date(membership.expire_date).toLocaleDateString('zh-CN')}
             </span>
-          </div>
-        )}
-
-        {/* 钱包余额 */}
-        {membership.wallet_balance !== undefined && (
-          <div className="flex items-center space-x-2 text-xs text-[var(--foreground-secondary)]">
-            <Wallet className="w-3.5 h-3.5" />
-            <span>余额: ¥{membership.wallet_balance.toFixed(2)}</span>
           </div>
         )}
       </div>

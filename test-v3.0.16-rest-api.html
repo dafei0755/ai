@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>WordPress REST API v3.0.16 Diagnostic</title>
+    <meta charset="UTF-8">
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 900px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            border-radius: 10px;
+            padding: 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #2c3e50;
+            border-bottom: 3px solid #3498db;
+            padding-bottom: 10px;
+        }
+        .step {
+            background: #ecf0f1;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 5px;
+            border-left: 4px solid #3498db;
+        }
+        .step h3 {
+            margin-top: 0;
+            color: #2980b9;
+        }
+        button {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-size: 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #2980b9;
+        }
+        button:disabled {
+            background: #95a5a6;
+            cursor: not-allowed;
+        }
+        .log {
+            background: #2c3e50;
+            color: #ecf0f1;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            max-height: 400px;
+            overflow-y: auto;
+            margin: 15px 0;
+        }
+        .log-entry {
+            margin: 5px 0;
+            padding: 3px 0;
+        }
+        .log-success { color: #2ecc71; }
+        .log-error { color: #e74c3c; }
+        .log-warning { color: #f39c12; }
+        .log-info { color: #3498db; }
+        .result {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 15px 0;
+        }
+        .success-box {
+            background: #d4edda;
+            border: 1px solid #28a745;
+            color: #155724;
+        }
+        .error-box {
+            background: #f8d7da;
+            border: 1px solid #dc3545;
+            color: #721c24;
+        }
+        pre {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 5px;
+            overflow-x: auto;
+            font-size: 12px;
+        }
+        .cookie-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+        }
+        .cookie-table th,
+        .cookie-table td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        .cookie-table th {
+            background: #3498db;
+            color: white;
+        }
+        .cookie-table tr:nth-child(even) {
+            background: #f8f9fa;
+        }
+        .wpcom-cookie {
+            background: #d4edda !important;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 WordPress REST API v3.0.16 诊断工具</h1>
+
+        <div class="step">
+            <h3>使用说明</h3>
+            <p><strong>重要：</strong>必须在 <code>ucppt.com/account</code> 登录后的标签页中打开此文件！</p>
+            <ol>
+                <li>确保已在 <a href="https://www.ucppt.com/account" target="_blank">ucppt.com/account</a> 登录</li>
+                <li>在同一浏览器窗口打开此HTML文件</li>
+                <li>点击下方按钮运行诊断</li>
+            </ol>
+        </div>
+
+        <div class="step">
+            <h3>步骤 1: 检查Cookie</h3>
+            <button onclick="checkCookies()">检查Cookie</button>
+            <div id="cookieResult"></div>
+        </div>
+
+        <div class="step">
+            <h3>步骤 2: 测试WordPress REST API</h3>
+            <button onclick="testRestAPI()">测试 get-token 端点</button>
+            <div id="apiResult"></div>
+        </div>
+
+        <div class="step">
+            <h3>步骤 3: 检查插件注册</h3>
+            <button onclick="checkPluginRegistration()">检查插件端点</button>
+            <div id="pluginResult"></div>
+        </div>
+
+        <div class="step">
+            <h3>步骤 4: 完整诊断报告</h3>
+            <button onclick="runFullDiagnostic()">运行完整诊断</button>
+            <button onclick="copyReport()">复制报告</button>
+        </div>
+
+        <h2>诊断日志</h2>
+        <div class="log" id="log"></div>
+    </div>
+
+    <script>
+        const logDiv = document.getElementById('log');
+        let diagnosticReport = '';
+
+        function log(message, type = 'info') {
+            const entry = document.createElement('div');
+            entry.className = `log-entry log-${type}`;
+            const timestamp = new Date().toLocaleTimeString();
+            entry.textContent = `[${timestamp}] ${message}`;
+            logDiv.appendChild(entry);
+            logDiv.scrollTop = logDiv.scrollHeight;
+
+            diagnosticReport += `[${timestamp}] ${message}\n`;
+        }
+
+        function clearLog() {
+            logDiv.innerHTML = '';
+            diagnosticReport = '';
+        }
+
+        async function checkCookies() {
+            clearLog();
+            log('🔍 开始检查Cookie...', 'info');
+
+            const cookies = document.cookie.split(';').map(c => c.trim());
+            log(`找到 ${cookies.length} 个Cookie`, 'info');
+
+            const wpcomCookies = [];
+            const wordpressCookies = [];
+            const allCookies = [];
+
+            cookies.forEach(cookie => {
+                const [name, value] = cookie.split('=');
+                allCookies.push({ name, value: value ? value.substring(0, 30) + '...' : '' });
+
+                if (name.includes('wpcom') || name.includes('memberpress')) {
+                    wpcomCookies.push({ name, value });
+                    log(`✅ 发现WPCOM相关Cookie: ${name}`, 'success');
+                } else if (name.includes('wordpress') || name.includes('wp_')) {
+                    wordpressCookies.push({ name, value });
+                    log(`📝 发现WordPress Cookie: ${name}`, 'info');
+                }
+            });
+
+            let html = '<h4>Cookie分析结果</h4>';
+
+            if (wpcomCookies.length > 0) {
+                html += `<div class="result success-box">`;
+                html += `<strong>✅ 找到 ${wpcomCookies.length} 个WPCOM相关Cookie</strong><br>`;
+                wpcomCookies.forEach(c => {
+                    html += `<code>${c.name}</code>: ${c.value.substring(0, 50)}...<br>`;
+                });
+                html += `</div>`;
+            } else {
+                html += `<div class="result error-box">`;
+                html += `<strong>❌ 未找到WPCOM相关Cookie</strong><br>`;
+                html += `这可能意味着：<br>`;
+                html += `1. 未在 ucppt.com/account 登录<br>`;
+                html += `2. Cookie被浏览器阻止（检查浏览器设置）<br>`;
+                html += `3. WPCOM使用非Cookie认证方式`;
+                html += `</div>`;
+            }
+
+            if (wordpressCookies.length > 0) {
+                html += `<div class="result">`;
+                html += `<strong>📝 找到 ${wordpressCookies.length} 个WordPress Cookie</strong><br>`;
+                wordpressCookies.forEach(c => {
+                    html += `<code>${c.name}</code><br>`;
+                });
+                html += `</div>`;
+            }
+
+            html += `<table class="cookie-table">`;
+            html += `<tr><th>Cookie名称</th><th>值（前30字符）</th></tr>`;
+            allCookies.forEach(c => {
+                const isWpcom = c.name.includes('wpcom') || c.name.includes('memberpress');
+                html += `<tr class="${isWpcom ? 'wpcom-cookie' : ''}">`;
+                html += `<td>${c.name}</td>`;
+                html += `<td><code>${c.value}</code></td>`;
+                html += `</tr>`;
+            });
+            html += `</table>`;
+
+            document.getElementById('cookieResult').innerHTML = html;
+
+            log('Cookie检查完成', 'success');
+        }
+
+        async function testRestAPI() {
+            log('🌐 开始测试WordPress REST API...', 'info');
+            log('请求URL: https://www.ucppt.com/wp-json/nextjs-sso/v1/get-token', 'info');
+
+            try {
+                const response = await fetch('https://www.ucppt.com/wp-json/nextjs-sso/v1/get-token', {
+                    method: 'GET',
+                    credentials: 'include',
+                    headers: {
+                        'Accept': 'application/json'
+                    }
+                });
+
+                log(`响应状态: ${response.status} ${response.statusText}`, response.ok ? 'success' : 'error');
+
+                const data = await response.json();
+                log(`响应数据: ${JSON.stringify(data)}`, 'info');
+
+                let html = `<h4>REST API测试结果</h4>`;
+
+                if (response.status === 200 && data.success) {
+                    html += `<div class="result success-box">`;
+                    html += `<strong>✅ 成功获取Token</strong><br>`;
+                    html += `用户: ${data.user?.username || 'Unknown'}<br>`;
+                    html += `Token长度: ${data.token?.length || 0} 字符<br>`;
+                    html += `<strong>结论：v3.0.16 工作正常！</strong>`;
+                    html += `</div>`;
+                } else if (response.status === 401) {
+                    html += `<div class="result error-box">`;
+                    html += `<strong>❌ 返回401未授权</strong><br>`;
+                    html += `错误代码: ${data.code}<br>`;
+                    html += `错误消息: ${data.message}<br><br>`;
+                    html += `<strong>这意味着：</strong><br>`;
+                    html += `1. WordPress插件无法识别登录状态<br>`;
+                    html += `2. 需要检查插件是否正确安装<br>`;
+                    html += `3. 需要查看WordPress debug.log`;
+                    html += `</div>`;
+                } else {
+                    html += `<div class="result error-box">`;
+                    html += `<strong>⚠️ 意外响应</strong><br>`;
+                    html += `状态码: ${response.status}<br>`;
+                    html += `响应: <pre>${JSON.stringify(data, null, 2)}</pre>`;
+                    html += `</div>`;
+                }
+
+                document.getElementById('apiResult').innerHTML = html;
+
+            } catch (error) {
+                log(`❌ 请求失败: ${error.message}`, 'error');
+
+                let html = `<div class="result error-box">`;
+                html += `<strong>❌ 网络请求失败</strong><br>`;
+                html += `错误: ${error.message}<br><br>`;
+                html += `可能原因：<br>`;
+                html += `1. WordPress服务器不可访问<br>`;
+                html += `2. CORS问题（从本地文件访问）<br>`;
+                html += `3. 网络连接问题`;
+                html += `</div>`;
+
+                document.getElementById('apiResult').innerHTML = html;
+            }
+        }
+
+        async function checkPluginRegistration() {
+            log('🔌 检查插件端点注册...', 'info');
+
+            try {
+                const response = await fetch('https://www.ucppt.com/wp-json/', {
+                    method: 'GET',
+                    credentials: 'include'
+                });
+
+                const data = await response.json();
+                log(`REST API根端点响应成功`, 'success');
+
+                const hasNextjsSSO = data.routes &&
+                    Object.keys(data.routes).some(route => route.includes('nextjs-sso'));
+
+                let html = `<h4>插件注册检查结果</h4>`;
+
+                if (hasNextjsSSO) {
+                    html += `<div class="result success-box">`;
+                    html += `<strong>✅ Next.js SSO插件已注册</strong><br>`;
+                    html += `找到以下端点：<br>`;
+                    Object.keys(data.routes).filter(r => r.includes('nextjs-sso')).forEach(route => {
+                        html += `<code>${route}</code><br>`;
+                    });
+                    html += `</div>`;
+                    log('✅ Next.js SSO插件端点已注册', 'success');
+                } else {
+                    html += `<div class="result error-box">`;
+                    html += `<strong>❌ Next.js SSO插件未注册</strong><br><br>`;
+                    html += `<strong>这意味着：</strong><br>`;
+                    html += `1. 插件未正确安装或未启用<br>`;
+                    html += `2. 插件文件损坏<br>`;
+                    html += `3. WordPress REST API被禁用<br><br>`;
+                    html += `<strong>解决方案：</strong><br>`;
+                    html += `1. 检查WordPress后台 → 插件 → 确认"Next.js SSO Integration v3"已启用<br>`;
+                    html += `2. 重新上传插件ZIP文件<br>`;
+                    html += `3. 检查PHP错误日志`;
+                    html += `</div>`;
+                    log('❌ Next.js SSO插件端点未找到', 'error');
+                }
+
+                document.getElementById('pluginResult').innerHTML = html;
+
+            } catch (error) {
+                log(`❌ 检查失败: ${error.message}`, 'error');
+
+                let html = `<div class="result error-box">`;
+                html += `<strong>❌ 无法访问WordPress REST API</strong><br>`;
+                html += `错误: ${error.message}`;
+                html += `</div>`;
+
+                document.getElementById('pluginResult').innerHTML = html;
+            }
+        }
+
+        async function runFullDiagnostic() {
+            clearLog();
+            log('🚀 开始完整诊断...', 'info');
+            log('', 'info');
+
+            await checkCookies();
+            log('', 'info');
+
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            await testRestAPI();
+            log('', 'info');
+
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            await checkPluginRegistration();
+
+            log('', 'info');
+            log('✅ 完整诊断完成', 'success');
+            log('请复制此报告并发送给开发团队', 'info');
+        }
+
+        function copyReport() {
+            navigator.clipboard.writeText(diagnosticReport).then(() => {
+                alert('诊断报告已复制到剪贴板！');
+            }).catch(err => {
+                alert('复制失败，请手动选择日志内容复制');
+            });
+        }
+
+        // 页面加载时自动检查
+        window.addEventListener('load', () => {
+            log('🎯 诊断工具已准备就绪', 'success');
+            log('当前页面URL: ' + window.location.href, 'info');
+            log('请点击上方按钮开始诊断', 'info');
+            log('', 'info');
+        });
+    </script>
+</body>
+</html>

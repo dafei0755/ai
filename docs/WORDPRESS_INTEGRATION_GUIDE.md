@@ -148,7 +148,7 @@
 
 ```php
 // JWT 生成（使用 wp-config.php 中的密钥）
-$secret = defined('PYTHON_JWT_SECRET') ? PYTHON_JWT_SECRET : '$d4@5fg54ll_t_45gH';
+$secret = defined('PYTHON_JWT_SECRET') ? PYTHON_JWT_SECRET : 'YOUR_JWT_SECRET_KEY';
 
 $payload = array(
     'sub' => $user->user_login,
@@ -195,11 +195,11 @@ Headers: Authorization: Bearer {wordpress_admin_token}
 
 ```php
 // JWT 密钥（与 Python 后端保持一致）
-define('PYTHON_JWT_SECRET', '$d4@5fg54ll_t_45gH');
+define('PYTHON_JWT_SECRET', 'YOUR_JWT_SECRET_KEY');
 
 // WordPress 管理员凭证（用于API调用）
-define('WP_ADMIN_USERNAME', '8pdwoxj8');
-define('WP_ADMIN_PASSWORD', 'M2euRVQMdpzJp%*KLtD0#kK1');
+define('WP_ADMIN_USERNAME', 'YOUR_WORDPRESS_USERNAME');
+define('WP_ADMIN_PASSWORD', 'YOUR_WORDPRESS_PASSWORD');
 ```
 
 **安全注意事项**:
@@ -711,11 +711,11 @@ class WPCOMMemberAPI:
 ```bash
 # WordPress 配置
 WORDPRESS_URL=https://www.ucppt.com
-WORDPRESS_ADMIN_USERNAME=8pdwoxj8
-WORDPRESS_ADMIN_PASSWORD=M2euRVQMdpzJp%*KLtD0#kK1
+WORDPRESS_ADMIN_USERNAME=YOUR_WORDPRESS_USERNAME
+WORDPRESS_ADMIN_PASSWORD=YOUR_WORDPRESS_PASSWORD
 
 # JWT 配置（与 WordPress wp-config.php 保持一致）
-JWT_SECRET_KEY=$d4@5fg54ll_t_45gH
+JWT_SECRET_KEY=YOUR_JWT_SECRET_KEY
 
 # Next.js 配置
 NEXTJS_APP_URL=http://localhost:3000
@@ -768,9 +768,9 @@ npm run dev
 
 2. 配置 wp-config.php:
    ```php
-   define('PYTHON_JWT_SECRET', '$d4@5fg54ll_t_45gH');
-   define('WP_ADMIN_USERNAME', '8pdwoxj8');
-   define('WP_ADMIN_PASSWORD', 'M2euRVQMdpzJp%*KLtD0#kK1');
+   define('PYTHON_JWT_SECRET', 'YOUR_JWT_SECRET_KEY');
+   define('WP_ADMIN_USERNAME', 'YOUR_WORDPRESS_USERNAME');
+   define('WP_ADMIN_PASSWORD', 'YOUR_WORDPRESS_PASSWORD');
    ```
 
 3. 创建 WordPress 页面，添加短代码:
@@ -941,12 +941,12 @@ className={`relative bg-[var(--card-bg)] rounded-2xl p-8 border transition-all h
 
 1. 检查 `wp-config.php`:
    ```php
-   define('PYTHON_JWT_SECRET', '$d4@5fg54ll_t_45gH');
+   define('PYTHON_JWT_SECRET', 'YOUR_JWT_SECRET_KEY');
    ```
 
 2. 检查 `.env`:
    ```bash
-   JWT_SECRET_KEY=$d4@5fg54ll_t_45gH
+   JWT_SECRET_KEY=YOUR_JWT_SECRET_KEY
    ```
 
 3. 确保两者完全一致（包括特殊字符）

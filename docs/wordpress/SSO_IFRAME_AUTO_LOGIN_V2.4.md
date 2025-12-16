@@ -285,7 +285,7 @@ location /wp-json/nextjs-sso/ {
 ### 测试 1: iframe 自动登录（WordPress 已登录）
 
 1. 在浏览器中访问 `https://www.ucppt.com/wp-login.php`
-2. 登录 WordPress（用户名: `8pdwoxj8`）
+2. 登录 WordPress（用户名: `YOUR_WORDPRESS_USERNAME`）
 3. 访问 `https://www.ucppt.com/nextjs`
 4. **预期结果**：
    - WordPress 页面加载，显示导航栏

@@ -23,7 +23,7 @@ if sys.platform == 'win32':
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
     sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
 
-from fastapi import FastAPI, HTTPException, BackgroundTasks, WebSocket, WebSocketDisconnect, File, UploadFile, Form
+from fastapi import FastAPI, HTTPException, BackgroundTasks, WebSocket, WebSocketDisconnect, File, UploadFile, Form, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse, Response
 from pydantic import BaseModel, Field
@@ -33,7 +33,7 @@ from loguru import logger
 log_dir = Path(__file__).parent.parent.parent / "logs"
 log_dir.mkdir(exist_ok=True)
 
-# 主日志文件（所有级别）
+# 主日志文件（所有级别）- 启用压缩
 logger.add(str(log_dir / "server.log"),
            rotation="10 MB",
            retention="10 days",
@@ -41,24 +41,31 @@ logger.add(str(log_dir / "server.log"),
            enqueue=True,
            backtrace=True,
            diagnose=True,
+           compression="zip",  # 🆕 轮转时自动压缩为 .zip 文件
            level="INFO")
 
-# 认证相关日志（方便 SSO 调试）
+# 认证相关日志（方便 SSO 调试）- 启用压缩
 logger.add(str(log_dir / "auth.log"),
            rotation="5 MB",
            retention="7 days",
            encoding="utf-8",
            enqueue=True,
+           compression="zip",  # 🆕 自动压缩
            filter=lambda record: "auth" in record["name"].lower() or "sso" in record["message"].lower() or "token" in record["message"].lower(),
            level="DEBUG")
 
-# 错误日志（只记录 ERROR 及以上）
+# 错误日志（只记录 ERROR 及以上）- 启用压缩
 logger.add(str(log_dir / "errors.log"),
            rotation="5 MB",
            retention="30 days",
            encoding="utf-8",
            enqueue=True,
+           compression="zip",  # 🆕 自动压缩
            level="ERROR")
+
+# 🆕 启用告警监控（拦截错误日志）
+from intelligent_project_analyzer.api.alert_monitor import alert_sink, alert_monitor
+logger.add(alert_sink, level="ERROR")
 from typing import List
 from fpdf import FPDF
 
@@ -90,6 +97,37 @@ from intelligent_project_analyzer.agents.conversation_agent import ConversationA
 
 # ✅ v3.11新增: 追问历史管理器
 from intelligent_project_analyzer.services.followup_history_manager import FollowupHistoryManager
+
+# ✅ v7.10新增: WordPress JWT 认证服务
+from intelligent_project_analyzer.services.wordpress_jwt_service import WordPressJWTService
+
+# 初始化 JWT 服务
+jwt_service = WordPressJWTService()
+
+# 🔒 认证依赖函数
+async def get_current_user(request: Request) -> dict:
+    """
+    FastAPI 依赖函数：从请求头验证 JWT Token 并返回用户信息
+
+    用于保护需要认证的端点
+    """
+    auth_header = request.headers.get("Authorization", "")
+    if not auth_header.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="缺少认证 Token")
+
+    token = auth_header[7:]  # 移除 "Bearer " 前缀
+    payload = jwt_service.verify_jwt_token(token)
+
+    if not payload:
+        raise HTTPException(status_code=401, detail="Token 无效或已过期")
+
+    return {
+        "user_id": payload.get('user_id'),
+        "username": payload.get('username'),
+        "email": payload.get('email'),
+        "name": payload.get('name'),
+        "roles": payload.get('roles', [])
+    }
 
 # 全局变量存储工作流实例
 workflows: Dict[str, MainWorkflow] = {}
@@ -251,6 +289,10 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+# 🆕 添加性能监控中间件
+from intelligent_project_analyzer.api.performance_monitor import performance_monitoring_middleware
+app.middleware("http")(performance_monitoring_middleware)
+
 # 配置 CORS
 app.add_middleware(
     CORSMiddleware,
@@ -275,6 +317,14 @@ try:
     logger.info("✅ WPCOM Member 会员信息路由已注册")
 except Exception as e:
     logger.warning(f"⚠️ WPCOM Member 会员信息路由加载失败: {e}")
+
+# ✅ v7.11新增: 注册性能和告警统计API路由
+try:
+    from intelligent_project_analyzer.api.metrics_routes import router as metrics_router
+    app.include_router(metrics_router)
+    logger.info("✅ 性能和告警统计API路由已注册")
+except Exception as e:
+    logger.warning(f"⚠️ 性能和告警统计API路由加载失败: {e}")
 
 # ✅ v3.9新增: 注册 Celery 路由（可选）
 try:
@@ -4594,28 +4644,43 @@ async def get_followup_history(session_id: str):
 
 
 @app.get("/api/sessions")
-async def list_sessions():
+async def list_sessions(current_user: dict = Depends(get_current_user)):
     """
-    列出所有会话
+    列出当前用户的会话（需要认证）
 
-    返回所有活跃会话的列表（从Redis获取）
+    返回当前登录用户的活跃会话列表（从Redis获取）
+
+    🔒 安全：需要JWT认证，只返回当前用户的会话
     """
     try:
         # 从Redis获取所有会话
         all_sessions = await session_manager.get_all_sessions()
 
+        # 🔒 过滤：只返回当前用户的会话
+        user_sessions = [
+            session for session in all_sessions
+            if session.get("user_id") == current_user.get("username") or
+               session.get("user_id") == "web_user"  # 兼容旧数据
+        ]
+
         return {
-            "total": len(all_sessions),
+            "total": len(user_sessions),
             "sessions": [
                 {
                     "session_id": session.get("session_id"),
                     "status": session.get("status"),
                     "mode": session.get("mode", "api"),
                     "created_at": session.get("created_at"),
-                    "user_input": session.get("user_input", "")  # 完整的用户输入
+                    "user_input": session.get("user_input", "")
                 }
-                for session in all_sessions
+                for session in user_sessions
             ]
+        }
+    except HTTPException:
+        # 认证失败，返回空列表
+        return {
+            "total": 0,
+            "sessions": []
         }
     except Exception as e:
         logger.error(f"获取会话列表失败: {e}")

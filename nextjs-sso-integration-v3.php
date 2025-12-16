@@ -2,11 +2,66 @@
 /**
  * Plugin Name: Next.js SSO Integration v3
  * Plugin URI: https://www.ucppt.com
- * Description: WordPress 单点登录集成 Next.js（v3.0.4 - 安全优化 + 会员名称映射）
- * Version: 3.0.4
+ * Description: WordPress 单点登录集成 Next.js（v3.0.20 稳定版 - 跨域Cookie修复）
+ * Version: 3.0.20
  * Author: UCPPT Team
  * Requires PHP: 7.4
  * Text Domain: nextjs-sso-v3
+ *
+ * 🎉 v3.0.20 稳定版 (2025-12-16):
+ * ✅ 跨域Cookie问题完美解决 - 通过URL Token传递机制
+ * ✅ WPCOM隐藏区块架构 - 利用会员内容可见性控制应用入口
+ * ✅ JavaScript Token注入 - 同域名获取Token，URL参数传递给应用
+ * ✅ 前端自动Token验证 - AuthContext支持URL Token参数（v3.0.12已有）
+ * ✅ 死循环问题解决 - 确保链接包含sso_token参数
+ * ✅ 跨浏览器稳定 - Chrome/Edge/Firefox全面测试通过
+ *
+ * 📋 核心流程:
+ * 1. 用户访问 ucppt.com/js（宣传页面）
+ * 2. 登录后WPCOM隐藏区块可见（包含应用入口）
+ * 3. JavaScript调用REST API获取Token（同域名，Cookie自动携带）
+ * 4. Token注入到应用链接: localhost:3000?sso_token=xxx
+ * 5. 用户点击进入应用（URL包含Token）
+ * 6. AuthContext读取URL Token → 验证 → 保存到localStorage
+ * 7. 自动进入/analysis页面，完成登录
+ *
+ * 🔧 技术方案:
+ * ✅ REST API: /wp-json/nextjs-sso/v1/get-token
+ * ✅ Permission: __return_true（v3.0.17修复）
+ * ✅ 7层用户检测: WPCOM API → Session → Cookie → WordPress标准
+ * ✅ JWT Token: HS256加密，7天有效期
+ * ✅ 前端支持: AuthContext.tsx:110-151（URL Token处理）
+ *
+ * 🆕 v3.0.9 关键修复 (2025-12-15):
+ * ✅ 修复登录状态检测误判问题（使用专用REST API端点）
+ * ✅ 防止已登录用户被误判为未登录，导致Token被清除
+ * ✅ 提升登录状态检测可靠性（从字符串匹配改为API调用）
+ *
+ * 🆕 v3.0.8 关键修复 (2025-12-15):
+ * ✅ WordPress 登录后自动同步到 Next.js（5秒检测 + 页面刷新）
+ * ✅ 未登录时 Next.js 隐藏应用界面，只显示登录提示
+ * ✅ 统一使用 WordPress 右上角登录/退出按钮（单一入口原则）
+ * ✅ 改进登录状态检测频率（10秒 → 5秒）
+ * ✅ 登录状态变化时自动刷新页面，确保 Token 同步
+ *
+ * 🆕 v3.0.7 关键修复 (2025-12-15):
+ * ✅ WordPress 退出登录时自动通知 Next.js 清除 Token
+ * ✅ 双重检测机制：即时（退出链接点击）+ 轮询（10秒状态检查）
+ * ✅ postMessage 安全通信，实现 WordPress ↔ Next.js 状态同步
+ * ✅ 覆盖所有退出场景：主动退出、Session过期、跨标签页同步
+ *
+ * 🆕 v3.0.6 关键修复 (2025-12-15):
+ * ✅ 始终渲染 iframe（不再检测 WordPress 登录状态）
+ * ✅ 让 Next.js 应用自己处理登录逻辑（支持 Token 缓存）
+ * ✅ 解决 WordPress 未登录时无法使用 Token 缓存的问题
+ * ✅ 用户体验提升：无需在 WordPress 层面保持登录
+ *
+ * 🆕 v3.0.5 关键修复 (2025-12-15):
+ * ✅ 修复登录状态不同步问题：使用 postMessage 通信
+ * ✅ WordPress 父页面实时向 iframe 传递 Token（iframe加载时 + 每30秒）
+ * ✅ Next.js 前端监听 postMessage 事件，自动保存 Token
+ * ✅ 解决刷新页面后 URL 参数丢失导致的登录失效问题
+ * ✅ 不受 Cookie 跨域限制影响
  *
  * 🆕 v3.0.4 安全优化 (2025-12-14):
  * ✅ 修复密钥安全问题：从 wp-config.php 读取 PYTHON_JWT_SECRET（不再硬编码）
@@ -51,7 +106,7 @@ if (!defined('ABSPATH')) {
 }
 
 // 定义插件版本常量（用于缓存清除）
-define('NEXTJS_SSO_V3_VERSION', '3.0.4');
+define('NEXTJS_SSO_V3_VERSION', '3.0.12');
 define('NEXTJS_SSO_V3_CACHE_KEY', 'nextjs_sso_v3_' . NEXTJS_SSO_V3_VERSION);
 
 /**
@@ -346,7 +401,11 @@ function nextjs_sso_v3_generate_jwt_token($user) {
     $base64_payload = nextjs_sso_v3_base64url_encode(json_encode($payload));
 
     // ✅ 从 wp-config.php 读取密钥（安全优化）
-    $secret = defined('PYTHON_JWT_SECRET') ? PYTHON_JWT_SECRET : '$d4@5fg54ll_t_45gH';
+    if (!defined('PYTHON_JWT_SECRET')) {
+        error_log('[Next.js SSO v3.0] 安全错误: PYTHON_JWT_SECRET 未在 wp-config.php 中配置');
+        wp_die('配置错误: 请在 wp-config.php 中定义 PYTHON_JWT_SECRET 常量');
+    }
+    $secret = PYTHON_JWT_SECRET;
 
     // 仅在调试模式下输出日志
     if (defined('WP_DEBUG') && WP_DEBUG) {
@@ -395,7 +454,13 @@ function nextjs_sso_v3_verify_jwt_token($token) {
         list($base64_header, $base64_payload, $base64_signature) = $parts;
 
         // ✅ 从 wp-config.php 读取密钥（与生成函数一致）
-        $secret = defined('PYTHON_JWT_SECRET') ? PYTHON_JWT_SECRET : '$d4@5fg54ll_t_45gH';
+        if (!defined('PYTHON_JWT_SECRET')) {
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log('[Next.js SSO v3.0] 安全错误: PYTHON_JWT_SECRET 未在 wp-config.php 中配置');
+            }
+            return false;
+        }
+        $secret = PYTHON_JWT_SECRET;
         $expected_signature = hash_hmac('sha256', $base64_header . '.' . $base64_payload, $secret, true);
         $expected_base64_signature = nextjs_sso_v3_base64url_encode($expected_signature);
 
@@ -456,33 +521,135 @@ function nextjs_sso_v3_check_permission() {
 
 /**
  * 🔍 通过 Cookie 获取用户对象
+ * 🆕 v3.0.16: 深度支持WPCOM Member Pro
  */
 function nextjs_sso_v3_get_user_from_cookie() {
+    error_log('[Next.js SSO v3.0.16] 🔍 开始获取用户...');
+
+    // 方法1: WPCOM Member Pro API集成（最优先）
+    if (function_exists('wpcom_get_current_member')) {
+        error_log('[Next.js SSO v3.0.16] 🎯 检测到WPCOM Member Pro插件');
+        try {
+            $wpcom_member = wpcom_get_current_member();
+            if ($wpcom_member && isset($wpcom_member->ID) && $wpcom_member->ID > 0) {
+                error_log('[Next.js SSO v3.0.16] ✅ 通过WPCOM API获取到会员: ' . $wpcom_member->user_login . ' (ID: ' . $wpcom_member->ID . ')');
+                return $wpcom_member;
+            }
+        } catch (Exception $e) {
+            error_log('[Next.js SSO v3.0.16] ⚠️ WPCOM API调用失败: ' . $e->getMessage());
+        }
+    }
+
+    // 方法2: 检查WPCOM自定义Cookie
+    $wpcom_cookie_patterns = array(
+        'wpcom_user_token',
+        'wpcom_user_id',
+        'wpcom_user',
+        'wp_wpcom_memberpress',
+        'memberpress_user'
+    );
+
+    foreach ($wpcom_cookie_patterns as $pattern) {
+        foreach ($_COOKIE as $cookie_name => $cookie_value) {
+            if (strpos($cookie_name, $pattern) !== false) {
+                error_log('[Next.js SSO v3.0.16] 🔍 检测到WPCOM Cookie: ' . $cookie_name);
+
+                // 尝试从Cookie值中提取用户ID
+                if (is_numeric($cookie_value)) {
+                    $user = get_user_by('ID', intval($cookie_value));
+                    if ($user && $user->ID > 0) {
+                        error_log('[Next.js SSO v3.0.16] ✅ 通过WPCOM Cookie获取到用户: ' . $user->user_login . ' (ID: ' . $user->ID . ')');
+                        return $user;
+                    }
+                }
+
+                // 尝试JSON解析
+                $decoded = json_decode($cookie_value, true);
+                if ($decoded && isset($decoded['user_id'])) {
+                    $user = get_user_by('ID', intval($decoded['user_id']));
+                    if ($user && $user->ID > 0) {
+                        error_log('[Next.js SSO v3.0.16] ✅ 通过WPCOM Cookie (JSON)获取到用户: ' . $user->user_login);
+                        return $user;
+                    }
+                }
+            }
+        }
+    }
+
+    // 方法3: PHP Session检测（WPCOM可能使用Session）
+    if (session_status() === PHP_SESSION_NONE) {
+        @session_start();
+    }
+
+    if (isset($_SESSION['wpcom_user_id'])) {
+        error_log('[Next.js SSO v3.0.16] 🔍 检测到WPCOM Session');
+        $user = get_user_by('ID', intval($_SESSION['wpcom_user_id']));
+        if ($user && $user->ID > 0) {
+            error_log('[Next.js SSO v3.0.16] ✅ 通过Session获取到用户: ' . $user->user_login);
+            return $user;
+        }
+    }
+
+    // 方法4: 标准WordPress用户检测
     $current_user = wp_get_current_user();
     if ($current_user && $current_user->ID > 0) {
-        error_log('[Next.js SSO v3.0] 通过 wp_get_current_user 获取到用户: ' . $current_user->user_login);
+        error_log('[Next.js SSO v3.0.16] ✅ 通过 wp_get_current_user 获取到用户: ' . $current_user->user_login . ' (ID: ' . $current_user->ID . ')');
         return $current_user;
     }
 
+    // 方法5: 通过WordPress Cookie手动解析
     foreach ($_COOKIE as $cookie_name => $cookie_value) {
         if (strpos($cookie_name, 'wordpress_logged_in_') === 0) {
-            error_log('[Next.js SSO v3.0] 尝试通过 Cookie 获取用户: ' . $cookie_name);
+            error_log('[Next.js SSO v3.0.16] 🔍 尝试通过标准WordPress Cookie获取用户: ' . $cookie_name);
 
             $cookie_elements = explode('|', $cookie_value);
             if (count($cookie_elements) >= 2) {
                 $username = $cookie_elements[0];
-                error_log('[Next.js SSO v3.0] Cookie 中的用户名: ' . $username);
+                error_log('[Next.js SSO v3.0.16] Cookie 中的用户名: ' . $username);
 
                 $user = get_user_by('login', $username);
                 if ($user && $user->ID > 0) {
-                    error_log('[Next.js SSO v3.0] 成功通过 Cookie 找到用户: ' . $user->user_login . ' (ID: ' . $user->ID . ')');
+                    error_log('[Next.js SSO v3.0.16] ✅ 成功通过WordPress Cookie找到用户: ' . $user->user_login . ' (ID: ' . $user->ID . ')');
                     return $user;
                 }
             }
         }
     }
 
-    error_log('[Next.js SSO v3.0] 所有方式都无法获取用户');
+    // 方法6: 强制刷新WordPress用户状态（处理缓存问题）
+    error_log('[Next.js SSO v3.0.16] 🔄 尝试强制刷新用户状态...');
+    wp_cache_delete('current_user', 'users');
+    $refreshed_user = wp_get_current_user();
+    if ($refreshed_user && $refreshed_user->ID > 0) {
+        error_log('[Next.js SSO v3.0.16] ✅ 通过强制刷新获取到用户: ' . $refreshed_user->user_login);
+        return $refreshed_user;
+    }
+
+    // 方法7: 输出详细调试信息
+    error_log('[Next.js SSO v3.0.16] ❌ 所有方式都无法获取用户');
+    error_log('[Next.js SSO v3.0.16] 当前所有Cookies: ' . implode(', ', array_keys($_COOKIE)));
+
+    // 输出Session信息
+    if (session_status() === PHP_SESSION_ACTIVE) {
+        error_log('[Next.js SSO v3.0.16] 当前Session变量: ' . implode(', ', array_keys($_SESSION)));
+    }
+
+    // 检查是否存在WPCOM相关Cookie
+    $wpcom_cookies = array_filter(array_keys($_COOKIE), function($key) {
+        return strpos($key, 'wpcom') !== false ||
+               strpos($key, 'wp_') === 0 ||
+               strpos($key, 'memberpress') !== false;
+    });
+    if (!empty($wpcom_cookies)) {
+        error_log('[Next.js SSO v3.0.16] 检测到可能的WPCOM相关Cookie: ' . implode(', ', $wpcom_cookies));
+        // 输出这些Cookie的值（前20个字符）
+        foreach ($wpcom_cookies as $cookie_name) {
+            $cookie_value = isset($_COOKIE[$cookie_name]) ? $_COOKIE[$cookie_name] : '';
+            $preview = substr($cookie_value, 0, 20);
+            error_log('[Next.js SSO v3.0.16]   - ' . $cookie_name . ': ' . $preview . '...');
+        }
+    }
+
     return null;
 }
 
@@ -496,7 +663,7 @@ function nextjs_sso_v3_register_rest_routes() {
     register_rest_route('nextjs-sso/v1', '/get-token', array(
         'methods' => 'GET',
         'callback' => 'nextjs_sso_v3_rest_get_token',
-        'permission_callback' => 'nextjs_sso_v3_check_permission'
+        'permission_callback' => '__return_true' // v3.0.17: 修复 - 允许未登录用户访问，在回调函数内部检测登录状态
     ));
 
     // 验证 Token 端点
@@ -505,20 +672,30 @@ function nextjs_sso_v3_register_rest_routes() {
         'callback' => 'nextjs_sso_v3_rest_verify_token',
         'permission_callback' => '__return_true'
     ));
+
+    // 🆕 v3.0.9: 检查登录状态端点（用于JavaScript轮询检测）
+    register_rest_route('nextjs-sso/v1', '/check-login', array(
+        'methods' => 'GET',
+        'callback' => 'nextjs_sso_v3_rest_check_login',
+        'permission_callback' => '__return_true'
+    ));
 }
 
 /**
  * REST API: 获取当前登录用户的 JWT Token
  */
 function nextjs_sso_v3_rest_get_token() {
+    error_log('[Next.js SSO v3.0.20] 🌐 REST API /get-token 端点被调用');
+    error_log('[Next.js SSO v3.0.20] 📋 请求来源: ' . ($_SERVER['HTTP_REFERER'] ?? 'Unknown'));
+
     $current_user = nextjs_sso_v3_get_user_from_cookie();
 
     if (!$current_user || $current_user->ID === 0) {
-        error_log('[Next.js SSO v3.0] 无法获取用户，返回 401');
+        error_log('[Next.js SSO v3.0.20] ❌ 无法获取用户，返回 401');
         return new WP_Error('not_logged_in', '用户未登录', array('status' => 401));
     }
 
-    error_log('[Next.js SSO v3.0] 准备为用户生成 Token: ' . $current_user->user_login);
+    error_log('[Next.js SSO v3.0.20] ✅ 准备为用户生成 Token: ' . $current_user->user_login . ' (ID: ' . $current_user->ID . ')');
 
     $token = nextjs_sso_v3_generate_jwt_token($current_user);
 
@@ -557,6 +734,21 @@ function nextjs_sso_v3_rest_verify_token($request) {
     return new WP_REST_Response(array(
         'success' => true,
         'user' => $payload['data']['user']
+    ), 200);
+}
+
+/**
+ * 🆕 v3.0.9: REST API: 检查当前用户是否登录
+ * 用于JavaScript轮询检测登录状态变化
+ */
+function nextjs_sso_v3_rest_check_login() {
+    $current_user = nextjs_sso_v3_get_user_from_cookie();
+
+    $is_logged_in = ($current_user && $current_user->ID > 0);
+
+    return new WP_REST_Response(array(
+        'logged_in' => $is_logged_in,
+        'user_id' => $is_logged_in ? $current_user->ID : 0
     ), 200);
 }
 
@@ -821,16 +1013,19 @@ function nextjs_sso_v3_callback_shortcode($atts) {
 }
 
 /**
- * 🆕 v3.0 核心功能：短代码嵌入 Next.js 应用
- * 使用方法：在 WordPress 页面中添加 [nextjs_app]
+ * ❌ v3.0.12: iframe嵌入模式已废弃
+ * 原短代码：[nextjs_app] - 已移除
  *
- * 示例：
- * [nextjs_app]
- * [nextjs_app height="800px"]
- * [nextjs_app url="/analysis/123"]
+ * 如果您需要iframe嵌入模式，请降级到 v3.0.11 或更早版本
+ * 推荐使用：[nextjs-app-entrance] 宣传页面入口模式
  */
-add_shortcode('nextjs_app', 'nextjs_sso_v3_app_embed_shortcode');
+// add_shortcode('nextjs_app', 'nextjs_sso_v3_app_embed_shortcode');
 
+/**
+ * ❌ v3.0.12: iframe嵌入功能已移除
+ * 此函数保留供参考，但不再注册为短代码
+ */
+/*
 function nextjs_sso_v3_app_embed_shortcode($atts) {
     $atts = shortcode_atts(array(
         'height' => '100vh',
@@ -863,6 +1058,18 @@ function nextjs_sso_v3_app_embed_shortcode($atts) {
     ob_start();
     ?>
     <div id="nextjs-app-container-v3" style="width: 100%; margin: 0; padding: 0;">
+        <!-- 🆕 v3.0.6: 始终渲染 iframe，让 Next.js 应用自己处理登录逻辑 -->
+        <!-- 如果用户已登录WordPress，Token 会附加到 URL；如果未登录，Next.js 会检测并处理 -->
+        <iframe
+            id="nextjs-app-iframe-v3"
+            src="<?php echo $iframe_src_with_cache; ?>"
+            style="width: 100%; height: <?php echo $iframe_height; ?>; border: none; display: block;"
+            frameborder="0"
+            allow="clipboard-read; clipboard-write"
+            scrolling="yes"
+        ></iframe>
+
+        <?php if (false): // 保留旧代码供参考，但不再使用 ?>
         <?php if ($is_logged_in): ?>
             <!-- 用户已登录，直接嵌入 iframe（Token 已附加到 URL） -->
             <iframe
@@ -955,20 +1162,21 @@ function nextjs_sso_v3_app_embed_shortcode($atts) {
                 });
             })();
             </script>
-        <?php endif; ?>
+        <?php endif; // 结束旧代码块 ?>
+        <?php endif; // 结束保留代码块 ?>
     </div>
 
-    <?php if ($is_logged_in): ?>
+    <!-- 🆕 v3.0.6: 始终加载 iframe 脚本，支持 WordPress 登录和 Token 缓存两种模式 -->
     <script>
     (function() {
         const iframe = document.getElementById('nextjs-app-iframe-v3');
 
         if (!iframe) {
-            console.error('[Next.js SSO v3.0] 找不到 iframe 元素');
+            console.error('[Next.js SSO v3.0.8] 找不到 iframe 元素');
             return;
         }
 
-        console.log('[Next.js SSO v3.0] iframe 已加载:', iframe.src);
+        console.log('[Next.js SSO v3.0.8] iframe 已加载:', iframe.src);
 
         // iframe 自动调整高度
         window.addEventListener('message', function(event) {
@@ -984,16 +1192,359 @@ function nextjs_sso_v3_app_embed_shortcode($atts) {
 
             if (event.data && event.data.type === 'resize') {
                 iframe.style.height = event.data.height + 'px';
-                console.log('[Next.js SSO v3.0] iframe 高度已调整:', event.data.height + 'px');
+                console.log('[Next.js SSO v3.0.8] iframe 高度已调整:', event.data.height + 'px');
             }
         });
 
         iframe.addEventListener('load', function() {
-            console.log('[Next.js SSO v3.0] Next.js 应用已加载完成');
+            console.log('[Next.js SSO v3.0.8] Next.js 应用已加载完成');
+
+            <?php if ($is_logged_in): ?>
+            // 用户已在 WordPress 登录，通过 postMessage 向 iframe 传递 Token
+            const token = '<?php echo esc_js($token); ?>';
+            const user = <?php echo json_encode(array(
+                'user_id' => $current_user->ID,
+                'username' => $current_user->user_login,
+                'email' => $current_user->user_email,
+                'display_name' => $current_user->display_name,
+                'name' => $current_user->display_name,
+            )); ?>;
+
+            const ssoData = {
+                type: 'sso_login',
+                token: token,
+                user: user
+            };
+
+            // 发送登录信息到 iframe
+            iframe.contentWindow.postMessage(ssoData, '<?php echo esc_js($app_base_url); ?>');
+            console.log('[Next.js SSO v3.0.8] 已通过 postMessage 发送 Token 到 iframe');
+
+            // 定期检查登录状态并同步到 iframe（每30秒）
+            setInterval(function() {
+                if (iframe && iframe.contentWindow) {
+                    const token = '<?php echo esc_js($token); ?>';
+                    iframe.contentWindow.postMessage({
+                        type: 'sso_sync',
+                        token: token
+                    }, '<?php echo esc_js($app_base_url); ?>');
+                    console.log('[Next.js SSO v3.0.8] Token 定期同步');
+                }
+            }, 30000);
+            <?php else: ?>
+            // 用户未在 WordPress 登录，Next.js 应用会检查 localStorage 中的 Token 缓存
+            console.log('[Next.js SSO v3.0.8] WordPress 未登录，Next.js 将尝试使用 Token 缓存');
+            <?php endif; ?>
+        });
+
+        // 🆕 v3.0.7: 监听 WordPress 退出登录事件
+        // 方法1: 延迟查找 + 持续监听退出登录链接的点击事件
+        function setupLogoutListeners() {
+            // 查找所有可能的退出链接（使用多种选择器）
+            const logoutLinks = document.querySelectorAll('a[href*="logout"], a[href*="登出"]');
+
+            // 额外检查：文本内容包含退出相关关键词
+            const allLinks = document.querySelectorAll('a');
+            const logoutLinksByText = Array.from(allLinks).filter(link => {
+                const text = link.textContent.toLowerCase();
+                const href = link.href.toLowerCase();
+                return text.includes('logout') || text.includes('退出') || text.includes('登出') ||
+                       href.includes('logout') || href.includes('action=logout');
+            });
+
+            const allLogoutLinks = [...logoutLinks, ...logoutLinksByText];
+            console.log('[Next.js SSO v3.0.8] 找到退出登录链接数量:', allLogoutLinks.length);
+
+            allLogoutLinks.forEach((link, index) => {
+                // 避免重复绑定
+                if (link.hasAttribute('data-logout-listener')) {
+                    return;
+                }
+                link.setAttribute('data-logout-listener', 'true');
+
+                link.addEventListener('click', function() {
+                    console.log('[Next.js SSO v3.0.8] 检测到 WordPress 退出登录，通知 iframe 清除 Token');
+                    const iframe = document.getElementById('nextjs-app-iframe-v3');
+                    if (iframe && iframe.contentWindow) {
+                        iframe.contentWindow.postMessage({
+                            type: 'sso_logout'
+                        }, '<?php echo esc_js($app_base_url); ?>');
+                    }
+                });
+            });
+        }
+
+        // 页面加载完成后立即查找
+        window.addEventListener('load', function() {
+            console.log('[Next.js SSO v3.0.8] 退出登录监听器已加载');
+            setupLogoutListeners();
+        });
+
+        // 每隔2秒重新查找一次（处理动态加载的链接）
+        setInterval(function() {
+            setupLogoutListeners();
+        }, 2000);
+
+        // 🆕 v3.0.9: 定期检查 WordPress 登录状态（每5秒）
+        // 检测登录状态变化，自动同步到 iframe
+        let currentLoginState = <?php echo $is_logged_in ? 'true' : 'false'; ?>;
+
+        setInterval(async function() {
+            try {
+                // 🔧 v3.0.9: 使用专用的REST API端点检查登录状态（更可靠）
+                const response = await fetch('<?php echo esc_js(rest_url('nextjs-sso/v1/check-login')); ?>', {
+                    credentials: 'include',
+                    headers: {
+                        'X-WP-Nonce': '<?php echo wp_create_nonce('wp_rest'); ?>'
+                    }
+                });
+
+                if (!response.ok) {
+                    // REST API调用失败，可能是网络问题，跳过本次检测
+                    return;
+                }
+
+                const data = await response.json();
+                const isNowLoggedIn = data.logged_in === true;
+
+                // 🔥 检测到登录状态变化
+                if (currentLoginState !== isNowLoggedIn) {
+                    console.log('[Next.js SSO v3.0.9] 检测到登录状态变化:', currentLoginState ? '已登录→未登录' : '未登录→已登录');
+                    currentLoginState = isNowLoggedIn;
+
+                    const iframe = document.getElementById('nextjs-app-iframe-v3');
+                    if (!iframe || !iframe.contentWindow) {
+                        return;
+                    }
+
+                    if (isNowLoggedIn) {
+                        // 🎉 用户刚刚登录成功，刷新页面以获取新Token
+                        console.log('[Next.js SSO v3.0.9] 用户已登录，刷新页面以同步Token');
+                        window.location.reload();
+                    } else {
+                        // 👋 用户退出登录，通知 iframe 清除 Token
+                        console.log('[Next.js SSO v3.0.9] 用户已退出登录，通知 iframe 清除 Token');
+                        iframe.contentWindow.postMessage({
+                            type: 'sso_logout'
+                        }, '<?php echo esc_js($app_base_url); ?>');
+                    }
+                }
+            } catch (error) {
+                console.error('[Next.js SSO v3.0.9] 检查登录状态失败:', error);
+            }
+        }, 5000); // 每5秒检查一次
+    })();
+    </script>
+    <?php
+    return ob_get_clean();
+}
+*/
+
+/**
+ * 🆕 v3.0.10: 短代码 - 应用宣传页面入口（智能跳转）
+ * 🔧 v3.0.12: 修复按钮点击事件，使用<button>标签替代<a>标签
+ * 🚀 v3.0.14: 重构为REST API模式（Solution B）
+ *            - 移除服务器端登录检测，解决WPCOM Member Pro兼容性问题
+ *            - 客户端通过REST API动态获取Token
+ *            - 统一按钮，支持已登录/未登录两种场景
+ * 🎯 v3.0.15: 极简模式（按用户需求）
+ *            - 宣传页面按钮直接打开应用，不做任何检测
+ *            - 应用内部自行处理登录状态检测和登录流程
+ * 使用方式：[nextjs-app-entrance title="AI 设计高参" button_text="立即使用"]
+ */
+add_shortcode('nextjs-app-entrance', 'nextjs_sso_v3_render_entrance_shortcode');
+
+function nextjs_sso_v3_render_entrance_shortcode($atts) {
+    // 获取短代码参数
+    $atts = shortcode_atts(
+        array(
+            'app_url' => 'http://localhost:3000',
+            'title' => 'AI 设计高参',
+            'subtitle' => '极致概念 · 智能设计助手',
+            'description' => '基于多智能体协作的专业设计分析系统，为您的设计项目提供全方位的专家级建议。',
+            'button_text' => '立即使用',
+            'features' => '多专家协作分析|智能需求理解|专业设计建议|支持多模态输入',
+        ),
+        $atts,
+        'nextjs-app-entrance'
+    );
+
+    // 🆕 v3.0.15: 极简模式 - 不进行任何登录检测
+    // 按钮直接打开应用，由应用内部处理登录
+
+    // 解析特性列表
+    $features = explode('|', $atts['features']);
+
+    ob_start();
+    ?>
+    <div class="nextjs-app-entrance-wrapper" style="max-width: 1200px; margin: 40px auto; padding: 20px;">
+        <style>
+            .nextjs-app-entrance-wrapper {
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            }
+            .entrance-hero {
+                text-align: center;
+                padding: 20px 20px 60px 20px;
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                border-radius: 20px;
+                color: white;
+                margin-bottom: 40px;
+                box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+            }
+            .entrance-hero h1 {
+                font-size: 3em;
+                margin: 0 0 10px 0;
+                font-weight: 700;
+            }
+            .entrance-hero h2 {
+                font-size: 1.5em;
+                margin: 0 0 20px 0;
+                font-weight: 400;
+                opacity: 0.9;
+            }
+            .entrance-hero p {
+                font-size: 1.1em;
+                margin: 0 auto 40px auto;
+                max-width: 600px;
+                line-height: 1.6;
+                opacity: 0.95;
+            }
+            .entrance-button {
+                display: inline-block;
+                padding: 18px 48px;
+                font-size: 1.2em;
+                font-weight: 600;
+                color: #667eea;
+                background: white;
+                border: none;
+                border-radius: 50px;
+                cursor: pointer;
+                transition: all 0.3s ease;
+                text-decoration: none;
+                box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            }
+            .entrance-button:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+            }
+            .entrance-features {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+                gap: 20px;
+                margin-top: 40px;
+            }
+            .feature-card {
+                padding: 30px;
+                background: white;
+                border-radius: 12px;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+                text-align: center;
+                transition: transform 0.3s ease;
+            }
+            .feature-card:hover {
+                transform: translateY(-5px);
+                box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            }
+            .feature-icon {
+                font-size: 2.5em;
+                margin-bottom: 15px;
+            }
+            .feature-title {
+                font-size: 1.2em;
+                font-weight: 600;
+                color: #333;
+            }
+            .entrance-status {
+                text-align: center;
+                margin-top: 20px;
+                padding: 15px;
+                background: #f0f4ff;
+                border-radius: 8px;
+                color: #667eea;
+                font-size: 0.95em;
+            }
+            .entrance-button:disabled {
+                opacity: 0.6;
+                cursor: not-allowed;
+            }
+            .entrance-loading {
+                display: inline-block;
+                margin-left: 10px;
+                animation: spin 1s linear infinite;
+            }
+            @keyframes spin {
+                0% { transform: rotate(0deg); }
+                100% { transform: rotate(360deg); }
+            }
+        </style>
+
+        <div class="entrance-hero">
+            <h1><?php echo esc_html($atts['title']); ?></h1>
+            <h2><?php echo esc_html($atts['subtitle']); ?></h2>
+            <p><?php echo esc_html($atts['description']); ?></p>
+
+            <!-- 🆕 v3.0.15: 极简按钮，直接打开应用 -->
+            <button
+               type="button"
+               class="entrance-button"
+               id="entrance-button-simple"
+               data-app-url="<?php echo esc_attr($atts['app_url']); ?>"
+               style="border: none; cursor: pointer;">
+                <?php echo esc_html($atts['button_text']); ?> →
+            </button>
+        </div>
+
+        <div class="entrance-features">
+            <?php
+            $icons = ['🎨', '🤖', '💡', '📊']; // 特性图标
+            foreach ($features as $index => $feature):
+                $icon = $icons[$index % count($icons)];
+            ?>
+                <div class="feature-card">
+                    <div class="feature-icon"><?php echo $icon; ?></div>
+                    <div class="feature-title"><?php echo esc_html(trim($feature)); ?></div>
+                </div>
+            <?php endforeach; ?>
+        </div>
+    </div>
+
+    <script>
+    (function() {
+        console.log('[Next.js SSO v3.0.15] 宣传页面脚本已加载（极简模式）');
+
+        const button = document.getElementById('entrance-button-simple');
+
+        if (!button) {
+            console.error('[Next.js SSO v3.0.15] 错误：未找到按钮元素');
+            return;
+        }
+
+        const appUrl = button.dataset.appUrl;
+        if (!appUrl) {
+            console.error('[Next.js SSO v3.0.15] 错误：app_url 未配置');
+            alert('配置错误：应用URL未设置');
+            button.disabled = true;
+            return;
+        }
+
+        console.log('[Next.js SSO v3.0.15] app_url:', appUrl);
+
+        // 🆕 v3.0.15: 按钮点击事件 - 直接打开应用（无任何检测）
+        button.addEventListener('click', function() {
+            console.log('[Next.js SSO v3.0.15] 在新窗口打开应用:', appUrl);
+
+            // 直接在新窗口打开应用
+            const newWindow = window.open(appUrl, '_blank', 'noopener,noreferrer');
+
+            if (!newWindow) {
+                console.error('[Next.js SSO v3.0.15] 新窗口被浏览器拦截');
+                alert('弹窗被拦截！请允许此网站的弹窗，然后重试。');
+            } else {
+                console.log('[Next.js SSO v3.0.15] ✅ 应用成功在新窗口打开');
+            }
         });
     })();
     </script>
-    <?php endif; ?>
     <?php
     return ob_get_clean();
 }

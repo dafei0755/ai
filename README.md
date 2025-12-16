@@ -3,14 +3,48 @@
 
 > ⚠️ **所有开发者/协作者在修改代码前，必须优先阅读本节内容！**
 
-## 🔴 紧急：WordPress SSO 插件部署失败
+## ✅ WordPress SSO 集成完成 (v3.0.20)
 
-**详细报告**：[SSO_DEPLOYMENT_FAILURE.md](SSO_DEPLOYMENT_FAILURE.md)
+**最新状态**: v3.0.20 稳定版 - 生产就绪 🚀
 
-**简要说明**：
-- 线上安装失败（版本号不一致 + 旧插件残留）
-- 待办：核对版本、清理旧插件、重新上传
-- 目标：实现"必须登录才能访问前端"（类似 DeepSeek）
+**核心功能**:
+- ✅ **跨域Cookie问题完美解决** - 通过URL Token传递机制绕过浏览器跨域限制
+- ✅ **WPCOM隐藏区块架构** - 利用WPCOM Member Pro会员内容可见性控制应用入口
+- ✅ **JavaScript Token注入** - 同域名获取Token，动态更新应用链接
+- ✅ **死循环问题彻底修复** - 确保链接包含sso_token参数
+- ✅ **跨浏览器稳定** - Chrome/Edge/Firefox全面测试通过
+- ✅ **Member API 500错误已修复** - 密码配置 + 代码健壮性提升
+- ✅ **完整开发文档和部署指南**
+
+**重要改进 (v3.0.20, 2025-12-16)**:
+- 🎯 **跨域Cookie修复**: 通过URL Token传递机制完美解决跨域Cookie问题
+- 🏗️ **WPCOM隐藏区块架构**: 登录用户自动看到应用入口，未登录用户引导登录
+- 🔧 **JavaScript Token注入**: 同域名获取Token（Cookie自动携带），动态注入到应用链接
+- 🐛 **死循环问题修复**: 确保`<a>`标签有`id="app-entry-link"`，链接正确包含Token
+- 🌐 **跨浏览器稳定性**: Chrome/Edge/Firefox全面测试，普通模式和无痕模式均通过
+
+**快速查阅（v3.0.20文档）**:
+- ⭐⭐⭐⭐⭐ **快速开始**: [V3.0.20_QUICK_START.md](V3.0.20_QUICK_START.md) - 5分钟快速部署
+- ⭐⭐⭐⭐⭐ **完整部署指南**: [WORDPRESS_SSO_V3.0.20_DEPLOYMENT_GUIDE.md](WORDPRESS_SSO_V3.0.20_DEPLOYMENT_GUIDE.md)
+- ⭐⭐⭐⭐⭐ **发布说明**: [WORDPRESS_SSO_V3.0.20_RELEASE_NOTES.md](WORDPRESS_SSO_V3.0.20_RELEASE_NOTES.md)
+- ⭐⭐⭐⭐⭐ **清理总结**: [V3.0.20_CLEANUP_SUMMARY.md](V3.0.20_CLEANUP_SUMMARY.md)
+- ⭐⭐⭐⭐ **技术解决方案**: [CROSS_DOMAIN_COOKIE_FIX.md](CROSS_DOMAIN_COOKIE_FIX.md) - 跨域Cookie完整解决方案
+- ⭐⭐⭐⭐ **架构设计**: [WORDPRESS_HIDDEN_BLOCK_ARCHITECTURE.md](WORDPRESS_HIDDEN_BLOCK_ARCHITECTURE.md)
+- ⭐⭐⭐⭐ **死循环修复**: [EMERGENCY_FIX_INFINITE_LOOP.md](EMERGENCY_FIX_INFINITE_LOOP.md)
+- ⭐⭐⭐ **自动化测试**: [CROSS_DOMAIN_FIX_AUTO_TEST_GUIDE.md](CROSS_DOMAIN_FIX_AUTO_TEST_GUIDE.md)
+- ⭐⭐⭐ **无痕模式测试**: [INCOGNITO_MODE_TEST_GUIDE.md](INCOGNITO_MODE_TEST_GUIDE.md)
+
+**历史文档**:
+- [PROJECT_CLEANUP_SUMMARY_20251214.md](PROJECT_CLEANUP_SUMMARY_20251214.md) - 项目清理总结（v3.0.6）
+- [SSO_WORDPRESS_LAYER_FIX_20251215.md](SSO_WORDPRESS_LAYER_FIX_20251215.md) - WordPress层修复（v3.0.6）
+- [docs/WORDPRESS_INTEGRATION_GUIDE.md](docs/WORDPRESS_INTEGRATION_GUIDE.md) - 综合开发指南
+- [docs/wordpress/](docs/wordpress/) - 历史WordPress文档
+- [archive/](archive/) - 历史版本归档（14个历史插件版本 + 历史文档）
+
+**插件下载**:
+- 文件: `nextjs-sso-integration-v3.0.20.zip`
+- MD5: `D74C2FF25F09438EA33097BDFE8F2CFB`
+- 大小: 17.5 KB
 
 ---
 
@@ -46,7 +80,18 @@
 
 ### 📋 版本说明
 
-**当前版本: v7.9.5-session-grouping (2025-12-12)** 📅
+**当前版本: v7.9.5-session-grouping (Intelligent Project Analyzer) + v3.0.20 (WordPress SSO)** 📅
+
+**WordPress SSO v3.0.20 (2025-12-16)** 🚀
+- ✅ **跨域Cookie问题完美解决**: URL Token传递机制，绕过浏览器跨域限制
+- ✅ **WPCOM隐藏区块架构**: 利用会员内容可见性控制应用入口
+- ✅ **JavaScript Token注入**: 同域名获取Token，动态更新应用链接
+- ✅ **死循环问题彻底修复**: 确保链接包含sso_token参数
+- ✅ **跨浏览器稳定性**: Chrome/Edge/Firefox全面测试通过
+- 📦 **插件文件**: `nextjs-sso-integration-v3.0.20.zip` (17.5 KB, MD5: D74C2FF25F09438EA33097BDFE8F2CFB)
+- 📝 **完整文档**: 9个核心文档，覆盖部署、技术方案、测试指南
+
+**Intelligent Project Analyzer v7.9.5 (2025-12-12)** 📅
 - ✅ **会话列表时间分组统一**: 分析页面历史记录新增时间分组（今天、昨天、7天内、30天内、按月）
 - ✅ **UI一致性提升**: 分析页面与首页保持相同的时间分组显示风格
 - ✅ **用户体验优化**: 历史记录更清晰，快速定位不同时间段的会话
@@ -550,7 +595,8 @@ langgraph-design/
 │   │
 │   ├── lib/                       # 工具库
 │   │   ├── api.ts                 # API客户端（含追问API）
-│   │   └── websocket.ts           # WebSocket客户端
+│   │   ├── websocket.ts           # WebSocket客户端
+│   │   └── config.ts              # 前端配置（v3.0.20）
 │   │
 │   ├── types/                     # TypeScript类型
 │   │   ├── index.ts               # 通用类型
@@ -573,6 +619,7 @@ langgraph-design/
 │   │   ├── BUG_FIX_REPORT_INFINITE_LOOP.md
 │   │   ├── P2_P3_FIX_SUMMARY.md
 │   │   └── CONVERSATION_BUGFIX_REPORT.md
+│   ├── wordpress/                 # WordPress历史文档
 │   ├── bug_fix_summary_20251129_2315.md  # Bug修复总结
 │   ├── followup_questions_fix_20251130.md  # 追问功能修复
 │   ├── complete_fix_summary_20251129.md   # 完整修复记录
@@ -580,15 +627,39 @@ langgraph-design/
 │   ├── CHANGELOG_PHASE2.md        # 阶段2更新日志
 │   └── PROJECT_STRUCTURE.md       # 详细结构说明
 │
+├── archive/                       # 历史版本归档 🆕
+│   ├── plugins/                   # 14个历史WordPress插件版本（v3.0.6-v3.0.15）
+│   ├── docs/                      # 历史文档（待手动移动）
+│   └── tests/                     # 历史测试文件（待手动移动）
+│
+├── e2e-tests/                     # E2E测试
+│   ├── test-v3.0.20-cross-domain-fix.js  # v3.0.20自动化测试 ✅
+│   └── archive/                   # 历史测试（test-v3.0.18-fix.js等）
+│
 ├── data/                          # 数据目录
 │   └── debug/                     # 调试日志
 │
 ├── logs/                          # 日志文件
 ├── reports/                       # 生成的分析报告
 │
+├── nextjs-sso-integration-v3.php  # WordPress插件源代码（v3.0.20）✅
+├── nextjs-sso-integration-v3.0.20.zip  # WordPress插件发布包 ✅
+│
+├── V3.0.20_QUICK_START.md         # v3.0.20快速开始 ⭐⭐⭐⭐⭐
+├── WORDPRESS_SSO_V3.0.20_DEPLOYMENT_GUIDE.md  # 完整部署指南 ⭐⭐⭐⭐⭐
+├── WORDPRESS_SSO_V3.0.20_RELEASE_NOTES.md     # 发布说明 ⭐⭐⭐⭐⭐
+├── V3.0.20_CLEANUP_SUMMARY.md     # 清理总结 ⭐⭐⭐⭐⭐
+├── CROSS_DOMAIN_COOKIE_FIX.md     # 跨域Cookie修复 ⭐⭐⭐⭐
+├── WORDPRESS_HIDDEN_BLOCK_ARCHITECTURE.md  # 架构设计 ⭐⭐⭐⭐
+├── EMERGENCY_FIX_INFINITE_LOOP.md # 死循环修复 ⭐⭐⭐⭐
+├── CROSS_DOMAIN_FIX_AUTO_TEST_GUIDE.md  # 自动化测试 ⭐⭐⭐
+├── INCOGNITO_MODE_TEST_GUIDE.md   # 无痕模式测试 ⭐⭐⭐
+├── PROJECT_FILE_ORGANIZATION_REPORT.md  # 文件整理报告 ✅
+│
 ├── .env                           # 环境变量配置
 ├── requirements.txt               # Python依赖
 ├── start_services.bat             # 快速启动脚本
+├── CLAUDE.md                      # Claude开发指南
 └── README.md                      # 项目说明（本文件）
 ```
 
@@ -1780,8 +1851,15 @@ MIT License - 详见 [LICENSE](LICENSE) 文件
 ---
 如有终端显示或日志相关问题，请优先查阅本节说明，或联系维护者协助。
 
-**最后更新**: 2025-12-02
-**版本**: v3.11
+---
+
+**最后更新**: 2025-12-16
+**版本**: Intelligent Project Analyzer v7.9.5 + WordPress SSO v3.0.20
 **状态**: ✅ 生产就绪
+**重要更新**:
+- ✅ WordPress SSO v3.0.20 稳定版发布 - 跨域Cookie问题完美解决
+- ✅ 14个历史插件版本已归档到 `archive/plugins/`
+- ✅ 完整的v3.0.20部署文档和测试指南
+- ✅ 项目文件结构优化完成
 
 感谢使用 **Intelligent Project Analyzer** - 让设计分析更智能！🎨

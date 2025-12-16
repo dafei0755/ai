@@ -1,0 +1,15 @@
+{
+  "name": "wordpress-sso-e2e-tests",
+  "version": "1.0.0",
+  "description": "v3.0.15 自动化E2E测试",
+  "scripts": {
+    "test": "playwright test",
+    "test:headed": "playwright test --headed",
+    "test:debug": "playwright test --debug",
+    "test:ui": "playwright test --ui",
+    "install-browsers": "playwright install chromium"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.40.0"
+  }
+}

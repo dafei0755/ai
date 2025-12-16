@@ -7,7 +7,7 @@
 **配置详情**:
 - **插件**: Simple JWT Login Plugin
 - **版本**: 已配置（Authentication 功能已启用）
-- **JWT 密钥**: `$d4@5fg54ll_t_45gH` (HS256 算法)
+- **JWT 密钥**: `YOUR_JWT_SECRET_KEY` (HS256 算法)
 - **端点**: `/wp-json/simple-jwt-login/v1/auth` ✅ 可用
 - **测试结果**: ✅ Token 获取成功（长度 291 字符）
 
@@ -18,8 +18,8 @@
 **文件修改**:
 1. **`.env` 文件** - 已更新 JWT 密钥
    ```bash
-   JWT_SECRET_KEY=$d4@5fg54ll_t_45gH
-   WORDPRESS_ADMIN_PASSWORD='M2euRVQMdpzJp%*KLtD0#kK1'
+   JWT_SECRET_KEY=YOUR_JWT_SECRET_KEY
+   WORDPRESS_ADMIN_PASSWORD='YOUR_WORDPRESS_PASSWORD'
    ```
 
 2. **`wpcom_member_api.py`** - 已修复
@@ -159,15 +159,15 @@ npm run dev
 
 ### JWT 密钥（3处一致）
 ```
-WordPress Simple JWT Login (General) → JWT Decryption Key: $d4@5fg54ll_t_45gH
-WordPress Simple JWT Login (Authentication) → JWT Decryption Key: $d4@5fg54ll_t_45gH
-Python .env → JWT_SECRET_KEY: $d4@5fg54ll_t_45gH
+WordPress Simple JWT Login (General) → JWT Decryption Key: YOUR_JWT_SECRET_KEY
+WordPress Simple JWT Login (Authentication) → JWT Decryption Key: YOUR_JWT_SECRET_KEY
+Python .env → JWT_SECRET_KEY: YOUR_JWT_SECRET_KEY
 ```
 
 ### WordPress 管理员凭证
 ```
-用户名: 8pdwoxj8
-密码: M2euRVQMdpzJp%*KLtD0#kK1
+用户名: YOUR_WORDPRESS_USERNAME
+密码: YOUR_WORDPRESS_PASSWORD
 ```
 
 ### API 端点
@@ -190,7 +190,7 @@ WPCOM Custom API: https://www.ucppt.com/wp-json/custom/v1/*
 
 ### 3. JWT 密钥不一致 ✅
 - **原因**: Python 使用旧密钥 `auto_generated_secure_key_2025_wordpress`
-- **解决**: 更新 `.env` 为 `$d4@5fg54ll_t_45gH`
+- **解决**: 更新 `.env` 为 `YOUR_JWT_SECRET_KEY`
 
 ### 4. JWT Token 格式不兼容 ✅
 - **原因**: WordPress 插件生成嵌套格式 `{data: {user: {...}}}`
@@ -204,7 +204,7 @@ WPCOM Custom API: https://www.ucppt.com/wp-json/custom/v1/*
 WordPress (www.ucppt.com)
 ├─ Simple JWT Login Plugin ✅
 │  ├─ Authentication: /wp-json/simple-jwt-login/v1/auth
-│  └─ JWT Key: $d4@5fg54ll_t_45gH
+│  └─ JWT Key: YOUR_JWT_SECRET_KEY
 │
 ├─ WPCOM Member Pro Plugin ✅
 │  └─ 会员等级、订单、钱包数据

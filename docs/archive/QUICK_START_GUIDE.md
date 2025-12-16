@@ -56,7 +56,7 @@ WordPress JWT 认证系统
 
 ```env
 WORDPRESS_URL=https://www.ucppt.com
-WORDPRESS_ADMIN_USERNAME=8pdwoxj8
+WORDPRESS_ADMIN_USERNAME=YOUR_WORDPRESS_USERNAME
 JWT_SECRET_KEY=auto_generated_secure_key_2025_wordpress
 JWT_ALGORITHM=HS256
 JWT_EXPIRY=604800
@@ -108,7 +108,7 @@ npm run dev
 
 1. 访问 http://localhost:3000/auth/login
 2. 输入凭证：
-   - 用户名：`8pdwoxj8`
+   - 用户名：`YOUR_WORDPRESS_USERNAME`
    - 密码：**您的 WordPress 管理员密码**
 3. 点击 "登录"
 4. 看到成功消息并重定向到首页
@@ -121,7 +121,7 @@ npm run dev
   "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
   "user": {
     "user_id": 1,
-    "username": "8pdwoxj8",
+    "username": "YOUR_WORDPRESS_USERNAME",
     "email": "admin@ucppt.com",
     "display_name": "Admin",
     "roles": ["administrator"]
@@ -152,7 +152,7 @@ curl -X GET http://localhost:8000/api/auth/me \
 ```json
 {
   "user_id": 1,
-  "username": "8pdwoxj8",
+  "username": "YOUR_WORDPRESS_USERNAME",
   "email": "admin@ucppt.com",
   "display_name": "Admin",
   "roles": ["administrator"],
@@ -227,7 +227,7 @@ const data = await response.json();
 3. 检查防火墙或代理设置
 4. 使用 curl 测试：
    ```bash
-   curl -u 8pdwoxj8:your_password https://www.ucppt.com/wp-json/wp/v2/users/me
+   curl -u YOUR_WORDPRESS_USERNAME:your_password https://www.ucppt.com/wp-json/wp/v2/users/me
    ```
 
 ### ❌ 问题 5：Token 过期 "Token expired"

@@ -27,7 +27,7 @@
   
   应该包含：
   - [ ] `WORDPRESS_URL=https://www.ucppt.com`
-  - [ ] `WORDPRESS_ADMIN_USERNAME=8pdwoxj8`
+  - [ ] `WORDPRESS_ADMIN_USERNAME=YOUR_WORDPRESS_USERNAME`
   - [ ] `JWT_SECRET_KEY=*` (非默认值)
   - [ ] `JWT_ALGORITHM=HS256`
   - [ ] `JWT_EXPIRY=604800`
@@ -121,7 +121,7 @@ npm run dev
 ```bash
 # 方式 1：使用浏览器
 1. 访问 http://localhost:3000/auth/login
-2. 输入用户名：8pdwoxj8
+2. 输入用户名：YOUR_WORDPRESS_USERNAME
 3. 输入密码：<您的 WordPress 管理员密码>
 4. 点击登录
 
@@ -150,7 +150,7 @@ test_wordpress_jwt.bat
 # 获取 token
 TOKEN=$(curl -s -X POST http://localhost:8000/api/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"username":"8pdwoxj8","password":"your_password"}' | \
+  -d '{"username":"YOUR_WORDPRESS_USERNAME","password":"your_password"}' | \
   jq -r '.token')
 
 # 测试受保护端点

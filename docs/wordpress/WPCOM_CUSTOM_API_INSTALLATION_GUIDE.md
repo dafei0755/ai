@@ -13,11 +13,11 @@
 ### 1. Simple JWT Login 插件 Authentication 功能 ✅
 - **状态**: 已成功启用
 - **端点**: `/wp-json/simple-jwt-login/v1/auth` ✅ 可用
-- **JWT 密钥**: `$d4@5fg54ll_t_45gH` (HS256)
+- **JWT 密钥**: `YOUR_JWT_SECRET_KEY` (HS256)
 - **测试结果**: Token 获取成功！
 
 ### 2. Python 后端配置 ✅
-- **JWT_SECRET_KEY**: 已同步为 `$d4@5fg54ll_t_45gH`
+- **JWT_SECRET_KEY**: 已同步为 `YOUR_JWT_SECRET_KEY`
 - **wpcom_member_api.py**: 已修复（SSL 验证、密码解析）
 - **后端服务**: ✅ 正在运行（8000端口）
 
@@ -269,7 +269,7 @@ npm run dev
 ### 验证前端显示
 
 1. 访问 http://localhost:3000
-2. 使用 WordPress 登录（用户: 8pdwoxj8）
+2. 使用 WordPress 登录（用户: YOUR_WORDPRESS_USERNAME）
 3. 点击左下角用户面板
 4. 应该能看到真实的会员等级、钱包余额等信息
 

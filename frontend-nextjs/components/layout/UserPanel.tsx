@@ -2,8 +2,8 @@
 
 /**
  * 左下角用户面板
- * v7.10.1: 仿照 DeepSeek 界面设计
- * 包含：通用设置（主题）、账号管理（会员信息）、服务协议
+ * v7.10.2: 扁平化设计，移除分类标题
+ * 包含：主题切换、会员信息、服务协议
  */
 
 import React, { useState, useRef, useEffect } from 'react';
@@ -56,45 +56,41 @@ export function UserPanel() {
     };
   }, [isMenuOpen]);
 
-  // 未登录状态显示登录提示
+  // 🔒 v3.0.8: 未登录状态不显示用户面板
+  // 用户只能通过 WordPress 右上角的登录/退出按钮控制
   if (!user) {
-    return (
-      <div className="px-3 py-2.5 bg-[var(--card-bg)] rounded-lg border border-[var(--border-color)]">
-        <div className="flex items-center space-x-3 mb-2">
-          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center flex-shrink-0">
-            <User className="w-5 h-5 text-white" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-[var(--foreground)]">未登录</p>
-            <p className="text-xs text-[var(--foreground-secondary)]">请先登录</p>
-          </div>
-        </div>
-        <button
-          onClick={() => {
-            // 跳转到 WordPress 登录页面
-            const wordpressEmbedUrl = process.env.NEXT_PUBLIC_WORDPRESS_EMBED_URL || 'https://www.ucppt.com/nextjs';
-            window.location.href = wordpressEmbedUrl;
-          }}
-          className="w-full px-3 py-2 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white text-sm font-medium rounded-lg transition-all"
-        >
-          前往登录
-        </button>
-      </div>
-    );
+    return null;
   }
 
   // 获取用户显示名称和邮箱/网站
   const displayName = user.display_name || user.name || user.username;
   const subtitle = user.email || 'ucppt.com';
 
-  // 获取头像（使用 Gravatar 或默认头像）
-  const avatarUrl = user.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=4F46E5&color=fff&size=128`;
-
-  // 头像加载失败时的回退处理
-  const handleAvatarError = (e: React.SyntheticEvent<HTMLImageElement>) => {
-    console.log('[UserPanel] 头像加载失败，使用默认头像');
-    e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=4F46E5&color=fff&size=128`;
+  // 🎨 生成首字母头像
+  const getInitials = (name: string) => {
+    if (!name) return 'U';
+    // 如果是中文名，取第一个字
+    if (/[\u4e00-\u9fa5]/.test(name)) {
+      return name.charAt(0);
+    }
+    // 如果是英文名，取首字母
+    const parts = name.split(' ');
+    if (parts.length >= 2) {
+      return (parts[0][0] + parts[1][0]).toUpperCase();
+    }
+    return name.charAt(0).toUpperCase();
   };
+
+  // 🎨 智能截断邮箱（保留前4位+@+域名）
+  const truncateEmail = (email: string) => {
+    if (!email || email.length <= 20) return email;
+    const [local, domain] = email.split('@');
+    if (!domain) return email;
+    return `${local.substring(0, 4)}...@${domain}`;
+  };
+
+  const initials = getInitials(displayName);
+  const truncatedEmail = truncateEmail(subtitle);
 
   return (
     <div className="relative" ref={menuRef}>
@@ -104,80 +100,63 @@ export function UserPanel() {
           {/* 用户信息头部 */}
           <div className="px-4 py-3 border-b border-[var(--border-color)]">
             <div className="flex items-center space-x-3">
-              <img
-                src={avatarUrl}
-                alt={displayName}
-                className="w-10 h-10 rounded-full"
-                onError={handleAvatarError}
-              />
+              {/* 首字母头像 */}
+              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white font-bold text-lg flex-shrink-0">
+                {initials}
+              </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-[var(--foreground)] truncate">
+                <p className="text-sm font-medium text-[var(--foreground)] truncate" title={displayName}>
                   {displayName}
                 </p>
-                <p className="text-xs text-[var(--foreground-secondary)] truncate">
-                  {subtitle}
+                <p className="text-xs text-[var(--foreground-secondary)] truncate" title={subtitle}>
+                  {truncatedEmail}
                 </p>
               </div>
             </div>
           </div>
 
-          {/* 🎨 通用设置 - 主题切换 */}
-          <div className="px-3 py-2 border-b border-[var(--border-color)]">
-            <div className="flex items-center space-x-2 px-1 py-1.5">
-              <Palette className="w-4 h-4 text-[var(--foreground-secondary)]" />
-              <span className="text-xs font-medium text-[var(--foreground-secondary)]">通用设置</span>
-            </div>
-            <div className="px-1 py-2">
-              <div className="flex items-center justify-between">
+          {/* 主题切换 */}
+          <div className="px-4 py-3 border-b border-[var(--border-color)]">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <Palette className="w-4 h-4 text-[var(--foreground-secondary)]" />
                 <span className="text-sm text-[var(--foreground)]">主题外观</span>
-                <select
-                  value={theme}
-                  onChange={(e) => setTheme(e.target.value as 'light' | 'dark' | 'system')}
-                  className="text-xs px-2 py-1 bg-[var(--background)] border border-[var(--border-color)] rounded text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-blue-500/50"
-                >
-                  <option value="light">浅色</option>
-                  <option value="dark">深色</option>
-                  <option value="system">跟随系统</option>
-                </select>
               </div>
+              <select
+                value={theme}
+                onChange={(e) => setTheme(e.target.value as 'light' | 'dark' | 'system')}
+                className="text-xs px-2 py-1 bg-[var(--background)] border border-[var(--border-color)] rounded text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+              >
+                <option value="light">浅色</option>
+                <option value="dark">深色</option>
+                <option value="system">跟随系统</option>
+              </select>
             </div>
           </div>
 
-          {/* 👤 账号管理 - 会员信息 */}
-          <div className="border-b border-[var(--border-color)]">
-            <div className="px-3 py-2">
-              <div className="flex items-center space-x-2 px-1 py-1.5">
-                <Crown className="w-4 h-4 text-[var(--foreground-secondary)]" />
-                <span className="text-xs font-medium text-[var(--foreground-secondary)]">账号管理</span>
-              </div>
-            </div>
-            <MembershipCard />
-          </div>
+          {/* 会员信息 */}
+          <MembershipCard />
 
-          {/* 📋 服务协议 */}
-          <div className="px-3 py-2 border-b border-[var(--border-color)]">
-            <div className="flex items-center space-x-2 px-1 py-1.5 mb-2">
+          {/* 服务协议链接 */}
+          <div className="px-4 py-3 border-b border-[var(--border-color)] space-y-2">
+            <a
+              href="https://www.ucppt.com/terms"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center space-x-2 text-sm text-[var(--foreground)] hover:text-blue-500 transition-colors"
+            >
               <Shield className="w-4 h-4 text-[var(--foreground-secondary)]" />
-              <span className="text-xs font-medium text-[var(--foreground-secondary)]">服务协议</span>
-            </div>
-            <div className="space-y-1">
-              <a
-                href="https://www.ucppt.com/terms"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block px-1 py-1.5 text-xs text-[var(--foreground)] hover:text-blue-500 transition-colors"
-              >
-                服务条款
-              </a>
-              <a
-                href="https://www.ucppt.com/privacy"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block px-1 py-1.5 text-xs text-[var(--foreground)] hover:text-blue-500 transition-colors"
-              >
-                隐私政策
-              </a>
-            </div>
+              <span>服务条款</span>
+            </a>
+            <a
+              href="https://www.ucppt.com/privacy"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center space-x-2 text-sm text-[var(--foreground)] hover:text-blue-500 transition-colors"
+            >
+              <Shield className="w-4 h-4 text-[var(--foreground-secondary)]" />
+              <span>隐私政策</span>
+            </a>
           </div>
 
           {/* 🔧 其他功能 - 已移除下载手机应用和联系我们 */}
@@ -217,27 +196,24 @@ export function UserPanel() {
         `}
       >
         <div className="flex items-center space-x-3">
-          {/* 头像 */}
-          <img
-            src={avatarUrl}
-            alt={displayName}
-            className="w-8 h-8 rounded-full flex-shrink-0"
-            onError={handleAvatarError}
-          />
+          {/* 首字母头像 */}
+          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white font-bold flex-shrink-0">
+            {initials}
+          </div>
 
           {/* 用户信息 */}
           <div className="flex-1 min-w-0 text-left">
-            <p className="text-sm font-medium text-[var(--foreground)] truncate">
+            <p className="text-sm font-medium text-[var(--foreground)] truncate" title={displayName}>
               {displayName}
             </p>
-            <p className="text-xs text-[var(--foreground-secondary)] truncate">
-              {subtitle}
+            <p className="text-xs text-[var(--foreground-secondary)] truncate" title={subtitle}>
+              {truncatedEmail}
             </p>
           </div>
 
           {/* 箭头图标 */}
           <ChevronUp
-            className={`w-4 h-4 text-[var(--foreground-secondary)] transition-transform ${
+            className={`w-4 h-4 text-[var(--foreground-secondary)] transition-transform flex-shrink-0 ${
               isMenuOpen ? 'rotate-180' : ''
             }`}
           />

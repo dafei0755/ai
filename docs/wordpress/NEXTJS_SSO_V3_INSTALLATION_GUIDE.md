@@ -14,7 +14,7 @@
 ### ✅ 关键修复
 
 1. **JWT 密钥统一**
-   - 优先使用 Simple JWT Login 插件的 `$d4@5fg54ll_t_45gH` 密钥
+   - 优先使用 Simple JWT Login 插件的 `YOUR_JWT_SECRET_KEY` 密钥
    - 与 Python 后端密钥保持一致 (`.env` 中的 `JWT_SECRET_KEY`)
    - 兼容 WordPress `AUTH_KEY` 作为备用方案
 
@@ -38,14 +38,14 @@
 
 - **插件**: Simple JWT Login
 - **功能**: Authentication (认证功能)
-- **JWT 密钥**: `$d4@5fg54ll_t_45gH` (HS256 算法)
+- **JWT 密钥**: `YOUR_JWT_SECRET_KEY` (HS256 算法)
 - **端点**: `/wp-json/simple-jwt-login/v1/auth`
 
 **验证方法**:
 ```bash
 curl -X POST "https://www.ucppt.com/wp-json/simple-jwt-login/v1/auth" \
   -H "Content-Type: application/json" \
-  -d '{"username": "8pdwoxj8", "password": "YOUR_PASSWORD"}'
+  -d '{"username": "YOUR_WORDPRESS_USERNAME", "password": "YOUR_PASSWORD"}'
 ```
 
 预期返回：
@@ -90,7 +90,7 @@ curl -s "https://www.ucppt.com/wp-json/custom/v1/my-membership" \
 
 ```php
 // JWT 密钥（与 Simple JWT Login 和 Python 后端保持一致）
-define('PYTHON_JWT_SECRET', '$d4@5fg54ll_t_45gH');
+define('PYTHON_JWT_SECRET', 'YOUR_JWT_SECRET_KEY');
 ```
 
 **位置**: 在 `/* That's all, stop editing! Happy publishing. */` 之前
@@ -284,17 +284,17 @@ Next.js 应用 URL: https://ai.ucppt.com
 
 1. **检查 wp-config.php**:
    ```php
-   define('PYTHON_JWT_SECRET', '$d4@5fg54ll_t_45gH');
+   define('PYTHON_JWT_SECRET', 'YOUR_JWT_SECRET_KEY');
    ```
 
 2. **检查 .env 文件** (Python 后端):
    ```bash
-   JWT_SECRET_KEY=$d4@5fg54ll_t_45gH
+   JWT_SECRET_KEY=YOUR_JWT_SECRET_KEY
    ```
 
 3. **检查 Simple JWT Login 设置**:
-   - General → JWT Decryption Key: `$d4@5fg54ll_t_45gH`
-   - Authentication → JWT Decryption Key: `$d4@5fg54ll_t_45gH`
+   - General → JWT Decryption Key: `YOUR_JWT_SECRET_KEY`
+   - Authentication → JWT Decryption Key: `YOUR_JWT_SECRET_KEY`
 
 4. **重启 Python 后端**:
    ```bash
@@ -352,8 +352,8 @@ WordPress 后台 → **设置** → **Next.js SSO v3 调试**
 
 **日志格式**:
 ```
-[Next.js SSO v3.0] JWT 生成成功 (用户: 8pdwoxj8, 密钥: PYTHON_JWT_SECRET)
-[Next.js SSO v3.0] 为用户 8pdwoxj8 生成 Token 并嵌入 iframe URL
+[Next.js SSO v3.0] JWT 生成成功 (用户: YOUR_WORDPRESS_USERNAME, 密钥: PYTHON_JWT_SECRET)
+[Next.js SSO v3.0] 为用户 YOUR_WORDPRESS_USERNAME 生成 Token 并嵌入 iframe URL
 [Next.js SSO v3.0] JWT 验证成功
 ```
 
@@ -407,7 +407,7 @@ npm run dev
 ### 验证前端显示
 
 1. 访问 `https://www.ucppt.com/nextjs`
-2. 使用 WordPress 登录（用户: 8pdwoxj8）
+2. 使用 WordPress 登录（用户: YOUR_WORDPRESS_USERNAME）
 3. 点击左下角用户面板
 4. 应该能看到真实的会员等级、钱包余额等信息
 

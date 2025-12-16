@@ -293,6 +293,16 @@ ENABLE_VISION_API=true
 
 7. **Frontend WebSocket disconnects:** Check CORS settings in `api/server.py`. Frontend auto-reconnects with exponential backoff.
 
+8. **Member API 500 errors (FIXED):**
+   - ✅ Ensure `.env` password has no quotes: `WORDPRESS_ADMIN_PASSWORD=your_password` (not `'your_password'`)
+   - ✅ Code now handles `membership: None` gracefully (returns "免费用户")
+   - 📝 See [MEMBER_API_COMPLETE_FIX.md](MEMBER_API_COMPLETE_FIX.md) for details
+
+9. **python-decouple configuration:**
+   - ❌ Wrong: `VARIABLE='value'` (single quotes included in value)
+   - ✅ Correct: `VARIABLE=value` or `VARIABLE="value"` (double quotes for special chars)
+   - Use test scripts like `test_decouple_reading.py` to verify actual values
+
 ## Testing Strategy
 
 - **Unit tests:** Individual agent/node logic (`tests/test_*.py`)

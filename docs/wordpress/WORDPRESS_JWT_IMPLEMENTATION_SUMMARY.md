@@ -106,7 +106,7 @@
    - 新增 10 行 JWT 配置:
      ```env
      WORDPRESS_URL=https://www.ucppt.com
-     WORDPRESS_ADMIN_USERNAME=8pdwoxj8
+     WORDPRESS_ADMIN_USERNAME=YOUR_WORDPRESS_USERNAME
      JWT_SECRET_KEY=auto_generated_secure_key_2025_wordpress
      JWT_ALGORITHM=HS256
      JWT_EXPIRY=604800
@@ -237,7 +237,7 @@ Login Request
 ├─ 生成 JWT Token
 │  ├─ Payload:
 │  │  ├─ user_id: 1
-│  │  ├─ username: "8pdwoxj8"
+│  │  ├─ username: "YOUR_WORDPRESS_USERNAME"
 │  │  ├─ email: "admin@ucppt.com"
 │  │  ├─ roles: ["administrator"]
 │  │  ├─ iat: 1702646400
@@ -248,7 +248,7 @@ Login Request
 └─ 返回响应
    ├─ token: "eyJhbGc..."
    ├─ user_id: 1
-   ├─ username: "8pdwoxj8"
+   ├─ username: "YOUR_WORDPRESS_USERNAME"
    ├─ email: "admin@ucppt.com"
    └─ roles: ["administrator"]
 ```
@@ -361,7 +361,7 @@ start_wordpress_jwt.bat
 # http://localhost:3000/auth/login
 
 # 输入凭证
-# 用户名: 8pdwoxj8
+# 用户名: YOUR_WORDPRESS_USERNAME
 # 密码: <您的 WordPress 密码>
 
 # 预期: 成功登录并重定向到首页

@@ -18,12 +18,19 @@ class WordPressJWTService:
     """WordPress 原生 JWT 认证服务"""
     
     def __init__(self):
-        self.wordpress_url = os.getenv('WORDPRESS_URL', 'https://www.ucppt.com')
-        self.wordpress_user = os.getenv('WORDPRESS_ADMIN_USERNAME', '8pdwoxj8')
+        # ✅ 安全优化：移除硬编码默认值，强制从环境变量读取
+        self.wordpress_url = os.getenv('WORDPRESS_URL')
+        if not self.wordpress_url:
+            raise ValueError("WORDPRESS_URL 必须在 .env 中配置")
+
+        self.wordpress_user = os.getenv('WORDPRESS_ADMIN_USERNAME')
+        if not self.wordpress_user:
+            raise ValueError("WORDPRESS_ADMIN_USERNAME 必须在 .env 中配置")
+
         self.jwt_secret = os.getenv('JWT_SECRET_KEY', self._generate_secret_key())
         self.jwt_algorithm = os.getenv('JWT_ALGORITHM', 'HS256')
         self.jwt_expiry = int(os.getenv('JWT_EXPIRY', '604800'))  # 7天
-        
+
         logger.info(f"✅ WordPress JWT Service 初始化完成")
         logger.info(f"   WordPress URL: {self.wordpress_url}")
         logger.info(f"   认证算法: {self.jwt_algorithm}")

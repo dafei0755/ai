@@ -114,7 +114,7 @@
 
 ```
 WordPress 地址: https://www.ucppt.com
-管理员用户名: 8pdwoxj8
+管理员用户名: YOUR_WORDPRESS_USERNAME
 密码: (由用户提供)
 ```
 
@@ -385,7 +385,7 @@ API文档: http://localhost:8000/docs
 
 ```env
 WORDPRESS_URL=https://www.ucppt.com
-WORDPRESS_ADMIN_USERNAME=8pdwoxj8
+WORDPRESS_ADMIN_USERNAME=YOUR_WORDPRESS_USERNAME
 JWT_ALGORITHM=HS256
 JWT_EXPIRY=604800
 ```

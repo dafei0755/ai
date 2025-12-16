@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Console Ninja 测试</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #1e1e1e;
+            color: #d4d4d4;
+        }
+        h1 { color: #4ec9b0; }
+        button {
+            background: #0e639c;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px;
+        }
+        button:hover { background: #1177bb; }
+        .info {
+            background: #2d2d30;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 15px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 Console Ninja 测试页面</h1>
+
+    <div class="info">
+        <p><strong>使用说明:</strong></p>
+        <ol>
+            <li>确保VSCode已安装 Console Ninja 扩展</li>
+            <li>在VSCode中打开此文件</li>
+            <li>右键 → Open with Live Server (或直接在浏览器打开)</li>
+            <li>点击下面的按钮</li>
+            <li>查看VSCode的输出面板 (Ctrl+J) → 选择 Console Ninja</li>
+        </ol>
+    </div>
+
+    <button onclick="testConsoleNinja()">点击测试 Console Ninja</button>
+    <button onclick="testComplexLogs()">测试复杂日志</button>
+    <button onclick="testErrors()">测试错误日志</button>
+
+    <script>
+        console.log('🎯 页面加载完成 - 如果你在VSCode中看到这条日志，说明Console Ninja工作正常！');
+
+        function testConsoleNinja() {
+            console.log('✅ 测试消息 1: Console Ninja 正在工作！');
+            console.info('ℹ️ 信息日志');
+            console.warn('⚠️ 警告日志');
+
+            setTimeout(() => {
+                console.log('⏰ 延迟1秒后的日志');
+            }, 1000);
+
+            setTimeout(() => {
+                console.log('⏰ 延迟2秒后的日志');
+            }, 2000);
+        }
+
+        function testComplexLogs() {
+            const user = {
+                id: 123,
+                username: 'testuser',
+                email: 'test@example.com',
+                metadata: {
+                    lastLogin: new Date(),
+                    preferences: {
+                        theme: 'dark',
+                        language: 'zh-CN'
+                    }
+                }
+            };
+
+            console.log('📦 复杂对象:', user);
+            console.table([
+                { name: 'Alice', age: 25, city: 'Beijing' },
+                { name: 'Bob', age: 30, city: 'Shanghai' },
+                { name: 'Charlie', age: 35, city: 'Guangzhou' }
+            ]);
+
+            console.group('🗂️ 分组日志');
+            console.log('分组内的消息 1');
+            console.log('分组内的消息 2');
+            console.groupEnd();
+        }
+
+        function testErrors() {
+            console.error('❌ 错误日志: 这是一个测试错误');
+
+            try {
+                throw new Error('模拟的错误');
+            } catch (e) {
+                console.error('捕获的错误:', e);
+            }
+
+            console.trace('📍 堆栈追踪');
+        }
+
+        // 每5秒发送一次心跳日志
+        setInterval(() => {
+            console.log(`💓 心跳 ${new Date().toLocaleTimeString()}`);
+        }, 5000);
+    </script>
+</body>
+</html>

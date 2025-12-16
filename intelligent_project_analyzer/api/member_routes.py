@@ -42,18 +42,27 @@ async def get_my_membership(current_user: Dict[str, Any] = Depends(auth_middlewa
         raise HTTPException(status_code=503, detail="会员API服务不可用")
 
     try:
+        print(f"[MemberRoutes] 🔍 开始获取会员信息...")
+        print(f"[MemberRoutes] 当前用户信息: {current_user}")
+
         api = WPCOMMemberAPI()
         user_id = current_user.get("user_id")
 
         if not user_id:
+            print(f"[MemberRoutes] ❌ 用户ID缺失，current_user: {current_user}")
             raise HTTPException(status_code=400, detail="用户ID缺失")
 
-        print(f"[MemberRoutes] 获取用户 {user_id} 的会员信息...")
+        print(f"[MemberRoutes] 📡 正在调用 WordPress API 获取用户 {user_id} 的会员信息...")
 
         # 获取会员信息
+        print(f"[MemberRoutes] 📞 调用 api.get_user_membership({user_id})...")
         result = api.get_user_membership(user_id)
+        print(f"[MemberRoutes] ✅ WordPress API 返回结果: {result}")
+
         membership = result.get("membership", {})
         meta = result.get("meta", {})
+        print(f"[MemberRoutes] 会员数据: {membership}")
+        print(f"[MemberRoutes] Meta 数据: {meta}")
 
         # 🔥 如果 membership 为空，尝试从 meta 字段读取 VIP 数据
         if not membership or membership.get("level") is None:
@@ -108,9 +117,16 @@ async def get_my_membership(current_user: Dict[str, Any] = Depends(auth_middlewa
             wallet_balance = 0.0
 
         # 格式化返回数据
-        level = int(membership.get("level", "0")) if membership.get("level") else 0
-        expire_date = membership.get("expire_date", "")
-        is_expired = not membership.get("is_active", False)
+        # ✅ 处理 membership 为 None 的情况（用户未购买会员）
+        if membership is None:
+            print(f"[MemberRoutes] ⚠️ 用户 {user_id} 没有会员数据，返回免费用户")
+            level = 0
+            expire_date = ""
+            is_expired = True
+        else:
+            level = int(membership.get("level", "0")) if membership.get("level") else 0
+            expire_date = membership.get("expire_date", "")
+            is_expired = not membership.get("is_active", False)
 
         # 🎨 会员等级名称映射（与 WordPress 显示保持一致）
         level_names = {

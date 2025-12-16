@@ -35,6 +35,61 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
 
+  // 🆕 v3.0.5: 监听来自 WordPress 父页面的 postMessage（Token 同步）
+  useEffect(() => {
+    const handlePostMessage = (event: MessageEvent) => {
+      // 🔒 安全检查：只接受来自 WordPress 主站的消息
+      const allowedOrigins = [
+        'https://www.ucppt.com',
+        'https://ucppt.com',
+        'http://localhost',
+        'http://127.0.0.1',
+      ];
+
+      const isAllowedOrigin = allowedOrigins.some(origin => event.origin.startsWith(origin));
+
+      if (!isAllowedOrigin) {
+        return;
+      }
+
+      // 处理 SSO 登录消息
+      if (event.data && (event.data.type === 'sso_login' || event.data.type === 'sso_sync')) {
+        const { token, user: ssoUser } = event.data;
+
+        if (token) {
+          console.log('[AuthContext] 📨 收到 WordPress 的 Token (postMessage):', event.data.type);
+
+          // 保存 Token 和用户信息
+          localStorage.setItem('wp_jwt_token', token);
+          if (ssoUser) {
+            localStorage.setItem('wp_jwt_user', JSON.stringify(ssoUser));
+            setUser(ssoUser);
+          }
+          setIsLoading(false);
+        }
+      }
+
+      // 🆕 v3.0.6: 处理 WordPress 退出登录消息
+      if (event.data && event.data.type === 'sso_logout') {
+        console.log('[AuthContext] 📨 收到 WordPress 退出登录通知 (postMessage)');
+
+        // 清除本地Token和用户信息
+        localStorage.removeItem('wp_jwt_token');
+        localStorage.removeItem('wp_jwt_user');
+        setUser(null);
+
+        console.log('[AuthContext] ✅ 已清除 Token，用户已退出登录');
+      }
+    };
+
+    // 添加 postMessage 监听器
+    window.addEventListener('message', handlePostMessage);
+
+    return () => {
+      window.removeEventListener('message', handlePostMessage);
+    };
+  }, []);
+
   // 检查登录状态
   useEffect(() => {
     const checkAuth = async () => {
@@ -51,20 +106,63 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         // 如果不在登录相关页面，尝试 SSO 登录
         if (pathname !== '/auth/login' && pathname !== '/auth/callback' && pathname !== '/auth/login/manual' && pathname !== '/auth/logout') {
+          // 🆕 v3.0.12: 优先检查 URL 参数中的 sso_token（支持独立窗口模式）
+          const urlParams = new URLSearchParams(window.location.search);
+          const urlToken = urlParams.get('sso_token');
+
+          if (urlToken) {
+            console.log('[AuthContext] ✅ 从 URL 参数获取到 Token（独立模式），正在验证...');
+            try {
+              // 验证 Token
+              const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
+              const verifyResponse = await fetch(`${API_URL}/api/auth/verify`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${urlToken}`
+                }
+              });
+
+              console.log('[AuthContext] Token 验证状态:', verifyResponse.status);
+
+              if (verifyResponse.ok) {
+                const verifyData = await verifyResponse.json();
+                console.log('[AuthContext] ✅ SSO 登录成功（独立模式），用户:', verifyData.user);
+
+                // 保存 Token 和用户信息
+                localStorage.setItem('wp_jwt_token', urlToken);
+                localStorage.setItem('wp_jwt_user', JSON.stringify(verifyData.user));
+                setUser(verifyData.user);
+                setIsLoading(false);
+
+                // 🔥 清除 URL 参数，避免 Token 暴露在地址栏
+                urlParams.delete('sso_token');
+                const newUrl = window.location.pathname + (urlParams.toString() ? '?' + urlParams.toString() : '');
+                window.history.replaceState({}, '', newUrl);
+
+                return; // SSO 成功，停止执行
+              } else {
+                const errorData = await verifyResponse.json().catch(() => ({}));
+                console.error('[AuthContext] ❌ Token 验证失败（独立模式）:', errorData);
+              }
+            } catch (error) {
+              console.error('[AuthContext] ❌ Token 验证异常（独立模式）:', error);
+            }
+          }
+
           // 🔥 检测是否在 iframe 中
           const isInIframe = window.self !== window.top;
 
           if (isInIframe) {
             // 🔥 在 iframe 中：尝试从 URL 参数或 WordPress SSO 端点获取 Token
             try {
-              console.log('[AuthContext] 🔍 正在尝试 SSO 登录...');
+              console.log('[AuthContext] 🔍 正在尝试 SSO 登录（iframe模式）...');
 
-              // 🆕 v3.0.1: 优先从 URL 参数读取 Token（WordPress 插件直接传递）
-              const urlParams = new URLSearchParams(window.location.search);
-              const urlToken = urlParams.get('sso_token');
+              // 🆕 v3.0.1: 从 URL 参数读取 Token（WordPress 插件直接传递）
+              const urlToken2 = urlParams.get('sso_token');
 
-              if (urlToken) {
-                console.log('[AuthContext] ✅ 从 URL 参数获取到 Token，正在验证...');
+              if (urlToken2) {
+                console.log('[AuthContext] ✅ 从 URL 参数获取到 Token（iframe模式），正在验证...');
 
                 // 验证 Token
                 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
@@ -72,7 +170,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                   method: 'POST',
                   headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${urlToken}`
+                    'Authorization': `Bearer ${urlToken2}`
                   }
                 });
 
@@ -83,7 +181,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                   console.log('[AuthContext] ✅ SSO 登录成功（URL Token），用户:', verifyData.user);
 
                   // 保存 Token 和用户信息
-                  localStorage.setItem('wp_jwt_token', urlToken);
+                  localStorage.setItem('wp_jwt_token', urlToken2);
                   localStorage.setItem('wp_jwt_user', JSON.stringify(verifyData.user));
                   setUser(verifyData.user);
                   setIsLoading(false);
@@ -157,10 +255,95 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               setIsLoading(false);
             }
           } else {
-            // 🔥 不在 iframe 中：跳转到 WordPress 嵌入页面
-            const wordpressEmbedUrl = process.env.NEXT_PUBLIC_WORDPRESS_EMBED_URL || 'https://www.ucppt.com/nextjs';
-            window.location.href = wordpressEmbedUrl;
-            return; // 阻止后续代码执行
+            // 🔥 不在 iframe 中：检查是否有缓存的 Token
+            const cachedToken = localStorage.getItem('wp_jwt_token');
+            const cachedUser = localStorage.getItem('wp_jwt_user');
+
+            if (cachedToken && cachedUser) {
+              console.log('[AuthContext] 发现缓存的 Token，尝试验证...');
+              try {
+                const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
+                const verifyResponse = await fetch(`${API_URL}/api/auth/verify`, {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${cachedToken}`
+                  }
+                });
+
+                if (verifyResponse.ok) {
+                  const verifyData = await verifyResponse.json();
+                  console.log('[AuthContext] ✅ 缓存 Token 有效，用户:', verifyData.user);
+                  setUser(verifyData.user);
+                  setIsLoading(false);
+                  return; // Token 有效，不需要跳转
+                } else {
+                  console.warn('[AuthContext] ⚠️ 缓存 Token 已失效');
+                  // Token 失效，清除缓存
+                  localStorage.removeItem('wp_jwt_token');
+                  localStorage.removeItem('wp_jwt_user');
+                }
+              } catch (error) {
+                console.error('[AuthContext] ❌ 验证缓存 Token 失败:', error);
+              }
+            }
+
+            // 🆕 v3.0.15: 尝试通过 WordPress REST API 获取 Token
+            // 如果用户已在 WordPress 登录，API 会返回 Token
+            console.log('[AuthContext] 尝试通过 WordPress REST API 获取 Token...');
+            try {
+              const response = await fetch('https://www.ucppt.com/wp-json/nextjs-sso/v1/get-token', {
+                method: 'GET',
+                credentials: 'include', // 发送 WordPress Cookie
+                headers: {
+                  'Accept': 'application/json'
+                }
+              });
+
+              if (response.ok) {
+                const data = await response.json();
+                if (data.success && data.token) {
+                  console.log('[AuthContext] ✅ 通过 REST API 获取到 Token，验证中...');
+
+                  // 验证 Token
+                  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
+                  const verifyResponse = await fetch(`${API_URL}/api/auth/verify`, {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json',
+                      'Authorization': `Bearer ${data.token}`
+                    }
+                  });
+
+                  if (verifyResponse.ok) {
+                    const verifyData = await verifyResponse.json();
+                    console.log('[AuthContext] ✅ REST API Token 验证成功，用户:', verifyData.user);
+
+                    // 保存 Token 和用户信息
+                    localStorage.setItem('wp_jwt_token', data.token);
+                    localStorage.setItem('wp_jwt_user', JSON.stringify(verifyData.user));
+                    setUser(verifyData.user);
+                    setIsLoading(false);
+
+                    // 🎯 v3.0.15: 已登录用户自动跳转到分析页面
+                    console.log('[AuthContext] 🔀 检测到已登录，跳转到分析页面');
+                    router.push('/analysis');
+                    return;
+                  }
+                }
+              }
+
+              // REST API 返回 401 或其他错误，说明未登录
+              console.log('[AuthContext] WordPress 未登录，将显示登录界面');
+            } catch (error) {
+              console.error('[AuthContext] ❌ REST API 调用失败:', error);
+            }
+
+            // 🔥 v3.0.8: 不在 iframe 中且没有有效 Token
+            // 不再自动跳转，让 app/page.tsx 显示登录提示界面
+            console.log('[AuthContext] 无有效登录状态，将显示登录提示界面');
+            setIsLoading(false);
+            return; // 停止执行，不跳转
           }
         } else {
           setIsLoading(false);

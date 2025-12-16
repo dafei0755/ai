@@ -21,6 +21,23 @@ const apiClient = axios.create({
   },
 });
 
+// 🔒 添加请求拦截器：自动添加 JWT Token
+apiClient.interceptors.request.use(
+  (config) => {
+    // 从 localStorage 读取 Token
+    if (typeof window !== 'undefined') {
+      const token = localStorage.getItem('wp_jwt_token');
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
 // API 方法集合
 export const api = {
   // 启动分析

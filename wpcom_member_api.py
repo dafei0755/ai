@@ -3,15 +3,16 @@ WPCOM Member Pro API 客户端
 
 用法示例：
     from wpcom_member_api import WPCOMMemberAPI
-    
+
     api = WPCOMMemberAPI()
     membership = api.get_user_membership(user_id=1)
-    
+
     if membership['membership']['is_active']:
         print(f"VIP{membership['membership']['level']} 会员")
 """
 
 import httpx
+import sys
 from decouple import config
 from typing import Dict, Any
 
@@ -21,44 +22,92 @@ class WPCOMMemberAPI:
     def __init__(self):
         self.base_url = config("WORDPRESS_URL")
         self.username = config("WORDPRESS_ADMIN_USERNAME")
-        # 🔥 临时修复：密码包含 # 符号，.env 会截断，直接在代码中指定
-        password_from_env = config("WORDPRESS_ADMIN_PASSWORD", default="")
-        self.password = password_from_env if "#" in password_from_env else "M2euRVQMdpzJp%*KLtD0#kK1"
+        # ✅ 从环境变量读取密码（需在.env中使用单引号包裹特殊字符）
+        # 示例: WORDPRESS_ADMIN_PASSWORD='your_password_with_#_symbol'
+        self.password = config("WORDPRESS_ADMIN_PASSWORD")
         self.token = None
-    
+
+        # 🔥 初始化时输出配置信息
+        print(f"[WPCOM API] 🚀 初始化中...", file=sys.stderr, flush=True)
+        print(f"[WPCOM API] Base URL: {self.base_url}", file=sys.stderr, flush=True)
+        print(f"[WPCOM API] Username: {self.username}", file=sys.stderr, flush=True)
+
     def get_token(self) -> str:
         """获取 JWT Token"""
         if self.token:
+            print(f"[WPCOM API] ♻️ 使用缓存的 Token", file=sys.stderr, flush=True)
             return self.token
 
-        url = f"{self.base_url}/wp-json/simple-jwt-login/v1/auth"
-        data = {
-            "username": self.username,
-            "password": self.password
-        }
+        try:
+            url = f"{self.base_url}/wp-json/simple-jwt-login/v1/auth"
+            data = {
+                "username": self.username,
+                "password": self.password
+            }
 
-        # 🔥 禁用 SSL 验证以避免证书吊销检查失败
-        response = httpx.post(url, json=data, timeout=30, verify=False)
+            print(f"[WPCOM API] 🔑 请求 JWT Token...", file=sys.stderr, flush=True)
+            print(f"[WPCOM API] URL: {url}", file=sys.stderr, flush=True)
+            print(f"[WPCOM API] Username: {self.username}", file=sys.stderr, flush=True)
 
-        if response.status_code == 200:
-            self.token = response.json()["data"]["jwt"]
-            return self.token
-        else:
-            raise Exception(f"Token获取失败: {response.text}")
+            # 🔥 禁用 SSL 验证以避免证书吊销检查失败
+            response = httpx.post(url, json=data, timeout=30, verify=False)
+
+            print(f"[WPCOM API] Token 响应状态码: {response.status_code}", file=sys.stderr, flush=True)
+
+            if response.status_code == 200:
+                self.token = response.json()["data"]["jwt"]
+                print(f"[WPCOM API] ✅ Token 获取成功", file=sys.stderr, flush=True)
+                return self.token
+            else:
+                error_text = response.text
+                print(f"[WPCOM API] ❌ Token 获取失败: {error_text}", file=sys.stderr, flush=True)
+                raise Exception(f"Token获取失败({response.status_code}): {error_text}")
+        except Exception as e:
+            print(f"[WPCOM API] 💥 Token 获取异常: {e}", file=sys.stderr, flush=True)
+            import traceback
+            traceback.print_exc()
+            raise
     
     def _request(self, endpoint: str) -> Dict:
         """通用请求方法"""
-        token = self.get_token()
-        headers = {"Authorization": f"Bearer {token}"}
-        url = f"{self.base_url}/wp-json{endpoint}"
+        try:
+            print(f"[WPCOM API] 🔍 开始请求...")
+            print(f"[WPCOM API] Endpoint: {endpoint}")
 
-        # 🔥 禁用 SSL 验证
-        response = httpx.get(url, headers=headers, timeout=30, verify=False)
+            # 获取 Token
+            print(f"[WPCOM API] 📡 获取 JWT Token...")
+            token = self.get_token()
+            print(f"[WPCOM API] ✅ Token 已获取")
 
-        if response.status_code == 200:
-            return response.json()
-        else:
-            raise Exception(f"请求失败({response.status_code}): {response.text}")
+            headers = {"Authorization": f"Bearer {token}"}
+            url = f"{self.base_url}/wp-json{endpoint}"
+            print(f"[WPCOM API] 📞 请求 URL: {url}")
+
+            # 🔥 禁用 SSL 验证
+            print(f"[WPCOM API] 🚀 发送 GET 请求...")
+            response = httpx.get(url, headers=headers, timeout=30, verify=False)
+            print(f"[WPCOM API] 📩 响应状态码: {response.status_code}")
+
+            if response.status_code == 200:
+                result = response.json()
+                print(f"[WPCOM API] ✅ 请求成功，返回数据")
+                return result
+            else:
+                error_text = response.text
+                print(f"[WPCOM API] ❌ 请求失败: {response.status_code}")
+                print(f"[WPCOM API] 错误详情: {error_text}")
+                raise Exception(f"请求失败({response.status_code}): {error_text}")
+        except httpx.TimeoutException as e:
+            print(f"[WPCOM API] ⏱️ 请求超时: {e}")
+            raise Exception(f"WordPress API 请求超时: {str(e)}")
+        except httpx.HTTPError as e:
+            print(f"[WPCOM API] 🌐 HTTP 错误: {e}")
+            raise Exception(f"WordPress API HTTP 错误: {str(e)}")
+        except Exception as e:
+            print(f"[WPCOM API] 💥 未知错误: {e}")
+            import traceback
+            traceback.print_exc()
+            raise
     
     # ========== API 方法 ==========
     
