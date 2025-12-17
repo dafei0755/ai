@@ -722,9 +722,11 @@ def _process_response(self, state, user_response, store) -> Command:
 
 **重构状态**:
 - ✅ 基类完成 (370行)
-- ✅ RequirementsConfirmationNode 重构示例完成
-- ⏸️ CalibrationQuestionnaireNode 待定
-- ⏸️ RoleTaskUnifiedReviewNode 待定
+- ✅ RequirementsConfirmationNode 重构完成 (260行→150行)
+- ✅ RoleTaskUnifiedReviewNode 重构完成 (446行→200行)
+- ⏸️ CalibrationQuestionnaireNode 待定 (800+行)
+
+**重构完成度**: 2/3 节点 (66%)
 
 **详细文档**: [INTERACTION_AGENT_REFACTORING.md](../intelligent_project_analyzer/interaction/nodes/INTERACTION_AGENT_REFACTORING.md)
 
@@ -761,7 +763,7 @@ def _process_response(self, state, user_response, store) -> Command:
 
 ### 3. RoleTaskUnifiedReview (任务审批)
 
-**类型**: 普通节点 / 待重构为 InteractionAgent子类 (v7.17)
+**类型**: InteractionAgent子类 (v7.17 ✅ 已重构)
 **职责**: 展示角色和任务分配，等待用户审批
 
 **交互模式**:
@@ -770,7 +772,11 @@ def _process_response(self, state, user_response, store) -> Command:
 - 支持在线编辑任务
 - 支持重新拆分项目
 
-**重构计划**: 可选 (中等复杂度)
+**代码量对比**:
+- 原版本: 446行
+- 重构后: ~200行 (**减少55%**)
+
+**重构文件**: `role_task_unified_review_refactored.py`
 
 ---
 

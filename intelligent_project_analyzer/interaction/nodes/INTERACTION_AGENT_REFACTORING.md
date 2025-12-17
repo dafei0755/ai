@@ -171,13 +171,21 @@ workflow.add_node("your_interaction", lambda state: node.execute(state))
 | 节点 | 状态 | 代码减少 | 备注 |
 |------|------|---------|------|
 | InteractionAgent基类 | ✅ 完成 | N/A | 370行 |
-| RequirementsConfirmationNode | ✅ 示例完成 | 60% | 重构示例 |
+| RequirementsConfirmationNode | ✅ 完成 | 60% | 260行 → 150行 |
+| RoleTaskUnifiedReviewNode | ✅ 完成 | 55% | 446行 → 200行 |
 | CalibrationQuestionnaireNode | ⏸️ 待定 | 预计50% | 复杂度最高 (800+行) |
-| RoleTaskUnifiedReviewNode | ⏸️ 待定 | 预计55% | 中等复杂度 |
+
+**重构完成度**: 2/3 节点已重构 (66%)
 
 **决策点**:
 - ✅ 基础架构已完成并验证
-- ⏸️ 等待用户决定是否继续重构其他2个节点
+- ✅ 2个示例节点重构完成，验证了架构通用性
+- ⏸️ CalibrationQuestionnaireNode 复杂度最高，等待决定是否重构
+
+**推荐策略**:
+1. 先在测试环境验证 2个重构版本的稳定性
+2. 如果稳定，可选择重构 CalibrationQuestionnaireNode
+3. 保留原文件作为备份 (重命名为 `*.py.backup`)
 
 **推荐策略**:
 1. 先在生产环境验证 `RequirementsConfirmationNode` 重构版
