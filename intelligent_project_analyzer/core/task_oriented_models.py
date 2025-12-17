@@ -164,11 +164,12 @@ class DeliverableOutput(BaseModel):
     交付物输出
 
     🆕 v7.10: 支持创意模式 - 叙事类交付物可选填量化指标
+    🔧 v7.18.1: 修复schema定义，content统一为字符串类型（兼容结构化数据的JSON序列化）
     """
     deliverable_name: str = Field(title="交付物名称", description="对应TaskInstruction中的deliverable名称")
-    content: Union[str, Dict[str, Any], List[Any]] = Field(
+    content: str = Field(
         title="内容",
-        description="交付物具体内容（可以是文本、结构化数据或列表）"
+        description="交付物具体内容（文本或JSON字符串）。如果是结构化数据，会自动序列化为JSON字符串。"
     )
     completion_status: CompletionStatus = Field(title="完成状态", description="完成状态")
     # 🔥 v7.10: 放宽量化指标约束 - 创意叙事模式下可选
