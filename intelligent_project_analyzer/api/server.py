@@ -3197,32 +3197,77 @@ class PDFGenerator(FPDF):
         self.ln(2)
     
     def body_text(self, text: str):
-        """添加正文 - 智能处理换行"""
+        """添加正文 - 智能处理换行和Markdown格式
+        
+        🔥 v7.26.3: 支持Markdown格式解析
+        - ### 标题 → 小节标题
+        - **加粗** → 去除星号显示
+        - - 列表项 → bullet列表
+        """
         if not text:
             return
-        self._set_font_safe("", 10)
-        self.set_text_color(51, 51, 51)
+        
         # 清理文本，确保字符串格式
         clean_text = str(text).strip()
-        if clean_text:
-            self.set_x(self.l_margin)  # 重置 X 到左边距
+        if not clean_text:
+            return
+        
+        from fpdf.enums import WrapMode
+        import re
+        
+        # 🔥 v7.26.3: 按行处理，识别Markdown格式
+        lines = clean_text.split('\n')
+        
+        for line in lines:
+            line = line.strip()
+            if not line:
+                continue
             
-            # 检查是否包含编号列表，如果有则拆分显示
-            if any(f'{i}.' in clean_text or f'{i}、' in clean_text for i in range(1, 10)):
-                formatted_text = _format_numbered_list(clean_text)
-                lines = formatted_text.split('\n')
-                from fpdf.enums import WrapMode
-                for line in lines:
-                    line = line.strip()
-                    if line:
-                        self.multi_cell(w=0, h=5, text=line, wrapmode=WrapMode.CHAR)
+            # 1. 处理 Markdown 标题 (### 或 ## 或 #)
+            header_match = re.match(r'^(#{1,4})\s+(.+)$', line)
+            if header_match:
+                level = len(header_match.group(1)) + 2  # # -> level 3, ## -> level 4
+                title_text = header_match.group(2).strip()
+                # 清理标题中的Markdown格式
+                title_text = re.sub(r'\*\*(.+?)\*\*', r'\1', title_text)
+                title_text = re.sub(r'\*(.+?)\*', r'\1', title_text)
+                self.chapter_title(title_text, min(level, 4))
+                continue
+            
+            # 2. 处理 Markdown 无序列表 (- 或 *)
+            list_match = re.match(r'^[-*]\s+(.+)$', line)
+            if list_match:
+                item_text = list_match.group(1).strip()
+                # 清理列表项中的Markdown格式
+                item_text = re.sub(r'\*\*(.+?)\*\*', r'\1', item_text)
+                item_text = re.sub(r'\*(.+?)\*', r'\1', item_text)
+                self.list_item(item_text)
+                continue
+            
+            # 3. 普通文本：清理Markdown格式后输出
+            # 去除 **加粗** 和 *斜体* 标记
+            clean_line = re.sub(r'\*\*(.+?)\*\*', r'\1', line)
+            clean_line = re.sub(r'\*(.+?)\*', r'\1', clean_line)
+            
+            # 设置字体和颜色
+            self._set_font_safe("", 10)
+            self.set_text_color(51, 51, 51)
+            self.set_x(self.l_margin)
+            
+            # 检查是否包含编号列表
+            if any(f'{i}.' in clean_line or f'{i}、' in clean_line for i in range(1, 10)):
+                formatted_text = _format_numbered_list(clean_line)
+                sub_lines = formatted_text.split('\n')
+                for sub_line in sub_lines:
+                    sub_line = sub_line.strip()
+                    if sub_line:
+                        self.multi_cell(w=0, h=5, text=sub_line, wrapmode=WrapMode.CHAR)
                         self.set_x(self.l_margin)
             else:
-                # 使用 wrapmode=WrapMode.CHAR 避免英文单词被拆分换行
-                from fpdf.enums import WrapMode
-                self.multi_cell(w=0, h=5, text=clean_text, wrapmode=WrapMode.CHAR)
-                self.set_x(self.l_margin)  # multi_cell 后重置
-            self.ln(2)
+                self.multi_cell(w=0, h=5, text=clean_line, wrapmode=WrapMode.CHAR)
+                self.set_x(self.l_margin)
+        
+        self.ln(2)
     
     def list_item(self, text: str, numbered: bool = False, index: int = 0):
         """添加列表项 - 智能处理换行"""
@@ -4219,6 +4264,22 @@ def _translate_content(text: str) -> str:
     return result
 
 
+def _clean_markdown_inline(text: str) -> str:
+    """🔥 v7.26.3: 清理行内Markdown格式（用于短文本）
+    
+    去除 **加粗** 和 *斜体* 标记，保留文本内容
+    """
+    if not text or not isinstance(text, str):
+        return text
+    
+    import re
+    # 去除 **加粗**
+    result = re.sub(r'\*\*(.+?)\*\*', r'\1', text)
+    # 去除 *斜体*
+    result = re.sub(r'\*(.+?)\*', r'\1', result)
+    return result
+
+
 def _format_numbered_list(text: str) -> str:
     """将连续的编号列表拆分成独立行
     
@@ -4279,7 +4340,9 @@ def _format_dict_to_pdf(pdf: 'PDFGenerator', data: dict, depth: int = 0):
                         pdf.ln(3)
                     _format_dict_to_pdf(pdf, item, depth + 1)
                 else:
+                    # 🔥 v7.26.3: 清理列表项中的Markdown格式
                     item_str = _translate_content(str(item).strip())
+                    item_str = _clean_markdown_inline(item_str)
                     if item_str:
                         pdf.list_item(item_str)
             pdf.ln(3)
@@ -4292,7 +4355,9 @@ def _format_dict_to_pdf(pdf: 'PDFGenerator', data: dict, depth: int = 0):
             _format_dict_to_pdf(pdf, value, depth + 1)
             
         else:
+            # 🔥 v7.26.3: 先翻译，再清理Markdown格式
             value_str = _translate_content(str(value).strip())
+            value_str = _clean_markdown_inline(value_str)
             if not value_str:
                 continue
             

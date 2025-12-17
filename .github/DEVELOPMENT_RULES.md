@@ -3424,5 +3424,149 @@ pdf.body_text("本报告由极致概念智能分析系统生成...")
 
 ---
 
+### 8.32 v7.26.1 专家报告正文缺失问题 (2025-12-17) 🆕
+
+#### 问题 8.32.1：PDF 第六章专家报告只有标题，没有正文内容
+
+**症状**：
+- PDF 专家报告章节只显示专家名称标题
+- 交付物内容（`deliverable_outputs.content`）完全不显示
+- 前端专家报告正常显示正文
+
+**根因**：
+`SKIP_FIELDS` 全局黑名单包含 `'content'` 字段，导致所有层级的 `content` 字段都被过滤：
+```python
+# ❌ 问题代码
+SKIP_FIELDS = {
+    'content',  # 这会过滤掉交付物的实际内容！
+    ...
+}
+```
+
+**修复方案 (v7.26.1)**：
+```python
+# 🔥 v7.26.1: 移除 content 从全局黑名单，改为顶层专用
+SKIP_FIELDS = {
+    # 移除 'content' - 交给递归函数特殊处理
+    'raw_content', 'raw_response', 'original_content',
+    ...
+}
+
+# 🔥 v7.26.1: 顶层专用黑名单（只在 depth=0 时跳过）
+TOP_LEVEL_SKIP_FIELDS = {
+    'content',  # 顶层 content 可能与 structured_data 重复
+}
+
+def _format_dict_to_pdf(pdf, data, depth=0):
+    is_top_level = (depth == 0)
+    for key, value in data.items():
+        # 🔥 v7.26.1: 顶层时额外跳过 content
+        if is_top_level and key.lower() in TOP_LEVEL_SKIP_FIELDS:
+            continue
+        ...
+```
+
+**涉及文件**：
+- `intelligent_project_analyzer/api/server.py`
+
+**防范措施**：
+- 黑名单字段需要区分顶层和嵌套层级
+- 交付物的 `content` 字段是核心内容，不应全局过滤
+
+---
+
+### 8.33 v7.26.2 PDF 第四章/第五章显示暂无数据问题 (2025-12-17) 🆕
+
+#### 问题 8.33.1：PDF 需求洞察和核心答案显示"暂无数据"
+
+**症状**：
+- PDF 第四章"需求洞察"显示"（暂无需求洞察数据）"
+- PDF 第五章"核心答案"显示"（暂无核心答案数据）"
+- 前端也没有显示核心答案章节
+
+**根因**：
+1. **LLM 结构化输出解析失败**：`parsing_mode: fallback`
+2. **`_create_fallback_report` 函数缺失必需字段**：
+   - 没有生成 `core_answer` 字段
+   - 没有生成 `insights` 字段
+   - 没有生成 `deliberation_process` 字段
+3. **`deliverable_metadata` 为空**：v7.0 交付物责任者提取逻辑无法执行
+4. **日志误导**："保留 LLM 生成的 core_answer" - 但实际 fallback 路径根本没有生成
+
+**Redis 数据验证**：
+```
+core_answer: <class 'NoneType'>
+keys: ['executive_summary', 'sections', 'comprehensive_analysis', ...]
+parsing_mode: fallback
+```
+
+**修复方案 (v7.26.2)**：
+
+**1. result_aggregator.py - `_create_fallback_report`**：
+```python
+# 🔥 v7.26.2: 提取用户核心问题和交付物
+user_input = state.get("user_input", "")
+user_question = user_input[:100] + "..." if len(user_input) > 100 else user_input
+
+# 从专家结果中提取交付物名称
+deliverable_names = []
+for role_id in active_agents:
+    # ... 提取逻辑 ...
+
+return {
+    "executive_summary": {...},
+    # 🔥 v7.26.2: 新增 core_answer 字段
+    "core_answer": {
+        "question": user_question or "用户咨询问题",
+        "answer": structured_requirements.get("project_overview", "..."),
+        "deliverables": deliverable_names[:5],
+        "timeline": "请参考工程师专家的实施规划",
+        "budget_range": "请参考工程师专家的成本估算"
+    },
+    # 🔥 v7.26.2: 新增 insights 字段
+    "insights": {
+        "key_insights": [...],
+        "cross_domain_connections": [...],
+        "user_needs_interpretation": "..."
+    },
+    # 🔥 v7.26.2: 新增 deliberation_process 字段
+    "deliberation_process": {...},
+    ...
+}
+```
+
+**2. server.py - PDF 生成兜底逻辑**：
+```python
+# 第四章需求洞察 - 兜底
+insights = report_data.get("insights", {})
+if not insights or not isinstance(insights, dict):
+    requirements_analysis = report_data.get("requirements_analysis", {})
+    if requirements_analysis:
+        insights = {
+            "key_insights": [requirements_analysis.get("project_overview", ""), ...],
+            ...
+        }
+
+# 第五章核心答案 - 兜底
+core_answer = report_data.get("core_answer", {})
+if not core_answer or not isinstance(core_answer, dict):
+    # 从 expert_reports 提取交付物名称
+    deliverable_names = []
+    # ... 提取逻辑 ...
+    if deliverable_names:
+        core_answer = {...}
+```
+
+**涉及文件**：
+- `intelligent_project_analyzer/report/result_aggregator.py` (47行新增)
+- `intelligent_project_analyzer/api/server.py` (67行新增)
+
+**防范措施**：
+- fallback 路径必须生成所有 Pydantic 模型必需字段
+- PDF 生成需要兜底逻辑处理旧数据
+- 日志需准确描述实际行为，避免误导
+
+---
+
 **维护者**：AI Assistant
 **最后更新**：2025-12-17
