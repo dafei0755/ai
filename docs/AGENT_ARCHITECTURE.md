@@ -1,8 +1,8 @@
 # 🏗️ Agent 架构文档
 
-**版本**: v7.16.1
-**最后更新**: 2025-12-16
-**状态**: ✅ 生产就绪
+**版本**: v7.17.0
+**最后更新**: 2025-12-17
+**状态**: ✅ 生产就绪 + 🆕 InteractionAgent基类重构
 
 ---
 
@@ -668,18 +668,82 @@ graph LR
 
 ## 🤝 人机交互层
 
+### 🆕 InteractionAgent 统一基类 (v7.17)
+
+**文件位置**: `intelligent_project_analyzer/interaction/nodes/interaction_agent_base.py`
+
+**设计模式**: 模板方法模式 (Template Method Pattern)
+
+**职责**:
+- 统一所有人机交互节点的执行流程
+- 提供标准的 interrupt 处理机制
+- 统一的错误处理和日志记录
+- WorkflowFlagManager 集成
+
+**统一执行流程**:
+```
+1. 日志记录开始
+2. _should_skip() → 检查是否跳过
+3. _validate_state() → 验证状态
+4. _prepare_interaction_data() → 准备交互数据 (子类实现)
+5. interrupt() → 发送给用户
+6. _update_interaction_history() → 更新历史
+7. _process_response() → 处理响应并路由 (子类实现)
+8. WorkflowFlagManager.preserve_flags() → 保留持久化标志
+9. 返回 Command 对象
+```
+
+**抽象方法** (子类必须实现):
+```python
+@abstractmethod
+def _get_interaction_type(self) -> str:
+    """返回交互类型标识"""
+
+@abstractmethod
+def _prepare_interaction_data(self, state, store) -> Dict:
+    """准备交互数据"""
+
+@abstractmethod
+def _process_response(self, state, user_response, store) -> Command:
+    """处理用户响应并路由"""
+```
+
+**可选重写方法**:
+- `_should_skip()`: 检查跳过条件
+- `_validate_state()`: 验证状态完整性
+- `_get_fallback_node()`: 获取回退节点
+- `_update_interaction_history()`: 更新交互历史
+
+**优势**:
+- ✅ 代码减少60% (平均每个节点从260行减少到100行)
+- ✅ 统一接口，提升一致性
+- ✅ 单元测试更容易 (抽象隔离)
+- ✅ 扩展新交互节点只需实现3个方法
+
+**重构状态**:
+- ✅ 基类完成 (370行)
+- ✅ RequirementsConfirmationNode 重构示例完成
+- ⏸️ CalibrationQuestionnaireNode 待定
+- ⏸️ RoleTaskUnifiedReviewNode 待定
+
+**详细文档**: [INTERACTION_AGENT_REFACTORING.md](../intelligent_project_analyzer/interaction/nodes/INTERACTION_AGENT_REFACTORING.md)
+
+---
+
 ### 1. CalibrationQuestionnaire (校准问卷)
 
-**类型**: StateGraph Agent (v7.16)
+**类型**: StateGraph Agent (v7.16) / 待重构为 InteractionAgent子类 (v7.17)
 **职责**: 生成和处理校准问卷
 
 **状态**: 已升级为QuestionnaireAgent
+
+**重构计划**: 可选 (复杂度最高，800+行代码)
 
 ---
 
 ### 2. RequirementsConfirmation (需求确认)
 
-**类型**: 普通节点
+**类型**: InteractionAgent子类 (v7.17 ✅ 已重构)
 **职责**: 展示需求分析结果，等待用户确认
 
 **交互模式**:
@@ -687,11 +751,17 @@ graph LR
 - 支持用户补充修改
 - 触发二次分析（如有补充）
 
+**代码量对比**:
+- 原版本: 260行
+- 重构后: ~100行 (**减少60%**)
+
+**重构文件**: `requirements_confirmation_refactored.py`
+
 ---
 
 ### 3. RoleTaskUnifiedReview (任务审批)
 
-**类型**: 普通节点
+**类型**: 普通节点 / 待重构为 InteractionAgent子类 (v7.17)
 **职责**: 展示角色和任务分配，等待用户审批
 
 **交互模式**:
@@ -699,6 +769,8 @@ graph LR
 - 展示任务分配
 - 支持在线编辑任务
 - 支持重新拆分项目
+
+**重构计划**: 可选 (中等复杂度)
 
 ---
 
