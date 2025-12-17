@@ -85,12 +85,13 @@ class WordPressJWTService:
             logger.error(f"❌ WordPress 认证异常: {str(e)}")
             return None
     
-    def generate_jwt_token(self, user_data: Dict[str, Any]) -> str:
+    def generate_jwt_token(self, user_data: Dict[str, Any], device_id: Optional[str] = None) -> str:
         """
         生成 JWT Token
         
         Args:
             user_data: 用户信息字典（包含 user_id, username 等）
+            device_id: 设备唯一标识（v3.0.24 新增，用于多设备登录限制）
             
         Returns:
             JWT Token 字符串
@@ -106,13 +107,17 @@ class WordPressJWTService:
                 'exp': datetime.utcnow() + timedelta(seconds=self.jwt_expiry)
             }
             
+            # 🆕 v3.0.24: 添加设备标识（用于多设备登录限制）
+            if device_id:
+                payload['device_id'] = device_id
+            
             token = jwt.encode(
                 payload,
                 self.jwt_secret,
                 algorithm=self.jwt_algorithm
             )
             
-            logger.info(f"✅ JWT Token 生成成功: {user_data.get('username')}")
+            logger.info(f"✅ JWT Token 生成成功: {user_data.get('username')}" + (f" (设备: {device_id[:8]}...)" if device_id else ""))
             return token
             
         except Exception as e:

@@ -169,19 +169,13 @@ class QualityPreflightNode:
 
             logger.info(f"✨ 并行评估完成，共评估 {len(quality_checklists)} 个角色")
             
-            # 如果有高风险任务，展示给用户
-            if high_risk_warnings:
-                logger.warning(f"⚠️ 发现 {len(high_risk_warnings)} 个高风险任务")
-                self._show_risk_warnings(high_risk_warnings)
-            else:
-                logger.info("✅ 所有任务风险可控")
-            
-            # 将质量检查清单注入到状态
-            return {
+            # 🔥 v7.13: 将结果暂存，高风险警告的 interrupt 移到 try 块外
+            preflight_result = {
                 "quality_checklists": quality_checklists,
                 "preflight_completed": True,
                 "high_risk_count": len(high_risk_warnings),
-                "current_stage": "质量预检完成",  # 🔥 添加进度信息
+                "high_risk_warnings": high_risk_warnings,  # 暂存供后续使用
+                "current_stage": "质量预检完成",
                 "detail": f"已完成 {len(active_agents)} 个角色的风险评估"
             }
             
@@ -190,6 +184,19 @@ class QualityPreflightNode:
             import traceback
             traceback.print_exc()
             return {"preflight_completed": False}
+        
+        # 🔥 v7.13: 将高风险警告的 interrupt 移到 try 块外，避免被 except 捕获
+        # interrupt() 在 LangGraph 中会暂停工作流，不应被当作异常处理
+        high_risk_warnings = preflight_result.get("high_risk_warnings", [])
+        if high_risk_warnings:
+            logger.warning(f"⚠️ 发现 {len(high_risk_warnings)} 个高风险任务，等待用户确认")
+            self._show_risk_warnings(high_risk_warnings)
+        else:
+            logger.info("✅ 所有任务风险可控")
+        
+        # 返回结果（移除暂存的 high_risk_warnings）
+        preflight_result.pop("high_risk_warnings", None)
+        return preflight_result
     
     async def _generate_quality_checklist_async(
         self,

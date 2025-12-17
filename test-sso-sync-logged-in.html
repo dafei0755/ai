@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>SSO同步状态测试（已登录场景）</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 900px;
+      margin: 50px auto;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    .test-section {
+      background: white;
+      padding: 20px;
+      margin: 20px 0;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    button {
+      background: #0066cc;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 4px;
+      cursor: pointer;
+      margin: 5px;
+    }
+    button:hover {
+      background: #0052a3;
+    }
+    .result {
+      background: #f0f0f0;
+      padding: 15px;
+      border-radius: 4px;
+      margin-top: 10px;
+      font-family: monospace;
+      white-space: pre-wrap;
+    }
+    .success { color: green; font-weight: bold; }
+    .error { color: red; font-weight: bold; }
+    .warning { color: orange; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <h1>🔍 SSO同步状态测试（已登录场景）</h1>
+
+  <div class="test-section">
+    <h2>测试说明</h2>
+    <p>此测试用于诊断"在WordPress已登录的情况下，应用还是会自动跳转到登录页"的问题。</p>
+    <p><strong>前提条件：</strong>请确保你已经在 <a href="https://www.ucppt.com/login" target="_blank">www.ucppt.com</a> 登录</p>
+  </div>
+
+  <div class="test-section">
+    <h2>测试1：检查WordPress登录状态</h2>
+    <button onclick="testWordPressLogin()">🔍 检查WordPress登录状态</button>
+    <div id="wp-login-result" class="result" style="display:none;"></div>
+  </div>
+
+  <div class="test-section">
+    <h2>测试2：检查SSO同步状态</h2>
+    <button onclick="testSSOSyncStatus()">🔄 检查SSO同步状态</button>
+    <div id="sso-sync-result" class="result" style="display:none;"></div>
+  </div>
+
+  <div class="test-section">
+    <h2>测试3：检查本地Token</h2>
+    <button onclick="testLocalToken()">📦 检查本地Token</button>
+    <div id="local-token-result" class="result" style="display:none;"></div>
+  </div>
+
+  <div class="test-section">
+    <h2>测试4：模拟SSO检测逻辑</h2>
+    <button onclick="simulateSSOCheck()">⚙️ 模拟SSO检测</button>
+    <div id="sso-check-result" class="result" style="display:none;"></div>
+  </div>
+
+  <div class="test-section">
+    <h2>测试5：连续监控（10秒间隔）</h2>
+    <button onclick="startMonitoring()">▶️ 开始监控</button>
+    <button onclick="stopMonitoring()">⏸️ 停止监控</button>
+    <div id="monitoring-result" class="result" style="display:none;"></div>
+  </div>
+
+  <script>
+    let monitoringInterval = null;
+    let monitoringCount = 0;
+
+    // 测试1：检查WordPress登录状态
+    async function testWordPressLogin() {
+      const result = document.getElementById('wp-login-result');
+      result.style.display = 'block';
+      result.textContent = '正在检查WordPress登录状态...';
+
+      try {
+        const response = await fetch('https://www.ucppt.com/wp-json/wp/v2/users/me', {
+          credentials: 'include'  // 重要：携带Cookie
+        });
+
+        if (response.ok) {
+          const user = await response.json();
+          result.innerHTML = `<span class="success">✅ WordPress已登录</span>\n\n用户信息：\n${JSON.stringify(user, null, 2)}`;
+        } else if (response.status === 401) {
+          result.innerHTML = `<span class="error">❌ WordPress未登录</span>\n\n状态码：${response.status}\n响应：${await response.text()}`;
+        } else {
+          result.innerHTML = `<span class="warning">⚠️ 状态未知</span>\n\n状态码：${response.status}\n响应：${await response.text()}`;
+        }
+      } catch (error) {
+        result.innerHTML = `<span class="error">❌ 请求失败</span>\n\n错误：${error.message}`;
+      }
+    }
+
+    // 测试2：检查SSO同步状态
+    async function testSSOSyncStatus() {
+      const result = document.getElementById('sso-sync-result');
+      result.style.display = 'block';
+      result.textContent = '正在检查SSO同步状态...';
+
+      try {
+        const response = await fetch('https://www.ucppt.com/wp-json/nextjs-sso/v1/sync-status', {
+          credentials: 'include',  // 重要：携带Cookie
+          headers: {
+            'Accept': 'application/json'
+          }
+        });
+
+        const data = await response.json();
+
+        let statusClass = 'warning';
+        let statusIcon = '⚠️';
+        if (data.logged_in) {
+          statusClass = 'success';
+          statusIcon = '✅';
+        } else {
+          statusClass = 'error';
+          statusIcon = '❌';
+        }
+
+        result.innerHTML = `<span class="${statusClass}">${statusIcon} SSO同步返回</span>\n\n${JSON.stringify(data, null, 2)}\n\n<strong>分析：</strong>\n${data.logged_in ? '✅ WordPress登录状态正确传递' : '❌ WordPress登录状态未正确传递（这是问题根源！）'}`;
+      } catch (error) {
+        result.innerHTML = `<span class="error">❌ 请求失败</span>\n\n错误：${error.message}`;
+      }
+    }
+
+    // 测试3：检查本地Token
+    function testLocalToken() {
+      const result = document.getElementById('local-token-result');
+      result.style.display = 'block';
+
+      const token = localStorage.getItem('wp_jwt_token');
+      const user = localStorage.getItem('wp_jwt_user');
+      const timestamp = localStorage.getItem('wp_jwt_token_timestamp');
+
+      if (token) {
+        const tokenAge = timestamp ? Date.now() - parseInt(timestamp) : null;
+        const tokenAgeSeconds = tokenAge ? Math.floor(tokenAge / 1000) : null;
+
+        result.innerHTML = `<span class="success">✅ 本地Token存在</span>\n\nToken: ${token.substring(0, 50)}...\n\n用户信息：\n${user}\n\n时间戳：${timestamp}\nToken年龄：${tokenAgeSeconds}秒\n\n<strong>分析：</strong>\n${tokenAge > 30000 ? '⚠️ Token年龄 > 30秒，SSO检测会清除' : '✅ Token年龄 < 30秒，SSO检测会保留'}`;
+      } else {
+        result.innerHTML = `<span class="error">❌ 本地Token不存在</span>\n\n这可能是导致自动跳转的原因。`;
+      }
+    }
+
+    // 测试4：模拟SSO检测逻辑
+    async function simulateSSOCheck() {
+      const result = document.getElementById('sso-check-result');
+      result.style.display = 'block';
+      result.textContent = '正在模拟SSO检测逻辑...';
+
+      let log = '';
+
+      // Step 1: 检查本地Token
+      const token = localStorage.getItem('wp_jwt_token');
+      const userStr = localStorage.getItem('wp_jwt_user');
+      const timestamp = localStorage.getItem('wp_jwt_token_timestamp');
+
+      log += '=== Step 1: 检查本地Token ===\n';
+      if (!token || !userStr) {
+        log += '❌ 本地无Token或用户信息\n';
+        log += '结果：不会触发清除逻辑\n';
+        result.textContent = log;
+        return;
+      }
+
+      const user = JSON.parse(userStr);
+      const localUserId = user.user_id;
+      const tokenAge = timestamp ? Date.now() - parseInt(timestamp) : Infinity;
+
+      log += `✅ 本地Token存在\n`;
+      log += `用户ID：${localUserId}\n`;
+      log += `Token年龄：${Math.floor(tokenAge / 1000)}秒\n\n`;
+
+      // Step 2: 检查SSO状态
+      log += '=== Step 2: 检查SSO状态 ===\n';
+      try {
+        const response = await fetch('https://www.ucppt.com/wp-json/nextjs-sso/v1/sync-status', {
+          credentials: 'include',
+          headers: { 'Accept': 'application/json' }
+        });
+
+        const data = await response.json();
+        log += `SSO返回：${JSON.stringify(data)}\n\n`;
+
+        // Step 3: 判断逻辑
+        log += '=== Step 3: 判断逻辑 ===\n';
+
+        if (!data.logged_in && localUserId) {
+          log += '⚠️ 检测到WordPress未登录，但本地有用户Token\n';
+
+          if (tokenAge > 30000) {
+            log += `❌ Token年龄 ${Math.floor(tokenAge / 1000)}秒 > 30秒\n`;
+            log += '🔥 <strong>结果：会清除Token，触发跳转到登录页！</strong>\n\n';
+            log += '这就是你遇到的问题！';
+          } else {
+            log += `✅ Token年龄 ${Math.floor(tokenAge / 1000)}秒 <= 30秒\n`;
+            log += '结果：跳过清除（时间窗口保护）\n';
+          }
+        } else if (data.logged_in && localUserId !== data.user_id) {
+          log += '⚠️ 检测到用户切换\n';
+          log += `本地用户：${localUserId}\n`;
+          log += `WordPress用户：${data.user_id}\n`;
+          log += '结果：会获取新Token\n';
+        } else if (data.logged_in) {
+          log += '✅ WordPress已登录，用户ID匹配\n';
+          log += '结果：不会触发任何操作\n';
+        } else {
+          log += '✅ 本地无Token，WordPress也未登录\n';
+          log += '结果：正常状态\n';
+        }
+
+      } catch (error) {
+        log += `❌ SSO检测失败：${error.message}\n`;
+      }
+
+      result.innerHTML = log;
+    }
+
+    // 测试5：连续监控
+    function startMonitoring() {
+      if (monitoringInterval) {
+        alert('监控已在运行中');
+        return;
+      }
+
+      monitoringCount = 0;
+      const result = document.getElementById('monitoring-result');
+      result.style.display = 'block';
+      result.textContent = '开始监控SSO状态（每10秒检查一次）...\n\n';
+
+      const check = async () => {
+        monitoringCount++;
+        const timestamp = new Date().toLocaleTimeString();
+
+        try {
+          const response = await fetch('https://www.ucppt.com/wp-json/nextjs-sso/v1/sync-status', {
+            credentials: 'include',
+            headers: { 'Accept': 'application/json' }
+          });
+
+          const data = await response.json();
+          const status = data.logged_in ? '✅ 已登录' : '❌ 未登录';
+
+          result.textContent += `[${timestamp}] 第${monitoringCount}次检查 - ${status} - user_id: ${data.user_id}\n`;
+          result.scrollTop = result.scrollHeight;
+
+        } catch (error) {
+          result.textContent += `[${timestamp}] 第${monitoringCount}次检查 - ❌ 失败: ${error.message}\n`;
+        }
+      };
+
+      check();  // 立即执行一次
+      monitoringInterval = setInterval(check, 10000);
+    }
+
+    function stopMonitoring() {
+      if (monitoringInterval) {
+        clearInterval(monitoringInterval);
+        monitoringInterval = null;
+        const result = document.getElementById('monitoring-result');
+        result.textContent += `\n监控已停止（共${monitoringCount}次检查）`;
+      }
+    }
+  </script>
+</body>
+</html>

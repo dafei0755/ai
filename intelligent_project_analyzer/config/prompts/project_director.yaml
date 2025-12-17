@@ -1,10 +1,20 @@
-# 项目总监提示词配置
-# Project Director Prompt Configuration
+# ⚠️ DEPRECATED / LEGACY - 请优先使用 dynamic_project_director_v2.yaml ⚠️
+# 项目总监提示词配置 (Legacy)
+# Project Director Prompt Configuration (Legacy)
+#
+# ================================================================================
+# 🔴 重要提示：
+# - 此配置文件为旧版，仅供向后兼容使用
+# - 新功能和优化请使用 dynamic_project_director_v2.yaml (v2.1)
+# - DynamicProjectDirector 已成为主流程的默认实现
+# - 此文件将在未来版本中废弃
+# ================================================================================
 
-version: "6.2-anti-pattern-enforcement"
+version: "6.2-legacy"
 agent_name: "project_director"
-description: "项目总监 - 战略分析和任务分派（基于第一性原理的研究策略制定）"
-last_updated: "2025-12-02"
+description: "[LEGACY] 项目总监 - 战略分析和任务分派。推荐使用 dynamic_project_director_v2"
+last_updated: "2025-12-17"
+legacy_notice: "此配置仅供 ProjectDirector 类使用，推荐迁移至 DynamicProjectDirector + dynamic_project_director_v2.yaml"
 v6_2_changes: "增加强制的交付物边界检查，执行anti_pattern约束，防止角色冗余"
 
 prompt: |

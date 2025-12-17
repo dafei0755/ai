@@ -149,23 +149,32 @@ async def _run_workflow(
             "recursion_limit": 100
         }
         
-        # 节点进度映射
+        # 🎯 v7.21: 节点进度映射（与 main_workflow.py 实际节点名称对齐）
         node_progress_map = {
-            "input_guard": 0.10,
-            "requirements_analyst": 0.20,
-            "domain_validator": 0.25,
-            "calibration_questionnaire": 0.30,
-            "requirements_confirmation": 0.40,
-            "project_director": 0.45,
-            "role_task_unified_review": 0.50,
-            "quality_preflight": 0.55,
-            "batch_executor": 0.60,
-            "agent_executor": 0.75,
-            "batch_aggregator": 0.80,
-            "detect_challenges": 0.82,
-            "result_aggregator": 0.88,
-            "report_guard": 0.92,
-            "pdf_generator": 0.95,
+            # 输入验证阶段 (0-15%)
+            "unified_input_validator_initial": 0.05,
+            "unified_input_validator_secondary": 0.10,
+            # 需求分析阶段 (15-35%)
+            "requirements_analyst": 0.15,
+            "feasibility_analyst": 0.20,
+            "calibration_questionnaire": 0.25,
+            "requirements_confirmation": 0.35,
+            # 项目规划阶段 (35-55%)
+            "project_director": 0.40,
+            "role_task_unified_review": 0.45,
+            "quality_preflight": 0.50,
+            # 专家执行阶段 (55-80%)
+            "batch_executor": 0.55,
+            "agent_executor": 0.70,
+            "batch_aggregator": 0.75,
+            "batch_router": 0.76,
+            "batch_strategy_review": 0.78,
+            # 审核聚合阶段 (80-100%)
+            "detect_challenges": 0.80,
+            "analysis_review": 0.85,
+            "result_aggregator": 0.90,
+            "report_guard": 0.95,
+            "pdf_generator": 0.98,
         }
         
         # 流式执行工作流

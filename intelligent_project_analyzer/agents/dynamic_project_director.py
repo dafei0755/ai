@@ -669,7 +669,8 @@ class DynamicProjectDirector:
             包含完整TaskInstruction的RoleObject
         """
         role_id = role_config.get("role_id", "unknown")
-        role_name = role_config.get("role_name", "未知角色")
+        # 🔥 v7.22: 兼容两种字段名 - role_manager 使用 "name"，LLM 输出使用 "role_name"
+        role_name = role_config.get("role_name") or role_config.get("name", "未知角色")
         base_type = role_config.get("base_type", "")
         
         # Map base_type to role_type for template generation

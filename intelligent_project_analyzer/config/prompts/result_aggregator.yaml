@@ -1,10 +1,33 @@
 # 结果聚合器提示词配置
 # Result Aggregator Prompt Configuration
+# 🔧 v3.1: 关联挑战协议 (expert_autonomy_protocol_v4.yaml)
 
-version: "3.0"
+version: "3.1"
 agent_name: "result_aggregator"
-description: "结果聚合器 - 完全动态化报告生成，无预定义章节"
-last_updated: "2025-12-02"
+description: "结果聚合器 - 完全动态化报告生成，关联挑战协议"
+last_updated: "2025-12-17"
+v3_1_changes: "关联 expert_autonomy_protocol v4.1 挑战协议"
+
+# ================================================================================
+# 🔗 挑战协议关联（与 expert_autonomy_protocol_v4.yaml v4.1 对齐）
+# ================================================================================
+challenge_protocol_integration:
+  # 从专家报告中提取挑战标记
+  extract_challenge_flags: true
+  challenge_types:
+    - "resource_conflict"      # 资源冲突
+    - "scope_ambiguity"        # 范围模糊
+    - "stakeholder_conflict"   # 利益相关者冲突
+    - "technical_uncertainty"  # 技术不确定性
+    - "timeline_pressure"      # 时间压力
+    - "quality_tradeoff"       # 质量权衡
+    - "capability_boundary"    # 能力边界
+  
+  # 汇总规则
+  aggregation_rules:
+    - "将所有 challenge_flag=true 的专家输出单独汇总"
+    - "在 recommendations 中优先处理挑战相关建议"
+    - "在 insights 中标注未解决的核心挑战"
 
 prompt: |
   你是"设计知外"系统的首席综合官 (Chief Synthesis Officer)。

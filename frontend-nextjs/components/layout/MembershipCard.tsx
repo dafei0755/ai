@@ -18,6 +18,19 @@ interface MembershipInfo {
   wallet_balance: number;
 }
 
+// 🔧 v3.0.23优化：全局缓存会员信息，避免重复请求
+let membershipCache: {
+  data: MembershipInfo | null;
+  timestamp: number;
+  userId: number | null;
+} = {
+  data: null,
+  timestamp: 0,
+  userId: null
+};
+
+const CACHE_TTL = 60000; // 缓存60秒
+
 export function MembershipCard() {
   const { user } = useAuth();
   const [membership, setMembership] = useState<MembershipInfo | null>(null);
@@ -30,25 +43,23 @@ export function MembershipCard() {
       return;
     }
 
-    // ⚠️ 临时方案：如果后端 API 不可用，跳过会员信息获取
-    const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
+    // 🔧 v3.0.23优化：检查缓存，避免重复请求
+    const now = Date.now();
+    const isCacheValid =
+      membershipCache.data !== null &&
+      membershipCache.userId === user.user_id &&
+      (now - membershipCache.timestamp) < CACHE_TTL;
 
-    // 检查 API 是否可访问
-    fetch(`${API_URL}/health`, { method: 'GET' })
-      .then(response => {
-        if (response.ok) {
-          // API 可用，获取真实会员数据
-          fetchMembershipInfo();
-        } else {
-          // API 不可用，跳过获取
-          console.warn('[MembershipCard] 后端 API 不可用，跳过会员信息获取');
-          setLoading(false);
-        }
-      })
-      .catch(error => {
-        console.warn('[MembershipCard] 无法连接到后端 API:', error);
-        setLoading(false);
-      });
+    if (isCacheValid) {
+      console.log('[MembershipCard] 使用缓存的会员数据');
+      setMembership(membershipCache.data);
+      setLoading(false);
+      return;
+    }
+
+    // 缓存失效，重新获取
+    console.log('[MembershipCard] 缓存失效，重新获取会员数据');
+    fetchMembershipInfo();
   }, [user]);
 
   const fetchMembershipInfo = async () => {
@@ -57,7 +68,7 @@ export function MembershipCard() {
       const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
       const token = localStorage.getItem('wp_jwt_token');
 
-      if (!token) {
+      if (!token || !user) {
         throw new Error('未登录');
       }
 
@@ -74,6 +85,14 @@ export function MembershipCard() {
       const data = await response.json();
       setMembership(data);
       setError(null);
+
+      // 🔧 v3.0.23优化：更新缓存
+      membershipCache = {
+        data: data,
+        timestamp: Date.now(),
+        userId: user.user_id
+      };
+      console.log('[MembershipCard] 会员数据已缓存');
     } catch (err) {
       console.error('获取会员信息失败:', err);
       setError(err instanceof Error ? err.message : '获取会员信息失败');

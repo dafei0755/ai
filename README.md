@@ -3,27 +3,30 @@
 
 > ⚠️ **所有开发者/协作者在修改代码前，必须优先阅读本节内容！**
 
-## ✅ WordPress SSO 集成完成 (v3.0.20)
+## ✅ WordPress SSO 集成完成 (v3.0.21)
 
-**最新状态**: v3.0.20 稳定版 - 生产就绪 🚀
+**最新状态**: v3.0.21 双机制同步 - 生产就绪 🚀
 
 **核心功能**:
+- ✅ **双机制SSO同步** - 方案2（Polling轮询）+ 方案3（Event-Driven事件驱动）
+- ✅ **实时用户切换同步** - WordPress用户切换后，NextJS应用<2秒自动同步
+- ✅ **跨标签页同步** - 所有标签页自动同步登录/退出状态
+- ✅ **双重保障机制** - 任一方案失败，另一方案仍可工作
 - ✅ **跨域Cookie问题完美解决** - 通过URL Token传递机制绕过浏览器跨域限制
 - ✅ **WPCOM隐藏区块架构** - 利用WPCOM Member Pro会员内容可见性控制应用入口
 - ✅ **JavaScript Token注入** - 同域名获取Token，动态更新应用链接
 - ✅ **死循环问题彻底修复** - 确保链接包含sso_token参数
 - ✅ **跨浏览器稳定** - Chrome/Edge/Firefox全面测试通过
-- ✅ **Member API 500错误已修复** - 密码配置 + 代码健壮性提升
-- ✅ **完整开发文档和部署指南**
 
-**重要改进 (v3.0.20, 2025-12-16)**:
-- 🎯 **跨域Cookie修复**: 通过URL Token传递机制完美解决跨域Cookie问题
-- 🏗️ **WPCOM隐藏区块架构**: 登录用户自动看到应用入口，未登录用户引导登录
-- 🔧 **JavaScript Token注入**: 同域名获取Token（Cookie自动携带），动态注入到应用链接
-- 🐛 **死循环问题修复**: 确保`<a>`标签有`id="app-entry-link"`，链接正确包含Token
-- 🌐 **跨浏览器稳定性**: Chrome/Edge/Firefox全面测试，普通模式和无痕模式均通过
+**重要升级 (v3.0.21, 2025-12-17)**:
+- 🎯 **方案2实施**: 页面可见性检测（visibilitychange监听）+ WordPress REST API `/sync-status`
+- 🎯 **方案3实施**: WordPress Hooks（wp_login, wp_logout）+ Cookie事件机制
+- 🔄 **实时同步**: WordPress登录/退出事件在<2秒内自动同步到NextJS应用
+- 🏷️ **跨标签页**: 通过Cookie事件机制，所有标签页自动同步
+- 🛡️ **可靠性**: 双重保障机制，任一方案失败另一方案仍可工作
 
-**快速查阅（v3.0.20文档）**:
+**快速查阅（v3.0.21文档）**:
+- ⭐⭐⭐⭐⭐ **双机制实施报告**: [SSO_SYNC_DUAL_MECHANISM_V3.0.21.md](docs/SSO_SYNC_DUAL_MECHANISM_V3.0.21.md) - 完整技术方案
 - ⭐⭐⭐⭐⭐ **快速开始**: [V3.0.20_QUICK_START.md](V3.0.20_QUICK_START.md) - 5分钟快速部署
 - ⭐⭐⭐⭐⭐ **完整部署指南**: [WORDPRESS_SSO_V3.0.20_DEPLOYMENT_GUIDE.md](WORDPRESS_SSO_V3.0.20_DEPLOYMENT_GUIDE.md)
 - ⭐⭐⭐⭐⭐ **发布说明**: [WORDPRESS_SSO_V3.0.20_RELEASE_NOTES.md](WORDPRESS_SSO_V3.0.20_RELEASE_NOTES.md)
@@ -82,9 +85,40 @@
 
 ### 📋 版本说明
 
-**当前版本: v7.9.5-session-grouping (Intelligent Project Analyzer) + v3.0.20 (WordPress SSO)** 📅
+**当前版本: v7.19-config-optimization (Intelligent Project Analyzer) + v3.0.21 (WordPress SSO)** 📅
 
-**WordPress SSO v3.0.20 (2025-12-16)** 🚀
+**Intelligent Project Analyzer v7.19 (2025-12-17)** 📦 **NEW**
+- ✅ **Config 目录全面优化**: 8个配置文件升级，与 v7.19 专家工厂对齐
+- ✅ **Prompts 目录清理**: 废弃 `requirements_analyst.yaml`，标记 `project_director.yaml` 为 legacy
+- ✅ **角色配置统一**: roles/*.yaml (v2.6-v2.8) 添加 ROLE_LLM_PARAMS 对齐声明
+- ✅ **策略配置升级**: `role_selection_strategy.yaml` v7.3 → v7.4
+- ✅ **约束配置更新**: `deliverable_role_constraints.yaml` v1.0 → v1.1
+- ✅ **安全配置规范**: `content_safety.yaml` 添加版本号 v1.1
+- 📝 **文档**: [DEVELOPMENT_RULES.md](.github/DEVELOPMENT_RULES.md) 8.24 节
+
+**Intelligent Project Analyzer v7.18 (2025-12-17)** 🚀
+- ✅ **问卷生成 StateGraph Agent 集成**: QuestionnaireAgent 集成到主工作流
+- ✅ **共享函数提取**: 3 个共享函数到 `shared_agent_utils.py` (~150行)
+  - `build_questionnaire_analysis_summary()` - 构建 LLM 提示词上下文
+  - `extract_user_keywords()` - 提取用户输入关键词
+  - `check_questionnaire_relevance()` - 检查问题相关性
+- ✅ **性能监控增强**: `PerformanceMonitor` 记录问卷生成耗时
+- ✅ **测试覆盖**: 12 个测试用例全部通过
+- 🔧 **环境变量**: `USE_V718_QUESTIONNAIRE_AGENT=true` 启用
+- 📝 **文档**: [DEVELOPMENT_RULES.md](.github/DEVELOPMENT_RULES.md) 8.23 节
+
+**Intelligent Project Analyzer v7.17 (2025-12-17)** 🏗️
+- ✅ **需求分析师 StateGraph 升级**: 核心入口 Agent 完整重构为 LangGraph StateGraph
+- ✅ **两阶段 LLM 架构**: Phase1 快速定性 (~10s) + Phase2 深度分析 (~20s)
+- ✅ **程序化能力边界检测**: `CapabilityDetector` 实现信息充足性和能力匹配检测
+- ✅ **历史包袱清理**: 删除 6 个废弃函数，代码量 -320 行
+- ✅ **条件路由**: 信息不足时跳过 Phase2，直接进入问卷流程
+- ✅ **完整测试覆盖**: 单元测试 6/6 通过，集成测试通过，端到端真实 LLM 测试 29s 完成
+- 📦 **新增文件**: `requirements_analyst_agent.py` (~790行), `capability_detector.py` (~350行), 2个 YAML 配置
+- 📝 **文档**: [V716_AGENT_STATE_GRAPHS.md](docs/V716_AGENT_STATE_GRAPHS.md) - 已更新 v7.17 内容
+- 🔧 **环境变量**: `USE_V717_REQUIREMENTS_ANALYST=true` 启用
+
+**WordPress SSO v3.0.21 (2025-12-17)** 🚀
 - ✅ **跨域Cookie问题完美解决**: URL Token传递机制，绕过浏览器跨域限制
 - ✅ **WPCOM隐藏区块架构**: 利用会员内容可见性控制应用入口
 - ✅ **JavaScript Token注入**: 同域名获取Token，动态更新应用链接
@@ -93,13 +127,23 @@
 - 📦 **插件文件**: `nextjs-sso-integration-v3.0.20.zip` (17.5 KB, MD5: D74C2FF25F09438EA33097BDFE8F2CFB)
 - 📝 **完整文档**: 9个核心文档，覆盖部署、技术方案、测试指南
 
-**Intelligent Project Analyzer v7.9.5 (2025-12-12)** 📅
+**Intelligent Project Analyzer v7.16.1 (2025-12-16)** 🏗️
+- ✅ **LangGraph Agent 架构升级**: 6个核心节点升级为独立 StateGraph Agent
+- ✅ **性能监控系统**: `PerformanceMonitor` 记录所有 Agent 执行时间
+- ✅ **共享工具函数**: `shared_agent_utils.py` 提取公共逻辑
+- ✅ **集成测试**: 8个测试用例验证新旧版本兼容性
+- ✅ **状态图文档**: Mermaid 状态图 + 详细节点说明
+- 📦 **新增文件**: `followup_agent.py`, `challenge_detection_agent.py`, `quality_preflight_agent.py`, `questionnaire_agent.py`, `result_aggregator_agent.py`, `analysis_review_agent.py`
+- 📝 **文档**: [V716_AGENT_STATE_GRAPHS.md](docs/V716_AGENT_STATE_GRAPHS.md)
+
+**v7.9.5-session-grouping (2025-12-12)** 📅
+**v7.9.5-session-grouping (2025-12-12)** 📅
 - ✅ **会话列表时间分组统一**: 分析页面历史记录新增时间分组（今天、昨天、7天内、30天内、按月）
 - ✅ **UI一致性提升**: 分析页面与首页保持相同的时间分组显示风格
 - ✅ **用户体验优化**: 历史记录更清晰，快速定位不同时间段的会话
 - 🔧 **后端报告生成修复 (v7.9.5)**: 修复变量命名冲突和Pydantic模型类型限制
 
-**v7.9.4-alignment-fix (2025-12-12)** 🎨
+**上一版本: v7.9.4-alignment-fix (2025-12-12)** 🎨
 - ✅ **专家报告标签内容对齐修复**: 从 Flexbox 迁移到 CSS Grid 布局
 - ✅ **完美基线对齐**: 标签和内容文字底部齐平，视觉整齐划一
 - ✅ **布局优化**: 所有标签自动对齐成列，间距从8px优化到12px
@@ -345,6 +389,25 @@ Get-Content logs\server.log | Select-String "2025-12-13 20:[3-4][0-9]"
 - **智能追问**: 基于LLM的追问推荐，引导用户深入探索设计可能性
 
 ### ✨ 核心特性
+
+#### 🏗️ LangGraph StateGraph 架构 (v7.16 NEW)
+
+- **统一 Agent 架构**: 6个核心节点升级为独立 LangGraph StateGraph
+- **状态可追踪**: 每个节点的中间状态通过 TypedDict 持久化
+- **性能监控**: PerformanceMonitor 记录所有 Agent 执行时间
+- **条件路由**: 支持动态路由决策（如问卷重生成、挑战升级）
+- **向后兼容**: 环境变量 `USE_V716_AGENTS=true` 控制新版启用
+- **文档完备**: Mermaid 状态图 + 节点功能说明
+
+**v7.16 Agent 清单**:
+| Agent | 状态图流程 | 用途 |
+|-------|-----------|------|
+| FollowupAgent | classify_intent → retrieve_context → generate_answer → generate_suggestions | 追问对话 |
+| ChallengeDetectionAgent | scan_outputs → classify_challenges → route_decision | 挑战检测 |
+| QualityPreflightAgent | analyze_risks → generate_checklists → validate_capability | 质量预检 |
+| QuestionnaireAgent | extract_context → generate_questions → validate_relevance → [重生成] | 问卷生成 |
+| ResultAggregatorAgentV2 | extract_reports → extract_context → generate_report → validate_output | 结果聚合 |
+| AnalysisReviewAgent | red_blue_debate → client_review → generate_ruling | 分析审核 |
 
 #### 🤖 动态多智能体系统 (v7.3)
 
@@ -907,8 +970,8 @@ curl http://127.0.0.1:8000/api/analysis/{session_id}/followup-history
 - **V5 创新专家**: 技术创新、可持续等（可选）
 - **V6 实施专家**: 成本、施工等（可选）
 
-**选择策略** (`config/role_selection_strategy.yaml`):
-- **目标导向协同 v7.2**: 根据输出结构自适应选择
+**选择策略** (`config/role_selection_strategy.yaml` v7.4):
+- **目标导向协同 v7.4**: 根据输出结构自适应选择，与 v7.19 专家工厂对齐
 - **权重计算**: 基于关键词匹配+jieba分词
 - **依赖调度**: 拓扑排序确保执行顺序
 
@@ -1166,8 +1229,11 @@ expected_output_format: |
 - ❌ 避免嵌入Markdown代码块(\`\`\`)
 - ❌ 避免行首未缩进的分隔符(`---`, `___`)
 
-**角色定义** (`config/roles/*.yaml`):
+**角色定义** (`config/roles/*.yaml` v2.6-v2.8):
 ```yaml
+# 🔧 与 v7.19 专家工厂对齐:
+# - 本配置由 SpecializedAgentFactory 在运行时加载
+# - LLM参数由 ROLE_LLM_PARAMS 统一控制
 name: "角色中文名称"
 role_id: "2-1"
 keywords: ["关键词1", "关键词2"]

@@ -122,7 +122,7 @@ async def get_my_membership(current_user: Dict[str, Any] = Depends(auth_middlewa
             print(f"[MemberRoutes] ⚠️ 用户 {user_id} 没有会员数据，返回免费用户")
             level = 0
             expire_date = ""
-            is_expired = True
+            is_expired = False  # 🔧 v3.0.23修复：免费用户不显示"已过期"
         else:
             level = int(membership.get("level", "0")) if membership.get("level") else 0
             expire_date = membership.get("expire_date", "")

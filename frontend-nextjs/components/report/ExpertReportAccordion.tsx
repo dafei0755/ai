@@ -1,10 +1,11 @@
 // components/report/ExpertReportAccordion.tsx
 // 专家报告手风琴组件
+// 🔥 v7.24: 移除独立下载功能，专家报告已合并到主报告 PDF
 
 'use client';
 
 import { FC, useState } from 'react';
-import { ChevronDown, ChevronUp, User, Briefcase, Download, Loader2, FileText, Package, CheckCircle, Lightbulb, AlertTriangle } from 'lucide-react';
+import { ChevronDown, ChevronUp, User, Briefcase, FileText, Package, CheckCircle, Lightbulb, AlertTriangle } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import ReactDOMServer from 'react-dom/server';
@@ -652,7 +653,7 @@ const WORD_TRANSLATIONS: Record<string, string> = {
 
 const ExpertReportAccordion: FC<ExpertReportAccordionProps> = ({ expertReports, userInput, sessionId }) => {
   const [expandedExpert, setExpandedExpert] = useState<string | null>(null);
-  const [isDownloading, setIsDownloading] = useState(false);
+  // 🔥 v7.24: 移除 isDownloading 状态，下载功能合并到主报告
 
   // 调试日志
   console.log('ExpertReportAccordion 渲染, sessionId:', sessionId);
@@ -768,72 +769,7 @@ const ExpertReportAccordion: FC<ExpertReportAccordionProps> = ({ expertReports, 
     }
   };
 
-  // 下载全部专家报告
-  // v7.1.3: 恢复使用后端 API 下载 PDF，因为后端已升级为高速生成模式
-  const handleDownloadAll = async () => {
-    if (!sessionId) {
-      console.error('sessionId 未设置，无法下载全部专家报告');
-      return;
-    }
-
-    setIsDownloading(true);
-
-    try {
-      console.log('开始下载全部专家报告 PDF, sessionId:', sessionId);
-      
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/analysis/report/${sessionId}/download-all-experts-pdf`
-      );
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('下载全部专家报告 PDF 失败:', response.status, errorText);
-        throw new Error(`下载失败: ${response.status}`);
-      }
-
-      // 获取文件名
-      const contentDisposition = response.headers.get('Content-Disposition');
-      let filename = `all_expert_reports_${sessionId}.pdf`;
-      if (contentDisposition) {
-        const match = contentDisposition.match(/filename\*?=(?:UTF-8'')?([^;\n]*)/i);
-        if (match) {
-          filename = decodeURIComponent(match[1].replace(/['"]/g, ''));
-        }
-      }
-
-      // 下载文件
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = filename;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
-
-      console.log('全部专家报告 PDF 下载成功:', filename);
-    } catch (error) {
-      console.error('下载全部专家报告 PDF 出错:', error);
-      // 如果后端失败，降级为前端 HTML 下载
-      try {
-        const printHTML = generateAllPrintHTML();
-        const blob = new Blob([printHTML], { type: 'text/html;charset=utf-8' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `专家报告汇总_${new Date().toISOString().split('T')[0]}.html`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        window.URL.revokeObjectURL(url);
-      } catch (e) {
-        console.error('降级下载也失败:', e);
-      }
-    } finally {
-      setIsDownloading(false);
-    }
-  };
+  // 🔥 v7.24: 移除 handleDownloadAll 函数，下载功能已合并到主报告 PDF
 
   // 🔥 v7.6: 使用统一的 lib/formatters.ts 函数
   const getExpertColor = (expertName: string) => {
@@ -1559,19 +1495,10 @@ const ExpertReportAccordion: FC<ExpertReportAccordionProps> = ({ expertReports, 
             <p className="text-sm text-gray-400">点击展开查看各专家的详细分析</p>
           </div>
         </div>
-        <button
-          onClick={handleDownloadAll}
-          disabled={isDownloading}
-          className="flex items-center gap-2 px-3 py-2 bg-orange-500/20 hover:bg-orange-500/30 text-orange-400 rounded-lg transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-          title="下载全部专家报告"
-        >
-          {isDownloading ? (
-            <Loader2 className="w-4 h-4 animate-spin" />
-          ) : (
-            <Download className="w-4 h-4" />
-          )}
-          <span>{isDownloading ? '准备中...' : '下载全部'}</span>
-        </button>
+        {/* 🔥 v7.24: 移除独立下载按钮，合并到主报告下载 */}
+        <span className="text-xs text-gray-500">
+          已包含在主报告下载中
+        </span>
       </div>
 
       {/* 专家列表 */}

@@ -122,18 +122,18 @@ class PromptManager:
         验证配置完整性 - 检查所有核心提示词配置文件是否存在
 
         核心配置文件:
-        - requirements_analyst.yaml: 需求分析师
+        - requirements_analyst_lite.yaml: 需求分析师 (🔧 v4.2: 精简版)
         - review_agents.yaml: 审核系统（红队、蓝队、评委、甲方）
         - result_aggregator.yaml: 结果聚合器
-        - dynamic_project_director.yaml: 项目总监
+        - dynamic_project_director_v2.yaml: 项目总监 (v2.1)
 
         如果缺失核心配置，将抛出异常
         """
         required_configs = [
-            "requirements_analyst",
+            "requirements_analyst_lite",  # 🔧 v4.2: 使用精简版配置
             "review_agents",
             "result_aggregator",
-            "dynamic_project_director"
+            "dynamic_project_director_v2"  # 🔧 v2.1: 使用新版配置
         ]
 
         missing_configs = []

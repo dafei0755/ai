@@ -18,6 +18,7 @@ from ..core.state import ProjectAnalysisState, AgentType
 from ..core.types import AnalysisResult
 from ..core.prompt_manager import PromptManager
 from ..utils.jtbd_parser import transform_jtbd_to_natural_language
+from ..utils.capability_detector import CapabilityDetector, check_capability
 
 
 class RequirementsAnalystAgent(LLMAgent):
@@ -109,9 +110,24 @@ class RequirementsAnalystAgent(LLMAgent):
         self,
         state: ProjectAnalysisState,
         config: RunnableConfig,
-        store: Optional[BaseStore] = None
+        store: Optional[BaseStore] = None,
+        use_two_phase: bool = False  # 🆕 v7.17: 支持两阶段模式
     ) -> AnalysisResult:
-        """执行需求分析"""
+        """执行需求分析
+        
+        Args:
+            state: 项目分析状态
+            config: 运行配置
+            store: 可选的存储后端
+            use_two_phase: 是否使用两阶段模式（v7.17新增）
+                - False: 单次LLM调用（默认，向后兼容）
+                - True: Phase1（快速定性）→ Phase2（深度分析）
+        """
+        # 🆕 v7.17: 如果启用两阶段模式，使用新的执行流程
+        if use_two_phase:
+            return self._execute_two_phase(state, config, store)
+        
+        # 原有的单次调用逻辑
         start_time = time.time()
         
         try:
@@ -490,279 +506,6 @@ class RequirementsAnalystAgent(LLMAgent):
                 for obj in core_objectives
             ]
 
-    def _validate_and_fix_questionnaire(self, structured_data: Dict[str, Any]) -> None:
-        """
-        🚫 v7.3 已废弃：此方法不再使用
-
-        原因：问卷生成已分离到专门节点
-        - 旧架构：需求分析师在单次LLM调用中同时生成分析结果和问卷，然后验证修正问卷
-        - 新架构：需求分析师专注于深度分析，问卷由 calibration_questionnaire.py 节点基于分析结果动态生成
-
-        迁移说明：
-        - 问卷生成逻辑已迁移至 intelligent_project_analyzer/interaction/questionnaire/
-        - 包含多个专门生成器：FallbackQuestionGenerator, PhilosophyQuestionGenerator 等
-
-        向后兼容：保留此方法存根，避免旧代码调用时报错
-        """
-        logger.warning("[DEPRECATED] _validate_and_fix_questionnaire 已废弃，问卷生成已移至专门节点")
-        return  # 空实现，直接返回
-
-    def _validate_and_fix_questionnaire_legacy(self, structured_data: Dict[str, Any]) -> None:
-        """
-        [已废弃] 旧版问卷验证逻辑 - 仅保留作为参考
-        1. 必须生成 7-10个问题（禁止只生成2-3个）
-        2. 题型顺序：单选题(2-3个) → 多选题(2-3个) → 开放题(2个)
-        3. 从用户输入中智能生成问题，而不是使用通用模板
-        """
-        questionnaire = structured_data.get("calibration_questionnaire", {})
-        questions = questionnaire.get("questions", [])
-
-        # 统计各类题型数量
-        single_choice_count = sum(1 for q in questions if q.get("type") == "single_choice")
-        multiple_choice_count = sum(1 for q in questions if q.get("type") == "multiple_choice")
-        open_ended_count = sum(1 for q in questions if q.get("type") == "open_ended")
-        total_count = len(questions)
-
-        logger.info(f"[问卷验证] 当前问卷: 总数={total_count}, 单选={single_choice_count}, 多选={multiple_choice_count}, 开放={open_ended_count}")
-
-        # 检查是否需要修正
-        needs_fix = (
-            total_count < 7 or  # 少于7个问题
-            single_choice_count < 2 or  # 单选题少于2个
-            multiple_choice_count < 2 or  # 多选题少于2个
-            open_ended_count < 2  # 开放题少于2个
-        )
-
-        if not needs_fix:
-            logger.info("[问卷验证] ✅ 问卷结构符合要求")
-            return
-
-        logger.warning(f"[问卷验证] ❌ 问卷不符合要求，开始智能补齐...")
-
-        # 🔥 智能补齐：从用户输入和已分析的结构化数据中提取关键信息
-        project_task = structured_data.get("project_task", "")
-        character_narrative = structured_data.get("character_narrative", "")
-        design_challenge = structured_data.get("design_challenge", "")
-        physical_context = structured_data.get("physical_context", "")
-        resource_constraints = structured_data.get("resource_constraints", "")
-
-        # 提取核心矛盾（从design_challenge中）
-        tension_a = "功能性需求"
-        tension_b = "情感化需求"
-
-        # 🔍 尝试多种正则模式匹配核心矛盾
-        import re
-
-        # 模式1: "A"...与..."B" 格式（中文引号）
-        match = re.search(r'"([^"]{2,30?})"[^"]{0,50?}与[^"]{0,50?}"([^"]{2,30?})"', design_challenge)
-        if match:
-            tension_a = match.group(1).strip()
-            tension_b = match.group(2).strip()
-            logger.info(f"[矛盾提取] 使用模式1: \"{tension_a}\" vs \"{tension_b}\"")
-        else:
-            # 模式2: A vs B 或 A与其对B 格式
-            match = re.search(r'(.{5,30}?)[的需求]*(?:vs|与其对)(.{5,30}?)[的需求]*', design_challenge)
-            if match:
-                tension_a = match.group(1).strip()
-                tension_b = match.group(2).strip()
-                logger.info(f"[矛盾提取] 使用模式2: {tension_a} vs {tension_b}")
-
-        # 提取项目类型关键词
-        project_type = structured_data.get("project_type", "personal_residential")
-        is_residential = "residential" in project_type
-        is_commercial = "commercial" in project_type
-
-        # 分离现有问题
-        existing_single = [q for q in questions if q.get("type") == "single_choice"]
-        existing_multiple = [q for q in questions if q.get("type") == "multiple_choice"]
-        existing_open = [q for q in questions if q.get("type") == "open_ended"]
-
-        # 🎯 补充单选题（确保至少2个）- 从核心矛盾生成（概念阶段友好版）
-        while len(existing_single) < 2:
-            template_idx = len(existing_single)
-            if template_idx == 0 and tension_a and tension_b and tension_a != "功能性需求" and tension_b != "情感化需求":
-                # 如果成功提取了具体的核心矛盾（非默认值），使用具体问题
-                existing_single.append({
-                    "question": f"当{tension_a}与{tension_b}产生冲突时，您更倾向于？(单选)",
-                    "context": f"这是本项目最核心的战略选择，将决定设计的根本方向。",
-                    "type": "single_choice",
-                    "options": [
-                        f"优先保证{tension_a}，可以在{tension_b}上做出妥协",
-                        f"优先保证{tension_b}，{tension_a}可以通过其他方式补偿",
-                        f"寻求平衡点，通过创新设计同时满足两者"
-                    ]
-                })
-            elif template_idx == 0:
-                # 第一个兜底：适合概念阶段的开放性问题
-                existing_single.append({
-                    "question": "您希望这个空间首先给人什么样的感觉？(单选)",
-                    "context": "帮助我们确定设计的核心情感基调，这将指导所有后续决策。",
-                    "type": "single_choice",
-                    "options": [
-                        "温暖舒适：像家一样放松自在",
-                        "简洁高效：专注于功能和效率",
-                        "独特个性：表达自我和品味",
-                        "平衡包容：兼顾多种需求和场景"
-                    ]
-                })
-            elif template_idx == 1 and resource_constraints and len(resource_constraints) > 10:
-                # 如果有明确的资源约束，使用具体问题
-                existing_single.append({
-                    "question": f"面对{resource_constraints}的限制，您的取舍策略是？(单选)",
-                    "context": "帮助我们在资源有限时做出明智的优先级决策。",
-                    "type": "single_choice",
-                    "options": [
-                        "集中资源打造核心体验区，其他区域从简",
-                        "平均分配，确保整体协调统一",
-                        "先满足基本功能，预留后期升级空间"
-                    ]
-                })
-            else:
-                # 第二个兜底：关于设计优先级的探索性问题
-                existing_single.append({
-                    "question": "在设计决策中，您认为什么最不能妥协？(单选)",
-                    "context": "识别您的核心价值观，确保设计不会偏离最重要的诉求。",
-                    "type": "single_choice",
-                    "options": [
-                        "使用便利性：日常生活流畅无阻",
-                        "美学品质：视觉和感官的愉悦",
-                        "长期价值：经得起时间考验",
-                        "创新突破：与众不同的独特体验"
-                    ]
-                })
-
-        # 🎯 补充多选题（确保至少2个）- 真正需要思考的选择（非常识性问题）
-        while len(existing_multiple) < 2:
-            template_idx = len(existing_multiple)
-            if template_idx == 0:
-                # 第一个多选：关于空间使用节奏和时间感
-                if is_residential:
-                    existing_multiple.append({
-                        "question": "以下哪些时刻/场景，您希望空间能特别支持？(多选)",
-                        "context": "帮助我们理解您的生活节奏和关键场景，设计会围绕这些时刻展开。",
-                        "type": "multiple_choice",
-                        "options": [
-                            "清晨独处：沉思、阅读或运动的私密时光",
-                            "工作专注：需要高度集中的深度工作时段",
-                            "家庭互动：与家人共度的温馨时刻",
-                            "社交娱乐：接待朋友或举办聚会",
-                            "夜间放松：卸下一天疲惫的独处时光",
-                            "灵活切换：在多种状态间快速转换"
-                        ]
-                    })
-                elif is_commercial:
-                    existing_multiple.append({
-                        "question": "以下哪些体验场景，您希望空间能特别强化？(多选)",
-                        "context": "商业空间的成功在于关键场景的极致体验，请选择您认为最重要的。",
-                        "type": "multiple_choice",
-                        "options": [
-                            "初次相遇：第一印象和品牌感知的黄金时刻",
-                            "核心体验：用户使用核心功能/服务的关键时刻",
-                            "情感共鸣：建立品牌认同和情感连接的时刻",
-                            "高效流转：用户完成目标的流畅度和效率",
-                            "停留驻足：让用户愿意多待一会儿的吸引力",
-                            "记忆锚点：离开后仍能回想起的独特体验"
-                        ]
-                    })
-                else:
-                    existing_multiple.append({
-                        "question": "您希望这个空间在哪些方面超出常规？(多选)",
-                        "context": "帮助我们识别您的独特诉求，避免设计成千篇一律的标准方案。",
-                        "type": "multiple_choice",
-                        "options": [
-                            "感官体验：光影/材质/声音等超越常规的感官设计",
-                            "空间叙事：有故事性和情感深度的空间序列",
-                            "功能创新：打破常规的使用方式或空间组织",
-                            "可持续性：环保、节能或与自然的深度连接",
-                            "技术融合：智能化或新技术的巧妙应用",
-                            "文化表达：特定文化/艺术的深度体现"
-                        ]
-                    })
-            else:
-                # 第二个多选：关于设计过程中的价值排序
-                if is_residential:
-                    existing_multiple.append({
-                        "question": "当预算/时间有限需要取舍时，以下哪些您愿意优先保障？(多选)",
-                        "context": "这不是理想状态的全部需求，而是帮助我们理解您真正的优先级。",
-                        "type": "multiple_choice",
-                        "options": [
-                            "结构优化：动线/采光/通风等基础体验的优化",
-                            "材质品质：关键区域使用更好的材料",
-                            "定制设计：为特殊需求专门设计的功能",
-                            "储物系统：充足且合理的收纳解决方案",
-                            "氛围营造：灯光/色彩/艺术品等氛围要素",
-                            "智能集成：智能家居或自动化系统"
-                        ]
-                    })
-                elif is_commercial:
-                    existing_multiple.append({
-                        "question": "在商业空间的投入分配上，您更倾向于加强哪些方面？(多选)",
-                        "context": "帮助我们理解您的商业策略和价值取向，优化资源配置。",
-                        "type": "multiple_choice",
-                        "options": [
-                            "门面形象：外立面/入口等第一印象的投入",
-                            "核心区域：最关键功能区的品质提升",
-                            "品牌氛围：整体调性和品牌表达的完整性",
-                            "运营灵活：后期调整和多场景适配的能力",
-                            "体验细节：小而美的触点设计和惊喜时刻",
-                            "长期耐用：材料/设备的品质和维护成本控制"
-                        ]
-                    })
-                else:
-                    existing_multiple.append({
-                        "question": "以下哪些因素会显著影响您对最终方案的满意度？(多选)",
-                        "context": "帮助我们理解您的评判标准，确保设计方向符合您的预期。",
-                        "type": "multiple_choice",
-                        "options": [
-                            "视觉完成度：呈现效果与预期的一致性",
-                            "功能完整性：所需功能的实现程度",
-                            "使用便利性：日常使用的舒适和流畅",
-                            "独特性：与其他项目的差异化",
-                            "可持续性：长期使用和维护的合理性",
-                            "成本控制：在预算范围内的实现程度"
-                        ]
-                    })
-
-        # 🎯 补充开放题（确保至少2个）- 捕捉深层需求（概念阶段友好版）
-        while len(existing_open) < 2:
-            template_idx = len(existing_open)
-            if template_idx == 0:
-                # 第一个开放题：关于理想状态的想象
-                existing_open.append({
-                    "question": "请描述一个让您印象深刻的空间体验（可以是任何地方），以及它打动您的特质。(开放题)",
-                    "context": "这将成为设计的'精神参考'，帮助我们理解您追求的空间品质。",
-                    "type": "open_ended"
-                })
-            else:
-                # 第二个开放题：关于使用者的真实状态
-                if is_residential:
-                    existing_open.append({
-                        "question": "在您设想的日常生活中，有哪些时刻或场景是特别重要的？(开放题)",
-                        "context": "不必是「早晨」或「夜晚」这样的具体时间，可以是任何对您有意义的状态或场景。",
-                        "type": "open_ended"
-                    })
-                elif is_commercial:
-                    existing_open.append({
-                        "question": "您希望用户/客户在这个空间中经历怎样的体验旅程？(开放题)",
-                        "context": "从进入到离开，描述您理想中的体验过程和关键感受。",
-                        "type": "open_ended"
-                    })
-                else:
-                    existing_open.append({
-                        "question": "如果用三个关键词描述您理想中的空间，会是什么？请简单解释原因。(开放题)",
-                        "context": "帮助我们快速把握您的核心诉求和价值取向。",
-                        "type": "open_ended"
-                    })
-
-        # 按照要求的顺序重新组织问题：单选 → 多选 → 开放
-        fixed_questions = existing_single + existing_multiple + existing_open
-
-        logger.info(f"[问卷验证] ✅ 智能补齐完成: 总数={len(fixed_questions)}, 单选={len(existing_single)}, 多选={len(existing_multiple)}, 开放={len(existing_open)}")
-        logger.info(f"[问卷验证] 📊 补齐策略: 基于用户输入的核心矛盾({tension_a} vs {tension_b})和项目类型({project_type})生成")
-
-        # 更新问卷
-        structured_data["calibration_questionnaire"]["questions"] = fixed_questions
-    
     def _infer_project_type(self, structured_data: Dict[str, Any]) -> str:
         """
         推断项目类型（用于本体论注入）
@@ -921,6 +664,484 @@ class RequirementsAnalystAgent(LLMAgent):
             
         except Exception as e:
             logger.warning(f"Failed to save user preferences: {str(e)}")
+
+    # ═══════════════════════════════════════════════════════════════════════════
+    # 🆕 v7.17 P1: 两阶段执行架构
+    # Phase1: 快速定性 + 交付物识别 (~1.5s)
+    # Phase2: 深度分析 + 专家接口构建 (~3s)
+    # ═══════════════════════════════════════════════════════════════════════════
+
+    def _execute_two_phase(
+        self,
+        state: ProjectAnalysisState,
+        config: RunnableConfig,
+        store: Optional[BaseStore] = None
+    ) -> AnalysisResult:
+        """🆕 v7.17: 两阶段执行模式
+        
+        Phase1: 快速定性 + 交付物识别（~1.5s）
+        - L0 项目定性（信息充足/不足判断）
+        - 交付物识别 + 能力边界判断
+        - 输出: info_status, primary_deliverables, recommended_next_step
+        
+        Phase2: 深度分析 + 专家接口（~3s，仅当 Phase1 判断信息充足时）
+        - L1-L5 深度分析
+        - 专家接口构建
+        - 输出: 完整的 structured_data + expert_handoff
+        """
+        start_time = time.time()
+        session_id = state.get("session_id", "unknown")
+        
+        logger.info(f"🚀 [v7.17] 启动两阶段需求分析 (session: {session_id})")
+        
+        try:
+            # 验证输入
+            if not self.validate_input(state):
+                raise ValueError("Invalid input: user input is too short or empty")
+            
+            user_input = state.get("user_input", "")
+            
+            # ═══════════════════════════════════════════════════════════════
+            # 🆕 v7.17 P2: 程序化能力边界预检测
+            # 在 LLM 调用前完成，减少 LLM 判断负担
+            # ═══════════════════════════════════════════════════════════════
+            precheck_start = time.time()
+            logger.info("🔍 [预检测] 程序化能力边界检测...")
+            
+            capability_precheck = check_capability(user_input)
+            precheck_elapsed = time.time() - precheck_start
+            
+            logger.info(f"✅ [预检测] 完成，耗时 {precheck_elapsed:.3f}s")
+            logger.info(f"   - 信息充足: {capability_precheck['info_sufficiency']['is_sufficient']}")
+            logger.info(f"   - 能力匹配: {capability_precheck['deliverable_capability']['capability_score']:.0%}")
+            logger.info(f"   - 需要转化: {capability_precheck['deliverable_capability']['transformations_needed']}个")
+            
+            # ═══════════════════════════════════════════════════════════════
+            # Phase 1: 快速定性 + 交付物识别（带预检测结果）
+            # ═══════════════════════════════════════════════════════════════
+            phase1_start = time.time()
+            logger.info("📋 [Phase1] 开始快速定性 + 交付物识别...")
+            
+            phase1_result = self._execute_phase1(user_input, capability_precheck)
+            
+            phase1_elapsed = time.time() - phase1_start
+            logger.info(f"✅ [Phase1] 完成，耗时 {phase1_elapsed:.2f}s")
+            logger.info(f"   - info_status: {phase1_result.get('info_status')}")
+            logger.info(f"   - deliverables: {len(phase1_result.get('primary_deliverables', []))}个")
+            logger.info(f"   - next_step: {phase1_result.get('recommended_next_step')}")
+            
+            # 判断是否需要执行 Phase2
+            info_status = phase1_result.get("info_status", "insufficient")
+            recommended_next = phase1_result.get("recommended_next_step", "questionnaire_first")
+            
+            if info_status == "insufficient" or recommended_next == "questionnaire_first":
+                # 信息不足，跳过 Phase2，直接返回 Phase1 结果
+                logger.info("⚠️ [Phase1] 信息不足，跳过 Phase2，建议先收集问卷")
+                
+                structured_data = self._build_phase1_only_result(phase1_result, user_input)
+                structured_data["analysis_mode"] = "phase1_only"
+                structured_data["skip_phase2_reason"] = phase1_result.get("info_status_reason", "信息不足")
+                
+                result = self.create_analysis_result(
+                    content=json.dumps(phase1_result, ensure_ascii=False, indent=2),
+                    structured_data=structured_data,
+                    confidence=0.5,  # Phase1 only 的置信度较低
+                    sources=["user_input", "phase1_analysis"]
+                )
+                
+                end_time = time.time()
+                self._track_execution_time(start_time, end_time)
+                logger.info(f"🏁 [v7.17] 两阶段分析完成（仅Phase1），总耗时 {end_time - start_time:.2f}s")
+                
+                return result
+            
+            # ═══════════════════════════════════════════════════════════════
+            # Phase 2: 深度分析 + 专家接口
+            # ═══════════════════════════════════════════════════════════════
+            phase2_start = time.time()
+            logger.info("🔬 [Phase2] 开始深度分析 + 专家接口构建...")
+            
+            phase2_result = self._execute_phase2(user_input, phase1_result)
+            
+            phase2_elapsed = time.time() - phase2_start
+            logger.info(f"✅ [Phase2] 完成，耗时 {phase2_elapsed:.2f}s")
+            
+            # 合并 Phase1 和 Phase2 结果
+            structured_data = self._merge_phase_results(phase1_result, phase2_result)
+            structured_data["analysis_mode"] = "two_phase"
+            structured_data["phase1_elapsed_s"] = round(phase1_elapsed, 2)
+            structured_data["phase2_elapsed_s"] = round(phase2_elapsed, 2)
+            
+            # 后处理：字段规范化、项目类型推断
+            self._normalize_jtbd_fields(structured_data)
+            structured_data["project_type"] = self._infer_project_type(structured_data)
+            
+            # 创建分析结果
+            confidence = self._calculate_two_phase_confidence(phase1_result, phase2_result)
+            
+            result = self.create_analysis_result(
+                content=json.dumps(phase2_result, ensure_ascii=False, indent=2),
+                structured_data=structured_data,
+                confidence=confidence,
+                sources=["user_input", "phase1_analysis", "phase2_analysis"]
+            )
+            
+            end_time = time.time()
+            self._track_execution_time(start_time, end_time)
+            logger.info(f"🏁 [v7.17] 两阶段分析完成，总耗时 {end_time - start_time:.2f}s")
+            
+            return result
+            
+        except Exception as e:
+            error = self.handle_error(e, "two-phase requirements analysis")
+            raise error
+
+    def _execute_phase1(self, user_input: str, capability_precheck: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """执行 Phase1: 快速定性 + 交付物识别
+        
+        Args:
+            user_input: 用户输入文本
+            capability_precheck: 程序化预检测结果（v7.17 P2）
+        """
+        # 加载 Phase1 专用提示词
+        phase1_config = self.prompt_manager.get_prompt("requirements_analyst_phase1", return_full_config=True)
+        
+        if not phase1_config:
+            logger.warning("[Phase1] 未找到专用配置，使用默认定性逻辑")
+            return self._fallback_phase1(user_input, capability_precheck)
+        
+        system_prompt = phase1_config.get("system_prompt", "")
+        task_template = phase1_config.get("task_description_template", "")
+        
+        # 构建任务描述
+        from datetime import datetime
+        datetime_info = f"当前时间: {datetime.now().strftime('%Y-%m-%d %H:%M')}。"
+        task_description = task_template.replace("{datetime_info}", datetime_info).replace("{user_input}", user_input)
+        
+        # 🆕 v7.17 P2: 将预检测结果注入到任务描述中
+        if capability_precheck:
+            precheck_hints = self._format_precheck_hints(capability_precheck)
+            task_description = f"{precheck_hints}\n\n{task_description}"
+        
+        # 调用 LLM
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": task_description}
+        ]
+        
+        response = self.invoke_llm(messages)
+        
+        # 解析 JSON
+        try:
+            result = self._parse_phase_response(response.content)
+            result["phase"] = 1
+            return result
+        except Exception as e:
+            logger.error(f"[Phase1] JSON解析失败: {e}")
+            return self._fallback_phase1(user_input, capability_precheck)
+
+    def _execute_phase2(self, user_input: str, phase1_result: Dict[str, Any]) -> Dict[str, Any]:
+        """执行 Phase2: 深度分析 + 专家接口构建"""
+        # 加载 Phase2 专用提示词
+        phase2_config = self.prompt_manager.get_prompt("requirements_analyst_phase2", return_full_config=True)
+        
+        if not phase2_config:
+            logger.warning("[Phase2] 未找到专用配置，使用默认分析逻辑")
+            return self._fallback_phase2(user_input, phase1_result)
+        
+        system_prompt = phase2_config.get("system_prompt", "")
+        task_template = phase2_config.get("task_description_template", "")
+        
+        # 构建任务描述（包含 Phase1 输出）
+        from datetime import datetime
+        datetime_info = f"当前时间: {datetime.now().strftime('%Y-%m-%d %H:%M')}。"
+        phase1_output_str = json.dumps(phase1_result, ensure_ascii=False, indent=2)
+        
+        task_description = (
+            task_template
+            .replace("{datetime_info}", datetime_info)
+            .replace("{user_input}", user_input)
+            .replace("{phase1_output}", phase1_output_str)
+        )
+        
+        # 调用 LLM
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": task_description}
+        ]
+        
+        response = self.invoke_llm(messages)
+        
+        # 解析 JSON
+        try:
+            result = self._parse_phase_response(response.content)
+            result["phase"] = 2
+            return result
+        except Exception as e:
+            logger.error(f"[Phase2] JSON解析失败: {e}")
+            return self._fallback_phase2(user_input, phase1_result)
+
+    def _parse_phase_response(self, response: str) -> Dict[str, Any]:
+        """解析阶段响应的 JSON"""
+        # 复用已有的 JSON 提取逻辑
+        json_str = self._extract_balanced_json(response)
+        if json_str:
+            return json.loads(json_str)
+        
+        # 尝试首尾括号提取
+        first_brace = response.find('{')
+        last_brace = response.rfind('}')
+        if first_brace != -1 and last_brace != -1:
+            return json.loads(response[first_brace:last_brace+1])
+        
+        raise ValueError("无法从响应中提取 JSON")
+
+    def _fallback_phase1(self, user_input: str, capability_precheck: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """Phase1 降级逻辑 - 使用程序化预检测结果（v7.17 P2 增强）"""
+        
+        # 如果有预检测结果，优先使用
+        if capability_precheck:
+            info_suff = capability_precheck.get("info_sufficiency", {})
+            deliv_cap = capability_precheck.get("deliverable_capability", {})
+            capable_deliverables = capability_precheck.get("capable_deliverables", [])
+            transformations = capability_precheck.get("transformations", [])
+            
+            info_sufficient = info_suff.get("is_sufficient", False)
+            
+            # 构建交付物列表
+            primary_deliverables = []
+            
+            # 添加能力范围内的交付物
+            for i, d in enumerate(capable_deliverables[:3]):
+                primary_deliverables.append({
+                    "deliverable_id": f"D{i+1}",
+                    "type": d.get("type", "design_strategy"),
+                    "description": f"基于关键词 {d.get('keywords', [])} 识别",
+                    "priority": "MUST_HAVE",
+                    "capability_check": {"within_capability": True}
+                })
+            
+            # 添加需要转化的交付物
+            for i, t in enumerate(transformations[:2]):
+                primary_deliverables.append({
+                    "deliverable_id": f"D{len(capable_deliverables)+i+1}",
+                    "type": t.get("transformed_to", "design_strategy"),
+                    "description": t.get("reason", ""),
+                    "priority": "NICE_TO_HAVE",
+                    "capability_check": {
+                        "within_capability": False,
+                        "original_request": t.get("original", ""),
+                        "transformed_to": t.get("transformed_to", "")
+                    }
+                })
+            
+            # 确保至少有一个交付物
+            if not primary_deliverables:
+                primary_deliverables.append({
+                    "deliverable_id": "D1",
+                    "type": "design_strategy",
+                    "description": "设计策略文档",
+                    "priority": "MUST_HAVE",
+                    "capability_check": {"within_capability": True}
+                })
+            
+            return {
+                "phase": 1,
+                "info_status": "sufficient" if info_sufficient else "insufficient",
+                "info_status_reason": info_suff.get("reason", "基于程序化检测"),
+                "info_gaps": info_suff.get("missing_elements", []),
+                "project_type_preliminary": "personal_residential",
+                "project_summary": user_input[:50] + "...",
+                "primary_deliverables": primary_deliverables,
+                "recommended_next_step": capability_precheck.get("recommended_action", "questionnaire_first"),
+                "precheck_based": True,
+                "fallback": True
+            }
+        
+        # 兜底：简单规则判断（无预检测结果时）
+        word_count = len(user_input)
+        has_numbers = any(c.isdigit() for c in user_input)
+        has_location = any(kw in user_input for kw in ["平米", "㎡", "房间", "卧室", "客厅"])
+        
+        info_sufficient = word_count > 100 and (has_numbers or has_location)
+        
+        return {
+            "phase": 1,
+            "info_status": "sufficient" if info_sufficient else "insufficient",
+            "info_status_reason": "基于规则判断" if info_sufficient else "信息量不足，建议补充",
+            "info_gaps": [] if info_sufficient else ["项目类型", "空间约束", "预算范围"],
+            "project_type_preliminary": "personal_residential",
+            "project_summary": user_input[:50] + "...",
+            "primary_deliverables": [{
+                "deliverable_id": "D1",
+                "type": "design_strategy",
+                "description": "设计策略文档",
+                "priority": "MUST_HAVE",
+                "capability_check": {"within_capability": True}
+            }],
+            "recommended_next_step": "phase2_analysis" if info_sufficient else "questionnaire_first",
+            "fallback": True
+        }
+
+    def _format_precheck_hints(self, capability_precheck: Dict[str, Any]) -> str:
+        """
+        格式化程序化预检测结果为 LLM 提示
+        
+        v7.17 P2: 将预检测结果注入到 Phase1 任务描述中，
+        减少 LLM 的判断负担，提高一致性
+        """
+        hints = ["### 🔍 程序化预检测结果（已完成，请参考）"]
+        
+        # 信息充足性提示
+        info_suff = capability_precheck.get("info_sufficiency", {})
+        if info_suff.get("is_sufficient"):
+            hints.append(f"✅ **信息充足性**: 充足（得分 {info_suff.get('score', 0):.2f}）")
+            hints.append(f"   - 已识别: {', '.join(info_suff.get('present_elements', []))}")
+        else:
+            hints.append(f"⚠️ **信息充足性**: 不足（得分 {info_suff.get('score', 0):.2f}）")
+            hints.append(f"   - 缺少: {', '.join(info_suff.get('missing_elements', [])[:5])}")
+        
+        # 能力匹配提示
+        deliv_cap = capability_precheck.get("deliverable_capability", {})
+        cap_score = deliv_cap.get("capability_score", 1.0)
+        hints.append(f"✅ **能力匹配度**: {cap_score:.0%}")
+        
+        # 在能力范围内的交付物
+        capable = capability_precheck.get("capable_deliverables", [])
+        if capable:
+            deliverable_types = [d.get("type", "") for d in capable[:3]]
+            hints.append(f"   - 可交付: {', '.join(deliverable_types)}")
+        
+        # 需要转化的需求
+        transformations = capability_precheck.get("transformations", [])
+        if transformations:
+            hints.append("⚠️ **需要转化的需求**:")
+            for t in transformations[:3]:
+                hints.append(f"   - '{t.get('original')}' → '{t.get('transformed_to')}' ({t.get('reason', '')[:50]})")
+        
+        # 推荐行动
+        recommended = capability_precheck.get("recommended_action", "proceed_analysis")
+        action_map = {
+            "proceed_analysis": "建议继续深度分析",
+            "questionnaire_first": "建议先收集问卷补充信息",
+            "clarify_expectations": "建议与用户澄清期望（部分需求超出能力）"
+        }
+        hints.append(f"📋 **建议行动**: {action_map.get(recommended, recommended)}")
+        
+        hints.append("")
+        hints.append("请基于以上预检测结果完成 Phase1 分析，重点验证和补充预检测的判断。")
+        
+        return "\n".join(hints)
+
+    def _fallback_phase2(self, user_input: str, phase1_result: Dict[str, Any]) -> Dict[str, Any]:
+        """Phase2 降级逻辑"""
+        return {
+            "phase": 2,
+            "analysis_layers": {
+                "L1_facts": [f"用户输入: {user_input[:100]}..."],
+                "L2_user_model": {"psychological": "待分析", "sociological": "待分析", "aesthetic": "待分析"},
+                "L3_core_tension": "待识别核心矛盾",
+                "L4_project_task": user_input[:200],
+                "L5_sharpness": {"score": 50, "note": "降级模式"}
+            },
+            "structured_output": {
+                "project_task": user_input[:200],
+                "character_narrative": "待进一步分析",
+                "physical_context": "待明确",
+                "resource_constraints": "待明确",
+                "regulatory_requirements": "待明确",
+                "inspiration_references": "待补齐",
+                "experience_behavior": "待补齐",
+                "design_challenge": "待识别"
+            },
+            "expert_handoff": {
+                "critical_questions_for_experts": {},
+                "design_challenge_spectrum": {},
+                "permission_to_diverge": {}
+            },
+            "fallback": True
+        }
+
+    def _build_phase1_only_result(self, phase1_result: Dict[str, Any], user_input: str) -> Dict[str, Any]:
+        """构建仅 Phase1 的结果结构"""
+        return {
+            "project_task": phase1_result.get("project_summary", user_input[:200]),
+            "character_narrative": "待问卷补充后分析",
+            "physical_context": "待明确",
+            "resource_constraints": "待明确",
+            "regulatory_requirements": "待明确",
+            "inspiration_references": "待补齐",
+            "experience_behavior": "待补齐",
+            "design_challenge": "待识别",
+            "primary_deliverables": phase1_result.get("primary_deliverables", []),
+            "info_status": phase1_result.get("info_status"),
+            "info_gaps": phase1_result.get("info_gaps", []),
+            "project_type_preliminary": phase1_result.get("project_type_preliminary"),
+            "project_overview": phase1_result.get("project_summary", user_input[:200]),
+            "core_objectives": [],
+            "project_tasks": []
+        }
+
+    def _merge_phase_results(self, phase1: Dict[str, Any], phase2: Dict[str, Any]) -> Dict[str, Any]:
+        """合并 Phase1 和 Phase2 结果"""
+        structured_output = phase2.get("structured_output", {})
+        
+        result = {
+            # 来自 Phase2 的核心字段
+            "project_task": structured_output.get("project_task", ""),
+            "character_narrative": structured_output.get("character_narrative", ""),
+            "physical_context": structured_output.get("physical_context", ""),
+            "resource_constraints": structured_output.get("resource_constraints", ""),
+            "regulatory_requirements": structured_output.get("regulatory_requirements", ""),
+            "inspiration_references": structured_output.get("inspiration_references", ""),
+            "experience_behavior": structured_output.get("experience_behavior", ""),
+            "design_challenge": structured_output.get("design_challenge", ""),
+            
+            # 来自 Phase1 的交付物识别
+            "primary_deliverables": phase1.get("primary_deliverables", []),
+            "info_status": phase1.get("info_status"),
+            "project_type_preliminary": phase1.get("project_type_preliminary"),
+            
+            # 来自 Phase2 的分析层
+            "analysis_layers": phase2.get("analysis_layers", {}),
+            
+            # 来自 Phase2 的专家接口
+            "expert_handoff": phase2.get("expert_handoff", {}),
+            
+            # 兼容旧格式
+            "project_overview": structured_output.get("project_task", ""),
+            "core_objectives": [],
+            "project_tasks": []
+        }
+        
+        # 从 project_task 提取目标和任务
+        project_task = result["project_task"]
+        if project_task:
+            result["core_objectives"] = [project_task[:100]]
+            result["project_tasks"] = [project_task]
+        
+        return result
+
+    def _calculate_two_phase_confidence(self, phase1: Dict[str, Any], phase2: Dict[str, Any]) -> float:
+        """计算两阶段分析的置信度"""
+        confidence = 0.5  # 基础置信度
+        
+        # Phase1 贡献
+        if phase1.get("info_status") == "sufficient":
+            confidence += 0.1
+        if len(phase1.get("primary_deliverables", [])) > 0:
+            confidence += 0.1
+        
+        # Phase2 贡献
+        sharpness = phase2.get("analysis_layers", {}).get("L5_sharpness", {})
+        if isinstance(sharpness, dict):
+            score = sharpness.get("score", 0)
+            confidence += min(score / 200, 0.2)  # 最多 +0.2
+        
+        if phase2.get("expert_handoff", {}).get("critical_questions_for_experts"):
+            confidence += 0.1
+        
+        return min(confidence, 1.0)
 
 
 # 注册智能体

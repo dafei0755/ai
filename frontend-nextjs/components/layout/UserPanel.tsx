@@ -11,7 +11,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import {
   User,
-  LogOut,
   ChevronUp,
   Palette,
   Shield,
@@ -20,7 +19,7 @@ import {
 import { MembershipCard } from './MembershipCard';
 
 export function UserPanel() {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const { theme, setTheme } = useTheme();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -161,26 +160,8 @@ export function UserPanel() {
 
           {/* 🔧 其他功能 - 已移除下载手机应用和联系我们 */}
 
-          {/* 🚪 退出登录（iframe 模式下隐藏，使用 WordPress 的退出按钮） */}
-          {!isInIframe && (
-            <>
-              <div className="border-t border-[var(--border-color)]"></div>
-              <div className="py-1">
-                <button
-                  onClick={() => {
-                    setIsMenuOpen(false);
-                    if (confirm('确定要退出登录吗？')) {
-                      logout();
-                    }
-                  }}
-                  className="w-full px-4 py-2.5 text-left text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors flex items-center space-x-3"
-                >
-                  <LogOut className="w-4 h-4" />
-                  <span>退出登录</span>
-                </button>
-              </div>
-            </>
-          )}
+          {/* 🚪 退出登录 - v3.0.23已移除：避免用户误操作导致SSO同步问题 */}
+          {/* 用户应该在 WordPress 网站退出登录，而不是在应用内退出 */}
         </div>
       )}
 

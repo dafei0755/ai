@@ -29,7 +29,7 @@ interface PricingTier {
   icon: typeof Crown;
   color: string;
   gradient: string;
-  popular?: boolean;
+  // 🔧 v3.0.23样式统一：移除popular字段，使所有套餐样式一致
 }
 
 const pricingTiers: PricingTier[] = [
@@ -70,7 +70,7 @@ const pricingTiers: PricingTier[] = [
     icon: Zap,
     color: 'text-purple-400',
     gradient: 'from-purple-500 to-pink-600',
-    popular: true,
+    // 🔧 v3.0.23样式统一：移除popular标记，使两个套餐样式一致
   },  
 ];
 
@@ -82,15 +82,16 @@ export default function PricingPage() {
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('yearly');
 
   useEffect(() => {
-    if (!user) {
-      // 未登录，跳转到主页
-      router.push('/');
-      return;
+    // 🔧 v3.0.23修复：允许未登录用户查看套餐价格
+    // 只有已登录用户才获取当前会员信息
+    if (user) {
+      // 获取当前会员信息
+      fetchCurrentMembership();
+    } else {
+      // 未登录用户也可以查看套餐，不跳转
+      setLoading(false);
     }
-
-    // 获取当前会员信息
-    fetchCurrentMembership();
-  }, [user, router]);
+  }, [user]);
 
   const fetchCurrentMembership = async () => {
     try {
@@ -120,7 +121,16 @@ export default function PricingPage() {
   };
 
   const handleUpgrade = (tierId: number) => {
-    // 跳转到设计知外官网续费/升级页面
+    // 🔧 v3.0.23修复：未登录用户先引导登录
+    if (!user) {
+      // 未登录，跳转到WordPress登录页
+      const loginUrl = 'https://www.ucppt.com/login';
+      const returnUrl = encodeURIComponent('https://www.ucppt.com/account/orders-list');
+      window.location.href = `${loginUrl}?redirect_to=${returnUrl}`;
+      return;
+    }
+
+    // 已登录，跳转到设计知外官网续费/升级页面
     const wpUrl = 'https://www.ucppt.com/account/orders-list';
     window.open(wpUrl, '_blank');
   };
@@ -214,20 +224,9 @@ export default function PricingPage() {
             return (
               <div
                 key={tier.id}
-                className={`relative bg-[var(--card-bg)] rounded-2xl p-8 border transition-all hover:shadow-2xl ${
-                  tier.popular
-                    ? 'border-purple-500 shadow-lg shadow-purple-500/20'
-                    : 'border-[var(--border-color)]'
-                }`}
+                className="relative bg-[var(--card-bg)] rounded-2xl p-8 border border-[var(--border-color)] transition-all hover:shadow-2xl"
               >
-                {/* Popular Badge */}
-                {tier.popular && (
-                  <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
-                    <div className="bg-gradient-to-r from-purple-500 to-pink-600 text-white text-xs font-bold px-4 py-1.5 rounded-full shadow-lg">
-                      最受欢迎
-                    </div>
-                  </div>
-                )}
+                {/* 🔧 v3.0.23样式统一：移除"最受欢迎"标签，所有套餐样式一致 */}
 
                 {/* Current Plan Badge */}
                 {isCurrentPlan && (

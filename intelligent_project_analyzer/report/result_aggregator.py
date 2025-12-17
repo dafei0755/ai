@@ -433,7 +433,9 @@ class FinalReport(BaseModel):
     )
 
     # 🔥 6. 各专家的报告（必填）
+    # 🔧 v7.11: 添加default_factory防止None值引起验证失败
     expert_reports: Dict[str, str] = Field(
+        default_factory=dict,
         description="""
         专家原始报告字典，完整展示各专家的分析内容
 
@@ -1518,23 +1520,28 @@ class ResultAggregatorAgent(LLMAgent):
                     report_content = "暂无报告内容"
 
                 # 🔧 使用 dynamic_role_name 构建显示名称
-                # 格式: "V5-2 商业零售运营专家"
+                # 格式: "4-1 潮玩风格案例研究员"
                 display_name = role_id
-                if role_id in role_display_names:
+                
+                # 🔥 v7.25: 从完整格式 role_id 提取短格式后缀用于查找
+                # role_id 格式: "V2_设计总监_2-1" -> 短格式: "2-1"
+                # role_display_names 的 key 是短格式 "2-1"
+                import re
+                suffix_match = re.search(r'(\d+-\d+)$', role_id)
+                short_role_id = suffix_match.group(1) if suffix_match else role_id
+                
+                # 尝试用短格式查找 dynamic_role_name
+                if short_role_id in role_display_names:
+                    dynamic_name = role_display_names[short_role_id]
+                    display_name = f"{short_role_id} {dynamic_name}"
+                    logger.debug(f"🎯 [v7.25] 使用动态名称: {role_id} → {display_name}")
+                elif role_id in role_display_names:
+                    # 兼容：也支持完整格式作为 key
                     dynamic_name = role_display_names[role_id]
-                    # 从 role_id 提取子角色编号（如 5-2, 3-3 等）
-                    parts = role_id.split("_")
-                    if len(parts) >= 3:
-                        suffix = parts[-1]  # 5-2
-                        display_name = f"{suffix} {dynamic_name}"
+                    if suffix_match:
+                        display_name = f"{short_role_id} {dynamic_name}"
                     else:
-                        # fallback: 尝试从 role_id 提取编号
-                        import re
-                        match = re.search(r'(\d+-\d+)$', role_id)
-                        if match:
-                            display_name = f"{match.group(1)} {dynamic_name}"
-                        else:
-                            display_name = dynamic_name
+                        display_name = dynamic_name
 
                 expert_reports[display_name] = report_content
                 logger.debug(f"✅ Extracted expert report: {display_name} ({len(report_content)} chars)")

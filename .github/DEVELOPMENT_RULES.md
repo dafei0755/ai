@@ -3289,5 +3289,67 @@ for attempt in range(3):
 
 ---
 
+### 8.30 v7.25 专家动态名称未显示问题 (2025-12-17) 🆕
+
+#### 问题 8.30.1：前端专家报告显示静态 role_id 而非动态角色名称
+
+**症状**：
+- 前端专家报告显示 `V2_设计总监_2-1` 而非 `2-1 00后潮玩私宅总设计师`
+- 日志显示：`📊 Extracted 4 expert reports: ['V2_设计总监_2-1', 'V4_设计研究员_4-1', ...]`
+- 动态名称在 Progressive 推送时已正确生成，但最终报告未使用
+
+**根因**：
+**role_id 格式不一致导致映射查找失败**：
+- `strategic_analysis.selected_roles` 中的 `role_id` 是**短格式**（如 `"2-1"`）
+- `active_agents` 使用**完整格式**（如 `"V2_设计总监_2-1"`）
+- `_extract_expert_reports()` 用完整格式去短格式的 `role_display_names` 映射中查找，找不到匹配
+
+**数据流分析**：
+```
+RoleObject.role_id = "2-1"  (短格式)
+    ↓ _construct_full_role_id()
+active_agents = ["V2_设计总监_2-1"]  (完整格式)
+    ↓
+_extract_expert_reports() 遍历 active_agents
+    ↓
+role_display_names = {"2-1": "00后潮玩私宅总设计师"}  (短格式 key)
+    ↓
+"V2_设计总监_2-1" in role_display_names  → False ❌
+```
+
+**修复方案 (v7.25)**：
+```python
+# result_aggregator.py - _extract_expert_reports()
+# 🔥 v7.25: 从完整格式 role_id 提取短格式后缀用于查找
+import re
+suffix_match = re.search(r'(\d+-\d+)$', role_id)
+short_role_id = suffix_match.group(1) if suffix_match else role_id
+
+# 尝试用短格式查找 dynamic_role_name
+if short_role_id in role_display_names:
+    dynamic_name = role_display_names[short_role_id]
+    display_name = f"{short_role_id} {dynamic_name}"
+    logger.debug(f"🎯 [v7.25] 使用动态名称: {role_id} → {display_name}")
+elif role_id in role_display_names:
+    # 兼容：也支持完整格式作为 key
+    dynamic_name = role_display_names[role_id]
+    # ...
+```
+
+**涉及文件**：
+- `intelligent_project_analyzer/report/result_aggregator.py`
+
+**修复效果**：
+| 修复前 | 修复后 |
+|--------|--------|
+| `V2_设计总监_2-1` | `2-1 00后潮玩私宅总设计师` |
+| `V4_设计研究员_4-1` | `4-1 潮玩风格案例研究员` |
+
+**防范措施**：
+- `role_id` 格式转换时需注意保持一致性
+- 映射查找时考虑多种格式的兼容
+
+---
+
 **维护者**：AI Assistant
 **最后更新**：2025-12-17

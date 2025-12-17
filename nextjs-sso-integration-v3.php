@@ -2,11 +2,26 @@
 /**
  * Plugin Name: Next.js SSO Integration v3
  * Plugin URI: https://www.ucppt.com
- * Description: WordPress 单点登录集成 Next.js（v3.0.20 稳定版 - 跨域Cookie修复）
- * Version: 3.0.20
+ * Description: WordPress 单点登录集成 Next.js（v3.0.21 双机制同步 - 方案2+方案3）
+ * Version: 3.0.21
  * Author: UCPPT Team
  * Requires PHP: 7.4
  * Text Domain: nextjs-sso-v3
+ *
+ * 🎉 v3.0.21 双机制SSO同步 (2025-12-17):
+ * ✅ 方案2实施完成 - 页面可见性检测（Polling轮询）
+ * ✅ 方案3实施完成 - 事件驱动同步（WordPress Hooks）
+ * ✅ WordPress登录/退出事件自动推送到NextJS应用
+ * ✅ NextJS应用页面切换时自动检测Token变化
+ * ✅ 双重保障机制，实时性 + 可靠性兼顾
+ * ✅ 跨标签页同步支持（Cookie事件机制）
+ *
+ * 🔧 技术实现:
+ * ✅ wp_login Hook: 监听WordPress登录，生成Token并设置事件Cookie
+ * ✅ wp_logout Hook: 监听WordPress退出，设置退出事件Cookie
+ * ✅ REST API /sync-status: 供前端轮询检测SSO事件
+ * ✅ 前端visibilitychange监听: 页面重新可见时检测状态变化
+ * ✅ 前端Cookie轮询: 每2秒检测事件Cookie（实时性<2秒）
  *
  * 🎉 v3.0.20 稳定版 (2025-12-16):
  * ✅ 跨域Cookie问题完美解决 - 通过URL Token传递机制
@@ -1564,6 +1579,115 @@ function nextjs_sso_v3_allowed_redirect_hosts($hosts) {
     $hosts[] = 'ai.ucppt.com';
 
     return $hosts;
+}
+
+/**
+ * 🆕 v3.0.21: 方案3 - 事件驱动的SSO同步（WordPress Hooks）
+ * 监听WordPress登录/退出事件，主动推送给NextJS应用
+ */
+
+// Hook: WordPress用户登录成功后触发
+add_action('wp_login', 'nextjs_sso_v3_on_user_login', 10, 2);
+
+function nextjs_sso_v3_on_user_login($user_login, $user) {
+    error_log('[Next.js SSO v3.0.21] 📡 用户登录事件触发: ' . $user_login . ' (ID: ' . $user->ID . ')');
+
+    // 生成新的JWT Token
+    $token = nextjs_sso_v3_generate_jwt_token($user);
+
+    if (!$token) {
+        error_log('[Next.js SSO v3.0.21] ❌ Token生成失败');
+        return;
+    }
+
+    // 🔥 设置Cookie，用于postMessage广播
+    $app_url = get_option('nextjs_sso_v3_app_url', 'http://localhost:3000');
+    $cookie_name = 'nextjs_sso_v3_login_event';
+    $cookie_value = json_encode(array(
+        'event' => 'user_login',
+        'token' => $token,
+        'user_id' => $user->ID,
+        'username' => $user->user_login,
+        'timestamp' => time()
+    ));
+
+    // Cookie有效期：5分钟（足够NextJS应用读取）
+    setcookie($cookie_name, $cookie_value, time() + 300, '/', parse_url(home_url(), PHP_URL_HOST), false, false);
+
+    error_log('[Next.js SSO v3.0.21] ✅ 登录事件Cookie已设置，NextJS应用将自动同步');
+}
+
+// Hook: WordPress用户退出登录后触发
+add_action('wp_logout', 'nextjs_sso_v3_on_user_logout');
+
+function nextjs_sso_v3_on_user_logout() {
+    $current_user = wp_get_current_user();
+    $user_id = $current_user->ID;
+    $username = $current_user->user_login;
+
+    error_log('[Next.js SSO v3.0.21] 📡 用户退出事件触发: ' . $username . ' (ID: ' . $user_id . ')');
+
+    // 🔥 设置Cookie，通知NextJS应用清除Token
+    $cookie_name = 'nextjs_sso_v3_logout_event';
+    $cookie_value = json_encode(array(
+        'event' => 'user_logout',
+        'user_id' => $user_id,
+        'timestamp' => time()
+    ));
+
+    // Cookie有效期：5分钟
+    setcookie($cookie_name, $cookie_value, time() + 300, '/', parse_url(home_url(), PHP_URL_HOST), false, false);
+
+    error_log('[Next.js SSO v3.0.21] ✅ 退出事件Cookie已设置，NextJS应用将自动清除Token');
+}
+
+/**
+ * 🆕 v3.0.21: REST API端点 - 获取最新的SSO事件
+ * 供NextJS前端轮询检测（方案2）
+ */
+add_action('rest_api_init', function() {
+    register_rest_route('nextjs-sso/v1', '/sync-status', array(
+        'methods' => 'GET',
+        'callback' => 'nextjs_sso_v3_rest_sync_status',
+        'permission_callback' => '__return_true'
+    ));
+});
+
+function nextjs_sso_v3_rest_sync_status() {
+    // 检查是否有待处理的SSO事件
+    $login_event = isset($_COOKIE['nextjs_sso_v3_login_event']) ? json_decode($_COOKIE['nextjs_sso_v3_login_event'], true) : null;
+    $logout_event = isset($_COOKIE['nextjs_sso_v3_logout_event']) ? json_decode($_COOKIE['nextjs_sso_v3_logout_event'], true) : null;
+
+    // 获取当前用户信息
+    $current_user = nextjs_sso_v3_get_user_from_cookie();
+    $is_logged_in = ($current_user && $current_user->ID > 0);
+
+    $response = array(
+        'logged_in' => $is_logged_in,
+        'user_id' => $is_logged_in ? $current_user->ID : 0,
+        'timestamp' => time()
+    );
+
+    // 如果有登录事件Cookie，返回新Token
+    if ($login_event && $is_logged_in) {
+        $response['event'] = 'user_login';
+        $response['token'] = $login_event['token'];
+        $response['user'] = array(
+            'user_id' => $current_user->ID,
+            'username' => $current_user->user_login,
+            'email' => $current_user->user_email,
+            'display_name' => $current_user->display_name,
+        );
+        error_log('[Next.js SSO v3.0.21] 📤 REST API返回登录事件');
+    }
+
+    // 如果有退出事件Cookie，通知清除Token
+    if ($logout_event) {
+        $response['event'] = 'user_logout';
+        error_log('[Next.js SSO v3.0.21] 📤 REST API返回退出事件');
+    }
+
+    return new WP_REST_Response($response, 200);
 }
 
 /**

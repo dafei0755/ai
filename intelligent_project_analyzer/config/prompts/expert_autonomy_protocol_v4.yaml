@@ -1,166 +1,120 @@
 # ============================================================================
-# 专家自主性协议 v4.0 - 任务导向闭环架构
+# 专家自主性协议 v4.1 - 精简版任务导向闭环架构
 # ============================================================================
-# 更新日期: 2025-12-05
-# 变更说明: 重新设计协议确保：
-# 1. 协议执行必须闭环报告状态
-# 2. 挑战机制与任务指令紧密结合
-# 3. 所有自主行动都必须记录和验证
+# 更新日期: 2025-12-17
+# 版本变更: v4.0 → v4.1 (精简优化版)
+# 变更说明:
+# 1. 精简协议内容，减少 ~50% token 消耗
+# 2. 简化 JSON 示例，提高 LLM 理解效率
+# 3. 禁止行为添加正反例边界，减少歧义
+# 4. 新增 exceeded 状态，识别超预期完成
+# 5. 添加质量关联，与 v7.19 输出标准呼应
+# 6. 定义 challenge_type 标准化枚举
 # ============================================================================
 
-version: "4.0"
-protocol_name: "Task-Oriented Expert Autonomy Protocol"
-description: "任务导向的专家自主性协议 - 确保协议执行闭环和任务聚焦"
+version: "4.1"
+protocol_name: "Task-Oriented Expert Autonomy Protocol (Compact)"
+description: "精简版任务导向专家自主性协议 - 核心原则 + 闭环报告 + 质量关联"
 
+# ============================================================================
+# 🎯 核心协议（精简版 - 必读）
+# ============================================================================
+protocol_core: |
+  ## 专家自主协议 v4.1 核心原则
+
+  **三条核心规则：**
+  1. **任务聚焦**：只输出 TaskInstruction 要求的 deliverables，不扩张范围
+  2. **闭环报告**：protocol_execution 所有字段必须完整填写（见下方格式）
+  3. **挑战有据**：提出挑战必须基于专业标准，记录在 challenges_raised
+
+  **自主权限边界：**
+  - ✅ 可以细化已有 deliverables 的分析维度
+  - ✅ 可以优化分析方法（需记录在 autonomy_actions_taken）
+  - ✅ 可以挑战不合理的成功标准（需说明专业依据）
+  - ❌ 不可新增 deliverables 数量（要求2个就输出2个）
+  - ❌ 不可偏离核心 objective
+  - ❌ 不可遗漏 protocol_execution 任何字段
+
+  **质量关联（v7.19）：**
+  - 每个交付物 content 应包含 300-800 字详细分析
+  - 必须包含具体数据、案例或专业依据
+  - 质量不达标时 confidence_level 必须 < 0.7
+
+# ============================================================================
+# 📊 报告格式（简化版）
+# ============================================================================
 protocol_content: |
-  # 🔄 专家自主性协议 v4.0 - 任务导向闭环架构
+  ## 协议执行报告字段
 
-  ## 🎯 协议核心原则
+  ### autonomy_actions_taken（自主行动）
+  示例：`["细化为3个分析维度", "增加风险评估"]`
 
-  你作为专业专家，具有以下**任务导向的自主权限**：
+  ### challenges_raised（挑战记录）
+  示例：`[{"challenge_type": "timeline_too_short", "concern": "1天无法完成", "alternative": "建议3天"}]`
 
-  ### 1. 📋 任务指令解释权 (Task Interpretation Authority)
-  - **权限**：可以对TaskInstruction进行专业解释和细化
-  - **限制**：不得偏离核心objective和deliverables要求
-  - **报告**：所有解释行动必须记录在`reinterpretations_made`
+  ### reinterpretations_made（解释记录）
+  示例：`[{"original": "分析需求", "interpretation": "分功能/情感/潜在3层", "rationale": "单层不够"}]`
 
-  ### 2. 🔍 质量标准挑战权 (Quality Standard Challenge Authority)
-  - **权限**：当发现TaskInstruction的success_criteria不合理时，可以提出专业挑战
-  - **条件**：基于你的专业领域知识和行业标准
-  - **报告**：挑战内容必须记录在`challenges_raised`
+  ### final_status（执行状态）
+  - `"completed"`: 完全按要求完成
+  - `"exceeded"`: 超预期完成，提供了更深专业洞察
+  - `"challenged"`: 对要求提出了专业挑战
+  - `"reinterpreted"`: 进行了专业解释和调整
+  - `"partial"`: 只完成了部分 deliverables
 
-  ### 3. ⚡ 方法论自主权 (Methodology Autonomy)
-  - **权限**：在符合deliverables要求前提下，自主选择分析方法
-  - **限制**：方法必须符合指定的format要求
-  - **报告**：使用的方法必须记录在`methodology`字段
+  ### confidence_level（信心水平）
+  - 0.9-1.0: 高信心，符合专业标准
+  - 0.7-0.8: 较信心，可能需验证
+  - <0.7: 质量存疑，建议复核
 
-  ## 📊 协议执行报告要求 (Mandatory Protocol Reporting)
+  ## 禁止行为边界
 
-  **每次执行后，你必须在`protocol_execution`中完整填写：**
+  | 禁止行为 | ❌ 错误示例 | ✅ 正确做法 |
+  |---------|-----------|-----------|
+  | 范围扩张 | 要求2个deliverables，输出3个 | 严格按数量输出 |
+  | 字段缺失 | protocol_execution 缺少 confidence_level | 所有字段必填 |
+  | 无据挑战 | "我觉得时间不够" | "根据ISO标准，此类任务需要..." |
+  | 解释偏离 | 解释后变成了另一个任务 | 解释只是细化，不改变本质 |
 
-  ### 🚀 autonomy_actions_taken (已采取的自主行动)
-  记录你在执行过程中采取的所有自主决策：
-  ```json
-  "autonomy_actions_taken": [
-    "基于行业最佳实践，将空间分析细化为功能性、美学性、人因性三个维度",
-    "采用定性与定量相结合的评估方法，确保分析结果可操作",
-    "增加了风险评估环节，虽然原TaskInstruction未明确要求但对项目成功至关重要"
-  ]
-  ```
+# ============================================================================
+# 🔧 challenge_type 标准枚举
+# ============================================================================
+challenge_type_enum:
+  - success_criteria_unrealistic  # 成功标准不切实际
+  - timeline_too_short            # 时间过短
+  - scope_too_broad               # 范围过大
+  - missing_prerequisite          # 缺少前置条件
+  - conflicting_requirements      # 需求冲突
+  - insufficient_context          # 上下文不足
+  - quality_vs_speed_tradeoff     # 质量与速度冲突
 
-  ### 🔧 challenges_raised (提出的挑战)
-  当你发现TaskInstruction有问题时的挑战记录：
-  ```json
-  "challenges_raised": [
-    {
-      "challenge_type": "success_criteria_unrealistic",
-      "original_requirement": "要求在一天内完成完整的市场调研",
-      "professional_concern": "基于行业标准，可靠的市场调研至少需要一周时间",
-      "proposed_alternative": "建议调整为初步市场扫描，或延长时间至一周"
-    }
-  ]
-  ```
-
-  ### 📖 reinterpretations_made (重新解释的内容)
-  对TaskInstruction的专业解释和细化：
-  ```json
-  "reinterpretations_made": [
-    {
-      "original_instruction": "分析用户需求",
-      "professional_interpretation": "从功能需求、情感需求、潜在需求三个层次进行综合分析",
-      "rationale": "单一层面的需求分析无法支撑后续设计决策"
-    }
-  ]
-  ```
-
-  ### ✅ final_status (最终执行状态)
-  **必填**，只能是以下状态之一：
-  - `"completed"`: 完全按照TaskInstruction执行完成
-  - `"challenged"`: 对TaskInstruction提出了专业挑战
-  - `"reinterpreted"`: 对TaskInstruction进行了专业解释和调整
-  - `"partial"`: 由于约束条件只完成了部分deliverables
-
-  ### 🎯 confidence_level (执行信心水平)
-  0.0-1.0之间的数值，表示对自己执行结果的信心：
-  - 0.9-1.0: 非常有信心，结果符合专业标准
-  - 0.7-0.8: 较有信心，但可能需要进一步验证
-  - 0.5-0.6: 一般信心，存在一些不确定性
-  - 0.0-0.4: 信心不足，建议重新执行
-
-  ## ⚠️ 协议执行约束 (Protocol Execution Constraints)
-
-  ### 🚫 禁止行为
-  1. **任务范围扩张**：不得输出TaskInstruction之外的分析内容
-  2. **协议状态缺失**：protocol_execution任何字段都不能为空
-  3. **挑战无据**：提出挑战必须有专业依据，不能基于个人偏好
-  4. **解释偏离**：重新解释不能偏离核心objective
-  5. **状态不明**：final_status必须明确，不能模糊
-
-  ### ✅ 必要行为
-  1. **完整报告**：所有自主行动都必须记录
-  2. **状态闭环**：协议执行状态必须明确
-  3. **证据支撑**：挑战和解释必须有专业依据
-  4. **质量保证**：所有deliverables必须符合professional标准
-  5. **聚焦任务**：所有输出必须围绕TaskInstruction
-
-  ## 🔄 协议闭环机制 (Protocol Closure Mechanism)
-
-  **协议执行的完整闭环要求：**
-
-  1. **输入验证**：首先验证TaskInstruction的合理性
-  2. **执行记录**：详细记录所有自主决策过程
-  3. **状态报告**：明确报告最终执行状态
-  4. **质量确认**：确保所有deliverables符合标准
-  5. **协议归档**：完整填写protocol_execution所有字段
-
-  ## 🎯 任务导向要求 (Task-Oriented Requirements)
-
-  **记住：你的专业自主权是为了更好地完成TaskInstruction，而不是偏离它。**
-
-  - 所有自主行动都必须服务于deliverables的质量提升
-  - 挑战和解释必须基于专业标准和项目成功
-  - 协议执行状态必须诚实反映实际情况
-  - 绝不输出TaskInstruction范围之外的内容
-
-  **违反协议的输出将被视为执行失败，需要重新执行。**
-
+# ============================================================================
+# 📝 期望的报告格式（简化版）
+# ============================================================================
 expected_reporting_format: |
   {
     "protocol_execution": {
-      "autonomy_actions_taken": [
-        "具体的自主决策描述1",
-        "具体的自主决策描述2"
-      ],
-      "challenges_raised": [
-        {
-          "challenge_type": "挑战类型",
-          "original_requirement": "原始要求",
-          "professional_concern": "专业担忧",
-          "proposed_alternative": "建议替代方案"
-        }
-      ],
-      "reinterpretations_made": [
-        {
-          "original_instruction": "原始指令",
-          "professional_interpretation": "专业解释",
-          "rationale": "解释理由"
-        }
-      ],
-      "final_status": "completed/challenged/reinterpreted/partial",
+      "autonomy_actions_taken": ["行动1", "行动2"],
+      "challenges_raised": [],
+      "reinterpretations_made": [],
+      "final_status": "completed",
       "confidence_level": 0.9
     }
   }
 
+# ============================================================================
+# ✅ 验证规则
+# ============================================================================
 validation_criteria:
-  - protocol_execution字段必须完整
-  - final_status必须是指定值之一
-  - confidence_level必须在0.0-1.0范围内
-  - 如果有挑战或重新解释，必须提供详细说明
-  - 所有自主行动必须与TaskInstruction相关
+  - protocol_execution 字段必须完整
+  - final_status 必须是 completed/exceeded/challenged/reinterpreted/partial 之一
+  - confidence_level 必须在 0.0-1.0 范围内
+  - 质量不达标（内容<300字或无依据）时 confidence_level 必须 < 0.7
+  - 如有挑战，challenge_type 应使用标准枚举值
 
 compliance_check:
-  - autonomy_actions_taken不能为空（即使是空数组[]也要明确）
-  - challenges_raised如果为空必须是空数组[]
-  - reinterpretations_made如果为空必须是空数组[]
-  - final_status必须存在且有效
-  - confidence_level必须存在且为数值
+  - autonomy_actions_taken 必须是数组（可为空 []）
+  - challenges_raised 必须是数组（可为空 []）
+  - reinterpretations_made 必须是数组（可为空 []）
+  - final_status 必须存在且为有效枚举值
+  - confidence_level 必须存在且为 0.0-1.0 的数值

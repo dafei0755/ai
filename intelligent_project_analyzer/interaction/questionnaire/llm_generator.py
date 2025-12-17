@@ -9,14 +9,22 @@ v7.5 新增：
 - 相关性验证：生成后验证每个问题与用户需求的相关性
 - 回退机制：LLM失败时使用FallbackQuestionGenerator
 
+v7.18 新增：
+- 添加 PerformanceMonitor 性能监控
+- 共享函数迁移到 shared_agent_utils.py
+
 作者：Design Beyond Team
 日期：2025-12-11
 """
 
 import json
 import re
+import time
 from typing import Dict, Any, List, Optional, Tuple
 from loguru import logger
+
+# 🆕 v7.18: 导入性能监控
+from ...utils.shared_agent_utils import PerformanceMonitor
 
 
 class LLMQuestionGenerator:
@@ -53,11 +61,19 @@ class LLMQuestionGenerator:
                 - 生成来源标识（"llm_generated" | "fallback"）
         """
         logger.info("🤖 [LLMQuestionGenerator] 开始LLM驱动问卷生成")
+        start_time = time.time()  # 🆕 v7.18: 性能监控开始
 
         try:
             # 1. 构建分析摘要
             analysis_summary = cls._build_analysis_summary(structured_data)
             logger.info(f"📊 [LLMQuestionGenerator] 分析摘要长度: {len(analysis_summary)}")
+
+            # 🆕 v7.23: 提取用户关键词并注入到分析摘要
+            user_keywords = cls._extract_user_keywords(user_input)
+            if user_keywords:
+                keywords_str = "、".join(user_keywords[:12])
+                analysis_summary += f"\n\n## ⚠️ 用户关键词（问题必须引用）\n{keywords_str}"
+                logger.info(f"🔑 [LLMQuestionGenerator] 注入用户关键词: {keywords_str[:50]}...")
 
             # 2. 获取或创建LLM实例
             if llm_model is None:
@@ -85,20 +101,42 @@ class LLMQuestionGenerator:
 
             if not questions:
                 logger.warning("⚠️ [LLMQuestionGenerator] LLM返回空问卷，使用回退方案")
+                # 🆕 v7.18: 记录失败性能
+                PerformanceMonitor.record("LLMQuestionGenerator", time.time() - start_time, "v7.18-fallback")
                 return cls._fallback_generate(structured_data, user_input), "fallback"
 
             # 6. 验证和修复问题格式
             validated_questions = cls._validate_and_fix_questions(questions)
             logger.info(f"✅ [LLMQuestionGenerator] 成功生成 {len(validated_questions)} 个问题")
 
-            # 🆕 v7.6: 验证问题与用户输入的相关性
+            # 🆕 v7.6+v7.12: 验证问题与用户输入的相关性
             relevance_score, low_relevance_questions = cls._check_question_relevance(
                 validated_questions, user_input
             )
-            if relevance_score < 0.5:
-                logger.warning(f"⚠️ [LLMQuestionGenerator] 问题相关性低 ({relevance_score:.2f})，"
+            
+            # 🆕 v7.18: 记录成功性能
+            PerformanceMonitor.record("LLMQuestionGenerator", time.time() - start_time, "v7.18")
+            
+            if relevance_score < 0.3:
+                # 🔧 v7.12: 相关性过低时尝试第二次生成，强化关键词要求
+                logger.warning(f"⚠️ [LLMQuestionGenerator] 相关性过低 ({relevance_score:.2f})，尝试第二次生成")
+                user_keywords = cls._extract_user_keywords(user_input)
+                if user_keywords:
+                    try:
+                        regenerated_questions, _ = cls._regenerate_with_keywords(
+                            user_input, analysis_summary, user_keywords, llm_model
+                        )
+                        if regenerated_questions:
+                            new_score, _ = cls._check_question_relevance(regenerated_questions, user_input)
+                            if new_score > relevance_score:
+                                logger.info(f"✅ [LLMQuestionGenerator] 重新生成提升相关性: {relevance_score:.2f} → {new_score:.2f}")
+                                validated_questions = regenerated_questions
+                                relevance_score = new_score
+                    except Exception as e:
+                        logger.warning(f"⚠️ [LLMQuestionGenerator] 重新生成失败: {e}")
+            elif relevance_score < 0.5:
+                logger.warning(f"⚠️ [LLMQuestionGenerator] 问题相关性较低 ({relevance_score:.2f})，"
                               f"低相关问题: {low_relevance_questions}")
-                # 不回退，但记录警告供后续分析
 
             # 7. 记录生成理由（用于调试）
             rationale = questionnaire_data.get("generation_rationale", "")
@@ -695,3 +733,120 @@ class QuestionRelevanceValidator:
         except (json.JSONDecodeError, ValueError, TypeError):
             logger.warning("⚠️ [RelevanceValidator] 无法解析评分结果")
             return {}
+
+
+# ============================================================
+# 🔧 v7.12: LLMQuestionGenerator 辅助方法（追加到类外部使用）
+# ============================================================
+
+# 为 LLMQuestionGenerator 添加辅助方法
+def _extract_user_keywords_impl(user_input: str) -> List[str]:
+    """
+    🔧 v7.12: 从用户输入中提取关键词，用于强化问卷生成
+
+    Args:
+        user_input: 用户原始输入
+
+    Returns:
+        关键词列表（优先返回具体的名词、数字、专有名词）
+    """
+    if not user_input:
+        return []
+    
+    keywords = []
+    
+    # 1. 提取数字+单位（如 200㎡、38岁、3房）
+    import re
+    num_patterns = re.findall(r'\d+[\u4e00-\u9fa5㎡a-zA-Z]+', user_input)
+    keywords.extend(num_patterns)
+    
+    # 2. 提取引号内容（用户强调的内容）
+    quoted = re.findall(r'[""「」『』【】]([^""「」『』【】]+)[""「」『』【】]', user_input)
+    keywords.extend(quoted)
+    
+    # 3. 提取专有名词（连续中文，长度2-8）
+    stopwords = {
+        "的", "是", "在", "有", "我", "你", "他", "她", "它", "们",
+        "这", "那", "和", "与", "或", "但", "而", "了", "着", "过",
+        "需要", "希望", "想要", "一个", "一些", "这个", "那个",
+        "如何", "怎么", "什么", "哪些", "为什么", "请", "帮",
+        "进行", "实现", "完成", "考虑", "包括", "通过", "使用",
+        "设计", "项目", "方案", "建议", "希望", "能够", "可以"
+    }
+    
+    chinese_words = re.findall(r'[\u4e00-\u9fa5]{2,8}', user_input)
+    for word in chinese_words:
+        if word not in stopwords and word not in keywords:
+            keywords.append(word)
+    
+    # 4. 去重并限制数量
+    unique_keywords = list(dict.fromkeys(keywords))  # 保持顺序去重
+    return unique_keywords[:15]  # 最多15个关键词
+
+
+def _regenerate_with_keywords_impl(
+    user_input: str,
+    analysis_summary: str,
+    keywords: List[str],
+    llm_model
+) -> Tuple[List[Dict[str, Any]], str]:
+    """
+    🔧 v7.12: 使用强化关键词约束重新生成问卷
+
+    Args:
+        user_input: 用户原始输入
+        analysis_summary: 分析摘要
+        keywords: 用户关键词列表
+        llm_model: LLM模型实例
+
+    Returns:
+        Tuple[问题列表, 来源标识]
+    """
+    keywords_str = "、".join(keywords[:10])
+    
+    reinforced_prompt = f"""请基于以下用户需求生成针对性问卷。
+
+⚠️ 重要约束：每个问题必须至少包含以下关键词之一：
+【{keywords_str}】
+
+用户原始需求：
+{user_input}
+
+需求分析摘要：
+{analysis_summary}
+
+生成要求：
+1. 每个问题必须引用用户原话中的具体内容（数字、地点、人物、特征）
+2. 禁止生成"您对...有什么想法？"等泛化问题
+3. 问题选项必须围绕用户提到的具体约束展开
+
+返回JSON格式：
+{{"questions": [
+    {{"id": "q1", "question": "...", "options": ["选项A", "选项B", "选项C", "选项D"]}}
+]}}"""
+
+    messages = [
+        {"role": "system", "content": "你是专业的用户需求调研专家，擅长生成高度针对性的问卷问题。"},
+        {"role": "user", "content": reinforced_prompt}
+    ]
+    
+    response = llm_model.invoke(messages)
+    raw_content = response.content if hasattr(response, "content") else str(response)
+    
+    # 解析响应
+    questionnaire_data = LLMQuestionGenerator._parse_llm_response(raw_content)
+    questions = questionnaire_data.get("questions", [])
+    
+    if questions:
+        validated = LLMQuestionGenerator._validate_and_fix_questions(questions)
+        return validated, "llm_regenerated"
+    
+    return [], "regeneration_failed"
+
+
+# 将方法绑定到 LLMQuestionGenerator 类
+LLMQuestionGenerator._extract_user_keywords = classmethod(lambda cls, user_input: _extract_user_keywords_impl(user_input))
+LLMQuestionGenerator._regenerate_with_keywords = classmethod(
+    lambda cls, user_input, analysis_summary, keywords, llm_model: 
+    _regenerate_with_keywords_impl(user_input, analysis_summary, keywords, llm_model)
+)

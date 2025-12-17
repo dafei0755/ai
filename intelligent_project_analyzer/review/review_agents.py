@@ -197,17 +197,34 @@ class RedTeamReviewer(ReviewerRole):
         return review_result
     
     def _format_results_for_review(self, agent_results: Dict[str, Any]) -> str:
-        """格式化分析结果用于审核"""
+        """
+        格式化分析结果用于审核
+        
+        🔧 v7.12: 增强格式化，明确显示每个专家的完整ID便于红队引用
+        """
         summary_parts = []
         
+        # 🔧 v7.12: 添加专家ID列表，便于红队引用
+        summary_parts.append("【专家ID列表（审核时请使用这些完整ID）】")
+        for agent_type, result in agent_results.items():
+            if agent_type in ["requirements_analyst", "project_director"]:
+                continue
+            if result and isinstance(result, dict):
+                role_name = result.get("role_name", "") or result.get("dynamic_role_name", agent_type)
+                summary_parts.append(f"- {agent_type}: {role_name}")
+        summary_parts.append("")
+        
+        # 原有的分析结果摘要
+        summary_parts.append("【专家分析结果摘要】")
         for agent_type, result in agent_results.items():
             if agent_type in ["requirements_analyst", "project_director"]:
                 continue
             
             if result and isinstance(result, dict):
                 confidence = result.get("confidence", 0)
+                role_name = result.get("role_name", "") or result.get("dynamic_role_name", "")
                 summary_parts.append(
-                    f"- {agent_type}: 置信度{confidence:.0%}"
+                    f"- [{agent_type}] {role_name}: 置信度{confidence:.0%}"
                 )
         
         return "\n".join(summary_parts)
@@ -775,6 +792,7 @@ class BlueTeamReviewer(ReviewerRole):
     ) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
         """
         🆕 P1-4：解析蓝队响应 v2 - 正确提取validations和strengths
+        🔧 v7.12：增强JSON预处理，处理markdown代码块和常见格式问题
 
         返回:
             (validations, strengths)
@@ -785,16 +803,25 @@ class BlueTeamReviewer(ReviewerRole):
         strengths = []
 
         try:
+            # 🔧 v7.12: 增强预处理 - 移除markdown代码块标记
+            cleaned_content = content.strip()
+            
+            # 移除所有markdown代码块标记（包括```json, ```JSON, ``` 等变体）
+            if re.search(r'^```(?:json|JSON)?\s*', cleaned_content):
+                cleaned_content = re.sub(r'^```(?:json|JSON)?\s*', '', cleaned_content)
+            cleaned_content = re.sub(r'\s*```$', '', cleaned_content)
+            # 处理中间的代码块
+            code_block_match = re.search(r'```(?:json|JSON)?\s*([\s\S]*?)\s*```', cleaned_content, re.DOTALL)
+            if code_block_match:
+                cleaned_content = code_block_match.group(1)
+
             # 尝试提取JSON
-            json_str = content
-            json_match = re.search(r"```json\s*(.*?)\s*```", content, re.DOTALL)
-            if json_match:
-                json_str = json_match.group(1)
-            else:
-                start = content.find('{')
-                end = content.rfind('}')
+            json_str = cleaned_content
+            if not json_str.strip().startswith('{'):
+                start = cleaned_content.find('{')
+                end = cleaned_content.rfind('}')
                 if start != -1 and end != -1:
-                    json_str = content[start:end+1]
+                    json_str = cleaned_content[start:end+1]
 
             # 尝试修复常见错误
             try:
@@ -802,6 +829,8 @@ class BlueTeamReviewer(ReviewerRole):
             except json.JSONDecodeError:
                 fixed_str = re.sub(r",\s*}", "}", json_str)
                 fixed_str = re.sub(r",\s*]", "]", fixed_str)
+                # 🔧 v7.12: 额外修复 - 处理单引号
+                fixed_str = fixed_str.replace("'", '"')
                 parsed_data = json.loads(fixed_str)
 
             # 🆕 P1-4：提取validations数组（完整字段）

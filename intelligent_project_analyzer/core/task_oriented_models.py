@@ -28,6 +28,128 @@ class DeliverableFormat(str, Enum):
     MODEL = "model"                # 模型/建模
     CHECKLIST = "checklist"        # 检查清单
     PLAN = "plan"                  # 计划方案
+    # 🆕 v7.20: 扩展更多 LLM 常生成的格式类型（解决 Pydantic 验证失败问题）
+    REPORT = "report"              # 通用报告
+    BLUEPRINT = "blueprint"        # 蓝图/规划图
+    CASE_STUDY = "case_study"      # 案例研究
+    DOCUMENT = "document"          # 通用文档
+    PROPOSAL = "proposal"          # 提案
+    DIAGRAM = "diagram"            # 图表/流程图
+    # 🆕 v7.23: 全面扩展 - 解决项目总监6次验证失败问题（日志显示缺失的值）
+    PRESENTATION = "presentation"  # 演示文稿 (PPT/Keynote)
+    GUIDEBOOK = "guidebook"        # 指南手册
+    MANUAL = "manual"              # 操作手册
+    NARRATIVE = "narrative"        # 叙事/故事
+    EXPERIENCE_MAP = "experience_map"  # 体验地图
+    MATERIALS_LIST = "materials_list"  # 材料清单
+    RESEARCH = "research"          # 研究报告
+    CONCEPT = "concept"            # 概念设计
+    SPECIFICATION = "specification"    # 规格说明
+    PERSONA = "persona"            # 用户画像
+    SCENARIO = "scenario"          # 场景设计
+    JOURNEY_MAP = "journey_map"    # 旅程地图
+    AUDIT = "audit"                # 审计报告
+    BENCHMARK = "benchmark"        # 基准对标
+    SUMMARY = "summary"            # 摘要总结
+    ROADMAP = "roadmap"            # 路线图
+    MATRIX = "matrix"              # 矩阵分析
+    CANVAS = "canvas"              # 画布工具
+    PROFILE = "profile"            # 档案/画像
+    INSIGHT = "insight"            # 洞察报告
+    MAPPING = "mapping"            # 映射/对应关系
+
+
+# 🆕 v7.20+v7.23: LLM 输出格式映射表（将非标准格式映射到标准枚举）
+# 解决项目总监验证失败问题：日志显示 presentation, guidebook, manual 等值验证失败
+DELIVERABLE_FORMAT_MAPPING: Dict[str, str] = {
+    # === 设计类映射 ===
+    "design_plan": "design",
+    "flow_design": "design",
+    "spatial_design": "design",
+    "interior_design": "design",
+    "design_scheme": "design",
+    "design_document": "design",
+    "design_guideline": "guideline",
+    "design_detail": "design",
+    "concept_design": "concept",
+    "concept_presentation": "presentation",
+    
+    # === 分析/报告类映射 ===
+    "case_study_report": "case_study",
+    "technical_report": "report",
+    "compliance_report": "evaluation",
+    "research_report": "research",
+    "analysis_report": "analysis",
+    "feasibility_report": "analysis",
+    "financial_analysis": "analysis",
+    "market_analysis": "analysis",
+    "user_research": "research",
+    "competitive_analysis": "benchmark",
+    "written_report": "report",
+    "written_memo": "document",
+    
+    # === 图表/可视化类映射 ===
+    "flow_diagram": "diagram",
+    "flow_chart": "diagram",
+    "flowchart": "diagram",
+    "technical_illustration": "diagram",
+    "technical_drawing": "blueprint",
+    "technical_manual": "manual",
+    
+    # === 计划/策略类映射 ===
+    "action_plan": "plan",
+    "implementation_plan": "plan",
+    "project_plan": "plan",
+    "strategy_document": "strategy",
+    "strategic_framework": "framework",
+    "operation_strategy": "strategy",
+    "business_strategy": "strategy",
+    
+    # === 叙事/体验类映射 ===
+    "narrative_framework": "narrative",
+    "narrative_design": "narrative",
+    "experience_design": "experience_map",
+    "user_journey": "journey_map",
+    "customer_journey": "journey_map",
+    "persona_profile": "persona",
+    "user_persona": "persona",
+    "scenario_design": "scenario",
+    
+    # === 指南/手册类映射 ===
+    "design_blueprint": "blueprint",
+    "guidelines": "guideline",
+    "construction_guideline": "guideline",
+    "brand_guideline": "guideline",
+    "style_guide": "guideline",
+    "user_manual": "manual",
+    "operation_manual": "manual",
+    
+    # === 演示/文档类映射 ===
+    "proposal_document": "proposal",
+    "framework_document": "framework",
+    "pdf": "document",
+    "powerpoint": "presentation",
+    "ppt": "presentation",
+    "spreadsheet": "document",
+    "excel": "document",
+    
+    # === 材料/清单类映射 ===
+    "materials_specification": "materials_list",
+    "material_list": "materials_list",
+    "bill_of_materials": "materials_list",
+    "quality_checklist": "checklist",
+    "review_checklist": "checklist",
+    
+    # === 其他常见格式映射 ===
+    "insight_report": "insight",
+    "summary_report": "summary",
+    "executive_summary": "summary",
+    "project_roadmap": "roadmap",
+    "decision_matrix": "matrix",
+    "comparison_matrix": "matrix",
+    "business_canvas": "canvas",
+    "model_canvas": "canvas",
+}
 
 
 class Priority(str, Enum):
@@ -44,6 +166,35 @@ class DeliverableSpec(BaseModel):
     format: DeliverableFormat = Field(title="格式", description="输出格式类型")
     priority: Priority = Field(title="优先级", default=Priority.HIGH, description="优先级")
     success_criteria: List[str] = Field(title="验收标准", description="该交付物的验收标准", min_items=1, max_items=3)
+    
+    # 🆕 v7.20: 自动映射非标准格式到标准枚举
+    @validator('format', pre=True)
+    def normalize_format(cls, v):
+        """将非标准格式名称映射到标准 DeliverableFormat 枚举"""
+        if isinstance(v, DeliverableFormat):
+            return v
+        if isinstance(v, str):
+            v_lower = v.lower().strip()
+            # 1. 尝试直接匹配枚举值
+            try:
+                return DeliverableFormat(v_lower)
+            except ValueError:
+                pass
+            # 2. 尝试通过映射表转换
+            if v_lower in DELIVERABLE_FORMAT_MAPPING:
+                mapped = DELIVERABLE_FORMAT_MAPPING[v_lower]
+                return DeliverableFormat(mapped)
+            # 3. 模糊匹配：检查是否包含关键词
+            for fmt in DeliverableFormat:
+                if fmt.value in v_lower or v_lower in fmt.value:
+                    return fmt
+            # 4. 兜底：返回 ANALYSIS（最通用的类型）
+            import logging
+            logging.getLogger(__name__).warning(
+                f"⚠️ 未知交付物格式 '{v}'，回退到 analysis"
+            )
+            return DeliverableFormat.ANALYSIS
+        return v
     
     
 class TaskInstruction(BaseModel):
@@ -164,12 +315,12 @@ class DeliverableOutput(BaseModel):
     交付物输出
 
     🆕 v7.10: 支持创意模式 - 叙事类交付物可选填量化指标
-    🔧 v7.18.1: 修复schema定义，content统一为字符串类型（兼容结构化数据的JSON序列化）
+    🔧 v7.18.2: 移除 validator 以修复 OpenAI structured output schema 验证错误
     """
     deliverable_name: str = Field(title="交付物名称", description="对应TaskInstruction中的deliverable名称")
     content: str = Field(
         title="内容",
-        description="交付物具体内容（文本或JSON字符串）。如果是结构化数据，会自动序列化为JSON字符串。"
+        description="交付物具体内容（纯文本格式）。LLM应直接生成文本内容，而非结构化数据。"
     )
     completion_status: CompletionStatus = Field(title="完成状态", description="完成状态")
     # 🔥 v7.10: 放宽量化指标约束 - 创意叙事模式下可选
@@ -186,18 +337,6 @@ class DeliverableOutput(BaseModel):
         default=None,  # 创意模式下可不填
         description="质量自评分数（0-1）（创意叙事模式下可省略）"
     )
-
-    @validator('content', pre=True)
-    def serialize_content(cls, v):
-        """
-        序列化content为JSON字符串（如果是dict或list）
-
-        这样可以兼容LLM返回结构化数据的情况，同时保持模型的一致性
-        """
-        if isinstance(v, (dict, list)):
-            import json
-            return json.dumps(v, ensure_ascii=False, indent=2)
-        return v
 
 
 class TaskExecutionReport(BaseModel):

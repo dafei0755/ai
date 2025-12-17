@@ -15,6 +15,69 @@
 3. **修改前搜索**：`grep -rn "函数名" --include="*.tsx" frontend-nextjs/`
 4. **测试覆盖**：公共函数必须有单元测试
 5. **🆕 问卷/LLM相关**：修改前必读 `DEVELOPMENT_RULES.md` 第10-11章
+6. **🆕 v7.17 Agent架构**：修改需求分析师前必读 `DEVELOPMENT_RULES.md` 第8.22节
+7. **🆕 v7.18 问卷Agent**：修改问卷生成前必读 `DEVELOPMENT_RULES.md` 第8.23节
+8. **🆕 v7.19 Config优化**：修改配置文件前必读 `DEVELOPMENT_RULES.md` 第8.24节
+
+### v7.19 Config 目录全面优化 🆕
+
+**核心升级** (2025-12-17):
+- Prompts 目录: 废弃未使用配置，统一版本管理
+- Roles 目录: V2-V6 角色配置添加 v7.19 对齐声明
+- 策略配置: `role_selection_strategy.yaml` v7.3 → v7.4
+
+**配置文件版本**:
+| 配置 | 版本 | 用途 |
+|------|------|------|
+| `role_selection_strategy.yaml` | v7.4 | 角色选择策略 |
+| `content_safety.yaml` | v1.1 | 内容安全配置 |
+| `deliverable_role_constraints.yaml` | v1.1 | 交付物约束 |
+| `roles/v2_design_director.yaml` | v2.6 | 设计总监 |
+| `roles/v3_narrative_expert.yaml` | v2.6 | 叙事专家 |
+| `roles/v4_design_researcher.yaml` | v2.7 | 设计研究员 |
+| `roles/v5_scenario_expert.yaml` | v2.8 | 场景专家 |
+| `roles/v6_chief_engineer.yaml` | v2.8 | 总工程师 |
+
+### v7.18 问卷生成 StateGraph Agent
+
+**核心升级** (2025-12-17):
+- QuestionnaireAgent 集成到主工作流
+- 共享函数: `shared_agent_utils.py` 中 3 个问卷相关函数
+- 环境变量控制: `USE_V718_QUESTIONNAIRE_AGENT=true`
+
+**关键文件**:
+- `agents/questionnaire_agent.py` - StateGraph 实现
+- `interaction/nodes/calibration_questionnaire.py` - Agent 分支入口
+- `utils/shared_agent_utils.py` - 共享函数
+
+**执行流程**:
+```
+calibration_questionnaire.py
+    ↓
+[USE_V718=true?] → QuestionnaireAgent (StateGraph)
+    ↓ No
+LLMQuestionGenerator (原有逻辑)
+```
+
+### v7.17 需求分析师 StateGraph Agent
+
+**核心升级** (2025-12-17):
+- 两阶段 LLM 架构: Phase1 快速定性 + Phase2 深度分析
+- 程序化能力边界检测: `CapabilityDetector`
+- 环境变量控制: `USE_V717_REQUIREMENTS_ANALYST=true`
+
+**关键文件**:
+- `agents/requirements_analyst_agent.py` - StateGraph 实现 (~790行)
+- `utils/capability_detector.py` - 能力检测 (~350行)
+- `config/prompts/requirements_analyst_phase1.yaml` - Phase1 提示词
+- `config/prompts/requirements_analyst_phase2.yaml` - Phase2 提示词
+
+**StateGraph 节点**:
+```
+START → precheck (~1ms) → phase1 (~10s) → [条件] → phase2 (~20s) → output → END
+                                              ↓
+                                           output (信息不足)
+```
 
 ### 问卷系统专项规范（易出错区域）
 
@@ -63,8 +126,10 @@
 
 ## 重要文件/目录参考
 - `agents/base.py`：智能体基类与统一接口
+- `agents/requirements_analyst_agent.py`：**🆕 v7.17 需求分析师 StateGraph Agent**
 - `core/state.py`：全局状态容器
 - `services/llm_factory.py`：模型实例化工厂
+- `utils/capability_detector.py`：**🆕 v7.17 程序化能力边界检测**
 - `report/result_aggregator.py`：LLM 驱动结果聚合
 - `frontend/app.py`：Streamlit 主界面
 - `api/server.py`：FastAPI 服务主入口

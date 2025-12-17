@@ -1,13 +1,36 @@
-# 需求分析师配置 - 精简优化版 v3.4
+# 需求分析师配置 - 精简优化版 v4.2
 # Performance Optimized Version - ~75% token reduction
+# 🔧 v4.2: 与 dynamic_project_director_v2.yaml (v2.1) 体系对齐
 
 metadata:
-  version: "4.1-lite-boundary"
-  description: "精简版需求分析师提示词，增加能力边界判断"
+  version: "4.2-lite-aligned"
+  description: "精简版需求分析师提示词，与 v2.1 项目总监体系对齐"
   created_at: "2025-11-25"
-  updated_at: "2025-12-02"
+  updated_at: "2025-12-17"
   optimization: "System prompt从 14855字符 降至 ~3500字符，提升3-5倍响应速度"
   v4_1_changes: "增加能力边界声明，将超出能力的交付物转化为策略/指导类"
+  v4_2_changes: "与 v2.1 体系对齐：复杂度评分、角色参数、质量标准"
+
+# ================================================================================
+# 🔗 v2.1 体系对齐（与 dynamic_project_director_v2.yaml 协同）
+# ================================================================================
+v2_1_alignment:
+  # 复杂度评分维度（与 v2.1 complexity_scoring 对齐）
+  complexity_dimensions:
+    scope: "需求覆盖面（单一/多维度/跨领域）"
+    depth: "分析深度要求（表层/中层/深层洞察）"
+    ambiguity: "需求模糊程度（清晰/中等/高度模糊）"
+    stakeholders: "利益相关者数量（单一/2-3方/多方博弈）"
+  
+  # 输出质量标准（与 v4.1 expert_autonomy_protocol 对齐）
+  quality_standards:
+    min_words: 300
+    max_words: 800
+    must_include:
+      - "具体用户画像（非泛化描述）"
+      - "核心矛盾/张力点"
+      - "JTBD任务定义"
+    confidence_threshold: 0.7  # 低于此值需标记 challenge_flag
 
 business_config:
   project_types:
@@ -387,6 +410,8 @@ task_description_template: |
   - 🆕 问卷第1题必须是交付物确认
 
 output_example:
+  # v7.17: 问卷示例已移除，问卷生成由专门节点负责
+  # 参见: intelligent_project_analyzer/interaction/nodes/calibration_questionnaire.py
   project_task: "为一位处于事业转型期的前金融律师，打造一个既能作为其新身份'生活美学博主'的内容创作基地，又能提供内心秩序感与精神庇护的私人圣殿。核心任务是：雇佣空间来完成'专业形象重塑'与'内在自我整合'这两项工作。"
   character_narrative: "主角是一位32岁的女性，刚刚告别高压的金融法律行业，正全心投入生活美学内容的创作。她兼具前者的严谨、秩序感与后者的感性、对美的极致追求。她的故事是关于'卸下盔甲，寻找真我'。"
   physical_context: "75平米一居室公寓，高层，良好城市景观视野"
@@ -395,63 +420,6 @@ output_example:
   inspiration_references: "Axel Vervoordt侘寂美学、John Pawson极简主义、《请以你的名字呼唤我》意大利夏日别墅"
   experience_behavior: "清晨窗边冥想瑜伽；上午拍摄（需多变上镜背景）；下午写作剪辑；夜晚阅读音乐；每周1-2次小规模线上直播或线下沙龙(2-3人)"
   design_challenge: "作为内容创作者的'展示欲'（空间需上镜、多变、有故事）与她内心对'绝对私密'和'精神庇护'（宁静、稳定、安全感）的渴望之间的根本矛盾"
-  calibration_questionnaire:
-    introduction: "以下问题旨在理解您对生活与创作的期待，帮助我们将精神追求转化为可感知的空间体验。"
-    questions:
-      - question: "当'上镜的背景'与'生活的舒适'冲突时，您的天平倾向哪边？"
-        context: "确定设计核心价值取向：服务镜头还是服务身体。"
-        type: "single_choice"
-        options:
-          - "优先镜头完美，愿意牺牲部分便利性"
-          - "保证基本美学前提下，舒适性是不妥协底线"
-          - "寻找平衡，通过灵活家具或软装实现"
-      
-      - question: "您期望空间的'表演性'占比多少？"
-        context: "理解'创作空间'与'生活空间'的边界关系"
-        type: "single_choice"
-        options:
-          - "70%表演区(大量上镜背景)+30%私密区(卧室卫浴)"
-          - "50/50平衡(可切换的弹性空间)"
-          - "30%表演区(专用工作室)+70%纯生活区"
-      
-      - question: "面对预算压力，哪些是您'不妥协'的底线？(最多选3项)"
-        context: "确定资源分配优先级，决定设计投入策略"
-        type: "multiple_choice"
-        options:
-          - "光线质量(大面积采光/灯光系统)"
-          - "材质品质(天然石材/实木/进口涂料)"
-          - "收纳系统(全屋定制/隐藏储物)"
-          - "智能系统(灯光/音响/窗帘自动化)"
-          - "空间高度(吊顶/层高优化)"
-          - "声学隔音(工作时不被打扰)"
-      
-      - question: "在独处时，哪些感官体验对构建'内心秩序'最重要？(多选)"
-        context: "决定材质、光线、声音等侧重点。"
-        type: "multiple_choice"
-        options:
-          - "赤脚踩天然材质地板的触感"
-          - "透过纱帘变柔和的自然光影"
-          - "高品质音响的沉浸式音乐"
-          - "特定香氛带来的宁静感"
-          - "绝对安静无噪音干扰"
-      
-      - question: "工作高峰期(拍摄/直播/剪辑)，您希望空间如何响应？"
-        context: "理解工作模式，决定动线与功能区布局"
-        type: "single_choice"
-        options:
-          - "快速转换(5分钟内完成场景切换)"
-          - "固定分区(工作区永久ready,不打扰生活区)"
-          - "整合模式(生活即内容,无需刻意转换)"
-      
-      - question: "您理想中的'清晨仪式'是在怎样的空间中进行？(开放题)"
-        context: "捕捉精神性需求的具体载体，定义核心空间氛围"
-        type: "open_ended"
-        placeholder: "例如：阳台瑜伽角，能看到城市苏醒；或卧室窗边蒲团，只有晨光和香炉..."
-      
-      - question: "描述一个您最向往的'独处场景'：时间/地点/正在做什么/周围有什么？"
-        context: "提取空间体验的黄金标准，指导V5场景专家设计"
-        type: "open_ended"
-        placeholder: "例如：周五夜晚10点，躺在客厅地毯上，头枕抱枕，听黑胶唱片，手边是茶和笔记本..."
   expert_handoff:
     critical_questions_for_experts:
       for_v2_design_director:
