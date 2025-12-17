@@ -40,6 +40,25 @@ from ..interaction.nodes.manual_review import ManualReviewNode  # 🆕 人工审
 from ..agents.dynamic_project_director import detect_and_handle_challenges_node  # 🆕 v3.5
 from ..report.result_aggregator import ResultAggregatorAgent
 from ..report.pdf_generator import PDFGeneratorAgent
+
+# 🆕 v7.16: LangGraph Agent 升级版本（通过环境变量控制）
+import os
+USE_V716_AGENTS = os.getenv("USE_V716_AGENTS", "false").lower() == "true"
+USE_V717_REQUIREMENTS_ANALYST = os.getenv("USE_V717_REQUIREMENTS_ANALYST", "false").lower() == "true"
+USE_V718_QUESTIONNAIRE_AGENT = os.getenv("USE_V718_QUESTIONNAIRE_AGENT", "false").lower() == "true"
+if USE_V716_AGENTS:
+    from ..agents.analysis_review_agent import AnalysisReviewAgent, AnalysisReviewNodeCompat
+    from ..agents.result_aggregator_agent import ResultAggregatorAgentV2, ResultAggregatorAgentCompat
+    from ..agents.challenge_detection_agent import ChallengeDetectionAgent, detect_and_handle_challenges_v2
+    from ..agents.quality_preflight_agent import QualityPreflightAgent, QualityPreflightNodeCompat
+    from ..agents.questionnaire_agent import QuestionnaireAgent, LLMQuestionGeneratorCompat
+    logger.info("🚀 [v7.16] 启用 LangGraph Agent 升级版本")
+if USE_V717_REQUIREMENTS_ANALYST:
+    from ..agents.requirements_analyst_agent import RequirementsAnalystAgentV2
+    logger.info("🚀 [v7.17] 启用需求分析师 StateGraph Agent")
+if USE_V718_QUESTIONNAIRE_AGENT:
+    from ..agents.questionnaire_agent import QuestionnaireAgent
+    logger.info("🚀 [v7.18] 启用问卷生成 StateGraph Agent")
 from ..security import (  # 🆕 内容安全与领域过滤
     ReportGuardNode
 )
@@ -405,6 +424,8 @@ class MainWorkflow:
 
         注意: 只返回需要更新的字段,不返回完整状态
         这样可以避免并发更新冲突
+        
+        v7.17: 支持 StateGraph Agent 模式（通过环境变量控制）
         """
         try:
             logger.info("Executing requirements analyst node")
@@ -420,15 +441,29 @@ class MainWorkflow:
             else:
                 logger.info("🔍 [DEBUG] 'calibration_processed' 键不存在")
 
-            # 创建需求分析师智能体
-            agent = AgentFactory.create_agent(
-                AgentType.REQUIREMENTS_ANALYST,
-                llm_model=self.llm_model,
-                config=self.config
-            )
-
-            # 执行分析
-            result = agent.execute(state, {}, self.store)
+            # 🆕 v7.17: 使用 StateGraph Agent 模式
+            if USE_V717_REQUIREMENTS_ANALYST:
+                logger.info("🚀 [v7.17] 使用 StateGraph Agent 执行需求分析")
+                agent = RequirementsAnalystAgentV2(llm_model=self.llm_model, config=self.config)
+                result = agent.execute(
+                    user_input=state.get("user_input", ""),
+                    session_id=state.get("session_id", "unknown")
+                )
+                
+                # 记录 StateGraph 执行元数据
+                if result.metadata:
+                    logger.info(f"📊 [v7.17] StateGraph 执行完成:")
+                    logger.info(f"   - 分析模式: {result.metadata.get('analysis_mode')}")
+                    logger.info(f"   - 节点路径: {result.metadata.get('node_path')}")
+                    logger.info(f"   - 总耗时: {result.metadata.get('total_elapsed_ms')}ms")
+            else:
+                # 原有逻辑：使用 AgentFactory 创建
+                agent = AgentFactory.create_agent(
+                    AgentType.REQUIREMENTS_ANALYST,
+                    llm_model=self.llm_model,
+                    config=self.config
+                )
+                result = agent.execute(state, {}, self.store)
 
             # 🆕 提取项目类型（从 structured_data 中）
             project_type = result.structured_data.get("project_type") if result.structured_data else None
@@ -808,6 +843,8 @@ class MainWorkflow:
         质量预检节点 - 前置预防第1层（异步版本）
 
         🚀 P1优化：使用异步调用，配合 QualityPreflightNode 的异步实现
+        🔥 v7.16: 支持新版 LangGraph QualityPreflightAgent
+        🔧 v7.23: 修复 interrupt 被错误捕获的问题
 
         在专家执行前进行:
         1. 风险预判
@@ -816,11 +853,44 @@ class MainWorkflow:
         """
         try:
             logger.info("🔍 Executing quality preflight node (async)")
-            node = QualityPreflightNode(self.llm_model)
+            
+            # 🆕 v7.16: 使用新版 LangGraph Agent（如果启用）
+            if USE_V716_AGENTS:
+                logger.info("🚀 [v7.16] 使用 QualityPreflightAgent")
+                node = QualityPreflightNodeCompat(self.llm_model)
+            else:
+                node = QualityPreflightNode(self.llm_model)
+            
             result = await node(state)  # 🚀 P1优化：使用 await 调用异步方法
             result["detail"] = "质量预检与风险评估"
             return result
         except Exception as e:
+            # 🔧 v7.24: 增强 Interrupt 检测，支持多种异常格式
+            from langgraph.types import Interrupt
+            
+            # 检测 Interrupt 的多种情况：
+            # 1. 直接是 Interrupt 类型
+            # 2. e.args[0] 是 Interrupt（部分 LangGraph 版本）
+            # 3. e 是包含 Interrupt 的 tuple（某些异常包装情况）
+            is_interrupt = False
+            if isinstance(e, Interrupt):
+                is_interrupt = True
+            elif hasattr(e, 'args') and e.args:
+                if isinstance(e.args[0], Interrupt):
+                    is_interrupt = True
+                elif isinstance(e.args[0], tuple) and e.args[0] and isinstance(e.args[0][0], Interrupt):
+                    is_interrupt = True
+            
+            if is_interrupt:
+                logger.info("🔄 Quality preflight interrupt triggered, pausing for user confirmation")
+                raise  # 重新抛出 Interrupt，让 LangGraph 正常处理
+            
+            # 🔧 v7.24: 额外检查 - 检查错误消息中是否包含 Interrupt 关键字
+            error_str = str(e)
+            if 'Interrupt' in error_str and 'value=' in error_str:
+                logger.warning(f"⚠️ Detected Interrupt in error message, re-raising: {error_str[:100]}...")
+                raise
+            
             logger.error(f"❌ Quality preflight node failed: {e}")
             import traceback
             traceback.print_exc()
@@ -1621,6 +1691,8 @@ class MainWorkflow:
         """
         🆕 v3.5 挑战检测节点 - 检测专家输出中的challenge_flags并处理
         
+        🔥 v7.16: 支持新版 LangGraph ChallengeDetectionAgent
+        
         工作流程:
         1. 从state中提取所有专家的输出
         2. 调用detect_and_handle_challenges_node()检测挑战
@@ -1644,8 +1716,13 @@ class MainWorkflow:
         logger.info("🔍 [v3.5] 开始检测专家挑战...")
         
         try:
-            # 调用核心挑战检测函数（现在只返回新增字段）
-            updated_state = detect_and_handle_challenges_node(state)
+            # 🆕 v7.16: 使用新版 LangGraph Agent（如果启用）
+            if USE_V716_AGENTS:
+                logger.info("🚀 [v7.16] 使用 ChallengeDetectionAgent")
+                updated_state = detect_and_handle_challenges_v2(state)
+            else:
+                # 调用核心挑战检测函数（现在只返回新增字段）
+                updated_state = detect_and_handle_challenges_node(state)
             
             # 记录检测结果
             if updated_state.get("has_active_challenges"):
@@ -1959,8 +2036,21 @@ class MainWorkflow:
         2. 递进式三阶段：红→蓝→评委→甲方
         3. 输出改进建议（而非重新执行）
         4. 记录final_ruling到state
+        
+        🔥 v7.16: 支持新版 LangGraph AnalysisReviewAgent
         """
         logger.info("Executing progressive single-round analysis review node")
+        
+        # 🆕 v7.16: 使用新版 LangGraph Agent（如果启用）
+        if USE_V716_AGENTS:
+            logger.info("🚀 [v7.16] 使用 AnalysisReviewAgent")
+            return AnalysisReviewNodeCompat.execute(
+                state=state,
+                store=self.store,
+                llm_model=self.llm_model,
+                config=self.config
+            )
+        
         return AnalysisReviewNode.execute(
             state=state,
             store=self.store,
@@ -1994,15 +2084,24 @@ class MainWorkflow:
         这样可以避免并发更新冲突
         
         🔧 修复: 不更新current_stage,避免与pdf_generator并发冲突
+        🔥 v7.16: 支持新版 LangGraph ResultAggregatorAgentV2
         """
         try:
             logger.info("Executing result aggregator node")
 
-            # 创建结果聚合器智能体
-            agent = ResultAggregatorAgent(
-                llm_model=self.llm_model,
-                config=self.config
-            )
+            # 🆕 v7.16: 使用新版 LangGraph Agent（如果启用）
+            if USE_V716_AGENTS:
+                logger.info("🚀 [v7.16] 使用 ResultAggregatorAgentV2")
+                agent = ResultAggregatorAgentCompat(
+                    llm_model=self.llm_model,
+                    config=self.config
+                )
+            else:
+                # 创建结果聚合器智能体
+                agent = ResultAggregatorAgent(
+                    llm_model=self.llm_model,
+                    config=self.config
+                )
 
             # 执行聚合
             result = agent.execute(state, {}, self.store)
@@ -2204,20 +2303,22 @@ class MainWorkflow:
     def _build_context_for_expert(self, state: ProjectAnalysisState) -> str:
         """
         为任务导向专家构建上下文信息
-        
+
+        🔥 v7.18 升级4: 专家协作通道 - 传递前序专家的完整输出
+
         Args:
             state: 当前项目状态
-            
+
         Returns:
             str: 格式化的上下文字符串
         """
         context_parts = []
-        
+
         # 添加用户需求
         task_description = state.get("task_description", "")
         if task_description:
             context_parts.append(f"## 用户需求\n{task_description}")
-        
+
         # 添加结构化需求
         structured_requirements = state.get("structured_requirements", {})
         if structured_requirements:
@@ -2225,29 +2326,57 @@ class MainWorkflow:
             for key, value in structured_requirements.items():
                 if value:
                     context_parts.append(f"**{key}**: {value}")
-        
-        # 添加已完成的分析
-        expert_analyses = state.get("expert_analyses", {})
-        if expert_analyses:
-            context_parts.append("## 已完成的专家分析")
-            for expert_id, analysis in expert_analyses.items():
-                if isinstance(analysis, dict):
-                    analysis_content = analysis.get("analysis", str(analysis))
+
+        # 🔥 v7.18 升级4: 传递完整的前序专家输出（而非截断到500字符）
+        agent_results = state.get("agent_results", {})
+        if agent_results:
+            context_parts.append("## 前序专家的分析成果")
+            context_parts.append("**说明**: 以下是前序专家的完整分析结果，你可以参考和引用。\n")
+
+            for expert_id, result in agent_results.items():
+                if not isinstance(result, dict):
+                    continue
+
+                # 获取专家名称
+                expert_name = result.get("expert_name", expert_id)
+                context_parts.append(f"### {expert_name} ({expert_id})")
+
+                # 🔥 v7.18 升级4: 提取结构化输出中的交付物
+                structured_output = result.get("structured_output")
+                if structured_output and isinstance(structured_output, dict):
+                    task_report = structured_output.get("task_execution_report", {})
+                    deliverable_outputs = task_report.get("deliverable_outputs", [])
+
+                    if deliverable_outputs:
+                        context_parts.append(f"**交付物数量**: {len(deliverable_outputs)}\n")
+
+                        for i, deliverable in enumerate(deliverable_outputs, 1):
+                            deliverable_name = deliverable.get("deliverable_name", f"交付物{i}")
+                            content = deliverable.get("content", "")
+                            completion_status = deliverable.get("completion_status", "unknown")
+
+                            context_parts.append(f"#### 交付物 {i}: {deliverable_name}")
+                            context_parts.append(f"**状态**: {completion_status}")
+
+                            # 🔥 传递完整内容（不截断）
+                            if content:
+                                context_parts.append(f"**内容**:\n{content}\n")
+                    else:
+                        # 降级：使用analysis字段
+                        analysis_content = result.get("analysis", "")
+                        if analysis_content:
+                            context_parts.append(f"**分析内容**:\n{analysis_content}\n")
                 else:
-                    analysis_content = str(analysis)
-                
-                # 只显示前500字符，避免上下文过长
-                preview = analysis_content[:500]
-                if len(analysis_content) > 500:
-                    preview += "..."
-                    
-                context_parts.append(f"### {expert_id}\n{preview}")
-        
+                    # 降级：使用analysis字段
+                    analysis_content = result.get("analysis", "")
+                    if analysis_content:
+                        context_parts.append(f"**分析内容**:\n{analysis_content}\n")
+
         # 添加项目状态信息
         context_parts.append(f"\n## 项目状态信息")
         context_parts.append(f"- 当前阶段: {state.get('current_phase', 'unknown')}")
-        context_parts.append(f"- 已完成专家数: {len(expert_analyses)}")
-        
+        context_parts.append(f"- 已完成专家数: {len(agent_results)}")
+
         # 添加质量检查清单（如果有）
         quality_checklist = state.get("quality_checklist", {})
         if quality_checklist:

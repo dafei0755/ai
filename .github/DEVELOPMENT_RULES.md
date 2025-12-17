@@ -549,6 +549,7 @@ grep -rn "display_name\|dynamic_role_name" --include="*.py" intelligent_project_
 | 2025-12-11 | v1.0 | 初始版本，包含代码复用、数据契约、测试规范 |
 | 2025-12-11 | v1.1 | 添加历史问题追踪章节、TypeScript/ESLint 规范 |
 | 2025-12-11 | v1.2 | 添加Pydantic模型类型兼容性规范、工作流卡顿问题修复记录 |
+| 2025-12-16 | v1.3 | 添加v7.16 LangGraph Agent架构升级记录、v7.16.1性能监控系统 |
 
 ---
 
@@ -1929,5 +1930,1364 @@ function nextjs_sso_debug_page() {
 
 ---
 
+### 8.16 问卷 resume 后重复生成问题 (2025-12-16) 🆕
+
+#### 问题 8.16.1：用户提交问卷后系统重复生成问卷
+
+**症状**：
+- 用户提交问卷答案后（resume），系统又重新生成了一次问卷
+- 日志显示：`🚀 v7.5新架构：LLM驱动的智能问卷生成` 在 resume 后再次出现
+- 浪费 50秒 + 2次 LLM API 调用
+- `calibration_processed` 标志为 `False`（resume 后）
+
+**根因**：
+`calibration_questionnaire.py` 中 `intent == "add"` 分支保存了问卷答案，但 **未设置 `calibration_processed=True`**，导致：
+1. 用户提交问卷（意图被解析为 `add`）
+2. 答案保存到 `questionnaire_summary`
+3. 流程返回 `requirements_analyst` 重新分析
+4. 分析完成后进入 `calibration_questionnaire`
+5. 由于 `calibration_processed=False`，重新进入问卷生成逻辑
+
+**修复方案 (v7.13)**：
+```python
+# calibration_questionnaire.py - elif intent == "add": 分支
+# 在保存问卷答案后，添加 calibration_processed 标志
+if answers_map:
+    updated_state["calibration_answers"] = answers_map
+    updated_state["questionnaire_summary"] = summary_payload
+    updated_state["questionnaire_responses"] = summary_payload
+    # 🔥 v7.13: add 意图也需要标记问卷已处理
+    updated_state["calibration_processed"] = True
+    logger.info(f"✅ [add 意图] 已保存 {len(answers_map)} 个问卷答案")
+```
+
+**涉及文件**：
+- `intelligent_project_analyzer/interaction/nodes/calibration_questionnaire.py`
+
+**防范措施**：
+- 所有保存问卷答案的分支（`add`、`approve`、`modify`）都必须设置 `calibration_processed=True`
+- 代码审查时检查状态标志的一致性
+- 添加单元测试验证 resume 后不再生成问卷
+
+---
+
+### 8.17 质量预检 interrupt 被异常捕获问题 (2025-12-16) 🆕
+
+#### 问题 8.17.1：高风险警告 interrupt 被 try-except 捕获
+
+**症状**：
+- 日志显示：`❌ 质量预检失败: (Interrupt(...))`
+- 高风险任务警告没有展示给用户
+- 流程直接继续执行，跳过用户确认
+
+**根因**：
+`quality_preflight.py` 中 `_show_risk_warnings` 调用 `interrupt()` 在 `try` 块内，被 `except Exception as e:` 捕获：
+```python
+try:
+    # ... 质量评估逻辑 ...
+    if high_risk_warnings:
+        self._show_risk_warnings(high_risk_warnings)  # ❌ interrupt 在这里被调用
+    return {...}
+except Exception as e:
+    logger.error(f"❌ 质量预检失败: {e}")  # interrupt 对象被当作异常记录
+    return {"preflight_completed": False}
+```
+
+**修复方案 (v7.13)**：
+```python
+# 将高风险警告的 interrupt 逻辑移到 try 块外
+try:
+    # ... 质量评估逻辑 ...
+    preflight_result = {
+        "quality_checklists": quality_checklists,
+        "high_risk_warnings": high_risk_warnings,  # 暂存
+        ...
+    }
+except Exception as e:
+    logger.error(f"❌ 质量预检失败: {e}")
+    return {"preflight_completed": False}
+
+# 🔥 v7.13: interrupt 移到 try 块外
+high_risk_warnings = preflight_result.get("high_risk_warnings", [])
+if high_risk_warnings:
+    self._show_risk_warnings(high_risk_warnings)  # ✅ 不会被 except 捕获
+
+preflight_result.pop("high_risk_warnings", None)
+return preflight_result
+```
+
+**涉及文件**：
+- `intelligent_project_analyzer/interaction/nodes/quality_preflight.py`
+
+**防范措施**：
+- LangGraph 的 `interrupt()` 调用不应放在 try-except 块内
+- 如必须使用 try-except，需显式排除 LangGraph 的 Interrupt 类型
+- 代码审查时检查 interrupt 调用的位置
+
+---
+
+### 8.18 追问对话开放性增强 (2025-12-16) 🆕
+
+#### 问题 8.18.1：追问对话限制过严，无法充分发挥LLM能力
+
+**症状**：
+- 追问回答只基于报告内容，无法提供扩展知识
+- 用户问"有没有类似案例"时，系统回复"报告中没有提到"
+- 无法进行 What-if 假设性讨论
+- 跨领域借鉴和创意建议被限制
+
+**根因**：
+1. **提示词约束过严**：`"不要编造报告中没有的内容"`
+2. **意图分类缺失**：`_classify_intent()` 固定返回 `"general"`，未区分问题类型
+3. **单一回答模式**：所有问题使用相同提示词，无法适配不同场景
+4. **后续建议固定**：`_generate_suggestions()` 返回硬编码列表
+
+**修复方案 (v7.14)**：
+
+**1. 修改提示词约束**：
+```python
+# 移除"不要编造"，改为"标注来源"
+# ❌ 旧版
+"❌ 不要编造报告中没有的内容"
+
+# ✅ v7.14
+"✅ 可以结合专业知识扩展回答（用【扩展知识】标注）"
+"✅ 可以提供行业案例和最佳实践（用【业界参考】标注）"
+"⚠️ 明确区分报告内容 vs 扩展知识（标注来源）"
+```
+
+**2. 增强意图分类**：
+```python
+# _classify_intent() 增强 - 区分4种问题类型
+def _classify_intent(self, question, history):
+    # closed: 询问报告具体内容（数据、结论、章节）
+    # open_with_context: 希望在报告基础上扩展
+    # creative: 头脑风暴、What-if假设性讨论
+    # general: 通用问题
+    
+    creative_keywords = ["如果", "假设", "what if", "可能", "大胆"]
+    open_keywords = ["还有什么", "类似案例", "行业经验", "最佳实践"]
+    closed_keywords = ["报告中", "专家说", "具体是什么", "数据是多少"]
+```
+
+**3. 意图专属提示词**：
+```python
+INTENT_PROMPTS = {
+    "closed": "【闭环模式】严格基于报告回答...",
+    "open_with_context": "【扩展模式】报告内容+专业知识...",
+    "creative": "【创意模式】自由发挥+What-if探讨...",
+    "general": "综合回答，标注信息来源"
+}
+```
+
+**4. 智能后续建议**：
+```python
+def _generate_suggestions(self, question, answer, context, intent):
+    # 根据当前意图推荐不同方向的后续问题
+    if intent == "closed":
+        return open_suggestions[:2] + creative_suggestions[:1]  # 引导扩展
+    elif intent == "creative":
+        return creative_suggestions[:2] + closed_suggestions[:1]  # 继续发散+落地
+```
+
+**涉及文件**：
+- `intelligent_project_analyzer/agents/conversation_agent.py`
+  - `SYSTEM_PROMPT` 和 `INTENT_PROMPTS` 类变量
+  - `_classify_intent()` 方法增强
+  - `_generate_answer()` 根据意图选择提示词
+  - `_generate_suggestions()` 智能建议生成
+
+**效果**：
+- ✅ 闭环问题：严格引用报告内容
+- ✅ 开放问题：报告+专业知识，标注来源
+- ✅ 创意问题：What-if、跨界借鉴、大胆建议
+- ✅ 后续建议：根据问题类型推荐不同方向
+
+**防范措施**：
+- 扩展回答必须明确标注来源（📖报告/🌐扩展/💡创意）
+- 用户可通过问法引导回答模式
+- 日志记录意图分类结果，便于调优
+
+---
+
+### 8.19 追问功能架构升级 (2025-12-16) 🆕
+
+#### 问题 8.19.1：追问功能非真正 Agent，缺乏可扩展性
+
+**症状**：
+- ConversationAgent 只是"服务类"，没有 StateGraph
+- 无法利用 LangGraph 的节点流转、条件分支等能力
+- 无法后续添加工具调用（如网络搜索、知识库检索）
+- 调试困难，无法追踪中间状态
+
+**根因**：
+1. **架构不统一**：主工作流使用 LangGraph StateGraph，但追问功能使用普通类
+2. **缺乏状态管理**：中间处理结果（意图、上下文、引用）无法持久化
+3. **扩展性差**：无法动态添加新节点（如外部搜索、RAG检索）
+
+**修复方案 (v7.15)**：
+
+**1. 创建 FollowupAgent (LangGraph StateGraph)**：
+```
+intelligent_project_analyzer/agents/followup_agent.py
+```
+
+**2. 状态定义**：
+```python
+class FollowupAgentState(TypedDict):
+    # 输入
+    question: str
+    report_context: str
+    conversation_history: list
+    
+    # 中间状态
+    intent: str  # closed/open_with_context/creative/general
+    relevant_sections: list
+    intent_prompt: str
+    
+    # 输出
+    answer: str
+    references: list
+    suggestions: list
+    processing_log: list
+```
+
+**3. 节点流转图**：
+```
+┌─────────────────┐
+│ classify_intent │ ← 意图分类 (closed/open/creative/general)
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│retrieve_context │ ← 从报告提取相关章节
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│ generate_answer │ ← LLM回答生成
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│generate_suggest │ ← 智能后续建议
+└────────┬────────┘
+         │
+         ▼
+       [END]
+```
+
+**4. 关键节点实现**：
+```python
+def classify_intent_node(state: FollowupAgentState) -> dict:
+    """意图分类节点"""
+    question = state["question"].lower()
+    
+    # 关键词匹配规则
+    creative_keywords = ["如果", "假设", "what if", "可能", "大胆"]
+    open_keywords = ["还有什么", "类似", "行业经验", "最佳实践", "扩展"]
+    closed_keywords = ["报告中", "专家说", "具体是", "数据是", "提到"]
+    
+    if any(kw in question for kw in creative_keywords):
+        intent = "creative"
+    elif any(kw in question for kw in open_keywords):
+        intent = "open_with_context"
+    elif any(kw in question for kw in closed_keywords):
+        intent = "closed"
+    else:
+        intent = "general"
+    
+    return {"intent": intent, ...}
+```
+
+**5. 向后兼容层**：
+```python
+class ConversationAgentCompat:
+    """向后兼容原 ConversationAgent 接口"""
+    def __init__(self, ...):
+        self._agent = FollowupAgent(...)
+    
+    def answer_question(self, question, context, history):
+        return self._agent.answer_question(question, context, history)
+```
+
+**涉及文件**：
+- `intelligent_project_analyzer/agents/followup_agent.py` (新建 463行)
+- `intelligent_project_analyzer/api/server.py` (修改2处端点)
+- `tests/test_followup_agent_v715.py` (测试文件)
+
+**测试结果**：
+| 测试 | 结果 | 详情 |
+|------|------|------|
+| 图结构验证 | ✅ | CompiledStateGraph 编译成功 |
+| 意图分类节点 | ✅ 4/4 | 全部正确分类 |
+| 完整 Agent 流程 | ✅ 3/3 | 生成回答和建议 |
+
+**架构优势**：
+- ✅ 与主工作流架构统一（都是 LangGraph）
+- ✅ 中间状态可追踪（intent, relevant_sections）
+- ✅ 易于扩展（后续可添加搜索节点、RAG节点）
+- ✅ 调试友好（processing_log 记录完整流程）
+- ✅ 向后兼容（ConversationAgentCompat）
+
+**防范措施**：
+- 新增节点时遵循 LangGraph 规范
+- 保持状态类型定义完整
+- 添加对应测试用例
+
+---
+
 **维护者**：AI Assistant
-**最后更新**：2025-12-13
+**最后更新**：2025-12-16
+
+---
+
+### 8.20 工作流节点架构升级 (2025-12-16) 🆕
+
+#### 问题 8.20.1：多个工作流节点不是真正的 LangGraph Agent
+
+**症状**：
+- main_workflow.py 中多个节点只是"普通函数调用LLM"，不是真正的 StateGraph
+- 无法利用 LangGraph 的节点流转、条件分支、中间状态追踪能力
+- 调试困难，无法追踪中间处理过程
+- 扩展性差，无法动态添加新节点
+
+**根因**：
+1. **架构不统一**：主工作流使用 StateGraph，但内部节点只是普通类/函数
+2. **缺乏状态管理**：中间处理结果无法持久化
+3. **历史原因**：早期实现未采用 LangGraph 子图模式
+
+**修复方案 (v7.16)**：
+
+将 5 个核心节点升级为独立的 LangGraph StateGraph Agent：
+
+| 优先级 | 原节点 | 新 Agent | 状态图流程 |
+|--------|--------|----------|-----------|
+| P0-1 | AnalysisReviewNode | AnalysisReviewAgent | red_blue_debate → client_review → generate_ruling → END |
+| P0-2 | ResultAggregatorAgent | ResultAggregatorAgentV2 | extract_reports → extract_context → generate_report → validate_output → END |
+| P1-1 | detect_challenges_node | ChallengeDetectionAgent | scan_outputs → classify_challenges → route_decision → END |
+| P1-2 | QualityPreflightNode | QualityPreflightAgent | analyze_risks → generate_checklists → validate_capability → END |
+| P1-3 | LLMQuestionGenerator | QuestionnaireAgent | extract_context → generate_questions → validate_relevance → [条件重生成] → END |
+
+**新增文件**：
+```
+intelligent_project_analyzer/agents/
+├── analysis_review_agent.py      # ~450行, P0-1
+├── result_aggregator_agent.py    # ~450行, P0-2
+├── challenge_detection_agent.py  # ~350行, P1-1
+├── quality_preflight_agent.py    # ~350行, P1-2
+├── questionnaire_agent.py        # ~550行, P1-3
+└── followup_agent.py             # ~463行, v7.15
+```
+
+**每个 Agent 的标准结构**：
+```python
+# 1. 状态定义
+class XxxState(TypedDict):
+    # 输入
+    ...
+    # 中间状态
+    ...
+    # 输出
+    ...
+    # 配置
+    _llm_model: Any
+    # 处理日志
+    processing_log: List[str]
+
+# 2. 节点函数
+def node_a(state: XxxState) -> Dict[str, Any]:
+    ...
+
+def node_b(state: XxxState) -> Dict[str, Any]:
+    ...
+
+# 3. 状态图构建
+def build_xxx_graph() -> StateGraph:
+    workflow = StateGraph(XxxState)
+    workflow.add_node("node_a", node_a)
+    workflow.add_node("node_b", node_b)
+    workflow.add_edge(START, "node_a")
+    workflow.add_edge("node_a", "node_b")
+    workflow.add_edge("node_b", END)
+    return workflow
+
+# 4. Agent 封装类
+class XxxAgent:
+    def __init__(self, llm_model=None, config=None):
+        self._graph = build_xxx_graph().compile()
+    
+    def execute(self, state: Dict) -> Dict:
+        return self._graph.invoke(initial_state)
+
+# 5. 向后兼容层
+class XxxCompat:
+    """兼容原接口"""
+    def __init__(self, llm_model):
+        self._agent = XxxAgent(llm_model)
+    
+    async def __call__(self, state):
+        return self._agent.execute(state)
+```
+
+**架构优势**：
+- ✅ 与主工作流架构统一（都是 LangGraph StateGraph）
+- ✅ 中间状态可追踪（每个节点输出都保留在状态中）
+- ✅ 易于扩展（后续可添加新节点）
+- ✅ 调试友好（processing_log 记录完整流程）
+- ✅ 向后兼容（每个 Agent 提供 Compat 兼容层）
+- ✅ 条件路由支持（如 QuestionnaireAgent 的重生成逻辑）
+
+**后续集成**：
+- 更新 main_workflow.py 使用新 Agent
+- 通过环境变量控制是否启用新版本
+- 添加测试用例验证功能一致性
+
+**防范措施**：
+- 新增 Agent 时遵循标准结构
+- 保持 TypedDict 状态定义完整
+- 每个 Agent 提供向后兼容层
+- 使用 processing_log 记录处理过程
+
+---
+
+### 8.21 v7.16.1 Agent 性能监控与工具函数 (2025-12-16) 🆕
+
+#### 改进 8.21.1：Agent 性能监控系统
+
+**背景**：
+v7.16 升级后缺乏性能对比数据，无法评估新版 Agent 的开销
+
+**解决方案 (v7.16.1)**：
+
+**1. 创建共享工具函数** (`utils/shared_agent_utils.py`):
+```python
+class PerformanceMonitor:
+    """Agent 性能监控器"""
+    _records: Dict[str, List] = {}  # agent_name -> [(time_ms, version), ...]
+    
+    @classmethod
+    def record(cls, agent_name: str, elapsed_seconds: float, version: str = "v7.16"):
+        """记录执行时间"""
+        if agent_name not in cls._records:
+            cls._records[agent_name] = []
+        cls._records[agent_name].append((elapsed_seconds * 1000, version))  # 转为 ms
+    
+    @classmethod
+    def get_comparison(cls) -> Dict[str, Dict[str, Any]]:
+        """获取所有 Agent 对比报告"""
+        result = {}
+        for agent_name, records in cls._records.items():
+            times = [r[0] for r in records]
+            result[agent_name] = {
+                "count": len(times),
+                "avg_ms": sum(times) / len(times) if times else 0,
+                "min_ms": min(times) if times else 0,
+                "max_ms": max(times) if times else 0,
+                "version": records[-1][1] if records else "unknown"
+            }
+        return result
+```
+
+**2. 为所有 Agent 添加性能记录**：
+```python
+# 在 execute/generate 方法开头
+start_time = time.time()
+
+# 在成功返回前
+PerformanceMonitor.record("AgentName", time.time() - start_time, "v7.16")
+
+# 在异常处理中
+PerformanceMonitor.record("AgentName", time.time() - start_time, "v7.16-error")
+```
+
+**3. 已添加性能监控的 Agent**：
+- ✅ ChallengeDetectionAgent
+- ✅ QualityPreflightAgent
+- ✅ QuestionnaireAgent
+- ✅ ResultAggregatorAgentV2
+- ✅ AnalysisReviewAgent
+
+**测试结果**：
+| Agent | 平均时间 | 版本 |
+|-------|----------|--------|
+| QualityPreflightAgent | 2.40ms | v7.16 |
+| QuestionnaireAgent | 4.78ms | v7.16 |
+| ResultAggregatorAgentV2 | 2.80ms | v7.16 |
+| ChallengeDetectionAgent | 1.97ms | v7.16 |
+
+**性能对比**：
+- 新版 Agent: ~2ms/次
+- 原版函数: ~0.4ms/次
+- 开销增加: ~400% (因 LangGraph 图执行固定成本)
+- ✅ 可接受，因为提供了更好的可追踪性和可扩展性
+
+---
+
+#### 改进 8.21.2：共享工具函数库
+
+**新增文件**: `intelligent_project_analyzer/utils/shared_agent_utils.py`
+
+**包含函数**：
+| 函数 | 用途 | 来源 Agent |
+|------|------|-------------|
+| `PerformanceMonitor` | 性能监控 | 所有 |
+| `extract_challenge_flags()` | 从专家输出提取挑战标记 | ChallengeDetectionAgent |
+| `classify_challenges()` | 挑战分类 (high/medium/low) | ChallengeDetectionAgent |
+| `extract_expert_reports()` | 提取专家报告 | ResultAggregatorAgentV2 |
+| `extract_questionnaire_context()` | 问卷上下文提取 | QuestionnaireAgent |
+| `analyze_task_risks()` | 任务风险分析 | QualityPreflightAgent |
+| `generate_quality_checklists()` | 生成质量检查清单 | QualityPreflightAgent |
+
+---
+
+#### 改进 8.21.3：集成测试
+
+**新增文件**: `tests/test_v716_integration.py`
+
+**测试用例** (8/8 通过)：
+1. 环境变量控制验证
+2. 挑战检测兼容性
+3. 质量预检兼容性
+4. 问卷生成兼容性
+5. 结果聚合兼容性
+6. 分析审核兼容性
+7. 状态传递正确性
+8. 性能对比
+
+---
+
+#### 改进 8.21.4：状态图文档
+
+**新增文件**: `docs/V716_AGENT_STATE_GRAPHS.md`
+
+**内容**：
+- 6 个 Agent 的 Mermaid 状态图
+- 每个节点的功能说明
+- 状态 TypedDict 定义
+- 性能监控 API 说明
+- 使用方式和向后兼容说明
+
+**涉及文件**：
+- `intelligent_project_analyzer/utils/shared_agent_utils.py` (新建)
+- `tests/test_v716_integration.py` (新建)
+- `docs/V716_AGENT_STATE_GRAPHS.md` (新建)
+- `intelligent_project_analyzer/agents/*.py` (5个 Agent 添加性能监控)
+
+**防范措施**：
+- 新增 Agent 时必须添加 PerformanceMonitor.record() 调用
+- 新增共享函数时更新 shared_agent_utils.py
+- 新增 Agent 时同步更新 V716_AGENT_STATE_GRAPHS.md
+
+---
+
+### 8.22 v7.17 需求分析师 StateGraph Agent 升级 (2025-12-17) 🆕
+
+#### 改进 8.22.1：RequirementsAnalystAgentV2 - 完整 StateGraph 重构
+
+**背景**：
+需求分析师是系统的核心入口 Agent，原版 `RequirementsAnalystAgent` 存在以下问题：
+1. 单次 LLM 调用负担过重（~150行提示词）
+2. 缺乏程序化能力边界检测
+3. 历史遗留代码（~320行废弃函数）
+4. 不是真正的 LangGraph StateGraph
+
+**v7.17 完整升级方案**：
+
+| 优化项 | 内容 | 代码量变化 |
+|--------|------|-----------|
+| **P0: 历史包袱清理** | 删除6个废弃函数 | -320行 |
+| **P1: 两阶段LLM架构** | Phase1快速定性 + Phase2深度分析 | +2个YAML |
+| **P2: 程序化边界检测** | CapabilityDetector | +350行 |
+| **P3: StateGraph Agent** | 完整图结构 | +790行 |
+
+**StateGraph 节点流转**：
+```
+START → precheck (~1ms) → phase1 (~10s) → [条件] → phase2 (~20s) → output → END
+                                              ↓
+                                           output → END (信息不足时跳过 Phase2)
+```
+
+**新增文件**：
+
+| 文件 | 行数 | 用途 |
+|------|------|------|
+| `requirements_analyst_agent.py` | ~790 | StateGraph Agent 完整实现 |
+| `capability_detector.py` | ~350 | 程序化能力边界检测 |
+| `requirements_analyst_phase1.yaml` | ~150 | Phase1 提示词配置 |
+| `requirements_analyst_phase2.yaml` | ~180 | Phase2 提示词配置 |
+
+**核心状态定义** (`RequirementsAnalystState`):
+```python
+class RequirementsAnalystState(TypedDict):
+    # 输入
+    user_input: str
+    session_id: str
+    
+    # Precheck 结果
+    precheck_result: Dict[str, Any]      # 能力边界检测结果
+    info_sufficient: bool                 # 信息是否充足
+    capability_match_rate: float          # 能力匹配率
+    
+    # Phase1 结果
+    phase1_result: Dict[str, Any]        # 快速定性结果
+    phase1_elapsed_ms: float
+    
+    # Phase2 结果
+    phase2_result: Dict[str, Any]        # 深度分析结果
+    phase2_elapsed_ms: float
+    
+    # 输出
+    structured_data: Dict[str, Any]      # 最终结构化数据
+    analysis_mode: str                    # two_phase / fast_track / info_insufficient
+    project_type: str
+    node_path: List[str]                 # 执行路径记录
+    processing_log: List[str]
+```
+
+**环境变量控制**：
+```bash
+# 启用 v7.17 需求分析师 StateGraph Agent
+export USE_V717_REQUIREMENTS_ANALYST=true
+```
+
+**测试结果**：
+
+| 测试类型 | 结果 | 详情 |
+|----------|------|------|
+| 单元测试 | ✅ 6/6 | 图结构、节点、路由、状态 |
+| 集成测试 | ✅ 通过 | Mock LLM 验证 |
+| 端到端测试 | ✅ 通过 | 真实 LLM 29秒完成 |
+
+**端到端真实 LLM 测试结果**：
+```
+⏱️ 总耗时: 29.14秒
+📋 分析模式: two_phase
+🏠 项目类型: hybrid_residential_commercial
+🎯 交付物: D1: V4_空间规划师, D2: V2_预算分析师
+🤝 专家接口: 4个专家的关键问题
+```
+
+**涉及文件**：
+- `intelligent_project_analyzer/agents/requirements_analyst_agent.py` (新建)
+- `intelligent_project_analyzer/utils/capability_detector.py` (新建)
+- `intelligent_project_analyzer/config/prompts/requirements_analyst_phase1.yaml` (新建)
+- `intelligent_project_analyzer/config/prompts/requirements_analyst_phase2.yaml` (新建)
+- `intelligent_project_analyzer/workflow/main_workflow.py` (修改)
+- `tests/test_v717_stategraph_agent.py` (新建)
+- `tests/test_v717_workflow_integration.py` (新建)
+- `tests/test_v717_e2e_real_llm.py` (新建)
+
+**防范措施**：
+- 使用环境变量 `USE_V717_REQUIREMENTS_ANALYST` 控制，便于回滚
+- 提供 `RequirementsAnalystCompat` 向后兼容层
+- 保留原版 `RequirementsAnalystAgent` 作为 fallback
+- 所有节点添加详细日志和耗时记录
+
+---
+
+### 8.23 v7.18 问卷生成 StateGraph Agent 升级 (2025-12-17) 🆕
+
+#### 改进 8.23.1：QuestionnaireAgent 集成到主工作流
+
+**背景**：
+问卷系统经过复盘分析，发现以下瓶颈：
+1. `QuestionnaireAgent` (v7.16 已创建) 未集成到主工作流
+2. `LLMQuestionGenerator` 缺乏性能监控
+3. 问卷相关代码重复度高（llm_generator.py + questionnaire_agent.py）
+
+**v7.18 升级方案**：
+
+| 优化项 | 内容 | 影响文件 |
+|--------|------|----------|
+| **P0: Agent 集成** | 将 QuestionnaireAgent 集成到 calibration_questionnaire.py | 2个文件 |
+| **P1: 性能监控** | 添加 PerformanceMonitor 记录生成耗时 | 1个文件 |
+| **P2: 共享函数** | 提取重复逻辑到 shared_agent_utils.py | 1个文件 |
+
+**环境变量控制**：
+```bash
+# 启用 v7.18 问卷生成 StateGraph Agent
+export USE_V718_QUESTIONNAIRE_AGENT=true
+```
+
+**执行流程**：
+```
+calibration_questionnaire.py
+    ↓
+[USE_V718_QUESTIONNAIRE_AGENT=true?]
+    ↓ Yes                           ↓ No
+QuestionnaireAgent.generate()    LLMQuestionGenerator.generate()
+(StateGraph: extract_context     (原有 v7.5 逻辑)
+ → generate_questions
+ → validate_relevance
+ → [条件重生成])
+    ↓                               ↓
+    └──────────────┬────────────────┘
+                   ↓
+           问卷展示 (前端)
+```
+
+**新增共享函数** (`shared_agent_utils.py`):
+| 函数 | 用途 |
+|------|------|
+| `build_questionnaire_analysis_summary()` | 构建 LLM 提示词上下文 |
+| `extract_user_keywords()` | 提取用户输入关键词 |
+| `check_questionnaire_relevance()` | 检查问题相关性 |
+
+**涉及文件**：
+- `intelligent_project_analyzer/workflow/main_workflow.py` (添加 USE_V718 环境变量)
+- `intelligent_project_analyzer/interaction/nodes/calibration_questionnaire.py` (添加 Agent 分支)
+- `intelligent_project_analyzer/interaction/questionnaire/llm_generator.py` (添加性能监控)
+- `intelligent_project_analyzer/utils/shared_agent_utils.py` (添加共享函数)
+
+**防范措施**：
+- 使用环境变量 `USE_V718_QUESTIONNAIRE_AGENT` 控制，便于回滚
+- 保留 LLMQuestionGenerator 作为 fallback
+- 添加 PerformanceMonitor 记录生成耗时
+
+---
+
+### 8.24 v7.19 Config 目录全面优化 (2025-12-17) 🆕
+
+#### 改进 8.24.1：Prompts 目录配置优化
+
+**背景**：
+复盘发现 prompts 目录存在以下问题：
+1. `requirements_analyst.yaml` (1599行) 未被使用
+2. `project_director.yaml` 与 v2 版本功能重复
+3. 各配置未与 v2.1/v4.1/v7.19 体系对齐
+
+**优化方案 (v7.19)**：
+
+| 文件 | 操作 | 版本变化 |
+|------|------|----------|
+| `requirements_analyst.yaml` | 废弃 (.deprecated) | 1599行未使用 |
+| `project_director.yaml` | 标记 legacy | v6.2 → v6.2-legacy |
+| `requirements_analyst_lite.yaml` | v2.1体系对齐 | v4.1 → v4.2-aligned |
+| `requirements_analyst_phase1.yaml` | 添加复杂度评分 | v7.17 → v7.17.1 |
+| `requirements_analyst_phase2.yaml` | 引用v4.1协议 | v7.17 → v7.17.1 |
+| `feasibility_analyst.yaml` | LLM调参建议 | v1.0 → v1.1 |
+| `result_aggregator.yaml` | 挑战协议集成 | v3.0 → v3.1 |
+| `review_agents.yaml` | 挑战类型枚举 | v2.0 → v2.1 |
+
+**代码更新**：
+- `prompt_manager.py`: `requirements_analyst` → `requirements_analyst_lite`
+
+---
+
+#### 改进 8.24.2：Config 根目录配置优化
+
+**优化方案**：
+
+| 文件 | 原版本 | 新版本 | 优化内容 |
+|------|--------|--------|----------|
+| `content_safety.yaml` | 无 | v1.1 | 添加版本号、更新日期、功能说明 |
+| `deliverable_role_constraints.yaml` | v1.0 | v1.1 | 添加 v7.19 对齐声明、代码引用说明 |
+| `role_selection_strategy.yaml` | v7.3 | v7.4 | 添加 v7.19 对齐、明确与 roles/*.yaml 分工 |
+
+---
+
+#### 改进 8.24.3：Roles 目录配置对齐
+
+**优化方案**：
+
+| 文件 | 原版本 | 新版本 | 优化内容 |
+|------|--------|--------|----------|
+| `v2_design_director.yaml` | v2.5 | v2.6 | 添加 v7.19 ROLE_LLM_PARAMS 对齐声明 |
+| `v3_narrative_expert.yaml` | v2.5 | v2.6 | 添加 v7.19 对齐 + is_creative_narrative 说明 |
+| `v4_design_researcher.yaml` | v2.6 | v2.7 | 添加 v7.19 ROLE_LLM_PARAMS 对齐声明 |
+| `v5_scenario_expert.yaml` | v2.7 | v2.8 | 添加 v7.19 ROLE_LLM_PARAMS 对齐声明 |
+| `v6_chief_engineer.yaml` | v2.7 | v2.8 | 添加 v7.19 ROLE_LLM_PARAMS 对齐声明 |
+
+**新增对齐声明模板**：
+```yaml
+# 🔧 vX.X 与 v7.19 专家工厂对齐:
+# - 本配置由 SpecializedAgentFactory 在运行时加载
+# - LLM参数由 ROLE_LLM_PARAMS 统一控制
+# - 支持 {user_specific_request} 模板变量动态注入
+```
+
+**涉及文件**：
+- `config/prompts/*.yaml` (8个文件)
+- `config/content_safety.yaml`
+- `config/deliverable_role_constraints.yaml`
+- `config/role_selection_strategy.yaml`
+- `config/roles/*.yaml` (5个文件)
+- `core/prompt_manager.py`
+
+**防范措施**：
+- 配置文件必须包含版本号和更新日期
+- 新增配置时同步更新 prompt_manager.py 必需配置列表
+- 保持 ROLE_LLM_PARAMS 与 roles/*.yaml 的一致性
+
+---
+
+### 8.25 v7.20 Pydantic 枚举验证失败导致重试循环 (2025-12-17) 🆕
+
+#### 问题 8.25.1：DeliverableFormat 枚举太窄导致项目总监 6 次验证失败
+
+**症状**：
+- 项目总监角色选择阶段连续 6 次 Pydantic 验证失败
+- 日志显示：`❌ 输出解析失败，尝试 2/3...` 重复出现
+- 总计浪费 87 秒执行时间
+- 最终回退到默认任务模板，质量下降
+
+**错误示例**：
+```
+input should be 'analysis','strategy','design','recommendation','evaluation',
+'guideline','framework','model','checklist' or 'plan'
+  Input: design_plan
+  Input: blueprint
+  Input: case_study_report
+  Input: technical_report
+  Input: compliance_report
+```
+
+**根因**：
+1. `DeliverableFormat` 枚举只有 10 个固定值
+2. LLM 生成的格式名称（如 `design_plan`, `blueprint`）不在枚举中
+3. Pydantic 严格验证失败，触发重试循环
+4. 重试 3 次后降级到默认模板
+
+**修复方案 (v7.20)**：
+
+**1. 扩展枚举 + 添加映射表** (`task_oriented_models.py`)：
+```python
+class DeliverableFormat(str, Enum):
+    # 原有 10 个 ...
+    # 🆕 v7.20: 扩展更多 LLM 常生成的格式类型
+    REPORT = "report"              # 通用报告
+    BLUEPRINT = "blueprint"        # 蓝图/规划图
+    CASE_STUDY = "case_study"      # 案例研究
+    DOCUMENT = "document"          # 通用文档
+    PROPOSAL = "proposal"          # 提案
+    DIAGRAM = "diagram"            # 图表/流程图
+
+# 🆕 v7.20: LLM 输出格式映射表
+DELIVERABLE_FORMAT_MAPPING: Dict[str, str] = {
+    "design_plan": "design",
+    "flow_design": "design",
+    "blueprint": "blueprint",  # 直接使用新枚举
+    "case_study_report": "case_study",
+    "technical_report": "report",
+    "compliance_report": "evaluation",
+    # ... 更多映射
+}
+```
+
+**2. 添加自动映射 validator** (`DeliverableSpec`)：
+```python
+@validator('format', pre=True)
+def normalize_format(cls, v):
+    """将非标准格式名称映射到标准 DeliverableFormat 枚举"""
+    if isinstance(v, str):
+        v_lower = v.lower().strip()
+        # 1. 直接匹配枚举
+        try:
+            return DeliverableFormat(v_lower)
+        except ValueError:
+            pass
+        # 2. 映射表转换
+        if v_lower in DELIVERABLE_FORMAT_MAPPING:
+            return DeliverableFormat(DELIVERABLE_FORMAT_MAPPING[v_lower])
+        # 3. 模糊匹配
+        for fmt in DeliverableFormat:
+            if fmt.value in v_lower:
+                return fmt
+        # 4. 兜底 -> analysis
+        return DeliverableFormat.ANALYSIS
+    return v
+```
+
+**涉及文件**：
+- `intelligent_project_analyzer/core/task_oriented_models.py`
+
+**性能改进**：
+| 指标 | 修复前 | 修复后 |
+|------|--------|--------|
+| 验证失败次数 | 6 次 | 0 次 |
+| 浪费时间 | 87s | 0s |
+| 回退默认模板 | 是 | 否 |
+
+**防范措施**：
+- Pydantic 枚举应考虑 LLM 输出的多样性
+- 使用 `@validator(pre=True)` 在验证前进行格式映射
+- 新增格式时同步更新映射表
+- 添加兜底机制，避免验证完全失败
+
+---
+
+### 8.26 v7.21 进度显示节点名称不匹配问题 (2025-12-17) 🆕
+
+#### 问题 8.26.1：node_progress_map 节点名称与实际工作流不匹配
+
+**症状**：
+- 进度条显示 80%，但当前阶段显示"准备中..."
+- 执行历史显示了完整流程，但进度不更新
+- 工作流实际执行正常，但进度计算错误
+
+**根因**：
+1. `node_progress_map` 使用了错误的节点名称：
+   - `input_guard` → 实际应为 `unified_input_validator_initial`
+   - `domain_validator` → 实际应为 `feasibility_analyst`
+2. 缺少关键节点：
+   - `unified_input_validator_secondary`
+   - `analysis_review`
+   - `batch_router`、`batch_strategy_review`
+3. 进度回退逻辑使用 fallback 值 `min(0.9, len(events) * 0.1)`，当节点不在映射表中时产生错误进度
+
+**错误的节点名称对照**：
+| 错误名称 | 正确名称 | 来源 |
+|----------|----------|------|
+| `input_guard` | `unified_input_validator_initial` | main_workflow.py |
+| `domain_validator` | `feasibility_analyst` | main_workflow.py |
+
+**修复方案 (v7.21)**：
+
+```python
+# 🎯 v7.21: 节点进度映射（与 main_workflow.py 实际节点名称对齐）
+node_progress_map = {
+    # 输入验证阶段 (0-15%)
+    "unified_input_validator_initial": 0.05,
+    "unified_input_validator_secondary": 0.10,
+    # 需求分析阶段 (15-35%)
+    "requirements_analyst": 0.15,
+    "feasibility_analyst": 0.20,
+    "calibration_questionnaire": 0.25,
+    "requirements_confirmation": 0.35,
+    # 项目规划阶段 (35-55%)
+    "project_director": 0.40,
+    "role_task_unified_review": 0.45,
+    "quality_preflight": 0.50,
+    # 专家执行阶段 (55-80%)
+    "batch_executor": 0.55,
+    "agent_executor": 0.70,
+    "batch_aggregator": 0.75,
+    "batch_router": 0.76,
+    "batch_strategy_review": 0.78,
+    # 审核聚合阶段 (80-100%)
+    "detect_challenges": 0.80,
+    "analysis_review": 0.85,
+    "result_aggregator": 0.90,
+    "report_guard": 0.95,
+    "pdf_generator": 0.98,
+}
+```
+
+**涉及文件**：
+- `intelligent_project_analyzer/api/server.py` (2处 node_progress_map)
+- `intelligent_project_analyzer/services/celery_tasks.py` (1处 node_progress_map)
+- `frontend-nextjs/app/analysis/[sessionId]/page.tsx` (添加 report_guard 映射)
+
+**防范措施**：
+- 修改 main_workflow.py 添加/重命名节点时，必须同步更新：
+  1. `server.py` 的 `node_progress_map` (2处)
+  2. `celery_tasks.py` 的 `node_progress_map`
+  3. 前端 `NODE_NAME_MAP`
+- 节点进度值应遵循阶段划分，确保单调递增
+- 考虑将 `node_progress_map` 提取为公共常量，避免多处维护
+
+---
+
+### 8.27 v7.22 角色名称字段不一致导致"未知角色" (2025-12-17) 🆕
+
+#### 问题 8.27.1：任务审批页面显示"未知角色（默认配置）"
+
+**症状**：
+- 任务审批页面显示 `2-0 未知角色（默认配置）` 而非 `2-0 项目设计总监`
+- 交付物显示为 `未知角色交付物1`、`未知角色交付物2`
+- 日志显示：`✅ 为 未知角色 生成了 2 个交付物`
+
+**根因**：
+**字段名称不一致**：
+- `role_manager.get_available_roles()` 返回的角色配置使用 `name` 字段（来自 YAML 配置）
+- `_create_default_role_object` 尝试获取 `role_name` 字段（不存在）
+- 导致 fallback 到默认值 `"未知角色"`
+
+| 来源 | 字段名 | 示例值 |
+|------|--------|--------|
+| YAML 配置 / `get_available_roles()` | `name` | "项目设计总监" |
+| `_create_default_role_object` 获取 | `role_name` | ❌ 不存在 → "未知角色" |
+
+**修复方案 (v7.22)**：
+```python
+# dynamic_project_director.py - _create_default_role_object
+# 🔥 v7.22: 兼容两种字段名 - role_manager 使用 "name"，LLM 输出使用 "role_name"
+role_name = role_config.get("role_name") or role_config.get("name", "未知角色")
+```
+
+**涉及文件**：
+- `intelligent_project_analyzer/agents/dynamic_project_director.py`
+
+**影响范围**：
+- ✅ 任务审批页面角色名称显示正确
+- ✅ 交付物名称显示正确（如 `项目设计总监交付物1`）
+- ✅ 日志显示正确角色名称
+
+**防范措施**：
+- 获取角色名称时，同时尝试 `role_name` 和 `name` 字段
+- YAML 配置使用 `name`，LLM 输出使用 `role_name`
+- 代码中使用 `or` 短路逻辑兼容两种格式
+
+---
+
+### 8.28 v7.23 工作流日志分析综合修复 (2025-12-17) 🆕
+
+> 📋 基于完整工作流日志分析（session: api-20251217163616-7ce62a59），一次性修复 5 个问题
+
+#### 问题 8.28.1：DeliverableFormat 枚举不完整导致验证循环
+
+**症状**：
+- 项目总监连续 6 次 Pydantic 验证失败
+- 日志显示：`input should be 'analysis','strategy',...`
+- 常见失败值：`design_plan`, `blueprint`, `case_study_report`, `concept_presentation`
+- 总计浪费 136 秒
+
+**根因**：
+`DeliverableFormat` 枚举仅定义 17 个值，但 LLM 生成的格式名称远超此范围
+
+**修复方案 (v7.23)**：
+```python
+class DeliverableFormat(str, Enum):
+    # 原有 17 个枚举值...
+    # 🆕 v7.23 新增约 20 个枚举值
+    PRESENTATION = "presentation"      # 演示文稿
+    GUIDEBOOK = "guidebook"            # 指南手册
+    MANUAL = "manual"                  # 操作手册
+    NARRATIVE = "narrative"            # 叙事/故事
+    EXPERIENCE_MAP = "experience_map"  # 体验地图
+    MATERIALS_LIST = "materials_list"  # 材料清单
+    RESEARCH = "research"              # 研究报告
+    CONCEPT = "concept"                # 概念设计
+    # ... 等等
+
+# 🆕 v7.23 扩展映射表（80+ 条规则）
+DELIVERABLE_FORMAT_MAPPING = {
+    "design_plan": "design",
+    "concept_presentation": "presentation",
+    "research_report": "research",
+    # ... 等等
+}
+```
+
+**涉及文件**：
+- `intelligent_project_analyzer/core/task_oriented_models.py`
+
+---
+
+#### 问题 8.28.2：质量预检 interrupt 被 try-except 错误捕获
+
+**症状**：
+- 日志显示：`❌ Quality preflight node failed: (Interrupt(...))`
+- 高风险警告无法展示给用户
+- 工作流跳过用户确认直接继续
+
+**根因**：
+`_quality_preflight_node` 的 try-except 块捕获了所有异常，包括 LangGraph 的 `Interrupt`
+
+**修复方案 (v7.23)**：
+```python
+async def _quality_preflight_node(self, state):
+    try:
+        # ... 执行质量预检 ...
+    except Exception as e:
+        # 🔧 v7.23: 不要捕获 LangGraph 的 Interrupt
+        from langgraph.types import Interrupt
+        if isinstance(e, Interrupt) or (hasattr(e, 'args') and e.args and isinstance(e.args[0], Interrupt)):
+            logger.info("🔄 Quality preflight interrupt triggered")
+            raise  # 重新抛出 Interrupt
+        logger.error(f"❌ Quality preflight node failed: {e}")
+        return {"preflight_completed": False, ...}
+```
+
+**涉及文件**：
+- `intelligent_project_analyzer/workflow/main_workflow.py`
+
+---
+
+#### 问题 8.28.3：交付物补全 JSON 解析失败但日志显示"成功"
+
+**症状**：
+- 日志显示：`✅ 成功补全 0/3 个交付物`（0个但显示成功）
+- JSON 解析失败：`[解析失败] 缺失交付物: ['D3', 'D4', 'D5']`
+- 前端显示占位内容
+
+**根因**：
+1. JSON 解析策略单一，无法处理 LLM 输出的多种格式
+2. 日志判断逻辑不正确（0个也显示"成功"）
+
+**修复方案 (v7.23)**：
+```python
+def _parse_completion_output(self, completion_output, missing_deliverables):
+    # 策略1: 提取 ```json ... ``` 代码块
+    # 策略2: 提取 ``` ... ``` 代码块（无语言标识）
+    # 策略3: 提取最外层 {...} 或 [...]
+    
+    # 🔧 v7.23: 清理 JSON 格式问题
+    json_str = re.sub(r'//.*?(?=\n|$)', '', json_str)  # 移除注释
+    json_str = re.sub(r',(\s*[}\]])', r'\1', json_str)  # 移除尾随逗号
+    
+    # 降级策略：解析失败时构造占位交付物
+    except json.JSONDecodeError as e:
+        for name in missing_deliverables[:2]:
+            fallback_deliverables.append({...})
+
+def _complete_missing_deliverables(self, ...):
+    # 🔧 v7.23: 改进日志判断
+    if not completed_deliverables:
+        logger.warning(f"⚠️ 交付物补全失败：尝试补全 {len(missing_deliverables)} 个，实际解析出 0 个")
+    else:
+        logger.info(f"✅ 成功补全 {len(completed_deliverables)}/{len(missing_deliverables)} 个交付物")
+```
+
+**涉及文件**：
+- `intelligent_project_analyzer/agents/task_oriented_expert_factory.py`
+
+---
+
+#### 问题 8.28.4：问卷首次生成相关性仅 0.09
+
+**症状**：
+- 首次生成相关性 0.09，需重试 3 次才达到 0.59
+- 日志显示：`⚠️ 问题相关性低 (0.09 < 0.30)，需要重新生成`
+- 浪费 2 次 LLM 调用
+
+**根因**：
+首次生成时未将用户关键词注入到提示词中，导致 LLM 生成泛化问题
+
+**修复方案 (v7.23)**：
+```python
+def generate(cls, user_input, structured_data, ...):
+    # 1. 构建分析摘要
+    analysis_summary = cls._build_analysis_summary(structured_data)
+    
+    # 🆕 v7.23: 提取用户关键词并注入到分析摘要
+    user_keywords = cls._extract_user_keywords(user_input)
+    if user_keywords:
+        keywords_str = "、".join(user_keywords[:12])
+        analysis_summary += f"\n\n## ⚠️ 用户关键词（问题必须引用）\n{keywords_str}"
+        logger.info(f"🔑 [LLMQuestionGenerator] 注入用户关键词: {keywords_str[:50]}...")
+```
+
+**涉及文件**：
+- `intelligent_project_analyzer/interaction/questionnaire/llm_generator.py`
+
+---
+
+#### 问题 8.28.5：must_fix 专家ID提取失败
+
+**症状**：
+- 日志显示：`⚠️ 未能提取专家ID：必须修复问题但无法定位负责专家`
+- 3 个 must_fix 问题未能触发专家重做
+
+**根因**：
+`_extract_agents_from_issues` 方法提取策略不完整，仅支持 3 种字段来源
+
+**修复方案 (v7.23)**：
+```python
+def _extract_agents_from_issues(cls, must_fix_improvements, review_result):
+    # 策略1: 从 issue_id 映射获取
+    # 策略2: 从改进建议直接获取（🆕 支持更多字段名）
+    agent_id = (
+        improvement.get('agent_id', '') or 
+        improvement.get('responsible_agent', '') or
+        improvement.get('affected_expert', '') or   # 🆕 v7.23
+        improvement.get('source_agent', '') or      # 🆕 v7.23
+        improvement.get('expert_id', '')            # 🆕 v7.23
+    )
+    
+    # 🆕 v7.23 策略2.5: 从 source 字段提取专家标识
+    source = improvement.get('source', '')
+    if source:
+        source_match = re.search(r'(\d+-\d+)\s*(.+)', source)
+        if source_match:
+            layer = source_match.group(1).split('-')[0]
+            agents_to_improve.add(f"V{layer}")
+    
+    # 策略3: 从 description 中提取 V2-V6 标识
+    
+    # 🆕 v7.23 策略4: 从 category 或 type 推断专家层级
+    category_to_layer = {
+        'design': 'V2', 'narrative': 'V3', 'research': 'V4',
+        'scenario': 'V5', 'engineering': 'V6', ...
+    }
+```
+
+**涉及文件**：
+- `intelligent_project_analyzer/interaction/nodes/analysis_review.py`
+
+---
+
+**v7.23 修复总结**：
+
+| 问题 | 优先级 | 影响 | 修复效果 |
+|------|--------|------|----------|
+| DeliverableFormat 枚举不足 | P0 | 136秒浪费 | 验证失败 6→0 次 |
+| 质量预检 interrupt 被捕获 | P1 | 功能缺失 | 高风险警告正常暂停 |
+| 交付物 JSON 解析失败 | P1 | 数据丢失 | 多策略解析+降级 |
+| 问卷首次相关性低 | P2 | 3次重试 | 首次注入关键词 |
+| must_fix 专家ID提取失败 | P2 | 专家重做失效 | 6种提取策略 |
+
+---
+
+### 8.29 v7.24 工作流日志分析综合修复 (2025-12-17) 🆕
+
+> 📋 基于完整工作流日志分析（session: api-20251217172642-910b9077），一次性修复 4 个问题
+
+#### 问题 8.29.1：问卷 resume 后重复生成问卷（P0 - 严重）
+
+**症状**：
+- 用户提交问卷后（resume），系统再次生成问卷
+- 日志显示：`calibration_processed 标志: False`（resume 后仍为 False）
+- 浪费 25 秒 + 2 次 LLM API 调用
+
+**根因**：
+1. `calibration_questionnaire.py` 设置 `calibration_processed=True` 后返回 `requirements_analyst`
+2. `requirements_analyst` 返回后，标志未正确传递到下一次 `calibration_questionnaire` 调用
+3. 防御性检查 `calibration_answers` 也未触发（说明答案也丢失了）
+
+**修复方案 (v7.24)**：
+1. **增强 PERSISTENT_FLAGS**：添加 `calibration_answers`、`questionnaire_summary`、`questionnaire_responses`
+2. **增强防御性检查**：同时检查 `calibration_processed`、`calibration_answers`、`questionnaire_summary`
+3. **显式设置标志**：在返回 Command 时显式设置 `calibration_processed=True`
+
+```python
+# workflow_flags.py - 扩展 PERSISTENT_FLAGS
+PERSISTENT_FLAGS = {
+    # ...原有标志...
+    "calibration_answers",       # 🆕 v7.24: 问卷答案（防止 resume 后丢失）
+    "questionnaire_summary",     # 🆕 v7.24: 问卷摘要（防止 resume 后丢失）
+    "questionnaire_responses",   # 🆕 v7.24: 问卷响应（防止 resume 后丢失）
+}
+
+# calibration_questionnaire.py - 增强检测
+calibration_answers = state.get("calibration_answers")
+questionnaire_summary = state.get("questionnaire_summary")
+
+if not calibration_processed:
+    if calibration_answers:
+        logger.warning("⚠️ v7.24: calibration_processed=False 但 calibration_answers 存在，视为已处理")
+        calibration_processed = True
+    elif questionnaire_summary and questionnaire_summary.get("answers"):
+        logger.warning("⚠️ v7.24: calibration_processed=False 但 questionnaire_summary.answers 存在，视为已处理")
+        calibration_processed = True
+```
+
+**涉及文件**：
+- `intelligent_project_analyzer/core/workflow_flags.py`
+- `intelligent_project_analyzer/interaction/nodes/calibration_questionnaire.py`
+
+---
+
+#### 问题 8.29.2：质量预检 interrupt 被 try-except 捕获（P1）
+
+**症状**：
+```log
+17:31:09.103 | ERROR | ❌ Quality preflight node failed: (Interrupt(value={...}),)
+```
+
+**根因**：
+- v7.23 修复检查 `isinstance(e, Interrupt)` 或 `e.args[0]`
+- 但实际异常可能是 tuple 类型 `(Interrupt(...),)`，不匹配现有检查
+
+**修复方案 (v7.24)**：
+```python
+# main_workflow.py - 增强 Interrupt 检测
+is_interrupt = False
+if isinstance(e, Interrupt):
+    is_interrupt = True
+elif hasattr(e, 'args') and e.args:
+    if isinstance(e.args[0], Interrupt):
+        is_interrupt = True
+    elif isinstance(e.args[0], tuple) and e.args[0] and isinstance(e.args[0][0], Interrupt):
+        is_interrupt = True
+
+# 额外检查错误消息
+if 'Interrupt' in str(e) and 'value=' in str(e):
+    raise  # 重新抛出
+```
+
+**涉及文件**：
+- `intelligent_project_analyzer/workflow/main_workflow.py`
+
+---
+
+#### 问题 8.29.3：must_fix 专家ID提取失败（P2）
+
+**症状**：
+```log
+17:33:15.691 | WARNING | ⚠️ 未能从must_fix问题中提取任何专家ID
+```
+
+**根因**：
+- v7.23 策略（4种）不足以覆盖所有 must_fix 问题格式
+- 缺少从 `affected_sections`、`suggestion` 等字段提取的策略
+
+**修复方案 (v7.24)**：
+```python
+# 策略5: 从 affected_sections 提取专家
+affected_sections = improvement.get('affected_sections', [])
+for section in affected_sections:
+    matches = re.findall(r'(V[2-6])', section, re.IGNORECASE)
+    for match in matches:
+        agents_to_improve.add(match.upper())
+
+# 策略6: 从 suggestion 中提取专家关键词
+keyword_to_layer = {
+    '设计总监': 'V2', '空间': 'V2', '布局': 'V2',
+    '叙事': 'V3', '故事': 'V3', '人物': 'V3',
+    '研究': 'V4', '用户': 'V4', '体验': 'V4',
+    '场景': 'V5', '商业': 'V5', '运营': 'V5',
+    '工程': 'V6', '技术': 'V6', '成本': 'V6',
+}
+```
+
+**涉及文件**：
+- `intelligent_project_analyzer/interaction/nodes/analysis_review.py`
+
+---
+
+#### 问题 8.29.4：WebSocket 初始状态发送失败（P3）
+
+**症状**：
+```log
+17:26:43.894 | WARNING | ⚠️ 发送初始状态失败:
+```
+
+**根因**：
+- 连接刚建立时可能不稳定
+- 发送失败后直接返回，断开连接
+
+**修复方案 (v7.24)**：
+```python
+# server.py - 增加重试和延迟
+await asyncio.sleep(0.1)  # 等待连接稳定
+
+for attempt in range(3):
+    try:
+        await websocket.send_json({...})
+        break
+    except Exception as e:
+        if attempt < 2:
+            await asyncio.sleep(0.2)
+        # 不再直接返回，继续保持连接
+```
+
+**涉及文件**：
+- `intelligent_project_analyzer/api/server.py`
+
+---
+
+**v7.24 修复总结**：
+
+| 问题 | 优先级 | 影响 | 修复效果 |
+|------|--------|------|----------|
+| 问卷重复生成 | P0 | 浪费 25s | 多信号源检测 |
+| interrupt 被捕获 | P1 | 功能缺失 | 增强检测逻辑 |
+| 专家ID提取失败 | P2 | 专家重做失效 | 6种提取策略 |
+| WebSocket 发送失败 | P3 | 用户体验 | 重试+延迟机制 |
+
+---
+
+**维护者**：AI Assistant
+**最后更新**：2025-12-17

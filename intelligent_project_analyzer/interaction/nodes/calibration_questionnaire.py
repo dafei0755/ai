@@ -1,6 +1,7 @@
 """战略校准问卷节点"""
 
 import json
+import os
 from datetime import datetime
 from typing import Dict, Any, Literal, Optional, Tuple, List
 from loguru import logger
@@ -18,6 +19,9 @@ from ..questionnaire import (
     QuestionAdjuster,
     AnswerParser
 )
+
+# 🆕 v7.18: 环境变量控制是否使用 QuestionnaireAgent
+USE_V718_QUESTIONNAIRE_AGENT = os.getenv("USE_V718_QUESTIONNAIRE_AGENT", "false").lower() == "true"
 
 
 class CalibrationQuestionnaireNode:
@@ -258,18 +262,28 @@ class CalibrationQuestionnaireNode:
 
         # ✅ 检查是否已经处理过问卷（避免死循环）
         calibration_processed = state.get("calibration_processed")
-        logger.info(f"🔍 [DEBUG] calibration_processed 标志: {calibration_processed}")
+        calibration_answers = state.get("calibration_answers")
+        questionnaire_summary = state.get("questionnaire_summary")
         
-        # 🛡️ 防御性编程：如果标志丢失但已存在答案，视为已处理
-        if not calibration_processed and state.get("calibration_answers"):
-            logger.warning("⚠️ calibration_processed flag missing but calibration_answers found. Assuming processed.")
-            calibration_processed = True
+        logger.info(f"🔍 [DEBUG] calibration_processed 标志: {calibration_processed}")
+        logger.info(f"🔍 [DEBUG] calibration_answers 存在: {bool(calibration_answers)}")
+        logger.info(f"🔍 [DEBUG] questionnaire_summary 存在: {bool(questionnaire_summary)}")
+        
+        # 🛡️ v7.24 增强防御：检查多个信号源判断问卷是否已处理
+        # 信号源优先级：calibration_processed > calibration_answers > questionnaire_summary
+        if not calibration_processed:
+            if calibration_answers:
+                logger.warning("⚠️ v7.24: calibration_processed=False 但 calibration_answers 存在，视为已处理")
+                calibration_processed = True
+            elif questionnaire_summary and questionnaire_summary.get("answers"):
+                logger.warning("⚠️ v7.24: calibration_processed=False 但 questionnaire_summary.answers 存在，视为已处理")
+                calibration_processed = True
         
         if calibration_processed:
             logger.info("✅ Calibration already processed, skipping to requirements confirmation")
             logger.info("🔄 [DEBUG] Returning Command(goto='requirements_confirmation')")
             # 自动保留持久化标志
-            update_dict = {}
+            update_dict = {"calibration_processed": True}  # 🔧 v7.24: 显式设置，确保传递
             update_dict = WorkflowFlagManager.preserve_flags(state, update_dict)
             return Command(
                 update=update_dict,
@@ -323,66 +337,99 @@ class CalibrationQuestionnaireNode:
         if not questionnaire or not questionnaire.get("questions"):
             logger.info("🚀 v7.5新架构：LLM驱动的智能问卷生成（提升问题与用户需求的结合度）")
 
-            # 🆕 v7.5: 优先使用 LLM 驱动的问卷生成
-            # LLM 能够深度理解用户意图，生成更有针对性的问题
-            try:
-                from ..questionnaire.llm_generator import LLMQuestionGenerator
-                
-                logger.info("🤖 [v7.5] 尝试使用 LLM 生成问卷...")
-                base_questions, generation_method = LLMQuestionGenerator.generate(
-                    user_input=user_input,
-                    structured_data=structured_data,
-                    llm_model=None,  # 使用默认LLM实例
-                    timeout=30
-                )
-                
-                if base_questions and generation_method == "llm_generated":
-                    logger.info(f"✅ [v7.5] LLM生成成功：{len(base_questions)} 个定制问题")
-                    questionnaire = {
-                        "introduction": "以下问题基于您的具体需求定制，旨在深入理解您的期望和偏好",
-                        "questions": base_questions,
-                        "note": "这些问题直接针对您提到的具体内容，帮助我们提供更精准的设计建议",
-                        "source": "llm_generated",
-                        "generation_method": "llm_driven"
-                    }
-                    generation_source = "llm_generated"
-                else:
-                    logger.warning(f"⚠️ [v7.5] LLM生成返回回退方案，将使用规则生成")
-                    raise Exception("LLM返回回退方案")
-                    
-            except Exception as llm_error:
-                logger.warning(f"⚠️ [v7.5] LLM生成失败: {llm_error}，使用回退方案")
-                
-                # 🔄 回退到原有的 FallbackQuestionGenerator
-                logger.info("🔄 [v7.5] 回退到规则驱动的问卷生成...")
-                
-                # 智能提取关键信息
-                from ..questionnaire.context import KeywordExtractor
-                import sys
-
+            # 🆕 v7.18: 优先使用 QuestionnaireAgent (StateGraph) 生成问卷
+            if USE_V718_QUESTIONNAIRE_AGENT:
                 try:
-                    extracted_info = KeywordExtractor.extract(user_input, structured_data)
-                    logger.info(f"🔍 关键词提取完成，提取了 {len(extracted_info)} 个字段")
-                except Exception as e:
-                    logger.error(f"❌ KeywordExtractor.extract() 失败: {e}")
-                    extracted_info = KeywordExtractor._empty_result()
+                    from ...agents.questionnaire_agent import QuestionnaireAgent
+                    
+                    logger.info("🤖 [v7.18] 使用 QuestionnaireAgent (StateGraph) 生成问卷...")
+                    questionnaire_agent = QuestionnaireAgent(llm_model=None)
+                    base_questions, generation_method = questionnaire_agent.generate(
+                        user_input=user_input,
+                        structured_data=structured_data
+                    )
+                    
+                    if base_questions and generation_method in ("llm_generated", "regenerated"):
+                        logger.info(f"✅ [v7.18] QuestionnaireAgent 生成成功：{len(base_questions)} 个问题")
+                        questionnaire = {
+                            "introduction": "以下问题基于您的具体需求定制，旨在深入理解您的期望和偏好",
+                            "questions": base_questions,
+                            "note": "这些问题直接针对您提到的具体内容，帮助我们提供更精准的设计建议",
+                            "source": generation_method,
+                            "generation_method": "stategraph_agent"
+                        }
+                        generation_source = generation_method
+                    else:
+                        logger.warning(f"⚠️ [v7.18] QuestionnaireAgent 返回回退方案，将使用规则生成")
+                        raise Exception("QuestionnaireAgent 返回回退方案")
+                        
+                except Exception as agent_error:
+                    logger.warning(f"⚠️ [v7.18] QuestionnaireAgent 失败: {agent_error}，回退到 LLMQuestionGenerator")
+                    # 回退到原有 v7.5 逻辑
+                    USE_V718_QUESTIONNAIRE_AGENT_FALLBACK = True
+            else:
+                USE_V718_QUESTIONNAIRE_AGENT_FALLBACK = True
+            
+            # v7.5 原有逻辑（作为 v7.18 的回退或独立使用）
+            if not questionnaire or not questionnaire.get("questions"):
+                try:
+                    from ..questionnaire.llm_generator import LLMQuestionGenerator
+                    
+                    logger.info("🤖 [v7.5] 尝试使用 LLM 生成问卷...")
+                    base_questions, generation_method = LLMQuestionGenerator.generate(
+                        user_input=user_input,
+                        structured_data=structured_data,
+                        llm_model=None,  # 使用默认LLM实例
+                        timeout=30
+                    )
+                    
+                    if base_questions and generation_method == "llm_generated":
+                        logger.info(f"✅ [v7.5] LLM生成成功：{len(base_questions)} 个定制问题")
+                        questionnaire = {
+                            "introduction": "以下问题基于您的具体需求定制，旨在深入理解您的期望和偏好",
+                            "questions": base_questions,
+                            "note": "这些问题直接针对您提到的具体内容，帮助我们提供更精准的设计建议",
+                            "source": "llm_generated",
+                            "generation_method": "llm_driven"
+                        }
+                        generation_source = "llm_generated"
+                    else:
+                        logger.warning(f"⚠️ [v7.5] LLM生成返回回退方案，将使用规则生成")
+                        raise Exception("LLM返回回退方案")
+                        
+                except Exception as llm_error:
+                    logger.warning(f"⚠️ [v7.5] LLM生成失败: {llm_error}，使用回退方案")
+                    
+                    # 🔄 回退到原有的 FallbackQuestionGenerator
+                    logger.info("🔄 [v7.5] 回退到规则驱动的问卷生成...")
+                    
+                    # 智能提取关键信息
+                    from ..questionnaire.context import KeywordExtractor
+                    import sys
 
-                # 使用 FallbackQuestionGenerator 生成基础问题集
-                base_questions = FallbackQuestionGenerator.generate(
-                    structured_data,
-                    user_input=user_input,
-                    extracted_info=extracted_info
-                )
-                logger.info(f"✅ 规则生成完成：{len(base_questions)} 个问题")
+                    try:
+                        extracted_info = KeywordExtractor.extract(user_input, structured_data)
+                        logger.info(f"🔍 关键词提取完成，提取了 {len(extracted_info)} 个字段")
+                    except Exception as e:
+                        logger.error(f"❌ KeywordExtractor.extract() 失败: {e}")
+                        extracted_info = KeywordExtractor._empty_result()
 
-                questionnaire = {
-                    "introduction": "以下问题旨在深入理解您的需求和期望，帮助我们提供更精准的设计建议",
-                    "questions": base_questions,
-                    "note": "基于您的需求深度分析结果生成的定制问卷",
-                    "source": "dynamic_generation",
-                    "generation_method": "rule_based_fallback"
-                }
-                generation_source = "dynamic_generation"
+                    # 使用 FallbackQuestionGenerator 生成基础问题集
+                    base_questions = FallbackQuestionGenerator.generate(
+                        structured_data,
+                        user_input=user_input,
+                        extracted_info=extracted_info
+                    )
+                    logger.info(f"✅ 规则生成完成：{len(base_questions)} 个问题")
+
+                    questionnaire = {
+                        "introduction": "以下问题旨在深入理解您的需求和期望，帮助我们提供更精准的设计建议",
+                        "questions": base_questions,
+                        "note": "基于您的需求深度分析结果生成的定制问卷",
+                        "source": "dynamic_generation",
+                        "generation_method": "rule_based_fallback"
+                    }
+                    generation_source = "dynamic_generation"
 
         logger.info(f"🔍 问卷源: {generation_source}, 问题数: {len(questionnaire.get('questions', []))}")
 
@@ -702,6 +749,8 @@ class CalibrationQuestionnaireNode:
                 }
                 updated_state["questionnaire_summary"] = summary_payload
                 updated_state["questionnaire_responses"] = summary_payload
+                # 🔥 v7.13: 修复 - add 意图也需要标记问卷已处理，防止 resume 后重复生成
+                updated_state["calibration_processed"] = True
                 logger.info(f"✅ [add 意图] 已保存 {len(answers_map)} 个问卷答案到 questionnaire_summary")
             
             if supplement_text:

@@ -223,6 +223,8 @@ class AnalysisReviewNode:
         """
         从must_fix问题中提取需要整改的专家ID
         
+        🔧 v7.23: 增强专家ID提取逻辑，支持更多字段和格式
+        
         Args:
             must_fix_improvements: must_fix改进建议列表
             review_result: 完整审核结果
@@ -230,19 +232,138 @@ class AnalysisReviewNode:
         Returns:
             需要整改的专家ID集合
         """
+        import re
+        
         agents_to_improve = set()
         red_issues = review_result.get('red_team_review', {}).get('issues', [])
         
+        # 🔧 v7.11: 构建 issue_id -> agent_id 映射
+        issue_agent_map = {}
+        for red_issue in red_issues:
+            issue_id = red_issue.get('id', '')
+            agent_id = red_issue.get('agent_id', '') or red_issue.get('responsible_agent', '')
+            if issue_id and agent_id:
+                issue_agent_map[issue_id] = agent_id
+        
+        logger.debug(f"🔍 红队问题映射: {issue_agent_map}")
+        
         for improvement in must_fix_improvements:
             issue_id = improvement.get('issue_id', '')
-            # 从红队问题中查找对应的agent_id
-            for red_issue in red_issues:
-                if red_issue.get('id') == issue_id:
-                    agent_id = red_issue.get('agent_id', '')
-                    if agent_id:
-                        agents_to_improve.add(agent_id)
-                        logger.debug(f"   问题 {issue_id} 关联专家: {agent_id}")
-                    break
+            
+            # 策略1: 直接从映射获取
+            if issue_id and issue_id in issue_agent_map:
+                agents_to_improve.add(issue_agent_map[issue_id])
+                logger.debug(f"   ✅ 问题 {issue_id} -> 专家: {issue_agent_map[issue_id]}")
+                continue
+            
+            # 策略2: 从改进建议中直接获取agent_id（支持多种字段名）
+            agent_id = (
+                improvement.get('agent_id', '') or 
+                improvement.get('responsible_agent', '') or
+                improvement.get('affected_expert', '') or  # 🆕 v7.23
+                improvement.get('source_agent', '') or     # 🆕 v7.23
+                improvement.get('expert_id', '')           # 🆕 v7.23
+            )
+            if agent_id:
+                agents_to_improve.add(agent_id)
+                logger.debug(f"   ✅ 改进建议直接指定专家: {agent_id}")
+                continue
+            
+            # 🆕 v7.23 策略2.5: 从 source 字段提取专家标识
+            source = improvement.get('source', '')
+            if source:
+                # 匹配 "X-Y 专家名称" 格式，如 "4-1 设计研究员"
+                source_match = re.search(r'(\d+-\d+)\s*(.+)', source)
+                if source_match:
+                    suffix = source_match.group(1)  # "4-1"
+                    layer = suffix.split('-')[0]     # "4"
+                    agents_to_improve.add(f"V{layer}")
+                    logger.debug(f"   ✅ 从source提取专家: V{layer} (来自 {source})")
+                    continue
+            
+            # 策略3: 从description中提取专家标识（如"V4专家"、"V3_人物"等）
+            description = improvement.get('description', '') or improvement.get('suggestion', '')
+            if description:
+                # 匹配 V2-V6 格式的专家标识
+                pattern = r'(V[2-6](?:_[^\s,，]+)?)'
+                matches = re.findall(pattern, description, re.IGNORECASE)
+                for match in matches:
+                    agents_to_improve.add(match.upper())
+                    logger.debug(f"   ✅ 从描述中提取专家: {match}")
+                if matches:
+                    continue
+            
+            # 🆕 v7.23 策略4: 从 category 或 type 推断专家层级
+            category = improvement.get('category', '') or improvement.get('type', '')
+            category_to_layer = {
+                'design': 'V2',
+                'narrative': 'V3',
+                'research': 'V4',
+                'scenario': 'V5',
+                'engineering': 'V6',
+                'technical': 'V6',
+                'business': 'V5',
+                'user_experience': 'V4',
+                'ux': 'V4',
+                # 🆕 v7.24: 扩展类别映射
+                'architecture': 'V6',
+                'visual': 'V2',
+                'space': 'V2',
+                'user': 'V4',
+                'customer': 'V4',
+                'story': 'V3',
+                'character': 'V3',
+                'persona': 'V4',
+                'flow': 'V5',
+                'experience': 'V5',
+                'material': 'V6',
+                'cost': 'V6',
+                'budget': 'V6',
+            }
+            if category:
+                category_lower = category.lower().replace('_', '')
+                for key, layer in category_to_layer.items():
+                    if key in category_lower:
+                        agents_to_improve.add(layer)
+                        logger.debug(f"   ✅ 从类别'{category}'推断专家: {layer}")
+                        break
+            
+            # 🆕 v7.24 策略5: 从 affected_sections 提取专家
+            affected_sections = improvement.get('affected_sections', [])
+            if isinstance(affected_sections, str):
+                affected_sections = [affected_sections]
+            for section in affected_sections:
+                section_lower = section.lower() if isinstance(section, str) else ''
+                # 匹配 V2-V6 格式
+                pattern = r'(V[2-6])'
+                matches = re.findall(pattern, section, re.IGNORECASE)
+                for match in matches:
+                    agents_to_improve.add(match.upper())
+                    logger.debug(f"   ✅ 从affected_sections提取专家: {match}")
+            
+            # 🆕 v7.24 策略6: 从 suggestion 中提取专家关键词
+            suggestion = improvement.get('suggestion', '')
+            if suggestion:
+                # 通用关键词到专家层级映射
+                keyword_to_layer = {
+                    '设计总监': 'V2', '空间': 'V2', '布局': 'V2', '规划': 'V2',
+                    '叙事': 'V3', '故事': 'V3', '人物': 'V3', '角色': 'V3',
+                    '研究': 'V4', '用户': 'V4', '体验': 'V4', '调研': 'V4',
+                    '场景': 'V5', '商业': 'V5', '运营': 'V5', '流程': 'V5',
+                    '工程': 'V6', '技术': 'V6', '实施': 'V6', '成本': 'V6', '材料': 'V6',
+                }
+                for keyword, layer in keyword_to_layer.items():
+                    if keyword in suggestion:
+                        agents_to_improve.add(layer)
+                        logger.debug(f"   ✅ 从suggestion关键词'{keyword}'推断专家: {layer}")
+                        break  # 只取第一个匹配
+        
+        if not agents_to_improve:
+            logger.warning("⚠️ 未能从must_fix问题中提取任何专家ID")
+            logger.debug(f"   改进建议: {must_fix_improvements}")
+            logger.debug(f"   红队问题: {red_issues}")
+        else:
+            logger.info(f"✅ 提取到需要整改的专家: {agents_to_improve}")
         
         return agents_to_improve
 

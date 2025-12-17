@@ -95,6 +95,9 @@ from intelligent_project_analyzer.services.file_processor import file_processor,
 # ✅ v3.8新增: 对话智能体
 from intelligent_project_analyzer.agents.conversation_agent import ConversationAgent, ConversationContext
 
+# 🔥 v7.15新增: 追问智能体 (LangGraph)
+from intelligent_project_analyzer.agents.followup_agent import FollowupAgent
+
 # ✅ v3.11新增: 追问历史管理器
 from intelligent_project_analyzer.services.followup_history_manager import FollowupHistoryManager
 
@@ -1210,23 +1213,32 @@ async def run_workflow_async(session_id: str, user_input: str):
                 
                 current_node_name = current_session.get("current_node", "")
                 
-                # 🎯 定义节点到进度的映射（基于实际工作流）
+                # 🎯 v7.21: 定义节点到进度的映射（与 main_workflow.py 实际节点名称对齐）
                 node_progress_map = {
-                    "input_guard": 0.05,                    # 5% - 输入预检
-                    "requirements_analyst": 0.15,           # 15% - 需求分析
-                    "domain_validator": 0.20,               # 20% - 领域验证
-                    "calibration_questionnaire": 0.25,      # 25% - 问卷
-                    "requirements_confirmation": 0.35,      # 35% - 需求确认
-                    "project_director": 0.40,               # 40% - 项目总监
-                    "role_task_unified_review": 0.45,       # 45% - 角色审核
-                    "quality_preflight": 0.50,              # 🔥 50% - 质量预检（关键修复）
-                    "batch_executor": 0.55,                 # 55% - 批次调度
-                    "agent_executor": 0.75,                 # 75% - 专家执行
-                    "batch_aggregator": 0.80,               # 80% - 批次聚合
-                    "detect_challenges": 0.82,              # 82% - 挑战检测
-                    "result_aggregator": 0.88,              # 88% - 结果聚合
-                    "report_guard": 0.92,                   # 92% - 报告审核
-                    "pdf_generator": 0.95,                  # 95% - PDF 生成
+                    # 输入验证阶段 (0-15%)
+                    "unified_input_validator_initial": 0.05,   # 5% - 初始输入验证
+                    "unified_input_validator_secondary": 0.10, # 10% - 二次验证
+                    # 需求分析阶段 (15-35%)
+                    "requirements_analyst": 0.15,              # 15% - 需求分析
+                    "feasibility_analyst": 0.20,               # 20% - 可行性分析
+                    "calibration_questionnaire": 0.25,         # 25% - 问卷
+                    "requirements_confirmation": 0.35,         # 35% - 需求确认
+                    # 项目规划阶段 (35-55%)
+                    "project_director": 0.40,                  # 40% - 项目总监
+                    "role_task_unified_review": 0.45,          # 45% - 角色审核
+                    "quality_preflight": 0.50,                 # 50% - 质量预检
+                    # 专家执行阶段 (55-80%)
+                    "batch_executor": 0.55,                    # 55% - 批次调度
+                    "agent_executor": 0.70,                    # 70% - 专家执行
+                    "batch_aggregator": 0.75,                  # 75% - 批次聚合
+                    "batch_router": 0.76,                      # 76% - 批次路由
+                    "batch_strategy_review": 0.78,             # 78% - 策略审核
+                    # 审核聚合阶段 (80-100%)
+                    "detect_challenges": 0.80,                 # 80% - 挑战检测
+                    "analysis_review": 0.85,                   # 85% - 分析审核
+                    "result_aggregator": 0.90,                 # 90% - 结果聚合
+                    "report_guard": 0.95,                      # 95% - 报告审核
+                    "pdf_generator": 0.98,                     # 98% - PDF 生成
                 }
                 
                 # 使用节点映射或回退到计数
@@ -2100,15 +2112,17 @@ async def resume_analysis(
                         logger.debug(f"[PROGRESS] 节点: {node_name}, 详情: {detail}")
                 
                 session["events"].append(chunk)
-                # 使用节点映射
+                # 🎯 v7.21: 节点映射与 main_workflow.py 对齐
                 current_node = session.get("current_node", "")
                 node_progress_map = {
-                    "input_guard": 0.05, "requirements_analyst": 0.15, "domain_validator": 0.20,
+                    "unified_input_validator_initial": 0.05, "unified_input_validator_secondary": 0.10,
+                    "requirements_analyst": 0.15, "feasibility_analyst": 0.20,
                     "calibration_questionnaire": 0.25, "requirements_confirmation": 0.35,
                     "project_director": 0.40, "role_task_unified_review": 0.45,
-                    "quality_preflight": 0.50, "batch_executor": 0.55, "agent_executor": 0.75,
-                    "batch_aggregator": 0.80, "detect_challenges": 0.82, "result_aggregator": 0.88,
-                    "report_guard": 0.92, "pdf_generator": 0.95,
+                    "quality_preflight": 0.50, "batch_executor": 0.55, "agent_executor": 0.70,
+                    "batch_aggregator": 0.75, "batch_router": 0.76, "batch_strategy_review": 0.78,
+                    "detect_challenges": 0.80, "analysis_review": 0.85, "result_aggregator": 0.90,
+                    "report_guard": 0.95, "pdf_generator": 0.98,
                 }
                 session["progress"] = node_progress_map.get(current_node, min(0.9, len(session["events"]) * 0.1))
 
@@ -2351,21 +2365,8 @@ async def submit_followup_question(
             history_data = await followup_history_manager.get_history(session_id, limit=None)  # 获取全部
             logger.info(f"📚 当前对话历史: {len(history_data)} 轮")
 
-            # 转换为 ConversationTurn 对象
-            from intelligent_project_analyzer.agents.conversation_agent import ConversationTurn
-            conversation_history = [
-                ConversationTurn(
-                    question=turn["question"],
-                    answer=turn["answer"],
-                    intent=turn["intent"],
-                    referenced_sections=turn.get("referenced_sections", []),
-                    timestamp=turn["timestamp"]
-                )
-                for turn in history_data
-            ]
-
-            # 初始化对话智能体
-            agent = ConversationAgent()
+            # 🔥 v7.15: 使用 FollowupAgent (LangGraph)
+            agent = FollowupAgent()
 
             # 构建上下文
             parent_session = await session_manager.get(session_id)
@@ -2374,25 +2375,25 @@ async def submit_followup_question(
             structured_requirements = parent_session.get("structured_requirements", {})
             original_input = parent_session.get("user_input", "")
 
-            # 如果没有结构化数据，尝试从final_report解析
+            # 如果没有结构化数据，尝试从 final_report 解析
             final_report = parent_session.get("final_report")
             if isinstance(final_report, dict) and not aggregated_results:
                 aggregated_results = final_report
 
-            context = ConversationContext(
-                final_report=aggregated_results if isinstance(aggregated_results, dict) else {},
-                agent_results=agent_results if isinstance(agent_results, dict) else {},
-                requirements=structured_requirements if isinstance(structured_requirements, dict) else {},
-                user_input=original_input
-            )
+            # 🔥 v7.15: 构建 report_context (新格式)
+            report_context = {
+                "final_report": aggregated_results if isinstance(aggregated_results, dict) else {},
+                "agent_results": agent_results if isinstance(agent_results, dict) else {},
+                "requirements": structured_requirements if isinstance(structured_requirements, dict) else {},
+                "user_input": original_input
+            }
 
-            # 🔥 调用对话智能体（传入历史）
-            logger.info(f"🤖 调用对话智能体（历史轮次: {len(conversation_history)}）")
-            result = await asyncio.to_thread(
-                agent.answer_question,
+            # 🔥 v7.15: 调用 FollowupAgent
+            logger.info(f"🤖 调用 FollowupAgent (LangGraph)（历史轮次: {len(history_data)}）")
+            result = await agent.answer_question_async(
                 question=request.question,
-                context=context,
-                conversation_history=conversation_history  # 🔥 传入历史！
+                report_context=report_context,
+                conversation_history=history_data
             )
 
             answer = result.get("answer", "抱歉，我无法回答这个问题。")
@@ -3286,16 +3287,15 @@ class PDFGenerator(FPDF):
 
 def generate_report_pdf(report_data: dict, user_input: str = "") -> bytes:
     """
-    🔥 v7.0 重构：生成报告 PDF
+    🔥 v7.24 合并优化：生成完整报告 PDF（含专家报告）
     
-    PDF 结构对齐前端显示，包含 5 个核心章节：
+    PDF 结构对齐前端显示，包含 6 个核心章节：
     1. 用户原始需求
     2. 校准问卷回顾（过滤"未回答"）
     3. 需求洞察
     4. 核心答案（支持 v7.0 多交付物格式）
-    5. 执行元数据
-    
-    不包含专家报告（专家报告有独立下载入口）
+    5. 专家报告附录（🆕 v7.24: 合并原独立下载）
+    6. 执行元数据
     """
     pdf = PDFGenerator()
     
@@ -3493,9 +3493,31 @@ def generate_report_pdf(report_data: dict, user_input: str = "") -> bytes:
     
     pdf.add_divider()
     
-    # ========== 第五章：执行元数据 ==========
+    # ========== 第五章：专家报告附录 🆕 v7.24 ==========
+    expert_reports = report_data.get("expert_reports", {})
+    if expert_reports and isinstance(expert_reports, dict) and len(expert_reports) > 0:
+        pdf.add_page()
+        pdf.chapter_title("第五章  专家报告附录", 1)
+        pdf.body_text(f"本章包含 {len(expert_reports)} 位专家的详细分析报告。")
+        pdf.ln(5)
+        
+        # 专家目录
+        pdf.chapter_title("专家列表", 2)
+        for i, expert_name in enumerate(expert_reports.keys(), 1):
+            pdf.list_item(f"{i}. {expert_name}", numbered=False)
+        pdf.ln(5)
+        
+        # 逐个专家报告
+        for expert_name, content in expert_reports.items():
+            pdf.add_page()
+            pdf.chapter_title(expert_name, 2)
+            format_expert_content_for_pdf(pdf, content)
+    
+    pdf.add_divider()
+    
+    # ========== 第六章：执行元数据 ==========
     pdf.add_page()
-    pdf.chapter_title("第五章  执行元数据", 1)
+    pdf.chapter_title("第六章  执行元数据", 1)
     
     # 从 report_data 中收集元数据
     inquiry_architecture = report_data.get("inquiry_architecture", "")
@@ -4768,37 +4790,28 @@ async def ask_question(request: ConversationRequest):
     logger.info(f"💬 Conversation question from {session_id}: {question[:50]}...")
     
     try:
-        # 构建对话上下文
-        from intelligent_project_analyzer.agents.conversation_agent import (
-            ConversationAgent,
-            ConversationContext,
-            ConversationTurn
-        )
+        # 🔥 v7.15: 使用 FollowupAgent (LangGraph)
         
         # 从会话中提取上下文
         final_state = session.get("final_state", {})
         
-        context = ConversationContext(
-            final_report=session.get("final_report", {}),
-            agent_results=final_state.get("agent_results", {}),
-            requirements=final_state.get("requirements_analysis", {}),
-            user_input=session.get("user_input", "")
-        )
+        # 构建 report_context
+        report_context = {
+            "final_report": session.get("final_report", {}),
+            "agent_results": final_state.get("agent_results", {}),
+            "requirements": final_state.get("requirements_analysis", {}),
+            "user_input": session.get("user_input", "")
+        }
         
         # 获取对话历史
-        history = []
-        if "conversation_history" in session:
-            history = [
-                ConversationTurn(**turn)
-                for turn in session["conversation_history"]
-            ]
+        history_data = session.get("conversation_history", [])
         
-        # 调用对话智能体
-        agent = ConversationAgent()
+        # 🔥 调用 FollowupAgent
+        agent = FollowupAgent()
         result = agent.answer_question(
             question=question,
-            context=context,
-            conversation_history=history
+            report_context=report_context,
+            conversation_history=history_data
         )
         
         # 保存到会话
@@ -5139,21 +5152,32 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
     websocket_connections[session_id].append(websocket)
     
     try:
-        # 发送初始状态
+        # 🔧 v7.24: 增强初始状态发送，添加重试和延迟机制
         if session_manager:
+            # 等待连接稳定
+            await asyncio.sleep(0.1)
+            
             session = await session_manager.get(session_id)
             if session:
-                try:
-                    await websocket.send_json({
-                        "type": "initial_status",
-                        "status": session.get("status", "pending"),
-                        "progress": session.get("progress", 0),
-                        "current_node": session.get("current_node"),
-                        "detail": session.get("detail")
-                    })
-                except Exception as e:
-                    logger.warning(f"⚠️ 发送初始状态失败: {e}")
-                    return # 连接已断开，直接退出
+                # 最多重试 3 次发送初始状态
+                for attempt in range(3):
+                    try:
+                        await websocket.send_json({
+                            "type": "initial_status",
+                            "status": session.get("status", "pending"),
+                            "progress": session.get("progress", 0),
+                            "current_node": session.get("current_node"),
+                            "detail": session.get("detail")
+                        })
+                        logger.debug(f"✅ WebSocket 初始状态发送成功: {session_id}")
+                        break  # 发送成功，退出重试
+                    except Exception as e:
+                        if attempt < 2:
+                            logger.warning(f"⚠️ 发送初始状态失败(尝试 {attempt + 1}/3): {e}")
+                            await asyncio.sleep(0.2)  # 等待后重试
+                        else:
+                            logger.warning(f"⚠️ 发送初始状态失败，放弃重试: {e}")
+                            # 不再直接返回，继续保持连接（可能稍后恢复）
         
         # 保持连接并接收客户端心跳
         while True:

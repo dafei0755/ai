@@ -27,6 +27,7 @@ class WorkflowFlagManager:
     """
 
     # 定义需要自动传递的持久化标志
+    # 🔧 v7.24: 添加问卷相关的关键状态，确保 resume 后不丢失
     PERSISTENT_FLAGS: Set[str] = {
         "skip_unified_review",      # 跳过统一任务审核
         "skip_calibration",          # 跳过校准问卷
@@ -34,6 +35,9 @@ class WorkflowFlagManager:
         "is_rerun",                  # 重新运行标志
         "calibration_skipped",       # 问卷已跳过
         "calibration_processed",     # 问卷已处理（在某些路径需要保留）
+        "calibration_answers",       # 🆕 v7.24: 问卷答案（防止 resume 后丢失）
+        "questionnaire_summary",     # 🆕 v7.24: 问卷摘要（防止 resume 后丢失）
+        "questionnaire_responses",   # 🆕 v7.24: 问卷响应（防止 resume 后丢失）
     }
 
     @staticmethod
