@@ -3404,6 +3404,25 @@ def generate_report_pdf(report_data: dict, user_input: str = "") -> bytes:
     pdf.chapter_title("第四章  需求洞察", 1)
     
     insights = report_data.get("insights", {})
+    
+    # 🔥 v7.26.2: 兜底逻辑 - 如果 insights 为空，从 requirements_analysis 提取
+    if not insights or not isinstance(insights, dict):
+        requirements_analysis = report_data.get("requirements_analysis", {})
+        if requirements_analysis and isinstance(requirements_analysis, dict):
+            logger.info("🔧 [PDF] insights 为空，从 requirements_analysis 提取兜底数据")
+            insights = {
+                "key_insights": [
+                    requirements_analysis.get("project_overview", ""),
+                    requirements_analysis.get("project_task", "")
+                ],
+                "cross_domain_connections": requirements_analysis.get("core_objectives", []),
+                "user_needs_interpretation": requirements_analysis.get("character_narrative", "")
+            }
+            # 过滤空值
+            insights["key_insights"] = [i for i in insights["key_insights"] if i]
+            if not insights["key_insights"]:
+                insights = {}
+    
     if insights and isinstance(insights, dict):
         # 核心洞察
         key_insights = insights.get("key_insights", [])
@@ -3437,6 +3456,39 @@ def generate_report_pdf(report_data: dict, user_input: str = "") -> bytes:
     pdf.chapter_title("第五章  核心答案", 1)
     
     core_answer = report_data.get("core_answer", {})
+    
+    # 🔥 v7.26.2: 兜底逻辑 - 如果 core_answer 为空，从 expert_reports 提取交付物信息
+    if not core_answer or not isinstance(core_answer, dict):
+        logger.info("🔧 [PDF] core_answer 为空，从 expert_reports 提取兜底数据")
+        # 从专家报告中提取交付物名称
+        deliverable_names = []
+        expert_reports_raw = report_data.get("expert_reports", {})
+        if isinstance(expert_reports_raw, dict):
+            for expert_name, content in expert_reports_raw.items():
+                if isinstance(content, str):
+                    try:
+                        content_dict = json.loads(content) if content.strip().startswith("{") else {}
+                        ter = content_dict.get("task_execution_report", content_dict)
+                        if isinstance(ter, dict):
+                            outputs = ter.get("deliverable_outputs", [])
+                            for output in outputs:
+                                if isinstance(output, dict):
+                                    name = output.get("deliverable_name", output.get("name", ""))
+                                    if name and name not in deliverable_names:
+                                        deliverable_names.append(name)
+                    except (json.JSONDecodeError, AttributeError):
+                        pass
+        
+        if deliverable_names:
+            requirements = report_data.get("requirements_analysis", {})
+            core_answer = {
+                "question": user_input[:100] + "..." if len(user_input) > 100 else user_input,
+                "answer": requirements.get("project_overview", "请查看各专家的详细分析报告"),
+                "deliverables": deliverable_names[:5],
+                "timeline": "请参考工程师专家的实施规划",
+                "budget_range": "请参考工程师专家的成本估算"
+            }
+    
     if core_answer and isinstance(core_answer, dict):
         # 检测是否是 v7.0 多交付物格式
         deliverable_answers = core_answer.get("deliverable_answers", [])
@@ -4080,9 +4132,10 @@ def _get_field_label(key: str) -> str:
 
 # 需要跳过的重复/内部字段
 # 🔥 v7.9.2: 扩展黑名单,过滤元数据字段(与前端ExpertReportAccordion.tsx保持一致)
+# 🔥 v7.26.1: 移除 content 字段，交给递归函数特殊处理（允许嵌套对象的 content）
 SKIP_FIELDS = {
-    # 原有字段
-    'content', 'raw_content', 'raw_response', 'original_content',
+    # 原有字段 - 🔥 v7.26.1: 移除 'content'，交给递归函数处理
+    'raw_content', 'raw_response', 'original_content',
     # 🔥 v7.9.2: 任务导向输出元数据(避免显示技术字段)
     'task_execution_report',  # 已被提取,不再需要显示
     'protocol_execution', 'protocol执行', 'protocol_status', 'protocol状态',
@@ -4097,6 +4150,11 @@ SKIP_FIELDS = {
     'image', 'images', '图片', 'illustration', 'illustrations',
     'image_1_url', 'image_2_url', 'image_3_url', 'image_4_url', 'image_5_url', 'image_6_url',
     'image_url', 'image_urls', '图片链接',
+}
+
+# 🔥 v7.26.1: 顶层专用黑名单（只在 depth=0 时跳过）
+TOP_LEVEL_SKIP_FIELDS = {
+    'content',  # 顶层 content 可能与 structured_data 重复
 }
 
 # ============ 内容翻译函数（处理 LLM 输出中的英文短语） ============
@@ -4183,6 +4241,7 @@ def _format_dict_to_pdf(pdf: 'PDFGenerator', data: dict, depth: int = 0):
     增强版：
     - depth=0 (顶级) 时添加分隔线
     - 改进列表和嵌套结构的间距
+    - 🔥 v7.26.1: 顶层跳过 content，嵌套层允许
     """
     is_top_level = (depth == 0)
     item_count = 0
@@ -4190,6 +4249,10 @@ def _format_dict_to_pdf(pdf: 'PDFGenerator', data: dict, depth: int = 0):
     for key, value in data.items():
         # 跳过重复内容字段
         if key.lower() in SKIP_FIELDS:
+            continue
+        
+        # 🔥 v7.26.1: 顶层时额外跳过 content（可能与 structured_data 重复）
+        if is_top_level and key.lower() in TOP_LEVEL_SKIP_FIELDS:
             continue
             
         label = _get_field_label(key)

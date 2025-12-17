@@ -1352,6 +1352,30 @@ class ResultAggregatorAgent(LLMAgent):
                 for obj in transformed_requirements["core_objectives"]
             ]
 
+        # 🔥 v7.26.2: 提取用户核心问题和交付物
+        user_input = state.get("user_input", "")
+        user_question = user_input[:100] + "..." if len(user_input) > 100 else user_input
+        
+        # 从专家结果中提取交付物名称
+        deliverable_names = []
+        for role_id in active_agents:
+            if any(role_id.startswith(prefix) for prefix in ["V2_", "V3_", "V4_", "V5_", "V6_"]):
+                agent_result = agent_results.get(role_id, {})
+                if isinstance(agent_result, dict):
+                    structured = agent_result.get("structured_data", {})
+                    if isinstance(structured, dict):
+                        ter = structured.get("task_execution_report", {})
+                        if isinstance(ter, dict):
+                            outputs = ter.get("deliverable_outputs", [])
+                            for output in outputs:
+                                if isinstance(output, dict):
+                                    name = output.get("deliverable_name", output.get("name", ""))
+                                    if name and name not in deliverable_names:
+                                        deliverable_names.append(name)
+        
+        if not deliverable_names:
+            deliverable_names = ["综合分析报告", "专家建议汇总"]
+        
         return {
             "executive_summary": {
                 "project_overview": transform_jtbd_to_natural_language(
@@ -1360,6 +1384,29 @@ class ResultAggregatorAgent(LLMAgent):
                 "key_findings": ["基于多智能体分析的综合发现"],
                 "key_recommendations": ["基于分析结果的核心建议"],
                 "success_factors": ["项目成功的关键要素"]
+            },
+            # 🔥 v7.26.2: 添加 core_answer 字段（fallback 路径必须）
+            "core_answer": {
+                "question": user_question or "用户咨询问题",
+                "answer": structured_requirements.get("project_overview", "请查看各专家的详细分析报告"),
+                "deliverables": deliverable_names[:5],
+                "timeline": "请参考工程师专家的实施规划",
+                "budget_range": "请参考工程师专家的成本估算"
+            },
+            # 🔥 v7.26.2: 添加 insights 字段（fallback 路径必须）
+            "insights": {
+                "key_insights": [
+                    structured_requirements.get("project_overview", "基于用户需求的综合分析"),
+                    "请查看各专家报告获取详细洞察"
+                ],
+                "cross_domain_connections": ["设计与商业的整合分析"],
+                "user_needs_interpretation": structured_requirements.get("project_task", "用户需求的深度解读")
+            },
+            # 🔥 v7.26.2: 添加 deliberation_process 字段（fallback 路径必须）
+            "deliberation_process": {
+                "strategic_thinking": "基于用户需求进行多维度分析",
+                "role_selection_rationale": f"选择了 {len(active_agents)} 位专家进行协同分析",
+                "inquiry_architecture": "深度优先探询"
             },
             "sections": {
                 ReportSection.REQUIREMENTS_ANALYSIS.value: {
