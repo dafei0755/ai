@@ -3111,7 +3111,14 @@ class PDFGenerator(FPDF):
         pass
     
     def add_cover_page(self, title: str = "项目分析报告"):
-        """添加封面页"""
+        """添加封面页
+        
+        🔥 v7.26 整改:
+        - 中英文靠近（不要空行）
+        - 生成时间前加"极致概念"
+        - 不要生成时间和冒号
+        - 不要版本
+        """
         self.add_page()
         
         # 封面标题 - 居中显示在页面中部偏上
@@ -3120,20 +3127,17 @@ class PDFGenerator(FPDF):
         self.set_text_color(26, 26, 26)
         self.cell(0, 20, title, ln=True, align="C")
         
-        # 副标题
-        self.ln(10)
+        # 副标题 - 🔥 v7.26: 中英文靠近（ln(10) → ln(3)）
+        self.ln(3)
         self._set_font_safe("", 14)
         self.set_text_color(100, 100, 100)
         self.cell(0, 10, "Intelligent Project Analyzer", ln=True, align="C")
         
-        # 生成时间
+        # 🔥 v7.26: "极致概念" + 日期（无冒号，无版本）
         self.ln(40)
         self._set_font_safe("", 11)
         self.set_text_color(128, 128, 128)
-        self.cell(0, 8, f"生成时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", ln=True, align="C")
-        
-        # 版本信息
-        self.cell(0, 8, "版本: v7.0", ln=True, align="C")
+        self.cell(0, 8, f"极致概念 {datetime.now().strftime('%Y-%m-%d')}", ln=True, align="C")
     
     def add_table_of_contents(self, chapters: list):
         """添加目录页
@@ -3303,27 +3307,49 @@ def generate_report_pdf(report_data: dict, user_input: str = "") -> bytes:
     pdf.add_cover_page("项目分析报告")
     
     # ========== 目录页（简化版，无页码） ==========
+    # 🔥 v7.26: 添加"报告（极致概念）"条目
     chapters = [
+        {"title": "报告（极致概念）", "page": ""},
         {"title": "用户原始需求", "page": ""},
         {"title": "校准问卷回顾", "page": ""},
         {"title": "需求洞察", "page": ""},
         {"title": "核心答案", "page": ""},
+        {"title": "专家报告附录", "page": ""},
         {"title": "执行元数据", "page": ""},
     ]
     pdf.add_table_of_contents(chapters)
     
-    # ========== 第一章：用户原始需求 ==========
-    pdf.add_page()
-    pdf.chapter_title("第一章  用户原始需求", 1)
+    # ========== 第一章：报告（极致概念） ==========
+    # 🔥 v7.26: 新增章节 - 报告概述
+    pdf.add_page()  # 目录后的第一章需要新页
+    pdf.chapter_title("第一章  报告（极致概念）", 1)
+    pdf.body_text("本报告由极致概念智能分析系统生成，基于多智能体协作框架，为您的项目需求提供全方位的专业分析与建议。")
+    pdf.ln(5)
+    
+    # 报告概述信息
+    expert_reports = report_data.get("expert_reports", {})
+    expert_count = len(expert_reports) if isinstance(expert_reports, dict) else 0
+    if expert_count > 0:
+        pdf.chapter_title("分析概述", 2)
+        pdf.body_text(f"• 参与专家数量：{expert_count} 位")
+        pdf.body_text(f"• 生成日期：{datetime.now().strftime('%Y-%m-%d')}")
+    
+    pdf.add_divider()
+    
+    # ========== 第二章：用户原始需求 ==========
+    # 🔥 v7.26: 空两行连续输出，不要每个章节分页
+    pdf.ln(15)
+    pdf.chapter_title("第二章  用户原始需求", 1)
     if user_input:
         pdf.highlighted_box(user_input)
     else:
         pdf.body_text("（无用户输入）")
     pdf.add_divider()
     
-    # ========== 第二章：校准问卷回顾 ==========
-    pdf.add_page()
-    pdf.chapter_title("第二章  校准问卷回顾", 1)
+    # ========== 第三章：校准问卷回顾 ==========
+    # 🔥 v7.26: 空两行连续输出
+    pdf.ln(15)
+    pdf.chapter_title("第三章  校准问卷回顾", 1)
     
     questionnaire = report_data.get("questionnaire_responses", {})
     if questionnaire and isinstance(questionnaire, dict):
@@ -3372,9 +3398,10 @@ def generate_report_pdf(report_data: dict, user_input: str = "") -> bytes:
     
     pdf.add_divider()
     
-    # ========== 第三章：需求洞察 ==========
-    pdf.add_page()
-    pdf.chapter_title("第三章  需求洞察", 1)
+    # ========== 第四章：需求洞察 ==========
+    # 🔥 v7.26: 空两行连续输出
+    pdf.ln(15)
+    pdf.chapter_title("第四章  需求洞察", 1)
     
     insights = report_data.get("insights", {})
     if insights and isinstance(insights, dict):
@@ -3404,9 +3431,10 @@ def generate_report_pdf(report_data: dict, user_input: str = "") -> bytes:
     
     pdf.add_divider()
     
-    # ========== 第四章：核心答案 ==========
-    pdf.add_page()
-    pdf.chapter_title("第四章  核心答案", 1)
+    # ========== 第五章：核心答案 ==========
+    # 🔥 v7.26: 空两行连续输出
+    pdf.ln(15)
+    pdf.chapter_title("第五章  核心答案", 1)
     
     core_answer = report_data.get("core_answer", {})
     if core_answer and isinstance(core_answer, dict):
@@ -3493,11 +3521,12 @@ def generate_report_pdf(report_data: dict, user_input: str = "") -> bytes:
     
     pdf.add_divider()
     
-    # ========== 第五章：专家报告附录 🆕 v7.24 ==========
+    # ========== 第六章：专家报告附录 🆕 v7.24 ==========
     expert_reports = report_data.get("expert_reports", {})
     if expert_reports and isinstance(expert_reports, dict) and len(expert_reports) > 0:
-        pdf.add_page()
-        pdf.chapter_title("第五章  专家报告附录", 1)
+        # 🔥 v7.26: 空两行连续输出，不要分页
+        pdf.ln(15)
+        pdf.chapter_title("第六章  专家报告附录", 1)
         pdf.body_text(f"本章包含 {len(expert_reports)} 位专家的详细分析报告。")
         pdf.ln(5)
         
@@ -3507,17 +3536,18 @@ def generate_report_pdf(report_data: dict, user_input: str = "") -> bytes:
             pdf.list_item(f"{i}. {expert_name}", numbered=False)
         pdf.ln(5)
         
-        # 逐个专家报告
+        # 逐个专家报告 - 🔥 v7.26: 不分页，空行分隔
         for expert_name, content in expert_reports.items():
-            pdf.add_page()
+            pdf.ln(10)
             pdf.chapter_title(expert_name, 2)
             format_expert_content_for_pdf(pdf, content)
     
     pdf.add_divider()
     
-    # ========== 第六章：执行元数据 ==========
-    pdf.add_page()
-    pdf.chapter_title("第六章  执行元数据", 1)
+    # ========== 第七章：执行元数据 ==========
+    # 🔥 v7.26: 空两行连续输出，不要分页
+    pdf.ln(15)
+    pdf.chapter_title("第七章  执行元数据", 1)
     
     # 从 report_data 中收集元数据
     inquiry_architecture = report_data.get("inquiry_architecture", "")
