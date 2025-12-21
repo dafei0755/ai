@@ -68,6 +68,97 @@ class ArxivConfig(BaseModel):
     timeout: int = Field(default=30, description="请求超时时间(秒)")
 
 
+class ImageGenerationConfig(BaseModel):
+    """
+    AI 图像生成配置 (v7.38+)
+    
+    通过 OpenRouter 调用 Gemini 3 Pro 图像生成 (Nano Banana Pro)
+    价格: $2/M input, $12/M output
+    """
+    enabled: bool = Field(default=False, description="是否启用 AI 概念图生成", alias="IMAGE_GENERATION_ENABLED")
+    model: str = Field(
+        default="google/gemini-3-pro-image-preview",
+        description="图像生成模型（OpenRouter 格式）",
+        alias="IMAGE_GENERATION_MODEL"
+    )
+    max_images_per_report: int = Field(
+        default=2, 
+        description="每个专家报告最多生成几张概念图",
+        alias="IMAGE_GENERATION_MAX_IMAGES_PER_REPORT"
+    )
+    timeout: int = Field(
+        default=120, 
+        description="图像生成超时时间(秒)",
+        alias="IMAGE_GENERATION_TIMEOUT"
+    )
+    
+    # 🔥 v7.61: Vision 图像分析配置
+    vision_enabled: bool = Field(
+        default=False,
+        description="是否启用 Vision 模型分析参考图",
+        alias="VISION_ANALYSIS_ENABLED"
+    )
+    vision_provider: str = Field(
+        default="openai-openrouter",
+        description="Vision 模型提供商 (openai-openrouter|gemini-openrouter|openai)",
+        alias="VISION_MODEL_PROVIDER"
+    )
+    vision_model: str = Field(
+        default="openai/gpt-4o",
+        description="Vision 模型名称",
+        alias="VISION_MODEL"
+    )
+    vision_timeout: int = Field(
+        default=30,
+        description="Vision 分析超时时间(秒)",
+        alias="VISION_ANALYSIS_TIMEOUT"
+    )
+    vision_max_tokens: int = Field(
+        default=500,
+        description="Vision 分析最大 token 数",
+        alias="VISION_ANALYSIS_MAX_TOKENS"
+    )
+    
+    # 使用 OpenRouter API Key (复用现有配置)
+    # api_key 从 OPENROUTER_API_KEY 读取
+    
+    model_config = {"populate_by_name": True}
+
+
+class InpaintingConfig(BaseModel):
+    """
+    AI 图像编辑（Inpainting）配置 (v7.62+)
+    
+    通过 OpenAI DALL-E 2 Edit API 实现像素级精确图像编辑
+    要求: 原图 + Mask（黑色=保留，透明=编辑） + 提示词
+    价格: $0.020 / 图像
+    """
+    enabled: bool = Field(
+        default=False,
+        description="是否启用 Inpainting 图像编辑",
+        alias="INPAINTING_ENABLED"
+    )
+    provider: str = Field(
+        default="openai",
+        description="Inpainting 提供商（当前仅支持 openai）",
+        alias="INPAINTING_PROVIDER"
+    )
+    model: str = Field(
+        default="dall-e-2",
+        description="Inpainting 模型（DALL-E 2 Edit API）",
+        alias="INPAINTING_MODEL"
+    )
+    timeout: int = Field(
+        default=120,
+        description="Inpainting 超时时间(秒)",
+        alias="INPAINTING_TIMEOUT"
+    )
+    
+    # OpenAI API Key 从 OPENAI_API_KEY 环境变量读取（独立于 OpenRouter）
+    
+    model_config = {"populate_by_name": True}
+
+
 class StorageConfig(BaseModel):
     """文件存储配置"""
     upload_dir: str = Field(default="./data/uploads", description="上传目录", alias="UPLOAD_DIR")
@@ -114,6 +205,12 @@ class Settings(BaseSettings):
     tavily: TavilyConfig = Field(default_factory=TavilyConfig)
     ragflow: RagflowConfig = Field(default_factory=RagflowConfig)
     arxiv: ArxivConfig = Field(default_factory=ArxivConfig)
+    
+    # 🆕 v7.38: AI 图像生成配置
+    image_generation: ImageGenerationConfig = Field(default_factory=ImageGenerationConfig)
+    
+    # 🆕 v7.62: AI 图像编辑（Inpainting）配置
+    inpainting: InpaintingConfig = Field(default_factory=InpaintingConfig)
 
     # 存储配置
     storage: StorageConfig = Field(default_factory=StorageConfig)
@@ -198,6 +295,26 @@ class Settings(BaseSettings):
             self.llm.max_retries = int(os.getenv('MAX_RETRIES', self.llm.max_retries))
         if os.getenv('RETRY_DELAY'):
             self.llm.retry_delay = int(os.getenv('RETRY_DELAY', self.llm.retry_delay))
+
+        # 🆕 v7.38: 读取图像生成配置
+        if os.getenv('IMAGE_GENERATION_ENABLED'):
+            self.image_generation.enabled = os.getenv('IMAGE_GENERATION_ENABLED', 'false').lower() in ('true', '1', 'yes')
+        if os.getenv('IMAGE_GENERATION_MODEL'):
+            self.image_generation.model = os.getenv('IMAGE_GENERATION_MODEL', self.image_generation.model)
+        if os.getenv('IMAGE_GENERATION_MAX_IMAGES_PER_REPORT'):
+            self.image_generation.max_images_per_report = int(os.getenv('IMAGE_GENERATION_MAX_IMAGES_PER_REPORT', self.image_generation.max_images_per_report))
+        if os.getenv('IMAGE_GENERATION_TIMEOUT'):
+            self.image_generation.timeout = int(os.getenv('IMAGE_GENERATION_TIMEOUT', self.image_generation.timeout))
+
+        # 🆕 v7.62: 读取 Inpainting 图像编辑配置
+        if os.getenv('INPAINTING_ENABLED'):
+            self.inpainting.enabled = os.getenv('INPAINTING_ENABLED', 'false').lower() in ('true', '1', 'yes')
+        if os.getenv('INPAINTING_PROVIDER'):
+            self.inpainting.provider = os.getenv('INPAINTING_PROVIDER', self.inpainting.provider)
+        if os.getenv('INPAINTING_MODEL'):
+            self.inpainting.model = os.getenv('INPAINTING_MODEL', self.inpainting.model)
+        if os.getenv('INPAINTING_TIMEOUT'):
+            self.inpainting.timeout = int(os.getenv('INPAINTING_TIMEOUT', self.inpainting.timeout))
 
         # 读取Tavily配置
         if not self.tavily.api_key and os.getenv('TAVILY_API_KEY'):
