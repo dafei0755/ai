@@ -7,7 +7,7 @@
 from typing import Optional
 from loguru import logger
 
-from intelligent_project_analyzer.settings import settings, TavilyConfig, RagflowConfig
+from intelligent_project_analyzer.settings import settings, TavilyConfig, RagflowConfig, BochaConfig
 
 
 class ToolFactory:
@@ -45,16 +45,18 @@ class ToolFactory:
             tool = ToolFactory.create_tavily_tool(config=custom_config)
         """
         from intelligent_project_analyzer.tools.tavily_search import TavilySearchTool
+        from intelligent_project_analyzer.core.types import ToolConfig
         
         cfg = config or settings.tavily
         
         logger.info(f"创建Tavily工具: max_results={cfg.max_results}, depth={cfg.search_depth}")
         
+        # 🔧 v7.63.1: TavilySearchTool只接受api_key和config参数
+        tool_config = ToolConfig(name="tavily_search")
+        
         return TavilySearchTool(
             api_key=cfg.api_key,
-            max_results=cfg.max_results,
-            search_depth=cfg.search_depth,
-            timeout=cfg.timeout
+            config=tool_config
         )
     
     @staticmethod
@@ -69,44 +71,90 @@ class ToolFactory:
             RagflowKBTool实例
         """
         from intelligent_project_analyzer.tools.ragflow_kb import RagflowKBTool
+        from intelligent_project_analyzer.core.types import ToolConfig
         
         cfg = config or settings.ragflow
         
         logger.info(f"创建Ragflow工具: endpoint={cfg.endpoint}")
         
+        # 🔧 v7.63.1: RagflowKBTool需要api_endpoint(不是endpoint)、api_key、dataset_id、config
+        tool_config = ToolConfig(name="ragflow_kb")
+        
         return RagflowKBTool(
+            api_endpoint=cfg.endpoint,
             api_key=cfg.api_key,
-            endpoint=cfg.endpoint,
             dataset_id=cfg.dataset_id,
-            timeout=cfg.timeout
+            config=tool_config
         )
     
+    @staticmethod
+    def create_bocha_tool(config: Optional[BochaConfig] = None):
+        """
+        创建博查搜索工具
+
+        Args:
+            config: 博查配置，如果为None则使用全局settings
+
+        Returns:
+            BochaSearchTool实例
+        """
+        from intelligent_project_analyzer.agents.bocha_search_tool import (
+            create_bocha_search_tool_from_settings
+        )
+
+        cfg = config or settings.bocha
+
+        if not cfg.enabled:
+            logger.warning("⚠️ 博查搜索未启用")
+            return None
+
+        if not cfg.api_key or cfg.api_key == "your_bocha_api_key_here":
+            logger.warning("⚠️ 博查API密钥未配置")
+            return None
+
+        logger.info(f"✅ 创建博查搜索工具: count={cfg.default_count}")
+
+        tool = create_bocha_search_tool_from_settings()
+        return tool
+
     @staticmethod
     def create_arxiv_tool():
         """
         创建Arxiv搜索工具
-        
+
         Returns:
             ArxivSearchTool实例
         """
         from intelligent_project_analyzer.tools.arxiv_search import ArxivSearchTool
-        
+        from intelligent_project_analyzer.core.types import ToolConfig
+
         logger.info("创建Arxiv工具")
         
-        return ArxivSearchTool(
-            timeout=settings.arxiv.timeout
-        )
+        # 🔧 v7.63.1: ArxivSearchTool只接受config参数(不接受timeout)
+        tool_config = ToolConfig(name="arxiv_search")
+
+        return ArxivSearchTool(config=tool_config)
     
     @staticmethod
     def create_all_tools():
         """
         创建所有可用的工具
-        
+
         Returns:
             工具字典 {tool_name: tool_instance}
         """
         tools = {}
-        
+
+        # 🔥 v7.63: 添加博查搜索
+        try:
+            if settings.bocha.enabled:
+                bocha_tool = ToolFactory.create_bocha_tool()
+                if bocha_tool:
+                    tools["bocha"] = bocha_tool
+                    logger.info("✅ 博查搜索工具已启用")
+        except Exception as e:
+            logger.warning(f"⚠️ 博查工具创建失败: {e}")
+
         # Tavily搜索
         try:
             if settings.tavily.api_key:

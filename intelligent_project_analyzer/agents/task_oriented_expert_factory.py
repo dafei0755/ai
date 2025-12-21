@@ -122,33 +122,83 @@ class TaskOrientedExpertFactory:
     def __init__(self):
         self.llm_factory = LLMFactory()
     
-    def _get_llm(self, role_type: str = "default"):
+    def _get_llm(self, role_type: str = "default", deliverable_count: int = 0):
         """
         获取角色专属的LLM实例（按角色类型缓存）
-        
+
         🔥 v7.19优化：不同角色使用不同的 temperature
         - V3 叙事专家：temperature=0.75（高创意）
         - V6 工程师：temperature=0.4（高精确）
         - 其他角色：temperature=0.5-0.6（平衡）
-        
+
+        🔥 v7.52优化：动态Token分配机制
+        - 根据角色级别和交付物数量计算max_tokens
+        - 避免专家输出被截断
+
         Args:
             role_type: 角色类型（V2/V3/V4/V5/V6）
-            
+            deliverable_count: 交付物数量（用于动态调整token）
+
         Returns:
             配置了对应参数的 LLM 实例
         """
         # 获取角色专属参数
         params = self.ROLE_LLM_PARAMS.get(role_type, self.ROLE_LLM_PARAMS["default"])
-        cache_key = f"{role_type}_{params['temperature']}"
-        
+
+        # 🔥 v7.52: 计算动态max_tokens
+        max_tokens = self._get_max_tokens_for_expert(role_type, deliverable_count)
+
+        cache_key = f"{role_type}_{params['temperature']}_{max_tokens}"
+
         if cache_key not in TaskOrientedExpertFactory._llm_instances:
-            logger.info(f"🔧 [v7.19] 为 {role_type} 创建专属LLM (temperature={params['temperature']}, {params['description']})")
+            logger.info(f"🔧 [v7.19] 为 {role_type} 创建专属LLM (temperature={params['temperature']}, max_tokens={max_tokens}, {params['description']})")
             TaskOrientedExpertFactory._llm_instances[cache_key] = self.llm_factory.create_llm(
-                temperature=params["temperature"]
+                temperature=params["temperature"],
+                max_tokens=max_tokens
             )
         return TaskOrientedExpertFactory._llm_instances[cache_key]
+
+    def _get_max_tokens_for_expert(self, role_type: str, deliverable_count: int) -> int:
+        """
+        🔥 v7.52: 根据角色级别和交付物数量动态计算max_tokens
+
+        Args:
+            role_type: 角色类型（V2/V3/V4/V5/V6）
+            deliverable_count: 交付物数量
+
+        Returns:
+            动态计算的max_tokens值
+        """
+        # 基础token配额（按角色等级）
+        base_tokens = {
+            "V2": 12000,  # 设计总监 - 综合性强，输出较多
+            "V3": 10000,  # 叙事专家 - 内容详细
+            "V4": 8000,   # 研究员 - 数据分析
+            "V5": 8000,   # 场景专家 - 行业洞察
+            "V6": 8000,   # 工程师 - 技术方案
+        }
+
+        # 每个交付物额外增加1500 tokens
+        tokens_per_deliverable = 1500
+
+        # 计算总token
+        total_tokens = base_tokens.get(role_type, 8000) + (deliverable_count * tokens_per_deliverable)
+
+        # 硬上限32000 (考虑成本和响应时间)
+        # 下限 8000 (保证基本输出质量)
+        total_tokens = max(8000, min(32000, total_tokens))
+
+        logger.debug(f"📊 [v7.52] {role_type} token分配: 基础{base_tokens.get(role_type, 8000)} + {deliverable_count}交付物×{tokens_per_deliverable} = {total_tokens}")
+
+        return total_tokens
     
-    async def execute_expert(self, role_object: Dict[str, Any], context: str, state: ProjectAnalysisState) -> Dict[str, Any]:
+    async def execute_expert(
+        self,
+        role_object: Dict[str, Any],
+        context: str,
+        state: ProjectAnalysisState,
+        tools: Optional[List[Any]] = None  # 🔥 v7.63.1: 添加工具支持
+    ) -> Dict[str, Any]:
         """
         执行任务导向的专家分析
         
@@ -156,6 +206,7 @@ class TaskOrientedExpertFactory:
             role_object: 包含TaskInstruction的角色对象
             context: 项目上下文
             state: 当前状态
+            tools: 可用的工具列表（可选） - v7.63.1新增
             
         Returns:
             标准化的专家执行结果
@@ -171,7 +222,20 @@ class TaskOrientedExpertFactory:
             # 调用LLM生成专家分析
             # 🔥 v7.19优化：使用角色专属的LLM实例
             role_type = self._extract_base_type(role_object.get('role_id', ''))
-            llm = self._get_llm(role_type)
+
+            # 🔥 v7.52优化：计算交付物数量以动态分配token
+            task_instruction = role_object.get('task_instruction', {})
+            deliverable_count = len(task_instruction.get('deliverables', []))
+
+            llm = self._get_llm(role_type, deliverable_count)
+
+            # 🔥 v7.63.1: 如果提供了工具，绑定到LLM
+            if tools:
+                tool_names = [getattr(tool, 'name', str(tool)) for tool in tools]
+                logger.info(f"🔧 [v7.63.1] {role_object.get('role_id', 'unknown')} 绑定 {len(tools)} 个工具: {tool_names}")
+                llm = llm.bind_tools(tools)
+            else:
+                logger.debug(f"ℹ️ [v7.63.1] {role_object.get('role_id', 'unknown')} 无工具（综合者模式）")
 
             # 🔥 v7.18: 强制JSON Schema输出（降低解析失败率 15% → 3%）
             llm_with_structure = llm.with_structured_output(
@@ -247,7 +311,14 @@ class TaskOrientedExpertFactory:
                 }
             }
         except Exception as e:
-            logger.error(f"执行任务导向专家 {role_object.get('role_name', 'Unknown')} 时出错: {str(e)}")
+            # 🔥 v7.60.3: 检测是否为输出长度超限错误
+            error_msg = str(e)
+            if "length limit was reached" in error_msg or "completion_tokens" in error_msg:
+                logger.error(f"❌ 专家 {role_object.get('role_name', 'Unknown')} 输出超长被截断")
+                logger.error(f"   错误详情: {error_msg}")
+                logger.error("   💡 建议: 调整提示词要求更简洁的输出，或增加输出长度限制警告")
+            else:
+                logger.error(f"执行任务导向专家 {role_object.get('role_name', 'Unknown')} 时出错: {error_msg}")
             return {
                 "expert_id": role_object.get("role_id", "unknown"),
                 "expert_name": role_object.get("dynamic_role_name", role_object.get("role_name", "Unknown Expert")),
@@ -712,7 +783,17 @@ class TaskOrientedExpertFactory:
             )
 
             # 🔧 v7.11: 添加超时控制（30秒）
+            # 🔥 v7.52: 使用 JSON 模式强制 JSON 输出
             llm = self._get_llm()
+
+            # 尝试使用 with_structured_output (JSON模式)
+            try:
+                llm_json_mode = llm.with_structured_output(method="json_mode")
+                logger.info("🔧 [v7.52] 使用 JSON 模式强制输出")
+            except Exception as e:
+                logger.debug(f"⚠️ JSON模式不可用，使用普通模式: {e}")
+                llm_json_mode = llm
+
             messages = [
                 {"role": "system", "content": completion_prompt["system_prompt"]},
                 {"role": "user", "content": completion_prompt["user_prompt"]}
@@ -720,7 +801,7 @@ class TaskOrientedExpertFactory:
 
             try:
                 response = await asyncio.wait_for(
-                    llm.ainvoke(messages),
+                    llm_json_mode.ainvoke(messages),
                     timeout=30.0  # 30秒超时
                 )
                 completion_output = response.content if hasattr(response, 'content') else str(response)
@@ -731,10 +812,19 @@ class TaskOrientedExpertFactory:
             # 解析补充的交付物
             completed_deliverables = self._parse_completion_output(completion_output, missing_deliverables)
 
+            # 🔥 v7.52: 批量失败时尝试逐个生成
+            if not completed_deliverables and len(missing_deliverables) > 1:
+                logger.warning(f"⚠️ 批量补全失败，尝试逐个生成 {len(missing_deliverables)} 个交付物")
+                completed_deliverables = await self._complete_deliverables_one_by_one(
+                    role_object, context, state, missing_deliverables
+                )
+
             # 🔧 v7.23: 更准确的日志信息
             if not completed_deliverables:
-                logger.warning(f"⚠️ 交付物补全失败：尝试补全 {len(missing_deliverables)} 个，实际解析出 0 个")
-                return structured_output
+                logger.warning(f"⚠️ 交付物补全完全失败：尝试补全 {len(missing_deliverables)} 个，实际解析出 0 个")
+                # 🔥 v7.52: 生成占位符，避免完全失败
+                completed_deliverables = self._generate_placeholder_deliverables(missing_deliverables)
+                logger.info(f"🔧 [v7.52] 已生成 {len(completed_deliverables)} 个占位交付物")
 
             # 合并到原始输出
             task_exec_report = structured_output.get('task_execution_report', {})
@@ -966,6 +1056,175 @@ class TaskOrientedExpertFactory:
         except Exception as e:
             logger.error(f"❌ 处理补全输出时出错: {str(e)}")
             return []
+
+    async def _complete_deliverables_one_by_one(
+        self,
+        role_object: Dict[str, Any],
+        context: str,
+        state: ProjectAnalysisState,
+        missing_deliverables: List[str]
+    ) -> List[Dict[str, Any]]:
+        """
+        🔥 v7.52: 逐个生成缺失交付物（降级策略）
+
+        当批量生成失败时，尝试逐个生成每个交付物，
+        提高成功率。
+
+        Args:
+            role_object: 角色对象
+            context: 项目上下文
+            state: 当前状态
+            missing_deliverables: 缺失的交付物名称列表
+
+        Returns:
+            List[Dict]: 生成的交付物列表
+        """
+        import asyncio
+
+        completed = []
+        llm = self._get_llm()
+
+        for deliverable_name in missing_deliverables:
+            try:
+                logger.info(f"🔄 逐个生成: {deliverable_name}")
+
+                # 构建单个交付物的提示词
+                single_prompt = f"""你是 {role_object.get('name', '专家')}。
+
+请生成以下交付物：
+**{deliverable_name}**
+
+# 📂 项目上下文
+{context[:1000]}...
+
+# 🎯 要求
+1. 输出JSON格式，包含以下字段：
+   - deliverable_name: "{deliverable_name}"
+   - content: 详细内容
+   - key_insights: 关键洞察（列表）
+   - completion_rate: 完成度（0-1）
+
+2. 直接返回JSON，不要有额外文字
+
+输出示例：
+{{
+  "deliverable_name": "{deliverable_name}",
+  "content": "...",
+  "key_insights": ["洞察1", "洞察2"],
+  "completion_rate": 1.0
+}}
+"""
+
+                # 调用LLM（10秒超时）
+                response = await asyncio.wait_for(
+                    llm.ainvoke([{"role": "user", "content": single_prompt}]),
+                    timeout=10.0
+                )
+                output = response.content if hasattr(response, 'content') else str(response)
+
+                # 解析单个交付物
+                single_result = self._parse_single_deliverable_output(output, deliverable_name)
+                if single_result:
+                    completed.append(single_result)
+                    logger.info(f"✅ 成功生成: {deliverable_name}")
+                else:
+                    logger.warning(f"⚠️ 解析失败: {deliverable_name}")
+
+            except asyncio.TimeoutError:
+                logger.warning(f"⚠️ 生成超时: {deliverable_name}")
+            except Exception as e:
+                logger.error(f"❌ 生成失败 {deliverable_name}: {e}")
+
+            # 限制最多尝试3个
+            if len(completed) >= 3:
+                logger.info("🔧 已成功生成3个交付物，停止逐个生成")
+                break
+
+        return completed
+
+    def _parse_single_deliverable_output(self, output: str, expected_name: str) -> Optional[Dict[str, Any]]:
+        """
+        🔥 v7.52: 解析单个交付物的LLM输出
+
+        Args:
+            output: LLM原始输出
+            expected_name: 期望的交付物名称
+
+        Returns:
+            Dict | None: 解析成功返回交付物字典，失败返回None
+        """
+        import re
+        import json
+
+        try:
+            # 提取JSON
+            json_str = None
+            if "```json" in output:
+                json_start = output.find("```json") + 7
+                json_end = output.find("```", json_start)
+                if json_end > json_start:
+                    json_str = output[json_start:json_end].strip()
+            elif "```" in output:
+                matches = re.findall(r'```\s*([\s\S]*?)\s*```', output)
+                for match in matches:
+                    if '{' in match:
+                        json_str = match.strip()
+                        break
+
+            if not json_str:
+                obj_match = re.search(r'\{[\s\S]*\}', output)
+                if obj_match:
+                    json_str = obj_match.group()
+
+            if not json_str:
+                return None
+
+            # 解析JSON
+            parsed = json.loads(json_str)
+
+            # 验证必需字段
+            if not parsed.get("deliverable_name"):
+                parsed["deliverable_name"] = expected_name
+
+            if not parsed.get("content"):
+                return None
+
+            # 补充可选字段
+            if "completion_rate" not in parsed:
+                parsed["completion_rate"] = 0.8
+            if "key_insights" not in parsed:
+                parsed["key_insights"] = []
+
+            return parsed
+
+        except Exception as e:
+            logger.debug(f"⚠️ 单个交付物解析失败: {e}")
+            return None
+
+    def _generate_placeholder_deliverables(self, missing_names: List[str]) -> List[Dict[str, Any]]:
+        """
+        🔥 v7.52: 生成占位交付物（最终降级策略）
+
+        当所有生成策略都失败时，生成占位内容，
+        避免流程完全失败。
+
+        Args:
+            missing_names: 缺失的交付物名称列表
+
+        Returns:
+            List[Dict]: 占位交付物列表
+        """
+        placeholders = []
+        for name in missing_names[:3]:  # 最多3个
+            placeholders.append({
+                "deliverable_name": name,
+                "content": f"[待补充] {name}\n\n由于LLM生成失败，此交付物需要人工补充。建议审查项目需求后手动完成。",
+                "completion_status": "pending",
+                "completion_rate": 0.0,
+                "key_insights": [],
+                "notes": "🔧 v7.52: 自动生成的占位内容，需要人工补充"
+            })
+        return placeholders
 
     def _get_timestamp(self) -> str:
         """获取当前时间戳"""
