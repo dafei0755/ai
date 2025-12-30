@@ -50,16 +50,18 @@ class TestContentSafetyGuard:
         print("  ✅ 通过")
     
     def test_privacy_pattern(self):
-        """测试隐私信息检测"""
+        """测试隐私信息检测 - 根据配置，设计项目不启用隐私检测"""
         text = "我的手机号是13812345678，请联系我"
         result = self.guard.check(text)
-        
+
         print(f"\n测试隐私信息:")
         print(f"  输入: {text}")
         print(f"  结果: {result}")
-        
-        # 隐私信息应该被检测
-        assert result["is_safe"] == False or result["risk_level"] != "safe"
+
+        # 根据security_rules.yaml配置，enable_privacy_check: false
+        # 设计项目不需要隐私检测
+        assert result["is_safe"] == True
+        assert result["risk_level"] == "safe"
         print("  ✅ 通过")
 
 

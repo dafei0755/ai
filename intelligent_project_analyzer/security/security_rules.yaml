@@ -1,203 +1,150 @@
-# 内容安全检测规则配置文件
-# 支持热加载，修改后无需重启服务即可生效
-# 最后更新时间: 2025-12-06
-
-version: "1.0"
-
-# ============================================================================
-# 关键词检测规则（快速过滤）
-# ============================================================================
-keywords:
-  政治敏感:
-    enabled: true
-    severity: high
-    description: "政治敏感内容"
-    words: []  # 生产环境需要专业的敏感词库
-
-  色情低俗:
-    enabled: true
-    severity: high
-    description: "色情低俗内容"
-    words:
-      - "色情"
-      - "黄色"
-      - "裸体"
-      - "性爱"
-
-  暴力血腥:
-    enabled: true
-    severity: high
-    description: "暴力血腥内容"
-    words:
-      - "杀人"
-      - "自杀"
-      - "血腥"
-      - "暴力"
-      - "屠杀"
-      - "谋杀"
-
-  违法犯罪:
-    enabled: true
-    severity: high
-    description: "违法犯罪内容"
-    words:
-      - "毒品"
-      - "诈骗"
-      - "洗钱"
-      - "赌博"
-      - "走私"
-      - "贩卖"
-
-  歧视仇恨:
-    enabled: true
-    severity: medium
-    description: "歧视仇恨言论"
-    words:
-      - "歧视"
-      - "仇恨"
-      - "种族"
-      - "歧视性"
-
-# ============================================================================
-# 变形规避检测规则
-# ============================================================================
-evasion_patterns:
-  特殊符号分隔:
-    enabled: true
-    pattern: '[\u4e00-\u9fa5a-zA-Z]\s*[_\-\*\.\+\#\$\%\&\@\!]\s*[\u4e00-\u9fa5a-zA-Z]'
-    severity: medium
-    description: "检测到特殊符号分隔规避"
-    examples:
-      - "色_情"
-      - "色*情"
-      - "色.情"
-
-  谐音替换:
-    enabled: true
-    severity: medium
-    description: "检测到谐音替换规避"
-    patterns:
-      - pattern: '[色射涩瑟][\s\-_\*\.]*[情亲青清]'
-        keyword: "色情"
-        severity: medium
-      - pattern: '[毒独读督][\s\-_\*\.]*[品贫拼]'
-        keyword: "毒品"
-        severity: high
-      - pattern: '[赌睹堵][\s\-_\*\.]*[博勃搏薄]'
-        keyword: "赌博"
-        severity: high
-      - pattern: '[黄王][\s\-_\*\.]*[色涩瑟]'
-        keyword: "黄色"
-        severity: medium
-
-  拆字组合:
-    enabled: true
-    severity: high
-    description: "检测到拆字组合规避"
-    patterns:
-      - pattern: '氵[\s\-_\*\.]*去'
-        keyword: "法"
-        context: "违法"
-      - pattern: '弓[\s\-_\*\.]*虽'
-        keyword: "强"
-        context: "强制"
-
-  全角半角混用:
-    enabled: true
-    pattern: '[！-～]'
-    severity: low
-    description: "检测到全角半角混用"
-
-  数字字母替换:
-    enabled: true
-    severity: medium
-    description: "检测到数字字母替换规避"
-    patterns:
-      - pattern: '[sS][eE][xX]'
-        keyword: "性"
-        severity: medium
-      - pattern: '[pP][oO][rR][nN]'
-        keyword: "色情"
-        severity: high
-      - pattern: '[dD][rR][uU][gG]'
-        keyword: "毒品"
-        severity: high
-
-# ============================================================================
-# 威胁情报黑名单（从外部情报源同步）
-# ============================================================================
-threat_intelligence:
-  enabled: true
-  last_updated: null  # 最后更新时间（自动填充）
-  sources:
-    - "abuse.ch"
-    - "phishtank"
-    - "custom"
-
-  malicious_domains:
-    enabled: true
-    domains: []  # 从威胁情报源自动更新
-
-  malicious_ips:
-    enabled: true
-    ips: []  # 从威胁情报源自动更新
-
-  malicious_keywords:
-    enabled: true
-    keywords: []  # 从威胁情报源自动更新
-
-# ============================================================================
-# 检测配置
-# ============================================================================
-detection_config:
-  # 是否启用各层检测
-  enable_keyword_check: true
-  enable_privacy_check: false  # 设计项目不需要隐私检测
-  enable_evasion_check: true
-  enable_external_api: true  # 腾讯云内容安全API
-  enable_llm_check: false     # LLM语义检测（默认关闭，成本较高）
-
-  # 置信度阈值
-  llm_confidence_threshold: 0.7
-
-  # 短路机制（检测到高风险立即返回）
-  enable_short_circuit: true
-
-  # 缓存配置
-  cache_enabled: true
-  cache_ttl: 3600  # 1小时
-
-  # 日志配置
-  log_violations: true
-  log_safe_content: false
-
-# ============================================================================
-# 白名单（不检测）
-# ============================================================================
-whitelist:
-  enabled: true
-
-  # 域名白名单
-  domains:
-    - "example.com"
-    - "test.com"
-
-  # 用户白名单（管理员等）
-  users: []
-
-  # IP白名单（内网IP等）
-  ips:
-    - "127.0.0.1"
-    - "localhost"
-
-# ============================================================================
-# 自定义规则（业务特定）
-# ============================================================================
 custom_rules:
   enabled: true
   rules: []
-  # 示例格式：
-  # - name: "项目专属敏感词"
-  #   pattern: "confidential"
-  #   severity: high
-  #   description: "检测到项目机密信息"
+detection_config:
+  cache_enabled: true
+  cache_ttl: 3600
+  enable_evasion_check: true
+  enable_external_api: true
+  enable_keyword_check: true
+  enable_llm_check: false
+  enable_privacy_check: false
+  enable_short_circuit: true
+  llm_confidence_threshold: 0.7
+  log_safe_content: false
+  log_violations: true
+evasion_patterns:
+  全角半角混用:
+    description: 检测到全角半角混用
+    enabled: true
+    pattern: '[！-～]'
+    severity: low
+  拆字组合:
+    description: 检测到拆字组合规避
+    enabled: true
+    patterns:
+    - context: 违法
+      keyword: 法
+      pattern: 氵[\s\-_\*\.]*去
+    - context: 强制
+      keyword: 强
+      pattern: 弓[\s\-_\*\.]*虽
+    severity: high
+  数字字母替换:
+    description: 检测到数字字母替换规避
+    enabled: true
+    patterns:
+    - keyword: 性
+      pattern: '[sS][eE][xX]'
+      severity: medium
+    - keyword: 色情
+      pattern: '[pP][oO][rR][nN]'
+      severity: high
+    - keyword: 毒品
+      pattern: '[dD][rR][uU][gG]'
+      severity: high
+    severity: medium
+  特殊符号分隔:
+    description: 检测到特殊符号分隔规避
+    enabled: true
+    examples:
+    - 色_情
+    - 色*情
+    - 色.情
+    pattern: '[\u4e00-\u9fa5a-zA-Z]\s*[_\-\*\.\+\#\$\%\&\@\!]\s*[\u4e00-\u9fa5a-zA-Z]'
+    severity: medium
+  谐音替换:
+    description: 检测到谐音替换规避
+    enabled: true
+    patterns:
+    - keyword: 色情
+      pattern: '[色射涩瑟][\s\-_\*\.]*[情亲青清]'
+      severity: medium
+    - keyword: 毒品
+      pattern: '[毒独读督][\s\-_\*\.]*[品贫拼]'
+      severity: high
+    - keyword: 赌博
+      pattern: '[赌睹堵][\s\-_\*\.]*[博勃搏薄]'
+      severity: high
+    - keyword: 黄色
+      pattern: '[黄王][\s\-_\*\.]*[色涩瑟]'
+      severity: medium
+    severity: medium
+keywords:
+  政治敏感:
+    description: 政治敏感内容
+    enabled: true
+    severity: high
+    words: []
+  暴力血腥:
+    description: 暴力血腥内容
+    enabled: true
+    severity: high
+    words:
+    - 杀人
+    - 自杀
+    - 血腥
+    - 暴力
+    - 屠杀
+    - 谋杀
+  歧视仇恨:
+    description: 歧视仇恨言论
+    enabled: true
+    severity: medium
+    words:
+    - 歧视
+    - 仇恨
+    - 种族
+    - 歧视性
+  色情低俗:
+    description: 色情低俗内容
+    enabled: true
+    severity: high
+    words:
+    - 色情
+    - 黄色
+    - 裸体
+    - 性爱
+  违法犯罪:
+    description: 违法犯罪内容
+    enabled: true
+    severity: high
+    words:
+    - 毒品
+    - 诈骗
+    - 洗钱
+    - 赌博
+    - 走私
+    - 贩卖
+threat_intelligence:
+  enabled: true
+  last_updated: '2025-12-30T20:35:00.918775'
+  malicious_domains:
+    domains:
+    - malicious1.com
+    - malicious2.com
+    enabled: true
+  malicious_ips:
+    enabled: true
+    ips:
+    - 1.2.3.4
+    - 5.6.7.8
+  malicious_keywords:
+    enabled: true
+    keywords:
+    - scam
+    - phishing
+  sources:
+  - abuse.ch
+  - phishtank
+  - custom
+version: '1.0'
+whitelist:
+  domains:
+  - example.com
+  - test.com
+  enabled: true
+  ips:
+  - 127.0.0.1
+  - localhost
+  users: []

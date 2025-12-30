@@ -34,13 +34,14 @@ class TestContentSafetyGuardIntegration:
         assert any(v.get("method") == "keyword_match" for v in result["violations"])
 
     def test_multilayer_detection_regex(self, guard):
-        """测试多层检测 - 正则（隐私信息）"""
-        # 使用包含手机号的文本（触发正则检测）
+        """测试多层检测 - 正则（隐私信息）- 根据配置，隐私检测已禁用"""
+        # 使用包含手机号的文本
         result = guard.check("我的手机号是13800138000")
-        # 应该检测到隐私信息
-        assert len(result["violations"]) > 0
-        # 应该包含正则匹配方法
-        assert any(v.get("method") == "regex_match" for v in result["violations"])
+        # 根据security_rules.yaml配置，enable_privacy_check: false
+        # 设计项目不需要隐私检测，所以不应触发violations
+        # 验证隐私检测确实被禁用
+        assert result["is_safe"] == True
+        assert result["risk_level"] == "safe"
 
     def test_multilayer_detection_external_api(self, guard):
         """测试多层检测 - 外部API"""
