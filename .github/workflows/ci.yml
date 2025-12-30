@@ -1,0 +1,72 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  backend-tests:
+    runs-on: ubuntu-latest
+    
+    services:
+      redis:
+        image: redis:latest
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+        cache: 'pip'
+    
+    - name: Install dependencies
+      run: |
+        pip install -r requirements.txt
+        playwright install chromium
+    
+    - name: Run backend tests
+      env:
+        REDIS_URL: redis://localhost:6379/0
+        LLM_PROVIDER: openrouter
+        OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+        WORDPRESS_JWT_SECRET: ${{ secrets.WORDPRESS_JWT_SECRET }}
+      run: |
+        python -m pytest tests/ -v --ignore=tests/integration/ --ignore=e2e-tests/
+
+  frontend-tests:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+        cache: 'npm'
+        cache-dependency-path: frontend-nextjs/package-lock.json
+    
+    - name: Install dependencies
+      working-directory: ./frontend-nextjs
+      run: npm ci
+    
+    - name: Run linter
+      working-directory: ./frontend-nextjs
+      run: npm run lint
+    
+    - name: Build
+      working-directory: ./frontend-nextjs
+      env:
+        NEXT_PUBLIC_API_URL: http://localhost:8000
+      run: npm run build
