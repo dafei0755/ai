@@ -1,0 +1,44 @@
+REM 备份排除清单 - 不备份的文件/目录
+REM 注意：xcopy /EXCLUDE 只支持路径字符串匹配，不支持通配符
+REM 如果文件路径包含以下任意字符串，则跳过该文件
+
+REM Python 缓存和临时文件
+__pycache__
+.pyc
+.pyo
+.log
+
+REM Node.js 依赖和构建产物
+node_modules
+.next
+
+REM Git 仓库
+.git
+
+REM 临时文件
+.tmp
+.temp
+
+REM 数据目录中的图片和媒体文件（不备份 - 目录名匹配）
+\debug\
+\archived_images\
+\followup_images\
+\generated_images\
+\uploads\
+
+REM 图片和媒体文件扩展名（不备份 - 扩展名匹配）
+.png
+.jpg
+.jpeg
+.gif
+.webp
+.svg
+.bmp
+.ico
+.mp4
+.avi
+.mov
+.wmv
+.flv
+.mkv
+.pdf

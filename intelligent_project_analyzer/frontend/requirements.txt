@@ -1,0 +1,24 @@
+# Streamlit 前端依赖
+
+# 核心框架
+streamlit>=1.30.0
+
+# 环境变量管理
+python-dotenv>=1.0.0
+
+# LangChain 和 LangGraph
+langchain>=0.1.0
+langchain-openai>=0.0.5
+langgraph>=0.0.20
+
+# 日志
+loguru>=0.7.0
+
+# 数据处理
+pandas>=2.0.0
+numpy>=1.24.0
+
+# 可选：增强组件
+streamlit-option-menu>=0.3.0  # 导航菜单
+streamlit-aggrid>=0.3.0       # 数据表格
+

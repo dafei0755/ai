@@ -1,0 +1,148 @@
+# 用户意图解析器提示词配置
+# Intent Parser Prompt Configuration
+
+version: "1.0"
+agent_name: "intent_parser"
+description: "用户意图解析器 - 将自然语言输入转换为标准化意图"
+last_updated: "2025-11-17"
+
+# LLM 提示词模板
+# 变量: {stage}, {context}, {user_text}
+llm_prompt: |
+  你是一个用户意图分析专家。请分析用户的输入意图。
+
+  当前阶段: {stage}
+  上下文: {context}
+
+  用户输入:
+  {user_text}
+
+  可能的意图类型:
+  1. approve - 批准/确认/同意/继续（无修改）
+  2. add - 补充额外信息或需求
+  3. modify - 修改已有信息（纠正错误）
+  4. skip - 跳过当前步骤
+  5. revise - 拒绝并要求重新分析
+  6. reject - 拒绝
+
+  分析规则:
+  - 如果用户说"批准"、"确认"、"好的"、"继续" → approve
+  - 如果用户说"我还需要..."、"另外..."、"补充..." → add
+  - 如果用户说"应该是..."、"改成..."、"不是..." → modify
+  - 如果用户说"跳过"、"不需要" → skip
+  - 如果用户说"重新"、"再来一遍" → revise
+  - 如果用户说"不行"、"拒绝" → reject
+
+  请返回JSON格式（只返回JSON，不要其他文字）:
+  {{
+      "intent": "意图类型（approve/add/modify/skip/revise/reject）",
+      "content": "提取的关键内容（如果是approve/skip则为空）",
+      "reasoning": "判断理由（简短说明）"
+  }}
+
+# 关键词映射（用于快速匹配和关键词解析）
+keywords:
+  approve:
+    - 批准
+    - 确认
+    - 同意
+    - 继续
+    - 好的
+    - 可以
+    - 没问题
+    - approve
+    - confirm
+    - "ok"       # 用引号包裹，防止 YAML 解析为布尔值
+    - "yes"      # 用引号包裹，防止 YAML 解析为布尔值
+
+  add:
+    - 补充
+    - 增加
+    - 还需要
+    - 另外
+    - 还有
+    - add
+    - also
+    - additionally
+
+  modify:
+    - 修改
+    - 改成
+    - 应该是
+    - 不是
+    - 错了
+    - 更正
+    - modify
+    - change
+    - correct
+    - should be
+
+  skip:
+    - 跳过
+    - 忽略
+    - 不需要
+    - skip
+
+  revise:
+    - 重新
+    - 再来
+    - 重做
+    - revise
+    - redo
+
+  reject:
+    - 拒绝
+    - 不行
+    - 不对
+    - reject
+    - "no"       # 用引号包裹，防止 YAML 解析为布尔值
+
+# 意图类型定义（与代码逻辑同步）
+intent_types:
+  - name: approve
+    display_name: "批准/确认"
+    description: "用户批准当前结果，无修改"
+    requires_content: false
+
+  - name: add
+    display_name: "补充信息"
+    description: "用户补充额外信息或需求"
+    requires_content: true
+
+  - name: modify
+    display_name: "修改内容"
+    description: "用户修改已有信息"
+    requires_content: true
+
+  - name: skip
+    display_name: "跳过"
+    description: "用户跳过当前步骤"
+    requires_content: false
+
+  - name: revise
+    display_name: "重新分析"
+    description: "用户要求重新分析"
+    requires_content: false
+
+  - name: reject
+    display_name: "拒绝"
+    description: "用户拒绝当前结果"
+    requires_content: false
+
+# 否定词列表（用于增强检测）
+negation_words:
+  - 不
+  - 不是
+  - 没有
+  - 别
+  - no
+  - not
+  - don't
+  - doesn't
+
+# 配置说明
+# 使用方法:
+# 1. PromptManager 自动加载此文件
+# 2. intent_parser.py 通过 PromptManager 获取配置
+# 3. 支持热加载（调用 prompt_manager.reload()）
+# 4. 如果加载失败，自动降级到硬编码配置

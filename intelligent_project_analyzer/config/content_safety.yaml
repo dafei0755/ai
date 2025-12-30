@@ -1,0 +1,291 @@
+# ============================================================================
+# 内容安全与领域过滤配置 v1.1
+# Content Safety & Domain Filter Configuration v1.1
+# ============================================================================
+# 版本: v1.1
+# 更新日期: 2025-12-17
+# 
+# 核心功能:
+# - 4层安全防护体系: input_guard → domain_validator → output_monitor → report_guard
+# - 关键词检测 + LLM深度检测 + 外部API检测
+# - 与 security/content_safety_guard.py 配合使用
+# ============================================================================
+
+# 🔧 全局开关
+security:
+  enabled: true                      # 是否启用安全系统（主开关）
+  strict_mode: false                 # 严格模式：启用后，所有模糊情况都拒绝
+  log_all_checks: true               # 记录所有安全检查（包括通过的）
+
+# 🛡️ 第一层：输入预检配置
+input_guard:
+  enabled: true
+  content_safety:
+    enabled: true
+    check_keywords: true             # 关键词检测
+    check_patterns: true             # 正则模式检测
+    check_external_api: false        # 外部API检测（需配置API key）
+    check_llm: true                  # LLM深度检测
+    llm_threshold: 0.7               # LLM检测阈值（0-1）
+  
+  domain_classification:
+    enabled: true
+    keyword_weight: 0.6              # 关键词匹配权重
+    llm_weight: 0.4                  # LLM判断权重
+    confidence_threshold: 0.5        # 置信度阈值（低于此值视为不明确）
+    allow_unclear: true              # 是否允许不明确的情况（interrupt用户确认）
+
+  # 拒绝消息模板
+  rejection_messages:
+    content_safety: |
+      很抱歉，您的输入包含不适当的内容，我无法处理此类请求。
+      作为空间设计专业智能体，我专注于提供建筑、室内、景观等设计领域的分析服务。
+      如果您有空间设计相关的需求，欢迎重新描述您的项目！
+    
+    domain_mismatch: |
+      感谢您的咨询！不过，您的问题似乎不在我的专业领域范围内。
+      我擅长分析以下类型的空间设计项目：
+      - 办公空间、零售空间、展览展厅
+      - 餐饮空间、住宅空间、酒店会所
+      - 景观设计、公共空间
+      请尝试描述一个空间设计相关的需求，期待为您服务！
+
+# 🔍 第二层：领域验证配置
+domain_validator:
+  enabled: true
+  check_after_requirements: true     # 需求分析后检查
+  allow_drift_continue: true         # 允许用户坚持继续（标记风险）
+  drift_threshold: 0.3               # 漂移阈值（confidence低于此值触发警告）
+
+# 📊 第三层：输出监控配置
+output_monitor:
+  enabled: true
+  wrap_all_llm: true                 # 包装所有LLM实例
+  check_every_output: true           # 检查每次LLM输出
+  sanitize_medium_risk: true         # 自动脱敏中风险内容
+  reject_high_risk: true             # 拒绝高风险内容
+
+# 📄 第四层：报告审核配置
+report_guard:
+  enabled: true
+  check_final_report: true           # 检查最终报告
+  check_intermediate_results: false  # 检查中间结果（性能影响大）
+  allow_passthrough_on_error: true   # 出错时放行（避免误拦）
+
+# 🔑 违规关键词库（可扩展）
+blocked_keywords:
+  政治敏感:
+    - 政治敏感词1
+    - 政治敏感词2
+    # 实际部署需要专业词库
+  
+  色情低俗:
+    - 色情
+    - 黄色
+    - 裸体
+    - 性爱
+    - 成人内容
+  
+  暴力血腥:
+    - 杀人
+    - 自杀
+    - 血腥
+    - 暴力
+    - 恐怖主义
+  
+  违法犯罪:
+    - 毒品
+    - 诈骗
+    - 洗钱
+    - 赌博
+    - 非法交易
+  
+  歧视仇恨:
+    - 歧视
+    - 仇恨
+    - 种族主义
+    - 性别歧视
+
+# 🎨 设计领域关键词库
+design_keywords:
+  空间设计:
+    - 办公空间
+    - 零售空间
+    - 展览展厅
+    - 餐饮空间
+    - 住宅空间
+    - 酒店设计
+    - 景观设计
+    - 室内设计
+    - 建筑设计
+    - 商业空间
+    - 公共空间
+    - 文化空间
+  
+  设计元素:
+    - 平面布局
+    - 功能分区
+    - 动线设计
+    - 空间规划
+    - 色彩搭配
+    - 材料选择
+    - 照明设计
+    - 家具配置
+    - 软装设计
+    - 艺术陈设
+  
+  设计风格:
+    - 现代简约
+    - 工业风
+    - 北欧风
+    - 中式风格
+    - 欧式风格
+    - 日式风格
+    - 轻奢风
+    - 极简主义
+  
+  设计阶段:
+    - 概念设计
+    - 方案设计
+    - 初步设计
+    - 施工图设计
+    - 软装设计
+    - 效果图
+    - 平面图
+    - 立面图
+  
+  项目类型:
+    - 新建项目
+    - 改造项目
+    - 翻新项目
+    - 装修项目
+    - 扩建项目
+  
+  用户需求:
+    - 空间优化
+    - 功能提升
+    - 品牌形象
+    - 用户体验
+    - 成本控制
+    - 施工周期
+  
+  技术要求:
+    - 结构设计
+    - 机电设计
+    - 暖通设计
+    - 消防设计
+    - 智能化系统
+    - 节能设计
+  
+  用户体验:
+    - 舒适度
+    - 便利性
+    - 私密性
+    - 通风采光
+    - 声学设计
+    - 无障碍设计
+  
+  商业考虑:
+    - 投资回报
+    - 运营成本
+    - 品牌定位
+    - 目标客户
+    - 市场竞争
+  
+  实施相关:
+    - 材料供应
+    - 施工工艺
+    - 项目管理
+    - 质量控制
+    - 验收标准
+
+# ❌ 非设计领域关键词库（用于过滤）
+non_design_keywords:
+  编程开发:
+    - 编程
+    - 代码
+    - 软件开发
+    - 网站开发
+    - APP开发
+    - 数据库
+    - 算法
+    - 前端
+    - 后端
+    - Python
+    - Java
+    - JavaScript
+  
+  医疗健康:
+    - 医疗
+    - 疾病
+    - 药物
+    - 治疗
+    - 手术
+    - 医院
+    - 诊断
+    - 健康咨询
+  
+  法律咨询:
+    - 法律
+    - 诉讼
+    - 合同纠纷
+    - 律师
+    - 法规
+    - 司法
+  
+  学术研究:
+    - 论文
+    - 学术研究
+    - 实验设计
+    - 数据分析
+    - 统计方法
+    - 文献综述
+  
+  娱乐影视:
+    - 电影
+    - 电视剧
+    - 综艺节目
+    - 娱乐八卦
+    - 明星
+  
+  电商零售:
+    - 网购
+    - 电商平台
+    - 商品推荐
+    - 物流配送
+    - 库存管理
+  
+  社交媒体:
+    - 社交网络
+    - 内容运营
+    - 粉丝增长
+    - 流量变现
+
+# 🔌 外部API配置（可选）
+external_apis:
+  aliyun:
+    enabled: false
+    api_key: ""                      # 阿里云内容安全API key
+    endpoint: ""
+  
+  tencent:
+    enabled: false
+    api_key: ""                      # 腾讯云天御API key
+    endpoint: ""
+
+# 📝 违规日志配置
+logging:
+  log_directory: "logs/security"     # 日志目录
+  log_file_pattern: "violations_{date}.jsonl"  # 日志文件命名
+  rotate_daily: true                 # 每天轮转
+  keep_days: 30                      # 保留天数
+  include_user_input: true           # 是否记录用户输入（隐私考虑）
+  max_input_length: 200              # 记录的输入最大长度
+
+# 📊 统计报告配置
+statistics:
+  enabled: true
+  report_interval: "daily"           # 统计频率：daily/weekly/monthly
+  alert_threshold: 10                # 单日违规次数告警阈值
+  send_email: false                  # 是否发送邮件告警
+  email_recipients: []

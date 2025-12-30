@@ -1,0 +1,60 @@
+# Docker Compose for Grafana Loki + Promtail
+# 日志聚合与可视化完整方案
+
+version: "3.8"
+
+services:
+  # Grafana Loki - 日志聚合服务器
+  loki:
+    image: grafana/loki:2.9.3
+    container_name: loki
+    ports:
+      - "3100:3100"
+    command: -config.file=/etc/loki/local-config.yaml
+    volumes:
+      - ./loki-config.yaml:/etc/loki/local-config.yaml
+      - loki-data:/loki
+    networks:
+      - logging
+    restart: unless-stopped
+
+  # Promtail - 日志采集器
+  promtail:
+    image: grafana/promtail:2.9.3
+    container_name: promtail
+    volumes:
+      - ./promtail-config.yaml:/etc/promtail/config.yaml
+      - ../logs:/var/log/app:ro  # 挂载项目日志目录（只读）
+    command: -config.file=/etc/promtail/config.yaml
+    networks:
+      - logging
+    depends_on:
+      - loki
+    restart: unless-stopped
+
+  # Grafana - 可视化界面
+  grafana:
+    image: grafana/grafana:10.2.3
+    container_name: grafana
+    ports:
+      - "3200:3000"  # 避免与 Next.js 端口冲突
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin123
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana-datasources.yaml:/etc/grafana/provisioning/datasources/datasources.yaml
+    networks:
+      - logging
+    depends_on:
+      - loki
+    restart: unless-stopped
+
+networks:
+  logging:
+    driver: bridge
+
+volumes:
+  loki-data:
+  grafana-data:

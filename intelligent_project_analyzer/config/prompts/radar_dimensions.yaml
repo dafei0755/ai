@@ -1,0 +1,334 @@
+# 雷达图维度库配置
+# v7.80: 三步递进式问卷系统 - Step 2 核心配置
+# 定义所有可用维度，以及项目类型到维度的映射关系
+
+metadata:
+  version: "7.80.15"
+  description: "雷达图多维度项目画像系统配置"
+  created_at: "2025-12-30"
+  author: "三层递进式问卷系统"
+
+# 维度分类说明:
+# - aesthetic: 美学维度（文化、风格、美学取向）
+# - functional: 功能维度（功能强度、实用性）
+# - technology: 科技维度（科技渗透、智能化程度）
+# - resource: 资源维度（预算、时间、材料）
+# - experience: 体验维度（能量层级、氛围、感官体验）
+
+dimensions:
+  # ========================================
+  # 1. 美学维度 (aesthetic)
+  # ========================================
+
+  cultural_axis:
+    name: "文化归属轴"
+    left_label: "东方禅意"
+    right_label: "西方现代"
+    category: "aesthetic"
+    description: "从东方传统美学到西方现代设计的文化倾向"
+    keywords: ["文化", "风格", "传统", "现代", "东方", "西方"]
+    default_value: 50
+
+  aesthetic_direction:
+    name: "美学方向轴"
+    left_label: "极简纯粹"
+    right_label: "丰富多元"
+    category: "aesthetic"
+    description: "从极简主义到装饰主义的美学取向"
+    keywords: ["极简", "装饰", "复杂", "纯粹"]
+    default_value: 50
+
+  material_temperature:
+    name: "材质温度轴"
+    left_label: "冷峻硬朗"
+    right_label: "温润柔和"
+    category: "aesthetic"
+    description: "材料质感的冷暖倾向"
+    keywords: ["材质", "质感", "温暖", "冷峻"]
+    default_value: 50
+
+  # ========================================
+  # 2. 功能维度 (functional)
+  # ========================================
+
+  function_intensity:
+    name: "功能强度轴"
+    left_label: "形式体验"
+    right_label: "极致实用"
+    category: "functional"
+    description: "从艺术性表达到功能性优先的平衡"
+    keywords: ["功能", "实用", "艺术", "形式"]
+    default_value: 50
+
+  space_flexibility:
+    name: "空间灵活度轴"
+    left_label: "固定专用"
+    right_label: "灵活多变"
+    category: "functional"
+    description: "空间功能的固定性与灵活性"
+    keywords: ["灵活", "多功能", "固定", "专用"]
+    default_value: 50
+
+  storage_priority:
+    name: "收纳优先度轴"
+    left_label: "开放展示"
+    right_label: "隐藏收纳"
+    category: "functional"
+    description: "收纳与展示的平衡"
+    keywords: ["收纳", "储物", "展示", "隐藏"]
+    default_value: 50
+
+  # ========================================
+  # 3. 科技维度 (technology)
+  # ========================================
+
+  tech_visibility:
+    name: "科技渗透轴"
+    left_label: "隐藏科技"
+    right_label: "显性科技"
+    category: "technology"
+    description: "智能科技的可见性与融入程度"
+    keywords: ["科技", "智能", "自动化", "技术"]
+    default_value: 50
+
+  automation_workflow:
+    name: "自动化程度轴"
+    left_label: "手动操作"
+    right_label: "全自动化"
+    category: "technology"
+    description: "日常操作的自动化程度"
+    keywords: ["自动化", "智能家居", "手动", "控制"]
+    default_value: 50
+
+  # ========================================
+  # 4. 资源维度 (resource)
+  # ========================================
+
+  budget_priority:
+    name: "预算优先度轴"
+    left_label: "成本敏感"
+    right_label: "品质优先"
+    category: "resource"
+    description: "成本控制与品质追求的平衡"
+    keywords: ["预算", "成本", "价格", "品质"]
+    default_value: 50
+
+  material_sustainability:
+    name: "材料可持续性轴"
+    left_label: "传统材料"
+    right_label: "环保可持续"
+    category: "resource"
+    description: "材料选择的环保与可持续性倾向"
+    keywords: ["环保", "可持续", "绿色", "生态"]
+    default_value: 50
+
+  # ========================================
+  # 5. 体验维度 (experience)
+  # ========================================
+
+  energy_level:
+    name: "能量层级轴"
+    left_label: "静谧放松"
+    right_label: "活力动感"
+    category: "experience"
+    description: "空间氛围的能量强度"
+    keywords: ["氛围", "能量", "活力", "宁静"]
+    default_value: 50
+
+  privacy_level:
+    name: "隐私层级轴"
+    left_label: "开放社交"
+    right_label: "私密隔离"
+    category: "experience"
+    description: "空间开放性与隐私性的平衡"
+    keywords: ["隐私", "开放", "社交", "独处"]
+    default_value: 50
+
+  natural_connection:
+    name: "自然连接度轴"
+    left_label: "城市封闭"
+    right_label: "自然开放"
+    category: "experience"
+    description: "与自然环境的连接程度"
+    keywords: ["自然", "户外", "光线", "景观"]
+    default_value: 50
+
+  sensory_focus:
+    name: "感官聚焦轴"
+    left_label: "视觉主导"
+    right_label: "多感官体验"
+    category: "experience"
+    description: "感官体验的多样性"
+    keywords: ["视觉", "触觉", "听觉", "嗅觉", "感官"]
+    default_value: 50
+
+  # ========================================
+  # 6. 特殊场景专用维度（v7.80.15）
+  # ========================================
+
+  spiritual_atmosphere:
+    name: "精神氛围轴"
+    left_label: "世俗务实"
+    right_label: "精神超越"
+    category: "experience"
+    description: "空间的精神性与超越感"
+    keywords: ["精神", "灵性", "冥想", "禅意", "诗意"]
+    default_value: 50
+    special_scenario: "poetic_philosophical"
+
+  environmental_adaptation:
+    name: "环境适应性轴"
+    left_label: "标准环境"
+    right_label: "极端适应"
+    category: "functional"
+    description: "对极端环境的适应能力"
+    keywords: ["极端", "高海拔", "严寒", "酷暑", "湿热"]
+    default_value: 50
+    special_scenario: "extreme_environment"
+
+  accessibility_level:
+    name: "无障碍等级轴"
+    left_label: "常规标准"
+    right_label: "全龄友好"
+    category: "functional"
+    description: "无障碍与全龄适老的设计程度"
+    keywords: ["无障碍", "适老", "全龄", "辅助", "医疗"]
+    default_value: 50
+    special_scenario: "medical_special_needs"
+
+  cultural_authenticity:
+    name: "文化真实性轴"
+    left_label: "符号借用"
+    right_label: "深度植根"
+    category: "aesthetic"
+    description: "文化元素融入的深度与真实性"
+    keywords: ["文化", "传统", "本土", "在地", "authentic"]
+    default_value: 50
+    special_scenario: "cultural_depth"
+
+  acoustic_performance:
+    name: "声学性能轴"
+    left_label: "常规隔音"
+    right_label: "专业声学"
+    category: "technology"
+    description: "声学环境的专业性要求"
+    keywords: ["声音", "声学", "隔音", "音乐", "录音"]
+    default_value: 50
+    special_scenario: "tech_geek"
+
+  conflict_mediation:
+    name: "冲突调和度轴"
+    left_label: "清晰分界"
+    right_label: "柔性过渡"
+    category: "functional"
+    description: "不同需求间的空间调和能力"
+    keywords: ["冲突", "调和", "平衡", "过渡", "边界"]
+    default_value: 50
+    special_scenario: "complex_relationships"
+
+  cost_efficiency:
+    name: "成本效率轴"
+    left_label: "品质优先"
+    right_label: "极致性价比"
+    category: "resource"
+    description: "成本控制的严格程度"
+    keywords: ["性价比", "经济", "节约", "预算"]
+    default_value: 50
+    special_scenario: "extreme_budget"
+
+  # ========================================
+  # 7. 商业项目专用维度
+  # ========================================
+
+  brand_visibility:
+    name: "品牌可见度轴"
+    left_label: "低调内敛"
+    right_label: "强烈展示"
+    category: "aesthetic"
+    description: "品牌元素的展示强度"
+    keywords: ["品牌", "logo", "VI", "识别"]
+    default_value: 50
+
+  traffic_flow:
+    name: "动线流畅度轴"
+    left_label: "探索发现"
+    right_label: "高效直达"
+    category: "functional"
+    description: "用户动线的效率与体验平衡"
+    keywords: ["动线", "流线", "路径", "导向"]
+    default_value: 50
+
+# ========================================
+# 项目类型 → 维度映射
+# ========================================
+
+project_type_dimensions:
+  # 个人住宅（默认）
+  personal_residential:
+    required: ["cultural_axis", "function_intensity", "material_temperature"]
+    recommended: ["privacy_level", "energy_level", "natural_connection", "space_flexibility", "storage_priority", "tech_visibility"]
+    optional: ["aesthetic_direction", "material_sustainability", "sensory_focus", "automation_workflow", "budget_priority"]
+
+  # 商业空间
+  commercial_retail:
+    required: ["brand_visibility", "traffic_flow", "function_intensity"]
+    recommended: ["energy_level", "tech_visibility", "cultural_axis", "aesthetic_direction", "sensory_focus", "material_temperature"]
+    optional: ["space_flexibility", "natural_connection", "automation_workflow", "budget_priority", "material_sustainability"]
+
+  commercial_enterprise:
+    required: ["brand_visibility", "tech_visibility", "traffic_flow"]
+    recommended: ["function_intensity", "space_flexibility", "energy_level", "automation_workflow", "material_temperature", "cultural_axis"]
+    optional: ["aesthetic_direction", "sensory_focus", "natural_connection", "privacy_level", "budget_priority"]
+
+  # 酒店民宿
+  commercial_hospitality:
+    required: ["cultural_axis", "sensory_focus", "material_temperature"]
+    recommended: ["privacy_level", "natural_connection", "energy_level", "aesthetic_direction", "tech_visibility", "brand_visibility"]
+    optional: ["function_intensity", "space_flexibility", "automation_workflow", "material_sustainability", "budget_priority"]
+
+  # 餐饮空间
+  commercial_dining:
+    required: ["energy_level", "sensory_focus", "brand_visibility"]
+    recommended: ["cultural_axis", "material_temperature", "traffic_flow", "aesthetic_direction", "function_intensity", "natural_connection"]
+    optional: ["tech_visibility", "space_flexibility", "automation_workflow", "privacy_level", "material_sustainability"]
+
+  # 文化教育
+  public_cultural:
+    required: ["cultural_axis", "sensory_focus", "traffic_flow"]
+    recommended: ["energy_level", "natural_connection", "aesthetic_direction", "function_intensity", "accessibility_level", "material_temperature"]
+    optional: ["brand_visibility", "tech_visibility", "space_flexibility", "automation_workflow", "material_sustainability"]
+
+  # 办公空间
+  commercial_office:
+    required: ["function_intensity", "tech_visibility", "space_flexibility"]
+    recommended: ["energy_level", "natural_connection", "automation_workflow", "cultural_axis", "material_temperature", "traffic_flow"]
+    optional: ["aesthetic_direction", "privacy_level", "brand_visibility", "sensory_focus", "material_sustainability"]
+
+# ========================================
+# 维度分析规则
+# ========================================
+
+analysis_rules:
+  # 短板维度判定（触发 Step 3 补充）
+  gap_threshold:
+    low: 30   # 值 < 30 视为极端偏好，需要补充确认
+    high: 70  # 值 > 70 视为极端偏好，需要补充确认
+
+  # 风格标签生成规则
+  profile_labels:
+    - condition: "cultural_axis < 40 and energy_level < 40"
+      label: "东方静谧型"
+    - condition: "cultural_axis < 40 and energy_level > 60"
+      label: "东方活力型"
+    - condition: "cultural_axis > 60 and energy_level < 40"
+      label: "西方静谧型"
+    - condition: "cultural_axis > 60 and energy_level > 60"
+      label: "西方活力型"
+    - condition: "function_intensity > 70"
+      label: "极致实用型"
+    - condition: "aesthetic_direction < 30"
+      label: "极简纯粹型"
+    - condition: "tech_visibility > 70"
+      label: "科技前沿型"
+    - condition: "natural_connection > 70"
+      label: "自然融合型"

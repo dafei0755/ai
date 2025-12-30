@@ -1,0 +1,73 @@
+# 核心框架
+langgraph>=0.2.57
+langchain>=0.3.0
+langchain-core>=0.3.0
+langchain-community>=0.3.0
+
+# LLM提供商
+langchain-openai>=0.2.0
+langchain-anthropic>=0.2.0
+langchain-google-genai>=2.0.0  # 🔥 v3.8新增: Google Gemini Vision
+
+# 数据处理
+pandas>=2.0.0
+numpy>=1.24.0
+pydantic>=2.0.0
+jieba>=0.42.0  # 中文分词（用于角色权重计算）
+
+# 外部工具集成
+tavily-python>=0.3.0
+arxiv>=2.1.0
+requests>=2.31.0
+
+# PDF生成
+reportlab>=4.0.0
+weasyprint>=60.0
+
+# 🔥 v3.7新增: 文件处理
+pdfplumber>=0.10.0  # PDF文本提取
+PyPDF2>=3.0.0       # PDF处理备选方案
+chardet>=5.0.0      # 文本编码检测
+Pillow>=10.0.0      # 图片处理
+aiofiles>=23.0.0    # 异步文件IO
+
+# 🔥 v3.8新增: Word/Excel支持
+python-docx>=1.1.0  # Word文档处理
+openpyxl>=3.1.0     # Excel处理
+
+# Web框架
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+
+# 前端界面
+streamlit>=1.28.0
+plotly>=5.17.0
+
+# 存储和持久化
+# sqlite3  # 内置模块，不需要安装
+redis>=5.0.0
+aioredis>=2.0.0
+
+# 告警系统
+aiohttp>=3.9.0
+
+# 🔥 v3.9新增: 任务队列（多用户并发支持）
+celery>=5.3.0
+kombu>=5.3.0  # Celery 消息传输库
+flower>=2.0.0  # Celery 监控面板（可选）
+
+# 开发工具
+python-dotenv>=1.0.0
+loguru>=0.7.0
+pytest>=7.4.0
+black>=23.0.0
+isort>=5.12.0
+tenacity>=8.2.0  # 重试机制（用于 LLM SSL 错误处理）
+cachetools>=5.3.0  # 🔥 v7.1.2新增: PDF缓存（TTL内存缓存）
+
+# 类型检查
+mypy>=1.5.0
+types-requests>=2.31.0
+
+# ==================== 腾讯云内容安全 (v1.0 新增) ====================
+tencentcloud-sdk-python>=3.0.1100  # 腾讯云Python SDK（包含TMS内容安全）
