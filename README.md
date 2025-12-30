@@ -6,6 +6,8 @@
 [![Version](https://img.shields.io/badge/version-v7.104-blue.svg)](CHANGELOG.md)
 [![Python](https://img.shields.io/badge/python-3.10+-green.svg)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-orange.svg)](LICENSE)
+[![CI/CD](https://github.com/dafei0755/ai/actions/workflows/ci.yml/badge.svg)](https://github.com/dafei0755/ai/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/dafei0755/ai/branch/main/graph/badge.svg)](https://codecov.io/gh/dafei0755/ai)
 [![LangGraph](https://img.shields.io/badge/LangGraph-0.2.57+-orange.svg)](https://github.com/langchain-ai/langgraph)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-green.svg)](https://fastapi.tiangolo.com/)
 [![Next.js](https://img.shields.io/badge/Next.js-15-black.svg)](https://nextjs.org/)
