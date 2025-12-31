@@ -1,0 +1,83 @@
+repos:
+  # Pre-commit hooks - 基础文件检查
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: trailing-whitespace
+        name: 删除尾随空格
+      - id: end-of-file-fixer
+        name: 确保文件以换行符结尾
+      - id: check-yaml
+        name: 检查YAML文件语法
+      - id: check-json
+        name: 检查JSON文件语法
+      - id: check-added-large-files
+        name: 检查大文件 (>500KB)
+        args: ['--maxkb=500']
+      - id: check-merge-conflict
+        name: 检查合并冲突标记
+      - id: check-case-conflict
+        name: 检查文件名大小写冲突
+      - id: detect-private-key
+        name: 检测私钥
+      - id: mixed-line-ending
+        name: 检查混合行结束符
+
+  # Detect-secrets - 密钥泄露检测
+  - repo: https://github.com/Yelp/detect-secrets
+    rev: v1.4.0
+    hooks:
+      - id: detect-secrets
+        name: 检测敏感信息泄露
+        args: ['--baseline', '.secrets.baseline']
+        exclude: package.lock.json
+
+  # Black - Python代码格式化
+  - repo: https://github.com/psf/black
+    rev: 23.12.1
+    hooks:
+      - id: black
+        name: Black代码格式化
+        language_version: python3
+        args: ['--line-length=120']
+
+  # isort - Import排序
+  - repo: https://github.com/PyCQA/isort
+    rev: 5.13.2
+    hooks:
+      - id: isort
+        name: Import语句排序
+        args: ['--profile=black', '--line-length=120']
+
+  # flake8 - 代码检查
+  - repo: https://github.com/PyCQA/flake8
+    rev: 7.0.0
+    hooks:
+      - id: flake8
+        name: Flake8代码检查
+        args: ['--max-line-length=120', '--extend-ignore=E203,W503']
+        additional_dependencies: [flake8-docstrings]
+
+  # 本地钩子 - 快速测试
+  - repo: local
+    hooks:
+      - id: pytest-check
+        name: 运行快速测试
+        entry: pytest
+        language: system
+        pass_filenames: false
+        always_run: true
+        args:
+          - 'tests/'
+          - '-x'  # 首次失败时停止
+          - '--tb=short'
+          - '-m'
+          - 'not slow'  # 跳过慢速测试
+          - '-q'  # 简洁输出
+        stages: [commit]
+        # 可选：只在修改Python文件时运行
+        # files: \.py$
+
+# 全局配置
+default_stages: [commit]
+fail_fast: false  # 不在第一个失败时停止

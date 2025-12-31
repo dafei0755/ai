@@ -1,0 +1,139 @@
+name: Automated Tests
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    # 每天UTC 0:00运行
+    - cron: '0 0 * * *'
+  workflow_dispatch:  # 允许手动触发
+
+jobs:
+  test:
+    name: Test on ${{ matrix.os }} with Python ${{ matrix.python-version }}
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      fail-fast: false  # 即使一个任务失败，其他任务继续运行
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python-version: ['3.9', '3.10', '3.11']
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+        cache: 'pip'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pytest pytest-cov pytest-asyncio pytest-mock
+        pip install -r requirements.txt || true
+
+    - name: Check test environment
+      run: |
+        python --version
+        pytest --version
+        python scripts/test_automation.py --check
+
+    - name: Run tests with coverage
+      env:
+        ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      run: |
+        python -m pytest tests/ \
+          --cov=intelligent_project_analyzer \
+          --cov-report=xml \
+          --cov-report=term \
+          --cov-fail-under=14 \
+          -v
+
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./coverage.xml
+        flags: unittests
+        name: codecov-${{ matrix.os }}-py${{ matrix.python-version }}
+        fail_ci_if_error: false
+
+    - name: Generate coverage report
+      if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.11'
+      run: |
+        python scripts/test_automation.py --report
+
+    - name: Upload coverage HTML report
+      if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.11'
+      uses: actions/upload-artifact@v3
+      with:
+        name: coverage-html-report
+        path: htmlcov/
+
+  lint:
+    name: Code Quality Checks
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    - name: Install linting tools
+      run: |
+        pip install black isort flake8
+
+    - name: Check code formatting (Black)
+      run: |
+        black --check intelligent_project_analyzer/ tests/ --line-length=120
+
+    - name: Check import sorting (isort)
+      run: |
+        isort --check-only intelligent_project_analyzer/ tests/ --profile=black
+
+    - name: Lint with flake8
+      run: |
+        flake8 intelligent_project_analyzer/ tests/ --max-line-length=120 --extend-ignore=E203,W503
+
+  security:
+    name: Security Scan
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    - name: Install security tools
+      run: |
+        pip install bandit safety
+
+    - name: Run Bandit security scan
+      run: |
+        bandit -r intelligent_project_analyzer/ -ll -f json -o bandit-report.json || true
+        bandit -r intelligent_project_analyzer/ -ll
+
+    - name: Check dependencies for vulnerabilities
+      run: |
+        pip install -r requirements.txt || true
+        safety check --json || true
+
+    - name: Upload security reports
+      uses: actions/upload-artifact@v3
+      with:
+        name: security-reports
+        path: |
+          bandit-report.json
