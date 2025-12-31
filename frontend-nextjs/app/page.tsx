@@ -27,6 +27,9 @@ import { useWorkflowStore } from '@/store/useWorkflowStore';
 import { formatFileSize } from '@/lib/formatters';
 import { UserPanel } from '@/components/layout/UserPanel';
 import { useAuth } from '@/contexts/AuthContext';
+// 🔥 v7.107: 导入新组件
+import { DeepThinkingBadge } from '@/components/DeepThinkingBadge';
+import { ProgressBadge } from '@/components/ProgressBadge';
 
 export default function HomePage() {
   const router = useRouter();
@@ -34,6 +37,8 @@ export default function HomePage() {
   const { user, isLoading: authLoading } = useAuth(); // 🆕 获取认证状态
   const [userInput, setUserInput] = useState('');
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  // 🔥 v7.107: 分析模式状态
+  const [analysisMode, setAnalysisMode] = useState<'normal' | 'deep_thinking'>('normal');
 
   // 🔥 检测是否在 iframe 中（用于显示主网站链接）
   const isInIframe = typeof window !== 'undefined' && window.self !== window.top;
@@ -293,6 +298,7 @@ export default function HomePage() {
         const formData = new FormData();
         formData.append('user_input', userInput.trim());
         formData.append('user_id', 'web_user');
+        formData.append('analysis_mode', analysisMode);  // 🆕 v7.107
 
         uploadedFiles.forEach(file => {
           formData.append('files', file);
@@ -307,6 +313,7 @@ export default function HomePage() {
         response = await api.startAnalysis({
           user_id: 'web_user',
           user_input: userInput.trim(),
+          analysis_mode: analysisMode,  // 🆕 v7.107
         });
       }
 
@@ -528,7 +535,10 @@ export default function HomePage() {
         </div>
 
         <div className="px-3 py-2 min-w-[260px]">
-          <button className="w-full flex items-center gap-2 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white px-4 py-2.5 rounded-lg transition-colors shadow-sm">
+          <button 
+            onClick={() => window.location.reload()}
+            className="w-full flex items-center gap-2 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white px-4 py-2.5 rounded-lg transition-colors shadow-sm"
+          >
             <Plus size={18} />
             <span className="whitespace-nowrap">开启新对话</span>
           </button>
@@ -557,8 +567,18 @@ export default function HomePage() {
                           )}
                           <div className="flex-1 pr-6 line-clamp-2">{session.user_input || '未命名会话'}</div>
                         </div>
-                        <div className="text-xs text-gray-500 mt-1">
-                          {session.isTemporary ? '正在创建...' : new Date(session.created_at).toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                        
+                        {/* 🔥 v7.107: 显示徽章 */}
+                        <div className="flex items-center gap-1.5 mt-1">
+                          <div className="text-xs text-gray-500">
+                            {session.isTemporary ? '正在创建...' : new Date(session.created_at).toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                          </div>
+                          {!session.isTemporary && session.analysis_mode === 'deep_thinking' && (
+                            <DeepThinkingBadge />
+                          )}
+                          {!session.isTemporary && session.status === 'running' && session.progress !== undefined && (
+                            <ProgressBadge progress={session.progress} currentStage={session.current_stage} />
+                          )}
                         </div>
                       </button>
 
@@ -1043,6 +1063,42 @@ export default function HomePage() {
                   </button>
                 </div>
               </form>
+            </div>
+
+            {/* 🆕 v7.107: 深度思考模式切换按钮（位于对话框下方） */}
+            <div className="flex items-center justify-center mt-3">
+              <button
+                type="button"
+                onClick={() => setAnalysisMode(analysisMode === 'normal' ? 'deep_thinking' : 'normal')}
+                className={`
+                  flex items-center gap-2 px-4 py-2 rounded-lg border-2 transition-all duration-200
+                  ${analysisMode === 'deep_thinking'
+                    ? 'bg-purple-500/20 border-purple-500 text-purple-400'
+                    : 'bg-transparent border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:border-purple-400 hover:text-purple-400'
+                  }
+                `}
+                disabled={isLoading}
+              >
+                <div className={`
+                  w-5 h-5 rounded border-2 flex items-center justify-center transition-all
+                  ${analysisMode === 'deep_thinking'
+                    ? 'bg-purple-500 border-purple-500'
+                    : 'border-gray-400 dark:border-gray-500'
+                  }
+                `}>
+                  {analysisMode === 'deep_thinking' && (
+                    <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                    </svg>
+                  )}
+                </div>
+                <span className="text-sm font-medium">
+                  深度思考模式
+                </span>
+                <span className="text-xs opacity-75">
+                  {analysisMode === 'deep_thinking' ? '(3张概念图/交付物)' : '(1张概念图/交付物)'}
+                </span>
+              </button>
             </div>
 
             {/* Error Message */}

@@ -52,7 +52,7 @@ export const APP_CONFIG = {
   DESCRIPTION: 'AI驱动的智能设计分析平台',
 
   // 版本号
-  VERSION: '3.0.20',
+  VERSION: '3.0.23',
 
   // 是否启用调试模式
   DEBUG: process.env.NODE_ENV === 'development',

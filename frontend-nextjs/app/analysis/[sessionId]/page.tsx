@@ -69,6 +69,7 @@ const NODE_NAME_MAP: Record<string, string> = {
 	detect_challenges: '挑战检测',
 	final_review: '最终审核',
 	result_review: '结果审核',
+	report_guard: '报告安全审核',  // 🔥 v7.21: 添加缺失的节点
 	
 	// 完成阶段
 	pdf_generator: '生成PDF文档',

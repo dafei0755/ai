@@ -1,19 +1,37 @@
 // components/report/ExpertReportAccordion.tsx
 // 专家报告手风琴组件
+// 🔥 v7.24: 移除独立下载功能，专家报告已合并到主报告 PDF
+// 🔥 v7.39: 添加概念图展示功能
 
 'use client';
 
-import { FC, useState } from 'react';
-import { ChevronDown, ChevronUp, User, Briefcase, Download, Loader2, FileText, Package, CheckCircle, Lightbulb, AlertTriangle } from 'lucide-react';
+import { FC, useState, useRef, useEffect } from 'react';
+import { ChevronDown, ChevronUp, User, Briefcase, FileText, Package, CheckCircle, Lightbulb, AlertTriangle, Image as ImageIcon, Download, ImageOff, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { toast } from 'sonner';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Progress } from '@/components/ui/progress';
+import { cn } from '@/lib/utils';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import ReactDOMServer from 'react-dom/server';
 import { formatExpertName, getExpertLevel } from '@/lib/formatters';
+import { ExpertGeneratedImage } from '@/types';
+import dynamic from 'next/dynamic';
+
+// 动态加载 ImageChatModal（避免 SSR 问题）
+const ImageChatModal = dynamic(() => import('@/components/image-chat/ImageChatModal'), {
+  ssr: false
+});
 
 interface ExpertReportAccordionProps {
   expertReports: Record<string, string>;
   userInput?: string;
   sessionId?: string;  // 用于后端 PDF 下载 API
+  generatedImagesByExpert?: Record<string, {
+    expert_name: string;
+    images: ExpertGeneratedImage[];
+  }>;  // 🔥 v7.39: 按专家分组的概念图
 }
 
 // 专家角色颜色映射
@@ -650,12 +668,58 @@ const WORD_TRANSLATIONS: Record<string, string> = {
   'zone': '区域', 'zones': '区域',
 };
 
-const ExpertReportAccordion: FC<ExpertReportAccordionProps> = ({ expertReports, userInput, sessionId }) => {
+const ExpertReportAccordion: FC<ExpertReportAccordionProps> = ({ 
+  expertReports, 
+  userInput, 
+  sessionId,
+  generatedImagesByExpert  // 🔥 v7.39: 新增图片数据
+}) => {
   const [expandedExpert, setExpandedExpert] = useState<string | null>(null);
-  const [isDownloading, setIsDownloading] = useState(false);
+  
+  // 🔥 v7.39: 图片对话状态
+  const [selectedImage, setSelectedImage] = useState<ExpertGeneratedImage | null>(null);
+  const [selectedExpertName, setSelectedExpertName] = useState<string>('');
+  const [imageChatOpen, setImageChatOpen] = useState(false);
+  
+  // 🔥 v7.39+: 图片加载状态管理
+  const [imageLoadStates, setImageLoadStates] = useState<Record<string, {
+    loaded: number;
+    total: number;
+    failed: string[];
+  }>>({});
+  
+  // 🔥 v7.39+: 图片错误处理与重试
+  const [failedImages, setFailedImages] = useState<Set<string>>(new Set());
+  const [retryCount, setRetryCount] = useState<Record<string, number>>({});
+  
+  // 🔥 v7.39+: 图片轮播预览
+  const [isGalleryOpen, setIsGalleryOpen] = useState(false);
+  const [galleryImages, setGalleryImages] = useState<ExpertGeneratedImage[]>([]);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  
+  // 🔥 v7.39+: 图片对比模式
+  const [compareMode, setCompareMode] = useState(false);
+  const [selectedForCompare, setSelectedForCompare] = useState<Set<string>>(new Set());
+  
+  // 🔥 v7.39+: 图片区域展开/收起
+  const [expandedImageSections, setExpandedImageSections] = useState<Set<string>>(new Set());
+  const [autoExpandImages, setAutoExpandImages] = useState(true);
+
+  // 🔥 v7.39+: 自动展开有图片的专家区域
+  useEffect(() => {
+    if (autoExpandImages && generatedImagesByExpert) {
+      const expertsWithImages = Object.keys(generatedImagesByExpert).filter(
+        expert => generatedImagesByExpert[expert]?.images?.length > 0
+      );
+      if (expertsWithImages.length > 0) {
+        setExpandedImageSections(new Set(expertsWithImages));
+      }
+    }
+  }, [generatedImagesByExpert, autoExpandImages]);
 
   // 调试日志
   console.log('ExpertReportAccordion 渲染, sessionId:', sessionId);
+  console.log('🔥 v7.39: 图片数据:', generatedImagesByExpert);
 
   if (!expertReports || Object.keys(expertReports).length === 0) {
     return null;
@@ -768,72 +832,7 @@ const ExpertReportAccordion: FC<ExpertReportAccordionProps> = ({ expertReports, 
     }
   };
 
-  // 下载全部专家报告
-  // v7.1.3: 恢复使用后端 API 下载 PDF，因为后端已升级为高速生成模式
-  const handleDownloadAll = async () => {
-    if (!sessionId) {
-      console.error('sessionId 未设置，无法下载全部专家报告');
-      return;
-    }
-
-    setIsDownloading(true);
-
-    try {
-      console.log('开始下载全部专家报告 PDF, sessionId:', sessionId);
-      
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/analysis/report/${sessionId}/download-all-experts-pdf`
-      );
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('下载全部专家报告 PDF 失败:', response.status, errorText);
-        throw new Error(`下载失败: ${response.status}`);
-      }
-
-      // 获取文件名
-      const contentDisposition = response.headers.get('Content-Disposition');
-      let filename = `all_expert_reports_${sessionId}.pdf`;
-      if (contentDisposition) {
-        const match = contentDisposition.match(/filename\*?=(?:UTF-8'')?([^;\n]*)/i);
-        if (match) {
-          filename = decodeURIComponent(match[1].replace(/['"]/g, ''));
-        }
-      }
-
-      // 下载文件
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = filename;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
-
-      console.log('全部专家报告 PDF 下载成功:', filename);
-    } catch (error) {
-      console.error('下载全部专家报告 PDF 出错:', error);
-      // 如果后端失败，降级为前端 HTML 下载
-      try {
-        const printHTML = generateAllPrintHTML();
-        const blob = new Blob([printHTML], { type: 'text/html;charset=utf-8' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `专家报告汇总_${new Date().toISOString().split('T')[0]}.html`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        window.URL.revokeObjectURL(url);
-      } catch (e) {
-        console.error('降级下载也失败:', e);
-      }
-    } finally {
-      setIsDownloading(false);
-    }
-  };
+  // 🔥 v7.24: 移除 handleDownloadAll 函数，下载功能已合并到主报告 PDF
 
   // 🔥 v7.6: 使用统一的 lib/formatters.ts 函数
   const getExpertColor = (expertName: string) => {
@@ -1546,6 +1545,495 @@ const ExpertReportAccordion: FC<ExpertReportAccordionProps> = ({ expertReports, 
     return <MarkdownContent content={content} />;
   };
 
+  // 🔥 v7.39+: LazyImage 组件（懒加载 + 骨架屏）
+  const LazyImage: FC<{
+    src: string;
+    alt: string;
+    className?: string;
+    expertName: string;
+    imageId: string;
+  }> = ({ src, alt, className, expertName, imageId }) => {
+    const [isLoaded, setIsLoaded] = useState(false);
+    const [isInView, setIsInView] = useState(false);
+    const imgRef = useRef<HTMLImageElement>(null);
+    
+    useEffect(() => {
+      if (!imgRef.current) return;
+      
+      const observer = new IntersectionObserver(
+        (entries) => {
+          if (entries[0].isIntersecting) {
+            setIsInView(true);
+            observer.disconnect();
+          }
+        },
+        { threshold: 0.1 }
+      );
+      
+      observer.observe(imgRef.current);
+      return () => observer.disconnect();
+    }, []);
+    
+    const handleLoad = () => {
+      setIsLoaded(true);
+      // 更新加载状态
+      setImageLoadStates(prev => {
+        const expertState = prev[expertName] || { loaded: 0, total: 0, failed: [] };
+        return {
+          ...prev,
+          [expertName]: {
+            ...expertState,
+            loaded: expertState.loaded + 1
+          }
+        };
+      });
+    };
+    
+    const handleError = () => {
+      handleImageError(imageId);
+    };
+    
+    return (
+      <div ref={imgRef} className="relative w-full h-full">
+        {!isLoaded && isInView && (
+          <div className="absolute inset-0 bg-gray-800/50 animate-pulse rounded-lg" />
+        )}
+        {isInView && !failedImages.has(imageId) && (
+          <img 
+            src={src} 
+            alt={alt}
+            onLoad={handleLoad}
+            onError={handleError}
+            className={cn(
+              "transition-opacity duration-300",
+              isLoaded ? "opacity-100" : "opacity-0",
+              className
+            )}
+          />
+        )}
+        {failedImages.has(imageId) && (
+          <div className="flex flex-col items-center justify-center h-full bg-gray-800/50 rounded-lg">
+            <ImageOff className="w-12 h-12 text-gray-500 mb-2" />
+            <p className="text-sm text-gray-400">图片加载失败</p>
+            <button 
+              onClick={() => handleImageRetry(imageId)}
+              className="text-xs text-blue-400 underline mt-1 hover:text-blue-300"
+            >
+              点击重试
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // 🔥 v7.39+: 图片错误处理与重试
+  const handleImageError = (imageId: string) => {
+    const currentRetry = retryCount[imageId] || 0;
+    
+    if (currentRetry < 3) {
+      // 重试机制（最多3次，指数退避）
+      setRetryCount(prev => ({ ...prev, [imageId]: currentRetry + 1 }));
+      setTimeout(() => {
+        const img = document.querySelector(`img[data-image-id="${imageId}"]`) as HTMLImageElement;
+        if (img) {
+          img.src = img.src.split('?')[0] + '?retry=' + (currentRetry + 1);
+        }
+      }, 1000 * Math.pow(2, currentRetry));
+    } else {
+      setFailedImages(prev => new Set(prev).add(imageId));
+    }
+  };
+
+  const handleImageRetry = (imageId: string) => {
+    setFailedImages(prev => {
+      const newSet = new Set(prev);
+      newSet.delete(imageId);
+      return newSet;
+    });
+    setRetryCount(prev => ({ ...prev, [imageId]: 0 }));
+  };
+
+  // 🔥 v7.39+: 图片下载功能
+  const handleDownloadImage = async (image: ExpertGeneratedImage) => {
+    try {
+      const response = await fetch(image.image_url);
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${image.expert_name}_${image.id}_${image.aspect_ratio}.png`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+      toast.success('图片下载成功');
+    } catch (error) {
+      toast.error('图片下载失败');
+      console.error('Download error:', error);
+    }
+  };
+
+  const handleDownloadAll = async (expertName: string) => {
+    if (!generatedImagesByExpert || !generatedImagesByExpert[expertName]) return;
+    
+    const images = generatedImagesByExpert[expertName].images || [];
+    toast.promise(
+      Promise.all(images.map(img => handleDownloadImage(img))),
+      {
+        loading: `正在下载 ${images.length} 张图片...`,
+        success: `成功下载 ${images.length} 张图片`,
+        error: '部分图片下载失败'
+      }
+    );
+  };
+
+  // 🔥 v7.39+: 图片轮播Gallery
+  const ImageGallery: FC<{
+    images: ExpertGeneratedImage[];
+    initialIndex: number;
+    onClose: () => void;
+  }> = ({ images, initialIndex, onClose }) => {
+    const [currentIndex, setCurrentIndex] = useState(initialIndex);
+    
+    const handlePrev = () => {
+      setCurrentIndex((currentIndex - 1 + images.length) % images.length);
+    };
+    
+    const handleNext = () => {
+      setCurrentIndex((currentIndex + 1) % images.length);
+    };
+    
+    const handleKeyDown = (e: React.KeyboardEvent) => {
+      if (e.key === 'ArrowLeft') handlePrev();
+      if (e.key === 'ArrowRight') handleNext();
+      if (e.key === 'Escape') onClose();
+    };
+    
+    return (
+      <Dialog open={isGalleryOpen} onOpenChange={onClose}>
+        <DialogContent 
+          className="max-w-7xl max-h-screen p-0 bg-black/95 border-gray-800"
+          onKeyDown={handleKeyDown}
+        >
+          <div className="relative p-6">
+            {/* 主图片显示 */}
+            <div className="relative flex items-center justify-center min-h-[60vh] max-h-[80vh]">
+              <img 
+                src={images[currentIndex].image_url} 
+                alt={images[currentIndex].prompt}
+                className="w-full h-auto max-h-[80vh] object-contain rounded-lg"
+              />
+              
+              {/* 导航按钮 */}
+              {images.length > 1 && (
+                <>
+                  <button 
+                    onClick={handlePrev}
+                    className="absolute left-4 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white rounded-full p-3 transition-all"
+                  >
+                    <ChevronLeft className="w-8 h-8" />
+                  </button>
+                  <button 
+                    onClick={handleNext}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white rounded-full p-3 transition-all"
+                  >
+                    <ChevronRight className="w-8 h-8" />
+                  </button>
+                </>
+              )}
+            </div>
+            
+            {/* 图片信息 */}
+            <div className="mt-4 text-white">
+              <p className="text-sm text-gray-300 mb-2">{images[currentIndex].prompt}</p>
+              <div className="flex gap-2 items-center">
+                <span className="text-xs px-2 py-1 bg-blue-500/20 text-blue-400 rounded">
+                  {images[currentIndex].aspect_ratio}
+                </span>
+                <span className="text-xs px-2 py-1 bg-purple-500/20 text-purple-400 rounded">
+                  {images[currentIndex].style_type}
+                </span>
+                <button
+                  onClick={() => handleDownloadImage(images[currentIndex])}
+                  className="ml-auto text-xs px-3 py-1 bg-gray-700 hover:bg-gray-600 text-white rounded flex items-center gap-1"
+                >
+                  <Download className="w-3 h-3" />
+                  下载
+                </button>
+              </div>
+            </div>
+            
+            {/* 缩略图导航 */}
+            {images.length > 1 && (
+              <div className="flex gap-2 mt-4 overflow-x-auto pb-2">
+                {images.map((img, idx) => (
+                  <img 
+                    key={img.id}
+                    src={img.image_url}
+                    alt={`缩略图 ${idx + 1}`}
+                    className={cn(
+                      "w-20 h-20 object-cover cursor-pointer rounded transition-all",
+                      idx === currentIndex 
+                        ? "ring-2 ring-blue-500 opacity-100" 
+                        : "opacity-50 hover:opacity-75"
+                    )}
+                    onClick={() => setCurrentIndex(idx)}
+                  />
+                ))}
+              </div>
+            )}
+            
+            {/* 计数器 */}
+            {images.length > 1 && (
+              <div className="text-center mt-2 text-sm text-gray-400">
+                {currentIndex + 1} / {images.length}
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  };
+
+  // 🔥 v7.39: 渲染专家概念图
+  const renderConceptImages = (expertName: string) => {
+    if (!generatedImagesByExpert || !generatedImagesByExpert[expertName]) {
+      return null;
+    }
+
+    const expertImages = generatedImagesByExpert[expertName];
+    const images = expertImages.images || [];
+    
+    if (images.length === 0) {
+      return null;
+    }
+
+    // 🔥 v7.39+: 初始化加载状态
+    useEffect(() => {
+      if (!imageLoadStates[expertName]) {
+        setImageLoadStates(prev => ({
+          ...prev,
+          [expertName]: { loaded: 0, total: images.length, failed: [] }
+        }));
+      }
+    }, [expertName, images.length]);
+
+    const loadState = imageLoadStates[expertName];
+    const isExpanded = expandedImageSections.has(expertName);
+
+    return (
+      <motion.div 
+        initial={false}
+        animate={{ height: isExpanded ? 'auto' : 0, opacity: isExpanded ? 1 : 0 }}
+        transition={{ duration: 0.3 }}
+        className="overflow-hidden"
+      >
+        <div className="mt-6 pt-6 border-t border-[var(--border-color)]">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <ImageIcon className="w-5 h-5 text-blue-400" />
+              <h3 className="text-lg font-semibold text-white">
+                💡 概念图 ({images.length})
+              </h3>
+            </div>
+            
+            {/* 🔥 v7.39+: 工具栏 */}
+            <div className="flex items-center gap-2">
+              {/* 加载进度 */}
+              {loadState && loadState.total > 0 && loadState.loaded < loadState.total && (
+                <div className="flex items-center gap-2 text-xs text-gray-400">
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                  <span>{loadState.loaded}/{loadState.total}</span>
+                </div>
+              )}
+              
+              {/* 批量下载 */}
+              <button
+                onClick={() => handleDownloadAll(expertName)}
+                className="text-xs px-3 py-1 bg-gray-700 hover:bg-gray-600 text-white rounded flex items-center gap-1 transition-colors"
+                title="下载所有图片"
+              >
+                <Download className="w-3 h-3" />
+                下载全部
+              </button>
+              
+              {/* 对比模式切换 */}
+              {images.length > 1 && (
+                <button
+                  onClick={() => setCompareMode(!compareMode)}
+                  className={cn(
+                    "text-xs px-3 py-1 rounded flex items-center gap-1 transition-colors",
+                    compareMode
+                      ? "bg-blue-500 text-white"
+                      : "bg-gray-700 hover:bg-gray-600 text-white"
+                  )}
+                  title="对比模式"
+                >
+                  对比
+                </button>
+              )}
+              
+              {/* 轮播预览 */}
+              {images.length > 1 && (
+                <button
+                  onClick={() => {
+                    setGalleryImages(images);
+                    setCurrentImageIndex(0);
+                    setIsGalleryOpen(true);
+                  }}
+                  className="text-xs px-3 py-1 bg-gray-700 hover:bg-gray-600 text-white rounded transition-colors"
+                  title="轮播查看"
+                >
+                  轮播
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* 🔥 v7.39+: 对比模式视图 */}
+          {compareMode && selectedForCompare.size > 0 && (
+            <div className="mb-4 p-4 bg-blue-500/10 border border-blue-500/30 rounded-lg">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-sm text-blue-400">
+                  已选择 {selectedForCompare.size} 张图片进行对比
+                </span>
+                <button
+                  onClick={() => setSelectedForCompare(new Set())}
+                  className="text-xs text-gray-400 hover:text-white"
+                >
+                  清空选择
+                </button>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                {Array.from(selectedForCompare).map(imageId => {
+                  const image = images.find(img => img.id === imageId);
+                  if (!image) return null;
+                  return (
+                    <div key={imageId} className="relative bg-[var(--sidebar-bg)] rounded-lg p-2">
+                      <img 
+                        src={image.image_url} 
+                        alt={image.prompt}
+                        className="w-full h-48 object-cover rounded"
+                      />
+                      <div className="mt-2 text-sm">
+                        <p className="text-gray-300 line-clamp-1">{image.prompt}</p>
+                        <div className="flex gap-1 mt-1">
+                          <span className="text-xs px-1 py-0.5 bg-blue-500/20 text-blue-400 rounded">
+                            {image.aspect_ratio}
+                          </span>
+                          <span className="text-xs px-1 py-0.5 bg-purple-500/20 text-purple-400 rounded">
+                            {image.style_type}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* 🔥 v7.39+: 图片网格（增强版）*/}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {images.map((img, index) => {
+              const isSelected = selectedForCompare.has(img.id);
+              return (
+                <div
+                  key={img.id || index}
+                  className={cn(
+                    "relative group cursor-pointer bg-[var(--sidebar-bg)] rounded-lg overflow-hidden border transition-all duration-200",
+                    isSelected
+                      ? "border-blue-500 ring-2 ring-blue-500/50"
+                      : "border-[var(--border-color)] hover:border-blue-500/50"
+                  )}
+                  onClick={(e) => {
+                    if (compareMode) {
+                      // 对比模式：切换选中状态
+                      e.stopPropagation();
+                      setSelectedForCompare(prev => {
+                        const newSet = new Set(prev);
+                        if (newSet.has(img.id)) {
+                          newSet.delete(img.id);
+                        } else {
+                          if (newSet.size < 4) { // 最多对比4张
+                            newSet.add(img.id);
+                          } else {
+                            toast.error('最多只能对比4张图片');
+                          }
+                        }
+                        return newSet;
+                      });
+                    } else {
+                      // 普通模式：打开ChatModal
+                      setSelectedImage(img);
+                      setSelectedExpertName(expertImages.expert_name || expertName);
+                      setImageChatOpen(true);
+                    }
+                  }}
+                >
+                  {/* 对比模式选中标识 */}
+                  {compareMode && isSelected && (
+                    <div className="absolute top-2 right-2 z-10 bg-blue-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold">
+                      ✓
+                    </div>
+                  )}
+                  
+                  {/* 🔥 v7.39+: 懒加载图片 */}
+                  <div className="relative w-full h-48 overflow-hidden">
+                    <LazyImage
+                      src={img.image_url}
+                      alt={img.prompt}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                      expertName={expertName}
+                      imageId={img.id}
+                    />
+                    
+                    {/* 悬停遮罩 */}
+                    {!compareMode && (
+                      <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center">
+                        <div className="text-center px-4">
+                          <ImageIcon className="w-8 h-8 text-white mx-auto mb-2" />
+                          <span className="text-white text-sm font-medium">点击查看大图</span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* 图片信息 */}
+                  <div className="p-3">
+                    <p className="text-sm text-gray-300 line-clamp-2 mb-2" title={img.prompt}>
+                      {img.prompt}
+                    </p>
+                    <div className="flex gap-2 text-xs">
+                      <span className="bg-blue-500/20 text-blue-400 px-2 py-1 rounded">
+                        {img.aspect_ratio}
+                      </span>
+                      <span className="bg-green-500/20 text-green-400 px-2 py-1 rounded">
+                        {img.style_type}
+                      </span>
+                      {/* 🔥 v7.39+: 快速下载 */}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDownloadImage(img);
+                        }}
+                        className="ml-auto p-1 hover:bg-gray-700 rounded transition-colors"
+                        title="下载此图"
+                      >
+                        <Download className="w-3 h-3 text-gray-400 hover:text-white" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </motion.div>
+    );
+  };
+
   return (
     <div className="bg-[var(--card-bg)] border border-[var(--border-color)] rounded-2xl overflow-hidden">
       {/* 标题 */}
@@ -1559,19 +2047,10 @@ const ExpertReportAccordion: FC<ExpertReportAccordionProps> = ({ expertReports, 
             <p className="text-sm text-gray-400">点击展开查看各专家的详细分析</p>
           </div>
         </div>
-        <button
-          onClick={handleDownloadAll}
-          disabled={isDownloading}
-          className="flex items-center gap-2 px-3 py-2 bg-orange-500/20 hover:bg-orange-500/30 text-orange-400 rounded-lg transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-          title="下载全部专家报告"
-        >
-          {isDownloading ? (
-            <Loader2 className="w-4 h-4 animate-spin" />
-          ) : (
-            <Download className="w-4 h-4" />
-          )}
-          <span>{isDownloading ? '准备中...' : '下载全部'}</span>
-        </button>
+        {/* 🔥 v7.24: 移除独立下载按钮，合并到主报告下载 */}
+        <span className="text-xs text-gray-500">
+          已包含在主报告下载中
+        </span>
       </div>
 
       {/* 专家列表 */}
@@ -1622,6 +2101,8 @@ const ExpertReportAccordion: FC<ExpertReportAccordionProps> = ({ expertReports, 
                 <div className={`px-6 pb-6 border-l-4 ${colors.border} ml-6 mr-6 mb-4`}>
                   <div className="pl-4 pt-4 max-h-[600px] overflow-y-auto">
                     {renderExpertContent(content)}
+                    {/* 🔥 v7.39: 专家内容后直接展示概念图（不折叠） */}
+                    {renderConceptImages(expertName)}
                   </div>
                 </div>
               )}
@@ -1629,6 +2110,34 @@ const ExpertReportAccordion: FC<ExpertReportAccordionProps> = ({ expertReports, 
           );
         })}
       </div>
+
+      {/* 🔥 v7.39: 图片对话模态框 */}
+      {imageChatOpen && selectedImage && sessionId && (
+        <ImageChatModal
+          isOpen={imageChatOpen}
+          onClose={() => {
+            setImageChatOpen(false);
+            setSelectedImage(null);
+            setSelectedExpertName('');
+          }}
+          expertName={selectedExpertName}
+          sessionId={sessionId}
+          initialImage={selectedImage}
+          onImageUpdate={(expertName, newImage) => {
+            // TODO: 更新图片列表（可选实现）
+            console.log('🔥 v7.39: 图片已更新', expertName, newImage);
+          }}
+        />
+      )}
+
+      {/* 🔥 v7.39+: 图片轮播模态框 */}
+      {isGalleryOpen && (
+        <ImageGallery
+          images={galleryImages}
+          initialIndex={currentImageIndex}
+          onClose={() => setIsGalleryOpen(false)}
+        />
+      )}
     </div>
   );
 };

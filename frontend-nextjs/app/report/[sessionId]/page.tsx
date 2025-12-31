@@ -810,6 +810,7 @@ export default function ReportPage() {
                     expertReports={report.structuredReport.expert_reports}
                     userInput={report.userInput}
                     sessionId={sessionId}
+                    generatedImagesByExpert={report.structuredReport.generated_images_by_expert}
                   />
                 </div>
               )}

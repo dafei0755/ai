@@ -17,6 +17,8 @@ export type SessionStatus =
 export interface StartAnalysisRequest {
   user_id: string;
   user_input: string;
+  // 🆕 v7.107: 分析模式 - normal(普通) 或 deep_thinking(深度思考)
+  analysis_mode?: 'normal' | 'deep_thinking';
 }
 
 // 启动分析响应
@@ -41,6 +43,20 @@ export interface AnalysisStatus {
   rejection_reason?: string;  // 拒绝原因
   rejection_message?: string;  // 拒绝消息（详细说明）
   final_report?: string;
+}
+
+// 🔥 v7.107: 会话列表项类型（用于历史记录显示）
+export interface SessionListItem {
+  session_id: string;
+  status: string;
+  mode: string;
+  created_at: string;
+  user_input: string;
+  pinned?: boolean;
+  // 🔥 v7.107: 新增字段
+  analysis_mode?: 'normal' | 'deep_thinking';
+  progress?: number;
+  current_stage?: string;
 }
 
 // ==================== 结构化报告类型 ====================
@@ -266,6 +282,13 @@ export interface StructuredReport {
   questionnaire_responses?: QuestionnaireResponsesData | null;
   execution_metadata?: ExecutionMetadata | null;
 
+  // 🔥 v7.39 概念图字段
+  generated_images?: string[];  // 普通模式 - 集中式图片URL列表
+  generated_images_by_expert?: Record<string, {
+    expert_name: string;
+    images: ExpertGeneratedImage[];
+  }>;  // 深度思考模式 - 按专家分组的图片
+
   // 原有字段
   executive_summary: ExecutiveSummary;
   sections: ReportSection[];
@@ -286,4 +309,55 @@ export interface AnalysisReport {
   user_input?: string;  // 用户原始输入
   suggestions?: string[];
   structured_report?: StructuredReport | null;
+}
+
+// ==================== 🔥 v7.39 概念图功能类型 ====================
+
+/** 图片宽高比选项 */
+export type AspectRatio = '16:9' | '1:1' | '9:16' | '4:3' | '21:9';
+
+/** 图片风格类型 */
+export type StyleType = 'interior' | 'architecture' | 'product' | 'branding' | 'conceptual';
+
+/** 专家生成的概念图 */
+export interface ExpertGeneratedImage {
+  id: string;                    // 唯一标识符（8位UUID）
+  image_url: string;             // 完整HTTP URL
+  prompt: string;                // 生成提示词
+  aspect_ratio: AspectRatio;     // 图片宽高比
+  style_type: StyleType;         // 视觉风格
+  created_at: string;            // ISO时间戳
+  expert_name?: string;          // 生成此图的专家名称
+}
+
+/** 图片对话单轮记录 */
+export interface ImageChatTurn {
+  user_prompt: string;                    // 用户提示词
+  generated_image: ExpertGeneratedImage;  // 生成的图片
+  reference_image?: string;               // 参考图片URL（可选）
+  aspect_ratio?: AspectRatio;            // 此轮使用的宽高比
+  style_type?: StyleType;                // 此轮使用的风格
+}
+
+/** 图片对话历史 */
+export interface ImageChatHistory {
+  turns: ImageChatTurn[];   // 对话轮次列表
+  session_id: string;       // 关联的分析会话ID
+  expert_name: string;      // 专家名称
+}
+
+/** 建议的提示词 */
+export interface SuggestedPrompt {
+  text: string;      // 提示词文本
+  category: string;  // 分类（如：空间布局、色彩方案）
+}
+
+/** 图片重新生成请求 */
+export interface RegenerateImageRequest {
+  expert_name: string;              // 专家名称
+  prompt: string;                   // 新的生成提示词
+  reference_image_url?: string;     // 参考图片URL（可选）
+  aspect_ratio?: AspectRatio;       // 宽高比（默认16:9）
+  style_type?: StyleType;           // 风格类型（默认interior）
+  save_as_copy?: boolean;           // 是否保存为副本（默认false=覆盖）
 }

@@ -64,26 +64,23 @@ class TestInteractionNodeImports:
 class TestQuestionnaireGeneration:
     """测试问卷生成"""
 
-    @pytest.mark.skip(reason="LLMQuestionnaireGenerator类可能命名不同")
     def test_llm_generator_import(self, env_setup):
-        """测试LLMQuestionnaireGenerator导入"""
-        from intelligent_project_analyzer.interaction.questionnaire.llm_generator import LLMQuestionnaireGenerator
+        """测试LLMQuestionGenerator导入"""
+        from intelligent_project_analyzer.interaction.questionnaire.llm_generator import LLMQuestionGenerator
 
-        assert LLMQuestionnaireGenerator is not None
+        assert LLMQuestionGenerator is not None
 
-    @pytest.mark.skip(reason="QuestionnaireGenerator类可能命名不同")
     def test_generators_import(self, env_setup):
         """测试问卷生成器导入"""
-        from intelligent_project_analyzer.interaction.questionnaire.generators import QuestionnaireGenerator
+        from intelligent_project_analyzer.interaction.questionnaire.generators import FallbackQuestionGenerator
 
-        assert QuestionnaireGenerator is not None
+        assert FallbackQuestionGenerator is not None
 
-    @pytest.mark.skip(reason="QuestionnaireParser类可能命名不同")
     def test_parsers_import(self, env_setup):
-        """测试QuestionnaireParser导入"""
-        from intelligent_project_analyzer.interaction.questionnaire.parsers import QuestionnaireParser
+        """测试AnswerParser导入"""
+        from intelligent_project_analyzer.interaction.questionnaire.parsers import AnswerParser
 
-        assert QuestionnaireParser is not None
+        assert AnswerParser is not None
 
     def test_adjusters_import(self, env_setup):
         """测试QuestionAdjuster导入"""
@@ -91,44 +88,39 @@ class TestQuestionnaireGeneration:
 
         assert QuestionAdjuster is not None
 
-    @pytest.mark.skip(reason="ContextBuilder类可能命名不同")
     def test_context_builder_import(self, env_setup):
-        """测试ContextBuilder导入"""
-        from intelligent_project_analyzer.interaction.questionnaire.context import ContextBuilder
+        """测试KeywordExtractor导入"""
+        from intelligent_project_analyzer.interaction.questionnaire.context import KeywordExtractor
 
-        assert ContextBuilder is not None
+        assert KeywordExtractor is not None
 
 
 class TestReviewNodes:
     """测试Review节点"""
 
-    @pytest.mark.skip(reason="RoleSelectionReview可能在不同的模块中")
     def test_role_selection_review_import(self, env_setup):
-        """测试RoleSelectionReview导入"""
-        from intelligent_project_analyzer.interaction.role_selection_review import RoleSelectionReview
+        """测试RoleSelectionReviewNode导入"""
+        from intelligent_project_analyzer.interaction.role_selection_review import RoleSelectionReviewNode
 
-        assert RoleSelectionReview is not None
+        assert RoleSelectionReviewNode is not None
 
-    @pytest.mark.skip(reason="RoleTaskUnifiedReview可能在不同的模块中")
     def test_role_task_unified_review_import(self, env_setup):
-        """测试RoleTaskUnifiedReview导入"""
-        from intelligent_project_analyzer.interaction.role_task_unified_review import RoleTaskUnifiedReview
+        """测试RoleTaskUnifiedReviewNode导入"""
+        from intelligent_project_analyzer.interaction.role_task_unified_review import RoleTaskUnifiedReviewNode
 
-        assert RoleTaskUnifiedReview is not None
+        assert RoleTaskUnifiedReviewNode is not None
 
-    @pytest.mark.skip(reason="TaskAssignmentReview可能在不同的模块中")
     def test_task_assignment_review_import(self, env_setup):
-        """测试TaskAssignmentReview导入"""
-        from intelligent_project_analyzer.interaction.task_assignment_review import TaskAssignmentReview
+        """测试TaskAssignmentReviewNode导入"""
+        from intelligent_project_analyzer.interaction.task_assignment_review import TaskAssignmentReviewNode
 
-        assert TaskAssignmentReview is not None
+        assert TaskAssignmentReviewNode is not None
 
-    @pytest.mark.skip(reason="SecondBatchStrategyReview可能在不同的模块中")
     def test_second_batch_strategy_review_import(self, env_setup):
-        """测试SecondBatchStrategyReview导入"""
-        from intelligent_project_analyzer.interaction.second_batch_strategy_review import SecondBatchStrategyReview
+        """测试SecondBatchStrategyReviewNode导入"""
+        from intelligent_project_analyzer.interaction.second_batch_strategy_review import SecondBatchStrategyReviewNode
 
-        assert SecondBatchStrategyReview is not None
+        assert SecondBatchStrategyReviewNode is not None
 
 
 class TestInteractionServices:
@@ -144,19 +136,17 @@ class TestInteractionServices:
 class TestInteractionNodeBase:
     """测试交互节点基类"""
 
-    @pytest.mark.skip(reason="InteractionAgentBase可能在不同的位置或命名不同")
     def test_interaction_agent_base_import(self, env_setup):
-        """测试InteractionAgentBase导入"""
-        from intelligent_project_analyzer.interaction.nodes.interaction_agent_base import InteractionAgentBase
+        """测试InteractionAgent导入"""
+        from intelligent_project_analyzer.interaction.nodes.interaction_agent_base import InteractionAgent
 
-        assert InteractionAgentBase is not None
+        assert InteractionAgent is not None
 
-    @pytest.mark.skip(reason="InteractionAgentBase可能在不同的位置或命名不同")
     def test_interaction_agent_base_is_class(self, env_setup):
-        """测试InteractionAgentBase是类"""
-        from intelligent_project_analyzer.interaction.nodes.interaction_agent_base import InteractionAgentBase
+        """测试InteractionAgent是类"""
+        from intelligent_project_analyzer.interaction.nodes.interaction_agent_base import InteractionAgent
 
-        assert isinstance(InteractionAgentBase, type)
+        assert isinstance(InteractionAgent, type)
 
 
 class TestNodeInitialization:
