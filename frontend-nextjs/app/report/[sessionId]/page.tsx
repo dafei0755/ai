@@ -6,8 +6,8 @@
 import { useEffect, useState, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
-import { StructuredReport } from '@/types';
-import { Loader2, ArrowLeft, Download, MessageSquare, X, List } from 'lucide-react';
+import { StructuredReport, FollowupTurn, FollowupAttachment } from '@/types';
+import { Loader2, ArrowLeft, Download, MessageSquare, X, List, ArrowUp } from 'lucide-react';
 import { WebSocketClient, WebSocketMessage } from '@/lib/websocket';
 import {
   ExecutiveSummaryCard,
@@ -42,15 +42,8 @@ interface ReportState {
   structuredReport?: StructuredReport | null;
 }
 
-// 🔥 v3.11 新增：追问历史记录类型
-interface FollowupTurn {
-  turn_id: number;
-  question: string;
-  answer: string;
-  intent: string;
-  referenced_sections: string[];
-  timestamp: string;
-}
+// 🔥 v7.109: 使用全局类型定义（从 @/types 导入）
+// interface FollowupTurn 已从 @/types 导入
 
 type FetchStatus = 'idle' | 'loading' | 'success' | 'error';
 
@@ -74,6 +67,14 @@ export default function ReportPage() {
   // 🔥 v3.11 新增：追问对话历史
   const [followupHistory, setFollowupHistory] = useState<FollowupTurn[]>([]);
   const [loadingHistory, setLoadingHistory] = useState<boolean>(false);
+
+  // 🔥 v7.109: 返回顶部按钮状态
+  const [showBackToTop, setShowBackToTop] = useState<boolean>(false);
+
+  // 🔥 v7.108.2 新增：图片上传状态
+  const [uploadedImage, setUploadedImage] = useState<File | null>(null);
+  const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // 🔥 v3.11 新增：WebSocket客户端引用
   const wsClientRef = useRef<WebSocketClient | null>(null);
@@ -154,6 +155,29 @@ export default function ReportPage() {
       }
     };
   }, [showFollowupDialog, sessionId]);
+
+  // 🔥 v7.109: 监听滚动 - 控制返回顶部按钮显示
+  useEffect(() => {
+    const handleScroll = () => {
+      const scrollPosition = window.scrollY;
+      const pageHeight = document.documentElement.scrollHeight - window.innerHeight;
+      const scrollPercentage = scrollPosition / pageHeight;
+
+      // 滚动超过三分之二时显示按钮
+      setShowBackToTop(scrollPercentage > 0.66);
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  // 🔥 v7.109: 返回顶部处理函数
+  const scrollToTop = () => {
+    window.scrollTo({
+      top: 0,
+      behavior: 'smooth'
+    });
+  };
 
   useEffect(() => {
     const fetchReport = async () => {
@@ -652,6 +676,27 @@ export default function ReportPage() {
     setSuggestionHint(null);
   };
 
+  // 🔥 v7.108.2 新增：图片上传处理
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      alert('请上传图片文件');
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      alert('图片过大（最大10MB）');
+      return;
+    }
+
+    setUploadedImage(file);
+    const reader = new FileReader();
+    reader.onload = (e) => setImagePreviewUrl(e.target?.result as string);
+    reader.readAsDataURL(file);
+  };
+
   const handleFollowupSubmit = async () => {
     if (!followupQuestion.trim()) {
       alert('请输入您的问题');
@@ -661,27 +706,39 @@ export default function ReportPage() {
     try {
       setFollowupSubmitting(true);
 
-      // 🔥 v3.11 改造：在原会话上追问，不跳转页面
-      const result = await api.submitFollowupQuestion(sessionId, followupQuestion.trim());
+      // 🔥 v7.108.2：支持图片上传
+      const result = await api.submitFollowupQuestion(
+        sessionId,
+        followupQuestion.trim(),
+        uploadedImage || undefined
+      );
 
       console.log('✅ 追问提交成功，会话ID:', result.session_id);
 
-      // 🔥 关键改变：不跳转页面，留在当前报告页面
-      // 暂时添加一个"等待回答"的占位条目
       const tempTurn: FollowupTurn = {
         turn_id: followupHistory.length + 1,
         question: followupQuestion.trim(),
         answer: '正在生成回答...',
         intent: 'general',
         referenced_sections: [],
+        attachments: uploadedImage ? [{
+          type: 'image',
+          original_filename: uploadedImage.name,
+          url: imagePreviewUrl || '',
+          thumbnail_url: imagePreviewUrl || '',
+          width: 0,
+          height: 0,
+          format: uploadedImage.type
+        }] : undefined,
         timestamp: new Date().toISOString()
       };
       setFollowupHistory(prev => [...prev, tempTurn]);
 
-      // 清空输入框
+      // 清空输入框和图片
       setFollowupQuestion('');
+      setUploadedImage(null);
+      setImagePreviewUrl(null);
 
-      // 提示：WebSocket将在后续推送真实回答
       console.log('💡 等待WebSocket推送回答...');
     } catch (err: any) {
       console.error('追问提交失败:', err);
@@ -921,6 +978,21 @@ export default function ReportPage() {
                     <div className="flex justify-end">
                       <div className="max-w-[80%] bg-blue-600/20 border border-blue-600/30 rounded-2xl rounded-tr-sm px-4 py-3">
                         <p className="text-sm text-gray-300">{turn.question}</p>
+
+                        {/* 🔥 v7.108.2: 显示图片缩略图 */}
+                        {turn.attachments?.map((att, idx) => (
+                          att.type === 'image' && (
+                            <img
+                              key={idx}
+                              src={att.thumbnail_url}
+                              alt={att.original_filename}
+                              onClick={() => window.open(att.url, '_blank')}
+                              className="cursor-pointer rounded border border-blue-500 hover:border-white h-32 mt-2 transition-all"
+                              title={`点击查看原图 - ${att.original_filename}`}
+                            />
+                          )
+                        ))}
+
                         <p className="text-xs text-gray-500 mt-1">
                           {new Date(turn.timestamp).toLocaleString('zh-CN', {
                             month: '2-digit',
@@ -1000,31 +1072,72 @@ export default function ReportPage() {
               )}
 
               {/* 输入框 */}
-              <div className="flex gap-2">
-                <textarea
-                  value={followupQuestion}
-                  onChange={(e) => setFollowupQuestion(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                      e.preventDefault();
-                      handleFollowupSubmit();
-                    }
-                  }}
-                  placeholder="输入您的问题...（Shift+Enter换行，Enter发送）"
-                  className="flex-1 px-4 py-3 bg-[var(--sidebar-bg)] border border-[var(--border-color)] rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[var(--primary)] resize-none"
-                  rows={2}
-                />
-                <button
-                  onClick={handleFollowupSubmit}
-                  disabled={followupSubmitting || !followupQuestion.trim()}
-                  className="px-6 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-lg transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
-                >
-                  {followupSubmitting ? (
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                  ) : (
-                    <MessageSquare className="w-5 h-5" />
-                  )}
-                </button>
+              <div className="space-y-2">
+                {/* 🔥 v7.108.2: 图片预览 */}
+                {imagePreviewUrl && (
+                  <div className="relative inline-block">
+                    <img
+                      src={imagePreviewUrl}
+                      alt="预览"
+                      className="h-20 rounded border border-blue-500"
+                    />
+                    <button
+                      onClick={() => {
+                        setUploadedImage(null);
+                        setImagePreviewUrl(null);
+                      }}
+                      className="absolute -top-2 -right-2 bg-red-500 hover:bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm transition-colors"
+                      title="删除图片"
+                    >
+                      ×
+                    </button>
+                  </div>
+                )}
+
+                <div className="flex gap-2">
+                  {/* 🔥 v7.108.2: 隐藏的文件输入 */}
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageSelect}
+                    className="hidden"
+                  />
+
+                  {/* 🔥 v7.108.2: 上传按钮 */}
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    className="px-4 py-3 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors flex items-center gap-2"
+                    title="上传图片"
+                  >
+                    <span className="text-lg">📷</span>
+                  </button>
+
+                  <textarea
+                    value={followupQuestion}
+                    onChange={(e) => setFollowupQuestion(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        handleFollowupSubmit();
+                      }
+                    }}
+                    placeholder="输入您的问题...（可上传图片，Shift+Enter换行，Enter发送）"
+                    className="flex-1 px-4 py-3 bg-[var(--sidebar-bg)] border border-[var(--border-color)] rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[var(--primary)] resize-none"
+                    rows={2}
+                  />
+                  <button
+                    onClick={handleFollowupSubmit}
+                    disabled={followupSubmitting || !followupQuestion.trim()}
+                    className="px-6 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-lg transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                  >
+                    {followupSubmitting ? (
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                    ) : (
+                      <MessageSquare className="w-5 h-5" />
+                    )}
+                  </button>
+                </div>
               </div>
 
               <p className="text-xs text-gray-500 text-center">
@@ -1034,6 +1147,26 @@ export default function ReportPage() {
           </div>
         </div>
       )}
+
+      {/* 🔥 v7.109: 返回顶部按钮 */}
+      <button
+        onClick={scrollToTop}
+        className={`
+          fixed bottom-8 right-8 z-50
+          w-12 h-12 rounded-full
+          bg-gradient-to-br from-blue-500 to-purple-600
+          hover:from-blue-600 hover:to-purple-700
+          shadow-lg hover:shadow-xl
+          flex items-center justify-center
+          transition-all duration-300 ease-in-out
+          ${showBackToTop
+            ? 'opacity-100 translate-y-0'
+            : 'opacity-0 translate-y-4 pointer-events-none'}
+        `}
+        aria-label="返回顶部"
+      >
+        <ArrowUp className="w-6 h-6 text-white" />
+      </button>
     </div>
   );
 }

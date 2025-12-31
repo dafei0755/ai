@@ -22,9 +22,12 @@ import { QuestionnaireModal } from '@/components/QuestionnaireModal';
 import { ConfirmationModal } from '@/components/ConfirmationModal';
 import { RoleTaskReviewModal } from '@/components/RoleTaskReviewModal';
 import { UserQuestionModal } from '@/components/UserQuestionModal';
+import { ProgressiveQuestionnaireModal } from '@/components/ProgressiveQuestionnaireModal';
 import { UserPanel } from '@/components/layout/UserPanel';
+import { SessionSidebar } from '@/components/SessionSidebar';
 import type { AnalysisStatus, SessionStatus } from '@/types';
 import type { NodeStatus } from '@/types/workflow';
+// 🔥 v7.110: 使用公共组件 SessionSidebar
 
 // 节点名称中文映射
 const NODE_NAME_MAP: Record<string, string> = {
@@ -164,16 +167,28 @@ export default function AnalysisPage() {
 	const [roleTaskReviewData, setRoleTaskReviewData] = useState<any>(null);
 	const [showRoleTaskReview, setShowRoleTaskReview] = useState(false);
 
+	// 🆕 三步递进式问卷状态
+	const [progressiveStep1Data, setProgressiveStep1Data] = useState<any>(null);
+	const [showProgressiveStep1, setShowProgressiveStep1] = useState(false);
+	const [progressiveStep2Data, setProgressiveStep2Data] = useState<any>(null);
+	const [showProgressiveStep2, setShowProgressiveStep2] = useState(false);
+	const [progressiveStep3Data, setProgressiveStep3Data] = useState<any>(null);
+	const [showProgressiveStep3, setShowProgressiveStep3] = useState(false);
+
 	// 节点详情面板状态
 	const [selectedNode, setSelectedNode] = useState<string | null>(null);
 	const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
 	// 历史会话列表
-	const [sessions, setSessions] = useState<Array<{ session_id: string; status: string; created_at: string; user_input: string }>>([]);
+	const [sessions, setSessions] = useState<Array<{ session_id: string; status: string; created_at: string; user_input: string; progress?: number; analysis_mode?: string }>>([]);
+	const [currentPage, setCurrentPage] = useState(1); // 🔥 v7.105: 当前页码
+	const [hasMorePages, setHasMorePages] = useState(false); // 🔥 v7.105: 是否还有更多页
+	const [loadingMore, setLoadingMore] = useState(false); // 🔥 v7.105: 加载更多状态
+	const loadMoreTriggerRef = useRef<HTMLDivElement>(null); // 🔥 v7.105: Intersection Observer 触发器
 
 	// 会话去重，避免重复 session_id 导致 React key 警告
 	const dedupeSessions = useCallback(
-		(items: Array<{ session_id: string; status: string; created_at: string; user_input: string }>) => {
+		(items: Array<{ session_id: string; status: string; created_at: string; user_input: string; progress?: number; analysis_mode?: string }>) => {
 			const seen = new Set<string>();
 			return items.filter((item) => {
 				if (seen.has(item.session_id)) return false;
@@ -184,11 +199,70 @@ export default function AnalysisPage() {
 		[]
 	);
 
+	// 🔥 v7.110: 获取历史会话列表
+	useEffect(() => {
+		const fetchSessions = async () => {
+			try {
+				const data = await api.getSessions(1, 20, true);
+				setSessions(data.sessions);
+				setHasMorePages(data.has_next || false);
+				setCurrentPage(1);
+			} catch (err) {
+				console.error('获取会话列表失败:', err);
+			}
+		};
+		fetchSessions();
+	}, []);
+
+	// 🔥 v7.105: 加载更多会话
+	const loadMoreSessions = useCallback(async () => {
+		if (loadingMore || !hasMorePages) return;
+
+		setLoadingMore(true);
+		try {
+			const nextPage = currentPage + 1;
+			console.log(`[AnalysisPage] 📖 加载第 ${nextPage} 页会话...`);
+			const data = await api.getSessions(nextPage, 20, true);
+			
+			// 🔥 v7.105.8: 添加详细日志追踪分页
+			console.log(`[AnalysisPage] 📊 合并结果 | prev=${sessions.length} + new=${data.sessions?.length}`);
+			
+			setSessions((prev) => dedupeSessions([...prev, ...data.sessions]));
+			setHasMorePages(data.has_next || false);
+			setCurrentPage(nextPage);
+			console.log(`[AnalysisPage] ✅ 第 ${nextPage} 页加载完成, has_next: ${data.has_next}`);
+		} catch (err) {
+			console.error('加载更多会话失败:', err);
+		} finally {
+			setLoadingMore(false);
+		}
+	}, [loadingMore, hasMorePages, currentPage, dedupeSessions]);
+
+	// 🔥 v7.105: Intersection Observer 滚动加载（替代scroll事件）
+	useEffect(() => {
+		const trigger = loadMoreTriggerRef.current;
+		if (!trigger) return;
+
+		const observer = new IntersectionObserver(
+			(entries) => {
+				// 当触发器元素可见 且 不在加载中 且 还有更多页时，触发加载
+				if (entries[0].isIntersecting && !loadingMore && hasMorePages) {
+					console.log('[AnalysisPage] 🔄 触发滚动加载，当前页:', currentPage);
+					loadMoreSessions();
+				}
+			},
+			{ threshold: 0.1 } // 触发器10%可见时触发
+		);
+
+		observer.observe(trigger);
+		return () => observer.disconnect();
+	}, [loadingMore, hasMorePages, loadMoreSessions, currentPage]);
+
 	const uniqueSessions = useMemo(() => dedupeSessions(sessions), [sessions, dedupeSessions]);
 
 	// 🔥 日期分组函数 - 按相对时间分组会话
 	const groupSessionsByDate = useCallback(
-		(sessions: Array<{ session_id: string; status: string; created_at: string; user_input: string }>) => {
+		(sessions: Array<{ session_id: string; status: string; created_at: string; user_input: string; progress?: number; analysis_mode?: string }>) => {
 			const now = new Date();
 			const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 			const yesterday = new Date(today.getTime() - 24 * 60 * 60 * 1000);
@@ -315,6 +389,18 @@ export default function AnalysisPage() {
 						setUserQuestionData(data.interrupt_data);
 						setShowUserQuestion(true);
 						console.log('📋 检测到待处理的用户追问');
+					} else if (data.interrupt_data.interaction_type === 'progressive_questionnaire_step1') {
+						setProgressiveStep1Data(data.interrupt_data);
+						setShowProgressiveStep1(true);
+						console.log('📋 检测到待处理的 Step 1 - 核心任务拆解');
+					} else if (data.interrupt_data.interaction_type === 'progressive_questionnaire_step2') {
+						setProgressiveStep2Data(data.interrupt_data);
+						setShowProgressiveStep2(true);
+						console.log('📋 检测到待处理的 Step 2 - 雷达图维度选择');
+					} else if (data.interrupt_data.interaction_type === 'progressive_questionnaire_step3') {
+						setProgressiveStep3Data(data.interrupt_data);
+						setShowProgressiveStep3(true);
+						console.log('📋 检测到待处理的 Step 3 - 关键问题询问');
 					}
 				}
 
@@ -561,6 +647,21 @@ export default function AnalysisPage() {
 							api.resumeAnalysis(sessionId, 'approve').catch((err: any) => {
 								console.error('❌ 自动批准批次失败:', err);
 							});
+						} else if (message.interrupt_data?.interaction_type === 'progressive_questionnaire_step1') {
+							// 🆕 三步问卷 - Step 1: 核心任务拆解
+							console.log('📋 收到 Step 1 - 核心任务拆解问卷');
+							setProgressiveStep1Data(message.interrupt_data);
+							setShowProgressiveStep1(true);
+						} else if (message.interrupt_data?.interaction_type === 'progressive_questionnaire_step2') {
+							// 🆕 三步问卷 - Step 2: 雷达图维度选择
+							console.log('📋 收到 Step 2 - 雷达图维度选择问卷');
+							setProgressiveStep2Data(message.interrupt_data);
+							setShowProgressiveStep2(true);
+						} else if (message.interrupt_data?.interaction_type === 'progressive_questionnaire_step3') {
+							// 🆕 三步问卷 - Step 3: 关键问题询问
+							console.log('📋 收到 Step 3 - 关键问题询问问卷');
+							setProgressiveStep3Data(message.interrupt_data);
+							setShowProgressiveStep3(true);
 						}
 						break;
 				}
@@ -791,6 +892,130 @@ export default function AnalysisPage() {
 		}
 	};
 
+	// 🆕 Progressive Questionnaire Step 1 处理函数
+	const handleProgressiveStep1Confirm = async (confirmedTasks?: any) => {
+		try {
+			console.log('✅ Step 1 - 用户确认核心任务:', confirmedTasks);
+			const payload = confirmedTasks
+				? { action: 'confirm', confirmed_tasks: confirmedTasks }
+				: { action: 'confirm' };
+
+			await api.resumeAnalysis(sessionId, payload);
+			setShowProgressiveStep1(false);
+			setProgressiveStep1Data(null);
+			setStatus((prev) => ({
+				...prev!,
+				status: 'running' as SessionStatus,
+				detail: '正在处理您的核心任务...'
+			}));
+			console.log('✅ Step 1 核心任务确认完成');
+		} catch (err) {
+			console.error('❌ Step 1 确认失败:', err);
+			alert('确认失败,请重试');
+		}
+	};
+
+	const handleProgressiveStep1Skip = async () => {
+		try {
+			console.log('⏭️ Step 1 - 用户选择跳过问卷');
+			await api.resumeAnalysis(sessionId, { action: 'skip' });
+			setShowProgressiveStep1(false);
+			setProgressiveStep1Data(null);
+			setStatus((prev) => ({
+				...prev!,
+				status: 'running' as SessionStatus,
+				detail: '跳过问卷，继续分析流程...'
+			}));
+			console.log('⏭️ Step 1 跳过成功');
+		} catch (err) {
+			console.error('❌ Step 1 跳过失败:', err);
+			alert('操作失败,请重试');
+		}
+	};
+
+	// 🆕 Progressive Questionnaire Step 2 处理函数
+	const handleProgressiveStep2Confirm = async (selectedDimensions?: any) => {
+		try {
+			console.log('✅ Step 2 - 用户确认雷达图维度:', selectedDimensions);
+			const payload = selectedDimensions
+				? { action: 'confirm', selected_dimensions: selectedDimensions }
+				: { action: 'confirm' };
+
+			await api.resumeAnalysis(sessionId, payload);
+			setShowProgressiveStep2(false);
+			setProgressiveStep2Data(null);
+			setStatus((prev) => ({
+				...prev!,
+				status: 'running' as SessionStatus,
+				detail: '正在处理您选择的分析维度...'
+			}));
+			console.log('✅ Step 2 雷达图维度确认完成');
+		} catch (err) {
+			console.error('❌ Step 2 确认失败:', err);
+			alert('确认失败,请重试');
+		}
+	};
+
+	const handleProgressiveStep2Skip = async () => {
+		try {
+			console.log('⏭️ Step 2 - 用户选择跳过问卷');
+			await api.resumeAnalysis(sessionId, { action: 'skip' });
+			setShowProgressiveStep2(false);
+			setProgressiveStep2Data(null);
+			setStatus((prev) => ({
+				...prev!,
+				status: 'running' as SessionStatus,
+				detail: '跳过问卷，继续分析流程...'
+			}));
+			console.log('⏭️ Step 2 跳过成功');
+		} catch (err) {
+			console.error('❌ Step 2 跳过失败:', err);
+			alert('操作失败,请重试');
+		}
+	};
+
+	// 🆕 Progressive Questionnaire Step 3 处理函数
+	const handleProgressiveStep3Confirm = async (answers?: any) => {
+		try {
+			console.log('✅ Step 3 - 用户回答关键问题:', answers);
+			const payload = answers
+				? { action: 'confirm', answers }
+				: { action: 'confirm' };
+
+			await api.resumeAnalysis(sessionId, payload);
+			setShowProgressiveStep3(false);
+			setProgressiveStep3Data(null);
+			setStatus((prev) => ({
+				...prev!,
+				status: 'running' as SessionStatus,
+				detail: '正在处理您的回答...'
+			}));
+			console.log('✅ Step 3 关键问题回答完成');
+		} catch (err) {
+			console.error('❌ Step 3 确认失败:', err);
+			alert('确认失败,请重试');
+		}
+	};
+
+	const handleProgressiveStep3Skip = async () => {
+		try {
+			console.log('⏭️ Step 3 - 用户选择跳过问卷');
+			await api.resumeAnalysis(sessionId, { action: 'skip' });
+			setShowProgressiveStep3(false);
+			setProgressiveStep3Data(null);
+			setStatus((prev) => ({
+				...prev!,
+				status: 'running' as SessionStatus,
+				detail: '跳过问卷，继续分析流程...'
+			}));
+			console.log('⏭️ Step 3 跳过成功');
+		} catch (err) {
+			console.error('❌ Step 3 跳过失败:', err);
+			alert('操作失败,请重试');
+		}
+	};
+
+
 	const handleRenameSession = async (targetSessionId: string) => {
 		const newName = prompt('请输入新的会话名称:');
 		if (newName && newName.trim()) {
@@ -865,442 +1090,36 @@ export default function AnalysisPage() {
 				/>
 			)}
 
+			{/* 侧边栏 - 使用公共组件 SessionSidebar */}
 			<div
 				className={`${
 					isSidebarOpen ? 'w-[260px] translate-x-0' : 'w-0 -translate-x-full md:translate-x-0 md:w-0'
 				} bg-[var(--sidebar-bg)] border-r border-[var(--border-color)] transition-all duration-300 ease-in-out flex flex-col fixed md:relative h-full z-40 overflow-hidden`}
 			>
-				<div className="p-4 flex items-center justify-between min-w-[260px]">
-					<div className="flex items-center gap-2 font-semibold text-lg text-[var(--foreground)]">
-						<div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white">AI</div>
-						<span>设计高参</span>
-					</div>
-					<button
-						onClick={() => setIsSidebarOpen(false)}
-						className="md:hidden p-1 text-[var(--foreground-secondary)] hover:text-[var(--foreground)]"
-					>
-						<X size={20} />
-					</button>
-				</div>
-
-				<div className="px-3 py-2 min-w-[260px]">
-					<button
-						onClick={() => router.push('/')}
-						className="w-full flex items-center gap-2 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white px-4 py-2.5 rounded-lg transition-colors shadow-sm"
-					>
-						<Plus size={18} />
-						<span className="whitespace-nowrap">开启新对话</span>
-					</button>
-				</div>
-
-				<div className="flex-1 overflow-y-auto px-3 py-2 space-y-1 min-w-[260px]">
-					<div className="text-xs font-medium text-[var(--foreground-secondary)] px-3 py-1 mb-1">当前会话</div>
-					<button className="w-full text-sm bg-[var(--card-bg)] text-[var(--foreground)] px-3 py-2 rounded-lg transition-colors text-left truncate border border-[var(--border-color)]">
-						<span className="truncate">{sessionId}</span>
-					</button>
-
-					{/* 🔥 按日期分组显示历史记录 */}
-					{uniqueSessions.filter((s) => s.session_id !== sessionId).length === 0 ? (
-						<>
-							<div className="text-xs font-medium text-[var(--foreground-secondary)] px-3 py-1 mb-1 mt-[31px]">历史记录</div>
-							<div className="text-xs text-gray-500 px-3 py-2 text-center">暂无历史记录</div>
-						</>
-					) : (
-						<div className="mt-[31px]">
-							{/* 今天 */}
-							{groupedSessions.today.filter((s) => s.session_id !== sessionId).length > 0 && (
-								<div className="mb-4">
-									<div className="text-xs font-medium text-[var(--foreground-secondary)] px-3 py-1 mb-1">今天</div>
-									{groupedSessions.today.filter((s) => s.session_id !== sessionId).map((session) => (
-										<div key={`analysis-${session.session_id}`} className="relative group">
-											<button
-												onClick={() => {
-													if (session.status === 'completed') {
-														router.push(`/report/${session.session_id}`);
-													} else {
-														router.push(`/analysis/${session.session_id}`);
-													}
-												}}
-												className="w-full text-sm text-[var(--foreground-secondary)] hover:bg-[var(--card-bg)] hover:text-[var(--foreground)] px-3 py-2 rounded-lg transition-colors text-left"
-											>
-												<div className="pr-6 line-clamp-2">{session.user_input || '未命名会话'}</div>
-												<div className="text-xs text-gray-500 mt-1">
-													{new Date(session.created_at).toLocaleString('zh-CN', {
-														month: 'numeric',
-														day: 'numeric',
-														hour: '2-digit',
-														minute: '2-digit'
-													})}
-												</div>
-											</button>
-											<button
-												onClick={(e) => {
-													e.stopPropagation();
-													setMenuOpenSessionId(menuOpenSessionId === session.session_id ? null : session.session_id);
-												}}
-												className="absolute top-2 right-2 p-1 opacity-0 group-hover:opacity-100 hover:bg-[var(--sidebar-bg)] rounded transition-opacity"
-											>
-												<MoreVertical size={16} />
-											</button>
-											{menuOpenSessionId === session.session_id && (
-												<>
-													<div className="fixed inset-0 z-10" onClick={() => setMenuOpenSessionId(null)} />
-													<div className="absolute right-0 top-8 z-20 bg-[var(--card-bg)] border border-[var(--border-color)] rounded-lg shadow-lg py-1 min-w-[140px]">
-														<button
-															onClick={() => handleRenameSession(session.session_id)}
-															className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-[var(--sidebar-bg)] transition-colors text-left"
-														>
-															<Edit2 size={14} />
-															<span>重命名</span>
-														</button>
-														<button
-															onClick={() => handlePinSession(session.session_id)}
-															className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-[var(--sidebar-bg)] transition-colors text-left"
-														>
-															<Pin size={14} />
-															<span>置顶</span>
-														</button>
-														<button
-															onClick={() => handleShareSession(session.session_id)}
-															className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-[var(--sidebar-bg)] transition-colors text-left"
-														>
-															<Share2 size={14} />
-															<span>分享</span>
-														</button>
-														<div className="border-t border-[var(--border-color)] my-1" />
-														<button
-															onClick={() => handleDeleteSession(session.session_id)}
-															className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-red-900/20 text-red-400 transition-colors text-left"
-														>
-															<Trash2 size={14} />
-															<span>删除</span>
-														</button>
-													</div>
-												</>
-											)}
-										</div>
-									))}
-								</div>
-							)}
-
-							{/* 昨天 */}
-							{groupedSessions.yesterday.filter((s) => s.session_id !== sessionId).length > 0 && (
-								<div className="mb-4">
-									<div className="text-xs font-medium text-[var(--foreground-secondary)] px-3 py-1 mb-1">昨天</div>
-									{groupedSessions.yesterday.filter((s) => s.session_id !== sessionId).map((session) => (
-										<div key={`analysis-${session.session_id}`} className="relative group">
-											<button
-												onClick={() => {
-													if (session.status === 'completed') {
-														router.push(`/report/${session.session_id}`);
-													} else {
-														router.push(`/analysis/${session.session_id}`);
-													}
-												}}
-												className="w-full text-sm text-[var(--foreground-secondary)] hover:bg-[var(--card-bg)] hover:text-[var(--foreground)] px-3 py-2 rounded-lg transition-colors text-left"
-											>
-												<div className="pr-6 line-clamp-2">{session.user_input || '未命名会话'}</div>
-												<div className="text-xs text-gray-500 mt-1">
-													{new Date(session.created_at).toLocaleString('zh-CN', {
-														month: 'numeric',
-														day: 'numeric',
-														hour: '2-digit',
-														minute: '2-digit'
-													})}
-												</div>
-											</button>
-											<button
-												onClick={(e) => {
-													e.stopPropagation();
-													setMenuOpenSessionId(menuOpenSessionId === session.session_id ? null : session.session_id);
-												}}
-												className="absolute top-2 right-2 p-1 opacity-0 group-hover:opacity-100 hover:bg-[var(--sidebar-bg)] rounded transition-opacity"
-											>
-												<MoreVertical size={16} />
-											</button>
-											{menuOpenSessionId === session.session_id && (
-												<>
-													<div className="fixed inset-0 z-10" onClick={() => setMenuOpenSessionId(null)} />
-													<div className="absolute right-0 top-8 z-20 bg-[var(--card-bg)] border border-[var(--border-color)] rounded-lg shadow-lg py-1 min-w-[140px]">
-														<button
-															onClick={() => handleRenameSession(session.session_id)}
-															className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-[var(--sidebar-bg)] transition-colors text-left"
-														>
-															<Edit2 size={14} />
-															<span>重命名</span>
-														</button>
-														<button
-															onClick={() => handlePinSession(session.session_id)}
-															className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-[var(--sidebar-bg)] transition-colors text-left"
-														>
-															<Pin size={14} />
-															<span>置顶</span>
-														</button>
-														<button
-															onClick={() => handleShareSession(session.session_id)}
-															className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-[var(--sidebar-bg)] transition-colors text-left"
-														>
-															<Share2 size={14} />
-															<span>分享</span>
-														</button>
-														<div className="border-t border-[var(--border-color)] my-1" />
-														<button
-															onClick={() => handleDeleteSession(session.session_id)}
-															className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-red-900/20 text-red-400 transition-colors text-left"
-														>
-															<Trash2 size={14} />
-															<span>删除</span>
-														</button>
-													</div>
-												</>
-											)}
-										</div>
-									))}
-								</div>
-							)}
-
-							{/* 7天内 */}
-							{groupedSessions.last7Days.filter((s) => s.session_id !== sessionId).length > 0 && (
-								<div className="mb-4">
-									<div className="text-xs font-medium text-[var(--foreground-secondary)] px-3 py-1 mb-1">7天内</div>
-									{groupedSessions.last7Days.filter((s) => s.session_id !== sessionId).map((session) => (
-										<div key={`analysis-${session.session_id}`} className="relative group">
-											<button
-												onClick={() => {
-													if (session.status === 'completed') {
-														router.push(`/report/${session.session_id}`);
-													} else {
-														router.push(`/analysis/${session.session_id}`);
-													}
-												}}
-												className="w-full text-sm text-[var(--foreground-secondary)] hover:bg-[var(--card-bg)] hover:text-[var(--foreground)] px-3 py-2 rounded-lg transition-colors text-left"
-											>
-												<div className="pr-6 line-clamp-2">{session.user_input || '未命名会话'}</div>
-												<div className="text-xs text-gray-500 mt-1">
-													{new Date(session.created_at).toLocaleString('zh-CN', {
-														month: 'numeric',
-														day: 'numeric',
-														hour: '2-digit',
-														minute: '2-digit'
-													})}
-												</div>
-											</button>
-											<button
-												onClick={(e) => {
-													e.stopPropagation();
-													setMenuOpenSessionId(menuOpenSessionId === session.session_id ? null : session.session_id);
-												}}
-												className="absolute top-2 right-2 p-1 opacity-0 group-hover:opacity-100 hover:bg-[var(--sidebar-bg)] rounded transition-opacity"
-											>
-												<MoreVertical size={16} />
-											</button>
-											{menuOpenSessionId === session.session_id && (
-												<>
-													<div className="fixed inset-0 z-10" onClick={() => setMenuOpenSessionId(null)} />
-													<div className="absolute right-0 top-8 z-20 bg-[var(--card-bg)] border border-[var(--border-color)] rounded-lg shadow-lg py-1 min-w-[140px]">
-														<button
-															onClick={() => handleRenameSession(session.session_id)}
-															className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-[var(--sidebar-bg)] transition-colors text-left"
-														>
-															<Edit2 size={14} />
-															<span>重命名</span>
-														</button>
-														<button
-															onClick={() => handlePinSession(session.session_id)}
-															className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-[var(--sidebar-bg)] transition-colors text-left"
-														>
-															<Pin size={14} />
-															<span>置顶</span>
-														</button>
-														<button
-															onClick={() => handleShareSession(session.session_id)}
-															className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-[var(--sidebar-bg)] transition-colors text-left"
-														>
-															<Share2 size={14} />
-															<span>分享</span>
-														</button>
-														<div className="border-t border-[var(--border-color)] my-1" />
-														<button
-															onClick={() => handleDeleteSession(session.session_id)}
-															className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-red-900/20 text-red-400 transition-colors text-left"
-														>
-															<Trash2 size={14} />
-															<span>删除</span>
-														</button>
-													</div>
-												</>
-											)}
-										</div>
-									))}
-								</div>
-							)}
-
-							{/* 30天内 */}
-							{groupedSessions.last30Days.filter((s) => s.session_id !== sessionId).length > 0 && (
-								<div className="mb-4">
-									<div className="text-xs font-medium text-[var(--foreground-secondary)] px-3 py-1 mb-1">30天内</div>
-									{groupedSessions.last30Days.filter((s) => s.session_id !== sessionId).map((session) => (
-										<div key={`analysis-${session.session_id}`} className="relative group">
-											<button
-												onClick={() => {
-													if (session.status === 'completed') {
-														router.push(`/report/${session.session_id}`);
-													} else {
-														router.push(`/analysis/${session.session_id}`);
-													}
-												}}
-												className="w-full text-sm text-[var(--foreground-secondary)] hover:bg-[var(--card-bg)] hover:text-[var(--foreground)] px-3 py-2 rounded-lg transition-colors text-left"
-											>
-												<div className="pr-6 line-clamp-2">{session.user_input || '未命名会话'}</div>
-												<div className="text-xs text-gray-500 mt-1">
-													{new Date(session.created_at).toLocaleString('zh-CN', {
-														month: 'numeric',
-														day: 'numeric',
-														hour: '2-digit',
-														minute: '2-digit'
-													})}
-												</div>
-											</button>
-											<button
-												onClick={(e) => {
-													e.stopPropagation();
-													setMenuOpenSessionId(menuOpenSessionId === session.session_id ? null : session.session_id);
-												}}
-												className="absolute top-2 right-2 p-1 opacity-0 group-hover:opacity-100 hover:bg-[var(--sidebar-bg)] rounded transition-opacity"
-											>
-												<MoreVertical size={16} />
-											</button>
-											{menuOpenSessionId === session.session_id && (
-												<>
-													<div className="fixed inset-0 z-10" onClick={() => setMenuOpenSessionId(null)} />
-													<div className="absolute right-0 top-8 z-20 bg-[var(--card-bg)] border border-[var(--border-color)] rounded-lg shadow-lg py-1 min-w-[140px]">
-														<button
-															onClick={() => handleRenameSession(session.session_id)}
-															className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-[var(--sidebar-bg)] transition-colors text-left"
-														>
-															<Edit2 size={14} />
-															<span>重命名</span>
-														</button>
-														<button
-															onClick={() => handlePinSession(session.session_id)}
-															className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-[var(--sidebar-bg)] transition-colors text-left"
-														>
-															<Pin size={14} />
-															<span>置顶</span>
-														</button>
-														<button
-															onClick={() => handleShareSession(session.session_id)}
-															className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-[var(--sidebar-bg)] transition-colors text-left"
-														>
-															<Share2 size={14} />
-															<span>分享</span>
-														</button>
-														<div className="border-t border-[var(--border-color)] my-1" />
-														<button
-															onClick={() => handleDeleteSession(session.session_id)}
-															className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-red-900/20 text-red-400 transition-colors text-left"
-														>
-															<Trash2 size={14} />
-															<span>删除</span>
-														</button>
-													</div>
-												</>
-											)}
-										</div>
-									))}
-								</div>
-							)}
-
-							{/* 按月份分组 */}
-							{Object.keys(groupedSessions.byMonth).sort().reverse().map(monthKey => {
-								const monthSessions = groupedSessions.byMonth[monthKey].filter((s) => s.session_id !== sessionId);
-								if (monthSessions.length === 0) return null;
-								return (
-									<div key={monthKey} className="mb-4">
-										<div className="text-xs font-medium text-[var(--foreground-secondary)] px-3 py-1 mb-1">{monthKey}</div>
-										{monthSessions.map((session) => (
-											<div key={`analysis-${session.session_id}`} className="relative group">
-												<button
-													onClick={() => {
-														if (session.status === 'completed') {
-															router.push(`/report/${session.session_id}`);
-														} else {
-															router.push(`/analysis/${session.session_id}`);
-														}
-													}}
-													className="w-full text-sm text-[var(--foreground-secondary)] hover:bg-[var(--card-bg)] hover:text-[var(--foreground)] px-3 py-2 rounded-lg transition-colors text-left"
-												>
-													<div className="pr-6 line-clamp-2">{session.user_input || '未命名会话'}</div>
-													<div className="text-xs text-gray-500 mt-1">
-														{new Date(session.created_at).toLocaleString('zh-CN', {
-															month: 'numeric',
-															day: 'numeric',
-															hour: '2-digit',
-															minute: '2-digit'
-														})}
-													</div>
-												</button>
-												<button
-													onClick={(e) => {
-														e.stopPropagation();
-														setMenuOpenSessionId(menuOpenSessionId === session.session_id ? null : session.session_id);
-													}}
-													className="absolute top-2 right-2 p-1 opacity-0 group-hover:opacity-100 hover:bg-[var(--sidebar-bg)] rounded transition-opacity"
-												>
-													<MoreVertical size={16} />
-												</button>
-												{menuOpenSessionId === session.session_id && (
-													<>
-														<div className="fixed inset-0 z-10" onClick={() => setMenuOpenSessionId(null)} />
-														<div className="absolute right-0 top-8 z-20 bg-[var(--card-bg)] border border-[var(--border-color)] rounded-lg shadow-lg py-1 min-w-[140px]">
-															<button
-																onClick={() => handleRenameSession(session.session_id)}
-																className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-[var(--sidebar-bg)] transition-colors text-left"
-															>
-																<Edit2 size={14} />
-																<span>重命名</span>
-															</button>
-															<button
-																onClick={() => handlePinSession(session.session_id)}
-																className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-[var(--sidebar-bg)] transition-colors text-left"
-															>
-																<Pin size={14} />
-																<span>置顶</span>
-															</button>
-															<button
-																onClick={() => handleShareSession(session.session_id)}
-																className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-[var(--sidebar-bg)] transition-colors text-left"
-															>
-																<Share2 size={14} />
-																<span>分享</span>
-															</button>
-															<div className="border-t border-[var(--border-color)] my-1" />
-															<button
-																onClick={() => handleDeleteSession(session.session_id)}
-																className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-red-900/20 text-red-400 transition-colors text-left"
-															>
-																<Trash2 size={14} />
-																<span>删除</span>
-															</button>
-														</div>
-													</>
-												)}
-											</div>
-										))}
-									</div>
-								);
-							})}
+				{isSidebarOpen && (
+					<>
+						<div className="min-w-[260px] pt-16 h-0" />
+						<div className="flex-1 flex flex-col min-h-0">
+							<SessionSidebar
+								sessions={sessions}
+								currentSessionId={sessionId}
+								showNewButton={false}
+								onRenameSession={handleRenameSession}
+								onPinSession={handlePinSession}
+								onShareSession={handleShareSession}
+								onDeleteSession={handleDeleteSession}
+								loadMoreTriggerRef={loadMoreTriggerRef}
+							/>
 						</div>
-					)}
-				</div>
 
-				{/* 底部区域 */}
-				<div className="border-t border-[var(--border-color)] min-w-[260px]">
-					{/* 用户面板 */}
-					<div className="p-3">
-						<UserPanel />
-					</div>
-				</div>
+						{/* 底部用户面板 - 固定在底部 */}
+						<div className="border-t border-[var(--border-color)] min-w-[260px] flex-shrink-0">
+							<div className="p-3">
+								<UserPanel />
+							</div>
+						</div>
+					</>
+				)}
 			</div>
 
 			<div className="flex-1 flex flex-col relative h-full overflow-hidden w-full">
@@ -1314,7 +1133,7 @@ export default function AnalysisPage() {
 							<PanelLeft size={20} />
 						</button>
 						<h1 className="font-semibold text-lg">
-							{sessionId.includes('-followup-') ? '💬 追问分析中...' : '智能项目分析'}
+							{sessionId.includes('-followup-') ? '💬 追问分析中...' : '方案高参'}
 						</h1>
 					</div>
 
@@ -1619,6 +1438,27 @@ export default function AnalysisPage() {
 				onSubmit={handleUserQuestionSubmit}
 				onSkip={handleUserQuestionSkip}
 				submitting={userQuestionSubmitting}
+			/>
+
+			<ProgressiveQuestionnaireModal
+				isOpen={showProgressiveStep1}
+				data={progressiveStep1Data}
+				onConfirm={handleProgressiveStep1Confirm}
+				onSkip={handleProgressiveStep1Skip}
+			/>
+
+			<ProgressiveQuestionnaireModal
+				isOpen={showProgressiveStep2}
+				data={progressiveStep2Data}
+				onConfirm={handleProgressiveStep2Confirm}
+				onSkip={handleProgressiveStep2Skip}
+			/>
+
+			<ProgressiveQuestionnaireModal
+				isOpen={showProgressiveStep3}
+				data={progressiveStep3Data}
+				onConfirm={handleProgressiveStep3Confirm}
+				onSkip={handleProgressiveStep3Skip}
 			/>
 		</div>
 	);

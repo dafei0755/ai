@@ -9,7 +9,6 @@ import {
   Loader2,
   Send,
   Plus,
-  MessageSquare,
   PanelLeft,
   X,
   MoreVertical,
@@ -27,9 +26,9 @@ import { useWorkflowStore } from '@/store/useWorkflowStore';
 import { formatFileSize } from '@/lib/formatters';
 import { UserPanel } from '@/components/layout/UserPanel';
 import { useAuth } from '@/contexts/AuthContext';
-// 🔥 v7.107: 导入新组件
-import { DeepThinkingBadge } from '@/components/DeepThinkingBadge';
-import { ProgressBadge } from '@/components/ProgressBadge';
+import { SessionSidebar } from '@/components/SessionSidebar';
+// 🔥 v7.109: 进度直接在时间戳后显示，移除了 ProgressBadge 组件
+// 🔥 v7.110: 提取侧边栏为公共组件 SessionSidebar
 
 export default function HomePage() {
   const router = useRouter();
@@ -57,6 +56,10 @@ export default function HomePage() {
 
   // 历史会话列表
   const [sessions, setSessions] = useState<Array<{ session_id: string; status: string; created_at: string; user_input: string; isTemporary?: boolean }>>([]);
+  const [currentPage, setCurrentPage] = useState(1); // 🔥 当前页码
+  const [hasMorePages, setHasMorePages] = useState(false); // 🔥 是否还有更多页
+  const [loadingMore, setLoadingMore] = useState(false); // 🔥 加载更多状态
+  const loadMoreTriggerRef = useRef<HTMLDivElement>(null); // 🔥 v7.105: Intersection Observer 触发器
 
   // 去重工具：避免重复 session_id 导致 React key 警告
   const dedupeSessions = useCallback(
@@ -82,6 +85,9 @@ export default function HomePage() {
       const yesterday = new Date(today.getTime() - 24 * 60 * 60 * 1000);
       const last7Days = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
       const last30Days = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
+      
+      // 🔥 v7.106.2: 当前月份第一天，用于区分"本月其他日期"和"历史月份"
+      const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
 
       const groups: {
         today: typeof sessions;
@@ -107,10 +113,11 @@ export default function HomePage() {
           groups.yesterday.push(session);
         } else if (sessionDay.getTime() >= last7Days.getTime()) {
           groups.last7Days.push(session);
-        } else if (sessionDay.getTime() >= last30Days.getTime()) {
+        } else if (sessionDay.getTime() >= last30Days.getTime() && sessionDay.getTime() >= currentMonthStart.getTime()) {
+          // 🔥 v7.106.2: 只有当前月份的会话才进入"30天内"分组
           groups.last30Days.push(session);
         } else {
-          // 按月份分组（格式：YYYY-MM）
+          // 🔥 v7.106.2: 跨月或更早的会话按月份归档
           const monthKey = `${sessionDate.getFullYear()}-${String(sessionDate.getMonth() + 1).padStart(2, '0')}`;
           if (!groups.byMonth[monthKey]) {
             groups.byMonth[monthKey] = [];
@@ -130,26 +137,101 @@ export default function HomePage() {
   // 会话菜单状态
   const [menuOpenSessionId, setMenuOpenSessionId] = useState<string | null>(null);
 
+  // 🔥 v7.108: 加载更多会话（服务端分页）
+  const loadMoreSessions = useCallback(async () => {
+    if (loadingMore || !hasMorePages) return;
+
+    setLoadingMore(true);
+    try {
+      const nextPage = currentPage + 1;
+      const data = await api.getSessions(nextPage, 20, true);
+
+      // 🔥 v7.105.5: 空数据保护 - 如果返回空数据，停止加载
+      if (!data.sessions || data.sessions.length === 0) {
+        console.log('[HomePage] ⏹️ 返回空数据，停止加载');
+        setHasMorePages(false);
+        return;
+      }
+
+      // 追加新会话到现有列表（在回调中使用dedupeSessions避免依赖）
+      setSessions(prev => {
+        const seen = new Set<string>();
+        const merged = [...prev, ...(data.sessions || [])].filter(item => {
+          if (seen.has(item.session_id)) return false;
+          seen.add(item.session_id);
+          return true;
+        });
+        
+        // 🔥 v7.105.8: 移除错误的去重终止逻辑 - 应该依赖API返回的has_next
+        // ❌ 之前：if (merged.length === prev.length) setHasMorePages(false);
+        // ✅ 现在：只依赖API返回的has_next标志
+        console.log(`[HomePage] 📊 合并结果 | prev=${prev.length} + new=${data.sessions?.length} → merged=${merged.length}`);
+        
+        return merged;
+      });
+      setCurrentPage(nextPage);
+      setHasMorePages(data.has_next || false);
+    } catch (err) {
+      console.error('加载更多会话失败:', err);
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [loadingMore, hasMorePages, currentPage]);
+
+  // 🔥 v7.105.3: Intersection Observer 滚动加载（优化无限触发问题）
+  useEffect(() => {
+    const trigger = loadMoreTriggerRef.current;
+    if (!trigger) return;
+
+    // 🔥 v7.105.3: 没有更多页时不监听，避免无限触发
+    if (!hasMorePages) {
+      console.log('[HomePage] ⏹️ 已加载全部会话，停止监听');
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        // 当触发器元素可见 且 不在加载中 且 还有更多页时，触发加载
+        if (entries[0].isIntersecting && !loadingMore && hasMorePages) {
+          console.log(`[HomePage] 🔄 触发滚动加载 | 当前页: ${currentPage} | 已加载: ${sessions.length}条`);
+          loadMoreSessions();
+        }
+      },
+      { threshold: 0.1 } // 触发器10%可见时触发
+    );
+
+    observer.observe(trigger);
+    return () => observer.disconnect();
+  }, [loadingMore, hasMorePages, loadMoreSessions, currentPage]);
+
   // 加载历史会话列表（仅在已登录时）
   useEffect(() => {
     // 🔒 安全检查：只有已登录用户才能获取会话列表
     if (!user) {
       console.log('[HomePage] 用户未登录，清空会话列表');
       setSessions([]);
+      setHasMorePages(false);
+      setCurrentPage(1);
       return;
     }
 
     const fetchSessions = async () => {
       try {
-        const data = await api.getSessions();
+        // ✅ v7.108: 使用分页API（初始加载前20个，避免一次性加载所有数据）
+        console.log('[HomePage] 开始加载会话列表...');
+        const data = await api.getSessions(1, 20, true);
+        console.log(`[HomePage] 加载完成: ${data.sessions.length} 个会话`);
         setSessions(dedupeSessions(data.sessions || []));
+        setHasMorePages(data.has_next || false);
+        setCurrentPage(1);
       } catch (err) {
         console.error('获取会话列表失败:', err);
       }
     };
 
     fetchSessions();
-  }, [dedupeSessions, user]); // 🔒 依赖user，登录状态变化时重新获取
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]); // 🔒 只依赖user，登录状态变化时重新获取
 
   // 🔥 新增：文件选择处理
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -408,12 +490,22 @@ export default function HomePage() {
     if (confirm('确定要删除这个会话吗？此操作不可恢复。')) {
       try {
         await api.deleteSession(sessionId);
-        // 从本地会话列表中移除
-        setSessions(prevSessions => prevSessions.filter(s => s.session_id !== sessionId));
+        // 🆕 v7.106: 强制刷新列表（重新调用API，确保与后端一致）
+        try {
+          const data = await api.getSessions(currentPage, 20, true);
+          setSessions(dedupeSessions(data.sessions || []));
+          setHasMorePages(data.has_next || false);
+        } catch (refreshErr) {
+          console.error('刷新会话列表失败:', refreshErr);
+          // 回退到本地过滤
+          setSessions(prevSessions => prevSessions.filter(s => s.session_id !== sessionId));
+        }
         alert('删除成功');
-      } catch (err) {
+      } catch (err: any) {
         console.error('删除失败:', err);
-        alert('删除失败，请重试');
+        // 显示更友好的错误信息
+        const errorMsg = err.response?.data?.detail || '删除失败，请重试';
+        alert(errorMsg);
       }
       setMenuOpenSessionId(null);
     }
@@ -452,12 +544,12 @@ export default function HomePage() {
 
         <div className="max-w-md w-full space-y-6 text-center">
           <div className="flex items-center justify-center gap-2 mb-6">
-            <div className="w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center text-white text-2xl">
+            <div className="w-12 h-12 bg-gray-600 dark:bg-gray-700 rounded-lg flex items-center justify-center text-white text-2xl">
               AI
             </div>
           </div>
           <h1 className="text-2xl font-semibold text-[var(--foreground)]">
-            极致概念 设计高参
+            方案高参
           </h1>
 
           {/* 🎯 v3.0.15: 简化登录界面 - 只有一个"立即登录"按钮 */}
@@ -472,7 +564,7 @@ export default function HomePage() {
                 // 用户在宣传页面登录后，会看到应用入口链接，点击即可进入应用
                 window.location.href = 'https://www.ucppt.com/js';
               }}
-              className="w-full px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-medium rounded-lg transition-all"
+              className="w-full px-6 py-3 bg-gray-700 dark:bg-gray-600 hover:bg-gray-600 dark:hover:bg-gray-500 text-white font-medium rounded-lg transition-all"
             >
               前往登录
             </button>
@@ -495,7 +587,7 @@ export default function HomePage() {
     return (
       <div className="flex h-screen bg-[var(--background)] text-[var(--foreground)] items-center justify-center">
         <div className="text-center space-y-4">
-          <Loader2 className="w-8 h-8 animate-spin mx-auto text-blue-500" />
+          <Loader2 className="w-8 h-8 animate-spin mx-auto text-gray-500" />
           <p className="text-[var(--foreground-secondary)]">正在验证身份...</p>
         </div>
       </div>
@@ -512,382 +604,36 @@ export default function HomePage() {
         />
       )}
 
-      {/* Sidebar */}
-      <div 
+      {/* 侧边栏 - 使用公共组件 SessionSidebar */}
+      <div
         className={`${
           isSidebarOpen ? 'w-[260px] translate-x-0' : 'w-0 -translate-x-full md:translate-x-0 md:w-0'
         } bg-[var(--sidebar-bg)] border-r border-[var(--border-color)] transition-all duration-300 ease-in-out flex flex-col fixed md:relative h-full z-40 overflow-hidden`}
       >
-        <div className="p-4 flex items-center justify-between min-w-[260px]">
-          <div className="flex items-center gap-2 font-semibold text-lg text-[var(--foreground)]">
-            <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white">
-              AI
+        {isSidebarOpen && (
+          <>
+            <div className="min-w-[260px] pt-16 h-0" />
+            <div className="flex-1 flex flex-col min-h-0">
+              <SessionSidebar
+                sessions={sessions}
+                showNewButton={true}
+                onNewSession={() => window.location.reload()}
+                onRenameSession={handleRenameSession}
+                onPinSession={handlePinSession}
+                onShareSession={handleShareSession}
+                onDeleteSession={handleDeleteSession}
+                loadMoreTriggerRef={loadMoreTriggerRef}
+              />
             </div>
-            <span>设计高参</span>
-          </div>
-          {/* Mobile Close Button */}
-          <button 
-            onClick={() => setIsSidebarOpen(false)}
-            className="md:hidden p-1 text-[var(--foreground-secondary)] hover:text-[var(--foreground)]"
-          >
-            <X size={20} />
-          </button>
-        </div>
 
-        <div className="px-3 py-2 min-w-[260px]">
-          <button 
-            onClick={() => window.location.reload()}
-            className="w-full flex items-center gap-2 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white px-4 py-2.5 rounded-lg transition-colors shadow-sm"
-          >
-            <Plus size={18} />
-            <span className="whitespace-nowrap">开启新对话</span>
-          </button>
-        </div>
-
-        <div className="flex-1 overflow-y-auto px-3 py-2 space-y-1 min-w-[260px]">
-          {/* 🔥 v7.9.3: 按日期分组显示会话 */}
-          {uniqueSessions.length === 0 ? (
-            <div className="text-xs text-gray-500 px-3 py-2 text-center">暂无历史记录</div>
-          ) : (
-            <>
-              {/* 今天 */}
-              {groupedSessions.today.length > 0 && (
-                <div className="mb-4">
-                  <div className="text-xs font-medium text-[var(--foreground-secondary)] px-3 py-1 mb-1">今天</div>
-                  {groupedSessions.today.map((session: any) => (
-                    <div key={`homepage-${session.session_id}`} className="relative group">
-                      <button
-                        onClick={() => !session.isTemporary && router.push(`/analysis/${session.session_id}`)}
-                        className={`w-full text-sm text-[var(--foreground-secondary)] hover:bg-[var(--card-bg)] hover:text-[var(--foreground)] px-3 py-2 rounded-lg transition-colors text-left ${session.isTemporary ? 'opacity-60 cursor-wait' : ''}`}
-                        disabled={session.isTemporary}
-                      >
-                        <div className="flex items-center gap-2">
-                          {session.isTemporary && (
-                            <Loader2 size={14} className="animate-spin text-blue-500 flex-shrink-0" />
-                          )}
-                          <div className="flex-1 pr-6 line-clamp-2">{session.user_input || '未命名会话'}</div>
-                        </div>
-                        
-                        {/* 🔥 v7.107: 显示徽章 */}
-                        <div className="flex items-center gap-1.5 mt-1">
-                          <div className="text-xs text-gray-500">
-                            {session.isTemporary ? '正在创建...' : new Date(session.created_at).toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                          </div>
-                          {!session.isTemporary && session.analysis_mode === 'deep_thinking' && (
-                            <DeepThinkingBadge />
-                          )}
-                          {!session.isTemporary && session.status === 'running' && session.progress !== undefined && (
-                            <ProgressBadge progress={session.progress} currentStage={session.current_stage} />
-                          )}
-                        </div>
-                      </button>
-
-                      {/* 菜单按钮 - 临时记录不显示 */}
-                      {!session.isTemporary && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setMenuOpenSessionId(menuOpenSessionId === session.session_id ? null : session.session_id);
-                          }}
-                          className="absolute top-2 right-2 p-1 opacity-0 group-hover:opacity-100 hover:bg-[var(--sidebar-bg)] rounded transition-opacity"
-                        >
-                          <MoreVertical size={16} />
-                        </button>
-                      )}
-
-                      {/* 下拉菜单 */}
-                      {menuOpenSessionId === session.session_id && (
-                        <>
-                          {/* 点击遮罩关闭菜单 */}
-                          <div
-                            className="fixed inset-0 z-10"
-                            onClick={() => setMenuOpenSessionId(null)}
-                          />
-                          <div className="absolute right-0 top-8 z-20 bg-[var(--card-bg)] border border-[var(--border-color)] rounded-lg shadow-lg py-1 min-w-[140px]">
-                            <button
-                              onClick={() => handleRenameSession(session.session_id)}
-                              className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-[var(--sidebar-bg)] transition-colors text-left"
-                            >
-                              <Edit2 size={14} />
-                              <span>重命名</span>
-                            </button>
-                            <button
-                              onClick={() => handlePinSession(session.session_id)}
-                              className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-[var(--sidebar-bg)] transition-colors text-left"
-                            >
-                              <Pin size={14} />
-                              <span>置顶</span>
-                            </button>
-                            <button
-                              onClick={() => handleShareSession(session.session_id)}
-                              className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-[var(--sidebar-bg)] transition-colors text-left"
-                            >
-                              <Share2 size={14} />
-                              <span>分享</span>
-                            </button>
-                            <div className="border-t border-[var(--border-color)] my-1"></div>
-                            <button
-                              onClick={() => handleDeleteSession(session.session_id)}
-                              className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-red-900/20 text-red-400 transition-colors text-left"
-                            >
-                              <Trash2 size={14} />
-                              <span>删除</span>
-                            </button>
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* 昨天 */}
-              {groupedSessions.yesterday.length > 0 && (
-                <div className="mb-4">
-                  <div className="text-xs font-medium text-[var(--foreground-secondary)] px-3 py-1 mb-1">昨天</div>
-                  {groupedSessions.yesterday.map((session: any) => (
-                    <div key={`homepage-${session.session_id}`} className="relative group">
-                      <button
-                        onClick={() => !session.isTemporary && router.push(`/analysis/${session.session_id}`)}
-                        className={`w-full text-sm text-[var(--foreground-secondary)] hover:bg-[var(--card-bg)] hover:text-[var(--foreground)] px-3 py-2 rounded-lg transition-colors text-left ${session.isTemporary ? 'opacity-60 cursor-wait' : ''}`}
-                        disabled={session.isTemporary}
-                      >
-                        <div className="flex items-center gap-2">
-                          {session.isTemporary && (
-                            <Loader2 size={14} className="animate-spin text-blue-500 flex-shrink-0" />
-                          )}
-                          <div className="flex-1 pr-6 line-clamp-2">{session.user_input || '未命名会话'}</div>
-                        </div>
-                        <div className="text-xs text-gray-500 mt-1">
-                          {session.isTemporary ? '正在创建...' : new Date(session.created_at).toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                        </div>
-                      </button>
-
-                      {!session.isTemporary && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setMenuOpenSessionId(menuOpenSessionId === session.session_id ? null : session.session_id);
-                          }}
-                          className="absolute top-2 right-2 p-1 opacity-0 group-hover:opacity-100 hover:bg-[var(--sidebar-bg)] rounded transition-opacity"
-                        >
-                          <MoreVertical size={16} />
-                        </button>
-                      )}
-
-                      {menuOpenSessionId === session.session_id && (
-                        <>
-                          <div className="fixed inset-0 z-10" onClick={() => setMenuOpenSessionId(null)} />
-                          <div className="absolute right-0 top-8 z-20 bg-[var(--card-bg)] border border-[var(--border-color)] rounded-lg shadow-lg py-1 min-w-[140px]">
-                            <button onClick={() => handleRenameSession(session.session_id)} className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-[var(--sidebar-bg)] transition-colors text-left">
-                              <Edit2 size={14} /><span>重命名</span>
-                            </button>
-                            <button onClick={() => handlePinSession(session.session_id)} className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-[var(--sidebar-bg)] transition-colors text-left">
-                              <Pin size={14} /><span>置顶</span>
-                            </button>
-                            <button onClick={() => handleShareSession(session.session_id)} className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-[var(--sidebar-bg)] transition-colors text-left">
-                              <Share2 size={14} /><span>分享</span>
-                            </button>
-                            <div className="border-t border-[var(--border-color)] my-1"></div>
-                            <button onClick={() => handleDeleteSession(session.session_id)} className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-red-900/20 text-red-400 transition-colors text-left">
-                              <Trash2 size={14} /><span>删除</span>
-                            </button>
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* 7天内 */}
-              {groupedSessions.last7Days.length > 0 && (
-                <div className="mb-4">
-                  <div className="text-xs font-medium text-[var(--foreground-secondary)] px-3 py-1 mb-1">7天内</div>
-                  {groupedSessions.last7Days.map((session: any) => (
-                    <div key={`homepage-${session.session_id}`} className="relative group">
-                      <button
-                        onClick={() => !session.isTemporary && router.push(`/analysis/${session.session_id}`)}
-                        className={`w-full text-sm text-[var(--foreground-secondary)] hover:bg-[var(--card-bg)] hover:text-[var(--foreground)] px-3 py-2 rounded-lg transition-colors text-left ${session.isTemporary ? 'opacity-60 cursor-wait' : ''}`}
-                        disabled={session.isTemporary}
-                      >
-                        <div className="flex items-center gap-2">
-                          {session.isTemporary && (
-                            <Loader2 size={14} className="animate-spin text-blue-500 flex-shrink-0" />
-                          )}
-                          <div className="flex-1 pr-6 line-clamp-2">{session.user_input || '未命名会话'}</div>
-                        </div>
-                        <div className="text-xs text-gray-500 mt-1">
-                          {session.isTemporary ? '正在创建...' : new Date(session.created_at).toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                        </div>
-                      </button>
-
-                      {!session.isTemporary && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setMenuOpenSessionId(menuOpenSessionId === session.session_id ? null : session.session_id);
-                          }}
-                          className="absolute top-2 right-2 p-1 opacity-0 group-hover:opacity-100 hover:bg-[var(--sidebar-bg)] rounded transition-opacity"
-                        >
-                          <MoreVertical size={16} />
-                        </button>
-                      )}
-
-                      {menuOpenSessionId === session.session_id && (
-                        <>
-                          <div className="fixed inset-0 z-10" onClick={() => setMenuOpenSessionId(null)} />
-                          <div className="absolute right-0 top-8 z-20 bg-[var(--card-bg)] border border-[var(--border-color)] rounded-lg shadow-lg py-1 min-w-[140px]">
-                            <button onClick={() => handleRenameSession(session.session_id)} className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-[var(--sidebar-bg)] transition-colors text-left">
-                              <Edit2 size={14} /><span>重命名</span>
-                            </button>
-                            <button onClick={() => handlePinSession(session.session_id)} className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-[var(--sidebar-bg)] transition-colors text-left">
-                              <Pin size={14} /><span>置顶</span>
-                            </button>
-                            <button onClick={() => handleShareSession(session.session_id)} className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-[var(--sidebar-bg)] transition-colors text-left">
-                              <Share2 size={14} /><span>分享</span>
-                            </button>
-                            <div className="border-t border-[var(--border-color)] my-1"></div>
-                            <button onClick={() => handleDeleteSession(session.session_id)} className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-red-900/20 text-red-400 transition-colors text-left">
-                              <Trash2 size={14} /><span>删除</span>
-                            </button>
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* 30天内 */}
-              {groupedSessions.last30Days.length > 0 && (
-                <div className="mb-4">
-                  <div className="text-xs font-medium text-[var(--foreground-secondary)] px-3 py-1 mb-1">30天内</div>
-                  {groupedSessions.last30Days.map((session: any) => (
-                    <div key={`homepage-${session.session_id}`} className="relative group">
-                      <button
-                        onClick={() => !session.isTemporary && router.push(`/analysis/${session.session_id}`)}
-                        className={`w-full text-sm text-[var(--foreground-secondary)] hover:bg-[var(--card-bg)] hover:text-[var(--foreground)] px-3 py-2 rounded-lg transition-colors text-left ${session.isTemporary ? 'opacity-60 cursor-wait' : ''}`}
-                        disabled={session.isTemporary}
-                      >
-                        <div className="flex items-center gap-2">
-                          {session.isTemporary && (
-                            <Loader2 size={14} className="animate-spin text-blue-500 flex-shrink-0" />
-                          )}
-                          <div className="flex-1 pr-6 line-clamp-2">{session.user_input || '未命名会话'}</div>
-                        </div>
-                        <div className="text-xs text-gray-500 mt-1">
-                          {session.isTemporary ? '正在创建...' : new Date(session.created_at).toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                        </div>
-                      </button>
-
-                      {!session.isTemporary && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setMenuOpenSessionId(menuOpenSessionId === session.session_id ? null : session.session_id);
-                          }}
-                          className="absolute top-2 right-2 p-1 opacity-0 group-hover:opacity-100 hover:bg-[var(--sidebar-bg)] rounded transition-opacity"
-                        >
-                          <MoreVertical size={16} />
-                        </button>
-                      )}
-
-                      {menuOpenSessionId === session.session_id && (
-                        <>
-                          <div className="fixed inset-0 z-10" onClick={() => setMenuOpenSessionId(null)} />
-                          <div className="absolute right-0 top-8 z-20 bg-[var(--card-bg)] border border-[var(--border-color)] rounded-lg shadow-lg py-1 min-w-[140px]">
-                            <button onClick={() => handleRenameSession(session.session_id)} className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-[var(--sidebar-bg)] transition-colors text-left">
-                              <Edit2 size={14} /><span>重命名</span>
-                            </button>
-                            <button onClick={() => handlePinSession(session.session_id)} className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-[var(--sidebar-bg)] transition-colors text-left">
-                              <Pin size={14} /><span>置顶</span>
-                            </button>
-                            <button onClick={() => handleShareSession(session.session_id)} className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-[var(--sidebar-bg)] transition-colors text-left">
-                              <Share2 size={14} /><span>分享</span>
-                            </button>
-                            <div className="border-t border-[var(--border-color)] my-1"></div>
-                            <button onClick={() => handleDeleteSession(session.session_id)} className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-red-900/20 text-red-400 transition-colors text-left">
-                              <Trash2 size={14} /><span>删除</span>
-                            </button>
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* 按月份分组 */}
-              {Object.keys(groupedSessions.byMonth).sort().reverse().map(monthKey => (
-                <div key={monthKey} className="mb-4">
-                  <div className="text-xs font-medium text-[var(--foreground-secondary)] px-3 py-1 mb-1">{monthKey}</div>
-                  {groupedSessions.byMonth[monthKey].map((session: any) => (
-                    <div key={`homepage-${session.session_id}`} className="relative group">
-                      <button
-                        onClick={() => !session.isTemporary && router.push(`/analysis/${session.session_id}`)}
-                        className={`w-full text-sm text-[var(--foreground-secondary)] hover:bg-[var(--card-bg)] hover:text-[var(--foreground)] px-3 py-2 rounded-lg transition-colors text-left ${session.isTemporary ? 'opacity-60 cursor-wait' : ''}`}
-                        disabled={session.isTemporary}
-                      >
-                        <div className="flex items-center gap-2">
-                          {session.isTemporary && (
-                            <Loader2 size={14} className="animate-spin text-blue-500 flex-shrink-0" />
-                          )}
-                          <div className="flex-1 pr-6 line-clamp-2">{session.user_input || '未命名会话'}</div>
-                        </div>
-                        <div className="text-xs text-gray-500 mt-1">
-                          {session.isTemporary ? '正在创建...' : new Date(session.created_at).toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                        </div>
-                      </button>
-
-                      {!session.isTemporary && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setMenuOpenSessionId(menuOpenSessionId === session.session_id ? null : session.session_id);
-                          }}
-                          className="absolute top-2 right-2 p-1 opacity-0 group-hover:opacity-100 hover:bg-[var(--sidebar-bg)] rounded transition-opacity"
-                        >
-                          <MoreVertical size={16} />
-                        </button>
-                      )}
-
-                      {menuOpenSessionId === session.session_id && (
-                        <>
-                          <div className="fixed inset-0 z-10" onClick={() => setMenuOpenSessionId(null)} />
-                          <div className="absolute right-0 top-8 z-20 bg-[var(--card-bg)] border border-[var(--border-color)] rounded-lg shadow-lg py-1 min-w-[140px]">
-                            <button onClick={() => handleRenameSession(session.session_id)} className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-[var(--sidebar-bg)] transition-colors text-left">
-                              <Edit2 size={14} /><span>重命名</span>
-                            </button>
-                            <button onClick={() => handlePinSession(session.session_id)} className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-[var(--sidebar-bg)] transition-colors text-left">
-                              <Pin size={14} /><span>置顶</span>
-                            </button>
-                            <button onClick={() => handleShareSession(session.session_id)} className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-[var(--sidebar-bg)] transition-colors text-left">
-                              <Share2 size={14} /><span>分享</span>
-                            </button>
-                            <div className="border-t border-[var(--border-color)] my-1"></div>
-                            <button onClick={() => handleDeleteSession(session.session_id)} className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-red-900/20 text-red-400 transition-colors text-left">
-                              <Trash2 size={14} /><span>删除</span>
-                            </button>
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              ))}
-            </>
-          )}
-        </div>
-
-        {/* 底部区域 */}
-        <div className="border-t border-[var(--border-color)] min-w-[260px]">
-          {/* 用户面板 */}
-          <div className="p-3">
-            <UserPanel />
-          </div>
-
-        </div>
+            {/* 底部用户面板 - 固定在底部 */}
+            <div className="border-t border-[var(--border-color)] min-w-[260px] flex-shrink-0">
+              <div className="p-3">
+                <UserPanel />
+              </div>
+            </div>
+          </>
+        )}
       </div>
 
       {/* Main Content */}
@@ -911,7 +657,7 @@ export default function HomePage() {
               className="px-3 py-2 text-sm text-[var(--foreground-secondary)] hover:text-[var(--foreground)] hover:bg-[var(--card-bg)] rounded-lg transition-colors flex items-center gap-1"
               title="返回 ucppt.com/js"
             >
-              <span>返回设计知外</span>
+              <span>设计知外 ucppt.com</span>
               <svg
                 className="w-3 h-3"
                 fill="none"
@@ -939,7 +685,7 @@ export default function HomePage() {
                 </div>
               </div>
               <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-[var(--foreground)]">
-                极致概念 设计高参
+                方案高参
               </h1>
             </div>
 
@@ -1043,6 +789,41 @@ export default function HomePage() {
                     >
                       <Paperclip className="w-5 h-5" />
                     </button>
+
+                    {/* 🆕 v7.107: 深度思考模式 Toggle */}
+                    <label className="flex items-center gap-2 cursor-pointer ml-2">
+                      {/* Toggle Switch */}
+                      <div className="relative">
+                        <input
+                          type="checkbox"
+                          checked={analysisMode === 'deep_thinking'}
+                          onChange={(e) => setAnalysisMode(e.target.checked ? 'deep_thinking' : 'normal')}
+                          className="sr-only peer"
+                          disabled={isLoading}
+                        />
+                        <div className={`
+                          w-9 h-5 rounded-full transition-all duration-300
+                          peer-checked:bg-gray-700 dark:peer-checked:bg-gray-600
+                          bg-gray-300 dark:bg-gray-600
+                          ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}
+                        `}>
+                          <div className={`
+                            absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full transition-all duration-300
+                            peer-checked:translate-x-4
+                          `}></div>
+                        </div>
+                      </div>
+
+                      {/* Text Label */}
+                      <span className={`
+                        text-xs font-medium transition-colors duration-300 whitespace-nowrap
+                        ${analysisMode === 'deep_thinking'
+                          ? 'text-gray-700 dark:text-gray-300'
+                          : 'text-gray-600 dark:text-gray-400'}
+                      `}>
+                        深度思考
+                      </span>
+                    </label>
                   </div>
                   <button
                     type="submit"
@@ -1050,7 +831,7 @@ export default function HomePage() {
                     className={`
                       p-2 rounded-lg transition-all
                       ${userInput.trim()
-                        ? 'bg-[#5b7cf5] text-white hover:bg-[#4d6bfe] hover:scale-105'
+                        ? 'bg-gray-700 dark:bg-gray-600 text-white hover:bg-gray-600 dark:hover:bg-gray-500 hover:scale-105'
                         : 'bg-transparent text-[#666666] cursor-not-allowed opacity-50'}
                     `}
                     title={userInput.trim() ? '发送' : '请输入文字描述您的需求'}
@@ -1065,42 +846,6 @@ export default function HomePage() {
               </form>
             </div>
 
-            {/* 🆕 v7.107: 深度思考模式切换按钮（位于对话框下方） */}
-            <div className="flex items-center justify-center mt-3">
-              <button
-                type="button"
-                onClick={() => setAnalysisMode(analysisMode === 'normal' ? 'deep_thinking' : 'normal')}
-                className={`
-                  flex items-center gap-2 px-4 py-2 rounded-lg border-2 transition-all duration-200
-                  ${analysisMode === 'deep_thinking'
-                    ? 'bg-purple-500/20 border-purple-500 text-purple-400'
-                    : 'bg-transparent border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:border-purple-400 hover:text-purple-400'
-                  }
-                `}
-                disabled={isLoading}
-              >
-                <div className={`
-                  w-5 h-5 rounded border-2 flex items-center justify-center transition-all
-                  ${analysisMode === 'deep_thinking'
-                    ? 'bg-purple-500 border-purple-500'
-                    : 'border-gray-400 dark:border-gray-500'
-                  }
-                `}>
-                  {analysisMode === 'deep_thinking' && (
-                    <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                    </svg>
-                  )}
-                </div>
-                <span className="text-sm font-medium">
-                  深度思考模式
-                </span>
-                <span className="text-xs opacity-75">
-                  {analysisMode === 'deep_thinking' ? '(3张概念图/交付物)' : '(1张概念图/交付物)'}
-                </span>
-              </button>
-            </div>
-
             {/* Error Message */}
             {error && (
               <div className="p-4 bg-red-900/20 border border-red-900/50 rounded-lg text-red-400 text-sm text-center">
@@ -1108,10 +853,6 @@ export default function HomePage() {
               </div>
             )}
           </div>
-        </div>
-        
-        <div className="p-4 text-center text-xs text-[var(--foreground-secondary)]">
-          ucppt.com
         </div>
       </div>
 

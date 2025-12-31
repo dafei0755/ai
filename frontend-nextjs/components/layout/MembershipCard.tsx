@@ -150,7 +150,7 @@ export function MembershipCard() {
           </span>
         </div>
         {membership.level > 0 && !membership.is_expired && (
-          <span className="px-2 py-0.5 text-xs bg-green-500/10 text-green-500 rounded">
+          <span className="px-2 py-0.5 text-xs bg-blue-500/10 text-blue-500 rounded">
             有效
           </span>
         )}

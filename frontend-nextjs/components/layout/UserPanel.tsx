@@ -99,8 +99,8 @@ export function UserPanel() {
           {/* 用户信息头部 */}
           <div className="px-4 py-3 border-b border-[var(--border-color)]">
             <div className="flex items-center space-x-3">
-              {/* 首字母头像 */}
-              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white font-bold text-lg flex-shrink-0">
+              {/* 首字母头像 - v7.105.2: 改为灰色与新建按钮一致 */}
+              <div className="w-10 h-10 rounded-full bg-gray-700 dark:bg-gray-600 flex items-center justify-center text-white font-bold text-lg flex-shrink-0">
                 {initials}
               </div>
               <div className="flex-1 min-w-0">
@@ -122,13 +122,12 @@ export function UserPanel() {
                 <span className="text-sm text-[var(--foreground)]">主题外观</span>
               </div>
               <select
-                value={theme}
-                onChange={(e) => setTheme(e.target.value as 'light' | 'dark' | 'system')}
+                value={theme === 'system' ? 'dark' : theme}
+                onChange={(e) => setTheme(e.target.value as 'light' | 'dark')}
                 className="text-xs px-2 py-1 bg-[var(--background)] border border-[var(--border-color)] rounded text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-blue-500/50"
               >
                 <option value="light">浅色</option>
                 <option value="dark">深色</option>
-                <option value="system">跟随系统</option>
               </select>
             </div>
           </div>
@@ -177,8 +176,8 @@ export function UserPanel() {
         `}
       >
         <div className="flex items-center space-x-3">
-          {/* 首字母头像 */}
-          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white font-bold flex-shrink-0">
+          {/* 首字母头像 - v7.105.2: 改为灰色与新建按钮一致 */}
+          <div className="w-8 h-8 rounded-full bg-gray-700 dark:bg-gray-600 flex items-center justify-center text-white font-bold flex-shrink-0">
             {initials}
           </div>
 
