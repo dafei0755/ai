@@ -112,7 +112,20 @@ class MainWorkflow:
 
         # 构建工作流图
         self.graph = self._build_workflow_graph()
-        
+
+        # 🆕 v7.108: 验证图像生成配置
+        from intelligent_project_analyzer.settings import settings
+
+        image_gen_enabled = settings.image_generation.enabled
+        logger.info(f"📊 [配置验证] 图像生成: {'✅ 启用' if image_gen_enabled else '⚠️ 禁用'}")
+
+        if image_gen_enabled:
+            logger.info(f"  ✅ 模型: {settings.image_generation.model}")
+            logger.info(f"  ✅ 每报告最大图片: {settings.image_generation.max_images_per_report}")
+            logger.info(f"  ✅ 超时时间: {settings.image_generation.timeout}s")
+        else:
+            logger.warning("  ⚠️ 图像生成已禁用，概念图不会生成（检查 .env 中的 IMAGE_GENERATION_ENABLED）")
+
         logger.info("Main workflow initialized successfully")
     
     def _build_workflow_graph(self) -> StateGraph:
@@ -886,6 +899,19 @@ class MainWorkflow:
         except Exception as e:
             logger.error(f"❌ [deliverable_id_generator] 生成交付物ID失败: {e}")
             logger.exception(e)
+
+            # 🆕 详细诊断信息
+            strategic_analysis = state.get("strategic_analysis", {})
+            selected_roles = strategic_analysis.get("selected_roles", [])
+
+            logger.error(f"🔍 [诊断] strategic_analysis 键: {list(strategic_analysis.keys())}")
+            logger.error(f"🔍 [诊断] selected_roles 类型: {type(selected_roles)}")
+
+            if selected_roles:
+                logger.error(f"🔍 [诊断] selected_roles 长度: {len(selected_roles)}")
+                logger.error(f"🔍 [诊断] 第一个元素类型: {type(selected_roles[0])}")
+                logger.error(f"🔍 [诊断] 第一个元素内容: {str(selected_roles[0])[:300]}")
+
             return {
                 "deliverable_metadata": {},
                 "deliverable_owner_map": {},
@@ -1285,12 +1311,27 @@ class MainWorkflow:
                 }
                 logger.warning(f"⚠️ 未找到{role_id}的TaskInstruction，使用默认结构")
 
+            # 🔥 v7.105: 创建搜索工具
+            from intelligent_project_analyzer.services.tool_factory import ToolFactory
+
+            # 创建所有可用工具
+            all_tools = ToolFactory.create_all_tools()
+
+            # 🔥 v7.105: 根据角色类型筛选工具
+            role_tools = self._filter_tools_for_role(role_id, all_tools, role_config)
+
+            if role_tools:
+                logger.info(f"🔧 [v7.105] {role_id} 获得 {len(role_tools)} 个工具: {list(role_tools.keys())}")
+            else:
+                logger.debug(f"ℹ️ [v7.105] {role_id} 无工具（综合者模式）")
+
             # 执行任务导向专家分析
             try:
                 expert_result = await expert_factory.execute_expert(
                     role_object=role_object,
                     context=context,
-                    state=state  # 直接传递state
+                    state=state,  # 直接传递state
+                    tools=list(role_tools.values()) if role_tools else None  # ✅ 传递工具列表
                 )
                 
                 # 构建兼容的结果格式
@@ -1411,54 +1452,68 @@ class MainWorkflow:
             # 🆕 v7.108: 为该专家的交付物生成概念图
             concept_images = []
             try:
-                deliverable_owner_map = state.get("deliverable_owner_map", {})
-                deliverable_metadata = state.get("deliverable_metadata", {})
-                deliverable_ids = deliverable_owner_map.get(role_id, [])
+                # 🆕 检查配置开关
+                from intelligent_project_analyzer.settings import settings
 
-                if deliverable_ids and deliverable_metadata:
-                    logger.info(f"🎨 [v7.108] 为角色 {role_id} 的 {len(deliverable_ids)} 个交付物生成概念图...")
-
-                    # 导入图片生成服务
-                    from intelligent_project_analyzer.services.image_generator import ImageGeneratorService
-
-                    # 初始化图片生成器
-                    image_generator = ImageGeneratorService()
-
-                    # 获取专家分析摘要（用于图片生成）
-                    expert_summary = result_content[:500]  # 取前500字符
-                    session_id_for_image = state.get("session_id", "unknown")
-                    project_type = state.get("project_type", "interior")
-
-                    # 为每个交付物生成概念图
-                    for deliverable_id in deliverable_ids:
-                        metadata = deliverable_metadata.get(deliverable_id)
-                        if not metadata:
-                            logger.warning(f"  ⚠️ 交付物 {deliverable_id} 元数据缺失，跳过图片生成")
-                            continue
-
-                        try:
-                            image_metadata = await image_generator.generate_deliverable_image(
-                                deliverable_metadata=metadata,
-                                expert_analysis=expert_summary,
-                                session_id=session_id_for_image,
-                                project_type=project_type,
-                                aspect_ratio="16:9"
-                            )
-
-                            # 转换为字典存储
-                            concept_images.append(image_metadata.model_dump())
-                            logger.info(f"  ✅ 生成概念图: {image_metadata.filename}")
-
-                        except Exception as img_error:
-                            logger.error(f"  ❌ 生成概念图失败 (交付物 {deliverable_id}): {img_error}")
-                            # 不阻塞workflow，继续执行
-
-                    if concept_images:
-                        logger.info(f"✅ [v7.108] 成功为角色 {role_id} 生成 {len(concept_images)} 张概念图")
-                    else:
-                        logger.warning(f"⚠️ [v7.108] 角色 {role_id} 未生成任何概念图")
+                if not settings.image_generation.enabled:
+                    logger.info(f"ℹ️ [v7.108] 图像生成已禁用（IMAGE_GENERATION_ENABLED=false），跳过")
                 else:
-                    logger.debug(f"[v7.108] 角色 {role_id} 无交付物，跳过图片生成")
+                    deliverable_owner_map = state.get("deliverable_owner_map", {})
+                    deliverable_metadata = state.get("deliverable_metadata", {})
+                    deliverable_ids = deliverable_owner_map.get(role_id, [])
+
+                    # 🆕 详细诊断日志
+                    logger.debug(f"🔍 [v7.108] deliverable_owner_map 非空: {bool(deliverable_owner_map)}")
+                    logger.debug(f"🔍 [v7.108] deliverable_metadata 非空: {bool(deliverable_metadata)}")
+                    logger.debug(f"🔍 [v7.108] 角色 {role_id} 交付物数量: {len(deliverable_ids)}")
+
+                    if not deliverable_metadata:
+                        logger.warning(f"⚠️ [v7.108] deliverable_metadata 为空，可能 deliverable_id_generator 节点失败")
+
+                    if deliverable_ids and deliverable_metadata:
+                        logger.info(f"🎨 [v7.108] 为角色 {role_id} 的 {len(deliverable_ids)} 个交付物生成概念图...")
+
+                        # 导入图片生成服务
+                        from intelligent_project_analyzer.services.image_generator import ImageGeneratorService
+
+                        # 初始化图片生成器
+                        image_generator = ImageGeneratorService()
+
+                        # 获取专家分析摘要（用于图片生成）
+                        expert_summary = result_content[:500]  # 取前500字符
+                        session_id_for_image = state.get("session_id", "unknown")
+                        project_type = state.get("project_type", "interior")
+
+                        # 为每个交付物生成概念图
+                        for deliverable_id in deliverable_ids:
+                            metadata = deliverable_metadata.get(deliverable_id)
+                            if not metadata:
+                                logger.warning(f"  ⚠️ 交付物 {deliverable_id} 元数据缺失，跳过图片生成")
+                                continue
+
+                            try:
+                                image_metadata = await image_generator.generate_deliverable_image(
+                                    deliverable_metadata=metadata,
+                                    expert_analysis=expert_summary,
+                                    session_id=session_id_for_image,
+                                    project_type=project_type,
+                                    aspect_ratio="16:9"
+                                )
+
+                                # 转换为字典存储
+                                concept_images.append(image_metadata.model_dump())
+                                logger.info(f"  ✅ 生成概念图: {image_metadata.filename}")
+
+                            except Exception as img_error:
+                                logger.error(f"  ❌ 生成概念图失败 (交付物 {deliverable_id}): {img_error}")
+                                # 不阻塞workflow，继续执行
+
+                        if concept_images:
+                            logger.info(f"✅ [v7.108] 成功为角色 {role_id} 生成 {len(concept_images)} 张概念图")
+                        else:
+                            logger.warning(f"⚠️ [v7.108] 角色 {role_id} 未生成任何概念图")
+                    else:
+                        logger.debug(f"[v7.108] 角色 {role_id} 无交付物或元数据，跳过图片生成")
 
             except Exception as e:
                 logger.error(f"❌ [v7.108] 概念图生成流程失败: {e}")
@@ -2448,6 +2503,50 @@ class MainWorkflow:
                 "status": "failed",
                 "error": str(e)
             }
+
+    def _filter_tools_for_role(
+        self,
+        role_id: str,
+        all_tools: Dict[str, Any],
+        role_config: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        🔥 v7.105: 根据角色类型筛选工具
+
+        Args:
+            role_id: 角色ID（如 V4_设计研究员_4-1）
+            all_tools: 所有可用工具
+            role_config: 角色配置
+
+        Returns:
+            该角色应该拥有的工具字典
+        """
+        # 提取角色类型前缀（V2/V3/V4/V5/V6）
+        role_type = role_id.split('_')[0] if '_' in role_id else role_id[:2]
+
+        # 角色工具映射（基于角色YAML配置）
+        # V2: 设计总监 - 禁止外部搜索，仅使用内部知识和专业判断
+        # V3: 叙事专家 - 中文搜索(Bocha) + 国际搜索(Tavily) + 知识库(Ragflow)
+        # V4: 设计研究员 - 全部工具（学术论文Arxiv + 所有搜索）
+        # V5: 场景专家 - 中文搜索(Bocha) + 国际搜索(Tavily) + 知识库(Ragflow)
+        # V6: 总工程师 - 全部工具（技术规范需要Arxiv）
+        role_tool_mapping = {
+            "V2": [],  # 设计总监：禁止外部搜索
+            "V3": ["bocha", "tavily", "ragflow"],  # 叙事专家
+            "V4": ["bocha", "tavily", "arxiv", "ragflow"],  # 设计研究员（全部工具）
+            "V5": ["bocha", "tavily", "ragflow"],  # 场景专家
+            "V6": ["bocha", "tavily", "arxiv", "ragflow"],  # 总工程师（全部工具）
+        }
+
+        allowed_tool_names = role_tool_mapping.get(role_type, [])
+
+        # 筛选工具
+        filtered_tools = {
+            name: tool for name, tool in all_tools.items()
+            if name in allowed_tool_names
+        }
+
+        return filtered_tools
 
     def _build_context_for_expert(self, state: ProjectAnalysisState) -> str:
         """

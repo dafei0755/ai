@@ -59,7 +59,13 @@ def deliverable_id_generator_node(state: Dict[str, Any]) -> Dict[str, Any]:
             "detail": "未找到选定角色"
         }
 
-    logger.info(f"📋 [交付物ID生成] 为 {len(selected_roles)} 个角色生成交付物ID: {selected_roles}")
+    logger.info(f"📋 [交付物ID生成] 为 {len(selected_roles)} 个角色生成交付物ID")
+
+    # 🆕 增强调试信息
+    logger.debug(f"🔍 [调试] selected_roles 类型: {type(selected_roles)}")
+    if selected_roles:
+        logger.debug(f"🔍 [调试] 第一个元素类型: {type(selected_roles[0])}")
+        logger.debug(f"🔍 [调试] 第一个元素内容: {selected_roles[0]}")
 
     # 2. 加载交付物配置（简化版本，实际应从config/deliverable_role_constraints.yaml加载）
     # 这里使用简化的硬编码配置作为示例
@@ -69,7 +75,17 @@ def deliverable_id_generator_node(state: Dict[str, Any]) -> Dict[str, Any]:
     deliverable_metadata = {}
     deliverable_owner_map = {}
 
-    for role_id in selected_roles:
+    for role_info in selected_roles:  # ✅ 重命名变量更清晰
+        # 🆕 兼容两种格式：dict（新格式）或 str（旧格式）
+        if isinstance(role_info, dict):
+            role_id = role_info.get("role_id")
+            if not role_id:
+                logger.warning(f"⚠️ [交付物ID生成] 跳过无效角色（缺少role_id）: {role_info}")
+                continue
+        else:
+            # 向后兼容字符串格式
+            role_id = role_info
+
         role_base_type = _extract_role_base_type(role_id)  # "2-1" -> "V2"
 
         # 获取该角色类型的交付物模板
@@ -77,10 +93,10 @@ def deliverable_id_generator_node(state: Dict[str, Any]) -> Dict[str, Any]:
 
         if not templates:
             logger.warning(f"⚠️ [交付物ID生成] 角色 {role_id} ({role_base_type}) 未找到交付物模板")
-            deliverable_owner_map[role_id] = []
+            deliverable_owner_map[role_id] = []  # ✅ role_id 现在是字符串
             continue
 
-        deliverable_owner_map[role_id] = []
+        deliverable_owner_map[role_id] = []  # ✅ role_id 现在是字符串
 
         # 为该角色的每个交付物生成唯一ID
         for idx, template in enumerate(templates, start=1):
