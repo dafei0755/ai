@@ -668,13 +668,16 @@ const WORD_TRANSLATIONS: Record<string, string> = {
   'zone': '区域', 'zones': '区域',
 };
 
-const ExpertReportAccordion: FC<ExpertReportAccordionProps> = ({ 
-  expertReports, 
-  userInput, 
+const ExpertReportAccordion: FC<ExpertReportAccordionProps> = ({
+  expertReports,
+  userInput,
   sessionId,
   generatedImagesByExpert  // 🔥 v7.39: 新增图片数据
 }) => {
-  const [expandedExpert, setExpandedExpert] = useState<string | null>(null);
+  // 🔥 v7.109: 默认展开所有专家（设置为Set以方便管理多个展开状态）
+  const [expandedExperts, setExpandedExperts] = useState<Set<string>>(() =>
+    new Set(Object.keys(expertReports))
+  );
   
   // 🔥 v7.39: 图片对话状态
   const [selectedImage, setSelectedImage] = useState<ExpertGeneratedImage | null>(null);
@@ -1060,7 +1063,8 @@ const ExpertReportAccordion: FC<ExpertReportAccordionProps> = ({
               if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
                 try {
                   const nestedJson = JSON.parse(trimmed);
-                  return renderStructuredContent(nestedJson);
+                  const unwrapped = unwrapNestedJson(nestedJson);  // 🆕 v7.10.1: 解包嵌套JSON
+                  return renderStructuredContent(unwrapped);
                 } catch {
                   // 解析失败，按 Markdown 渲染
                   return renderTextContent(content);
@@ -1090,7 +1094,8 @@ const ExpertReportAccordion: FC<ExpertReportAccordionProps> = ({
                     if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
                       try {
                         const parsed = JSON.parse(trimmed);
-                        contentToRender = renderStructuredContent(parsed);
+                        const unwrapped = unwrapNestedJson(parsed);  // 🆕 v7.10.1: 解包嵌套JSON
+                        contentToRender = renderStructuredContent(unwrapped);
                       } catch {
                         // 解析失败，按 Markdown 渲染
                         contentToRender = renderTextContent(deliverableContent);
@@ -1198,6 +1203,58 @@ const ExpertReportAccordion: FC<ExpertReportAccordionProps> = ({
     return renderTextContent(content);
   };
 
+  /**
+   * 🆕 v7.10.1: 递归解包嵌套的JSON字符串
+   * 模仿后端 _clean_nested_json_content() 逻辑
+   */
+  const unwrapNestedJson = (data: any, maxDepth: number = 5, currentDepth: number = 0): any => {
+    // 防止无限递归
+    if (currentDepth >= maxDepth) {
+      return data;
+    }
+
+    // 处理字符串
+    if (typeof data === 'string') {
+      const trimmed = data.trim();
+
+      // 1. 移除Markdown代码块包装
+      const codeBlockMatch = trimmed.match(/^```(?:json)?\s*\n?([\s\S]*?)\n?```$/);
+      if (codeBlockMatch) {
+        return unwrapNestedJson(codeBlockMatch[1], maxDepth, currentDepth + 1);
+      }
+
+      // 2. 检测JSON字符串并解析
+      if ((trimmed.startsWith('{') && trimmed.endsWith('}')) ||
+          (trimmed.startsWith('[') && trimmed.endsWith(']'))) {
+        try {
+          const parsed = JSON.parse(trimmed);
+          return unwrapNestedJson(parsed, maxDepth, currentDepth + 1);
+        } catch {
+          // 不是有效JSON，返回原值
+          return data;
+        }
+      }
+
+      return data;
+    }
+
+    // 处理数组
+    if (Array.isArray(data)) {
+      return data.map(item => unwrapNestedJson(item, maxDepth, currentDepth + 1));
+    }
+
+    // 处理对象
+    if (data && typeof data === 'object') {
+      const unwrapped: any = {};
+      for (const [key, value] of Object.entries(data)) {
+        unwrapped[key] = unwrapNestedJson(value, maxDepth, currentDepth + 1);
+      }
+      return unwrapped;
+    }
+
+    return data;
+  };
+
   // 🔥 v7.7: LLM 乱码清洗函数
   const cleanLLMGarbage = (text: string): string => {
     if (!text || typeof text !== 'string') return text;
@@ -1235,7 +1292,27 @@ const ExpertReportAccordion: FC<ExpertReportAccordionProps> = ({
 
   // 渲染结构化内容（JSON 对象）
   const renderStructuredContent = (obj: Record<string, any>, depth: number = 0) => {
-    // 🚫 字段黑名单（过滤技术元数据和重复内容）
+    // 🆕 v7.10.1: 递归解包嵌套JSON
+    const unwrapped = unwrapNestedJson(obj);
+
+    // 检查解包后的数据类型
+    if (!unwrapped || typeof unwrapped !== 'object' || Array.isArray(unwrapped)) {
+      return renderTextContent(String(unwrapped));
+    }
+
+    /**
+     * 字段黑名单：过滤技术元数据字段
+     *
+     * 🔄 同步自: server.py SKIP_FIELDS (line 4421)
+     * 📅 最后更新: 2025-12-30 v7.10.1
+     *
+     * 分类:
+     * - 协议执行: protocol_status, protocol_execution
+     * - 质量元数据: quality_self_assessment, confidence
+     * - 任务元数据: execution_metadata, dependencies_satisfied
+     * - 完成度: completion_status, completion_rate
+     * - 图片占位符: image, images, illustration
+     */
     const fieldBlacklist = new Set([
       // 🔥 v7.9: 任务导向输出结构 - 防止重复显示 (CRITICAL FIX)
       'task_execution_report',        // ⚠️ 关键！避免显示整个嵌套的任务报告
@@ -1262,17 +1339,25 @@ const ExpertReportAccordion: FC<ExpertReportAccordionProps> = ({
       'quality_self_assessment',
       'dependencies_satisfied',
       'notes',  // 🔥 v7.7: 新增 - 通常是技术备注
+      // 🆕 v7.10.1: 从后端同步（server.py line 4421）
+      'raw_content',
+      'raw_response',
+      'original_content',
+      'execution_time_estimate',     // 新增
+      'execution_notes',             // 新增
+      'task_completion_summary',     // 新增
       // 🔥 v7.10.1: 过滤无意义的图片占位符字段
       'image', 'images', '图片', 'illustration', 'illustrations',
       'image_1_url', 'image_2_url', 'image_3_url', 'image_4_url', 'image_5_url', 'image_6_url',
       'image_url', 'image_urls', '图片链接',
+      'concept_image', 'concept_images',  // 概念图通过专门组件渲染
       // 🔥 v7.5: 如果同时存在 structured_data，则忽略 narrative_summary（避免重复）
-      ...(obj.structured_data ? ['narrative_summary', 'validation_warnings'] : []),
+      ...(unwrapped.structured_data ? ['narrative_summary', 'validation_warnings'] : []),
     ]);
-    
+
     return (
       <div className={`space-y-4 ${depth > 0 ? 'ml-4 pl-4 border-l border-[var(--border-color)]' : ''}`}>
-        {Object.entries(obj).map(([key, value]) => {
+        {Object.entries(unwrapped).map(([key, value]) => {
           // 🚫 跳过黑名单字段
           if (fieldBlacklist.has(key) || fieldBlacklist.has(key.toLowerCase())) {
             return null;
@@ -1388,15 +1473,27 @@ const ExpertReportAccordion: FC<ExpertReportAccordionProps> = ({
 
   // 渲染数组项中的对象
   const renderArrayItemObject = (item: Record<string, any>, index: number) => {
-    // 🔥 v7.7: 黑名单过滤（与 renderStructuredContent 保持一致）
+    /**
+     * 字段黑名单：过滤技术元数据字段
+     * 🔄 同步自: server.py SKIP_FIELDS (line 4421)
+     * 📅 最后更新: 2025-12-30 v7.10.1
+     */
     const fieldBlacklist = new Set([
+      // 技术字段
       'completion_status', 'completion_rate', 'completion_ratio',
       'quality_self_assessment', 'notes', 'confidence',
       'protocol_status', 'protocol执行', 'protocol_execution',
+      'execution_metadata', 'executionmetadata',
+      'task_execution_report',
+      // 🆕 v7.10.1: 从后端同步
+      'raw_content', 'raw_response', 'original_content',
+      'execution_time_estimate', 'execution_notes', 'task_completion_summary',
+      'dependencies_satisfied',
       // 🔥 v7.10.1: 图片占位符字段
       'image', 'images', '图片', 'illustration', 'illustrations',
       'image_1_url', 'image_2_url', 'image_3_url', 'image_4_url', 'image_5_url', 'image_6_url',
       'image_url', 'image_urls', '图片链接',
+      'concept_image', 'concept_images',
     ]);
     
     return (
@@ -2057,7 +2154,7 @@ const ExpertReportAccordion: FC<ExpertReportAccordionProps> = ({
       <div className="divide-y divide-[var(--border-color)]">
         {Object.entries(expertReports).map(([expertName, content]) => {
           const colors = getExpertColor(expertName);
-          const isExpanded = expandedExpert === expertName;
+          const isExpanded = expandedExperts.has(expertName);
           
           // 计算内容长度提示
           let contentLength = '';
@@ -2075,7 +2172,15 @@ const ExpertReportAccordion: FC<ExpertReportAccordionProps> = ({
             <div key={expertName}>
               <div className="w-full px-6 py-4 flex items-center justify-between hover:bg-[var(--sidebar-bg)] transition-colors">
                 <button
-                  onClick={() => setExpandedExpert(isExpanded ? null : expertName)}
+                  onClick={() => setExpandedExperts(prev => {
+                    const newSet = new Set(prev);
+                    if (newSet.has(expertName)) {
+                      newSet.delete(expertName);
+                    } else {
+                      newSet.add(expertName);
+                    }
+                    return newSet;
+                  })}
                   className="flex items-center gap-3 flex-1"
                 >
                   <div className={`w-8 h-8 rounded-full ${colors.bg} flex items-center justify-center`}>
@@ -2086,7 +2191,15 @@ const ExpertReportAccordion: FC<ExpertReportAccordionProps> = ({
                 <div className="flex items-center gap-3">
                   <span className="text-xs text-gray-500">{contentLength}</span>
                   <button
-                    onClick={() => setExpandedExpert(isExpanded ? null : expertName)}
+                    onClick={() => setExpandedExperts(prev => {
+                      const newSet = new Set(prev);
+                      if (newSet.has(expertName)) {
+                        newSet.delete(expertName);
+                      } else {
+                        newSet.add(expertName);
+                      }
+                      return newSet;
+                    })}
                   >
                     {isExpanded ? (
                       <ChevronUp className="w-5 h-5 text-gray-400" />

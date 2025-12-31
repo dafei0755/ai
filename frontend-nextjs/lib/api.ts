@@ -74,37 +74,85 @@ export const api = {
     });
   },
 
-  // 获取所有会话列表（包括活跃和归档的会话）
-  async getSessions(): Promise<{ total: number; sessions: Array<{ session_id: string; status: string; mode: string; created_at: string; user_input: string }> }> {
+  // ✅ v7.105.4: 修复分页 - 归档会话offset根据page动态计算
+  async getSessions(page: number = 1, pageSize: number = 20, includeArchived: boolean = true): Promise<{
+    total: number;
+    sessions: Array<{ session_id: string; status: string; mode: string; created_at: string; user_input: string }>;
+    has_next: boolean;
+  }> {
     try {
-      // 同时获取活跃会话和归档会话
-      const [activeResponse, archivedResponse] = await Promise.all([
-        apiClient.get('/api/sessions'),
-        apiClient.get('/api/sessions/archived')
-      ]);
+      if (!includeArchived) {
+        // 仅获取活跃会话（快速）
+        const response = await apiClient.get('/api/sessions', {
+          params: { page, page_size: pageSize }
+        });
+        return response.data;
+      }
 
-      // 合并两个列表
-      const allSessions = [
-        ...activeResponse.data.sessions,
-        ...archivedResponse.data.sessions
-      ];
-
-      // 按创建时间倒序排序（最新的在前面）
-      allSessions.sort((a, b) => {
-        const timeA = new Date(a.created_at).getTime();
-        const timeB = new Date(b.created_at).getTime();
-        return timeB - timeA;
+      // 🔥 v7.105.4: 修复策略 - 活跃会话为空时，直接从归档中按页码取数据
+      const activeResponse = await apiClient.get('/api/sessions', {
+        params: { page, page_size: pageSize }
       });
 
+      const activeSessions = activeResponse.data.sessions || [];
+      const activeTotal = activeResponse.data.total || 0;
+
+      // 如果活跃会话已满足一页，直接返回（避免查询归档）
+      if (activeSessions.length >= pageSize) {
+        return activeResponse.data;
+      }
+
+      // 🔥 v7.105.6: 活跃会话不足一页时，从归档补充
+      // 关键修复：正确计算归档offset
+      const remaining = pageSize - activeSessions.length;
+      
+      // 计算归档offset - 把活跃和归档看成一个整体
+      // 总数据流：[活跃1-19] [归档1-164]
+      // 第1页：取[0-19] → 活跃[0-18] + 归档[0] → offset=0
+      // 第2页：取[20-39] → 归档[1-20] → offset=1
+      // 第3页：取[40-59] → 归档[21-40] → offset=21
+      const startPos = (page - 1) * pageSize;
+      const archivedOffset = Math.max(0, startPos - activeTotal);
+
+      // 🔥 v7.105.8: 添加详细日志追踪分页问题
+      console.log(`[API] 📖 getSessions | page=${page} | pageSize=${pageSize} | activeTotal=${activeTotal}`);
+      console.log(`[API] 📐 计算 | startPos=${startPos} | archivedOffset=${archivedOffset} | remainingNeeded=${remaining}`);
+
+      const archivedResponse = await apiClient.get('/api/sessions/archived', {
+        params: { 
+          limit: remaining, 
+          offset: archivedOffset
+        }
+      });
+
+      const archivedSessions = archivedResponse.data.sessions || [];
+      const archivedTotal = archivedResponse.data.total || 0;
+
+      console.log(`[API] ✅ 归档响应 | 返回=${archivedSessions.length}条 | total=${archivedTotal}`);
+
+      // 合并会话
+      const allSessions = [...activeSessions, ...archivedSessions];
+
+      // 🔥 v7.105.5: 修复has_next判断 - 使用实际加载的数量
+      const hasMoreActive = activeResponse.data.has_next || false;
+      const totalLoaded = archivedOffset + archivedSessions.length;
+      const hasMoreArchived = totalLoaded < archivedTotal;
+
+      console.log(`[API] getSessions page=${page} | offset=${archivedOffset} | loaded=${archivedSessions.length} | total=${archivedTotal} | hasMore=${hasMoreArchived}`);
+
       return {
-        total: allSessions.length,
-        sessions: allSessions
+        total: activeTotal + archivedTotal,
+        sessions: allSessions,
+        has_next: hasMoreActive || hasMoreArchived
       };
     } catch (error) {
       console.error('获取会话列表失败:', error);
-      // 如果失败，至少返回活跃会话
-      const response = await apiClient.get('/api/sessions');
-      return response.data;
+      // 如果失败，返回空列表
+      return {
+        total: 0,
+        sessions: [],
+        has_next: false
+      };
     }
   },
 
@@ -126,12 +174,25 @@ export const api = {
     return response.data;
   },
 
-  // 🔥 v3.11 修改: 提交追问（在原会话上追加，不创建新会话）
-  async submitFollowupQuestion(sessionId: string, question: string): Promise<{ session_id: string; status: string; message: string }> {
-    const response = await apiClient.post(`/api/analysis/followup`, {
-      session_id: sessionId,
-      question: question,
-      requires_analysis: false // 启用对话模式而非重新分析
+  // 🔥 v7.108.2 修改: 支持图片上传（multipart/form-data）
+  async submitFollowupQuestion(
+    sessionId: string,
+    question: string,
+    image?: File
+  ): Promise<{ session_id: string; status: string; message: string }> {
+    const formData = new FormData();
+    formData.append('session_id', sessionId);
+    formData.append('question', question);
+    formData.append('requires_analysis', 'false');  // 启用对话模式而非重新分析
+
+    if (image) {
+      formData.append('image', image);
+    }
+
+    const response = await apiClient.post(`/api/analysis/followup`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
     });
     return response.data; // 返回原会话ID，不是新ID
   },

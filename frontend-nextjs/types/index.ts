@@ -45,18 +45,22 @@ export interface AnalysisStatus {
   final_report?: string;
 }
 
-// 🔥 v7.107: 会话列表项类型（用于历史记录显示）
+// 🔥 v7.109: 会话列表项类型（增强状态枚举和错误字段）
 export interface SessionListItem {
   session_id: string;
-  status: string;
+  status: 'running' | 'waiting_for_input' | 'completed' | 'failed' | 'rejected';  // 明确状态枚举
   mode: string;
   created_at: string;
   user_input: string;
   pinned?: boolean;
-  // 🔥 v7.107: 新增字段
+  // v7.107: 分析模式和进度
   analysis_mode?: 'normal' | 'deep_thinking';
-  progress?: number;
+  progress?: number;        // 0.0-1.0
   current_stage?: string;
+  // v7.109: 错误字段（后端已返回，为未来功能预留）
+  error?: string;
+  rejection_message?: string;
+  rejection_reason?: string;
 }
 
 // ==================== 结构化报告类型 ====================
@@ -321,22 +325,31 @@ export type StyleType = 'interior' | 'architecture' | 'product' | 'branding' | '
 
 /** 专家生成的概念图 */
 export interface ExpertGeneratedImage {
-  id: string;                    // 唯一标识符（8位UUID）
-  image_url: string;             // 完整HTTP URL
-  prompt: string;                // 生成提示词
-  aspect_ratio: AspectRatio;     // 图片宽高比
-  style_type: StyleType;         // 视觉风格
-  created_at: string;            // ISO时间戳
-  expert_name?: string;          // 生成此图的专家名称
+  id?: string;                   // v7.109: 唯一标识符（8位UUID，可选）
+  image_url?: string;            // v7.109: 完整HTTP URL（可选）
+  prompt?: string;               // v7.109: 生成提示词（可选）
+  prompt_used?: string;          // v7.109: 实际使用的提示词（可选）
+  aspect_ratio?: AspectRatio;    // v7.109: 图片宽高比（可选）
+  style_type?: StyleType;        // v7.109: 视觉风格（可选）
+  created_at?: string;           // v7.109: ISO时间戳（可选）
+  expert_name?: string;          // 生成此图的专家名称（可选）
 }
 
 /** 图片对话单轮记录 */
 export interface ImageChatTurn {
-  user_prompt: string;                    // 用户提示词
-  generated_image: ExpertGeneratedImage;  // 生成的图片
-  reference_image?: string;               // 参考图片URL（可选）
-  aspect_ratio?: AspectRatio;            // 此轮使用的宽高比
-  style_type?: StyleType;                // 此轮使用的风格
+  turn_id?: string;                           // v7.109: 轮次ID（可选）
+  type?: 'user' | 'assistant';                // v7.109: 消息类型（可选）
+  timestamp?: string;                          // v7.109: 时间戳（可选）
+  user_prompt?: string;                       // 用户提示词（可选）
+  prompt?: string;                            // v7.109: 提示词别名（兼容）
+  generated_image?: ExpertGeneratedImage;     // 生成的图片（可选）
+  image?: ExpertGeneratedImage;               // v7.109: 图片别名（兼容）
+  reference_image?: string;                   // 参考图片URL（可选）
+  reference_image_url?: string;               // v7.109: 参考图片URL别名（兼容）
+  aspect_ratio?: AspectRatio;                 // 此轮使用的宽高比
+  style_type?: StyleType;                     // 此轮使用的风格
+  isLoading?: boolean;                        // v7.109: 加载状态（前端UI用）
+  error?: string;                             // v7.109: 错误信息（前端UI用）
 }
 
 /** 图片对话历史 */
@@ -360,4 +373,40 @@ export interface RegenerateImageRequest {
   aspect_ratio?: AspectRatio;       // 宽高比（默认16:9）
   style_type?: StyleType;           // 风格类型（默认interior）
   save_as_copy?: boolean;           // 是否保存为副本（默认false=覆盖）
+}
+
+// ==================== 🔥 v7.108.2 追问图片功能类型 ====================
+
+/** 追问对话附件（图片） */
+export interface FollowupAttachment {
+  type: 'image';
+  original_filename: string;
+  stored_filename?: string;
+  thumbnail_filename?: string;
+  url: string;
+  thumbnail_url: string;
+  width: number;
+  height: number;
+  format: string;
+  file_size_bytes?: number;
+  vision_analysis?: string;
+  upload_timestamp?: string;
+}
+
+/** 追问对话单轮 */
+export interface FollowupTurn {
+  turn_id: number;
+  question: string;
+  answer: string;
+  intent?: string;
+  referenced_sections?: string[];
+  attachments?: FollowupAttachment[];
+  timestamp: string;
+}
+
+/** 追问历史响应 */
+export interface FollowupHistoryResponse {
+  session_id: string;
+  total_turns: number;
+  history: FollowupTurn[];
 }
