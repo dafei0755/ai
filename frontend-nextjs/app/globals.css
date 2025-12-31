@@ -1,0 +1,353 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* 深色主题（默认） */
+:root {
+  --background: #1e1e1e;
+  --foreground: #e8e8e8;
+  --foreground-secondary: #a0a0a0;
+  --sidebar-bg: #151515;
+  --card-bg: #252525;
+  --border-color: #333333;
+  --primary: #4d6bfe;
+  --primary-hover: #3b5bdb;
+}
+
+/* 浅色主题 */
+[data-theme="light"] {
+  --background: #ffffff;
+  --foreground: #1a1a1a;
+  --foreground-secondary: #4a5568;  /* 加深对比度 */
+  --sidebar-bg: #f7fafc;  /* 更明显的侧边栏背景 */
+  --card-bg: #ffffff;
+  --border-color: #cbd5e0;  /* 加深边框颜色 */
+  --primary: #4d6bfe;
+  --primary-hover: #3b5bdb;
+}
+
+/* 跟随系统主题 */
+@media (prefers-color-scheme: light) {
+  [data-theme="system"] {
+    --background: #ffffff;
+    --foreground: #1a1a1a;
+    --foreground-secondary: #4a5568;  /* 加深对比度 */
+    --sidebar-bg: #f7fafc;  /* 更明显的侧边栏背景 */
+    --card-bg: #ffffff;
+    --border-color: #cbd5e0;  /* 加深边框颜色 */
+    --primary: #4d6bfe;
+    --primary-hover: #3b5bdb;
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  [data-theme="system"] {
+    --background: #1e1e1e;
+    --foreground: #e8e8e8;
+    --foreground-secondary: #a0a0a0;
+    --sidebar-bg: #151515;
+    --card-bg: #252525;
+    --border-color: #333333;
+    --primary: #4d6bfe;
+    --primary-hover: #3b5bdb;
+  }
+}
+
+body {
+  color: var(--foreground);
+  background: var(--background);
+  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Custom Scrollbar for Dark Mode */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #444;
+  border-radius: 3px;
+}
+
+[data-theme="light"] ::-webkit-scrollbar-thumb {
+  background: #ccc;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+
+[data-theme="light"] ::-webkit-scrollbar-thumb:hover {
+  background: #999;
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  /* 🎨 自适应文字颜色工具类 */
+  .text-adaptive-primary {
+    color: var(--foreground);
+  }
+
+  .text-adaptive-secondary {
+    color: var(--foreground-secondary);
+  }
+
+  /* 浅色模式下文字颜色调整 */
+  [data-theme="light"] .text-gray-400 {
+    color: #4a5568 !important;  /* 深灰色，确保对比度 */
+  }
+
+  [data-theme="light"] .text-gray-500 {
+    color: #718096 !important;  /* 中灰色 */
+  }
+
+  [data-theme="light"] .text-gray-600 {
+    color: #2d3748 !important;  /* 深灰色 */
+  }
+
+  [data-theme="light"] .text-gray-200 {
+    color: #1a202c !important;  /* 深色文字 */
+  }
+
+  [data-theme="light"] .text-gray-300 {
+    color: #2d3748 !important;  /* 深色文字 */
+  }
+
+  /* 🔥 浅色模式下标题文字颜色修正 */
+  [data-theme="light"] .text-white {
+    color: #1a202c !important;  /* 深黑色，确保对比度 */
+  }
+
+  [data-theme="light"] h1.text-white,
+  [data-theme="light"] h2.text-white,
+  [data-theme="light"] h3.text-white,
+  [data-theme="light"] h4.text-white,
+  [data-theme="light"] h5.text-white,
+  [data-theme="light"] h6.text-white {
+    color: #1a202c !important;
+  }
+
+  /* 系统模式跟随 */
+  @media (prefers-color-scheme: light) {
+    [data-theme="system"] .text-gray-400 {
+      color: #4a5568 !important;
+    }
+
+    [data-theme="system"] .text-gray-500 {
+      color: #718096 !important;
+    }
+
+    [data-theme="system"] .text-gray-600 {
+      color: #2d3748 !important;
+    }
+
+    [data-theme="system"] .text-gray-200 {
+      color: #1a202c !important;
+    }
+
+    [data-theme="system"] .text-gray-300 {
+      color: #2d3748 !important;
+    }
+
+    /* 标题文字颜色修正 */
+    [data-theme="system"] .text-white {
+      color: #1a202c !important;
+    }
+
+    [data-theme="system"] h1.text-white,
+    [data-theme="system"] h2.text-white,
+    [data-theme="system"] h3.text-white,
+    [data-theme="system"] h4.text-white,
+    [data-theme="system"] h5.text-white,
+    [data-theme="system"] h6.text-white {
+      color: #1a202c !important;
+    }
+  }
+}
+
+/* 🎨 专家报告文本内容优化样式 */
+.text-content-optimized {
+  /* 基础排版优化 */
+  line-height: 1.8;
+  letter-spacing: 0.01em;
+  word-break: break-word;
+  hyphens: auto;
+}
+
+.text-content-optimized p {
+  /* 段落间距优化 */
+  margin-bottom: 1rem;
+  text-align: justify;
+  /* 改善中文排版 */
+  font-feature-settings: "kern" 1, "liga" 1;
+  -webkit-font-feature-settings: "kern" 1, "liga" 1;
+}
+
+.text-content-optimized h1, 
+.text-content-optimized h2, 
+.text-content-optimized h3, 
+.text-content-optimized h4, 
+.text-content-optimized h5, 
+.text-content-optimized h6 {
+  /* 标题层次优化 */
+  font-weight: 600;
+  margin-top: 1.5rem;
+  margin-bottom: 0.75rem;
+  line-height: 1.4;
+  /* 标题文字增强 */
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  /* 平滑滚动目标样式 */
+  scroll-margin-top: 2rem;
+  transition: all 0.3s ease;
+}
+
+/* 🔗 目录导航高亮动画 */
+.text-content-optimized .highlight-flash {
+  background: linear-gradient(90deg, rgba(77, 107, 254, 0.3), transparent);
+  border-radius: 0.5rem;
+  padding: 0.5rem;
+  margin: -0.5rem;
+  animation: highlight-pulse 2s ease-out;
+}
+
+@keyframes highlight-pulse {
+  0% {
+    background: rgba(77, 107, 254, 0.5);
+    transform: scale(1.02);
+  }
+  50% {
+    background: rgba(77, 107, 254, 0.2);
+  }
+  100% {
+    background: transparent;
+    transform: scale(1);
+  }
+}
+
+.text-content-optimized ul, 
+.text-content-optimized ol {
+  /* 列表样式优化 */
+  margin-left: 1.25rem;
+  margin-bottom: 1rem;
+  padding-left: 0.5rem;
+}
+
+.text-content-optimized li {
+  /* 列表项优化 */
+  margin-bottom: 0.5rem;
+  padding-left: 0.25rem;
+  line-height: 1.7;
+}
+
+.text-content-optimized blockquote {
+  /* 引用块样式 */
+  border-left: 4px solid #4d6bfe;
+  padding-left: 1rem;
+  margin: 1rem 0;
+  font-style: italic;
+  opacity: 0.9;
+}
+
+.text-content-optimized code {
+  /* 内联代码样式 */
+  background: rgba(77, 107, 254, 0.1);
+  padding: 0.125rem 0.25rem;
+  border-radius: 0.25rem;
+  font-size: 0.875em;
+  font-family: "SFMono-Regular", "Menlo", "Monaco", "Consolas", "Liberation Mono", "Courier New", monospace;
+}
+
+.text-content-optimized pre {
+  /* 代码块样式 */
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-color);
+  border-radius: 0.5rem;
+  padding: 1rem;
+  overflow-x: auto;
+  margin: 1rem 0;
+}
+
+/* 响应式设计优化 */
+@media (max-width: 768px) {
+  .text-content-optimized {
+    font-size: 0.9rem;
+    line-height: 1.7;
+    letter-spacing: 0;
+  }
+  
+  .text-content-optimized p {
+    text-align: left; /* 移动端左对齐更易读 */
+    text-indent: 0;   /* 移动端取消首行缩进 */
+  }
+  
+  .text-content-optimized h1,
+  .text-content-optimized h2,
+  .text-content-optimized h3,
+  .text-content-optimized h4,
+  .text-content-optimized h5,
+  .text-content-optimized h6 {
+    margin-top: 1.25rem;
+    margin-bottom: 0.5rem;
+  }
+}
+
+/* 打印样式优化 */
+@media print {
+  .text-content-optimized {
+    line-height: 1.6;
+    color: #000;
+  }
+  
+  .text-content-optimized h1,
+  .text-content-optimized h2,
+  .text-content-optimized h3,
+  .text-content-optimized h4,
+  .text-content-optimized h5,
+  .text-content-optimized h6 {
+    color: #000;
+    page-break-after: avoid;
+  }
+  
+  .text-content-optimized p {
+    orphans: 2;
+    widows: 2;
+  }
+}
+
+/* 🔥 强制段落分隔样式 */
+.text-content-optimized .paragraph-container {
+  display: block !important;
+  margin-bottom: 1.5rem !important;
+}
+
+.text-content-optimized .paragraph-container p {
+  margin-bottom: 1rem !important;
+  display: block !important;
+  line-height: 1.8 !important;
+  white-space: normal !important;
+}
+
+/* 确保段落间距 */
+.text-content-optimized > div > div {
+  margin-bottom: 1.5rem;
+}
+
+/* 防止内容被压缩 */
+.text-content-optimized * {
+  white-space: normal !important;
+}
+
+/* 高亮动画效果 */
+.highlight-flash {
+  background-color: rgba(59, 130, 246, 0.3) !important;
+  transition: background-color 0.3s ease;
+}
