@@ -12,19 +12,18 @@ v7.80.1: Step 1 升级为 LLM 驱动的智能任务拆解（从复述 → 明确
         → requirements_confirmation
 """
 
-import asyncio
 import json
+import asyncio
 from datetime import datetime
-from typing import Any, Dict, List, Literal, Optional
-
-from langgraph.store.base import BaseStore
-from langgraph.types import Command, interrupt
+from typing import Dict, Any, Literal, Optional, List
 from loguru import logger
+from langgraph.types import interrupt, Command
+from langgraph.store.base import BaseStore
 
 from ...core.state import ProjectAnalysisState
 from ...core.workflow_flags import WorkflowFlagManager
-from ...services.core_task_decomposer import _simple_fallback_decompose, decompose_core_tasks
 from ...services.dimension_selector import DimensionSelector, RadarGapAnalyzer, select_dimensions_for_state
+from ...services.core_task_decomposer import decompose_core_tasks, _simple_fallback_decompose
 
 
 class ProgressiveQuestionnaireNode:
@@ -36,7 +35,8 @@ class ProgressiveQuestionnaireNode:
 
     @staticmethod
     def step1_core_task(
-        state: ProjectAnalysisState, store: Optional[BaseStore] = None
+        state: ProjectAnalysisState,
+        store: Optional[BaseStore] = None
     ) -> Command[Literal["progressive_step2_radar", "requirements_analyst"]]:
         """
         Step 1: 核心任务智能拆解与确认
@@ -57,15 +57,20 @@ class ProgressiveQuestionnaireNode:
         # 检查是否已完成此步骤（使用新字段）
         if state.get("progressive_questionnaire_step", 0) >= 1 and state.get("confirmed_core_tasks"):
             logger.info("✅ Step 1 已完成，跳过")
-            return Command(update={"progressive_questionnaire_step": 1}, goto="progressive_step2_radar")
+            return Command(
+                update={"progressive_questionnaire_step": 1},
+                goto="progressive_step2_radar"
+            )
 
         # 追问模式跳过
         if state.get("is_followup"):
             logger.info("⏩ Follow-up session, skipping progressive questionnaire")
-            logger.info("   - 下一步: requirements_confirmation")
-            update_dict = {"progressive_questionnaire_completed": True, "progressive_questionnaire_step": 3}
+            update_dict = {
+                "progressive_questionnaire_completed": True,
+                "progressive_questionnaire_step": 3
+            }
             update_dict = WorkflowFlagManager.preserve_flags(state, update_dict)
-            return Command(update=update_dict, goto="requirements_confirmation")
+            return Command(update=update_dict, goto="project_director")
 
         # 🆕 v7.80.1: 使用 LLM 拆解核心任务
         user_input = state.get("user_input", "")
@@ -76,8 +81,8 @@ class ProgressiveQuestionnaireNode:
         if _contains_poetic_expression(user_input):
             logger.info("🎨 [诗意解读] 检测到诗意/哲学表达，启动诗意解读子流程")
             try:
-                import functools
                 from concurrent.futures import ThreadPoolExecutor
+                import functools
 
                 def _run_async_poetic_interpret(user_input: str):
                     """在独立线程中运行诗意解读"""
@@ -96,8 +101,8 @@ class ProgressiveQuestionnaireNode:
         # v7.80.1.2: 使用 ThreadPoolExecutor 在独立线程中运行 LLM 异步调用
         # 解决 LangGraph 异步上下文与 asyncio.run 不兼容的问题
         try:
-            import functools
             from concurrent.futures import ThreadPoolExecutor
+            import functools
 
             def _run_async_decompose(user_input: str, structured_data: dict):
                 """在独立线程中运行异步任务拆解"""
@@ -140,7 +145,10 @@ class ProgressiveQuestionnaireNode:
             # 旧字段：保留兼容
             "extracted_task": old_format_task,
             "editable": True,
-            "options": {"confirm": "确认任务列表", "skip": "跳过问卷"},
+            "options": {
+                "confirm": "确认任务列表",
+                "skip": "跳过问卷"
+            }
         }
 
         logger.info("🛑 [Step 1] 即将调用 interrupt()，等待用户输入...")
@@ -186,7 +194,7 @@ class ProgressiveQuestionnaireNode:
                 "answers": {},
                 "timestamp": timestamp_now,
                 "submitted_at": timestamp_now,
-                "source": "progressive_step1_skip",
+                "source": "progressive_step1_skip"
             }
 
             update_dict = {
@@ -201,13 +209,12 @@ class ProgressiveQuestionnaireNode:
                 "confirmed_core_task": old_format_task,
                 # 🔧 v7.87 P0: 默认 questionnaire_summary
                 "questionnaire_summary": default_questionnaire_summary,
-                "questionnaire_responses": default_questionnaire_summary,
+                "questionnaire_responses": default_questionnaire_summary
             }
             logger.info(f"⏭️ [v7.87 P0] 已设置默认 questionnaire_summary（Step 1跳过）")
-            logger.info("   - 下一步: requirements_confirmation")
 
             update_dict = WorkflowFlagManager.preserve_flags(state, update_dict)
-            return Command(update=update_dict, goto="requirements_confirmation")
+            return Command(update=update_dict, goto="project_director")
 
         # 构建任务摘要
         task_summary = ProgressiveQuestionnaireNode._build_task_summary(confirmed_tasks)
@@ -215,7 +222,6 @@ class ProgressiveQuestionnaireNode:
 
         # 🆕 v7.80.15 (P1.2): 检测特殊场景
         from ...services.task_completeness_analyzer import TaskCompletenessAnalyzer
-
         analyzer = TaskCompletenessAnalyzer()
         special_scenarios = analyzer.detect_special_scenarios(user_input, task_summary)
 
@@ -231,8 +237,9 @@ class ProgressiveQuestionnaireNode:
                 "scene_tags": scene_tags,
                 "matched_keywords": matched_keywords,
                 "trigger_messages": {
-                    scene_id: info.get("trigger_message", "") for scene_id, info in special_scenarios.items()
-                },
+                    scene_id: info.get("trigger_message", "")
+                    for scene_id, info in special_scenarios.items()
+                }
             }
             logger.info(f"🎯 [Step 1] 识别特殊场景: {scene_tags}")
 
@@ -248,7 +255,7 @@ class ProgressiveQuestionnaireNode:
             # 🆕 v7.80.15 (P1.1): 诗意解读元数据
             "poetic_metadata": poetic_metadata,
             # 🆕 v7.80.15 (P1.2): 特殊场景元数据
-            "special_scene_metadata": special_scene_metadata,
+            "special_scene_metadata": special_scene_metadata
         }
         update_dict = WorkflowFlagManager.preserve_flags(state, update_dict)
 
@@ -260,7 +267,8 @@ class ProgressiveQuestionnaireNode:
 
     @staticmethod
     def step2_radar(
-        state: ProjectAnalysisState, store: Optional[BaseStore] = None
+        state: ProjectAnalysisState,
+        store: Optional[BaseStore] = None
     ) -> Command[Literal["progressive_step3_gap_filling", "requirements_confirmation"]]:
         """
         Step 2: 雷达图多维度偏好收集
@@ -281,13 +289,15 @@ class ProgressiveQuestionnaireNode:
         # 检查是否已完成此步骤
         if state.get("progressive_questionnaire_step", 0) >= 2 and state.get("radar_dimension_values"):
             logger.info("✅ Step 2 已完成，跳过")
-            return Command(update={"progressive_questionnaire_step": 2}, goto="progressive_step3_gap_filling")
+            return Command(
+                update={"progressive_questionnaire_step": 2},
+                goto="progressive_step3_gap_filling"
+            )
 
         # 🆕 v7.80.4: 动态维度选择 + 智能生成
         # 🔧 v7.80.16: 性能优化 - 默认禁用LLM动态生成，依赖P0.3场景注入
-        import os
-
         from ...services.dynamic_dimension_generator import DynamicDimensionGenerator
+        import os
 
         # 🆕 v7.80.5: 强制生成模式（用于测试/演示）
         FORCE_GENERATE = os.getenv("FORCE_GENERATE_DIMENSIONS", "false").lower() == "true"
@@ -318,7 +328,7 @@ class ProgressiveQuestionnaireNode:
                 user_input,
                 structured_data,
                 missing_aspects,
-                target_count=min(2, 12 - len(existing_dimensions)),  # 强制模式生成2个
+                target_count=min(2, 12 - len(existing_dimensions))  # 强制模式生成2个
             )
 
             if new_dimensions:
@@ -341,7 +351,7 @@ class ProgressiveQuestionnaireNode:
                     user_input,
                     structured_data,
                     coverage.get("missing_aspects", []),
-                    target_count=min(3, 12 - len(existing_dimensions)),  # 确保总数不超过12
+                    target_count=min(3, 12 - len(existing_dimensions))  # 确保总数不超过12
                 )
 
                 if new_dimensions:
@@ -360,7 +370,6 @@ class ProgressiveQuestionnaireNode:
 
         if special_scene_metadata or confirmed_tasks:
             from ...services.dimension_selector import DimensionSelector
-
             selector = DimensionSelector()
 
             # 调用场景检测和维度注入
@@ -368,7 +377,7 @@ class ProgressiveQuestionnaireNode:
                 user_input=user_input,
                 confirmed_tasks=confirmed_tasks,
                 current_dimensions=dimensions,
-                special_scene_metadata=special_scene_metadata,
+                special_scene_metadata=special_scene_metadata
             )
             logger.info(f"🎯 [特殊场景] 维度注入完成: 最终 {len(dimensions)} 个维度")
 
@@ -387,7 +396,10 @@ class ProgressiveQuestionnaireNode:
             "core_task": confirmed_task,
             "dimensions": dimensions,
             "instructions": "拖动滑块到您偏好的位置（0-100）",
-            "options": {"confirm": "确认偏好设置", "back": "返回修改核心任务"},
+            "options": {
+                "confirm": "确认偏好设置",
+                "back": "返回修改核心任务"
+            }
         }
 
         logger.info("🛑 [Step 2] 即将调用 interrupt()，等待用户输入...")
@@ -422,7 +434,7 @@ class ProgressiveQuestionnaireNode:
             "selected_radar_dimensions": dimensions,
             "radar_dimension_values": dimension_values,
             "radar_analysis_summary": analysis,
-            "progressive_questionnaire_step": 2,
+            "progressive_questionnaire_step": 2
         }
         update_dict = WorkflowFlagManager.preserve_flags(state, update_dict)
 
@@ -444,7 +456,8 @@ class ProgressiveQuestionnaireNode:
 
     @staticmethod
     def step3_gap_filling(
-        state: ProjectAnalysisState, store: Optional[BaseStore] = None
+        state: ProjectAnalysisState,
+        store: Optional[BaseStore] = None
     ) -> Command[Literal["requirements_confirmation"]]:
         """
         Step 3: 核心任务信息完整性查漏补缺
@@ -468,8 +481,10 @@ class ProgressiveQuestionnaireNode:
         # 检查是否已完成此步骤
         if state.get("progressive_questionnaire_completed"):
             logger.info("✅ 问卷已完成，跳过 Step 3")
-            logger.info("   - 下一步: requirements_confirmation")
-            return Command(update={"progressive_questionnaire_step": 3}, goto="requirements_confirmation")
+            return Command(
+                update={"progressive_questionnaire_step": 3},
+                goto="project_director"
+            )
 
         # 🆕 v7.80.6: 针对核心任务进行信息完整性分析
         from ...services.task_completeness_analyzer import TaskCompletenessAnalyzer
@@ -494,14 +509,13 @@ class ProgressiveQuestionnaireNode:
         critical_gaps = completeness.get("critical_gaps", [])
         if not critical_gaps:
             logger.info("✅ 任务信息完整，无需补充，跳过 Step 3")
-            logger.info("   - 下一步: requirements_confirmation")
             update_dict = {
                 "progressive_questionnaire_completed": True,
                 "progressive_questionnaire_step": 3,
-                "task_completeness_analysis": completeness,  # 保存分析结果
+                "task_completeness_analysis": completeness  # 保存分析结果
             }
             update_dict = WorkflowFlagManager.preserve_flags(state, update_dict)
-            return Command(update=update_dict, goto="requirements_confirmation")
+            return Command(update=update_dict, goto="project_director")
 
         # 🔧 v7.80.8: 生成针对性补充问题（目标数量从5提升至10）
         existing_info_summary = ProgressiveQuestionnaireNode._build_existing_info_summary(structured_data)
@@ -510,22 +524,17 @@ class ProgressiveQuestionnaireNode:
             critical_gaps=critical_gaps,
             confirmed_tasks=confirmed_tasks,
             existing_info_summary=existing_info_summary,
-            target_count=10,  # 🔧 v7.80.8: 从5改为10
+            target_count=10  # 🔧 v7.80.8: 从5改为10
         )
         logger.info(f"📝 [v7.80.8] 生成 {len(questions)} 个针对性补充问题（目标10个）")
 
         # 🆕 v7.80.17: 应用问题排序（必答问题在前，按priority排序）
-        questions = sorted(
-            questions,
-            key=lambda q: (
-                0 if q.get("is_required", False) else 1,  # 必答问题在前
-                q.get("priority", 999),  # 优先级数字小的在前
-                -q.get("weight", 5),  # 权重大的在前（负号反转）
-            ),
-        )
-        logger.info(
-            f"📊 [v7.80.17] 问题排序完成：{len([q for q in questions if q.get('is_required')])}个必答，{len([q for q in questions if not q.get('is_required')])}个选答"
-        )
+        questions = sorted(questions, key=lambda q: (
+            0 if q.get("is_required", False) else 1,  # 必答问题在前
+            q.get("priority", 999),  # 优先级数字小的在前
+            -q.get("weight", 5)  # 权重大的在前（负号反转）
+        ))
+        logger.info(f"📊 [v7.80.17] 问题排序完成：{len([q for q in questions if q.get('is_required')])}个必答，{len([q for q in questions if not q.get('is_required')])}个选答")
 
         # 获取上下文信息
         confirmed_task = state.get("confirmed_core_task", "")
@@ -548,9 +557,12 @@ class ProgressiveQuestionnaireNode:
             "questionnaire": {
                 "introduction": f"已完整度: {int(completeness.get('completeness_score', 0) * 100)}% | 缺失维度: {', '.join(completeness.get('missing_dimensions', []))}",
                 "questions": questions,
-                "note": "这些问题涉及预算、时间、交付等关键决策点，请根据实际情况作答",
+                "note": "这些问题涉及预算、时间、交付等关键决策点，请根据实际情况作答"
             },
-            "options": {"submit": "提交问卷", "back": "返回修改核心任务"},
+            "options": {
+                "submit": "提交问卷",
+                "back": "返回修改核心任务"
+            }
         }
 
         logger.info("🛑 [Step 3] 即将调用 interrupt()，等待用户输入...")
@@ -579,20 +591,17 @@ class ProgressiveQuestionnaireNode:
             "task_gap_filling_questionnaire": {
                 "questions": questions,
                 "missing_dimensions": completeness.get("missing_dimensions", []),
-                "critical_gaps": critical_gaps,
+                "critical_gaps": critical_gaps
             },
             "gap_filling_answers": answers,
             "progressive_questionnaire_completed": True,
             "progressive_questionnaire_step": 3,
             "questionnaire_summary": questionnaire_summary,  # 兼容旧字段
-            "calibration_processed": True,  # 兼容旧字段
+            "calibration_processed": True  # 兼容旧字段
         }
         update_dict = WorkflowFlagManager.preserve_flags(state, update_dict)
 
-        logger.info("✅ [Step 3] 问卷完成，路由到需求确认节点")
-        logger.info(f"   - 收集到 {len(answers)} 个补充答案")
-        logger.info(f"   - 下一步: requirements_confirmation")
-        return Command(update=update_dict, goto="requirements_confirmation")
+        return Command(update=update_dict, goto="project_director")
 
     # ==========================================================================
     # 辅助方法
@@ -734,29 +743,25 @@ class ProgressiveQuestionnaireNode:
             template = selector.get_gap_question_template(dim_id)
 
             if template:
-                questions.append(
-                    {
-                        "id": f"gap_{dim_id}",
-                        "question": template.get("question", ""),
-                        "type": template.get("type", "single_choice"),
-                        "options": template.get("options", []),
-                        "context": f"关于「{selector.get_dimension_by_id(dim_id).get('name', dim_id)}」维度的补充",
-                        "source_dimension": dim_id,
-                    }
-                )
+                questions.append({
+                    "id": f"gap_{dim_id}",
+                    "question": template.get("question", ""),
+                    "type": template.get("type", "single_choice"),
+                    "options": template.get("options", []),
+                    "context": f"关于「{selector.get_dimension_by_id(dim_id).get('name', dim_id)}」维度的补充",
+                    "source_dimension": dim_id
+                })
             else:
                 # 使用通用问题
                 dim_config = selector.get_dimension_by_id(dim_id) or {}
-                questions.append(
-                    {
-                        "id": f"gap_{dim_id}",
-                        "question": f"关于「{dim_config.get('name', dim_id)}」，您有什么具体的偏好或要求？",
-                        "type": "open_ended",
-                        "options": [],
-                        "context": dim_config.get("description", "")[:100] if dim_config.get("description") else "",
-                        "source_dimension": dim_id,
-                    }
-                )
+                questions.append({
+                    "id": f"gap_{dim_id}",
+                    "question": f"关于「{dim_config.get('name', dim_id)}」，您有什么具体的偏好或要求？",
+                    "type": "open_ended",
+                    "options": [],
+                    "context": dim_config.get("description", "")[:100] if dim_config.get("description") else "",
+                    "source_dimension": dim_id
+                })
 
         return questions
 
@@ -776,40 +781,51 @@ class ProgressiveQuestionnaireNode:
 
         # 添加核心任务
         if confirmed_task:
-            entries.append({"id": "core_task", "question": "核心任务", "value": confirmed_task, "type": "text"})
+            entries.append({
+                "id": "core_task",
+                "question": "核心任务",
+                "value": confirmed_task,
+                "type": "text"
+            })
 
         # 添加雷达图数据
         for dim_id, value in radar_values.items():
             dim_detail = radar_summary.get("dimension_details", {}).get(dim_id, {})
-            entries.append(
-                {
-                    "id": f"radar_{dim_id}",
-                    "question": dim_detail.get("name", dim_id),
-                    "value": value,
-                    "type": "slider",
-                    "tendency": dim_detail.get("tendency", ""),
-                }
-            )
+            entries.append({
+                "id": f"radar_{dim_id}",
+                "question": dim_detail.get("name", dim_id),
+                "value": value,
+                "type": "slider",
+                "tendency": dim_detail.get("tendency", "")
+            })
 
         # 添加Gap问题答案
         for q_id, answer in gap_answers.items():
-            entries.append({"id": q_id, "question": q_id, "value": answer, "type": "gap_filling"})  # 简化处理
+            entries.append({
+                "id": q_id,
+                "question": q_id,  # 简化处理
+                "value": answer,
+                "type": "gap_filling"
+            })
 
         return {
             "entries": entries,
-            "answers": {"core_task": confirmed_task, "radar_values": radar_values, "gap_answers": gap_answers},
+            "answers": {
+                "core_task": confirmed_task,
+                "radar_values": radar_values,
+                "gap_answers": gap_answers
+            },
             "submitted_at": timestamp,
             "timestamp": timestamp,
             "profile_label": radar_summary.get("profile_label", ""),
             "source": "progressive_questionnaire_v780",
-            "notes": f"三步递进式问卷，风格标签：{radar_summary.get('profile_label', '未定义')}",
+            "notes": f"三步递进式问卷，风格标签：{radar_summary.get('profile_label', '未定义')}"
         }
 
 
 # ==========================================================================
 # 🆕 v7.80.15 (P1.1): 诗意解读辅助函数
 # ==========================================================================
-
 
 def _contains_poetic_expression(text: str) -> bool:
     """
@@ -823,61 +839,14 @@ def _contains_poetic_expression(text: str) -> bool:
     """
     poetic_keywords = [
         # 自然意象
-        "月亮",
-        "湖面",
-        "结冰",
-        "雪",
-        "云",
-        "风",
-        "雨",
-        "星空",
-        "山",
-        "水",
-        "树",
-        "花",
-        "海",
-        "天空",
-        "日出",
-        "日落",
-        "晨曦",
-        "黄昏",
-        "夜",
-        "光影",
+        "月亮", "湖面", "结冰", "雪", "云", "风", "雨", "星空", "山", "水", "树", "花",
+        "海", "天空", "日出", "日落", "晨曦", "黄昏", "夜", "光影",
         # 哲学/精神
-        "虚无",
-        "存在",
-        "对话",
-        "灵魂",
-        "精神",
-        "意识",
-        "觉悟",
-        "禅",
-        "悟",
-        "道",
-        "永恒",
-        "瞬间",
-        "时间",
-        "空间",
-        "自我",
-        "内心",
-        "本质",
-        "真实",
+        "虚无", "存在", "对话", "灵魂", "精神", "意识", "觉悟", "禅", "悟", "道",
+        "永恒", "瞬间", "时间", "空间", "自我", "内心", "本质", "真实",
         # 情感/氛围
-        "宁静",
-        "孤独",
-        "漂浮",
-        "沉浸",
-        "治愈",
-        "重生",
-        "回归",
-        "游子",
-        "乡愁",
-        "诗意",
-        "意境",
-        "氛围",
-        "感受",
-        "体验",
-        "心灵",
+        "宁静", "孤独", "漂浮", "沉浸", "治愈", "重生", "回归", "游子", "乡愁",
+        "诗意", "意境", "氛围", "感受", "体验", "心灵"
     ]
 
     text_lower = text.lower()
@@ -910,11 +879,9 @@ async def _llm_interpret_poetry(text: str) -> Dict[str, Any]:
             "design_implications": ["光影设计", "镜面元素", "冷色调"]  # 设计指向
         }
     """
-    import json
-
-    from langchain_core.messages import HumanMessage, SystemMessage
-
     from ...services.llm_factory import LLMFactory
+    from langchain_core.messages import SystemMessage, HumanMessage
+    import json
 
     system_prompt = """你是一个设计诗意表达解读专家。用户可能用诗意、隐喻、哲学性的语言描述设计需求。
 
@@ -938,7 +905,10 @@ async def _llm_interpret_poetry(text: str) -> Dict[str, Any]:
 
     try:
         llm = LLMFactory.create_llm(temperature=0.3)  # 降低温度提高一致性
-        messages = [SystemMessage(content=system_prompt), HumanMessage(content=user_prompt)]
+        messages = [
+            SystemMessage(content=system_prompt),
+            HumanMessage(content=user_prompt)
+        ]
 
         response = await llm.ainvoke(messages)
         response_text = response.content if hasattr(response, "content") else str(response)
@@ -962,7 +932,7 @@ async def _llm_interpret_poetry(text: str) -> Dict[str, Any]:
         return {
             "literal_tasks": [f"诗意空间设计：{text[:30]}"],
             "metaphor_explanation": "（解读失败）",
-            "design_implications": ["氛围营造", "意境表达"],
+            "design_implications": ["氛围营造", "意境表达"]
         }
 
 
@@ -970,17 +940,25 @@ async def _llm_interpret_poetry(text: str) -> Dict[str, Any]:
 # 导出节点函数（用于workflow注册）
 # ==========================================================================
 
-
-def progressive_step1_core_task_node(state: ProjectAnalysisState, store: Optional[BaseStore] = None) -> Command:
+def progressive_step1_core_task_node(
+    state: ProjectAnalysisState,
+    store: Optional[BaseStore] = None
+) -> Command:
     """Step 1 节点函数"""
     return ProgressiveQuestionnaireNode.step1_core_task(state, store)
 
 
-def progressive_step2_radar_node(state: ProjectAnalysisState, store: Optional[BaseStore] = None) -> Command:
+def progressive_step2_radar_node(
+    state: ProjectAnalysisState,
+    store: Optional[BaseStore] = None
+) -> Command:
     """Step 2 节点函数"""
     return ProgressiveQuestionnaireNode.step2_radar(state, store)
 
 
-def progressive_step3_gap_filling_node(state: ProjectAnalysisState, store: Optional[BaseStore] = None) -> Command:
+def progressive_step3_gap_filling_node(
+    state: ProjectAnalysisState,
+    store: Optional[BaseStore] = None
+) -> Command:
     """Step 3 节点函数"""
     return ProgressiveQuestionnaireNode.step3_gap_filling(state, store)
