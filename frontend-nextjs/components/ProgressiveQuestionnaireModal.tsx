@@ -1,5 +1,44 @@
 // components/ProgressiveQuestionnaireModal.tsx
 // 三步递进式问卷 Modal 组件
+//
+// ⚠️ **已废弃 (DEPRECATED)** - 2026-01-02
+//
+// 废弃原因：
+// 1. 功能不完整，缺少以下v7.106新增功能：
+//    - ❌ 动机类型标签（12种动机类型）
+//    - ❌ AI推理说明
+//    - ❌ 关键词标签
+//    - ❌ 依赖关系显示
+//    - ❌ 任务编辑功能
+//
+// 2. 历史问题记录：
+//    - 2026-01-02: 用户发现依赖关系不显示，定位到使用了本简化版组件
+//    - 详见：QUESTIONNAIRE_UI_FIX.md
+//
+// 替代方案：
+// ✅ 使用 UnifiedProgressiveQuestionnaireModal.tsx（完整版）
+//    import { UnifiedProgressiveQuestionnaireModal } from '@/components/UnifiedProgressiveQuestionnaireModal';
+//
+// 功能对比：
+// | 功能           | 简化版(本文件) | 完整版              |
+// |----------------|---------------|---------------------|
+// | 基础问卷       | ✅            | ✅                  |
+// | 动机类型标签   | ❌            | ✅ (12种类型)       |
+// | AI推理说明     | ❌            | ✅                  |
+// | 关键词标签     | ❌            | ✅                  |
+// | 依赖关系       | ❌            | ✅ (#ID + 标题)     |
+// | 任务编辑       | ❌            | ✅                  |
+// | 执行顺序       | ❌            | ✅                  |
+//
+// 如果你看到此文件被导入，请立即修改为：
+// - import { ProgressiveQuestionnaireModal } from '@/components/ProgressiveQuestionnaireModal';  // ❌ 错误
+// + import { UnifiedProgressiveQuestionnaireModal } from '@/components/UnifiedProgressiveQuestionnaireModal';  // ✅ 正确
+//
+// 并更新组件使用：
+// - <ProgressiveQuestionnaireModal {...props} />  // ❌ 错误
+// + <UnifiedProgressiveQuestionnaireModal {...props} />  // ✅ 正确
+//
+// 注意：此文件暂时保留用于紧急回退，计划于 2026-02-01 完全删除。
 
 'use client';
 
@@ -71,7 +110,7 @@ export function ProgressiveQuestionnaireModal({
     questionnaire // Step 3 数据
   } = data;
 
-  // 渲染 Step 1: 核心任务确认
+  // 渲染 Step 1: 任务梳理
   const renderStep1Content = () => (
     <>
       {/* 用户输入摘要 */}

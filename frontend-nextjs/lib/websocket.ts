@@ -1,6 +1,6 @@
 /**
  * WebSocket 客户端封装
- * 
+ *
  * 提供自动重连、心跳检测、消息处理等功能
  */
 
@@ -29,6 +29,8 @@ export interface WebSocketClientOptions {
   onError?: ErrorHandler;
   /** 连接关闭处理函数 */
   onClose?: CloseHandler;
+  /** 连接成功处理函数（用于重连后状态同步） */
+  onOpen?: () => void;
   /** 最大重连次数，默认 5 */
   maxReconnectAttempts?: number;
   /** 重连延迟（毫秒），默认 3000 */
@@ -44,12 +46,15 @@ export class WebSocketClient {
   private onMessage: MessageHandler;
   private onError?: ErrorHandler;
   private onClose?: CloseHandler;
+  private onOpen?: () => void;
   private maxReconnectAttempts: number;
   private reconnectDelay: number;
   private heartbeatInterval: number;
   private reconnectAttempts = 0;
   private heartbeatTimer: NodeJS.Timeout | null = null;
+  private reconnectTimer: NodeJS.Timeout | null = null;  // 🆕 P2修复: 重连定时器引用
   private isManualClose = false;
+  private isSafari = false;  // 🆕 P2修复: Safari浏览器检测
 
   constructor(options: WebSocketClientOptions) {
     this.url = options.url;
@@ -57,9 +62,18 @@ export class WebSocketClient {
     this.onMessage = options.onMessage;
     this.onError = options.onError;
     this.onClose = options.onClose;
+    this.onOpen = options.onOpen;
     this.maxReconnectAttempts = options.maxReconnectAttempts ?? 5;
     this.reconnectDelay = options.reconnectDelay ?? 3000;
     this.heartbeatInterval = options.heartbeatInterval ?? 30000;
+
+    // 🆕 P2修复: Safari浏览器检测
+    if (typeof window !== 'undefined' && typeof navigator !== 'undefined') {
+      this.isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+      if (this.isSafari) {
+        console.log('🍎 检测到Safari浏览器，启用增强重连机制');
+      }
+    }
   }
 
   /**
@@ -67,6 +81,9 @@ export class WebSocketClient {
    */
   connect() {
     try {
+      // 🆕 P2修复: 清理旧连接和定时器
+      this.cleanup();
+
       // 构造 WebSocket URL (使用 ws:// 或 wss://)
       const protocol = this.url.startsWith('https') ? 'wss' : 'ws';
       const baseUrl = this.url.replace(/^https?:\/\//, '');
@@ -81,19 +98,22 @@ export class WebSocketClient {
         console.log('✅ WebSocket 连接成功');
         this.reconnectAttempts = 0; // 重置重连计数
         this.startHeartbeat(); // 启动心跳
+
+        // 🔧 v7.118: 调用 onOpen 回调（用于重连后状态同步）
+        this.onOpen?.();
       };
 
       // 接收消息
       this.ws.onmessage = (event) => {
         try {
           const message: WebSocketMessage = JSON.parse(event.data);
-          
+
           // 处理 ping/pong
           if (message.type === 'ping') {
             this.send({ type: 'pong' });
             return;
           }
-          
+
           // 调用消息处理函数
           this.onMessage(message);
         } catch (error) {
@@ -105,26 +125,91 @@ export class WebSocketClient {
       this.ws.onerror = (event) => {
         console.error('❌ WebSocket 错误:', event);
         this.onError?.(event);
+
+        // 🆕 P2修复: Safari在onerror后不总是触发onclose，手动触发重连
+        if (this.isSafari) {
+          console.log('🍎 Safari错误处理：预调度重连');
+          this.scheduleReconnect();
+        }
       };
 
       // 连接关闭
-      this.ws.onclose = () => {
-        console.log('🔌 WebSocket 连接关闭');
+      this.ws.onclose = (event) => {
+        console.log(`🔌 WebSocket 连接关闭 (code: ${event.code}, reason: ${event.reason || 'unknown'})`);
         this.stopHeartbeat();
         this.onClose?.();
 
-        // 如果不是手动关闭，尝试重连
-        if (!this.isManualClose && this.reconnectAttempts < this.maxReconnectAttempts) {
-          this.reconnectAttempts++;
-          console.log(`🔄 ${this.reconnectDelay / 1000}秒后尝试重连 (${this.reconnectAttempts}/${this.maxReconnectAttempts})...`);
-          setTimeout(() => this.connect(), this.reconnectDelay);
-        } else if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-          console.error('❌ 达到最大重连次数，停止重连');
-        }
+        // 🆕 P2修复: 使用专用重连方法
+        this.scheduleReconnect();
       };
 
     } catch (error) {
       console.error('❌ 创建 WebSocket 连接失败:', error);
+      this.scheduleReconnect();  // 🆕 P2修复: 创建失败也触发重连
+    }
+  }
+
+  /**
+   * 🆕 P2修复: 调度重连（避免重复定时器）
+   */
+  private scheduleReconnect() {
+    // 如果是手动关闭，不重连
+    if (this.isManualClose) {
+      return;
+    }
+
+    // 如果已达到最大重连次数，停止
+    if (this.reconnectAttempts >= this.maxReconnectAttempts) {
+      console.error('❌ 达到最大重连次数，停止重连');
+      return;
+    }
+
+    // 清除旧的重连定时器（避免重复）
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
+
+    // 计算延迟（指数退避，Safari使用更长延迟）
+    this.reconnectAttempts++;
+    const baseDelay = this.isSafari ? this.reconnectDelay * 1.5 : this.reconnectDelay;
+    const delay = Math.min(baseDelay * Math.pow(2, this.reconnectAttempts - 1), 30000);
+
+    console.log(`🔄 ${delay / 1000}秒后尝试重连 (${this.reconnectAttempts}/${this.maxReconnectAttempts})${this.isSafari ? ' [Safari增强模式]' : ''}...`);
+
+    // 设置新的重连定时器
+    this.reconnectTimer = setTimeout(() => {
+      this.reconnectTimer = null;
+      this.connect();
+    }, delay);
+  }
+
+  /**
+   * 🆕 P2修复: 清理资源（防止内存泄漏）
+   */
+  private cleanup() {
+    // 清理心跳定时器
+    this.stopHeartbeat();
+
+    // 清理重连定时器
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
+
+    // 关闭旧连接（不触发回调）
+    if (this.ws) {
+      const oldWs = this.ws;
+      oldWs.onopen = null;
+      oldWs.onmessage = null;
+      oldWs.onerror = null;
+      oldWs.onclose = null;
+
+      if (oldWs.readyState === WebSocket.OPEN || oldWs.readyState === WebSocket.CONNECTING) {
+        oldWs.close();
+      }
+
+      this.ws = null;
     }
   }
 
@@ -162,11 +247,7 @@ export class WebSocketClient {
    */
   close() {
     this.isManualClose = true;
-    this.stopHeartbeat();
-    if (this.ws) {
-      this.ws.close();
-      this.ws = null;
-    }
+    this.cleanup();  // 🆕 P2修复: 使用统一的cleanup方法
   }
 
   /**

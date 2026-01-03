@@ -1,8 +1,8 @@
 # 🏗️ Agent 架构文档
 
-**版本**: v7.17.0
-**最后更新**: 2025-12-17
-**状态**: ✅ 生产就绪 + 🆕 InteractionAgent基类重构
+**版本**: v7.117.0
+**最后更新**: 2026-01-02
+**状态**: ✅ 生产就绪 + 🆕 能力边界检查机制
 
 ---
 
@@ -14,8 +14,9 @@
 4. [动态SubAgent池 (V2-V6专家)](#动态subagent池)
 5. [安全守卫层](#安全守卫层)
 6. [人机交互层](#人机交互层)
-7. [性能监控](#性能监控)
-8. [开发指南](#开发指南)
+7. [能力边界检查服务 (v7.117)](#能力边界检查服务)
+8. [性能监控](#性能监控)
+9. [开发指南](#开发指南)
 
 ---
 
@@ -900,7 +901,123 @@ def test_your_agent():
 
 ---
 
-## 📚 相关文档
+## �️ 能力边界检查服务
+
+### 概述
+
+**版本**: v7.117.0
+**文件位置**: `intelligent_project_analyzer/services/capability_boundary_service.py`
+**配置文件**: `config/capability_boundary_config.yaml`
+
+统一能力边界检查服务，在全流程11个关键节点自动检测并转化超出系统能力范围的需求。
+
+### 核心功能
+
+#### 1. 检查接口
+
+```python
+class CapabilityBoundaryService:
+    @classmethod
+    def check_user_input(cls, user_input: str, context: Dict, check_type: CheckType) -> BoundaryCheckResult
+
+    @classmethod
+    def check_deliverable_list(cls, deliverables: List[Dict], context: Dict) -> BoundaryCheckResult
+
+    @classmethod
+    def check_task_modifications(cls, original_tasks: Dict, modified_tasks: Dict, context: Dict) -> TaskModificationCheckResult
+
+    @classmethod
+    def check_questionnaire_answers(cls, answers: Dict, questionnaire_type: str, context: Dict) -> BoundaryCheckResult
+
+    @classmethod
+    def check_followup_question(cls, question: str, original_requirements: Dict, context: Dict) -> FollowupCheckResult
+```
+
+#### 2. 分级警告策略
+
+| 能力匹配度 | 警告级别 | 处理方式 |
+|-----------|---------|---------|
+| `>= 0.8` | `info` | 静默通过，无警告 |
+| `0.6 - 0.8` | `warning` | 记录日志，不阻断流程 |
+| `< 0.6` | `error` | 生成警告，提醒用户 |
+
+#### 3. 自动转化引擎
+
+超范围需求自动转化为可交付方案：
+
+| 原始需求 | 转化为 | 原因 |
+|---------|-------|------|
+| 3D效果图、CAD施工图 | 设计策略文档 | 需要专业制图软件 |
+| 精确材料清单 | 材料选择指导 | 需要供应商数据 |
+| 精确预算报价 | 预算分配框架 | 需要实时询价 |
+| 技术规范文档 | 选型决策框架 | 需要产品数据库 |
+
+### 集成节点
+
+#### P0 关键节点（已完成）
+
+1. **input_guard_node** - 初始输入第3关检查
+   - 位置: `intelligent_project_analyzer/security/input_guard_node.py`
+   - 检查: 用户首次提交需求
+   - 记录: `initial_boundary_check`, `capability_score`
+
+2. **requirements_confirmation** - 用户修改需求检查
+   - 位置: `intelligent_project_analyzer/interaction/nodes/requirements_confirmation.py`
+   - 检查: 用户修改或补充需求时
+   - 记录: `boundary_alert`, `boundary_check_record`
+
+3. **progressive_questionnaire Step1** - 任务确认检查
+   - 位置: `intelligent_project_analyzer/interaction/nodes/progressive_questionnaire.py`
+   - 检查: 用户确认任务列表时
+   - 记录: `step1_boundary_check`, 标记`capability_warning`任务
+
+#### P1 重要节点（已完成）
+
+4. **role_task_unified_review** - 任务修改检查
+   - 位置: `intelligent_project_analyzer/interaction/role_task_unified_review.py`
+   - 检查: 用户修改任务分配时
+   - 记录: `task_modification_boundary_check`
+
+5. **project_director** - 分派前验证
+   - 位置: `intelligent_project_analyzer/agents/project_director.py`
+   - 检查: 任务分派前验证交付物能力
+   - 标记: `capability_limited`, `limitation_note`
+
+6. **requirements_analyst Phase1** - 输出验证
+   - 位置: `intelligent_project_analyzer/agents/requirements_analyst_agent.py`
+   - 检查: Phase1输出的交付物清单
+   - 转化: 自动应用能力转化
+
+### 配置项
+
+`config/capability_boundary_config.yaml` 支持配置：
+
+- **检查启用状态**: 每个节点是否启用检查
+- **检查类型**: `FULL` / `DELIVERABLE_ONLY` / `TASK_MODIFICATION`
+- **自动转化**: 是否自动转化超范围需求
+- **交互阈值**: 何时触发用户交互（默认0.6）
+- **日志级别**: 检查日志的详细程度
+
+### 可追溯性
+
+所有检查记录保存到state：
+- `boundary_check_history`: 检查历史列表
+- `{node}_boundary_check`: 各节点检查结果
+- 包含: 检查时间、节点名、得分、转化详情
+
+### 使用示例
+
+```python
+# 系统自动在各节点执行检查，无需手动调用
+# 用户输入: "需要3D效果图和施工图纸"
+# 系统检测: 超出能力范围
+# 自动转化: "设计策略文档和空间规划指导"
+# 用户可见: 仅在匹配度<0.6时看到温和提醒
+```
+
+---
+
+## �📚 相关文档
 
 - [V716_AGENT_STATE_GRAPHS.md](V716_AGENT_STATE_GRAPHS.md) - v7.16 StateGraph详细文档
 - [AGENT_EXECUTION_FLOW.md](AGENT_EXECUTION_FLOW.md) - Agent执行流程图

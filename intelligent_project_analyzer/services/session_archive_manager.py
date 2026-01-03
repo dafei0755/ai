@@ -6,23 +6,28 @@
 """
 
 import json
-from typing import Dict, Any, Optional, List
 from datetime import datetime, timedelta
-from loguru import logger
-from sqlalchemy import create_engine, Column, String, DateTime, Text, Integer, Boolean, Index
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker, Session, defer
 from pathlib import Path
+from typing import Any, Dict, List, Optional
+
+from loguru import logger
+from sqlalchemy import Boolean, Column, DateTime, Index, Integer, String, Text, create_engine
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import Session, defer, sessionmaker
 
 Base = declarative_base()
 
 
 class ArchivedSession(Base):
     """归档会话数据模型"""
+
     __tablename__ = "archived_sessions"
 
     # 主键
     session_id = Column(String(100), primary_key=True, index=True)
+
+    # 🆕 P0修复: 添加user_id列
+    user_id = Column(String(100), nullable=True, index=True)
 
     # 基本信息
     user_input = Column(Text, nullable=False)
@@ -49,8 +54,9 @@ class ArchivedSession(Base):
 
     # 索引
     __table_args__ = (
-        Index('idx_created_at_status', 'created_at', 'status'),
-        Index('idx_pinned_created_at', 'pinned', 'created_at'),
+        Index("idx_created_at_status", "created_at", "status"),
+        Index("idx_pinned_created_at", "pinned", "created_at"),
+        Index("idx_user_created", "user_id", "created_at"),  # 🆕 P0修复: 用户+时间复合索引
     )
 
 
@@ -75,31 +81,86 @@ class SessionArchiveManager:
             database_url,
             echo=False,  # 生产环境关闭SQL日志
             pool_pre_ping=True,  # 连接池健康检查
-            connect_args={"check_same_thread": False} if "sqlite" in database_url else {}
+            connect_args={"check_same_thread": False} if "sqlite" in database_url else {},
         )
 
         # 创建表
         Base.metadata.create_all(self.engine)
 
+        # 🆕 P0修复: Schema自检与自动迁移
+        self._verify_and_migrate_schema()
+
         # 创建会话工厂
-        self.SessionLocal = sessionmaker(
-            autocommit=False,
-            autoflush=False,
-            bind=self.engine
-        )
+        self.SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=self.engine)
 
         logger.info(f"✅ 会话归档管理器已初始化: {database_url}")
+
+    def _verify_and_migrate_schema(self):
+        """
+        🆕 P0修复: 验证Schema并自动迁移
+
+        检查archived_sessions表是否包含user_id列，不存在则自动添加
+        """
+        if "sqlite" not in self.database_url:
+            # 非SQLite数据库暂不支持自动迁移
+            return
+
+        try:
+            import sqlite3
+
+            # 从database_url提取文件路径
+            db_path = self.database_url.replace("sqlite:///", "")
+
+            conn = sqlite3.connect(db_path)
+            cursor = conn.cursor()
+
+            # 检查user_id列是否存在
+            cursor.execute("PRAGMA table_info(archived_sessions)")
+            columns = [col[1] for col in cursor.fetchall()]
+
+            if "user_id" not in columns:
+                logger.warning("⚠️ 检测到Schema缺陷：archived_sessions表缺少user_id列")
+                logger.info("🔧 执行自动迁移...")
+
+                # 添加user_id列
+                cursor.execute(
+                    """
+                    ALTER TABLE archived_sessions
+                    ADD COLUMN user_id VARCHAR(100) DEFAULT NULL
+                """
+                )
+
+                # 创建索引
+                cursor.execute(
+                    """
+                    CREATE INDEX IF NOT EXISTS idx_user_id
+                    ON archived_sessions(user_id)
+                """
+                )
+
+                cursor.execute(
+                    """
+                    CREATE INDEX IF NOT EXISTS idx_user_created
+                    ON archived_sessions(user_id, created_at DESC)
+                """
+                )
+
+                conn.commit()
+                logger.success("✅ Schema迁移完成：已添加user_id列及索引")
+            else:
+                logger.debug("✓ Schema验证通过：user_id列已存在")
+
+            conn.close()
+
+        except Exception as e:
+            logger.error(f"❌ Schema验证失败: {e}")
+            logger.warning("⚠️ 建议手动运行迁移脚本: python scripts/migrate_archived_sessions.py")
 
     def _get_db(self) -> Session:
         """获取数据库会话"""
         return self.SessionLocal()
 
-    async def archive_session(
-        self,
-        session_id: str,
-        session_data: Dict[str, Any],
-        force: bool = False
-    ) -> bool:
+    async def archive_session(self, session_id: str, session_data: Dict[str, Any], force: bool = False) -> bool:
         """
         归档会话到数据库
 
@@ -115,9 +176,7 @@ class SessionArchiveManager:
             db = self._get_db()
 
             # 检查是否已归档
-            existing = db.query(ArchivedSession).filter(
-                ArchivedSession.session_id == session_id
-            ).first()
+            existing = db.query(ArchivedSession).filter(ArchivedSession.session_id == session_id).first()
 
             if existing and not force:
                 logger.warning(f"⚠️ 会话已归档，跳过: {session_id}")
@@ -177,7 +236,7 @@ class SessionArchiveManager:
                     session_data=session_json,
                     final_report=report_json,
                     progress=progress,
-                    current_stage=current_stage
+                    current_stage=current_stage,
                 )
                 db.add(archived)
 
@@ -206,9 +265,7 @@ class SessionArchiveManager:
         """
         try:
             db = self._get_db()
-            archived = db.query(ArchivedSession).filter(
-                ArchivedSession.session_id == session_id
-            ).first()
+            archived = db.query(ArchivedSession).filter(ArchivedSession.session_id == session_id).first()
 
             if not archived:
                 db.close()
@@ -231,11 +288,7 @@ class SessionArchiveManager:
             return None
 
     async def list_archived_sessions(
-        self,
-        limit: int = 50,
-        offset: int = 0,
-        status: Optional[str] = None,
-        pinned_only: bool = False
+        self, limit: int = 50, offset: int = 0, status: Optional[str] = None, pinned_only: bool = False
     ) -> List[Dict[str, Any]]:
         """
         列出归档会话
@@ -254,8 +307,8 @@ class SessionArchiveManager:
 
             # ✅ Fix 2.1: 构建查询 - DEFER大字段避免加载35MB session_data和11MB final_report
             query = db.query(ArchivedSession).options(
-                defer(ArchivedSession.session_data),    # 不加载session_data (最大35MB)
-                defer(ArchivedSession.final_report)     # 不加载final_report (最大11MB)
+                defer(ArchivedSession.session_data),  # 不加载session_data (最大35MB)
+                defer(ArchivedSession.final_report),  # 不加载final_report (最大11MB)
             )
 
             if status:
@@ -265,10 +318,7 @@ class SessionArchiveManager:
                 query = query.filter(ArchivedSession.pinned == True)
 
             # 排序：置顶优先，然后按创建时间倒序
-            query = query.order_by(
-                ArchivedSession.pinned.desc(),
-                ArchivedSession.created_at.desc()
-            )
+            query = query.order_by(ArchivedSession.pinned.desc(), ArchivedSession.created_at.desc())
 
             # 分页
             query = query.offset(offset).limit(limit)
@@ -279,20 +329,22 @@ class SessionArchiveManager:
             # 转换为字典列表
             sessions = []
             for archived in results:
-                sessions.append({
-                    "session_id": archived.session_id,
-                    "user_input": archived.user_input,
-                    "status": archived.status,
-                    "mode": archived.mode,
-                    "created_at": archived.created_at.isoformat(),
-                    "archived_at": archived.archived_at.isoformat(),
-                    "progress": archived.progress,
-                    "current_stage": archived.current_stage,
-                    "display_name": archived.display_name,
-                    "pinned": archived.pinned,
-                    "tags": archived.tags.split(",") if archived.tags else [],
-                    "_archived": True
-                })
+                sessions.append(
+                    {
+                        "session_id": archived.session_id,
+                        "user_input": archived.user_input,
+                        "status": archived.status,
+                        "mode": archived.mode,
+                        "created_at": archived.created_at.isoformat(),
+                        "archived_at": archived.archived_at.isoformat(),
+                        "progress": archived.progress,
+                        "current_stage": archived.current_stage,
+                        "display_name": archived.display_name,
+                        "pinned": archived.pinned,
+                        "tags": archived.tags.split(",") if archived.tags else [],
+                        "_archived": True,
+                    }
+                )
 
             db.close()
             return sessions
@@ -308,7 +360,7 @@ class SessionArchiveManager:
         session_id: str,
         display_name: Optional[str] = None,
         pinned: Optional[bool] = None,
-        tags: Optional[List[str]] = None
+        tags: Optional[List[str]] = None,
     ) -> bool:
         """
         更新会话元数据（重命名、置顶、标签）
@@ -324,9 +376,7 @@ class SessionArchiveManager:
         """
         try:
             db = self._get_db()
-            archived = db.query(ArchivedSession).filter(
-                ArchivedSession.session_id == session_id
-            ).first()
+            archived = db.query(ArchivedSession).filter(ArchivedSession.session_id == session_id).first()
 
             if not archived:
                 logger.warning(f"归档会话不存在: {session_id}")
@@ -368,9 +418,7 @@ class SessionArchiveManager:
         """
         try:
             db = self._get_db()
-            result = db.query(ArchivedSession).filter(
-                ArchivedSession.session_id == session_id
-            ).delete()
+            result = db.query(ArchivedSession).filter(ArchivedSession.session_id == session_id).delete()
 
             db.commit()
             db.close()
@@ -390,9 +438,7 @@ class SessionArchiveManager:
             return False
 
     async def count_archived_sessions(
-        self,
-        status: Optional[str] = None,
-        pinned_only: bool = False  # 🔥 v3.6修复：添加 pinned_only 参数
+        self, status: Optional[str] = None, pinned_only: bool = False  # 🔥 v3.6修复：添加 pinned_only 参数
     ) -> int:
         """
         统计归档会话数量
@@ -440,9 +486,7 @@ class SessionArchiveManager:
             cutoff_date = datetime.now() - timedelta(days=days_threshold)
 
             # 查找旧会话
-            old_sessions = db.query(ArchivedSession).filter(
-                ArchivedSession.archived_at < cutoff_date
-            ).all()
+            old_sessions = db.query(ArchivedSession).filter(ArchivedSession.archived_at < cutoff_date).all()
 
             archived_count = 0
             cold_storage_dir = Path("data/cold_storage")
@@ -453,22 +497,27 @@ class SessionArchiveManager:
                     # 导出为JSON文件
                     file_path = cold_storage_dir / f"{session.session_id}.json"
                     with open(file_path, "w", encoding="utf-8") as f:
-                        json.dump({
-                            "session_id": session.session_id,
-                            "user_id": session.user_id,
-                            "user_input": session.user_input,
-                            "status": session.status,
-                            "mode": session.mode,
-                            "created_at": session.created_at.isoformat(),
-                            "archived_at": session.archived_at.isoformat(),
-                            "session_data": session.session_data,
-                            "final_report": session.final_report,
-                            "progress": session.progress,
-                            "current_stage": session.current_stage,
-                            "display_name": session.display_name,
-                            "pinned": session.pinned,
-                            "tags": session.tags
-                        }, f, ensure_ascii=False, indent=2)
+                        json.dump(
+                            {
+                                "session_id": session.session_id,
+                                "user_id": session.user_id,
+                                "user_input": session.user_input,
+                                "status": session.status,
+                                "mode": session.mode,
+                                "created_at": session.created_at.isoformat(),
+                                "archived_at": session.archived_at.isoformat(),
+                                "session_data": session.session_data,
+                                "final_report": session.final_report,
+                                "progress": session.progress,
+                                "current_stage": session.current_stage,
+                                "display_name": session.display_name,
+                                "pinned": session.pinned,
+                                "tags": session.tags,
+                            },
+                            f,
+                            ensure_ascii=False,
+                            indent=2,
+                        )
 
                     # 从数据库删除
                     db.delete(session)
@@ -530,6 +579,7 @@ def get_archive_manager() -> SessionArchiveManager:
 
     if _archive_manager is None:
         from ...settings import settings
+
         _archive_manager = SessionArchiveManager(settings.database_url)
 
     return _archive_manager

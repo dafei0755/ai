@@ -1,147 +1,183 @@
-# 📚 项目文档导航
+# 📚 文档导航
 
-> 快速找到您需要的文档 - 最后更新：2025-12-29
-
----
-
-## 🔥 快速入口
-
-### 新手必读
-1. **[项目 README](../README.md)** - 项目简介、快速启动
-2. **[核心开发规范](../.github/DEVELOPMENT_RULES_CORE.md)** - 200行精简版，AI工具优先
-3. **[完整开发规范](../.github/DEVELOPMENT_RULES.md)** - 深度查阅
-4. **[变更检查清单](../.github/PRE_CHANGE_CHECKLIST.md)** - 修改前强制流程
-
-### 常用文档
-- 🏗️ [项目架构](AGENT_ARCHITECTURE.md) - 系统架构总览
-- 📖 [API 文档](../CLAUDE.md) - Claude Code 工作指南
-- 🚀 [部署指南](DEPLOYMENT.md) - 生产环境部署
-- 🔐 [安全配置](SECURITY_SETUP_GUIDE.md) - 安全设置指南
-- 📊 [日志系统](LOGGING_ADVANCED_FEATURES.md) - 高级日志功能
+> Intelligent Project Analyzer 完整文档索引
 
 ---
 
-## 📁 文档分类导航
+## 🗂️ 文档结构
 
-### 🏗️ 架构与设计
-| 文档 | 描述 | 更新时间 |
-|------|------|----------|
-| [AGENT_ARCHITECTURE.md](AGENT_ARCHITECTURE.md) | LangGraph 多智能体架构 | 2025-12 |
-| [PROJECT_STRUCTURE.md](PROJECT_STRUCTURE.md) | 项目目录结构说明 | 2025-12 |
-| [DYNAMIC_EXPERT_MECHANISM_REVIEW.md](DYNAMIC_EXPERT_MECHANISM_REVIEW.md) | 动态专家机制 | 2025-11 |
-
-### 🚀 部署与运维
-| 文档 | 描述 | 更新时间 |
-|------|------|----------|
-| [DEPLOYMENT.md](DEPLOYMENT.md) | 生产环境部署指南 | 2025-12 |
-| [SECURITY_SETUP_GUIDE.md](SECURITY_SETUP_GUIDE.md) | 安全配置指南 | 2025-11 |
-| [redis_persistence_setup.md](redis_persistence_setup.md) | Redis 持久化配置 | 2025-11 |
-| [GRAFANA_QUICK_START.md](GRAFANA_QUICK_START.md) | Grafana 监控快速开始 | 2025-11 |
-| [LOKI_SETUP_GUIDE.md](LOKI_SETUP_GUIDE.md) | Loki 日志系统设置 | 2025-11 |
-
-### 🔐 WordPress SSO 集成
-| 文档 | 描述 | 更新时间 |
-|------|------|----------|
-| [WORDPRESS_INTEGRATION_GUIDE.md](WORDPRESS_INTEGRATION_GUIDE.md) | 综合集成指南 | 2025-12 |
-| [SSO_SYNC_DUAL_MECHANISM_V3.0.21.md](SSO_SYNC_DUAL_MECHANISM_V3.0.21.md) | 双机制同步方案 ⭐ | 2025-12 |
-| [SSO_SYNC_TROUBLESHOOTING_GUIDE.md](SSO_SYNC_TROUBLESHOOTING_GUIDE.md) | 故障排查指南 | 2025-12 |
-| [wordpress/](wordpress/) | WordPress 技术文档目录 | - |
-
-### 📊 日志与监控
-| 文档 | 描述 | 更新时间 |
-|------|------|----------|
-| [LOGGING_ADVANCED_FEATURES.md](LOGGING_ADVANCED_FEATURES.md) | 高级日志功能 | 2025-12 |
-| [LOGGING_VERIFICATION_GUIDE.md](LOGGING_VERIFICATION_GUIDE.md) | 日志验证指南 | 2025-12 |
-| [../LOGGING_GUIDE.md](../LOGGING_GUIDE.md) | 日志系统使用指南 | 2025-12 |
-
-### 🎨 多模态与扩展功能
-| 文档 | 描述 | 更新时间 |
-|------|------|----------|
-| [multimodal_usage_guide.md](multimodal_usage_guide.md) | 多模态使用指南 | 2025-11 |
-| [multimodal_input_implementation.md](multimodal_input_implementation.md) | 多模态实现细节 | 2025-11 |
-| [vision_api_final_summary.md](vision_api_final_summary.md) | Vision API 总结 | 2025-11 |
-| [openrouter_load_balancer_guide.md](openrouter_load_balancer_guide.md) | OpenRouter 负载均衡 | 2025-11 |
-
-### 📦 功能实现文档
-| 文档 | 描述 | 更新时间 |
-|------|------|----------|
-| [feature_chat_mode_implementation.md](feature_chat_mode_implementation.md) | 聊天模式实现 | 2025-11 |
-| [session_archive_feature.md](session_archive_feature.md) | 会话归档功能 | 2025-11 |
-| [RESULT_PRESENTATION_REDESIGN.md](RESULT_PRESENTATION_REDESIGN.md) | 结果展示重设计 | 2025-11 |
-| [QUESTIONNAIRE_GENERATION_LOGIC_AND_HISTORY.md](QUESTIONNAIRE_GENERATION_LOGIC_AND_HISTORY.md) | 问卷生成逻辑 | 2025-11 |
-
-### 🧪 测试文档
-| 文档 | 描述 | 更新时间 |
-|------|------|----------|
-| [role_review_test_plan.md](role_review_test_plan.md) | 角色审核测试计划 | 2025-11 |
-| [multimodal_integration_test_report.md](multimodal_integration_test_report.md) | 多模态集成测试 | 2025-11 |
-
----
-
-## 📂 历史归档
-
-### 🗂️ 归档目录结构
 ```
-docs/archive/
-├── bugfixes/          # 临时修复文档归档
-│   ├── v7.x/          # v7.x 版本修复
-│   └── v3.0.x/        # v3.0.x 版本修复
-└── versions/          # 版本迭代文档归档
-    ├── V716_*         # v7.16 相关
-    ├── V718_*         # v7.18 相关
-    └── V15_*          # v1.5 相关
+docs/
+├── getting-started/        # 入门指南
+├── architecture/          # 架构设计
+├── deployment/            # 部署运维
+├── features/              # 功能文档
+├── development/           # 开发指南
+├── releases/              # 版本发布
+└── archive/               # 历史归档
 ```
 
-### 🔍 归档文档说明
-- **bugfixes/** - 已修复的临时问题文档，按版本分类
-- **versions/** - 历史版本的架构升级文档
-- 📝 归档文档仍可访问，但不在主导航中显示
+---
+
+## 🚀 入门指南
+
+| 文档 | 说明 |
+|------|------|
+| [QUICKSTART.md](../QUICKSTART.md) | 5分钟快速启动（根目录） |
+| [getting-started/INSTALLATION.md](getting-started/INSTALLATION.md) | 详细安装教程 |
+| [getting-started/CONFIGURATION.md](getting-started/CONFIGURATION.md) | 环境配置指南 |
+| [getting-started/FAQ.md](getting-started/FAQ.md) | 常见问题解答 |
 
 ---
 
-## 🔍 快速搜索指南
+## 🏗️ 架构设计
 
-### 按关键词搜索
-```bash
-# Windows PowerShell
-Get-ChildItem -Path docs -Filter "*.md" -Recurse | Select-String "关键词"
-
-# 搜索示例
-Get-ChildItem -Path docs -Filter "*.md" -Recurse | Select-String "SSO"
-Get-ChildItem -Path docs -Filter "*.md" -Recurse | Select-String "日志"
-```
-
-### 按文档类型
-- 架构文档：`*ARCHITECTURE*.md`
-- 部署文档：`*DEPLOYMENT*.md`, `*SETUP*.md`
-- 修复文档：`archive/bugfixes/`
-- 版本文档：`archive/versions/`
-- WordPress：`wordpress/*.md`, `SSO_*.md`
+| 文档 | 说明 |
+|------|------|
+| [AGENT_ARCHITECTURE.md](AGENT_ARCHITECTURE.md) | 多智能体架构设计 |
+| [PROJECT_STRUCTURE.md](PROJECT_STRUCTURE.md) | 项目结构说明 |
+| [V716_AGENT_STATE_GRAPHS.md](V716_AGENT_STATE_GRAPHS.md) | LangGraph StateGraph架构（v7.16+） |
+| [WORKFLOW_DESIGN.md](WORKFLOW_DESIGN.md) | 工作流设计 |
+| [MODE_CONFIG_OPTIMIZATION_SUMMARY.md](MODE_CONFIG_OPTIMIZATION_SUMMARY.md) | 分析模式配置优化总结（v7.110） 🆕 |
 
 ---
 
-## 📏 文档命名规范
+## 🚢 部署运维
 
-详见 [NAMING_CONVENTION.md](NAMING_CONVENTION.md)
-
----
-
-## 🤝 贡献新文档
-
-1. 按功能分类选择合适目录
-2. 遵循命名规范（见上方链接）
-3. 在本 README.md 的对应分类中添加索引
-4. 提交 PR 时附上文档摘要
+| 文档 | 说明 |
+|------|------|
+| [DEPLOYMENT.md](DEPLOYMENT.md) | 生产环境部署指南 |
+| [SECURITY_SETUP_GUIDE.md](SECURITY_SETUP_GUIDE.md) | 安全配置指南 |
+| [../BACKUP_GUIDE.md](../BACKUP_GUIDE.md) | 备份策略（根目录） |
+| [../LOGGING_GUIDE.md](../LOGGING_GUIDE.md) | 日志管理（根目录） |
+| [../EMERGENCY_RECOVERY.md](../EMERGENCY_RECOVERY.md) | 紧急恢复（根目录） |
 
 ---
 
-## 📊 文档统计
+## 🎯 功能文档
 
-- **总文档数**：~200 个（已优化，2025-12-29）
-- **核心文档**：~30 个
-- **归档文档**：~100+ 个
-- **最后清理**：2025-12-29
+### 分析模式
+
+| 文档 | 说明 |
+|------|------|
+| [MODE_CONFIG_OPTIMIZATION_SUMMARY.md](MODE_CONFIG_OPTIMIZATION_SUMMARY.md) | 普通模式 vs 深度思考模式配置管理 🆕 |
+
+### WordPress SSO 集成
+
+| 文档 | 说明 |
+|------|------|
+| [features/wordpress-sso/](features/wordpress-sso/) | WordPress SSO完整文档 |
+
+### 问卷系统
+
+| 文档 | 说明 |
+|------|------|
+| [questionnaire_task_optimization_summary.md](questionnaire_task_optimization_summary.md) | 问卷任务分配优化实施总结 🆕 |
+| [questionnaire_optimization_test_guide.md](questionnaire_optimization_test_guide.md) | 问卷优化测试指南 🆕 |
+| [archive/bugfixes/questionnaire/](archive/bugfixes/questionnaire/) | 问卷系统修复记录 |
+
+### 搜索工具
+
+| 文档 | 说明 |
+|------|------|
+| [V7.120_SEARCH_REFERENCES_RELEASE.md](V7.120_SEARCH_REFERENCES_RELEASE.md) | v7.120 搜索引用功能发布 |
+| [V7.121_SEARCH_QUERY_DATA_UTILIZATION.md](V7.121_SEARCH_QUERY_DATA_UTILIZATION.md) | v7.121 搜索查询数据利用优化 🆕 |
+| [archive/bugfixes/search/](archive/bugfixes/search/) | 搜索工具历史修复记录 |
 
 ---
 
-**维护者**：开发团队 | **最后更新**：2025-12-29
+## 💻 开发指南
+
+| 文档 | 说明 |
+|------|------|
+| [../CONTRIBUTING.md](../CONTRIBUTING.md) | 贡献指南（根目录） |
+| [../.github/DEVELOPMENT_RULES_CORE.md](../.github/DEVELOPMENT_RULES_CORE.md) | 核心开发规范（200行） |
+| [../.github/DEVELOPMENT_RULES.md](../.github/DEVELOPMENT_RULES.md) | 完整开发规范 |
+| [../.github/PRE_CHANGE_CHECKLIST.md](../.github/PRE_CHANGE_CHECKLIST.md) | 变更检查清单 |
+| [API.md](API.md) | API 文档 |
+| [development/testing/](development/testing/) | 测试指南 |
+| [../README_TESTING.md](../README_TESTING.md) | 测试概览（根目录） |
+
+---
+
+## 📖 历史修复案例
+
+**精选案例** (位于 `.github/historical_fixes/`)：
+
+1. ⭐ [问卷第三步上下文感知修复 (v7.107.1)](../.github/historical_fixes/step3_llm_context_awareness_fix_v7107.1.md)
+2. [雷达图维度混合策略 (v7.105)](../.github/historical_fixes/dimension_hybrid_strategy_implementation.md)
+3. [Playwright Python 3.13 修复](../.github/historical_fixes/playwright_python313_windows_fix.md)
+4. [问卷用户输入显示修复](../.github/historical_fixes/questionnaire_user_input_display_fix.md)
+5. [会话删除权限修复](../.github/historical_fixes/session_delete_permission_fix.md)
+
+**归档案例** (位于 `docs/archive/bugfixes/`)：
+
+- [问卷系统修复记录](archive/bugfixes/questionnaire/)
+- [搜索工具修复记录](archive/bugfixes/search/)
+- [前端修复记录](archive/bugfixes/frontend/)
+- [后端修复记录](archive/bugfixes/backend/)
+
+---
+
+## 📦 版本发布
+
+| 文档 | 说明 |
+|------|------|
+| [../CHANGELOG.md](../CHANGELOG.md) | 完整更新日志（根目录） |
+| [archive/versions/](archive/versions/) | 历史版本归档 |
+
+---
+
+## 🗄️ 历史归档
+
+| 目录 | 说明 |
+|------|------|
+| [archive/phases/](archive/phases/) | 项目阶段报告 |
+| [archive/bugfixes/](archive/bugfixes/) | 临时修复记录（按功能分类） |
+| [archive/versions/](archive/versions/) | 历史版本文档 |
+
+---
+
+## 🔧 配置文件文档
+
+| 位置 | 说明 |
+|------|------|
+| `intelligent_project_analyzer/config/roles/` | 专家角色配置 |
+| `intelligent_project_analyzer/config/prompts/` | Prompt模板（Git版本控制） |
+
+---
+
+## 📝 文档维护规范
+
+**新增文档位置规则**：
+
+| 文档类型 | 位置 |
+|---------|------|
+| 入门教程 | `docs/getting-started/` |
+| 架构设计 | `docs/architecture/` |
+| 功能文档 | `docs/features/{feature}/` |
+| 修复记录 | `docs/archive/bugfixes/{category}/` |
+| 开发规范 | `.github/` |
+| 核心文档 | 根目录 |
+
+**⚠️ 禁止在根目录创建新的 .md 文档（核心文档除外）**
+
+**详细规范**: [../.github/DOCUMENTATION_RULES.md](../.github/DOCUMENTATION_RULES.md)
+
+---
+
+## 🔍 快速查找
+
+- **快速启动** → [QUICKSTART.md](../QUICKSTART.md)
+- **贡献代码** → [CONTRIBUTING.md](../CONTRIBUTING.md)
+- **系统架构** → [architecture/](architecture/)
+- **API 接口** → [API.md](API.md)
+- **生产部署** → [DEPLOYMENT.md](DEPLOYMENT.md)
+- **WordPress SSO** → [features/wordpress-sso/](features/wordpress-sso/)
+- **测试指南** → [development/testing/](development/testing/)
+- **历史案例** → [../.github/historical_fixes/](../.github/historical_fixes/)
+- **紧急恢复** → [EMERGENCY_RECOVERY.md](../EMERGENCY_RECOVERY.md)
+
+---
+
+**最后更新**: 2026-01-03 | **文档版本**: v2.1

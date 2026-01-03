@@ -118,7 +118,7 @@ keywords:
     - 贩卖
 threat_intelligence:
   enabled: true
-  last_updated: '2025-12-30T20:35:00.918775'
+  last_updated: '2026-01-02T19:49:23.641083'
   malicious_domains:
     domains:
     - malicious1.com

@@ -4,9 +4,11 @@ Tool Call Recorder (v7.64)
 使用LangChain回调机制自动记录工具调用，并转换为SearchReference格式
 """
 
-from typing import Dict, List, Any, Optional
-from datetime import datetime
 import json
+from datetime import datetime
+from pathlib import Path
+from typing import Any, Dict, List, Optional
+
 from loguru import logger
 
 try:
@@ -34,12 +36,7 @@ class ToolCallRecorder(BaseCallbackHandler):
         references = recorder.get_search_references()
     """
 
-    def __init__(
-        self,
-        role_id: str,
-        deliverable_id: Optional[str] = None,
-        enable_recording: bool = True
-    ):
+    def __init__(self, role_id: str, deliverable_id: Optional[str] = None, enable_recording: bool = True):
         """
         初始化工具调用记录器
 
@@ -59,17 +56,44 @@ class ToolCallRecorder(BaseCallbackHandler):
         # 当前正在执行的工具调用（用于关联start和end）
         self.active_tool_call: Optional[Dict[str, Any]] = None
 
+        # 工具调用日志文件路径
+        self.log_file = Path("logs/tool_calls.jsonl")
+        self.log_file.parent.mkdir(parents=True, exist_ok=True)
+
         logger.info(
             f"✅ ToolCallRecorder initialized for role={role_id}, "
             f"deliverable={deliverable_id}, recording={enable_recording}"
         )
 
-    def on_tool_start(
-        self,
-        serialized: Dict[str, Any],
-        input_str: str,
-        **kwargs: Any
-    ) -> None:
+    def _write_to_jsonl(self, tool_call: Dict[str, Any]) -> None:
+        """
+        将工具调用记录写入JSONL文件
+
+        Args:
+            tool_call: 工具调用记录
+        """
+        try:
+            # 准备日志条目（移除冗长的输出字段）
+            log_entry = {
+                "timestamp": tool_call["start_time"],
+                "tool_name": tool_call["tool_name"],
+                "role_id": tool_call["role_id"],
+                "deliverable_id": tool_call["deliverable_id"],
+                "input_query": tool_call["input"][:200] if tool_call.get("input") else None,
+                "output_length": len(tool_call.get("output", "")),
+                "duration_ms": tool_call.get("duration_ms", 0),
+                "status": tool_call["status"],
+                "error": tool_call.get("error"),
+            }
+
+            # 追加写入JSONL文件
+            with open(self.log_file, "a", encoding="utf-8") as f:
+                f.write(json.dumps(log_entry, ensure_ascii=False) + "\n")
+
+        except Exception as e:
+            logger.error(f"❌ Failed to write tool call to JSONL: {e}")
+
+    def on_tool_start(self, serialized: Dict[str, Any], input_str: str, **kwargs: Any) -> None:
         """
         工具调用开始时的回调
 
@@ -90,16 +114,17 @@ class ToolCallRecorder(BaseCallbackHandler):
             "status": "started",
             "start_time": datetime.now().isoformat(),
             "role_id": self.role_id,
-            "deliverable_id": self.deliverable_id
+            "deliverable_id": self.deliverable_id,
         }
 
         logger.debug(f"🔧 Tool started: {tool_name}")
 
-    def on_tool_end(
-        self,
-        output: str,
-        **kwargs: Any
-    ) -> None:
+        # 🔥 v7.120: 增强日志 - 显示工具调用开始
+        logger.info(f"🔧 [ToolCallRecorder] Tool START: {tool_name}")
+        logger.info(f"   Role: {self.role_id}, Deliverable: {self.deliverable_id}")
+        logger.info(f"   Input: {input_str[:100]}...")
+
+    def on_tool_end(self, output: str, **kwargs: Any) -> None:
         """
         工具调用结束时的回调
 
@@ -110,27 +135,36 @@ class ToolCallRecorder(BaseCallbackHandler):
         if not self.enable_recording or not self.active_tool_call:
             return
 
+        # 计算执行时长
+        start_time = datetime.fromisoformat(self.active_tool_call["start_time"])
+        end_time = datetime.now()
+        duration_ms = int((end_time - start_time).total_seconds() * 1000)
+
         # 更新当前工具调用记录
         self.active_tool_call["status"] = "completed"
         self.active_tool_call["output"] = output
-        self.active_tool_call["end_time"] = datetime.now().isoformat()
+        self.active_tool_call["end_time"] = end_time.isoformat()
+        self.active_tool_call["duration_ms"] = duration_ms
 
         # 添加到记录列表
         self.tool_calls.append(self.active_tool_call.copy())
 
-        logger.debug(
-            f"✅ Tool completed: {self.active_tool_call['tool_name']}, "
-            f"output_length={len(output)}"
+        logger.debug(f"✅ Tool completed: {self.active_tool_call['tool_name']}, " f"output_length={len(output)}")
+
+        # 🔥 v7.120: 增强日志 - 显示工具调用完成
+        logger.info(
+            f"✅ [ToolCallRecorder] Tool END: {self.active_tool_call['tool_name']}, "
+            f"output_length={len(output)} chars, duration={duration_ms}ms"
         )
+        logger.info(f"   Total calls recorded: {len(self.tool_calls)}")
+
+        # 🔥 v7.130: 持久化工具调用记录到JSONL
+        self._write_to_jsonl(self.active_tool_call)
 
         # 清空当前工具调用
         self.active_tool_call = None
 
-    def on_tool_error(
-        self,
-        error: Exception,
-        **kwargs: Any
-    ) -> None:
+    def on_tool_error(self, error: Exception, **kwargs: Any) -> None:
         """
         工具调用出错时的回调
 
@@ -141,18 +175,24 @@ class ToolCallRecorder(BaseCallbackHandler):
         if not self.enable_recording or not self.active_tool_call:
             return
 
+        # 计算执行时长
+        start_time = datetime.fromisoformat(self.active_tool_call["start_time"])
+        end_time = datetime.now()
+        duration_ms = int((end_time - start_time).total_seconds() * 1000)
+
         # 更新当前工具调用记录
         self.active_tool_call["status"] = "failed"
         self.active_tool_call["error"] = str(error)
-        self.active_tool_call["end_time"] = datetime.now().isoformat()
+        self.active_tool_call["end_time"] = end_time.isoformat()
+        self.active_tool_call["duration_ms"] = duration_ms
 
         # 添加到记录列表
         self.tool_calls.append(self.active_tool_call.copy())
 
-        logger.warning(
-            f"❌ Tool failed: {self.active_tool_call['tool_name']}, "
-            f"error={str(error)[:100]}"
-        )
+        logger.warning(f"❌ Tool failed: {self.active_tool_call['tool_name']}, " f"error={str(error)[:100]}")
+
+        # 🔥 v7.130: 持久化工具调用记录到JSONL
+        self._write_to_jsonl(self.active_tool_call)
 
         # 清空当前工具调用
         self.active_tool_call = None
@@ -166,10 +206,7 @@ class ToolCallRecorder(BaseCallbackHandler):
         """
         return self.tool_calls
 
-    def get_search_references(
-        self,
-        deliverable_id: Optional[str] = None
-    ) -> List[Dict[str, Any]]:
+    def get_search_references(self, deliverable_id: Optional[str] = None) -> List[Dict[str, Any]]:
         """
         从工具调用记录中提取搜索引用
 
@@ -210,15 +247,12 @@ class ToolCallRecorder(BaseCallbackHandler):
                     tool_name=tool_name,
                     query=query,
                     deliverable_id=target_deliverable_id,
-                    timestamp=tool_call.get("end_time", "")
+                    timestamp=tool_call.get("end_time", ""),
                 )
                 if reference:
                     references.append(reference)
 
-        logger.info(
-            f"📚 Extracted {len(references)} search references from "
-            f"{len(self.tool_calls)} tool calls"
-        )
+        logger.info(f"📚 Extracted {len(references)} search references from " f"{len(self.tool_calls)} tool calls")
 
         return references
 
@@ -232,22 +266,11 @@ class ToolCallRecorder(BaseCallbackHandler):
         Returns:
             是否为搜索工具
         """
-        search_tools = [
-            "tavily_search",
-            "arxiv_search",
-            "ragflow_kb",
-            "ragflow_kb_tool",
-            "bocha_search"
-        ]
+        search_tools = ["tavily_search", "arxiv_search", "ragflow_kb", "ragflow_kb_tool", "bocha_search"]
         return any(st in tool_name.lower() for st in search_tools)
 
     def _convert_to_search_reference(
-        self,
-        result: Dict[str, Any],
-        tool_name: str,
-        query: str,
-        deliverable_id: str,
-        timestamp: str
+        self, result: Dict[str, Any], tool_name: str, query: str, deliverable_id: str, timestamp: str
     ) -> Optional[Dict[str, Any]]:
         """
         将搜索结果转换为SearchReference格式
@@ -289,7 +312,7 @@ class ToolCallRecorder(BaseCallbackHandler):
                 "query": query,
                 "timestamp": timestamp,
                 "llm_relevance_score": result.get("llm_relevance_score"),
-                "llm_scoring_reason": result.get("llm_scoring_reason")
+                "llm_scoring_reason": result.get("llm_scoring_reason"),
             }
 
             return reference
@@ -350,7 +373,7 @@ class ToolCallRecorder(BaseCallbackHandler):
             "completed": completed,
             "failed": failed,
             "tool_counts": tool_counts,
-            "has_active_call": self.active_tool_call is not None
+            "has_active_call": self.active_tool_call is not None,
         }
 
 
@@ -358,10 +381,9 @@ class ToolCallRecorder(BaseCallbackHandler):
 # 辅助函数：集成到State
 # ============================================================================
 
+
 def add_references_to_state(
-    state: Dict[str, Any],
-    recorder: ToolCallRecorder,
-    deliverable_id: Optional[str] = None
+    state: Dict[str, Any], recorder: ToolCallRecorder, deliverable_id: Optional[str] = None
 ) -> Dict[str, Any]:
     """
     将ToolCallRecorder的搜索引用添加到state
@@ -399,9 +421,6 @@ def add_references_to_state(
     # 更新state
     state["search_references"] = unique_references
 
-    logger.info(
-        f"✅ Added {len(new_references)} new references to state "
-        f"(total: {len(unique_references)})"
-    )
+    logger.info(f"✅ Added {len(new_references)} new references to state " f"(total: {len(unique_references)})")
 
     return state

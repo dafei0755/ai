@@ -1,0 +1,50 @@
+# 分析模式配置
+# 定义不同分析模式下的概念图生成策略
+#
+# 版本历史：
+# - v7.110: 初始版本，支持 normal 和 deep_thinking 两种模式
+
+modes:
+  # 普通思考模式 - 快速验证，单张概念图
+  normal:
+    name: "普通模式"
+    description: "适合快速验证和概念阶段，每个交付物生成1张概念图"
+    concept_image:
+      count: 1              # 默认生成数量
+      editable: false       # 是否允许用户在审批阶段修改数量
+      max_count: 1          # 允许的最大数量
+      min_count: 1          # 允许的最小数量
+
+    # 未来可扩展的其他配置
+    # llm_temperature: 0.7
+    # search_queries_count: 3
+    # expert_depth: "standard"
+
+  # 深度思考模式 - 详细分析，多角度可视化
+  deep_thinking:
+    name: "深度思考模式"
+    description: "适合详细方案设计，每个交付物生成3张概念图（可调整）"
+    concept_image:
+      count: 3              # 默认生成数量
+      editable: true        # 允许用户在审批阶段调整
+      max_count: 10         # 允许的最大数量（性能和成本考虑）
+      min_count: 1          # 允许的最小数量
+
+    # 未来可扩展的其他配置
+    # llm_temperature: 0.8
+    # search_queries_count: 5
+    # expert_depth: "enhanced"
+
+# 默认模式
+default_mode: "normal"
+
+# 模式切换规则
+rules:
+  # 当图片生成失败时的降级策略
+  fallback_on_error: "normal"
+
+  # 是否记录模式使用统计
+  enable_usage_tracking: true
+
+  # 非法模式值的处理方式
+  invalid_mode_action: "default"  # 可选: "default", "error", "prompt"

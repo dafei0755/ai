@@ -6,18 +6,20 @@
 """
 
 import json
-from typing import Dict, List, Optional, Any, Literal
 import time
+from typing import Any, Dict, List, Literal, Optional
 
-from langchain_core.messages import HumanMessage, AIMessage
+from langchain_core.messages import AIMessage, HumanMessage
 from langchain_core.runnables import RunnableConfig
 from langgraph.store.base import BaseStore
 from langgraph.types import Command, Send
 from loguru import logger
 
-from .base import LLMAgent
-from ..core.state import ProjectAnalysisState, AgentType
+from ..core.state import AgentType, ProjectAnalysisState
 from ..core.types import AnalysisResult, TaskAssignment, format_role_display_name
+from ..services.capability_boundary_service import CapabilityBoundaryService
+from .base import LLMAgent
+
 # from ..workflow.batch_scheduler import BatchScheduler  # Moved to local import to avoid circular dependency
 
 
@@ -37,7 +39,7 @@ class ProjectDirectorAgent(LLMAgent):
             name="项目总监",
             description="制定分析策略，分派任务给专业智能体团队",
             llm_model=llm_model,
-            config=config
+            config=config,
         )
 
         # 获取配置（仅支持 Dynamic Mode）
@@ -62,25 +64,26 @@ class ProjectDirectorAgent(LLMAgent):
                 logger.info(f"ProjectDirector initialized in {self.mode} mode with role configuration enabled")
             except Exception as e:
                 logger.error(f"Failed to initialize role configuration system: {e}")
-                raise RuntimeError(f"ProjectDirector requires role configuration system, but initialization failed: {e}")
+                raise RuntimeError(
+                    f"ProjectDirector requires role configuration system, but initialization failed: {e}"
+                )
         else:
             logger.warning("ProjectDirector initialized without role configuration system")
-    
+
     def validate_input(self, state: ProjectAnalysisState) -> bool:
         """验证输入是否有效"""
-        return (
-            state.get("structured_requirements") is not None and
-            isinstance(state.get("structured_requirements"), dict)
+        return state.get("structured_requirements") is not None and isinstance(
+            state.get("structured_requirements"), dict
         )
-    
+
     def get_dependencies(self) -> List[AgentType]:
         """获取依赖的智能体"""
         return [AgentType.REQUIREMENTS_ANALYST]
-    
+
     def _construct_full_role_id(self, role_id: str) -> str:
         """
         根据 role_id 构造完整的角色ID
-        
+
         注意: 使用配置文件的实际键名（主角色名称/静态），而非LLM生成的动态名称
         - V3: "叙事与体验专家" (配置文件) vs "人物及叙事专家" (LLM生成)
         - V5: "场景与行业专家" (配置文件) vs "场景与用户生态专家" (LLM生成)
@@ -88,7 +91,7 @@ class ProjectDirectorAgent(LLMAgent):
         # 如果已经是完整格式 (如 "V2_设计总监_2-1")，直接返回
         if role_id.count("_") >= 2:
             return role_id
-        
+
         # 如果只是短ID (如 "2-1")，需要推断前缀
         # 根据第一个数字推断前缀
         if role_id.startswith("2-"):
@@ -104,7 +107,7 @@ class ProjectDirectorAgent(LLMAgent):
         else:
             # 未知格式，直接返回
             return role_id
-    
+
     def get_system_prompt(self) -> str:
         """获取系统提示词 - 从外部配置加载（v6.0）"""
         from ..core.prompt_manager import PromptManager
@@ -113,14 +116,11 @@ class ProjectDirectorAgent(LLMAgent):
         prompt = prompt_manager.get_prompt("project_director")
 
         if not prompt:
-            raise RuntimeError(
-                "[project_director] 提示词配置文件未找到！"
-                "请确保 config/prompts/project_director.yaml 存在。"
-            )
+            raise RuntimeError("[project_director] 提示词配置文件未找到！" "请确保 config/prompts/project_director.yaml 存在。")
 
         logger.info("[project_director] 成功从外部配置加载提示词（v6.0）")
         return prompt
-    
+
     def get_task_description(self, state: ProjectAnalysisState) -> str:
         """
         获取具体任务描述
@@ -155,16 +155,24 @@ class ProjectDirectorAgent(LLMAgent):
 
         # 🆕 如果有可行性分析结果，添加到任务描述中
         if feasibility_context:
-            return base_description + "\n\n" + feasibility_context + """
+            return (
+                base_description
+                + "\n\n"
+                + feasibility_context
+                + """
 
 请分析项目特点，确定需要哪些专业智能体参与，并为每个智能体制定具体的分析任务。
 考虑项目的复杂度、行业特点、技术要求等因素，确保分析的全面性和专业性。
 🔥 特别注意：根据上述可行性分析的发现，优先分派专家处理高风险冲突和高优先级需求。"""
+            )
         else:
-            return base_description + """
+            return (
+                base_description
+                + """
 
 请分析项目特点，确定需要哪些专业智能体参与，并为每个智能体制定具体的分析任务。
 考虑项目的复杂度、行业特点、技术要求等因素，确保分析的全面性和专业性。"""
+            )
 
     def _build_feasibility_context(self, feasibility: Dict[str, Any]) -> str:
         """
@@ -265,12 +273,9 @@ class ProjectDirectorAgent(LLMAgent):
                 context_parts.append("")
 
         return "\n".join(context_parts)
-    
+
     def execute(
-        self,
-        state: ProjectAnalysisState,
-        config: RunnableConfig,
-        store: Optional[BaseStore] = None
+        self, state: ProjectAnalysisState, config: RunnableConfig, store: Optional[BaseStore] = None
     ) -> Command[Literal["v2_agent", "v3_agent", "v4_agent", "v5_agent", "v6_agent", "result_aggregator"]]:
         """
         执行战略分析和任务分派（仅 Dynamic Mode）
@@ -292,14 +297,12 @@ class ProjectDirectorAgent(LLMAgent):
             raise error
 
     def _execute_dynamic_mode(
-        self,
-        state: ProjectAnalysisState,
-        config: RunnableConfig,
-        store: Optional[BaseStore],
-        start_time: float
+        self, state: ProjectAnalysisState, config: RunnableConfig, store: Optional[BaseStore], start_time: float
     ) -> Command:
         """
         动态模式执行 - 使用角色配置系统动态选择角色
+
+        🆕 v7.106: 融合用户确认的核心任务，确保专家分配与用户意图对齐
         """
         logger.info("Executing in dynamic mode with role configuration system")
 
@@ -307,12 +310,60 @@ class ProjectDirectorAgent(LLMAgent):
         requirements = state.get("structured_requirements", {})
         requirements_text = self._format_requirements_for_selection(requirements)
 
+        # 🆕 v7.106: 获取用户确认的核心任务
+        confirmed_tasks = state.get("confirmed_core_tasks", [])
+        if confirmed_tasks:
+            logger.info(f"📋 [v7.106] 检测到 {len(confirmed_tasks)} 个用户确认的核心任务，将融合到角色选择中")
+
         # 使用动态项目总监选择角色（由LLM自主判断复杂度）
         try:
-            selection = self.dynamic_director.select_roles_for_task(requirements_text)
+            # 🆕 v7.106: 如果有核心任务，传递给 select_roles_for_task
+            if confirmed_tasks:
+                # 构建包含核心任务的增强需求文本
+                requirements_with_tasks = self._format_requirements_with_tasks(requirements_text, confirmed_tasks)
+                selection = self.dynamic_director.select_roles_for_task(
+                    requirements_with_tasks, confirmed_core_tasks=confirmed_tasks  # 🆕 传递用于验证
+                )
+            else:
+                selection = self.dynamic_director.select_roles_for_task(requirements_text)
 
             logger.info(f"Dynamic director selected {len(selection.selected_roles)} roles")
             logger.debug(f"Selected roles: {selection.selected_roles}")
+
+            # 🆕 能力边界检查：验证任务分派前的交付物能力
+            primary_deliverables = requirements.get("primary_deliverables", [])
+            if primary_deliverables:
+                logger.info("🔍 [CapabilityBoundary] 验证任务分派前的交付物能力")
+                boundary_check = CapabilityBoundaryService.check_deliverable_list(
+                    deliverables=primary_deliverables,
+                    context={
+                        "node": "project_director",
+                        "stage": "before_assignment",
+                        "session_id": state.get("session_id", ""),
+                    },
+                )
+
+                logger.info(f"📊 交付物能力边界检查结果:")
+                logger.info(f"   在能力范围内: {boundary_check.within_capability}")
+                logger.info(f"   能力匹配度: {boundary_check.capability_score:.2f}")
+
+                # 如果有超出能力的交付物，标记限制说明
+                if not boundary_check.within_capability:
+                    logger.warning(f"⚠️ 部分交付物超出能力范围，已标记限制说明")
+
+                    for i, deliv in enumerate(primary_deliverables):
+                        deliv_type = deliv.get("type", "")
+
+                        # 查找对应的检查结果
+                        for check in boundary_check.deliverable_checks:
+                            if not check.within_capability and check.original_type == deliv_type:
+                                # 标记受限的交付物
+                                deliv["capability_limited"] = True
+                                deliv["limitation_note"] = check.transformation_reason or "超出系统能力范围"
+                                logger.info(f"     - {deliv.get('deliverable_id', f'D{i+1}')}: {deliv_type} (受限)")
+                                break
+                else:
+                    logger.info("✅ 所有交付物在能力范围内")
 
         except Exception as e:
             logger.error(f"Failed to select roles dynamically: {e}")
@@ -326,17 +377,17 @@ class ProjectDirectorAgent(LLMAgent):
             try:
                 # ✅ 从 RoleObject 中提取 role_id
                 if isinstance(role, dict):
-                    short_role_id = role.get('role_id', '')
-                elif hasattr(role, 'role_id'):
+                    short_role_id = role.get("role_id", "")
+                elif hasattr(role, "role_id"):
                     short_role_id = role.role_id
                 else:
                     short_role_id = role  # 兼容旧格式（字符串）
-                
+
                 # ✅ 构造完整的角色ID（如 "V2_设计总监_2-1"）
                 role_id = self._construct_full_role_id(short_role_id)
-                
+
                 logger.info(f"🔍 [DEBUG] Processing role: short_id={short_role_id}, full_id={role_id}")
-                
+
                 # 解析角色ID
                 base_type, rid = self.role_manager.parse_full_role_id(role_id)
                 role_config = self.role_manager.get_role_config(base_type, rid)
@@ -346,14 +397,17 @@ class ProjectDirectorAgent(LLMAgent):
                     task_data = selection.task_distribution.get(role_id, "执行专业分析")
 
                     # 如果是 TaskDetail 对象，提取任务列表并合并为字符串
-                    if hasattr(task_data, 'tasks'):
+                    if hasattr(task_data, "tasks"):
                         task_description = "; ".join(task_data.tasks)
-                    elif isinstance(task_data, dict) and 'tasks' in task_data:
-                        task_description = "; ".join(task_data['tasks'])
+                    elif isinstance(task_data, dict) and "tasks" in task_data:
+                        task_description = "; ".join(task_data["tasks"])
                     else:
                         task_description = str(task_data)
 
                     # 创建Send命令 (使用动态角色节点)
+                    # 🆕 构建专家上下文，包含任务优先级信息
+                    expert_context = {**state, "confirmed_core_tasks": confirmed_tasks}  # 🆕 传递确认任务（含优先级）
+
                     parallel_commands.append(
                         Send(
                             "dynamic_role_executor",  # 动态角色执行节点
@@ -361,16 +415,13 @@ class ProjectDirectorAgent(LLMAgent):
                                 "role_id": role_id,
                                 "role_config": role_config,
                                 "task": task_description,
-                                "context": state
-                            }
+                                "context": expert_context,  # 🆕 使用增强的上下文
+                            },
                         )
                     )
 
                     # 记录角色信息
-                    dynamic_agents_info[role_id] = {
-                        "name": role_config.get("name", "未知角色"),
-                        "task": task_description
-                    }
+                    dynamic_agents_info[role_id] = {"name": role_config.get("name", "未知角色"), "task": task_description}
 
             except Exception as e:
                 logger.error(f"Failed to create command for role {role_id}: {e}")
@@ -383,37 +434,31 @@ class ProjectDirectorAgent(LLMAgent):
         # 创建 subagents 字典，用于 V2-V6 agents 获取任务描述
         # 将动态角色映射到固定的 V2-V6 键
         subagents_mapping = {}
-        role_to_v_mapping = {
-            "V2": [],
-            "V3": [],
-            "V4": [],
-            "V5": [],
-            "V6": []
-        }
+        role_to_v_mapping = {"V2": [], "V3": [], "V4": [], "V5": [], "V6": []}
 
         # 将选中的角色按类型分组
         for role in selection.selected_roles:
             # ✅ 从 RoleObject 中提取 role_id
             if isinstance(role, dict):
-                short_role_id = role.get('role_id', '')
-            elif hasattr(role, 'role_id'):
+                short_role_id = role.get("role_id", "")
+            elif hasattr(role, "role_id"):
                 short_role_id = role.role_id
             else:
                 short_role_id = role  # 兼容旧格式
-            
+
             # ✅ 构造完整的角色ID
             role_id = self._construct_full_role_id(short_role_id)
-            
+
             base_type, _ = self.role_manager.parse_full_role_id(role_id)
             if base_type in role_to_v_mapping:
                 # 获取任务描述 - 兼容 TaskDetail 对象和字符串格式
                 task_data = selection.task_distribution.get(role_id, "执行专业分析")
 
                 # 如果是 TaskDetail 对象，提取任务列表并合并为字符串
-                if hasattr(task_data, 'tasks'):
+                if hasattr(task_data, "tasks"):
                     task_desc = "; ".join(task_data.tasks)
-                elif isinstance(task_data, dict) and 'tasks' in task_data:
-                    task_desc = "; ".join(task_data['tasks'])
+                elif isinstance(task_data, dict) and "tasks" in task_data:
+                    task_desc = "; ".join(task_data["tasks"])
                 else:
                     task_desc = str(task_data)
 
@@ -430,17 +475,20 @@ class ProjectDirectorAgent(LLMAgent):
                     "V3": "进行技术架构分析",
                     "V4": "进行用户体验设计分析",
                     "V5": "进行商业模式分析",
-                    "V6": "制定项目实施计划"
+                    "V6": "制定项目实施计划",
                 }
                 subagents_mapping[v_type] = default_tasks.get(v_type, "执行专业分析")
 
         # New: Calculate batch execution order using BatchScheduler
         from ..workflow.batch_scheduler import BatchScheduler
+
         batch_scheduler = BatchScheduler()
         try:
             # ✅ 构造完整角色ID列表传给 BatchScheduler
             full_role_ids = [
-                self._construct_full_role_id(role.role_id) if hasattr(role, 'role_id') else self._construct_full_role_id(role)
+                self._construct_full_role_id(role.role_id)
+                if hasattr(role, "role_id")
+                else self._construct_full_role_id(role)
                 for role in selection.selected_roles
             ]
             execution_batches = batch_scheduler.schedule_batches(full_role_ids)
@@ -454,7 +502,9 @@ class ProjectDirectorAgent(LLMAgent):
             logger.error(f"Batch calculation failed: {e}")
             # Fallback: treat all roles as single batch
             full_role_ids = [
-                self._construct_full_role_id(role.role_id) if hasattr(role, 'role_id') else self._construct_full_role_id(role)
+                self._construct_full_role_id(role.role_id)
+                if hasattr(role, "role_id")
+                else self._construct_full_role_id(role)
                 for role in selection.selected_roles
             ]
             execution_batches = [full_role_ids]
@@ -463,8 +513,7 @@ class ProjectDirectorAgent(LLMAgent):
 
         # ✅ 序列化 selected_roles 为字典列表（保留完整信息）
         serialized_roles = [
-            role.model_dump() if hasattr(role, 'model_dump') else role
-            for role in selection.selected_roles
+            role.model_dump() if hasattr(role, "model_dump") else role for role in selection.selected_roles
         ]
 
         # 更新状态
@@ -473,19 +522,21 @@ class ProjectDirectorAgent(LLMAgent):
                 "strategy_overview": selection.reasoning,
                 "selected_roles": serialized_roles,  # ✅ 保存完整的 RoleObject 列表
                 "task_distribution": selection.task_distribution,
-                "execution_mode": "dynamic"
+                "execution_mode": "dynamic",
             },
             "subagents": subagents_mapping,  # 添加 subagents 字段
             "dynamic_agents": dynamic_agents_info,
             "active_agents": [
-                self._construct_full_role_id(role.role_id) if hasattr(role, 'role_id') else self._construct_full_role_id(role)
+                self._construct_full_role_id(role.role_id)
+                if hasattr(role, "role_id")
+                else self._construct_full_role_id(role)
                 for role in selection.selected_roles
             ],  # ✅ active_agents 存储完整角色ID（如 "V2_设计总监_2-1"）
             "execution_mode": "dynamic",
             # New: Batch execution fields
             "execution_batches": execution_batches,  # List[List[str]] - batch list
-            "current_batch": current_batch,         # int - current batch number (1-based)
-            "total_batches": total_batches          # int - total number of batches
+            "current_batch": current_batch,  # int - current batch number (1-based)
+            "total_batches": total_batches,  # int - total number of batches
         }
 
         end_time = time.time()
@@ -494,10 +545,37 @@ class ProjectDirectorAgent(LLMAgent):
         logger.info(f"Dynamic mode analysis completed, dispatching {len(parallel_commands)} dynamic agents")
 
         # 返回Command对象
-        return Command(
-            update=state_update,
-            goto=parallel_commands
-        )
+        return Command(update=state_update, goto=parallel_commands)
+
+    def _format_requirements_with_tasks(self, requirements_text: str, confirmed_tasks: List[Dict[str, Any]]) -> str:
+        """
+        格式化需求信息并融合用户确认的核心任务（v7.106新增）
+
+        Args:
+            requirements_text: 原始需求文本
+            confirmed_tasks: 用户确认的核心任务列表
+
+        Returns:
+            增强的需求文本，包含核心任务信息
+        """
+        enhanced_text = requirements_text
+
+        enhanced_text += "\n\n# 用户确认的核心任务（优先级最高！）\n\n"
+        enhanced_text += "用户在问卷环节已经确认了以下核心任务，你在分配专家任务时**必须围绕这些核心任务展开**：\n\n"
+
+        for i, task in enumerate(confirmed_tasks, 1):
+            enhanced_text += f"\n**核心任务 {i}: {task.get('title')}**\n"
+            enhanced_text += f"- 描述: {task.get('description')}\n"
+            enhanced_text += f"- 类型: {task.get('type')}\n"
+            if task.get("motivation"):
+                enhanced_text += f"- 动机: {task.get('motivation')}\n"
+            # 如果任务有信息依赖，也要告知项目总监
+            if task.get("missing_info"):
+                enhanced_text += f"- ⚠️ 信息缺失: {', '.join(task['missing_info'])} (用户已在问卷中补充)\n"
+
+        enhanced_text += "\n⚠️ **重要**：你分配给专家的任务必须与上述核心任务对齐，确保最终输出能回答用户确认的核心问题。\n"
+
+        return enhanced_text
 
     def _format_requirements_for_selection(self, requirements: Dict[str, Any]) -> str:
         """
@@ -542,13 +620,13 @@ class ProjectDirectorAgent(LLMAgent):
             lines.append("")
 
         return "\n".join(lines)
-    
+
     def _parse_strategic_analysis(self, llm_response: str) -> Dict[str, Any]:
         """解析战略分析结果 - 支持新的v6.0格式"""
         try:
             # 尝试提取JSON部分
-            start_idx = llm_response.find('{')
-            end_idx = llm_response.rfind('}') + 1
+            start_idx = llm_response.find("{")
+            end_idx = llm_response.rfind("}") + 1
 
             if start_idx != -1 and end_idx > start_idx:
                 json_str = llm_response[start_idx:end_idx]
@@ -565,7 +643,7 @@ class ProjectDirectorAgent(LLMAgent):
                 "research_plan",  # 新增：研究计划
                 "task_assignments",  # 保留：任务分派
                 "execution_strategy",  # 新增：执行策略
-                "agent_count"  # 新增：智能体数量
+                "agent_count",  # 新增：智能体数量
             ]
 
             # 兼容旧格式：如果没有新字段，尝试从旧字段转换
@@ -590,7 +668,7 @@ class ProjectDirectorAgent(LLMAgent):
         except json.JSONDecodeError:
             logger.warning("Failed to parse JSON from strategic analysis, using fallback")
             return self._create_fallback_strategy(llm_response)
-    
+
     def _convert_old_to_new_format(self, old_data: Dict[str, Any]) -> Dict[str, Any]:
         """将旧格式转换为新格式"""
         return {
@@ -601,11 +679,9 @@ class ProjectDirectorAgent(LLMAgent):
                 "required_facts": [],
                 "constraints": [],
                 "user_concerns": "项目成功实施",
-                "deliverable_format": "综合分析报告"
+                "deliverable_format": "综合分析报告",
             },
-            "research_plan": {
-                "perspectives": ["设计视角", "技术视角", "用户体验视角", "商业视角", "实施视角"]
-            },
+            "research_plan": {"perspectives": ["设计视角", "技术视角", "用户体验视角", "商业视角", "实施视角"]},
             "task_assignments": old_data.get("task_assignments", self._create_default_assignments()),
             "execution_strategy": "并行",
             "agent_count": len(old_data.get("selected_agents", [])),
@@ -615,7 +691,7 @@ class ProjectDirectorAgent(LLMAgent):
             "selected_agents": old_data.get("selected_agents", []),
             "priority_order": old_data.get("priority_order", []),
             "estimated_duration": old_data.get("estimated_duration", 1800),
-            "success_metrics": old_data.get("success_metrics", [])
+            "success_metrics": old_data.get("success_metrics", []),
         }
 
     def _get_default_field_value(self, field: str) -> Any:
@@ -628,15 +704,13 @@ class ProjectDirectorAgent(LLMAgent):
                 "required_facts": [],
                 "constraints": [],
                 "user_concerns": "项目成功实施",
-                "deliverable_format": "综合分析报告"
+                "deliverable_format": "综合分析报告",
             },
-            "research_plan": {
-                "perspectives": ["设计视角", "技术视角", "用户体验视角", "商业视角", "实施视角"]
-            },
+            "research_plan": {"perspectives": ["设计视角", "技术视角", "用户体验视角", "商业视角", "实施视角"]},
             "task_assignments": self._create_default_assignments(),
             "execution_strategy": "并行",
             "agent_count": 5,
-            "agent_count_reasoning": "标准复杂度项目，需要5个专业智能体"
+            "agent_count_reasoning": "标准复杂度项目，需要5个专业智能体",
         }
         return defaults.get(field, None)
 
@@ -650,11 +724,9 @@ class ProjectDirectorAgent(LLMAgent):
                 "required_facts": [],
                 "constraints": [],
                 "user_concerns": "项目成功实施",
-                "deliverable_format": "综合分析报告"
+                "deliverable_format": "综合分析报告",
             },
-            "research_plan": {
-                "perspectives": ["设计视角", "技术视角", "用户体验视角", "商业视角", "实施视角"]
-            },
+            "research_plan": {"perspectives": ["设计视角", "技术视角", "用户体验视角", "商业视角", "实施视角"]},
             "task_assignments": self._create_default_assignments(),
             "execution_strategy": "并行",
             "agent_count": 5,
@@ -665,9 +737,9 @@ class ProjectDirectorAgent(LLMAgent):
             "priority_order": ["V2", "V3", "V4", "V5", "V6"],
             "estimated_duration": 1800,
             "success_metrics": ["完整性", "专业性", "可操作性"],
-            "raw_analysis": content
+            "raw_analysis": content,
         }
-    
+
     def _create_default_assignments(self) -> Dict[str, str]:
         """创建默认的任务分派"""
         return {
@@ -675,32 +747,26 @@ class ProjectDirectorAgent(LLMAgent):
             "V3": "进行技术架构分析，包括技术可行性、架构设计、技术选型等",
             "V4": "进行用户体验设计分析，包括用户旅程、交互设计、体验优化等",
             "V5": "进行商业模式分析，包括市场定位、盈利模式、竞争分析等",
-            "V6": "制定实施计划，包括项目规划、时间安排、资源配置等"
+            "V6": "制定实施计划，包括项目规划、时间安排、资源配置等",
         }
-    
 
-    def create_task_assignment(
-        self,
-        agent_type: AgentType,
-        task_description: str,
-        priority: int = 1
-    ) -> TaskAssignment:
+    def create_task_assignment(self, agent_type: AgentType, task_description: str, priority: int = 1) -> TaskAssignment:
         """创建任务分派对象"""
         return TaskAssignment(
             agent_type=agent_type,
             task_description=task_description,
             priority=priority,
             dependencies=[],
-            estimated_duration=300  # 5分钟默认
+            estimated_duration=300,  # 5分钟默认
         )
-    
+
     def get_execution_strategy(self, state: ProjectAnalysisState) -> Dict[str, Any]:
         """获取执行策略"""
         requirements = state.get("structured_requirements", {})
-        
+
         # 分析项目复杂度
         complexity_score = self._calculate_complexity(requirements)
-        
+
         # 确定执行策略
         if complexity_score > 0.8:
             strategy = "comprehensive"  # 全面分析
@@ -708,40 +774,40 @@ class ProjectDirectorAgent(LLMAgent):
             strategy = "focused"  # 重点分析
         else:
             strategy = "basic"  # 基础分析
-        
+
         return {
             "strategy_type": strategy,
             "complexity_score": complexity_score,
             "recommended_agents": self._get_recommended_agents(complexity_score),
-            "estimated_duration": self._estimate_duration(complexity_score)
+            "estimated_duration": self._estimate_duration(complexity_score),
         }
-    
+
     def _calculate_complexity(self, requirements: Dict[str, Any]) -> float:
         """计算项目复杂度"""
         complexity_factors = []
-        
+
         # 功能需求数量
         functional_reqs = requirements.get("functional_requirements", [])
         if isinstance(functional_reqs, list):
             complexity_factors.append(min(len(functional_reqs) / 10, 0.3))
-        
+
         # 约束条件复杂度
         constraints = requirements.get("constraints", {})
         if isinstance(constraints, dict):
             complexity_factors.append(min(len(constraints) / 5, 0.2))
-        
+
         # 目标用户复杂度
         target_users = requirements.get("target_users", "")
         if isinstance(target_users, str) and len(target_users) > 100:
             complexity_factors.append(0.2)
-        
+
         # 核心目标数量
         objectives = requirements.get("core_objectives", [])
         if isinstance(objectives, list):
             complexity_factors.append(min(len(objectives) / 5, 0.3))
-        
+
         return min(sum(complexity_factors), 1.0)
-    
+
     def _get_recommended_agents(self, complexity_score: float) -> List[str]:
         """根据复杂度推荐智能体"""
         if complexity_score > 0.8:
@@ -750,7 +816,7 @@ class ProjectDirectorAgent(LLMAgent):
             return ["V3", "V5", "V6"]  # 技术+商业+实施
         else:
             return ["V5", "V6"]  # 商业+实施
-    
+
     def _estimate_duration(self, complexity_score: float) -> int:
         """估算执行时间（秒）"""
         base_duration = 600  # 10分钟基础时间
@@ -789,7 +855,7 @@ class ProjectDirectorAgent(LLMAgent):
         info = {
             "current_mode": self.mode,
             "role_config_enabled": self.enable_role_config,
-            "available_modes": ["dynamic"]  # 仅支持 Dynamic Mode
+            "available_modes": ["dynamic"],  # 仅支持 Dynamic Mode
         }
 
         if self.role_manager:
@@ -801,4 +867,5 @@ class ProjectDirectorAgent(LLMAgent):
 
 # 注册智能体
 from .base import AgentFactory
+
 AgentFactory.register_agent(AgentType.PROJECT_DIRECTOR, ProjectDirectorAgent)

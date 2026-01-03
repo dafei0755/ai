@@ -166,7 +166,7 @@ export interface InsightsSection {
 }
 
 /** 🆕 需求分析结果（需求分析师原始输出）
- * 
+ *
  * 融合用户修改后的最终版本，包含6个核心字段：
  * 1. project_overview - 项目概览：项目的整体描述和背景
  * 2. core_objectives - 核心目标：项目的主要目标列表
@@ -409,4 +409,23 @@ export interface FollowupHistoryResponse {
   session_id: string;
   total_turns: number;
   history: FollowupTurn[];
+}
+
+// ==================== 🔥 v7.120 搜索引用功能类型 ====================
+
+/** 搜索引用 - 专家使用的搜索工具结果 */
+export interface SearchReference {
+  source_tool: 'tavily' | 'bocha' | 'arxiv' | 'ragflow';  // 搜索工具来源
+  title: string;                      // 结果标题
+  url?: string;                       // 结果URL（可选）
+  snippet: string;                    // 结果摘要/片段
+  relevance_score?: number;           // 相关性分数(0-1)
+  quality_score?: number;             // 质量分数（可选）
+  content_complete?: boolean;         // 内容完整性（可选）
+  source_credibility?: string;        // 来源可信度（可选）
+  deliverable_id: string;             // 关联的交付物ID
+  query: string;                      // 搜索查询关键词
+  timestamp: string;                  // 搜索时间戳（ISO格式）
+  llm_relevance_score?: number;       // LLM评估的相关性（可选）
+  llm_scoring_reason?: string;        // LLM评分理由（可选）
 }

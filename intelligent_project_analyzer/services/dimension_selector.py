@@ -6,12 +6,11 @@ v7.80.15 (P0.3): 集成特殊场景检测器，自动注入专用维度
 """
 
 import os
-from typing import Dict, Any, List, Optional, Set
 from pathlib import Path
-from loguru import logger
+from typing import Any, Dict, List, Optional, Set
 
 import yaml
-
+from loguru import logger
 
 # 🆕 v7.80.15 (P0.3): 场景 → 专用维度映射
 SCENARIO_DIMENSION_MAPPING = {
@@ -22,7 +21,7 @@ SCENARIO_DIMENSION_MAPPING = {
     "complex_relationships": ["conflict_mediation"],
     "poetic_philosophical": ["spiritual_atmosphere"],
     "extreme_budget": ["cost_efficiency"],
-    "innovative_business": ["automation_workflow"]
+    "innovative_business": ["automation_workflow"],
 }
 
 
@@ -86,7 +85,8 @@ class DimensionSelector:
         user_input: str = "",
         structured_data: Optional[Dict[str, Any]] = None,
         min_dimensions: int = 9,
-        max_dimensions: int = 12
+        max_dimensions: int = 12,
+        special_scenes: Optional[List[str]] = None,
     ) -> List[Dict[str, Any]]:
         """
         为项目选择合适的维度
@@ -94,7 +94,8 @@ class DimensionSelector:
         算法：
         1. 从项目类型映射中获取 required 和 recommended 维度
         2. 根据用户输入的关键词匹配额外的 optional 维度
-        3. 确保维度数量在 9-12 个之间
+        3. 处理特殊场景，注入专用维度
+        4. 确保维度数量在 9-12 个之间
 
         Args:
             project_type: 项目类型（如 "personal_residential", "commercial_enterprise"）
@@ -102,11 +103,12 @@ class DimensionSelector:
             structured_data: 结构化数据（可选）
             min_dimensions: 最小维度数量
             max_dimensions: 最大维度数量
+            special_scenes: 特殊场景标签列表（可选，用于注入专用维度）
 
         Returns:
             维度配置列表
         """
-        logger.info(f"🎯 开始为项目选择维度: project_type={project_type}")
+        logger.info(f"🎯 开始为项目选择维度: project_type={project_type}, special_scenes={special_scenes}")
 
         all_dimensions = self.get_all_dimensions()
         if not all_dimensions:
@@ -119,7 +121,9 @@ class DimensionSelector:
         recommended = type_mapping.get("recommended", [])
         optional = type_mapping.get("optional", [])
 
-        logger.info(f"📊 项目类型 '{project_type}' 映射: required={len(required)}, recommended={len(recommended)}, optional={len(optional)}")
+        logger.info(
+            f"📊 项目类型 '{project_type}' 映射: required={len(required)}, recommended={len(recommended)}, optional={len(optional)}"
+        )
 
         # 已选择的维度ID集合
         selected_ids: Set[str] = set()
@@ -155,22 +159,56 @@ class DimensionSelector:
                 if dim_id in all_dimensions and dim_id not in selected_ids:
                     selected_ids.add(dim_id)
 
+        # Step 5: 处理特殊场景，注入专用维度
+        if special_scenes:
+            logger.info(f"🎯 [特殊场景处理] 检测到 {len(special_scenes)} 个特殊场景: {special_scenes}")
+            injected_count = 0
+
+            for scene in special_scenes:
+                # 获取场景对应的专用维度
+                specialized_dims = SCENARIO_DIMENSION_MAPPING.get(scene, [])
+                if not specialized_dims:
+                    logger.debug(f"   ⏭️ 场景 '{scene}' 没有配置专用维度")
+                    continue
+
+                logger.info(f"   🔍 场景 '{scene}' 映射到专用维度: {specialized_dims}")
+
+                # 注入专用维度
+                for dim_id in specialized_dims:
+                    if dim_id in all_dimensions and dim_id not in selected_ids:
+                        selected_ids.add(dim_id)
+                        injected_count += 1
+                        logger.info(f"      ✅ 注入专用维度: {dim_id} (场景: {scene})")
+                    elif dim_id in selected_ids:
+                        logger.debug(f"      ⏭️ 维度 '{dim_id}' 已存在，跳过")
+                    else:
+                        logger.warning(f"      ⚠️ 维度 '{dim_id}' 在配置中不存在，跳过")
+
+            if injected_count > 0:
+                logger.info(f"   ✅ [特殊场景处理完成] 共注入 {injected_count} 个专用维度")
+            else:
+                logger.info(f"   ℹ️ [特殊场景处理完成] 未注入新维度（可能已存在或配置缺失）")
+        else:
+            logger.debug("ℹ️ 未检测到特殊场景，跳过专用维度注入")
+
         # 构建最终的维度配置列表
         result = []
         for dim_id in selected_ids:
             dim_config = all_dimensions.get(dim_id)
             if dim_config:
-                result.append({
-                    "id": dim_id,  # 使用 dimension_id 作为 id（与 YAML 键一致）
-                    "dimension_id": dim_id,  # 冗余字段，兼容前端
-                    "name": dim_config.get("name", dim_id),
-                    "left_label": dim_config.get("left_label", "低"),
-                    "right_label": dim_config.get("right_label", "高"),
-                    "description": dim_config.get("description", ""),
-                    "default_value": dim_config.get("default_value", 50),
-                    "category": dim_config.get("category", "other"),
-                    "gap_threshold": dim_config.get("gap_threshold", 30)
-                })
+                result.append(
+                    {
+                        "id": dim_id,  # 使用 dimension_id 作为 id（与 YAML 键一致）
+                        "dimension_id": dim_id,  # 冗余字段，兼容前端
+                        "name": dim_config.get("name", dim_id),
+                        "left_label": dim_config.get("left_label", "低"),
+                        "right_label": dim_config.get("right_label", "高"),
+                        "description": dim_config.get("description", ""),
+                        "default_value": dim_config.get("default_value", 50),
+                        "category": dim_config.get("category", "other"),
+                        "gap_threshold": dim_config.get("gap_threshold", 30),
+                    }
+                )
 
         # 按类别排序（美学 → 功能 → 科技 → 资源 → 体验）
         category_order = ["aesthetic", "functional", "technology", "resource", "experience", "other"]
@@ -183,10 +221,7 @@ class DimensionSelector:
         return result
 
     def _match_dimensions_by_keywords(
-        self,
-        user_input: str,
-        dimension_ids: List[str],
-        all_dimensions: Dict[str, Dict[str, Any]]
+        self, user_input: str, dimension_ids: List[str], all_dimensions: Dict[str, Dict[str, Any]]
     ) -> List[str]:
         """
         根据用户输入的关键词匹配维度
@@ -216,18 +251,102 @@ class DimensionSelector:
     def _get_default_dimensions(self, count: int = 12) -> List[Dict[str, Any]]:
         """获取默认维度（当配置加载失败时使用）"""
         default_dims = [
-            {"id": "cultural_axis", "name": "文化归属轴", "left_label": "东方", "right_label": "西方", "default_value": 50, "category": "aesthetic"},
-            {"id": "temporal_axis", "name": "时序定位轴", "left_label": "古典", "right_label": "未来", "default_value": 50, "category": "aesthetic"},
-            {"id": "function_intensity", "name": "功能强度轴", "left_label": "形式体验", "right_label": "极致实用", "default_value": 50, "category": "functional"},
-            {"id": "decoration_density", "name": "装饰密度轴", "left_label": "极简", "right_label": "繁复", "default_value": 30, "category": "aesthetic"},
-            {"id": "material_temperature", "name": "材料温度轴", "left_label": "冰冷工业", "right_label": "温暖自然", "default_value": 60, "category": "aesthetic"},
-            {"id": "tech_visibility", "name": "科技渗透轴", "left_label": "隐藏科技", "right_label": "显性科技", "default_value": 40, "category": "technology"},
-            {"id": "space_flexibility", "name": "空间灵活度轴", "left_label": "固定功能", "right_label": "多功能可变", "default_value": 50, "category": "functional"},
-            {"id": "privacy_level", "name": "私密度轴", "left_label": "开放通透", "right_label": "私密隔离", "default_value": 50, "category": "functional"},
-            {"id": "energy_level", "name": "能量层级轴", "left_label": "静谧放松", "right_label": "活力动感", "default_value": 40, "category": "experience"},
-            {"id": "social_vs_private", "name": "社交属性轴", "left_label": "独处空间", "right_label": "社交中心", "default_value": 50, "category": "experience"},
-            {"id": "budget_priority", "name": "预算优先度轴", "left_label": "严格控预算", "right_label": "品质优先", "default_value": 50, "category": "resource"},
-            {"id": "natural_connection", "name": "自然连接轴", "left_label": "人工环境", "right_label": "自然融合", "default_value": 50, "category": "experience"},
+            {
+                "id": "cultural_axis",
+                "name": "文化归属轴",
+                "left_label": "东方",
+                "right_label": "西方",
+                "default_value": 50,
+                "category": "aesthetic",
+            },
+            {
+                "id": "temporal_axis",
+                "name": "时序定位轴",
+                "left_label": "古典",
+                "right_label": "未来",
+                "default_value": 50,
+                "category": "aesthetic",
+            },
+            {
+                "id": "function_intensity",
+                "name": "功能强度轴",
+                "left_label": "形式体验",
+                "right_label": "极致实用",
+                "default_value": 50,
+                "category": "functional",
+            },
+            {
+                "id": "decoration_density",
+                "name": "装饰密度轴",
+                "left_label": "极简",
+                "right_label": "繁复",
+                "default_value": 30,
+                "category": "aesthetic",
+            },
+            {
+                "id": "material_temperature",
+                "name": "材料温度轴",
+                "left_label": "冰冷工业",
+                "right_label": "温暖自然",
+                "default_value": 60,
+                "category": "aesthetic",
+            },
+            {
+                "id": "tech_visibility",
+                "name": "科技渗透轴",
+                "left_label": "隐藏科技",
+                "right_label": "显性科技",
+                "default_value": 40,
+                "category": "technology",
+            },
+            {
+                "id": "space_flexibility",
+                "name": "空间灵活度轴",
+                "left_label": "固定功能",
+                "right_label": "多功能可变",
+                "default_value": 50,
+                "category": "functional",
+            },
+            {
+                "id": "privacy_level",
+                "name": "私密度轴",
+                "left_label": "开放通透",
+                "right_label": "私密隔离",
+                "default_value": 50,
+                "category": "functional",
+            },
+            {
+                "id": "energy_level",
+                "name": "能量层级轴",
+                "left_label": "静谧放松",
+                "right_label": "活力动感",
+                "default_value": 40,
+                "category": "experience",
+            },
+            {
+                "id": "social_vs_private",
+                "name": "社交属性轴",
+                "left_label": "独处空间",
+                "right_label": "社交中心",
+                "default_value": 50,
+                "category": "experience",
+            },
+            {
+                "id": "budget_priority",
+                "name": "预算优先度轴",
+                "left_label": "严格控预算",
+                "right_label": "品质优先",
+                "default_value": 50,
+                "category": "resource",
+            },
+            {
+                "id": "natural_connection",
+                "name": "自然连接轴",
+                "left_label": "人工环境",
+                "right_label": "自然融合",
+                "default_value": 50,
+                "category": "experience",
+            },
         ]
         return default_dims[:count]
 
@@ -236,7 +355,7 @@ class DimensionSelector:
         user_input: str,
         confirmed_tasks: List[Dict[str, Any]],
         current_dimensions: List[Dict[str, Any]],
-        special_scene_metadata: Optional[Dict[str, Any]] = None
+        special_scene_metadata: Optional[Dict[str, Any]] = None,
     ) -> List[Dict[str, Any]]:
         """
         🆕 v7.80.15 (P0.3): 检测特殊场景并注入专用维度
@@ -271,18 +390,20 @@ class DimensionSelector:
             for dim_id in specialized_dim_ids:
                 if dim_id not in current_dim_ids and dim_id in all_dimensions:
                     dim_config = all_dimensions[dim_id]
-                    to_inject.append({
-                        "id": dim_config.get("id", dim_id),
-                        "name": dim_config.get("name", dim_id),
-                        "left_label": dim_config.get("left_label", "低"),
-                        "right_label": dim_config.get("right_label", "高"),
-                        "description": dim_config.get("description", ""),
-                        "default_value": dim_config.get("default_value", 50),
-                        "category": dim_config.get("category", "other"),
-                        "gap_threshold": dim_config.get("gap_threshold", 30),
-                        "generated": True,  # 🆕 标记为场景自动生成
-                        "triggered_by_scene": scene_id  # 🆕 记录触发场景
-                    })
+                    to_inject.append(
+                        {
+                            "id": dim_config.get("id", dim_id),
+                            "name": dim_config.get("name", dim_id),
+                            "left_label": dim_config.get("left_label", "低"),
+                            "right_label": dim_config.get("right_label", "高"),
+                            "description": dim_config.get("description", ""),
+                            "default_value": dim_config.get("default_value", 50),
+                            "category": dim_config.get("category", "other"),
+                            "gap_threshold": dim_config.get("gap_threshold", 30),
+                            "generated": True,  # 🆕 标记为场景自动生成
+                            "triggered_by_scene": scene_id,  # 🆕 记录触发场景
+                        }
+                    )
                     logger.info(f"   ✅ 注入专用维度: {dim_id} (场景: {scene_id})")
 
         # 合并维度（限制最多15个）
@@ -298,7 +419,7 @@ class DimensionSelector:
         self,
         user_input: str,
         confirmed_tasks: List[Dict[str, Any]],
-        special_scene_metadata: Optional[Dict[str, Any]] = None
+        special_scene_metadata: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """
         检测特殊场景（复用 task_completeness_analyzer.py 的 SPECIAL_SCENARIO_DETECTORS）
@@ -318,7 +439,7 @@ class DimensionSelector:
             for scene_tag in special_scene_metadata["scene_tags"]:
                 detected[scene_tag] = {
                     "matched_keywords": special_scene_metadata.get("matched_keywords", {}).get(scene_tag, []),
-                    "trigger_message": f"Step 1 识别的场景: {scene_tag}"
+                    "trigger_message": f"Step 1 识别的场景: {scene_tag}",
                 }
             return detected
 
@@ -341,7 +462,7 @@ class DimensionSelector:
             if matched_keywords:
                 detected_scenarios[scenario_id] = {
                     "matched_keywords": matched_keywords[:3],  # 只保留前3个关键词
-                    "trigger_message": detector.get("trigger_message", "")
+                    "trigger_message": detector.get("trigger_message", ""),
                 }
 
         return detected_scenarios
@@ -375,11 +496,7 @@ class RadarGapAnalyzer:
         """
         self.gap_threshold = gap_threshold
 
-    def analyze(
-        self,
-        dimension_values: Dict[str, int],
-        dimension_configs: List[Dict[str, Any]]
-    ) -> Dict[str, Any]:
+    def analyze(self, dimension_values: Dict[str, int], dimension_configs: List[Dict[str, Any]]) -> Dict[str, Any]:
         """
         分析雷达图数据
 
@@ -414,7 +531,7 @@ class RadarGapAnalyzer:
                 "name": config.get("name", dim_id),
                 "left_label": config.get("left_label", "低"),
                 "right_label": config.get("right_label", "高"),
-                "tendency": self._get_tendency(value, config)
+                "tendency": self._get_tendency(value, config),
             }
             dimension_details[dim_id] = detail
 
@@ -437,10 +554,12 @@ class RadarGapAnalyzer:
             "balanced_dimensions": balanced_dimensions,
             "gap_dimensions": gap_dimensions,
             "profile_label": profile_label,
-            "dimension_details": dimension_details
+            "dimension_details": dimension_details,
         }
 
-        logger.info(f"📊 雷达图分析完成: 极端值={len(extreme_dimensions)}, 平衡值={len(balanced_dimensions)}, Gap={len(gap_dimensions)}")
+        logger.info(
+            f"📊 雷达图分析完成: 极端值={len(extreme_dimensions)}, 平衡值={len(balanced_dimensions)}, Gap={len(gap_dimensions)}"
+        )
         logger.info(f"🏷️ 风格标签: {profile_label}")
 
         return result
@@ -461,11 +580,7 @@ class RadarGapAnalyzer:
         else:
             return f"强烈倾向{right_label}"
 
-    def _generate_profile_label(
-        self,
-        values: Dict[str, int],
-        details: Dict[str, Dict[str, Any]]
-    ) -> str:
+    def _generate_profile_label(self, values: Dict[str, int], details: Dict[str, Dict[str, Any]]) -> str:
         """
         生成风格标签（基于规则，后续可升级为LLM生成）
         """
@@ -533,7 +648,5 @@ def select_dimensions_for_state(state: Dict[str, Any]) -> List[Dict[str, Any]]:
     structured_data = requirements_result.get("structured_data", {})
 
     return selector.select_for_project(
-        project_type=project_type,
-        user_input=user_input,
-        structured_data=structured_data
+        project_type=project_type, user_input=user_input, structured_data=structured_data
     )

@@ -14,9 +14,10 @@
 - 每个项目节省 1-2 秒
 """
 
-from typing import Dict, Any, List
-from loguru import logger
 from functools import lru_cache
+from typing import Any, Dict, List
+
+from loguru import logger
 
 
 class ExpertPromptTemplate:
@@ -122,7 +123,7 @@ class ExpertPromptTemplate:
   - 如需引用视觉元素，在文字内容中描述即可
 
 **记住：你的输出将被严格验证，必须包含 task_execution_report、protocol_execution 和 execution_metadata 三个必填字段。**
-"""
+""",
         }
 
     def render(
@@ -131,7 +132,8 @@ class ExpertPromptTemplate:
         task_instruction: Dict[str, Any],
         context: str,
         state: Dict[str, Any],
-        creative_mode_note: str = ""
+        creative_mode_note: str = "",
+        search_queries_hint: str = "",  # 🆕 v7.122: 搜索查询提示
     ) -> Dict[str, str]:
         """
         渲染完整Prompt（只构建动态部分20%）
@@ -142,12 +144,16 @@ class ExpertPromptTemplate:
             context: 项目上下文
             state: 当前状态
             creative_mode_note: 创意叙事模式说明（可选）
+            search_queries_hint: 🆕 v7.122 预生成的搜索查询提示（可选）
 
         Returns:
             包含 system_prompt 和 user_prompt 的字典
         """
         # 🔥 构建动态的 TaskInstruction 部分（20%的内容）
         task_instruction_section = self._build_task_instruction_section(task_instruction)
+
+        # 🆕 构建任务优先级提示（如果有confirmed_core_tasks）
+        task_priority_section = self._build_task_priority_section(state)
 
         # 🔥 拼接预构建的静态部分（80%）+ 动态部分（20%）
         system_prompt = f"""
@@ -160,12 +166,49 @@ class ExpertPromptTemplate:
 
 {task_instruction_section}
 
+{task_priority_section}
+{search_queries_hint}
 {self.static_sections['autonomy_section']}
 {self.static_sections['output_format_section']}
 """
 
         # 构建用户提示词
         # 🔥 v7.19: 添加输出质量引导
+        # 🆕 v7.65: 增加搜索工具使用指引
+
+        # 检查是否有require_search=true的交付物
+        required_search_deliverables = [
+            d.get("name") for d in task_instruction.get("deliverables", []) if d.get("require_search", False)
+        ]
+
+        search_guidance = ""
+        if required_search_deliverables:
+            search_guidance = f"""
+
+# 🔍 搜索工具使用指引 (v7.65)
+
+⚠️ **强制搜索要求**: 以下交付物已标记require_search=true，**必须**使用搜索工具获取外部资料：
+{chr(10).join([f'- **{name}**' for name in required_search_deliverables])}
+
+📚 **搜索工具使用规则**:
+1. **MUST搜索** - 强制场景：
+   - require_search=true的交付物（如上所列）
+   - 需要2023年后的最新数据、趋势
+   - 案例库、best practices、行业标杆
+   - 学术理论依据、研究方法论
+
+2. **SHOULD搜索** - 建议场景：
+   - 提到具体行业、品牌、技术时
+   - 需要具体数据支撑时（如尺寸、成本）
+   - 跨领域知识（如商业+心理学）
+
+3. **MAY搜索** - 可选场景：
+   - 需要扩展视野、增加灵感
+   - 验证已有判断的准确性
+
+⛔ **禁止自行编造**: 当需要外部数据时，必须使用搜索工具获取，不得自行虚构案例、数据或趋势。
+"""
+
         user_prompt = f"""
 # 📂 项目上下文
 {context}
@@ -173,7 +216,7 @@ class ExpertPromptTemplate:
 # 📊 当前项目状态
 - 项目阶段: {state.get('current_phase', '分析阶段')}
 - 已完成分析: {len(state.get('expert_analyses', {}))}个专家
-
+{search_guidance}
 # 🎯 执行指令
 
 请严格按照上述TaskInstruction执行你的专业分析任务，并以JSON格式返回TaskOrientedExpertOutput结构。
@@ -200,10 +243,7 @@ class ExpertPromptTemplate:
 开始执行你的专业分析任务：
 """
 
-        return {
-            "system_prompt": system_prompt,
-            "user_prompt": user_prompt
-        }
+        return {"system_prompt": system_prompt, "user_prompt": user_prompt}
 
     def _build_task_instruction_section(self, task_instruction: Dict[str, Any]) -> str:
         """
@@ -218,41 +258,95 @@ class ExpertPromptTemplate:
         sections = []
 
         # 核心目标
-        sections.append(f"""
+        sections.append(
+            f"""
 ## 核心目标
 {task_instruction.get('objective', '基于专业领域提供深度分析')}
-""")
+"""
+        )
 
         # 交付物要求
         sections.append("## 交付物要求\n")
-        deliverables = task_instruction.get('deliverables', [])
+        deliverables = task_instruction.get("deliverables", [])
         if deliverables:
             for i, deliverable in enumerate(deliverables, 1):
-                sections.append(f"""
-**交付物 {i}: {deliverable.get('name', f'交付物{i}')}**
+                require_search_mark = "🔍必须搜索" if deliverable.get("require_search", False) else ""
+                sections.append(
+                    f"""
+**交付物 {i}: {deliverable.get('name', f'交付物{i}')}** {require_search_mark}
 - 描述: {deliverable.get('description', '')}
 - 格式: {deliverable.get('format', 'analysis')}
 - 优先级: {deliverable.get('priority', 'medium')}
 - 成功标准: {', '.join(deliverable.get('success_criteria', []))}
-""")
+"""
+                )
+                if deliverable.get("require_search", False):
+                    sections.append("⚠️ **此交付物必须使用搜索工具获取外部资料**\n")
 
         # 整体成功标准
-        sections.append(f"""
+        sections.append(
+            f"""
 ## 整体成功标准
 {', '.join(task_instruction.get('success_criteria', ['输出符合专业标准']))}
-""")
+"""
+        )
 
         # 约束条件
-        sections.append(f"""
+        sections.append(
+            f"""
 ## 约束条件
 {', '.join(task_instruction.get('constraints', ['无特殊约束']))}
-""")
+"""
+        )
 
         # 上下文要求
-        sections.append(f"""
+        sections.append(
+            f"""
 ## 上下文要求
 {', '.join(task_instruction.get('context_requirements', ['无特殊上下文要求']))}
-""")
+"""
+        )
+
+        return "\n".join(sections)
+
+    def _build_task_priority_section(self, state: Dict[str, Any]) -> str:
+        """
+        构建任务优先级提示部分（基于问卷确认的核心任务）
+
+        当用户通过问卷确认了核心任务后，此方法会生成一个优先级指引，
+        提示专家优先关注这些核心任务相关的工作。
+
+        Args:
+            state: 工作流状态，包含 confirmed_core_tasks
+
+        Returns:
+            格式化的任务优先级提示文本，如果无确认任务则返回空字符串
+        """
+        confirmed_tasks = state.get("confirmed_core_tasks", [])
+
+        # 边界情况：无问卷数据或用户未确认核心任务
+        if not confirmed_tasks:
+            return ""
+
+        sections = []
+        sections.append("\n## 📌 任务优先级指引")
+        sections.append("\n用户在问卷中确认了以下核心任务，这些是项目的重点关注方向：\n")
+
+        # 格式化核心任务列表
+        for i, task in enumerate(confirmed_tasks, 1):
+            task_title = task.get("title", f"任务{i}")
+            task_desc = task.get("description", "")
+
+            sections.append(f"**{i}. {task_title}**")
+            if task_desc:
+                sections.append(f"   - {task_desc}")
+            sections.append("")  # 空行分隔
+
+        # 添加优先级说明
+        sections.append("**执行建议：**")
+        sections.append("- 在分析时，优先围绕这些核心任务展开")
+        sections.append("- 如果你的交付物与这些任务相关，应重点关注")
+        sections.append("- 衍生任务虽然重要，但应在核心任务满足后再深化")
 
         return "\n".join(sections)
 
@@ -262,9 +356,7 @@ _template_cache: Dict[str, ExpertPromptTemplate] = {}
 
 
 def get_expert_template(
-    role_type: str,
-    base_system_prompt: str,
-    autonomy_protocol: Dict[str, Any]
+    role_type: str, base_system_prompt: str, autonomy_protocol: Dict[str, Any]
 ) -> ExpertPromptTemplate:
     """
     获取或创建专家模板（单例模式）

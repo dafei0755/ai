@@ -3,18 +3,19 @@ WPCOM Member 会员信息 API 路由
 提供会员等级、订单、钱包等数据查询接口
 """
 
-from fastapi import APIRouter, Depends, HTTPException
-from typing import Dict, Any
-import sys
 import os
+import sys
+from typing import Any, Dict
+
+from fastapi import APIRouter, Depends, HTTPException
 
 # 添加项目根目录到路径
-project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
 try:
-    from wpcom_member_api import WPCOMMemberAPI
+    from intelligent_project_analyzer.api.wpcom_member_api import WPCOMMemberAPI
 except ImportError as e:
     print(f"[MemberRoutes] 警告：无法导入 WPCOMMemberAPI: {e}")
     WPCOMMemberAPI = None
@@ -75,6 +76,7 @@ async def get_my_membership(current_user: Dict[str, Any] = Depends(auth_middlewa
 
                 # 构造 membership 对象
                 from datetime import datetime
+
                 is_active = False
                 if vip_end_date:
                     try:
@@ -87,7 +89,7 @@ async def get_my_membership(current_user: Dict[str, Any] = Depends(auth_middlewa
                     "level": vip_type,
                     "expire_date": vip_end_date or "",
                     "is_active": is_active,
-                    "status": "active" if is_active else "expired"
+                    "status": "active" if is_active else "expired",
                 }
                 print(f"[MemberRoutes] 构造的 membership 数据: {membership}")
 
@@ -113,6 +115,7 @@ async def get_my_membership(current_user: Dict[str, Any] = Depends(auth_middlewa
         except Exception as e:
             print(f"[MemberRoutes] 获取钱包余额失败: {e}")
             import traceback
+
             traceback.print_exc()
             wallet_balance = 0.0
 
@@ -129,12 +132,7 @@ async def get_my_membership(current_user: Dict[str, Any] = Depends(auth_middlewa
             is_expired = not membership.get("is_active", False)
 
         # 🎨 会员等级名称映射（与 WordPress 显示保持一致）
-        level_names = {
-            0: "免费用户",
-            1: "普通会员",      # VIP 1 → 普通会员
-            2: "超级会员",      # VIP 2 → 超级会员
-            3: "钻石会员"       # VIP 3 → 钻石会员
-        }
+        level_names = {0: "免费用户", 1: "普通会员", 2: "超级会员", 3: "钻石会员"}  # VIP 1 → 普通会员  # VIP 2 → 超级会员  # VIP 3 → 钻石会员
         level_name = level_names.get(level, f"VIP {level}")
 
         print(f"[MemberRoutes] ✅ 用户 {user_id} 会员等级: {level_name}")
@@ -144,7 +142,7 @@ async def get_my_membership(current_user: Dict[str, Any] = Depends(auth_middlewa
             "level_name": level_name,
             "expire_date": expire_date,
             "is_expired": is_expired,
-            "wallet_balance": wallet_balance
+            "wallet_balance": wallet_balance,
         }
 
     except HTTPException:
@@ -152,6 +150,7 @@ async def get_my_membership(current_user: Dict[str, Any] = Depends(auth_middlewa
     except Exception as e:
         print(f"[MemberRoutes] ❌ 获取会员信息失败: {e}")
         import traceback
+
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"获取会员信息失败: {str(e)}")
 
@@ -182,10 +181,7 @@ async def get_my_orders(current_user: Dict[str, Any] = Depends(auth_middleware.g
         wc_orders = orders_data.get("wc_orders", [])
         all_orders = wpcom_orders + wc_orders
 
-        return {
-            "orders": all_orders,
-            "total_count": len(all_orders)
-        }
+        return {"orders": all_orders, "total_count": len(all_orders)}
 
     except HTTPException:
         raise
@@ -219,7 +215,7 @@ async def get_my_wallet(current_user: Dict[str, Any] = Depends(auth_middleware.g
         return {
             "balance": float(wallet.get("balance", 0)),
             "frozen": float(wallet.get("frozen", 0)),
-            "points": int(wallet.get("points", 0))
+            "points": int(wallet.get("points", 0)),
         }
 
     except HTTPException:
@@ -260,12 +256,7 @@ async def check_access(level: int, current_user: Dict[str, Any] = Depends(auth_m
         # 检查是否有访问权限
         has_access = is_active and user_level >= level
 
-        return {
-            "has_access": has_access,
-            "user_level": user_level,
-            "required_level": level,
-            "is_active": is_active
-        }
+        return {"has_access": has_access, "user_level": user_level, "required_level": level, "is_active": is_active}
 
     except HTTPException:
         raise

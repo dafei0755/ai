@@ -1,31 +1,38 @@
 # ============================================================================
-# 专家自主性协议 v4.1 - 精简版任务导向闭环架构
+# 专家自主性协议 v4.2 - 工具优先版任务导向闭环架构
 # ============================================================================
-# 更新日期: 2025-12-17
-# 版本变更: v4.0 → v4.1 (精简优化版)
+# 更新日期: 2026-01-03
+# 版本变更: v4.1 → v4.2 (强制工具使用)
 # 变更说明:
-# 1. 精简协议内容，减少 ~50% token 消耗
-# 2. 简化 JSON 示例，提高 LLM 理解效率
-# 3. 禁止行为添加正反例边界，减少歧义
-# 4. 新增 exceeded 状态，识别超预期完成
-# 5. 添加质量关联，与 v7.19 输出标准呼应
-# 6. 定义 challenge_type 标准化枚举
+# 1. 新增第4条核心规则：工具优先原则（解决0次调用问题）
+# 2. 添加工具使用准则，强制搜索真实案例/数据
+# 3. 在 protocol_execution 中新增 tools_used 字段
+# 4. 明确工具使用失败的处理流程
+# 5. 保留 v4.1 的所有优化（精简、质量关联等）
 # ============================================================================
 
-version: "4.1"
-protocol_name: "Task-Oriented Expert Autonomy Protocol (Compact)"
-description: "精简版任务导向专家自主性协议 - 核心原则 + 闭环报告 + 质量关联"
+version: "4.2"
+protocol_name: "Task-Oriented Expert Autonomy Protocol (Tool-First Edition)"
+description: "工具优先版专家自主性协议 - 强制搜索验证 + 核心原则 + 闭环报告"
 
 # ============================================================================
-# 🎯 核心协议（精简版 - 必读）
+# 🎯 核心协议（v4.2 - 工具优先版）
 # ============================================================================
 protocol_core: |
-  ## 专家自主协议 v4.1 核心原则
+  ## 专家自主协议 v4.2 核心原则
 
-  **三条核心规则：**
+  **四条核心规则：**
   1. **任务聚焦**：只输出 TaskInstruction 要求的 deliverables，不扩张范围
   2. **闭环报告**：protocol_execution 所有字段必须完整填写（见下方格式）
   3. **挑战有据**：提出挑战必须基于专业标准，记录在 challenges_raised
+  4. **工具优先** ⭐ 新增：必须优先使用搜索工具获取最新案例/数据/标准，记录在 tools_used 字段
+
+  **工具使用准则（v4.2 核心要求）：** ⭐ 新增
+  - ✅ 分析设计案例时，**必须**搜索 Tony Chi/类似设计师的实际项目
+  - ✅ 引用材料/工艺时，**必须**通过 RAGFlow/Bocha 验证可行性
+  - ✅ 涉及趋势分析时，**必须**通过 Tavily/Arxiv 获取近期数据
+  - ❌ **不可**完全依赖 LLM 内部知识（需在 protocol_execution 说明搜索策略）
+  - ⚠️ 如果搜索无结果，**必须**在 challenges_raised 中说明
 
   **自主权限边界：**
   - ✅ 可以细化已有 deliverables 的分析维度
@@ -35,22 +42,29 @@ protocol_core: |
   - ❌ 不可偏离核心 objective
   - ❌ 不可遗漏 protocol_execution 任何字段
 
-  **质量关联（v7.19）：**
+  **质量关联（v7.19 + v4.2 增强）：**
   - 每个交付物 content 应包含 300-800 字详细分析
-  - 必须包含具体数据、案例或专业依据
+  - 必须包含具体数据、案例或专业依据（**优先来自工具搜索**）
   - 质量不达标时 confidence_level 必须 < 0.7
+  - **未使用工具时，confidence_level 上限为 0.6** ⭐ 新增
 
 # ============================================================================
-# 📊 报告格式（简化版）
+# 📊 报告格式（v4.2 增强版）
 # ============================================================================
 protocol_content: |
   ## 协议执行报告字段
+
+  ### tools_used（工具使用记录）⭐ 新增 v4.2
+  示例：`["bocha_search: Tony Chi 大平层案例", "tavily: 2024潮玩展示趋势", "ragflow: 高级材料库"]`
+  - 必须记录所有使用的工具及搜索关键词
+  - 如未使用工具，必须说明理由（记录在 challenges_raised）
 
   ### autonomy_actions_taken（自主行动）
   示例：`["细化为3个分析维度", "增加风险评估"]`
 
   ### challenges_raised（挑战记录）
   示例：`[{"challenge_type": "timeline_too_short", "concern": "1天无法完成", "alternative": "建议3天"}]`
+  - v4.2 新增：搜索失败时必须记录，如 `{"challenge_type": "insufficient_context", "concern": "Bocha搜索无相关案例", "alternative": "使用近似案例+免责声明"}`
 
   ### reinterpretations_made（解释记录）
   示例：`[{"original": "分析需求", "interpretation": "分功能/情感/潜在3层", "rationale": "单层不够"}]`
@@ -63,9 +77,10 @@ protocol_content: |
   - `"partial"`: 只完成了部分 deliverables
 
   ### confidence_level（信心水平）
-  - 0.9-1.0: 高信心，符合专业标准
+  - 0.9-1.0: 高信心，符合专业标准（必须使用工具验证）
   - 0.7-0.8: 较信心，可能需验证
   - <0.7: 质量存疑，建议复核
+  - **≤0.6: 未使用工具或质量不达标** ⭐ v4.2 新增
 
   ## 禁止行为边界
 
@@ -75,6 +90,7 @@ protocol_content: |
   | 字段缺失 | protocol_execution 缺少 confidence_level | 所有字段必填 |
   | 无据挑战 | "我觉得时间不够" | "根据ISO标准，此类任务需要..." |
   | 解释偏离 | 解释后变成了另一个任务 | 解释只是细化，不改变本质 |
+  | **不用工具** ⭐ | 完全依赖LLM内部知识 | 必须调用搜索工具验证 |
 
 # ============================================================================
 # 🔧 challenge_type 标准枚举
@@ -89,11 +105,12 @@ challenge_type_enum:
   - quality_vs_speed_tradeoff     # 质量与速度冲突
 
 # ============================================================================
-# 📝 期望的报告格式（简化版）
+# 📝 期望的报告格式（v4.2 更新）
 # ============================================================================
 expected_reporting_format: |
   {
     "protocol_execution": {
+      "tools_used": ["bocha_search: Tony Chi案例", "tavily: 2024设计趋势"],
       "autonomy_actions_taken": ["行动1", "行动2"],
       "challenges_raised": [],
       "reinterpretations_made": [],
@@ -103,16 +120,19 @@ expected_reporting_format: |
   }
 
 # ============================================================================
-# ✅ 验证规则
+# ✅ 验证规则（v4.2 更新）
 # ============================================================================
 validation_criteria:
   - protocol_execution 字段必须完整
+  - tools_used 必须存在（v4.2 新增），至少包含1个工具调用
   - final_status 必须是 completed/exceeded/challenged/reinterpreted/partial 之一
   - confidence_level 必须在 0.0-1.0 范围内
   - 质量不达标（内容<300字或无依据）时 confidence_level 必须 < 0.7
+  - 未使用工具时 confidence_level 必须 ≤ 0.6 （v4.2 新增）
   - 如有挑战，challenge_type 应使用标准枚举值
 
 compliance_check:
+  - tools_used 必须是数组，不可为空（v4.2 新增）
   - autonomy_actions_taken 必须是数组（可为空 []）
   - challenges_raised 必须是数组（可为空 []）
   - reinterpretations_made 必须是数组（可为空 []）

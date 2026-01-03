@@ -6,7 +6,8 @@ v7.80.6: Step 3 核心服务，分析核心任务的信息完整性
 """
 
 import re
-from typing import Dict, Any, List, Optional, Set
+from typing import Any, Dict, List, Optional, Set
+
 from loguru import logger
 
 
@@ -24,17 +25,14 @@ class TaskCompletenessAnalyzer:
         "预算约束": ["预算范围", "资源限制", "成本"],
         "时间节点": ["交付时间", "里程碑", "工期"],
         "交付要求": ["交付物类型", "质量标准", "成果形式"],
-        "特殊需求": ["特殊场景", "约束条件", "特殊要求"]
+        "特殊需求": ["特殊场景", "约束条件", "特殊要求"],
     }
 
     def __init__(self):
         pass
 
     def analyze(
-        self,
-        confirmed_tasks: List[Dict[str, Any]],
-        user_input: str,
-        structured_data: Dict[str, Any]
+        self, confirmed_tasks: List[Dict[str, Any]], user_input: str, structured_data: Dict[str, Any]
     ) -> Dict[str, Any]:
         """
         分析任务信息完整性
@@ -74,24 +72,18 @@ class TaskCompletenessAnalyzer:
 
         # 5. 计算整体完整性评分
         task_density_score = self._calculate_task_density(confirmed_tasks)
-        completeness_score = (
-            (len(covered_dimensions) / len(self.DIMENSIONS)) * 0.6 +
-            task_density_score * 0.4
-        )
+        completeness_score = (len(covered_dimensions) / len(self.DIMENSIONS)) * 0.6 + task_density_score * 0.4
 
         return {
             "completeness_score": completeness_score,
             "covered_dimensions": covered_dimensions,
             "missing_dimensions": missing_dimensions,
             "critical_gaps": critical_gaps,
-            "dimension_scores": dimension_scores
+            "dimension_scores": dimension_scores,
         }
 
     def _merge_text(
-        self,
-        confirmed_tasks: List[Dict[str, Any]],
-        user_input: str,
-        structured_data: Dict[str, Any]
+        self, confirmed_tasks: List[Dict[str, Any]], user_input: str, structured_data: Dict[str, Any]
     ) -> str:
         """合并所有文本信息"""
         texts = [user_input]
@@ -121,19 +113,22 @@ class TaskCompletenessAnalyzer:
 
         # 如果没有关键词匹配，检查相关模式
         if matched == 0:
-            # 预算模式
+            # 预算相关（v7.107.1：增强单价识别）
             if any(kw in keywords for kw in ["预算", "成本"]):
-                if re.search(r'\d+万|\d+元|预算|成本|费用', text):
+                # 支持多种预算表达形式：
+                # - 总价：50万、100万元
+                # - 单价：3000元/平米、5K/㎡、8000每平米
+                if re.search(r"\d+万|\d+元|\d+元[/每]平米?|\d+[kK]/[㎡m²平米]|预算|成本|费用", text):
                     matched += 1
 
             # 时间模式
             if any(kw in keywords for kw in ["时间", "工期"]):
-                if re.search(r'\d+月|\d+天|时间|工期|周期', text):
+                if re.search(r"\d+月|\d+天|时间|工期|周期", text):
                     matched += 1
 
             # 面积模式
             if any(kw in keywords for kw in ["规模", "面积"]):
-                if re.search(r'\d+平|平米|m2|㎡', text):
+                if re.search(r"\d+平|平米|m2|㎡", text):
                     matched += 1
 
         return min(matched / max(len(keywords), 1), 1.0)
@@ -150,7 +145,7 @@ class TaskCompletenessAnalyzer:
             desc = task.get("description", "")
             total_chars += len(desc)
             # 简单统计关键词（逗号、顿号分隔的片段数）
-            total_keywords += len(re.split(r'[，、；,;]', desc))
+            total_keywords += len(re.split(r"[，、；,;]", desc))
 
         # 归一化：平均每个任务 30-50 字为标准密度
         avg_chars = total_chars / len(confirmed_tasks) if confirmed_tasks else 0
@@ -158,26 +153,42 @@ class TaskCompletenessAnalyzer:
 
         return density
 
-    def _identify_critical_gaps(
-        self,
-        missing_dimensions: List[str],
-        all_text: str
-    ) -> List[Dict[str, str]]:
+    def _identify_critical_gaps(self, missing_dimensions: List[str], all_text: str) -> List[Dict[str, str]]:
         """识别关键缺失点"""
         critical_gaps = []
 
         for dim in missing_dimensions:
             reason = self._generate_gap_reason(dim, all_text)
             if reason:  # 只添加关键性缺失
-                critical_gaps.append({
-                    "dimension": dim,
-                    "reason": reason
-                })
+                critical_gaps.append({"dimension": dim, "reason": reason})
 
         return critical_gaps
 
     def _generate_gap_reason(self, dimension: str, all_text: str) -> Optional[str]:
-        """生成缺失原因说明"""
+        """生成缺失原因说明（v7.107.1：动态优先级判断）"""
+
+        # v7.107.1：智能判断时间节点优先级
+        # 如果用户输入聚焦于设计挑战/方案探讨，时间节点非关键
+        if dimension == "时间节点":
+            design_focus_keywords = [
+                "如何",
+                "怎样",
+                "怎么",
+                "方案",
+                "策略",
+                "体面感",
+                "价值感",
+                "氛围",
+                "调性",
+                "格调",
+                "设计手法",
+                "设计方向",
+                "视觉",
+                "空间",
+            ]
+            if any(kw in all_text for kw in design_focus_keywords):
+                return None  # 降级为非关键缺失
+
         reasons = {
             "预算约束": "未明确预算范围，影响设计方向和材料选择",
             "时间节点": "未说明交付时间，无法规划工作流程和里程碑",
@@ -197,7 +208,7 @@ class TaskCompletenessAnalyzer:
         critical_gaps: List[Dict[str, str]],
         confirmed_tasks: List[Dict[str, Any]],
         existing_info_summary: str = "",
-        target_count: int = 10
+        target_count: int = 10,
     ) -> List[Dict[str, Any]]:
         """
         生成针对性补充问题
@@ -240,16 +251,12 @@ class TaskCompletenessAnalyzer:
         # 3. 如果问题不足 target_count，添加通用补充问题
         if len(questions) < target_count:
             generic_questions = self._generate_generic_questions()
-            questions.extend(generic_questions[:target_count - len(questions)])
+            questions.extend(generic_questions[: target_count - len(questions)])
 
         # 4. 限制最多 target_count 个问题
         return questions[:target_count]
 
-    def _generate_question_for_dimension(
-        self,
-        dimension: str,
-        is_required: bool
-    ) -> Optional[Dict[str, Any]]:
+    def _generate_question_for_dimension(self, dimension: str, is_required: bool) -> Optional[Dict[str, Any]]:
         """为特定维度生成问题"""
 
         question_templates = {
@@ -259,7 +266,7 @@ class TaskCompletenessAnalyzer:
                 "type": "single_choice",
                 "options": ["10万以下", "10-30万", "30-50万", "50-100万", "100万以上"],
                 "priority": 1,
-                "weight": 10
+                "weight": 10,
             },
             "时间节点": {
                 "id": "timeline",
@@ -267,7 +274,7 @@ class TaskCompletenessAnalyzer:
                 "type": "single_choice",
                 "options": ["1个月内", "1-3个月", "3-6个月", "6个月以上", "暂无明确要求"],
                 "priority": 2,
-                "weight": 9
+                "weight": 9,
             },
             "交付要求": {
                 "id": "deliverables",
@@ -275,15 +282,15 @@ class TaskCompletenessAnalyzer:
                 "type": "multiple_choice",
                 "options": ["设计方案", "效果图", "施工图", "软装清单", "预算清单", "其他"],
                 "priority": 3,
-                "weight": 8
+                "weight": 8,
             },
             "特殊需求": {
                 "id": "special_requirements",
                 "question": "是否有其他特殊需求或约束条件？",
                 "type": "open_ended",
                 "priority": 4,
-                "weight": 7
-            }
+                "weight": 7,
+            },
         }
 
         template = question_templates.get(dimension)
@@ -302,7 +309,7 @@ class TaskCompletenessAnalyzer:
                 "type": "open_ended",
                 "is_required": False,
                 "priority": 5,
-                "weight": 6
+                "weight": 6,
             },
             {
                 "id": "color_preference",
@@ -311,7 +318,7 @@ class TaskCompletenessAnalyzer:
                 "options": ["明亮清新", "温暖舒适", "沉稳大气", "冷峻现代", "多彩活力", "无特别要求"],
                 "is_required": False,
                 "priority": 6,
-                "weight": 5
+                "weight": 5,
             },
             {
                 "id": "material_preference",
@@ -320,7 +327,7 @@ class TaskCompletenessAnalyzer:
                 "options": ["天然木材", "石材大理石", "金属质感", "玻璃通透", "织物软装", "无特别要求"],
                 "is_required": False,
                 "priority": 7,
-                "weight": 4
+                "weight": 4,
             },
             {
                 "id": "lighting_preference",
@@ -329,7 +336,7 @@ class TaskCompletenessAnalyzer:
                 "options": ["明亮充足", "柔和温馨", "层次丰富", "可调节变化", "无特别要求"],
                 "is_required": False,
                 "priority": 8,
-                "weight": 3
+                "weight": 3,
             },
             {
                 "id": "sustainability_concern",
@@ -338,7 +345,7 @@ class TaskCompletenessAnalyzer:
                 "options": ["非常重视", "适度考虑", "不是优先考虑", "无特别要求"],
                 "is_required": False,
                 "priority": 9,
-                "weight": 2
+                "weight": 2,
             },
             {
                 "id": "future_flexibility",
@@ -347,15 +354,11 @@ class TaskCompletenessAnalyzer:
                 "options": ["需要高度灵活", "适度灵活", "固定使用", "无特别要求"],
                 "is_required": False,
                 "priority": 10,
-                "weight": 1
-            }
+                "weight": 1,
+            },
         ]
 
-    def detect_special_scenarios(
-        self,
-        user_input: str,
-        task_summary: str
-    ) -> Dict[str, Dict[str, Any]]:
+    def detect_special_scenarios(self, user_input: str, task_summary: str) -> Dict[str, Dict[str, Any]]:
         """
         检测特殊场景（v7.80.15 P1.2）
 
@@ -378,30 +381,12 @@ class TaskCompletenessAnalyzer:
 
         # 场景检测规则
         scenario_rules = {
-            "poetic_philosophical": {
-                "keywords": ["月亮", "湖面", "诗意", "哲学", "灵魂", "禅", "意境"],
-                "message": "检测到诗意/哲学表达"
-            },
-            "extreme_environment": {
-                "keywords": ["高海拔", "严寒", "酷暑", "极端", "沙漠", "高原"],
-                "message": "检测到极端环境场景"
-            },
-            "medical_special_needs": {
-                "keywords": ["无障碍", "适老", "轮椅", "医疗", "康复", "辅助"],
-                "message": "检测到医疗/无障碍需求"
-            },
-            "cultural_depth": {
-                "keywords": ["传统文化", "非遗", "文化传承", "authentic", "在地文化"],
-                "message": "检测到文化深度需求"
-            },
-            "tech_geek": {
-                "keywords": ["声学", "录音", "音乐室", "专业级", "发烧友"],
-                "message": "检测到科技极客场景"
-            },
-            "complex_relationships": {
-                "keywords": ["多代同堂", "冲突", "隐私", "边界", "独立空间"],
-                "message": "检测到复杂关系场景"
-            }
+            "poetic_philosophical": {"keywords": ["月亮", "湖面", "诗意", "哲学", "灵魂", "禅", "意境"], "message": "检测到诗意/哲学表达"},
+            "extreme_environment": {"keywords": ["高海拔", "严寒", "酷暑", "极端", "沙漠", "高原"], "message": "检测到极端环境场景"},
+            "medical_special_needs": {"keywords": ["无障碍", "适老", "轮椅", "医疗", "康复", "辅助"], "message": "检测到医疗/无障碍需求"},
+            "cultural_depth": {"keywords": ["传统文化", "非遗", "文化传承", "authentic", "在地文化"], "message": "检测到文化深度需求"},
+            "tech_geek": {"keywords": ["声学", "录音", "音乐室", "专业级", "发烧友"], "message": "检测到科技极客场景"},
+            "complex_relationships": {"keywords": ["多代同堂", "冲突", "隐私", "边界", "独立空间"], "message": "检测到复杂关系场景"},
         }
 
         combined_text = f"{user_input} {task_summary}"
@@ -409,10 +394,7 @@ class TaskCompletenessAnalyzer:
         for scenario_id, rule in scenario_rules.items():
             matched = [kw for kw in rule["keywords"] if kw in combined_text]
             if len(matched) >= 2:  # 至少匹配2个关键词
-                special_scenarios[scenario_id] = {
-                    "matched_keywords": matched,
-                    "trigger_message": rule["message"]
-                }
+                special_scenarios[scenario_id] = {"matched_keywords": matched, "trigger_message": rule["message"]}
                 logger.info(f"🎯 [特殊场景检测] {scenario_id}: {matched}")
 
         return special_scenarios

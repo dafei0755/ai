@@ -42,3 +42,8 @@ REM 图片和媒体文件扩展名（不备份 - 扩展名匹配）
 .flv
 .mkv
 .pdf
+
+REM 大型数据库文件（不备份 - 节省空间）
+archived_sessions.db
+test_c1_fix.db
+test_c2_fix.db

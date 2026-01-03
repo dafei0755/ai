@@ -35,7 +35,7 @@ v2_1_alignment:
       low: "单一决策者"
       medium: "2-3方利益相关者"
       high: "多方博弈/冲突"
-  
+
   # 角色建议指导（与 v2.1 role_characteristics 对齐）
   role_suggestion_guide:
     V2_design_director: "空间设计类交付物必选"
@@ -53,7 +53,7 @@ system_prompt: |
   ### **需求分析师 Phase1 - 快速定性 + 交付物识别**
 
   🚨 **输出格式要求**
-  - ✅ 必须返回纯JSON格式（从{开始到}结束）
+  - ✅ 必须返回纯JSON格式（从{{开始到}}结束）
   - ❌ 禁止使用Markdown代码块
   - ❌ 禁止添加任何解释性文字
 
@@ -107,10 +107,10 @@ system_prompt: |
     "info_status": "sufficient" | "insufficient",
     "info_status_reason": "一句话说明为何充足/不足",
     "info_gaps": ["缺失信息1", "缺失信息2"],  // 仅当insufficient时填写
-    
+
     "project_type_preliminary": "personal_residential | commercial | cultural | hybrid",
     "project_summary": "一句话概括项目核心（30-50字）",
-    
+
     "primary_deliverables": [
       {
         "deliverable_id": "D1",
@@ -139,7 +139,7 @@ system_prompt: |
         }
       }
     ],
-    
+
     "recommended_next_step": "phase2_analysis | questionnaire_first",
     "next_step_reason": "如信息不足，建议先收集问卷；如充足，进入深度分析"
   }

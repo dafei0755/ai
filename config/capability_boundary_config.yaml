@@ -1,0 +1,214 @@
+# 能力边界检查规则配置
+# Version: 1.0.0
+# Created: 2026-01-02
+
+# ========== 全局配置 ==========
+global:
+  # 默认启用检查
+  enabled: true
+
+  # 默认检查类型
+  default_check_type: "full"
+
+  # 能力匹配度阈值
+  thresholds:
+    auto_pass: 0.8      # >= 0.8 自动通过，无警告
+    warning: 0.6        # 0.6-0.8 警告但不阻断
+    error: 0.6          # < 0.6 严重警告，建议修改
+
+  # 自动转化策略
+  auto_transform:
+    enabled: true
+    log_transformations: true
+    add_transformation_notes: true
+
+# ========== 检查点配置 ==========
+checkpoints:
+  # 入口验证节点（已有基础，增强）
+  input_guard_node:
+    enabled: true
+    check_type: "full"
+    auto_transform: true
+    block_on_outside: false          # 不阻断，仅警告
+    interaction_threshold: 0.5       # < 0.5 才触发用户交互
+    log_level: "info"
+    notes: "初始需求输入，检测能力边界和信息充足性"
+
+  # 需求分析师输出验证
+  requirements_analyst:
+    enabled: true
+    check_type: "deliverable"
+    auto_transform: true
+    validate_phase1_output: true
+    validate_phase2_output: true
+    interaction_threshold: 0.6
+    notes: "验证需求分析师识别的交付物是否在能力范围内"
+
+  # 需求确认节点（用户修改）
+  requirements_confirmation:
+    enabled: true
+    check_type: "deliverable"
+    auto_transform: false             # 不自动转化，让用户明确知道
+    block_on_outside: false
+    interaction_threshold: 0.7        # 较高阈值，避免过度警告
+    alert_on_modifications: true
+    notes: "用户修改需求时，检查是否引入超出能力的交付物"
+
+  # 三步问卷 - Step 1 任务梳理
+  progressive_step1_core_task:
+    enabled: true
+    check_type: "deliverable"
+    auto_transform: false
+    interaction_threshold: 0.6
+    mark_risky_tasks: true            # 标记有风险的任务
+    suggest_alternatives: true
+    notes: "用户确认/调整任务列表时，检查任务描述中的交付物需求"
+
+  # 三步问卷 - Step 2 雷达维度
+  progressive_step2_radar:
+    enabled: false                    # 维度评分不涉及交付物，不检查
+    notes: "维度重要性评分，无需能力边界检查"
+
+  # 三步问卷 - Step 3 信息补齐
+  progressive_step3_gap_filling:
+    enabled: true
+    check_type: "info"                # 仅检查信息充足性
+    auto_transform: true
+    interaction_threshold: 0.5
+    notes: "补充信息时，检查是否提供了足够的细节"
+
+  # 角色任务统一审核
+  role_task_unified_review:
+    enabled: true
+    check_type: "task_modification"
+    auto_transform: false
+    interaction_threshold: 0.7
+    detect_new_deliverables: true     # 检测新增交付物
+    alert_on_role_changes: false      # 角色变更不涉及能力检查
+    notes: "用户修改任务分配时，检查是否引入新的交付物需求"
+
+  # 项目总监（任务分派前）
+  project_director:
+    enabled: true
+    check_type: "deliverable"
+    auto_transform: true
+    interaction_threshold: 0.6
+    validate_before_assignment: true  # 分派前验证
+    mark_limited_deliverables: true   # 标记受限的交付物
+    notes: "项目总监分派任务前，验证交付物能力并标记限制说明"
+
+  # 用户追问节点
+  user_question_node:
+    enabled: true
+    check_type: "followup"
+    auto_transform: true
+    interaction_threshold: 0.5
+    detect_scope_expansion: true      # 检测范围扩展
+    trigger_reanalysis_threshold: 0.4 # < 0.4 触发重新分析
+    notes: "用户追问时，检测是否提出新的需求"
+
+  # Followup Agent（对话式追问）
+  followup_agent:
+    enabled: true
+    check_type: "followup"
+    auto_transform: true
+    interaction_threshold: 0.5
+    detect_scope_expansion: true
+    notes: "对话式追问，检测新需求和范围变化"
+
+  # 旧版校准问卷（向后兼容）
+  calibration_questionnaire:
+    enabled: true
+    check_type: "questionnaire"
+    auto_transform: true
+    interaction_threshold: 0.6
+    notes: "旧版单轮问卷，检查答案中的交付物需求"
+
+# ========== 节点优先级配置 ==========
+node_priority:
+  # P0: 关键节点（必须检查）
+  critical_nodes:
+    - input_guard_node
+    - requirements_confirmation
+    - progressive_step1_core_task
+    - role_task_unified_review
+
+  # P1: 重要节点（强烈建议检查）
+  important_nodes:
+    - requirements_analyst
+    - project_director
+    - progressive_step3_gap_filling
+
+  # P2: 可选节点（根据配置决定）
+  optional_nodes:
+    - user_question_node
+    - followup_agent
+    - calibration_questionnaire
+
+# ========== 警告级别配置 ==========
+alert_levels:
+  info:
+    threshold_min: 0.8
+    threshold_max: 1.0
+    message: "需求在能力范围内"
+    display_to_user: false
+    log_level: "info"
+
+  warning:
+    threshold_min: 0.6
+    threshold_max: 0.8
+    message: "部分需求需要能力转化"
+    display_to_user: true
+    log_level: "warning"
+    ui_style: "warning"
+
+  error:
+    threshold_min: 0.0
+    threshold_max: 0.6
+    message: "多项需求超出能力范围，建议调整需求"
+    display_to_user: true
+    log_level: "error"
+    ui_style: "error"
+
+# ========== 转化规则配置 ==========
+transformation_rules:
+  # 是否在日志中记录转化
+  log_transformations: true
+
+  # 是否在输出中添加转化说明
+  add_notes_to_output: true
+
+  # 转化说明的格式
+  note_format: "（原需求'{original}'已转化为'{transformed}'）"
+
+  # 用户友好的转化消息模板
+  user_message_template: |
+    检测到部分需求需要能力转化：
+    {transformations}
+
+    系统将提供策略性指导和决策框架，而非CAD图纸或精确清单等需要专业工具的交付物。
+
+# ========== 可追溯性配置 ==========
+traceability:
+  # 是否记录检查历史
+  record_check_history: true
+
+  # 历史记录的state字段名
+  history_field: "boundary_check_history"
+
+  # 最大保留历史记录数
+  max_history_size: 20
+
+  # 是否在最终报告中展示转化轨迹
+  show_in_final_report: true
+
+# ========== 调试配置 ==========
+debug:
+  # 是否启用详细日志
+  verbose_logging: false
+
+  # 是否在检查结果中包含原始detector输出
+  include_raw_detector_output: false
+
+  # 测试模式（跳过某些检查）
+  test_mode: false

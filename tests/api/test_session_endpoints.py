@@ -12,8 +12,9 @@ API端点测试 - Session管理相关端点
 使用conftest.py提供的fixtures避免app初始化问题
 """
 
-import pytest
 import json
+
+import pytest
 
 
 class TestSessionListEndpoints:
@@ -23,11 +24,7 @@ class TestSessionListEndpoints:
     async def test_list_sessions(self, client, mock_redis):
         """测试列出所有会话"""
         # Mock Redis返回会话列表
-        mock_redis.keys.return_value = [
-            b"session:test-1",
-            b"session:test-2",
-            b"session:test-3"
-        ]
+        mock_redis.keys.return_value = [b"session:test-1", b"session:test-2", b"session:test-3"]
 
         response = await client.get("/api/sessions")
 
@@ -55,12 +52,9 @@ class TestSessionDetailEndpoints:
     async def test_get_session_by_id_success(self, client, mock_redis):
         """测试获取特定会话 - 成功"""
         # Mock Redis返回会话数据
-        mock_redis.get.return_value = json.dumps({
-            "session_id": "test-1",
-            "requirement": "咖啡馆设计",
-            "status": "completed",
-            "created_at": "2025-12-30T10:00:00"
-        }).encode('utf-8')
+        mock_redis.get.return_value = json.dumps(
+            {"session_id": "test-1", "requirement": "咖啡馆设计", "status": "completed", "created_at": "2025-12-30T10:00:00"}
+        ).encode("utf-8")
 
         response = await client.get("/api/sessions/test-1")
 
@@ -81,13 +75,7 @@ class TestSessionUpdateEndpoints:
     @pytest.mark.asyncio
     async def test_update_session_metadata(self, client, mock_redis):
         """测试更新会话元数据"""
-        response = await client.patch(
-            "/api/sessions/test-1",
-            json={
-                "title": "更新后的标题",
-                "tags": ["咖啡馆", "设计"]
-            }
-        )
+        response = await client.patch("/api/sessions/test-1", json={"title": "更新后的标题", "tags": ["咖啡馆", "设计"]})
 
         # 根据实际实现调整状态码
         assert response.status_code in [200, 204, 404]
@@ -99,6 +87,10 @@ class TestSessionDeleteEndpoints:
     @pytest.mark.asyncio
     async def test_delete_session_success(self, client, mock_redis):
         """测试删除会话 - 成功"""
+        import json
+
+        # 模拟会话存在
+        mock_redis.get.return_value = json.dumps({"session_id": "test-1", "user_id": "web_user", "status": "completed"})
         mock_redis.delete.return_value = 1
 
         response = await client.delete("/api/sessions/test-1")
@@ -142,10 +134,7 @@ class TestSessionArchiveEndpoints:
     @pytest.mark.asyncio
     async def test_update_archived_session(self, client):
         """测试更新归档会话"""
-        response = await client.patch(
-            "/api/sessions/archived/test-1",
-            json={"title": "归档标题"}
-        )
+        response = await client.patch("/api/sessions/archived/test-1", json={"title": "归档标题"})
         assert response.status_code in [200, 404]
 
     @pytest.mark.asyncio
@@ -173,11 +162,7 @@ class TestSessionCRUDFlow:
         """测试完整的会话CRUD流程"""
         # 1. 创建会话（通过start analysis）
         create_response = await client.post(
-            "/api/analysis/start",
-            json={
-                "requirement": "测试需求",
-                "domain": "interior_design"
-            }
+            "/api/analysis/start", json={"requirement": "测试需求", "domain": "interior_design"}
         )
 
         if create_response.status_code == 200:
@@ -187,15 +172,10 @@ class TestSessionCRUDFlow:
             get_response = await client.get(f"/api/sessions/{session_id}")
 
             # 3. 更新会话
-            update_response = await client.patch(
-                f"/api/sessions/{session_id}",
-                json={"title": "测试"}
-            )
+            update_response = await client.patch(f"/api/sessions/{session_id}", json={"title": "测试"})
 
             # 4. 归档会话
-            archive_response = await client.post(
-                f"/api/sessions/{session_id}/archive"
-            )
+            archive_response = await client.post(f"/api/sessions/{session_id}/archive")
 
             # 验证流程（允许一些步骤失败，因为依赖实际实现）
             responses = [get_response, update_response, archive_response]

@@ -22,7 +22,8 @@ import { QuestionnaireModal } from '@/components/QuestionnaireModal';
 import { ConfirmationModal } from '@/components/ConfirmationModal';
 import { RoleTaskReviewModal } from '@/components/RoleTaskReviewModal';
 import { UserQuestionModal } from '@/components/UserQuestionModal';
-import { ProgressiveQuestionnaireModal } from '@/components/ProgressiveQuestionnaireModal';
+import { UnifiedProgressiveQuestionnaireModal } from '@/components/UnifiedProgressiveQuestionnaireModal';
+import { QualityPreflightModal } from '@/components/QualityPreflightModal';
 import { UserPanel } from '@/components/layout/UserPanel';
 import { SessionSidebar } from '@/components/SessionSidebar';
 import type { AnalysisStatus, SessionStatus } from '@/types';
@@ -36,7 +37,7 @@ const NODE_NAME_MAP: Record<string, string> = {
 	unified_input_validator_initial: '初始输入验证',
 	unified_input_validator_secondary: '二次输入验证',
 	domain_validator: '领域适配性验证',
-	
+
 	// 需求分析阶段
 	requirements_analyst: '用户需求分析',
 	requirement_collection: '需求信息收集',
@@ -44,13 +45,13 @@ const NODE_NAME_MAP: Record<string, string> = {
 	calibration_questionnaire: '战略校准问卷',
 	requirements_confirmation: '需求确认',
 	requirement_confirmation: '需求确认',  // 别名兼容
-	
+
 	// 任务规划阶段
 	role_task_unified_review: '任务审批',
 	quality_preflight: '质量预检',
 	project_director: '项目拆分',
 	strategic_analysis: '战略分析',
-	
+
 	// 专家执行阶段
 	batch_execution: '专家团队分析',
 	batch_executor: '准备专家分析',
@@ -59,7 +60,7 @@ const NODE_NAME_MAP: Record<string, string> = {
 	batch_aggregator: '专家成果整合',
 	batch_strategy_review: '方案策略评审',
 	parallel_analysis: '专家并行分析',
-	
+
 	// 审核阶段
 	result_aggregator: '生成分析报告',
 	result_aggregation: '结果聚合',
@@ -73,7 +74,7 @@ const NODE_NAME_MAP: Record<string, string> = {
 	final_review: '最终审核',
 	result_review: '结果审核',
 	report_guard: '报告安全审核',  // 🔥 v7.21: 添加缺失的节点
-	
+
 	// 完成阶段
 	pdf_generator: '生成PDF文档',
 	pdf_generation: 'PDF生成中',
@@ -81,14 +82,14 @@ const NODE_NAME_MAP: Record<string, string> = {
 	interrupt: '等待用户输入',
 	completed: '分析已完成',
 	waiting_for_input: '等待用户输入',
-	
+
 	// 🔥 v7.7: 状态值映射
 	init: '初始化中',
 	error: '发生错误',
 	running: '运行中',
 	processing: '处理中',
 	failed: '执行失败',
-	
+
 	// 英文描述映射（后端可能返回的英文描述）
 	'Initial input validation': '初始输入验证',
 	'Secondary input validation': '二次输入验证',
@@ -110,32 +111,32 @@ const NODE_NAME_MAP: Record<string, string> = {
 // 格式化节点名称：优先使用中文映射，支持模糊匹配
 const formatNodeName = (nodeName: string | undefined): string => {
 	if (!nodeName) return '准备中...';
-	
+
 	// 1. 精确匹配
 	if (NODE_NAME_MAP[nodeName]) {
 		return NODE_NAME_MAP[nodeName];
 	}
-	
+
 	// 2. 小写匹配
 	const lowerName = nodeName.toLowerCase();
 	if (NODE_NAME_MAP[lowerName]) {
 		return NODE_NAME_MAP[lowerName];
 	}
-	
+
 	// 3. 下划线转换匹配（如 requirement_collection -> RequirementCollection）
 	for (const [key, value] of Object.entries(NODE_NAME_MAP)) {
-		if (key.toLowerCase() === lowerName || 
+		if (key.toLowerCase() === lowerName ||
 		    key.toLowerCase().replace(/_/g, '') === lowerName.replace(/_/g, '').replace(/ /g, '')) {
 			return value;
 		}
 	}
-	
+
 	// 4. 如果还是英文，尝试返回一个友好的格式
 	// 将 snake_case 转换为标题格式，但标记为未翻译
 	if (/^[a-z_]+$/.test(nodeName)) {
 		console.warn(`[formatNodeName] 未映射的英文节点名: ${nodeName}`);
 	}
-	
+
 	return NODE_NAME_MAP[nodeName] || nodeName;
 };
 
@@ -174,6 +175,10 @@ export default function AnalysisPage() {
 	const [showProgressiveStep2, setShowProgressiveStep2] = useState(false);
 	const [progressiveStep3Data, setProgressiveStep3Data] = useState<any>(null);
 	const [showProgressiveStep3, setShowProgressiveStep3] = useState(false);
+
+	// 🆕 v7.119: 质量预检警告状态
+	const [qualityPreflightData, setQualityPreflightData] = useState<any>(null);
+	const [showQualityPreflight, setShowQualityPreflight] = useState(false);
 
 	// 节点详情面板状态
 	const [selectedNode, setSelectedNode] = useState<string | null>(null);
@@ -223,10 +228,10 @@ export default function AnalysisPage() {
 			const nextPage = currentPage + 1;
 			console.log(`[AnalysisPage] 📖 加载第 ${nextPage} 页会话...`);
 			const data = await api.getSessions(nextPage, 20, true);
-			
+
 			// 🔥 v7.105.8: 添加详细日志追踪分页
 			console.log(`[AnalysisPage] 📊 合并结果 | prev=${sessions.length} + new=${data.sessions?.length}`);
-			
+
 			setSessions((prev) => dedupeSessions([...prev, ...data.sessions]));
 			setHasMorePages(data.has_next || false);
 			setCurrentPage(nextPage);
@@ -401,6 +406,11 @@ export default function AnalysisPage() {
 						setProgressiveStep3Data(data.interrupt_data);
 						setShowProgressiveStep3(true);
 						console.log('📋 检测到待处理的 Step 3 - 关键问题询问');
+					} else if (data.interrupt_data.interaction_type === 'quality_preflight_warning') {
+						// 🆕 v7.119: 质量预检警告
+						setQualityPreflightData(data.interrupt_data);
+						setShowQualityPreflight(true);
+						console.log('⚠️ 检测到质量预检警告');
 					}
 				}
 
@@ -445,6 +455,25 @@ export default function AnalysisPage() {
 		wsClientRef.current = new WebSocketClient({
 			url: wsUrl,
 			sessionId,
+			onOpen: async () => {
+				// 🔧 v7.118: 重连后同步最新状态
+				console.log('✅ WebSocket 已连接，同步最新状态...');
+				try {
+					const response = await api.getSessionStatus(sessionId);
+					if (response.data) {
+						setStatus({
+							status: response.data.status,
+							progress: response.data.progress ?? 0,
+							error: response.data.error,
+							current_stage: response.data.current_node,
+							detail: response.data.detail
+						});
+						console.log('✅ 状态同步完成:', response.data);
+					}
+				} catch (error) {
+					console.error('⚠️ 状态同步失败:', error);
+				}
+			},
 			onMessage: (message: WebSocketMessage) => {
 				console.log('📩 收到 WebSocket 消息 [' + message.type + ']:', message);				switch (message.type) {
 					case 'initial_status':
@@ -467,7 +496,7 @@ export default function AnalysisPage() {
 							const validatedProgress = newProgress !== undefined && newProgress >= oldProgress
 								? newProgress
 								: oldProgress;
-							
+
 							if (newProgress !== undefined && newProgress < oldProgress) {
 								console.warn(`⚠️ [status_update] 检测到进度回退: ${Math.round(oldProgress * 100)}% → ${Math.round(newProgress * 100)}%，已忽略`);
 							}
@@ -507,7 +536,8 @@ export default function AnalysisPage() {
 							if (lastEntry?.node === currentNode) {
 								return prev;
 							}
-							return [
+							// 🆕 P3修复: 限制历史记录最多100条，避免内存溢出
+							const newHistory = [
 								...prev,
 								{
 									node: currentNode,
@@ -515,6 +545,7 @@ export default function AnalysisPage() {
 									time: new Date().toLocaleTimeString()
 								}
 							];
+							return newHistory.length > 100 ? newHistory.slice(-100) : newHistory;
 						});
 					}
 
@@ -548,8 +579,8 @@ export default function AnalysisPage() {
 						// 防止进度回退：只有新进度≥旧进度时才更新
 						const newProgress = (message as any).progress;
 						const oldProgress = prev?.progress ?? 0;
-						const validatedProgress = newProgress !== undefined && newProgress >= oldProgress 
-							? newProgress 
+						const validatedProgress = newProgress !== undefined && newProgress >= oldProgress
+							? newProgress
 							: oldProgress;
 
 						if (newProgress !== undefined && newProgress < oldProgress) {
@@ -655,13 +686,24 @@ export default function AnalysisPage() {
 						} else if (message.interrupt_data?.interaction_type === 'progressive_questionnaire_step2') {
 							// 🆕 三步问卷 - Step 2: 雷达图维度选择
 							console.log('📋 收到 Step 2 - 雷达图维度选择问卷');
+							// ✅ 修复：关闭Step 1，打开Step 2（实现步骤切换）
+							setShowProgressiveStep1(false);
+							setProgressiveStep1Data(null);
 							setProgressiveStep2Data(message.interrupt_data);
 							setShowProgressiveStep2(true);
 						} else if (message.interrupt_data?.interaction_type === 'progressive_questionnaire_step3') {
 							// 🆕 三步问卷 - Step 3: 关键问题询问
 							console.log('📋 收到 Step 3 - 关键问题询问问卷');
+							// ✅ 修复：关闭Step 2，打开Step 3（实现步骤切换）
+							setShowProgressiveStep2(false);
+							setProgressiveStep2Data(null);
 							setProgressiveStep3Data(message.interrupt_data);
 							setShowProgressiveStep3(true);
+						} else if (message.interrupt_data?.interaction_type === 'quality_preflight_warning') {
+							// 🆕 v7.119: 质量预检警告
+							console.log('⚠️ 收到质量预检警告');
+							setQualityPreflightData(message.interrupt_data);
+							setShowQualityPreflight(true);
 						}
 						break;
 				}
@@ -858,12 +900,13 @@ export default function AnalysisPage() {
 						status: 'running' as SessionStatus,
 						detail: '继续处理用户追问...',
 						interrupt_data: null
-					}
-				: prev));
-			console.log('✅ 用户追问已提交');
+				  }
+				: null
+			));
+			console.log('✅ 用户追问提交成功');
 		} catch (err) {
 			console.error('❌ 追问提交失败:', err);
-			alert('提交失败,请重试');
+			alert('提交失败，请重试');
 		} finally {
 			setUserQuestionSubmitting(false);
 		}
@@ -871,24 +914,55 @@ export default function AnalysisPage() {
 
 	const handleUserQuestionSkip = async () => {
 		try {
-			setUserQuestionSubmitting(true);
 			await api.resumeAnalysis(sessionId, { skip: true });
 			setShowUserQuestion(false);
 			setUserQuestionData(null);
-			setStatus((prev) => (prev
-				? {
-						...prev,
-						status: 'running' as SessionStatus,
-						detail: '继续执行剩余流程...',
-						interrupt_data: null
-					}
-				: prev));
-			console.log('⏭️ 用户选择暂不追问');
+			setStatus((prev) => (prev ? { ...prev, status: 'running' as SessionStatus } : null));
+			console.log('✅ 跳过用户追问');
 		} catch (err) {
-			console.error('❌ 跳过追问失败:', err);
-			alert('操作失败,请重试');
-		} finally {
-			setUserQuestionSubmitting(false);
+			console.error('❌ 跳过失败:', err);
+			alert('跳过失败，请重试');
+		}
+	};
+
+	// 🆕 v7.119: 质量预检处理函数
+	const handleQualityPreflightConfirm = async () => {
+		try {
+			console.log('✅ 用户确认继续执行高风险任务');
+			await api.resumeAnalysis(sessionId, { action: 'approve' });
+			setShowQualityPreflight(false);
+			setQualityPreflightData(null);
+
+			setStatus((prev) => ({
+				...prev!,
+				status: 'running' as SessionStatus,
+				detail: '专家团队开始执行分析...'
+			}));
+
+			console.log('✅ 质量预检确认完成，工作流继续执行');
+		} catch (err) {
+			console.error('❌ 质量预检确认失败:', err);
+			alert('确认失败，请重试');
+		}
+	};
+
+	const handleQualityPreflightCancel = async () => {
+		try {
+			console.log('❌ 用户取消执行，请求修改需求');
+			await api.resumeAnalysis(sessionId, { action: 'reject_and_revise' });
+			setShowQualityPreflight(false);
+			setQualityPreflightData(null);
+
+			setStatus((prev) => ({
+				...prev!,
+				status: 'running' as SessionStatus,
+				detail: '正在重新分析需求...'
+			}));
+
+			console.log('✅ 用户取消，工作流重新开始');
+		} catch (err) {
+			console.error('❌ 取消失败:', err);
+			alert('取消失败，请重试');
 		}
 	};
 
@@ -900,15 +974,19 @@ export default function AnalysisPage() {
 				? { action: 'confirm', confirmed_tasks: confirmedTasks }
 				: { action: 'confirm' };
 
+			// ⚠️ 修复：保持Modal打开，不关闭Step 1
+			// 让UnifiedProgressiveQuestionnaireModal显示加载骨架屏
+			// setShowProgressiveStep1(false);  // ❌ 删除：不要关闭
+			// setProgressiveStep1Data(null);   // ❌ 删除：不要清空数据
+
 			await api.resumeAnalysis(sessionId, payload);
-			setShowProgressiveStep1(false);
-			setProgressiveStep1Data(null);
+
 			setStatus((prev) => ({
 				...prev!,
 				status: 'running' as SessionStatus,
 				detail: '正在处理您的核心任务...'
 			}));
-			console.log('✅ Step 1 核心任务确认完成');
+			console.log('✅ Step 1 任务梳理完成，等待 Step 2 数据...');
 		} catch (err) {
 			console.error('❌ Step 1 确认失败:', err);
 			alert('确认失败,请重试');
@@ -941,9 +1019,12 @@ export default function AnalysisPage() {
 				? { action: 'confirm', selected_dimensions: selectedDimensions }
 				: { action: 'confirm' };
 
+			// ⚠️ 修复：保持Modal打开，不关闭Step 2
+			// setShowProgressiveStep2(false);  // ❌ 删除：不要关闭
+			// setProgressiveStep2Data(null);   // ❌ 删除：不要清空数据
+
 			await api.resumeAnalysis(sessionId, payload);
-			setShowProgressiveStep2(false);
-			setProgressiveStep2Data(null);
+
 			setStatus((prev) => ({
 				...prev!,
 				status: 'running' as SessionStatus,
@@ -1280,8 +1361,8 @@ export default function AnalysisPage() {
 											<div className="text-sm text-gray-400">当前阶段</div>
 											<div className="text-xl font-semibold flex items-center gap-2">
 												{/* 🔥 v7.7: 优先翻译 detail，然后翻译 current_stage */}
-												{formatNodeName(status.detail) !== status.detail 
-													? formatNodeName(status.detail) 
+												{formatNodeName(status.detail) !== status.detail
+													? formatNodeName(status.detail)
 													: formatNodeName(status.current_stage)}
 												{status.status === 'running' && <Loader2 className="w-4 h-4 animate-spin text-[var(--primary)]" />}
 											</div>
@@ -1322,11 +1403,18 @@ export default function AnalysisPage() {
 										<h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
 											<CheckCircle2 className="w-5 h-5 text-green-500" />
 											执行历史
+											{/* 🆕 P3修复: 显示隐藏记录数量 */}
+											{nodeHistory.length > 50 && (
+												<span className="text-xs text-gray-500 font-normal ml-auto">
+													显示最近50条 / 总计{nodeHistory.length}条
+												</span>
+											)}
 										</h2>
 										<div className="space-y-0 relative">
 											<div className="absolute left-[5px] top-2 bottom-2 w-0.5 bg-[var(--border-color)]" />
 
-											{nodeHistory.map((entry, index) => (
+											{/* 🆕 P3修复: 只显示最近50条 */}
+											{nodeHistory.slice(-50).map((entry, index) => (
 												<div key={index} className="flex gap-3 relative">
 													<div className="w-3 h-3 rounded-full bg-[var(--sidebar-bg)] border border-[var(--border-color)] flex items-center justify-center z-10 shrink-0 mt-1.5">
 														<div className="w-1 h-1 rounded-full bg-[var(--primary)]" />
@@ -1440,27 +1528,25 @@ export default function AnalysisPage() {
 				submitting={userQuestionSubmitting}
 			/>
 
-			<ProgressiveQuestionnaireModal
-				isOpen={showProgressiveStep1}
-				data={progressiveStep1Data}
-				onConfirm={handleProgressiveStep1Confirm}
-				onSkip={handleProgressiveStep1Skip}
+			<UnifiedProgressiveQuestionnaireModal
+				isOpen={showProgressiveStep1 || showProgressiveStep2 || showProgressiveStep3}
+				currentStep={showProgressiveStep1 ? 1 : showProgressiveStep2 ? 2 : 3}
+				step1Data={progressiveStep1Data}
+				step2Data={progressiveStep2Data}
+				step3Data={progressiveStep3Data}
+				onStep1Confirm={handleProgressiveStep1Confirm}
+				onStep2Confirm={handleProgressiveStep2Confirm}
+				onStep3Confirm={handleProgressiveStep3Confirm}
+				sessionId={sessionId as string}
 			/>
 
-			<ProgressiveQuestionnaireModal
-				isOpen={showProgressiveStep2}
-				data={progressiveStep2Data}
-				onConfirm={handleProgressiveStep2Confirm}
-				onSkip={handleProgressiveStep2Skip}
-			/>
-
-			<ProgressiveQuestionnaireModal
-				isOpen={showProgressiveStep3}
-				data={progressiveStep3Data}
-				onConfirm={handleProgressiveStep3Confirm}
-				onSkip={handleProgressiveStep3Skip}
+			{/* 🆕 v7.119: 质量预检警告模态框 */}
+			<QualityPreflightModal
+				isOpen={showQualityPreflight}
+				data={qualityPreflightData}
+				onConfirm={handleQualityPreflightConfirm}
+				onCancel={handleQualityPreflightCancel}
 			/>
 		</div>
 	);
 }
-

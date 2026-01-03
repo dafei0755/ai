@@ -1,0 +1,32 @@
+
+============================================================
+ 搜索工具诊断报告
+============================================================
+开始时间: 2026-01-03 09:38:39
+环境: development
+
+[1/5 工具连通性检查]
+------------------------------------------------------------
+配置状态:
+Traceback (most recent call last):
+  File "D:\11-20\langgraph-design\scripts\diagnose_search_tools.py", line 424, in run
+    check_func()
+    ~~~~~~~~~~^^
+  File "D:\11-20\langgraph-design\scripts\diagnose_search_tools.py", line 76, in check_1_connectivity
+    print(f"  {symbol} {name}: {status}")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'gbk' codec can't encode character '\u2705' in position 2: illegal multibyte sequence
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "D:\11-20\langgraph-design\scripts\diagnose_search_tools.py", line 441, in <module>
+    main()
+    ~~~~^^
+  File "D:\11-20\langgraph-design\scripts\diagnose_search_tools.py", line 437, in main
+    diagnostic.run()
+    ~~~~~~~~~~~~~~^^
+  File "D:\11-20\langgraph-design\scripts\diagnose_search_tools.py", line 426, in run
+    print(f"\u274c {name}检查失败: {e}")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'gbk' codec can't encode character '\u274c' in position 0: illegal multibyte sequence

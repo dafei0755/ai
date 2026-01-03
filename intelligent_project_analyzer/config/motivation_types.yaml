@@ -1,0 +1,343 @@
+# 动机类型配置文件
+# v7.106 - 2026-01-02
+# 支持动态扩展和运行时加载
+
+version: "v7.106"
+last_updated: "2026-01-02"
+
+# 12种动机类型定义
+motivation_types:
+  # ========== P0优先级：核心类型（高频+关键维度） ==========
+
+  - id: cultural
+    label_zh: 文化认同
+    label_en: Cultural Identity
+    priority: P0
+    description: 传统文化、地域特色、民族符号、精神传承
+    keywords:
+      - 文化
+      - 传统
+      - 在地
+      - 历史
+      - 民族
+      - 地域
+      - 文脉
+      - 根
+      - 乡愁
+      - 精神
+      - 诗词
+      - 书法
+      - 昆曲
+      - 茶道
+      - 仪式
+    llm_examples:
+      - "融入蛇口渔村传统文化"
+      - "让游子能心安回归"
+      - "苏东坡生活美学"
+      - "昆曲的雅与慢"
+      - "延安精神的当代表达"
+    enabled: true
+    color: "#8B4513"  # 文化棕
+
+  - id: commercial
+    label_zh: 商业价值
+    label_en: Commercial Value
+    priority: P0
+    description: ROI、坪效、运营效率、竞争策略
+    keywords:
+      - 商业
+      - 运营
+      - 盈利
+      - roi
+      - 坪效
+      - 成本
+      - 预算
+      - 竞标
+      - 竞争
+      - 对标
+      - 标杆
+      - 市场
+      - 效率
+      - 资金
+    llm_examples:
+      - "极致提升坪效，18分钟停留"
+      - "对标王府井商场"
+      - "预算限制下的价值感营造"
+      - "竞标策略制定"
+    enabled: true
+    color: "#FFD700"  # 商业金
+
+  - id: wellness
+    label_zh: 健康疗愈
+    label_en: Health & Wellness
+    priority: P0
+    description: 物理健康、心理疗愈、医疗标准、安全环境
+    keywords:
+      - 健康
+      - 疗愈
+      - 医疗
+      - 康复
+      - 心理
+      - 过敏
+      - 失眠
+      - 自闭
+      - 病房
+      - 诊所
+      - 新风
+      - 供氧
+      - 正念
+      - 冥想
+      - 安全
+    llm_examples:
+      - "自闭症儿童友好空间"
+      - "过敏症患者低敏材料"
+      - "临终病房的尊严与温暖"
+      - "失眠者的正念空间"
+    enabled: true
+    color: "#90EE90"  # 疗愈绿
+
+  # ========== P1优先级：趋势类型（技术+价值观） ==========
+
+  - id: technical
+    label_zh: 技术创新
+    label_en: Technology & Innovation
+    priority: P1
+    description: 智能化、工程技术、未来体验、系统集成
+    keywords:
+      - 技术
+      - 智能
+      - 科技
+      - 创新
+      - 数字
+      - ai
+      - 传感器
+      - 系统
+      - 自动化
+      - 可视化
+      - 算法
+      - 数据
+    llm_examples:
+      - "元宇宙办公室虚实边界"
+      - "华为全屋智能隐形集成"
+      - "AI驱动的可迭代空间"
+      - "香薰分子结构可视化"
+    enabled: true
+    color: "#4169E1"  # 科技蓝
+
+  - id: sustainable
+    label_zh: 可持续价值
+    label_en: Sustainability & Values
+    priority: P1
+    description: 环保、社会责任、可持续发展、价值观表达
+    keywords:
+      - 环保
+      - 可持续
+      - 生态
+      - 自然
+      - 有机
+      - 回收
+      - 节能
+      - 社会责任
+      - 公益
+      - 价值观
+      - 绿色
+      - 低碳
+    llm_examples:
+      - "环保回收材料的品牌溢价"
+      - "市民农场有机理念"
+      - "交换商店物尽其用"
+      - "保障性住房尊严设计"
+    enabled: true
+    color: "#228B22"  # 可持续绿
+
+  # ========== P2优先级：专业类型（细分场景） ==========
+
+  - id: professional
+    label_zh: 专业职能
+    label_en: Professional Functionality
+    priority: P2
+    description: 行业标准、专业设备、职业形象、工作流程
+    keywords:
+      - 专业
+      - 职业
+      - 工作室
+      - 办公
+      - 实验室
+      - 训练
+      - 标准
+      - 设备
+      - 流程
+      - 规范
+    llm_examples:
+      - "电影混音师杜比全景声标准"
+      - "电竞选手直播训练空间"
+      - "律师事务所打破刻板印象"
+      - "美食作家摄影实验室"
+    enabled: true
+    color: "#696969"  # 专业灰
+
+  - id: inclusive
+    label_zh: 包容性
+    label_en: Inclusivity & Accessibility
+    priority: P2
+    description: 无障碍设计、特殊人群、尊严平等、人文关怀
+    keywords:
+      - 无障碍
+      - 包容
+      - 尊严
+      - 平等
+      - 特殊
+      - 儿童
+      - 老人
+      - 残障
+      - 轮椅
+      - 通用设计
+    llm_examples:
+      - "轮椅使用者不像残疾人之家"
+      - "3-6岁儿童认知模式"
+      - "过敏儿童不像病房"
+      - "保障性住房有尊严居住"
+    enabled: true
+    color: "#FF69B4"  # 包容粉
+
+  # ========== 原有5类（作为兜底） ==========
+
+  - id: functional
+    label_zh: 功能性
+    label_en: Functional
+    priority: BASELINE
+    description: 空间功能、实用性、基础需求满足
+    keywords:
+      - 空间
+      - 功能
+      - 布局
+      - 规划
+      - 动线
+      - 面积
+      - 收纳
+      - 实用
+    llm_examples:
+      - "350平米别墅空间规划"
+      - "25平米单间功能最大化"
+      - "动静分区设计"
+    enabled: true
+    color: "#808080"  # 功能灰
+
+  - id: emotional
+    label_zh: 情感性
+    label_en: Emotional
+    priority: BASELINE
+    description: 情感体验、氛围营造、心理感受
+    keywords:
+      - 氛围
+      - 情感
+      - 体验
+      - 感受
+      - 意境
+      - 温暖
+      - 浪漫
+      - 疗愈
+    llm_examples:
+      - "婚姻危机后的重新开始"
+      - "诗人书房月亮落在湖面"
+      - "求婚场景数字花园"
+    enabled: true
+    color: "#FFC0CB"  # 情感粉
+
+  - id: aesthetic
+    label_zh: 审美
+    label_en: Aesthetic
+    priority: BASELINE
+    description: 视觉美感、艺术表达、风格呈现
+    keywords:
+      - 审美
+      - 色彩
+      - 材质
+      - 美学
+      - 风格
+      - 视觉
+      - 艺术
+      - 品味
+    llm_examples:
+      - "Tiffany蒂芙尼主题软装"
+      - "赫本风格独立女性"
+      - "HAY气质民宿设计"
+    enabled: true
+    color: "#9370DB"  # 审美紫
+
+  - id: social
+    label_zh: 社交
+    label_en: Social
+    priority: BASELINE
+    description: 人际互动、社群关系、交流空间
+    keywords:
+      - 社交
+      - 互动
+      - 社区
+      - 客群
+      - 人群
+      - 分享
+      - 交流
+    llm_examples:
+      - "三人合租独立套房"
+      - "再婚家庭公共交流区"
+      - "父母审美冲突协调"
+    enabled: true
+    color: "#FF6347"  # 社交红
+
+  - id: mixed
+    label_zh: 综合
+    label_en: Mixed
+    priority: FALLBACK
+    description: 多种动机混合，无明显主导类型
+    keywords: []
+    llm_examples:
+      - "复杂综合项目"
+      - "多维度平衡设计"
+    enabled: true
+    color: "#A9A9A9"  # 综合灰
+
+# 学习系统配置
+learning:
+  # 是否启用自动学习
+  enabled: true
+
+  # 未识别案例收集
+  collect_unmatched: true
+  min_confidence_threshold: 0.7  # 低于此值记录为待学习
+
+  # 模式发现
+  auto_discover_patterns: true
+  min_occurrence_threshold: 5  # 新模式出现5次后建议
+
+  # 反馈日志
+  feedback_log_path: "logs/motivation_feedback.jsonl"
+
+  # 每周分析
+  weekly_analysis_enabled: true
+  analysis_day: "Monday"
+  analysis_hour: 9
+
+# LLM推理配置
+llm_inference:
+  enabled: true
+  model: "gpt-4"
+  temperature: 0.3
+  max_tokens: 500
+  timeout: 30  # 秒
+
+  # 降级策略
+  fallback_on_timeout: true
+  fallback_on_low_confidence: true
+  min_confidence_threshold: 0.7
+
+# 关键词匹配配置
+keyword_matching:
+  # 匹配策略
+  case_insensitive: true
+  fuzzy_matching: false
+
+  # 权重配置
+  title_weight: 2.0      # 标题关键词权重
+  description_weight: 1.0 # 描述关键词权重
+  context_weight: 0.5    # 上下文关键词权重

@@ -5,9 +5,10 @@
 Responsible for loading, managing, and providing prompt configurations.
 """
 
-import yaml
-from typing import Dict, Optional
 from pathlib import Path
+from typing import Dict, Optional
+
+import yaml
 
 
 class PromptManager:
@@ -21,10 +22,10 @@ class PromptManager:
     4. 创建默认配置模板
     5. 🆕 单例模式 + 类级别缓存,避免重复加载
     """
-    
+
     # 类级别缓存
-    _instances: Dict[str, 'PromptManager'] = {}  # key: config_path, value: instance
-    _default_instance: Optional['PromptManager'] = None
+    _instances: Dict[str, "PromptManager"] = {}  # key: config_path, value: instance
+    _default_instance: Optional["PromptManager"] = None
 
     def __new__(cls, config_path: Optional[str] = None):
         """
@@ -36,14 +37,14 @@ class PromptManager:
             config_path = str(current_dir / "config" / "prompts")
         else:
             config_path = str(Path(config_path).resolve())
-        
+
         # 检查是否已存在实例
         if config_path not in cls._instances:
             instance = super().__new__(cls)
             cls._instances[config_path] = instance
             # 标记为未初始化
             instance._initialized = False
-        
+
         return cls._instances[config_path]
 
     def __init__(self, config_path: Optional[str] = None):
@@ -54,9 +55,9 @@ class PromptManager:
             config_path: 提示词配置目录路径，如果为None则使用默认路径
         """
         # 如果已初始化,直接返回
-        if hasattr(self, '_initialized') and self._initialized:
+        if hasattr(self, "_initialized") and self._initialized:
             return
-        
+
         if config_path is None:
             # 使用默认配置路径 - config/prompts/ 目录
             current_dir = Path(__file__).parent.parent
@@ -74,7 +75,7 @@ class PromptManager:
             print(f"[WARNING] Prompts directory does not exist: {self.config_path}")
             print("[INFO] Creating default prompts directory...")
             self.config_path.mkdir(parents=True, exist_ok=True)
-        
+
         # 标记为已初始化
         self._initialized = True
 
@@ -90,7 +91,7 @@ class PromptManager:
             is_first_load = len(PromptManager._instances) == 1
             if is_first_load:
                 print(f"[INFO] 🔄 Loading prompts from directory: {self.config_path}")
-            
+
             self.prompts = {}
             yaml_files = list(self.config_path.glob("*.yaml")) + list(self.config_path.glob("*.yml"))
 
@@ -101,7 +102,7 @@ class PromptManager:
             for yaml_file in yaml_files:
                 if is_first_load:
                     print(f"[INFO] Loading {yaml_file.name}...")
-                with open(yaml_file, 'r', encoding='utf-8') as f:
+                with open(yaml_file, "r", encoding="utf-8") as f:
                     file_content = yaml.safe_load(f) or {}
                     # 使用文件名（不含扩展名）作为 key
                     agent_name = yaml_file.stem
@@ -133,7 +134,7 @@ class PromptManager:
             "requirements_analyst_lite",  # 🔧 v4.2: 使用精简版配置
             "review_agents",
             "result_aggregator",
-            "dynamic_project_director_v2"  # 🔧 v2.1: 使用新版配置
+            "dynamic_project_director_v2",  # 🔧 v2.1: 使用新版配置
         ]
 
         missing_configs = []
@@ -170,8 +171,19 @@ class PromptManager:
             提示词字符串或完整配置字典，如果不存在则返回None
         """
         if agent_name not in self.prompts:
-            print(f"[WARNING] Prompt not found for agent: {agent_name}")
-            return None
+            # 兼容旧名称/历史代码：部分 agent 的配置文件已升级或拆分。
+            aliases = {
+                # v4.x: 主需求分析师切换到精简版 YAML
+                "requirements_analyst": "requirements_analyst_lite",
+                # v2.x: 项目总监升级到 v2 配置
+                "dynamic_project_director": "dynamic_project_director_v2",
+            }
+            alias = aliases.get(agent_name)
+            if alias and alias in self.prompts:
+                agent_name = alias
+            else:
+                print(f"[WARNING] Prompt not found for agent: {agent_name}")
+                return None
 
         prompt_config = self.prompts[agent_name]
 
@@ -283,12 +295,7 @@ class PromptManager:
             "last_updated": config.get("last_updated", ""),
         }
 
-    def get_task_description(
-        self,
-        agent_name: str,
-        user_input: str,
-        include_datetime: bool = True
-    ) -> Optional[str]:
+    def get_task_description(self, agent_name: str, user_input: str, include_datetime: bool = True) -> Optional[str]:
         """
         获取任务描述，支持动态内容注入
 
@@ -316,15 +323,13 @@ class PromptManager:
         business_config = prompt_config.get("business_config", {})
         if include_datetime and business_config.get("enable_dynamic_datetime", False):
             from datetime import datetime
+
             current_date_time = datetime.now().strftime("%Y年%m月%d日 %H:%M")
             datetime_info = f"当前日期是 {current_date_time}。"
 
         # 替换模板变量
         try:
-            return template.format(
-                datetime_info=datetime_info,
-                user_input=user_input
-            )
+            return template.format(datetime_info=datetime_info, user_input=user_input)
         except KeyError as e:
             print(f"[ERROR] Missing template variable in task_description_template: {e}")
             return template
@@ -352,11 +357,7 @@ class PromptManager:
 
         return output_example
 
-    def get_ontology_framework(
-        self,
-        agent_name: str,
-        project_type: Optional[str] = None
-    ) -> Optional[Dict]:
+    def get_ontology_framework(self, agent_name: str, project_type: Optional[str] = None) -> Optional[Dict]:
         """
         获取本体论框架配置
 
@@ -447,10 +448,6 @@ if __name__ == "__main__":
 
     # 获取审核者提示词（带模板变量）
     print("\n红队审核者提示词:")
-    red_team_prompt = manager.get_reviewer_prompt(
-        reviewer_role="red_team",
-        role_name="红队审核专家",
-        perspective="攻击方"
-    )
+    red_team_prompt = manager.get_reviewer_prompt(reviewer_role="red_team", role_name="红队审核专家", perspective="攻击方")
     if red_team_prompt:
         print(f"  长度: {len(red_team_prompt)} 字符")

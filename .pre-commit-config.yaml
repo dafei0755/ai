@@ -49,6 +49,16 @@ repos:
         name: Import语句排序
         args: ['--profile=black', '--line-length=120']
 
+  # 根目录清洁度检查 - 防止文件堆积
+  - repo: local
+    hooks:
+      - id: check-root-cleanliness
+        name: 检查根目录清洁度
+        entry: python scripts/check_root_cleanliness.py
+        language: system
+        pass_filenames: false
+        always_run: true
+
   # flake8 - 代码检查
   - repo: https://github.com/PyCQA/flake8
     rev: 7.0.0

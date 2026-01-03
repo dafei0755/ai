@@ -19,6 +19,19 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // 🔥 管理员后台路由保护
+  if (pathname.startsWith('/admin')) {
+    const token = request.cookies.get('wp_jwt_token')?.value;
+
+    // 注意：Token 实际存储在 localStorage 中，这里检查 Cookie 可能为空
+    // 因此不在 middleware 中进行重定向，而是在客户端 Layout 中处理
+    // 这样可以避免自动跳转到外部 WordPress 登录页
+
+    // 如果 Cookie 中有 token，继续访问
+    // 如果没有，让页面加载，由客户端 Layout 显示登录提示
+    return NextResponse.next();
+  }
+
   // 检查是否有 JWT Token（从 Cookie 或将来的其他存储）
   const token = request.cookies.get('wp_jwt_token')?.value;
 
@@ -28,7 +41,7 @@ export function middleware(request: NextRequest) {
 
   // 如果需要服务端验证，需要将 Token 存储在 Cookie 中
   // 目前让客户端 AuthContext 处理跳转逻辑
-  
+
   return NextResponse.next();
 }
 

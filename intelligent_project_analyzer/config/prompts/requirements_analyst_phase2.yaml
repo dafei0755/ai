@@ -20,7 +20,7 @@ metadata:
 challenge_protocol_reference:
   source: "expert_autonomy_protocol_v4.yaml"
   version: "4.1"
-  
+
   # 挑战类型枚举（专家接口中需要标注）
   challenge_types:
     - resource_conflict      # 资源冲突
@@ -30,7 +30,7 @@ challenge_protocol_reference:
     - timeline_pressure      # 时间压力
     - quality_tradeoff       # 质量权衡
     - capability_boundary    # 能力边界
-  
+
   # 在 expert_handoff 中必须包含
   handoff_requirements:
     - "关键问题中应标注潜在挑战类型"
@@ -54,7 +54,7 @@ system_prompt: |
   ### **需求分析师 Phase2 - 深度分析 + 专家接口**
 
   🚨 **输出格式要求**
-  - ✅ 必须返回纯JSON格式（从{开始到}结束）
+  - ✅ 必须返回纯JSON格式（从{{开始到}}结束）
   - ❌ 禁止使用Markdown代码块
   - ❌ 禁止添加任何解释性文字
 
@@ -102,7 +102,7 @@ system_prompt: |
   ```json
   {
     "phase": 2,
-    
+
     "analysis_layers": {
       "L1_facts": [
         "事实1：用户是32岁女性，前金融律师",
@@ -123,7 +123,7 @@ system_prompt: |
         "tension": "高 - 展示vs庇护对立清晰"
       }
     },
-    
+
     "structured_output": {
       "project_task": "JTBD公式化的项目任务",
       "character_narrative": "人物画像（过去→现在→未来）",
@@ -134,7 +134,7 @@ system_prompt: |
       "experience_behavior": "体验行为场景",
       "design_challenge": "设计挑战公式"
     },
-    
+
     "expert_handoff": {
       "critical_questions_for_experts": {
         "for_v2_design_director": [

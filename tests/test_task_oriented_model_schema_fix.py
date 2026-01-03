@@ -10,24 +10,31 @@
 版本: v7.18.1
 """
 
-import sys
-import io
 import json
-from typing import Dict, Any
+import sys
+from typing import Any, Dict
 
 # Windows终端UTF-8编码修复
-if sys.platform == 'win32':
-    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
-    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
+if sys.platform == "win32":
+    # Avoid replacing sys.stdout/sys.stderr with new wrappers: pytest (and loggers) may
+    # later close the wrapper and accidentally close the underlying buffer.
+    for _stream in (getattr(sys, "stdout", None), getattr(sys, "stderr", None)):
+        if _stream is None:
+            continue
+        if hasattr(_stream, "reconfigure"):
+            try:
+                _stream.reconfigure(encoding="utf-8", errors="replace")
+            except Exception:
+                pass
 
 from intelligent_project_analyzer.core.task_oriented_models import (
-    DeliverableOutput,
     CompletionStatus,
-    TaskOrientedExpertOutput,
-    TaskExecutionReport,
+    DeliverableOutput,
+    ExecutionMetadata,
     ProtocolExecutionReport,
     ProtocolStatus,
-    ExecutionMetadata
+    TaskExecutionReport,
+    TaskOrientedExpertOutput,
 )
 
 
@@ -39,15 +46,15 @@ def test_deliverable_output_schema():
     schema = DeliverableOutput.model_json_schema()
 
     # 验证content字段的类型定义
-    content_schema = schema['properties']['content']
+    content_schema = schema["properties"]["content"]
 
     print(f"✅ content字段schema:")
     print(f"   类型: {content_schema.get('type')}")
     print(f"   描述: {content_schema.get('description')}")
 
     # 关键验证：content必须是string类型（不能是anyOf）
-    assert content_schema['type'] == 'string', "❌ content必须是string类型"
-    assert 'anyOf' not in content_schema, "❌ content不应该包含anyOf"
+    assert content_schema["type"] == "string", "❌ content必须是string类型"
+    assert "anyOf" not in content_schema, "❌ content不应该包含anyOf"
 
     print("✅ 测试通过：content字段类型定义正确（纯string）")
     print()
@@ -62,7 +69,7 @@ def test_validator_with_dict():
     deliverable = DeliverableOutput(
         deliverable_name="测试交付物",
         content={"key1": "value1", "key2": ["item1", "item2"]},  # 传入dict
-        completion_status=CompletionStatus.COMPLETED
+        completion_status=CompletionStatus.COMPLETED,
     )
 
     # 验证content已被序列化为JSON字符串
@@ -74,7 +81,7 @@ def test_validator_with_dict():
 
     # 验证可以反序列化
     parsed = json.loads(deliverable.content)
-    assert parsed['key1'] == 'value1', "❌ 反序列化失败"
+    assert parsed["key1"] == "value1", "❌ 反序列化失败"
 
     print("✅ 测试通过：dict自动序列化为JSON字符串")
     print()
@@ -89,7 +96,7 @@ def test_validator_with_list():
     deliverable = DeliverableOutput(
         deliverable_name="测试交付物",
         content=["item1", "item2", {"nested": "value"}],  # 传入list
-        completion_status=CompletionStatus.COMPLETED
+        completion_status=CompletionStatus.COMPLETED,
     )
 
     # 验证content已被序列化为JSON字符串
@@ -115,22 +122,22 @@ def test_full_expert_output_schema():
     schema = TaskOrientedExpertOutput.model_json_schema()
 
     # 验证schema中的content定义（嵌套在task_execution_report -> deliverable_outputs -> items -> content）
-    task_exec_schema = schema['$defs']['TaskExecutionReport']
-    deliverable_outputs_schema = task_exec_schema['properties']['deliverable_outputs']
-    deliverable_output_ref = deliverable_outputs_schema['items']['$ref']
+    task_exec_schema = schema["$defs"]["TaskExecutionReport"]
+    deliverable_outputs_schema = task_exec_schema["properties"]["deliverable_outputs"]
+    deliverable_output_ref = deliverable_outputs_schema["items"]["$ref"]
 
     print(f"✅ TaskExecutionReport.deliverable_outputs:")
     print(f"   类型: array")
     print(f"   items: {deliverable_output_ref}")
 
     # 验证DeliverableOutput定义
-    deliverable_def = schema['$defs']['DeliverableOutput']
-    content_type = deliverable_def['properties']['content']['type']
+    deliverable_def = schema["$defs"]["DeliverableOutput"]
+    content_type = deliverable_def["properties"]["content"]["type"]
 
     print(f"✅ DeliverableOutput.content:")
     print(f"   类型: {content_type}")
 
-    assert content_type == 'string', "❌ content类型必须是string"
+    assert content_type == "string", "❌ content类型必须是string"
 
     print("✅ 测试通过：完整schema定义正确，符合OpenAI API要求")
     print()
@@ -149,12 +156,12 @@ def test_openai_schema_compatibility():
         issues = []
 
         if isinstance(obj, dict):
-            if obj.get('type') == 'array':
-                items = obj.get('items')
+            if obj.get("type") == "array":
+                items = obj.get("items")
                 if not items:
                     issues.append(f"{path}: array类型缺少items定义")
                 elif isinstance(items, dict):
-                    if 'type' not in items and '$ref' not in items:
+                    if "type" not in items and "$ref" not in items:
                         issues.append(f"{path}: array.items缺少type或$ref定义")
 
             for key, value in obj.items():
@@ -214,6 +221,7 @@ def main():
         print("=" * 80)
         print(f"❌ 测试异常: {e}")
         import traceback
+
         traceback.print_exc()
         print("=" * 80)
         return 1

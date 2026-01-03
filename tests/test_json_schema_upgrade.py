@@ -19,10 +19,18 @@ from pathlib import Path
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
+import pytest
+
 from intelligent_project_analyzer.agents.task_oriented_expert_factory import TaskOrientedExpertFactory
-from intelligent_project_analyzer.core.task_oriented_models import TaskInstruction, DeliverableSpec, DeliverableFormat, Priority
+from intelligent_project_analyzer.core.task_oriented_models import (
+    DeliverableFormat,
+    DeliverableSpec,
+    Priority,
+    TaskInstruction,
+)
 
 
+@pytest.mark.asyncio
 async def test_json_schema_enforcement():
     """测试 JSON Schema 强制约束"""
     print("=" * 80)
@@ -45,20 +53,20 @@ async def test_json_schema_enforcement():
                     description="分析三代家庭成员的年龄、职业、生活习惯等",
                     format=DeliverableFormat.ANALYSIS,
                     priority=Priority.HIGH,
-                    success_criteria=["包含至少3位家庭成员的详细画像", "分析不同代际的需求差异"]
+                    success_criteria=["包含至少3位家庭成员的详细画像", "分析不同代际的需求差异"],
                 ),
                 DeliverableSpec(
                     name="居住场景分析",
                     description="描述家庭的日常生活场景和互动模式",
                     format=DeliverableFormat.SCENARIO,
                     priority=Priority.MEDIUM,
-                    success_criteria=["至少3个典型生活场景", "体现代际互动"]
-                )
+                    success_criteria=["至少3个典型生活场景", "体现代际互动"],
+                ),
             ],
             success_criteria=["完成所有交付物", "输出符合JSON格式"],
             constraints=["专注于中国三代同堂家庭特点"],
-            context_requirements=["需要考虑中国传统家庭文化"]
-        ).dict()
+            context_requirements=["需要考虑中国传统家庭文化"],
+        ).dict(),
     }
 
     context = """
@@ -67,10 +75,7 @@ async def test_json_schema_enforcement():
     核心需求: 既要保持家庭凝聚力，又要尊重各代人的独立空间需求
     """
 
-    state = {
-        "current_phase": "expert_analysis",
-        "expert_analyses": {}
-    }
+    state = {"current_phase": "expert_analysis", "expert_analyses": {}}
 
     # 2. 执行测试
     print("\n📝 测试参数:")
@@ -105,7 +110,7 @@ async def test_json_schema_enforcement():
 
         # 验证4: 交付物数量正确
         deliverables = structured_output["task_execution_report"].get("deliverable_outputs", [])
-        expected_count = len(role_object['task_instruction']['deliverables'])
+        expected_count = len(role_object["task_instruction"]["deliverables"])
         assert len(deliverables) == expected_count, f"交付物数量不匹配: 期望 {expected_count}, 实际 {len(deliverables)}"
         print(f"   ✓ 交付物数量正确: {len(deliverables)}")
 
@@ -135,10 +140,12 @@ async def test_json_schema_enforcement():
     except Exception as e:
         print(f"\n❌ 测试失败: {str(e)}")
         import traceback
+
         traceback.print_exc()
         return False
 
 
+@pytest.mark.asyncio
 async def test_error_handling():
     """测试错误处理（验证 ValidationError 捕获）"""
     print("\n" + "=" * 80)

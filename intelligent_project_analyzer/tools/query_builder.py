@@ -4,8 +4,9 @@ Deliverable Query Builder (v7.64)
 从交付物规格（name + description）构建精准搜索查询，避免泛泛而谈的通用搜索
 """
 
-from typing import Dict, Any, Optional, List
 import re
+from typing import Any, Dict, List, Optional
+
 from loguru import logger
 
 try:
@@ -27,7 +28,7 @@ class DeliverableQueryBuilder:
     4. 生成针对性强的搜索查询
     """
 
-    # 🔑 交付物格式 → 搜索术语映射表
+    # 🔑 交付物格式 → 搜索术语映射表 (v7.65扩展: 30种→50+种)
     FORMAT_SEARCH_TERMS = {
         # === 设计类 ===
         "design": "design methodology",
@@ -35,7 +36,13 @@ class DeliverableQueryBuilder:
         "blueprint": "design blueprint standards",
         "diagram": "design diagram techniques",
         "spatial_design": "spatial planning methods",
-
+        "moodboard": "mood board design inspiration techniques",
+        "stylescape": "style scape visual direction",
+        "colorpalette": "color palette theory application",
+        "material_board": "material selection board methods",
+        "floorplan": "floor plan design standards",
+        "elevation": "elevation drawing techniques",
+        "section": "section drawing methods",
         # === 分析类 ===
         "analysis": "analysis framework",
         "evaluation": "evaluation criteria",
@@ -44,20 +51,30 @@ class DeliverableQueryBuilder:
         "benchmark": "benchmarking best practices",
         "research": "research methodology",
         "insight": "insight discovery methods",
-
+        "swot": "SWOT analysis framework",
+        "gap_analysis": "gap analysis techniques",
+        "competitor_analysis": "competitive analysis methods",
+        "market_research": "market research methodology",
+        "trend_analysis": "trend analysis forecasting",  # 🔥 require_search=true
         # === 策略类 ===
         "strategy": "strategic planning",
         "plan": "planning framework",
         "roadmap": "implementation roadmap",
         "framework": "framework design",
         "model": "modeling approach",
-
+        "positioning": "brand positioning strategy",
+        "value_proposition": "value proposition design",
         # === 用户体验类 ===
         "persona": "user persona design methodology",
         "journey_map": "customer journey mapping techniques",
         "experience_map": "experience mapping methods",
         "scenario": "scenario design framework",
-
+        "wireframe": "wireframe design best practices",
+        "prototype": "prototyping methods",
+        "storyboard": "storyboard visualization techniques",
+        "empathy_map": "empathy mapping methods",
+        "service_blueprint": "service blueprint design",
+        "touchpoint_map": "touchpoint mapping methods",
         # === 文档类 ===
         "report": "report structure",
         "proposal": "proposal writing",
@@ -65,13 +82,22 @@ class DeliverableQueryBuilder:
         "guideline": "guideline development",
         "manual": "manual documentation",
         "checklist": "checklist design",
-
+        "specification": "specification writing standards",
+        "whitepaper": "white paper methodology",
+        # === 案例与资料库 ===  # 🔥 require_search=true
+        "case_study": "case study analysis methodology",
+        "case_library": "design case studies best practices",
+        "best_practices": "industry best practices examples",
+        "reference_library": "design reference library",
+        "precedent_study": "precedent analysis methods",
         # === 其他 ===
         "recommendation": "recommendation framework",
         "summary": "summary techniques",
         "narrative": "narrative design",
         "materials_list": "materials specification",
-        "case_study": "case study analysis",
+        "budget": "budget planning methods",
+        "timeline": "project timeline planning",
+        "kpi": "KPI definition measurement",
     }
 
     # 🌍 项目类型 → 上下文术语
@@ -104,12 +130,7 @@ class DeliverableQueryBuilder:
         else:
             logger.warning("⚠️ DeliverableQueryBuilder: jieba disabled")
 
-    def build_query(
-        self,
-        deliverable: Dict[str, Any],
-        project_type: str = "",
-        agent_context: str = ""
-    ) -> str:
+    def build_query(self, deliverable: Dict[str, Any], project_type: str = "", agent_context: str = "") -> str:
         """
         从交付物构建精准搜索查询
 
@@ -188,11 +209,7 @@ class DeliverableQueryBuilder:
         if self.enable_jieba and self._is_chinese_text(text):
             try:
                 # 使用TF-IDF提取关键词
-                keywords = jieba.analyse.extract_tags(
-                    text,
-                    topK=topK,
-                    withWeight=False
-                )
+                keywords = jieba.analyse.extract_tags(text, topK=topK, withWeight=False)
                 return keywords
             except Exception as e:
                 logger.error(f"❌ Jieba extraction failed: {e}")
@@ -211,7 +228,7 @@ class DeliverableQueryBuilder:
         Returns:
             是否包含中文字符
         """
-        chinese_pattern = re.compile(r'[\u4e00-\u9fff]+')
+        chinese_pattern = re.compile(r"[\u4e00-\u9fff]+")
         return bool(chinese_pattern.search(text))
 
     def _simple_keyword_extraction(self, text: str, topK: int = 5) -> List[str]:
@@ -233,21 +250,55 @@ class DeliverableQueryBuilder:
         # 停用词列表（简化版）
         stopwords = {
             # 中文停用词
-            "的", "了", "和", "是", "就", "都", "而", "及", "与", "或", "等",
-            "对", "在", "有", "为", "以", "将", "并", "从", "按", "该", "此",
+            "的",
+            "了",
+            "和",
+            "是",
+            "就",
+            "都",
+            "而",
+            "及",
+            "与",
+            "或",
+            "等",
+            "对",
+            "在",
+            "有",
+            "为",
+            "以",
+            "将",
+            "并",
+            "从",
+            "按",
+            "该",
+            "此",
             # 英文停用词
-            "the", "a", "an", "and", "or", "but", "in", "on", "at", "to",
-            "for", "of", "with", "by", "from", "as", "is", "was", "are"
+            "the",
+            "a",
+            "an",
+            "and",
+            "or",
+            "but",
+            "in",
+            "on",
+            "at",
+            "to",
+            "for",
+            "of",
+            "with",
+            "by",
+            "from",
+            "as",
+            "is",
+            "was",
+            "are",
         }
 
         # 分词：按空格和常见标点符号切分
-        words = re.split(r'[\s,;，；、。！？]+', text.lower())
+        words = re.split(r"[\s,;，；、。！？]+", text.lower())
 
         # 过滤：去除停用词、空字符串、过短的词
-        filtered = [
-            w for w in words
-            if w and len(w) >= 2 and w not in stopwords
-        ]
+        filtered = [w for w in words if w and len(w) >= 2 and w not in stopwords]
 
         # 统计词频
         word_freq = {}
@@ -255,19 +306,11 @@ class DeliverableQueryBuilder:
             word_freq[word] = word_freq.get(word, 0) + 1
 
         # 排序并取topK
-        sorted_words = sorted(
-            word_freq.items(),
-            key=lambda x: x[1],
-            reverse=True
-        )
+        sorted_words = sorted(word_freq.items(), key=lambda x: x[1], reverse=True)
 
         return [word for word, freq in sorted_words[:topK]]
 
-    def build_multi_tool_queries(
-        self,
-        deliverable: Dict[str, Any],
-        project_type: str = ""
-    ) -> Dict[str, str]:
+    def build_multi_tool_queries(self, deliverable: Dict[str, Any], project_type: str = "") -> Dict[str, str]:
         """
         为不同搜索工具构建优化的查询
 
@@ -291,7 +334,7 @@ class DeliverableQueryBuilder:
             "tavily": base_query,  # 默认查询适用于Tavily
             "arxiv": self._build_arxiv_query(deliverable, base_query),
             "ragflow": self._build_ragflow_query(deliverable, base_query),
-            "bocha": self._build_bocha_query(deliverable, base_query)
+            "bocha": self._build_bocha_query(deliverable, base_query),
         }
 
         return queries
@@ -321,6 +364,7 @@ class DeliverableQueryBuilder:
 # ============================================================================
 # 辅助函数：快速使用
 # ============================================================================
+
 
 def build_deliverable_query(deliverable: Dict[str, Any], project_type: str = "") -> str:
     """

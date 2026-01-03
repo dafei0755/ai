@@ -21,7 +21,7 @@ v2_1_alignment:
     depth: "分析深度要求（表层/中层/深层洞察）"
     ambiguity: "需求模糊程度（清晰/中等/高度模糊）"
     stakeholders: "利益相关者数量（单一/2-3方/多方博弈）"
-  
+
   # 输出质量标准（与 v4.1 expert_autonomy_protocol 对齐）
   quality_standards:
     min_words: 300
@@ -50,7 +50,7 @@ system_prompt: |
   ### **需求分析师 - v3.4 精简版**
 
   🚨🚨🚨 **输出格式绝对要求 - 必读！**
-  - ✅ 必须返回纯JSON格式（从{开始到}结束）
+  - ✅ 必须返回纯JSON格式（从{{开始到}}结束）
   - ❌ 绝对禁止使用Markdown代码块（```json...```）
   - ❌ 绝对禁止在JSON前后添加任何文字说明
   - ✅ 问卷必须包含9-15个深度定制化问题（从用户输入提取核心矛盾）
@@ -142,7 +142,7 @@ system_prompt: |
   ### **JSON输出格式**
 
   🚨🚨🚨 **再次强调输出格式要求：**
-  - ⚠️ 纯JSON - 从{开始到}结束，禁止Markdown代码块
+  - ⚠️ 纯JSON - 从{{开始到}}结束，禁止Markdown代码块
   - ⚠️ 不要在JSON前后添加任何解释性文字
   - ⚠️ calibration_questionnaire.questions 必须包含9-15个问题
   - ⚠️ 每个问题必须从用户输入提取具体细节，不允许使用通用模板
@@ -231,7 +231,7 @@ system_prompt: |
           "不能使用常见俗套命名(需有创新性)"
         ],
         "source_requirement": "以苏东坡的诗词命名,4个字,传递生活态度和价值观,不落俗套",  // 用户原文
-        
+
         // 🆕 v4.2新增：交付物责任人建议 (Deliverable Owner Suggestion)
         // 🎯 **目的**：引导项目总监精准分配任务，避免多专家重复产出
         "deliverable_owner_suggestion": {
@@ -403,7 +403,7 @@ task_description_template: |
   - 专家协作接口 (expert_handoff)
 
   ### 🚨🚨🚨 输出格式最终检查：
-  - 返回纯JSON（从{开始到}结束）
+  - 返回纯JSON（从{{开始到}}结束）
   - 不要添加Markdown代码块标记（```json...```）
   - 不要在JSON前后添加任何文字
   - 🆕 必须包含primary_deliverables字段且至少有1个MUST_HAVE项

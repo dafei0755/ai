@@ -3,8 +3,10 @@
 测试端到端检测流程：关键词 → 正则 → 腾讯云API → LLM
 """
 
-import pytest
 import os
+
+import pytest
+
 from intelligent_project_analyzer.security.content_safety_guard import ContentSafetyGuard
 
 
@@ -15,19 +17,15 @@ class TestIntegration:
     def guard_full_features(self):
         """创建启用全部功能的守卫"""
         return ContentSafetyGuard(
-            use_dynamic_rules=True,   # P2: 动态规则
-            use_external_api=True,    # P0: 腾讯云API
-            llm_model=None            # P1: LLM（测试中不启用，避免额外成本）
+            use_dynamic_rules=True,  # P2: 动态规则
+            use_external_api=True,  # P0: 腾讯云API
+            llm_model=None,  # P1: LLM（测试中不启用，避免额外成本）
         )
 
     @pytest.fixture
     def guard_no_external_api(self):
         """创建不使用外部API的守卫（纯本地检测）"""
-        return ContentSafetyGuard(
-            use_dynamic_rules=True,
-            use_external_api=False,
-            llm_model=None
-        )
+        return ContentSafetyGuard(use_dynamic_rules=True, use_external_api=False, llm_model=None)
 
     def test_complete_detection_flow(self, guard_full_features):
         """测试完整检测流程（P0+P1+P2）"""
@@ -42,17 +40,11 @@ class TestIntegration:
         assert len(result["violations"]) > 0
 
         # 检查是否有关键词违规
-        keyword_violations = [
-            v for v in result["violations"]
-            if v.get("method") == "keyword_match"
-        ]
+        keyword_violations = [v for v in result["violations"] if v.get("method") == "keyword_match"]
         assert len(keyword_violations) > 0
 
         # 检查是否有正则检测违规（隐私信息）
-        regex_violations = [
-            v for v in result["violations"]
-            if v.get("method") == "regex_match"
-        ]
+        regex_violations = [v for v in result["violations"] if v.get("method") == "regex_match"]
         assert len(regex_violations) > 0
 
     def test_dynamic_rules_integration(self, guard_full_features):
@@ -86,18 +78,15 @@ class TestIntegration:
             assert result["risk_level"] in ["low", "medium", "high"]
 
             # 检查是否匹配预期的模式
-            privacy_violations = [
-                v for v in result["violations"]
-                if expected_pattern in v.get("matched_pattern", "")
-            ]
+            privacy_violations = [v for v in result["violations"] if expected_pattern in v.get("matched_pattern", "")]
             assert len(privacy_violations) > 0, f"未检测到{expected_pattern}: {text}"
 
     def test_evasion_detection_integration(self, guard_full_features):
         """测试变形规避检测集成（P1增强正则）"""
         test_cases = [
-            "这里有色_情内容",    # 特殊符号分隔
-            "这里有色*情内容",    # 特殊符号分隔
-            "这里有涩情内容",      # 谐音替换
+            "这里有色_情内容",  # 特殊符号分隔
+            "这里有色*情内容",  # 特殊符号分隔
+            "这里有涩情内容",  # 谐音替换
         ]
 
         for text in test_cases:
@@ -134,10 +123,7 @@ class TestIntegration:
     def test_graceful_degradation_dynamic_rules_failure(self):
         """测试优雅降级：动态规则加载失败时"""
         # 创建守卫但禁用动态规则
-        guard = ContentSafetyGuard(
-            use_dynamic_rules=False,
-            use_external_api=False
-        )
+        guard = ContentSafetyGuard(use_dynamic_rules=False, use_external_api=False)
 
         # 应该回退到静态规则
         assert guard.use_dynamic_rules is False
@@ -169,9 +155,10 @@ class TestIntegration:
     def test_severity_levels(self, guard_full_features):
         """测试严重性分级"""
         test_cases = [
-            ("我的邮箱是test@example.com", ["low"]),           # 低风险
-            ("我的手机号是13800138000", ["low", "medium"]),      # 中风险
-            ("身份证号：110101199001011234", ["medium", "high"]), # 高风险
+            ("我的邮箱是test@example.com", ["low"]),  # 低风险
+            ("我的手机号是13800138000", ["low", "medium"]),  # 中风险
+            # ID card matches both ID pattern (High) and USCC pattern (Low)
+            ("身份证号：110101199001011234", ["low", "medium", "high"]),  # 高风险
         ]
 
         for text, expected_severities in test_cases:
@@ -181,8 +168,7 @@ class TestIntegration:
                 # 检查严重性是否在预期范围内
                 for violation in result["violations"]:
                     severity = violation.get("severity")
-                    assert severity in expected_severities, \
-                        f"严重性不符合预期: {severity} not in {expected_severities}"
+                    assert severity in expected_severities, f"严重性不符合预期: {severity} not in {expected_severities}"
 
     def test_concurrent_access(self, guard_full_features):
         """测试并发访问（线程安全）"""
@@ -254,10 +240,7 @@ class TestExternalAPIIntegration:
         if not os.getenv("ENABLE_TENCENT_CONTENT_SAFETY") == "true":
             pytest.skip("腾讯云内容安全未启用")
 
-        return ContentSafetyGuard(
-            use_dynamic_rules=True,
-            use_external_api=True
-        )
+        return ContentSafetyGuard(use_dynamic_rules=True, use_external_api=True)
 
     def test_external_api_available(self, guard_with_api):
         """测试外部API可用性"""

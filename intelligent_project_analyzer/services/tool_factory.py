@@ -5,88 +5,81 @@
 """
 
 from typing import Optional
+
 from loguru import logger
 
-from intelligent_project_analyzer.settings import settings, TavilyConfig, RagflowConfig, BochaConfig
+from intelligent_project_analyzer.settings import BochaConfig, RagflowConfig, TavilyConfig, settings
 
 
 class ToolFactory:
     """
     工具工厂 - 2025年配置注入模式
-    
+
     优势:
     - 统一的工具创建接口
     - 配置外部化
     - 易于测试
     - 避免硬编码
     """
-    
+
     @staticmethod
     def create_tavily_tool(config: Optional[TavilyConfig] = None):
         """
         创建Tavily搜索工具
-        
+
         Args:
             config: Tavily配置,如果为None则使用全局settings
-            
+
         Returns:
-            TavilySearchTool实例
-            
-        Example:
-            # 使用默认配置
-            tool = ToolFactory.create_tavily_tool()
-            
-            # 使用自定义配置
-            custom_config = TavilyConfig(
-                api_key="...",
-                max_results=10,
-                search_depth="advanced"
-            )
-            tool = ToolFactory.create_tavily_tool(config=custom_config)
+            LangChain StructuredTool实例
         """
-        from intelligent_project_analyzer.tools.tavily_search import TavilySearchTool
         from intelligent_project_analyzer.core.types import ToolConfig
-        
+        from intelligent_project_analyzer.tools.tavily_search import TavilySearchTool
+
         cfg = config or settings.tavily
-        
+
         logger.info(f"创建Tavily工具: max_results={cfg.max_results}, depth={cfg.search_depth}")
-        
+
         # 🔧 v7.63.1: TavilySearchTool只接受api_key和config参数
         tool_config = ToolConfig(name="tavily_search")
-        
-        return TavilySearchTool(
-            api_key=cfg.api_key,
-            config=tool_config
-        )
-    
+
+        tool_instance = TavilySearchTool(api_key=cfg.api_key, config=tool_config)
+
+        # 🔥 v7.120: 包装为 LangChain Tool 以兼容 bind_tools()
+        langchain_tool = tool_instance.to_langchain_tool()
+        logger.info(f"✅ Tavily工具已包装为 LangChain Tool: {langchain_tool.name}")
+        return langchain_tool
+
     @staticmethod
     def create_ragflow_tool(config: Optional[RagflowConfig] = None):
         """
         创建Ragflow知识库工具
-        
+
         Args:
             config: Ragflow配置,如果为None则使用全局settings
-            
+
         Returns:
-            RagflowKBTool实例
+            LangChain StructuredTool实例
         """
-        from intelligent_project_analyzer.tools.ragflow_kb import RagflowKBTool
         from intelligent_project_analyzer.core.types import ToolConfig
-        
+        from intelligent_project_analyzer.tools.ragflow_kb import RagflowKBTool
+
         cfg = config or settings.ragflow
-        
+
         logger.info(f"创建Ragflow工具: endpoint={cfg.endpoint}")
-        
+
         # 🔧 v7.63.1: RagflowKBTool需要api_endpoint(不是endpoint)、api_key、dataset_id、config
         tool_config = ToolConfig(name="ragflow_kb")
-        
-        return RagflowKBTool(
-            api_endpoint=cfg.endpoint,
-            api_key=cfg.api_key,
-            dataset_id=cfg.dataset_id,
-            config=tool_config
+
+        tool_instance = RagflowKBTool(
+            api_endpoint=cfg.endpoint, api_key=cfg.api_key, dataset_id=cfg.dataset_id, config=tool_config
         )
-    
+
+        # 🔥 v7.120: 包装为 LangChain Tool 以兼容 bind_tools()
+        langchain_tool = tool_instance.to_langchain_tool()
+        logger.info(f"✅ Ragflow工具已包装为 LangChain Tool: {langchain_tool.name}")
+        return langchain_tool
+
     @staticmethod
     def create_bocha_tool(config: Optional[BochaConfig] = None):
         """
@@ -96,11 +89,9 @@ class ToolFactory:
             config: 博查配置，如果为None则使用全局settings
 
         Returns:
-            BochaSearchTool实例
+            LangChain StructuredTool实例（而非原始BochaSearchTool）
         """
-        from intelligent_project_analyzer.agents.bocha_search_tool import (
-            create_bocha_search_tool_from_settings
-        )
+        from intelligent_project_analyzer.agents.bocha_search_tool import create_bocha_search_tool_from_settings
 
         cfg = config or settings.bocha
 
@@ -114,8 +105,13 @@ class ToolFactory:
 
         logger.info(f"✅ 创建博查搜索工具: count={cfg.default_count}")
 
-        tool = create_bocha_search_tool_from_settings()
-        return tool
+        tool_instance = create_bocha_search_tool_from_settings()
+        if tool_instance:
+            # 🔥 v7.120: 包装为 LangChain Tool 以兼容 bind_tools()
+            langchain_tool = tool_instance.to_langchain_tool()
+            logger.info(f"✅ 博查工具已包装为 LangChain Tool: {langchain_tool.name}")
+            return langchain_tool
+        return None
 
     @staticmethod
     def create_arxiv_tool():
@@ -123,18 +119,23 @@ class ToolFactory:
         创建Arxiv搜索工具
 
         Returns:
-            ArxivSearchTool实例
+            LangChain StructuredTool实例
         """
-        from intelligent_project_analyzer.tools.arxiv_search import ArxivSearchTool
         from intelligent_project_analyzer.core.types import ToolConfig
+        from intelligent_project_analyzer.tools.arxiv_search import ArxivSearchTool
 
         logger.info("创建Arxiv工具")
-        
+
         # 🔧 v7.63.1: ArxivSearchTool只接受config参数(不接受timeout)
         tool_config = ToolConfig(name="arxiv_search")
 
-        return ArxivSearchTool(config=tool_config)
-    
+        tool_instance = ArxivSearchTool(config=tool_config)
+
+        # 🔥 v7.120: 包装为 LangChain Tool 以兼容 bind_tools()
+        langchain_tool = tool_instance.to_langchain_tool()
+        logger.info(f"✅ Arxiv工具已包装为 LangChain Tool: {langchain_tool.name}")
+        return langchain_tool
+
     @staticmethod
     def create_all_tools():
         """
@@ -162,7 +163,7 @@ class ToolFactory:
                 logger.info("✅ Tavily工具已启用")
         except Exception as e:
             logger.warning(f"⚠️ Tavily工具创建失败: {e}")
-        
+
         # Ragflow知识库
         try:
             if settings.ragflow.api_key:
@@ -170,7 +171,7 @@ class ToolFactory:
                 logger.info("✅ Ragflow工具已启用")
         except Exception as e:
             logger.warning(f"⚠️ Ragflow工具创建失败: {e}")
-        
+
         # Arxiv搜索
         try:
             if settings.arxiv.enabled:
@@ -178,18 +179,18 @@ class ToolFactory:
                 logger.info("✅ Arxiv工具已启用")
         except Exception as e:
             logger.warning(f"⚠️ Arxiv工具创建失败: {e}")
-        
+
         logger.info(f"工具初始化完成: {len(tools)}个工具可用")
         return tools
-    
+
     @staticmethod
     def validate_tool_config(tool_name: str) -> bool:
         """
         验证工具配置
-        
+
         Args:
             tool_name: 工具名称 (tavily/ragflow/arxiv)
-            
+
         Returns:
             配置是否有效
         """
@@ -198,7 +199,7 @@ class ToolFactory:
                 logger.error("Tavily配置无效: 缺少API Key")
                 return False
             return True
-        
+
         elif tool_name == "ragflow":
             if not settings.ragflow.api_key:
                 logger.error("Ragflow配置无效: 缺少API Key")
@@ -207,11 +208,10 @@ class ToolFactory:
                 logger.error("Ragflow配置无效: 缺少Endpoint")
                 return False
             return True
-        
+
         elif tool_name == "arxiv":
             return settings.arxiv.enabled
-        
+
         else:
             logger.error(f"未知的工具名称: {tool_name}")
             return False
-

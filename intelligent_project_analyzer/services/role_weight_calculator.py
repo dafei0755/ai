@@ -13,10 +13,11 @@
 版本: 1.0
 """
 
-import yaml
 import re
 from pathlib import Path
-from typing import Dict, List, Any, Set, Optional
+from typing import Any, Dict, List, Optional, Set
+
+import yaml
 from loguru import logger
 
 
@@ -50,6 +51,7 @@ class RoleWeightCalculator:
         # 尝试导入 jieba（用于中文分词）
         try:
             import jieba
+
             self.jieba = jieba
             self._jieba_available = True
             logger.info("✅ jieba 分词库已加载")
@@ -61,7 +63,7 @@ class RoleWeightCalculator:
     def _load_config(self) -> Dict[str, Any]:
         """加载配置文件"""
         try:
-            with open(self.config_path, 'r', encoding='utf-8') as f:
+            with open(self.config_path, "r", encoding="utf-8") as f:
                 config = yaml.safe_load(f)
             logger.info(f"✅ 已加载权重配置: {self.config_path}")
             logger.info(f"   版本: {config.get('version')}")
@@ -71,12 +73,18 @@ class RoleWeightCalculator:
             logger.error(f"❌ 加载配置文件失败: {e}")
             raise
 
-    def calculate_weights(self, requirements: str) -> Dict[str, float]:
+    def calculate_weights(
+        self, requirements: str, confirmed_core_tasks: Optional[List[Dict[str, Any]]] = None
+    ) -> Dict[str, float]:
         """
         计算角色权重
 
+        🆕 增强功能：如果提供confirmed_core_tasks，从任务中提取额外关键词，
+        提升权重计算精度。这解决了"问卷数据未融入权重计算"的问题。
+
         Args:
             requirements: 需求文本
+            confirmed_core_tasks: 用户确认的核心任务列表（可选）
 
         Returns:
             角色权重字典，例如:
@@ -89,9 +97,23 @@ class RoleWeightCalculator:
         """
         logger.info("🔍 开始计算角色权重...")
 
-        # 1. 提取关键词
+        # 1. 提取关键词（从需求文本）
         keywords = self._extract_keywords(requirements)
-        logger.debug(f"   提取到 {len(keywords)} 个关键词")
+        logger.debug(f"   从需求文本提取到 {len(keywords)} 个关键词")
+
+        # 🆕 1.5. 从confirmed_core_tasks提取额外关键词
+        task_keywords = set()
+        if confirmed_core_tasks:
+            for task in confirmed_core_tasks:
+                task_title = task.get("title", "")
+                task_desc = task.get("description", "")
+                task_text = f"{task_title} {task_desc}"
+                task_keywords.update(self._extract_keywords(task_text))
+
+            logger.info(f"   📋 从 {len(confirmed_core_tasks)} 个确认任务提取到 {len(task_keywords)} 个额外关键词")
+            # 合并关键词
+            keywords.update(task_keywords)
+            logger.debug(f"   合并后共 {len(keywords)} 个关键词")
 
         # 2. 匹配标签
         matched_tags = self._match_tags(keywords)
@@ -146,12 +168,12 @@ class RoleWeightCalculator:
             keywords.update(words)
         else:
             # 简单分词：按空格、标点分割
-            words = re.split(r'[\s,，。！？；：\.\!\?\;]+', text)
+            words = re.split(r"[\s,，。！？；：\.\!\?\;]+", text)
             keywords.update([w for w in words if w])
 
         # 方法2: 提取英文短语（如 "Audrey Hepburn"）
         # 匹配模式：大写字母开头的连续单词
-        english_phrases = re.findall(r'\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\b', text)
+        english_phrases = re.findall(r"\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\b", text)
         keywords.update(english_phrases)
 
         # 方法3: 添加原文本（用于匹配多字关键词，如"大平层"）
@@ -205,11 +227,7 @@ class RoleWeightCalculator:
 
         return matched_tags
 
-    def _calculate_tag_bonus(
-        self,
-        role_category: str,
-        matched_tags: List[str]
-    ) -> float:
+    def _calculate_tag_bonus(self, role_category: str, matched_tags: List[str]) -> float:
         """
         计算标签加成
 
@@ -239,11 +257,7 @@ class RoleWeightCalculator:
 
         return bonus
 
-    def get_weight_explanation(
-        self,
-        requirements: str,
-        weights: Optional[Dict[str, float]] = None
-    ) -> str:
+    def get_weight_explanation(self, requirements: str, weights: Optional[Dict[str, float]] = None) -> str:
         """
         生成权重计算的详细说明
 
@@ -294,12 +308,12 @@ class RoleWeightCalculator:
 
 # 测试代码（仅在直接运行此文件时执行）
 if __name__ == "__main__":
-    import sys
     import io
+    import sys
 
     # 设置 UTF-8 输出编码（Windows 兼容）
-    if sys.platform == 'win32':
-        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+    if sys.platform == "win32":
+        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 
     # 测试用例：Audrey Hepburn 大平层项目
     test_requirements = """
@@ -338,4 +352,5 @@ if __name__ == "__main__":
     except Exception as e:
         logger.error(f"测试失败: {e}")
         import traceback
+
         traceback.print_exc()

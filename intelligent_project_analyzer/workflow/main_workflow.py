@@ -4,52 +4,55 @@
 基于LangGraph实现的多智能体协作工作流
 """
 
+# 🆕 v7.16: LangGraph Agent 升级版本（通过环境变量控制）
+import os
 import uuid
-from typing import Dict, List, Optional, Any, Literal, Union
 from datetime import datetime
 from pathlib import Path
-from loguru import logger
+from typing import Any, Dict, List, Literal, Optional, Union
+
 import yaml
-
-from langgraph.graph import StateGraph, START, END
-from langgraph.store.memory import InMemoryStore
 from langgraph.checkpoint.memory import MemorySaver
-from langgraph.types import Send, Command
+from langgraph.graph import END, START, StateGraph
+from langgraph.store.memory import InMemoryStore
+from langgraph.types import Command, Send
+from loguru import logger
 
-from ..core.state import ProjectAnalysisState, AnalysisStage, StateManager
-from ..core.types import AgentType, format_role_display_name
 # 显式导入智能体类以触发 AgentFactory 注册
-from ..agents import AgentFactory, RequirementsAnalystAgent, ProjectDirectorAgent
-from ..agents.feasibility_analyst import FeasibilityAnalystAgent  # 🆕 V1.5可行性分析师
+from ..agents import AgentFactory, ProjectDirectorAgent, RequirementsAnalystAgent
 from ..agents.base import NullLLM
-from ..interaction.interaction_nodes import (
+from ..agents.dynamic_project_director import detect_and_handle_challenges_node  # 🆕 v3.5
+from ..agents.feasibility_analyst import FeasibilityAnalystAgent  # 🆕 V1.5可行性分析师
+from ..agents.quality_monitor import QualityMonitor  # 🆕
+from ..core.state import AnalysisStage, ProjectAnalysisState, StateManager
+from ..core.types import AgentType, format_role_display_name
+from ..interaction.interaction_nodes import (  # FinalReviewNode,  # 已移除：客户需求中没有最终审核阶段
+    AnalysisReviewNode,
     CalibrationQuestionnaireNode,
     RequirementsConfirmationNode,
-    AnalysisReviewNode,
-    # FinalReviewNode,  # 已移除：客户需求中没有最终审核阶段
-    UserQuestionNode
+    UserQuestionNode,
 )
+from ..interaction.nodes.manual_review import ManualReviewNode  # 🆕 人工审核节点
+
 # 🆕 v7.87: 三步递进式问卷节点
 from ..interaction.nodes.progressive_questionnaire import (
     ProgressiveQuestionnaireNode,
     progressive_step1_core_task_node,
     progressive_step2_radar_node,
-    progressive_step3_gap_filling_node
+    progressive_step3_gap_filling_node,
 )
+from ..interaction.nodes.quality_preflight import QualityPreflightNode  # 🆕
+
 # 🆕 统一审核节点（合并角色选择和任务分派审核）
 from ..interaction.role_task_unified_review import role_task_unified_review_node
+
 # from ..interaction.role_selection_review import role_selection_review_node  # 已废弃
 # from ..interaction.task_assignment_review import task_assignment_review_node  # 已废弃
 from ..interaction.second_batch_strategy_review import SecondBatchStrategyReviewNode
-from ..interaction.nodes.quality_preflight import QualityPreflightNode  # 🆕
-from ..agents.quality_monitor import QualityMonitor  # 🆕
-from ..interaction.nodes.manual_review import ManualReviewNode  # 🆕 人工审核节点
-from ..agents.dynamic_project_director import detect_and_handle_challenges_node  # 🆕 v3.5
-from ..report.result_aggregator import ResultAggregatorAgent
 from ..report.pdf_generator import PDFGeneratorAgent
+from ..report.result_aggregator import ResultAggregatorAgent
+from ..workflow.nodes.search_query_generator_node import search_query_generator_node  # 🆕 v7.109
 
-# 🆕 v7.16: LangGraph Agent 升级版本（通过环境变量控制）
-import os
 USE_V716_AGENTS = os.getenv("USE_V716_AGENTS", "false").lower() == "true"
 USE_V717_REQUIREMENTS_ANALYST = os.getenv("USE_V717_REQUIREMENTS_ANALYST", "false").lower() == "true"
 USE_V718_QUESTIONNAIRE_AGENT = os.getenv("USE_V718_QUESTIONNAIRE_AGENT", "false").lower() == "true"
@@ -58,36 +61,36 @@ USE_PROGRESSIVE_QUESTIONNAIRE = os.getenv("USE_PROGRESSIVE_QUESTIONNAIRE", "true
 USE_MULTI_ROUND_QUESTIONNAIRE = os.getenv("USE_MULTI_ROUND_QUESTIONNAIRE", "false").lower() == "true"
 if USE_V716_AGENTS:
     from ..agents.analysis_review_agent import AnalysisReviewAgent, AnalysisReviewNodeCompat
-    from ..agents.result_aggregator_agent import ResultAggregatorAgentV2, ResultAggregatorAgentCompat
     from ..agents.challenge_detection_agent import ChallengeDetectionAgent, detect_and_handle_challenges_v2
     from ..agents.quality_preflight_agent import QualityPreflightAgent, QualityPreflightNodeCompat
-    from ..agents.questionnaire_agent import QuestionnaireAgent, LLMQuestionGeneratorCompat
+    from ..agents.questionnaire_agent import LLMQuestionGeneratorCompat, QuestionnaireAgent
+    from ..agents.result_aggregator_agent import ResultAggregatorAgentCompat, ResultAggregatorAgentV2
+
     logger.info("🚀 [v7.16] 启用 LangGraph Agent 升级版本")
 if USE_V717_REQUIREMENTS_ANALYST:
     from ..agents.requirements_analyst_agent import RequirementsAnalystAgentV2
+
     logger.info("🚀 [v7.17] 启用需求分析师 StateGraph Agent")
 if USE_V718_QUESTIONNAIRE_AGENT:
     from ..agents.questionnaire_agent import QuestionnaireAgent
+
     logger.info("🚀 [v7.18] 启用问卷生成 StateGraph Agent")
-from ..security import (  # 🆕 内容安全与领域过滤
-    ReportGuardNode
-)
+from ..security import ReportGuardNode  # 🆕 内容安全与领域过滤
+
 # 🆕 v7.3 统一输入验证节点（合并 input_guard 和 domain_validator）
-from ..security.unified_input_validator_node import (
-    UnifiedInputValidatorNode,
-    InputRejectedNode
-)
+from ..security.unified_input_validator_node import InputRejectedNode, UnifiedInputValidatorNode
+
 # 动态本体论注入工具
 from ..utils.ontology_loader import OntologyLoader
 
 
 class MainWorkflow:
     """主工作流编排器"""
-    
+
     def __init__(self, llm_model: Optional[Any] = None, config: Optional[Dict[str, Any]] = None):
         """
         初始化主工作流
-        
+
         Args:
             llm_model: LLM模型实例
             config: 配置参数
@@ -100,11 +103,11 @@ class MainWorkflow:
             self.config.setdefault("llm_placeholder", True)
         # 启用完成后追问交互（可通过配置覆盖）
         self.config.setdefault("post_completion_followup_enabled", True)
-        
+
         # 初始化存储和检查点
         self.store = InMemoryStore()
         self.checkpointer = MemorySaver()
-        
+
         # 初始化本体论加载器
         self.ontology_loader = OntologyLoader(
             "d:/11-20/langgraph-design/intelligent_project_analyzer/knowledge_base/ontology.yaml"
@@ -127,7 +130,7 @@ class MainWorkflow:
             logger.warning("  ⚠️ 图像生成已禁用，概念图不会生成（检查 .env 中的 IMAGE_GENERATION_ENABLED）")
 
         logger.info("Main workflow initialized successfully")
-    
+
     def _build_workflow_graph(self) -> StateGraph:
         """
         构建工作流图（2025-11-19重构：支持动态N批次执行）
@@ -147,8 +150,8 @@ class MainWorkflow:
         # 🆕 v7.3 统一输入验证节点（合并 input_guard 和 domain_validator）
         workflow.add_node("unified_input_validator_initial", self._unified_input_validator_initial_node)  # 初始验证
         workflow.add_node("unified_input_validator_secondary", self._unified_input_validator_secondary_node)  # 二次验证
-        workflow.add_node("input_rejected", self._input_rejected_node)        # 拒绝终止
-        workflow.add_node("report_guard", self._report_guard_node)            # 报告审核
+        workflow.add_node("input_rejected", self._input_rejected_node)  # 拒绝终止
+        workflow.add_node("report_guard", self._report_guard_node)  # 报告审核
 
         # ============================================================================
         # 1. 前置流程节点（需求收集与确认）
@@ -176,6 +179,8 @@ class MainWorkflow:
         workflow.add_node("project_director", self._project_director_node)
         # 🆕 v7.108 交付物ID生成器（概念图精准关联）
         workflow.add_node("deliverable_id_generator", self._deliverable_id_generator_node)
+        # 🆕 v7.109 搜索查询生成器（为交付物生成搜索查询和概念图配置）
+        workflow.add_node("search_query_generator", self._search_query_generator_node)
         # 🆕 统一审核节点（合并角色选择和任务分派）
         workflow.add_node("role_task_unified_review", self._role_task_unified_review_node)
         workflow.add_node("quality_preflight", self._quality_preflight_node)  # 🆕 质量预检
@@ -183,12 +188,12 @@ class MainWorkflow:
         # ============================================================================
         # 3. 🆕 动态批次执行节点（核心重构）
         # ============================================================================
-        workflow.add_node("batch_executor", self._batch_executor_node)           # 批次执行器
-        workflow.add_node("agent_executor", self._execute_agent_node)            # 智能体执行器
-        workflow.add_node("batch_aggregator", self._intermediate_aggregator_node) # 批次聚合器
-        workflow.add_node("batch_router", self._batch_router_node)               # 批次路由器
+        workflow.add_node("batch_executor", self._batch_executor_node)  # 批次执行器
+        workflow.add_node("agent_executor", self._execute_agent_node)  # 智能体执行器
+        workflow.add_node("batch_aggregator", self._intermediate_aggregator_node)  # 批次聚合器
+        workflow.add_node("batch_router", self._batch_router_node)  # 批次路由器
         workflow.add_node("batch_strategy_review", self._batch_strategy_review_node)  # 批次策略审核
-        workflow.add_node("detect_challenges", self._detect_challenges_node)     # 🆕 v3.5 挑战检测
+        workflow.add_node("detect_challenges", self._detect_challenges_node)  # 🆕 v3.5 挑战检测
 
         # ============================================================================
         # 4. 审核与结果生成节点
@@ -230,7 +235,8 @@ class MainWorkflow:
         # ✅ requirements_confirmation 使用 Command 动态路由到 requirements_analyst 或 project_director
 
         workflow.add_edge("project_director", "deliverable_id_generator")  # 🆕 v7.108 生成交付物ID
-        workflow.add_edge("deliverable_id_generator", "role_task_unified_review")  # 🆕 统一审核
+        workflow.add_edge("deliverable_id_generator", "search_query_generator")  # 🆕 v7.109 搜索查询生成
+        workflow.add_edge("search_query_generator", "role_task_unified_review")  # 🆕 统一审核
         # ❌ 移除静态边，让 role_task_unified_review 使用 Command 动态路由
         # workflow.add_edge("role_task_unified_review", "quality_preflight")  # 🆕 质量预检
         workflow.add_edge("quality_preflight", "batch_executor")  # 🆕 预检后执行
@@ -242,7 +248,7 @@ class MainWorkflow:
         # 批次执行器 → 智能体执行器（并行）→ 批次聚合器 → 批次路由器
         workflow.add_edge("agent_executor", "batch_aggregator")
         # workflow.add_edge("batch_aggregator", "detect_challenges")  # ❌ 暂时禁用：导致状态冲突
-        
+
         # 🆕 v3.5: 挑战检测移至 result_aggregator 之前
         # batch_aggregator → batch_router → analysis_review → detect_challenges → result_aggregator
         # workflow.add_conditional_edges(
@@ -258,9 +264,9 @@ class MainWorkflow:
         workflow.add_conditional_edges(
             "batch_aggregator",
             self._route_from_batch_aggregator,
-            ["batch_router", END]  # 🔧 N1修复：移除detect_challenges，避免重复调用result_aggregator
+            ["batch_router", END],  # 🔧 N1修复：移除detect_challenges，避免重复调用result_aggregator
         )
-        
+
         # 批次路由器根据 current_batch 和 total_batches 决定：
         # - 如果还有下一批次 → batch_strategy_review（审核后继续）
         # - 如果所有批次完成 → analysis_review
@@ -273,9 +279,7 @@ class MainWorkflow:
         # ✅ 批次执行器 → 智能体执行器（条件边 + Send API）
         # 使用条件边函数动态创建并行任务
         workflow.add_conditional_edges(
-            "batch_executor",              # 源节点
-            self._create_batch_sends,      # 条件边函数：返回 List[Send]
-            ["agent_executor"]             # 可能的目标节点列表
+            "batch_executor", self._create_batch_sends, ["agent_executor"]  # 源节点  # 条件边函数：返回 List[Send]  # 可能的目标节点列表
         )
 
         # ============================================================================
@@ -285,7 +289,7 @@ class MainWorkflow:
         # - detect_challenges（批准后先检测挑战）
         # - batch_executor（重执行特定批次）
         # - project_director（重新规划）
-        
+
         # 🆕 v3.5: 挑战检测在审核通过后、结果聚合前执行
         workflow.add_conditional_edges(
             "detect_challenges",
@@ -293,28 +297,22 @@ class MainWorkflow:
             {
                 "revisit_requirements": "requirements_analyst",  # 反馈循环
                 "manual_review": "manual_review",  # 🆕 人工审核（>3个must_fix）
-                "continue_workflow": "result_aggregator"  # 继续到结果聚合
-            }
+                "continue_workflow": "result_aggregator",  # 继续到结果聚合
+            },
         )
-        
+
         # 🆕 人工审核节点：manual_review 使用 Command 动态路由到：
         # - batch_executor（重新执行特定专家）
         # - detect_challenges（继续挑战检测）
         # - END（终止流程）
 
         workflow.add_edge("result_aggregator", "report_guard")  # 🆕 报告审核
-        workflow.add_edge("report_guard", "pdf_generator")      # 🆕 审核后生成PDF
+        workflow.add_edge("report_guard", "pdf_generator")  # 🆕 审核后生成PDF
+
+        workflow.add_conditional_edges("pdf_generator", self._route_after_pdf_generator, ["user_question", END])
 
         workflow.add_conditional_edges(
-            "pdf_generator",
-            self._route_after_pdf_generator,
-            ["user_question", END]
-        )
-
-        workflow.add_conditional_edges(
-            "user_question",
-            self._route_after_user_question,
-            ["project_director", "result_aggregator"]
+            "user_question", self._route_after_user_question, ["project_director", "result_aggregator"]
         )
 
         # ============================================================================
@@ -324,15 +322,12 @@ class MainWorkflow:
         logger.info("   Nodes: batch_executor, agent_executor, batch_aggregator, batch_router, batch_strategy_review")
         logger.info("   Supports: 1-N batches with dependency-based execution")
 
-        return workflow.compile(
-            checkpointer=self.checkpointer,
-            store=self.store
-        )
-    
+        return workflow.compile(checkpointer=self.checkpointer, store=self.store)
+
     # ============================================================================
     # 🆕 安全节点包装方法
     # ============================================================================
-    
+
     # ============================================================================
     # 🆕 v7.3 统一输入验证节点包装方法
     # ============================================================================
@@ -346,17 +341,12 @@ class MainWorkflow:
         try:
             logger.info("Executing unified input validator - initial validation")
             result = UnifiedInputValidatorNode.execute_initial_validation(
-                state,
-                store=self.store,
-                llm_model=self.llm_model
+                state, store=self.store, llm_model=self.llm_model
             )
 
             if not isinstance(result, Command):
                 logger.error("UnifiedInputValidatorNode.execute_initial_validation did not return Command object")
-                return Command(
-                    update={"rejection_reason": "system_error"},
-                    goto="input_rejected"
-                )
+                return Command(update={"rejection_reason": "system_error"}, goto="input_rejected")
 
             # 提取状态更新
             update_payload = dict(result.update or {})
@@ -388,17 +378,14 @@ class MainWorkflow:
         except Exception as e:
             logger.error(f"Error in input guard node: {e}")
             import traceback
+
             traceback.print_exc()
             # 出错时保守拒绝
             return Command(
-                update={
-                    "rejection_reason": "system_error",
-                    "rejection_message": "系统错误，请稍后重试。",
-                    "detail": "安全检测异常"
-                },
-                goto="input_rejected"
+                update={"rejection_reason": "system_error", "rejection_message": "系统错误，请稍后重试。", "detail": "安全检测异常"},
+                goto="input_rejected",
             )
-    
+
     def _input_rejected_node(self, state: ProjectAnalysisState) -> Dict[str, Any]:
         """输入拒绝节点包装"""
         try:
@@ -406,11 +393,8 @@ class MainWorkflow:
             return InputRejectedNode.execute(state, store=self.store)
         except Exception as e:
             logger.error(f"Error in input rejected node: {e}")
-            return {
-                "final_status": "rejected",
-                "rejection_message": "系统错误，流程终止。"
-            }
-    
+            return {"final_status": "rejected", "rejection_message": "系统错误，流程终止。"}
+
     def _unified_input_validator_secondary_node(self, state: ProjectAnalysisState) -> Union[Dict[str, Any], Command]:
         """
         统一输入验证 - 阶段2: 二次验证
@@ -418,12 +402,11 @@ class MainWorkflow:
         在需求分析后，重新验证领域一致性，检测领域漂移
         """
         from langgraph.types import Interrupt
+
         try:
             logger.info("Executing unified input validator - secondary validation")
             result = UnifiedInputValidatorNode.execute_secondary_validation(
-                state,
-                store=self.store,
-                llm_model=self.llm_model
+                state, store=self.store, llm_model=self.llm_model
             )
 
             # ✅ 正常情况：返回字典（由静态 edge 路由到 calibration_questionnaire）
@@ -451,14 +434,12 @@ class MainWorkflow:
         except Exception as e:
             logger.error(f"Error in secondary validation node: {e}")
             import traceback
+
             traceback.print_exc()
             # 出错时信任初始判断
             logger.warning("Secondary validation failed, trusting initial judgment")
-            return {
-                "secondary_validation_skipped": True,
-                "secondary_validation_reason": "error_occurred"
-            }
-    
+            return {"secondary_validation_skipped": True, "secondary_validation_reason": "error_occurred"}
+
     def _report_guard_node(self, state: ProjectAnalysisState) -> Dict[str, Any]:
         """报告审核节点包装"""
         try:
@@ -478,17 +459,19 @@ class MainWorkflow:
 
         注意: 只返回需要更新的字段,不返回完整状态
         这样可以避免并发更新冲突
-        
+
         v7.17: 支持 StateGraph Agent 模式（通过环境变量控制）
         """
         try:
             logger.info("Executing requirements analyst node")
-            
+
             # 🔍 调试：检查进入时的标志状态
-            logger.info(f"🔍 [DEBUG] requirements_analyst 进入时 calibration_processed: {state.get('calibration_processed')}")
+            logger.info(
+                f"🔍 [DEBUG] requirements_analyst 进入时 calibration_processed: {state.get('calibration_processed')}"
+            )
             logger.info(f"🔍 [DEBUG] requirements_analyst 进入时 calibration_skipped: {state.get('calibration_skipped')}")
             logger.info(f"🔍 [DEBUG] requirements_analyst 进入时 state 所有键: {list(state.keys())}")
-            
+
             # 🔍 深度调试：检查 state 是否包含这些键
             if "calibration_processed" in state:
                 logger.info(f"🔍 [DEBUG] 'calibration_processed' 键存在，值={state['calibration_processed']}")
@@ -500,10 +483,9 @@ class MainWorkflow:
                 logger.info("🚀 [v7.17] 使用 StateGraph Agent 执行需求分析")
                 agent = RequirementsAnalystAgentV2(llm_model=self.llm_model, config=self.config)
                 result = agent.execute(
-                    user_input=state.get("user_input", ""),
-                    session_id=state.get("session_id", "unknown")
+                    user_input=state.get("user_input", ""), session_id=state.get("session_id", "unknown")
                 )
-                
+
                 # 记录 StateGraph 执行元数据
                 if result.metadata:
                     logger.info(f"📊 [v7.17] StateGraph 执行完成:")
@@ -513,9 +495,7 @@ class MainWorkflow:
             else:
                 # 原有逻辑：使用 AgentFactory 创建
                 agent = AgentFactory.create_agent(
-                    AgentType.REQUIREMENTS_ANALYST,
-                    llm_model=self.llm_model,
-                    config=self.config
+                    AgentType.REQUIREMENTS_ANALYST, llm_model=self.llm_model, config=self.config
                 )
                 result = agent.execute(state, {}, self.store)
 
@@ -557,7 +537,7 @@ class MainWorkflow:
                         "supporters": supporters,
                         "acceptance_criteria": deliverable.get("acceptance_criteria", []),
                         "format_requirements": deliverable.get("format_requirements", {}),
-                        "source_requirement": deliverable.get("source_requirement", "")
+                        "source_requirement": deliverable.get("source_requirement", ""),
                     }
 
                 if deliverable_owner_map:
@@ -572,51 +552,48 @@ class MainWorkflow:
                 "project_type": project_type,  # 🆕 添加项目类型字段
                 "deliverable_owner_map": deliverable_owner_map,  # 🆕 v7.0: 交付物责任者映射
                 "deliverable_metadata": deliverable_metadata,  # 🆕 v7.0: 交付物完整元数据
-                "agent_results": {
-                    AgentType.REQUIREMENTS_ANALYST.value: result.to_dict()
-                },
-                "updated_at": datetime.now().isoformat()
+                "agent_results": {AgentType.REQUIREMENTS_ANALYST.value: result.to_dict()},
+                "updated_at": datetime.now().isoformat(),
             }
-            
+
             # 🔧 关键修复: 从完整状态中提取并保留流程控制标志
             # 注意: Command.update 的字段在目标节点执行时不可见,
             # 所以这里需要从 agent_results 中获取原始 state 的标志值
             # 但实际上,我们应该让这些标志"穿透"整个分析过程
             full_state = dict(state)  # 获取完整状态副本
-            
+
             # 🛡️ 增强修复：检查标志 OR 检查答案是否存在
-            has_processed = (
-                ("calibration_processed" in full_state and full_state["calibration_processed"]) or 
-                ("calibration_answers" in full_state and full_state["calibration_answers"])
+            has_processed = ("calibration_processed" in full_state and full_state["calibration_processed"]) or (
+                "calibration_answers" in full_state and full_state["calibration_answers"]
             )
-            
+
             if has_processed:
                 update_dict["calibration_processed"] = True
                 logger.info("🔍 [DEBUG] 保留/恢复 calibration_processed=True 标志")
-                
+
             if "calibration_skipped" in full_state and full_state["calibration_skipped"]:
                 update_dict["calibration_skipped"] = True
                 logger.info("🔍 [DEBUG] 保留 calibration_skipped=True 标志")
             # 🔥 关键修复：保留 modification_confirmation_round 轮次计数
             if "modification_confirmation_round" in full_state:
                 update_dict["modification_confirmation_round"] = full_state["modification_confirmation_round"]
-                logger.info(f"🔍 [DEBUG] 保留 modification_confirmation_round={full_state['modification_confirmation_round']} 标志")
+                logger.info(
+                    f"🔍 [DEBUG] 保留 modification_confirmation_round={full_state['modification_confirmation_round']} 标志"
+                )
             # 🔥 关键修复：保留 skip_unified_review 标志
             if "skip_unified_review" in full_state and full_state["skip_unified_review"]:
                 update_dict["skip_unified_review"] = True
                 logger.info("🔍 [DEBUG] 保留 skip_unified_review=True 标志")
-            
+
             logger.info(f"🔍 [DEBUG] requirements_analyst 返回的字段: {list(update_dict.keys())}")
             return update_dict
 
         except Exception as e:
             logger.error(f"Requirements analyst node failed: {e}")
             import traceback
+
             traceback.print_exc()
-            return {
-                "error": str(e),
-                "updated_at": datetime.now().isoformat()
-            }
+            return {"error": str(e), "updated_at": datetime.now().isoformat()}
 
     def _feasibility_analyst_node(self, state: ProjectAnalysisState) -> Dict[str, Any]:
         """
@@ -634,10 +611,7 @@ class MainWorkflow:
             logger.info("Executing V1.5 feasibility analyst node")
 
             # 创建V1.5可行性分析师智能体
-            feasibility_agent = FeasibilityAnalystAgent(
-                llm_model=self.llm_model,
-                config=self.config
-            )
+            feasibility_agent = FeasibilityAnalystAgent(llm_model=self.llm_model, config=self.config)
 
             # 验证输入：V1的structured_requirements必须存在
             if not state.get("structured_requirements"):
@@ -650,7 +624,7 @@ class MainWorkflow:
             # 存储分析结果到state（仅后台存储，不展示到前端）
             update_dict = {
                 "feasibility_assessment": result.structured_data,  # 完整的可行性分析结果
-                "updated_at": datetime.now().isoformat()
+                "updated_at": datetime.now().isoformat(),
             }
 
             # 日志记录关键发现（用于调试和监控）
@@ -678,11 +652,9 @@ class MainWorkflow:
         except Exception as e:
             logger.error(f"V1.5 Feasibility analyst node failed: {e}")
             import traceback
+
             traceback.print_exc()
-            return {
-                "error": str(e),
-                "updated_at": datetime.now().isoformat()
-            }
+            return {"error": str(e), "updated_at": datetime.now().isoformat()}
 
     def _calibration_questionnaire_node(self, state: ProjectAnalysisState) -> Command:
         """
@@ -722,7 +694,7 @@ class MainWorkflow:
         """
         logger.info("Executing requirements confirmation node")
         return RequirementsConfirmationNode.execute(state, self.store)
-    
+
     def _find_matching_role(self, predicted_role: str, active_agents: List[str]) -> Optional[str]:
         """
         🔧 修复问题1: 查找预测角色在实际选定角色中的匹配项
@@ -777,11 +749,7 @@ class MainWorkflow:
             logger.info("Executing project director node (Dynamic Mode)")
 
             # 创建项目总监智能体
-            agent = AgentFactory.create_agent(
-                AgentType.PROJECT_DIRECTOR,
-                llm_model=self.llm_model,
-                config=self.config
-            )
+            agent = AgentFactory.create_agent(AgentType.PROJECT_DIRECTOR, llm_model=self.llm_model, config=self.config)
 
             # 执行分析 - 返回Command对象
             command = agent.execute(state, {}, self.store)
@@ -830,7 +798,7 @@ class MainWorkflow:
                                 **metadata,
                                 "owner": actual_owner,
                                 "owner_predicted": False,  # 标记为已校正
-                                "owner_original_prediction": predicted_owner  # 保留原始预测
+                                "owner_original_prediction": predicted_owner,  # 保留原始预测
                             }
                         else:
                             # 未找到匹配或已匹配，保持原值
@@ -860,15 +828,16 @@ class MainWorkflow:
         except Exception as e:
             logger.error(f"Project director node failed: {e}")
             import traceback
+
             traceback.print_exc()
-            
+
             # 🔥 返回明确的错误状态，防止下游节点崩溃
             return {
                 "error": str(e),
                 "strategic_analysis": None,  # 明确标记为 None
                 "active_agents": [],
                 "execution_mode": "dynamic",
-                "errors": [{"node": "project_director", "error": str(e), "type": "ProjectDirectorFailure"}]
+                "errors": [{"node": "project_director", "error": str(e), "type": "ProjectDirectorFailure"}],
             }
 
     def _deliverable_id_generator_node(self, state: ProjectAnalysisState) -> Dict[str, Any]:
@@ -912,11 +881,20 @@ class MainWorkflow:
                 logger.error(f"🔍 [诊断] 第一个元素类型: {type(selected_roles[0])}")
                 logger.error(f"🔍 [诊断] 第一个元素内容: {str(selected_roles[0])[:300]}")
 
-            return {
-                "deliverable_metadata": {},
-                "deliverable_owner_map": {},
-                "detail": f"交付物ID生成失败: {str(e)}"
-            }
+            return {"deliverable_metadata": {}, "deliverable_owner_map": {}, "detail": f"交付物ID生成失败: {str(e)}"}
+
+    def _search_query_generator_node(self, state: ProjectAnalysisState) -> Dict[str, Any]:
+        """搜索查询生成节点包装器 v7.109"""
+        try:
+            logger.info("🔍 [search_query_generator] 开始生成搜索查询和概念图配置...")
+            result = search_query_generator_node(state)
+            deliverable_metadata = result.get("deliverable_metadata", {})
+            processed_count = len([m for m in deliverable_metadata.values() if "search_queries" in m])
+            logger.info(f"✅ [search_query_generator] 成功为 {processed_count} 个交付物生成配置")
+            return result
+        except Exception as e:
+            logger.error(f"❌ [search_query_generator] 生成配置失败: {e}")
+            return {"project_image_aspect_ratio": "16:9", "detail": f"搜索查询生成失败: {str(e)}"}
 
     def _role_task_unified_review_node(self, state: ProjectAnalysisState):
         """
@@ -926,7 +904,7 @@ class MainWorkflow:
 
         注意: 不要捕获Interrupt异常!
         Interrupt是LangGraph的正常控制流,必须让它传播到框架层
-        
+
         返回: Command对象（用于动态路由到 batch_executor 或 project_director）
         """
         try:
@@ -937,6 +915,7 @@ class MainWorkflow:
             if "Interrupt" not in str(type(e)):
                 logger.error(f"❌ Unified review node failed: {e}")
                 import traceback
+
                 traceback.print_exc()
                 return {"error": str(e)}
             else:
@@ -949,11 +928,10 @@ class MainWorkflow:
     # def _role_selection_review_node(self, state: ProjectAnalysisState):
     #     """角色选择审核节点 - 已合并到 role_task_unified_review"""
     #     pass
-    
+
     # def _task_assignment_review_node(self, state: ProjectAnalysisState):
     #     """任务分派审核节点 - 已合并到 role_task_unified_review"""
     #     pass
-    
 
     async def _quality_preflight_node(self, state: ProjectAnalysisState) -> Dict[str, Any]:
         """
@@ -970,21 +948,21 @@ class MainWorkflow:
         """
         try:
             logger.info("🔍 Executing quality preflight node (async)")
-            
+
             # 🆕 v7.16: 使用新版 LangGraph Agent（如果启用）
             if USE_V716_AGENTS:
                 logger.info("🚀 [v7.16] 使用 QualityPreflightAgent")
                 node = QualityPreflightNodeCompat(self.llm_model)
             else:
                 node = QualityPreflightNode(self.llm_model)
-            
+
             result = await node(state)  # 🚀 P1优化：使用 await 调用异步方法
             result["detail"] = "质量预检与风险评估"
             return result
         except Exception as e:
             # 🔧 v7.24: 增强 Interrupt 检测，支持多种异常格式
             from langgraph.types import Interrupt
-            
+
             # 检测 Interrupt 的多种情况：
             # 1. 直接是 Interrupt 类型
             # 2. e.args[0] 是 Interrupt（部分 LangGraph 版本）
@@ -992,24 +970,25 @@ class MainWorkflow:
             is_interrupt = False
             if isinstance(e, Interrupt):
                 is_interrupt = True
-            elif hasattr(e, 'args') and e.args:
+            elif hasattr(e, "args") and e.args:
                 if isinstance(e.args[0], Interrupt):
                     is_interrupt = True
                 elif isinstance(e.args[0], tuple) and e.args[0] and isinstance(e.args[0][0], Interrupt):
                     is_interrupt = True
-            
+
             if is_interrupt:
                 logger.info("🔄 Quality preflight interrupt triggered, pausing for user confirmation")
                 raise  # 重新抛出 Interrupt，让 LangGraph 正常处理
-            
+
             # 🔧 v7.24: 额外检查 - 检查错误消息中是否包含 Interrupt 关键字
             error_str = str(e)
-            if 'Interrupt' in error_str and 'value=' in error_str:
+            if "Interrupt" in error_str and "value=" in error_str:
                 logger.warning(f"⚠️ Detected Interrupt in error message, re-raising: {error_str[:100]}...")
                 raise
-            
+
             logger.error(f"❌ Quality preflight node failed: {e}")
             import traceback
+
             traceback.print_exc()
             return {"preflight_completed": False, "error": str(e), "detail": "质量预检失败"}
 
@@ -1039,7 +1018,8 @@ class MainWorkflow:
 
             # 第一批专家: 以 V3_, V4_, V5_ 开头的角色
             first_batch_roles = [
-                role_id for role_id in active_agents
+                role_id
+                for role_id in active_agents
                 if role_id.startswith("V3_") or role_id.startswith("V4_") or role_id.startswith("V5_")
             ]
 
@@ -1065,12 +1045,13 @@ class MainWorkflow:
         except Exception as e:
             logger.error(f"Failed to create first batch parallel tasks: {e}")
             import traceback
+
             traceback.print_exc()
             return {
                 "error": str(e),
                 "strategic_analysis": None,  # 明确标记为 None
                 "active_agents": [],
-                "detail": "项目总监分析失败"
+                "detail": "项目总监分析失败",
             }
 
     def _continue_to_second_batch_agents(self, state: ProjectAnalysisState) -> List[Send]:
@@ -1098,8 +1079,7 @@ class MainWorkflow:
 
             # 第二批专家: 以 V2_, V6_ 开头的角色
             second_batch_roles = [
-                role_id for role_id in active_agents
-                if role_id.startswith("V2_") or role_id.startswith("V6_")
+                role_id for role_id in active_agents if role_id.startswith("V2_") or role_id.startswith("V6_")
             ]
 
             logger.info(f"Preparing to execute {len(second_batch_roles)} dynamic agents in second batch")
@@ -1108,14 +1088,12 @@ class MainWorkflow:
             # 验证第一批结果是否存在
             agent_results = state.get("agent_results", {})
             first_batch_roles = [
-                role_id for role_id in active_agents
+                role_id
+                for role_id in active_agents
                 if role_id.startswith("V3_") or role_id.startswith("V4_") or role_id.startswith("V5_")
             ]
 
-            first_batch_completed = all(
-                role_id in agent_results
-                for role_id in first_batch_roles
-            )
+            first_batch_completed = all(role_id in agent_results for role_id in first_batch_roles)
 
             if not first_batch_completed:
                 logger.warning(f"⚠️ First batch agents not all completed, but proceeding with second batch")
@@ -1140,6 +1118,7 @@ class MainWorkflow:
         except Exception as e:
             logger.error(f"Failed to create second batch parallel tasks: {e}")
             import traceback
+
             traceback.print_exc()
             return []
 
@@ -1195,12 +1174,12 @@ class MainWorkflow:
 
             # ✅ 尝试直接获取配置，如果失败则用前缀匹配
             role_config = role_manager.get_role_config(base_type, rid)
-            
+
             if not role_config:
                 # 使用前缀匹配（如 "V5"）查找配置
                 v_prefix = role_id.split("_")[0]  # 提取 "V5"
                 logger.info(f"🔍 [DEBUG] Direct match failed, trying prefix: {v_prefix}")
-                
+
                 # 遍历所有角色配置，找到匹配前缀的
                 for config_key in role_manager.roles.keys():
                     if config_key.startswith(v_prefix):
@@ -1208,7 +1187,7 @@ class MainWorkflow:
                         if role_config:
                             logger.info(f"✅ Found config using prefix match: {config_key}")
                             break
-            
+
             logger.info(f"🔍 [DEBUG] role_config found: {role_config is not None}")
 
             if not role_config:
@@ -1222,9 +1201,7 @@ class MainWorkflow:
                 if risk_level in ["medium", "high"]:
                     logger.info(f"🔍 注入质量约束到 {role_id} (风险等级: {risk_level}, 轮次: {review_round}, 重试: {retry_count})")
                     original_prompt = role_config.get("system_prompt", "")
-                    enhanced_prompt = QualityMonitor.inject_quality_constraints(
-                        original_prompt, quality_checklist
-                    )
+                    enhanced_prompt = QualityMonitor.inject_quality_constraints(original_prompt, quality_checklist)
                     role_config["system_prompt"] = enhanced_prompt
                 else:
                     logger.debug(f"⏭️ {role_id} 风险等级为 {risk_level}，跳过质量约束注入")
@@ -1240,7 +1217,10 @@ class MainWorkflow:
             if role_config and "system_prompt" in role_config:
                 prompt = role_config["system_prompt"]
                 if "{{DYNAMIC_ONTOLOGY_INJECTION}}" in prompt:
-                    injected = prompt.replace("{{DYNAMIC_ONTOLOGY_INJECTION}}", yaml.dump(ontology_fragment, allow_unicode=True, default_flow_style=False))
+                    injected = prompt.replace(
+                        "{{DYNAMIC_ONTOLOGY_INJECTION}}",
+                        yaml.dump(ontology_fragment, allow_unicode=True, default_flow_style=False),
+                    )
                     role_config["system_prompt"] = injected
                     logger.info(f"✅ 已动态注入本体论片段到 {role_id} 的 system_prompt")
                 else:
@@ -1251,42 +1231,41 @@ class MainWorkflow:
 
             # 构建上下文
             context = self._build_context_for_expert(state)
-            
+
             # 构建角色对象（包含TaskInstruction）
             # 注意：ProjectAnalysisState是TypedDict，不能直接实例化
             # 我们直接使用state作为上下文
-            
+
             # 🔧 修复v4.0：从 strategic_analysis.selected_roles 中获取 role_object
             # 支持两种匹配方式：精确匹配 和 短格式匹配
             strategic_analysis = state.get("strategic_analysis", {})
             selected_roles = strategic_analysis.get("selected_roles", [])
             role_object = None
-            
+
             # 提取当前 role_id 的短格式 (e.g., "V4_设计研究员_4-1" -> "4-1")
-            current_short_id = role_id.split('_')[-1] if '_' in role_id else role_id
-            
+            current_short_id = role_id.split("_")[-1] if "_" in role_id else role_id
+
             # 🔍 调试日志
             logger.debug(f"🔍 [TaskInstruction查找] role_id={role_id}, current_short_id={current_short_id}")
             logger.debug(f"🔍 [TaskInstruction查找] selected_roles数量={len(selected_roles)}")
             if selected_roles:
                 sample_ids = [r.get("role_id", "N/A") for r in selected_roles[:3]]
                 logger.debug(f"🔍 [TaskInstruction查找] 前3个stored_role_id: {sample_ids}")
-            
+
             for role in selected_roles:
                 stored_role_id = role.get("role_id", "")
                 # 提取存储的 role_id 的短格式
-                stored_short_id = stored_role_id.split('_')[-1] if '_' in stored_role_id else stored_role_id
-                
+                stored_short_id = stored_role_id.split("_")[-1] if "_" in stored_role_id else stored_role_id
+
                 # 支持多种匹配方式：
                 # 1. 精确匹配 (e.g., "V4_设计研究员_4-1" == "V4_设计研究员_4-1")
                 # 2. 短格式匹配 (e.g., "4-1" == "4-1")
                 # 3. 存储的是短格式，查询的是完整格式
-                if (stored_role_id == role_id or 
-                    stored_short_id == current_short_id):
+                if stored_role_id == role_id or stored_short_id == current_short_id:
                     role_object = role
                     logger.info(f"✅ 找到 {role_id} 的TaskInstruction (stored_role_id={stored_role_id})")
                     break
-            
+
             if not role_object:
                 # 构建默认role_object（向后兼容）
                 role_object = {
@@ -1301,13 +1280,13 @@ class MainWorkflow:
                                 "description": "基于专业领域提供深度分析和建议",
                                 "format": "analysis",
                                 "priority": "high",
-                                "success_criteria": ["分析深入且专业", "建议具有可操作性"]
+                                "success_criteria": ["分析深入且专业", "建议具有可操作性"],
                             }
                         ],
                         "success_criteria": ["输出符合专业标准", "建议具有实用价值"],
                         "constraints": [],
-                        "context_requirements": []
-                    }
+                        "context_requirements": [],
+                    },
                 }
                 logger.warning(f"⚠️ 未找到{role_id}的TaskInstruction，使用默认结构")
 
@@ -1331,20 +1310,20 @@ class MainWorkflow:
                     role_object=role_object,
                     context=context,
                     state=state,  # 直接传递state
-                    tools=list(role_tools.values()) if role_tools else None  # ✅ 传递工具列表
+                    tools=list(role_tools.values()) if role_tools else None,  # ✅ 传递工具列表
                 )
-                
+
                 # 构建兼容的结果格式
                 result_content = expert_result.get("analysis", "")
                 structured_output = expert_result.get("structured_output")
-                
+
                 # 记录执行信息
                 logger.info(f"✅ 任务导向专家 {role_id} 执行完成")
                 if structured_output:
                     logger.info(f"📊 结构化输出验证成功")
                 else:
                     logger.warning(f"⚠️ 结构化输出验证失败，使用原始输出")
-                    
+
             except Exception as e:
                 logger.error(f"❌ 执行任务导向专家失败: {str(e)}")
                 result_content = f"执行失败: {str(e)}"
@@ -1353,42 +1332,38 @@ class MainWorkflow:
                     "expert_name": role_config.get("name", role_id),
                     "analysis": result_content,
                     "structured_output": None,
-                    "error": True
+                    "error": True,
                 }
 
             # 🆕 执行后：快速验证
             quality_checklist = state.get("quality_checklist", {})
             if quality_checklist and result_content:
                 logger.info(f"🔍 快速验证 {role_id} 的输出质量")
-                validation_result = QualityMonitor.quick_validation(
-                    result_content, quality_checklist, role_id
-                )
-                
+                validation_result = QualityMonitor.quick_validation(result_content, quality_checklist, role_id)
+
                 # 判断是否需要重试
                 should_retry = QualityMonitor.should_retry(validation_result)
-                
+
                 if should_retry and retry_count == 0:
                     logger.warning(f"⚠️ {role_id} 质量不达标，触发重试")
-                    
+
                     try:
                         # 使用相同的role_object进行重试
                         state[f"retry_count_{role_id}"] = 1
                         expert_result_retry = await expert_factory.execute_expert(
-                            role_object=role_object,
-                            context=context,
-                            state=state  # 直接使用state
+                            role_object=role_object, context=context, state=state  # 直接使用state
                         )
-                        
+
                         # 更新结果
                         result_content = expert_result_retry.get("analysis", "")
                         expert_result = expert_result_retry
                         logger.info(f"✅ {role_id} 重试完成")
-                        
+
                     except Exception as retry_error:
                         logger.error(f"❌ {role_id} 重试失败: {str(retry_error)}")
-                
+
                 # 将验证结果附加到输出
-                if 'quality_validation' not in expert_result:
+                if "quality_validation" not in expert_result:
                     expert_result["quality_validation"] = validation_result
 
             # 🔧 修复：将成功返回逻辑移出quality_checklist条件块
@@ -1402,7 +1377,7 @@ class MainWorkflow:
                 # 确保content字段存在
                 if "content" not in structured_data:
                     structured_data["content"] = result_content
-                
+
                 # 🔥 Debug: 检查challenge_flags是否存在
                 if "challenge_flags" in structured_data:
                     challenge_count = len(structured_data["challenge_flags"])
@@ -1432,94 +1407,111 @@ class MainWorkflow:
             if session_id:
                 try:
                     # 导入broadcast函数
-                    from intelligent_project_analyzer.api.server import broadcast_to_websockets
-
                     # 推送专家结果
                     import asyncio
-                    asyncio.create_task(broadcast_to_websockets(session_id, {
-                        "type": "agent_result",
-                        "role_id": role_id,
-                        "role_name": role_name,
-                        "dynamic_role_name": dynamic_role_name,
-                        "analysis": result_content,
-                        "structured_data": structured_data,
-                        "timestamp": datetime.now().isoformat()
-                    }))
+
+                    from intelligent_project_analyzer.api.server import broadcast_to_websockets
+
+                    asyncio.create_task(
+                        broadcast_to_websockets(
+                            session_id,
+                            {
+                                "type": "agent_result",
+                                "role_id": role_id,
+                                "role_name": role_name,
+                                "dynamic_role_name": dynamic_role_name,
+                                "analysis": result_content,
+                                "structured_data": structured_data,
+                                "timestamp": datetime.now().isoformat(),
+                            },
+                        )
+                    )
                     logger.info(f"📤 [Progressive] 已推送专家结果: {role_id} ({dynamic_role_name})")
                 except Exception as broadcast_error:
                     logger.warning(f"⚠️ WebSocket推送失败: {broadcast_error}")
 
             # 🆕 v7.108: 为该专家的交付物生成概念图
-            concept_images = []
-            try:
-                # 🆕 检查配置开关
-                from intelligent_project_analyzer.settings import settings
+            # 🔥 v7.120: 优先使用 expert_result 中已生成的 concept_images
+            concept_images = expert_result.get("concept_images", [])
 
-                if not settings.image_generation.enabled:
-                    logger.info(f"ℹ️ [v7.108] 图像生成已禁用（IMAGE_GENERATION_ENABLED=false），跳过")
-                else:
-                    deliverable_owner_map = state.get("deliverable_owner_map", {})
-                    deliverable_metadata = state.get("deliverable_metadata", {})
-                    deliverable_ids = deliverable_owner_map.get(role_id, [])
+            # 如果工厂已经生成了概念图，直接使用
+            if concept_images:
+                logger.info(f"✅ [v7.120] 使用工厂生成的 {len(concept_images)} 张概念图（跳过重复生成）")
+            else:
+                # 否则在workflow中生成
+                logger.debug(f"🔍 [v7.120] 工厂未生成概念图，在workflow中生成")
+                try:
+                    # 🆕 检查配置开关
+                    from intelligent_project_analyzer.settings import settings
 
-                    # 🆕 详细诊断日志
-                    logger.debug(f"🔍 [v7.108] deliverable_owner_map 非空: {bool(deliverable_owner_map)}")
-                    logger.debug(f"🔍 [v7.108] deliverable_metadata 非空: {bool(deliverable_metadata)}")
-                    logger.debug(f"🔍 [v7.108] 角色 {role_id} 交付物数量: {len(deliverable_ids)}")
-
-                    if not deliverable_metadata:
-                        logger.warning(f"⚠️ [v7.108] deliverable_metadata 为空，可能 deliverable_id_generator 节点失败")
-
-                    if deliverable_ids and deliverable_metadata:
-                        logger.info(f"🎨 [v7.108] 为角色 {role_id} 的 {len(deliverable_ids)} 个交付物生成概念图...")
-
-                        # 导入图片生成服务
-                        from intelligent_project_analyzer.services.image_generator import ImageGeneratorService
-
-                        # 初始化图片生成器
-                        image_generator = ImageGeneratorService()
-
-                        # 获取专家分析摘要（用于图片生成）
-                        expert_summary = result_content[:500]  # 取前500字符
-                        session_id_for_image = state.get("session_id", "unknown")
-                        project_type = state.get("project_type", "interior")
-
-                        # 为每个交付物生成概念图
-                        for deliverable_id in deliverable_ids:
-                            metadata = deliverable_metadata.get(deliverable_id)
-                            if not metadata:
-                                logger.warning(f"  ⚠️ 交付物 {deliverable_id} 元数据缺失，跳过图片生成")
-                                continue
-
-                            try:
-                                image_metadata = await image_generator.generate_deliverable_image(
-                                    deliverable_metadata=metadata,
-                                    expert_analysis=expert_summary,
-                                    session_id=session_id_for_image,
-                                    project_type=project_type,
-                                    aspect_ratio="16:9"
-                                )
-
-                                # 转换为字典存储
-                                concept_images.append(image_metadata.model_dump())
-                                logger.info(f"  ✅ 生成概念图: {image_metadata.filename}")
-
-                            except Exception as img_error:
-                                logger.error(f"  ❌ 生成概念图失败 (交付物 {deliverable_id}): {img_error}")
-                                # 不阻塞workflow，继续执行
-
-                        if concept_images:
-                            logger.info(f"✅ [v7.108] 成功为角色 {role_id} 生成 {len(concept_images)} 张概念图")
-                        else:
-                            logger.warning(f"⚠️ [v7.108] 角色 {role_id} 未生成任何概念图")
+                    if not settings.image_generation.enabled:
+                        logger.info(f"ℹ️ [v7.108] 图像生成已禁用（IMAGE_GENERATION_ENABLED=false），跳过")
                     else:
-                        logger.debug(f"[v7.108] 角色 {role_id} 无交付物或元数据，跳过图片生成")
+                        deliverable_owner_map = state.get("deliverable_owner_map", {})
+                        deliverable_metadata = state.get("deliverable_metadata", {})
+                        deliverable_ids = deliverable_owner_map.get(role_id, [])
 
-            except Exception as e:
-                logger.error(f"❌ [v7.108] 概念图生成流程失败: {e}")
-                logger.exception(e)
-                # 不阻塞workflow，专家分析仍然有效
+                        # 🆕 详细诊断日志
+                        logger.debug(f"🔍 [v7.108] deliverable_owner_map 非空: {bool(deliverable_owner_map)}")
+                        logger.debug(f"🔍 [v7.108] deliverable_metadata 非空: {bool(deliverable_metadata)}")
+                        logger.debug(f"🔍 [v7.108] 角色 {role_id} 交付物数量: {len(deliverable_ids)}")
 
+                        if not deliverable_metadata:
+                            logger.warning(f"⚠️ [v7.108] deliverable_metadata 为空，可能 deliverable_id_generator 节点失败")
+
+                        if deliverable_ids and deliverable_metadata:
+                            logger.info(f"🎨 [v7.108] 为角色 {role_id} 的 {len(deliverable_ids)} 个交付物生成概念图...")
+
+                            # 导入图片生成服务
+                            from intelligent_project_analyzer.services.image_generator import ImageGeneratorService
+
+                            # 初始化图片生成器
+                            image_generator = ImageGeneratorService()
+
+                            # 获取专家分析摘要（用于图片生成）
+                            expert_summary = result_content[:500]  # 取前500字符
+                            session_id_for_image = state.get("session_id", "unknown")
+                            project_type = state.get("project_type", "interior")
+
+                            # 🆕 v7.121: 读取问卷数据用于概念图生成
+                            questionnaire_summary = state.get("questionnaire_summary", {})
+
+                            # 为每个交付物生成概念图
+                            for deliverable_id in deliverable_ids:
+                                metadata = deliverable_metadata.get(deliverable_id)
+                                if not metadata:
+                                    logger.warning(f"  ⚠️ 交付物 {deliverable_id} 元数据缺失，跳过图片生成")
+                                    continue
+
+                                try:
+                                    image_metadata = await image_generator.generate_deliverable_image(
+                                        deliverable_metadata=metadata,
+                                        expert_analysis=expert_summary,
+                                        session_id=session_id_for_image,
+                                        project_type=project_type,
+                                        aspect_ratio="16:9",
+                                        questionnaire_data=questionnaire_summary,  # 🆕 v7.121: 传递问卷数据
+                                    )
+
+                                    # 转换为字典存储
+                                    concept_images.append(image_metadata.model_dump())
+                                    logger.info(f"  ✅ 生成概念图: {image_metadata.filename}")
+
+                                except Exception as img_error:
+                                    logger.error(f"  ❌ 生成概念图失败 (交付物 {deliverable_id}): {img_error}")
+                                    # 不阻塞workflow，继续执行
+
+                            if concept_images:
+                                logger.info(f"✅ [v7.108] 成功为角色 {role_id} 生成 {len(concept_images)} 张概念图")
+                            else:
+                                logger.warning(f"⚠️ [v7.108] 角色 {role_id} 未生成任何概念图")
+                        else:
+                            logger.debug(f"[v7.108] 角色 {role_id} 无交付物或元数据，跳过图片生成")
+
+                except Exception as e:
+                    logger.error(f"❌ [v7.108] 概念图生成流程失败: {e}")
+                    logger.exception(e)
+                    # 不阻塞workflow，专家分析仍然有效
             return {
                 "agent_results": {
                     role_id: {
@@ -1528,15 +1520,16 @@ class MainWorkflow:
                         "analysis": result_content,
                         "confidence": 0.8,  # 默认置信度
                         "structured_data": structured_data,  # 🆕 使用完整的parsed_result
-                        "concept_images": concept_images  # 🆕 v7.108: 关联的概念图
+                        "concept_images": concept_images,  # 🆕 v7.108: 关联的概念图
                     }
                 },
-                "detail": detail_message
+                "detail": detail_message,
             }
 
         except Exception as e:
             logger.error(f"Agent execution failed: {e}")
             import traceback
+
             traceback.print_exc()
             return {"error": str(e)}
 
@@ -1568,11 +1561,11 @@ class MainWorkflow:
         try:
             # ✅ 优先检查是否有审核触发的重新执行
             specific_agents = state.get("specific_agents_to_run", [])
-            
+
             if specific_agents:
                 logger.info(f"🔄 审核触发的重新执行: {len(specific_agents)} 个专家")
                 logger.info(f"   专家列表: {specific_agents}")
-                
+
                 # 创建临时批次
                 return {
                     "execution_batches": [specific_agents],
@@ -1580,9 +1573,9 @@ class MainWorkflow:
                     "total_batches": 1,
                     "is_rerun": True,
                     "skip_role_review": True,
-                    "skip_task_review": True
+                    "skip_task_review": True,
                 }
-            
+
             # 正常批次执行
             batches = state.get("execution_batches", [])
             current_batch = state.get("current_batch", 1)
@@ -1610,6 +1603,7 @@ class MainWorkflow:
         except Exception as e:
             logger.error(f"❌ Batch executor failed: {e}")
             import traceback
+
             traceback.print_exc()
             return {"errors": [str(e)]}
 
@@ -1651,16 +1645,14 @@ class MainWorkflow:
         if not batches:
             logger.warning(f"⚠️ No batches found, batches is None or empty")
             return []
-        
+
         if current_batch < 1 or current_batch > len(batches):
-            logger.warning(
-                f"⚠️ No valid batch to execute: current={current_batch}, total={len(batches)}"
-            )
+            logger.warning(f"⚠️ No valid batch to execute: current={current_batch}, total={len(batches)}")
             return []
 
         # 获取当前批次的角色列表（0-indexed）
         batch_roles = batches[current_batch - 1]
-        
+
         if is_rerun:
             display_roles = [format_role_display_name(r) for r in batch_roles]
             logger.info(f"🔄 创建重新执行任务: {len(batch_roles)} 个专家 {display_roles}")
@@ -1677,7 +1669,7 @@ class MainWorkflow:
             agent_state["execution_batch"] = f"batch_{current_batch}"
             agent_state["current_stage"] = AnalysisStage.PARALLEL_ANALYSIS.value
             agent_state["is_rerun"] = is_rerun
-            
+
             # ✅ 如果是重新执行，添加针对该专家的审核反馈
             if is_rerun and review_feedback:
                 feedback_by_agent = review_feedback.get("feedback_by_agent", {})
@@ -1707,11 +1699,11 @@ class MainWorkflow:
         - 从固定的V3/V4/V5检查改为基于execution_batches的动态检查
         - 支持任意数量的批次（1-N批）
         - 通过current_batch跟踪当前批次
-        
+
         🔧 P1修复（2025-11-25）：
         - 等待当前批次所有agent完成后再执行聚合
         - 通过检查agent_results确保不会过早触发
-        
+
         🔧 N2优化（2025-11-25）：
         - LangGraph Send API会在每个并行任务完成时触发此节点（预期行为）
         - 本节点检查所有任务是否完成，未完成时返回空字典等待
@@ -1749,13 +1741,17 @@ class MainWorkflow:
 
                 # 只在第一次轮询时记录 info 级别日志，后续使用 debug 级别
                 if poll_count == 1:
-                    logger.info(f"⏳ [Polling] 批次 {current_batch} 开始等待: {len(pending_agents)}/{len(current_batch_roles)} 未完成")
+                    logger.info(
+                        f"⏳ [Polling] 批次 {current_batch} 开始等待: {len(pending_agents)}/{len(current_batch_roles)} 未完成"
+                    )
                 else:
-                    logger.debug(f"⏳ [Polling #{poll_count}] 批次 {current_batch} 等待中: {len(pending_agents)}/{len(current_batch_roles)} 未完成")
+                    logger.debug(
+                        f"⏳ [Polling #{poll_count}] 批次 {current_batch} 等待中: {len(pending_agents)}/{len(current_batch_roles)} 未完成"
+                    )
 
                 # 返回更新的轮询计数
                 return {poll_count_key: poll_count}
-            
+
             # ✅ 所有agent已完成，开始详细聚合
             # 🚀 P2优化：记录总轮询次数
             poll_count_key = f"_aggregator_poll_count_batch_{current_batch}"
@@ -1774,6 +1770,24 @@ class MainWorkflow:
                     result = agent_results[role_id]
                     confidence = result.get("confidence", 0)
                     has_error = "error" in result
+
+                    # 🆕 v7.122: 工具使用率监控
+                    protocol_execution = result.get("protocol_execution", {})
+                    tools_used = protocol_execution.get("tools_used", [])
+
+                    if len(tools_used) == 0:
+                        logger.warning(f"⚠️ [{role_id}] 未使用任何工具，质量存疑")
+                        logger.warning(f"   原始 confidence: {confidence:.2%}")
+
+                        # 强制降低置信度（按照 Expert Autonomy Protocol v4.2）
+                        if confidence > 0.6:
+                            original_confidence = confidence
+                            confidence = 0.6
+                            result["confidence"] = confidence
+                            logger.warning(f"   🔽 置信度已降低: {original_confidence:.2%} → {confidence:.2%} (未使用工具)")
+                    else:
+                        logger.info(f"✅ [{role_id}] 使用了 {len(tools_used)} 个工具调用")
+                        logger.debug(f"   工具列表: {', '.join(tools_used[:3])}" + ("..." if len(tools_used) > 3 else ""))
 
                     if has_error:
                         failed_agents.append(role_id)
@@ -1800,7 +1814,7 @@ class MainWorkflow:
                 "total_count": len(current_batch_roles),
                 "completed_agents": completed_agents,
                 "failed_agents": failed_agents,
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.now().isoformat(),
             }
 
             # 更新已完成批次列表
@@ -1821,7 +1835,9 @@ class MainWorkflow:
                 if len(completed_agents) == 1:
                     detail_message = f"专家【{completed_agents[0]}】分析完成"
                 else:
-                    agent_list = "、".join([agent.split("_")[-1] if "_" in agent else agent for agent in completed_agents])
+                    agent_list = "、".join(
+                        [agent.split("_")[-1] if "_" in agent else agent for agent in completed_agents]
+                    )
                     detail_message = f"批次 {current_batch} 完成：{agent_list} 等 {len(completed_agents)} 位专家"
             else:
                 detail_message = f"批次 {current_batch} 执行中..."
@@ -1830,17 +1846,15 @@ class MainWorkflow:
                 "dependency_summary": dependency_summary,
                 "completed_batches": completed_batches_updated,
                 "updated_at": datetime.now().isoformat(),
-                "detail": detail_message
+                "detail": detail_message,
             }
 
         except Exception as e:
             logger.error(f"Intermediate aggregator node failed: {e}")
             import traceback
+
             traceback.print_exc()
-            return {
-                "error": str(e),
-                "updated_at": datetime.now().isoformat()
-            }
+            return {"error": str(e), "updated_at": datetime.now().isoformat()}
 
     def _intermediate_aggregator_node_legacy(self, state: ProjectAnalysisState) -> Dict[str, Any]:
         """
@@ -1855,7 +1869,8 @@ class MainWorkflow:
 
         # 硬编码检查V3/V4/V5
         first_batch_roles = [
-            role_id for role_id in active_agents
+            role_id
+            for role_id in active_agents
             if role_id.startswith("V3_") or role_id.startswith("V4_") or role_id.startswith("V5_")
         ]
 
@@ -1879,46 +1894,43 @@ class MainWorkflow:
             "total_count": len(first_batch_roles),
             "completed_agents": completed_agents,
             "failed_agents": failed_agents,
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now().isoformat(),
         }
 
-        return {
-            "dependency_summary": dependency_summary,
-            "updated_at": datetime.now().isoformat()
-        }
+        return {"dependency_summary": dependency_summary, "updated_at": datetime.now().isoformat()}
 
     # ============================================================================
     # 🆕 v3.5 Expert Collaboration: Challenge Detection Node
     # ============================================================================
-    
+
     def _detect_challenges_node(self, state: ProjectAnalysisState) -> Dict[str, Any]:
         """
         🆕 v3.5 挑战检测节点 - 检测专家输出中的challenge_flags并处理
-        
+
         🔥 v7.16: 支持新版 LangGraph ChallengeDetectionAgent
-        
+
         工作流程:
         1. 从state中提取所有专家的输出
         2. 调用detect_and_handle_challenges_node()检测挑战
         3. 更新state包含挑战检测和处理结果
         4. 设置requires_feedback_loop标志
-        
+
         状态输入:
         - batch_results: Dict - 各批次专家的输出
         - (可选) v2_output, v3_output等直接字段
-        
+
         状态输出:
         - challenge_detection: Dict - 挑战检测结果
         - challenge_handling: Dict - 挑战处理结果
         - has_active_challenges: bool - 是否有活跃挑战
         - requires_feedback_loop: bool - 是否需要反馈循环
         - feedback_loop_reason: str - 反馈循环原因（如有）
-        
+
         Returns:
             更新的状态字典（只包含新增/修改的字段）
         """
         logger.info("🔍 [v3.5] 开始检测专家挑战...")
-        
+
         try:
             # 🆕 v7.16: 使用新版 LangGraph Agent（如果启用）
             if USE_V716_AGENTS:
@@ -1927,53 +1939,54 @@ class MainWorkflow:
             else:
                 # 调用核心挑战检测函数（现在只返回新增字段）
                 updated_state = detect_and_handle_challenges_node(state)
-            
+
             # 记录检测结果
             if updated_state.get("has_active_challenges"):
                 challenge_count = len(updated_state.get("challenge_detection", {}).get("challenges", []))
                 logger.info(f"🔥 [v3.5] 检测到 {challenge_count} 个专家挑战")
-                
+
                 if updated_state.get("requires_feedback_loop"):
                     logger.warning("⚠️ [v3.5] 需要启动反馈循环回访需求分析师")
             else:
                 logger.info("✅ [v3.5] 未检测到挑战，专家接受需求分析师的洞察")
-            
+
             return updated_state
-            
+
         except Exception as e:
             logger.error(f"❌ [v3.5] 挑战检测失败: {e}")
             import traceback
+
             logger.error(traceback.format_exc())
             # 返回安全的默认值
             return {
                 "has_active_challenges": False,
                 "requires_feedback_loop": False,
                 "challenge_detection": {"has_challenges": False, "challenges": []},
-                "challenge_handling": {"requires_revisit": False}
+                "challenge_handling": {"requires_revisit": False},
             }
             # 失败时返回原状态，不影响工作流继续
             return {
                 **state,
                 "has_active_challenges": False,
                 "requires_feedback_loop": False,
-                "challenge_detection_error": str(e)
+                "challenge_detection_error": str(e),
             }
-    
+
     def _route_after_challenge_detection(self, state: ProjectAnalysisState) -> str:
         """
         🆕 v3.5 挑战检测后的路由决策
-        
+
         根据挑战检测结果决定下一步:
         - 如果requires_manual_review=True → "manual_review" (>3个must_fix问题)
         - 如果requires_client_review=True → "analysis_review" (交甲方裁决)
         - 如果requires_feedback_loop=True → "revisit_requirements" (回访需求分析师)
         - 否则 → "continue_workflow" (继续正常流程)
-        
+
         优先级: manual_review > escalate > revisit_ra > continue
-        
+
         Args:
             state: 当前工作流状态
-            
+
         Returns:
             路由目标: "manual_review" | "analysis_review" | "revisit_requirements" | "continue_workflow"
         """
@@ -1983,21 +1996,21 @@ class MainWorkflow:
             issues_count = state.get("critical_issues_count", 0)
             logger.error(f"🚨 [Manual Review] 发现{issues_count}个严重质量问题（超过阈值），触发人工审核")
             return "manual_review"
-        
+
         # 🆕 优先检查是否需要甲方裁决（escalate闭环）
         requires_client_review = state.get("requires_client_review", False)
         if requires_client_review:
             escalated_count = len(state.get("escalated_challenges", []))
             logger.warning(f"🚨 [v3.5 Escalate] {escalated_count}个挑战需要甲方裁决，路由到审核节点")
             return "analysis_review"
-        
+
         # 检查是否需要回访需求分析师（revisit_ra闭环）
         requires_feedback = state.get("requires_feedback_loop", False)
         if requires_feedback:
             reason = state.get("feedback_loop_reason", "专家挑战需要澄清")
             logger.info(f"🔄 [v3.5] 启动反馈循环: {reason}")
             return "revisit_requirements"
-        
+
         # 默认继续正常流程
         logger.info("➡️ [v3.5] 继续正常工作流")
         return "continue_workflow"
@@ -2036,7 +2049,9 @@ class MainWorkflow:
             total_batches = state.get("total_batches", len(batches))
             dependency_summary = state.get("dependency_summary", {})
 
-            logger.info(f"🔀 Batch router: current={current_batch}, total={total_batches}, is_rerun={is_rerun}, skip_second_review={skip_second_review}")
+            logger.info(
+                f"🔀 Batch router: current={current_batch}, total={total_batches}, is_rerun={is_rerun}, skip_second_review={skip_second_review}"
+            )
 
             # ✅ 优先检查：如果是审核触发的重新执行（整改）
             if is_rerun:
@@ -2050,17 +2065,13 @@ class MainWorkflow:
                             "specific_agents_to_run": [],  # 清空
                             "analysis_approved": True,  # 标记为审核通过（整改视为通过）
                         },
-                        goto="detect_challenges"  # 🔑 跳过审核，直接进入挑战检测
+                        goto="detect_challenges",  # 🔑 跳过审核，直接进入挑战检测
                     )
                 else:
                     # 需要二次审核（一般不会走到这里，因为我们设置了skip_second_review=True）
                     logger.info("🔄 重新执行完成，返回分析审核进行评估")
                     return Command(
-                        update={
-                            "is_rerun": False,  # 清除标记
-                            "specific_agents_to_run": []  # 清空
-                        },
-                        goto="analysis_review"
+                        update={"is_rerun": False, "specific_agents_to_run": []}, goto="analysis_review"  # 清除标记  # 清空
                     )
 
             # 验证批次完成情况
@@ -2078,25 +2089,23 @@ class MainWorkflow:
                 logger.info(f"➡️  Routing to next batch: {next_batch}/{total_batches}")
                 logger.info(f"   Next batch will contain: {len(batches[next_batch - 1])} agents")
 
-                return Command(
-                    update={"current_batch": next_batch},
-                    goto="batch_strategy_review"
-                )
+                return Command(update={"current_batch": next_batch}, goto="batch_strategy_review")
             else:
                 # 所有批次完成，检查是否已审核通过
                 logger.info(f"✅ All {total_batches} batches completed")
-                
+
                 # ✅ 修复：如果已审核通过（第1轮触发detect_challenges），不再重复触发
                 if state.get("analysis_approved", False):
                     logger.info("✅ 分析已审核通过，跳过重复审核")
                     return Command(goto=END)
-                
+
                 logger.info("➡️  Routing to analysis review")
                 return Command(goto="analysis_review")
 
         except Exception as e:
             logger.error(f"❌ Batch router failed: {e}")
             import traceback
+
             traceback.print_exc()
             # 出错时默认进入审核
             return Command(goto="analysis_review")
@@ -2150,9 +2159,9 @@ class MainWorkflow:
                     update={
                         "batch_strategy_approved": True,
                         "auto_approved": True,
-                        "auto_approval_reason": "execution_mode=automatic"
+                        "auto_approval_reason": "execution_mode=automatic",
                     },
-                    goto="batch_executor"
+                    goto="batch_executor",
                 )
             elif execution_mode == "preview":
                 # 方案D：显示计划后自动执行
@@ -2162,9 +2171,9 @@ class MainWorkflow:
                     update={
                         "batch_strategy_approved": True,
                         "auto_approved": True,
-                        "auto_approval_reason": "execution_mode=preview"
+                        "auto_approval_reason": "execution_mode=preview",
                     },
-                    goto="batch_executor"
+                    goto="batch_executor",
                 )
             else:
                 # 方案A：手动确认模式（默认）
@@ -2181,13 +2190,9 @@ class MainWorkflow:
                     "details": {
                         "专家列表": batch_agents,
                         "执行方式": "并行执行" if len(batch_agents) > 1 else "顺序执行",
-                        "预计耗时": f"{len(batch_agents) * 3}分钟" if len(batch_agents) == 1 else f"{4}分钟"
+                        "预计耗时": f"{len(batch_agents) * 3}分钟" if len(batch_agents) == 1 else f"{4}分钟",
                     },
-                    "options": {
-                        "approve": "批准执行",
-                        "skip": "跳过此批次",
-                        "modify": "修改批次配置"
-                    }
+                    "options": {"approve": "批准执行", "skip": "跳过此批次", "modify": "修改批次配置"},
                 }
 
                 # 触发中断，等待用户确认
@@ -2196,27 +2201,25 @@ class MainWorkflow:
                 logger.info(f"📥 收到用户响应: {user_response}")
 
                 # 处理用户响应
-                if user_response == "skip" or (isinstance(user_response, dict) and user_response.get("action") == "skip"):
+                if user_response == "skip" or (
+                    isinstance(user_response, dict) and user_response.get("action") == "skip"
+                ):
                     logger.info("⏭️ 用户选择跳过此批次")
                     # 跳过当前批次，进入下一批次
                     return Command(
                         update={
                             "current_batch": current_batch + 1,
                             "batch_strategy_approved": False,
-                            "batch_skipped": True
+                            "batch_skipped": True,
                         },
-                        goto="batch_router"  # 返回路由器检查是否还有更多批次
+                        goto="batch_router",  # 返回路由器检查是否还有更多批次
                     )
                 else:
                     # 批准执行（默认行为）
                     logger.info("✅ 用户批准执行此批次")
                     return Command(
-                        update={
-                            "batch_strategy_approved": True,
-                            "auto_approved": False,
-                            "user_confirmed": True
-                        },
-                        goto="batch_executor"
+                        update={"batch_strategy_approved": True, "auto_approved": False, "user_confirmed": True},
+                        goto="batch_executor",
                     )
 
         except Exception as e:
@@ -2224,6 +2227,7 @@ class MainWorkflow:
             if "Interrupt" not in str(type(e)):
                 logger.error(f"❌ Batch strategy review failed: {e}")
                 import traceback
+
                 traceback.print_exc()
                 # 出错时默认批准并继续
                 return Command(goto="batch_executor")
@@ -2240,53 +2244,42 @@ class MainWorkflow:
         2. 递进式三阶段：红→蓝→评委→甲方
         3. 输出改进建议（而非重新执行）
         4. 记录final_ruling到state
-        
+
         🔥 v7.16: 支持新版 LangGraph AnalysisReviewAgent
         """
         logger.info("Executing progressive single-round analysis review node")
-        
+
         # 🆕 v7.16: 使用新版 LangGraph Agent（如果启用）
         if USE_V716_AGENTS:
             logger.info("🚀 [v7.16] 使用 AnalysisReviewAgent")
             return AnalysisReviewNodeCompat.execute(
-                state=state,
-                store=self.store,
-                llm_model=self.llm_model,
-                config=self.config
+                state=state, store=self.store, llm_model=self.llm_model, config=self.config
             )
-        
-        return AnalysisReviewNode.execute(
-            state=state,
-            store=self.store,
-            llm_model=self.llm_model,
-            config=self.config
-        )
-    
+
+        return AnalysisReviewNode.execute(state=state, store=self.store, llm_model=self.llm_model, config=self.config)
+
     def _manual_review_node(self, state: ProjectAnalysisState) -> Command:
         """
         人工审核节点 - 处理严重质量问题 (🆕)
-        
+
         当审核系统发现>3个must_fix问题时触发，暂停流程等待用户裁决：
         1. 继续：接受风险生成报告
         2. 终止：全面整改后再生成报告
         3. 选择性整改：用户选择关键问题进行整改
-        
+
         注意: 不要捕获Interrupt异常!
         Interrupt是LangGraph的正常控制流,必须让它传播到框架层
         """
         logger.info("🚨 Executing manual review node for critical quality issues")
-        return ManualReviewNode.execute(
-            state=state,
-            store=self.store
-        )
-    
+        return ManualReviewNode.execute(state=state, store=self.store)
+
     def _result_aggregator_node(self, state: ProjectAnalysisState) -> Dict[str, Any]:
         """
         结果聚合节点
 
         注意: 只返回需要更新的字段,不返回完整状态
         这样可以避免并发更新冲突
-        
+
         🔧 修复: 不更新current_stage,避免与pdf_generator并发冲突
         🔥 v7.16: 支持新版 LangGraph ResultAggregatorAgentV2
         """
@@ -2296,16 +2289,10 @@ class MainWorkflow:
             # 🆕 v7.16: 使用新版 LangGraph Agent（如果启用）
             if USE_V716_AGENTS:
                 logger.info("🚀 [v7.16] 使用 ResultAggregatorAgentV2")
-                agent = ResultAggregatorAgentCompat(
-                    llm_model=self.llm_model,
-                    config=self.config
-                )
+                agent = ResultAggregatorAgentCompat(llm_model=self.llm_model, config=self.config)
             else:
                 # 创建结果聚合器智能体
-                agent = ResultAggregatorAgent(
-                    llm_model=self.llm_model,
-                    config=self.config
-                )
+                agent = ResultAggregatorAgent(llm_model=self.llm_model, config=self.config)
 
             # 执行聚合
             result = agent.execute(state, {}, self.store)
@@ -2313,21 +2300,15 @@ class MainWorkflow:
             # 只返回需要更新的字段 (不更新current_stage)
             return {
                 "final_report": result.structured_data,
-                "agent_results": {
-                    "RESULT_AGGREGATOR": result.to_dict()
-                },
+                "agent_results": {"RESULT_AGGREGATOR": result.to_dict()},
                 "updated_at": datetime.now().isoformat(),
-                "detail": "整合专家成果，生成最终报告草稿"
+                "detail": "整合专家成果，生成最终报告草稿",
             }
 
         except Exception as e:
             logger.error(f"Result aggregator node failed: {e}")
-            return {
-                "error": str(e),
-                "updated_at": datetime.now().isoformat(),
-                "detail": "结果聚合失败"
-            }
-    
+            return {"error": str(e), "updated_at": datetime.now().isoformat(), "detail": "结果聚合失败"}
+
     # def _final_review_node(self, state: ProjectAnalysisState) -> Command:
     #     """
     #     最终审核节点 - 已移除
@@ -2341,7 +2322,7 @@ class MainWorkflow:
     #     """
     #     logger.info("Executing final review node")
     #     return FinalReviewNode.execute(state, self.store)
-    
+
     def _pdf_generator_node(self, state: ProjectAnalysisState) -> Dict[str, Any]:
         """
         报告生成节点 (使用纯文本生成器进行测试)
@@ -2354,6 +2335,7 @@ class MainWorkflow:
 
             # 使用纯文本生成器进行测试
             from ..report.text_generator import TextGeneratorAgent
+
             agent = TextGeneratorAgent(config=self.config)
 
             # 执行报告生成
@@ -2363,32 +2345,26 @@ class MainWorkflow:
             return {
                 "current_stage": AnalysisStage.COMPLETED.value,
                 "pdf_path": result.structured_data.get("file_path"),
-                "agent_results": {
-                    "REPORT_GENERATOR": result.to_dict()
-                },
+                "agent_results": {"REPORT_GENERATOR": result.to_dict()},
                 "updated_at": datetime.now().isoformat(),
-                "detail": "生成最终交付文档"
+                "detail": "生成最终交付文档",
             }
 
         except Exception as e:
             logger.error(f"Report generator node failed: {e}")
-            return {
-                "error": str(e),
-                "updated_at": datetime.now().isoformat(),
-                "detail": "报告生成失败"
-            }
-    
+            return {"error": str(e), "updated_at": datetime.now().isoformat(), "detail": "报告生成失败"}
+
     def _user_question_node(self, state: ProjectAnalysisState) -> Command:
         """
         用户追问节点
-        
+
         🔧 修复 (2025-11-27): 不要捕获 Interrupt 异常
         Interrupt 是 LangGraph 的正常控制流，必须让它传播到框架层
         """
         logger.info("Executing user question node")
         # ❌ 不要用 try-except 捕获！Interrupt 必须传播
         return UserQuestionNode.execute(state, self.store)
-    
+
     # 路由函数
     def _route_from_batch_aggregator(self, state: ProjectAnalysisState) -> str:
         """
@@ -2407,23 +2383,27 @@ class MainWorkflow:
         """
         logger.info("🔀 [batch_aggregator] 路由到 batch_router 检查批次状态")
         return "batch_router"
-    
-    def _route_after_requirements_confirmation(self, state: ProjectAnalysisState) -> Literal["project_director", "requirements_analyst"]:
+
+    def _route_after_requirements_confirmation(
+        self, state: ProjectAnalysisState
+    ) -> Literal["project_director", "requirements_analyst"]:
         """需求确认后的路由"""
         if state.get("requirements_confirmed"):
             return "project_director"
         else:
             return "requirements_analyst"
-    
+
     def _route_after_pdf_generator(self, state: ProjectAnalysisState) -> Union[str, Any]:
         """报告生成后的路由: 直接结束，由前端负责结果呈现和追问交互"""
         # 标记追问功能可用，前端会根据此标志显示追问入口
         state["post_completion_followup_available"] = self.config.get("post_completion_followup_enabled", True)
-        
+
         logger.info("✅ [pdf_generator] 报告已生成，流程结束，前端接管结果呈现")
         return END
 
-    def _route_after_analysis_review(self, state: ProjectAnalysisState) -> Literal["result_aggregator", "project_director", "user_question"]:
+    def _route_after_analysis_review(
+        self, state: ProjectAnalysisState
+    ) -> Literal["result_aggregator", "project_director", "user_question"]:
         """分析审核后的路由"""
         if state.get("analysis_approved"):
             return "result_aggregator"
@@ -2431,14 +2411,14 @@ class MainWorkflow:
             return "user_question"
         else:
             return "project_director"
-    
+
     # def _route_after_final_review(self, state: ProjectAnalysisState) -> Literal["pdf_generator", "result_aggregator"]:
     #     """最终审核后的路由 - 已移除，因为不再有最终审核阶段"""
     #     if state.get("final_approved"):
     #         return "pdf_generator"
     #     else:
     #         return "result_aggregator"
-    
+
     def _route_after_user_question(self, state: ProjectAnalysisState) -> Literal["project_director", END]:
         """
         用户追问后的路由
@@ -2457,15 +2437,15 @@ class MainWorkflow:
         else:
             logger.info("✅ 用户未追问或追问完成，流程结束")
             return END
-    
+
     def run(self, user_input: str, session_id: Optional[str] = None) -> Dict[str, Any]:
         """
         运行工作流
-        
+
         Args:
             user_input: 用户输入
             session_id: 会话ID
-            
+
         Returns:
             工作流执行结果
         """
@@ -2473,65 +2453,72 @@ class MainWorkflow:
             # 生成会话ID
             if not session_id:
                 session_id = str(uuid.uuid4())
-            
+
             # 初始化状态
-            initial_state = StateManager.create_initial_state(
-                user_input=user_input,
-                session_id=session_id
-            )
-            
+            initial_state = StateManager.create_initial_state(user_input=user_input, session_id=session_id)
+
             logger.info(f"Starting workflow execution for session {session_id}")
-            
+
             # 执行工作流
             config = {"configurable": {"thread_id": session_id}}
             final_state = self.graph.invoke(initial_state, config)
-            
+
             logger.info(f"Workflow execution completed for session {session_id}")
-            
+
             return {
                 "session_id": session_id,
                 "status": "completed",
                 "final_state": final_state,
                 "pdf_path": final_state.get("pdf_path"),
-                "execution_time": final_state.get("execution_time")
-            }
-            
-        except Exception as e:
-            logger.error(f"Workflow execution failed: {e}")
-            return {
-                "session_id": session_id,
-                "status": "failed",
-                "error": str(e)
+                "execution_time": final_state.get("execution_time"),
             }
 
+        except Exception as e:
+            logger.error(f"Workflow execution failed: {e}")
+            return {"session_id": session_id, "status": "failed", "error": str(e)}
+
     def _filter_tools_for_role(
-        self,
-        role_id: str,
-        all_tools: Dict[str, Any],
-        role_config: Dict[str, Any]
+        self, role_id: str, all_tools: Dict[str, Any], role_config: Dict[str, Any]
     ) -> Dict[str, Any]:
         """
         🔥 v7.105: 根据角色类型筛选工具
+        🆕 v7.110: 优先使用用户在任务审批时配置的搜索工具设置
 
         Args:
             role_id: 角色ID（如 V4_设计研究员_4-1）
             all_tools: 所有可用工具
-            role_config: 角色配置
+            role_config: 角色配置（包含用户设置的 enable_search）
 
         Returns:
             该角色应该拥有的工具字典
         """
+        # 🆕 优先检查用户设置
+        enable_search = role_config.get("enable_search", None)
+
+        if enable_search is False:
+            # 用户明确禁用搜索工具
+            logger.info(f"🔧 [{role_id}] 用户禁用搜索工具，返回空工具集")
+            return {}
+
+        if enable_search is True:
+            # 用户明确启用搜索工具，返回所有可用工具
+            logger.info(f"🔧 [{role_id}] 用户启用搜索工具，返回全部工具")
+            return all_tools
+
+        # enable_search 为 None 时，降级到硬编码规则
+        logger.debug(f"🔧 [{role_id}] 未检测到用户设置，使用默认规则")
+
         # 提取角色类型前缀（V2/V3/V4/V5/V6）
-        role_type = role_id.split('_')[0] if '_' in role_id else role_id[:2]
+        role_type = role_id.split("_")[0] if "_" in role_id else role_id[:2]
 
         # 角色工具映射（基于角色YAML配置）
-        # V2: 设计总监 - 禁止外部搜索，仅使用内部知识和专业判断
+        # V2: 设计总监 - 仅允许内部知识库，禁止外部搜索避免盲目跟风
         # V3: 叙事专家 - 中文搜索(Bocha) + 国际搜索(Tavily) + 知识库(Ragflow)
         # V4: 设计研究员 - 全部工具（学术论文Arxiv + 所有搜索）
         # V5: 场景专家 - 中文搜索(Bocha) + 国际搜索(Tavily) + 知识库(Ragflow)
         # V6: 总工程师 - 全部工具（技术规范需要Arxiv）
         role_tool_mapping = {
-            "V2": [],  # 设计总监：禁止外部搜索
+            "V2": ["ragflow"],  # 设计总监：允许内部知识库，禁止外部搜索
             "V3": ["bocha", "tavily", "ragflow"],  # 叙事专家
             "V4": ["bocha", "tavily", "arxiv", "ragflow"],  # 设计研究员（全部工具）
             "V5": ["bocha", "tavily", "ragflow"],  # 场景专家
@@ -2541,10 +2528,7 @@ class MainWorkflow:
         allowed_tool_names = role_tool_mapping.get(role_type, [])
 
         # 筛选工具
-        filtered_tools = {
-            name: tool for name, tool in all_tools.items()
-            if name in allowed_tool_names
-        }
+        filtered_tools = {name: tool for name, tool in all_tools.items() if name in allowed_tool_names}
 
         return filtered_tools
 
@@ -2574,6 +2558,23 @@ class MainWorkflow:
             for key, value in structured_requirements.items():
                 if value:
                     context_parts.append(f"**{key}**: {value}")
+
+        # 🆕 v7.106: 添加用户确认的核心任务
+        confirmed_tasks = state.get("confirmed_core_tasks", [])
+        if confirmed_tasks:
+            context_parts.append("\n## 用户确认的核心任务\n")
+            context_parts.append("以下是用户在问卷环节确认的核心任务，你的分析应该围绕这些任务展开：\n")
+            for i, task in enumerate(confirmed_tasks, 1):
+                context_parts.append(f"\n**核心任务 {i}: {task.get('title')}**")
+                context_parts.append(f"- 描述: {task.get('description')}")
+                context_parts.append(f"- 类型: {task.get('type')}")
+
+        # 🆕 v7.106: 添加用户补充的信息（Step 3 问卷答案）
+        gap_filling_answers = state.get("gap_filling_answers", {})
+        if gap_filling_answers:
+            context_parts.append("\n## 用户补充的关键信息\n")
+            for question_id, answer in gap_filling_answers.items():
+                context_parts.append(f"- {question_id}: {answer}")
 
         # 🔥 v7.18 升级4: 传递完整的前序专家输出（而非截断到500字符）
         agent_results = state.get("agent_results", {})
@@ -2634,5 +2635,5 @@ class MainWorkflow:
                     context_parts.append(f"**{category}**: {', '.join(criteria)}")
                 else:
                     context_parts.append(f"**{category}**: {criteria}")
-        
+
         return "\n\n".join(context_parts)

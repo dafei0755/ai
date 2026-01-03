@@ -12,20 +12,32 @@
 
 import asyncio
 import sys
-import io
 from pathlib import Path
-from typing import Dict, Any
+from typing import Any, Dict
+
+import pytest
+
+# pytest-asyncio 在 strict 模式下要求 async 测试必须显式标记。
+# 该文件以“可单独运行的脚本”形式编写，但同时也会被 pytest 收集。
+pytestmark = pytest.mark.asyncio
 
 # Fix Unicode encoding for Windows console
-if sys.platform == 'win32':
-    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
-    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
+if sys.platform == "win32":
+    # Don't replace stdout/stderr with TextIOWrapper at import time (can close underlying streams)
+    for _stream in (getattr(sys, "stdout", None), getattr(sys, "stderr", None)):
+        if _stream is None:
+            continue
+        if hasattr(_stream, "reconfigure"):
+            try:
+                _stream.reconfigure(encoding="utf-8", errors="replace")
+            except Exception:
+                pass
 
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
-from intelligent_project_analyzer.workflow.main_workflow import MainWorkflow
 from intelligent_project_analyzer.core.state import ProjectAnalysisState
+from intelligent_project_analyzer.workflow.main_workflow import MainWorkflow
 
 
 def create_mock_state_with_previous_experts() -> Dict[str, Any]:
@@ -77,7 +89,7 @@ def create_mock_state_with_previous_experts() -> Dict[str, Any]:
                                 "completion_status": "completed",
                                 "completion_rate": 1.0,
                                 "notes": "基于中国传统三代同堂家庭模式分析",
-                                "quality_self_assessment": 0.95
+                                "quality_self_assessment": 0.95,
                             },
                             {
                                 "deliverable_name": "空间需求矩阵",
@@ -104,32 +116,29 @@ def create_mock_state_with_previous_experts() -> Dict[str, Any]:
                                 "completion_status": "completed",
                                 "completion_rate": 1.0,
                                 "notes": "结合中国家庭实际居住习惯",
-                                "quality_self_assessment": 0.92
-                            }
+                                "quality_self_assessment": 0.92,
+                            },
                         ],
                         "task_completion_summary": "完成了三代同堂家庭成员画像和空间需求矩阵的详细分析",
-                        "additional_insights": [
-                            "中国三代同堂家庭重视代际和谐与隐私平衡",
-                            "传统文化传承需要专门的活动空间"
-                        ],
-                        "execution_challenges": []
+                        "additional_insights": ["中国三代同堂家庭重视代际和谐与隐私平衡", "传统文化传承需要专门的活动空间"],
+                        "execution_challenges": [],
                     },
                     "protocol_execution": {
                         "protocol_status": "complied",
                         "compliance_confirmation": "接受需求分析师的洞察并完成任务",
                         "challenge_details": None,
-                        "reinterpretation": None
+                        "reinterpretation": None,
                     },
                     "execution_metadata": {
                         "confidence": 0.95,
                         "completion_rate": 1.0,
                         "execution_time_estimate": "约8分钟",
                         "execution_notes": "基于中国传统三代同堂家庭模式",
-                        "dependencies_satisfied": True
-                    }
-                }
+                        "dependencies_satisfied": True,
+                    },
+                },
             }
-        }
+        },
     }
 
 
@@ -237,26 +246,26 @@ async def test_context_with_multiple_experts():
                         ),
                         "completion_status": "completed",
                         "completion_rate": 1.0,
-                        "quality_self_assessment": 0.90
+                        "quality_self_assessment": 0.90,
                     }
                 ],
                 "task_completion_summary": "完成了典型生活场景的设计分析",
                 "additional_insights": [],
-                "execution_challenges": []
+                "execution_challenges": [],
             },
             "protocol_execution": {
                 "protocol_status": "complied",
                 "compliance_confirmation": "接受需求分析师洞察",
                 "challenge_details": None,
-                "reinterpretation": None
+                "reinterpretation": None,
             },
             "execution_metadata": {
                 "confidence": 0.90,
                 "completion_rate": 1.0,
                 "execution_time_estimate": "约6分钟",
-                "dependencies_satisfied": True
-            }
-        }
+                "dependencies_satisfied": True,
+            },
+        },
     }
 
     # 构建上下文
@@ -349,7 +358,7 @@ async def test_backward_compatibility():
                 "analysis": "这是一个旧格式的专家输出，没有structured_output字段，只有analysis字段。这种情况下应该降级到使用analysis字段的内容。"
                 # 没有 structured_output 字段
             }
-        }
+        },
     }
 
     context = workflow._build_context_for_expert(mock_state)
@@ -404,11 +413,13 @@ async def main():
     except AssertionError as e:
         print(f"\n❌ 测试失败: {str(e)}")
         import traceback
+
         traceback.print_exc()
         return False
     except Exception as e:
         print(f"\n❌ 测试出错: {str(e)}")
         import traceback
+
         traceback.print_exc()
         return False
 

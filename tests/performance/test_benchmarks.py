@@ -16,9 +16,14 @@
   - PromptManager加载: <100ms
 """
 
-import pytest
 import os
 from unittest.mock import Mock, patch
+
+import pytest
+
+# 性能基线/benchmark 测试通常依赖本机环境（Redis、硬件、负载）稳定性，
+# 不适合作为默认“快速测试”集合的一部分。
+pytestmark = pytest.mark.slow
 
 
 @pytest.fixture
@@ -55,7 +60,7 @@ def test_redis_save_performance(benchmark, redis_manager):
         "requirement": "测试数据",
         "status": "running",
         "agent_results": {"agent1": "result1"},
-        "selected_roles": ["role1", "role2"]
+        "selected_roles": ["role1", "role2"],
     }
 
     result = benchmark(redis_manager.save_state, session_id, test_state)
@@ -113,7 +118,7 @@ def test_prompt_manager_load_performance(benchmark):
     assert mean_time < 0.1, f"PromptManager too slow: {mean_time:.3f}s > 100ms"
 
 
-@patch('intelligent_project_analyzer.services.llm_factory.LLMFactory.create_llm')
+@patch("intelligent_project_analyzer.services.llm_factory.LLMFactory.create_llm")
 def test_llm_simple_response_time(mock_create_llm, benchmark, mock_llm):
     """
     测试LLM简单响应性能（模拟）
@@ -143,10 +148,7 @@ def test_llm_simple_response_time(mock_create_llm, benchmark, mock_llm):
 
 
 @pytest.mark.slow
-@pytest.mark.skipif(
-    not os.getenv('LLM_API_KEY'),
-    reason="需要LLM_API_KEY环境变量来运行真实LLM性能测试"
-)
+@pytest.mark.skipif(not os.getenv("LLM_API_KEY"), reason="需要LLM_API_KEY环境变量来运行真实LLM性能测试")
 def test_llm_real_performance(benchmark):
     """
     测试LLM真实调用性能（可选）
@@ -184,17 +186,19 @@ def test_file_processor_performance(benchmark):
 
     性能基线: <200ms (小文件)
     """
-    from intelligent_project_analyzer.services.file_processor import FileProcessor
     import tempfile
+
+    from intelligent_project_analyzer.services.file_processor import FileProcessor
 
     processor = FileProcessor()
 
     # 创建临时测试文件
-    with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False) as f:
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
         f.write("测试内容\n" * 100)
         temp_path = f.name
 
     try:
+
         def process_file():
             return processor.process_file(temp_path)
 
@@ -219,6 +223,7 @@ def test_batch_processing_scalability(benchmark, redis_manager, batch_size):
 
     验证性能随批量大小线性增长
     """
+
     def batch_save():
         for i in range(batch_size):
             session_id = f"perf-batch-{i}"

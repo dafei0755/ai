@@ -1,8 +1,9 @@
 """P1功能单元测试 - LLM语义检测和增强正则检测"""
 
 import pytest
-from intelligent_project_analyzer.security.llm_safety_detector import LLMSafetyDetector
+
 from intelligent_project_analyzer.security.enhanced_regex_detector import EnhancedRegexDetector
+from intelligent_project_analyzer.security.llm_safety_detector import LLMSafetyDetector
 
 
 class TestLLMSafetyDetector:
@@ -48,10 +49,7 @@ class TestEnhancedRegexDetector:
     @pytest.fixture
     def detector(self):
         """创建检测器实例"""
-        return EnhancedRegexDetector(
-            enable_privacy_check=True,
-            enable_evasion_check=True
-        )
+        return EnhancedRegexDetector(enable_privacy_check=True, enable_evasion_check=True)
 
     def test_phone_number_detection(self, detector):
         """测试手机号检测"""
@@ -149,10 +147,7 @@ class TestEnhancedRegexDetector:
 
     def test_disable_privacy_check(self):
         """测试禁用隐私检测"""
-        detector = EnhancedRegexDetector(
-            enable_privacy_check=False,
-            enable_evasion_check=True
-        )
+        detector = EnhancedRegexDetector(enable_privacy_check=False, enable_evasion_check=True)
         text = "我的手机号是13800138000"
         violations = detector.check(text)
         # 不应检测到隐私信息
@@ -161,10 +156,7 @@ class TestEnhancedRegexDetector:
 
     def test_disable_evasion_check(self):
         """测试禁用变形规避检测"""
-        detector = EnhancedRegexDetector(
-            enable_privacy_check=True,
-            enable_evasion_check=False
-        )
+        detector = EnhancedRegexDetector(enable_privacy_check=True, enable_evasion_check=False)
         text = "色_情内容"
         violations = detector.check(text)
         # 不应检测到变形规避
@@ -191,7 +183,8 @@ class TestContentSafetyGuardP1Integration:
         """测试增强正则检测集成"""
         from intelligent_project_analyzer.security.content_safety_guard import ContentSafetyGuard
 
-        guard = ContentSafetyGuard()
+        # 显式启用隐私和规避检测
+        guard = ContentSafetyGuard(enable_privacy_check=True, enable_evasion_check=True)
 
         # 测试隐私信息检测
         result = guard.check("我的手机号是13800138000")
