@@ -1,0 +1,255 @@
+name: Integration Tests
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  schedule:
+    # 每天UTC 2:00 (北京时间10:00) 运行完整集成测试
+    - cron: '0 2 * * *'
+
+jobs:
+  # P0关键集成测试 - 快速验证（每次PR必须通过）
+  critical-integration-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    services:
+      redis:
+        image: redis:latest
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        cache: 'pip'
+
+    - name: Install dependencies
+      run: |
+        pip install -r requirements.txt
+        pip install pytest pytest-asyncio httpx
+
+    - name: Run P0 critical integration tests
+      env:
+        REDIS_URL: redis://localhost:6379/0
+        PYTHONPATH: ${{ github.workspace }}
+      run: |
+        python scripts/run_integration_tests.py --critical-only
+
+    - name: Upload test results
+      if: always()
+      uses: actions/upload-artifact@v3
+      with:
+        name: critical-test-results
+        path: |
+          pytest.xml
+          .coverage
+
+  # 回归测试 - 防止历史BUG复现
+  regression-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    services:
+      redis:
+        image: redis:latest
+        ports:
+          - 6379:6379
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        cache: 'pip'
+
+    - name: Install dependencies
+      run: |
+        pip install -r requirements.txt
+        pip install pytest pytest-asyncio httpx pyyaml
+
+    - name: Run regression tests
+      env:
+        REDIS_URL: redis://localhost:6379/0
+        PYTHONPATH: ${{ github.workspace }}
+      run: |
+        python scripts/run_integration_tests.py --regression
+
+    - name: Upload regression test results
+      if: always()
+      uses: actions/upload-artifact@v3
+      with:
+        name: regression-test-results
+        path: pytest.xml
+
+  # 完整集成测试 - 定时运行或手动触发
+  full-integration-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # 仅在定时任务或手动触发时运行
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+
+    services:
+      redis:
+        image: redis:latest
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        cache: 'pip'
+
+    - name: Install dependencies
+      run: |
+        pip install -r requirements.txt
+        pip install pytest pytest-asyncio httpx pyyaml
+
+    - name: Run full integration tests
+      env:
+        REDIS_URL: redis://localhost:6379/0
+        # Mock OpenRouter API for integration tests
+        OPENROUTER_API_KEY: test_api_key_mock
+        PYTHONPATH: ${{ github.workspace }}
+      run: |
+        python scripts/run_integration_tests.py --full
+
+    - name: Upload full test results
+      if: always()
+      uses: actions/upload-artifact@v3
+      with:
+        name: full-integration-test-results
+        path: |
+          pytest.xml
+          htmlcov/
+          .coverage
+
+    - name: Publish test summary
+      if: always()
+      uses: dorny/test-reporter@v1
+      with:
+        name: Integration Test Results
+        path: pytest.xml
+        reporter: java-junit
+
+  # WebSocket集成测试 - 专项测试
+  websocket-integration-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    services:
+      redis:
+        image: redis:latest
+        ports:
+          - 6379:6379
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        cache: 'pip'
+
+    - name: Install dependencies
+      run: |
+        pip install -r requirements.txt
+        pip install pytest pytest-asyncio starlette
+
+    - name: Run WebSocket integration tests
+      env:
+        REDIS_URL: redis://localhost:6379/0
+        PYTHONPATH: ${{ github.workspace }}
+      run: |
+        pytest tests/integration/test_websocket_flow.py -v -m integration_critical
+
+  # 图片生成集成测试 - 专项测试
+  image-generation-integration-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        cache: 'pip'
+
+    - name: Install dependencies
+      run: |
+        pip install -r requirements.txt
+        pip install pytest pytest-asyncio httpx
+
+    - name: Run image generation integration tests
+      env:
+        # Mock OpenRouter API
+        OPENROUTER_API_KEY: test_api_key_mock
+        PYTHONPATH: ${{ github.workspace }}
+      run: |
+        pytest tests/integration/test_image_generation_flow.py -v -m integration_critical
+
+  # 数据库查询集成测试 - 专项测试
+  database-integration-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    services:
+      redis:
+        image: redis:latest
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        cache: 'pip'
+
+    - name: Install dependencies
+      run: |
+        pip install -r requirements.txt
+        pip install pytest pytest-asyncio redis
+
+    - name: Run database integration tests
+      env:
+        REDIS_URL: redis://localhost:6379/0
+        PYTHONPATH: ${{ github.workspace }}
+      run: |
+        pytest tests/integration/test_redis_session_extended.py -v -m integration_critical
+
+    - name: Verify Redis connection
+      run: |
+        redis-cli -h localhost -p 6379 ping

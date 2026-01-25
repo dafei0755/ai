@@ -20,6 +20,13 @@ from ..core.prompt_manager import PromptManager
 from ..utils.jtbd_parser import transform_jtbd_to_natural_language
 from ..utils.capability_detector import CapabilityDetector, check_capability
 
+# 🆕 v7.270: Import new enhancement modules
+from ..services.entity_extractor import EntityExtractor
+from ..services.requirements_validator import RequirementsValidator
+from ..services.l2_perspective_activator import L2PerspectiveActivator
+from ..services.motivation_engine import MotivationInferenceEngine
+from ..services.ucppt_search_engine import ProblemSolvingApproach
+
 
 class RequirementsAnalystAgent(LLMAgent):
     """需求分析师智能体"""
@@ -35,6 +42,12 @@ class RequirementsAnalystAgent(LLMAgent):
 
         # 初始化提示词管理器
         self.prompt_manager = PromptManager()
+
+        # 🆕 v7.270: Initialize enhancement modules
+        self.entity_extractor = EntityExtractor(llm_model=llm_model)
+        self.requirements_validator = RequirementsValidator()
+        self.l2_activator = L2PerspectiveActivator()
+        self.motivation_engine = MotivationInferenceEngine()
     
     def validate_input(self, state: ProjectAnalysisState) -> bool:
         """验证输入是否有效"""
@@ -716,13 +729,18 @@ class RequirementsAnalystAgent(LLMAgent):
             logger.info(f"   - 能力匹配: {capability_precheck['deliverable_capability']['capability_score']:.0%}")
             logger.info(f"   - 需要转化: {capability_precheck['deliverable_capability']['transformations_needed']}个")
             
+            # 🆕 v7.155: 提取视觉参考
+            visual_references = state.get("uploaded_visual_references", None)
+            if visual_references:
+                logger.info(f"🖼️ [v7.155] 检测到 {len(visual_references)} 个视觉参考，将注入需求分析")
+
             # ═══════════════════════════════════════════════════════════════
             # Phase 1: 快速定性 + 交付物识别（带预检测结果）
             # ═══════════════════════════════════════════════════════════════
             phase1_start = time.time()
             logger.info("📋 [Phase1] 开始快速定性 + 交付物识别...")
-            
-            phase1_result = self._execute_phase1(user_input, capability_precheck)
+
+            phase1_result = self._execute_phase1(user_input, capability_precheck, visual_references)
             
             phase1_elapsed = time.time() - phase1_start
             logger.info(f"✅ [Phase1] 完成，耗时 {phase1_elapsed:.2f}s")
@@ -771,66 +789,159 @@ class RequirementsAnalystAgent(LLMAgent):
             structured_data["analysis_mode"] = "two_phase"
             structured_data["phase1_elapsed_s"] = round(phase1_elapsed, 2)
             structured_data["phase2_elapsed_s"] = round(phase2_elapsed, 2)
-            
+
             # 后处理：字段规范化、项目类型推断
             self._normalize_jtbd_fields(structured_data)
             structured_data["project_type"] = self._infer_project_type(structured_data)
-            
+
+            # 🆕 v7.270: Enhanced post-processing
+            logger.info("🔧 [v7.270] Starting enhanced post-processing...")
+
+            # 1. Validate Phase 2 output quality
+            validation_result = self.requirements_validator.validate_phase2_output(phase2_result)
+            structured_data["validation_result"] = validation_result.to_dict()
+
+            if not validation_result.is_valid:
+                logger.warning(f"⚠️ [v7.270] Phase 2 validation failed, attempting fixes...")
+                # Attempt to fix missing L6/L7
+                phase2_result = self._fix_validation_issues(phase2_result, validation_result, user_input)
+                # Re-merge after fixes
+                structured_data = self._merge_phase_results(phase1_result, phase2_result)
+
+            # 2. Extract entities
+            logger.info("📦 [v7.270] Extracting entities...")
+            entity_result = self.entity_extractor.extract_entities(
+                structured_data=structured_data,
+                user_input=user_input
+            )
+            structured_data["entities"] = entity_result.to_dict()
+            logger.info(f"✅ [v7.270] Extracted {entity_result.total_entities()} entities")
+
+            # 3. Identify motivation types
+            logger.info("🎯 [v7.270] Identifying motivation types...")
+            try:
+                # Create task dict for motivation engine
+                task = {
+                    "project_overview": structured_data.get("project_overview", ""),
+                    "core_objectives": structured_data.get("core_objectives", []),
+                    "target_users": structured_data.get("target_users", "")
+                }
+
+                # Call async infer method synchronously
+                import asyncio
+                try:
+                    loop = asyncio.get_event_loop()
+                except RuntimeError:
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
+
+                motivation_result = loop.run_until_complete(
+                    self.motivation_engine.infer(
+                        task=task,
+                        user_input=user_input,
+                        structured_data=structured_data
+                    )
+                )
+
+                structured_data["motivation_types"] = {
+                    "primary": motivation_result.primary,
+                    "primary_label": motivation_result.primary_label,
+                    "secondary": motivation_result.secondary or [],
+                    "confidence": motivation_result.confidence,
+                    "reasoning": motivation_result.reasoning,
+                    "method": motivation_result.method
+                }
+                logger.info(f"✅ [v7.270] Primary motivation: {motivation_result.primary} ({motivation_result.primary_label})")
+            except Exception as e:
+                logger.warning(f"⚠️ [v7.270] Motivation identification failed: {e}, using fallback")
+                structured_data["motivation_types"] = {
+                    "primary": "mixed",
+                    "primary_label": "综合",
+                    "secondary": [],
+                    "confidence": 0.5,
+                    "reasoning": "自动识别失败，使用默认值",
+                    "method": "fallback"
+                }
+
+            # 4. Generate problem-solving approach
+            logger.info("🧠 [v7.270] Generating problem-solving approach...")
+            problem_solving_approach = self._generate_problem_solving_approach(
+                user_input=user_input,
+                phase2_result=phase2_result
+            )
+            if problem_solving_approach:
+                structured_data["problem_solving_approach"] = problem_solving_approach.to_dict()
+                logger.info(f"✅ [v7.270] Generated {len(problem_solving_approach.solution_steps)} solution steps")
+
+            logger.info("✅ [v7.270] Enhanced post-processing complete")
+
             # 创建分析结果
             confidence = self._calculate_two_phase_confidence(phase1_result, phase2_result)
-            
+
             result = self.create_analysis_result(
                 content=json.dumps(phase2_result, ensure_ascii=False, indent=2),
                 structured_data=structured_data,
                 confidence=confidence,
                 sources=["user_input", "phase1_analysis", "phase2_analysis"]
             )
-            
+
             end_time = time.time()
             self._track_execution_time(start_time, end_time)
             logger.info(f"🏁 [v7.17] 两阶段分析完成，总耗时 {end_time - start_time:.2f}s")
-            
+
             return result
             
         except Exception as e:
             error = self.handle_error(e, "two-phase requirements analysis")
             raise error
 
-    def _execute_phase1(self, user_input: str, capability_precheck: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    def _execute_phase1(
+        self,
+        user_input: str,
+        capability_precheck: Optional[Dict[str, Any]] = None,
+        visual_references: Optional[List[Dict[str, Any]]] = None,  # 🆕 v7.155: 视觉参考
+    ) -> Dict[str, Any]:
         """执行 Phase1: 快速定性 + 交付物识别
-        
+
         Args:
             user_input: 用户输入文本
             capability_precheck: 程序化预检测结果（v7.17 P2）
+            visual_references: 用户上传的视觉参考列表（v7.155）
         """
         # 加载 Phase1 专用提示词
         phase1_config = self.prompt_manager.get_prompt("requirements_analyst_phase1", return_full_config=True)
-        
+
         if not phase1_config:
             logger.warning("[Phase1] 未找到专用配置，使用默认定性逻辑")
             return self._fallback_phase1(user_input, capability_precheck)
-        
+
         system_prompt = phase1_config.get("system_prompt", "")
         task_template = phase1_config.get("task_description_template", "")
-        
+
         # 构建任务描述
         from datetime import datetime
         datetime_info = f"当前时间: {datetime.now().strftime('%Y-%m-%d %H:%M')}。"
         task_description = task_template.replace("{datetime_info}", datetime_info).replace("{user_input}", user_input)
-        
+
         # 🆕 v7.17 P2: 将预检测结果注入到任务描述中
         if capability_precheck:
             precheck_hints = self._format_precheck_hints(capability_precheck)
             task_description = f"{precheck_hints}\n\n{task_description}"
-        
+
+        # 🆕 v7.155: 将视觉参考注入到任务描述中
+        if visual_references:
+            visual_context = self._build_visual_reference_context(visual_references)
+            task_description = f"{visual_context}\n\n{task_description}"
+            logger.info(f"  🖼️ [v7.155] 已注入 {len(visual_references)} 个视觉参考到需求分析")
+
         # 调用 LLM
         messages = [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": task_description}
         ]
-        
+
         response = self.invoke_llm(messages)
-        
+
         # 解析 JSON
         try:
             result = self._parse_phase_response(response.content)
@@ -1030,7 +1141,68 @@ class RequirementsAnalystAgent(LLMAgent):
         
         hints.append("")
         hints.append("请基于以上预检测结果完成 Phase1 分析，重点验证和补充预检测的判断。")
-        
+
+        return "\n".join(hints)
+
+    def _build_visual_reference_context(self, visual_references: List[Dict[str, Any]]) -> str:
+        """
+        🆕 v7.155: 构建视觉参考上下文字符串
+
+        将用户上传的参考图的结构化特征转换为文本描述，
+        用于注入到需求分析提示词中，帮助 LLM 理解用户的视觉偏好。
+
+        Args:
+            visual_references: 视觉参考列表
+
+        Returns:
+            格式化的视觉参考上下文字符串
+        """
+        if not visual_references:
+            return ""
+
+        hints = ["### 🖼️ 用户提供的视觉参考（请在分析中考虑这些视觉偏好）"]
+        hints.append("")
+
+        for idx, ref in enumerate(visual_references, 1):
+            features = ref.get("structured_features", {})
+
+            hints.append(f"**参考图 {idx}**:")
+
+            # 风格关键词
+            style_keywords = features.get("style_keywords", [])
+            if style_keywords:
+                hints.append(f"- 风格: {', '.join(style_keywords)}")
+
+            # 主色调
+            dominant_colors = features.get("dominant_colors", [])
+            if dominant_colors:
+                hints.append(f"- 主色调: {', '.join(dominant_colors)}")
+
+            # 材质
+            materials = features.get("materials", [])
+            if materials:
+                hints.append(f"- 材质: {', '.join(materials)}")
+
+            # 氛围
+            mood_atmosphere = features.get("mood_atmosphere", "")
+            if mood_atmosphere:
+                hints.append(f"- 氛围: {mood_atmosphere}")
+
+            # 空间布局
+            spatial_layout = features.get("spatial_layout", "")
+            if spatial_layout:
+                hints.append(f"- 空间布局: {spatial_layout}")
+
+            # 用户追加描述（优先级最高）
+            user_description = ref.get("user_description")
+            if user_description:
+                hints.append(f"- **用户说明**: {user_description}")
+
+            hints.append("")
+
+        hints.append("请在需求分析中充分考虑用户的视觉偏好，这些参考图反映了用户期望的设计风格和氛围。")
+        hints.append("")
+
         return "\n".join(hints)
 
     def _fallback_phase2(self, user_input: str, phase1_result: Dict[str, Any]) -> Dict[str, Any]:
@@ -1052,7 +1224,12 @@ class RequirementsAnalystAgent(LLMAgent):
                 "regulatory_requirements": "待明确",
                 "inspiration_references": "待补齐",
                 "experience_behavior": "待补齐",
-                "design_challenge": "待识别"
+                "design_challenge": "待识别",
+                "emotional_landscape": "待问卷补充后分析",
+                "spiritual_aspirations": "待深入挖掘",
+                "psychological_safety_needs": "待识别",
+                "ritual_behaviors": "待观察",
+                "memory_anchors": "待补齐"
             },
             "expert_handoff": {
                 "critical_questions_for_experts": {},
@@ -1073,6 +1250,11 @@ class RequirementsAnalystAgent(LLMAgent):
             "inspiration_references": "待补齐",
             "experience_behavior": "待补齐",
             "design_challenge": "待识别",
+            "emotional_landscape": "待问卷补充后分析",
+            "spiritual_aspirations": "待深入挖掘",
+            "psychological_safety_needs": "待识别",
+            "ritual_behaviors": "待观察",
+            "memory_anchors": "待补齐",
             "primary_deliverables": phase1_result.get("primary_deliverables", []),
             "info_status": phase1_result.get("info_status"),
             "info_gaps": phase1_result.get("info_gaps", []),
@@ -1083,9 +1265,13 @@ class RequirementsAnalystAgent(LLMAgent):
         }
 
     def _merge_phase_results(self, phase1: Dict[str, Any], phase2: Dict[str, Any]) -> Dict[str, Any]:
-        """合并 Phase1 和 Phase2 结果"""
+        """合并 Phase1 和 Phase2 结果
+
+        🆕 v7.18.0: 新增L6假设审计、L7系统性影响分析和扩展L2视角支持
+        """
         structured_output = phase2.get("structured_output", {})
-        
+        analysis_layers = phase2.get("analysis_layers", {})
+
         result = {
             # 来自 Phase2 的核心字段
             "project_task": structured_output.get("project_task", ""),
@@ -1096,52 +1282,471 @@ class RequirementsAnalystAgent(LLMAgent):
             "inspiration_references": structured_output.get("inspiration_references", ""),
             "experience_behavior": structured_output.get("experience_behavior", ""),
             "design_challenge": structured_output.get("design_challenge", ""),
-            
+
+            # 🆕 v7.141.5: 人性维度字段（情感/精神/心理/仪式/记忆）
+            "emotional_landscape": structured_output.get("emotional_landscape", ""),
+            "spiritual_aspirations": structured_output.get("spiritual_aspirations", ""),
+            "psychological_safety_needs": structured_output.get("psychological_safety_needs", ""),
+            "ritual_behaviors": structured_output.get("ritual_behaviors", ""),
+            "memory_anchors": structured_output.get("memory_anchors", ""),
+
             # 来自 Phase1 的交付物识别
             "primary_deliverables": phase1.get("primary_deliverables", []),
             "info_status": phase1.get("info_status"),
             "project_type_preliminary": phase1.get("project_type_preliminary"),
-            
+
             # 来自 Phase2 的分析层
-            "analysis_layers": phase2.get("analysis_layers", {}),
-            
+            "analysis_layers": analysis_layers,
+
+            # 🆕 v7.18.0: 提取L2扩展视角到顶层（便于前端访问）
+            "l2_extended_perspectives": self._extract_l2_extended_perspectives(analysis_layers),
+
+            # 🆕 v7.18.0: 提取L6假设审计到顶层
+            "assumption_audit": analysis_layers.get("L6_assumption_audit", {}),
+
+            # 🆕 v7.18.0: 提取L7系统性影响到顶层
+            "systemic_impact": analysis_layers.get("L7_systemic_impact", {}),
+
             # 来自 Phase2 的专家接口
             "expert_handoff": phase2.get("expert_handoff", {}),
-            
+
             # 兼容旧格式
             "project_overview": structured_output.get("project_task", ""),
             "core_objectives": [],
             "project_tasks": []
         }
-        
+
         # 从 project_task 提取目标和任务
         project_task = result["project_task"]
         if project_task:
             result["core_objectives"] = [project_task[:100]]
             result["project_tasks"] = [project_task]
-        
+
         return result
 
+    def _extract_l2_extended_perspectives(self, analysis_layers: Dict[str, Any]) -> Dict[str, str]:
+        """提取L2扩展视角（商业/技术/生态/文化/政治）
+
+        🆕 v7.18.0: 从L2_user_model中提取扩展视角，便于前端展示
+        """
+        l2_model = analysis_layers.get("L2_user_model", {})
+        extended = {}
+
+        extended_perspective_keys = ["business", "technical", "ecological", "cultural", "political"]
+
+        for key in extended_perspective_keys:
+            value = l2_model.get(key, "")
+            if value and value.strip() and not value.startswith("（如激活）"):
+                extended[key] = value
+
+        return extended
+
     def _calculate_two_phase_confidence(self, phase1: Dict[str, Any], phase2: Dict[str, Any]) -> float:
-        """计算两阶段分析的置信度"""
+        """计算两阶段分析的置信度
+
+        🆕 v7.18.0: 新增L6假设审计和L7系统性影响质量评估
+        """
         confidence = 0.5  # 基础置信度
-        
+
         # Phase1 贡献
         if phase1.get("info_status") == "sufficient":
             confidence += 0.1
         if len(phase1.get("primary_deliverables", [])) > 0:
             confidence += 0.1
-        
+
         # Phase2 贡献
-        sharpness = phase2.get("analysis_layers", {}).get("L5_sharpness", {})
+        analysis_layers = phase2.get("analysis_layers", {})
+
+        # L5 锐度测试
+        sharpness = analysis_layers.get("L5_sharpness", {})
         if isinstance(sharpness, dict):
             score = sharpness.get("score", 0)
             confidence += min(score / 200, 0.2)  # 最多 +0.2
-        
+
+        # 🆕 v7.18.0: L6 假设审计质量
+        assumption_audit = analysis_layers.get("L6_assumption_audit", {})
+        if isinstance(assumption_audit, dict):
+            assumptions = assumption_audit.get("identified_assumptions", [])
+            if len(assumptions) >= 3:
+                confidence += 0.05  # 完成假设审计 +0.05
+
+        # 🆕 v7.18.0: L7 系统性影响分析质量
+        systemic_impact = analysis_layers.get("L7_systemic_impact", {})
+        if isinstance(systemic_impact, dict):
+            # 检查是否覆盖三个时间维度
+            has_short = bool(systemic_impact.get("short_term"))
+            has_medium = bool(systemic_impact.get("medium_term"))
+            has_long = bool(systemic_impact.get("long_term"))
+            if has_short and has_medium and has_long:
+                confidence += 0.05  # 完成系统性影响分析 +0.05
+
+        # 专家接口完整性
         if phase2.get("expert_handoff", {}).get("critical_questions_for_experts"):
             confidence += 0.1
-        
+
         return min(confidence, 1.0)
+
+    # ═══════════════════════════════════════════════════════════════════════════
+    # 🆕 v7.270: Enhanced validation and generation methods
+    # ═══════════════════════════════════════════════════════════════════════════
+
+    def _fix_validation_issues(
+        self,
+        phase2_result: Dict[str, Any],
+        validation_result,
+        user_input: str
+    ) -> Dict[str, Any]:
+        """
+        Fix validation issues by generating missing L6/L7
+
+        Args:
+            phase2_result: Phase 2 result with issues
+            validation_result: Validation result with errors
+            user_input: Original user input
+
+        Returns:
+            Fixed phase2_result
+        """
+        errors = validation_result.errors
+
+        # Check if L6 is missing
+        if any("L6" in error for error in errors):
+            logger.info("🔧 [v7.270] Generating missing L6 assumption audit...")
+            phase2_result = self._generate_missing_l6(phase2_result, user_input)
+
+        # Check if L7 is missing
+        if any("L7" in error for error in errors):
+            logger.info("🔧 [v7.270] Generating missing L7 systemic impact...")
+            phase2_result = self._generate_missing_l7(phase2_result, user_input)
+
+        return phase2_result
+
+    def _generate_missing_l6(
+        self,
+        phase2_result: Dict[str, Any],
+        user_input: str
+    ) -> Dict[str, Any]:
+        """
+        Generate L6 assumption audit if missing
+
+        Args:
+            phase2_result: Phase 2 result
+            user_input: Original user input
+
+        Returns:
+            Updated phase2_result with L6
+        """
+        # Extract context from phase2_result
+        analysis_layers = phase2_result.get("analysis_layers", {})
+        l4_jtbd = analysis_layers.get("L4_project_task", "")
+        l3_tension = analysis_layers.get("L3_core_tension", "")
+
+        prompt = f"""
+基于以下项目分析，生成L6假设审计（Assumption Audit）。
+
+**用户需求**: {user_input}
+
+**L4 项目任务**: {l4_jtbd}
+
+**L3 核心张力**: {l3_tension}
+
+---
+
+请生成至少3个核心假设的审计，每个假设必须包含：
+
+1. **assumption**: 隐含的假设（我们认为什么是真的？）
+2. **counter_assumption**: 反向假设（如果相反的情况为真会怎样？）
+3. **challenge_question**: 挑战性问题（如何测试这个假设？）
+4. **impact_if_wrong**: 如果假设错误的影响（后果有多严重？）
+5. **alternative_approach**: 替代方案（如果假设失败，有什么其他路径？）
+
+同时提供2-3个非常规方法（unconventional_approaches）。
+
+**输出格式**（纯JSON）:
+{{
+  "identified_assumptions": [
+    {{
+      "assumption": "...",
+      "counter_assumption": "...",
+      "challenge_question": "...",
+      "impact_if_wrong": "...",
+      "alternative_approach": "..."
+    }}
+  ],
+  "unconventional_approaches": ["方法1", "方法2", "方法3"]
+}}
+"""
+
+        try:
+            response = self.invoke_llm([{"role": "user", "content": prompt}])
+            l6_data = self._parse_phase_response(response.content)
+
+            # Inject into phase2_result
+            if "analysis_layers" not in phase2_result:
+                phase2_result["analysis_layers"] = {}
+            phase2_result["analysis_layers"]["L6_assumption_audit"] = l6_data
+
+            logger.info("✅ [v7.270] L6 assumption audit generated successfully")
+
+        except Exception as e:
+            logger.error(f"❌ [v7.270] Failed to generate L6: {e}")
+            # Create fallback L6
+            phase2_result["analysis_layers"]["L6_assumption_audit"] = {
+                "identified_assumptions": [
+                    {
+                        "assumption": "基于当前信息的假设",
+                        "counter_assumption": "待深入分析",
+                        "challenge_question": "需要进一步验证",
+                        "impact_if_wrong": "可能影响设计方向",
+                        "alternative_approach": "待探索替代方案"
+                    }
+                ],
+                "unconventional_approaches": ["待补充非常规方法"]
+            }
+
+        return phase2_result
+
+    def _generate_missing_l7(
+        self,
+        phase2_result: Dict[str, Any],
+        user_input: str
+    ) -> Dict[str, Any]:
+        """
+        Generate L7 systemic impact if missing
+
+        Args:
+            phase2_result: Phase 2 result
+            user_input: Original user input
+
+        Returns:
+            Updated phase2_result with L7
+        """
+        # Extract context
+        analysis_layers = phase2_result.get("analysis_layers", {})
+        l4_jtbd = analysis_layers.get("L4_project_task", "")
+        structured_output = phase2_result.get("structured_output", {})
+        project_task = structured_output.get("project_task", "")
+
+        prompt = f"""
+基于以下项目分析，生成L7系统性影响分析（Systemic Impact Analysis）。
+
+**用户需求**: {user_input}
+
+**项目任务**: {project_task or l4_jtbd}
+
+---
+
+请分析项目的长期和生态系统影响，必须覆盖三个时间维度：
+
+**1. 短期影响（0-1年）**
+- social: 社会影响
+- environmental: 环境影响
+- economic: 经济影响
+- cultural: 文化影响
+
+**2. 中期影响（1-5年）**
+- social, environmental, economic, cultural
+
+**3. 长期影响（5年+）**
+- social, environmental, economic, cultural
+
+**4. 非预期后果（至少2个）**
+- 成功可能带来的负面效应
+- 设计决策的连锁反应
+
+**5. 缓解策略**
+- 针对识别的风险的应对措施
+
+**输出格式**（纯JSON）:
+{{
+  "short_term": {{
+    "social": "...",
+    "environmental": "...",
+    "economic": "...",
+    "cultural": "..."
+  }},
+  "medium_term": {{
+    "social": "...",
+    "environmental": "...",
+    "economic": "...",
+    "cultural": "..."
+  }},
+  "long_term": {{
+    "social": "...",
+    "environmental": "...",
+    "economic": "...",
+    "cultural": "..."
+  }},
+  "unintended_consequences": [
+    "后果1",
+    "后果2"
+  ],
+  "mitigation_strategies": [
+    "策略1",
+    "策略2"
+  ]
+}}
+"""
+
+        try:
+            response = self.invoke_llm([{"role": "user", "content": prompt}])
+            l7_data = self._parse_phase_response(response.content)
+
+            # Inject into phase2_result
+            if "analysis_layers" not in phase2_result:
+                phase2_result["analysis_layers"] = {}
+            phase2_result["analysis_layers"]["L7_systemic_impact"] = l7_data
+
+            logger.info("✅ [v7.270] L7 systemic impact generated successfully")
+
+        except Exception as e:
+            logger.error(f"❌ [v7.270] Failed to generate L7: {e}")
+            # Create fallback L7
+            phase2_result["analysis_layers"]["L7_systemic_impact"] = {
+                "short_term": {
+                    "social": "待分析短期社会影响",
+                    "environmental": "待分析短期环境影响",
+                    "economic": "待分析短期经济影响",
+                    "cultural": "待分析短期文化影响"
+                },
+                "medium_term": {
+                    "social": "待分析中期社会影响",
+                    "environmental": "待分析中期环境影响",
+                    "economic": "待分析中期经济影响",
+                    "cultural": "待分析中期文化影响"
+                },
+                "long_term": {
+                    "social": "待分析长期社会影响",
+                    "environmental": "待分析长期环境影响",
+                    "economic": "待分析长期经济影响",
+                    "cultural": "待分析长期文化影响"
+                },
+                "unintended_consequences": ["待识别非预期后果"],
+                "mitigation_strategies": ["待制定缓解策略"]
+            }
+
+        return phase2_result
+
+    def _generate_problem_solving_approach(
+        self,
+        user_input: str,
+        phase2_result: Dict[str, Any]
+    ) -> Optional[ProblemSolvingApproach]:
+        """
+        Generate problem-solving approach based on Phase 2 analysis
+
+        Args:
+            user_input: Original user input
+            phase2_result: Phase 2 analysis result
+
+        Returns:
+            ProblemSolvingApproach instance or None if generation fails
+        """
+        try:
+            # Extract key info from Phase 2
+            analysis_layers = phase2_result.get("analysis_layers", {})
+            l4_jtbd = analysis_layers.get("L4_project_task", "")
+            l3_tension = analysis_layers.get("L3_core_tension", "")
+            l5_sharpness = analysis_layers.get("L5_sharpness", {})
+            l5_score = l5_sharpness.get("score", 0) if isinstance(l5_sharpness, dict) else 0
+
+            # Build prompt
+            prompt = f"""
+基于深度分析结果，生成战术级解题思路（Problem-Solving Approach）。
+
+**用户需求**: {user_input}
+
+**分析摘要**:
+- L4 JTBD: {l4_jtbd}
+- L3 核心张力: {l3_tension}
+- L5 锐度得分: {l5_score}
+
+---
+
+请生成解题思路，包含：
+
+**1. 任务本质识别**
+- task_type: research/design/decision/exploration/verification
+- task_type_description: 详细描述任务类型
+- complexity_level: simple/moderate/complex/highly_complex
+- required_expertise: 所需专业知识领域（3-5个）
+
+**2. 解题路径规划（5-8个详细步骤）**
+每步包含：
+- step_id: "S1", "S2", ...
+- action: 具体行动（可执行级别）
+- purpose: 目的
+- expected_output: 预期输出
+
+**3. 关键突破口（1-3个）**
+每个包含：
+- point: 突破点描述
+- why_key: 为什么关键
+- how_to_leverage: 如何利用
+
+**4. 预期产出形态**
+- format: report/list/comparison/recommendation/plan
+- sections: 必须包含的章节（5-8个）
+- key_elements: 关键交付物
+- quality_criteria: 质量标准
+
+**5. 备选路径（2-3个）**
+
+**输出格式**（纯JSON）:
+{{
+  "task_type": "design",
+  "task_type_description": "...",
+  "complexity_level": "complex",
+  "required_expertise": ["领域1", "领域2", "领域3"],
+  "solution_steps": [
+    {{
+      "step_id": "S1",
+      "action": "...",
+      "purpose": "...",
+      "expected_output": "..."
+    }}
+  ],
+  "breakthrough_points": [
+    {{
+      "point": "...",
+      "why_key": "...",
+      "how_to_leverage": "..."
+    }}
+  ],
+  "expected_deliverable": {{
+    "format": "report",
+    "sections": ["章节1", "章节2"],
+    "key_elements": ["元素1", "元素2"],
+    "quality_criteria": ["标准1", "标准2"]
+  }},
+  "alternative_approaches": ["方法1", "方法2"],
+  "confidence_score": 0.85
+}}
+"""
+
+            response = self.invoke_llm([{"role": "user", "content": prompt}])
+            approach_data = self._parse_phase_response(response.content)
+
+            # Create ProblemSolvingApproach instance
+            problem_solving_approach = ProblemSolvingApproach(
+                task_type=approach_data.get("task_type", "design"),
+                task_type_description=approach_data.get("task_type_description", ""),
+                complexity_level=approach_data.get("complexity_level", "complex"),
+                required_expertise=approach_data.get("required_expertise", []),
+                solution_steps=approach_data.get("solution_steps", []),
+                breakthrough_points=approach_data.get("breakthrough_points", []),
+                expected_deliverable=approach_data.get("expected_deliverable", {}),
+                original_requirement=user_input,
+                refined_requirement=l4_jtbd,
+                confidence_score=approach_data.get("confidence_score", 0.8),
+                alternative_approaches=approach_data.get("alternative_approaches", [])
+            )
+
+            return problem_solving_approach
+
+        except Exception as e:
+            logger.error(f"❌ [v7.270] Failed to generate problem-solving approach: {e}")
+            return None
 
 
 # 注册智能体

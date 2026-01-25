@@ -1,0 +1,381 @@
+<!--
+===========================================
+精选案例卡片展示 - WordPress HTML 嵌入代码
+===========================================
+卡片式布局，适合嵌入到WordPress页面区域
+===========================================
+使用方法：
+1. 在WordPress编辑器中添加"自定义HTML"区块
+2. 粘贴以下全部代码
+3. 修改配置部分的API_URL和FRONTEND_URL为你的实际地址
+===========================================
+-->
+
+<!-- Swiper CSS -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css">
+
+<!-- 卡片轮播容器 -->
+<div id="featured-showcase-container" style="max-width: 1400px; margin: 60px auto; padding: 0 20px;">
+    <div style="text-align: center; margin-bottom: 50px;">
+        <h2 style="font-size: 36px; font-weight: 700; color: #1a1a1a; margin-bottom: 15px;">
+            🌟 精选案例展示
+        </h2>
+        <p style="font-size: 18px; color: #666; max-width: 600px; margin: 0 auto;">
+            探索我们为客户打造的优秀设计方案
+        </p>
+    </div>
+
+    <!-- Swiper 轮播 -->
+    <div class="swiper showcase-swiper-cards" style="padding-bottom: 60px;">
+        <div class="swiper-wrapper" id="showcase-cards-wrapper">
+            <!-- 加载中状态 -->
+            <div style="text-align: center; padding: 80px 20px; color: #999; width: 100%;">
+                <div style="display: inline-block; width: 40px; height: 40px; border: 4px solid #f3f3f3; border-top: 4px solid #667eea; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+                <p style="margin-top: 15px;">正在加载精选案例...</p>
+            </div>
+        </div>
+
+        <!-- 导航 -->
+        <div class="swiper-pagination"></div>
+        <div class="swiper-button-prev"></div>
+        <div class="swiper-button-next"></div>
+    </div>
+</div>
+
+<!-- 样式 -->
+<style>
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* 卡片轮播样式 */
+    #featured-showcase-container {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+
+    .showcase-swiper-cards .swiper-slide {
+        height: auto;
+        display: flex;
+        justify-content: center;
+    }
+
+    .showcase-case-card {
+        background: #fff;
+        border-radius: 20px;
+        overflow: hidden;
+        box-shadow: 0 8px 30px rgba(0,0,0,0.12);
+        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        cursor: pointer;
+        max-width: 420px;
+        width: 100%;
+    }
+
+    .showcase-case-card:hover {
+        transform: translateY(-12px);
+        box-shadow: 0 16px 50px rgba(102, 126, 234, 0.25);
+    }
+
+    .showcase-case-image {
+        width: 100%;
+        height: 280px;
+        overflow: hidden;
+        position: relative;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+
+    .showcase-case-image img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        transition: transform 0.6s ease;
+    }
+
+    .showcase-case-card:hover .showcase-case-image img {
+        transform: scale(1.1);
+    }
+
+    .showcase-case-badge {
+        position: absolute;
+        top: 16px;
+        right: 16px;
+        background: rgba(255,255,255,0.95);
+        color: #667eea;
+        padding: 8px 16px;
+        border-radius: 20px;
+        font-size: 13px;
+        font-weight: 600;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.15);
+        backdrop-filter: blur(10px);
+    }
+
+    .showcase-case-content {
+        padding: 28px;
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .showcase-case-title {
+        font-size: 22px;
+        font-weight: 700;
+        color: #1a1a1a;
+        margin-bottom: 12px;
+        line-height: 1.3;
+    }
+
+    .showcase-case-description {
+        font-size: 15px;
+        color: #666;
+        line-height: 1.7;
+        margin-bottom: 20px;
+        flex: 1;
+        display: -webkit-box;
+        -webkit-line-clamp: 3;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+
+    .showcase-case-meta {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+    }
+
+    .showcase-case-tag {
+        background: #f0f2f5;
+        color: #555;
+        padding: 6px 14px;
+        border-radius: 12px;
+        font-size: 13px;
+        font-weight: 500;
+    }
+
+    .showcase-case-button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 14px 28px;
+        border-radius: 12px;
+        font-size: 15px;
+        font-weight: 600;
+        text-decoration: none;
+        transition: all 0.3s ease;
+        border: none;
+        cursor: pointer;
+    }
+
+    .showcase-case-button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+    }
+
+    /* Swiper 导航按钮 */
+    .showcase-swiper-cards .swiper-button-prev,
+    .showcase-swiper-cards .swiper-button-next {
+        color: #667eea;
+        background: white;
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+    }
+
+    .showcase-swiper-cards .swiper-button-prev:hover,
+    .showcase-swiper-cards .swiper-button-next:hover {
+        background: #667eea;
+        color: white;
+    }
+
+    .showcase-swiper-cards .swiper-button-prev::after,
+    .showcase-swiper-cards .swiper-button-next::after {
+        font-size: 20px;
+        font-weight: bold;
+    }
+
+    /* 分页器 */
+    .showcase-swiper-cards .swiper-pagination-bullet {
+        width: 12px;
+        height: 12px;
+        background: #667eea;
+        opacity: 0.3;
+    }
+
+    .showcase-swiper-cards .swiper-pagination-bullet-active {
+        opacity: 1;
+        background: #667eea;
+    }
+
+    /* 响应式 */
+    @media (max-width: 768px) {
+        #featured-showcase-container {
+            margin: 40px auto;
+        }
+
+        #featured-showcase-container h2 {
+            font-size: 28px;
+        }
+
+        #featured-showcase-container p {
+            font-size: 16px;
+        }
+
+        .showcase-case-image {
+            height: 220px;
+        }
+
+        .showcase-case-content {
+            padding: 20px;
+        }
+
+        .showcase-case-title {
+            font-size: 20px;
+        }
+    }
+</style>
+
+<!-- Swiper JS -->
+<script src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"></script>
+
+<!-- 主脚本 -->
+<script>
+(async function() {
+    // 🔥 配置：生产环境地址
+    const API_URL = 'https://www.ucppt.com';
+    const FRONTEND_URL = 'https://www.ucppt.com/nextjs';
+
+    const cardsWrapper = document.getElementById('showcase-cards-wrapper');
+
+    try {
+        console.log('🔍 开始加载精选案例...');
+
+        const response = await fetch(`${API_URL}/api/showcase/featured`);
+
+        if (!response.ok) {
+            throw new Error(`API 请求失败: ${response.status}`);
+        }
+
+        const data = await response.json();
+        console.log('📦 API响应数据:', data);
+
+        const sessions = data.featured_sessions || [];
+        const config = data.config || { rotation_interval_seconds: 5, autoplay: true };
+
+        if (sessions.length === 0) {
+            cardsWrapper.innerHTML = `
+                <div style="text-align: center; padding: 80px 20px; color: #999; width: 100%;">
+                    <div style="font-size: 64px; margin-bottom: 20px;">🎨</div>
+                    <h3 style="font-size: 24px; margin-bottom: 10px; color: #666;">暂无精选案例</h3>
+                    <p style="font-size: 16px;">管理员还未配置展示案例</p>
+                </div>
+            `;
+        } else {
+            const cardsHTML = sessions.map(session => {
+                const description = session.user_input
+                    ? (session.user_input.length > 120
+                        ? session.user_input.substring(0, 120) + '...'
+                        : session.user_input)
+                    : '探索完整的项目分析报告';
+
+                const date = session.created_at
+                    ? new Date(session.created_at).toLocaleDateString('zh-CN')
+                    : '';
+
+                const modeLabel = session.analysis_mode === 'deep_thinking'
+                    ? '🧠 深度思考'
+                    : '⚡ 快速分析';
+
+                const imageUrl = session.concept_image?.url
+                    ? (session.concept_image.url.startsWith('http')
+                        ? session.concept_image.url
+                        : `${API_URL}${session.concept_image.url}`)
+                    : '';
+
+                return `
+                    <div class="swiper-slide">
+                        <div class="showcase-case-card" onclick="window.open('${FRONTEND_URL}/analysis/${session.session_id}', '_blank')">
+                            <div class="showcase-case-image">
+                                ${imageUrl ? `<img src="${imageUrl}" alt="${session.title || '案例'}" loading="lazy">` : ''}
+                                <div class="showcase-case-badge">${modeLabel}</div>
+                            </div>
+                            <div class="showcase-case-content">
+                                <h3 class="showcase-case-title">${session.title || '未命名项目'}</h3>
+                                <p class="showcase-case-description">${description}</p>
+                                <div class="showcase-case-meta">
+                                    ${date ? `<span class="showcase-case-tag">📅 ${date}</span>` : ''}
+                                    ${session.status ? `<span class="showcase-case-tag">${session.status === 'completed' ? '✅ 已完成' : '🔄 进行中'}</span>` : ''}
+                                </div>
+                                <a href="${FRONTEND_URL}/analysis/${session.session_id}"
+                                   class="showcase-case-button"
+                                   target="_blank"
+                                   onclick="event.stopPropagation();">
+                                    查看完整报告 →
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            cardsWrapper.innerHTML = cardsHTML;
+
+            console.log(`✅ 成功加载 ${sessions.length} 个精选案例`);
+        }
+
+        // 初始化 Swiper
+        const swiper = new Swiper('.showcase-swiper-cards', {
+            slidesPerView: 1,
+            spaceBetween: 30,
+            loop: sessions.length > 3,
+            speed: 600,
+            autoplay: config.autoplay !== false ? {
+                delay: (config.rotation_interval_seconds || 5) * 1000,
+                disableOnInteraction: false,
+            } : false,
+            pagination: {
+                el: '.swiper-pagination',
+                clickable: true,
+            },
+            navigation: {
+                nextEl: '.swiper-button-next',
+                prevEl: '.swiper-button-prev',
+            },
+            breakpoints: {
+                640: {
+                    slidesPerView: 2,
+                    spaceBetween: 25,
+                },
+                1024: {
+                    slidesPerView: 3,
+                    spaceBetween: 30,
+                }
+            }
+        });
+
+        console.log('✅ Swiper 卡片轮播初始化成功');
+
+    } catch (error) {
+        console.error('❌ 加载精选案例失败:', error);
+        cardsWrapper.innerHTML = `
+            <div style="text-align: center; padding: 80px 20px; color: #999; width: 100%;">
+                <div style="font-size: 64px; margin-bottom: 20px;">⚠️</div>
+                <h3 style="font-size: 24px; margin-bottom: 10px; color: #666;">加载失败</h3>
+                <p style="font-size: 16px; margin-bottom: 15px;">无法连接到服务器</p>
+                <p style="font-size: 14px; color: #999; font-family: monospace;">${error.message}</p>
+            </div>
+        `;
+    }
+})();
+</script>

@@ -1,0 +1,17 @@
+autoplay: true
+cache_ttl_seconds: 300
+fallback_behavior: skip
+image_selection: random
+loop: true
+max_slides: 10
+rotation_interval_seconds: 5
+session_ids:
+- 8pdwoxj8-20260103181555-163e0ad3
+- 8pdwoxj8-20260103162422-3a46bd9b
+- 8pdwoxj8-20260104180159-496d24d5
+- 8pdwoxj8-20260105175540-513d63c0
+- 8pdwoxj8-20260105173328-0a810d44
+- 8pdwoxj8-20260107203552-0a8e56cd
+- 8pdwoxj8-20260107214241-ba11a776
+show_navigation: true
+show_pagination: true

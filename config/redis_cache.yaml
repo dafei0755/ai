@@ -1,0 +1,57 @@
+# Redis 缓存配置
+#
+# 🔥 性能优化: 状态查询缓存配置
+# 目标: 将 GET /api/analysis/status 响应时间从 2.03s 降低到 <500ms
+
+cache:
+  # 状态查询缓存
+  status:
+    enabled: true
+    ttl: 30  # 秒，缓存有效期
+    description: "会话状态缓存，在状态更新时自动失效"
+
+  # 会话列表缓存
+  sessions:
+    enabled: true
+    ttl: 600  # 秒，10分钟
+    description: "会话列表缓存，减少频繁的 Redis KEYS 查询"
+
+# 性能监控阈值
+performance:
+  # 慢请求检测阈值（毫秒）
+  slow_request_threshold: 1000
+
+  # 警告阈值
+  warning_threshold: 500
+
+  # 目标响应时间
+  target_response_time: 500
+
+# 缓存失效策略
+invalidation:
+  # 状态更新时自动失效
+  on_status_update: true
+
+  # 支持手动失效
+  manual_invalidation: true
+
+  # 错误时回退到直接查询
+  fallback_on_error: true
+
+# Redis 连接配置
+redis:
+  # 最大连接数
+  max_connections: 50
+
+  # 连接超时（秒）
+  socket_connect_timeout: 10
+
+  # 操作超时（秒）
+  socket_timeout: 30
+
+  # 超时重试
+  retry_on_timeout: true
+
+  # 编码
+  encoding: "utf-8"
+  decode_responses: true

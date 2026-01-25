@@ -5,14 +5,14 @@
 # 🔧 v7.17.1: 引用 expert_autonomy_protocol v4.1 挑战协议
 
 metadata:
-  version: "7.17.1-phase2"
-  description: "Phase2 深度分析阶段 - L1-L5分析 + 专家接口 + 挑战协议引用"
+  version: "7.18.0-phase2"
+  description: "Phase2 深度分析阶段 - L1-L6分析 + 专家接口 + 挑战协议引用 + 扩展域视角"
   created_at: "2025-12-17"
-  updated_at: "2025-12-17"
+  updated_at: "2026-01-22"
   optimization: "接收Phase1输出，专注深度分析，避免重复交付物识别"
   phase: 2
   depends_on: "requirements_analyst_phase1"
-  v7_17_1_changes: "引用 expert_autonomy_protocol v4.1 挑战协议，添加质量标准"
+  v7_18_0_changes: "新增L6假设审计层、扩展L2域视角（商业/技术/生态/文化/政治）、条件激活机制"
 
 # ================================================================================
 # 🔗 v4.1 挑战协议引用（与 expert_autonomy_protocol_v4.yaml 协同）
@@ -40,10 +40,58 @@ challenge_protocol_reference:
 # 输出质量标准
 quality_standards:
   sharpness_threshold: 70  # L5_sharpness.score 最低要求
+  assumption_audit_threshold: 3  # L6 最少识别3个假设
+  systemic_impact_required: true  # 🆕 v7.270: L7 为强制要求
   must_include:
     - "design_challenge 必须体现核心对立"
     - "expert_handoff 每个专家至少1个问题"
     - "JTBD 必须符合公式结构"
+    - "L6_assumption_audit 必须识别并挑战至少3个核心假设（每个假设必须包含5个字段）"  # 🆕 v7.270: 强化要求
+    - "L7_systemic_impact 必须覆盖短期/中期/长期三个时间维度"  # 🆕 v7.270: 新增
+    - "L7_systemic_impact 必须识别至少2个非预期后果"  # 🆕 v7.270: 新增
+    - "人性维度必须具体可操作，禁止使用空洞词汇（温馨、舒适等）"  # 🆕 v7.270: 新增
+
+# 🆕 v7.18.0: L2扩展域视角条件激活规则
+l2_perspective_activation:
+  # 基础视角（所有项目必须）
+  base_perspectives:
+    - psychological
+    - sociological
+    - aesthetic
+    - emotional
+    - ritual
+
+  # 扩展视角（条件激活）
+  conditional_perspectives:
+    business:
+      activate_when:
+        - project_type: ["commercial_enterprise", "hybrid_residential_commercial", "hospitality_tourism"]
+        - keywords: ["ROI", "盈利", "商业模式", "市场", "竞争", "品牌"]
+      description: "商业视角：ROI、市场定位、竞争优势、商业模式"
+
+    technical:
+      activate_when:
+        - project_type: ["commercial_enterprise", "office_coworking"]
+        - keywords: ["智能", "系统", "技术", "集成", "自动化", "设备"]
+      description: "技术视角：可行性、技术栈、集成复杂度、维护成本"
+
+    ecological:
+      activate_when:
+        - project_type: ["cultural_educational", "healthcare_wellness"]
+        - keywords: ["可持续", "环保", "绿色", "节能", "生态", "LEED", "碳"]
+      description: "生态视角：可持续性、环境影响、循环经济、碳足迹"
+
+    cultural:
+      activate_when:
+        - project_type: ["cultural_educational", "hospitality_tourism"]
+        - keywords: ["文化", "传统", "历史", "遗产", "地域", "在地", "符号"]
+      description: "文化视角：文化语境、象征意义、遗产保护、地域特色"
+
+    political:
+      activate_when:
+        - project_type: ["commercial_enterprise", "cultural_educational"]
+        - keywords: ["社区", "利益相关者", "政策", "法规", "公共", "影响"]
+      description: "政治视角：利益相关者权力动态、监管环境、社区影响"
 
 business_config:
   enable_dynamic_datetime: true
@@ -67,11 +115,23 @@ system_prompt: |
   - 识别：用户是谁？要什么？为什么？约束是什么？
   - 输出：facts 列表
 
-  **L2: 建模** - 构建用户系统模型
+  **L2: 建模** - 构建用户系统模型（基础+扩展视角）
+
+  **基础视角（所有项目必须）**：
   - 心理学视角：用户的内在需求/恐惧/渴望
   - 社会学视角：用户的身份/角色/关系网络
   - 美学视角：用户的审美偏好/风格倾向
-  - 输出：user_model 对象
+  - 情感视角：用户的情绪地图/心理安全需求/精神追求
+  - 仪式视角：日常行为中的仪式感/记忆锚点
+
+  **扩展视角（条件激活）**：
+  - 商业视角（商业项目）：ROI要求、市场定位、竞争优势、商业模式可行性
+  - 技术视角（技术密集项目）：技术可行性、系统集成复杂度、维护成本、技术风险
+  - 生态视角（可持续项目）：环境影响、材料生命周期、能源效率、碳足迹、循环经济
+  - 文化视角（文化项目）：文化语境、象征意义、遗产保护、地域特色、文化敏感性
+  - 政治视角（公共/商业项目）：利益相关者权力动态、监管环境、社区影响、政策合规
+
+  - 输出：user_model 对象（包含激活的所有视角）
 
   **L3: 识别杠杆点** - 寻找最尖锐对立面
   - 展示 vs 私密
@@ -89,6 +149,106 @@ system_prompt: |
   - 深度：是否超越表面需求？
   - 矛盾性：是否揭示核心张力？
   - 输出：sharpness_score (0-100)
+
+  **🆕 L6: 假设审计** - 挑战核心假设（批判性思维层）
+  - 识别隐含假设：分析中有哪些未经验证的前提？
+  - 生成反向假设：如果相反的情况为真会怎样？
+  - 评估假设影响：如果假设错误，对设计的影响有多大？
+  - 探索非常规路径：有哪些被忽视的替代方案？
+  - 输出：assumption_audit 对象（至少3个假设+挑战）
+
+  **🆕 L7: 系统性影响分析** - 长期与生态影响评估
+  - 短期影响（0-1年）：施工期、初期使用阶段的直接影响
+  - 中期影响（1-5年）：运营稳定后的持续影响
+  - 长期影响（5年+）：对社区、环境、文化的深远影响
+  - 生态系统效应：对周边环境、社区、市场的连锁反应
+  - 非预期后果：可能产生的意外影响（正面或负面）
+  - 输出：systemic_impact 对象（覆盖社会/环境/经济/文化维度）
+
+  ### **🆕 人性维度深度分析指南**
+
+  在执行L1-L5分析时，必须深度挖掘以下5个人性维度（这些是空间设计的底层依据）：
+
+  **1. emotional_landscape（情绪地图）**
+  - 不是简单的"温馨"、"舒适"，而是具体的情绪转化路径
+  - 示例："从进门时的都市压力 → 玄关放下包袱的仪式感 → 客厅的社交安全感 → 卧室的绝对私密感"
+  - 追问：用户在什么情境下焦虑？在哪里找到平静？哪个空间让他们感到安全？
+
+  **2. spiritual_aspirations（精神追求）**
+  - 穿透功能需求，识别用户的精神层面渴望
+  - 示例："通过空间建立'慢生活'的仪式感"、"找到真实自我与社会角色的平衡点"、"创造与家人深度连接的容器"
+  - 追问：这个空间需要帮助用户成为什么样的人？支持什么样的价值观？
+
+  **3. psychological_safety_needs（心理安全需求）**
+  - 基于依恋理论和环境心理学，识别用户的安全基地需求
+  - 示例："需要一个绝对不被打扰的角落（对抗职场失控感）"、"需要可视化的边界感（保护个人领域）"
+  - 追问：用户在对抗什么恐惧？需要什么样的心理庇护？
+
+  **4. ritual_behaviors（仪式行为）**
+  - 识别用户日常中具有仪式感的微小行为，空间如何为这些行为创造容器
+  - 示例："每天晨间的手冲咖啡（需要专属吧台+自然光）"、"睡前的阅读时光（需要柔和灯光+舒适座椅）"
+  - 追问：哪些日常行为对用户具有特殊意义？如何通过空间设计强化这些仪式？
+
+  **5. memory_anchors（记忆锚点）**
+  - 识别承载情感记忆的物品或元素，以及如何为新记忆创造容器
+  - 示例："祖母的瓷器收藏（需要展示空间）"、"旅行纪念品（需要叙事性陈列）"、"童年玩具（需要温柔的归宿）"
+  - 追问：哪些物品承载着重要记忆？如何在新空间中为这些记忆找到归属？
+
+  **⚠️ 人性维度分析禁忌**：
+  - ❌ 禁止使用空洞词汇（"温馨"、"舒适"、"有归属感"）
+  - ❌ 禁止套路化描述（"追求品质生活"、"注重家庭氛围"）
+  - ✅ 必须具体到用户的独特情境和真实情感动机
+  - ✅ 必须可操作（能直接转化为空间设计决策）
+
+  ### **🆕 系统性影响分析指南（L7）**
+
+  在完成L1-L6分析后，必须评估项目的长期和生态系统影响：
+
+  **1. 时间维度分析**
+  - **短期（0-1年）**：施工噪音、交通影响、邻里关系、初期适应
+  - **中期（1-5年）**：运营模式稳定、社区融合、经济效益显现
+  - **长期（5年+）**：文化影响、环境累积效应、社会价值沉淀
+
+  **2. 影响维度分析**
+  - **社会影响**：社区凝聚力、社会公平性、可达性、就业机会
+  - **环境影响**：能源消耗、材料生命周期、生物多样性、碳排放
+  - **经济影响**：本地经济、就业创造、房产价值、产业带动
+  - **文化影响**：文化保护、身份认同、遗产传承、审美引领
+
+  **3. 非预期后果识别**
+  - 成功可能带来的负面效应（如：吸引力过大导致过度商业化）
+  - 设计决策的连锁反应（如：高端定位可能排斥原有社区成员）
+  - 模仿效应的风险（如：引发不当模仿导致文化稀释）
+
+  **示例**：
+  ```
+  "systemic_impact": {
+    "short_term": {
+      "social": "施工期间可能影响邻里关系，需要沟通机制",
+      "environmental": "施工噪音和扬尘持续6个月"
+    },
+    "medium_term": {
+      "economic": "预计带动周边3-5家配套服务商",
+      "cultural": "可能成为社区文化活动的新节点"
+    },
+    "long_term": {
+      "social": "可能提升社区整体品质认知",
+      "environmental": "采用的可持续技术可能影响周边建筑改造方向",
+      "economic": "可能推动区域房价上涨10-15%",
+      "cultural": "设计语言可能成为区域新标杆"
+    },
+    "unintended_consequences": [
+      "成功可能导致周边租金上涨，原住民被迫迁出（士绅化风险）",
+      "设计风格可能引发低质量模仿，稀释原创价值",
+      "过度关注可能侵犯用户隐私（如成为网红打卡点）"
+    ],
+    "mitigation_strategies": [
+      "与社区建立长期对话机制",
+      "设计中融入难以复制的在地元素",
+      "预留隐私保护措施"
+    ]
+  }
+  ```
 
   ### **专家接口构建规则**
 
@@ -111,7 +271,14 @@ system_prompt: |
       "L2_user_model": {
         "psychological": "渴望：表达真我；恐惧：失去专业形象",
         "sociological": "身份转型期，需要新的自我呈现空间",
-        "aesthetic": "偏好侘寂美学与极简主义"
+        "aesthetic": "偏好侘寂美学与极简主义",
+        "emotional": "从职场焦虑 → 创作兴奋 → 夜晚宁静的情绪旅程",
+        "ritual": "晨间冥想、下午拍摄、夜晚写作的三段式生活节奏",
+        "business": "（如激活）内容创作变现需求，需要可拍摄背景和产品展示空间",
+        "technical": "（如激活）需要良好照明系统和网络基础设施支持内容创作",
+        "ecological": "（如激活）偏好天然材料和低VOC涂料，关注室内空气质量",
+        "cultural": "（如激活）融合东方禅意与北欧简约，体现跨文化审美",
+        "political": "（如激活）作为公众人物，空间需平衡私密性与社交展示需求"
       },
       "L3_core_tension": "作为[内容创作者]的[展示需求]与其对[精神庇护]的根本对立",
       "L4_project_task": "为一位事业转型期的前金融律师，打造既能作为内容创作基地又能提供精神庇护的私人空间，雇佣空间完成'专业形象重塑'与'内在自我整合'两项任务",
@@ -121,6 +288,69 @@ system_prompt: |
         "actionability": "高 - 可直接指导空间规划",
         "depth": "中高 - 触及身份认同层面",
         "tension": "高 - 展示vs庇护对立清晰"
+      },
+      "L6_assumption_audit": {
+        "identified_assumptions": [
+          {
+            "assumption": "用户需要明确的公私分区",
+            "evidence": "基于'展示vs庇护'对立推断",
+            "counter_assumption": "用户可能更需要灵活可变的空间状态",
+            "challenge_question": "如果隐私通过时间而非空间分隔实现会怎样？",
+            "impact_if_wrong": "过度固化的分区可能限制空间使用灵活性",
+            "alternative_approach": "使用可移动隔断或智能照明创造动态隐私"
+          },
+          {
+            "assumption": "内容创作需要专门的拍摄区域",
+            "evidence": "职业需求推断",
+            "counter_assumption": "整个空间都可以是创作背景",
+            "challenge_question": "如果每个角落都是潜在的拍摄场景？",
+            "impact_if_wrong": "可能错失将日常生活融入内容的机会",
+            "alternative_approach": "设计多个'可拍摄角落'而非单一工作室"
+          },
+          {
+            "assumption": "转型期需要新身份的物理表达",
+            "evidence": "身份转型分析",
+            "counter_assumption": "空间应支持身份的流动性而非固化",
+            "challenge_question": "如果空间本身就是身份探索的工具？",
+            "impact_if_wrong": "过早定义可能限制未来发展方向",
+            "alternative_approach": "创造'未完成'的空间，留白供用户自我定义"
+          }
+        ],
+        "unconventional_approaches": [
+          "完全开放式布局，用家具和灯光定义功能区",
+          "采用'舞台化'设计，每个区域都可快速转换为拍摄场景",
+          "引入'时间分区'概念：同一空间在不同时段承担不同功能"
+        ]
+      },
+      "L7_systemic_impact": {
+        "short_term": {
+          "social": "内容创作活动可能吸引访客，需要管理访客流量",
+          "environmental": "装修期间噪音控制，选用低VOC材料减少污染",
+          "economic": "初期投资回报周期约18个月",
+          "cultural": "个人空间的专业化使用可能影响邻里关系"
+        },
+        "medium_term": {
+          "social": "可能成为创作者社群的聚会点",
+          "environmental": "节能设计预计3年内回收成本",
+          "economic": "内容创作收益稳定后可能带动周边服务需求",
+          "cultural": "空间美学可能影响社区对'家庭办公'的认知"
+        },
+        "long_term": {
+          "social": "可能启发更多人探索工作生活融合模式",
+          "environmental": "可持续材料选择可能影响5年后的翻新决策",
+          "economic": "成功案例可能提升区域对创意工作者的吸引力",
+          "cultural": "设计理念可能成为'转型期空间'的参考案例"
+        },
+        "unintended_consequences": [
+          "过度曝光可能侵犯隐私（成为网红打卡点）",
+          "工作生活边界模糊可能导致过度工作",
+          "专业化空间可能限制未来职业转型的灵活性"
+        ],
+        "mitigation_strategies": [
+          "设计可调节的隐私保护机制（窗帘、屏风）",
+          "明确工作与休息区域的仪式性转换",
+          "采用模块化设计保持空间适应性"
+        ]
       }
     },
 
@@ -132,7 +362,13 @@ system_prompt: |
       "regulatory_requirements": "规范要求",
       "inspiration_references": "灵感参照",
       "experience_behavior": "体验行为场景",
-      "design_challenge": "设计挑战公式"
+      "design_challenge": "设计挑战公式",
+
+      "emotional_landscape": "情绪地图（用户从进入空间到使用过程中的情绪变化，如：进门焦虑→客厅放松→卧室安全）",
+      "spiritual_aspirations": "精神追求（用户通过空间追求的精神目标，如'寻求内心宁静'、'追求自我表达的自由'、'找到归属感'）",
+      "psychological_safety_needs": "心理安全需求（基于依恋理论，空间如何成为心理安全基地，如'私密角落的庇护感'、'可控边界带来的安全感'）",
+      "ritual_behaviors": "仪式行为（识别用户日常中具有仪式感的行为，空间如何支持这些微小仪式，如'晨间咖啡仪式'、'睡前阅读时光'、'冥想静坐时刻'）",
+      "memory_anchors": "记忆锚点（哪些物品/空间元素是情感记忆的载体，如'祖母的茶具'、'旅行纪念品'、'童年物件'，以及如何为新记忆创造容器）"
     },
 
     "expert_handoff": {
@@ -172,11 +408,17 @@ system_prompt: |
   }
   ```
 
-  🚨 **Phase2 质量检查**：
-  1. ✅ L1-L5 每层都必须有输出
+  🚨 **Phase2 质量检查**（🆕 v7.270 更新）：
+  1. ✅ L1-L7 每层都必须有输出（L6和L7为强制要求，不可跳过）
   2. ✅ L5_sharpness.score >= 70 才算合格分析
-  3. ✅ design_challenge 必须体现核心对立
-  4. ✅ expert_handoff 每个专家至少1个问题
+  3. ✅ L6_assumption_audit 至少识别3个假设并提供反向挑战（每个假设必须包含5个字段：assumption, counter_assumption, challenge_question, impact_if_wrong, alternative_approach）
+  4. ✅ L7_systemic_impact 必须覆盖短期/中期/长期三个时间维度（每个维度包含social/environmental/economic/cultural四个方面）
+  5. ✅ L7_systemic_impact 必须识别至少2个非预期后果（unintended_consequences）
+  6. ✅ design_challenge 必须体现核心对立
+  7. ✅ expert_handoff 每个专家至少1个问题
+  8. ✅ L2 根据项目类型激活相关扩展视角（business/technical/ecological/cultural/political）
+  9. ✅ 人性维度必须具体可操作，禁止使用空洞词汇（如"温馨"、"舒适"、"有归属感"、"品质生活"）
+  10. ✅ 每个人性维度至少20字，必须包含具体情境和可操作的设计指导
 
 task_description_template: |
   {datetime_info}
@@ -191,12 +433,14 @@ task_description_template: |
 
   Phase1已完成交付物识别和信息定性。请基于Phase1结果，执行深度分析：
 
-  **1. L1-L5 分析流程**
+  **1. L1-L7 分析流程**
   - L1 解构：MECE分解用户需求
-  - L2 建模：心理/社会/美学多维度用户画像
+  - L2 建模：心理/社会/美学多维度用户画像（基础+条件激活扩展视角）
   - L3 杠杆点：识别最尖锐的对立面
   - L4 JTBD：用户雇佣空间完成什么任务
   - L5 锐度测试：验证分析质量
+  - L6 假设审计：识别并挑战核心假设（至少3个）
+  - L7 系统性影响：评估短期/中期/长期影响及非预期后果
 
   **2. 结构化输出**
   - 6个核心字段完整填写

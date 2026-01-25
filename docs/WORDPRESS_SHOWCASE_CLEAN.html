@@ -1,0 +1,125 @@
+<!--
+===========================================
+精选案例展示 - 纯净版 v1.0
+===========================================
+100% inline样式 + CSS Grid
+零外部依赖，完全隔离WordPress CSS
+===========================================
+-->
+
+<div id="showcase-root" style="max-width: 1200px; margin: 40px auto; padding: 0 20px;">
+    <!-- 标题 -->
+    <h2 style="text-align: center; font-size: 32px; margin: 0 0 15px 0; padding: 0; color: #333;">
+        🌟 精选案例展示
+    </h2>
+    <p style="text-align: center; color: #666; margin: 0 0 40px 0; padding: 0; font-size: 16px;">
+        探索我们为客户打造的优秀设计方案
+    </p>
+
+    <!-- 卡片网格容器 -->
+    <div id="showcase-grid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; margin: 0; padding: 0;">
+        <!-- 加载中 -->
+        <div style="grid-column: 1 / -1; text-align: center; padding: 60px 20px; margin: 0; color: #999;">
+            <div style="display: inline-block; width: 40px; height: 40px; border: 4px solid #f3f3f3; border-top: 4px solid #667eea; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+            <p style="margin: 15px 0 0 0; padding: 0; font-size: 14px;">加载中...</p>
+        </div>
+    </div>
+</div>
+
+<!-- 旋转动画 -->
+<style>
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+</style>
+
+<!-- 主脚本 -->
+<script>
+(function() {
+    // 配置
+    const API_URL = 'http://localhost:8000';
+    const FRONTEND_URL = 'http://localhost:3001';  // ⚠️ 3000端口被Milvus Attu占用
+
+    // 获取数据并渲染
+    fetch(`${API_URL}/api/showcase/featured`)
+        .then(res => res.json())
+        .then(data => {
+            console.log('📦 API返回数据:', data);
+
+            const grid = document.getElementById('showcase-grid');
+            if (!data.featured_sessions || data.featured_sessions.length === 0) {
+                grid.innerHTML = '<div style="grid-column: 1 / -1; text-align: center; padding: 60px 20px; color: #999; margin: 0;">暂无精选案例</div>';
+                return;
+            }
+
+            console.log('📊 会话数量:', data.featured_sessions.length);
+
+            // 生成卡片
+            grid.innerHTML = data.featured_sessions.map(session => {
+                // 获取session ID（兼容多种字段名）
+                const sessionId = session.session_id || session.id || session.uuid;
+
+                // 构建报告链接
+                const reportUrl = `${FRONTEND_URL}/analysis/${sessionId}`;
+
+                // 从API返回的concept_image字段获取图片URL（如果存在）
+                // 否则使用默认路径
+                const imageUrl = session.concept_image && session.concept_image.url
+                    ? `${API_URL}${session.concept_image.url}`
+                    : `${API_URL}/generated_images/${sessionId}/concept_map.png`;
+
+                console.log('🔍 会话信息:', {
+                    sessionId: sessionId,
+                    imageUrl: imageUrl,
+                    has_concept_image: !!session.concept_image
+                });
+
+                return `
+                    <div style="background: #fff; border-radius: 12px; overflow: hidden; box-shadow: 0 8px 30px rgba(0,0,0,0.12); transition: all 0.4s; display: flex; flex-direction: column; cursor: pointer; margin: 0; padding: 0;"
+                         onclick="window.open('${reportUrl}', '_blank')"
+                         onmouseover="this.style.transform='translateY(-12px)'; this.style.boxShadow='0 16px 50px rgba(102,126,234,0.25)';"
+                         onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 8px 30px rgba(0,0,0,0.12)';">
+                        <div style="width: 100%; height: 280px; overflow: hidden; position: relative; background: #f5f5f5; margin: 0; padding: 0; display: block;">
+                            <img src="${imageUrl}" alt="${session.user_input || '案例'}" loading="lazy"
+                                 style="width: 100%; height: 280px; object-fit: cover; transition: transform 0.6s; margin: 0; padding: 0; display: block;"
+                                 onload="console.log('✅ 图片加载成功 [${sessionId}]'); this.nextElementSibling.style.display='none';"
+                                 onmouseover="if(this.style.display !== 'none') this.style.transform='scale(1.08)';"
+                                 onmouseout="if(this.style.display !== 'none') this.style.transform='scale(1)';"
+                                 onerror="console.error('❌ 图片加载失败:', '${imageUrl}'); this.style.display='none'; this.nextElementSibling.style.display='flex'; this.nextElementSibling.style.zIndex='2';">
+                            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; color: white; position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 0;">
+                                <div style="font-size: 48px; margin: 0 0 10px 0;">🎨</div>
+                                <div style="font-size: 14px; opacity: 0.9; margin: 0;">ID: ${sessionId}</div>
+                            </div>
+                        </div>
+                        <div style="padding: 24px; flex: 1; display: flex; flex-direction: column; margin: 0;">
+                            <p style="color: #666; font-size: 15px; line-height: 1.7; margin: 0 0 16px 0; padding: 0; flex: 1; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;">
+                                ${session.user_input || '暂无描述'}
+                            </p>
+                            <div style="display: flex; align-items: center; justify-content: space-between; padding: 18px 0 0 0; border-top: 1px solid #f0f0f0; margin: 0;">
+                                ${session.analysis_mode === 'deep_thinking' ? `
+                                <span style="display: inline-flex; align-items: center; gap: 4px; padding: 4px 12px; background: linear-gradient(135deg, #a855f7, #ec4899); color: white; border-radius: 12px; font-size: 11px; font-weight: 600; margin: 0;">
+                                    🧠 深度思考
+                                </span>
+                                ` : '<span></span>'}
+                                <a href="${reportUrl}" target="_blank" onclick="event.stopPropagation()"
+                                   style="color: #667eea; text-decoration: none; font-size: 14px; font-weight: 500; margin: 0; padding: 0;"
+                                   onmouseover="this.style.color='#764ba2'; this.style.textDecoration='underline';"
+                                   onmouseout="this.style.color='#667eea'; this.style.textDecoration='none';">
+                                    查看详情 →
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            console.log('✅ 精选展示加载成功');
+        })
+        .catch(err => {
+            const grid = document.getElementById('showcase-grid');
+            grid.innerHTML = '<div style="grid-column: 1 / -1; text-align: center; padding: 60px 20px; margin: 0; color: #ff4444;"><p style="font-size: 18px; margin: 0 0 12px 0; padding: 0; font-weight: 500; color: #333;">加载失败</p><p style="font-size: 14px; margin: 0 0 20px 0; padding: 0; color: #999;">' + err.message + '</p><button onclick="location.reload()" style="margin: 0; padding: 10px 24px; background: #667eea; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px;">刷新重试</button></div>';
+            console.error('❌ 精选展示加载失败:', err);
+        });
+})();
+</script>

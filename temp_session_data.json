@@ -1,0 +1,19 @@
+[32m2026-01-17 10:02:26.982[0m | [34m[1mDEBUG   [0m | [36mintelligent_project_analyzer.services.session_archive_manager[0m:[36m_enable_wal_mode[0m:[36m193[0m - [34m[1m✓ WAL 模式已启用[0m
+[32m2026-01-17 10:02:26.984[0m | [34m[1mDEBUG   [0m | [36mintelligent_project_analyzer.services.session_archive_manager[0m:[36m_verify_and_migrate_schema[0m:[36m254[0m - [34m[1m✓ Schema验证通过：user_id列已存在[0m
+[32m2026-01-17 10:02:26.984[0m | [1mINFO    [0m | [36mintelligent_project_analyzer.services.session_archive_manager[0m:[36m__init__[0m:[36m159[0m - [1m✅ 会话归档管理器已初始化: sqlite:///d:\11-20\langgraph-design\data\archived_sessions.db[0m
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+    from intelligent_project_analyzer.services.session_archive_manager import SessionArchiveManager; import json; mgr = SessionArchiveManager(); data = mgr.get_archived_session('search-20260116-4d3c36cbad30'); print(json.dumps(data, indent=2, ensure_ascii=False) if data else 'Session not found in archive')
+                                                                                                                                                                                                                        ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\ProgramData\anaconda3\Lib\json\__init__.py", line 238, in dumps
+    **kw).encode(obj)
+          ~~~~~~^^^^^
+  File "C:\ProgramData\anaconda3\Lib\json\encoder.py", line 200, in encode
+    chunks = self.iterencode(o, _one_shot=True)
+  File "C:\ProgramData\anaconda3\Lib\json\encoder.py", line 261, in iterencode
+    return _iterencode(o, 0)
+  File "C:\ProgramData\anaconda3\Lib\json\encoder.py", line 180, in default
+    raise TypeError(f'Object of type {o.__class__.__name__} '
+                    f'is not JSON serializable')
+TypeError: Object of type coroutine is not JSON serializable
+<sys>:0: RuntimeWarning: coroutine 'SessionArchiveManager.get_archived_session' was never awaited

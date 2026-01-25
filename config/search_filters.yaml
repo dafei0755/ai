@@ -1,0 +1,547 @@
+blacklist:
+  domains:
+  - example-spam.com
+  - low-quality-ads.net
+  - https://www.shejiben.com/
+  - https://www.to8to.com/
+  - https://www.loupan.com/
+  - https://logo.zx.zbj.com/
+  - https://www.0411hd.com/
+  - https://www.zbj.com/
+  - https://www.zx123.cn/
+  - https://zpg.com.cn/
+  - https://www.scxblzs.com/
+  - https://www.scxblzs.com
+  - https://www.cnblogs.com/
+  - shj.cn
+  - https://www.cnpp.cn
+  - liebiao.com/
+  - https://www.bthome.com
+  - sina.cn
+  - https://www.11467.com/
+  
+  # ================== v7.199 优化: 文档分享平台（按质量分级） ==================
+  # 低质量文档站（广告多、内容差）- 保留黑名单
+  - docin.com            # 豆丁网（广告多）
+  - taodocs.com          # 淘豆网
+  - wenkuxiazai.com      # 文库下载
+  - wendangwang.com      # 文档王
+  - dugen.com            # 读根网
+  - glzy8.com            # 管理资源吧
+  - wenmi.com            # 文秘网
+  - wm114.cn             # 文秘114
+  - zgdoc.com            # 中国文档网
+  # v7.199: 以下站点移至灰名单（有价值但需谨慎）
+  # - doc88.com          # 道客巴巴 - 移至灰名单
+  # - renrendoc.com      # 人人文库 - 移至灰名单
+  # - book118.com        # 原创力文档 - 移至灰名单
+  # - max.book118.com    # 原创力文档 - 移至灰名单
+  - wenku.baidu.com      # 百度文库（需登录，体验差）
+  - ishare.iask.sina.com.cn  # 新浪爱问
+  
+  # ================== v7.174 新增: 低质量设计案例站 ==================
+  # SEO导流为主，内容肤浅，营销性强
+  - zhuangxiuzhishi.com  # 装修知识网
+  - jiaozhuangxiu.com    # 叫装修
+  - zxzhijia.com         # 装修之家
+  - xiugei.com           # 秀给网
+  - xiaoguotu.com        # 效果图网
+  - shejiguan.com        # 设计馆
+  - shejibaike.com       # 设计百科
+  - zhuangxiuxiaoguotu.com  # 装修效果图
+  - jiazhuang.com        # 家装网
+  - meilijia.com         # 美丽家
+  - yihaojiaju.com       # 一号家居
+  - 360doc.com           # 360个人图书馆（广告多）
+  - 360doc.cn            # 360文档
+  
+  # ================== v7.174 新增: 新闻软文聚合站 ==================
+  # 非专业来源，多为软文/广告/转载
+  - baijiahao.com        # 百家号
+  # v7.199: sohu.com 移至灰名单（有行业新闻价值）
+  # - sohu.com             # 搜狐
+  - 163.com              # 网易
+  - qq.com               # 腾讯
+  # v7.199: toutiao.com 移至灰名单（有时效性内容）
+  # - toutiao.com          # 今日头条
+  - thepaper.cn          # 澎湃新闻（非设计专业）
+  - jiemian.com          # 界面新闻
+  - 36kr.com             # 36氪（科技为主）
+  - huxiu.com            # 虎嗅
+  
+  # ================== 装修平台营销站 ==================
+  # 综合装修平台（SEO导流为主）
+  - qizuang.com          # 齐装网
+  - 17house.com          # 一起装修网
+  - to8to.com            # 土巴兔
+  - zhuangyi.com         # 装一网
+  - xtuan.com            # 新浪装修抢工长
+  - bzw315.com           # 保障网
+  - jiuzheng.com         # 九正建材网
+  - fuwo.com             # 福窝
+  - zxdyw.com            # 装修第一网
+  - jiazhuang6.com       # 家装网
+  - 365azw.com           # 365爱装网
+  - tobosu.com           # 图堡网
+  - tugou.com            # 土购网
+  - youjuke.com          # 优居客
+  - zxzhijia.com         # 装修之家
+  - zx58.cn              # 装修58
+  - shejiguan.com        # 设计馆
+  - shejishuo.com        # 设计说
+  - zxgs.cn              # 装修公司网
+  - sjq315.com           # 设计圈
+  - zhuangxiu.com        # 装修网
+  - bieshu.com           # 别墅网
+  - whjzw.net            # 武汉家装网
+  - huarunzs.com         # 华润装饰
+  - hnhzxx.cn            # 河南装修
+  - shjhtzs.cn           # 上海装修
+  
+  # ================== 家居建材营销站 ==================
+  # 家具家居平台
+  - meilele.com          # 美乐乐
+  - jiaju.com            # 家具网
+  - jiajumi.com          # 家居迷
+  - homekoo.com          # 尚品宅配
+  - haoliv.com           # 好居网
+  - jieju.cn             # 洁具网
+  - jiancai.com          # 建材网
+  - jc001.cn             # 九正建材
+  - bmlink.com           # 建材链
+  - chinabm.cn           # 中国建材网
+  - zsezt.com            # 中山装饰网
+  
+  # 家电/科技营销站
+  - pchouse.com.cn       # 太平洋家居
+  - yesky.com            # 天极网
+  - pconline.com.cn      # 太平洋电脑网
+  - zol.com.cn           # 中关村在线
+  - it168.com            # IT168
+  
+  # 设计软件/工具营销
+  - kujiale.com          # 酷家乐（软件营销）
+  - shejijia.com         # 设计家
+  - banjiajia.com        # 搬家家
+  
+  # ================== 房产/楼盘营销站 ==================
+  - loupan.com           # 楼盘网
+  - fang.com             # 房天下
+  - anjuke.com           # 安居客
+  - lianjia.com          # 链家
+  - ke.com               # 贝壳
+  - 5i5j.com             # 我爱我家
+  - centanet.com         # 中原地产
+  - sofang.com           # 搜房网
+  - house365.com         # 365地产
+  - newhouse.com.cn      # 新房网
+  - focus.cn             # 焦点房产
+  
+  # ================== 低质量内容聚合站 ==================
+  # 分类信息平台
+  - 58.com               # 58同城
+  - ganji.com            # 赶集网
+  - baixing.com          # 百姓网
+  - liepin.com           # 猎聘
+  
+  # 点评/社区平台（内容质量参差）
+  - dianping.com         # 大众点评
+  - dazhong.com          # 大众网
+  - douban.com           # 豆瓣
+  # v7.199: zhihu.com 移至灰名单（有专业讨论价值）
+  # - zhihu.com            # 知乎（广告多）
+  - tianya.cn            # 天涯
+  - mop.com              # 猫扑
+  
+  # 新闻/资讯聚合（软文多）
+  - 163.com              # 网易
+  - qq.com               # 腾讯
+  - toutiao.com          # 今日头条
+  - uc.cn                # UC头条
+  - yidian.com           # 一点资讯
+  - qutoutiao.net        # 趣头条
+  
+  # ================== 百度系营销产品 ==================
+  - tieba.baidu.com      # 百度贴吧
+  - zhidao.baidu.com     # 百度知道
+  - wenku.baidu.com      # 百度文库
+  - baijiahao.baidu.com  # 百家号
+  - jingyan.baidu.com    # 百度经验
+  - baike.baidu.com      # 百度百科
+  - mip.baidu.com        # 百度MIP
+  - baijiahao.com        # 百家号
+  
+  # ================== 门户/财经软文站 ==================
+  # v7.199: sohu.com 移至灰名单
+  # - sohu.com             # 搜狐
+  - ifeng.com            # 凤凰网
+  - sina.com.cn          # 新浪
+  - eastmoney.com        # 东方财富
+  - hexun.com            # 和讯
+  - yidoutang.com        # 一兜糖
+  - pcbaby.com.cn        # 太平洋亲子
+  - 7y7.com              # 七丽女性网
+  
+  # ================== 排行榜/评测营销站 ==================
+  - maigoo.com           # 买购网
+  - china-10.com         # 中国十大品牌网
+  - chinapp.com          # 中国品牌网
+  - phb123.com           # 排行榜123
+  - top10.com.cn         # 十大品牌网
+  - brandcn.com          # 品牌中国
+  - paihang360.com       # 排行360
+  - pinpai.com           # 品牌网
+  
+  # ================== 招商加盟/B2B平台 ==================
+  - 1688.com             # 阿里巴巴
+  - alibaba.com          # 阿里国际
+  - made-in-china.com    # 中国制造网
+  - hc360.com            # 慧聪网
+  - globrand.com         # 全球品牌网
+  - jiameng.com          # 加盟网
+  - 91jm.com             # 91加盟
+  - shang360.com         # 商360
+  - 3158.cn              # 3158招商
+  - u88.cn               # U88加盟
+  - 78.cn                # 78创业
+  - f600.cn              # 前景加盟
+  - liansuo.com          # 连锁网
+  - canyin.com           # 餐饮加盟
+  
+  # ================== 威客/外包平台 ==================
+  - zbj.com              # 猪八戒
+  - epwk.com             # 一品威客
+  - vikecn.com           # 威客中国
+  - taskcn.com           # 任务中国
+  - 680.com              # 时间财富
+  
+  # ================== 企业黄页/信息站 ==================
+  - 11467.com            # 顺企网
+  - cnlist.org           # 中国企业录
+  - yellowurl.cn         # 黄页88
+  - qy6.com              # 企业名录
+  - ynshangji.com        # 云商机
+  - huangye88.com        # 黄页88
+  - b2b168.com           # B2B商务网
+  - cntrades.com         # 中国贸易网
+  
+  # ================== 问答/知识平台（软文多）==================
+  - wukong.com           # 悟空问答
+  - babytree.com         # 宝宝树
+  - yaolan.com           # 摇篮网
+  - mama.cn              # 妈妈网
+  - 39.net               # 39健康网
+  - familydoctor.com.cn  # 家庭医生
+  
+  # ================== 地方门户/装修 ==================
+  - 0731zhuangxiu.com    # 长沙装修
+  - sjzrzw.com           # 石家庄装修
+  - hfzxw.com            # 合肥装修
+  - xazxw.com            # 西安装修
+  - njzxw.com            # 南京装修
+  - szzxw.com            # 深圳装修
+  - gzzxw.com            # 广州装修
+  - bjzxw.com            # 北京装修
+  - shzxw.com            # 上海装修
+  - hzzxw.com            # 杭州装修
+  - cdzxw.com            # 成都装修
+  - wzzxw.com            # 温州装修
+  
+  # ================== 搜狐焦点/地方房产 ==================
+  - focus.cn             # 搜狐焦点
+  - m.focus.cn           # 手机搜狐焦点
+  - cd.focus.cn          # 成都搜狐焦点
+  - nb.focus.cn          # 宁波焦点
+  - zg.focus.cn          # 自贡焦点
+  - lz.focus.cn          # 泸州焦点
+  - house.focus.cn       # 搜狐焦点房产
+  
+  # ================== 地方房产门户 ==================
+  - nbfdc.com.cn         # 宁波房地产门户
+  - nbhouse.com          # 宁波房产网
+  - jiwu.com             # 吉屋网
+  - cdjiwu.com           # 成都吉屋网
+  - newhouse.com.cn      # 新房网
+  - fang365.com          # 房365
+  - house.china.com.cn   # 中华网房产
+  
+  # ================== 问卷/调研平台 ==================
+  - wjx.cn               # 问卷星
+  - wjx.top              # 问卷星
+  - sojump.com           # 问卷星
+  - surveymonkey.com     # SurveyMonkey
+  - wenjuan.com          # 问卷网
+  - jinshuju.net         # 金数据
+  
+  # ================== 职场/社交平台 ==================
+  - maimai.cn            # 脉脉
+  - linkedin.com         # 领英
+  - liepin.com           # 猎聘
+  - zhaopin.com          # 智联招聘
+  - 51job.com            # 前程无忧
+  - lagou.com            # 拉勾
+  
+  # ================== 健康/医疗营销站 ==================
+  - 9telecom.com         # 九松健康网
+  - jiusongjk.com        # 九松健康
+  - 120ask.com           # 快速问医生
+  - xywy.com             # 寻医问药
+  - haodf.com            # 好大夫
+  
+  # ================== 装修案例/设计营销站 ==================
+  - qijia.com            # 齐家网
+  - jia.com              # 家居网
+  - zuimei.com           # 最美装修
+  - zuimeizx.com         # 最美装修
+  - shejiben.com         # 设计本
+  - zhusu.net            # 住塑网
+  - shenghuojia.com      # 生活家装饰
+  - icolor.com.cn        # 爱彩装饰
+  - youfang.com          # 优房网
+  
+  # ================== 报告库/文档平台 ==================
+  - taibaobaogao.com     # 太保报告库
+  - docin.com            # 豆丁网
+  - doc88.com            # 道客巴巴
+  - ishare.iask.sina.com.cn  # 新浪爱问
+  - mbalib.com           # MBA智库
+  - ixueshu.com          # 爱学术
+  
+  # ================== 其他营销/低质量站 ==================
+  - lanfangchain.com     # 兰房链
+  - zhusu.com            # 筑巢网
+  - zhuchaojian.com      # 筑巢奖官网（营销）
+  - m.sohu.com           # 手机搜狐网
+  - 3g.163.com           # 手机网易
+  - mini.eastday.com     # 东方头条
+  - kandian.qq.com       # 看点快报
+  - kuaibao.qq.com       # 天天快报
+  
+  # ================== 官方/政务类（非专业设计） ==================
+  - zjwxb.gov.cn         # 浙江网信网
+  - cyberspace.gov.cn    # 网信办
+  
+  # ================== 新闻媒体（软文/非专业内容） ==================
+  - huanqiu.com          # 环球时报
+  - globaltimes.cn       # 环球时报英文
+  - people.com.cn        # 人民网
+  - chinanews.com        # 中国新闻网
+  - china.com.cn         # 中华网
+  - china.com            # 中华网
+  - haiwainet.cn         # 海外网
+  - news.ifeng.com       # 凤凰新闻
+  - fashion.ifeng.com    # 凤凰时尚
+  - news.163.com         # 网易新闻
+  - 3g.163.com           # 手机网易
+  - dy.163.com           # 网易号
+  - m.163.com            # 手机网易
+  - news.sina.com.cn     # 新浪新闻
+  - k.sina.com.cn        # 新浪看点
+  - tech.sina.com.cn     # 新浪科技
+  - finance.sina.com.cn  # 新浪财经
+  - cj.sina.com.cn       # 新浪财经
+  
+  # ================== 教育/课程营销站 ==================
+  - huke88.com           # 虎课网
+  - imooc.com            # 慕课网（营销）
+  - study.163.com        # 网易云课堂
+  - ke.qq.com            # 腾讯课堂
+  - chuanke.com          # 传课
+  - xuetangx.com         # 学堂在线
+  - bilibili.com         # B站（非专业设计）
+  
+  # ================== 地方论坛/社区 ==================
+  - 19lou.com            # 19楼
+  - jx.19lou.com         # 嘉兴19楼
+  - nb.19lou.com         # 宁波19楼
+  - hz.19lou.com         # 杭州19楼
+  - bbs.tianya.cn        # 天涯论坛
+  - club.kdnet.net       # 凯迪社区
+  - bbs.sina.com.cn      # 新浪论坛
+  
+  # ================== 法律/咨询类（非专业设计） ==================
+  - lawtime.cn           # 法律快车
+  - 66law.cn             # 华律网
+  - findlaw.cn           # 找法网
+  - 110.com              # 110法律咨询
+  - 64365.com            # 律图
+  
+  # ================== 奢侈品/消费营销 ==================
+  - tcxpxx.com           # 同城奢侈品信息网
+  - secoo.com            # 寺库
+  - xiu.com              # 走秀网
+  - vip.com              # 唯品会
+  - jd.com               # 京东
+  - taobao.com           # 淘宝
+  - tmall.com            # 天猫
+  
+  # ================== 设计公司官网（营销） ==================
+  - gezhe.com            # 戈者设计
+  - shenghuojia.com      # 生活家装饰
+  - dongyi.com           # 东易日盛
+  - yenova.com           # 业之峰
+  - boloni.com           # 博洛尼
+  - cityhome.cn          # 城市家装
+  - longfazs.com         # 龙发装饰
+  - jindianzs.com        # 金典装饰
+  
+  patterns:
+  - '*.spam-domain.com'
+  - ads-*.example.net
+  regex: null
+  notes:
+    example-spam.com: 2026-01-04 添加 - 内容质量差，广告过多
+    low-quality-ads.net: 2026-01-04 添加 - 垃圾内容聚合站
+    https://www.shejiben.com/: 设计本，营销类
+    https://www.to8to.com/: 低水平
+    https://www.loupan.com/: 楼盘网，非专业
+    https://logo.zx.zbj.com/: 猪八戒，非专业
+    https://www.0411hd.com/: 低水平
+    https://www.zbj.com/: 非专业网站
+    https://www.zx123.cn/: 非专业网站
+    https://zpg.com.cn/: 非专业
+    https://www.scxblzs.com/: 非专业
+    https://www.scxblzs.com: 非专业
+    https://www.cnblogs.com/: 非专业
+    shj.cn: 非专业
+whitelist:
+  domains:
+  # ================== v7.174: 学术数据库（最高优先级） ==================
+  - cnki.net             # 中国知网
+  - wanfangdata.com.cn   # 万方数据
+  - cqvip.com            # 维普
+  - arxiv.org            # arXiv预印本
+  - scholar.google.com   # 谷歌学术
+  - xueshu.baidu.com     # 百度学术
+  - researchgate.net     # ResearchGate
+  - academia.edu         # Academia
+  - sciencedirect.com    # ScienceDirect
+  - springer.com         # Springer
+  - wiley.com            # Wiley
+  - nature.com           # Nature
+  - science.org          # Science
+  - ieee.org             # IEEE
+  - acm.org              # ACM
+  - jstor.org            # JSTOR
+  
+  # ================== 设计专业权威站点 ==================
+  - archdaily.com        # ArchDaily国际版
+  - archdaily.cn         # ArchDaily中文版
+  - dezeen.com           # Dezeen
+  - designboom.com       # Designboom
+  - architizer.com       # Architizer
+  - interiordesign.net   # Interior Design Magazine
+  - gooood.cn            # 谷德设计网
+  - archcollege.com      # 建筑学院
+  - aia.org              # 美国建筑师协会
+  - riba.org             # 英国皇家建筑师学会
+  - pinterest.com        # Pinterest
+  - behance.net          # Behance
+  - nngroup.com          # Nielsen Norman Group
+  - ideo.com             # IDEO
+  - frogdesign.com       # Frog Design
+  
+  # ================== v7.200: 新增设计/技术权威站点 ==================
+  - medium.com           # 技术博客平台
+  - dribbble.com         # 设计作品社区
+  - awwwards.com         # 网页设计评选
+  - uxdesign.cc          # UX设计专业媒体
+  - smashingmagazine.com # 前端设计杂志
+  - figma.com            # 设计工具官网
+  - sketch.com           # 设计工具官网
+  - adobe.com            # Adobe官网
+  - invisionapp.com      # 设计工具官网
+  - core77.com           # 工业设计媒体
+  - hospitalitydesign.com # 酒店设计专业媒体
+  - hoteldesign.com      # 酒店设计资讯
+  - hospitalitynet.org   # 酒店行业资讯
+  - tophotel.cn          # 酒店设计中文网
+  - shangri-la.com       # 香格里拉官网
+  - hilton.com           # 希尔顿官网
+  - marriott.com         # 万豪官网
+  - hyatt.com            # 凯悦官网
+  
+  # ================== 项目官网 ==================
+  - https://www.ucppt.com/
+  - https://www.archdaily.cn/
+  - https://www.cnki.net/
+  
+  patterns:
+  - '*.edu.cn'           # 中国教育机构
+  - '*.edu'              # 国际教育机构
+  - '*.ac.uk'            # 英国学术机构
+  - '*.ac.cn'            # 中国科学院
+  - '*.gov.cn'           # 中国政府
+  - '*.gov'              # 政府机构
+  
+  regex: null
+  
+  # v7.200: 提升白名单加分（从0.4提升到0.45）
+  boost_score: 0.45
+  
+  notes:
+    cnki.net: 中国知网，最权威的中文学术数据库
+    arxiv.org: 全球最大的预印本论文库
+    archdaily.com: 全球最大建筑设计媒体，内容权威
+    gooood.cn: 谷德设计网，中文设计资源优质
+    medium.com: 技术博客平台，专业文章质量较高
+    hospitalitydesign.com: 酒店设计专业媒体，酒店项目首选
+    https://www.ucppt.com/: 设计知外
+    https://www.archdaily.cn/: ArchDaily中文版
+    https://www.cnki.net/: 中国知网
+# ================== v7.199 新增: 灰名单（条件性过滤） ==================
+# 灰名单站点：有一定价值但质量参差，根据查询类型动态决定是否过滤
+graylist:
+  domains:
+    # 文档分享平台（学术/专业查询时保留）
+    - doc88.com            # 道客巴巴 - 有学术论文
+    - renrendoc.com        # 人人文库 - 有专业文档
+    - book118.com          # 原创力文档 - 有行业报告
+    - max.book118.com      # 原创力文档
+    - m.book118.com        # 原创力文档移动版
+    # 新闻聚合（时效性查询时保留）
+    - sohu.com             # 搜狐 - 有行业新闻
+    - toutiao.com          # 今日头条 - 有时效性内容
+    # 问答平台（概念解释查询时保留）
+    - zhihu.com            # 知乎 - 有专业讨论
+
+  # 灰名单生效条件：当查询不包含以下关键词时过滤
+  preserve_keywords:
+    - 论文
+    - 研究
+    - 报告
+    - 分析
+    - 学术
+    - 行业
+    - 趋势
+    - 案例
+    - 设计
+    - 方案
+    - 改造
+    - 酒店
+    - 建筑
+
+  notes:
+    doc88.com: "道客巴巴 - 有学术论文和行业报告，专业查询时保留"
+    renrendoc.com: "人人文库 - 有专业文档，设计类查询时保留"
+    book118.com: "原创力文档 - 有行业报告，分析类查询时保留"
+    sohu.com: "搜狐 - 有行业新闻，时效性查询时保留"
+    zhihu.com: "知乎 - 有专业讨论，概念解释查询时保留"
+
+metadata:
+  version: 7.199.0
+  last_updated: '2026-01-10T20:00:00.000000'
+  updated_by: system
+  changelog:
+    - "v7.199: 新增灰名单机制，支持查询类型感知过滤"
+    - "v7.199: 将doc88/renrendoc/book118从黑名单移至灰名单"
+    - "v7.199: 优化文档站点分级策略"
+scope:
+  tools:
+  - tavily
+  - serper
+  - bocha
+  enabled: true
+  priority: blacklist_first
+  # v7.199: 灰名单默认启用
+  graylist_enabled: true
