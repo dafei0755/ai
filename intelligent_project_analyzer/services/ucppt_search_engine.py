@@ -1,11 +1,11 @@
 ﻿"""
-ucppt 深度迭代搜索引擎 (v7.276)
+ucppt 深度迭代搜索引擎 (v7.270)
 
 实现 ucppt 范式的"目标导向探索引擎"：
 
-v7.276 更新（恢复 DeepSeek reasoner 思考过程）：
-- 模型恢复：从 OpenAI 切换回 DeepSeek reasoner（通过 OpenRouter）
-- 思考过程：恢复 reasoning_content 字段，用户可以看到完整思考过程
+v7.270 更新（切换到 OpenAI GPT-4o）：
+- 模型切换：使用 OpenAI GPT-4o（通过 OpenRouter）
+- 思考流限制：OpenAI 不支持 reasoning_content 字段，思考流功能不可用
 - 统一 API：使用 OPENROUTER_API_KEYS 进行所有 LLM 调用
 - 可配置模型：通过 UCPPT_THINKING_MODEL 和 UCPPT_EVAL_MODEL 环境变量自定义
 
@@ -167,11 +167,11 @@ MAX_EXTENSION_ROUNDS = 3        # 最大延展轮次（控制延展深度）
 MAX_PARALLEL_MAINLINES = 4      # 最大并行主线数（避免 API 限流）
 EXTENSION_COVERAGE_THRESHOLD = 0.80  # 触发延展的覆盖度阈值
 
-# 模型配置 - v7.276 恢复 DeepSeek reasoner（通过 OpenRouter）
-# 使用 DeepSeek reasoner 获取思考过程（reasoning_content）
-THINKING_MODEL = os.getenv("UCPPT_THINKING_MODEL", "deepseek/deepseek-reasoner")  # DeepSeek：思考模式（有 reasoning_content）
-EVAL_MODEL = os.getenv("UCPPT_EVAL_MODEL", "deepseek/deepseek-chat")     # DeepSeek：评估模式
-SYNTHESIS_MODEL = "openai/gpt-4o"              # OpenRouter：答案生成
+# 模型配置 - v7.270 切换到 OpenAI GPT-4o（通过 OpenRouter）
+# 注意: OpenAI 不支持 reasoning_content，思考流功能不可用
+THINKING_MODEL = os.getenv("UCPPT_THINKING_MODEL", "openai/gpt-4o")  # OpenAI GPT-4o：思考模式（无 reasoning_content）
+EVAL_MODEL = os.getenv("UCPPT_EVAL_MODEL", "openai/gpt-4o")          # OpenAI GPT-4o：评估模式
+SYNTHESIS_MODEL = "openai/gpt-4o"                                     # OpenAI GPT-4o：答案生成
 
 # v7.195: 网页内容深度提取配置
 DEEP_CONTENT_EXTRACTION_ENABLED = os.getenv("DEEP_CONTENT_EXTRACTION_ENABLED", "true").lower() == "true"
@@ -188,7 +188,7 @@ SEARCH_QUALITY_LLM_FILTER = os.getenv("SEARCH_QUALITY_LLM_FILTER", "true").lower
 SEARCH_MIN_QUALITY_SOURCES = int(os.getenv("SEARCH_MIN_QUALITY_SOURCES", "3"))
 SEARCH_SUPPLEMENT_MAX_RETRIES = int(os.getenv("SEARCH_SUPPLEMENT_MAX_RETRIES", "3"))
 
-# OpenRouter API 配置（v7.276 恢复 DeepSeek reasoner）
+# OpenRouter API 配置（v7.270 OpenAI GPT-4o）
 OPENROUTER_API_BASE_URL = os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
 
 
@@ -1735,42 +1735,45 @@ class UcpptSearchResult:
     total_execution_time: float = 0.0
 
 
-# ==================== v7.214: DeepSeek 分析引擎（v7.276 恢复 reasoning_content）====================
+# ==================== v7.270: LLM 分析引擎（使用 OpenAI GPT-4o）====================
 
-class DeepSeekAnalysisEngine:
-    """DeepSeek 分析引擎 - v7.276 恢复使用 DeepSeek reasoner 以获取思考过程"""
-    
+class LLMAnalysisEngine:
+    """LLM 分析引擎 - v7.270 使用 OpenAI GPT-4o（通过 OpenRouter）
+
+    注意: OpenAI 不支持 reasoning_content，思考流功能不可用
+    """
+
     def __init__(self):
-        self.thinking_model = THINKING_MODEL  # deepseek/deepseek-reasoner
-        self.eval_model = EVAL_MODEL          # deepseek/deepseek-chat
+        self.thinking_model = THINKING_MODEL  # openai/gpt-4o
+        self.eval_model = EVAL_MODEL          # openai/gpt-4o
         self.quality_threshold = 0.75
         self.openrouter_api_key = os.getenv("OPENROUTER_API_KEY", "")
         self.openrouter_base_url = OPENROUTER_API_BASE_URL
-        
+
         if not self.openrouter_api_key:
-            logger.warning("⚠️ [DeepSeek Analysis] OPENROUTER_API_KEY 未配置")
-    
-    async def _deepseek_call(
+            logger.warning("⚠️ [LLM Analysis] OPENROUTER_API_KEY 未配置")
+
+    async def _llm_call(
         self,
         prompt: str,
         model: str = None,
         max_tokens: int = 4000,
         temperature: float = 0.7
     ) -> Optional[str]:
-        """DeepSeek API 调用（通过 OpenRouter）- v7.276 恢复"""
+        """LLM API 调用（通过 OpenRouter）- v7.270 使用 OpenAI GPT-4o"""
         if not self.openrouter_api_key:
-            logger.error("❌ [DeepSeek Analysis] OPENROUTER_API_KEY 未配置")
+            logger.error("❌ [LLM Analysis] OPENROUTER_API_KEY 未配置")
             return None
-        
+
         model = model or self.thinking_model
         
         try:
             import httpx
             
-            logger.info(f" [DeepSeek Analysis] 开始API调用 | model={model} | max_tokens={max_tokens}")
+            logger.info(f" [LLM Analysis] 开始API调用 | model={model} | max_tokens={max_tokens}")
             start_time = time.time()
             
-            # 缩短超时到120秒（DeepSeek reasoner 需要更长时间思考）
+            # 缩短超时到120秒（OpenAI GPT-4o 需要更长时间思考）
             async with httpx.AsyncClient(timeout=120.0) as client:
                 response = await client.post(
                     f"{self.openrouter_base_url}/chat/completions",
@@ -1790,35 +1793,35 @@ class DeepSeekAnalysisEngine:
                 )
                 
                 call_time = time.time() - start_time
-                logger.info(f"⏱️ [DeepSeek Analysis] API调用完成 | 耗时={call_time:.2f}秒")
+                logger.info(f"⏱️ [LLM Analysis] API调用完成 | 耗时={call_time:.2f}秒")
                 
                 if response.status_code == 200:
                     result = response.json()
                     message = result["choices"][0]["message"]
 
-                    # DeepSeek reasoner 返回 reasoning_content + content
+                    # OpenAI GPT-4o 返回 reasoning_content + content
                     reasoning_content = message.get("reasoning_content", "")
                     content = message.get("content", "")
                     
                     if reasoning_content:
-                        logger.info(f" [DeepSeek Analysis] 获得思考过程 | 长度={len(reasoning_content)}字符")
+                        logger.info(f" [LLM Analysis] 获得思考过程 | 长度={len(reasoning_content)}字符")
                     
                     # 优先返回 content，reasoning_content 在流式调用中处理
                     final_content = content if content else reasoning_content
 
                     # 验证内容非空
                     if not final_content or not final_content.strip():
-                        logger.error(f"❌ [DeepSeek Analysis] API返回空内容 | model={model} | response={result}")
+                        logger.error(f"❌ [LLM Analysis] API返回空内容 | model={model} | response={result}")
                         return None
 
-                    logger.info(f"✅ [DeepSeek Analysis] 获得响应 | 长度={len(final_content)}字符")
+                    logger.info(f"✅ [LLM Analysis] 获得响应 | 长度={len(final_content)}字符")
                     return final_content
                 else:
-                    logger.error(f"❌ [DeepSeek Analysis] API调用失败: {response.status_code} | 响应: {response.text}")
+                    logger.error(f"❌ [LLM Analysis] API调用失败: {response.status_code} | 响应: {response.text}")
                     return None
         
         except asyncio.TimeoutError:
-            logger.error("⏰ [DeepSeek Analysis] API调用超时（120秒） - 启用快速备份策略")
+            logger.error("⏰ [LLM Analysis] API调用超时（120秒） - 启用快速备份策略")
             return {
                 "status": "timeout",
                 "error": "API调用超时，已启用备份搜索模式",
@@ -1826,8 +1829,8 @@ class DeepSeekAnalysisEngine:
             }
         except Exception as e:
             import traceback
-            logger.error(f"❌ [DeepSeek Analysis] API调用异常: {e}")
-            logger.error(f" [DeepSeek Analysis] 异常堆栈:\n{traceback.format_exc()}")
+            logger.error(f"❌ [LLM Analysis] API调用异常: {e}")
+            logger.error(f" [LLM Analysis] 异常堆栈:\n{traceback.format_exc()}")
             return None
     
     async def execute_l0_dialogue(
@@ -1842,18 +1845,18 @@ class DeepSeekAnalysisEngine:
         logger.info(f" [L0 Debug] 构建prompt完成 | 长度={len(prompt)}字符")
         
         start_time = time.time()
-        logger.info(f" [L0 Debug] 准备调用_deepseek_call | model={self.thinking_model}")
-        raw_result = await self._deepseek_call(prompt, self.thinking_model)
+        logger.info(f" [L0 Debug] 准备调用_llm_call | model={self.thinking_model}")
+        raw_result = await self._llm_call(prompt, self.thinking_model)
         execution_time = time.time() - start_time
-        logger.info(f"⏱️ [L0 Debug] _deepseek_call完成 | 耗时={execution_time:.2f}秒 | 有结果={raw_result is not None}")
+        logger.info(f"⏱️ [L0 Debug] _llm_call完成 | 耗时={execution_time:.2f}秒 | 有结果={raw_result is not None}")
         
         if not raw_result:
-            logger.error("❌ [L0 Debug] DeepSeek API调用失败，无结果")
+            logger.error("❌ [L0 Debug] LLM API调用失败，无结果")
             return None
 
         #  v7.215: 检测空响应
         if isinstance(raw_result, str) and not raw_result.strip():
-            logger.error("❌ [L0 Debug] DeepSeek API返回空字符串")
+            logger.error("❌ [L0 Debug] LLM API返回空字符串")
             return None
 
         logger.info(" [L0 Debug] 开始解析L0结果")
@@ -1871,7 +1874,7 @@ class DeepSeekAnalysisEngine:
         prompt = self._build_framework_prompt(query, l0_result)
         
         start_time = time.time()
-        raw_result = await self._deepseek_call(prompt, self.thinking_model)
+        raw_result = await self._llm_call(prompt, self.thinking_model)
         execution_time = time.time() - start_time
         
         if not raw_result:
@@ -1890,7 +1893,7 @@ class DeepSeekAnalysisEngine:
         prompt = self._build_synthesis_prompt(query, l0_result, framework_result)
         
         start_time = time.time()
-        raw_result = await self._deepseek_call(prompt, self.eval_model)  # 使用eval模型
+        raw_result = await self._llm_call(prompt, self.eval_model)  # 使用eval模型
         execution_time = time.time() - start_time
         
         if not raw_result:
@@ -2128,7 +2131,7 @@ class DeepSeekAnalysisEngine:
             )
             
         except Exception as e:
-            logger.error(f"❌ [DeepSeek Analysis] L0结果解析失败: {e}")
+            logger.error(f"❌ [LLM Analysis] L0结果解析失败: {e}")
             # 降级处理
             return L0DialogueResult(
                 phase=AnalysisPhase.L0_DIALOGUE,
@@ -2200,7 +2203,7 @@ class DeepSeekAnalysisEngine:
             )
             
         except Exception as e:
-            logger.error(f"❌ [DeepSeek Analysis] L1-L5结果解析失败: {e}")
+            logger.error(f"❌ [LLM Analysis] L1-L5结果解析失败: {e}")
             # 降级处理
             return L1L5FrameworkResult(
                 phase=AnalysisPhase.L1_L5_FRAMEWORK,
@@ -2281,7 +2284,7 @@ class DeepSeekAnalysisEngine:
             )
             
         except Exception as e:
-            logger.error(f"❌ [DeepSeek Analysis] 综合结果解析失败: {e}")
+            logger.error(f"❌ [LLM Analysis] 综合结果解析失败: {e}")
             # 降级处理
             return SynthesisResult(
                 phase=AnalysisPhase.SYNTHESIS,
@@ -2330,7 +2333,7 @@ class UcpptSearchEngine:
         self.thinking_model = thinking_model
         self.eval_model = eval_model
         
-        # OpenRouter API 配置（v7.276 恢复 DeepSeek reasoner）
+        # OpenRouter API 配置（v7.270 OpenAI GPT-4o）
         openrouter_keys = os.getenv("OPENROUTER_API_KEYS", "")
         if openrouter_keys:
             self.openrouter_api_key = openrouter_keys.split(",")[0].strip()
@@ -2385,7 +2388,7 @@ class UcpptSearchEngine:
         self._verbose_regex = re.compile('|'.join(self._verbose_patterns), re.IGNORECASE)
 
         # v7.214: 结构化分析引擎和质量控制
-        self.deepseek_analysis_engine = DeepSeekAnalysisEngine()
+        self.llm_analysis_engine = LLMAnalysisEngine()
         self.quality_gates = {}  # 质量门控管理
         self.analysis_session = None  # 当前分析会话
 
@@ -2463,8 +2466,8 @@ class UcpptSearchEngine:
         try:
             # === 阶段 1: L0 对话式分析 ===
             logger.info(" [L0 阶段] 执行对话式用户分析")
-            logger.info(" [v7.214 Debug] 准备调用deepseek_analysis_engine.execute_l0_dialogue")
-            l0_result = await self.deepseek_analysis_engine.execute_l0_dialogue(query, context)
+            logger.info(" [v7.214 Debug] 准备调用llm_analysis_engine.execute_l0_dialogue")
+            l0_result = await self.llm_analysis_engine.execute_l0_dialogue(query, context)
             logger.info(f" [v7.214 Debug] L0阶段返回结果: {l0_result is not None}")
             
             if not l0_result:
@@ -2484,7 +2487,7 @@ class UcpptSearchEngine:
             
             # === 阶段 2: L1-L5 深度框架分析 ===
             logger.info(" [L1-L5 阶段] 执行深度理论分析")
-            framework_result = await self.deepseek_analysis_engine.execute_l1_l5_framework(
+            framework_result = await self.llm_analysis_engine.execute_l1_l5_framework(
                 query, l0_result
             )
             
@@ -2504,7 +2507,7 @@ class UcpptSearchEngine:
             
             # === 阶段 3: 综合分析和搜索规划 ===
             logger.info(" [综合阶段] 生成搜索执行计划")
-            synthesis_result = await self.deepseek_analysis_engine.execute_synthesis(
+            synthesis_result = await self.llm_analysis_engine.execute_synthesis(
                 query, l0_result, framework_result
             )
             
@@ -2856,10 +2859,10 @@ class UcpptSearchEngine:
 ]
 ```"""
             
-            # 调用 DeepSeek 评估模型
-            response = await self.deepseek_analysis_engine._deepseek_call(
+            # 调用 LLM 评估模型
+            response = await self.llm_analysis_engine._llm_call(
                 prompt, 
-                self.deepseek_analysis_engine.eval_model,
+                self.llm_analysis_engine.eval_model,
                 max_tokens=2000
             )
             
@@ -3285,7 +3288,7 @@ class UcpptSearchEngine:
                     "data": {
                         "stage": "starting",
                         "stage_name": "深度分析启动",
-                        "message": "正在启动 DeepSeek 深度推理引擎...",
+                        "message": "正在启动 LLM 深度推理引擎...",
                         "estimated_time": 180,
                         "current_step": 0,
                         "total_steps": 3,
@@ -4525,7 +4528,7 @@ class UcpptSearchEngine:
         full_content = ""
 
         try:
-            async for chunk in self._call_deepseek_stream_with_reasoning(
+            async for chunk in self._call_llm_stream_with_reasoning(
                 prompt,
                 model=self.thinking_model,
                 max_tokens=3000  # v7.270: 增加token限制以容纳解题思路
@@ -6285,9 +6288,9 @@ L3张力: {json.dumps(analysis_excerpt["l3_tension"], ensure_ascii=False)[:300]}
 
         try:
             # 使用chat模型而非reasoning模型，成本更低
-            result = await self._call_deepseek(
+            result = await self._call_llm(
                 refinement_prompt,
-                model="deepseek-chat",  # 非reasoning模型
+                model="openai/gpt-4o",  # 非reasoning模型
                 max_tokens=1500
             )
             
@@ -6699,7 +6702,7 @@ L3张力: {json.dumps(analysis_excerpt["l3_tension"], ensure_ascii=False)[:300]}
         max_tokens: int = 1000,
     ) -> AsyncGenerator[Dict[str, Any], None]:
         """
-        调用 OpenRouter API（流式）- v7.276 恢复 DeepSeek
+        调用 OpenRouter API（流式）- v7.270 OpenAI
         """
         if not self.openrouter_api_key:
             logger.warning("⚠️ OpenRouter API Key 未配置")
@@ -6759,7 +6762,7 @@ L3张力: {json.dumps(analysis_excerpt["l3_tension"], ensure_ascii=False)[:300]}
         full_content = ""
         
         try:
-            async for chunk in self._call_deepseek_stream_with_reasoning(prompt, model=self.thinking_model, max_tokens=1500):
+            async for chunk in self._call_llm_stream_with_reasoning(prompt, model=self.thinking_model, max_tokens=1500):
                 if chunk.get("type") == "reasoning":
                     reasoning_text = chunk.get("content", "")
                     full_reasoning += reasoning_text
@@ -6805,7 +6808,7 @@ L3张力: {json.dumps(analysis_excerpt["l3_tension"], ensure_ascii=False)[:300]}
         full_content = ""
 
         try:
-            async for chunk in self._call_deepseek_stream_with_reasoning(prompt, model=self.thinking_model, max_tokens=1500):
+            async for chunk in self._call_llm_stream_with_reasoning(prompt, model=self.thinking_model, max_tokens=1500):
                 if chunk.get("type") == "reasoning":
                     reasoning_text = chunk.get("content", "")
                     full_reasoning += reasoning_text
@@ -7474,8 +7477,8 @@ L3张力: {json.dumps(analysis_excerpt["l3_tension"], ensure_ascii=False)[:300]}
 请只输出JSON。"""
 
         try:
-            # v7.187: 使用 DeepSeek 官方 API
-            result = await self._call_deepseek(prompt, model=self.thinking_model, max_tokens=1500)
+            # v7.187: 使用 OpenAI API (via OpenRouter)
+            result = await self._call_llm(prompt, model=self.thinking_model, max_tokens=1500)
             
             # v7.200: 使用统一 JSON 解析器
             data = self._safe_parse_json(result, context="非流式问题分析")
@@ -7644,8 +7647,8 @@ L3张力: {json.dumps(analysis_excerpt["l3_tension"], ensure_ascii=False)[:300]}
 只输出JSON。"""
 
         try:
-            # v7.187: 使用 DeepSeek 官方 API
-            result = await self._call_deepseek(prompt, model=self.thinking_model, max_tokens=600)
+            # v7.187: 使用 OpenAI API (via OpenRouter)
+            result = await self._call_llm(prompt, model=self.thinking_model, max_tokens=600)
             
             # v7.200: 使用统一 JSON 解析器
             data = self._safe_parse_json(result, context="叙事思考")
@@ -7687,7 +7690,7 @@ L3张力: {json.dumps(analysis_excerpt["l3_tension"], ensure_ascii=False)[:300]}
         """
         流式生成专家叙事思考 - v7.187 核心创新
         
-        流式输出 DeepSeek 的推理过程（reasoning_content），
+        流式输出 LLM 的推理过程（reasoning_content），
         让用户实时看到 AI 的思考过程。
         
         Yields:
@@ -7764,8 +7767,8 @@ L3张力: {json.dumps(analysis_excerpt["l3_tension"], ensure_ascii=False)[:300]}
         full_content = ""
         
         try:
-            # v7.187: 使用 DeepSeek 官方 API，支持 reasoning_content
-            async for chunk in self._call_deepseek_stream_with_reasoning(prompt, model=self.thinking_model, max_tokens=800):
+            # v7.187: 使用 OpenAI API (via OpenRouter)，支持 reasoning_content
+            async for chunk in self._call_llm_stream_with_reasoning(prompt, model=self.thinking_model, max_tokens=800):
                 if chunk.get("type") == "reasoning":
                     reasoning_text = chunk.get("content", "")
                     full_reasoning += reasoning_text
@@ -8025,8 +8028,8 @@ L3张力: {json.dumps(analysis_excerpt["l3_tension"], ensure_ascii=False)[:300]}
         full_content = ""
         
         try:
-            # 使用 DeepSeek 官方 API，支持 reasoning_content
-            async for chunk in self._call_deepseek_stream_with_reasoning(prompt, model=self.thinking_model, max_tokens=1200):
+            # 使用 OpenAI API (via OpenRouter)，支持 reasoning_content
+            async for chunk in self._call_llm_stream_with_reasoning(prompt, model=self.thinking_model, max_tokens=1200):
                 if chunk.get("type") == "reasoning":
                     reasoning_text = chunk.get("content", "")
                     full_reasoning += reasoning_text
@@ -8277,8 +8280,8 @@ L3张力: {json.dumps(analysis_excerpt["l3_tension"], ensure_ascii=False)[:300]}
 只输出JSON。"""
 
         try:
-            # v7.187: 使用 DeepSeek 官方 API
-            result = await self._call_deepseek(prompt, model=self.eval_model, max_tokens=1000)
+            # v7.187: 使用 OpenAI API (via OpenRouter)
+            result = await self._call_llm(prompt, model=self.eval_model, max_tokens=1000)
             
             # v7.200: 使用统一 JSON 解析器
             data = self._safe_parse_json(result, context="增强反思")
@@ -8411,8 +8414,8 @@ status可选值：missing（无有用信息）、partial（有部分信息）、
 只输出JSON。"""
 
         try:
-            # v7.187: 使用 DeepSeek 官方 API
-            result = await self._call_deepseek(prompt, model=self.eval_model, max_tokens=600)
+            # v7.187: 使用 OpenAI API (via OpenRouter)
+            result = await self._call_llm(prompt, model=self.eval_model, max_tokens=600)
             
             # v7.200: 使用统一 JSON 解析器
             data = self._safe_parse_json(result, context="推断式反思")
@@ -8534,7 +8537,7 @@ status可选值：missing（无有用信息）、partial（有部分信息）、
 只输出JSON，不要有其他内容。"""
 
         try:
-            result = await self._call_deepseek(prompt, model=self.eval_model, max_tokens=800)
+            result = await self._call_llm(prompt, model=self.eval_model, max_tokens=800)
             data = self._safe_parse_json(result, context="阶段复盘检查点(v7.213)")
             
             if data is None:
@@ -8657,7 +8660,7 @@ status可选值：missing（无有用信息）、partial（有部分信息）、
 只输出JSON，不要有其他内容。"""
 
         try:
-            result = await self._call_deepseek(prompt, model=self.eval_model, max_tokens=800)
+            result = await self._call_llm(prompt, model=self.eval_model, max_tokens=800)
             data = self._safe_parse_json(result, context="搜索历程回顾(v7.213)")
             
             if data is None:
@@ -8747,8 +8750,8 @@ status可选值：missing（无有用信息）、partial（有部分信息）、
 只输出JSON。"""
 
         try:
-            # v7.187: 使用 DeepSeek 官方 API
-            result = await self._call_deepseek(prompt, model=self.eval_model, max_tokens=300)
+            # v7.187: 使用 OpenAI API (via OpenRouter)
+            result = await self._call_llm(prompt, model=self.eval_model, max_tokens=300)
             
             # v7.200: 使用统一 JSON 解析器
             data = self._safe_parse_json(result, context="语义完成度判断")
@@ -8858,10 +8861,10 @@ status可选值：missing（无有用信息）、partial（有部分信息）、
 }}
 ```"""
 
-            # 调用 DeepSeek 进行智能扩展
-            result = await self.deepseek_analysis_engine._deepseek_call(
+            # 调用 LLM 进行智能扩展
+            result = await self.llm_analysis_engine._llm_call(
                 prompt, 
-                self.deepseek_analysis_engine.thinking_model,
+                self.llm_analysis_engine.thinking_model,
                 max_tokens=500
             )
             
@@ -9121,9 +9124,9 @@ status可选值：missing（无有用信息）、partial（有部分信息）、
 }}
 ```"""
             
-            result = await self.deepseek_analysis_engine._deepseek_call(
+            result = await self.llm_analysis_engine._llm_call(
                 prompt,
-                self.deepseek_analysis_engine.thinking_model,
+                self.llm_analysis_engine.thinking_model,
                 max_tokens=300
             )
             
@@ -9286,9 +9289,9 @@ JSON格式输出：
 }}
 ```"""
                 
-                result = await self.deepseek_analysis_engine._deepseek_call(
+                result = await self.llm_analysis_engine._llm_call(
                     context_prompt,
-                    self.deepseek_analysis_engine.thinking_model,
+                    self.llm_analysis_engine.thinking_model,
                     max_tokens=200
                 )
                 
@@ -10134,7 +10137,7 @@ JSON格式输出：
 只输出JSON。"""
 
         try:
-            result = await self._call_deepseek(prompt, model=self.eval_model, max_tokens=500)
+            result = await self._call_llm(prompt, model=self.eval_model, max_tokens=500)
             data = self._safe_parse_json(result, context="延展评估(v7.246)")
 
             if data is None:
@@ -10312,7 +10315,7 @@ JSON格式输出：
 只输出JSON。"""
 
         try:
-            result = await self._call_deepseek(prompt, model=self.eval_model, max_tokens=300)
+            result = await self._call_llm(prompt, model=self.eval_model, max_tokens=300)
             data = self._safe_parse_json(result, context="LLM来源过滤")
             
             if data is None:
@@ -10399,8 +10402,8 @@ status可选值：missing（没有有用信息）、partial（有部分有用信
 只输出JSON。"""
 
         try:
-            # v7.187: 使用 DeepSeek 官方 API
-            result = await self._call_deepseek(prompt, model=self.eval_model, max_tokens=500)
+            # v7.187: 使用 OpenAI API (via OpenRouter)
+            result = await self._call_llm(prompt, model=self.eval_model, max_tokens=500)
             
             # v7.200: 使用统一 JSON 解析器
             data = self._safe_parse_json(result, context="信息面更新")
@@ -10777,8 +10780,8 @@ status可选值：missing（没有有用信息）、partial（有部分有用信
 
 现在开始生成详细答案..."""
 
-            #  修复：使用DeepSeek Reasoner进行总结性思考流式输出
-            async for chunk in self._call_deepseek_stream_with_reasoning(thinking_prompt, model=THINKING_MODEL, max_tokens=1000):
+            #  修复：使用OpenAI GPT-4o进行总结性思考流式输出
+            async for chunk in self._call_llm_stream_with_reasoning(thinking_prompt, model=THINKING_MODEL, max_tokens=1000):
                 if chunk.get("type") == "reasoning":
                     yield {
                         "type": "answer_chunk",
@@ -10808,12 +10811,12 @@ status可选值：missing（没有有用信息）、partial（有部分有用信
     
     # ==================== LLM调用 ====================
     
-    # ==================== DeepSeek 官方 API 调用 ====================
+    # ==================== OpenAI API (via OpenRouter) 调用 ====================
     
     async def _call_llm_json(
         self,
         prompt: str,
-        model: str = "deepseek-chat",
+        model: str = "openai/gpt-4o",
         max_tokens: int = 2000,
     ) -> str:
         """
@@ -10821,7 +10824,7 @@ status可选值：missing（没有有用信息）、partial（有部分有用信
 
         用于第二步搜索框架生成等需要结构化输出的场景
         """
-        return await self._call_deepseek(prompt, model, max_tokens)
+        return await self._call_llm(prompt, model, max_tokens)
 
     def _generate_framework_checklist(
         self,
@@ -10859,13 +10862,13 @@ status可选值：missing（没有有用信息）、partial（有部分有用信
             generated_at=datetime.now().isoformat(),
         )
 
-    async def _call_deepseek(
+    async def _call_llm(
         self,
         prompt: str,
         model: str = None,
         max_tokens: int = 1024,
     ) -> str:
-        """调用 DeepSeek API（非流式）- v7.276 恢复"""
+        """调用 LLM API（非流式）- v7.270"""
         if not self.openrouter_api_key:
             raise ValueError("OPENROUTER_API_KEY 未配置")
         
@@ -10893,18 +10896,18 @@ status可选值：missing（没有有用信息）、partial（有部分有用信
             )
             response.raise_for_status()
             data = response.json()
-            # DeepSeek reasoner 可能返回 reasoning_content + content
+            # OpenAI GPT-4o 可能返回 reasoning_content + content
             message = data.get("choices", [{}])[0].get("message", {})
             content = message.get("content", "")
             return content if content else message.get("reasoning_content", "")
     
-    async def _call_deepseek_stream(
+    async def _call_llm_stream(
         self,
         prompt: str,
         model: str = None,
         max_tokens: int = 2000,
     ) -> AsyncGenerator[str, None]:
-        """调用 DeepSeek API（流式）- v7.276 恢复"""
+        """调用 LLM API（流式）- v7.270"""
         if not self.openrouter_api_key:
             yield "OPENROUTER_API_KEY 未配置"
             return
@@ -10958,19 +10961,19 @@ status可选值：missing（没有有用信息）、partial（有部分有用信
                                 except json.JSONDecodeError:
                                     continue
         except Exception as e:
-            logger.error(f"DeepSeek流式调用失败: {e}")
+            logger.error(f"LLM流式调用失败: {e}")
             yield f"[错误: {e}]"
     
-    async def _call_deepseek_stream_with_reasoning(
+    async def _call_llm_stream_with_reasoning(
         self,
         prompt: str,
         model: str = None,
         max_tokens: int = 2000,
     ) -> AsyncGenerator[Dict[str, Any], None]:
         """
-        调用 DeepSeek API（流式）- v7.276 恢复 reasoning_content
+        调用 LLM API（流式）- v7.270 (OpenAI 不支持 reasoning_content)
         
-        DeepSeek reasoner 返回两种内容：
+        OpenAI GPT-4o 返回两种内容：
         - reasoning_content: 思考过程（作为 "type": "reasoning" 返回）
         - content: 最终内容（作为 "type": "content" 返回）
         
@@ -11021,7 +11024,7 @@ status可选值：missing（没有有用信息）、partial（有部分有用信
                                     parsed = json.loads(data_str)
                                     delta = parsed.get("choices", [{}])[0].get("delta", {})
                                     
-                                    # DeepSeek reasoner 返回 reasoning_content（思考过程）
+                                    # OpenAI GPT-4o 返回 reasoning_content（思考过程）
                                     reasoning = delta.get("reasoning_content", "")
                                     if reasoning:
                                         yield {"type": "reasoning", "content": reasoning}
@@ -11034,7 +11037,7 @@ status可选值：missing（没有有用信息）、partial（有部分有用信
                                 except json.JSONDecodeError:
                                     continue
         except Exception as e:
-            logger.error(f"DeepSeek 流式调用失败: {e}")
+            logger.error(f"LLM 流式调用失败: {e}")
             yield {"type": "error", "content": str(e)}
     
     # ==================== OpenRouter API 调用 ====================
@@ -11053,7 +11056,7 @@ status可选值：missing（没有有用信息）、partial（有部分有用信
     def _get_model_name(self, model: str) -> str:
         """获取正确的模型名称"""
         if "openrouter" in self.openrouter_base_url.lower():
-            # DeepSeek 模型已经是正确格式
+            # LLM 模型已经是正确格式
             if "/" in model:
                 return model
             # OpenAI 模型需要添加前缀
@@ -11063,7 +11066,7 @@ status可选值：missing（没有有用信息）、partial（有部分有用信
     async def _call_llm(
         self,
         prompt: str,
-        model: str = "deepseek/deepseek-chat",
+        model: str = "openai/gpt-4o",
         max_tokens: int = 1024,
     ) -> str:
         """调用LLM（非流式）"""
@@ -11093,7 +11096,7 @@ status可选值：missing（没有有用信息）、partial（有部分有用信
     async def _call_llm_stream(
         self,
         prompt: str,
-        model: str = "deepseek/deepseek-chat",
+        model: str = "openai/gpt-4o",
         max_tokens: int = 2000,
     ) -> AsyncGenerator[str, None]:
         """调用LLM（流式）"""
@@ -11138,19 +11141,19 @@ status可选值：missing（没有有用信息）、partial（有部分有用信
                             except json.JSONDecodeError:
                                 continue
 
-    # ==================== v7.187: 支持 DeepSeek reasoning 的流式调用 ====================
+    # ==================== v7.187: 支持 LLM reasoning 的流式调用 ====================
     
     async def _call_llm_stream_with_reasoning(
         self,
         prompt: str,
-        model: str = "deepseek/deepseek-reasoner",
+        model: str = "openai/gpt-4o",
         max_tokens: int = 2000,
     ) -> AsyncGenerator[Dict[str, Any], None]:
         """
-        调用LLM（流式），支持 DeepSeek reasoning_content
+        调用LLM（流式），支持 LLM reasoning_content
         
         返回格式:
-        - {"type": "reasoning", "content": "..."}  # DeepSeek 的推理过程
+        - {"type": "reasoning", "content": "..."}  # LLM 的推理过程
         - {"type": "content", "content": "..."}    # 最终输出内容
         """
         if not self.openai_api_key:
@@ -11191,7 +11194,7 @@ status可选值：missing（没有有用信息）、partial（有部分有用信
                                     parsed = json.loads(data_str)
                                     delta = parsed.get("choices", [{}])[0].get("delta", {})
                                     
-                                    # DeepSeek-R1 返回 reasoning_content（思考过程）
+                                    # OpenAI 不返回 reasoning_content（思考过程）
                                     reasoning = delta.get("reasoning_content", "")
                                     if reasoning:
                                         yield {"type": "reasoning", "content": reasoning}
