@@ -4544,7 +4544,14 @@ class UcpptSearchEngine:
                             "content": filtered_text,
                         }
                 elif chunk.get("type") == "content":
-                    full_content += chunk.get("content", "")
+                    content_text = chunk.get("content", "")
+                    full_content += content_text
+                    # v7.270: OpenAI 的 content 也实时传递给前端
+                    if content_text.strip():
+                        yield {
+                            "type": "unified_dialogue_chunk",
+                            "content": content_text,
+                        }
 
             # 对话内容完成
             yield {
