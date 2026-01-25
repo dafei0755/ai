@@ -1,11 +1,17 @@
 ﻿"""
-ucppt 深度迭代搜索引擎 (v7.207)
+ucppt 深度迭代搜索引擎 (v7.276)
 
 实现 ucppt 范式的"目标导向探索引擎"：
 
+v7.276 更新（恢复 DeepSeek reasoner 思考过程）：
+- 模型恢复：从 OpenAI 切换回 DeepSeek reasoner（通过 OpenRouter）
+- 思考过程：恢复 reasoning_content 字段，用户可以看到完整思考过程
+- 统一 API：使用 OPENROUTER_API_KEYS 进行所有 LLM 调用
+- 可配置模型：通过 UCPPT_THINKING_MODEL 和 UCPPT_EVAL_MODEL 环境变量自定义
+
 v7.207 更新（L0+L1-L5 统一分析）：
 - 合并分析：将 L0 对话分析和 L1-L5 深度分析合并为单次 LLM 调用
-- 统一模型：使用 thinking_model (DeepSeek-Reasoner) 同时输出对话内容和结构化分析
+- 统一模型：使用 thinking_model (gpt-4o) 同时输出对话内容和结构化分析
 - 响应加速：从 2 次 LLM 调用减少到 1 次，预计节省 3-5 秒
 - 输出分流：thinking 内容作为对话输出，content 包含 JSON 框架
 - 事件简化：unified_analysis_chunk (对话), question_analyzed (框架)
@@ -161,10 +167,10 @@ MAX_EXTENSION_ROUNDS = 3        # 最大延展轮次（控制延展深度）
 MAX_PARALLEL_MAINLINES = 4      # 最大并行主线数（避免 API 限流）
 EXTENSION_COVERAGE_THRESHOLD = 0.80  # 触发延展的覆盖度阈值
 
-# 模型配置 - DeepSeek V3.2
-# DeepSeek 使用官方 API（更稳定），其他模型使用 OpenRouter
-THINKING_MODEL = "deepseek-reasoner"          # DeepSeek 官方 API：思考模式
-EVAL_MODEL = "deepseek-chat"                   # DeepSeek 官方 API：评估模式
+# 模型配置 - v7.276 恢复 DeepSeek reasoner（通过 OpenRouter）
+# 使用 DeepSeek reasoner 获取思考过程（reasoning_content）
+THINKING_MODEL = os.getenv("UCPPT_THINKING_MODEL", "deepseek/deepseek-reasoner")  # DeepSeek：思考模式（有 reasoning_content）
+EVAL_MODEL = os.getenv("UCPPT_EVAL_MODEL", "deepseek/deepseek-chat")     # DeepSeek：评估模式
 SYNTHESIS_MODEL = "openai/gpt-4o"              # OpenRouter：答案生成
 
 # v7.195: 网页内容深度提取配置
@@ -182,8 +188,8 @@ SEARCH_QUALITY_LLM_FILTER = os.getenv("SEARCH_QUALITY_LLM_FILTER", "true").lower
 SEARCH_MIN_QUALITY_SOURCES = int(os.getenv("SEARCH_MIN_QUALITY_SOURCES", "3"))
 SEARCH_SUPPLEMENT_MAX_RETRIES = int(os.getenv("SEARCH_SUPPLEMENT_MAX_RETRIES", "3"))
 
-# DeepSeek 官方 API 配置
-DEEPSEEK_BASE_URL = "https://api.deepseek.com/v1"
+# OpenRouter API 配置（v7.276 恢复 DeepSeek reasoner）
+OPENROUTER_API_BASE_URL = os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
 
 
 class SearchPhase(Enum):
@@ -1077,6 +1083,142 @@ class FrameworkChecklist:
         }
 
 
+# ==================== v7.270: 解题思路模块 ====================
+
+@dataclass
+class ProblemSolvingApproach:
+    """
+    解题思路模块 - v7.270 新增
+
+    第一步"需求理解与深度分析"的核心输出，位于L1-L5分析和搜索任务规划之间。
+    提供战术性思考指导，接近可执行级别（5-8步详细路径）。
+
+    设计原则：
+    1. 严格分离：此模块不包含任何搜索词或搜索任务规划
+    2. 战术级粒度：每步action具体到可执行级别
+    3. 无依赖关系：步骤之间不标注依赖关系
+    """
+    # === 任务本质识别 ===
+    task_type: str = ""                      # 任务类型: research/design/decision/exploration/verification
+    task_type_description: str = ""          # 任务类型详细描述
+    complexity_level: str = "moderate"       # 复杂度: simple/moderate/complex/highly_complex
+    required_expertise: List[str] = field(default_factory=list)  # 所需领域专业知识（3-5个）
+
+    # === 解题路径规划（战术级：5-8步详细路径，无依赖关系） ===
+    solution_steps: List[Dict[str, Any]] = field(default_factory=list)
+    # 每步结构: {
+    #   "step_id": "S1",
+    #   "action": "具体行动（如：提取HAY色彩系统）",
+    #   "purpose": "为什么需要这一步",
+    #   "expected_output": "这一步的预期产出"
+    # }
+
+    # === 关键突破口（1-3个） ===
+    breakthrough_points: List[Dict[str, str]] = field(default_factory=list)
+    # 每点结构: {"point": "...", "why_key": "...", "how_to_leverage": "..."}
+
+    # === 预期产出形态 ===
+    expected_deliverable: Dict[str, Any] = field(default_factory=lambda: {
+        "format": "",           # 格式: report/list/comparison/recommendation/plan
+        "sections": [],         # 必须包含的章节（5-8个）
+        "key_elements": [],     # 关键交付物
+        "quality_criteria": []  # 质量标准
+    })
+
+    # === 任务描述（保留原始） ===
+    original_requirement: str = ""           # 用户原始需求（原文）
+    refined_requirement: str = ""            # 结构化后的需求描述
+
+    # === 元数据 ===
+    confidence_score: float = 0.0            # 对此解题思路的置信度 (0-1)
+    alternative_approaches: List[str] = field(default_factory=list)  # 备选解题路径
+
+    def to_dict(self) -> Dict[str, Any]:
+        """转换为字典"""
+        return {
+            "task_type": self.task_type,
+            "task_type_description": self.task_type_description,
+            "complexity_level": self.complexity_level,
+            "required_expertise": self.required_expertise,
+            "solution_steps": self.solution_steps,
+            "breakthrough_points": self.breakthrough_points,
+            "expected_deliverable": self.expected_deliverable,
+            "original_requirement": self.original_requirement,
+            "refined_requirement": self.refined_requirement,
+            "confidence_score": self.confidence_score,
+            "alternative_approaches": self.alternative_approaches,
+        }
+
+    def to_plain_text(self) -> str:
+        """生成纯文字格式的解题思路（用于前端展示和后续prompt注入）"""
+        lines = []
+
+        # 任务本质
+        lines.append("## 任务本质")
+        lines.append(f"- 类型：{self.task_type_description}")
+        lines.append(f"- 复杂度：{self.complexity_level}")
+        if self.required_expertise:
+            lines.append(f"- 所需专业知识：{', '.join(self.required_expertise)}")
+        lines.append("")
+
+        # 解题路径
+        lines.append(f"## 解题路径（{len(self.solution_steps)}步）")
+        for step in self.solution_steps:
+            step_id = step.get("step_id", "")
+            action = step.get("action", "")
+            purpose = step.get("purpose", "")
+            expected = step.get("expected_output", "")
+            lines.append(f"**{step_id}**: {action}")
+            lines.append(f"   - 目的：{purpose}")
+            lines.append(f"   - 预期产出：{expected}")
+        lines.append("")
+
+        # 关键突破口
+        if self.breakthrough_points:
+            lines.append("## 关键突破口")
+            for bp in self.breakthrough_points:
+                lines.append(f"- **{bp.get('point', '')}**")
+                lines.append(f"  - 为什么关键：{bp.get('why_key', '')}")
+                lines.append(f"  - 如何利用：{bp.get('how_to_leverage', '')}")
+            lines.append("")
+
+        # 预期产出
+        if self.expected_deliverable:
+            lines.append("## 预期产出")
+            lines.append(f"- 格式：{self.expected_deliverable.get('format', '')}")
+            sections = self.expected_deliverable.get('sections', [])
+            if sections:
+                lines.append(f"- 章节：{', '.join(sections)}")
+            criteria = self.expected_deliverable.get('quality_criteria', [])
+            if criteria:
+                lines.append(f"- 质量标准：{', '.join(criteria)}")
+            lines.append("")
+
+        # 任务描述
+        lines.append("## 任务描述")
+        lines.append(f"- 原始需求：{self.original_requirement}")
+        lines.append(f"- 结构化需求：{self.refined_requirement}")
+
+        return "\n".join(lines)
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'ProblemSolvingApproach':
+        """从字典创建实例"""
+        return cls(
+            task_type=data.get("task_type", ""),
+            task_type_description=data.get("task_type_description", ""),
+            complexity_level=data.get("complexity_level", "moderate"),
+            required_expertise=data.get("required_expertise", []),
+            solution_steps=data.get("solution_steps", []),
+            breakthrough_points=data.get("breakthrough_points", []),
+            expected_deliverable=data.get("expected_deliverable", {}),
+            original_requirement=data.get("original_requirement", ""),
+            refined_requirement=data.get("refined_requirement", ""),
+            confidence_score=data.get("confidence_score", 0.0),
+            alternative_approaches=data.get("alternative_approaches", []),
+        )
+
+
 # ==================== v7.213: 框架性搜索任务主线（保留兼容） ====================
 
 @dataclass
@@ -1436,7 +1578,7 @@ class UnifiedThinkingResult:
     thinking_narrative: str = ""             # 思考叙事（自然语言）
     search_strategy: str = ""                # 搜索策略
     search_query: str = ""                   # 搜索查询
-    reasoning_content: str = ""              # DeepSeek 推理内容
+    reasoning_content: str = ""              # 推理内容（保留字段兼容）
     
     # === 全局校准 ===
     alignment_score: float = 0.0             # 与用户目标对齐度 0-1
@@ -1593,20 +1735,20 @@ class UcpptSearchResult:
     total_execution_time: float = 0.0
 
 
-# ==================== v7.214: DeepSeek 专用分析引擎 ====================
+# ==================== v7.214: DeepSeek 分析引擎（v7.276 恢复 reasoning_content）====================
 
 class DeepSeekAnalysisEngine:
-    """DeepSeek-Reasoner 专用分析引擎 - v7.214"""
+    """DeepSeek 分析引擎 - v7.276 恢复使用 DeepSeek reasoner 以获取思考过程"""
     
     def __init__(self):
-        self.thinking_model = "deepseek-reasoner"
-        self.eval_model = "deepseek-chat"
+        self.thinking_model = THINKING_MODEL  # deepseek/deepseek-reasoner
+        self.eval_model = EVAL_MODEL          # deepseek/deepseek-chat
         self.quality_threshold = 0.75
-        self.deepseek_api_key = os.getenv("DEEPSEEK_API_KEY", "")
-        self.deepseek_base_url = DEEPSEEK_BASE_URL
+        self.openrouter_api_key = os.getenv("OPENROUTER_API_KEY", "")
+        self.openrouter_base_url = OPENROUTER_API_BASE_URL
         
-        if not self.deepseek_api_key:
-            logger.warning("⚠️ [DeepSeek Analysis] DEEPSEEK_API_KEY 未配置")
+        if not self.openrouter_api_key:
+            logger.warning("⚠️ [DeepSeek Analysis] OPENROUTER_API_KEY 未配置")
     
     async def _deepseek_call(
         self,
@@ -1615,9 +1757,9 @@ class DeepSeekAnalysisEngine:
         max_tokens: int = 4000,
         temperature: float = 0.7
     ) -> Optional[str]:
-        """DeepSeek API 调用"""
-        if not self.deepseek_api_key:
-            logger.error("❌ [DeepSeek Analysis] API Key 未配置")
+        """DeepSeek API 调用（通过 OpenRouter）- v7.276 恢复"""
+        if not self.openrouter_api_key:
+            logger.error("❌ [DeepSeek Analysis] OPENROUTER_API_KEY 未配置")
             return None
         
         model = model or self.thinking_model
@@ -1625,16 +1767,18 @@ class DeepSeekAnalysisEngine:
         try:
             import httpx
             
-            logger.info(f"🚀 [DeepSeek Analysis] 开始API调用 | model={model} | max_tokens={max_tokens}")
+            logger.info(f" [DeepSeek Analysis] 开始API调用 | model={model} | max_tokens={max_tokens}")
             start_time = time.time()
             
-            # 缩短超时到60秒，快速失效避免长时间卡住
-            async with httpx.AsyncClient(timeout=60.0) as client:
+            # 缩短超时到120秒（DeepSeek reasoner 需要更长时间思考）
+            async with httpx.AsyncClient(timeout=120.0) as client:
                 response = await client.post(
-                    f"{self.deepseek_base_url}/chat/completions",
+                    f"{self.openrouter_base_url}/chat/completions",
                     headers={
-                        "Authorization": f"Bearer {self.deepseek_api_key}",
-                        "Content-Type": "application/json"
+                        "Authorization": f"Bearer {self.openrouter_api_key}",
+                        "Content-Type": "application/json",
+                        "HTTP-Referer": os.getenv("OPENROUTER_SITE_URL", "https://github.com/dafei0755/ai"),
+                        "X-Title": os.getenv("OPENROUTER_APP_NAME", "Intelligent Project Analyzer")
                     },
                     json={
                         "model": model,
@@ -1652,23 +1796,29 @@ class DeepSeekAnalysisEngine:
                     result = response.json()
                     message = result["choices"][0]["message"]
 
-                    # 🔧 v7.215: 修复 DeepSeek Reasoner 响应字段读取
-                    # deepseek-reasoner 返回 reasoning_content，deepseek-chat 返回 content
-                    content = message.get("reasoning_content") or message.get("content", "")
+                    # DeepSeek reasoner 返回 reasoning_content + content
+                    reasoning_content = message.get("reasoning_content", "")
+                    content = message.get("content", "")
+                    
+                    if reasoning_content:
+                        logger.info(f" [DeepSeek Analysis] 获得思考过程 | 长度={len(reasoning_content)}字符")
+                    
+                    # 优先返回 content，reasoning_content 在流式调用中处理
+                    final_content = content if content else reasoning_content
 
                     # 验证内容非空
-                    if not content or not content.strip():
+                    if not final_content or not final_content.strip():
                         logger.error(f"❌ [DeepSeek Analysis] API返回空内容 | model={model} | response={result}")
                         return None
 
-                    logger.info(f"✅ [DeepSeek Analysis] 获得响应 | 长度={len(content)}字符")
-                    return content
+                    logger.info(f"✅ [DeepSeek Analysis] 获得响应 | 长度={len(final_content)}字符")
+                    return final_content
                 else:
                     logger.error(f"❌ [DeepSeek Analysis] API调用失败: {response.status_code} | 响应: {response.text}")
                     return None
         
         except asyncio.TimeoutError:
-            logger.error("⏰ [DeepSeek Analysis] API调用超时（60秒） - 启用快速备份策略")
+            logger.error("⏰ [DeepSeek Analysis] API调用超时（120秒） - 启用快速备份策略")
             return {
                 "status": "timeout",
                 "error": "API调用超时，已启用备份搜索模式",
@@ -1677,7 +1827,7 @@ class DeepSeekAnalysisEngine:
         except Exception as e:
             import traceback
             logger.error(f"❌ [DeepSeek Analysis] API调用异常: {e}")
-            logger.error(f"📋 [DeepSeek Analysis] 异常堆栈:\n{traceback.format_exc()}")
+            logger.error(f" [DeepSeek Analysis] 异常堆栈:\n{traceback.format_exc()}")
             return None
     
     async def execute_l0_dialogue(
@@ -1687,12 +1837,12 @@ class DeepSeekAnalysisEngine:
     ) -> Optional[L0DialogueResult]:
         """L0 对话式分析 - 专注用户理解"""
         
-        logger.info("🔍 [L0 Debug] 开始execute_l0_dialogue方法")
+        logger.info(" [L0 Debug] 开始execute_l0_dialogue方法")
         prompt = self._build_l0_prompt(query, context or {})
-        logger.info(f"📝 [L0 Debug] 构建prompt完成 | 长度={len(prompt)}字符")
+        logger.info(f" [L0 Debug] 构建prompt完成 | 长度={len(prompt)}字符")
         
         start_time = time.time()
-        logger.info(f"🚀 [L0 Debug] 准备调用_deepseek_call | model={self.thinking_model}")
+        logger.info(f" [L0 Debug] 准备调用_deepseek_call | model={self.thinking_model}")
         raw_result = await self._deepseek_call(prompt, self.thinking_model)
         execution_time = time.time() - start_time
         logger.info(f"⏱️ [L0 Debug] _deepseek_call完成 | 耗时={execution_time:.2f}秒 | 有结果={raw_result is not None}")
@@ -1701,12 +1851,12 @@ class DeepSeekAnalysisEngine:
             logger.error("❌ [L0 Debug] DeepSeek API调用失败，无结果")
             return None
 
-        # 🔧 v7.215: 检测空响应
+        #  v7.215: 检测空响应
         if isinstance(raw_result, str) and not raw_result.strip():
             logger.error("❌ [L0 Debug] DeepSeek API返回空字符串")
             return None
 
-        logger.info("🔄 [L0 Debug] 开始解析L0结果")
+        logger.info(" [L0 Debug] 开始解析L0结果")
         result = self._parse_l0_result(raw_result, execution_time)
         logger.info(f"✅ [L0 Debug] L0结果解析完成 | 成功={result is not None}")
         return result
@@ -2180,23 +2330,16 @@ class UcpptSearchEngine:
         self.thinking_model = thinking_model
         self.eval_model = eval_model
         
-        # DeepSeek 官方 API 配置（thinking_model 和 eval_model 使用）
-        self.deepseek_api_key = os.getenv("DEEPSEEK_API_KEY", "")
-        self.deepseek_base_url = DEEPSEEK_BASE_URL
-        if self.deepseek_api_key:
-            logger.info("🧠 [Ucppt v7.187] DeepSeek 官方 API 已配置")
-        else:
-            logger.warning("⚠️ [Ucppt v7.187] DEEPSEEK_API_KEY 未配置，思考功能可能受限")
-        
-        # OpenRouter API 配置（synthesis_model 使用）
+        # OpenRouter API 配置（v7.276 恢复 DeepSeek reasoner）
         openrouter_keys = os.getenv("OPENROUTER_API_KEYS", "")
         if openrouter_keys:
-            self.openai_api_key = openrouter_keys.split(",")[0].strip()
-            self.openai_base_url = os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
-            logger.info("🧠 [Ucppt v7.187] OpenRouter API 已配置（用于答案生成）")
+            self.openrouter_api_key = openrouter_keys.split(",")[0].strip()
+            self.openrouter_base_url = OPENROUTER_API_BASE_URL
+            logger.info(f" [Ucppt v7.276] OpenRouter API 已配置 | thinking_model={thinking_model}")
         else:
-            self.openai_api_key = os.getenv("OPENAI_API_KEY", "")
-            self.openai_base_url = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1")
+            logger.warning("⚠️ [Ucppt v7.276] OPENROUTER_API_KEYS 未配置，思考功能可能受限")
+            self.openrouter_api_key = ""
+            self.openrouter_base_url = OPENROUTER_API_BASE_URL
         
         # 初始化搜索服务
         self.bocha_service = get_ai_search_service() if get_ai_search_service else None
@@ -2206,7 +2349,7 @@ class UcpptSearchEngine:
         if OPENALEX_AVAILABLE and OPENALEX_SEARCH_ENABLED:
             try:
                 self.openalex_tool = OpenAlexSearchTool()
-                logger.info("🎓 [Ucppt v7.199] OpenAlex 学术搜索已初始化")
+                logger.info(" [Ucppt v7.199] OpenAlex 学术搜索已初始化")
             except Exception as e:
                 logger.warning(f"⚠️ [Ucppt v7.199] OpenAlex 初始化失败: {e}")
         
@@ -2217,14 +2360,14 @@ class UcpptSearchEngine:
         self._used_queries: List[str] = []
         self._query_similarity_threshold = 0.8  # 相似度阈值
 
-        # 🆕 v7.237: 搜索质量配置集成（方案C）
+        #  v7.237: 搜索质量配置集成（方案C）
         from intelligent_project_analyzer.settings import settings
         self.search_quality_config = settings.search_quality
         
         # 应用质量优化配置
         if self.search_quality_config.design_professional_mode:
             self.completeness_threshold = max(completeness_threshold, 0.75)  # 提升完成度要求
-            logger.info(f"🎨 [v7.237] 专业设计搜索模式已启用 | threshold={self.completeness_threshold}")
+            logger.info(f" [v7.237] 专业设计搜索模式已启用 | threshold={self.completeness_threshold}")
 
         # v7.238: 内心独白过滤模式列表（中度过滤）
         self._verbose_patterns = [
@@ -2246,8 +2389,8 @@ class UcpptSearchEngine:
         self.quality_gates = {}  # 质量门控管理
         self.analysis_session = None  # 当前分析会话
 
-        logger.info(f"🧠 [Ucppt v7.200] 引擎初始化 | max_rounds={max_rounds} | threshold={completeness_threshold}")
-        logger.info("🔬 [Ucppt v7.214] 结构化分析引擎已初始化")
+        logger.info(f" [Ucppt v7.200] 引擎初始化 | max_rounds={max_rounds} | threshold={completeness_threshold}")
+        logger.info(" [Ucppt v7.214] 结构化分析引擎已初始化")
     
     # ==================== v7.238: 思考内容过滤 ====================
     
@@ -2301,8 +2444,8 @@ class UcpptSearchEngine:
         2. L1-L5 深度分析：理论建模和框架构建 
         3. 综合分析：生成搜索任务和执行计划
         """
-        logger.info("🔬 [结构化分析 v7.214] 开始三阶段分析流程")
-        logger.info(f"🎯 [v7.214 Debug] 输入参数 | query长度={len(query)} | context={bool(context)}")
+        logger.info(" [结构化分析 v7.214] 开始三阶段分析流程")
+        logger.info(f" [v7.214 Debug] 输入参数 | query长度={len(query)} | context={bool(context)}")
         
         start_time = time.time()
         session_id = f"analysis_{int(time.time())}"
@@ -2315,14 +2458,14 @@ class UcpptSearchEngine:
             context=context,
             start_time=start_time
         )
-        logger.info(f"📝 [v7.214 Debug] 创建分析会话成功 | session_id={session_id}")
+        logger.info(f" [v7.214 Debug] 创建分析会话成功 | session_id={session_id}")
         
         try:
             # === 阶段 1: L0 对话式分析 ===
-            logger.info("🎯 [L0 阶段] 执行对话式用户分析")
-            logger.info("🚀 [v7.214 Debug] 准备调用deepseek_analysis_engine.execute_l0_dialogue")
+            logger.info(" [L0 阶段] 执行对话式用户分析")
+            logger.info(" [v7.214 Debug] 准备调用deepseek_analysis_engine.execute_l0_dialogue")
             l0_result = await self.deepseek_analysis_engine.execute_l0_dialogue(query, context)
-            logger.info(f"📊 [v7.214 Debug] L0阶段返回结果: {l0_result is not None}")
+            logger.info(f" [v7.214 Debug] L0阶段返回结果: {l0_result is not None}")
             
             if not l0_result:
                 logger.error("❌ [L0 阶段] 用户分析失败")
@@ -2340,7 +2483,7 @@ class UcpptSearchEngine:
                 logger.info("✅ [L0 质量门控] 用户分析质量合格")
             
             # === 阶段 2: L1-L5 深度框架分析 ===
-            logger.info("🧠 [L1-L5 阶段] 执行深度理论分析")
+            logger.info(" [L1-L5 阶段] 执行深度理论分析")
             framework_result = await self.deepseek_analysis_engine.execute_l1_l5_framework(
                 query, l0_result
             )
@@ -2360,7 +2503,7 @@ class UcpptSearchEngine:
                 logger.info("✅ [L1-L5 质量门控] 理论分析质量优秀")
             
             # === 阶段 3: 综合分析和搜索规划 ===
-            logger.info("🎯 [综合阶段] 生成搜索执行计划")
+            logger.info(" [综合阶段] 生成搜索执行计划")
             synthesis_result = await self.deepseek_analysis_engine.execute_synthesis(
                 query, l0_result, framework_result
             )
@@ -2389,7 +2532,7 @@ class UcpptSearchEngine:
             )
             
             logger.info(
-                f"🎉 [结构化分析完成] "
+                f" [结构化分析完成] "
                 f"总耗时: {total_time:.1f}s | "
                 f"总体质量: {analysis_session.overall_quality:.1%} | "
                 f"生成任务: {len(synthesis_result.search_master_line.search_tasks) if synthesis_result.search_master_line else 0}个"
@@ -2418,7 +2561,7 @@ class UcpptSearchEngine:
         3. 上下文一致性：与已有信息的整合度
         4. LLM 深度评估：专业性和可信度
         """
-        logger.info(f"🔍 [质量评估 v7.214] 开始 {len(search_results)} 条结果的多层评估")
+        logger.info(f" [质量评估 v7.214] 开始 {len(search_results)} 条结果的多层评估")
         
         if not search_results:
             return {
@@ -2444,7 +2587,7 @@ class UcpptSearchEngine:
                 result["rule_score"] = self._calculate_rule_score(result)
                 rule_filtered.append(result)
         
-        logger.info(f"📋 [规则筛选] {len(search_results)} → {len(rule_filtered)} 条")
+        logger.info(f" [规则筛选] {len(search_results)} → {len(rule_filtered)} 条")
         
         if not rule_filtered:
             return {
@@ -2472,7 +2615,7 @@ class UcpptSearchEngine:
             logger.warning(f"⚠️ [v7.235] 语义筛选过于严格，保留规则筛选前5条")
             semantic_filtered = rule_filtered[:5]
 
-        logger.info(f"🎯 [语义筛选] {len(rule_filtered)} → {len(semantic_filtered)} 条")
+        logger.info(f" [语义筛选] {len(rule_filtered)} → {len(semantic_filtered)} 条")
         
         # === 第三层：上下文一致性评估 ===
         if self.analysis_session and semantic_filtered:
@@ -2493,7 +2636,7 @@ class UcpptSearchEngine:
             
             # 保留上下文一致性 > 0.4 的结果
             context_filtered = [r for r in semantic_filtered if r.get("context_score", 0) > 0.4]
-            logger.info(f"🔗 [上下文筛选] {len(semantic_filtered)} → {len(context_filtered)} 条")
+            logger.info(f" [上下文筛选] {len(semantic_filtered)} → {len(context_filtered)} 条")
         else:
             context_filtered = semantic_filtered
             logger.info("ℹ️ [上下文筛选] 无分析会话，跳过上下文评估")
@@ -2541,7 +2684,7 @@ class UcpptSearchEngine:
             f"耗时: {assessment_time:.1f}s"
         )
         
-        logger.info(f"📊 [质量评估完成] {assessment_summary}")
+        logger.info(f" [质量评估完成] {assessment_summary}")
         
         return {
             "filtered_results": final_filtered[:10],  # 限制返回数量
@@ -2875,7 +3018,7 @@ class UcpptSearchEngine:
         except (json.JSONDecodeError, Exception):
             pass
         
-        # 🔧 [Bug修复] 所有策略失败时，针对不同上下文使用合适的日志级别
+        #  [Bug修复] 所有策略失败时，针对不同上下文使用合适的日志级别
         # 查询扩展等有降级机制的场景使用debug级别，避免误报警告
         if context in ["查询扩展", "统一思考流", "语义变体生成", "查询增强"]:
             logger.debug(f"ℹ️ [JSON解析] 解析失败但有降级策略 | context={context} | text[:200]={text[:200]}...")
@@ -2975,7 +3118,7 @@ class UcpptSearchEngine:
         core = query[:20].strip() if len(query) > 20 else query
 
         diversified = f"{modifier} {target_aspect} {core}"
-        logger.info(f"🔄 [Ucppt v7.199] 查询多样化: {query[:30]}... → {diversified[:30]}...")
+        logger.info(f" [Ucppt v7.199] 查询多样化: {query[:30]}... → {diversified[:30]}...")
 
         return diversified
 
@@ -3049,12 +3192,12 @@ class UcpptSearchEngine:
                     fallback = "设计研究案例"
                 logger.warning(f"⚠️ [v7.235] 无预设关键词且LLM失败，使用降级查询: {fallback}")
                 return fallback
-            logger.info(f"📝 [v7.232] 无预设关键词，使用 LLM 生成: {llm_query[:40]}...")
+            logger.info(f" [v7.232] 无预设关键词，使用 LLM 生成: {llm_query[:40]}...")
             return llm_query
 
         if not llm_query or len(llm_query.strip()) < 5:
             # LLM 没有生成有效查询，使用预设
-            logger.info(f"📌 [v7.232] LLM 查询无效，使用预设关键词: {preset_keyword[:40]}...")
+            logger.info(f" [v7.232] LLM 查询无效，使用预设关键词: {preset_keyword[:40]}...")
             return preset_keyword
 
         # 检查 LLM 查询的质量
@@ -3063,7 +3206,7 @@ class UcpptSearchEngine:
         is_vague = any(vw in llm_query for vw in vague_words) and len(llm_query) < 25
 
         if is_vague:
-            logger.info(f"📌 [v7.232] LLM 查询过于宏观，使用预设关键词: {preset_keyword[:40]}...")
+            logger.info(f" [v7.232] LLM 查询过于宏观，使用预设关键词: {preset_keyword[:40]}...")
             return preset_keyword
 
         # LLM 查询看起来足够具体，但仍然优先使用预设关键词（除非 LLM 查询明显更好）
@@ -3072,11 +3215,11 @@ class UcpptSearchEngine:
         llm_has_core = any(word in llm_query for word in preset_core_words if len(word) > 2)
 
         if len(llm_query) > len(preset_keyword) * 1.2 and llm_has_core:
-            logger.info(f"📝 [v7.232] LLM 查询更具体，使用: {llm_query[:40]}...")
+            logger.info(f" [v7.232] LLM 查询更具体，使用: {llm_query[:40]}...")
             return llm_query
 
         # 默认使用预设关键词
-        logger.info(f"📌 [v7.232] 使用预设关键词: {preset_keyword[:40]}...")
+        logger.info(f" [v7.232] 使用预设关键词: {preset_keyword[:40]}...")
         return preset_keyword
     
     # ==================== 主入口 ====================
@@ -3102,27 +3245,27 @@ class UcpptSearchEngine:
         # v7.199: 重置查询历史
         self._used_queries = []
 
-        logger.info(f"🚀 [Ucppt v7.199] 开始目标导向搜索 | query={query[:50]}...")
+        logger.info(f" [Ucppt v7.199] 开始目标导向搜索 | query={query[:50]}...")
         
         # v7.199: 查询分类
         if QUERY_CLASSIFIER_AVAILABLE and classify_query:
             self._query_classification = classify_query(query)
-            logger.info(f"🏷️ [Ucppt v7.199] 查询分类: {self._query_classification.query_type.value} | confidence={self._query_classification.confidence:.2f}")
+            logger.info(f"️ [Ucppt v7.199] 查询分类: {self._query_classification.query_type.value} | confidence={self._query_classification.confidence:.2f}")
         else:
             self._query_classification = None
 
         all_sources: List[Dict[str, Any]] = []
         rounds: List[SearchRoundState] = []
-        seen_urls: set = set()  # 🔧 [Bug修复] 初始化seen_urls集合，避免延展搜索时变量未定义错误
+        seen_urls: set = set()  #  [Bug修复] 初始化seen_urls集合，避免延展搜索时变量未定义错误
 
         try:
             # ==================== Phase 0: v7.214 结构化问题分析检查 ====================
             # 检查是否启用v7.214引擎
             enable_v7214 = os.getenv("ENABLE_STRUCTURED_ANALYSIS_V7214", "true").lower() == "true"
-            logger.info(f"🔍 [v7.214 Debug] 配置检查 | ENABLE_STRUCTURED_ANALYSIS_V7214={os.getenv('ENABLE_STRUCTURED_ANALYSIS_V7214')} | enable_v7214={enable_v7214}")
+            logger.info(f" [v7.214 Debug] 配置检查 | ENABLE_STRUCTURED_ANALYSIS_V7214={os.getenv('ENABLE_STRUCTURED_ANALYSIS_V7214')} | enable_v7214={enable_v7214}")
             
             if not enable_v7214:
-                logger.info("🔄 [Ucppt] v7.214结构化分析引擎已禁用，跳过到标准搜索流程")
+                logger.info(" [Ucppt] v7.214结构化分析引擎已禁用，跳过到标准搜索流程")
                 analysis_session = None
             else:
                 logger.info("✅ [v7.214 Debug] v7.214结构化分析引擎已启用，开始执行")
@@ -3149,28 +3292,31 @@ class UcpptSearchEngine:
                     }
                 }
                 
-                logger.info("🚀 [v7.219] 开始调用流式统一分析方法")
+                logger.info(" [v7.219] 开始调用流式统一分析方法")
                 
-                # 🔧 v7.219: 使用流式分析替代阻塞式分析，实现实时输出
-                # 用户可以看到 DeepSeek 的思考过程，而不是空白等待
+                #  v7.270: 两步流程 - 第一步分析+解题思路，第二步搜索框架生成
                 try:
                     analysis_session = None
                     framework = None
                     search_master_line = None
                     structured_info = None
-                    
+                    problem_solving_approach = None
+                    step2_context = None
+                    analysis_data = None
+
                     async with asyncio.timeout(180):
+                        # === 第一步：统一分析（用户画像 + L1-L5 + 解题思路） ===
                         async for event in self._unified_analysis_stream(query, context):
                             event_type = event.get("type")
-                            
+
                             # 流式输出 thinking 内容给前端
                             if event_type == "unified_dialogue_chunk":
                                 yield event
-                            
+
                             # 对话完成
                             elif event_type == "unified_dialogue_complete":
                                 yield event
-                            
+
                             # 结构化信息就绪
                             elif event_type == "structured_info_ready":
                                 structured_info = event.get("_internal_data")
@@ -3179,7 +3325,19 @@ class UcpptSearchEngine:
                                     "data": event.get("data"),
                                 }
 
-                            # 搜索主线就绪
+                            # v7.270: 解题思路就绪
+                            elif event_type == "problem_solving_approach_ready":
+                                problem_solving_approach = event.get("_internal_approach")
+                                yield event  # 转发给前端
+
+                            # v7.270: 第一步完成
+                            elif event_type == "step1_complete":
+                                step2_context = event.get("data", {}).get("step2_context", {})
+                                analysis_data = event.get("_internal_data", {})
+                                yield event  # 转发给前端
+                                logger.info(f"✅ [v7.270] 第一步完成 | step2_context={'有' if step2_context else '无'}")
+
+                            # 搜索主线就绪（旧流程兼容）
                             elif event_type == "search_master_line_ready":
                                 search_master_line = event.get("_internal_master_line")
                                 yield {
@@ -3187,34 +3345,116 @@ class UcpptSearchEngine:
                                     "data": event.get("data"),
                                 }
 
-                            # v7.243: 搜索框架就绪（修复清单不显示问题）
-                            # 这个事件包含 targets 数据，前端用于显示 SearchTaskListCard
+                            # v7.243: 搜索框架就绪（旧流程兼容）
                             elif event_type == "search_framework_ready":
+                                framework = event.get("_internal_framework")
                                 yield event
 
                             # 分析完成
                             elif event_type == "analysis_complete":
-                                framework = event.get("framework")
-                                if not search_master_line:
-                                    search_master_line = event.get("_search_master_line")
-                                
-                                # 创建一个模拟的 analysis_session 以兼容后续代码
-                                analysis_session = True  # 标记为成功
-                                
-                                # v7.219: 发送进度完成事件
+                                # v7.270: 检查是否是新流程（有 problem_solving_approach 但无 framework）
+                                if event.get("problem_solving_approach") and not event.get("framework"):
+                                    logger.info(f" [v7.270] 检测到新流程，准备执行第二步")
+                                    # 新流程：需要执行第二步
+                                    pass
+                                else:
+                                    # 旧流程：直接使用返回的 framework
+                                    framework = event.get("framework")
+                                    if not search_master_line:
+                                        search_master_line = event.get("_search_master_line")
+
+                                # 标记第一步成功
+                                analysis_session = True
+
+                        # === 第二步：生成搜索框架（仅在新流程中执行） ===
+                        if analysis_session and problem_solving_approach and step2_context and not framework:
+                            logger.info(f" [v7.270] 开始第二步：生成搜索框架")
+
+                            # 发送第二步开始事件
+                            yield {
+                                "type": "step2_start",
+                                "data": {
+                                    "message": "基于解题思路生成搜索任务清单...",
+                                }
+                            }
+
+                            # 调用第二步方法生成搜索框架
+                            framework = await self._step2_generate_search_framework(
+                                query, step2_context, problem_solving_approach, analysis_data
+                            )
+
+                            if framework:
+                                logger.info(f"✅ [v7.270] 第二步完成 | targets={len(framework.targets)}")
+
+                                # 生成框架清单
+                                framework_checklist = None
+                                try:
+                                    framework_checklist = self._generate_framework_checklist(framework, analysis_data)
+                                    framework.framework_checklist = framework_checklist
+                                except Exception as checklist_error:
+                                    logger.error(f"❌ [v7.270] 框架清单生成失败: {checklist_error}", exc_info=True)
+                                    from datetime import datetime
+                                    framework_checklist = FrameworkChecklist(
+                                        core_summary=framework.core_question[:30] if framework.core_question else framework.original_query[:30],
+                                        main_directions=[],
+                                        boundaries=[],
+                                        answer_goal=framework.answer_goal or "为用户提供完整解答",
+                                        generated_at=datetime.now().isoformat(),
+                                    )
+
+                                # 发送搜索框架就绪事件
+                                targets_text_list = []
+                                if framework.targets:
+                                    for i, t in enumerate(framework.targets, 1):
+                                        name = getattr(t, 'name', '') or getattr(t, 'question', '') or f"目标{i}"
+                                        desc = getattr(t, 'search_for', '') or getattr(t, 'description', '') or ""
+                                        if desc:
+                                            targets_text_list.append(f"{i}. {name} — {desc}")
+                                        else:
+                                            targets_text_list.append(f"{i}. {name}")
+
+                                framework_summary = " 搜索主线：\n" + "\n".join(targets_text_list) if targets_text_list else " 搜索主线：待规划"
+
                                 yield {
-                                    "type": "analysis_progress",
+                                    "type": "search_framework_ready",
                                     "data": {
-                                        "stage": "complete",
-                                        "stage_name": "深度分析完成",
-                                        "message": "结构化分析完成，准备开始搜索...",
-                                        "estimated_time": 0,
-                                        "current_step": 3,
-                                        "total_steps": 3,
+                                        "core_question": framework.core_question,
+                                        "answer_goal": framework.answer_goal,
+                                        "boundary": framework.boundary,
+                                        "target_count": len(framework.targets) if framework.targets else 0,
+                                        "targets": [t.to_dict() for t in framework.targets] if framework.targets else [],
+                                        "targets_summary": framework_summary,
+                                        "framework_checklist": framework_checklist.to_dict() if framework_checklist else None,
+                                    },
+                                    "_internal_framework": framework,
+                                }
+
+                                # 发送第二步完成事件
+                                yield {
+                                    "type": "step2_complete",
+                                    "data": {
+                                        "message": "搜索任务清单已生成",
+                                        "target_count": len(framework.targets),
                                     }
                                 }
-                    
-                    logger.info(f"📊 [v7.219] 流式分析完成 | framework={framework is not None} | search_master_line={search_master_line is not None}")
+                            else:
+                                logger.warning(f"⚠️ [v7.270] 第二步失败，使用简单搜索框架")
+                                framework = self._build_simple_search_framework(query)
+
+                        # 发送分析完成事件
+                        yield {
+                            "type": "analysis_progress",
+                            "data": {
+                                "stage": "complete",
+                                "stage_name": "深度分析完成",
+                                "message": "结构化分析完成，准备开始搜索...",
+                                "estimated_time": 0,
+                                "current_step": 3,
+                                "total_steps": 3,
+                            }
+                        }
+
+                    logger.info(f" [v7.270] 两步流程完成 | framework={framework is not None} | targets={len(framework.targets) if framework else 0}")
                 except asyncio.TimeoutError:
                     logger.error("⏰ [v7.214 Debug] v7.214引擎整体超时(180s)，立即回退到传统搜索")
                     analysis_session = None
@@ -3228,7 +3468,7 @@ class UcpptSearchEngine:
                 except Exception as e:
                     logger.error(f"❌ [v7.214 Debug] structured_problem_analysis执行异常: {e}")
                     import traceback
-                    logger.error(f"📋 [v7.214 Debug] 异常堆栈: {traceback.format_exc()}")
+                    logger.error(f" [v7.214 Debug] 异常堆栈: {traceback.format_exc()}")
                     analysis_session = None
                     yield {
                         "type": "warning",
@@ -3249,7 +3489,7 @@ class UcpptSearchEngine:
                         }
                     }
 
-                    # 🔧 v7.220: 直接使用简单搜索框架，跳过统一分析（避免再次调用 LLM）
+                    #  v7.220: 直接使用简单搜索框架，跳过统一分析（避免再次调用 LLM）
                     logger.info("⚡ [v7.220] 使用简单搜索框架，跳过 LLM 分析")
                     structured_info = None
                     framework = self._build_simple_search_framework(query)
@@ -3342,21 +3582,21 @@ class UcpptSearchEngine:
                 # v7.202: 强制最低4轮约束，最高优先级
                 force_continue = current_round < MIN_SEARCH_ROUNDS
                 if force_continue:
-                    logger.info(f"🟡 [Ucppt v7.202] 轮数{current_round}/{MIN_SEARCH_ROUNDS}，强制继续模式")
+                    logger.info(f" [Ucppt v7.202] 轮数{current_round}/{MIN_SEARCH_ROUNDS}，强制继续模式")
 
                 # v7.245: 使用轮次轮换策略选择目标，确保每轮搜索不同的主线
                 # 替代原来的 get_next_target()，避免前4轮一直搜索同一个目标
                 target: Optional[SearchTarget] = framework.get_target_for_round(current_round)
                 if target:
                     target_desc = target.question or target.name or target.search_for or f"目标{target.id}"
-                    logger.info(f"🎯 [v7.245] 第{current_round}轮选择目标: {target_desc[:40]}...")
+                    logger.info(f" [v7.245] 第{current_round}轮选择目标: {target_desc[:40]}...")
 
                 # v7.208: 兼容旧的搜索任务清单（如果存在）
                 current_task: Optional[SearchTask] = None
                 if search_master_line and target is None:
                     current_task = search_master_line.get_next_task()
                     if current_task:
-                        logger.info(f"📋 [v7.208] 执行任务 {current_task.id}: {current_task.task[:30]}... (P{current_task.priority})")
+                        logger.info(f" [v7.208] 执行任务 {current_task.id}: {current_task.task[:30]}... (P{current_task.priority})")
                         # 创建临时 SearchTarget 用于搜索流程
                         target = SearchTarget(
                             id=f"task_{current_task.id}",
@@ -3366,7 +3606,7 @@ class UcpptSearchEngine:
                             priority=current_task.priority,
                         )
                         framework.targets.append(target)
-                        logger.info(f"🔧 [v7.208] 创建临时搜索目标: {target.question or target.name or target.search_for or f'目标{target.id}'}")
+                        logger.info(f" [v7.208] 创建临时搜索目标: {target.question or target.name or target.search_for or f'目标{target.id}'}")
 
                 if target is None:
                     # v7.201: 检查最小轮数约束
@@ -3379,7 +3619,7 @@ class UcpptSearchEngine:
                             logger.warning(f"⚠️ [Ucppt v7.220] targets 为空，使用默认框架")
                             default_framework = self._build_simple_search_framework(framework.original_query)
                             framework.targets = default_framework.targets
-                            current_round -= 1  # 🔧 v7.229: 回退轮次计数，避免跳过轮次
+                            current_round -= 1  #  v7.229: 回退轮次计数，避免跳过轮次
                             continue
 
                         for t in framework.targets:
@@ -3388,9 +3628,9 @@ class UcpptSearchEngine:
                                 t.completion_score = max(0.3, t.completion_score - 0.3)
                                 # v7.243: 使用更多备选字段
                                 target_desc = t.question or t.name or t.search_for or f"目标{t.id}"
-                                logger.info(f"🔄 重置目标 '{target_desc}' 为partial，继续搜索")
+                                logger.info(f" 重置目标 '{target_desc}' 为partial，继续搜索")
                                 break
-                        current_round -= 1  # 🔧 v7.229: 回退轮次计数，避免跳过轮次
+                        current_round -= 1  #  v7.229: 回退轮次计数，避免跳过轮次
                         continue  # 继续下一轮循环
 
                     # 已达到最小轮数，所有目标都已完成
@@ -3474,12 +3714,12 @@ class UcpptSearchEngine:
                 # v7.199: 查询去重检查
                 is_duplicate, similar_query = self._is_duplicate_query(search_query)
                 if is_duplicate:
-                    logger.info(f"🔄 [Ucppt v7.199] 检测到重复查询: {search_query[:30]}... ≈ {similar_query[:30] if similar_query else ''}...")
+                    logger.info(f" [Ucppt v7.199] 检测到重复查询: {search_query[:30]}... ≈ {similar_query[:30] if similar_query else ''}...")
                     # v7.232: 如果有预设关键词，尝试使用下一个
                     if target.preset_keywords and target.current_keyword_index + 1 < len(target.preset_keywords):
                         target.current_keyword_index += 1
                         search_query = target.preset_keywords[target.current_keyword_index]
-                        logger.info(f"📌 [v7.232] 使用下一个预设关键词: {search_query[:40]}...")
+                        logger.info(f" [v7.232] 使用下一个预设关键词: {search_query[:40]}...")
                     else:
                         # v7.243: 使用更多备选字段
                         target_desc = target.question or target.name or target.search_for or f"目标{target.id}"
@@ -3551,7 +3791,7 @@ class UcpptSearchEngine:
                 round_state.sources_found = len(round_sources)
                 
                 # v7.227: 诊断日志 - 追踪搜索结果
-                logger.info(f"📦 [round_sources v7.227] 准备发送 | round={current_round} | sources_count={len(round_sources)}")
+                logger.info(f" [round_sources v7.227] 准备发送 | round={current_round} | sources_count={len(round_sources)}")
                 if round_sources:
                     for i, src in enumerate(round_sources[:3]):
                         logger.debug(f"  └─ [{i+1}] {src.get('title', '无标题')[:40]}")
@@ -3609,7 +3849,7 @@ class UcpptSearchEngine:
                         task_findings,
                         completion_score
                     )
-                    logger.info(f"📋 [v7.208] 任务 {current_task.id} 更新: status={current_task.status}, score={current_task.completion_score:.2f}")
+                    logger.info(f" [v7.208] 任务 {current_task.id} 更新: status={current_task.status}, score={current_task.completion_score:.2f}")
                     
                     # 推送任务进度
                     yield {
@@ -3640,7 +3880,7 @@ class UcpptSearchEngine:
                         target.status = "partial"  # v7.220
                     else:
                         target.status = "missing"  # v7.220
-                    logger.info(f"🟡 [v7.204] 强制模式: {target.question or target.name or target.search_for or f'目标{target.id}'} 状态={target.status}")  # v7.243
+                    logger.info(f" [v7.204] 强制模式: {target.question or target.name or target.search_for or f'目标{target.id}'} 状态={target.status}")  # v7.243
                 elif len(round_sources) >= 5 and target.completion_score >= 0.7:  # v7.220
                     target.status = "complete"  # v7.220
                 elif len(round_sources) > 0:
@@ -3671,7 +3911,7 @@ class UcpptSearchEngine:
                     progress_description=reflection_result.cumulative_progress,  # 完整保留，不截断
                 )
                 framework.round_insights.append(round_insight)
-                logger.info(f"📊 [v7.230] 累积第{current_round}轮洞察: key_findings={len(round_insight.key_findings)}, insights={len(round_insight.inferred_insights)}, quality={round_insight.info_quality:.2f}")
+                logger.info(f" [v7.230] 累积第{current_round}轮洞察: key_findings={len(round_insight.key_findings)}, insights={len(round_insight.inferred_insights)}, quality={round_insight.info_quality:.2f}")
 
                 round_state.completeness_delta = framework.overall_completeness - old_completeness
                 round_state.reflection = reflection_result.reflection_narrative
@@ -3763,7 +4003,7 @@ class UcpptSearchEngine:
                                 quality_criteria=ext_task_data.get("quality_criteria", []),
                             )
                             framework.targets.append(ext_target)
-                            logger.info(f"🔄 [v7.235] 添加延展任务并同步到targets: {ext_task.id} - {ext_task.task[:30]}...")
+                            logger.info(f" [v7.235] 添加延展任务并同步到targets: {ext_task.id} - {ext_task.task[:30]}...")
 
                 # ==================== v7.246: 动态延展评估 ====================
                 # 每轮结束后评估是否需要动态延展（不依赖固定检查点）
@@ -3792,12 +4032,12 @@ class UcpptSearchEngine:
                 # ==================== 完成度检查 v7.202 ====================
                 # v7.202: 强制最低4轮，前4轮跳过所有退出检查
                 if force_continue:
-                    logger.info(f"🟡 [v7.202] 轮数{current_round}<{MIN_SEARCH_ROUNDS}，强制模式，确保完成搜索")
-                    # 🔧 修复：不直接跳过，让每轮完整执行搜索流程
+                    logger.info(f" [v7.202] 轮数{current_round}<{MIN_SEARCH_ROUNDS}，强制模式，确保完成搜索")
+                    #  修复：不直接跳过，让每轮完整执行搜索流程
                     # continue  # 注释掉直接跳过逻辑
                 
                 # 以下检查仅在 current_round >= MIN_SEARCH_ROUNDS 时执行
-                # 🔧 修复：在强制模式下跳过所有退出检查
+                #  修复：在强制模式下跳过所有退出检查
                 if not force_continue:
                     # 如果反思认为可以回答了（基于剩余缺口判断）
                     # v7.200: 优化标准 - alignment >= 0.90 且无剩余缺口（0.95→0.90）
@@ -3878,7 +4118,7 @@ class UcpptSearchEngine:
             # 主线搜索完成后，串行执行所有延展任务
             extension_targets = framework.get_extension_targets()
             if extension_targets:
-                logger.info(f"📎 [v7.246] 主线搜索完成，开始串行执行 {len(extension_targets)} 个延展任务...")
+                logger.info(f" [v7.246] 主线搜索完成，开始串行执行 {len(extension_targets)} 个延展任务...")
                 async for ext_event in self._execute_serial_extensions(
                     framework, all_sources, seen_urls
                 ):
@@ -3932,13 +4172,18 @@ class UcpptSearchEngine:
 
     def _build_unified_analysis_prompt(self, query: str, context: Optional[Dict[str, Any]] = None) -> str:
         """
-        构建统一分析 Prompt - v7.234
+        构建统一分析 Prompt - v7.270 重构版
 
-        v7.234 更新：
-        1. 强化实体提取（6类实体动态识别）
-        2. L1-L5分析输出结构化实体清单
-        3. 搜索查询质量评估（v7.237 改为软约束）
-        4. 锐度三问自检机制
+        v7.270 重构（第一步与第二步分离）：
+        1. 第一步：需求理解 + 深度分析 + 解题思路（本方法）
+        2. 第二步：搜索框架生成（移至 _build_step2_search_framework_prompt）
+        3. 新增 problem_solving_approach 模块（战术级5-8步详细路径）
+        4. 严格分离：第一步不涉及任何搜索词或搜索任务规划
+
+        v7.234 保留：
+        - 强化实体提取（6类实体动态识别）
+        - L1-L5分析输出结构化实体清单
+        - 锐度三问自检机制
         """
         context_str = json.dumps(context or {}, ensure_ascii=False, indent=2)
 
@@ -3993,7 +4238,7 @@ class UcpptSearchEngine:
 
 2. **实体提取**（v7.234 核心改进）
    必须识别并分类以下6类实体：
-   
+
    | 类型 | 定义 | 提取要求 |
    |------|------|----------|
    | 品牌实体 | 用户提及或暗示的品牌 | 品牌名 + 已知产品线/系列 + 核心设计师（如有） |
@@ -4066,156 +4311,68 @@ class UcpptSearchEngine:
    ② 能直接指导下一步行动吗？（可操作性）
    ③ 触及了用户未明说的深层诉求吗？（深度）
 
-### 分析→搜索规划（系统性思考）v7.254
+### 第三部分：解题思路（战术级规划）v7.270 新增
 
-⚠️ 重要：搜索框架不是L1实体的机械映射，而是综合L1-L5分析后的**系统性规划**！
+基于以上L1-L5分析，现在思考**如何解决**这个问题。
 
-**核心原则**：
-- ❌ 禁止机械映射："每个品牌→1个任务"、"每个地点→1个任务"
-- ✅ 要求系统规划：围绕核心问题，设计有主次、有逻辑的搜索策略
+⚠️ **严格分离原则**：此部分只输出解题思路，不涉及任何搜索词或搜索任务规划。
 
-**规划步骤**：
+**1. 任务本质识别**
+- 这是什么类型的任务？
+  - research（研究型）：需要收集和整理信息
+  - design（设计型）：需要创造性输出
+  - decision（决策型）：需要对比和选择
+  - exploration（探索型）：需要发现和理解
+  - verification（验证型）：需要确认和证实
+- 复杂度评估：simple / moderate / complex / highly_complex
+- 所需专业知识领域（列出3-5个）
 
-**第一步：识别核心问题**（基于L3张力和L4 JTBD）
-- 用户真正要解决的问题是什么？
-- 核心动词是什么？（融合/选择/对比/了解/验证...）
-- 这决定了搜索的主线和P1任务
+**2. 解题路径规划（战术级：5-8步详细路径）**
 
-**第二步：设计搜索策略**（有主次、有逻辑）
+按步骤思考：什么样的行动序列能够完整回答这个问题？
 
-| 优先级 | 任务类型 | 设计原则 | 数量 |
-|-------|---------|---------|------|
-| P1（核心） | 直接回答核心问题 | 围绕L4 JTBD的核心动词设计 | 1-2个 |
-| P2（支撑） | 为P1提供必要背景 | 只搜索P1需要的支撑信息 | 1-3个 |
-| P3（拓展） | 开阔视野的参考 | 可选，视问题复杂度决定 | 0-2个 |
+要求：
+- 生成5-8个具体步骤（不是3-4个宏观步骤）
+- 每步的action要具体到可执行级别
+- 每步都要有明确的expected_output
+- **不需要标注步骤间的依赖关系**
 
-**第三步：建立任务逻辑链**
-- 每个任务的why_need要说明它如何服务于核心问题
-- 任务之间形成"支撑→核心→验证"的逻辑关系
+格式：
+- 步骤1: [具体行动] - [目的] - [预期产出]
+- 步骤2: ...
 
-**示例对比**：
+示例（HAY民宿案例）：
+- S1: 解析HAY品牌核心设计语言 - 建立源美学参照系 - HAY设计哲学、核心设计师
+- S2: 提取HAY色彩系统与材质特征 - 获取可应用的视觉元素 - 标志性色彩、材质偏好
+- S3: 研究峨眉山七里坪气候与环境 - 理解物理约束 - 海拔、气候、光线特点
+- S4: 梳理峨眉山在地材料与工艺 - 识别可融合的本地元素 - 冷杉木、竹材、传统工艺
+- S5: 识别北欧与川西美学融合策略 - 解决核心张力 - 融合原则、成功案例
+- S6: 构建空间功能分区与动线 - 将美学落地到空间 - 功能划分、重点空间处理
+- S7: 生成完整概念设计方案 - 交付设计指导 - 色彩、材质、家具、软装、照明
 
-问题："HAY风格的峨眉山七里坪民宿设计方案"
+**3. 关键突破口（1-3个）**
 
-❌ 机械映射（错误）：
-T1: 搜索HAY品牌产品线（因为有品牌实体）
-T2: 搜索峨眉山气候和材料（因为有地点实体）
-T3: 搜索松赞酒店案例（因为有竞品实体）
-T4: 搜索北欧与中式融合（因为有张力）
-→ 问题：4个任务平铺直叙，缺乏主次，没有逻辑关联
+什么是解锁这个问题的关键洞察或切入点？
+- 突破口: [要点] - [为什么关键] - [如何利用]
 
-✅ 系统性规划（正确）：
-核心问题：如何在山地民宿中融合北欧极简与在地材料？
-核心动词：融合
+**4. 预期产出形态**
 
-T1 [P1-核心]: 北欧风格与中国在地材料融合的成功案例
-   why_need: 直接回答"如何融合"，这是用户最想知道的
-   → 这是核心任务，其他任务都为它服务
+最终答案应该是什么样的？
+- 格式：（report/list/comparison/recommendation/plan）
+- 必须包含的章节/元素（列出5-8个）
+- 关键交付物（视觉参考、产品推荐、实施指南等）
+- 质量标准（可执行性、协调性、文化融合度等）
 
-T2 [P2-支撑]: HAY品牌的材质特点和色彩系统
-   why_need: 为T1提供"北欧风格"的具体设计语言，知道融合的一端是什么
-   → 支撑T1，不是独立的品牌调研
+**5. 任务描述保留**
+- 原始需求（原文）：用户的原始问题
+- 结构化需求（精炼后）：经过分析后的结构化描述
 
-T3 [P2-支撑]: 峨眉山地区可用的在地材料和传统工艺
-   why_need: 为T1提供"在地材料"的具体选项，知道融合的另一端是什么
-   → 支撑T1，不是独立的地点调研
-
-T4 [P3-拓展]: 松赞/既下山等高端民宿的设计策略
-   why_need: 看看类似定位的项目如何处理风格融合，验证T1的可行性
-   → 拓展验证，不是独立的竞品调研
-
-→ 4个任务形成逻辑链：T2+T3支撑T1，T4验证T1
-
-**规划自检**（生成targets前必须回答这5个问题）：
-1. 核心问题是什么？核心动词是什么？
-2. P1任务是否直接回答核心问题？
-3. P2任务是否明确说明如何支撑P1？
-4. 任务之间的逻辑关系是什么？（不是平铺直叙）
-5. 是否避免了"每个实体→1个任务"的机械映射？
-
-### 第三部分：搜索规划（系统性输出）
-
-9. **搜索目标清单**（v7.265：价值驱动，拒绝硬编码）
-
-   **任务数量原则**（⚠️ 核心变更）：
-   - ❌ 禁止硬编码数量：不要预设"3-6个"、"2-3个"等范围
-   - ✅ 价值驱动：只生成对回答核心问题**有实际价值**的搜索任务
-   - ✅ 宁缺毋滥：1个精准任务 > 5个宽泛任务
-   - ✅ 完全响应分析：任务数量由 L1-L5 分析中识别的**关键信息缺口**决定
-
-   **任务生成判断标准**（每个任务必须通过）：
-   ① 该任务搜索的内容，用户自己无法轻易获得吗？（信息增量）
-   ② 该任务的结果能直接用于回答用户问题吗？（直接相关）
-   ③ 该任务的搜索词适合搜索引擎吗？（可执行性）
-   → 三问都是"是"才生成，否则跳过
-
-   **任务结构**：每个任务必须包含以下字段
-
-   | 字段 | 含义 | 示例 |
-   |------|------|------|
-   | question | 这个任务要回答什么问题？ | "北欧风格如何与中国在地材料融合？" |
-   | search_for | 具体搜索什么内容？ | "北欧家具与中式空间融合案例、HAY在亚洲项目应用" |
-   | why_need | **关键：说明此任务如何服务于核心问题** | "直接回答用户的融合需求，是P1核心任务" |
-   | priority | 优先级（1=核心，2=支撑，3=拓展） | 1 |
-   | success_when | 什么情况算搜索成功？ | "找到2-3个融合成功案例" |
-
-   **分类标签**（v7.253：根据问题类型从标签池中选择，不必使用全部）：
-
-   标签池：
-   - **品牌调研**: 品牌产品线、设计语言、核心设计师
-   - **案例参考**: 成功项目、最佳实践、类似定位案例
-   - **方案验证**: 对比分析、融合策略、可行性验证
-   - **背景知识**: 概念定义、文化背景、技术标准
-   - **趋势洞察**: 行业动态、创新方向、未来趋势
-   - **技术实现**: 材料工艺、施工方法、落地细节
-
-   选择原则：
-   - 根据L1实体类型选择相关标签（有品牌→用品牌调研，有地点→用背景知识）
-   - 根据L3张力选择验证标签（有融合需求→用方案验证）
-   - 简单问题用2-3种标签，复杂问题用4-5种
-   - 不要为了使用所有标签而强行分类
-
-   **搜索查询生成指南**（v7.265 强化版）：
-   preset_keywords 是**直接可用于搜索引擎的查询语句**，质量决定搜索效果。
-
-   **核心原则**：
-   - ✅ 像真人搜索：想象用户会在百度/Google输入什么
-   - ✅ 聚焦具体：每条查询只问一个问题
-   - ✅ 包含实体：必须有品牌名/地名/人名/产品名等专有名词
-   - ✅ 长度适中：15-35字最佳（太短无上下文，太长噪音多）
-
-   **相关性约束**（v7.265 新增）：
-   - ❌ 禁止宽泛查询："设计趋势"、"室内设计风格"、"民宿行业分析"
-   - ❌ 禁止无关查询：与用户问题中的实体/场景无直接关联
-   - ✅ 必须锚定用户问题：每个查询都应包含用户问题中的核心实体
-
-   ❌ 错误示例（关键词堆砌）：
-   - "HAY Palissade 户外家具 粉末涂层钢 民宿庭院 色彩搭配 Bouroullec"
-   - "松赞 既下山 山地 在地材料 竹木 设计 案例 融合"
-
-   ❌ 错误示例（过于宽泛，与用户问题弱相关）：
-   - "室内设计 2024 趋势"（用户没问趋势）
-   - "民宿行业发展报告"（用户问的是具体设计方案）
-   - "北欧风格特点"（太泛，应聚焦用户提到的HAY品牌）
-
-   ✅ 正确示例（自然语言 + 锚定用户问题实体）：
-   - "HAY Mags 沙发 酒店项目应用案例"
-   - "HAY 与木质材料搭配 室内设计实景"
-   - "松赞酒店 在地材料 竹木运用 设计细节"
-   - "峨眉山七里坪 精品民宿 北欧风格改造"
-
-10. **搜索边界**
-    明确列出**不搜索**的内容类型（反向定义）：
-    - 不搜索的主题
-    - 不搜索的内容类型
-    - 不搜索的时间范围
-
-11. **回答目标**
-    最终要给用户什么样的答案。
+**6. 备选路径（可选）**
+- 如果主路径遇阻，有哪些替代方案？
 
 ---
 
-分析完成后，输出以下 JSON：
+分析完成后，输出以下 JSON（v7.270 重构版：不包含搜索框架，搜索框架在第二步生成）：
 
 ```json
 {{
@@ -4265,132 +4422,78 @@ T4 [P3-拓展]: 松赞/既下山等高端民宿的设计策略
             "depth": "触及了用户未明说的深层诉求吗？回答"
         }}
     }},
-    "search_framework": {{
+    "problem_solving_approach": {{
+        "task_type": "design",
+        "task_type_description": "这是一个复杂的设计任务，需要品牌语言理解、地域特色整合和完整概念设计输出",
+        "complexity_level": "complex",
+        "required_expertise": ["室内设计", "品牌美学", "地域文化", "材料学"],
+        "solution_steps": [
+            {{
+                "step_id": "S1",
+                "action": "解析HAY品牌核心设计语言",
+                "purpose": "建立'源'美学参照系的基础认知",
+                "expected_output": "HAY设计哲学（民主设计、功能美学）、核心设计师（Bouroullec兄弟等）"
+            }},
+            {{
+                "step_id": "S2",
+                "action": "提取HAY色彩系统与材质特征",
+                "purpose": "获取可直接应用的视觉元素",
+                "expected_output": "HAY标志性色彩（柔和灰、暖黄、雾蓝）、材质偏好（粉末涂层钢、实木、织物）"
+            }},
+            {{
+                "step_id": "S3",
+                "action": "研究峨眉山七里坪气候与环境特征",
+                "purpose": "理解设计的物理约束条件",
+                "expected_output": "海拔1300m、湿润多雾气候、温差大、自然光线特点"
+            }},
+            {{
+                "step_id": "S4",
+                "action": "梳理峨眉山在地材料与工艺资源",
+                "purpose": "识别可用于融合的本地元素",
+                "expected_output": "冷杉木、竹材、青石、传统榫卯工艺、蜀绣元素"
+            }},
+            {{
+                "step_id": "S5",
+                "action": "识别北欧极简与川西山地美学的融合策略",
+                "purpose": "解决核心张力，找到设计语言的交汇点",
+                "expected_output": "融合原则（几何框架+有机填充）、冲突解决方案、成功案例参考"
+            }},
+            {{
+                "step_id": "S6",
+                "action": "构建空间功能分区与动线规划",
+                "purpose": "将美学融合落地到具体空间",
+                "expected_output": "公区/客房功能划分、动线设计、重点空间（大堂、客房、餐厅）处理方式"
+            }},
+            {{
+                "step_id": "S7",
+                "action": "生成完整概念设计方案",
+                "purpose": "交付可执行的设计指导文档",
+                "expected_output": "色彩搭配方案、材质选择清单、家具建议（含HAY具体产品）、软装配饰、照明设计"
+            }}
+        ],
+        "breakthrough_points": [
+            {{
+                "point": "HAY几何工业感 vs 峨眉山有机自然感",
+                "why_key": "这是定义设计挑战的核心张力，决定了整个方案的调性",
+                "how_to_leverage": "用HAY的几何框架作为'骨架'，用峨眉山的自然材料作为'肌肤'"
+            }}
+        ],
+        "expected_deliverable": {{
+            "format": "report",
+            "sections": ["设计理念与品牌气质定位", "色彩搭配方案", "材质选择与应用", "家具布置建议", "空间布局规划", "艺术装饰与软装搭配", "照明设计建议"],
+            "key_elements": ["视觉参考图", "具体产品推荐", "材料样板建议", "实施优先级"],
+            "quality_criteria": ["可执行性强", "视觉协调统一", "文化融合自然", "成本可控"]
+        }},
+        "original_requirement": "用户的原始问题（原文）",
+        "refined_requirement": "经过分析后的结构化需求描述",
+        "confidence_score": 0.85,
+        "alternative_approaches": ["备选路径1", "备选路径2"]
+    }},
+    "step2_context": {{
         "core_question": "问题一句话本质（20字内）",
         "answer_goal": "用户期望得到的答案是...",
-        "boundary": "不搜索：1.xxx 2.xxx 3.xxx",
-        "targets": [
-            // ⚠️ v7.265：任务数量由分析价值决定，不硬编码
-            // 只生成通过"三问检验"的任务：信息增量？直接相关？可搜索？
-            {{
-                "id": "T1",
-                "question": "【必填】这个任务要回答什么问题？（问句形式，15字内）",
-                "search_for": "【必填】具体搜索什么内容（必须包含用户问题中的实体名称）",
-                "why_need": "【必填】说明此任务如何直接帮助回答用户的核心问题",
-                "priority": 1,
-                "category": "品牌调研",
-                "preset_keywords": [
-                    "自然语言搜索查询（15-35字，必须包含专有名词）"
-                ],
-                "success_when": ["什么情况算搜索成功"],
-                "expected_info": ["期望获取的信息"]
-            }}
-            // 继续添加其他有价值的任务（数量不限，但每个都必须有明确价值）
-        ]
-    }}
-}}
-```
-
-**完整示例1**（复杂问题，用户问："HAY风格的民宿设计方案"）：
-- L1实体：HAY品牌、民宿场景、北欧风格 → 3个基础任务
-- L3张力：北欧极简 vs 在地材料 → 1个验证任务
-- 总计：3-4个任务（中等复杂度）
-
-```json
-{{
-    "search_framework": {{
-        "core_question": "如何打造HAY风格民宿",
-        "answer_goal": "一套可落地的HAY风格民宿设计方案，包含产品选型、色彩搭配、空间布局建议",
-        "boundary": "不搜索：1.HAY公司财报 2.其他无关品牌 3.纯理论设计文章",
-        "targets": [
-            {{
-                "id": "T1",
-                "question": "HAY品牌的核心产品线有哪些？",
-                "search_for": "HAY Palissade户外系列、Mags模块沙发、Bouroullec兄弟设计作品、HAY标志性色彩系统",
-                "why_need": "从中提取可用于民宿的设计元素：色彩搭配、材质选择、家具造型",
-                "priority": 1,
-                "category": "品牌调研",
-                "preset_keywords": [
-                    "HAY 品牌设计理念 Rolf Hay 创始人访谈",
-                    "HAY Mags 沙发 酒店项目应用案例"
-                ],
-                "success_when": ["找到HAY产品高清图片", "了解HAY色彩搭配原则", "知道HAY常用材质"],
-                "expected_info": ["产品实拍图", "色彩系统说明", "材质清单"]
-            }},
-            {{
-                "id": "T2",
-                "question": "有哪些融合北欧风与在地材料的民宿案例？",
-                "search_for": "松赞系列民宿、既下山酒店、大理白族风格精品民宿等类似定位项目",
-                "why_need": "从成功案例中提取可复用的设计策略和材料选择",
-                "priority": 2,
-                "category": "案例参考",
-                "preset_keywords": [
-                    "松赞酒店 室内设计 在地材料运用",
-                    "既下山酒店 现代与传统融合设计"
-                ],
-                "success_when": ["找到2-3个相似定位民宿案例", "有室内实景照片"],
-                "expected_info": ["案例介绍", "设计师信息", "材料选择"]
-            }},
-            {{
-                "id": "T3",
-                "question": "HAY产品与在地材料如何融合搭配？",
-                "search_for": "北欧家具与中式空间融合案例、HAY产品在亚洲项目中的应用",
-                "why_need": "验证HAY风格在中国民宿场景的可行性，获取具体搭配方法",
-                "priority": 3,
-                "category": "方案验证",
-                "preset_keywords": [
-                    "北欧风格民宿 中国本土化设计案例",
-                    "HAY家具 亚洲酒店项目 实际应用"
-                ],
-                "success_when": ["找到融合案例", "有具体搭配建议"],
-                "expected_info": ["融合技巧", "搭配注意事项", "避坑指南"]
-            }}
-        ]
-    }}
-}}
-```
-
-**完整示例2**（简单问题，用户问："什么是侘寂风格"）：
-- L1实体：侘寂风格 → 1个基础任务
-- L3张力：无明显张力
-- 总计：2个任务（简单查询）
-
-```json
-{{
-    "search_framework": {{
-        "core_question": "侘寂风格的定义与特点",
-        "answer_goal": "清晰解释侘寂风格的起源、核心理念和视觉特征",
-        "boundary": "不搜索：1.商品购买链接 2.装修公司广告",
-        "targets": [
-            {{
-                "id": "T1",
-                "question": "侘寂风格的起源和核心理念是什么？",
-                "search_for": "侘寂美学起源、日本茶道文化、千利休美学思想",
-                "why_need": "理解侘寂的文化根源和哲学内涵",
-                "priority": 1,
-                "category": "背景知识",
-                "preset_keywords": [
-                    "侘寂美学 日本传统文化 起源",
-                    "wabi-sabi 设计理念 核心特征"
-                ],
-                "success_when": ["了解侘寂的历史背景", "理解核心美学理念"],
-                "expected_info": ["起源历史", "哲学内涵", "代表人物"]
-            }},
-            {{
-                "id": "T2",
-                "question": "侘寂风格在室内设计中如何体现？",
-                "search_for": "侘寂风格室内设计案例、材质选择、色彩搭配",
-                "why_need": "获取可视化的设计参考",
-                "priority": 2,
-                "category": "案例参考",
-                "preset_keywords": [
-                    "侘寂风格 室内设计 实景案例",
-                    "wabi-sabi interior design examples"
-                ],
-                "success_when": ["找到设计案例图片", "了解常用材质"],
-                "expected_info": ["设计案例", "材质清单", "色彩方案"]
-            }}
-        ]
+        "solution_steps_summary": ["S1:HAY设计语言", "S2:HAY色彩材质", "S3:峨眉山环境", "S4:在地材料", "S5:融合策略", "S6:空间规划", "S7:完整方案"],
+        "breakthrough_tensions": ["几何工业感 vs 有机自然感"]
     }}
 }}
 ```
@@ -4403,15 +4506,19 @@ T4 [P3-拓展]: 松赞/既下山等高端民宿的设计策略
         context: Optional[Dict[str, Any]] = None,
     ) -> AsyncGenerator[Dict[str, Any], None]:
         """
-        统一分析流式处理 - v7.220
+        统一分析流式处理 - v7.270 重构版
 
-        重构版本：
-        - 使用新的 Prompt 结构
-        - 解析为 SearchFramework（统一数据结构）
+        v7.270 重构（第一步与第二步分离）：
+        - 第一步输出：用户画像 + L1-L5分析 + 解题思路（problem_solving_approach）
+        - 不再输出搜索框架（search_framework），搜索框架在第二步生成
+        - 新增 problem_solving_approach_ready 事件
+        - 新增 step1_complete 事件
+
+        v7.220 保留：
         - thinking 内容作为对话输出给用户
-        - content 内容解析为 SearchFramework
+        - content 内容解析为结构化数据
         """
-        logger.info(f"🔍 [统一分析 v7.220] 开始统一分析 | query={query[:50]}...")
+        logger.info(f" [统一分析 v7.270] 开始第一步分析 | query={query[:50]}...")
 
         prompt = self._build_unified_analysis_prompt(query, context)
         full_reasoning = ""
@@ -4421,7 +4528,7 @@ T4 [P3-拓展]: 松赞/既下山等高端民宿的设计策略
             async for chunk in self._call_deepseek_stream_with_reasoning(
                 prompt,
                 model=self.thinking_model,
-                max_tokens=2500
+                max_tokens=3000  # v7.270: 增加token限制以容纳解题思路
             ):
                 if chunk.get("type") == "reasoning":
                     reasoning_text = chunk.get("content", "")
@@ -4442,23 +4549,21 @@ T4 [P3-拓展]: 松赞/既下山等高端民宿的设计策略
                 "content": full_reasoning,
             }
 
-            logger.info(f"✅ [统一分析 v7.220] 对话完成 | reasoning_len={len(full_reasoning)}, content_len={len(full_content)}")
+            logger.info(f"✅ [统一分析 v7.270] 对话完成 | reasoning_len={len(full_reasoning)}, content_len={len(full_content)}")
 
             # 解析 JSON 结果
-            data = self._safe_parse_json(full_content, context="统一分析(v7.220)")
+            data = self._safe_parse_json(full_content, context="统一分析(v7.270)")
             if data is None:
                 raise ValueError("无法解析统一分析结果")
 
-            # v7.244: 增强诊断日志 - 检查 LLM 返回的原始数据
-            search_framework_data = data.get("search_framework", {})
-            raw_targets = search_framework_data.get("targets", [])
-            logger.info(f"🔍 [v7.244] JSON解析完成 | targets数量={len(raw_targets)}")
-            for i, t in enumerate(raw_targets[:3]):
-                logger.info(f"🔍 [v7.244] 原始target[{i}] 字段: question='{t.get('question', '')[:30] if t.get('question') else '空'}', name='{t.get('name', '')[:30] if t.get('name') else '空'}', search_for='{t.get('search_for', '')[:30] if t.get('search_for') else '空'}'")
+            # v7.270: 检查是否包含 problem_solving_approach
+            problem_solving_data = data.get("problem_solving_approach", {})
+            step2_context = data.get("step2_context", {})
+            logger.info(f" [v7.270] JSON解析完成 | problem_solving_approach={'有' if problem_solving_data else '无'}, step2_context={'有' if step2_context else '无'}")
 
             # v7.234: 质量评估（不阻塞流程）
             quality = self._evaluate_analysis_quality_v234(data)
-            
+
             # 发送质量状态（简化展示，只发送等级）
             yield {
                 "type": "analysis_status",
@@ -4472,7 +4577,7 @@ T4 [P3-拓展]: 松赞/既下山等高端民宿的设计策略
             # v7.234: 低分时尝试轻量优化（阈值55分）
             if not quality["pass"]:
                 data, quality = await self._refine_analysis_v234(query, data, quality)
-                
+
                 # 发送优化后的状态
                 yield {
                     "type": "analysis_status",
@@ -4482,7 +4587,7 @@ T4 [P3-拓展]: 松赞/既下山等高端民宿的设计策略
                         "quality_score": quality["score"],
                     }
                 }
-                
+
                 # 如果仍未达标，发送建议性提示（不阻塞）
                 if not quality["pass"] and quality["suggestions"]:
                     yield {
@@ -4492,9 +4597,6 @@ T4 [P3-拓展]: 松赞/既下山等高端民宿的设计策略
                             "suggestions": quality["suggestions"][:2],
                         }
                     }
-
-            # v7.220: 构建 SearchFramework
-            framework = self._build_search_framework_from_json(query, data)
 
             # 发送用户画像就绪信号
             user_profile = data.get("user_profile", {})
@@ -4507,82 +4609,487 @@ T4 [P3-拓展]: 松赞/既下山等高端民宿的设计策略
                 "_internal_data": user_profile,
             }
 
-            # v7.220: 发送搜索框架就绪信号
-            # v7.241: 始终生成框架清单，即使targets为空（修复重启后不显示问题）
-            if framework:
-                logger.info(f"📋 [v7.241] 搜索框架解析完成 | 目标数={len(framework.targets) if framework.targets else 0}, 质量={quality['grade']}, 核心问题={framework.core_question[:30] if framework.core_question else 'N/A'}...")
+            # v7.270: 构建并发送解题思路
+            problem_solving_approach = None
+            if problem_solving_data:
+                problem_solving_approach = ProblemSolvingApproach.from_dict(problem_solving_data)
+                logger.info(f" [v7.270] 解题思路解析完成 | 步骤数={len(problem_solving_approach.solution_steps)}, 突破口数={len(problem_solving_approach.breakthrough_points)}")
 
-                # v7.241: 始终生成框架清单（添加错误处理）
-                framework_checklist = None
-                try:
-                    framework_checklist = self._generate_framework_checklist(framework, data)
-                    framework.framework_checklist = framework_checklist
-                    logger.debug(f"✅ [v7.241] 框架清单生成成功 | 方向数={len(framework_checklist.main_directions)}, 边界数={len(framework_checklist.boundaries)}")
-                except Exception as checklist_error:
-                    logger.error(f"❌ [v7.241] 框架清单生成失败: {checklist_error}", exc_info=True)
-                    # 创建一个最小化的框架清单作为降级方案
-                    from datetime import datetime
-                    framework_checklist = FrameworkChecklist(
-                        core_summary=framework.core_question[:30] if framework.core_question else framework.original_query[:30],
-                        main_directions=[],
-                        boundaries=[],
-                        answer_goal=framework.answer_goal or "为用户提供完整解答",
-                        generated_at=datetime.now().isoformat(),
-                    )
-
-                # v7.238: 生成纯文字格式的 1/2/3 清单
-                targets_text_list = []
-                if framework.targets:
-                    for i, t in enumerate(framework.targets, 1):
-                        name = getattr(t, 'name', '') or getattr(t, 'question', '') or f"目标{i}"
-                        desc = getattr(t, 'search_for', '') or getattr(t, 'description', '') or ""
-                        if desc:
-                            targets_text_list.append(f"{i}. {name} — {desc}")
-                        else:
-                            targets_text_list.append(f"{i}. {name}")
-
-                framework_summary = "📋 搜索主线：\n" + "\n".join(targets_text_list) if targets_text_list else "📋 搜索主线：待规划"
-
-                # v7.241: 始终发送 search_framework_ready 事件
-                logger.info(f"📤 [v7.241] 发送 search_framework_ready 事件 | framework_checklist={'已生成' if framework_checklist else '未生成'}")
-                # 🔍 v7.242 诊断日志：检查发送的 targets 数据
-                logger.info(f"🔍 [诊断] 发送 targets 数量 = {len(framework.targets) if framework.targets else 0}")
-                if framework.targets:
-                    logger.info(f"🔍 [诊断] 发送 targets[0] = {framework.targets[0].to_dict() if framework.targets else 'None'}")
                 yield {
-                    "type": "search_framework_ready",
+                    "type": "problem_solving_approach_ready",
                     "data": {
-                        "core_question": framework.core_question,
-                        "answer_goal": framework.answer_goal,
-                        "boundary": framework.boundary,
-                        "target_count": len(framework.targets) if framework.targets else 0,
-                        "targets": [t.to_dict() for t in framework.targets] if framework.targets else [],
-                        "targets_summary": framework_summary,  # v7.238: 纯文字清单
-                        "quality_grade": quality["grade"],
-                        # v7.241: 始终包含框架清单（即使为空）
-                        "framework_checklist": framework_checklist.to_dict() if framework_checklist else None,
+                        "task_type": problem_solving_approach.task_type,
+                        "task_type_description": problem_solving_approach.task_type_description,
+                        "complexity_level": problem_solving_approach.complexity_level,
+                        "required_expertise": problem_solving_approach.required_expertise,
+                        "solution_steps": problem_solving_approach.solution_steps,
+                        "breakthrough_points": problem_solving_approach.breakthrough_points,
+                        "expected_deliverable": problem_solving_approach.expected_deliverable,
+                        "original_requirement": problem_solving_approach.original_requirement,
+                        "refined_requirement": problem_solving_approach.refined_requirement,
+                        "confidence_score": problem_solving_approach.confidence_score,
+                        "alternative_approaches": problem_solving_approach.alternative_approaches,
+                        "plain_text": problem_solving_approach.to_plain_text(),
                     },
-                    "_internal_framework": framework,
+                    "_internal_approach": problem_solving_approach,
+                }
+            else:
+                logger.warning(f"⚠️ [v7.270] 未解析到 problem_solving_approach，使用默认值")
+                # 创建默认的解题思路
+                problem_solving_approach = self._build_default_problem_solving_approach(query)
+                yield {
+                    "type": "problem_solving_approach_ready",
+                    "data": problem_solving_approach.to_dict(),
+                    "_internal_approach": problem_solving_approach,
                 }
 
+            # v7.270: 发送第一步完成信号
             yield {
-                "type": "analysis_complete",
-                "framework": framework,
-                "quality": quality,  # v7.234: 添加质量信息
+                "type": "step1_complete",
+                "data": {
+                    "user_profile": user_profile,
+                    "analysis": data.get("analysis", {}),
+                    "problem_solving_approach": problem_solving_approach.to_dict() if problem_solving_approach else {},
+                    "step2_context": step2_context,
+                    "quality_grade": quality["grade"],
+                },
+                "_internal_data": data,
+                "_internal_approach": problem_solving_approach,
             }
 
+            # v7.270: 兼容旧流程 - 如果数据中包含 search_framework，仍然构建并发送
+            # 这是为了向后兼容，后续版本可以移除
+            search_framework_data = data.get("search_framework", {})
+            if search_framework_data and search_framework_data.get("targets"):
+                logger.info(f" [v7.270] 检测到旧格式 search_framework，进行兼容处理")
+                framework = self._build_search_framework_from_json(query, data)
+
+                if framework:
+                    framework_checklist = None
+                    try:
+                        framework_checklist = self._generate_framework_checklist(framework, data)
+                        framework.framework_checklist = framework_checklist
+                    except Exception as checklist_error:
+                        logger.error(f"❌ [v7.270] 框架清单生成失败: {checklist_error}", exc_info=True)
+                        from datetime import datetime
+                        framework_checklist = FrameworkChecklist(
+                            core_summary=framework.core_question[:30] if framework.core_question else framework.original_query[:30],
+                            main_directions=[],
+                            boundaries=[],
+                            answer_goal=framework.answer_goal or "为用户提供完整解答",
+                            generated_at=datetime.now().isoformat(),
+                        )
+
+                    targets_text_list = []
+                    if framework.targets:
+                        for i, t in enumerate(framework.targets, 1):
+                            name = getattr(t, 'name', '') or getattr(t, 'question', '') or f"目标{i}"
+                            desc = getattr(t, 'search_for', '') or getattr(t, 'description', '') or ""
+                            if desc:
+                                targets_text_list.append(f"{i}. {name} — {desc}")
+                            else:
+                                targets_text_list.append(f"{i}. {name}")
+
+                    framework_summary = " 搜索主线：\n" + "\n".join(targets_text_list) if targets_text_list else " 搜索主线：待规划"
+
+                    yield {
+                        "type": "search_framework_ready",
+                        "data": {
+                            "core_question": framework.core_question,
+                            "answer_goal": framework.answer_goal,
+                            "boundary": framework.boundary,
+                            "target_count": len(framework.targets) if framework.targets else 0,
+                            "targets": [t.to_dict() for t in framework.targets] if framework.targets else [],
+                            "targets_summary": framework_summary,
+                            "quality_grade": quality["grade"],
+                            "framework_checklist": framework_checklist.to_dict() if framework_checklist else None,
+                        },
+                        "_internal_framework": framework,
+                    }
+
+                    yield {
+                        "type": "analysis_complete",
+                        "framework": framework,
+                        "quality": quality,
+                        "problem_solving_approach": problem_solving_approach,
+                    }
+            else:
+                # v7.270: 新流程 - 不包含 search_framework，只发送 analysis_complete
+                yield {
+                    "type": "analysis_complete",
+                    "framework": None,  # 第一步不生成 framework
+                    "quality": quality,
+                    "problem_solving_approach": problem_solving_approach,
+                    "step2_context": step2_context,
+                }
+
         except Exception as e:
-            logger.warning(f"⚠️ [统一分析 v7.234] 分析失败: {e}")
+            logger.warning(f"⚠️ [统一分析 v7.270] 分析失败: {e}")
             # 如果有对话内容，先发送
             if full_reasoning:
                 yield {
                     "type": "unified_dialogue_complete",
                     "content": full_reasoning,
                 }
+            # 发送默认的解题思路
+            default_approach = self._build_default_problem_solving_approach(query)
+            yield {
+                "type": "problem_solving_approach_ready",
+                "data": default_approach.to_dict(),
+                "_internal_approach": default_approach,
+            }
+            yield {
+                "type": "step1_complete",
+                "data": {
+                    "user_profile": {},
+                    "analysis": {},
+                    "problem_solving_approach": default_approach.to_dict(),
+                    "step2_context": {"core_question": query[:50], "answer_goal": "为用户提供完整解答"},
+                    "quality_grade": "C",
+                },
+                "_internal_data": {},
+                "_internal_approach": default_approach,
+            }
             yield {
                 "type": "analysis_complete",
                 "framework": self._build_simple_search_framework(query),
+                "problem_solving_approach": default_approach,
             }
+
+    def _build_default_problem_solving_approach(self, query: str) -> ProblemSolvingApproach:
+        """
+        构建默认的解题思路 - v7.270 新增
+
+        当LLM未能生成有效的解题思路时，使用此方法创建默认值
+        """
+        return ProblemSolvingApproach(
+            task_type="exploration",
+            task_type_description="这是一个需要探索和理解的任务",
+            complexity_level="moderate",
+            required_expertise=["领域知识", "信息检索", "分析能力"],
+            solution_steps=[
+                {
+                    "step_id": "S1",
+                    "action": "理解问题的核心诉求",
+                    "purpose": "明确用户真正想要解决的问题",
+                    "expected_output": "问题的本质描述和关键要素"
+                },
+                {
+                    "step_id": "S2",
+                    "action": "收集相关背景信息",
+                    "purpose": "建立对问题领域的基础认知",
+                    "expected_output": "领域概念、关键术语、基本框架"
+                },
+                {
+                    "step_id": "S3",
+                    "action": "识别关键信息缺口",
+                    "purpose": "确定需要补充的信息",
+                    "expected_output": "需要搜索的具体方向"
+                },
+                {
+                    "step_id": "S4",
+                    "action": "搜索并整合信息",
+                    "purpose": "获取回答问题所需的素材",
+                    "expected_output": "相关案例、数据、观点"
+                },
+                {
+                    "step_id": "S5",
+                    "action": "生成完整答案",
+                    "purpose": "为用户提供有价值的回答",
+                    "expected_output": "结构化的完整回答"
+                }
+            ],
+            breakthrough_points=[
+                {
+                    "point": "问题的核心诉求",
+                    "why_key": "理解用户真正想要什么是解决问题的关键",
+                    "how_to_leverage": "从用户的表达中提取隐含需求"
+                }
+            ],
+            expected_deliverable={
+                "format": "report",
+                "sections": ["问题理解", "背景分析", "核心内容", "建议方案"],
+                "key_elements": ["清晰的结构", "有价值的信息", "可操作的建议"],
+                "quality_criteria": ["准确性", "完整性", "实用性"]
+            },
+            original_requirement=query,
+            refined_requirement=f"为用户提供关于「{query[:50]}」的完整解答",
+            confidence_score=0.5,
+            alternative_approaches=["从不同角度切入问题", "寻找类似案例参考"]
+        )
+
+    def _build_step2_search_framework_prompt(
+        self,
+        query: str,
+        step2_context: Dict[str, Any],
+        problem_solving_approach: ProblemSolvingApproach,
+        analysis_data: Dict[str, Any]
+    ) -> str:
+        """
+        构建第二步搜索框架生成 Prompt - v7.270 新增
+
+        第二步：基于第一步的解题思路，生成具体的搜索任务规划（P1/P2/P3, T1/T2/T3）
+
+        输入：
+        - query: 用户原始问题
+        - step2_context: 第一步传递的上下文（核心问题、回答目标、解题步骤摘要等）
+        - problem_solving_approach: 第一步生成的解题思路
+        - analysis_data: 第一步的完整分析数据（L1-L5）
+
+        输出：
+        - search_framework: 包含 targets 的搜索框架（每个 target 包含预设关键词）
+        """
+        # 提取解题步骤摘要
+        solution_steps_text = "\n".join([
+            f"- {step.get('step_id', '')}: {step.get('action', '')} → {step.get('expected_output', '')}"
+            for step in problem_solving_approach.solution_steps
+        ])
+
+        # 提取关键突破口
+        breakthrough_text = "\n".join([
+            f"- {bp.get('point', '')}: {bp.get('why_key', '')}"
+            for bp in problem_solving_approach.breakthrough_points
+        ])
+
+        # 提取L1实体信息（用于生成精准搜索词）
+        l1_facts = analysis_data.get("analysis", {}).get("l1_facts", {})
+        brand_entities = l1_facts.get("brand_entities", [])
+        location_entities = l1_facts.get("location_entities", [])
+
+        entities_text = ""
+        if brand_entities:
+            entities_text += "**品牌实体**:\n"
+            for brand in brand_entities[:3]:
+                entities_text += f"- {brand.get('name', '')}: {', '.join(brand.get('product_lines', [])[:3])}\n"
+        if location_entities:
+            entities_text += "**地点实体**:\n"
+            for loc in location_entities[:2]:
+                entities_text += f"- {loc.get('name', '')}: {loc.get('climate', '')}, {', '.join(loc.get('local_materials', [])[:3])}\n"
+
+        context_str = json.dumps(step2_context, ensure_ascii=False, indent=2)
+
+        return f"""你是搜索策略专家。基于第一步的深度分析和解题思路，现在生成具体的搜索任务规划。
+
+## 用户问题
+{query}
+
+## 第一步分析结果
+
+### 核心问题
+{step2_context.get('core_question', query[:50])}
+
+### 回答目标
+{step2_context.get('answer_goal', '为用户提供完整解答')}
+
+### 解题路径（{len(problem_solving_approach.solution_steps)}步）
+{solution_steps_text}
+
+### 关键突破口
+{breakthrough_text}
+
+### 提取的实体
+{entities_text if entities_text else "（无明确实体）"}
+
+## 任务要求
+
+现在，基于以上解题思路，生成**可执行的搜索任务清单**。
+
+### 搜索任务设计原则
+
+1. **任务粒度**：每个搜索任务对应解题路径中的1-2个步骤
+2. **优先级分层**：
+   - P1（高优先级）：回答问题的必需信息（品牌核心、地点特征、核心概念）
+   - P2（中优先级）：深化理解的补充信息（案例参考、融合策略）
+   - P3（低优先级）：锦上添花的延展信息（趋势、专家观点）
+3. **预设关键词**：每个任务必须包含3-5个精准搜索关键词
+4. **质量标准**：明确每个任务的完成标准（找到什么算成功）
+
+### 搜索任务模板
+
+每个搜索任务包含：
+- **id**: T1, T2, T3...（按优先级排序）
+- **question**: 这个任务要回答什么问题？（问句形式，15字内）
+- **search_for**: 具体搜索什么内容（列出实体名称）
+- **why_need**: 找到后对回答有什么帮助
+- **success_when**: 什么情况算搜索成功（1-2条标准）
+- **priority**: 1(高) / 2(中) / 3(低)
+- **category**: 品牌调研 / 案例参考 / 方案验证 / 背景知识
+- **preset_keywords**: 预设的3-5个精准搜索关键词（核心改进）
+
+### 关键词生成要求
+
+⚠️ **预设关键词是搜索质量的关键**，必须：
+1. **具体化**：使用实体名称，而非泛化描述
+   - ✅ "HAY Palissade系列 户外家具"
+   - ❌ "北欧家具品牌"
+2. **场景化**：结合用户的具体场景
+   - ✅ "峨眉山七里坪 民宿设计 在地材料"
+   - ❌ "民宿设计"
+3. **多样化**：覆盖不同搜索角度
+   - 品牌+产品线
+   - 地点+特征
+   - 风格+案例
+4. **可搜索性**：确保关键词能在搜索引擎中找到结果
+
+### 示例（HAY民宿案例）
+
+```json
+{{
+  "targets": [
+    {{
+      "id": "T1",
+      "question": "HAY品牌的设计语言是什么？",
+      "search_for": "HAY品牌设计哲学、核心产品系列、设计师团队",
+      "why_need": "建立'源'美学参照系，理解HAY的设计DNA",
+      "success_when": ["找到HAY的设计理念描述", "识别出3个以上代表性产品系列"],
+      "priority": 1,
+      "category": "品牌调研",
+      "preset_keywords": [
+        "HAY丹麦家居 设计理念",
+        "HAY Palissade系列 Mags沙发",
+        "Ronan Bouroullec HAY设计",
+        "HAY About A Chair 民主设计",
+        "HAY色彩系统 粉末涂层钢"
+      ]
+    }},
+    {{
+      "id": "T2",
+      "question": "峨眉山七里坪的环境特征？",
+      "search_for": "七里坪气候、海拔、在地材料、建筑风格",
+      "why_need": "理解设计的物理约束和在地化融合基础",
+      "success_when": ["获得气候和海拔数据", "识别出3种以上在地材料"],
+      "priority": 1,
+      "category": "背景知识",
+      "preset_keywords": [
+        "峨眉山七里坪 海拔气候",
+        "七里坪 冷杉木 竹材",
+        "峨眉山民宿 建筑风格",
+        "四川山地 在地材料",
+        "七里坪度假区 环境特征"
+      ]
+    }},
+    {{
+      "id": "T3",
+      "question": "北欧风格与川西美学如何融合？",
+      "search_for": "北欧极简与中国传统融合案例、设计策略",
+      "why_need": "解决核心张力，找到可操作的融合手法",
+      "success_when": ["找到2个以上成功融合案例", "提炼出具体融合策略"],
+      "priority": 2,
+      "category": "案例参考",
+      "preset_keywords": [
+        "北欧风格 中式元素 融合设计",
+        "极简主义 东方美学 民宿",
+        "HAY家具 中国传统材料",
+        "几何框架 有机填充 设计案例",
+        "现代北欧 川西建筑 融合"
+      ]
+    }}
+  ]
+}}
+```
+
+## 输出要求
+
+请生成完整的搜索框架JSON，包含：
+1. **core_question**: 问题一句话本质（20字内）
+2. **answer_goal**: 用户期望得到的答案是...
+3. **boundary**: 搜索边界（不搜什么）
+4. **targets**: 搜索任务清单（3-6个任务，按优先级排序）
+
+每个 target 必须包含：
+- id, question, search_for, why_need, success_when
+- priority, category
+- **preset_keywords**（3-5个精准关键词）
+
+```json
+{{
+  "core_question": "...",
+  "answer_goal": "...",
+  "boundary": "不搜索：价格信息、施工细节、供应商联系方式",
+  "targets": [
+    // 3-6个搜索任务
+  ]
+}}
+```
+
+请只输出JSON，不要有其他内容。"""
+
+    async def _step2_generate_search_framework(
+        self,
+        query: str,
+        step2_context: Dict[str, Any],
+        problem_solving_approach: ProblemSolvingApproach,
+        analysis_data: Dict[str, Any]
+    ) -> Optional[SearchFramework]:
+        """
+        第二步：生成搜索框架 - v7.270 新增
+
+        基于第一步的解题思路，调用LLM生成具体的搜索任务规划
+
+        Returns:
+            SearchFramework 或 None（失败时）
+        """
+        logger.info(f" [v7.270 Step2] 开始生成搜索框架")
+
+        try:
+            prompt = self._build_step2_search_framework_prompt(
+                query, step2_context, problem_solving_approach, analysis_data
+            )
+
+            # 调用 LLM 生成搜索框架
+            response = await self._call_llm_json(
+                prompt,
+                model=self.eval_model,  # 使用评估模型（更快）
+                max_tokens=2000
+            )
+
+            if not response:
+                logger.error(f"❌ [v7.270 Step2] LLM返回空结果")
+                return None
+
+            # 解析 JSON
+            data = self._safe_parse_json(response, context="Step2搜索框架生成")
+            if not data:
+                logger.error(f"❌ [v7.270 Step2] JSON解析失败")
+                return None
+
+            # 构建 SearchFramework
+            framework = SearchFramework(
+                original_query=query,
+                core_question=data.get("core_question", step2_context.get("core_question", query[:50])),
+                answer_goal=data.get("answer_goal", step2_context.get("answer_goal", "为用户提供完整解答")),
+                boundary=data.get("boundary", ""),
+                targets=[],
+                l1_facts=analysis_data.get("analysis", {}).get("l1_facts", {}),
+                l2_models=analysis_data.get("analysis", {}).get("l2_models", {}),
+                l3_tension=analysis_data.get("analysis", {}).get("l3_tension", ""),
+                l4_jtbd=analysis_data.get("analysis", {}).get("l4_jtbd", ""),
+                l5_sharpness=analysis_data.get("analysis", {}).get("l5_sharpness", {}),
+                user_profile=analysis_data.get("user_profile", {}),
+            )
+
+            # 解析 targets
+            for t in data.get("targets", []):
+                target = SearchTarget(
+                    id=t.get("id", f"T{len(framework.targets)+1}"),
+                    question=t.get("question", ""),
+                    search_for=t.get("search_for", ""),
+                    why_need=t.get("why_need", ""),
+                    success_when=t.get("success_when", []),
+                    priority=t.get("priority", 2),
+                    category=t.get("category", "品牌调研"),
+                    preset_keywords=t.get("preset_keywords", []),
+                    quality_criteria=t.get("success_when", []),
+                    expected_info=t.get("expected_info", []),
+                )
+                framework.targets.append(target)
+
+            logger.info(f"✅ [v7.270 Step2] 搜索框架生成完成 | targets={len(framework.targets)}")
+            return framework
+
+        except Exception as e:
+            logger.error(f"❌ [v7.270 Step2] 搜索框架生成失败: {e}", exc_info=True)
+            return None
 
     def _build_search_framework_from_json(self, query: str, data: Dict[str, Any]) -> SearchFramework:
         """
@@ -4603,10 +5110,10 @@ T4 [P3-拓展]: 松赞/既下山等高端民宿的设计策略
         analysis = data.get("analysis", {})
         search_data = data.get("search_framework", {})
 
-        # 🔍 v7.242 诊断日志：检查 LLM 返回的 JSON 结构
-        logger.info(f"🔍 [诊断] data keys = {list(data.keys())}")
-        logger.info(f"🔍 [诊断] search_framework = {json.dumps(search_data, ensure_ascii=False)[:500] if search_data else 'None'}")
-        logger.info(f"🔍 [诊断] targets 原始数据 = {search_data.get('targets', [])[:2] if search_data.get('targets') else '空'}")
+        #  v7.242 诊断日志：检查 LLM 返回的 JSON 结构
+        logger.info(f" [诊断] data keys = {list(data.keys())}")
+        logger.info(f" [诊断] search_framework = {json.dumps(search_data, ensure_ascii=False)[:500] if search_data else 'None'}")
+        logger.info(f" [诊断] targets 原始数据 = {search_data.get('targets', [])[:2] if search_data.get('targets') else '空'}")
 
         # 构建搜索目标列表
         targets = []
@@ -4636,7 +5143,7 @@ T4 [P3-拓展]: 松赞/既下山等高端民宿的设计策略
 
                 t["name"] = inferred_name
                 t["question"] = inferred_name
-                logger.info(f"📝 [v7.244] 推断名称: {inferred_name}")
+                logger.info(f" [v7.244] 推断名称: {inferred_name}")
 
             # v7.232: 解析预设关键词
             preset_keywords = t.get("preset_keywords", [])
@@ -4647,8 +5154,8 @@ T4 [P3-拓展]: 松赞/既下山等高端民宿的设计策略
             why_need = t.get("why_need", "") or t.get("purpose", "")
             success_when = t.get("success_when", []) or t.get("quality_criteria", [])
 
-            # 🔍 v7.243 诊断日志：检查每个 target 的字段值
-            logger.info(f"🔍 [诊断] target[{t.get('id', '?')}] question='{question}', search_for='{search_for[:30] if search_for else ''}'...")
+            #  v7.243 诊断日志：检查每个 target 的字段值
+            logger.info(f" [诊断] target[{t.get('id', '?')}] question='{question}', search_for='{search_for[:30] if search_for else ''}'...")
             
             # v7.237: 增强场景化关键词生成（方案B）
             if not preset_keywords:
@@ -4691,8 +5198,8 @@ T4 [P3-拓展]: 松赞/既下山等高端民宿的设计策略
                 if not target.question or not target.question.strip():
                     target.question = target.name
 
-        # 🔍 v7.242 诊断日志：检查构建后的 targets 数量
-        logger.info(f"🔍 [诊断] 构建后 targets 数量 = {len(targets)}")
+        #  v7.242 诊断日志：检查构建后的 targets 数量
+        logger.info(f" [诊断] 构建后 targets 数量 = {len(targets)}")
 
         # v7.234: 如果 targets 为空，使用默认目标兜底
         if not targets:
@@ -4791,7 +5298,7 @@ T4 [P3-拓展]: 松赞/既下山等高端民宿的设计策略
                             expected_info=["产品线", "设计特点", "色彩系统"],
                         ))
                         next_id += 1
-                        logger.info(f"📝 [v7.251] 补充品牌实体搜索任务: {brand_name}")
+                        logger.info(f" [v7.251] 补充品牌实体搜索任务: {brand_name}")
 
             # 2. 检查地点实体覆盖
             for location in l1_facts.get("location_entities", []):
@@ -4812,7 +5319,7 @@ T4 [P3-拓展]: 松赞/既下山等高端民宿的设计策略
                             expected_info=["建筑风格", "在地材料", "气候适应"],
                         ))
                         next_id += 1
-                        logger.info(f"📝 [v7.251] 补充地点实体搜索任务: {loc_name}")
+                        logger.info(f" [v7.251] 补充地点实体搜索任务: {loc_name}")
 
             # 3. 检查竞品实体覆盖
             for competitor in l1_facts.get("competitor_entities", []):
@@ -4833,7 +5340,7 @@ T4 [P3-拓展]: 松赞/既下山等高端民宿的设计策略
                             expected_info=["设计特点", "成功经验", "差异化"],
                         ))
                         next_id += 1
-                        logger.info(f"📝 [v7.251] 补充竞品实体搜索任务: {comp_name}")
+                        logger.info(f" [v7.251] 补充竞品实体搜索任务: {comp_name}")
 
         # 4. 检查L3张力覆盖
         tension_formula = ""
@@ -4871,7 +5378,7 @@ T4 [P3-拓展]: 松赞/既下山等高端民宿的设计策略
                     expected_info=["融合案例", "解决策略", "注意事项"],
                 ))
                 next_id += 1
-                logger.info(f"📝 [v7.251] 补充张力验证搜索任务: {tension_formula}")
+                logger.info(f" [v7.251] 补充张力验证搜索任务: {tension_formula}")
 
         if new_targets:
             logger.info(f"✅ [v7.251] 共补充 {len(new_targets)} 个搜索任务")
@@ -4916,7 +5423,7 @@ T4 [P3-拓展]: 松赞/既下山等高端民宿的设计策略
             )
             complexity_score = complexity_result.get("complexity_score", 0.0)
             recommended_task_count = complexity_result.get("recommended_max", 5)
-            logger.info(f"📊 [v7.260] 复杂度评估: score={complexity_score:.2f}, recommended_tasks={recommended_task_count}")
+            logger.info(f" [v7.260] 复杂度评估: score={complexity_score:.2f}, recommended_tasks={recommended_task_count}")
         except Exception as e:
             logger.warning(f"⚠️ [v7.260] 复杂度评估失败: {e}，使用默认值")
 
@@ -4999,7 +5506,7 @@ T4 [P3-拓展]: 松赞/既下山等高端民宿的设计策略
             # 按优先级排序
             main_directions.sort(key=lambda x: x.get("priority", 99))
 
-            logger.info(f"📋 [v7.263] 框架清单生成完成 | 任务数={len(main_directions)}, 动机分布={motivation_distribution}")
+            logger.info(f" [v7.263] 框架清单生成完成 | 任务数={len(main_directions)}, 动机分布={motivation_distribution}")
 
         except Exception as e:
             logger.warning(f"⚠️ [v7.263] 框架清单生成失败: {e}，使用降级逻辑")
@@ -5127,7 +5634,7 @@ T4 [P3-拓展]: 松赞/既下山等高端民宿的设计策略
                 "depth": l5_sharpness.get("depth", "")
             }
 
-        logger.debug(f"📋 [v7.260] 框架清单深度分析摘要 | 实体数={len(key_entities)}, 视角数={len(analysis_perspectives)}, 张力={bool(core_tension)}, JTBD={bool(user_task)}, 复杂度={complexity_score:.2f}")
+        logger.debug(f" [v7.260] 框架清单深度分析摘要 | 实体数={len(key_entities)}, 视角数={len(analysis_perspectives)}, 张力={bool(core_tension)}, JTBD={bool(user_task)}, 复杂度={complexity_score:.2f}")
 
         return FrameworkChecklist(
             core_summary=core_summary,
@@ -5601,7 +6108,7 @@ T4 [P3-拓展]: 松赞/既下山等高端民宿的设计策略
         grade = "A" if score >= 75 else "B" if score >= 55 else "C"
         passed = score >= 55
         
-        logger.info(f"📊 [v7.234] 质量评估完成 | score={score}/100 | grade={grade} | issues={len(issues)}")
+        logger.info(f" [v7.234] 质量评估完成 | score={score}/100 | grade={grade} | issues={len(issues)}")
         
         return {
             "score": score,
@@ -5706,7 +6213,7 @@ T4 [P3-拓展]: 松赞/既下山等高端民宿的设计策略
         if quality_result["pass"]:
             return original_data, quality_result
         
-        logger.info(f"🔄 [v7.234] 开始分析优化 | 当前分数={quality_result['score']} | 问题数={len(quality_result['issues'])}")
+        logger.info(f" [v7.234] 开始分析优化 | 当前分数={quality_result['score']} | 问题数={len(quality_result['issues'])}")
         
         # 只取top3问题
         top_issues = quality_result["issues"][:3]
@@ -6103,7 +6610,7 @@ L3张力: {json.dumps(analysis_excerpt["l3_tension"], ensure_ascii=False)[:300]}
         - Step A: 对话式分析（流式输出给用户看）
         - Step B: JSON提取（静默执行，系统内部使用）
         """
-        logger.info(f"🔍 [L0 v7.206] 开始对话式信息提取 | query={query[:50]}...")
+        logger.info(f" [L0 v7.206] 开始对话式信息提取 | query={query[:50]}...")
 
         dialogue_content = ""
         
@@ -6192,17 +6699,17 @@ L3张力: {json.dumps(analysis_excerpt["l3_tension"], ensure_ascii=False)[:300]}
         max_tokens: int = 1000,
     ) -> AsyncGenerator[Dict[str, Any], None]:
         """
-        调用 OpenRouter API（流式）- v7.205
+        调用 OpenRouter API（流式）- v7.276 恢复 DeepSeek
         """
-        if not self.openai_api_key:
+        if not self.openrouter_api_key:
             logger.warning("⚠️ OpenRouter API Key 未配置")
             return
 
         headers = {
-            "Authorization": f"Bearer {self.openai_api_key}",
+            "Authorization": f"Bearer {self.openrouter_api_key}",
             "Content-Type": "application/json",
-            "HTTP-Referer": "https://intelligent-project-analyzer.com",
-            "X-Title": "Intelligent Project Analyzer",
+            "HTTP-Referer": os.getenv("OPENROUTER_SITE_URL", "https://github.com/dafei0755/ai"),
+            "X-Title": os.getenv("OPENROUTER_APP_NAME", "Intelligent Project Analyzer"),
         }
 
         payload = {
@@ -6216,7 +6723,7 @@ L3张力: {json.dumps(analysis_excerpt["l3_tension"], ensure_ascii=False)[:300]}
             async with httpx.AsyncClient(timeout=60.0) as client:
                 async with client.stream(
                     "POST",
-                    f"{self.openai_base_url}/chat/completions",
+                    f"{self.openrouter_base_url}/chat/completions",
                     headers=headers,
                     json=payload,
                 ) as response:
@@ -6770,7 +7277,7 @@ L3张力: {json.dumps(analysis_excerpt["l3_tension"], ensure_ascii=False)[:300]}
         raw_aspects = data.get("key_aspects", [])
         
         # v7.215: 添加诊断日志
-        logger.debug(f"🔍 [Ucppt v7.215] key_aspects 原始数据类型: {type(raw_aspects)}, 内容预览: {str(raw_aspects)[:200]}")
+        logger.debug(f" [Ucppt v7.215] key_aspects 原始数据类型: {type(raw_aspects)}, 内容预览: {str(raw_aspects)[:200]}")
         
         if not isinstance(raw_aspects, list):
             logger.warning(f"⚠️ [Ucppt v7.215] key_aspects 不是列表类型: {type(raw_aspects)}, 尝试转换")
@@ -6836,26 +7343,26 @@ L3张力: {json.dumps(analysis_excerpt["l3_tension"], ensure_ascii=False)[:300]}
             framework.key_aspects.append(aspect)
 
         # ==================== 日志输出 ====================
-        logger.info(f"📐 [Ucppt v7.215] 深度问题分析完成")
+        logger.info(f" [Ucppt v7.215] 深度问题分析完成")
 
         # L1-L5 日志
         if analysis_layers and isinstance(analysis_layers, dict):
             l1_facts = analysis_layers.get('L1_facts', [])
-            logger.info(f"   🔍 L1 事实: {len(l1_facts) if isinstance(l1_facts, list) else 0}个")
+            logger.info(f"    L1 事实: {len(l1_facts) if isinstance(l1_facts, list) else 0}个")
             l3_tension = str(analysis_layers.get('L3_core_tension', ''))
             if l3_tension:
-                logger.info(f"   🧠 L3 核心张力: {l3_tension[:60]}...")
+                logger.info(f"    L3 核心张力: {l3_tension[:60]}...")
             l5_score = analysis_layers.get('L5_sharpness', {}).get('score', 0)
-            logger.info(f"   📊 L5 锐度: {l5_score}")
+            logger.info(f"    L5 锐度: {l5_score}")
 
         # 人性维度日志
         if human_dims.get("enabled"):
-            logger.info(f"   💫 人性维度: 已启用")
+            logger.info(f"    人性维度: 已启用")
 
         # 基础日志
-        logger.info(f"   🌐 宏观统筹: {macro.get('essence', '')[:50]}...")
-        logger.info(f"   🎯 切入点: {entry.get('core_insight', '')[:50]}...")
-        logger.info(f"   📋 信息面: {len(framework.key_aspects)}个")
+        logger.info(f"    宏观统筹: {macro.get('essence', '')[:50]}...")
+        logger.info(f"    切入点: {entry.get('core_insight', '')[:50]}...")
+        logger.info(f"    信息面: {len(framework.key_aspects)}个")
 
         # v7.215 修复：如果没有解析出任何信息面，使用默认值
         if not framework.key_aspects:
@@ -6874,7 +7381,7 @@ L3张力: {json.dumps(analysis_excerpt["l3_tension"], ensure_ascii=False)[:300]}
                     answer_goal=goal,
                     importance=importance,
                 ))
-            logger.info(f"   📋 使用默认信息面: {len(framework.key_aspects)}个")
+            logger.info(f"    使用默认信息面: {len(framework.key_aspects)}个")
 
         return framework
     
@@ -7009,10 +7516,10 @@ L3张力: {json.dumps(analysis_excerpt["l3_tension"], ensure_ascii=False)[:300]}
                 framework.key_aspects.append(aspect)
             
             # 日志输出分析结果
-            logger.info(f"📐 [Ucppt] 问题分析完成")
-            logger.info(f"   🌐 宏观统筹: {macro.get('essence', '')[:50]}...")
-            logger.info(f"   🎯 切入点: {entry.get('core_insight', '')[:50]}...")
-            logger.info(f"   📋 信息面: {len(framework.key_aspects)}个")
+            logger.info(f" [Ucppt] 问题分析完成")
+            logger.info(f"    宏观统筹: {macro.get('essence', '')[:50]}...")
+            logger.info(f"    切入点: {entry.get('core_insight', '')[:50]}...")
+            logger.info(f"    信息面: {len(framework.key_aspects)}个")
             
             return framework
             
@@ -7083,7 +7590,7 @@ L3张力: {json.dumps(analysis_excerpt["l3_tension"], ensure_ascii=False)[:300]}
         reflection_guidance = ""
         if last_reflection and current_round > 1:
             reflection_guidance = f"""
-## 📝 上一轮反思的建议（承上启下）
+##  上一轮反思的建议（承上启下）
 - 上轮发现：{'; '.join(last_reflection.key_findings[:2]) if last_reflection.key_findings else '无'}
 - 需要深入的点：{'; '.join(last_reflection.deeper_search_points[:2]) if last_reflection.deeper_search_points else '无'}
 - 上轮建议的查询：{last_reflection.suggested_next_query}
@@ -7154,9 +7661,9 @@ L3张力: {json.dumps(analysis_excerpt["l3_tension"], ensure_ascii=False)[:300]}
                 search_query = f"{framework.original_query} {target_aspect.aspect_name} {target_aspect.answer_goal[:15]}"
                 logger.warning(f"⚠️ [Ucppt] LLM返回空查询，使用降级: {search_query}")
             
-            logger.info(f"🤔 [Ucppt] 第{current_round}轮思考完成")
-            logger.info(f"   💭 {thinking[:60]}...")
-            logger.info(f"   🔍 查询: {search_query}")
+            logger.info(f" [Ucppt] 第{current_round}轮思考完成")
+            logger.info(f"    {thinking[:60]}...")
+            logger.info(f"    查询: {search_query}")
             
             return thinking, strategy, search_query.strip()
             
@@ -7205,7 +7712,7 @@ L3张力: {json.dumps(analysis_excerpt["l3_tension"], ensure_ascii=False)[:300]}
         reflection_guidance = ""
         if last_reflection and current_round > 1:
             reflection_guidance = f"""
-## 📝 上一轮反思的建议（承上启下）
+##  上一轮反思的建议（承上启下）
 - 上轮发现：{'; '.join(last_reflection.key_findings[:2]) if last_reflection.key_findings else '无'}
 - 需要深入的点：{'; '.join(last_reflection.deeper_search_points[:2]) if last_reflection.deeper_search_points else '无'}
 - 上轮建议的查询：{last_reflection.suggested_next_query}
@@ -7294,9 +7801,9 @@ L3张力: {json.dumps(analysis_excerpt["l3_tension"], ensure_ascii=False)[:300]}
             if not search_query or len(search_query.strip()) < 3:
                 search_query = f"{target_aspect.aspect_name} {target_aspect.answer_goal[:20] if target_aspect.answer_goal else ''}"
             
-            logger.info(f"🤔 [Ucppt v7.187] 第{current_round}轮流式思考完成")
-            logger.info(f"   💭 推理长度: {len(full_reasoning)} 字符")
-            logger.info(f"   🔍 查询: {search_query}")
+            logger.info(f" [Ucppt v7.187] 第{current_round}轮流式思考完成")
+            logger.info(f"    推理长度: {len(full_reasoning)} 字符")
+            logger.info(f"    查询: {search_query}")
             
             # 发送完成事件
             yield {
@@ -7371,7 +7878,7 @@ L3张力: {json.dumps(analysis_excerpt["l3_tension"], ensure_ascii=False)[:300]}
             sources_text = "\n\n".join(source_summaries) if source_summaries else "无结果"
 
             last_round_section = f"""
-## 📄 上一轮搜索结果（需要回顾评估）
+##  上一轮搜索结果（需要回顾评估）
 上轮查询：{last_search_query}
 结果：
 {sources_text}
@@ -7380,7 +7887,7 @@ L3张力: {json.dumps(analysis_excerpt["l3_tension"], ensure_ascii=False)[:300]}
         # v7.220: 构建 targets 状态
         targets_status = []
         for t in framework.targets:
-            status_emoji = "✅" if t.is_complete() else ("🔶" if t.status == "partial" else "❌")
+            status_emoji = "✅" if t.is_complete() else ("" if t.status == "partial" else "❌")
             info_preview = t.collected_info[0][:50] if t.collected_info else "待收集"
             # v7.243: 使用更多备选字段
             target_desc = t.question or t.name or t.search_for or f"目标{t.id}"
@@ -7404,7 +7911,7 @@ L3张力: {json.dumps(analysis_excerpt["l3_tension"], ensure_ascii=False)[:300]}
         deep_analysis_section = ""
         if framework.l1_facts or framework.l3_tension:
             deep_analysis_section = f"""
-## 🧠 深度分析背景
+##  深度分析背景
 """
             if framework.l1_facts:
                 # v7.234: 安全处理 l1_facts（确保是 list）
@@ -7425,7 +7932,7 @@ L3张力: {json.dumps(analysis_excerpt["l3_tension"], ensure_ascii=False)[:300]}
             if next_keyword_idx < len(preset_keywords):
                 suggested_keyword = preset_keywords[next_keyword_idx]
                 preset_keyword_section = f"""
-## 📌 预设搜索关键词（优先使用）
+##  预设搜索关键词（优先使用）
 建议使用: **{suggested_keyword}**
 备选关键词: {', '.join(preset_keywords[next_keyword_idx+1:next_keyword_idx+3]) if len(preset_keywords) > next_keyword_idx+1 else '无'}
 
@@ -7438,7 +7945,7 @@ L3张力: {json.dumps(analysis_excerpt["l3_tension"], ensure_ascii=False)[:300]}
         if framework.framework_checklist:
             checklist = framework.framework_checklist
             framework_checklist_section = f"""
-## 📋 搜索框架清单（始终遵循）
+##  搜索框架清单（始终遵循）
 
 **核心问题**: {checklist.core_summary}
 
@@ -7454,19 +7961,19 @@ L3张力: {json.dumps(analysis_excerpt["l3_tension"], ensure_ascii=False)[:300]}
 
         prompt = f"""你是一位资深设计顾问，正在帮客户做项目研究。请用自然、专业的语言描述你的思考过程。
 
-## 🎯 客户问题（始终回归的锚点）
+##  客户问题（始终回归的锚点）
 {framework.original_query}
 
-## 🎯 问题本质
+##  问题本质
 {framework.core_question}
 {framework_checklist_section}
 {deep_analysis_section}
 {last_round_section}
-## 📊 截至目前的累积进展
+##  截至目前的累积进展
 {cumulative_state}
 整体完成度：{framework.overall_completeness:.0%}
 
-## 🎯 本轮目标（第 {current_round} 轮）
+##  本轮目标（第 {current_round} 轮）
 目标：{target.question or target.name or target.search_for or target.description or f'搜索目标{target.id}'}
 搜索内容：{target.search_for or target.description or ''}
 目的：{target.why_need or target.purpose or target.answer_goal or ''}
@@ -7589,7 +8096,7 @@ L3张力: {json.dumps(analysis_excerpt["l3_tension"], ensure_ascii=False)[:300]}
                 preset_keyword = target.get_next_preset_keyword()
                 if preset_keyword:
                     fallback_query = preset_keyword
-                    logger.info(f"📌 [v7.232] 降级处理使用预设关键词: {preset_keyword[:40]}...")
+                    logger.info(f" [v7.232] 降级处理使用预设关键词: {preset_keyword[:40]}...")
                 else:
                     core_query = framework.original_query[:30].strip() if len(framework.original_query) > 30 else framework.original_query
                     # v7.243: 使用更多备选字段，确保 target 信息不为空
@@ -7615,12 +8122,12 @@ L3张力: {json.dumps(analysis_excerpt["l3_tension"], ensure_ascii=False)[:300]}
                 else:
                     result.search_query = f"{target.question or target.name or target.search_for or f'目标{target.id}'} {target.answer_goal[:20] if target.answer_goal else ''}"
             
-            logger.info(f"🤔 [Ucppt v7.204] 第{current_round}轮统一思考完成")
-            logger.info(f"   💭 推理长度: {len(full_reasoning)} 字符")
-            logger.info(f"   🔍 查询: {result.search_query}")
+            logger.info(f" [Ucppt v7.204] 第{current_round}轮统一思考完成")
+            logger.info(f"    推理长度: {len(full_reasoning)} 字符")
+            logger.info(f"    查询: {result.search_query}")
             if current_round > 1:
-                logger.info(f"   📊 上轮信息充分度: {result.info_sufficiency:.0%}")
-            logger.info(f"   🧭 方向对齐: {result.alignment_score:.0%}")
+                logger.info(f"    上轮信息充分度: {result.info_sufficiency:.0%}")
+            logger.info(f"    方向对齐: {result.alignment_score:.0%}")
             
             # 发送完成事件
             yield {
@@ -7637,7 +8144,7 @@ L3张力: {json.dumps(analysis_excerpt["l3_tension"], ensure_ascii=False)[:300]}
             target_desc = target.question or target.name or target.search_for or f"目标{target.id}"
             if preset_keyword:
                 default_query = preset_keyword
-                logger.info(f"📌 [v7.232] 异常降级使用预设关键词: {preset_keyword[:40]}...")
+                logger.info(f" [v7.232] 异常降级使用预设关键词: {preset_keyword[:40]}...")
             else:
                 target_info = target.question or target.name or target.search_for or ""
                 default_query = f"{framework.original_query[:30]} {target_info}".strip()
@@ -7690,34 +8197,34 @@ L3张力: {json.dumps(analysis_excerpt["l3_tension"], ensure_ascii=False)[:300]}
         # 构建累积进展描述
         aspects_status = []
         for a in framework.key_aspects:
-            status_emoji = {"complete": "✅", "partial": "🔶", "missing": "❌"}.get(a.status, "❓")
+            status_emoji = {"complete": "✅", "partial": "", "missing": "❌"}.get(a.status, "❓")
             info_preview = a.collected_info[0][:50] if a.collected_info else "待收集"
             aspects_status.append(f"{status_emoji} {a.aspect_name}({a.completion_score:.0%}): {info_preview}")
         cumulative_state = "\n".join(aspects_status)
         
         prompt = f"""你是资深设计顾问，正在进行第{current_round}轮搜索后的反思。
 
-## 🎯 用户的原始问题（始终回归的锚点）
+##  用户的原始问题（始终回归的锚点）
 {framework.original_query}
 
-## 🌐 第一轮的宏观统筹
+##  第一轮的宏观统筹
 {chr(10).join(macro_overview) if macro_overview else "正在建立整体理解..."}
 
-## 💡 第一轮的核心切入点
+##  第一轮的核心切入点
 {chr(10).join(entry_point) if entry_point else "正在寻找突破口..."}
 
-## 📋 本轮搜索目标
+##  本轮搜索目标
 目标信息面：{target_aspect.aspect_name}
 期望获得：{target_aspect.answer_goal}
 搜索策略：{search_strategy}
 
-## 🔍 本轮搜索
+##  本轮搜索
 查询词：{search_query}
 
-## 📄 搜索结果
+##  搜索结果
 {sources_text}
 
-## 📊 截至目前的累积进展
+##  截至目前的累积进展
 {cumulative_state}
 整体完成度：{framework.overall_completeness:.0%}
 
@@ -7806,10 +8313,10 @@ L3张力: {json.dumps(analysis_excerpt["l3_tension"], ensure_ascii=False)[:300]}
                 cumulative_progress=data.get("cumulative_progress", ""),
             )
             
-            logger.info(f"📝 [Ucppt v7.186] 第{current_round}轮增强反思完成")
-            logger.info(f"   🎯 目标达成: {reflection_result.goal_achieved}")
-            logger.info(f"   📊 信息充分度: {reflection_result.info_sufficiency:.0%}")
-            logger.info(f"   🧭 方向对齐: {reflection_result.alignment_with_goal:.0%}")
+            logger.info(f" [Ucppt v7.186] 第{current_round}轮增强反思完成")
+            logger.info(f"    目标达成: {reflection_result.goal_achieved}")
+            logger.info(f"    信息充分度: {reflection_result.info_sufficiency:.0%}")
+            logger.info(f"    方向对齐: {reflection_result.alignment_with_goal:.0%}")
             logger.info(f"   ⏳ 预估剩余: {reflection_result.estimated_rounds_remaining}轮")
             
             return reflection_result
@@ -7917,9 +8424,9 @@ status可选值：missing（无有用信息）、partial（有部分信息）、
             completion_score = data.get("completion_score", 0.3)
             status = data.get("status", "partial")
             
-            logger.info(f"📝 [Ucppt] 第{current_round}轮反思完成")
-            logger.info(f"   💡 {reflection[:60]}...")
-            logger.info(f"   📊 完成度贡献: {completion_score:.0%}")
+            logger.info(f" [Ucppt] 第{current_round}轮反思完成")
+            logger.info(f"    {reflection[:60]}...")
+            logger.info(f"    完成度贡献: {completion_score:.0%}")
             
             return reflection, useful_info, completion_score, status
             
@@ -7949,12 +8456,12 @@ status可选值：missing（无有用信息）、partial（有部分信息）、
         
         返回: checkpoint 事件或 None
         """
-        logger.info(f"🔍 [v7.213] 触发阶段复盘检查点 | round={current_round}")
+        logger.info(f" [v7.213] 触发阶段复盘检查点 | round={current_round}")
         
         # 整理当前任务状态
         task_summary = []
         for task in master_line.search_tasks:
-            status_emoji = {"complete": "✅", "searching": "🔄", "pending": "⏳"}.get(task.status, "❓")
+            status_emoji = {"complete": "✅", "searching": "", "pending": "⏳"}.get(task.status, "❓")
             findings_preview = "; ".join(task.actual_findings[:2]) if task.actual_findings else "暂无"
             task_summary.append(
                 f"{status_emoji} [{task.id}|P{task.priority}|{task.phase}] {task.task[:40]}... → {findings_preview[:60]}"
@@ -7964,7 +8471,7 @@ status可选值：missing（无有用信息）、partial（有部分信息）、
         phase_progress = master_line.get_phase_progress()
         phase_summary = []
         for phase, progress in phase_progress.items():
-            status_emoji = {"complete": "✅", "in_progress": "🔄", "pending": "⏳"}.get(progress["status"], "❓")
+            status_emoji = {"complete": "✅", "in_progress": "", "pending": "⏳"}.get(progress["status"], "❓")
             phase_summary.append(f"{status_emoji} {phase}: {progress['completed']}/{progress['total']} ({progress['percentage']}%)")
         
         # 整理探索触发条件
@@ -8034,7 +8541,7 @@ status可选值：missing（无有用信息）、partial（有部分信息）、
                 logger.warning(f"⚠️ [v7.213] 解析阶段复盘结果失败")
                 return None
             
-            logger.info(f"📋 [v7.213] 阶段复盘完成 | phase={data.get('current_phase')}, completion={data.get('phase_completion')}, extensions={len(data.get('extension_tasks', []))}")
+            logger.info(f" [v7.213] 阶段复盘完成 | phase={data.get('current_phase')}, completion={data.get('phase_completion')}, extensions={len(data.get('extension_tasks', []))}")
             
             return {
                 "type": "phase_checkpoint",
@@ -8078,12 +8585,12 @@ status可选值：missing（无有用信息）、partial（有部分信息）、
         
         返回: retrospective 事件或 None
         """
-        logger.info(f"📊 [v7.213] 生成搜索历程最终回顾 | rounds={total_rounds}, tasks={len(master_line.search_tasks)}")
+        logger.info(f" [v7.213] 生成搜索历程最终回顾 | rounds={total_rounds}, tasks={len(master_line.search_tasks)}")
         
         # 整理任务完成情况
         task_results = []
         for task in master_line.search_tasks:
-            status_emoji = {"complete": "✅", "searching": "🔶", "pending": "❌"}.get(task.status, "❓")
+            status_emoji = {"complete": "✅", "searching": "", "pending": "❌"}.get(task.status, "❓")
             ext_marker = "[延展]" if task.is_extension else ""
             findings_count = len(task.actual_findings)
             task_results.append(
@@ -8157,7 +8664,7 @@ status可选值：missing（无有用信息）、partial（有部分信息）、
                 logger.warning(f"⚠️ [v7.213] 解析搜索历程回顾结果失败")
                 return None
             
-            logger.info(f"📊 [v7.213] 搜索历程回顾完成 | adherence={data.get('framework_adherence')}, efficiency={data.get('search_efficiency_score')}")
+            logger.info(f" [v7.213] 搜索历程回顾完成 | adherence={data.get('framework_adherence')}, efficiency={data.get('search_efficiency_score')}")
             
             return {
                 "type": "search_retrospective",
@@ -8203,7 +8710,7 @@ status可选值：missing（无有用信息）、partial（有部分信息）、
         knowledge_summary = []
         aspects = getattr(framework, 'targets', None) or getattr(framework, 'key_aspects', [])
         for aspect in aspects:
-            status_emoji = {"complete": "✅", "partial": "🔶", "missing": "❌"}.get(aspect.status, "❓")
+            status_emoji = {"complete": "✅", "partial": "", "missing": "❌"}.get(aspect.status, "❓")
             info_preview = "; ".join(aspect.collected_info[:2]) if aspect.collected_info else "暂无"
             aspect_name = getattr(aspect, 'name', None) or getattr(aspect, 'aspect_name', '')
             knowledge_summary.append(f"{status_emoji} {aspect_name}: {info_preview[:100]}")
@@ -8258,7 +8765,7 @@ status可选值：missing（无有用信息）、partial（有部分信息）、
                 logger.info(f"✅ [Ucppt] 语义判断：可以回答 | {reason}")
                 return True, reason
             else:
-                logger.info(f"🔄 [Ucppt] 语义判断：继续搜索 | 缺失: {critical_missing}")
+                logger.info(f" [Ucppt] 语义判断：继续搜索 | 缺失: {critical_missing}")
                 return False, f"还缺: {', '.join(critical_missing)}" if critical_missing else reason
                 
         except Exception as e:
@@ -8366,7 +8873,7 @@ status可选值：missing（无有用信息）、partial（有部分信息）、
                     alternative_query = enhanced_data.get("alternative_query", "")
                     strategy = enhanced_data.get("enhancement_strategy", "")
                     
-                    logger.info(f"🎯 [查询增强 v7.214] 策略: {strategy}")
+                    logger.info(f" [查询增强 v7.214] 策略: {strategy}")
                     
                     # 根据搜索轮次选择查询
                     if target_aspect.last_searched_round % 2 == 0:
@@ -8476,7 +8983,7 @@ status可选值：missing（无有用信息）、partial（有部分信息）、
         3. 质量驱动的递增搜索：结果不足时自动扩展
         4. 实时结果评估：边搜索边评估，达标即停
         """
-        logger.info(f"🔍 [自适应搜索 v7.214] 开始执行: {query[:50]}...")
+        logger.info(f" [自适应搜索 v7.214] 开始执行: {query[:50]}...")
         
         all_sources: List[Dict[str, Any]] = []
         search_session = {
@@ -8512,7 +9019,7 @@ status可选值：missing（无有用信息）、partial（有部分信息）、
         current_quality = await self._assess_search_quality(all_sources, query)
         search_session["quality_progression"].append(current_quality)
         
-        logger.info(f"📊 [质量评估] 初始质量: {current_quality['overall_score']:.1%}")
+        logger.info(f" [质量评估] 初始质量: {current_quality['overall_score']:.1%}")
         
         # 如果质量不足，进行自适应扩展
         if (current_quality["overall_score"] < 0.6 and 
@@ -8531,7 +9038,7 @@ status可选值：missing（无有用信息）、partial（有部分信息）、
         optimized_sources = final_results.get("filtered_results", all_sources)
         
         logger.info(
-            f"🎯 [自适应搜索完成] "
+            f" [自适应搜索完成] "
             f"原始: {len(all_sources)} → 优化: {len(optimized_sources)} | "
             f"尝试次数: {search_session['attempts']} | "
             f"最终质量: {final_results.get('quality_metrics', {}).get('total_score', 0):.1%}"
@@ -8549,7 +9056,7 @@ status可选值：missing（无有用信息）、partial（有部分信息）、
                     logger.warning("⚠️ [Ucppt] Bocha服务未初始化")
                     break
                 
-                logger.debug(f"🔍 [Ucppt] Bocha搜索 | query={query[:50]}...")
+                logger.debug(f" [Ucppt] Bocha搜索 | query={query[:50]}...")
                 
                 # v7.233: Ucppt模式禁用图片搜索，避免不必要的API调用
                 result = await self.bocha_service.search(
@@ -8559,7 +9066,7 @@ status可选值：missing（无有用信息）、partial（有部分信息）、
                     include_images=False,  # 禁用图片搜索
                 )
                 
-                # 🆕 v7.237: 应用搜索质量过滤（方案B+C）
+                #  v7.237: 应用搜索质量过滤（方案B+C）
                 sources = []
                 for s in result.sources:
                     source = {
@@ -8722,7 +9229,7 @@ status可选值：missing（无有用信息）、partial（有部分信息）、
         search_session: Dict[str, Any]
     ) -> List[Dict[str, Any]]:
         """自适应搜索扩展 - v7.214"""
-        logger.info("🔄 [自适应扩展] 基于质量评估进行搜索扩展")
+        logger.info(" [自适应扩展] 基于质量评估进行搜索扩展")
         
         expansion_sources = []
         issues = quality_assessment.get("issues", [])
@@ -8749,7 +9256,7 @@ status可选值：missing（无有用信息）、partial（有部分信息）、
             expansion_sources.extend(enhanced_sources)
             search_session["expansion_strategies"].append("内容深度提取")
         
-        logger.info(f"🔄 [自适应扩展] 新增 {len(expansion_sources)} 条结果")
+        logger.info(f" [自适应扩展] 新增 {len(expansion_sources)} 条结果")
         return expansion_sources
     
     async def _generate_semantic_variants(self, query: str) -> List[str]:
@@ -8855,7 +9362,7 @@ JSON格式输出：
             return []
         
         try:
-            logger.info(f"🎓 [Ucppt v7.199] OpenAlex 学术搜索 | query={query[:50]}...")
+            logger.info(f" [Ucppt v7.199] OpenAlex 学术搜索 | query={query[:50]}...")
             
             result = self.openalex_tool.search(
                 query=query,
@@ -8908,7 +9415,7 @@ JSON格式输出：
         if not urls_to_extract:
             return sources
         
-        logger.info(f"🔍 [Ucppt v7.195] 深度内容提取 | URLs={len(urls_to_extract)}")
+        logger.info(f" [Ucppt v7.195] 深度内容提取 | URLs={len(urls_to_extract)}")
         
         try:
             # 批量提取
@@ -9064,7 +9571,7 @@ JSON格式输出：
             else:
                 filtered.append(source)
                 # v7.227: 诊断日志 - 显示被过滤的原因
-                logger.debug(f"🚫 [v7.227] 过滤: score={score:.2f} < {threshold} | {source.get('title', '无标题')[:30]}")
+                logger.debug(f" [v7.227] 过滤: score={score:.2f} < {threshold} | {source.get('title', '无标题')[:30]}")
         
         # 按评分排序
         passed.sort(key=lambda x: x.get("_quality_score", 0), reverse=True)
@@ -9072,7 +9579,7 @@ JSON格式输出：
         # v7.227: 增强日志，显示通过和过滤的详情
         if sources:
             scores = [s.get("_quality_score", 0) for s in sources]
-            logger.info(f"🎯 [v7.227] 质量筛选: {len(sources)} → {len(passed)} | 阈值={threshold} | 评分范围=[{min(scores):.2f}, {max(scores):.2f}]")
+            logger.info(f" [v7.227] 质量筛选: {len(sources)} → {len(passed)} | 阈值={threshold} | 评分范围=[{min(scores):.2f}, {max(scores):.2f}]")
         
         return passed, filtered
     
@@ -9135,7 +9642,7 @@ JSON格式输出：
                 try:
                     simplified = simplify_strategies[attempt](original_query)
                     if simplified and len(simplified) >= 2:
-                        logger.info(f"🔄 [v7.227] 空结果重试策略 #{attempt+1}: '{original_query[:20]}' → '{simplified}'")
+                        logger.info(f" [v7.227] 空结果重试策略 #{attempt+1}: '{original_query[:20]}' → '{simplified}'")
                         return simplified
                 except:
                     pass
@@ -9223,7 +9730,7 @@ JSON格式输出：
             if general_query not in variants:
                 variants.append(general_query)
         
-        logger.info(f"🔄 [v7.228] 生成 {len(variants)} 个查询变体: {[q[:20] for q in variants]}")
+        logger.info(f" [v7.228] 生成 {len(variants)} 个查询变体: {[q[:20] for q in variants]}")
         return variants[:3]  # 最多3个变体
     
     async def _execute_parallel_search(
@@ -9249,7 +9756,7 @@ JSON格式输出：
         if len(valid_queries) < len(queries):
             logger.warning(f"⚠️ [v7.233] 过滤掉 {len(queries) - len(valid_queries)} 个无效查询")
         
-        logger.info(f"🚀 [v7.228] 并行搜索 {len(valid_queries)} 个查询...")
+        logger.info(f" [v7.228] 并行搜索 {len(valid_queries)} 个查询...")
         
         # 并行执行所有搜索 - v7.233: 使用过滤后的有效查询
         tasks = [self._execute_basic_search(q, retry_count=1) for q in valid_queries]
@@ -9295,11 +9802,11 @@ JSON格式输出：
         query_variants = self._generate_query_variants(query, target_aspect)
         raw_sources = await self._execute_parallel_search(query_variants)
         
-        logger.info(f"📥 [v7.228 诊断] 并行搜索原始结果: {len(raw_sources)}条 | 查询数={len(query_variants)}")
+        logger.info(f" [v7.228 诊断] 并行搜索原始结果: {len(raw_sources)}条 | 查询数={len(query_variants)}")
         
         # 质量筛选（使用原始查询匹配）
         quality_sources, _ = self._filter_sources_by_quality(raw_sources, query)
-        logger.info(f"📥 [v7.228 诊断] 质量筛选后: {len(quality_sources)}条 (原始{len(raw_sources)}条)")
+        logger.info(f" [v7.228 诊断] 质量筛选后: {len(quality_sources)}条 (原始{len(raw_sources)}条)")
         
         # v7.212: LLM 二次过滤（在规则筛选后进行）
         if SEARCH_QUALITY_LLM_FILTER and quality_sources:
@@ -9329,7 +9836,7 @@ JSON格式输出：
                 break  # 退出重试循环
 
             logger.warning(
-                f"🔄 [v7.227] 空结果激进重试 #{empty_retry_attempt}/{MAX_EMPTY_RETRIES} | "
+                f" [v7.227] 空结果激进重试 #{empty_retry_attempt}/{MAX_EMPTY_RETRIES} | "
                 f"简化查询: '{simplified_query}'"
             )
 
@@ -9359,7 +9866,7 @@ JSON格式输出：
             )
             
             logger.info(
-                f"🔄 [Ucppt v7.212] 补充搜索 #{supplement_attempt} | "
+                f" [Ucppt v7.212] 补充搜索 #{supplement_attempt} | "
                 f"当前高质量来源={len(all_quality_sources)}, 目标={SEARCH_MIN_QUALITY_SOURCES}"
             )
             
@@ -9381,7 +9888,7 @@ JSON格式输出：
                     seen_urls.add(url)
                     added_count += 1
             
-            logger.debug(f"📥 [Ucppt v7.212] 补充搜索新增 {added_count} 条高质量来源")
+            logger.debug(f" [Ucppt v7.212] 补充搜索新增 {added_count} 条高质量来源")
             
             # 如果补充搜索没有新增任何内容，提前退出
             if added_count == 0:
@@ -9425,7 +9932,7 @@ JSON格式输出：
             return {"target_id": target.id, "sources": [], "status": "skipped"}
 
         target_desc = query[:40]
-        logger.info(f"🔍 [v7.246] 搜索主线: {target_desc}...")
+        logger.info(f" [v7.246] 搜索主线: {target_desc}...")
 
         try:
             # 执行搜索
@@ -9490,13 +9997,13 @@ JSON格式输出：
         mainline_targets = framework.get_mainline_targets()
 
         if not mainline_targets:
-            logger.info(f"📋 [v7.246] 无未完成的主线目标")
+            logger.info(f" [v7.246] 无未完成的主线目标")
             return []
 
         # 限制并行数量
         targets_to_search = mainline_targets[:MAX_PARALLEL_MAINLINES]
 
-        logger.info(f"🚀 [v7.246] 并行搜索 {len(targets_to_search)} 条主线（共 {len(mainline_targets)} 条未完成）...")
+        logger.info(f" [v7.246] 并行搜索 {len(targets_to_search)} 条主线（共 {len(mainline_targets)} 条未完成）...")
 
         # 创建并行任务
         tasks = [
@@ -9557,7 +10064,7 @@ JSON格式输出：
         # 检查延展次数限制
         extension_count = framework.get_extension_count()
         if extension_count >= MAX_EXTENSION_ROUNDS:
-            logger.info(f"📋 [v7.246] 已达最大延展次数 {MAX_EXTENSION_ROUNDS}，不再延展")
+            logger.info(f" [v7.246] 已达最大延展次数 {MAX_EXTENSION_ROUNDS}，不再延展")
             return False, []
 
         # 计算当前信息覆盖度
@@ -9565,18 +10072,18 @@ JSON格式输出：
 
         # 覆盖度足够，不需要延展
         if coverage >= 0.85:
-            logger.info(f"📋 [v7.246] 覆盖度 {coverage:.2%} >= 85%，不需要延展")
+            logger.info(f" [v7.246] 覆盖度 {coverage:.2%} >= 85%，不需要延展")
             return False, []
 
         # 覆盖度较高但未达标，检查是否有明显缺口
         if coverage >= EXTENSION_COVERAGE_THRESHOLD:
-            logger.info(f"📋 [v7.246] 覆盖度 {coverage:.2%} >= {EXTENSION_COVERAGE_THRESHOLD:.0%}，使用 LLM 评估是否需要延展")
+            logger.info(f" [v7.246] 覆盖度 {coverage:.2%} >= {EXTENSION_COVERAGE_THRESHOLD:.0%}，使用 LLM 评估是否需要延展")
 
         # 整理已搜索主线
         mainlines_summary = []
         for t in framework.targets:
             if t.category != "延展":
-                status_emoji = {"complete": "✅", "partial": "🔄", "pending": "⏳", "missing": "❌"}.get(t.status, "❓")
+                status_emoji = {"complete": "✅", "partial": "", "pending": "⏳", "missing": "❌"}.get(t.status, "❓")
                 mainlines_summary.append(f"{status_emoji} {t.name or t.question or t.search_for}: {t.status} ({t.completion_score:.0%})")
 
         # 整理已收集信息摘要
@@ -9639,10 +10146,10 @@ JSON格式输出：
             reason = data.get("reason", "")
 
             if needs_extension and extension_points:
-                logger.info(f"🔄 [v7.246] 需要延展 | 原因: {reason[:50]} | 延展点数: {len(extension_points)}")
+                logger.info(f" [v7.246] 需要延展 | 原因: {reason[:50]} | 延展点数: {len(extension_points)}")
                 return True, extension_points[:2]  # 最多2个延展点
             else:
-                logger.info(f"📋 [v7.246] 不需要延展 | 原因: {reason[:50]}")
+                logger.info(f" [v7.246] 不需要延展 | 原因: {reason[:50]}")
                 return False, []
 
         except Exception as e:
@@ -9679,7 +10186,7 @@ JSON格式输出：
             )
             framework.targets.append(ext_target)
             new_targets.append(ext_target)
-            logger.info(f"🔄 [v7.246] 添加延展目标: {ext_target.name}")
+            logger.info(f" [v7.246] 添加延展目标: {ext_target.name}")
 
         return new_targets
 
@@ -9707,11 +10214,11 @@ JSON格式输出：
         if not extension_targets:
             return
 
-        logger.info(f"📎 [v7.246] 开始串行执行 {len(extension_targets)} 个延展任务...")
+        logger.info(f" [v7.246] 开始串行执行 {len(extension_targets)} 个延展任务...")
 
         for ext_target in extension_targets:
             ext_name = ext_target.name or ext_target.description or f"延展{ext_target.id}"
-            logger.info(f"📎 [v7.246] 串行执行延展: {ext_name[:30]}...")
+            logger.info(f" [v7.246] 串行执行延展: {ext_name[:30]}...")
 
             # 发送延展开始事件
             yield {
@@ -9827,7 +10334,7 @@ JSON格式输出：
             
             if len(filtered) < len(sources):
                 logger.info(
-                    f"🎯 [Ucppt v7.212] LLM二次过滤: {len(sources)} → {len(filtered)} "
+                    f" [Ucppt v7.212] LLM二次过滤: {len(sources)} → {len(filtered)} "
                     f"(理由: {data.get('reasoning', 'N/A')[:50]})"
                 )
             
@@ -9924,7 +10431,7 @@ status可选值：missing（没有有用信息）、partial（有部分有用信
             else:
                 framework.readiness = AnswerReadiness.NOT_READY
             
-            logger.info(f"📊 [Ucppt] 评估 | {target_aspect.aspect_name} | 完成度={target_aspect.completion_score:.0%} | 整体={framework.overall_completeness:.0%}")
+            logger.info(f" [Ucppt] 评估 | {target_aspect.aspect_name} | 完成度={target_aspect.completion_score:.0%} | 整体={framework.overall_completeness:.0%}")
             
         except Exception as e:
             logger.warning(f"⚠️ [Ucppt] 评估失败: {e}")
@@ -10082,7 +10589,7 @@ status可选值：missing（没有有用信息）、partial（有部分有用信
                     seen_urls.add(title)
                     unique_sources.append(source)
 
-        logger.info(f"📊 [v7.230] 来源去重: {len(all_sources)} → {len(unique_sources)}")
+        logger.info(f" [v7.230] 来源去重: {len(all_sources)} → {len(unique_sources)}")
 
         # 2. v7.230: 智能来源选择 - 每轮保证Top-3入选 + 相关性排序
         # 基于 round_insights 确保每轮最佳来源入选
@@ -10100,7 +10607,7 @@ status可选值：missing（没有有用信息）、partial（有部分有用信
                             if source.get('url', source.get('link', '')) == url:
                                 top_sources.append(source)
                                 break
-            logger.info(f"📊 [v7.230] 轮次保证来源: {len(top_sources)}条 (from {len(framework.round_insights)} rounds)")
+            logger.info(f" [v7.230] 轮次保证来源: {len(top_sources)}条 (from {len(framework.round_insights)} rounds)")
 
         # 2b. 相关性排序剩余来源
         remaining_sources = [s for s in unique_sources 
@@ -10116,7 +10623,7 @@ status可选值：missing（没有有用信息）、partial（有部分有用信
         for source, score in scored_sources[:slots_remaining]:
             top_sources.append(source)
         
-        logger.info(f"📊 [v7.230] 最终来源选择: {len(top_sources)}条 (保证:{len(guaranteed_urls)}, 补充:{len(top_sources)-len(guaranteed_urls)})")
+        logger.info(f" [v7.230] 最终来源选择: {len(top_sources)}条 (保证:{len(guaranteed_urls)}, 补充:{len(top_sources)-len(guaranteed_urls)})")
 
         # 3. 构建带内容摘要的来源列表（每条400字）
         numbered_sources = []
@@ -10187,7 +10694,7 @@ status可选值：missing（没有有用信息）、partial（有部分有用信
                 insights_parts.append(low_quality_summary)
 
             research_insights_text = chr(10).join(insights_parts)
-            logger.info(f"📊 [v7.220] 构建研究洞察: 高质量{len(high_quality_rounds)}轮(完整), 低质量{len(low_quality_rounds)}轮(精简), 总findings={sum(len(i.key_findings) for i in framework.round_insights)}, 总insights={sum(len(i.inferred_insights) for i in framework.round_insights)}")
+            logger.info(f" [v7.220] 构建研究洞察: 高质量{len(high_quality_rounds)}轮(完整), 低质量{len(low_quality_rounds)}轮(精简), 总findings={sum(len(i.key_findings) for i in framework.round_insights)}, 总insights={sum(len(i.inferred_insights) for i in framework.round_insights)}")
 
         # 兼容旧版：同时保留 rounds 的反思（不截断）
         reflection_summary = []
@@ -10252,7 +10759,7 @@ status可选值：missing（没有有用信息）、partial（有部分有用信
             aspects_with_info = [a for a in aspects if getattr(a, 'collected_info', [])]
             aspect_names = [getattr(a, 'aspect_name', None) or getattr(a, 'name', '') for a in aspects[:3]]
 
-            # 🆕 先流式输出答案生成的思考过程
+            #  先流式输出答案生成的思考过程
             thinking_prompt = f"""作为专家，我现在要基于搜索结果生成最终答案。让我先梳理一下思路：
 
 ## 用户问题
@@ -10270,7 +10777,7 @@ status可选值：missing（没有有用信息）、partial（有部分有用信
 
 现在开始生成详细答案..."""
 
-            # 🔧 修复：使用DeepSeek Reasoner进行总结性思考流式输出
+            #  修复：使用DeepSeek Reasoner进行总结性思考流式输出
             async for chunk in self._call_deepseek_stream_with_reasoning(thinking_prompt, model=THINKING_MODEL, max_tokens=1000):
                 if chunk.get("type") == "reasoning":
                     yield {
@@ -10303,19 +10810,72 @@ status可选值：missing（没有有用信息）、partial（有部分有用信
     
     # ==================== DeepSeek 官方 API 调用 ====================
     
-    async def _call_deepseek(
+    async def _call_llm_json(
         self,
         prompt: str,
         model: str = "deepseek-chat",
+        max_tokens: int = 2000,
+    ) -> str:
+        """
+        调用 LLM 生成 JSON 响应 - v7.270 新增
+
+        用于第二步搜索框架生成等需要结构化输出的场景
+        """
+        return await self._call_deepseek(prompt, model, max_tokens)
+
+    def _generate_framework_checklist(
+        self,
+        framework: SearchFramework,
+        analysis_data: Dict[str, Any]
+    ) -> 'FrameworkChecklist':
+        """
+        生成框架清单 - v7.270 兼容方法
+
+        从 SearchFramework 提取关键信息生成清单
+        """
+        from datetime import datetime
+
+        # 提取主要搜索方向
+        main_directions = []
+        for t in framework.targets[:5]:  # 最多5个
+            direction = {
+                "id": t.id,
+                "name": t.name or t.question,
+                "description": t.search_for or t.description,
+                "priority": t.priority,
+            }
+            main_directions.append(direction)
+
+        # 提取边界
+        boundaries = []
+        if framework.boundary:
+            boundaries = [framework.boundary]
+
+        return FrameworkChecklist(
+            core_summary=framework.core_question[:50] if framework.core_question else framework.original_query[:50],
+            main_directions=main_directions,
+            boundaries=boundaries,
+            answer_goal=framework.answer_goal or "为用户提供完整解答",
+            generated_at=datetime.now().isoformat(),
+        )
+
+    async def _call_deepseek(
+        self,
+        prompt: str,
+        model: str = None,
         max_tokens: int = 1024,
     ) -> str:
-        """调用 DeepSeek 官方 API（非流式）"""
-        if not self.deepseek_api_key:
-            raise ValueError("DEEPSEEK_API_KEY 未配置")
+        """调用 DeepSeek API（非流式）- v7.276 恢复"""
+        if not self.openrouter_api_key:
+            raise ValueError("OPENROUTER_API_KEY 未配置")
+        
+        model = model or self.thinking_model
         
         headers = {
-            "Authorization": f"Bearer {self.deepseek_api_key}",
-            "Content-Type": "application/json",
+            "Authorization": f"Bearer {self.openrouter_api_key}",
+            "Content-Type": "application/json; charset=utf-8",
+            "HTTP-Referer": os.getenv("OPENROUTER_SITE_URL", "https://github.com/dafei0755/ai"),
+            "X-Title": os.getenv("OPENROUTER_APP_NAME", "Intelligent Project Analyzer")
         }
         
         payload = {
@@ -10327,28 +10887,35 @@ status可选值：missing（没有有用信息）、partial（有部分有用信
         
         async with httpx.AsyncClient(timeout=120) as client:
             response = await client.post(
-                f"{self.deepseek_base_url}/chat/completions",
+                f"{self.openrouter_base_url}/chat/completions",
                 headers=headers,
                 json=payload,
             )
             response.raise_for_status()
             data = response.json()
-            return data.get("choices", [{}])[0].get("message", {}).get("content", "")
+            # DeepSeek reasoner 可能返回 reasoning_content + content
+            message = data.get("choices", [{}])[0].get("message", {})
+            content = message.get("content", "")
+            return content if content else message.get("reasoning_content", "")
     
     async def _call_deepseek_stream(
         self,
         prompt: str,
-        model: str = "deepseek-chat",
+        model: str = None,
         max_tokens: int = 2000,
     ) -> AsyncGenerator[str, None]:
-        """调用 DeepSeek 官方 API（流式，普通内容）"""
-        if not self.deepseek_api_key:
-            yield "DEEPSEEK_API_KEY 未配置"
+        """调用 DeepSeek API（流式）- v7.276 恢复"""
+        if not self.openrouter_api_key:
+            yield "OPENROUTER_API_KEY 未配置"
             return
         
+        model = model or self.thinking_model
+        
         headers = {
-            "Authorization": f"Bearer {self.deepseek_api_key}",
-            "Content-Type": "application/json",
+            "Authorization": f"Bearer {self.openrouter_api_key}",
+            "Content-Type": "application/json; charset=utf-8",
+            "HTTP-Referer": os.getenv("OPENROUTER_SITE_URL", "https://github.com/dafei0755/ai"),
+            "X-Title": os.getenv("OPENROUTER_APP_NAME", "Intelligent Project Analyzer")
         }
         
         payload = {
@@ -10363,7 +10930,7 @@ status可选值：missing（没有有用信息）、partial（有部分有用信
             async with httpx.AsyncClient(timeout=180) as client:
                 async with client.stream(
                     "POST",
-                    f"{self.deepseek_base_url}/chat/completions",
+                    f"{self.openrouter_base_url}/chat/completions",
                     headers=headers,
                     json=payload,
                 ) as response:
@@ -10380,7 +10947,12 @@ status可选值：missing（没有有用信息）、partial（有部分有用信
                                     return
                                 try:
                                     parsed = json.loads(data_str)
-                                    content = parsed.get("choices", [{}])[0].get("delta", {}).get("content", "")
+                                    delta = parsed.get("choices", [{}])[0].get("delta", {})
+                                    # 优先输出 reasoning_content（思考过程），然后是 content
+                                    reasoning = delta.get("reasoning_content", "")
+                                    content = delta.get("content", "")
+                                    if reasoning:
+                                        yield reasoning
                                     if content:
                                         yield content
                                 except json.JSONDecodeError:
@@ -10392,25 +10964,31 @@ status可选值：missing（没有有用信息）、partial（有部分有用信
     async def _call_deepseek_stream_with_reasoning(
         self,
         prompt: str,
-        model: str = "deepseek-reasoner",
+        model: str = None,
         max_tokens: int = 2000,
     ) -> AsyncGenerator[Dict[str, Any], None]:
         """
-        调用 DeepSeek 官方 API（流式），支持 reasoning_content
+        调用 DeepSeek API（流式）- v7.276 恢复 reasoning_content
         
-        DeepSeek-R1 模型会返回 reasoning_content（思考过程）和 content（最终输出）
+        DeepSeek reasoner 返回两种内容：
+        - reasoning_content: 思考过程（作为 "type": "reasoning" 返回）
+        - content: 最终内容（作为 "type": "content" 返回）
         
         返回格式:
-        - {"type": "reasoning", "content": "..."}  # 推理过程
-        - {"type": "content", "content": "..."}    # 最终输出
+        - {"type": "reasoning", "content": "..."}  # 思考过程
+        - {"type": "content", "content": "..."}    # 输出内容
         """
-        if not self.deepseek_api_key:
-            yield {"type": "error", "content": "DEEPSEEK_API_KEY 未配置"}
+        if not self.openrouter_api_key:
+            yield {"type": "error", "content": "OPENROUTER_API_KEY 未配置"}
             return
         
+        model = model or self.thinking_model
+        
         headers = {
-            "Authorization": f"Bearer {self.deepseek_api_key}",
-            "Content-Type": "application/json",
+            "Authorization": f"Bearer {self.openrouter_api_key}",
+            "Content-Type": "application/json; charset=utf-8",
+            "HTTP-Referer": os.getenv("OPENROUTER_SITE_URL", "https://github.com/dafei0755/ai"),
+            "X-Title": os.getenv("OPENROUTER_APP_NAME", "Intelligent Project Analyzer")
         }
         
         payload = {
@@ -10424,7 +11002,7 @@ status可选值：missing（没有有用信息）、partial（有部分有用信
             async with httpx.AsyncClient(timeout=300) as client:
                 async with client.stream(
                     "POST",
-                    f"{self.deepseek_base_url}/chat/completions",
+                    f"{self.openrouter_base_url}/chat/completions",
                     headers=headers,
                     json=payload,
                 ) as response:
@@ -10443,12 +11021,12 @@ status可选值：missing（没有有用信息）、partial（有部分有用信
                                     parsed = json.loads(data_str)
                                     delta = parsed.get("choices", [{}])[0].get("delta", {})
                                     
-                                    # DeepSeek-R1 返回 reasoning_content（思考过程）
+                                    # DeepSeek reasoner 返回 reasoning_content（思考过程）
                                     reasoning = delta.get("reasoning_content", "")
                                     if reasoning:
                                         yield {"type": "reasoning", "content": reasoning}
                                     
-                                    # 正常内容
+                                    # 以及 content（最终内容）
                                     content = delta.get("content", "")
                                     if content:
                                         yield {"type": "content", "content": content}
@@ -10456,7 +11034,7 @@ status可选值：missing（没有有用信息）、partial（有部分有用信
                                 except json.JSONDecodeError:
                                     continue
         except Exception as e:
-            logger.error(f"DeepSeek Reasoner 流式调用失败: {e}")
+            logger.error(f"DeepSeek 流式调用失败: {e}")
             yield {"type": "error", "content": str(e)}
     
     # ==================== OpenRouter API 调用 ====================
@@ -10464,17 +11042,17 @@ status可选值：missing（没有有用信息）、partial（有部分有用信
     def _get_llm_headers(self) -> Dict[str, str]:
         """获取LLM API请求头"""
         headers = {
-            "Authorization": f"Bearer {self.openai_api_key}",
+            "Authorization": f"Bearer {self.openrouter_api_key}",
             "Content-Type": "application/json; charset=utf-8",
         }
-        if "openrouter" in self.openai_base_url.lower():
+        if "openrouter" in self.openrouter_base_url.lower():
             headers["HTTP-Referer"] = os.getenv("OPENROUTER_SITE_URL", "https://github.com/dafei0755/ai")
             headers["X-Title"] = os.getenv("OPENROUTER_APP_NAME", "Intelligent Project Analyzer")
         return headers
     
     def _get_model_name(self, model: str) -> str:
         """获取正确的模型名称"""
-        if "openrouter" in self.openai_base_url.lower():
+        if "openrouter" in self.openrouter_base_url.lower():
             # DeepSeek 模型已经是正确格式
             if "/" in model:
                 return model
@@ -10485,11 +11063,11 @@ status可选值：missing（没有有用信息）、partial（有部分有用信
     async def _call_llm(
         self,
         prompt: str,
-        model: str = "gpt-4o-mini",
+        model: str = "deepseek/deepseek-chat",
         max_tokens: int = 1024,
     ) -> str:
         """调用LLM（非流式）"""
-        if not self.openai_api_key:
+        if not self.openrouter_api_key:
             raise ValueError("API_KEY 未配置")
         
         headers = self._get_llm_headers()
@@ -10504,7 +11082,7 @@ status可选值：missing（没有有用信息）、partial（有部分有用信
         
         async with httpx.AsyncClient(timeout=60) as client:
             response = await client.post(
-                f"{self.openai_base_url}/chat/completions",
+                f"{self.openrouter_base_url}/chat/completions",
                 headers=headers,
                 json=payload,
             )
@@ -10515,11 +11093,11 @@ status可选值：missing（没有有用信息）、partial（有部分有用信
     async def _call_llm_stream(
         self,
         prompt: str,
-        model: str = "gpt-4o",
+        model: str = "deepseek/deepseek-chat",
         max_tokens: int = 2000,
     ) -> AsyncGenerator[str, None]:
         """调用LLM（流式）"""
-        if not self.openai_api_key:
+        if not self.openrouter_api_key:
             yield "API_KEY 未配置"
             return
         
@@ -10537,7 +11115,7 @@ status可选值：missing（没有有用信息）、partial（有部分有用信
         async with httpx.AsyncClient(timeout=120) as client:
             async with client.stream(
                 "POST",
-                f"{self.openai_base_url}/chat/completions",
+                f"{self.openrouter_base_url}/chat/completions",
                 headers=headers,
                 json=payload,
             ) as response:
