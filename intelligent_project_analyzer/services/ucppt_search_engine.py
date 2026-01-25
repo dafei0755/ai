@@ -1164,22 +1164,30 @@ class ProblemSolvingApproach:
         # 解题路径
         lines.append(f"## 解题路径（{len(self.solution_steps)}步）")
         for step in self.solution_steps:
-            step_id = step.get("step_id", "")
-            action = step.get("action", "")
-            purpose = step.get("purpose", "")
-            expected = step.get("expected_output", "")
-            lines.append(f"**{step_id}**: {action}")
-            lines.append(f"   - 目的：{purpose}")
-            lines.append(f"   - 预期产出：{expected}")
+            # v7.271: 兼容字符串和字典两种格式
+            if isinstance(step, str):
+                lines.append(f"- {step}")
+            else:
+                step_id = step.get("step_id", "")
+                action = step.get("action", "")
+                purpose = step.get("purpose", "")
+                expected = step.get("expected_output", "")
+                lines.append(f"**{step_id}**: {action}")
+                lines.append(f"   - 目的：{purpose}")
+                lines.append(f"   - 预期产出：{expected}")
         lines.append("")
 
         # 关键突破口
         if self.breakthrough_points:
             lines.append("## 关键突破口")
             for bp in self.breakthrough_points:
-                lines.append(f"- **{bp.get('point', '')}**")
-                lines.append(f"  - 为什么关键：{bp.get('why_key', '')}")
-                lines.append(f"  - 如何利用：{bp.get('how_to_leverage', '')}")
+                # v7.271: 兼容字符串和字典两种格式
+                if isinstance(bp, str):
+                    lines.append(f"- {bp}")
+                else:
+                    lines.append(f"- **{bp.get('point', '')}**")
+                    lines.append(f"  - 为什么关键：{bp.get('why_key', '')}")
+                    lines.append(f"  - 如何利用：{bp.get('how_to_leverage', '')}")
             lines.append("")
 
         # 预期产出
@@ -3370,7 +3378,18 @@ class UcpptSearchEngine:
                                 analysis_session = True
 
                         # === 第二步：生成搜索框架（仅在新流程中执行） ===
-                        if analysis_session and problem_solving_approach and step2_context and not framework:
+                        # v7.271: 增强条件判断，即使 step2_context 为空也尝试执行第二步
+                        if analysis_session and problem_solving_approach and not framework:
+                            # v7.271: 如果 step2_context 为空或缺少关键字段，从 problem_solving_approach 构建默认值
+                            if not step2_context or not step2_context.get("core_question"):
+                                step2_context = {
+                                    "core_question": (problem_solving_approach.refined_requirement or query)[:50],
+                                    "answer_goal": f"为用户提供{problem_solving_approach.expected_deliverable.get('format', '报告') if problem_solving_approach.expected_deliverable else '报告'}形式的完整解答",
+                                    "solution_steps_summary": [s.get("action", "") for s in (problem_solving_approach.solution_steps or [])[:5]],
+                                    "breakthrough_tensions": [p.get("point", "") for p in (problem_solving_approach.breakthrough_points or [])[:3]],
+                                }
+                                logger.info(f"🔧 [v7.271] step2_context 为空，从 problem_solving_approach 构建默认值")
+
                             logger.info(f" [v7.270] 开始第二步：生成搜索框架")
 
                             # 发送第二步开始事件
@@ -4173,6 +4192,60 @@ class UcpptSearchEngine:
 
     # ==================== 统一分析 (v7.207 合并 L0 + L1-L5) ====================
 
+    def _build_dialogue_analysis_prompt(self, query: str, context: Optional[Dict[str, Any]] = None) -> str:
+        """
+        构建对话式分析 Prompt - v7.270
+        第一次调用：生成自然语言分析（流式输出给用户）
+
+        参考 L0 的 _build_l0_dialogue_prompt 实现
+        """
+        context_str = json.dumps(context or {}, ensure_ascii=False, indent=2)
+
+        return f"""你是顶级战略顾问。请用自然、专业的语言分析用户的问题，像和用户对话一样展示你的思考过程。
+
+## 用户问题
+{query}
+
+## 上下文
+{context_str}
+
+## 分析要求
+
+请按以下结构进行分析，但用自然的段落形式表达（不要用JSON格式）：
+
+### 1. 用户画像识别
+- 从问题中推断用户的地理位置、职业、年龄段等
+- 提取身份标签（3-5个具体标签）
+- 分析用户的隐性需求
+
+### 2. 实体提取
+识别并分析以下实体：
+- 品牌实体：用户提及的品牌及其特征
+- 地点实体：项目所在地及其环境特点
+- 风格实体：设计风格关键词
+- 场景实体：应用场景和目标用户
+- 竞品实体：类似案例参考
+- 人物实体：相关设计师或创始人
+
+### 3. 核心矛盾与张力
+- 识别问题中的核心矛盾或张力点
+- 分析如何解决这些张力
+
+### 4. 解题思路
+- 将问题分解为5-8个具体步骤
+- 每个步骤说明：要做什么、为什么重要、预期产出
+- 识别关键突破口（1-3个）
+- 描述最终交付物的形态
+
+## 输出要求
+- 用自然的段落形式，像和用户对话
+- 语气专业但亲切
+- 重点信息用**加粗**标注
+- 不要输出JSON格式
+- 不要有元认知叙述（如"我要分析..."、"首先看..."）
+
+请直接开始你的分析。"""
+
     def _build_unified_analysis_prompt(self, query: str, context: Optional[Dict[str, Any]] = None) -> str:
         """
         构建统一分析 Prompt - v7.270 重构版
@@ -4509,34 +4582,38 @@ class UcpptSearchEngine:
         context: Optional[Dict[str, Any]] = None,
     ) -> AsyncGenerator[Dict[str, Any], None]:
         """
-        统一分析流式处理 - v7.270 重构版
+        统一分析流式处理 - v7.270 两次调用版本
 
-        v7.270 重构（第一步与第二步分离）：
-        - 第一步输出：用户画像 + L1-L5分析 + 解题思路（problem_solving_approach）
-        - 不再输出搜索框架（search_framework），搜索框架在第二步生成
-        - 新增 problem_solving_approach_ready 事件
-        - 新增 step1_complete 事件
+        v7.270 重构（两次 LLM 调用）：
+        - 第一次调用：生成对话式分析内容（流式输出给用户看）
+        - 第二次调用：生成结构化 JSON 数据（系统内部使用）
+        - 参考 L0 的成功实现（_extract_structured_info_stream）
 
-        v7.220 保留：
-        - thinking 内容作为对话输出给用户
-        - content 内容解析为结构化数据
+        优势：
+        - 用户可以看到完整的对话式分析过程
+        - 系统可以获得结构化数据
+        - 分离关注点，更清晰
         """
-        logger.info(f" [统一分析 v7.270] 开始第一步分析 | query={query[:50]}...")
+        logger.info(f" [统一分析 v7.270] 开始第一步分析（两次调用） | query={query[:50]}...")
 
-        prompt = self._build_unified_analysis_prompt(query, context)
-        full_reasoning = ""
-        full_content = ""
+        dialogue_content = ""
+        json_content = ""
 
         try:
+            # ==================== 第一次调用：对话式分析（流式输出给用户）====================
+            dialogue_prompt = self._build_dialogue_analysis_prompt(query, context)
+
+            logger.info(" [v7.270] 第一次调用：生成对话式分析内容...")
+
             async for chunk in self._call_llm_stream_with_reasoning(
-                prompt,
+                dialogue_prompt,
                 model=self.thinking_model,
-                max_tokens=3000  # v7.270: 增加token限制以容纳解题思路
+                max_tokens=2000
             ):
                 if chunk.get("type") == "reasoning":
+                    # DeepSeek 的 reasoning_content（OpenAI 不会进入这里）
                     reasoning_text = chunk.get("content", "")
-                    full_reasoning += reasoning_text
-                    # v7.238: 过滤冗余内心独白，保留有价值的分析
+                    dialogue_content += reasoning_text
                     filtered_text = self._filter_verbose_monologue(reasoning_text)
                     if filtered_text.strip():
                         yield {
@@ -4544,9 +4621,10 @@ class UcpptSearchEngine:
                             "content": filtered_text,
                         }
                 elif chunk.get("type") == "content":
+                    # OpenAI 的 content（包含对话式分析）
                     content_text = chunk.get("content", "")
-                    full_content += content_text
-                    # v7.270: OpenAI 的 content 也实时传递给前端
+                    dialogue_content += content_text
+                    # 实时传递给前端
                     if content_text.strip():
                         yield {
                             "type": "unified_dialogue_chunk",
@@ -4556,13 +4634,30 @@ class UcpptSearchEngine:
             # 对话内容完成
             yield {
                 "type": "unified_dialogue_complete",
-                "content": full_reasoning,
+                "content": dialogue_content,
             }
 
-            logger.info(f"✅ [统一分析 v7.270] 对话完成 | reasoning_len={len(full_reasoning)}, content_len={len(full_content)}")
+            logger.info(f"✅ [v7.270] 第一次调用完成 | dialogue_len={len(dialogue_content)}")
+
+            # ==================== 第二次调用：生成结构化 JSON（系统内部使用）====================
+            json_prompt = self._build_json_extraction_prompt(query, dialogue_content, context)
+
+            logger.info(" [v7.270] 第二次调用：生成结构化 JSON...")
+
+            async for chunk in self._call_llm_stream_with_reasoning(
+                json_prompt,
+                model=self.thinking_model,
+                max_tokens=3000
+            ):
+                if chunk.get("type") == "content":
+                    json_content += chunk.get("content", "")
+                elif chunk.get("type") == "reasoning":
+                    json_content += chunk.get("content", "")
+
+            logger.info(f"✅ [v7.270] 第二次调用完成 | json_len={len(json_content)}")
 
             # 解析 JSON 结果
-            data = self._safe_parse_json(full_content, context="统一分析(v7.270)")
+            data = self._safe_parse_json(json_content, context="统一分析(v7.270)")
             if data is None:
                 raise ValueError("无法解析统一分析结果")
 
@@ -4736,10 +4831,10 @@ class UcpptSearchEngine:
         except Exception as e:
             logger.warning(f"⚠️ [统一分析 v7.270] 分析失败: {e}")
             # 如果有对话内容，先发送
-            if full_reasoning:
+            if dialogue_content:
                 yield {
                     "type": "unified_dialogue_complete",
-                    "content": full_reasoning,
+                    "content": dialogue_content,
                 }
             # 发送默认的解题思路
             default_approach = self._build_default_problem_solving_approach(query)
@@ -4765,6 +4860,95 @@ class UcpptSearchEngine:
                 "framework": self._build_simple_search_framework(query),
                 "problem_solving_approach": default_approach,
             }
+
+    def _build_json_extraction_prompt(
+        self,
+        query: str,
+        dialogue_content: str,
+        context: Optional[Dict[str, Any]] = None
+    ) -> str:
+        """
+        构建 JSON 提取 Prompt - v7.270
+        第二次调用：从对话内容中提取结构化 JSON（系统内部使用）
+
+        参考 L0 的 _build_l0_json_extraction_prompt 实现
+        """
+        return f"""基于以下用户问题和分析内容，提取结构化的JSON数据。
+
+## 用户原始问题
+{query}
+
+## 分析内容参考
+{dialogue_content}
+
+## 输出要求
+请提取以下结构的JSON，确保与分析内容一致：
+
+```json
+{{
+    "user_profile": {{
+        "location": "",
+        "occupation": "",
+        "identity_tags": [],
+        "explicit_need": "",
+        "implicit_needs": [],
+        "motivation_types": {{
+            "primary": "类型ID",
+            "primary_reason": "判断依据",
+            "secondary": [],
+            "secondary_reason": ""
+        }}
+    }},
+    "analysis": {{
+        "l1_facts": {{
+            "brand_entities": [],
+            "location_entities": [],
+            "competitor_entities": [],
+            "style_entities": [],
+            "person_entities": []
+        }},
+        "l2_models": {{
+            "selected_perspectives": [],
+            "psychological": "",
+            "sociological": "",
+            "aesthetic": ""
+        }},
+        "l3_tension": {{
+            "formula": "",
+            "description": "",
+            "resolution_strategy": ""
+        }},
+        "l4_jtbd": "",
+        "l5_sharpness": {{
+            "score": 0,
+            "specificity": "",
+            "actionability": "",
+            "depth": ""
+        }}
+    }},
+    "problem_solving_approach": {{
+        "task_type": "",
+        "task_type_description": "",
+        "complexity_level": "",
+        "required_expertise": [],
+        "solution_steps": [],
+        "breakthrough_points": [],
+        "expected_deliverable": {{}},
+        "original_requirement": "{query}",
+        "refined_requirement": "",
+        "confidence_score": 0.0,
+        "alternative_approaches": []
+    }},
+    "step2_context": {{
+        "core_question": "",
+        "answer_goal": "",
+        "solution_steps_summary": [],
+        "breakthrough_tensions": []
+    }}
+}}
+```
+
+请只输出JSON，不要有其他内容。"""
 
     def _build_default_problem_solving_approach(self, query: str) -> ProblemSolvingApproach:
         """
@@ -10846,13 +11030,38 @@ status可选值：missing（没有有用信息）、partial（有部分有用信
         from datetime import datetime
 
         # 提取主要搜索方向
+        # v7.270.1: 修复数据结构，使用 direction/purpose/expected_outcome 字段以匹配前端期望
         main_directions = []
         for t in framework.targets[:5]:  # 最多5个
+            # 提取任务名称
+            direction_name = t.name or t.question or t.search_for or "未命名任务"
+
+            # 提取任务目的
+            purpose = ""
+            if hasattr(t, 'why_need') and t.why_need:
+                purpose = t.why_need
+            elif hasattr(t, 'purpose') and t.purpose:
+                purpose = t.purpose
+            elif t.description:
+                purpose = t.description
+
+            # 提取期望结果
+            expected_outcome = ""
+            if hasattr(t, 'success_when') and t.success_when:
+                expected_outcome = ", ".join(t.success_when[:2])
+            elif hasattr(t, 'expected_info') and t.expected_info:
+                expected_outcome = ", ".join(t.expected_info[:2])
+
             direction = {
-                "id": t.id,
-                "name": t.name or t.question,
-                "description": t.search_for or t.description,
+                "direction": direction_name,
+                "purpose": purpose,
+                "expected_outcome": expected_outcome,
+                "sub_tasks": [],
+                "motivation_tag": "",
+                "motivation_id": None,
+                "motivation_color": "#808080",
                 "priority": t.priority,
+                "target_id": t.id,
             }
             main_directions.append(direction)
 
@@ -11148,77 +11357,8 @@ status可选值：missing（没有有用信息）、partial（有部分有用信
                             except json.JSONDecodeError:
                                 continue
 
-    # ==================== v7.187: 支持 LLM reasoning 的流式调用 ====================
-    
-    async def _call_llm_stream_with_reasoning(
-        self,
-        prompt: str,
-        model: str = "openai/gpt-4o",
-        max_tokens: int = 2000,
-    ) -> AsyncGenerator[Dict[str, Any], None]:
-        """
-        调用LLM（流式），支持 LLM reasoning_content
-        
-        返回格式:
-        - {"type": "reasoning", "content": "..."}  # LLM 的推理过程
-        - {"type": "content", "content": "..."}    # 最终输出内容
-        """
-        if not self.openai_api_key:
-            yield {"type": "error", "content": "API_KEY 未配置"}
-            return
-        
-        headers = self._get_llm_headers()
-        model_name = self._get_model_name(model)
-        
-        payload = {
-            "model": model_name,
-            "messages": [{"role": "user", "content": prompt}],
-            "max_tokens": max_tokens,
-            "temperature": 0.3,
-            "stream": True,
-        }
-        
-        try:
-            async with httpx.AsyncClient(timeout=180) as client:
-                async with client.stream(
-                    "POST",
-                    f"{self.openai_base_url}/chat/completions",
-                    headers=headers,
-                    json=payload,
-                ) as response:
-                    response.raise_for_status()
-                    buffer = ""
-                    async for chunk in response.aiter_bytes():
-                        buffer += chunk.decode('utf-8', errors='replace')
-                        while '\n' in buffer:
-                            line, buffer = buffer.split('\n', 1)
-                            line = line.strip()
-                            if line.startswith("data: "):
-                                data_str = line[6:]
-                                if data_str == "[DONE]":
-                                    return
-                                try:
-                                    parsed = json.loads(data_str)
-                                    delta = parsed.get("choices", [{}])[0].get("delta", {})
-                                    
-                                    # OpenAI 不返回 reasoning_content（思考过程）
-                                    reasoning = delta.get("reasoning_content", "")
-                                    if reasoning:
-                                        yield {"type": "reasoning", "content": reasoning}
-                                    
-                                    # 正常内容
-                                    content = delta.get("content", "")
-                                    if content:
-                                        yield {"type": "content", "content": content}
-                                        
-                                except json.JSONDecodeError:
-                                    continue
-        except Exception as e:
-            logger.error(f"流式LLM调用失败: {e}")
-            yield {"type": "error", "content": str(e)}
-    
     # ==================== v7.214: 分析会话辅助方法 ====================
-    
+
     def _build_framework_summary(self, framework_result: L1L5FrameworkResult) -> str:
         """构建框架分析摘要"""
         summary_parts = []
