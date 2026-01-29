@@ -2404,6 +2404,8 @@ export default function SearchResultPage() {
 
             if (isSystemThinking) {
               console.log('🔒 [v7.226] 检测到系统思考内容，跳过前端展示');
+              console.log('📝 [v7.302.1] 内容预览:', newBuffer.substring(0, 200));  // 🆕 添加日志
+              console.log('📊 [v7.302.1] 缓冲区长度:', newBuffer.length);  // 🆕 添加日志
               return {
                 ...prev,
                 _dialogueBuffer: newBuffer,  // 保持缓冲但不展示
@@ -2629,7 +2631,9 @@ export default function SearchResultPage() {
       // v7.301: 简化处理，只保留 frameworkChecklist，移除 masterLine 转换
       // v7.302: 检测并解析4条使命格式
       case 'search_framework_ready':
-        console.log('📋 [v7.302] 搜索框架就绪:', data);
+        console.log('📋 [v7.302.2] 搜索框架就绪:', data);
+        console.log('📊 [v7.302.2] 数据键:', Object.keys(data));
+        console.log('📊 [v7.302.2] four_missions存在:', !!data.four_missions);
         {
           // v7.302: 检测是否为4条使命格式
           const has4Missions = data.four_missions &&
@@ -2640,7 +2644,7 @@ export default function SearchResultPage() {
 
           if (has4Missions) {
             // v7.302: 使用4条使命格式
-            console.log('✅ [v7.302] 检测到4条使命格式');
+            console.log('✅ [v7.302.2] 检测到4条使命格式');
             const fourMissions: FourMissions = data.four_missions;
 
             setSearchState(prev => ({
@@ -2650,6 +2654,10 @@ export default function SearchResultPage() {
               awaitingConfirmation: true,
             }));
           } else {
+            console.warn('⚠️ [v7.302.2] 未检测到4条使命格式');
+            if (data.four_missions) {
+              console.log('📋 [v7.302.2] four_missions数据:', Object.keys(data.four_missions));
+            }
             // v7.240: 提取框架清单（旧格式）
             // v7.250: 新增深度分析摘要字段
             // v7.301: 简化处理，只保留 frameworkChecklist
@@ -3411,6 +3419,16 @@ export default function SearchResultPage() {
         }));
         break;
 
+      // v7.302: 4条使命就绪
+      case 'four_missions_ready':
+        console.log('🎯 [v7.302] 4条使命就绪:', data);
+        setSearchState(prev => ({
+          ...prev,
+          fourMissionsResult: data as FourMissions,
+          statusMessage: '需求分析完成',
+        }));
+        break;
+
       case 'step1_complete':
         console.log('📋 [v7.280] Step 1 完成:', data);
         setSearchState(prev => ({
@@ -3959,7 +3977,19 @@ export default function SearchResultPage() {
 
             {/* 🆕 v7.220: 统一分析卡片（合并 AnalysisProgressCard + TaskUnderstandingCard，消除重复） */}
             {/* v7.220.1: 修复卡片消失问题 - 也从 rounds[0] 读取已保存的分析内容 */}
+            {/* v7.302.2: 如果有4条使命结果，优先显示 FourMissionsDisplay */}
             {(() => {
+              // v7.302.2: 如果有4条使命结果，优先显示 FourMissionsDisplay
+              if (searchState.fourMissionsResult) {
+                return (
+                  <FourMissionsDisplay
+                    missions={searchState.fourMissionsResult}
+                    className="mb-6"
+                  />
+                );
+              }
+
+              // 否则显示原有的对话式分析卡片
               // 检查 rounds[0] 是否为分析阶段（已保存的内容）
               const analysisRound = searchState.rounds.find(r => r.round === 0 && r.isAnalysisPhase);
               const savedContent = analysisRound?.reasoningContent || '';
@@ -4036,14 +4066,6 @@ export default function SearchResultPage() {
                 isConfirming={isConfirmingPlan}
                 isValidating={isValidatingPlan}
                 isReadOnly={searchState.status === 'searching' || searchState.status === 'done'}
-              />
-            )}
-
-            {/* 🆕 v7.302: 4条使命展示卡片 - 优先显示新格式 */}
-            {searchState.fourMissionsResult && (
-              <FourMissionsDisplay
-                missions={searchState.fourMissionsResult}
-                className="mb-6"
               />
             )}
 
