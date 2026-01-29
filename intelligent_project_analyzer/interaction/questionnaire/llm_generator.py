@@ -20,8 +20,12 @@ v7.18 新增：
 import json
 import re
 import time
-from typing import Dict, Any, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
+
 from loguru import logger
+
+# 🆕 v7.131: 导入LLM重试工具
+from ...utils.llm_retry import LLMRetryConfig, invoke_llm_with_retry
 
 # 🆕 v7.18: 导入性能监控
 from ...utils.shared_agent_utils import PerformanceMonitor
@@ -40,11 +44,7 @@ class LLMQuestionGenerator:
 
     @classmethod
     def generate(
-        cls,
-        user_input: str,
-        structured_data: Dict[str, Any],
-        llm_model: Optional[Any] = None,
-        timeout: int = 30
+        cls, user_input: str, structured_data: Dict[str, Any], llm_model: Optional[Any] = None, timeout: int = 30
     ) -> Tuple[List[Dict[str, Any]], str]:
         """
         使用LLM生成定制化问卷
@@ -78,20 +78,26 @@ class LLMQuestionGenerator:
             # 2. 获取或创建LLM实例
             if llm_model is None:
                 from ...services.llm_factory import LLMFactory
+
                 llm_model = LLMFactory.create_llm(temperature=0.7)
                 logger.info("🔧 [LLMQuestionGenerator] 使用默认LLM实例")
 
             # 3. 加载提示词
             system_prompt, human_prompt = cls._load_prompts(user_input, analysis_summary)
 
-            # 4. 调用LLM生成问卷
+            # 4. 调用LLM生成问卷（使用重试机制）
             logger.info("📤 [LLMQuestionGenerator] 调用LLM生成问卷...")
-            messages = [
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": human_prompt}
-            ]
+            messages = [{"role": "system", "content": system_prompt}, {"role": "user", "content": human_prompt}]
 
-            response = llm_model.invoke(messages)
+            # 🆕 v7.131: 使用重试机制调用 LLM
+            retry_config = LLMRetryConfig(
+                max_attempts=3,
+                min_wait=1.0,
+                max_wait=10.0,
+                timeout=timeout,
+            )
+
+            response = invoke_llm_with_retry(llm_model, messages, config=retry_config)
             raw_content = response.content if hasattr(response, "content") else str(response)
             logger.info(f"📥 [LLMQuestionGenerator] LLM响应长度: {len(raw_content)}")
 
@@ -110,13 +116,11 @@ class LLMQuestionGenerator:
             logger.info(f"✅ [LLMQuestionGenerator] 成功生成 {len(validated_questions)} 个问题")
 
             # 🆕 v7.6+v7.12: 验证问题与用户输入的相关性
-            relevance_score, low_relevance_questions = cls._check_question_relevance(
-                validated_questions, user_input
-            )
-            
+            relevance_score, low_relevance_questions = cls._check_question_relevance(validated_questions, user_input)
+
             # 🆕 v7.18: 记录成功性能
             PerformanceMonitor.record("LLMQuestionGenerator", time.time() - start_time, "v7.18")
-            
+
             if relevance_score < 0.3:
                 # 🔧 v7.12: 相关性过低时尝试第二次生成，强化关键词要求
                 logger.warning(f"⚠️ [LLMQuestionGenerator] 相关性过低 ({relevance_score:.2f})，尝试第二次生成")
@@ -129,14 +133,17 @@ class LLMQuestionGenerator:
                         if regenerated_questions:
                             new_score, _ = cls._check_question_relevance(regenerated_questions, user_input)
                             if new_score > relevance_score:
-                                logger.info(f"✅ [LLMQuestionGenerator] 重新生成提升相关性: {relevance_score:.2f} → {new_score:.2f}")
+                                logger.info(
+                                    f"✅ [LLMQuestionGenerator] 重新生成提升相关性: {relevance_score:.2f} → {new_score:.2f}"
+                                )
                                 validated_questions = regenerated_questions
                                 relevance_score = new_score
                     except Exception as e:
                         logger.warning(f"⚠️ [LLMQuestionGenerator] 重新生成失败: {e}")
             elif relevance_score < 0.5:
-                logger.warning(f"⚠️ [LLMQuestionGenerator] 问题相关性较低 ({relevance_score:.2f})，"
-                              f"低相关问题: {low_relevance_questions}")
+                logger.warning(
+                    f"⚠️ [LLMQuestionGenerator] 问题相关性较低 ({relevance_score:.2f})，" f"低相关问题: {low_relevance_questions}"
+                )
 
             # 7. 记录生成理由（用于调试）
             rationale = questionnaire_data.get("generation_rationale", "")
@@ -148,6 +155,7 @@ class LLMQuestionGenerator:
         except Exception as e:
             logger.error(f"❌ [LLMQuestionGenerator] LLM生成失败: {type(e).__name__}: {e}")
             import traceback
+
             traceback.print_exc()
 
             # 使用回退方案
@@ -203,7 +211,7 @@ class LLMQuestionGenerator:
                 "healthcare_wellness": "医疗/康养项目",
                 "office_coworking": "办公/联合办公",
                 "hospitality_tourism": "酒店/文旅项目",
-                "sports_entertainment_arts": "体育/娱乐/艺术"
+                "sports_entertainment_arts": "体育/娱乐/艺术",
             }.get(project_type, project_type)
             summary_parts.append(f"## 项目类型\n{type_label}")
 
@@ -218,7 +226,9 @@ class LLMQuestionGenerator:
             summary_parts.append(f"## 核心矛盾/张力\n{core_tension}")
 
         # 🆕 v7.6: 人物叙事（优先 narrative_characters，兼容 character_narrative）
-        narrative_characters = structured_data.get("narrative_characters", "") or structured_data.get("character_narrative", "")
+        narrative_characters = structured_data.get("narrative_characters", "") or structured_data.get(
+            "character_narrative", ""
+        )
         if isinstance(narrative_characters, list):
             narrative_characters = "\n".join([f"- {char}" for char in narrative_characters[:3]])
         if narrative_characters:
@@ -276,7 +286,7 @@ class LLMQuestionGenerator:
                             q_text = next(iter(questions.values())) if questions else ""
                         else:
                             q_text = str(questions)
-                        
+
                         # 确保 q_text 是字符串后再切片
                         if isinstance(q_text, str) and q_text:
                             cq_list.append(f"- {role}: {q_text[:50]}...")
@@ -306,6 +316,7 @@ class LLMQuestionGenerator:
         """
         try:
             from ...core.prompt_manager import PromptManager
+
             prompt_manager = PromptManager()
 
             # 加载问卷生成器提示词 (返回完整配置字典)
@@ -321,16 +332,17 @@ class LLMQuestionGenerator:
                 raise ValueError("system_prompt is empty")
 
             # 填充human_prompt模板
-            human_prompt = human_template.format(
-                user_input=user_input,
-                analysis_summary=analysis_summary
-            ) if human_template else f"""# 用户原始输入
+            human_prompt = (
+                human_template.format(user_input=user_input, analysis_summary=analysis_summary)
+                if human_template
+                else f"""# 用户原始输入
 {user_input}
 
 # 需求分析结果
 {analysis_summary}
 
 请生成一份定制化问卷（7-10个问题），直接返回JSON格式。"""
+            )
 
             return system_prompt, human_prompt
 
@@ -403,7 +415,7 @@ class LLMQuestionGenerator:
             # 找到第一个换行符后的内容
             first_newline = content.find("\n")
             if first_newline != -1:
-                content = content[first_newline + 1:]
+                content = content[first_newline + 1 :]
             # 移除结尾的 ```
             if content.endswith("```"):
                 content = content[:-3].strip()
@@ -415,7 +427,7 @@ class LLMQuestionGenerator:
             pass
 
         # 尝试提取JSON对象
-        json_pattern = r'\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}'
+        json_pattern = r"\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}"
         matches = re.findall(json_pattern, content, re.DOTALL)
 
         for match in matches:
@@ -441,7 +453,7 @@ class LLMQuestionGenerator:
                     brace_count -= 1
                     if brace_count == 0:
                         try:
-                            return json.loads(content[start_idx:start_idx + i + 1])
+                            return json.loads(content[start_idx : start_idx + i + 1])
                         except json.JSONDecodeError:
                             break
 
@@ -513,23 +525,19 @@ class LLMQuestionGenerator:
             validated.append(q)
 
         # 按题型排序：单选 → 多选 → 开放
-        validated.sort(key=lambda x: {
-            "single_choice": 0,
-            "multiple_choice": 1,
-            "open_ended": 2
-        }.get(x.get("type", ""), 3))
+        validated.sort(
+            key=lambda x: {"single_choice": 0, "multiple_choice": 1, "open_ended": 2}.get(x.get("type", ""), 3)
+        )
 
-        logger.info(f"📊 [LLMQuestionGenerator] 问题类型分布: 单选={type_count['single_choice']}, "
-                    f"多选={type_count['multiple_choice']}, 开放={type_count['open_ended']}")
+        logger.info(
+            f"📊 [LLMQuestionGenerator] 问题类型分布: 单选={type_count['single_choice']}, "
+            f"多选={type_count['multiple_choice']}, 开放={type_count['open_ended']}"
+        )
 
         return validated
 
     @classmethod
-    def _fallback_generate(
-        cls,
-        structured_data: Dict[str, Any],
-        user_input: str
-    ) -> List[Dict[str, Any]]:
+    def _fallback_generate(cls, structured_data: Dict[str, Any], user_input: str) -> List[Dict[str, Any]]:
         """
         回退到规则生成器
 
@@ -542,22 +550,14 @@ class LLMQuestionGenerator:
         """
         logger.info("🔄 [LLMQuestionGenerator] 使用FallbackQuestionGenerator回退")
 
-        from .generators import FallbackQuestionGenerator
         from .context import KeywordExtractor
+        from .generators import FallbackQuestionGenerator
 
         extracted_info = KeywordExtractor.extract(user_input, structured_data)
-        return FallbackQuestionGenerator.generate(
-            structured_data,
-            user_input=user_input,
-            extracted_info=extracted_info
-        )
+        return FallbackQuestionGenerator.generate(structured_data, user_input=user_input, extracted_info=extracted_info)
 
     @classmethod
-    def _check_question_relevance(
-        cls,
-        questions: List[Dict[str, Any]],
-        user_input: str
-    ) -> Tuple[float, List[str]]:
+    def _check_question_relevance(cls, questions: List[Dict[str, Any]], user_input: str) -> Tuple[float, List[str]]:
         """
         🆕 v7.6: 检查问题与用户输入的关键词重叠度
 
@@ -577,27 +577,74 @@ class LLMQuestionGenerator:
 
         # 提取用户输入中的关键词（去除停用词）
         import re
+
         stopwords = {
-            "的", "是", "在", "有", "我", "你", "他", "她", "它", "们",
-            "这", "那", "和", "与", "或", "但", "而", "了", "着", "过",
-            "吗", "呢", "吧", "啊", "呀", "哦", "嗯", "可以", "能够",
-            "需要", "希望", "想要", "一个", "一些", "一种", "这个", "那个",
-            "如何", "怎么", "什么", "哪些", "为什么", "请", "帮", "做",
-            "进行", "实现", "完成", "考虑", "包括", "通过", "使用"
+            "的",
+            "是",
+            "在",
+            "有",
+            "我",
+            "你",
+            "他",
+            "她",
+            "它",
+            "们",
+            "这",
+            "那",
+            "和",
+            "与",
+            "或",
+            "但",
+            "而",
+            "了",
+            "着",
+            "过",
+            "吗",
+            "呢",
+            "吧",
+            "啊",
+            "呀",
+            "哦",
+            "嗯",
+            "可以",
+            "能够",
+            "需要",
+            "希望",
+            "想要",
+            "一个",
+            "一些",
+            "一种",
+            "这个",
+            "那个",
+            "如何",
+            "怎么",
+            "什么",
+            "哪些",
+            "为什么",
+            "请",
+            "帮",
+            "做",
+            "进行",
+            "实现",
+            "完成",
+            "考虑",
+            "包括",
+            "通过",
+            "使用",
         }
 
         # 从用户输入提取关键词（2-10个字符的词）
         user_words = set()
         # 提取中文词语
-        chinese_words = re.findall(r'[\u4e00-\u9fa5]{2,10}', user_input)
+        chinese_words = re.findall(r"[\u4e00-\u9fa5]{2,10}", user_input)
         for word in chinese_words:
             if word not in stopwords:
                 user_words.add(word)
         # 提取数字+单位
-        numbers = re.findall(r'\d+[\u4e00-\u9fa5㎡]+', user_input)
+        numbers = re.findall(r"\d+[\u4e00-\u9fa5㎡]+", user_input)
         user_words.update(numbers)
         # 提取英文词
-        english_words = re.findall(r'[a-zA-Z]{3,}', user_input)
+        english_words = re.findall(r"[a-zA-Z]{3,}", user_input)
         user_words.update(english_words)
 
         if not user_words:
@@ -636,11 +683,7 @@ class QuestionRelevanceValidator:
 
     @classmethod
     def validate(
-        cls,
-        questions: List[Dict[str, Any]],
-        user_input: str,
-        llm_model: Optional[Any] = None,
-        threshold: float = 6.0
+        cls, questions: List[Dict[str, Any]], user_input: str, llm_model: Optional[Any] = None, threshold: float = 6.0
     ) -> List[Dict[str, Any]]:
         """
         验证问题相关性，过滤低相关性问题
@@ -665,13 +708,13 @@ class QuestionRelevanceValidator:
         try:
             if llm_model is None:
                 from ...services.llm_factory import LLMFactory
+
                 llm_model = LLMFactory.create_llm(temperature=0.3)
 
             # 构建验证提示词
-            questions_text = "\n".join([
-                f"{i+1}. [{q.get('id', f'q{i+1}')}] {q.get('question', '')}"
-                for i, q in enumerate(questions)
-            ])
+            questions_text = "\n".join(
+                [f"{i+1}. [{q.get('id', f'q{i+1}')}] {q.get('question', '')}" for i, q in enumerate(questions)]
+            )
 
             prompt = f"""请评估以下问卷问题与用户需求的相关性。
 
@@ -739,6 +782,7 @@ class QuestionRelevanceValidator:
 # 🔧 v7.12: LLMQuestionGenerator 辅助方法（追加到类外部使用）
 # ============================================================
 
+
 # 为 LLMQuestionGenerator 添加辅助方法
 def _extract_user_keywords_impl(user_input: str) -> List[str]:
     """
@@ -752,43 +796,83 @@ def _extract_user_keywords_impl(user_input: str) -> List[str]:
     """
     if not user_input:
         return []
-    
+
     keywords = []
-    
+
     # 1. 提取数字+单位（如 200㎡、38岁、3房）
     import re
-    num_patterns = re.findall(r'\d+[\u4e00-\u9fa5㎡a-zA-Z]+', user_input)
+
+    num_patterns = re.findall(r"\d+[\u4e00-\u9fa5㎡a-zA-Z]+", user_input)
     keywords.extend(num_patterns)
-    
+
     # 2. 提取引号内容（用户强调的内容）
     quoted = re.findall(r'[""「」『』【】]([^""「」『』【】]+)[""「」『』【】]', user_input)
     keywords.extend(quoted)
-    
+
     # 3. 提取专有名词（连续中文，长度2-8）
     stopwords = {
-        "的", "是", "在", "有", "我", "你", "他", "她", "它", "们",
-        "这", "那", "和", "与", "或", "但", "而", "了", "着", "过",
-        "需要", "希望", "想要", "一个", "一些", "这个", "那个",
-        "如何", "怎么", "什么", "哪些", "为什么", "请", "帮",
-        "进行", "实现", "完成", "考虑", "包括", "通过", "使用",
-        "设计", "项目", "方案", "建议", "希望", "能够", "可以"
+        "的",
+        "是",
+        "在",
+        "有",
+        "我",
+        "你",
+        "他",
+        "她",
+        "它",
+        "们",
+        "这",
+        "那",
+        "和",
+        "与",
+        "或",
+        "但",
+        "而",
+        "了",
+        "着",
+        "过",
+        "需要",
+        "希望",
+        "想要",
+        "一个",
+        "一些",
+        "这个",
+        "那个",
+        "如何",
+        "怎么",
+        "什么",
+        "哪些",
+        "为什么",
+        "请",
+        "帮",
+        "进行",
+        "实现",
+        "完成",
+        "考虑",
+        "包括",
+        "通过",
+        "使用",
+        "设计",
+        "项目",
+        "方案",
+        "建议",
+        "希望",
+        "能够",
+        "可以",
     }
-    
-    chinese_words = re.findall(r'[\u4e00-\u9fa5]{2,8}', user_input)
+
+    chinese_words = re.findall(r"[\u4e00-\u9fa5]{2,8}", user_input)
     for word in chinese_words:
         if word not in stopwords and word not in keywords:
             keywords.append(word)
-    
+
     # 4. 去重并限制数量
     unique_keywords = list(dict.fromkeys(keywords))  # 保持顺序去重
     return unique_keywords[:15]  # 最多15个关键词
 
 
 def _regenerate_with_keywords_impl(
-    user_input: str,
-    analysis_summary: str,
-    keywords: List[str],
-    llm_model
+    user_input: str, analysis_summary: str, keywords: List[str], llm_model
 ) -> Tuple[List[Dict[str, Any]], str]:
     """
     🔧 v7.12: 使用强化关键词约束重新生成问卷
@@ -803,7 +887,7 @@ def _regenerate_with_keywords_impl(
         Tuple[问题列表, 来源标识]
     """
     keywords_str = "、".join(keywords[:10])
-    
+
     reinforced_prompt = f"""请基于以下用户需求生成针对性问卷。
 
 ⚠️ 重要约束：每个问题必须至少包含以下关键词之一：
@@ -827,26 +911,29 @@ def _regenerate_with_keywords_impl(
 
     messages = [
         {"role": "system", "content": "你是专业的用户需求调研专家，擅长生成高度针对性的问卷问题。"},
-        {"role": "user", "content": reinforced_prompt}
+        {"role": "user", "content": reinforced_prompt},
     ]
-    
+
     response = llm_model.invoke(messages)
     raw_content = response.content if hasattr(response, "content") else str(response)
-    
+
     # 解析响应
     questionnaire_data = LLMQuestionGenerator._parse_llm_response(raw_content)
     questions = questionnaire_data.get("questions", [])
-    
+
     if questions:
         validated = LLMQuestionGenerator._validate_and_fix_questions(questions)
         return validated, "llm_regenerated"
-    
+
     return [], "regeneration_failed"
 
 
 # 将方法绑定到 LLMQuestionGenerator 类
-LLMQuestionGenerator._extract_user_keywords = classmethod(lambda cls, user_input: _extract_user_keywords_impl(user_input))
+LLMQuestionGenerator._extract_user_keywords = classmethod(
+    lambda cls, user_input: _extract_user_keywords_impl(user_input)
+)
 LLMQuestionGenerator._regenerate_with_keywords = classmethod(
-    lambda cls, user_input, analysis_summary, keywords, llm_model: 
-    _regenerate_with_keywords_impl(user_input, analysis_summary, keywords, llm_model)
+    lambda cls, user_input, analysis_summary, keywords, llm_model: _regenerate_with_keywords_impl(
+        user_input, analysis_summary, keywords, llm_model
+    )
 )

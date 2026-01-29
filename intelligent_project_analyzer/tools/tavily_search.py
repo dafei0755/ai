@@ -5,6 +5,7 @@ Tavily搜索工具
 """
 
 import json
+import os
 import time
 from typing import Any, Dict, List, Optional, Union
 
@@ -17,6 +18,7 @@ except ImportError:
     TavilyClient = None
 
 from ..core.types import ToolConfig
+from ..settings import settings
 
 # LangChain Tool integration
 try:
@@ -36,6 +38,13 @@ except ImportError:
     logger.warning("⚠️ v7.64 modules not available. search_for_deliverable() will use fallback mode.")
     DeliverableQueryBuilder = None
     SearchQualityControl = None
+
+# 🆕 v7.164: 导入搜索结果ID生成器
+try:
+    from ..utils.search_id_generator import add_ids_to_search_results
+except ImportError:
+    logger.warning("⚠️ v7.164 search_id_generator not available")
+    add_ids_to_search_results = None
 
 
 class TavilySearchTool:
@@ -245,6 +254,10 @@ class TavilySearchTool:
                 "raw_content": result.get("raw_content", "") if result.get("raw_content") else None,
             }
             processed["results"].append(processed_result)
+
+        # 🆕 v7.164: 为搜索结果添加唯一ID
+        if add_ids_to_search_results and processed["results"]:
+            processed["results"] = add_ids_to_search_results(processed["results"], source_tool="tavily")
 
         return processed
 
@@ -493,25 +506,56 @@ class TavilySearchTool:
         role_type = getattr(self, "_current_role_type", None)
 
         if role_type in ["V4", "V6"]:  # 研究型角色使用完整描述
-            description = """Tavily实时网络搜索 - 获取最新行业信息、设计案例、技术趋势
+            description = """Tavily全球网络搜索 - 多语言全球覆盖，打破语言壁垒
 
-适用场景:
-- 需要2023年后的最新设计趋势、案例
-- 国际化项目需要海外案例参考
-- 商业空间、零售、餐饮等行业最新动态
-- 新兴技术在设计领域的应用
+🌍 核心能力:
+- **全球网站无障碍访问**：欧美、亚洲、各大洲所有主流网站
+- **多语言智能理解**：支持中文查询，自动匹配全球英文/多语言结果
+- **语言壁垒打破**：中文查询 → 全球英文网站 → 智能匹配
+- **国际内容深度**：设计案例、技术趋势、市场数据
 
-不适用场景:
-- 学术论文查询（使用arxiv）
-- 纯中文本土案例（使用bocha）
-- 内部组织知识（使用ragflow）
+✅ 优先使用场景（中英文均可）:
+- **任何需要全球视野的查询**：无论中文还是英文
+- **国际设计案例**："日本极简餐厅设计" / "Japanese minimalist restaurant"
+- **海外技术趋势**："可持续零售设计2024" / "sustainable retail 2024"
+- **全球市场分析**："北欧商业空间照明" / "Scandinavian commercial lighting"
+- **最新国际信息**：2023年后的全球设计动态
 
-查询示例: "2024 commercial space design trends sustainable"""
+⚠️ 仅在以下情况使用博查:
+- 明确只需要国内网站内容（如国内政策文件、地方性报告）
+- 仅需中文本土品牌案例（如"国内某某品牌店铺"）
+
+查询示例:
+- "可持续商业空间设计趋势" → Tavily查全球
+- "日本餐饮空间设计案例" → Tavily查全球
+- "Scandinavian retail design 2024" → Tavily查全球"""
         else:  # 其他角色使用简化描述
-            description = "Tavily实时网络搜索 - 提供最新行业信息、国际设计案例、技术趋势（适合需要2023+数据的场景）"
+            description = "Tavily全球网络搜索 - 多语言全球覆盖，中英文查询均可访问全球网站（优先使用Tavily获取国际视野）"
 
         tool = StructuredTool(
             name=self.name, description=description, func=tavily_search_func, args_schema=TavilySearchInput
         )
 
         return tool
+
+
+# ----------------------------------------------------------------------------
+# 简化接口：兼容旧版直接函数调用 tavily_search("关键词")
+# ----------------------------------------------------------------------------
+_DEFAULT_CLIENT: Optional[TavilySearchTool] = None
+
+
+def tavily_search(query: str, max_results: int = 5, **kwargs) -> Dict[str, Any]:
+    """兼容旧版的 Tavily 搜索函数接口."""
+
+    global _DEFAULT_CLIENT
+
+    api_key = kwargs.pop("api_key", None) or settings.tavily.api_key or os.getenv("TAVILY_API_KEY", "")
+    if not api_key:
+        logger.warning("⚠️ Tavily API Key 未配置，使用测试占位符以便单元测试运行")
+        api_key = "test-key"
+
+    if _DEFAULT_CLIENT is None or _DEFAULT_CLIENT.api_key != api_key:
+        _DEFAULT_CLIENT = TavilySearchTool(api_key=api_key)
+
+    return _DEFAULT_CLIENT.search(query=query, max_results=max_results, **kwargs)

@@ -3,6 +3,12 @@
 
 通过 OpenRouter 调用 Gemini 2.5 Flash 的图像生成能力。
 
+🔥 v7.153 优化:
+- 配置驱动的角色差异化视觉生成
+- 两阶段LLM精炼：视觉简报提取 → 结构化英文Prompt
+- Style Anchor机制确保多图一致性
+- 以交付物content为唯一信息源
+
 支持模型:
 - google/gemini-2.5-flash-preview-image-generation (推荐，性价比高)
 - google/gemini-2.0-flash-exp:free (免费版，质量稍低)
@@ -21,12 +27,25 @@
 import base64
 import json
 import os
+import time
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 
 import httpx
 from loguru import logger
 from pydantic import BaseModel, Field
+
+# 🆕 v7.153: 导入配置加载器
+from ..utils.visual_config_loader import get_role_visual_type_for_project  # 🆕 v7.154: 项目类型感知的视觉类型选择
+from ..utils.visual_config_loader import (
+    build_role_visual_context,
+    get_global_config,
+    get_role_visual_identity,
+    get_visual_type_config,
+)
+
+if TYPE_CHECKING:
+    from ..models.image_metadata import ImageMetadata
 
 
 class ImageAspectRatio(str, Enum):
@@ -123,6 +142,416 @@ class ImageGeneratorService:
 
         logger.info(f"🎨 ImageGeneratorService initialized: model={self.model}")
 
+    # ========================================================================
+    # 🆕 v7.153: 两阶段LLM精炼 - 第一阶段：视觉简报提取
+    # ========================================================================
+
+    async def _extract_visual_brief(
+        self,
+        deliverable_content: str,
+        role_id: str,
+        profile_label: str = "",
+        project_type: str = "",  # 🆕 v7.154: 添加项目类型参数
+        visual_references: Optional[List[Dict[str, Any]]] = None,  # 🆕 v7.155: 视觉参考
+    ) -> Tuple[str, str]:
+        """
+        🆕 v7.153: 第一阶段LLM - 从交付物content中提取视觉简报
+
+        核心改进：
+        1. 以交付物content为唯一信息源（已融合问卷+需求+搜索+任务）
+        2. 根据角色配置的extraction_focus定制提取维度
+        3. 同时生成style_anchor确保多图一致性
+        4. 🆕 v7.154: 根据项目类型选择合适的视觉类型
+        5. 🆕 v7.155: 支持用户上传的视觉参考注入
+
+        Args:
+            deliverable_content: 交付物完整内容（唯一信息源）
+            role_id: 角色ID，如 "V3", "2-1"
+            profile_label: 风格标签（硬性约束）
+            project_type: 项目类型（用于选择合适的视觉类型）
+            visual_references: 用户上传的视觉参考列表
+
+        Returns:
+            Tuple[visual_brief, style_anchor]:
+            - visual_brief: 500-800字中文视觉简报
+            - style_anchor: 3-8词英文风格锚点
+        """
+        logger.info(f"🧠 [v7.153 第一阶段] 开始视觉简报提取...")
+        logger.debug(f"  📋 角色: {role_id}, 风格标签: {profile_label}")
+        logger.debug(f"  📏 内容长度: {len(deliverable_content)} 字符")
+
+        # 从配置加载角色视觉身份
+        role_config = get_role_visual_identity(role_id)
+        extraction_focus = role_config.get("extraction_focus", [])
+        # 🆕 v7.154: 使用项目类型感知的视觉类型选择
+        visual_type = get_role_visual_type_for_project(role_id, project_type)
+        role_perspective = role_config.get("perspective", "设计专家")
+
+        logger.info(f"  🎨 视觉类型: {visual_type} (项目类型: {project_type})")
+        logger.info(f"  🔍 提取焦点: {extraction_focus[:3]}...")
+
+        # 🆕 v7.155: 构建视觉参考上下文
+        visual_reference_context = ""
+        if visual_references:
+            visual_reference_context = self._build_visual_reference_context(visual_references)
+            logger.info(f"  🖼️ [v7.155] 注入 {len(visual_references)} 个视觉参考")
+
+        # 获取视觉类型配置
+        visual_type_config = get_visual_type_config(visual_type)
+        global_config = get_global_config()
+        max_length = global_config.get("visual_brief_max_length", 800)
+
+        # 构建提取焦点描述
+        focus_list = "\n".join(f"- {f}" for f in extraction_focus) if extraction_focus else "- 空间效果\n- 材质色彩\n- 氛围表现"
+
+        # 🆕 v7.155: 在 system_prompt 中注入视觉参考
+        visual_ref_section = ""
+        if visual_reference_context:
+            visual_ref_section = f"""
+**用户提供的视觉参考**（必须参考这些风格特征）:
+{visual_reference_context}
+
+"""
+
+        system_prompt = f"""你是专业的设计视觉化专家。你的任务是从设计交付物内容中提取可视化的核心要素。
+
+**你的专业视角**: {role_perspective}
+**目标视觉类型**: {visual_type_config.get('description', '专业设计可视化')}
+{visual_ref_section}
+**提取焦点维度**（按优先级）:
+{focus_list}
+
+**输出要求**:
+1. 输出两部分，用 "---STYLE_ANCHOR---" 分隔
+2. 第一部分：视觉简报（500-{max_length}字中文）
+   - 聚焦可视化、可表达的具体元素
+   - 包含：空间描述、材料质感、色彩方案、光线氛围、风格元素
+   - 排除：抽象概念、理论分析、无法可视化的内容
+   - {"**重要**：必须融合用户提供的视觉参考特征" if visual_references else ""}
+3. 第二部分：风格锚点（3-8个英文关键词）
+   - 用于确保多张图片风格一致
+   - 格式：逗号分隔的英文词组
+   - {"**重要**：风格锚点必须体现用户参考图的风格特征" if visual_references else ""}
+
+**示例输出格式**:
+视觉简报内容...描述空间布局、材料、色彩、光线、氛围等可视化元素...
+---STYLE_ANCHOR---
+Scandinavian minimalist, warm wood tones, natural lighting, soft textiles"""
+
+        # 风格标签作为硬性约束
+        style_constraint = f"\n**风格标签（必须体现）**: {profile_label}" if profile_label else ""
+
+        user_prompt = f"""请从以下设计交付物内容中提取视觉简报和风格锚点：
+{style_constraint}
+
+---交付物内容开始---
+{deliverable_content[:5000]}
+---交付物内容结束---
+
+请按要求格式输出视觉简报和风格锚点："""
+
+        try:
+            start_time = time.time()
+
+            async with httpx.AsyncClient(timeout=30) as client:
+                response = await client.post(
+                    f"{self.base_url}/chat/completions",
+                    headers=self._build_headers(),
+                    json={
+                        "model": self.prompt_extraction_model,
+                        "messages": [
+                            {"role": "system", "content": system_prompt},
+                            {"role": "user", "content": user_prompt},
+                        ],
+                        "temperature": 0.6,
+                        "max_tokens": 1000,
+                    },
+                )
+
+            elapsed = time.time() - start_time
+            logger.info(f"  ⏱️ LLM响应时间: {elapsed:.2f}秒")
+
+            if response.status_code != 200:
+                logger.warning(f"⚠️ [第一阶段] API错误: {response.status_code}")
+                return self._fallback_visual_brief(deliverable_content, role_config, profile_label)
+
+            result = response.json()
+            content = result.get("choices", [{}])[0].get("message", {}).get("content", "").strip()
+
+            if not content:
+                logger.warning("⚠️ [第一阶段] LLM返回空内容")
+                return self._fallback_visual_brief(deliverable_content, role_config, profile_label)
+
+            # 解析输出
+            if "---STYLE_ANCHOR---" in content:
+                parts = content.split("---STYLE_ANCHOR---")
+                visual_brief = parts[0].strip()
+                style_anchor = parts[1].strip() if len(parts) > 1 else ""
+            else:
+                visual_brief = content
+                style_anchor = self._extract_style_anchor_fallback(content, role_config)
+
+            logger.info(f"✅ [v7.153 第一阶段] 视觉简报提取成功")
+            logger.info(f"  📝 简报长度: {len(visual_brief)} 字符")
+            logger.info(f"  🎨 风格锚点: {style_anchor[:50]}...")
+
+            return visual_brief, style_anchor
+
+        except Exception as e:
+            logger.error(f"❌ [第一阶段] 异常: {e}")
+            return self._fallback_visual_brief(deliverable_content, role_config, profile_label)
+
+    def _fallback_visual_brief(self, content: str, role_config: Dict[str, Any], profile_label: str) -> Tuple[str, str]:
+        """降级的视觉简报生成"""
+        # 截取内容前800字作为简报
+        visual_brief = content[:800] if len(content) > 800 else content
+
+        # 从配置生成风格锚点
+        style_prefs = role_config.get("style_preferences", [])[:3]
+        style_anchor = ", ".join(style_prefs) if style_prefs else "professional design visualization"
+
+        if profile_label:
+            style_anchor = f"{profile_label}, {style_anchor}"
+
+        logger.info(f"  ⚠️ 使用降级视觉简报 ({len(visual_brief)} 字符)")
+        return visual_brief, style_anchor
+
+    def _extract_style_anchor_fallback(self, content: str, role_config: Dict[str, Any]) -> str:
+        """从内容中提取风格锚点的降级方法"""
+        style_prefs = role_config.get("style_preferences", [])[:3]
+        return ", ".join(style_prefs) if style_prefs else "professional design"
+
+    # ========================================================================
+    # 🆕 v7.155: 视觉参考上下文构建
+    # ========================================================================
+
+    def _build_visual_reference_context(self, visual_references: List[Dict[str, Any]]) -> str:
+        """
+        🆕 v7.155: 构建视觉参考上下文字符串
+
+        将用户上传的参考图的结构化特征转换为文本描述，
+        用于注入到 LLM 提示词中。
+
+        Args:
+            visual_references: 视觉参考列表
+
+        Returns:
+            格式化的视觉参考上下文字符串
+        """
+        if not visual_references:
+            return ""
+
+        context_parts = []
+
+        for idx, ref in enumerate(visual_references, 1):
+            features = ref.get("structured_features", {})
+
+            # 构建单个参考图的描述
+            part_lines = [f"### 参考图 {idx}"]
+
+            # 风格关键词
+            style_keywords = features.get("style_keywords", [])
+            if style_keywords:
+                part_lines.append(f"- 风格: {', '.join(style_keywords)}")
+
+            # 主色调
+            dominant_colors = features.get("dominant_colors", [])
+            if dominant_colors:
+                part_lines.append(f"- 主色调: {', '.join(dominant_colors)}")
+
+            # 材质
+            materials = features.get("materials", [])
+            if materials:
+                part_lines.append(f"- 材质: {', '.join(materials)}")
+
+            # 氛围
+            mood_atmosphere = features.get("mood_atmosphere", "")
+            if mood_atmosphere:
+                part_lines.append(f"- 氛围: {mood_atmosphere}")
+
+            # 空间布局
+            spatial_layout = features.get("spatial_layout", "")
+            if spatial_layout:
+                part_lines.append(f"- 空间布局: {spatial_layout}")
+
+            # 设计元素
+            design_elements = features.get("design_elements", [])
+            if design_elements:
+                part_lines.append(f"- 设计元素: {', '.join(design_elements)}")
+
+            # 用户追加描述（优先级最高）
+            user_description = ref.get("user_description")
+            if user_description:
+                part_lines.append(f"- **用户说明**: {user_description}")
+
+            # 参考类型
+            reference_type = ref.get("reference_type", "general")
+            if reference_type != "general":
+                type_labels = {
+                    "style": "风格参考",
+                    "layout": "布局参考",
+                    "color": "色彩参考",
+                }
+                part_lines.append(f"- 参考类型: {type_labels.get(reference_type, reference_type)}")
+
+            context_parts.append("\n".join(part_lines))
+
+        return "\n\n".join(context_parts)
+
+    # ========================================================================
+    # 🆕 v7.153: 两阶段LLM精炼 - 第二阶段：结构化英文Prompt生成
+    # ========================================================================
+
+    async def _generate_structured_prompt(
+        self,
+        visual_brief: str,
+        style_anchor: str,
+        role_id: str,
+        deliverable_name: str = "",
+        project_type: str = "",  # 🆕 v7.154: 添加项目类型参数
+    ) -> str:
+        """
+        🆕 v7.153: 第二阶段LLM - 从视觉简报生成结构化英文Prompt
+
+        Args:
+            visual_brief: 第一阶段提取的视觉简报
+            style_anchor: 风格锚点（确保一致性）
+            role_id: 角色ID
+            deliverable_name: 交付物名称
+            project_type: 项目类型（用于选择合适的视觉类型）
+
+        Returns:
+            结构化英文Prompt (150-200 words)
+        """
+        logger.info(f"🧠 [v7.153 第二阶段] 开始结构化Prompt生成...")
+
+        # 加载配置
+        role_config = get_role_visual_identity(role_id)
+        # 🆕 v7.154: 使用项目类型感知的视觉类型选择
+        visual_type = get_role_visual_type_for_project(role_id, project_type)
+        visual_type_config = get_visual_type_config(visual_type)
+        avoid_patterns = role_config.get("avoid_patterns", [])
+        required_keywords = role_config.get("required_keywords", [])
+
+        # 获取质量后缀和负面提示词
+        quality_suffix = visual_type_config.get("quality_suffix", "high quality, professional")
+        type_keywords = visual_type_config.get("keywords_en", [])
+
+        system_prompt = f"""You are an expert image prompt engineer for AI image generation (Midjourney, DALL-E, Gemini).
+
+**Target Visual Type**: {visual_type_config.get('description_en', 'Professional design visualization')}
+**Style Anchor (MUST maintain)**: {style_anchor}
+
+**Output Requirements**:
+1. Write in English only, 150-200 words
+2. Structure: Scene description → Materials & textures → Colors → Lighting → Mood/atmosphere
+3. MUST include style anchor keywords to ensure consistency
+4. MUST include these type-specific keywords: {', '.join(type_keywords[:5])}
+5. End with: {quality_suffix}
+
+**AVOID generating**:
+{chr(10).join(f'- {p}' for p in avoid_patterns[:5]) if avoid_patterns else '- Low quality rendering'}
+
+**MUST include keywords**: {', '.join(required_keywords) if required_keywords else 'design, space'}
+
+Output: Just the prompt, no explanations."""
+
+        user_prompt = f"""Design Deliverable: {deliverable_name}
+
+Visual Brief (Chinese):
+{visual_brief[:2000]}
+
+---
+Generate the structured English image prompt:"""
+
+        try:
+            start_time = time.time()
+
+            async with httpx.AsyncClient(timeout=30) as client:
+                response = await client.post(
+                    f"{self.base_url}/chat/completions",
+                    headers=self._build_headers(),
+                    json={
+                        "model": self.prompt_extraction_model,
+                        "messages": [
+                            {"role": "system", "content": system_prompt},
+                            {"role": "user", "content": user_prompt},
+                        ],
+                        "temperature": 0.7,
+                        "max_tokens": 350,
+                    },
+                )
+
+            elapsed = time.time() - start_time
+            logger.info(f"  ⏱️ LLM响应时间: {elapsed:.2f}秒")
+
+            if response.status_code != 200:
+                logger.warning(f"⚠️ [第二阶段] API错误: {response.status_code}")
+                return self._fallback_structured_prompt(visual_brief, style_anchor, role_config)
+
+            result = response.json()
+            prompt = result.get("choices", [{}])[0].get("message", {}).get("content", "").strip()
+
+            if not prompt or len(prompt) < 50:
+                logger.warning(f"⚠️ [第二阶段] Prompt过短或为空")
+                return self._fallback_structured_prompt(visual_brief, style_anchor, role_config)
+
+            # 校验必保留关键词
+            prompt = self._validate_and_enhance_prompt(prompt, required_keywords, style_anchor, quality_suffix)
+
+            logger.info(f"✅ [v7.153 第二阶段] 结构化Prompt生成成功 ({len(prompt)} 字符)")
+            logger.debug(f"  📝 Prompt: {prompt[:150]}...")
+
+            return prompt
+
+        except Exception as e:
+            logger.error(f"❌ [第二阶段] 异常: {e}")
+            return self._fallback_structured_prompt(visual_brief, style_anchor, role_config)
+
+    def _fallback_structured_prompt(self, visual_brief: str, style_anchor: str, role_config: Dict[str, Any]) -> str:
+        """降级的结构化Prompt生成"""
+        visual_type_config = get_visual_type_config(role_config.get("visual_type", "photorealistic_rendering"))
+        quality_suffix = visual_type_config.get("quality_suffix", "high quality")
+
+        # 从视觉简报提取关键词
+        import re
+
+        # 提取英文词汇
+        english_words = re.findall(r"[a-zA-Z]+", visual_brief)[:10]
+        # 提取中文关键词并简化
+        chinese_keywords = re.findall(r"[\u4e00-\u9fff]{2,4}", visual_brief)[:10]
+
+        prompt = f"{style_anchor}, {' '.join(english_words)}, professional design visualization, {quality_suffix}"
+
+        logger.info(f"  ⚠️ 使用降级Prompt ({len(prompt)} 字符)")
+        return prompt
+
+    def _validate_and_enhance_prompt(
+        self, prompt: str, required_keywords: List[str], style_anchor: str, quality_suffix: str
+    ) -> str:
+        """校验并增强Prompt，确保必要关键词存在"""
+        prompt_lower = prompt.lower()
+
+        # 检查必保留关键词
+        missing_keywords = [kw for kw in required_keywords if kw.lower() not in prompt_lower]
+
+        if missing_keywords:
+            logger.info(f"  📝 追加缺失关键词: {missing_keywords}")
+            prompt = f"{prompt}, {', '.join(missing_keywords)}"
+
+        # 确保style_anchor存在
+        anchor_words = [w.strip() for w in style_anchor.split(",")[:2]]
+        for anchor in anchor_words:
+            if anchor.lower() not in prompt_lower:
+                prompt = f"{anchor}, {prompt}"
+                break
+
+        # 确保质量后缀
+        if quality_suffix and quality_suffix.lower() not in prompt_lower:
+            prompt = f"{prompt}, {quality_suffix}"
+
+        return prompt
+
     async def _llm_extract_visual_prompt(
         self, expert_content: str, expert_name: str = "", project_type: str = "interior", top_constraints: str = ""
     ) -> str:
@@ -148,10 +577,10 @@ class ImageGeneratorService:
         logger.debug(f"  🏷️  项目类型: {project_type}")
         logger.debug(f"  📏 专家内容长度: {len(expert_content)} 字符")
 
-        # 限制输入长度以控制成本
-        content_preview = expert_content[:2500] if len(expert_content) > 2500 else expert_content
-        if len(expert_content) > 2500:
-            logger.info(f"  ✂️  内容截断: {len(expert_content)} → 2500 字符")
+        # 🔥 v7.128: 增加输入长度限制至5000字符（支持完整专家分析）
+        content_preview = expert_content[:5000] if len(expert_content) > 5000 else expert_content
+        if len(expert_content) > 5000:
+            logger.info(f"  ✂️  内容截断: {len(expert_content)} → 5000 字符")
 
         # 项目类型到场景描述的映射
         type_context = {
@@ -162,20 +591,45 @@ class ImageGeneratorService:
         }.get(project_type, "design concept")
         logger.debug(f"  🎯 场景上下文: {type_context}")
 
+        # 🔥 v7.129: 优化系统提示词，强化角色身份差异化
         system_prompt = """You are a professional image prompt engineer specializing in design visualization.
 
 Your task is to extract visual elements from design analysis reports and create high-quality prompts for AI image generation (like Midjourney, DALL-E, Gemini).
 
+**CRITICAL REQUIREMENTS** (v7.129):
+1. **RESPECT ROLE IDENTITY**: Generate images matching the expert's professional role
+   - Narrative expert (叙事体验设计师) → Storyboards/mood boards, NOT architectural renderings
+   - Research expert (设计研究分析师) → Infographics/charts/diagrams, NOT space visualizations
+   - Technical expert (技术实施工程师) → Technical schematics/blueprints, NOT artistic renderings
+   - Design Director (综合设计协调者) → Architectural sections/spatial coordination diagrams
+   - Context expert (场景与行为专家) → User journey maps/behavior patterns, NOT static spaces
+
+2. **RESPECT DELIVERABLE FORMAT**: Match the output type specified
+   - "visualization" format → Infographics/charts/data visualizations
+   - "narrative" format → Storyboards/mood boards/scene concepts
+   - "technical_doc" format → Technical drawings/blueprints/schematics
+   - "architectural_design" format → Architectural sections/coordination diagrams
+   - "contextual" format → User journey maps/behavior flow diagrams
+
+3. **AVOID SPECIFIED PATTERNS**: If the input mentions "严格避免" (strictly avoid), do NOT generate those types
+
+4. Extract SPECIFIC details from the expert analysis (materials, spatial layouts, cultural elements)
+
+5. Reflect user's detailed needs and emotional keywords
+
+6. Include precise technical specifications mentioned in the analysis
+
 Output Requirements:
 1. Write in English only
-2. 100-150 words, no more
+2. 150-200 words with rich details
 3. Focus on VISUAL elements: materials, colors, lighting, atmosphere, spatial relationships
 4. Include specific design details that make the concept unique
-5. Use professional architectural/interior photography terminology
-6. End with quality descriptors like "professional rendering, photorealistic, high detail"
+5. Use professional terminology matching the role identity and deliverable format
+6. End with quality descriptors appropriate to the visual type (e.g., "infographic style" for research, "technical drawing" for engineering)
 
 Do NOT include:
-- Abstract concepts or emotions that can't be visualized
+- Generic descriptions like "modern minimalist" without specifics
+- Abstract concepts that can't be visualized
 - Chinese characters
 - Explanations or meta-commentary
 - Client names or personal information
@@ -383,6 +837,16 @@ Generate an enhanced, professional image prompt:"""
         Returns:
             ImageGenerationResult 包含图像 URL 或错误信息
         """
+        # 验证prompt不为空
+        if not prompt or not prompt.strip():
+            logger.error("❌ [图像生成API] prompt不能为空")
+            raise ValueError("Prompt cannot be empty")
+
+        # 验证aspect_ratio类型
+        if not isinstance(aspect_ratio, ImageAspectRatio):
+            logger.error(f"❌ [图像生成API] 无效的宽高比类型: {type(aspect_ratio)}")
+            raise ValueError(f"aspect_ratio must be ImageAspectRatio enum, got {type(aspect_ratio).__name__}")
+
         logger.info(f"🎨 [图像生成API] 开始生成图像...")
         logger.info(f"  📝 原始提示词: {prompt[:100]}...")
         logger.info(f"  📐 宽高比: {aspect_ratio.value}")
@@ -893,168 +1357,204 @@ Generate an enhanced, professional image prompt:"""
         session_id: str,
         project_type: str = "interior",
         aspect_ratio: str = "16:9",
-        questionnaire_data: Optional[dict] = None,  # 🆕 v7.121: 新增问卷数据参数
-    ):
+        questionnaire_data: Optional[dict] = None,
+        visual_references: Optional[List[Dict[str, Any]]] = None,  # 🆕 v7.155: 视觉参考
+        global_style_anchor: Optional[str] = None,  # 🆕 v7.155: 全局风格锚点
+    ) -> "List[ImageMetadata]":
         """
-        🆕 v7.108: 为交付物生成精准的概念图（注入约束）
-        🔥 v7.121: 增强问卷数据注入，确保概念图反映用户详细需求
+        🆕 v7.153: 重构为两阶段LLM精炼流程
+        🆕 v7.155: 支持用户上传的视觉参考
 
-        与现有的generate_concept_images不同，本方法：
-        1. 基于具体交付物的元数据（keywords, constraints）
-        2. 注入交付物约束到Prompt中
-        3. 🆕 注入问卷数据（风格标签、详细回答）到Prompt
-        4. 返回ImageMetadata对象（支持文件存储）
+        核心改进：
+        1. 以交付物content(expert_analysis)为唯一信息源
+        2. 第一阶段：提取视觉简报 + 生成style_anchor
+        3. 第二阶段：生成结构化英文Prompt
+        4. 配置驱动的角色差异化视觉生成
+        5. Style Anchor确保多图一致性
+        6. 🆕 v7.155: 支持用户上传的视觉参考注入
 
         Args:
             deliverable_metadata: 交付物元数据字典
-                {
-                    "id": "2-1_1_143022_abc",
-                    "name": "空间功能分区方案",
-                    "keywords": ["现代", "简约"],
-                    "constraints": {
-                        "must_include": ["自然光", "木质元素"],
-                        "style_preferences": "professional rendering"
-                    },
-                    "owner_role": "2-1"
-                }
-            expert_analysis: 专家分析内容（摘要）
+            expert_analysis: 专家分析内容（唯一信息源，已融合问卷+需求+搜索+任务）
             session_id: 会话ID（用于文件存储路径）
             project_type: 项目类型 (interior/product/branding/architecture)
             aspect_ratio: 宽高比 (16:9, 9:16, 1:1)
-            questionnaire_data: 🆕 v7.121 问卷数据（可选）
-                {
-                    "profile_label": "现代海洋风",
-                    "answers": {
-                        "gap_answers": {
-                            "q1": "希望客厅有大量自然光...",
-                            "q2": "想保留渔村特色..."
-                        }
-                    }
-                }
+            questionnaire_data: 问卷数据（仅提取profile_label作为硬性约束）
+            visual_references: 用户上传的视觉参考列表
+            global_style_anchor: 全局风格锚点（从所有参考图提取）
 
         Returns:
-            ImageMetadata对象（包含文件路径和URL）
+            List[ImageMetadata]: 生成的图片列表
         """
         from datetime import datetime
 
         from ..models.image_metadata import ImageMetadata
 
-        logger.info(f"🎨 [v7.108] 为交付物生成概念图: {deliverable_metadata.get('name', 'Unknown')}")
+        deliverable_name = deliverable_metadata.get("name", "设计交付物")
+        owner_role = deliverable_metadata.get("owner_role", "unknown")
+        deliverable_id = deliverable_metadata.get("id", "unknown")
+
+        logger.info(f"🎨 [v7.153] 为交付物生成概念图: {deliverable_name}")
+        logger.info(f"  📋 角色: {owner_role}, 交付物ID: {deliverable_id}")
+
+        # 🆕 v7.155: 记录视觉参考信息
+        if visual_references:
+            logger.info(f"  🖼️ [v7.155] 使用 {len(visual_references)} 个视觉参考")
+        if global_style_anchor:
+            logger.info(f"  🎨 [v7.155] 全局风格锚点: {global_style_anchor[:50]}...")
+
+        # 读取 concept_image_config 配置
+        concept_image_config = deliverable_metadata.get("concept_image_config", {})
+        image_count = concept_image_config.get("count", 1)
+        logger.info(f"  🖼️ 计划生成 {image_count} 张概念图")
 
         try:
-            # 🆕 v7.121: 提取问卷关键信息
-            profile_label = ""
-            gap_details = []
+            # ================================================================
+            # 🆕 v7.153 核心改进：两阶段LLM精炼
+            # ================================================================
 
+            # 提取风格标签作为硬性约束（唯一从questionnaire_data提取的信息）
+            profile_label = ""
             if questionnaire_data:
                 profile_label = questionnaire_data.get("profile_label", "")
-                gap_answers = questionnaire_data.get("answers", {}).get("gap_answers", {})
+                logger.info(f"  🎨 风格标签（硬性约束）: {profile_label or '未指定'}")
 
-                # 从 gap_answers 提取视觉相关细节
-                for answer in gap_answers.values():
-                    if isinstance(answer, str) and len(answer) > 10:
-                        gap_details.append(answer[:200])  # 限制长度
+            # 标准化角色ID
+            role_id = owner_role
+            if "-" in owner_role:
+                role_id = f"V{owner_role.split('-')[0]}"
 
-                logger.info(f"  📊 [v7.121] 问卷数据注入: profile={profile_label}, gap_count={len(gap_details)}")
+            # 加载角色配置
+            role_config = get_role_visual_identity(role_id)
+            # 🆕 v7.154: 使用项目类型感知的视觉类型
+            actual_visual_type = get_role_visual_type_for_project(role_id, project_type)
+            logger.info(f"  📊 角色视觉类型: {actual_visual_type} (项目类型: {project_type})")
 
-            # 1. 构建增强Prompt（注入交付物约束 + 问卷数据）
-            deliverable_name = deliverable_metadata.get("name", "设计交付物")
-            keywords = deliverable_metadata.get("keywords", [])
-            constraints = deliverable_metadata.get("constraints", {})
+            # ================================================================
+            # 第一阶段：从交付物content提取视觉简报 + style_anchor
+            # 🆕 v7.155: 注入视觉参考
+            # ================================================================
+            logger.info(f"  🔍 [第一阶段] 提取视觉简报...")
 
-            # 中文提示词（给LLM语义提取用）
-            enhanced_prompt = f"""
-设计可视化需求：{deliverable_name}
-"""
-            # 🆕 v7.121: 如果有问卷数据，优先展示
-            if profile_label or gap_details:
-                enhanced_prompt += f"""
-【用户风格偏好】（来自问卷Step 2）
-风格标签：{profile_label or '未定义'}
-"""
-
-            enhanced_prompt += f"""
-【交付物核心关键词】
-{', '.join(keywords) if keywords else '现代设计'}
-
-【必须包含的设计元素】
-{', '.join(constraints.get('must_include', [])) if constraints.get('must_include') else '无特殊要求'}
-"""
-
-            # 🆕 v7.121: 注入用户详细需求（gap_answers）
-            if gap_details:
-                enhanced_prompt += f"""
-【用户详细需求】（来自问卷Step 3）
-{chr(10).join(f"{i+1}. {detail}" for i, detail in enumerate(gap_details[:3]))}
-"""
-
-            enhanced_prompt += f"""
-【风格偏好】
-{constraints.get('style_preferences', 'professional design rendering')}
-
-【专家分析摘要】
-{expert_analysis[:500] if expert_analysis else '专业设计分析'}
-
-请基于以上交付物要求和用户需求，提取视觉化提示词。
-"""
-
-            logger.debug(f"  📝 构建的增强Prompt:\n{enhanced_prompt[:200]}...")
-
-            # 2. 使用现有的LLM语义提取方法
-            logger.info("  🔍 调用LLM提取视觉Prompt...")
-            visual_prompts = await self._llm_extract_visual_prompt(enhanced_prompt, project_type)
-
-            if not visual_prompts:
-                logger.warning("  ⚠️ LLM提取失败，使用基础Prompt")
-                visual_prompt = f"{deliverable_name}, {', '.join(keywords)}, professional rendering"
-            else:
-                visual_prompt = visual_prompts[0]
-
-            logger.info(f"  ✅ 提取的视觉Prompt: {visual_prompt[:100]}...")
-
-            # 3. 生成图片
-            logger.info(f"  🖼️ 调用图片生成API (宽高比: {aspect_ratio})...")
-            generation_result = await self.generate_image(
-                prompt=visual_prompt, aspect_ratio=ImageAspectRatio(aspect_ratio)
+            visual_brief, style_anchor = await self._extract_visual_brief(
+                deliverable_content=expert_analysis,
+                role_id=role_id,
+                profile_label=profile_label,
+                project_type=project_type,  # 🆕 v7.154: 传入项目类型
+                visual_references=visual_references,  # 🆕 v7.155: 传入视觉参考
             )
 
-            if not generation_result.success:
-                logger.error(f"  ❌ 图片生成失败: {generation_result.error}")
-                raise Exception(f"图片生成失败: {generation_result.error}")
+            if not visual_brief:
+                logger.warning("  ⚠️ 视觉简报提取失败，使用原始内容")
+                visual_brief = expert_analysis[:800]
+                style_anchor = ", ".join(role_config.get("style_preferences", [])[:3])
 
-            logger.info("  ✅ 图片生成成功！")
+            # 🆕 v7.155: 如果有全局风格锚点，优先合并
+            if global_style_anchor:
+                style_anchor = f"{global_style_anchor}, {style_anchor}"
+                logger.info(f"  🎨 [v7.155] 合并全局风格锚点")
 
-            # 4. 保存到文件系统（Phase 3新增）
+            logger.info(f"  ✅ 视觉简报: {len(visual_brief)} 字符")
+            logger.info(f"  🎨 Style Anchor: {style_anchor[:60]}...")
+
+            # ================================================================
+            # 第二阶段：生成结构化英文Prompt
+            # ================================================================
+            logger.info(f"  🔍 [第二阶段] 生成结构化Prompt...")
+
+            visual_prompt = await self._generate_structured_prompt(
+                visual_brief=visual_brief,
+                style_anchor=style_anchor,
+                role_id=role_id,
+                deliverable_name=deliverable_name,
+                project_type=project_type,  # 🆕 v7.154: 传入项目类型
+            )
+
+            # 校验Prompt质量
+            global_config = get_global_config()
+            min_length = global_config.get("final_prompt_min_length", 80)
+
+            if len(visual_prompt) < min_length:
+                logger.warning(f"  ⚠️ Prompt过短 ({len(visual_prompt)} < {min_length})，使用降级Prompt")
+                visual_type_config = get_visual_type_config(role_config.get("visual_type", "photorealistic_rendering"))
+                visual_prompt = (
+                    f"{style_anchor}, {deliverable_name}, {visual_type_config.get('quality_suffix', 'high quality')}"
+                )
+
+            logger.info(f"  ✅ 最终Prompt: {visual_prompt[:100]}...")
+            logger.debug(f"  📝 完整Prompt ({len(visual_prompt)} chars): {visual_prompt}")
+
+            # ================================================================
+            # 第三阶段：循环生成多张图片（使用相同Prompt + Style Anchor）
+            # ================================================================
             from ..services.image_storage_manager import ImageStorageManager
 
-            deliverable_id = deliverable_metadata.get("id", "unknown")
-            owner_role = deliverable_metadata.get("owner_role", "unknown")
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            filename = f"{deliverable_id}_{project_type}_{timestamp}.png"
+            generated_images: List[ImageMetadata] = []
+            failed_count = 0
 
-            # 保存到文件系统
-            saved_metadata = await ImageStorageManager.save_image(
-                base64_data=generation_result.image_url,
-                session_id=session_id,
-                deliverable_id=deliverable_id,
-                owner_role=owner_role,
-                filename=filename,
-                visual_prompt=visual_prompt,
-                aspect_ratio=aspect_ratio,
-            )
+            for attempt in range(image_count):
+                try:
+                    logger.info(f"  🖼️ [图片 {attempt + 1}/{image_count}] 开始生成...")
 
-            # 创建ImageMetadata对象（不含Base64）
-            from ..models.image_metadata import ImageMetadata
+                    # 多图生成时，追加视角差异（可选）
+                    current_prompt = visual_prompt
+                    if image_count > 1 and attempt > 0:
+                        # 为后续图片添加视角变化
+                        view_variations = ["detail view", "wide angle view", "atmospheric view"]
+                        variation = view_variations[attempt % len(view_variations)]
+                        current_prompt = f"{visual_prompt}, {variation}"
+                        logger.debug(f"    📐 添加视角变化: {variation}")
 
-            metadata = ImageMetadata(**saved_metadata)
+                    # 调用图片生成API
+                    generation_result = await self.generate_image(
+                        prompt=current_prompt, aspect_ratio=ImageAspectRatio(aspect_ratio)
+                    )
 
-            logger.info(f"✅ [v7.108] 概念图已保存: {filename}")
-            return metadata
+                    if not generation_result.success:
+                        logger.error(f"    ❌ 生成失败: {generation_result.error}")
+                        failed_count += 1
+                        continue
+
+                    logger.info("    ✅ 图片生成成功！")
+
+                    # 保存到文件系统
+                    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+                    filename = f"{deliverable_id}_{project_type}_{timestamp}_v{attempt + 1}.png"
+
+                    saved_metadata = await ImageStorageManager.save_image(
+                        base64_data=generation_result.image_url,
+                        session_id=session_id,
+                        deliverable_id=deliverable_id,
+                        owner_role=owner_role,
+                        filename=filename,
+                        visual_prompt=current_prompt,
+                        aspect_ratio=aspect_ratio,
+                    )
+
+                    metadata = ImageMetadata(**saved_metadata)
+                    generated_images.append(metadata)
+                    logger.info(f"    💾 已保存: {filename}")
+
+                except Exception as img_error:
+                    logger.error(f"    ❌ [图片 {attempt + 1}] 生成失败: {img_error}")
+                    logger.exception(img_error)
+                    failed_count += 1
+
+            # 处理生成结果
+            if not generated_images:
+                logger.error(f"  ❌ 全部 {image_count} 张图片生成失败")
+                raise Exception(f"全部 {image_count} 张图片生成失败")
+
+            if failed_count > 0:
+                logger.warning(f"  ⚠️ 生成 {len(generated_images)}/{image_count} 张图片（{failed_count} 张失败）")
+            else:
+                logger.info(f"✅ [v7.153] 成功生成全部 {len(generated_images)} 张概念图")
+
+            return generated_images
 
         except Exception as e:
-            logger.error(f"❌ [v7.108] 生成交付物概念图失败: {e}")
+            logger.error(f"❌ [v7.153] 生成交付物概念图失败: {e}")
             logger.exception(e)
-            # 返回None或抛出异常由调用方处理
             raise
 
     async def edit_image_with_mask(

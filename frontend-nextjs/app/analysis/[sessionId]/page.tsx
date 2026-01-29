@@ -14,7 +14,8 @@ import {
 	Edit2,
 	Pin,
 	Share2,
-	Trash2
+	Trash2,
+	ArrowLeft
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { WebSocketClient, type WebSocketMessage } from '@/lib/websocket';
@@ -24,11 +25,10 @@ import { RoleTaskReviewModal } from '@/components/RoleTaskReviewModal';
 import { UserQuestionModal } from '@/components/UserQuestionModal';
 import { UnifiedProgressiveQuestionnaireModal } from '@/components/UnifiedProgressiveQuestionnaireModal';
 import { QualityPreflightModal } from '@/components/QualityPreflightModal';
-import { UserPanel } from '@/components/layout/UserPanel';
-import { SessionSidebar } from '@/components/SessionSidebar';
+import { UserQuestionCard } from '@/components/UserQuestionCard';
 import type { AnalysisStatus, SessionStatus } from '@/types';
 import type { NodeStatus } from '@/types/workflow';
-// 🔥 v7.110: 使用公共组件 SessionSidebar
+// v7.290: 分析页面改为独立体验，移除侧边栏组件
 
 // 节点名称中文映射
 const NODE_NAME_MAP: Record<string, string> = {
@@ -43,8 +43,8 @@ const NODE_NAME_MAP: Record<string, string> = {
 	requirement_collection: '需求信息收集',
 	feasibility_analyst: '可行性分析',
 	calibration_questionnaire: '战略校准问卷',
-	requirements_confirmation: '需求确认',
-	requirement_confirmation: '需求确认',  // 别名兼容
+	requirements_confirmation: '需求确认 (已废弃 v7.151)',  // 🔧 仅用于旧会话显示
+	requirement_confirmation: '需求确认 (已废弃 v7.151)',   // 别名兼容
 
 	// 任务规划阶段
 	role_task_unified_review: '任务审批',
@@ -148,6 +148,7 @@ export default function AnalysisPage() {
 	const [status, setStatus] = useState<AnalysisStatus | null>(null);
 	const [error, setError] = useState<string | null>(null);
 	const [wsConnected, setWsConnected] = useState<boolean>(false);
+	const [userInput, setUserInput] = useState<string>(''); // v7.290: 用户输入（用于显示用户问题卡片）
 	const [nodeHistory, setNodeHistory] = useState<Array<{ node: string; detail: string; time: string }>>([]);
 	const [nodeDetails, setNodeDetails] = useState<Record<string, { status: NodeStatus; detail?: string }>>({});
 
@@ -168,13 +169,10 @@ export default function AnalysisPage() {
 	const [roleTaskReviewData, setRoleTaskReviewData] = useState<any>(null);
 	const [showRoleTaskReview, setShowRoleTaskReview] = useState(false);
 
-	// 🆕 三步递进式问卷状态
-	const [progressiveStep1Data, setProgressiveStep1Data] = useState<any>(null);
-	const [showProgressiveStep1, setShowProgressiveStep1] = useState(false);
-	const [progressiveStep2Data, setProgressiveStep2Data] = useState<any>(null);
-	const [showProgressiveStep2, setShowProgressiveStep2] = useState(false);
-	const [progressiveStep3Data, setProgressiveStep3Data] = useState<any>(null);
-	const [showProgressiveStep3, setShowProgressiveStep3] = useState(false);
+	// 🆕 v7.130: 三步递进式问卷 - 统一状态管理
+	// currentProgressiveStep: 0=关闭, 1=任务梳理, 2=信息补全, 3=雷达图
+	const [currentProgressiveStep, setCurrentProgressiveStep] = useState<number>(0);
+	const [progressiveStepData, setProgressiveStepData] = useState<any>(null);
 
 	// 🆕 v7.119: 质量预检警告状态
 	const [qualityPreflightData, setQualityPreflightData] = useState<any>(null);
@@ -182,144 +180,8 @@ export default function AnalysisPage() {
 
 	// 节点详情面板状态
 	const [selectedNode, setSelectedNode] = useState<string | null>(null);
-	const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
-	// 历史会话列表
-	const [sessions, setSessions] = useState<Array<{ session_id: string; status: string; created_at: string; user_input: string; progress?: number; analysis_mode?: string }>>([]);
-	const [currentPage, setCurrentPage] = useState(1); // 🔥 v7.105: 当前页码
-	const [hasMorePages, setHasMorePages] = useState(false); // 🔥 v7.105: 是否还有更多页
-	const [loadingMore, setLoadingMore] = useState(false); // 🔥 v7.105: 加载更多状态
-	const loadMoreTriggerRef = useRef<HTMLDivElement>(null); // 🔥 v7.105: Intersection Observer 触发器
-
-	// 会话去重，避免重复 session_id 导致 React key 警告
-	const dedupeSessions = useCallback(
-		(items: Array<{ session_id: string; status: string; created_at: string; user_input: string; progress?: number; analysis_mode?: string }>) => {
-			const seen = new Set<string>();
-			return items.filter((item) => {
-				if (seen.has(item.session_id)) return false;
-				seen.add(item.session_id);
-				return true;
-			});
-		},
-		[]
-	);
-
-	// 🔥 v7.110: 获取历史会话列表
-	useEffect(() => {
-		const fetchSessions = async () => {
-			try {
-				const data = await api.getSessions(1, 20, true);
-				setSessions(data.sessions);
-				setHasMorePages(data.has_next || false);
-				setCurrentPage(1);
-			} catch (err) {
-				console.error('获取会话列表失败:', err);
-			}
-		};
-		fetchSessions();
-	}, []);
-
-	// 🔥 v7.105: 加载更多会话
-	const loadMoreSessions = useCallback(async () => {
-		if (loadingMore || !hasMorePages) return;
-
-		setLoadingMore(true);
-		try {
-			const nextPage = currentPage + 1;
-			console.log(`[AnalysisPage] 📖 加载第 ${nextPage} 页会话...`);
-			const data = await api.getSessions(nextPage, 20, true);
-
-			// 🔥 v7.105.8: 添加详细日志追踪分页
-			console.log(`[AnalysisPage] 📊 合并结果 | prev=${sessions.length} + new=${data.sessions?.length}`);
-
-			setSessions((prev) => dedupeSessions([...prev, ...data.sessions]));
-			setHasMorePages(data.has_next || false);
-			setCurrentPage(nextPage);
-			console.log(`[AnalysisPage] ✅ 第 ${nextPage} 页加载完成, has_next: ${data.has_next}`);
-		} catch (err) {
-			console.error('加载更多会话失败:', err);
-		} finally {
-			setLoadingMore(false);
-		}
-	}, [loadingMore, hasMorePages, currentPage, dedupeSessions]);
-
-	// 🔥 v7.105: Intersection Observer 滚动加载（替代scroll事件）
-	useEffect(() => {
-		const trigger = loadMoreTriggerRef.current;
-		if (!trigger) return;
-
-		const observer = new IntersectionObserver(
-			(entries) => {
-				// 当触发器元素可见 且 不在加载中 且 还有更多页时，触发加载
-				if (entries[0].isIntersecting && !loadingMore && hasMorePages) {
-					console.log('[AnalysisPage] 🔄 触发滚动加载，当前页:', currentPage);
-					loadMoreSessions();
-				}
-			},
-			{ threshold: 0.1 } // 触发器10%可见时触发
-		);
-
-		observer.observe(trigger);
-		return () => observer.disconnect();
-	}, [loadingMore, hasMorePages, loadMoreSessions, currentPage]);
-
-	const uniqueSessions = useMemo(() => dedupeSessions(sessions), [sessions, dedupeSessions]);
-
-	// 🔥 日期分组函数 - 按相对时间分组会话
-	const groupSessionsByDate = useCallback(
-		(sessions: Array<{ session_id: string; status: string; created_at: string; user_input: string; progress?: number; analysis_mode?: string }>) => {
-			const now = new Date();
-			const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-			const yesterday = new Date(today.getTime() - 24 * 60 * 60 * 1000);
-			const last7Days = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
-			const last30Days = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
-
-			const groups: {
-				today: typeof sessions;
-				yesterday: typeof sessions;
-				last7Days: typeof sessions;
-				last30Days: typeof sessions;
-				byMonth: Record<string, typeof sessions>;
-			} = {
-				today: [],
-				yesterday: [],
-				last7Days: [],
-				last30Days: [],
-				byMonth: {}
-			};
-
-			sessions.forEach(session => {
-				const sessionDate = new Date(session.created_at);
-				const sessionDay = new Date(sessionDate.getFullYear(), sessionDate.getMonth(), sessionDate.getDate());
-
-				if (sessionDay.getTime() === today.getTime()) {
-					groups.today.push(session);
-				} else if (sessionDay.getTime() === yesterday.getTime()) {
-					groups.yesterday.push(session);
-				} else if (sessionDay.getTime() >= last7Days.getTime()) {
-					groups.last7Days.push(session);
-				} else if (sessionDay.getTime() >= last30Days.getTime()) {
-					groups.last30Days.push(session);
-				} else {
-					// 按月份分组（格式：YYYY-MM）
-					const monthKey = `${sessionDate.getFullYear()}-${String(sessionDate.getMonth() + 1).padStart(2, '0')}`;
-					if (!groups.byMonth[monthKey]) {
-						groups.byMonth[monthKey] = [];
-					}
-					groups.byMonth[monthKey].push(session);
-				}
-			});
-
-			return groups;
-		},
-		[]
-	);
-
-	// 使用分组后的会话
-	const groupedSessions = useMemo(() => groupSessionsByDate(uniqueSessions), [uniqueSessions, groupSessionsByDate]);
-
-	// 会话菜单状态
-	const [menuOpenSessionId, setMenuOpenSessionId] = useState<string | null>(null);
+	// v7.290: 移除侧边栏状态，独立分析体验
 
 	const wsClientRef = useRef<WebSocketClient | null>(null);
 	const hasRedirectedRef = useRef<boolean>(false);
@@ -332,20 +194,6 @@ export default function AnalysisPage() {
 		router.push(`/report/${sessionId}`);
 	}, [router, sessionId]);
 
-	// 加载历史会话列表
-	useEffect(() => {
-		const fetchSessions = async () => {
-			try {
-				const data = await api.getSessions();
-				setSessions(dedupeSessions(data.sessions || []));
-			} catch (err) {
-				console.error('获取会话列表失败:', err);
-			}
-		};
-
-		fetchSessions();
-	}, [dedupeSessions]);
-
 	// 使用 WebSocket 实时更新状态
 	useEffect(() => {
 		const fetchInitialStatus = async (retryCount = 0) => {
@@ -353,6 +201,34 @@ export default function AnalysisPage() {
 				console.log(`🔍 开始获取初始状态 (尝试 ${retryCount + 1}/3), sessionId:`, sessionId);
 				const data = await api.getStatus(sessionId);
 				console.log('✅ 获取初始状态成功:', data);
+
+				// 🆕 v7.290: 从 localStorage 加载用户输入（用于显示用户问题卡片）
+				const userInputsJson = localStorage.getItem('analysis_user_inputs');
+				if (userInputsJson) {
+					const userInputs: Record<string, string> = JSON.parse(userInputsJson);
+					if (userInputs[sessionId]) {
+						setUserInput(userInputs[sessionId]);
+						console.log('📝 加载用户输入:', userInputs[sessionId]);
+					}
+				}
+
+				// 🆕 v7.290: 检测是否为旧的未完成会话
+				// 从 localStorage 获取最近创建的会话记录
+				const recentSessionsJson = localStorage.getItem('recent_analysis_sessions');
+				const recentSessions: Record<string, number> = recentSessionsJson ? JSON.parse(recentSessionsJson) : {};
+				const sessionCreatedAt = recentSessions[sessionId];
+				const now = Date.now();
+
+				// 如果会话不在最近记录中，或创建时间超过1分钟，且状态为运行中/等待输入，则认为是旧会话
+				const isOldSession = !sessionCreatedAt || (now - sessionCreatedAt > 60000);
+				const isIncompleteStatus = data.status === 'running' || data.status === 'waiting_for_input';
+
+				if (isOldSession && isIncompleteStatus) {
+					console.warn('⚠️ 检测到旧的未完成会话:', { sessionId, sessionCreatedAt, status: data.status });
+					// 显示友好提示，而不是自动恢复
+					setError('此分析会话可能已中断。您可以尝试重新加载以继续执行，或返回首页开始新的分析。');
+					return;
+				}
 				setStatus(data);
 
 				if (data.history && data.history.length > 0) {
@@ -382,10 +258,6 @@ export default function AnalysisPage() {
 						setQuestionnaireData(data.interrupt_data.questionnaire);
 						setShowQuestionnaire(true);
 						console.log('📋 检测到待处理的问卷');
-					} else if (data.interrupt_data.interaction_type === 'requirements_confirmation') {
-						setConfirmationData(data.interrupt_data);
-						setShowConfirmation(true);
-						console.log('📋 检测到待确认的需求');
 					} else if (data.interrupt_data.interaction_type === 'role_and_task_unified_review') {
 						setRoleTaskReviewData(data.interrupt_data);
 						setShowRoleTaskReview(true);
@@ -395,17 +267,33 @@ export default function AnalysisPage() {
 						setShowUserQuestion(true);
 						console.log('📋 检测到待处理的用户追问');
 					} else if (data.interrupt_data.interaction_type === 'progressive_questionnaire_step1') {
-						setProgressiveStep1Data(data.interrupt_data);
-						setShowProgressiveStep1(true);
-						console.log('📋 检测到待处理的 Step 1 - 核心任务拆解');
+						// 🆕 v7.130: 统一状态管理
+						setProgressiveStepData(data.interrupt_data);
+						setCurrentProgressiveStep(1);
+						console.log('📋 检测到待处理的第1步 - 任务梳理');
 					} else if (data.interrupt_data.interaction_type === 'progressive_questionnaire_step2') {
-						setProgressiveStep2Data(data.interrupt_data);
-						setShowProgressiveStep2(true);
-						console.log('📋 检测到待处理的 Step 2 - 雷达图维度选择');
+						// 🆕 v7.130: 统一状态管理，step2 = 信息补全
+						setProgressiveStepData(data.interrupt_data);
+						setCurrentProgressiveStep(2);
+						console.log('📋 检测到待处理的第2步 - 信息补全');
 					} else if (data.interrupt_data.interaction_type === 'progressive_questionnaire_step3') {
-						setProgressiveStep3Data(data.interrupt_data);
-						setShowProgressiveStep3(true);
-						console.log('📋 检测到待处理的 Step 3 - 关键问题询问');
+						// 🆕 v7.130: 统一状态管理，step3 = 雷达图
+						// 🔧 v7.146: 添加调试日志检查 dimensions 数据类型
+						console.log('📋 检测到待处理的第3步 - 雷达图维度选择');
+						console.log('🔍 [Step3] dimensions 类型:', typeof data.interrupt_data.dimensions);
+						console.log('🔍 [Step3] dimensions 是否为数组:', Array.isArray(data.interrupt_data.dimensions));
+						if (data.interrupt_data.dimensions) {
+							console.log('🔍 [Step3] dimensions 数量:', Array.isArray(data.interrupt_data.dimensions) ? data.interrupt_data.dimensions.length : 'N/A');
+						}
+						setProgressiveStepData(data.interrupt_data);
+						setCurrentProgressiveStep(3);
+					} else if (data.interrupt_data.interaction_type === 'progressive_questionnaire_step4' || data.interrupt_data.interaction_type === 'requirements_insight') {
+						// 🆕 v7.151: 第4步 - 需求洞察（原问卷汇总+需求确认合并）
+						console.log('📋 检测到待处理的第4步 - 需求洞察');
+						console.log('🔍 [Step4] restructured_requirements:', data.interrupt_data.restructured_requirements ? '已包含' : '缺失');
+						console.log('🔍 [Step4] project_essence:', data.interrupt_data.project_essence ? '已包含' : '缺失');
+						setProgressiveStepData(data.interrupt_data);
+						setCurrentProgressiveStep(4);
 					} else if (data.interrupt_data.interaction_type === 'quality_preflight_warning') {
 						// 🆕 v7.119: 质量预检警告
 						setQualityPreflightData(data.interrupt_data);
@@ -459,16 +347,17 @@ export default function AnalysisPage() {
 				// 🔧 v7.118: 重连后同步最新状态
 				console.log('✅ WebSocket 已连接，同步最新状态...');
 				try {
-					const response = await api.getSessionStatus(sessionId);
-					if (response.data) {
+					const response = await api.getStatus(sessionId);
+					if (response) {
 						setStatus({
-							status: response.data.status,
-							progress: response.data.progress ?? 0,
-							error: response.data.error,
-							current_stage: response.data.current_node,
-							detail: response.data.detail
+							session_id: sessionId,
+							status: response.status,
+							progress: response.progress ?? 0,
+							error: response.error,
+							current_stage: response.current_stage,
+							detail: response.detail
 						});
-						console.log('✅ 状态同步完成:', response.data);
+						console.log('✅ 状态同步完成:', response);
 					}
 				} catch (error) {
 					console.error('⚠️ 状态同步失败:', error);
@@ -659,10 +548,13 @@ export default function AnalysisPage() {
 						if (message.interrupt_data?.interaction_type === 'calibration_questionnaire') {
 							setQuestionnaireData(message.interrupt_data.questionnaire);
 							setShowQuestionnaire(true);
-						} else if (message.interrupt_data?.interaction_type === 'requirements_confirmation') {
-							setConfirmationData(message.interrupt_data);
-							setShowConfirmation(true);
 						} else if (message.interrupt_data?.interaction_type === 'role_and_task_unified_review') {
+							// 🔧 v7.153: 如果后端指示关闭之前的模态框，先关闭 progressive questionnaire
+							if (message.interrupt_data?.close_previous_modal) {
+								console.log('🔧 [v7.153] 收到 close_previous_modal 指令，关闭 progressive questionnaire');
+								setCurrentProgressiveStep(0);
+								setProgressiveStepData(null);
+							}
 							setRoleTaskReviewData(message.interrupt_data);
 							setShowRoleTaskReview(true);
 						} else if (message.interrupt_data?.interaction_type === 'user_question') {
@@ -679,32 +571,61 @@ export default function AnalysisPage() {
 								console.error('❌ 自动批准批次失败:', err);
 							});
 						} else if (message.interrupt_data?.interaction_type === 'progressive_questionnaire_step1') {
-							// 🆕 三步问卷 - Step 1: 核心任务拆解
-							console.log('📋 收到 Step 1 - 核心任务拆解问卷');
-							setProgressiveStep1Data(message.interrupt_data);
-							setShowProgressiveStep1(true);
+							// 🆕 v7.130: 第1步 - 任务梳理
+							console.log('📋 收到第1步 - 任务梳理问卷');
+							setProgressiveStepData(message.interrupt_data);
+							setCurrentProgressiveStep(1);
 						} else if (message.interrupt_data?.interaction_type === 'progressive_questionnaire_step2') {
-							// 🆕 三步问卷 - Step 2: 雷达图维度选择
-							console.log('📋 收到 Step 2 - 雷达图维度选择问卷');
-							// ✅ 修复：关闭Step 1，打开Step 2（实现步骤切换）
-							setShowProgressiveStep1(false);
-							setProgressiveStep1Data(null);
-							setProgressiveStep2Data(message.interrupt_data);
-							setShowProgressiveStep2(true);
+							// 🆕 v7.130: 第2步 - 信息补全（后端 interaction_type 已统一）
+							console.log('📋 收到第2步 - 信息补全问卷');
+							setProgressiveStepData(message.interrupt_data);
+							setCurrentProgressiveStep(2);
 						} else if (message.interrupt_data?.interaction_type === 'progressive_questionnaire_step3') {
-							// 🆕 三步问卷 - Step 3: 关键问题询问
-							console.log('📋 收到 Step 3 - 关键问题询问问卷');
-							// ✅ 修复：关闭Step 2，打开Step 3（实现步骤切换）
-							setShowProgressiveStep2(false);
-							setProgressiveStep2Data(null);
-							setProgressiveStep3Data(message.interrupt_data);
-							setShowProgressiveStep3(true);
+							// 🆕 v7.130: 第3步 - 雷达图（后端 interaction_type 已统一）
+							console.log('📋 收到第3步 - 雷达图维度选择问卷');
+							setProgressiveStepData(message.interrupt_data);
+							setCurrentProgressiveStep(3);
+						} else if (message.interrupt_data?.interaction_type === 'progressive_questionnaire_step4' || message.interrupt_data?.interaction_type === 'requirements_insight') {
+							// 🆕 v7.151: 第4步 - 需求洞察（原问卷汇总+需求确认合并）
+							console.log('📋 收到第4步 - 需求洞察');
+							setProgressiveStepData(message.interrupt_data);
+							setCurrentProgressiveStep(4);
 						} else if (message.interrupt_data?.interaction_type === 'quality_preflight_warning') {
 							// 🆕 v7.119: 质量预检警告
 							console.log('⚠️ 收到质量预检警告');
 							setQualityPreflightData(message.interrupt_data);
 							setShowQualityPreflight(true);
 						}
+						break;
+
+					case 'tool_permissions_initialized':
+						// 🆕 v7.129 Week2 P1: 工具权限初始化通知
+						console.log('🔧 收到工具权限初始化消息:', message);
+
+						// 显示toast通知用户工具权限已配置
+						import('sonner').then(({ toast }) => {
+							// 统计启用搜索的角色数量
+							const toolSettings = message.tool_settings || {};
+							const rolesWithSearch = Object.entries(toolSettings)
+								.filter(([_, settings]: [string, any]) => settings.enable_search)
+								.map(([roleType, _]) => roleType);
+
+							const allRoles = Object.keys(toolSettings);
+
+							toast.success(
+								`工具权限系统已初始化`,
+								{
+									description: `已配置 ${allRoles.length} 个角色，其中 ${rolesWithSearch.length} 个角色启用搜索工具 (${rolesWithSearch.join(', ')})`,
+									duration: 5000,
+								}
+							);
+
+							console.log('📡 工具权限配置:', {
+								allRoles,
+								rolesWithSearch,
+								settings: toolSettings
+							});
+						});
 						break;
 				}
 			},
@@ -966,268 +887,100 @@ export default function AnalysisPage() {
 		}
 	};
 
-	// 🆕 Progressive Questionnaire Step 1 处理函数
-	const handleProgressiveStep1Confirm = async (confirmedTasks?: any) => {
+	// 🆕 v7.130: 统一问卷处理函数
+	const handleProgressiveStepConfirm = async (stepData?: any) => {
+		const step = currentProgressiveStep;
 		try {
-			console.log('✅ Step 1 - 用户确认核心任务:', confirmedTasks);
-			const payload = confirmedTasks
-				? { action: 'confirm', confirmed_tasks: confirmedTasks }
-				: { action: 'confirm' };
+			console.log(`✅ 第${step}步 - 用户确认:`, stepData);
 
-			// ⚠️ 修复：保持Modal打开，不关闭Step 1
-			// 让UnifiedProgressiveQuestionnaireModal显示加载骨架屏
-			// setShowProgressiveStep1(false);  // ❌ 删除：不要关闭
-			// setProgressiveStep1Data(null);   // ❌ 删除：不要清空数据
-
-			await api.resumeAnalysis(sessionId, payload);
-
-			setStatus((prev) => ({
-				...prev!,
-				status: 'running' as SessionStatus,
-				detail: '正在处理您的核心任务...'
-			}));
-			console.log('✅ Step 1 任务梳理完成，等待 Step 2 数据...');
-		} catch (err) {
-			console.error('❌ Step 1 确认失败:', err);
-			alert('确认失败,请重试');
-		}
-	};
-
-	const handleProgressiveStep1Skip = async () => {
-		try {
-			console.log('⏭️ Step 1 - 用户选择跳过问卷');
-			await api.resumeAnalysis(sessionId, { action: 'skip' });
-			setShowProgressiveStep1(false);
-			setProgressiveStep1Data(null);
-			setStatus((prev) => ({
-				...prev!,
-				status: 'running' as SessionStatus,
-				detail: '跳过问卷，继续分析流程...'
-			}));
-			console.log('⏭️ Step 1 跳过成功');
-		} catch (err) {
-			console.error('❌ Step 1 跳过失败:', err);
-			alert('操作失败,请重试');
-		}
-	};
-
-	// 🆕 Progressive Questionnaire Step 2 处理函数
-	const handleProgressiveStep2Confirm = async (selectedDimensions?: any) => {
-		try {
-			console.log('✅ Step 2 - 用户确认雷达图维度:', selectedDimensions);
-			const payload = selectedDimensions
-				? { action: 'confirm', selected_dimensions: selectedDimensions }
-				: { action: 'confirm' };
-
-			// ⚠️ 修复：保持Modal打开，不关闭Step 2
-			// setShowProgressiveStep2(false);  // ❌ 删除：不要关闭
-			// setProgressiveStep2Data(null);   // ❌ 删除：不要清空数据
-
-			await api.resumeAnalysis(sessionId, payload);
-
-			setStatus((prev) => ({
-				...prev!,
-				status: 'running' as SessionStatus,
-				detail: '正在处理您选择的分析维度...'
-			}));
-			console.log('✅ Step 2 雷达图维度确认完成');
-		} catch (err) {
-			console.error('❌ Step 2 确认失败:', err);
-			alert('确认失败,请重试');
-		}
-	};
-
-	const handleProgressiveStep2Skip = async () => {
-		try {
-			console.log('⏭️ Step 2 - 用户选择跳过问卷');
-			await api.resumeAnalysis(sessionId, { action: 'skip' });
-			setShowProgressiveStep2(false);
-			setProgressiveStep2Data(null);
-			setStatus((prev) => ({
-				...prev!,
-				status: 'running' as SessionStatus,
-				detail: '跳过问卷，继续分析流程...'
-			}));
-			console.log('⏭️ Step 2 跳过成功');
-		} catch (err) {
-			console.error('❌ Step 2 跳过失败:', err);
-			alert('操作失败,请重试');
-		}
-	};
-
-	// 🆕 Progressive Questionnaire Step 3 处理函数
-	const handleProgressiveStep3Confirm = async (answers?: any) => {
-		try {
-			console.log('✅ Step 3 - 用户回答关键问题:', answers);
-			const payload = answers
-				? { action: 'confirm', answers }
-				: { action: 'confirm' };
-
-			await api.resumeAnalysis(sessionId, payload);
-			setShowProgressiveStep3(false);
-			setProgressiveStep3Data(null);
-			setStatus((prev) => ({
-				...prev!,
-				status: 'running' as SessionStatus,
-				detail: '正在处理您的回答...'
-			}));
-			console.log('✅ Step 3 关键问题回答完成');
-		} catch (err) {
-			console.error('❌ Step 3 确认失败:', err);
-			alert('确认失败,请重试');
-		}
-	};
-
-	const handleProgressiveStep3Skip = async () => {
-		try {
-			console.log('⏭️ Step 3 - 用户选择跳过问卷');
-			await api.resumeAnalysis(sessionId, { action: 'skip' });
-			setShowProgressiveStep3(false);
-			setProgressiveStep3Data(null);
-			setStatus((prev) => ({
-				...prev!,
-				status: 'running' as SessionStatus,
-				detail: '跳过问卷，继续分析流程...'
-			}));
-			console.log('⏭️ Step 3 跳过成功');
-		} catch (err) {
-			console.error('❌ Step 3 跳过失败:', err);
-			alert('操作失败,请重试');
-		}
-	};
-
-
-	const handleRenameSession = async (targetSessionId: string) => {
-		const newName = prompt('请输入新的会话名称:');
-		if (newName && newName.trim()) {
-			try {
-				await api.updateSession(targetSessionId, { display_name: newName.trim() });
-				setSessions((prevSessions) =>
-					dedupeSessions(
-						prevSessions.map((s) =>
-							s.session_id === targetSessionId ? { ...s, user_input: newName.trim() } : s
-						)
-					)
-				);
-				alert('重命名成功');
-			} catch (err) {
-				console.error('重命名失败:', err);
-				alert('重命名失败，请重试');
+			let payload: any = { action: 'confirm' };
+			if (step === 1 && stepData?.extracted_tasks) {
+				payload.confirmed_tasks = stepData.extracted_tasks;
+			} else if (step === 2 && stepData?.answers) {
+				payload.answers = stepData.answers;
+			} else if (step === 3 && stepData?.dimension_values) {
+				payload.selected_dimensions = stepData.dimension_values;
 			}
-		}
-		setMenuOpenSessionId(null);
-	};
 
-	const handlePinSession = async (targetSessionId: string) => {
-		try {
-			await api.updateSession(targetSessionId, { pinned: true });
-			setSessions((prevSessions) => {
-				const targetSession = prevSessions.find((s) => s.session_id === targetSessionId);
-				if (!targetSession) return prevSessions;
+			await api.resumeAnalysis(sessionId, payload);
 
-				const otherSessions = prevSessions.filter((s) => s.session_id !== targetSessionId);
-				return dedupeSessions([targetSession, ...otherSessions]);
-			});
-			alert('置顶成功');
-		} catch (err) {
-			console.error('置顶失败:', err);
-			alert('置顶失败，请重试');
-		}
-		setMenuOpenSessionId(null);
-	};
+			// 🔧 v7.130: 不关闭 Modal，让 WebSocket 消息自动触发下一步
+			setStatus((prev) => ({
+				...prev!,
+				status: 'running' as SessionStatus,
+				detail: step === 3 ? '正在生成分析报告...' : '正在处理您的输入...'
+			}));
 
-	const handleShareSession = (targetSessionId: string) => {
-		const link = `${window.location.origin}/analysis/${targetSessionId}`;
-		navigator.clipboard.writeText(link);
-		alert('会话链接已复制到剪贴板');
-		setMenuOpenSessionId(null);
-	};
-
-	const handleDeleteSession = async (targetSessionId: string) => {
-		if (confirm('确定要删除这个会话吗？此操作不可恢复。')) {
-			try {
-				await api.deleteSession(targetSessionId);
-				setSessions((prevSessions) => dedupeSessions(prevSessions.filter((s) => s.session_id !== targetSessionId)));
-				if (targetSessionId === sessionId) {
-					router.push('/');
-				}
-				alert('删除成功');
-			} catch (err) {
-				console.error('删除失败:', err);
-				alert('删除失败，请重试');
+			// 🔧 v7.153: Step 3（雷达图）或 Step 4（需求洞察）完成后，关闭问卷
+			if (step === 3 || step === 4) {
+				setCurrentProgressiveStep(0);
+				setProgressiveStepData(null);
 			}
-			setMenuOpenSessionId(null);
+
+			console.log(`✅ 第${step}步确认完成`);
+		} catch (err) {
+			console.error(`❌ 第${step}步确认失败:`, err);
+			alert('确认失败,请重试');
 		}
 	};
+
+	const handleProgressiveStepSkip = async () => {
+		const step = currentProgressiveStep;
+		try {
+			console.log(`⏭️ 第${step}步 - 用户选择跳过问卷`);
+			await api.resumeAnalysis(sessionId, { action: 'skip' });
+			setCurrentProgressiveStep(0);
+			setProgressiveStepData(null);
+			setStatus((prev) => ({
+				...prev!,
+				status: 'running' as SessionStatus,
+				detail: '跳过问卷，继续分析流程...'
+			}));
+			console.log(`⏭️ 第${step}步跳过成功`);
+		} catch (err) {
+			console.error(`❌ 第${step}步跳过失败:`, err);
+			alert('操作失败,请重试');
+		}
+	};
+
+	// v7.290: 移除侧边栏，独立分析体验
 
 	const selectedNodeData = selectedNode ? nodeHistory.filter((h) => h.node === selectedNode) : [];
 
 	return (
 		<div className="flex h-screen bg-[var(--background)] text-[var(--foreground)] overflow-hidden relative">
-			{isSidebarOpen && (
-				<div
-					className="fixed inset-0 bg-black/50 z-30 md:hidden"
-					onClick={() => setIsSidebarOpen(false)}
-				/>
-			)}
+			{/* v7.290: 独立分析页面，无侧边栏 */}
+			<div className="flex-1 flex flex-col relative h-full overflow-hidden w-full">
+{/* v7.290.1: 顶部导航栏 - 统一体验 */}
+		<header className="sticky top-0 z-10 bg-[var(--sidebar-bg)] border-b border-[var(--border-color)]">
+			<div className="flex items-center justify-between px-4 py-3">
+				<div className="flex items-center gap-3">
+					<button
+						onClick={() => router.push('/')}
+						className="p-2 text-[var(--foreground-secondary)] hover:text-[var(--foreground)] hover:bg-[var(--card-bg)] rounded-lg transition-colors"
+						title="返回首页"
+					>
+						<ArrowLeft className="w-5 h-5" />
+					</button>
+					<h1 className="text-lg font-semibold">
+						{sessionId.includes('-followup-') ? '💬 追问分析中...' : '方案高参'}
+					</h1>
+				</div>
 
-			{/* 侧边栏 - 使用公共组件 SessionSidebar */}
-			<div
-				className={`${
-					isSidebarOpen ? 'w-[260px] translate-x-0' : 'w-0 -translate-x-full md:translate-x-0 md:w-0'
-				} bg-[var(--sidebar-bg)] border-r border-[var(--border-color)] transition-all duration-300 ease-in-out flex flex-col fixed md:relative h-full z-40 overflow-hidden`}
-			>
-				{isSidebarOpen && (
-					<>
-						<div className="min-w-[260px] pt-16 h-0" />
-						<div className="flex-1 flex flex-col min-h-0">
-							<SessionSidebar
-								sessions={sessions}
-								currentSessionId={sessionId}
-								showNewButton={false}
-								onRenameSession={handleRenameSession}
-								onPinSession={handlePinSession}
-								onShareSession={handleShareSession}
-								onDeleteSession={handleDeleteSession}
-								loadMoreTriggerRef={loadMoreTriggerRef}
-							/>
-						</div>
-
-						{/* 底部用户面板 - 固定在底部 */}
-						<div className="border-t border-[var(--border-color)] min-w-[260px] flex-shrink-0">
-							<div className="p-3">
-								<UserPanel />
-							</div>
-						</div>
-					</>
+				{!wsConnected && (
+					<div className="flex items-center gap-2 px-3 py-1.5 bg-red-900/20 text-red-400 rounded-full text-xs border border-red-900/30">
+						<WifiOff className="w-3 h-3" />
+						<span>网络异常，正在重连...</span>
+					</div>
 				)}
 			</div>
-
-			<div className="flex-1 flex flex-col relative h-full overflow-hidden w-full">
-				<div className="h-14 border-b border-[var(--border-color)] flex items-center justify-between px-4 bg-[var(--background)]">
-					<div className="flex items-center gap-4">
-						<button
-							onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-							className="p-2 text-[var(--foreground-secondary)] hover:text-[var(--foreground)] hover:bg-[var(--card-bg)] rounded-lg transition-colors"
-							title={isSidebarOpen ? '关闭侧边栏' : '打开侧边栏'}
-						>
-							<PanelLeft size={20} />
-						</button>
-						<h1 className="font-semibold text-lg">
-							{sessionId.includes('-followup-') ? '💬 追问分析中...' : '方案高参'}
-						</h1>
-					</div>
-
-					{!wsConnected && (
-						<div className="flex items-center gap-2 px-3 py-1.5 bg-red-900/20 text-red-400 rounded-full text-xs border border-red-900/30">
-							<WifiOff className="w-3 h-3" />
-							<span>网络异常，正在重连...</span>
-						</div>
-					)}
-				</div>
+		</header>
 
 				<div className="flex-1 overflow-y-auto p-6">
 					<div className={`max-w-6xl mx-auto ${status?.status === 'completed' ? 'h-full flex items-center justify-center' : 'space-y-6'}`}>
+						{/* 🆕 v7.290: 用户问题卡片 - 使用公共组件 */}
+						{(error || status) && <UserQuestionCard question={userInput} className="mb-6" />}
+
 						{error ? (
 							<div className="max-w-2xl mx-auto">
 								<div className="bg-red-900/20 border border-red-900/50 rounded-lg p-6">
@@ -1259,7 +1012,11 @@ export default function AnalysisPage() {
 											onClick={() => window.location.reload()}
 											className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors"
 										>
-											{error && error.includes('LLM服务连接异常') ? '刷新后继续' : '重新加载'}
+											{error && error.includes('LLM服务连接异常')
+												? '刷新后继续'
+												: error && error.includes('会话可能已中断')
+												? '尝试继续执行'
+												: '重新加载'}
 										</button>
 									</div>
 								</div>
@@ -1510,9 +1267,10 @@ export default function AnalysisPage() {
 				onSkip={handleQuestionnaireSkip}
 			/>
 
+			{/* 🆕 v7.151: ConfirmationModal 不再用于 requirements_confirmation（已合并到 questionnaire_summary） */}
 			<ConfirmationModal
 				isOpen={showConfirmation && confirmationData?.interaction_type !== 'role_and_task_unified_review'}
-				title={confirmationData?.interaction_type === 'requirements_confirmation' ? '需求确认' : '确认'}
+				title={'确认'}
 				message={confirmationData?.message || '请确认以下信息'}
 				summary={confirmationData?.requirements_summary || confirmationData}
 				onConfirm={handleConfirmation}
@@ -1529,14 +1287,11 @@ export default function AnalysisPage() {
 			/>
 
 			<UnifiedProgressiveQuestionnaireModal
-				isOpen={showProgressiveStep1 || showProgressiveStep2 || showProgressiveStep3}
-				currentStep={showProgressiveStep1 ? 1 : showProgressiveStep2 ? 2 : 3}
-				step1Data={progressiveStep1Data}
-				step2Data={progressiveStep2Data}
-				step3Data={progressiveStep3Data}
-				onStep1Confirm={handleProgressiveStep1Confirm}
-				onStep2Confirm={handleProgressiveStep2Confirm}
-				onStep3Confirm={handleProgressiveStep3Confirm}
+				isOpen={currentProgressiveStep > 0}
+				currentStep={currentProgressiveStep}
+				stepData={progressiveStepData}
+				onConfirm={handleProgressiveStepConfirm}
+				onSkip={handleProgressiveStepSkip}
 				sessionId={sessionId as string}
 			/>
 

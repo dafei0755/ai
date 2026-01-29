@@ -130,10 +130,15 @@ export function clearWPToken(): void {
 
 /**
  * 刷新 Token
+ * 🆕 v7.217: 使用原始 Token 而非 getWPToken，允许刷新已过期的 Token
  */
 export async function refreshWPToken(): Promise<boolean> {
   try {
-    const token = getWPToken();
+    // 🆕 v7.217: 直接从 localStorage 获取原始 Token，不经过过期检查
+    // 因为后端支持在宽限期内刷新已过期的 Token
+    const token = typeof window !== 'undefined'
+      ? localStorage.getItem(JWT_TOKEN_KEY)
+      : null;
     if (!token) return false;
 
     const response = await fetch('/api/auth/refresh', {
@@ -148,7 +153,14 @@ export async function refreshWPToken(): Promise<boolean> {
 
     if (response.ok && data.token) {
       setWPToken(data.token, data.user);
+      console.log('✅ Token 刷新成功');
       return true;
+    }
+
+    // 🆕 v7.217: 如果刷新失败，清除过期的 Token
+    if (response.status === 401) {
+      console.log('❌ Token 刷新失败，需要重新登录');
+      clearWPToken();
     }
 
     return false;

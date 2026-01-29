@@ -6,7 +6,7 @@
 'use client';
 
 import { FC, useState, useRef, useEffect } from 'react';
-import { ChevronDown, ChevronUp, User, Briefcase, FileText, Package, CheckCircle, Lightbulb, AlertTriangle, Image as ImageIcon, Download, ImageOff, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
+import { User, Briefcase, FileText, Package, CheckCircle, Lightbulb, AlertTriangle, Image as ImageIcon, Download, ImageOff, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
@@ -24,6 +24,11 @@ const ImageChatModal = dynamic(() => import('@/components/image-chat/ImageChatMo
   ssr: false
 });
 
+// 🆕 动态加载 ImageViewer（避免 SSR 问题）
+const ImageViewer = dynamic(() => import('@/components/image-chat/ImageViewer'), {
+  ssr: false
+});
+
 interface ExpertReportAccordionProps {
   expertReports: Record<string, string>;
   userInput?: string;
@@ -32,6 +37,7 @@ interface ExpertReportAccordionProps {
     expert_name: string;
     images: ExpertGeneratedImage[];
   }>;  // 🔥 v7.39: 按专家分组的概念图
+  analysisMode?: 'normal' | 'deep_thinking';  // 🆕 分析模式
 }
 
 // 专家角色颜色映射
@@ -60,7 +66,7 @@ const FIELD_LABELS: Record<string, string> = {
   'completion_ratio': '',
   'quality_self_assessment': '',
   'dependencies_satisfied': '',
-  
+
   // 核心字段
   'project_vision_summary': '项目愿景概述',
   'design_rationale': '设计理念',
@@ -173,7 +179,7 @@ const WORD_TRANSLATIONS: Record<string, string> = {
   'attribute': '属性', 'attributes': '属性',
   'audio': '音频', 'audios': '音频',
   'average': '平均', 'avg': '平均',
-  
+
   // B
   'background': '背景',
   'bad': '不良',
@@ -188,7 +194,7 @@ const WORD_TRANSLATIONS: Record<string, string> = {
   'bug': '缺陷', 'bugs': '缺陷',
   'business': '商业',
   'button': '按钮', 'buttons': '按钮',
-  
+
   // C
   'capability': '能力', 'capabilities': '能力',
   'case': '案例', 'cases': '案例',
@@ -233,7 +239,7 @@ const WORD_TRANSLATIONS: Record<string, string> = {
   'current': '当前',
   'custom': '定制', 'customer': '客户', 'customers': '客户',
   'cycle': '周期', 'cycles': '周期',
-  
+
   // D
   'data': '数据',
   'date': '日期', 'dates': '日期',
@@ -256,7 +262,7 @@ const WORD_TRANSLATIONS: Record<string, string> = {
   'display': '展示', 'displays': '展示',
   'dive': '分析',
   'duration': '持续时间', 'durations': '持续时间',
-  
+
   // E
   'effect': '效果', 'effects': '效果',
   'effective': '有效',
@@ -284,7 +290,7 @@ const WORD_TRANSLATIONS: Record<string, string> = {
   'exploration': '探索',
   'extent': '程度', 'extents': '程度',
   'external': '外部',
-  
+
   // F
   'factor': '因素', 'factors': '因素',
   'feasible': '可行',
@@ -314,7 +320,7 @@ const WORD_TRANSLATIONS: Record<string, string> = {
   'function': '功能', 'functional': '功能', 'functions': '功能',
   'fundamental': '基础',
   'future': '未来',
-  
+
   // G
   'general': '通用',
   'global': '全局',
@@ -323,7 +329,7 @@ const WORD_TRANSLATIONS: Record<string, string> = {
   'group': '组', 'groups': '组',
   'growth': '增长',
   'guidance': '指导', 'guide': '指南', 'guideline': '指南', 'guidelines': '指南', 'guides': '指南',
-  
+
   // H
   'handoff': '交接', 'handoffs': '交接',
   'header': '页眉', 'headers': '页眉',
@@ -335,7 +341,7 @@ const WORD_TRANSLATIONS: Record<string, string> = {
   'how': '如何',
   'humidity': '湿度', 'humidities': '湿度',
   'hvac': '暖通空调',
-  
+
   // I
   'icon': '图标', 'icons': '图标',
   'id': '标识', 'ids': '标识',
@@ -368,16 +374,16 @@ const WORD_TRANSLATIONS: Record<string, string> = {
   'issue': '问题', 'issues': '问题',
   'item': '项', 'items': '项目',
   'iteration': '迭代', 'iterations': '迭代', 'iteration_summary': '迭代改进总结',
-  
+
   // J
   'journey': '旅程', 'journeys': '旅程',
   'judge': '评委', 'judges': '评委',
-  
+
   // K
   'key': '关键', 'keys': '键',
   'kind': '种类', 'kinds': '种类',
   'kpi': '关键绩效指标', 'kpis': '关键绩效指标',
-  
+
   // L
   'label': '标签', 'labels': '标签',
   'last': '最后',
@@ -392,7 +398,7 @@ const WORD_TRANSLATIONS: Record<string, string> = {
   'location': '位置', 'locations': '位置',
   'long': '长期',
   'low': '低',
-  
+
   // M
   'main': '主要',
   'maintenance': '维护',
@@ -427,7 +433,7 @@ const WORD_TRANSLATIONS: Record<string, string> = {
   'month': '月', 'months': '月',
   'mood': '氛围',
   'multimedia': '多媒体',
-  
+
   // N
   'name': '名称', 'names': '名称',
   'narrative': '叙事',
@@ -439,7 +445,7 @@ const WORD_TRANSLATIONS: Record<string, string> = {
   'next': '下一',
   'normal': '正常',
   'note': '备注', 'notes': '备注',
-  
+
   // O
   'object': '对象', 'objects': '对象',
   'objective': '目标', 'objectives': '目标',
@@ -456,7 +462,7 @@ const WORD_TRANSLATIONS: Record<string, string> = {
   'output': '输出', 'outputs': '输出',
   'overall': '整体',
   'overview': '概述', 'overviews': '概述',
-  
+
   // P
   'page': '页面', 'pages': '页面',
   'pair': '对', 'pairs': '对',
@@ -506,13 +512,13 @@ const WORD_TRANSLATIONS: Record<string, string> = {
   'property': '属性', 'properties': '属性',
   'protection': '防护',
   'public': '公开',
-  
+
   // Q
   'quality': '质量',
   'queries': '查询', 'query': '查询',
   'question': '问题', 'questions': '问题',
   'quick': '快速',
-  
+
   // R
   'range': '范围', 'ranges': '范围',
   'rare': '罕见',
@@ -542,7 +548,7 @@ const WORD_TRANSLATIONS: Record<string, string> = {
   'row': '行', 'rows': '行',
   'rule': '规则', 'rules': '规则',
   'ruling': '裁决', 'rulings': '裁决',
-  
+
   // S
   'safety': '安全',
   'sample': '样本', 'samples': '样本',
@@ -599,7 +605,7 @@ const WORD_TRANSLATIONS: Record<string, string> = {
   'support': '支持', 'supports': '支持',
   'sustainability': '可持续性', 'sustainable': '可持续',
   'system': '系统', 'systems': '系统',
-  
+
   // T
   'tab': '标签', 'table': '表格', 'tables': '表格', 'tabs': '标签',
   'tag': '标签', 'tags': '标签',
@@ -623,7 +629,7 @@ const WORD_TRANSLATIONS: Record<string, string> = {
   'trend': '趋势', 'trends': '趋势',
   'triggered': '触发',
   'type': '类型', 'types': '类型', 'typical': '典型',
-  
+
   // U
   'unique': '独特',
   'unusual': '异常',
@@ -634,7 +640,7 @@ const WORD_TRANSLATIONS: Record<string, string> = {
   'usage': '使用',
   'user': '用户', 'users': '用户',
   'utilities': '实用工具', 'utility': '实用工具',
-  
+
   // V
   'validation': '验证', 'validations': '验证',
   'value': '价值', 'values': '价值',
@@ -648,7 +654,7 @@ const WORD_TRANSLATIONS: Record<string, string> = {
   'vision': '愿景', 'visions': '愿景',
   'visual': '视觉',
   'volume': '体积', 'volumes': '体积',
-  
+
   // W
   'warning': '警告', 'warnings': '警告',
   'wavelength': '波长', 'wavelengths': '波长',
@@ -660,10 +666,10 @@ const WORD_TRANSLATIONS: Record<string, string> = {
   'width': '宽度', 'widths': '宽度',
   'window': '窗口', 'windows': '窗口',
   'work': '工作', 'workflow': '工作流', 'workflows': '工作流', 'works': '作品',
-  
+
   // Y
   'year': '年', 'years': '年',
-  
+
   // Z
   'zone': '区域', 'zones': '区域',
 };
@@ -672,53 +678,53 @@ const ExpertReportAccordion: FC<ExpertReportAccordionProps> = ({
   expertReports,
   userInput,
   sessionId,
-  generatedImagesByExpert  // 🔥 v7.39: 新增图片数据
+  generatedImagesByExpert,  // 🔥 v7.39: 新增图片数据
+  analysisMode = 'normal'  // 🆕 分析模式，默认为 normal
 }) => {
-  // 🔥 v7.109: 默认展开所有专家（设置为Set以方便管理多个展开状态）
-  const [expandedExperts, setExpandedExperts] = useState<Set<string>>(() =>
-    new Set(Object.keys(expertReports))
-  );
-  
   // 🔥 v7.39: 图片对话状态
   const [selectedImage, setSelectedImage] = useState<ExpertGeneratedImage | null>(null);
   const [selectedExpertName, setSelectedExpertName] = useState<string>('');
   const [imageChatOpen, setImageChatOpen] = useState(false);
-  
+
+  // 🆕 独立的图片查看器状态
+  const [viewingImage, setViewingImage] = useState<ExpertGeneratedImage | null>(null);
+  const [viewingExpertName, setViewingExpertName] = useState<string>('');
+
   // 🔥 v7.39+: 图片加载状态管理
   const [imageLoadStates, setImageLoadStates] = useState<Record<string, {
     loaded: number;
     total: number;
     failed: string[];
   }>>({});
-  
+
   // 🔥 v7.39+: 图片错误处理与重试
   const [failedImages, setFailedImages] = useState<Set<string>>(new Set());
   const [retryCount, setRetryCount] = useState<Record<string, number>>({});
-  
+
   // 🔥 v7.39+: 图片轮播预览
   const [isGalleryOpen, setIsGalleryOpen] = useState(false);
   const [galleryImages, setGalleryImages] = useState<ExpertGeneratedImage[]>([]);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
-  
+
   // 🔥 v7.39+: 图片对比模式
   const [compareMode, setCompareMode] = useState(false);
   const [selectedForCompare, setSelectedForCompare] = useState<Set<string>>(new Set());
-  
-  // 🔥 v7.39+: 图片区域展开/收起
-  const [expandedImageSections, setExpandedImageSections] = useState<Set<string>>(new Set());
-  const [autoExpandImages, setAutoExpandImages] = useState(true);
 
-  // 🔥 v7.39+: 自动展开有图片的专家区域
+  // 🔥 初始化图片加载状态
   useEffect(() => {
-    if (autoExpandImages && generatedImagesByExpert) {
-      const expertsWithImages = Object.keys(generatedImagesByExpert).filter(
-        expert => generatedImagesByExpert[expert]?.images?.length > 0
-      );
-      if (expertsWithImages.length > 0) {
-        setExpandedImageSections(new Set(expertsWithImages));
+    if (generatedImagesByExpert) {
+      const newStates: Record<string, { loaded: number; total: number; failed: string[] }> = {};
+      Object.entries(generatedImagesByExpert).forEach(([expertName, data]) => {
+        const images = data.images || [];
+        if (images.length > 0 && !imageLoadStates[expertName]) {
+          newStates[expertName] = { loaded: 0, total: images.length, failed: [] };
+        }
+      });
+      if (Object.keys(newStates).length > 0) {
+        setImageLoadStates(prev => ({ ...prev, ...newStates }));
       }
     }
-  }, [generatedImagesByExpert, autoExpandImages]);
+  }, [generatedImagesByExpert]);
 
   // 调试日志
   console.log('ExpertReportAccordion 渲染, sessionId:', sessionId);
@@ -735,7 +741,7 @@ const ExpertReportAccordion: FC<ExpertReportAccordionProps> = ({
     const styles = `
       <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { 
+        body {
           font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans SC", sans-serif;
           line-height: 1.6;
           color: #333;
@@ -751,23 +757,23 @@ const ExpertReportAccordion: FC<ExpertReportAccordionProps> = ({
         p { margin: 10px 0; text-align: justify; line-height: 1.8; }
         ul, ol { margin: 10px 0 10px 20px; padding-left: 0; }
         li { margin: 6px 0; padding-left: 5px; }
-        
+
         /* 移除 Tailwind 的 prose 样式影响，强制使用打印样式 */
         .prose { max-width: none !important; color: #333 !important; }
-        
+
         /* 列表样式修正 */
         ul { list-style-type: disc; }
         ul ul { list-style-type: circle; }
         ul ul ul { list-style-type: square; }
         ol { list-style-type: decimal; }
-        
+
         strong { color: #000; font-weight: 700; }
         blockquote { border-left: 4px solid #e5e7eb; padding-left: 15px; color: #666; margin: 15px 0; font-style: italic; }
-        
+
         .meta { color: #666; font-size: 12px; margin-bottom: 30px; text-align: right; }
         .divider { border-top: 1px solid #eee; margin: 30px 0; }
         .user-input { background: #f9fafb; padding: 20px; border-radius: 8px; margin: 20px 0 40px; border: 1px solid #e5e7eb; }
-        
+
         @media print {
           body { padding: 0; margin: 0; }
           h2.expert-title { page-break-before: always; }
@@ -789,10 +795,10 @@ const ExpertReportAccordion: FC<ExpertReportAccordionProps> = ({
       const expertHtml = ReactDOMServer.renderToStaticMarkup(
         <MarkdownContent content={expertContent} />
       );
-      
+
       // 🔥 v7.5: 格式化专家名称
       const displayName = formatExpertName(expertName);
-      
+
       content += `<div class="expert-section">
         <h2 class="expert-title">${displayName}</h2>
         <div class="expert-content">${expertHtml}</div>
@@ -850,7 +856,7 @@ const ExpertReportAccordion: FC<ExpertReportAccordionProps> = ({
     // 如果映射为空字符串，说明是黑名单字段
     if (FIELD_LABELS.hasOwnProperty(lowerKey)) return FIELD_LABELS[lowerKey];
     if (FIELD_LABELS.hasOwnProperty(key)) return FIELD_LABELS[key];
-    
+
     // 2. 预处理：处理 camelCase 中的 "and" 连接词
     let processedKey = key
       .replace(/([a-z])And([A-Z])/g, '$1_and_$2')  // coordinationAndClashPoints -> coordination_and_ClashPoints
@@ -858,7 +864,7 @@ const ExpertReportAccordion: FC<ExpertReportAccordionProps> = ({
       .replace(/([a-z])For([A-Z])/g, '$1_for_$2')  // designForManufacturing -> design_for_Manufacturing
       .replace(/([a-z])In([A-Z])/g, '$1_in_$2')    // errorInProcess -> error_in_Process
       .replace(/([a-z])To([A-Z])/g, '$1_to_$2');   // applicationToProject -> application_to_Project
-    
+
     // 3. 将 snake_case 或 camelCase 拆分为单词
     const words = processedKey
       .replace(/_/g, ' ')
@@ -866,7 +872,7 @@ const ExpertReportAccordion: FC<ExpertReportAccordionProps> = ({
       .toLowerCase()
       .split(/\s+/)
       .filter(w => w.length > 0);
-    
+
     // 4. 翻译每个单词
     const translatedWords = words.map(word => {
       // 跳过介词
@@ -900,7 +906,7 @@ const ExpertReportAccordion: FC<ExpertReportAccordionProps> = ({
   // 提取公共的 Markdown 处理逻辑
   const processMarkdownText = (content: string): string => {
     if (!content) return '';
-    
+
     let text = content
       // 1. 基础清理：处理转义换行符
       .replace(/\\n\\n/g, '\n\n')
@@ -914,16 +920,16 @@ const ExpertReportAccordion: FC<ExpertReportAccordionProps> = ({
     // 1.5 深度列表重构：使用逐行扫描算法代替正则，彻底解决列表断行问题
     const lines = text.split('\n');
     const reconstructedLines: string[] = [];
-    
+
     // 列表标记正则 - 扩展支持更多符号
     // 注意：前面的标准化已经处理了大部分特殊符号，这里主要保留对数字序号和中文序号的支持
     // 同时保留 - 和 * 以防万一
     const listMarkerRegex = /^\s*([-*]|\d+\.|[一二三四五六七八九十]+、|\(\d+\)|（\d+）)\s*$/;
-    
+
     for (let i = 0; i < lines.length; i++) {
       const currentLine = lines[i];
       const trimmedLine = currentLine.trim();
-      
+
       // 检查当前行是否是孤立的列表标记
       if (listMarkerRegex.test(trimmedLine)) {
         // 这是一个孤立的标记，需要寻找下一个非空行
@@ -931,13 +937,13 @@ const ExpertReportAccordion: FC<ExpertReportAccordionProps> = ({
         while (nextContentIndex < lines.length && !lines[nextContentIndex].trim()) {
           nextContentIndex++;
         }
-        
+
         if (nextContentIndex < lines.length) {
           // 找到了内容行，合并
           const marker = trimmedLine;
           const content = lines[nextContentIndex].trim();
           reconstructedLines.push(`${marker} ${content}`);
-          
+
           // 跳过已处理的行
           i = nextContentIndex;
         } else {
@@ -949,7 +955,7 @@ const ExpertReportAccordion: FC<ExpertReportAccordionProps> = ({
         reconstructedLines.push(currentLine);
       }
     }
-    
+
     text = reconstructedLines.join('\n');
 
     // 2. 智能分段：针对 "一、" "1." "(1)" "- " 等列表/标题特征进行强制换行
@@ -986,7 +992,7 @@ const ExpertReportAccordion: FC<ExpertReportAccordionProps> = ({
 
     return (
       <div className="prose prose-invert max-w-none text-sm text-gray-300">
-        <ReactMarkdown 
+        <ReactMarkdown
           remarkPlugins={[remarkGfm]}
           components={{
           h1: ({node, ...props}) => <h1 className="text-xl font-bold text-white mt-4 mb-2" {...props} />,
@@ -1025,7 +1031,7 @@ const ExpertReportAccordion: FC<ExpertReportAccordionProps> = ({
   const renderExpertContent = (content: string) => {
     // 尝试解析为 JSON
     let parsedContent: Record<string, any> | null = null;
-    
+
     try {
       // 🔥 v7.4: 先处理 Markdown 代码块包裹的 JSON
       let processedContent = content.trim();
@@ -1033,7 +1039,7 @@ const ExpertReportAccordion: FC<ExpertReportAccordionProps> = ({
       if (codeBlockMatch) {
         processedContent = codeBlockMatch[1].trim();
       }
-      
+
       // 处理可能的 JSON 字符串
       if (processedContent.startsWith('{')) {
         parsedContent = JSON.parse(processedContent);
@@ -1258,7 +1264,7 @@ const ExpertReportAccordion: FC<ExpertReportAccordionProps> = ({
   // 🔥 v7.7: LLM 乱码清洗函数
   const cleanLLMGarbage = (text: string): string => {
     if (!text || typeof text !== 'string') return text;
-    
+
     // 检测并清除常见的 LLM 乱码模式
     const garbagePatterns = [
       // 泰米尔语/印度语乱码
@@ -1278,15 +1284,15 @@ const ExpertReportAccordion: FC<ExpertReportAccordionProps> = ({
       // 主要-specific 等混合语言乱码
       /\s*cle主要-specific[^\n]*/g,
     ];
-    
+
     let cleaned = text;
     garbagePatterns.forEach(pattern => {
       cleaned = cleaned.replace(pattern, '');
     });
-    
+
     // 清理多余空行
     cleaned = cleaned.replace(/\n{3,}/g, '\n\n').trim();
-    
+
     return cleaned;
   };
 
@@ -1362,12 +1368,12 @@ const ExpertReportAccordion: FC<ExpertReportAccordionProps> = ({
           if (fieldBlacklist.has(key) || fieldBlacklist.has(key.toLowerCase())) {
             return null;
           }
-          
+
           // 跳过空值
           if (value === null || value === undefined || value === '') return null;
 
           const label = getFieldLabel(key);
-          
+
           // 处理嵌套对象
           if (typeof value === 'object' && !Array.isArray(value)) {
             return (
@@ -1377,7 +1383,7 @@ const ExpertReportAccordion: FC<ExpertReportAccordionProps> = ({
               </div>
             );
           }
-          
+
           // 处理数组
           if (Array.isArray(value)) {
             if (value.length === 0) return null;
@@ -1406,18 +1412,18 @@ const ExpertReportAccordion: FC<ExpertReportAccordionProps> = ({
               </div>
             );
           }
-          
+
           // 处理字符串 - 检查是否是 JSON 字符串
           if (typeof value === 'string') {
             let trimmed = value.trim();
-            
+
             // 🔥 v7.4: 处理 Markdown 代码块包裹的 JSON
             // 匹配 ```json\n{...}\n``` 或 ```\n{...}\n``` 格式
             const codeBlockMatch = trimmed.match(/^```(?:json)?\s*\n?([\s\S]*?)\n?```$/);
             if (codeBlockMatch) {
               trimmed = codeBlockMatch[1].trim();
             }
-            
+
             // 🔥 v7.5: 增强 JSON 检测 - 支持带缩进或空白开头的 JSON
             const jsonMatch = trimmed.match(/^\s*(\{[\s\S]*\}|\[[\s\S]*\])\s*$/);
             if (jsonMatch || trimmed.startsWith('{') || trimmed.startsWith('[')) {
@@ -1448,7 +1454,7 @@ const ExpertReportAccordion: FC<ExpertReportAccordionProps> = ({
               }
             }
           }
-          
+
           // 处理字符串/数字等基本类型
           // 🔥 v7.7: 应用 LLM 乱码清洗
           const stringValue = cleanLLMGarbage(String(value));
@@ -1495,7 +1501,7 @@ const ExpertReportAccordion: FC<ExpertReportAccordionProps> = ({
       'image_url', 'image_urls', '图片链接',
       'concept_image', 'concept_images',
     ]);
-    
+
     return (
       <div className="space-y-2">
         {Object.entries(item).map(([itemKey, itemValue]) => {
@@ -1503,11 +1509,11 @@ const ExpertReportAccordion: FC<ExpertReportAccordionProps> = ({
           if (fieldBlacklist.has(itemKey) || fieldBlacklist.has(itemKey.toLowerCase())) {
             return null;
           }
-          
+
           if (itemValue === null || itemValue === undefined || itemValue === '') return null;
-          
+
           const itemLabel = getFieldLabel(itemKey);
-          
+
           // 🔥 v7.7: 优先检查字符串是否是 JSON，如果是则解析
           if (typeof itemValue === 'string') {
             const trimmed = itemValue.trim();
@@ -1584,7 +1590,7 @@ const ExpertReportAccordion: FC<ExpertReportAccordionProps> = ({
               </div>
             );
           }
-          
+
           // 🔥 v7.5: 检查字符串是否是 JSON，如果是则解析并递归渲染
           if (typeof itemValue === 'string') {
             const trimmed = itemValue.trim();
@@ -1620,7 +1626,7 @@ const ExpertReportAccordion: FC<ExpertReportAccordionProps> = ({
               }
             }
           }
-          
+
           // 🔥 v7.9.4: 改进对齐 - 使用grid布局确保基线对齐
           return (
             <div key={itemKey} className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0 items-baseline">
@@ -1642,84 +1648,24 @@ const ExpertReportAccordion: FC<ExpertReportAccordionProps> = ({
     return <MarkdownContent content={content} />;
   };
 
-  // 🔥 v7.39+: LazyImage 组件（懒加载 + 骨架屏）
+  // 🔥 v7.39+: 简化的图片组件 - 直接显示，无懒加载
+  // 🔧 v7.124: 完全移除loading状态，直接按16:9比例显示
+  // 🔧 v7.125: 添加鼠标悬停5%放大效果
   const LazyImage: FC<{
     src: string;
     alt: string;
     className?: string;
     expertName: string;
     imageId: string;
-  }> = ({ src, alt, className, expertName, imageId }) => {
-    const [isLoaded, setIsLoaded] = useState(false);
-    const [isInView, setIsInView] = useState(false);
-    const imgRef = useRef<HTMLImageElement>(null);
-    
-    useEffect(() => {
-      if (!imgRef.current) return;
-      
-      const observer = new IntersectionObserver(
-        (entries) => {
-          if (entries[0].isIntersecting) {
-            setIsInView(true);
-            observer.disconnect();
-          }
-        },
-        { threshold: 0.1 }
-      );
-      
-      observer.observe(imgRef.current);
-      return () => observer.disconnect();
-    }, []);
-    
-    const handleLoad = () => {
-      setIsLoaded(true);
-      // 更新加载状态
-      setImageLoadStates(prev => {
-        const expertState = prev[expertName] || { loaded: 0, total: 0, failed: [] };
-        return {
-          ...prev,
-          [expertName]: {
-            ...expertState,
-            loaded: expertState.loaded + 1
-          }
-        };
-      });
-    };
-    
-    const handleError = () => {
-      handleImageError(imageId);
-    };
-    
+  }> = ({ src, alt, className }) => {
     return (
-      <div ref={imgRef} className="relative w-full h-full">
-        {!isLoaded && isInView && (
-          <div className="absolute inset-0 bg-gray-800/50 animate-pulse rounded-lg" />
-        )}
-        {isInView && !failedImages.has(imageId) && (
-          <img 
-            src={src} 
-            alt={alt}
-            onLoad={handleLoad}
-            onError={handleError}
-            className={cn(
-              "transition-opacity duration-300",
-              isLoaded ? "opacity-100" : "opacity-0",
-              className
-            )}
-          />
-        )}
-        {failedImages.has(imageId) && (
-          <div className="flex flex-col items-center justify-center h-full bg-gray-800/50 rounded-lg">
-            <ImageOff className="w-12 h-12 text-gray-500 mb-2" />
-            <p className="text-sm text-gray-400">图片加载失败</p>
-            <button 
-              onClick={() => handleImageRetry(imageId)}
-              className="text-xs text-blue-400 underline mt-1 hover:text-blue-300"
-            >
-              点击重试
-            </button>
-          </div>
-        )}
+      <div className="relative w-full overflow-hidden" style={{ paddingBottom: '56.25%' /* 16:9 比例 */ }}>
+        <img
+          src={src}
+          alt={alt}
+          className="absolute top-0 left-0 w-full h-full object-cover rounded-lg transition-transform duration-300 group-hover:scale-105"
+          loading="eager"
+        />
       </div>
     );
   };
@@ -1727,7 +1673,7 @@ const ExpertReportAccordion: FC<ExpertReportAccordionProps> = ({
   // 🔥 v7.39+: 图片错误处理与重试
   const handleImageError = (imageId: string) => {
     const currentRetry = retryCount[imageId] || 0;
-    
+
     if (currentRetry < 3) {
       // 重试机制（最多3次，指数退避）
       setRetryCount(prev => ({ ...prev, [imageId]: currentRetry + 1 }));
@@ -1753,6 +1699,7 @@ const ExpertReportAccordion: FC<ExpertReportAccordionProps> = ({
 
   // 🔥 v7.39+: 图片下载功能
   const handleDownloadImage = async (image: ExpertGeneratedImage) => {
+    if (!image.image_url) return;
     try {
       const response = await fetch(image.image_url);
       const blob = await response.blob();
@@ -1773,7 +1720,7 @@ const ExpertReportAccordion: FC<ExpertReportAccordionProps> = ({
 
   const handleDownloadAll = async (expertName: string) => {
     if (!generatedImagesByExpert || !generatedImagesByExpert[expertName]) return;
-    
+
     const images = generatedImagesByExpert[expertName].images || [];
     toast.promise(
       Promise.all(images.map(img => handleDownloadImage(img))),
@@ -1792,46 +1739,46 @@ const ExpertReportAccordion: FC<ExpertReportAccordionProps> = ({
     onClose: () => void;
   }> = ({ images, initialIndex, onClose }) => {
     const [currentIndex, setCurrentIndex] = useState(initialIndex);
-    
+
     const handlePrev = () => {
       setCurrentIndex((currentIndex - 1 + images.length) % images.length);
     };
-    
+
     const handleNext = () => {
       setCurrentIndex((currentIndex + 1) % images.length);
     };
-    
+
     const handleKeyDown = (e: React.KeyboardEvent) => {
       if (e.key === 'ArrowLeft') handlePrev();
       if (e.key === 'ArrowRight') handleNext();
       if (e.key === 'Escape') onClose();
     };
-    
+
     return (
-      <Dialog open={isGalleryOpen} onOpenChange={onClose}>
-        <DialogContent 
+      <Dialog open={true} onOpenChange={onClose}>
+        <DialogContent
           className="max-w-7xl max-h-screen p-0 bg-black/95 border-gray-800"
           onKeyDown={handleKeyDown}
         >
           <div className="relative p-6">
             {/* 主图片显示 */}
             <div className="relative flex items-center justify-center min-h-[60vh] max-h-[80vh]">
-              <img 
-                src={images[currentIndex].image_url} 
+              <img
+                src={images[currentIndex].image_url}
                 alt={images[currentIndex].prompt}
                 className="w-full h-auto max-h-[80vh] object-contain rounded-lg"
               />
-              
+
               {/* 导航按钮 */}
               {images.length > 1 && (
                 <>
-                  <button 
+                  <button
                     onClick={handlePrev}
                     className="absolute left-4 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white rounded-full p-3 transition-all"
                   >
                     <ChevronLeft className="w-8 h-8" />
                   </button>
-                  <button 
+                  <button
                     onClick={handleNext}
                     className="absolute right-4 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white rounded-full p-3 transition-all"
                   >
@@ -1840,7 +1787,7 @@ const ExpertReportAccordion: FC<ExpertReportAccordionProps> = ({
                 </>
               )}
             </div>
-            
+
             {/* 图片信息 */}
             <div className="mt-4 text-white">
               <p className="text-sm text-gray-300 mb-2">{images[currentIndex].prompt}</p>
@@ -1860,19 +1807,19 @@ const ExpertReportAccordion: FC<ExpertReportAccordionProps> = ({
                 </button>
               </div>
             </div>
-            
+
             {/* 缩略图导航 */}
             {images.length > 1 && (
               <div className="flex gap-2 mt-4 overflow-x-auto pb-2">
                 {images.map((img, idx) => (
-                  <img 
+                  <img
                     key={img.id}
                     src={img.image_url}
                     alt={`缩略图 ${idx + 1}`}
                     className={cn(
                       "w-20 h-20 object-cover cursor-pointer rounded transition-all",
-                      idx === currentIndex 
-                        ? "ring-2 ring-blue-500 opacity-100" 
+                      idx === currentIndex
+                        ? "ring-2 ring-blue-500 opacity-100"
                         : "opacity-50 hover:opacity-75"
                     )}
                     onClick={() => setCurrentIndex(idx)}
@@ -1880,7 +1827,7 @@ const ExpertReportAccordion: FC<ExpertReportAccordionProps> = ({
                 ))}
               </div>
             )}
-            
+
             {/* 计数器 */}
             {images.length > 1 && (
               <div className="text-center mt-2 text-sm text-gray-400">
@@ -1901,160 +1848,86 @@ const ExpertReportAccordion: FC<ExpertReportAccordionProps> = ({
 
     const expertImages = generatedImagesByExpert[expertName];
     const images = expertImages.images || [];
-    
+
     if (images.length === 0) {
       return null;
     }
 
-    // 🔥 v7.39+: 初始化加载状态
-    useEffect(() => {
-      if (!imageLoadStates[expertName]) {
-        setImageLoadStates(prev => ({
-          ...prev,
-          [expertName]: { loaded: 0, total: images.length, failed: [] }
-        }));
-      }
-    }, [expertName, images.length]);
-
     const loadState = imageLoadStates[expertName];
-    const isExpanded = expandedImageSections.has(expertName);
 
     return (
-      <motion.div 
-        initial={false}
-        animate={{ height: isExpanded ? 'auto' : 0, opacity: isExpanded ? 1 : 0 }}
-        transition={{ duration: 0.3 }}
-        className="overflow-hidden"
-      >
-        <div className="mt-6 pt-6 border-t border-[var(--border-color)]">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
-              <ImageIcon className="w-5 h-5 text-blue-400" />
-              <h3 className="text-lg font-semibold text-white">
-                💡 概念图 ({images.length})
-              </h3>
-            </div>
-            
-            {/* 🔥 v7.39+: 工具栏 */}
-            <div className="flex items-center gap-2">
-              {/* 加载进度 */}
-              {loadState && loadState.total > 0 && loadState.loaded < loadState.total && (
-                <div className="flex items-center gap-2 text-xs text-gray-400">
-                  <Loader2 className="w-3 h-3 animate-spin" />
-                  <span>{loadState.loaded}/{loadState.total}</span>
-                </div>
-              )}
-              
-              {/* 批量下载 */}
-              <button
-                onClick={() => handleDownloadAll(expertName)}
-                className="text-xs px-3 py-1 bg-gray-700 hover:bg-gray-600 text-white rounded flex items-center gap-1 transition-colors"
-                title="下载所有图片"
-              >
-                <Download className="w-3 h-3" />
-                下载全部
-              </button>
-              
-              {/* 对比模式切换 */}
-              {images.length > 1 && (
-                <button
-                  onClick={() => setCompareMode(!compareMode)}
-                  className={cn(
-                    "text-xs px-3 py-1 rounded flex items-center gap-1 transition-colors",
-                    compareMode
-                      ? "bg-blue-500 text-white"
-                      : "bg-gray-700 hover:bg-gray-600 text-white"
-                  )}
-                  title="对比模式"
-                >
-                  对比
-                </button>
-              )}
-              
-              {/* 轮播预览 */}
-              {images.length > 1 && (
-                <button
-                  onClick={() => {
-                    setGalleryImages(images);
-                    setCurrentImageIndex(0);
-                    setIsGalleryOpen(true);
-                  }}
-                  className="text-xs px-3 py-1 bg-gray-700 hover:bg-gray-600 text-white rounded transition-colors"
-                  title="轮播查看"
-                >
-                  轮播
-                </button>
-              )}
-            </div>
-          </div>
+      <div className="mt-6 pt-6 border-t border-[var(--border-color)]">
+        {/* 🔥 v7.126: 移除标题栏，直接显示图片 */}
 
-          {/* 🔥 v7.39+: 对比模式视图 */}
-          {compareMode && selectedForCompare.size > 0 && (
-            <div className="mb-4 p-4 bg-blue-500/10 border border-blue-500/30 rounded-lg">
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-sm text-blue-400">
-                  已选择 {selectedForCompare.size} 张图片进行对比
-                </span>
-                <button
-                  onClick={() => setSelectedForCompare(new Set())}
-                  className="text-xs text-gray-400 hover:text-white"
-                >
-                  清空选择
-                </button>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                {Array.from(selectedForCompare).map(imageId => {
-                  const image = images.find(img => img.id === imageId);
-                  if (!image) return null;
-                  return (
-                    <div key={imageId} className="relative bg-[var(--sidebar-bg)] rounded-lg p-2">
-                      <img 
-                        src={image.image_url} 
-                        alt={image.prompt}
-                        className="w-full h-48 object-cover rounded"
-                      />
-                      <div className="mt-2 text-sm">
-                        <p className="text-gray-300 line-clamp-1">{image.prompt}</p>
-                        <div className="flex gap-1 mt-1">
-                          <span className="text-xs px-1 py-0.5 bg-blue-500/20 text-blue-400 rounded">
-                            {image.aspect_ratio}
-                          </span>
-                          <span className="text-xs px-1 py-0.5 bg-purple-500/20 text-purple-400 rounded">
-                            {image.style_type}
-                          </span>
-                        </div>
+        {/* 对比模式视图 */}
+        {compareMode && selectedForCompare.size > 0 && (
+          <div className="mb-4 p-4 bg-blue-500/10 border border-blue-500/30 rounded-lg">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-sm text-blue-400">
+                已选择 {selectedForCompare.size} 张图片进行对比
+              </span>
+              <button
+                onClick={() => setSelectedForCompare(new Set())}
+                className="text-xs text-gray-400 hover:text-white"
+              >
+                清空选择
+              </button>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              {Array.from(selectedForCompare).map(imageId => {
+                const image = images.find(img => img.id === imageId);
+                if (!image) return null;
+                return (
+                  <div key={imageId} className="relative bg-[var(--sidebar-bg)] rounded-lg p-2">
+                    <img
+                      src={image.image_url}
+                      alt={image.prompt}
+                      className="w-full h-48 object-cover rounded"
+                    />
+                    <div className="mt-2 text-sm">
+                      <p className="text-gray-300 line-clamp-1">{image.prompt}</p>
+                      <div className="flex gap-1 mt-1">
+                        <span className="text-xs px-1 py-0.5 bg-blue-500/20 text-blue-400 rounded">
+                          {image.aspect_ratio}
+                        </span>
+                        <span className="text-xs px-1 py-0.5 bg-purple-500/20 text-purple-400 rounded">
+                          {image.style_type}
+                        </span>
                       </div>
                     </div>
-                  );
-                })}
-              </div>
+                  </div>
+                );
+              })}
             </div>
-          )}
+          </div>
+        )}
 
-          {/* 🔥 v7.39+: 图片网格（增强版）*/}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {images.map((img, index) => {
-              const isSelected = selectedForCompare.has(img.id);
-              return (
-                <div
-                  key={img.id || index}
-                  className={cn(
-                    "relative group cursor-pointer bg-[var(--sidebar-bg)] rounded-lg overflow-hidden border transition-all duration-200",
+        {/* 🔥 v7.124: 图片单列全宽展示，移除网格布局 */}
+        <div className="space-y-6">
+          {images.map((img, index) => {
+            const isSelected = img.id ? selectedForCompare.has(img.id) : false;
+            return (
+              <div
+                key={img.id || index}
+                className={cn(
+                    "relative group cursor-pointer rounded-lg overflow-hidden border transition-all duration-200",
                     isSelected
                       ? "border-blue-500 ring-2 ring-blue-500/50"
-                      : "border-[var(--border-color)] hover:border-blue-500/50"
+                      : "border-transparent"
                   )}
                   onClick={(e) => {
                     if (compareMode) {
                       // 对比模式：切换选中状态
                       e.stopPropagation();
+                      if (!img.id) return;
+                      const imgId = img.id;
                       setSelectedForCompare(prev => {
                         const newSet = new Set(prev);
-                        if (newSet.has(img.id)) {
-                          newSet.delete(img.id);
+                        if (newSet.has(imgId)) {
+                          newSet.delete(imgId);
                         } else {
                           if (newSet.size < 4) { // 最多对比4张
-                            newSet.add(img.id);
+                            newSet.add(imgId);
                           } else {
                             toast.error('最多只能对比4张图片');
                           }
@@ -2062,10 +1935,9 @@ const ExpertReportAccordion: FC<ExpertReportAccordionProps> = ({
                         return newSet;
                       });
                     } else {
-                      // 普通模式：打开ChatModal
-                      setSelectedImage(img);
-                      setSelectedExpertName(expertImages.expert_name || expertName);
-                      setImageChatOpen(true);
+                      // 🆕 普通模式：打开查看模式（而非对话模式）
+                      setViewingImage(img);
+                      setViewingExpertName(expertImages.expert_name || expertName);
                     }
                   }}
                 >
@@ -2075,59 +1947,20 @@ const ExpertReportAccordion: FC<ExpertReportAccordionProps> = ({
                       ✓
                     </div>
                   )}
-                  
-                  {/* 🔥 v7.39+: 懒加载图片 */}
-                  <div className="relative w-full h-48 overflow-hidden">
-                    <LazyImage
-                      src={img.image_url}
-                      alt={img.prompt}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
-                      expertName={expertName}
-                      imageId={img.id}
-                    />
-                    
-                    {/* 悬停遮罩 */}
-                    {!compareMode && (
-                      <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center">
-                        <div className="text-center px-4">
-                          <ImageIcon className="w-8 h-8 text-white mx-auto mb-2" />
-                          <span className="text-white text-sm font-medium">点击查看大图</span>
-                        </div>
-                      </div>
-                    )}
-                  </div>
 
-                  {/* 图片信息 */}
-                  <div className="p-3">
-                    <p className="text-sm text-gray-300 line-clamp-2 mb-2" title={img.prompt}>
-                      {img.prompt}
-                    </p>
-                    <div className="flex gap-2 text-xs">
-                      <span className="bg-blue-500/20 text-blue-400 px-2 py-1 rounded">
-                        {img.aspect_ratio}
-                      </span>
-                      <span className="bg-green-500/20 text-green-400 px-2 py-1 rounded">
-                        {img.style_type}
-                      </span>
-                      {/* 🔥 v7.39+: 快速下载 */}
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDownloadImage(img);
-                        }}
-                        className="ml-auto p-1 hover:bg-gray-700 rounded transition-colors"
-                        title="下载此图"
-                      >
-                        <Download className="w-3 h-3 text-gray-400 hover:text-white" />
-                      </button>
-                    </div>
-                  </div>
+                  {/* 🔥 v7.124: 图片直接展示，移除下方信息卡片 */}
+                  <LazyImage
+                    src={img.image_url || ''}
+                    alt={img.prompt || ''}
+                    className="w-full h-full object-cover"
+                    expertName={expertName}
+                    imageId={img.id || ''}
+                  />
                 </div>
-              );
-            })}
-          </div>
+            );
+          })}
         </div>
-      </motion.div>
+      </div>
     );
   };
 
@@ -2141,7 +1974,7 @@ const ExpertReportAccordion: FC<ExpertReportAccordionProps> = ({
           </div>
           <div>
             <h2 className="text-lg font-semibold text-white">专家原始报告</h2>
-            <p className="text-sm text-gray-400">点击展开查看各专家的详细分析</p>
+            <p className="text-sm text-gray-400">各专家的详细分析报告</p>
           </div>
         </div>
         {/* 🔥 v7.24: 移除独立下载按钮，合并到主报告下载 */}
@@ -2154,8 +1987,7 @@ const ExpertReportAccordion: FC<ExpertReportAccordionProps> = ({
       <div className="divide-y divide-[var(--border-color)]">
         {Object.entries(expertReports).map(([expertName, content]) => {
           const colors = getExpertColor(expertName);
-          const isExpanded = expandedExperts.has(expertName);
-          
+
           // 计算内容长度提示
           let contentLength = '';
           try {
@@ -2163,63 +1995,29 @@ const ExpertReportAccordion: FC<ExpertReportAccordionProps> = ({
             const fieldCount = Object.keys(parsed).length;
             contentLength = `${fieldCount} 个分析维度`;
           } catch {
-            contentLength = content.length > 1000 
-              ? `${Math.round(content.length / 1000)}k 字符` 
+            contentLength = content.length > 1000
+              ? `${Math.round(content.length / 1000)}k 字符`
               : `${content.length} 字符`;
           }
 
           return (
             <div key={expertName}>
-              <div className="w-full px-6 py-4 flex items-center justify-between hover:bg-[var(--sidebar-bg)] transition-colors">
-                <button
-                  onClick={() => setExpandedExperts(prev => {
-                    const newSet = new Set(prev);
-                    if (newSet.has(expertName)) {
-                      newSet.delete(expertName);
-                    } else {
-                      newSet.add(expertName);
-                    }
-                    return newSet;
-                  })}
-                  className="flex items-center gap-3 flex-1"
-                >
-                  <div className={`w-8 h-8 rounded-full ${colors.bg} flex items-center justify-center`}>
-                    <User className={`w-4 h-4 ${colors.text}`} />
-                  </div>
-                  <span className="text-sm font-medium text-white">{formatExpertName(expertName)}</span>
-                </button>
-                <div className="flex items-center gap-3">
-                  <span className="text-xs text-gray-500">{contentLength}</span>
-                  <button
-                    onClick={() => setExpandedExperts(prev => {
-                      const newSet = new Set(prev);
-                      if (newSet.has(expertName)) {
-                        newSet.delete(expertName);
-                      } else {
-                        newSet.add(expertName);
-                      }
-                      return newSet;
-                    })}
-                  >
-                    {isExpanded ? (
-                      <ChevronUp className="w-5 h-5 text-gray-400" />
-                    ) : (
-                      <ChevronDown className="w-5 h-5 text-gray-400" />
-                    )}
-                  </button>
+              <div className="w-full px-6 py-4 flex items-center gap-3 bg-[var(--sidebar-bg)]">
+                <div className={`w-8 h-8 rounded-full ${colors.bg} flex items-center justify-center`}>
+                  <User className={`w-4 h-4 ${colors.text}`} />
                 </div>
+                <span className="text-sm font-medium text-white">{formatExpertName(expertName)}</span>
+                <span className="text-xs text-gray-500 ml-auto">{contentLength}</span>
               </div>
 
-              {isExpanded && (
-                <div className={`px-6 pb-6 border-l-4 ${colors.border} ml-6 mr-6 mb-4`}>
-                  <div className="pl-4 pt-4 max-h-[600px] overflow-y-auto">
-                    {renderExpertContent(content)}
-                    {/* 🔥 v7.39: 专家内容后直接展示概念图（不折叠） */}
-                    {renderConceptImages(expertName)}
-                  </div>
-                </div>
-              )}
+              <div className={`px-6 pb-6 border-l-4 ${colors.border} ml-6 mr-6 mb-4`}>
+                <div className="pl-4 pt-4">
+                {renderExpertContent(content)}
+                {/* 🔥 v7.39: 专家内容后直接展示概念图（不折叠） */}
+                {renderConceptImages(expertName)}
+              </div>
             </div>
+          </div>
           );
         })}
       </div>
@@ -2239,6 +2037,27 @@ const ExpertReportAccordion: FC<ExpertReportAccordionProps> = ({
           onImageUpdate={(expertName, newImage) => {
             // TODO: 更新图片列表（可选实现）
             console.log('🔥 v7.39: 图片已更新', expertName, newImage);
+          }}
+        />
+      )}
+
+      {/* 🆕 独立的图片查看器（纯查看模式） */}
+      {viewingImage && sessionId && (
+        <ImageViewer
+          image={viewingImage}
+          expertName={viewingExpertName}
+          sessionId={sessionId}
+          analysisMode={analysisMode}
+          onClose={() => {
+            setViewingImage(null);
+            setViewingExpertName('');
+          }}
+          onEnterChat={() => {
+            // 切换到对话模式
+            setSelectedImage(viewingImage);
+            setSelectedExpertName(viewingExpertName);
+            setImageChatOpen(true);
+            setViewingImage(null);
           }}
         />
       )}

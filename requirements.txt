@@ -47,12 +47,13 @@ plotly>=5.17.0
 # sqlite3  # 内置模块，不需要安装
 redis>=5.0.0
 aioredis>=2.0.0
+aiosqlite>=0.19.0  # LangGraph AsyncSqliteSaver 所需
 
 # 🔥 管理员后台系统依赖
 watchdog>=3.0.0      # 配置文件热重载监听
 psutil>=5.9.0        # 系统监控（CPU、内存）
 cachetools>=5.3.0    # API响应缓存
-geoip2>=4.7.0        # IP地理位置识别（离线数据库）
+# geoip2>=4.7.0      # 已废弃：改用 ip-api.com 在线API（无需安装）
 
 # 告警系统
 aiohttp>=3.9.0
@@ -77,3 +78,16 @@ types-requests>=2.31.0
 
 # ==================== 腾讯云内容安全 (v1.0 新增) ====================
 tencentcloud-sdk-python>=3.0.1100  # 腾讯云Python SDK（包含TMS内容安全）
+
+# ==================== Milvus向量数据库 (v7.141 新增) ====================
+pymilvus>=2.4.0  # Milvus Python SDK
+langchain-milvus>=0.1.0  # LangChain Milvus集成
+sentence-transformers>=2.3.0  # Embedding模型和Reranker
+FlagEmbedding>=1.2.0  # BGE系列模型（可选）
+
+# ==================== TikHub 社交媒体搜索 (v7.162 新增) ====================
+tikhub>=1.13.0  # TikHub Python SDK（抖音/小红书/视频号）
+
+# ==================== 网页内容深度提取 (v7.195 新增) ====================
+trafilatura>=1.6.0  # 静态网页内容提取（高效轻量）
+# playwright 已在系统中安装，用于动态网页渲染

@@ -50,6 +50,13 @@ role_characteristics:
     max_deliverables: 2
     strength: "技术落地、成本控制、工艺实施"
     must_select: false
+  V7_情感洞察专家:
+    temperature: 0.75
+    min_deliverables: 1
+    max_deliverables: 2
+    strength: "情绪地图构建、心理安全分析、仪式行为洞察"
+    must_select_when: ["特殊人群", "情感需求明确", "心理矛盾突出"]
+    description: "专注空间对人心理情感影响的洞察专家，基于环境心理学、依恋理论、创伤知情设计原则"
 
 # ============================================================================
 # 📊 复杂度评分表 (v2.1 新增)
@@ -84,9 +91,9 @@ complexity_scoring:
         "风格细化需求": 2
         "双风格融合": 3
         "多风格冲突融合": 4
-  
+
   thresholds:
-    simple: 
+    simple:
       max_score: 5
       experts: "1-3"
       description: "命名类、推荐类、单一明确任务"
@@ -109,49 +116,65 @@ special_scenarios:
     experts: 6-8
     must_include: ["V6_工程角色"]
     strategy: "多个V3/V5角色协同"
-  
+
   cultural_depth:
     triggers: ["文化IP(赫本/东坡/HAY)", "生活哲学转译", "文化传承(渔村/书法/园林)"]
     core_expert: "V3_文化符号转译专家"
     v4_task: "研究文化原型的当代转译案例"
-  
+
   special_population:
-    triggers: ["儿童/老人/特殊需求(自闭症)", "单身/独立女性画像", "多代际家庭权力结构"]
-    core_expert: "V3_个体心理专家"
-    must_task: "深度心理需求分析"
-  
+    # 🆕 v7.154: 扩展触发条件，包含文化认同和精神归属相关需求
+    triggers: [
+      "儿童/老人/特殊需求(自闭症)",
+      "单身/独立女性画像",
+      "多代际家庭权力结构",
+      "心理压力/焦虑/孤独",
+      "情感需求明确",
+      "文化认同",           # 🆕 v7.154
+      "身份象征",           # 🆕 v7.154
+      "精神归属",           # 🆕 v7.154
+      "文化传承情感",       # 🆕 v7.154
+      "归属感需求",         # 🆕 v7.154
+      "情感寄托",           # 🆕 v7.154
+      "文人情怀"            # 🆕 v7.154 (针对古典园林等项目)
+    ]
+    core_expert: "V7_情感洞察专家"  # v7.141.5: 新增专职情感洞察专家
+    auxiliary: "V3_个体心理专家"  # 原有叙事专家作为辅助
+    must_task: "情绪地图构建 + 心理安全需求分析 + 仪式行为洞察"
+    rationale: "情感洞察专家专注于环境心理学和依恋理论，更适合深度洞察空间对人情感的影响"
+
   owner_portrait:
     triggers: ["所有项目必做"]
     required_analysis: ["年龄/性别/职业/收入", "原生家庭/成长经历/价值观", "审美偏好/生活方式"]
     core_expert: "V3_个体心理专家"
     v4_task: "匹配相似客群成功案例"
-  
+
   lightweight:
     triggers: ["命名/主题策划/概念提炼"]
     experts: 2-3
     core: ["V3_品牌叙事专家", "V4_研究员"]
     v2_optional: true
-  
+
   theoretical_research:
     triggers: ["理论分析/趋势研究/方法论探索"]
     core_expert: "V4_研究员"
     auxiliary: "V3_文化专家"
     skip_v2: true
-  
+
   commercial_renovation:
     triggers: ["菜市场/商业街/购物中心更新", "多客群(老居民+新客群)"]
     core_expert: "V5_运营顾问"
     weight: "最高"
     v3_task: "客群画像+文化传承"
     v4_task: "成功案例对标"
-  
+
   designer_mimicry:
     triggers: ["模仿设计师(季裕棠/安藤忠雄/隈研吾)", "学习品牌气质(HAY/Muji/Tiffany)"]
     v4_task: "深度研究设计师代表作/设计语言/材料偏好/哲学观"
     v2_task: "转译设计师手法，避免生硬模仿"
     v3_task: "理解设计师/品牌的文化哲学"
     focus: "提炼设计基因，非表面复制"
-  
+
   unclear_requirements:
     triggers: ["需求过于宽泛", "只提供关键词无具体项目"]
     experts: 2-3
@@ -159,7 +182,7 @@ special_scenarios:
     v4_task: "研究目标客群特征/消费行为/审美偏好"
     v3_task: "构建心理画像/价值观/生活方式洞察"
     reasoning_note: "建议用户补充具体项目类型/面积/预算"
-  
+
   super_complex:
     triggers: ["面积>10000㎡", "多专业深度交叉", "多业态复合(酒店+商业+文化+办公)"]
     experts: 6-8
@@ -177,7 +200,7 @@ validation_rules:
     rule: "selected_roles 必须包含至少一个 V4_ 开头的角色"
     reason: "V4是其他角色的依赖基础"
     error_handling: "缺少V4会导致工作流失败"
-  
+
   v6_scope_filter:
     interior_design:
       allowed: ["V6_6-2(机电智能化)", "V6_6-3(室内工艺材料)"]

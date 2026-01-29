@@ -14,7 +14,7 @@ Created: 2026-01-02
 
 import logging
 import uuid
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from enum import Enum
 from typing import Any, Dict, List, Literal, Optional
@@ -87,6 +87,36 @@ class BoundaryCheckResult:
 
     # 上下文
     context: Dict[str, Any] = field(default_factory=dict)
+
+    def to_dict(self) -> Dict[str, Any]:
+        """
+        转换为 JSON 可序列化的字典
+
+        🔧 v7.147: 修复 Redis/JSON 序列化问题
+        - 转换 Enum 类型为字符串
+        - 处理嵌套的 dataclass 对象
+        """
+        result = asdict(self)
+
+        # 转换 Enum 为字符串
+        if hasattr(self.check_type, "value"):
+            result["check_type"] = self.check_type.value
+
+        # 处理嵌套的 dataclass 列表
+        if self.deliverable_checks:
+            result["deliverable_checks"] = [
+                asdict(check) if hasattr(check, "__dataclass_fields__") else check for check in self.deliverable_checks
+            ]
+
+        # 处理可选的嵌套 dataclass
+        if self.info_sufficiency:
+            result["info_sufficiency"] = (
+                asdict(self.info_sufficiency)
+                if hasattr(self.info_sufficiency, "__dataclass_fields__")
+                else self.info_sufficiency
+            )
+
+        return result
 
 
 @dataclass

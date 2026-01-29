@@ -1,12 +1,13 @@
-# GeoIP 离线数据库实施指南
+# GeoIP 在线 API 实施指南
 
 ## 📦 已完成的集成
 
 ### ✅ 1. 依赖安装
-已添加 `geoip2>=4.7.0` 到 [requirements.txt](../requirements.txt)
+使用标准库 `httpx` 进行 HTTP 请求，无需额外安装 GeoIP 库。
 
 ```bash
-pip install geoip2
+# httpx 已包含在 requirements.txt 中
+pip install httpx
 ```
 
 ### ✅ 2. GeoIP 服务模块
@@ -15,8 +16,10 @@ pip install geoip2
 **核心功能**：
 - `get_client_ip(request)` - 获取客户端真实IP（支持代理/负载均衡）
 - `get_location(ip)` - 从IP识别地理位置（国家、省份、城市、经纬度）
+- 使用 **ip-api.com** 免费API（无需注册，45次/分钟限制）
 - 自动处理本地IP/内网IP
-- 优雅降级（数据库不存在时返回默认值）
+- 内置速率限制保护
+- 优雅降级（API失败时返回默认值）
 
 ### ✅ 3. 后端API集成
 修改了 [server.py](../intelligent_project_analyzer/api/server.py) 的 `start_analysis` 端点：
@@ -25,7 +28,7 @@ pip install geoip2
 # 采集IP和地理位置
 geoip_service = get_geoip_service()
 client_ip = geoip_service.get_client_ip(request)
-location_info = geoip_service.get_location(client_ip)
+location_info = geoip_service.get_location(client_ip)  # 调用 ip-api.com API
 
 # 保存到session metadata
 session_data["metadata"] = {
@@ -60,38 +63,29 @@ session_data["metadata"] = {
 }
 ```
 
-### ✅ 5. 数据库下载脚本
-创建了 [download_geoip_db.py](../scripts/download_geoip_db.py)
-
-**使用方法**：
-```bash
-# 方式一：设置环境变量（推荐）
-export MAXMIND_LICENSE_KEY=your_license_key_here
-python scripts/download_geoip_db.py
-
-# 方式二：手动输入
-python scripts/download_geoip_db.py
-# 按提示输入 License Key
-```
-
 ---
 
 ## 🚀 快速启动步骤
 
-### 1. 注册 MaxMind 账号（免费）
-访问：https://www.maxmind.com/en/geolite2/signup
+### 零配置启动
 
-### 2. 生成 License Key
-登录后访问：https://www.maxmind.com/en/accounts/current/license-key
+使用 **ip-api.com** 免费API，无需任何配置：
 
-### 3. 下载数据库
 ```bash
-# 安装依赖
-pip install geoip2
+# 无需安装额外依赖
+# 无需注册账号
+# 无需下载数据库
 
-# 下载数据库（约 70 MB）
-python scripts/download_geoip_db.py
+# 直接启动服务即可使用
+python -B scripts\run_server_production.py
 ```
+
+**特性**：
+- ✅ 无需注册
+- ✅ 无需配置
+- ✅ 自动支持中文地名
+- ✅ 包含经纬度信息
+- ⚠️ 速率限制：45次/分钟（免费版）
 
 **下载成功后会看到**：
 ```

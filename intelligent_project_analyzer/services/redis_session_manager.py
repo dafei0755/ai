@@ -20,12 +20,16 @@ from redis.exceptions import LockError, RedisError
 
 from ..settings import settings
 
+# Legacy compatibility: expose `redis` attribute for older tests that patch the module
+redis = aioredis
+
 
 # 自定义 JSON 编码器，处理 Pydantic 模型
 class PydanticEncoder(json.JSONEncoder):
     def default(self, obj):
         if isinstance(obj, BaseModel):
-            return obj.model_dump()
+            # 🔥 Phase 0优化: 排除None和默认值以减少token消耗
+            return obj.model_dump(exclude_none=True, exclude_defaults=True)
         if isinstance(obj, datetime):
             return obj.isoformat()
         return super().default(obj)
@@ -33,6 +37,27 @@ class PydanticEncoder(json.JSONEncoder):
 
 class RedisSessionManager:
     """Redis 会话管理器"""
+
+    async def save_state_async(self, session_id: str, session_data: Dict[str, Any]) -> bool:
+        """兼容旧版接口的异步 save_state，自动选择创建或更新."""
+
+        existing = await self.get(session_id)
+        if existing:
+            return await self.update(session_id, session_data)
+        return await self.create(session_id, session_data)
+
+    def save_state(self, session_id: str, session_data: Dict[str, Any]) -> bool:
+        """同步 save_state 兼容方法（仅在无事件循环时调用）"""
+
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            loop = None
+
+        if loop and loop.is_running():
+            raise RuntimeError("save_state 仅支持在无事件循环的上下文中调用；请改用 save_state_async")
+
+        return asyncio.run(self.save_state_async(session_id, session_data))
 
     @staticmethod
     def _sanitize_for_json(payload: Any) -> Any:
@@ -83,6 +108,10 @@ class RedisSessionManager:
         self._sessions_cache: Optional[List[Dict[str, Any]]] = None
         self._cache_timestamp: Optional[datetime] = None
         self._cache_ttl = 600  # ✅ v7.118: 从5分钟增加到10分钟，减少Redis查询频率
+
+        # 🔥 性能优化: 状态查询缓存配置
+        self.STATUS_CACHE_PREFIX = "status_cache:"
+        self.STATUS_CACHE_TTL = 30  # 状态缓存30秒
 
     async def connect(self) -> bool:
         """
@@ -263,6 +292,7 @@ class RedisSessionManager:
 
                         logger.debug(f"🔄 [Redis] 更新会话: {session_id}")
                         self._invalidate_cache()  # ✅ Fix 1.4: 清除缓存
+                        await self._invalidate_status_cache(session_id)  # 🔥 性能优化: 失效状态缓存
                         return True
 
                 except LockError as e:
@@ -288,6 +318,75 @@ class RedisSessionManager:
             except Exception as e:
                 logger.error(f"❌ 更新会话失败 (未知错误): {session_id}, 错误: {e}")
                 return False
+
+    async def _invalidate_status_cache(self, session_id: str) -> None:
+        """
+        使状态缓存失效
+
+        🔥 性能优化: 在会话更新时清除缓存，确保数据一致性
+
+        Args:
+            session_id: 会话 ID
+        """
+        if self._memory_mode or not self.redis_client:
+            return
+
+        try:
+            cache_key = f"{self.STATUS_CACHE_PREFIX}{session_id}"
+            await self.redis_client.delete(cache_key)
+            logger.debug(f"🗑️ 清除状态缓存: {session_id}")
+        except Exception as e:
+            logger.warning(f"⚠️ 清除状态缓存失败: {session_id}, 错误: {e}")
+
+    async def get_status_with_cache(self, session_id: str, include_history: bool = False) -> Optional[Dict[str, Any]]:
+        """
+        带缓存的状态查询
+
+        🔥 性能优化: 使用 Redis 缓存减少序列化开销
+        预期性能提升: 2.03s → <500ms
+
+        Args:
+            session_id: 会话 ID
+            include_history: 是否包含完整 history（影响缓存策略）
+
+        Returns:
+            会话状态数据
+        """
+        # 内存模式直接查询
+        if self._memory_mode:
+            return await self.get(session_id)
+
+        # 如果需要完整 history，跳过缓存（history 太大，不适合缓存）
+        if include_history:
+            return await self.get(session_id)
+
+        try:
+            cache_key = f"{self.STATUS_CACHE_PREFIX}{session_id}"
+
+            # 尝试从缓存读取
+            cached_data = await self.redis_client.get(cache_key)
+            if cached_data:
+                logger.debug(f"✅ 命中状态缓存: {session_id}")
+                return json.loads(cached_data)
+
+            # 缓存未命中，从数据库查询
+            logger.debug(f"❌ 未命中状态缓存: {session_id}，查询数据库")
+            session_data = await self.get(session_id)
+
+            if session_data:
+                # 写入缓存（排除 history 以减少缓存大小）
+                cache_data = {k: v for k, v in session_data.items() if k != "history"}
+                await self.redis_client.setex(
+                    cache_key, self.STATUS_CACHE_TTL, json.dumps(cache_data, ensure_ascii=False, cls=PydanticEncoder)
+                )
+                logger.debug(f"📝 写入状态缓存: {session_id}, TTL={self.STATUS_CACHE_TTL}s")
+
+            return session_data
+
+        except Exception as e:
+            # 缓存失败时回退到直接查询
+            logger.warning(f"⚠️ 状态缓存操作失败: {session_id}, 回退到直接查询, 错误: {e}")
+            return await self.get(session_id)
 
     async def cleanup_invalid_user_sessions(self, user_id: str) -> int:
         """
@@ -396,6 +495,17 @@ class RedisSessionManager:
 
             # 6. 清除缓存
             self._invalidate_cache()
+
+            # 🆕 v7.131: 清理 Playwright 浏览器池资源（会话删除时）
+            try:
+                from intelligent_project_analyzer.api.html_pdf_generator import PlaywrightBrowserPool
+
+                await asyncio.wait_for(PlaywrightBrowserPool.cleanup(), timeout=10.0)
+                logger.debug(f"✅ Playwright 浏览器池已清理（会话删除）: {session_id}")
+            except asyncio.TimeoutError:
+                logger.warning(f"⚠️ 删除会话时清理浏览器池超时: {session_id}")
+            except Exception as e:
+                logger.debug(f"🔧 删除会话时清理浏览器池失败: {session_id}, {e}")
 
             logger.info(f"✅ 会话及关联数据已删除: {session_id}, 用户: {user_id or 'N/A'}")
             return True

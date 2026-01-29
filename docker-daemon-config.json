@@ -1,0 +1,19 @@
+{
+  "builder": {
+    "gc": {
+      "defaultKeepStorage": "20GB",
+      "enabled": true
+    }
+  },
+  "experimental": false,
+  "registry-mirrors": [
+    "https://docker.m.daocloud.io",
+    "https://mirror.ccs.tencentyun.com",
+    "https://dockerproxy.com",
+    "https://mirror.baidubce.com"
+  ],
+  "dns": [
+    "8.8.8.8",
+    "114.114.114.114"
+  ]
+}

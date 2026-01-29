@@ -17,6 +17,7 @@ from collections import OrderedDict, defaultdict
 from contextlib import asynccontextmanager
 from datetime import datetime
 from pathlib import Path
+from types import MethodType
 from typing import Any, Dict, List, Optional, Set, Tuple
 
 # 设置输出编码为 UTF-8
@@ -149,6 +150,7 @@ from intelligent_project_analyzer.api.html_pdf_generator import generate_expert_
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
+from langgraph.checkpoint.base import BaseCheckpointSaver
 from langgraph.types import Command, Interrupt
 
 # ✅ v3.8新增: 对话智能体
@@ -181,7 +183,87 @@ from intelligent_project_analyzer.workflow.main_workflow import MainWorkflow
 jwt_service = WordPressJWTService()
 
 
-# 🔥 v7.120 P1优化: TTL缓存工具类（用于会话列表缓存 4.09s→0.05s）
+# � v7.145: Checkpoint 到 Redis 数据同步函数
+async def sync_checkpoint_to_redis(session_id: str) -> bool:
+    """
+    从 checkpoint 数据库同步关键字段到 Redis
+
+    解决问题：
+    - LangGraph 工作流数据保存在 checkpoint（MessagePack 格式）
+    - Redis 会话管理器只有基础元数据
+    - 归档时从 Redis 获取数据导致不完整
+
+    Args:
+        session_id: 会话ID
+
+    Returns:
+        是否同步成功
+    """
+    try:
+        # ✅ v7.146: 复用全局 checkpointer 实例，避免误用异步上下文管理器
+        checkpointer = await get_or_create_async_checkpointer()
+        if not checkpointer:
+            logger.error(f"❌ [v7.146] 无法获取 checkpointer 实例: {session_id}")
+            return False
+
+        config = {"configurable": {"thread_id": session_id}}
+        checkpoint = await checkpointer.aget(config)
+
+        if not checkpoint:
+            logger.warning(f"⚠️ [v7.145] 未找到 checkpoint 数据: {session_id}")
+            return False
+
+        # 提取关键字段
+        state = checkpoint["channel_values"]
+        sync_data = {}
+
+        # 同步工作流状态字段
+        key_fields = [
+            "structured_requirements",
+            "restructured_requirements",
+            "strategic_analysis",
+            "execution_batches",
+            "total_batches",
+            "current_batch",
+            "active_agents",
+            "agent_results",
+            "final_report",
+            "aggregated_results",
+            "pdf_path",
+            # 🔧 v7.153: 添加问卷流程相关字段，确保进度正确同步
+            "progressive_questionnaire_step",
+            "progressive_questionnaire_completed",
+            "questionnaire_summary_completed",
+            "confirmed_core_tasks",
+            "gap_filling_answers",
+            "selected_dimensions",
+            "radar_dimension_values",
+            "requirements_confirmed",
+            "requirements_summary_text",
+        ]
+
+        for field in key_fields:
+            value = state.get(field)
+            if value is not None:
+                sync_data[field] = value
+
+        # 更新 Redis
+        if sync_data:
+            session_manager = await _get_session_manager()
+            await session_manager.update(session_id, sync_data)
+            logger.info(f"✅ [v7.145] 同步 {len(sync_data)} 个字段到 Redis: {session_id}")
+            logger.debug(f"   同步字段: {list(sync_data.keys())}")
+            return True
+        else:
+            logger.warning(f"⚠️ [v7.145] checkpoint 无可同步数据: {session_id}")
+            return False
+
+    except Exception as e:
+        logger.error(f"❌ [v7.146] checkpoint 同步失败: {session_id}, 错误类型: {type(e).__name__}, 详情: {e}")
+        return False
+
+
+# �🔥 v7.120 P1优化: TTL缓存工具类（用于会话列表缓存 4.09s→0.05s）
 class TTLCache:
     """简单的带TTL的异步缓存（内存级别）"""
 
@@ -269,13 +351,55 @@ async def get_current_user(request: Request) -> dict:
     if not payload:
         raise HTTPException(status_code=401, detail="Token 无效或已过期")
 
+    # 🔧 v7.200: 兼容部分JWT使用标准字段 sub 作为用户名/主体
+    # 与 optional_auth 函数保持一致，确保会话创建和查询使用相同的用户名解析逻辑
+    resolved_username = payload.get("sub") or payload.get("username")
+
     return {
         "user_id": payload.get("user_id"),
-        "username": payload.get("username"),
+        "username": resolved_username,
         "email": payload.get("email"),
-        "name": payload.get("name"),
+        "name": payload.get("display_name") or payload.get("name"),
         "roles": payload.get("roles", []),
     }
+
+
+def get_user_identifier(current_user: dict) -> str:
+    """
+    🔧 v7.201: 统一获取用户标识符（用户名字符串）
+
+    解决 username/user_id 不一致导致的间歇性问题。
+
+    优先级：sub > username > str(user_id) > "unknown"
+
+    注意：返回的是用户名字符串，不是数字ID。
+    会话的 user_id 字段存储的就是这个用户名字符串。
+
+    用于：
+    - 会话创建时设置 user_id（存储用户名）
+    - 会话列表过滤
+    - 权限验证
+    - 归档会话过滤
+
+    Args:
+        current_user: 从 get_current_user 或 optional_auth 返回的用户字典
+
+    Returns:
+        用户标识符字符串（永不为空）
+    """
+    if not current_user:
+        return "unknown"
+
+    # 优先使用 sub（JWT标准字段），然后是 username
+    # 注意：get_current_user 已经处理了 sub，但为了防御性编程仍然检查
+    identifier = current_user.get("sub") or current_user.get("username")
+
+    # 如果都没有，使用 user_id 的字符串形式
+    if not identifier:
+        user_id = current_user.get("user_id")
+        identifier = str(user_id) if user_id else "unknown"
+
+    return identifier
 
 
 # 🆕 v7.130: 可选认证依赖函数（Token存在则验证，不存在也允许访问）
@@ -321,8 +445,16 @@ async def optional_auth(request: Request) -> Optional[dict]:
     }
 
 
+# 🔧 v7.189: 导出别名供其他模块使用（如search_routes.py）
+get_current_user_optional = optional_auth
+
+
 # 全局变量存储工作流实例
 workflows: Dict[str, MainWorkflow] = {}
+
+# LangGraph 检查点存储（异步版，全局复用）
+async_checkpointer: Optional[BaseCheckpointSaver[str]] = None
+async_checkpointer_lock: Optional[asyncio.Lock] = None
 
 # ✅ Redis 会话管理器实例（替代内存字典）
 session_manager: Optional[RedisSessionManager] = None
@@ -380,7 +512,8 @@ def _serialize_for_json(data: Any) -> Any:
             "value": _serialize_for_json(value) if value is not None else None,
         }
     if isinstance(data, BaseModel):
-        return _serialize_for_json(data.model_dump())
+        # 🔥 Phase 0优化: 排除None和默认值以减少token消耗
+        return _serialize_for_json(data.model_dump(exclude_none=True, exclude_defaults=True))
     if isinstance(data, dict):
         return {k: _serialize_for_json(v) for k, v in data.items()}
     if isinstance(data, (list, tuple)):
@@ -605,6 +738,42 @@ try:
     logger.info("✅ 管理员后台路由已注册")
 except Exception as e:
     logger.warning(f"⚠️ 管理员后台路由加载失败: {e}")
+
+# 🆕 v7.141: Milvus 知识库管理路由
+try:
+    from intelligent_project_analyzer.api.milvus_admin_routes import router as milvus_admin_router
+
+    app.include_router(milvus_admin_router)
+    logger.info("✅ Milvus 知识库管理路由已注册")
+except Exception as e:
+    logger.warning(f"⚠️ Milvus 知识库管理路由加载失败: {e}")
+
+# 🆕 v7.141.3: 知识库配额管理路由
+try:
+    from intelligent_project_analyzer.api.quota_routes import router as quota_router
+
+    app.include_router(quota_router)
+    logger.info("✅ 知识库配额管理路由已注册")
+except Exception as e:
+    logger.warning(f"⚠️ 知识库配额管理路由加载失败: {e}")
+
+# 🆕 v7.160: 搜索模式路由（博查AI Search + DeepSeek-R1）
+try:
+    from intelligent_project_analyzer.api.search_routes import router as search_router
+
+    app.include_router(search_router)
+    logger.info("✅ 搜索模式路由已注册")
+except Exception as e:
+    logger.warning(f"⚠️ 搜索模式路由加载失败: {e}")
+
+# 🆕 v7.216: 搜索质量监控路由
+try:
+    from intelligent_project_analyzer.api.search_quality_routes import router as search_quality_router
+
+    app.include_router(search_quality_router, prefix="/api/admin")
+    logger.info("✅ 搜索质量监控路由已注册")
+except Exception as e:
+    logger.warning(f"⚠️ 搜索质量监控路由加载失败: {e}")
 
 # ✅ v3.9新增: 注册 Celery 路由（可选）
 try:
@@ -963,6 +1132,9 @@ class StructuredReportResponse(BaseModel):
     image_top_constraints: Optional[str] = Field(default=None, description="AI 概念图顶层约束（普通模式）")
     # 🆕 v7.39: 专家概念图（深度思考模式）
     generated_images_by_expert: Optional[Dict[str, Any]] = Field(default=None, description="专家概念图（深度思考模式）")
+    # 🆕 v7.154: 雷达图维度数据
+    radar_dimensions: Optional[List[Dict[str, Any]]] = Field(default=None, description="雷达图维度列表")
+    radar_dimension_values: Optional[Dict[str, Any]] = Field(default=None, description="雷达图维度值")
 
 
 class ReportResponse(BaseModel):
@@ -1299,7 +1471,55 @@ async def subscribe_to_redis_pubsub():
         logger.error(f"❌ Redis Pub/Sub 订阅失败: {e}")
 
 
-def create_workflow() -> Optional[MainWorkflow]:
+def _ensure_aiosqlite_is_alive(conn: Any) -> Any:
+    """为缺少 is_alive() 方法的 aiosqlite 连接打补丁。"""
+
+    if hasattr(conn, "is_alive") and callable(getattr(conn, "is_alive")):
+        return conn
+
+    def _is_alive(self: Any) -> bool:  # pragma: no cover - 简单代理
+        thread = getattr(self, "_thread", None)
+        running = getattr(self, "_running", False)
+        return bool(thread and thread.is_alive() and running)
+
+    conn.is_alive = MethodType(_is_alive, conn)  # type: ignore[attr-defined]
+    logger.debug("🩹 AsyncSqliteSaver 兼容补丁：已为 aiosqlite.Connection 注入 is_alive()")
+    return conn
+
+
+async def get_or_create_async_checkpointer() -> Optional[BaseCheckpointSaver[str]]:
+    """惰性初始化 AsyncSqliteSaver，所有会话复用同一个连接。"""
+
+    global async_checkpointer, async_checkpointer_lock
+
+    if async_checkpointer is not None:
+        return async_checkpointer
+
+    if async_checkpointer_lock is None:
+        async_checkpointer_lock = asyncio.Lock()
+
+    async with async_checkpointer_lock:
+        if async_checkpointer is not None:
+            return async_checkpointer
+
+        try:
+            import aiosqlite
+            from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
+        except ImportError as exc:
+            logger.warning(f"⚠️ AsyncSqliteSaver 不可用，回退到同步 SqliteSaver: {exc}")
+            return None
+
+        db_path = Path("./data/checkpoints/workflow.db")
+        db_path.parent.mkdir(parents=True, exist_ok=True)
+
+        conn = await aiosqlite.connect(str(db_path))
+        conn = _ensure_aiosqlite_is_alive(conn)
+        async_checkpointer = AsyncSqliteSaver(conn)
+        logger.info(f"✅ AsyncSqliteSaver 初始化成功: {db_path}")
+        return async_checkpointer
+
+
+async def create_workflow() -> Optional[MainWorkflow]:
     """
     创建工作流实例 - 使用 LLMFactory（支持自动降级）
 
@@ -1320,7 +1540,9 @@ def create_workflow() -> Optional[MainWorkflow]:
             "post_completion_followup_enabled": settings.post_completion_followup_enabled,
         }
 
-        workflow = MainWorkflow(llm, config)
+        checkpointer = await get_or_create_async_checkpointer()
+
+        workflow = MainWorkflow(llm, config, checkpointer=checkpointer)
         logger.info("✅ 工作流创建成功（LLM 降级已启用）")
         return workflow
 
@@ -1334,6 +1556,8 @@ def create_workflow() -> Optional[MainWorkflow]:
 
 async def broadcast_to_websockets(session_id: str, message: Dict[str, Any]):
     """
+    🆕 v7.133: 增强的WebSocket广播 - 添加连接健康检查和自动清理
+
     向所有连接到指定会话的 WebSocket 客户端广播消息
     ✅ 使用 Redis Pub/Sub 支持多实例部署
 
@@ -1348,12 +1572,14 @@ async def broadcast_to_websockets(session_id: str, message: Dict[str, Any]):
 
             payload = {"session_id": session_id, "payload": message}
             await redis_pubsub_client.publish("workflow:broadcast", json.dumps(payload, ensure_ascii=False))
+            logger.debug(f"✅ [v7.133] Redis Pub/Sub 发布成功: {session_id}")
             return
         except Exception as e:
-            logger.warning(f"⚠️ Redis Pub/Sub 发布失败，回退到本地广播: {e}")
+            logger.warning(f"⚠️ [v7.133] Redis Pub/Sub 发布失败，回退到本地广播: {e}")
 
     # 🔥 本地模式：直接广播到本实例的 WebSocket 连接
     if session_id not in websocket_connections:
+        logger.debug(f"🔍 [v7.133] 未找到会话的WebSocket连接: {session_id}")
         return
 
     # 获取该会话的所有连接
@@ -1361,33 +1587,68 @@ async def broadcast_to_websockets(session_id: str, message: Dict[str, Any]):
 
     # 存储断开的连接
     disconnected = []
+    success_count = 0
+    failed_count = 0
 
     # 广播消息到所有连接
     for ws in connections:
         try:
-            # ✅ P0修复: 检查WebSocket连接状态
-            if ws.client_state.name != "CONNECTED":
-                logger.debug(f"⚠️ WebSocket未连接 (状态: {ws.client_state.name})，标记为断开")
+            from starlette.websockets import WebSocketState
+
+            # ✅ v7.133: 增强连接状态检查
+            if ws.client_state != WebSocketState.CONNECTED:
+                logger.debug(f"⚠️ [v7.133] WebSocket未连接 (状态: {ws.client_state.name})，标记为断开")
                 disconnected.append(ws)
+                failed_count += 1
                 continue
 
-            await ws.send_json(message)
-        except Exception as e:
-            logger.warning(f"⚠️ WebSocket 发送失败: {e}")
+            # ✅ v7.133: 添加发送超时保护
+            import asyncio
+
+            await asyncio.wait_for(ws.send_json(message), timeout=5.0)
+            success_count += 1
+
+        except asyncio.TimeoutError:
+            logger.warning(f"⚠️ [v7.133] WebSocket 发送超时(5s)，标记为断开")
             disconnected.append(ws)
+            failed_count += 1
+        except Exception as e:
+            error_str = str(e)
+            if "not connected" in error_str.lower() or "closed" in error_str.lower():
+                logger.debug(f"🔌 [v7.133] WebSocket已断开: {type(e).__name__}")
+            else:
+                logger.warning(f"⚠️ [v7.133] WebSocket 发送失败: {type(e).__name__}: {e}")
+            disconnected.append(ws)
+            failed_count += 1
 
     # 清理断开的连接
     for ws in disconnected:
-        connections.remove(ws)
+        if ws in connections:
+            connections.remove(ws)
+
+    # 🆕 v7.133: 记录广播统计
+    if success_count > 0 or failed_count > 0:
+        logger.debug(
+            f"📊 [v7.133] WebSocket广播完成: {session_id} | "
+            f"成功={success_count} 失败={failed_count} 消息类型={message.get('type', 'unknown')}"
+        )
 
 
 async def run_workflow_async(session_id: str, user_input: str):
     """异步执行工作流（仅 Dynamic Mode）"""
     try:
+        logger.info(f"🔄 [ASYNC] run_workflow_async 开始 | session_id={session_id}")
+
         # 🆕 v7.39: 从 session 获取分析模式
         session_data = await session_manager.get(session_id)
+        logger.info(f"🔄 [ASYNC] 获取session数据成功 | session_data={session_data is not None}")
+
         analysis_mode = session_data.get("analysis_mode", "normal") if session_data else "normal"
         user_id = session_data.get("user_id", "api_user") if session_data else "api_user"
+
+        logger.info(f"🔄 [ASYNC] 解析模式信息 | analysis_mode={analysis_mode}, user_id={user_id}")
+
+        logger.info(f"🔄 [ASYNC] 准备打印工作流启动信息...")
 
         print(f"\n{'='*60}")
         print(f"🚀 开始执行工作流")
@@ -1397,8 +1658,12 @@ async def run_workflow_async(session_id: str, user_input: str):
         print(f"分析模式: {analysis_mode}")  # 🆕 v7.39
         print(f"{'='*60}\n")
 
+        logger.info(f"🔄 [ASYNC] 工作流启动信息已打印")
+
         # ✅ 更新会话状态
+        logger.info(f"🔄 [ASYNC] 准备更新会话状态...")
         await session_manager.update(session_id, {"status": "running", "progress": 0.1})
+        logger.info(f"🔄 [ASYNC] 会话状态已更新")
 
         # 🔥 广播状态到 WebSocket
         await broadcast_to_websockets(
@@ -1407,7 +1672,7 @@ async def run_workflow_async(session_id: str, user_input: str):
 
         # 创建工作流
         print(f"📦 创建工作流 (Dynamic Mode)...")
-        workflow = create_workflow()
+        workflow = await create_workflow()
         if not workflow:
             print(f"❌ 工作流创建失败")
             await session_manager.update(
@@ -1418,12 +1683,32 @@ async def run_workflow_async(session_id: str, user_input: str):
         print(f"✅ 工作流创建成功")
         workflows[session_id] = workflow
 
-        # 创建初始状态 - 🆕 v7.39: 传递 analysis_mode
+        logger.info(f"🔄 [ASYNC] 准备创建初始状态...")
+
+        # 🆕 v7.156: 从 session_data 提取多模态视觉参考
+        visual_references = session_data.get("visual_references") if session_data else None
+        visual_style_anchor = session_data.get("visual_style_anchor") if session_data else None
+
+        if visual_references:
+            logger.info(f"🖼️ [v7.156] 检测到 {len(visual_references)} 个视觉参考，将注入工作流初始状态")
+        if visual_style_anchor:
+            logger.info(f"🎨 [v7.156] 检测到全局风格锚点: {visual_style_anchor[:100]}...")
+
+        # 创建初始状态 - 🆕 v7.39: 传递 analysis_mode, 🆕 v7.156: 传递视觉参考
         initial_state = StateManager.create_initial_state(
-            user_input=user_input, session_id=session_id, user_id=user_id, analysis_mode=analysis_mode  # 🆕 v7.39
+            user_input=user_input,
+            session_id=session_id,
+            user_id=user_id,
+            analysis_mode=analysis_mode,  # 🆕 v7.39
+            uploaded_visual_references=visual_references,  # 🆕 v7.156: 多模态视觉参考
+            visual_style_anchor=visual_style_anchor,  # 🆕 v7.156: 全局风格锚点
         )
 
+        logger.info(f"🔄 [ASYNC] 初始状态已创建 | visual_refs={len(visual_references) if visual_references else 0}")
+
         config = {"configurable": {"thread_id": session_id}, "recursion_limit": 100}  # 增加递归限制，默认是25
+
+        logger.info(f"🔄 [ASYNC] 准备开始流式执行工作流...")
 
         # 流式执行工作流
         # 不指定 stream_mode，使用默认模式以正确接收 __interrupt__
@@ -1432,7 +1717,13 @@ async def run_workflow_async(session_id: str, user_input: str):
 
         events = []
         try:
-            async for chunk in workflow.graph.astream(initial_state, config):
+            logger.info(f"🔄 [ASYNC] 进入 astream 循环...")
+            logger.info(f"🔄 [ASYNC] 调用 workflow.graph.astream()...")
+
+            stream = workflow.graph.astream(initial_state, config)
+            logger.info(f"🔄 [ASYNC] astream() 返回了流对象: {type(stream)}")
+
+            async for chunk in stream:
                 # 🔧 诊断日志：检查每个 chunk 的键
                 logger.info(f"🔍 [STREAM] chunk keys: {list(chunk.keys())}")
 
@@ -1519,6 +1810,25 @@ async def run_workflow_async(session_id: str, user_input: str):
                                 update_data["search_references"] = search_refs
                                 logger.info(f"🔍 [v7.120] 节点 {node_name} 更新了 {len(search_refs)} 个搜索引用")
 
+                        # 🔧 v7.153: 同步问卷流程相关字段到 Redis，修复进度显示异常
+                        questionnaire_fields = [
+                            "progressive_questionnaire_step",
+                            "progressive_questionnaire_completed",
+                            "questionnaire_summary_completed",
+                            "confirmed_core_tasks",
+                            "gap_filling_answers",
+                            "selected_dimensions",
+                            "radar_dimension_values",
+                            "requirements_confirmed",
+                            "restructured_requirements",
+                            "requirements_summary_text",
+                        ]
+                        if isinstance(node_output, dict):
+                            for field in questionnaire_fields:
+                                if field in node_output and node_output[field] is not None:
+                                    update_data[field] = node_output[field]
+                                    logger.debug(f"📋 [v7.153] 同步问卷字段: {field}")
+
                         await session_manager.update(session_id, update_data)
                         logger.debug(f"[PROGRESS] 节点: {node_name}, 详情: {detail}")
 
@@ -1555,15 +1865,19 @@ async def run_workflow_async(session_id: str, user_input: str):
                 current_node_name = current_session.get("current_node", "")
 
                 # 🎯 v7.21: 定义节点到进度的映射（与 main_workflow.py 实际节点名称对齐）
+                # 🔧 v7.153: 添加问卷流程节点，修复进度显示异常
                 node_progress_map = {
                     # 输入验证阶段 (0-15%)
                     "unified_input_validator_initial": 0.05,  # 5% - 初始输入验证
                     "unified_input_validator_secondary": 0.10,  # 10% - 二次验证
-                    # 需求分析阶段 (15-35%)
+                    # 需求分析阶段 (15-25%)
                     "requirements_analyst": 0.15,  # 15% - 需求分析
-                    "feasibility_analyst": 0.20,  # 20% - 可行性分析
-                    "calibration_questionnaire": 0.25,  # 25% - 问卷
-                    "requirements_confirmation": 0.35,  # 35% - 需求确认
+                    "feasibility_analyst": 0.18,  # 18% - 可行性分析
+                    # 🔧 v7.153: 问卷流程阶段 (20-35%)
+                    "progressive_step1_core_task": 0.20,  # 20% - Step 1: 核心任务
+                    "progressive_step3_gap_filling": 0.25,  # 25% - Step 2: 信息补充
+                    "progressive_step2_radar": 0.30,  # 30% - Step 3: 雷达图
+                    "questionnaire_summary": 0.35,  # 35% - Step 4: 需求洞察
                     # 项目规划阶段 (35-55%)
                     "project_director": 0.40,  # 40% - 项目总监
                     "role_task_unified_review": 0.45,  # 45% - 角色审核
@@ -1696,7 +2010,15 @@ async def run_workflow_async(session_id: str, user_input: str):
                     },
                 )
             else:
-                # 提取最终报告和PDF路径
+                # 🔥 v7.153: 先同步 checkpoint 数据到 Redis，确保 final_report 结构化数据完整
+                try:
+                    sync_success = await sync_checkpoint_to_redis(session_id)
+                    if sync_success:
+                        logger.info(f"✅ [v7.153] checkpoint 数据已同步到 Redis（工作流完成）")
+                except Exception as sync_error:
+                    logger.error(f"❌ [v7.153] checkpoint 同步异常: {sync_error}")
+
+                # 提取最终报告和PDF路径（从 events 中作为备用）
                 final_report = None
                 pdf_path = None
 
@@ -1711,16 +2033,20 @@ async def run_workflow_async(session_id: str, user_input: str):
                                 pdf_path = node_output["pdf_path"]
                                 logger.info(f"📄 提取到报告路径: {pdf_path}")
 
-                # ✅ 更新完成状态
-                await session_manager.update(
-                    session_id,
-                    {
-                        "status": "completed",
-                        "progress": 1.0,
-                        "final_report": final_report or "分析完成",
-                        "pdf_path": pdf_path,
-                    },
-                )
+                # ✅ 更新完成状态（final_report 优先使用 sync 同步的数据）
+                update_data = {
+                    "status": "completed",
+                    "progress": 1.0,
+                    "pdf_path": pdf_path,
+                }
+                # 只有当 sync 没有同步 final_report 时，才使用 events 中的备用值
+                if final_report:
+                    # 检查 Redis 中是否已有 final_report
+                    current_session = await session_manager.get(session_id)
+                    if not current_session.get("final_report"):
+                        update_data["final_report"] = final_report
+
+                await session_manager.update(session_id, update_data)
 
                 # ✅ 获取最新会话数据
                 updated_session = await session_manager.get(session_id)
@@ -1786,6 +2112,11 @@ async def run_workflow_async(session_id: str, user_input: str):
                 # 🆕 v3.6新增: 自动归档完成的会话（永久保存）
                 if archive_manager:
                     try:
+                        # 🔧 v7.145: 归档前同步 checkpoint 数据到 Redis
+                        sync_success = await sync_checkpoint_to_redis(session_id)
+                        if sync_success:
+                            logger.info(f"✅ [v7.145] checkpoint 数据已同步，准备归档")
+
                         # 获取完整会话数据
                         final_session = await session_manager.get(session_id)
                         if final_session:
@@ -1803,8 +2134,9 @@ async def run_workflow_async(session_id: str, user_input: str):
             logger.info("📦 尝试获取最佳结果...")
 
             # 获取当前状态
+            # 🔥 v7.153: 修复 AsyncSqliteSaver 同步调用错误，使用 aget_state 异步方法
             try:
-                current_state = workflow.graph.get_state(config)
+                current_state = await workflow.graph.aget_state(config)
                 state_values = current_state.values
 
                 # 尝试获取最佳结果
@@ -1844,9 +2176,13 @@ async def run_workflow_async(session_id: str, user_input: str):
     except Exception as e:
         import traceback
 
-        await session_manager.update(
-            session_id, {"status": "failed", "error": str(e), "traceback": traceback.format_exc()}
-        )
+        error_msg = str(e)
+        error_traceback = traceback.format_exc()
+
+        logger.error(f"❌ [ASYNC] run_workflow_async 异常: {error_msg}")
+        logger.error(f"❌ [ASYNC] 异常堆栈:\n{error_traceback}")
+
+        await session_manager.update(session_id, {"status": "failed", "error": error_msg, "traceback": error_traceback})
 
 
 # ==================== API 端点 ====================
@@ -1950,15 +2286,28 @@ async def health_check():
 
         # 3. 检查LLM配置
         llm_configured = False
+        app_settings = None
+        llm_configured = False
         try:
             from intelligent_project_analyzer.settings import settings as app_settings
 
-            api_key = app_settings.openai_api_key
-            if api_key and api_key != "your-api-key-here":
-                llm_configured = True
-                health_status["components"]["llm"] = {"status": "configured", "provider": "openai"}
+            llm_provider = getattr(app_settings.llm, "provider", "openai")
+            api_key = getattr(app_settings.llm, "api_key", "")
+            llm_configured = bool(api_key and api_key != "your-api-key-here")
+
+            if llm_configured:
+                health_status["components"]["llm"] = {"status": "configured", "provider": llm_provider}
             else:
-                health_status["components"]["llm"] = {"status": "not_configured", "warning": "OPENAI_API_KEY not set"}
+                status_label = "not_configured"
+                warning = "LLM API key not set"
+                if app_settings.is_development:
+                    status_label = "dev_mode"
+                    warning += " (allowed in dev)"
+                health_status["components"]["llm"] = {
+                    "status": status_label,
+                    "provider": llm_provider,
+                    "warning": warning,
+                }
         except Exception as llm_err:
             health_status["components"]["llm"] = {"status": "error", "error": str(llm_err)}
 
@@ -1974,7 +2323,7 @@ async def health_check():
         # 5. 总体健康判断
         if not redis_healthy and not health_status["components"]["redis"].get("mode") == "memory_fallback":
             health_status["status"] = "degraded"
-        if not llm_configured:
+        if not llm_configured and not getattr(app_settings, "is_development", False):
             health_status["status"] = "degraded"
 
         health_status["response_time_ms"] = round((time.time() - start_time) * 1000, 2)
@@ -2047,6 +2396,56 @@ async def redis_health_check():
             "elapsed_ms": int(elapsed),
             "timestamp": datetime.now().isoformat(),
         }
+
+
+# ========================================
+# 🆕 v7.139 Phase 3: 维度关联检测API
+# ========================================
+
+
+class DimensionValidationRequest(BaseModel):
+    """维度验证请求"""
+
+    dimensions: List[Dict[str, Any]] = Field(..., description="维度配置列表")
+    mode: Optional[str] = Field(None, description="检测模式: strict/balanced/lenient")
+
+
+class DimensionValidationResponse(BaseModel):
+    """维度验证响应"""
+
+    conflicts: List[Dict[str, Any]] = Field(default_factory=list, description="冲突列表")
+    adjustment_suggestions: List[Dict[str, Any]] = Field(default_factory=list, description="调整建议列表")
+    is_valid: bool = Field(..., description="是否通过验证（无critical冲突）")
+
+
+@app.post("/api/v1/dimensions/validate", response_model=DimensionValidationResponse)
+async def validate_dimensions(request: DimensionValidationRequest):
+    """
+    🆕 v7.139: 验证维度配置，检测冲突并生成调整建议
+
+    用于前端实时验证用户调整后的维度配置。
+
+    Args:
+        request: 包含dimensions和mode的请求体
+
+    Returns:
+        包含冲突列表、调整建议和验证结果
+    """
+    try:
+        from intelligent_project_analyzer.services.dimension_selector import DimensionSelector
+
+        selector = DimensionSelector()
+        result = selector.validate_dimensions(request.dimensions, mode=request.mode)
+
+        return DimensionValidationResponse(
+            conflicts=result.get("conflicts", []),
+            adjustment_suggestions=result.get("adjustment_suggestions", []),
+            is_valid=result.get("is_valid", True),
+        )
+
+    except Exception as e:
+        logger.error(f"❌ 维度验证失败: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"维度验证失败: {str(e)}")
 
 
 @app.get("/readiness")
@@ -2294,7 +2693,7 @@ async def start_analysis(
     request: Request,  # 🌍 用于IP采集
     analysis_request: AnalysisRequest,
     background_tasks: BackgroundTasks,
-    current_user: Optional[dict] = Depends(optional_auth),  # 🆕 可选JWT认证
+    current_user: dict = Depends(get_current_user),  # 🆕 v7.158: 强制JWT认证，禁止未登录访问
 ):
     """
     开始分析（仅 Dynamic Mode）
@@ -2306,14 +2705,14 @@ async def start_analysis(
     - deep_thinking: 深度思考模式，每个专家都生成对应的概念图
 
     🆕 v7.130: 支持JWT认证获取真实WordPress用户信息
+    🆕 v7.158: 强制登录才能使用分析功能
     """
     print(f"\n📥 收到分析请求")
     print(f"用户输入: {analysis_request.user_input[:100]}...")
     print(f"分析模式: {analysis_request.analysis_mode}")  # 🆕 v7.39
 
-    # 🆕 v7.131: 完全依赖JWT认证，忽略前端传入的user_id
-    # 这样可以防止前端伪造用户身份，确保会话管理显示正确的用户
-    actual_user_id = "guest"  # 默认未认证用户
+    # 🆕 v7.158: 强制认证，current_user 必定存在
+    # 从JWT中提取用户信息
     username = None
     display_name = None
 
@@ -2324,16 +2723,11 @@ async def start_analysis(
 
     logger.info(f"🌍 客户端IP: {client_ip} -> {location_info.get('country')}/{location_info.get('city')}")
 
-    if current_user:
-        # 用户已通过JWT认证，使用JWT中的用户信息（优先 sub 作为用户名）
-        resolved_username = current_user.get("sub") or current_user.get("username")
-        actual_user_id = resolved_username or str(current_user.get("user_id", "guest"))
-        username = resolved_username
-        display_name = current_user.get("name") or current_user.get("display_name") or username
-        logger.info(f"✅ JWT认证用户: {username} ({display_name})")
-    else:
-        # 未认证用户，使用guest标识
-        logger.info(f"ℹ️ 未认证访客用户，使用ID: guest")
+    # 🆕 v7.201: 使用统一的用户标识获取函数
+    actual_user_id = get_user_identifier(current_user)
+    username = actual_user_id
+    display_name = current_user.get("name") or current_user.get("display_name") or username
+    logger.info(f"✅ JWT认证用户: {username} ({display_name})")
 
     # 📊 v7.110: 添加模式使用统计日志
     logger.info(f"📊 [模式统计] 用户 {actual_user_id} " f"选择 {analysis_request.analysis_mode} 模式")
@@ -2346,8 +2740,8 @@ async def start_analysis(
 
     sm = await _get_session_manager()
 
-    # 生成会话 ID（使用真实用户标识）
-    session_id = f"{actual_user_id}-{datetime.now().strftime('%Y%m%d%H%M%S')}-{uuid.uuid4().hex[:8]}"
+    # 🔧 v7.189: 生成纯随机session_id（analysis前缀，不包含用户ID）
+    session_id = f"analysis-{datetime.now().strftime('%Y%m%d%H%M%S')}-{uuid.uuid4().hex[:12]}"
     print(f"生成 Session ID: {session_id}")
 
     # ✅ 使用 Redis 创建会话
@@ -2383,7 +2777,61 @@ async def start_analysis(
     # 🔥 v7.120 P1: 使缓存失效
     sessions_cache.invalidate(f"sessions:{actual_user_id}")
 
-    print(f"✅ 会话状态已初始化（Redis）")
+    # 🆕 v7.129: 初始化trace追踪
+    from ..core.trace_context import TraceContext
+
+    trace_id = TraceContext.init_trace(session_id)
+    logger.info(f"✅ 会话状态已初始化（Redis）| Trace: {trace_id}")
+
+    # 🆕 v7.129 Week2 P1: 初始化工具权限设置并推送到前端
+    from ..services.tool_factory import ToolFactory
+
+    # 定义默认工具权限配置
+    # 🔄 v7.154: ragflow_kb 已废弃，全部替换为 milvus_kb
+    default_tool_settings = {
+        "V2": {
+            "enable_search": False,
+            "available_tools": ["milvus_kb"],
+            "recommended": [],
+            "description": "设计总监仅使用内部知识库（Milvus），避免外部搜索干扰创意判断",
+        },
+        "V3": {
+            "enable_search": True,
+            "available_tools": ["bocha_search", "tavily_search", "milvus_kb"],
+            "recommended": ["bocha_search", "tavily_search"],
+            "description": "叙事专家可使用中文+国际搜索+内部知识库（Milvus）",
+        },
+        "V4": {
+            "enable_search": True,
+            "available_tools": ["bocha_search", "tavily_search", "arxiv_search", "milvus_kb"],
+            "recommended": ["tavily_search", "arxiv_search"],
+            "description": "设计研究员拥有全部搜索工具权限",
+        },
+        "V5": {
+            "enable_search": True,
+            "available_tools": ["bocha_search", "tavily_search", "milvus_kb"],
+            "recommended": ["bocha_search", "tavily_search"],
+            "description": "场景专家可使用中文+国际搜索+内部知识库（Milvus）",
+        },
+        "V6": {
+            "enable_search": True,
+            "available_tools": ["bocha_search", "tavily_search", "arxiv_search", "milvus_kb"],
+            "recommended": ["tavily_search", "arxiv_search"],
+            "description": "总工程师拥有全部搜索工具权限",
+        },
+    }
+
+    # 广播工具权限配置到前端
+    await broadcast_to_websockets(
+        session_id,
+        {
+            "type": "tool_permissions_initialized",
+            "tool_settings": default_tool_settings,
+            "message": "工具权限系统已初始化",
+            "trace_id": trace_id,
+        },
+    )
+    logger.info(f"📡 [v7.129] 已广播工具权限配置到前端 | Trace: {trace_id}")
 
     # 在后台执行工作流
     print(f"📤 添加后台任务...")
@@ -2394,6 +2842,68 @@ async def start_analysis(
     return SessionResponse(session_id=session_id, status="pending", message="分析已开始，请使用 session_id 查询状态")
 
 
+# ========================================================================
+# 🆕 v7.155: 多模态视觉参考辅助函数
+# ========================================================================
+
+
+def _generate_global_style_anchor(visual_references: List[Dict[str, Any]]) -> str:
+    """
+    🆕 v7.155: 从所有视觉参考中生成全局风格锚点
+
+    将多张参考图的风格特征合并为统一的风格锚点，
+    用于确保全流程输出风格一致性。
+
+    Args:
+        visual_references: 视觉参考列表
+
+    Returns:
+        风格锚点字符串，如 "北欧简约, 暖白色, 原木, 温馨舒适"
+    """
+    if not visual_references:
+        return ""
+
+    all_styles = []
+    all_colors = []
+    all_materials = []
+    all_atmospheres = []
+
+    for ref in visual_references:
+        features = ref.get("structured_features", {})
+        all_styles.extend(features.get("style_keywords", []))
+        all_colors.extend(features.get("dominant_colors", []))
+        all_materials.extend(features.get("materials", []))
+        atmosphere = features.get("mood_atmosphere", "")
+        if atmosphere:
+            all_atmospheres.append(atmosphere)
+
+    # 去重并取前几个（保持顺序）
+    def unique_list(items: List[str], max_count: int = 3) -> List[str]:
+        seen = set()
+        result = []
+        for item in items:
+            if item and item not in seen:
+                seen.add(item)
+                result.append(item)
+                if len(result) >= max_count:
+                    break
+        return result
+
+    unique_styles = unique_list(all_styles, 3)
+    unique_colors = unique_list(all_colors, 2)
+    unique_materials = unique_list(all_materials, 2)
+
+    # 组合风格锚点
+    anchor_parts = unique_styles + unique_colors + unique_materials
+    if all_atmospheres:
+        # 取第一个氛围描述的关键词
+        first_atmosphere = all_atmospheres[0]
+        if len(first_atmosphere) <= 10:
+            anchor_parts.append(first_atmosphere)
+
+    return ", ".join(anchor_parts) if anchor_parts else ""
+
+
 @app.post("/api/analysis/start-with-files", response_model=SessionResponse)
 async def start_analysis_with_files(
     background_tasks: BackgroundTasks,  # 🔥 修复：移到前面，移除默认值
@@ -2401,8 +2911,9 @@ async def start_analysis_with_files(
     requirement: str = Form(default=""),  # 兼容旧前端字段名
     user_id: str = Form(default="web_user"),
     analysis_mode: str = Form(default="normal"),  # 🆕 v7.39: 分析模式
+    file_metadata: str = Form(default="[]"),  # 🆕 v7.157: 文件元数据JSON
     files: List[UploadFile] = File(default=[]),
-    current_user: Optional[dict] = Depends(optional_auth),  # 🆕 v7.130: 可选JWT认证
+    current_user: dict = Depends(get_current_user),  # 🆕 v7.158: 强制JWT认证，禁止未登录访问
 ):
     """
     🆕 v3.7: 支持多模态输入的分析接口
@@ -2413,10 +2924,15 @@ async def start_analysis_with_files(
     - normal: 普通模式，集中生成2-3张概念图
     - deep_thinking: 深度思考模式，每个专家都生成对应的概念图
 
+    🆕 v7.157: 支持 file_metadata 参数
+    - 包含每个文件的分类标签和自定义描述
+    - JSON格式: [{"filename": "xxx.jpg", "categories": ["color", "style"], "custom_description": "..."}]
+
     Args:
         user_input: 用户输入的文本描述
         user_id: 用户ID
         analysis_mode: 分析模式 (normal/deep_thinking)
+        file_metadata: 文件元数据JSON字符串
         files: 上传的文件列表
         background_tasks: 后台任务管理器
 
@@ -2428,19 +2944,24 @@ async def start_analysis_with_files(
     logger.info(f"分析模式: {analysis_mode}")  # 🆕 v7.39
     logger.info(f"文件数量: {len(files)}")
 
-    # 🆕 v7.131: 完全依赖JWT认证，忽略前端传入的user_id
-    actual_user_id = "guest"  # 默认未认证用户
-    username = None
-    display_name = None
+    # 🆕 v7.157: 解析文件元数据
+    try:
+        import json
 
-    if current_user:
-        resolved_username = current_user.get("sub") or current_user.get("username")
-        actual_user_id = resolved_username or str(current_user.get("user_id", "guest"))
-        username = resolved_username
-        display_name = current_user.get("name") or current_user.get("display_name") or username
-        logger.info(f"✅ JWT认证用户: {username} ({display_name})")
-    else:
-        logger.info(f"ℹ️ 未认证访客用户，使用ID: guest")
+        file_metadata_list = json.loads(file_metadata) if file_metadata else []
+        logger.info(f"📋 [v7.157] 文件元数据: {len(file_metadata_list)} 条")
+    except json.JSONDecodeError as e:
+        logger.warning(f"⚠️ [v7.157] 文件元数据解析失败: {e}")
+        file_metadata_list = []
+
+    # 构建文件名到元数据的映射
+    metadata_by_filename = {m.get("filename"): m for m in file_metadata_list}
+
+    # 🆕 v7.201: 使用统一的用户标识获取函数
+    actual_user_id = get_user_identifier(current_user)
+    username = actual_user_id
+    display_name = current_user.get("name") or current_user.get("display_name") or username
+    logger.info(f"✅ JWT认证用户: {username} ({display_name})")
 
     # 1. 验证输入
     if not user_input.strip() and not files:
@@ -2453,6 +2974,7 @@ async def start_analysis_with_files(
     # 3. 保存并处理文件
     file_contents = []
     attachment_metadata = []
+    visual_references = []  # 🆕 v7.155: 收集视觉参考
 
     for file in files:
         try:
@@ -2469,10 +2991,55 @@ async def start_analysis_with_files(
                 file_content=content, filename=file.filename, session_id=session_id
             )
 
-            # 提取内容
-            extracted_content = await file_processor.extract_content(
-                file_path=file_path, content_type=file.content_type
+            # 🆕 v7.157: 获取该文件的元数据
+            file_meta = metadata_by_filename.get(file.filename, {})
+            categories = file_meta.get("categories", [])
+            custom_description = file_meta.get("custom_description", "")
+            is_image = file_meta.get(
+                "is_image", file.content_type in ["image/png", "image/jpeg", "image/jpg", "image/webp"]
             )
+
+            # 🆕 v7.155: 判断是否为图片，使用增强版提取
+            if file.content_type in ["image/png", "image/jpeg", "image/jpg", "image/webp"]:
+                # 使用增强版图片提取（提取结构化视觉特征）
+                extracted_content = await file_processor.extract_image_enhanced(file_path)
+
+                # 🆕 v7.157: 根据用户选择的分类确定参考类型
+                # 优先级: style > layout > color > general
+                reference_type = "general"
+                if "style" in categories:
+                    reference_type = "style"
+                elif "layout" in categories:
+                    reference_type = "layout"
+                elif "color" in categories:
+                    reference_type = "color"
+
+                # 🆕 v7.156: 收集视觉参考（使用相对路径 + 持久化特征，性能优化）
+                # 相对路径格式: {session_id}/{filename} - 容器/分布式部署兼容
+                relative_path = f"{session_id}/{file_path.name}"
+
+                visual_references.append(
+                    {
+                        "file_path": str(file_path),  # 绝对路径（本地快速访问）
+                        "relative_path": relative_path,  # 相对路径（持久化/部署兼容）
+                        "width": extracted_content.get("width"),
+                        "height": extracted_content.get("height"),
+                        "format": extracted_content.get("format"),
+                        "vision_analysis": extracted_content.get("vision_analysis", ""),
+                        "structured_features": extracted_content.get("structured_features", {}),
+                        "user_description": custom_description if custom_description else None,  # 🆕 v7.157
+                        "reference_type": reference_type,  # 🆕 v7.157
+                        "categories": categories,  # 🆕 v7.157: 保存完整分类列表
+                        "cached_at": datetime.now().isoformat(),  # 🆕 v7.156: 缓存时间戳
+                    }
+                )
+                logger.info(f"🖼️ [v7.157] 视觉参考已提取: {file.filename} | 类型: {reference_type} | 分类: {categories}")
+            else:
+                # 非图片文件使用原有逻辑
+                extracted_content = await file_processor.extract_content(
+                    file_path=file_path, content_type=file.content_type
+                )
+
             file_contents.append(extracted_content)
 
             # 保存元数据
@@ -2484,6 +3051,8 @@ async def start_analysis_with_files(
                     "path": str(file_path),
                     "extracted_summary": extracted_content.get("summary", ""),
                     "extraction_error": extracted_content.get("error", None),
+                    "categories": categories,  # 🆕 v7.157
+                    "custom_description": custom_description,  # 🆕 v7.157
                 }
             )
 
@@ -2492,6 +3061,11 @@ async def start_analysis_with_files(
         except Exception as e:
             logger.error(f"❌ 文件处理失败: {file.filename} - {str(e)}")
             attachment_metadata.append({"filename": file.filename, "content_type": file.content_type, "error": str(e)})
+
+    # 🆕 v7.155: 生成全局风格锚点
+    visual_style_anchor = _generate_global_style_anchor(visual_references) if visual_references else None
+    if visual_style_anchor:
+        logger.info(f"🎨 [v7.155] 全局风格锚点: {visual_style_anchor}")
 
     # 4. 合并用户输入和文件内容
     # 兼容：如果前端传的是 requirement 字段，则映射到 user_input
@@ -2520,6 +3094,9 @@ async def start_analysis_with_files(
         "current_node": None,
         "error": None,
         "created_at": datetime.now().isoformat(),
+        # 🆕 v7.155: 多模态视觉参考
+        "visual_references": visual_references if visual_references else None,
+        "visual_style_anchor": visual_style_anchor,
     }
 
     # 🆕 v7.130: 添加用户详细信息（如果有JWT认证）
@@ -2540,6 +3117,71 @@ async def start_analysis_with_files(
     return SessionResponse(session_id=session_id, status="pending", message=f"分析已开始，已接收 {len(files)} 个文件")
 
 
+# ========================================================================
+# 🆕 v7.155: 视觉参考描述接口
+# ========================================================================
+
+
+class VisualReferenceDescriptionRequest(BaseModel):
+    """视觉参考描述请求"""
+
+    reference_index: int = Field(..., description="参考图索引（从0开始）")
+    description: str = Field(..., description="用户描述")
+    reference_type: str = Field(default="general", description="参考类型: style|layout|color|general")
+
+
+@app.post("/api/analysis/{session_id}/visual-reference/describe")
+async def add_visual_reference_description(
+    session_id: str,
+    request: VisualReferenceDescriptionRequest,
+):
+    """
+    🆕 v7.155: 用户为上传的参考图追加描述
+
+    允许用户在上传图片后补充说明这张图片的用途和参考意图，
+    例如："保留这个风格，但改成蓝色调"
+
+    Args:
+        session_id: 会话ID
+        request: 包含 reference_index, description, reference_type
+
+    Returns:
+        更新后的视觉参考列表
+    """
+    logger.info(f"🖼️ [v7.155] 添加视觉参考描述: session={session_id}, index={request.reference_index}")
+
+    sm = await _get_session_manager()
+    session = await sm.get(session_id)
+
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    visual_refs = session.get("visual_references", [])
+
+    if not visual_refs:
+        raise HTTPException(status_code=400, detail="No visual references in this session")
+
+    if request.reference_index >= len(visual_refs):
+        raise HTTPException(
+            status_code=400, detail=f"Invalid reference index: {request.reference_index}, max is {len(visual_refs) - 1}"
+        )
+
+    # 更新描述
+    visual_refs[request.reference_index]["user_description"] = request.description
+    visual_refs[request.reference_index]["reference_type"] = request.reference_type
+
+    # 保存更新
+    await sm.update(session_id, {"visual_references": visual_refs})
+
+    logger.info(f"✅ [v7.155] 视觉参考描述已更新: index={request.reference_index}, type={request.reference_type}")
+
+    return {
+        "status": "success",
+        "message": f"Description added to reference {request.reference_index}",
+        "visual_references": visual_refs,
+    }
+
+
 @app.get("/api/analysis/status/{session_id}", response_model=AnalysisStatus)
 async def get_analysis_status(
     session_id: str,
@@ -2557,10 +3199,16 @@ async def get_analysis_status(
         include_history: 是否包含完整history（默认False，减少序列化开销）🔥 v7.120 P1优化
 
     🔥 v7.120 P1优化: 默认不返回history字段，预期性能提升: 2.03s→0.5s
+    🔥 性能优化: 添加Redis缓存机制（30秒TTL），预期响应时间: <500ms
     """
-    # ✅ 使用 Redis 读取会话
+    import time
+
+    start_time = time.time()
+
+    # ✅ 使用 Redis 读取会话（带缓存）
     sm = await _get_session_manager()
-    session = await sm.get(session_id)
+    session = await sm.get_status_with_cache(session_id, include_history=include_history)
+
     if not session:
         raise HTTPException(status_code=404, detail="会话不存在")
 
@@ -2570,8 +3218,6 @@ async def get_analysis_status(
 
     # 🆕 v7.119: 检查 waiting_for_input 状态的超时
     if session["status"] == "waiting_for_input":
-        import time
-
         interrupt_timestamp = session.get("interrupt_timestamp")
         if interrupt_timestamp:
             elapsed_minutes = (time.time() - interrupt_timestamp) / 60
@@ -2596,6 +3242,13 @@ async def get_analysis_status(
                 await sm.update(session_id, {"status": "timeout", "error": "用户未在30分钟内响应，会话已超时", "detail": "会话超时"})
                 session["status"] = "timeout"
                 session["error"] = "用户未在30分钟内响应，会话已超时"
+
+    # 性能监控日志
+    elapsed_ms = (time.time() - start_time) * 1000
+    if elapsed_ms > 1000:
+        logger.warning(f"🐌 慢请求检测: GET /api/analysis/status/{session_id} 耗时 {elapsed_ms:.0f}ms")
+    else:
+        logger.debug(f"⚡ 状态查询完成: {session_id}, 耗时 {elapsed_ms:.0f}ms")
 
     return AnalysisStatus(
         session_id=session_id,
@@ -2720,7 +3373,7 @@ async def resume_analysis(request: ResumeRequest, background_tasks: BackgroundTa
                     "requirements_analyst": 0.15,
                     "feasibility_analyst": 0.20,
                     "calibration_questionnaire": 0.25,
-                    "requirements_confirmation": 0.35,
+                    "questionnaire_summary": 0.35,  # 🔧 v7.151: 替换 requirements_confirmation
                     "project_director": 0.40,
                     "role_task_unified_review": 0.45,
                     "quality_preflight": 0.50,
@@ -2831,15 +3484,84 @@ async def resume_analysis(request: ResumeRequest, background_tasks: BackgroundTa
                 # 🔥 更新 Redis 失败状态
                 await session_manager.update(session_id, {"status": "failed", "error": error_message})
             else:
+                # 🔥 v7.146: stream 结束 ≠ 一定完成。
+                # 在某些路由缺失/边未连接的情况下，图会提前结束，过去会被误判为 completed 并触发自动归档。
+                # 这里通过检查图状态中的批次执行进度 / final_report 来判定是否真的完成。
+                # 🔥 v7.153: 修复 AsyncSqliteSaver 同步调用错误，使用 aget_state 异步方法
+                try:
+                    current_state = await workflow.graph.aget_state(config)
+                    state_values = getattr(current_state, "values", {}) or {}
+                except Exception as state_read_error:
+                    logger.warning(
+                        f"⚠️ Resume结束后读取graph state失败: {type(state_read_error).__name__}: {state_read_error}"
+                    )
+                    state_values = {}
+
+                total_batches = state_values.get("total_batches", 0) or 0
+                completed_batches = state_values.get("completed_batches", []) or []
+                state_final_report = state_values.get("final_report")
+
+                # 兼容 completed_batches 非 list 的异常情况
+                completed_batch_count = len(completed_batches) if isinstance(completed_batches, list) else 0
+                is_batches_completed = (
+                    isinstance(total_batches, int)
+                    and total_batches > 0
+                    and isinstance(completed_batches, list)
+                    and completed_batch_count >= total_batches
+                )
+
+                # ✅ 完成判定：
+                # - 若 state 已写入 final_report，则认为完成；
+                # - 或者批次已全部完成（total_batches>0 且 completed_batches 覆盖）。
+                is_truly_completed = bool(state_final_report) or is_batches_completed
+
+                logger.info(
+                    f"[DEBUG] Resume stream finished. is_truly_completed={is_truly_completed}, "
+                    f"current_node={session.get('current_node')}, total_batches={total_batches}, "
+                    f"completed_batches={completed_batch_count}, has_state_final_report={bool(state_final_report)}"
+                )
+
+                if not is_truly_completed:
+                    # 视为异常提前结束：不归档、不标 completed，避免误完成。
+                    session["status"] = "failed"
+                    session["error"] = "工作流提前结束（未检测到最终完成条件）。" "可能原因：路由缺失/边未连接/节点未按预期返回 Command(goto=...)。"
+
+                    await broadcast_to_websockets(
+                        request.session_id,
+                        {
+                            "type": "status",
+                            "status": "failed",
+                            "message": session["error"],
+                        },
+                    )
+
+                    await session_manager.update(
+                        session_id,
+                        {
+                            "status": "failed",
+                            "error": session["error"],
+                            "detail": session.get("detail"),
+                        },
+                    )
+                    logger.error(
+                        f"❌ Resume流程提前结束且未满足完成条件: session_id={session_id}, "
+                        f"current_node={session.get('current_node')}, total_batches={total_batches}, "
+                        f"completed_batches={completed_batch_count}"
+                    )
+                    return
+
                 session["status"] = "completed"
                 session["progress"] = 1.0
 
-                # 提取最终报告
-                final_report = None
-                for event in session["events"]:
-                    for node_name, node_output in event.items():
-                        if isinstance(node_output, dict) and "final_report" in node_output:
-                            final_report = node_output["final_report"]
+                # 提取最终报告（优先使用 state 中的 final_report）
+                final_report = state_final_report
+                if not final_report:
+                    for event in session["events"]:
+                        for node_name, node_output in event.items():
+                            if isinstance(node_output, dict) and "final_report" in node_output:
+                                final_report = node_output["final_report"]
+                                break
+                        if final_report:
                             break
 
                 session["final_report"] = final_report or "分析完成"
@@ -2856,14 +3578,30 @@ async def resume_analysis(request: ResumeRequest, background_tasks: BackgroundTa
                     },
                 )
 
+                # 🔥 v7.153: 先同步 checkpoint 数据到 Redis，确保 final_report 和 aggregated_result 完整
+                try:
+                    sync_success = await sync_checkpoint_to_redis(session_id)
+                    if sync_success:
+                        logger.info(f"✅ [v7.153] checkpoint 数据已同步到 Redis（resume流程完成）")
+                    else:
+                        logger.warning(f"⚠️ [v7.153] checkpoint 同步未成功，使用 state_values 中的 final_report")
+                        # 同步失败时，至少确保 final_report 被保存（从 state_values 获取）
+                        if state_final_report and isinstance(state_final_report, dict):
+                            await session_manager.update(session_id, {"final_report": state_final_report})
+                except Exception as sync_error:
+                    logger.error(f"❌ [v7.153] checkpoint 同步异常: {sync_error}")
+
                 # 🔥 更新 Redis 完成状态
-                await session_manager.update(
-                    session_id, {"status": "completed", "progress": 1.0, "final_report": session.get("final_report")}
-                )
+                await session_manager.update(session_id, {"status": "completed", "progress": 1.0})
 
                 # 🆕 v3.6新增: 自动归档完成的会话（永久保存）
                 if archive_manager:
                     try:
+                        # 🔧 v7.145: 归档前同步 checkpoint 数据到 Redis
+                        sync_success = await sync_checkpoint_to_redis(session_id)
+                        if sync_success:
+                            logger.info(f"✅ [v7.145] checkpoint 数据已同步（resume流程），准备归档")
+
                         # 获取完整会话数据
                         final_session = await session_manager.get(session_id)
                         if final_session:
@@ -2881,8 +3619,9 @@ async def resume_analysis(request: ResumeRequest, background_tasks: BackgroundTa
             logger.warning(f"⚠️ Resume时达到递归限制！会话: {session_id}")
             logger.info("📦 尝试获取最佳结果...")
 
+            # 🔥 v7.153: 修复 AsyncSqliteSaver 同步调用错误，使用 aget_state 异步方法
             try:
-                current_state = workflow.graph.get_state(config)
+                current_state = await workflow.graph.aget_state(config)
                 state_values = current_state.values
 
                 best_result = state_values.get("best_result")
@@ -3158,6 +3897,53 @@ async def get_analysis_result(session_id: str):
     )
 
 
+def _normalize_image_urls(generated_images_by_expert: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    """
+    🔧 v7.123: 规范化图片URL字段，确保兼容性
+
+    目的: 修复概念图显示黑色方块问题
+    - 旧格式使用 "url" 字段
+    - 新格式使用 "image_url" 字段
+    - Base64格式直接可用
+
+    确保所有图片数据包含 image_url 字段
+    """
+    if not generated_images_by_expert:
+        return generated_images_by_expert
+
+    logger.debug("🔧 [v7.123] 规范化图片URL字段...")
+
+    for expert_name, expert_data in generated_images_by_expert.items():
+        if not isinstance(expert_data, dict):
+            continue
+
+        images = expert_data.get("images", [])
+        if not isinstance(images, list):
+            continue
+
+        for img in images:
+            if not isinstance(img, dict):
+                continue
+
+            # 如果是Base64 Data URL，保留
+            if img.get("image_url", "").startswith("data:"):
+                logger.debug(f"  ✅ {expert_name}: Base64格式，无需处理")
+                continue
+
+            # 如果有url但没有image_url，复制url到image_url
+            if "url" in img and "image_url" not in img:
+                img["image_url"] = img["url"]
+                logger.debug(f"  🔧 {expert_name}: 添加image_url字段 (from url)")
+
+            # 如果两者都不存在，标记错误
+            if "image_url" not in img and "url" not in img:
+                logger.error(f"  ❌ {expert_name}: 图片数据缺少URL - {img.get('id', 'unknown')}")
+                img["image_url"] = ""  # 设置空值避免前端崩溃
+
+    logger.debug("✅ [v7.123] 图片URL字段规范化完成")
+    return generated_images_by_expert
+
+
 @app.get("/api/analysis/report/{session_id}", response_model=ReportResponse)
 async def get_analysis_report(session_id: str):
     """
@@ -3168,6 +3954,18 @@ async def get_analysis_report(session_id: str):
     # ✅ 使用 Redis 获取会话
     sm = await _get_session_manager()
     session = await sm.get(session_id)
+
+    # 🔧 v7.144: 如果 Redis 中没有会话，尝试从归档中获取
+    if not session:
+        logger.info(f"📂 [v7.144] Redis 中未找到会话 {session_id}，尝试查询归档...")
+        if archive_manager:
+            try:
+                session = await archive_manager.get_archived_session(session_id)
+                if session:
+                    logger.info(f"✅ [v7.144] 从归档中找到会话 {session_id}")
+            except Exception as e:
+                logger.error(f"❌ [v7.144] 查询归档失败: {e}")
+
     if not session:
         raise HTTPException(status_code=404, detail="会话不存在")
 
@@ -3178,13 +3976,24 @@ async def get_analysis_report(session_id: str):
     pdf_path = session.get("pdf_path")
     report_text = ""
 
-    # 如果有 PDF 路径，尝试读取对应的 txt 文件
+    # 🔧 v7.144: 修复 PDF 文件读取逻辑 - 读取同名的 .md 或 .txt 文件，而非 PDF 二进制文件
     if pdf_path and os.path.exists(pdf_path):
         try:
-            with open(pdf_path, "r", encoding="utf-8") as f:
-                report_text = f.read()
+            # 尝试读取同名的 .md 文件
+            txt_path = pdf_path.replace(".pdf", ".md")
+            if not os.path.exists(txt_path):
+                # 回退到 .txt 文件
+                txt_path = pdf_path.replace(".pdf", ".txt")
+
+            if os.path.exists(txt_path):
+                with open(txt_path, "r", encoding="utf-8") as f:
+                    report_text = f.read()
+                logger.info(f"✅ [v7.144] 成功读取报告文本文件: {txt_path}")
+            else:
+                logger.warning(f"⚠️ [v7.144] 未找到报告文本文件: {txt_path}")
+                report_text = "报告文件读取失败，请查看结构化数据"
         except Exception as e:
-            logger.warning(f"⚠️ 无法读取报告文件: {e}")
+            logger.warning(f"⚠️ 无法读取报告文本文件: {e}")
             # 🔥 v7.52.5: 降级方案 - 不使用json.dumps，让FastAPI自动序列化
             # report_text 仅用于简短提示，实际数据在 structured_report 中
             report_text = "报告文件读取失败，请查看结构化数据"
@@ -3588,7 +4397,8 @@ async def get_analysis_report(session_id: str):
             deliberation_raw = final_report.get("deliberation_process")
             if deliberation_raw:
                 if hasattr(deliberation_raw, "model_dump"):
-                    deliberation_dict = deliberation_raw.model_dump()
+                    # 🔥 Phase 0优化: 排除None和默认值
+                    deliberation_dict = deliberation_raw.model_dump(exclude_none=True, exclude_defaults=True)
                 elif isinstance(deliberation_raw, dict):
                     deliberation_dict = deliberation_raw
                 else:
@@ -3608,7 +4418,8 @@ async def get_analysis_report(session_id: str):
             recommendations_raw = final_report.get("recommendations")
             if recommendations_raw:
                 if hasattr(recommendations_raw, "model_dump"):
-                    recommendations_dict = recommendations_raw.model_dump()
+                    # 🔥 Phase 0优化: 排除None和默认值
+                    recommendations_dict = recommendations_raw.model_dump(exclude_none=True, exclude_defaults=True)
                 elif isinstance(recommendations_raw, dict):
                     recommendations_dict = recommendations_raw
                 else:
@@ -3681,6 +4492,24 @@ async def get_analysis_report(session_id: str):
                                             f"🔍 [FIELD MAPPING] physical_context: (len={len(req_data.get('physical_context', ''))})"
                                         )
 
+                                        # 🆕 v7.131: 安全处理 physical_context（可能是字符串或字典）
+                                        physical_context_raw = req_data.get("physical_context", "")
+                                        if isinstance(physical_context_raw, dict):
+                                            context_parts = []
+                                            if physical_context_raw.get("location"):
+                                                context_parts.append(f"位置: {physical_context_raw['location']}")
+                                            if physical_context_raw.get("space_type"):
+                                                context_parts.append(f"空间类型: {physical_context_raw['space_type']}")
+                                            if physical_context_raw.get("floor_height"):
+                                                context_parts.append(f"层高: {physical_context_raw['floor_height']}")
+                                            if physical_context_raw.get("area"):
+                                                context_parts.append(f"面积: {physical_context_raw['area']}")
+                                            physical_context_list = ["; ".join(context_parts)] if context_parts else []
+                                        elif isinstance(physical_context_raw, str) and physical_context_raw:
+                                            physical_context_list = [physical_context_raw]
+                                        else:
+                                            physical_context_list = []
+
                                         requirements_analysis_data = RequirementsAnalysisResponse(
                                             project_overview=req_data.get("project_overview")
                                             or req_data.get("project_task", ""),
@@ -3691,9 +4520,7 @@ async def get_analysis_report(session_id: str):
                                             narrative_characters=[req_data.get("character_narrative", "")]
                                             if req_data.get("character_narrative")
                                             else [],
-                                            physical_contexts=[req_data.get("physical_context", "")]
-                                            if req_data.get("physical_context")
-                                            else [],
+                                            physical_contexts=physical_context_list,
                                             constraints_opportunities={
                                                 "resource_constraints": req_data.get("resource_constraints", ""),
                                                 "regulatory_requirements": req_data.get("regulatory_requirements", ""),
@@ -3767,7 +4594,11 @@ async def get_analysis_report(session_id: str):
                 image_prompts=final_report.get("image_prompts"),
                 image_top_constraints=final_report.get("image_top_constraints"),
                 # 🆕 v7.39: 添加专家概念图（深度思考模式）
-                generated_images_by_expert=final_report.get("generated_images_by_expert"),
+                # 🔧 v7.123: 确保图片数据包含正确的URL字段
+                generated_images_by_expert=_normalize_image_urls(final_report.get("generated_images_by_expert")),
+                # 🆕 v7.154: 添加雷达图维度数据
+                radar_dimensions=session.get("selected_dimensions") or session.get("selected_radar_dimensions"),
+                radar_dimension_values=session.get("radar_dimension_values"),
             )
 
             logger.info(f"✅ 成功解析结构化报告，包含 {len(sections)} 个章节")
@@ -6561,7 +7392,7 @@ async def list_sessions(
     🔥 v7.120 P1: 添加5秒TTL缓存（4.09s→0.05s）
     """
     try:
-        username = current_user.get("username")
+        username = get_user_identifier(current_user)
 
         # 🔥 P1优化: 尝试从缓存获取
         cache_key = f"sessions:{username}"
@@ -6599,7 +7430,7 @@ async def list_sessions(
         user_sessions.sort(key=lambda x: x.get("created_at", ""), reverse=True)
 
         # 🆕 v7.106.1: 后台清理无效会话索引（不阻塞响应）
-        asyncio.create_task(session_manager.cleanup_invalid_user_sessions(current_user.get("username")))
+        asyncio.create_task(session_manager.cleanup_invalid_user_sessions(get_user_identifier(current_user)))
 
         # 🔥 v7.105: 分页处理
         total = len(user_sessions)
@@ -6714,9 +7545,9 @@ async def delete_session(session_id: str, current_user: dict = Depends(get_curre
             raise HTTPException(status_code=404, detail="会话不存在")
 
         # 🆕 2. 权限校验：只能删除自己的会话
-        # 🔧 v7.114: 修复权限校验逻辑，支持多种user_id格式
+        # 🔧 v7.201: 使用统一的用户标识获取函数
         session_user_id = session.get("user_id", "")
-        current_username = current_user.get("username", "")
+        current_username = get_user_identifier(current_user)
 
         # 兼容以下情况：
         # 1. 正常情况：session.user_id == current_user.username
@@ -6798,7 +7629,9 @@ async def delete_session(session_id: str, current_user: dict = Depends(get_curre
 
         # 🆕 v7.107: 根据来源返回不同的成功消息
         message = "归档会话删除成功" if is_archived else "会话删除成功"
-        logger.info(f"✅ 会话已完整删除: {session_id} ({'归档' if is_archived else '活跃'}), 用户: {current_user.get('username')}")
+        logger.info(
+            f"✅ 会话已完整删除: {session_id} ({'归档' if is_archived else '活跃'}), 用户: {get_user_identifier(current_user)}"
+        )
         return {"success": True, "message": message}
 
     except HTTPException:
@@ -6906,6 +7739,35 @@ async def end_conversation(session_id: str):
 
     await session_manager.update(session_id, {"conversation_mode": False})
 
+    # 🆕 v7.131: 主动关闭该会话的所有 WebSocket 连接
+    if session_id in websocket_connections:
+        connections = list(websocket_connections[session_id])  # 复制列表避免修改时迭代
+        for ws in connections:
+            try:
+                if ws.client_state.name == "CONNECTED":
+                    await asyncio.wait_for(ws.close(code=1000, reason="Conversation ended"), timeout=5.0)
+                    logger.debug(f"✅ 主动关闭 WebSocket: {session_id}")
+            except asyncio.TimeoutError:
+                logger.warning(f"⚠️ 关闭 WebSocket 超时: {session_id}")
+            except Exception as e:
+                logger.debug(f"🔌 关闭 WebSocket 时出错: {session_id}, {e}")
+        # 清空连接池
+        websocket_connections[session_id].clear()
+        del websocket_connections[session_id]
+
+    # 🆕 v7.131: 尝试清理 Playwright 浏览器池（如果没有其他活跃会话）
+    try:
+        active_sessions = len(websocket_connections)
+        if active_sessions == 0:
+            from intelligent_project_analyzer.api.html_pdf_generator import PlaywrightBrowserPool
+
+            await asyncio.wait_for(PlaywrightBrowserPool.cleanup(), timeout=10.0)
+            logger.debug("✅ Playwright 浏览器池已清理（无活跃会话）")
+    except asyncio.TimeoutError:
+        logger.warning("⚠️ Playwright 浏览器池清理超时")
+    except Exception as e:
+        logger.debug(f"🔧 Playwright 浏览器池清理失败（可能未初始化）: {e}")
+
     logger.info(f"💬 Conversation ended for session {session_id}")
 
     return {"session_id": session_id, "message": "对话已结束", "total_turns": len(session.get("conversation_history", []))}
@@ -6938,6 +7800,13 @@ async def archive_session(session_id: str, force: bool = False):
 
     # 归档会话
     try:
+        # 🔧 v7.145: 归档前同步 checkpoint 数据到 Redis（手动归档）
+        sync_success = await sync_checkpoint_to_redis(session_id)
+        if sync_success:
+            logger.info(f"✅ [v7.145] checkpoint 数据已同步（手动归档），准备归档")
+            # 重新获取会话数据（包含同步的字段）
+            session = await sm.get(session_id)
+
         success = await archive_manager.archive_session(session_id=session_id, session_data=session, force=force)
 
         if success:
@@ -6952,10 +7821,16 @@ async def archive_session(session_id: str, force: bool = False):
 
 @app.get("/api/sessions/archived")
 async def list_archived_sessions(
-    limit: int = 50, offset: int = 0, status: Optional[str] = None, pinned_only: bool = False
+    limit: int = 50,
+    offset: int = 0,
+    status: Optional[str] = None,
+    pinned_only: bool = False,
+    current_user: dict = Depends(get_current_user),  # 🆕 v7.178: 添加用户认证
 ):
     """
     列出归档会话（支持分页、过滤）
+
+    🆕 v7.178: 添加用户过滤，只返回当前用户的归档会话（性能优化：170s→<1s）
 
     Args:
         limit: 每页数量（默认50）
@@ -6971,11 +7846,14 @@ async def list_archived_sessions(
         return {"total": 0, "limit": limit, "offset": offset, "sessions": []}
 
     try:
+        # 🆕 v7.201: 使用统一的用户标识获取函数
+        username = get_user_identifier(current_user)
+
         sessions = await archive_manager.list_archived_sessions(
-            limit=limit, offset=offset, status=status, pinned_only=pinned_only
+            limit=limit, offset=offset, status=status, pinned_only=pinned_only, user_id=username
         )
 
-        total = await archive_manager.count_archived_sessions(status=status, pinned_only=pinned_only)
+        total = await archive_manager.count_archived_sessions(status=status, pinned_only=pinned_only, user_id=username)
 
         return {"total": total, "limit": limit, "offset": offset, "sessions": sessions}
     except Exception as e:
@@ -7018,6 +7896,182 @@ async def get_archive_stats():
     except Exception as e:
         logger.error(f"❌ 获取归档统计失败: {e}")
         raise HTTPException(status_code=500, detail=f"查询失败: {str(e)}")
+
+
+# ============================================================================
+# 精选展示API
+# ============================================================================
+
+
+@app.get("/api/showcase/featured")
+async def get_featured_sessions():
+    """
+    获取精选展示会话数据
+
+    返回配置中的精选会话列表，包含会话元数据和随机概念图
+    用于首页幻灯片轮播展示
+
+    🔥 缓存策略: 使用配置文件中的cache_ttl_seconds（默认300秒）
+    🎯 图片选择: 支持random/first/latest策略
+    """
+    try:
+        # 读取配置文件
+        config_path = Path("config/featured_showcase.yaml")
+        if not config_path.exists():
+            logger.info("📋 精选展示配置不存在，返回空列表")
+            return {"featured_sessions": [], "config": {}}
+
+        import random
+
+        import yaml
+
+        with open(config_path, "r", encoding="utf-8") as f:
+            config = yaml.safe_load(f)
+
+        session_ids = config.get("session_ids", [])
+        if not session_ids:
+            logger.info("📋 未配置精选会话")
+            return {"featured_sessions": [], "config": config}
+
+        logger.info(f"🔍 准备处理 {len(session_ids)} 个精选会话: {session_ids}")
+
+        # 获取图片选择策略
+        image_selection = config.get("image_selection", "random")
+        fallback_behavior = config.get("fallback_behavior", "skip")
+
+        logger.info(f"⚙️ 配置: image_selection={image_selection}, fallback_behavior={fallback_behavior}")
+
+        featured_data = []
+
+        for session_id in session_ids[:10]:  # 最多10个
+            logger.info(f"🔄 处理会话: {session_id}")
+            try:
+                # 尝试从Redis获取
+                session = await session_manager.get(session_id)
+
+                logger.info(f"   Redis查询结果: {'找到' if session else '未找到'}")
+
+                # 如果Redis中没有，尝试从归档获取
+                if not session and archive_manager:
+                    logger.info(f"   尝试从归档获取...")
+                    archived = await archive_manager.get_archived_session(session_id)
+                    if archived:
+                        logger.info(f"   归档中找到会话")
+                        session = archived.get("session_data", {})
+                        if isinstance(session, str):
+                            session = json.loads(session)
+                    else:
+                        logger.warning(f"   归档中也未找到")
+
+                # 先检查概念图是否存在
+                concept_images = []
+                images_metadata_path = Path(f"data/generated_images/{session_id}/metadata.json")
+
+                logger.info(f"   检查概念图路径: {images_metadata_path}")
+                logger.info(f"   概念图文件存在: {images_metadata_path.exists()}")
+
+                if images_metadata_path.exists():
+                    try:
+                        with open(images_metadata_path, "r", encoding="utf-8") as f:
+                            images_data = json.load(f)
+
+                        # 提取所有概念图URL
+                        for img in images_data.get("images", []):
+                            if img.get("url"):
+                                concept_images.append(
+                                    {
+                                        "url": img["url"],
+                                        "prompt": img.get("prompt", ""),
+                                        "owner_role": img.get("owner_role", ""),
+                                        "created_at": img.get("created_at", ""),
+                                    }
+                                )
+                        logger.info(f"   ✅ 找到 {len(concept_images)} 张概念图")
+                    except Exception as e:
+                        logger.warning(f"⚠️ 读取会话 {session_id} 图片元数据失败: {e}")
+
+                # 如果没有概念图，跳过
+                if not concept_images:
+                    logger.warning(f"⏭️ 会话 {session_id} 无概念图，跳过")
+                    continue
+
+                # 如果没有会话数据，使用会话ID作为标题
+                if not session:
+                    logger.warning(f"⚠️ 会话 {session_id} 数据不存在，使用默认信息")
+                    session = {
+                        "user_input": f"会话 {session_id}",
+                        "created_at": "",
+                        "analysis_mode": "normal",
+                        "status": "unknown",
+                    }
+
+                # 提取会话元数据
+                display_name = session.get("display_name") or session.get("user_input", "")[:50]
+                if not display_name:
+                    display_name = f"精选案例 {len(featured_data) + 1}"
+
+                logger.info(f"   会话标题: {display_name}")
+
+                # 选择概念图
+                selected_image = None
+                if concept_images:
+                    if image_selection == "random":
+                        selected_image = random.choice(concept_images)
+                    elif image_selection == "first":
+                        selected_image = concept_images[0]
+                    elif image_selection == "latest":
+                        # 按created_at排序，取最新的
+                        sorted_images = sorted(concept_images, key=lambda x: x.get("created_at", ""), reverse=True)
+                        selected_image = sorted_images[0] if sorted_images else concept_images[0]
+                    else:
+                        selected_image = random.choice(concept_images)
+
+                # 如果没有图片，根据fallback_behavior处理
+                if not selected_image:
+                    if fallback_behavior == "skip":
+                        logger.info(f"⏭️ 会话 {session_id} 无概念图，跳过")
+                        continue
+                    elif fallback_behavior == "placeholder":
+                        selected_image = {
+                            "url": "/placeholder-image.png",
+                            "prompt": "暂无图片",
+                            "owner_role": "",
+                            "created_at": "",
+                        }
+
+                # 构建返回数据
+                featured_data.append(
+                    {
+                        "session_id": session_id,
+                        "title": display_name,
+                        "user_input": session.get("user_input", "")[:200],
+                        "created_at": session.get("created_at", ""),
+                        "analysis_mode": session.get("analysis_mode", "normal"),
+                        "concept_image": selected_image,
+                        "status": session.get("status", "unknown"),
+                    }
+                )
+
+            except Exception as e:
+                logger.error(f"❌ 处理精选会话 {session_id} 时出错: {e}")
+                continue
+
+        logger.info(f"✅ 返回 {len(featured_data)} 个精选会话")
+
+        return {
+            "featured_sessions": featured_data,
+            "config": {
+                "rotation_interval_seconds": config.get("rotation_interval_seconds", 5),
+                "autoplay": config.get("autoplay", True),
+                "loop": config.get("loop", True),
+                "show_navigation": config.get("show_navigation", True),
+                "show_pagination": config.get("show_pagination", True),
+            },
+        }
+
+    except Exception as e:
+        logger.error(f"❌ 获取精选展示数据失败: {e}")
+        raise HTTPException(status_code=500, detail=f"获取失败: {str(e)}")
 
 
 @app.get("/api/sessions/archived/{session_id}")
@@ -7126,8 +8180,9 @@ async def delete_archived_session(session_id: str, current_user: dict = Depends(
             raise HTTPException(status_code=404, detail="归档会话不存在")
 
         # 🔒 2. 权限校验（与活跃会话相同逻辑）
+        # 🔧 v7.201: 使用统一的用户标识获取函数
         session_user_id = session.get("user_id", "")
-        current_username = current_user.get("username", "")
+        current_username = get_user_identifier(current_user)
 
         is_owner = (
             session_user_id == current_username
@@ -7226,7 +8281,8 @@ async def regenerate_concept_image(
             aspect_ratio=aspect_ratio,
         )
 
-        return {"status": "success", "image": new_image.model_dump()}
+        # 🔥 Phase 0优化: 排除None和默认值以减少响应大小
+        return {"status": "success", "image": new_image.model_dump(exclude_none=True, exclude_defaults=True)}
 
     except HTTPException:
         raise
@@ -7378,6 +8434,19 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
             # 如果没有连接了，清理字典
             if not websocket_connections[session_id]:
                 del websocket_connections[session_id]
+
+                # 🆕 v7.131: 当会话的所有 WebSocket 连接都断开时，清理浏览器池资源
+                try:
+                    total_active = sum(len(conns) for conns in websocket_connections.values())
+                    if total_active == 0:
+                        from intelligent_project_analyzer.api.html_pdf_generator import PlaywrightBrowserPool
+
+                        await asyncio.wait_for(PlaywrightBrowserPool.cleanup(), timeout=10.0)
+                        logger.debug("✅ Playwright 浏览器池已清理（所有 WebSocket 已断开）")
+                except asyncio.TimeoutError:
+                    logger.warning(f"⚠️ WebSocket断开后清理浏览器池超时: {session_id}")
+                except Exception as e:
+                    logger.debug(f"🔧 WebSocket断开后清理浏览器池失败: {session_id}, {e}")
 
 
 if __name__ == "__main__":

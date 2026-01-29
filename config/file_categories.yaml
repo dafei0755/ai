@@ -1,0 +1,122 @@
+# 文件分类配置 - v7.157
+# 用于多模态上传时的标签选择
+
+# 图片参考类型（8种）
+image_categories:
+  color:
+    label: "色彩参考"
+    icon: "palette"
+    color: "#F59E0B"
+    extraction_focus:
+      - "主色调"
+      - "配色方案"
+      - "色彩比例"
+    description: "色彩搭配、主色调、配色方案"
+
+  style:
+    label: "风格参考"
+    icon: "sparkles"
+    color: "#8B5CF6"
+    extraction_focus:
+      - "设计风格"
+      - "时代特征"
+      - "文化元素"
+    description: "设计风格（北欧/日式/工业等）"
+
+  material:
+    label: "材质参考"
+    icon: "layers"
+    color: "#6B7280"
+    extraction_focus:
+      - "材质类型"
+      - "表面质感"
+      - "工艺细节"
+    description: "材质质感（大理石/实木/金属等）"
+
+  layout:
+    label: "平面布局"
+    icon: "layout"
+    color: "#3B82F6"
+    extraction_focus:
+      - "空间分区"
+      - "动线规划"
+      - "功能布局"
+    description: "空间平面布局、动线规划"
+
+  environment:
+    label: "环境参考"
+    icon: "mountain"
+    color: "#10B981"
+    extraction_focus:
+      - "周边环境"
+      - "景观元素"
+      - "建筑外观"
+    description: "周边环境、景观、建筑外观"
+
+  mood:
+    label: "格调参考"
+    icon: "heart"
+    color: "#EC4899"
+    extraction_focus:
+      - "整体氛围"
+      - "情感表达"
+      - "生活方式"
+    description: "氛围、情调、生活方式"
+
+  item:
+    label: "单品参考"
+    icon: "armchair"
+    color: "#F97316"
+    extraction_focus:
+      - "单品类型"
+      - "造型特征"
+      - "搭配方式"
+    description: "家具、灯具、软装单品"
+
+  lighting:
+    label: "光线参考"
+    icon: "sun"
+    color: "#FBBF24"
+    extraction_focus:
+      - "光源类型"
+      - "光影效果"
+      - "照明层次"
+    description: "照明效果、光影氛围"
+
+# 文档类型（6种）
+document_categories:
+  requirements:
+    label: "需求文档"
+    icon: "file-text"
+    color: "#3B82F6"
+    description: "项目需求说明书"
+
+  reference:
+    label: "参考资料"
+    icon: "book-open"
+    color: "#8B5CF6"
+    description: "背景资料、案例参考"
+
+  specification:
+    label: "技术规范"
+    icon: "clipboard-list"
+    color: "#6B7280"
+    description: "技术标准、规范文档"
+
+  budget:
+    label: "预算清单"
+    icon: "calculator"
+    color: "#10B981"
+    description: "预算、报价单"
+
+  contract:
+    label: "合同协议"
+    icon: "file-signature"
+    color: "#EF4444"
+    description: "合同、协议文件"
+
+  other:
+    label: "其他"
+    icon: "file"
+    color: "#9CA3AF"
+    description: "其他类型文档"

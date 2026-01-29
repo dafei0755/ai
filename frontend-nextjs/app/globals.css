@@ -62,29 +62,142 @@ body {
 
 /* Custom Scrollbar for Dark Mode */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 4px;
+  height: 4px;
 }
 
 ::-webkit-scrollbar-track {
   background: transparent;
+  margin: 4px;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #444;
-  border-radius: 3px;
+  background: #555;
+  border-radius: 2px;
 }
 
 [data-theme="light"] ::-webkit-scrollbar-thumb {
-  background: #ccc;
+  background: #d1d5db;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #555;
+  background: #666;
 }
 
 [data-theme="light"] ::-webkit-scrollbar-thumb:hover {
-  background: #999;
+  background: #9ca3af;
+}
+
+/* 🆕 自定义滚动条 - 用于推理过程等特定区域 */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+  margin-right: 8px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(128, 90, 213, 0.25);
+  border-radius: 2px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(128, 90, 213, 0.4);
+}
+
+/* 🧠 AI思考内容统一样式 - 用于深度思考和AI分析回答 */
+/* 🔧 v7.175: 使用 CSS 变量统一字体样式 */
+.ai-thinking-content {
+  background: #ffffff;
+}
+
+[data-theme="dark"] .ai-thinking-content {
+  background: #ffffff;
+}
+
+.ai-thinking-text {
+  @apply space-y-3 text-sm leading-relaxed;
+  color: #1a1a1a !important;
+}
+
+.ai-thinking-text p {
+  @apply leading-relaxed;
+  color: #1a1a1a !important;
+}
+
+.ai-thinking-text .list-item {
+  @apply pl-4;
+  border-left: 2px solid var(--primary);
+}
+
+.ai-thinking-text .numbered {
+  @apply font-medium;
+}
+
+.ai-thinking-text .heading {
+  @apply font-semibold text-base;
+}
+
+.ai-thinking-cursor {
+  @apply inline-block w-2 h-5 bg-purple-500 animate-pulse ml-1;
+}
+
+/* 引用链接样式 */
+.reference-link {
+  @apply inline-flex items-center justify-center w-4 h-4 rounded-full text-[10px] font-medium cursor-pointer transition-colors mx-0.5;
+  background: var(--primary);
+  color: white;
+}
+
+.reference-link:hover {
+  opacity: 0.8;
+}
+
+/* 🆕 v7.175: 搜索结果 References 优化样式 */
+.search-references-list {
+  @apply space-y-3;
+}
+
+.search-reference-item {
+  @apply flex items-start gap-3 p-3 rounded-lg transition-all duration-200;
+  background: var(--card-bg);
+}
+
+.search-reference-item:hover {
+  background: var(--sidebar-bg);
+}
+
+.search-reference-number {
+  @apply inline-flex items-center justify-center w-6 h-6 rounded-full flex-shrink-0 mt-0.5;
+  @apply text-xs font-semibold;
+  background: var(--primary);
+  color: white;
+}
+
+.search-reference-title {
+  @apply block font-medium leading-snug transition-colors;
+  font-size: 15px;
+  color: var(--foreground);
+}
+
+.search-reference-title:hover {
+  color: var(--primary);
+}
+
+.search-reference-domain {
+  @apply text-xs truncate max-w-[300px];
+  color: var(--primary);
+}
+
+.search-reference-domain:hover {
+  @apply underline;
+}
+
+.search-reference-site {
+  @apply text-xs truncate max-w-[180px];
+  color: var(--foreground-secondary);
 }
 
 @layer utilities {
@@ -192,11 +305,11 @@ body {
   -webkit-font-feature-settings: "kern" 1, "liga" 1;
 }
 
-.text-content-optimized h1, 
-.text-content-optimized h2, 
-.text-content-optimized h3, 
-.text-content-optimized h4, 
-.text-content-optimized h5, 
+.text-content-optimized h1,
+.text-content-optimized h2,
+.text-content-optimized h3,
+.text-content-optimized h4,
+.text-content-optimized h5,
 .text-content-optimized h6 {
   /* 标题层次优化 */
   font-weight: 600;
@@ -233,7 +346,7 @@ body {
   }
 }
 
-.text-content-optimized ul, 
+.text-content-optimized ul,
 .text-content-optimized ol {
   /* 列表样式优化 */
   margin-left: 1.25rem;
@@ -283,12 +396,12 @@ body {
     line-height: 1.7;
     letter-spacing: 0;
   }
-  
+
   .text-content-optimized p {
     text-align: left; /* 移动端左对齐更易读 */
     text-indent: 0;   /* 移动端取消首行缩进 */
   }
-  
+
   .text-content-optimized h1,
   .text-content-optimized h2,
   .text-content-optimized h3,
@@ -306,7 +419,7 @@ body {
     line-height: 1.6;
     color: #000;
   }
-  
+
   .text-content-optimized h1,
   .text-content-optimized h2,
   .text-content-optimized h3,
@@ -316,7 +429,7 @@ body {
     color: #000;
     page-break-after: avoid;
   }
-  
+
   .text-content-optimized p {
     orphans: 2;
     widows: 2;
@@ -350,4 +463,189 @@ body {
 .highlight-flash {
   background-color: rgba(59, 130, 246, 0.3) !important;
   transition: background-color 0.3s ease;
+}
+
+/* 🎯 管理后台统一字体样式 */
+.admin-layout {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* 管理后台标题统一样式 */
+.admin-layout h1 {
+  font-weight: 700;
+  color: #111827;
+  letter-spacing: -0.025em;
+}
+
+.admin-layout h2 {
+  font-weight: 700;
+  color: #1f2937;
+  letter-spacing: -0.0125em;
+}
+
+.admin-layout h3 {
+  font-weight: 600;
+  color: #374151;
+}
+
+/* 管理后台正文统一样式 */
+.admin-layout p,
+.admin-layout span,
+.admin-layout div {
+  color: #374151;
+}
+
+/* 管理后台输入框统一样式 */
+.admin-layout input,
+.admin-layout select,
+.admin-layout textarea {
+  font-family: inherit;
+  color: #111827;
+  font-weight: 500;
+}
+
+.admin-layout input::placeholder,
+.admin-layout textarea::placeholder {
+  color: #6b7280;
+  font-weight: 500;
+}
+
+/* 管理后台按钮统一样式 */
+.admin-layout button {
+  font-family: inherit;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+/* 管理后台标签统一样式 */
+.admin-layout label {
+  font-weight: 600;
+  color: #1f2937;
+}
+/* ========================================
+ * 🔍 UCppt 搜索模块统一样式 - v7.243
+ * ======================================== */
+
+/* 通用卡片容器 */
+.ucppt-card {
+  @apply bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl mb-4;
+}
+
+/* 可折叠卡片标题栏 - 基础样式 */
+.ucppt-card-header {
+  @apply flex items-center justify-between cursor-pointer px-4 py-3;
+  @apply hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors;
+}
+
+/* 标题栏 - 展开状态（只有顶部圆角） */
+.ucppt-card-header-expanded {
+  @apply rounded-t-xl;
+}
+
+/* 标题栏 - 折叠状态（全圆角） */
+.ucppt-card-header-collapsed {
+  @apply rounded-xl;
+}
+
+/* 卡片内容区域 */
+.ucppt-card-content {
+  @apply px-4 py-3 border-t border-gray-200 dark:border-gray-700;
+}
+
+/* 卡片内容区域 - 大内边距 */
+.ucppt-card-content-lg {
+  @apply px-8 py-8 border-t border-gray-200 dark:border-gray-700;
+}
+
+/* 圆形图标容器 */
+.ucppt-icon-circle {
+  @apply w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0;
+}
+
+/* 圆形图标 - 蓝色 */
+.ucppt-icon-blue {
+  @apply bg-blue-100 dark:bg-blue-900/30;
+}
+
+/* 圆形图标 - 靛蓝色 */
+.ucppt-icon-indigo {
+  @apply bg-indigo-100 dark:bg-indigo-900/30;
+}
+
+/* 圆形图标 - 翠绿色 */
+.ucppt-icon-emerald {
+  @apply bg-emerald-100 dark:bg-emerald-900/30;
+}
+
+/* 圆形图标 - 紫色 */
+.ucppt-icon-purple {
+  @apply bg-purple-100 dark:bg-purple-900/30;
+}
+
+/* 标题文字 - 蓝色 */
+.ucppt-title-blue {
+  @apply text-sm font-medium text-blue-600 dark:text-blue-400;
+}
+
+/* 标题文字 - 靛蓝色 */
+.ucppt-title-indigo {
+  @apply text-sm font-medium text-indigo-600 dark:text-indigo-400;
+}
+
+/* 标题文字 - 翠绿色 */
+.ucppt-title-emerald {
+  @apply text-sm font-medium text-emerald-600 dark:text-emerald-400;
+}
+
+/* 标题文字 - 紫色 */
+.ucppt-title-purple {
+  @apply text-sm font-medium text-purple-600 dark:text-purple-400;
+}
+
+/* 标签样式 - 基础 */
+.ucppt-badge {
+  @apply text-xs px-2 py-0.5 rounded-full border;
+}
+
+/* 标签 - 靛蓝色 */
+.ucppt-badge-indigo {
+  @apply bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 border-indigo-200 dark:border-indigo-700;
+}
+
+/* 标签 - 翠绿色 */
+.ucppt-badge-emerald {
+  @apply bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-700;
+}
+
+/* 标签 - 紫色 */
+.ucppt-badge-purple {
+  @apply bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 border-purple-200 dark:border-purple-700;
+}
+
+/* 搜索轮次卡片 */
+.ucppt-round-card {
+  @apply bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-8;
+}
+
+/* 搜索结果列表分隔线 */
+.ucppt-results-divider {
+  @apply mt-6 pt-6 border-t border-gray-200 dark:border-gray-700;
+}
+
+/* 搜索结果链接 */
+.ucppt-result-link {
+  @apply flex items-center gap-2 text-sm text-blue-600 dark:text-blue-400;
+  @apply hover:text-blue-800 dark:hover:text-blue-300 py-0.5;
+}
+
+/* 思考内容文本 */
+.ucppt-thinking-text {
+  @apply text-sm text-gray-600 dark:text-gray-400 leading-relaxed whitespace-pre-wrap;
+}
+
+/* 结果数量标签 */
+.ucppt-result-count {
+  @apply text-xs text-gray-500 dark:text-gray-400 mb-2;
 }

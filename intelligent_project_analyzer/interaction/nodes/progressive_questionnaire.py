@@ -3,13 +3,14 @@
 
 v7.80: 将问卷升级为「任务梳理 → 雷达图多维度画像 → 密度补齐追问」的三步递进式体验
 v7.80.1: Step 1 升级为 LLM 驱动的智能任务拆解（从复述 → 明确）
+v7.151: 流程优化，直接路由到 questionnaire_summary（需求洞察）
 
 节点流程：
     requirements_analyst
         → progressive_step1_core_task
         → progressive_step2_radar
         → progressive_step3_gap_filling
-        → requirements_confirmation
+        → questionnaire_summary  # 🔧 v7.151: 合并了 requirements_confirmation
 """
 
 import asyncio
@@ -307,12 +308,13 @@ class ProgressiveQuestionnaireNode:
             "poetic_metadata": poetic_metadata,
             # 🆕 v7.80.15 (P1.2): 特殊场景元数据
             "special_scene_metadata": special_scene_metadata,
-            # 🆕 能力边界检查记录
-            "step1_boundary_check": boundary_check if combined_text else None,
+            # 🆕 能力边界检查记录（🔧 v7.147: 转换为dict避免序列化错误）
+            "step1_boundary_check": boundary_check.to_dict() if (combined_text and boundary_check) else None,
         }
         update_dict = WorkflowFlagManager.preserve_flags(state, update_dict)
 
-        return Command(update=update_dict, goto="progressive_step2_radar")
+        # 🔧 v7.146: 修正路由顺序 - Step1 → Step2(信息补全)
+        return Command(update=update_dict, goto="progressive_step3_gap_filling")
 
     # ==========================================================================
     # Step 2: 雷达图维度
@@ -321,9 +323,11 @@ class ProgressiveQuestionnaireNode:
     @staticmethod
     def step2_radar(
         state: ProjectAnalysisState, store: Optional[BaseStore] = None
-    ) -> Command[Literal["progressive_step3_gap_filling", "requirements_confirmation"]]:
+    ) -> Command[Literal["progressive_step3_gap_filling", "questionnaire_summary"]]:
         """
         Step 2: 雷达图多维度偏好收集
+
+        🔧 v7.151: 路由目标从 requirements_confirmation 改为 questionnaire_summary
 
         展示9-12个维度滑块，让用户表达设计偏好。
 
@@ -353,8 +357,8 @@ class ProgressiveQuestionnaireNode:
         # 🆕 v7.80.5: 强制生成模式（用于测试/演示）
         FORCE_GENERATE = os.getenv("FORCE_GENERATE_DIMENSIONS", "false").lower() == "true"
 
-        # 🔧 v7.80.16: 动态生成开关（默认关闭，避免LLM调用延迟）
-        USE_DYNAMIC_GENERATION = os.getenv("USE_DYNAMIC_GENERATION", "false").lower() == "true"
+        # 🔧 v7.80.16: 动态生成开关（v7.150: 默认启用，实现真正的智能维度生成）
+        USE_DYNAMIC_GENERATION = os.getenv("USE_DYNAMIC_GENERATION", "true").lower() == "true"
 
         # 🆕 v7.110: 智能学习开关
         ENABLE_DIMENSION_LEARNING = os.getenv("ENABLE_DIMENSION_LEARNING", "false").lower() == "true"
@@ -364,64 +368,113 @@ class ProgressiveQuestionnaireNode:
         logger.info(f"🔍 [Step 2 环境变量] USE_DYNAMIC_GENERATION={USE_DYNAMIC_GENERATION}")
         logger.info(f"🔍 [Step 2 环境变量] ENABLE_DIMENSION_LEARNING={ENABLE_DIMENSION_LEARNING}")
 
+        # 🔧 v7.146: 定义默认维度作为降级方案
+        def _get_default_dimensions():
+            """获取静态默认维度列表（降级方案）
+
+            注意：v7.139+ select_dimensions_for_state 可能返回 dict（包含 dimensions/conflicts/...）。
+            这里必须保证返回值始终为 list，避免前端收到对象导致雷达图无法渲染。
+            """
+            from ...services.dimension_selector import select_dimensions_for_state
+
+            logger.info("🛡️ [降级] 使用静态默认维度列表")
+            result = select_dimensions_for_state(state)
+            if isinstance(result, dict):
+                dims = result.get("dimensions", [])
+                if isinstance(dims, list):
+                    return dims
+                return []
+            return result
+
         # Step 2.1: 智能维度选择（混合策略）
-        if ENABLE_DIMENSION_LEARNING:
-            logger.info("📊 [维度选择] 使用 AdaptiveDimensionGenerator 混合策略")
-            # 使用学习优化的混合策略生成器
-            adaptive_generator = AdaptiveDimensionGenerator()
+        # 🔧 v7.146: 添加异常处理和超时保护
+        existing_dimensions = []
+        try:
+            if ENABLE_DIMENSION_LEARNING:
+                logger.info("📊 [维度选择] 使用 AdaptiveDimensionGenerator 混合策略")
+                # 使用学习优化的混合策略生成器
+                adaptive_generator = AdaptiveDimensionGenerator()
 
-            # 🆕 v7.117: 从 Redis 加载历史维度数据（用于学习优化）
-            historical_data = []
-            try:
-                from concurrent.futures import ThreadPoolExecutor
-
-                from ...services.redis_session_manager import RedisSessionManager
-
-                def _load_historical_data():
-                    """在独立线程中加载历史数据"""
-                    import asyncio
-
-                    session_manager = RedisSessionManager()
-
-                    async def _async_load():
-                        await session_manager.connect()
-                        data = await session_manager.get_dimension_historical_data(limit=100)
-                        return data
-
-                    return asyncio.run(_async_load())
-
-                logger.info("📚 [v7.117] 正在加载历史维度数据...")
-                with ThreadPoolExecutor(max_workers=1) as executor:
-                    future = executor.submit(_load_historical_data)
-                    historical_data = future.result(timeout=10)  # 10秒超时
-
-                logger.info(f"📚 [历史数据] 成功加载 {len(historical_data)} 条记录")
-
-            except Exception as e:
-                logger.warning(f"⚠️ [历史数据] 加载失败: {e}，使用空列表继续")
+                # 🆕 v7.117: 从 Redis 加载历史维度数据（用于学习优化）
                 historical_data = []
+                try:
+                    from concurrent.futures import ThreadPoolExecutor
 
-            # 检测特殊场景
-            special_scene_metadata = state.get("special_scene_metadata")
-            special_scenes = None
-            if special_scene_metadata:
-                special_scenes = special_scene_metadata.get("scene_tags", [])
+                    from ...services.redis_session_manager import RedisSessionManager
 
-            existing_dimensions = adaptive_generator.select_for_project(
-                project_type=state.get("project_type", "personal_residential"),
-                user_input=state.get("user_input", ""),
-                min_dimensions=9,
-                max_dimensions=12,
-                special_scenes=special_scenes,
-                historical_data=historical_data,
-            )
-            logger.info(f"📊 [AdaptiveDimGen] 选择了 {len(existing_dimensions)} 个智能维度")
-        else:
-            logger.info("📊 [维度选择] 使用传统 RuleEngine 规则引擎（ENABLE_DIMENSION_LEARNING=false）")
-            # 使用传统规则引擎
-            existing_dimensions = select_dimensions_for_state(state)
-            logger.info(f"📊 [RuleEngine] 选择了 {len(existing_dimensions)} 个传统维度")
+                    def _load_historical_data():
+                        """在独立线程中加载历史数据"""
+                        import asyncio
+
+                        session_manager = RedisSessionManager()
+
+                        async def _async_load():
+                            await session_manager.connect()
+                            data = await session_manager.get_dimension_historical_data(limit=100)
+                            return data
+
+                        return asyncio.run(_async_load())
+
+                    logger.info("📚 [v7.117] 正在加载历史维度数据...")
+                    with ThreadPoolExecutor(max_workers=1) as executor:
+                        future = executor.submit(_load_historical_data)
+                        historical_data = future.result(timeout=10)  # 10秒超时
+
+                    logger.info(f"📚 [历史数据] 成功加载 {len(historical_data)} 条记录")
+
+                except Exception as e:
+                    logger.warning(f"⚠️ [历史数据] 加载失败: {e}，使用空列表继续")
+                    historical_data = []
+
+                # 检测特殊场景
+                special_scene_metadata = state.get("special_scene_metadata")
+                special_scenes = None
+                if special_scene_metadata:
+                    special_scenes = special_scene_metadata.get("scene_tags", [])
+
+                result = adaptive_generator.select_for_project(
+                    project_type=state.get("project_type", "personal_residential"),
+                    user_input=state.get("user_input", ""),
+                    min_dimensions=9,
+                    max_dimensions=12,
+                    special_scenes=special_scenes,
+                    historical_data=historical_data,
+                )
+
+                # 🔧 v7.146: 兼容 v7.139 字典返回格式
+                if isinstance(result, dict):
+                    existing_dimensions = result.get("dimensions", [])
+                    logger.info(f"📊 [AdaptiveDimGen] v7.139格式: 选择了 {len(existing_dimensions)} 个智能维度")
+                else:
+                    existing_dimensions = result
+                    logger.info(f"📊 [AdaptiveDimGen] 选择了 {len(existing_dimensions)} 个智能维度")
+            else:
+                logger.info("📊 [维度选择] 使用传统 RuleEngine 规则引擎（ENABLE_DIMENSION_LEARNING=false）")
+                # 使用传统规则引擎
+                result = select_dimensions_for_state(state)
+                # 🔧 v7.146: 兼容 v7.139 字典返回格式
+                if isinstance(result, dict):
+                    existing_dimensions = result.get("dimensions", [])
+                else:
+                    existing_dimensions = result
+                logger.info(f"📊 [RuleEngine] 选择了 {len(existing_dimensions)} 个传统维度")
+        except Exception as e:
+            # 🔧 v7.146: 维度选择失败时使用降级方案
+            logger.error(f"❌ [维度选择失败] {type(e).__name__}: {str(e)}")
+            logger.error(f"🔍 [堆栈信息] {__import__('traceback').format_exc()}")
+            logger.warning("🛡️ [降级策略] 使用默认维度列表继续流程")
+            existing_dimensions = _get_default_dimensions()
+
         logger.info(f"📊 已选择 {len(existing_dimensions)} 个现有维度")
+
+        # 🆕 v7.150: 增强日志，追踪每个维度的来源
+        for dim in existing_dimensions[:5]:  # 只显示前5个，避免日志过长
+            source = dim.get("source", "static")
+            recommended_by_llm = dim.get("recommended_by_llm", False)
+            source_label = "LLM推荐" if recommended_by_llm else source
+            logger.info(f"   📊 维度: {dim.get('name', dim.get('id', 'unknown'))} (来源: {source_label})")
+        if len(existing_dimensions) > 5:
+            logger.info(f"   ... 还有 {len(existing_dimensions) - 5} 个维度")
 
         # Step 2.2: 分析覆盖度，必要时生成新维度
         user_input = state.get("user_input", "")
@@ -459,7 +512,20 @@ class ProgressiveQuestionnaireNode:
             logger.info("🔍 [动态维度] LLM覆盖度分析已启用")
             coverage = generator.analyze_coverage(user_input, structured_data, existing_dimensions)
 
-            if coverage.get("should_generate", False) and coverage.get("missing_aspects"):
+            # 🔧 v7.154: 增强日志，追踪覆盖度分析结果
+            logger.info(
+                f"📊 [覆盖度分析] coverage_score={coverage.get('coverage_score', 'N/A')}, "
+                f"should_generate={coverage.get('should_generate', False)}, "
+                f"missing_aspects={coverage.get('missing_aspects', [])}"
+            )
+
+            # 🔧 v7.154: 增强条件判断 - 降级模式也触发生成
+            analysis_text = coverage.get("analysis", "")
+            is_fallback_mode = "降级" in analysis_text or "失败" in analysis_text
+            should_generate = coverage.get("should_generate", False)
+            has_missing_aspects = bool(coverage.get("missing_aspects"))
+
+            if (should_generate and has_missing_aspects) or is_fallback_mode:
                 logger.info(f"🤖 [动态维度] 检测到覆盖不足 (评分: {coverage.get('coverage_score', 0):.2f})")
                 logger.info(f"   缺失方面: {coverage.get('missing_aspects', [])}")
 
@@ -485,22 +551,35 @@ class ProgressiveQuestionnaireNode:
             logger.info("⚡ [性能优化] 跳过LLM动态生成，使用P0.3场景注入机制")
 
         # 🆕 v7.80.15 (P1.3): 基于特殊场景注入专用维度
+        # 🔧 v7.146: 添加异常处理，防止注入失败阻塞流程
         special_scene_metadata = state.get("special_scene_metadata")
         confirmed_tasks = state.get("confirmed_core_tasks", [])
 
         if special_scene_metadata or confirmed_tasks:
-            from ...services.dimension_selector import DimensionSelector
+            try:
+                from ...services.dimension_selector import DimensionSelector
 
-            selector = DimensionSelector()
+                selector = DimensionSelector()
 
-            # 调用场景检测和维度注入
-            dimensions = selector.detect_and_inject_specialized_dimensions(
-                user_input=user_input,
-                confirmed_tasks=confirmed_tasks,
-                current_dimensions=dimensions,
-                special_scene_metadata=special_scene_metadata,
-            )
-            logger.info(f"🎯 [特殊场景] 维度注入完成: 最终 {len(dimensions)} 个维度")
+                # 调用场景检测和维度注入
+                result = selector.detect_and_inject_specialized_dimensions(
+                    user_input=user_input,
+                    confirmed_tasks=confirmed_tasks,
+                    current_dimensions=dimensions,
+                    special_scene_metadata=special_scene_metadata,
+                )
+
+                # 🔧 v7.146: 兼容 v7.139 字典返回格式
+                if isinstance(result, dict):
+                    dimensions = result.get("dimensions", dimensions)
+                    logger.info(f"🎯 [特殊场景] v7.139格式: 维度注入完成，最终 {len(dimensions)} 个维度")
+                else:
+                    dimensions = result
+                    logger.info(f"🎯 [特殊场景] 维度注入完成: 最终 {len(dimensions)} 个维度")
+            except Exception as e:
+                # 🔧 v7.146: 注入失败时保留当前维度
+                logger.error(f"❌ [特殊场景注入失败] {type(e).__name__}: {str(e)}")
+                logger.warning(f"🛡️ [降级] 保留当前维度列表: {len(dimensions)} 个维度")
 
         logger.info(f"📊 最终维度数量: {len(dimensions)} ({len(existing_dimensions)} 现有 + {generated_count} 动态生成)")
 
@@ -511,10 +590,24 @@ class ProgressiveQuestionnaireNode:
         user_input = state.get("user_input", "")
         user_input_summary = user_input[:100] + ("..." if len(user_input) > 100 else "")
 
+        # 🔧 v7.146: 确保 dimensions 是列表格式
+        if not isinstance(dimensions, list):
+            logger.error(f"❌ [payload构建] dimensions 不是列表，类型: {type(dimensions)}, 使用降级维度")
+            dimensions = _get_default_dimensions()
+
+            # 🔧 v7.146.1: 降级后再次校验，强制解包 v7.139 dict 格式
+            if isinstance(dimensions, dict):
+                logger.warning(f"⚠️ [降级后] dimensions 仍为 dict，强制提取 dimensions 字段")
+                dimensions = dimensions.get("dimensions", [])
+            if not isinstance(dimensions, list):
+                logger.error(f"❌ [降级失败] dimensions 最终仍非列表: {type(dimensions)}，使用空列表")
+                dimensions = []
+
         # 构建interrupt payload
+        # 🔧 v7.146: 修正事件类型，step2_radar函数对应前端第3步（雷达图）
         payload = {
-            "interaction_type": "progressive_questionnaire_step2",
-            "step": 2,
+            "interaction_type": "progressive_questionnaire_step3",
+            "step": 3,
             "total_steps": 3,
             "title": "多维度偏好设置",
             "message": "请通过拖动滑块表达您的设计偏好。每个维度代表两种不同的设计方向。",
@@ -528,6 +621,7 @@ class ProgressiveQuestionnaireNode:
         }
 
         logger.info("🛑 [Step 2] 即将调用 interrupt()，等待用户输入...")
+        logger.info(f"📊 [payload验证] dimensions类型: {type(dimensions)}, 长度: {len(dimensions)}")
         user_response = interrupt(payload)
         logger.info(f"✅ [Step 2] 收到用户响应: {type(user_response)}")
 
@@ -557,23 +651,23 @@ class ProgressiveQuestionnaireNode:
 
         update_dict = {
             "selected_radar_dimensions": dimensions,
+            "selected_dimensions": dimensions,  # 🆕 兼容 questionnaire_summary 读取
             "radar_dimension_values": dimension_values,
             "radar_analysis_summary": analysis,
             "progressive_questionnaire_step": 2,
         }
         update_dict = WorkflowFlagManager.preserve_flags(state, update_dict)
 
-        # 🔧 v7.80.18: 总是执行 Step 3（任务信息完整性分析）
-        # v7.80.6 革新：Step 3 不再基于雷达图短板，而是基于任务完整性
-        logger.info("📊 [Step 2] 雷达图维度收集完成，准备进入 Step 3（任务完整性分析）")
+        # 🔧 v7.146: 修正路由 - Step3(雷达图)完成后进入需求洞察
+        logger.info("📊 [Step 3] 雷达图维度收集完成，准备进入需求洞察")
 
-        # 保存雷达图分析结果（供 Step 3 参考，但不作为是否执行的依据）
+        # 保存雷达图分析结果
         gap_dimensions = analysis.get("gap_dimensions", [])
         if gap_dimensions:
             logger.info(f"   雷达图短板维度: {gap_dimensions}")
 
-        # ✅ 总是进入 Step 3，由 Step 3 内部决定是否需要补充问题
-        return Command(update=update_dict, goto="progressive_step3_gap_filling")
+        # 直接进入需求洞察节点
+        return Command(update=update_dict, goto="questionnaire_summary")
 
     # ==========================================================================
     # Step 3: 密度补齐追问
@@ -582,9 +676,11 @@ class ProgressiveQuestionnaireNode:
     @staticmethod
     def step3_gap_filling(
         state: ProjectAnalysisState, store: Optional[BaseStore] = None
-    ) -> Command[Literal["requirements_confirmation"]]:
+    ) -> Command[Literal["questionnaire_summary"]]:
         """
         Step 3: 核心任务信息完整性查漏补缺
+
+        🔧 v7.151: 路由目标从 requirements_confirmation 改为 questionnaire_summary
 
         v7.80.6: 从"雷达图补充"转变为"任务信息完整性检查"
         - 分析核心任务是否包含足够信息
@@ -629,14 +725,16 @@ class ProgressiveQuestionnaireNode:
         # 判断是否需要补充问题
         critical_gaps = completeness.get("critical_gaps", [])
         if not critical_gaps:
-            logger.info("✅ 任务信息完整，无需补充，跳过 Step 3")
+            logger.info("✅ 任务信息完整，无需补充，跳过问题生成，直接进入雷达图")
             update_dict = {
-                "progressive_questionnaire_completed": True,
-                "progressive_questionnaire_step": 3,
+                "progressive_questionnaire_completed": False,  # 还未完全完成，需要进行雷达图
+                "progressive_questionnaire_step": 2,
                 "task_completeness_analysis": completeness,  # 保存分析结果
+                "gap_filling_answers": {},  # 空答案
             }
             update_dict = WorkflowFlagManager.preserve_flags(state, update_dict)
-            return Command(update=update_dict, goto="project_director")
+            # 🔧 v7.146: 即使无需补充，也要进入雷达图环节
+            return Command(update=update_dict, goto="progressive_step2_radar")
 
         # 🔧 v7.107: 启用LLM智能生成补充问题
         import os
@@ -724,9 +822,10 @@ class ProgressiveQuestionnaireNode:
         user_input_summary = user_input[:100] + ("..." if len(user_input) > 100 else "")
 
         # 🆕 v7.80.6: 构建新的 interrupt payload（任务完整性导向）
+        # 🔧 v7.146: 修正事件类型，与前端统一为 step2（信息补全环节）
         payload = {
-            "interaction_type": "progressive_questionnaire_step3",
-            "step": 3,
+            "interaction_type": "progressive_questionnaire_step2",
+            "step": 2,
             "total_steps": 3,
             "title": "补充关键信息",
             "message": "为了更精准地理解您的项目需求，请补充以下关键信息：",
@@ -765,8 +864,9 @@ class ProgressiveQuestionnaireNode:
 
         logger.info(f"✅ [Step 3] 收集到 {len(answers)} 个补充答案")
 
-        # 构建问卷摘要
-        questionnaire_summary = ProgressiveQuestionnaireNode._build_questionnaire_summary(state, answers)
+        # 🔧 v7.147: 移除此处的汇总调用，改为在雷达图完成后统一处理
+        # 原因：此时 radar_dimension_values 尚未生成，会导致 NoneType 错误
+        # questionnaire_summary = ProgressiveQuestionnaireNode._build_questionnaire_summary(state, answers)  # ❌ 删除
 
         # 🆕 v7.80.6: 保存任务完整性分析和补充答案
         update_dict = {
@@ -777,14 +877,15 @@ class ProgressiveQuestionnaireNode:
                 "critical_gaps": critical_gaps,
             },
             "gap_filling_answers": answers,
-            "progressive_questionnaire_completed": True,
-            "progressive_questionnaire_step": 3,
-            "questionnaire_summary": questionnaire_summary,  # 兼容旧字段
-            "calibration_processed": True,  # 兼容旧字段
+            "progressive_questionnaire_completed": False,  # 🔧 改为 False，因为还有雷达图步骤
+            "progressive_questionnaire_step": 2,  # 🔧 这是 UI 的 Step 2
+            # "questionnaire_summary": questionnaire_summary,  # ❌ 删除，改为在雷达图后生成
+            "calibration_processed": False,  # 🔧 改为 False，雷达图完成后才算完成
         }
         update_dict = WorkflowFlagManager.preserve_flags(state, update_dict)
 
-        return Command(update=update_dict, goto="project_director")
+        # 🔧 v7.146: 修正路由 - Step2(信息补全)完成后进入Step3(雷达图)
+        return Command(update=update_dict, goto="progressive_step2_radar")
 
     # ==========================================================================
     # 辅助方法
@@ -956,6 +1057,8 @@ class ProgressiveQuestionnaireNode:
     def _build_questionnaire_summary(state: ProjectAnalysisState, gap_answers: Dict[str, Any]) -> Dict[str, Any]:
         """
         构建问卷摘要（兼容旧格式）
+
+        🔧 v7.147: 添加防御性检查，避免雷达图数据未生成时崩溃
         """
         timestamp = datetime.now().isoformat()
 
@@ -964,24 +1067,37 @@ class ProgressiveQuestionnaireNode:
         radar_summary = state.get("radar_analysis_summary", {})
         confirmed_task = state.get("confirmed_core_task", "")
 
+        # 🔧 v7.147: 防御性检查 - 避免 None 导致的 AttributeError
+        if radar_values is None:
+            logger.warning("⚠️ [v7.147] radar_dimension_values 为 None，雷达图步骤可能被跳过或尚未执行")
+            radar_values = {}
+
+        if not isinstance(radar_values, dict):
+            logger.warning(f"⚠️ [v7.147] radar_dimension_values 类型错误: {type(radar_values)}，使用空字典")
+            radar_values = {}
+
+        if radar_summary is None:
+            radar_summary = {}
+
         entries = []
 
         # 添加核心任务
         if confirmed_task:
             entries.append({"id": "core_task", "question": "核心任务", "value": confirmed_task, "type": "text"})
 
-        # 添加雷达图数据
-        for dim_id, value in radar_values.items():
-            dim_detail = radar_summary.get("dimension_details", {}).get(dim_id, {})
-            entries.append(
-                {
-                    "id": f"radar_{dim_id}",
-                    "question": dim_detail.get("name", dim_id),
-                    "value": value,
-                    "type": "slider",
-                    "tendency": dim_detail.get("tendency", ""),
-                }
-            )
+        # 添加雷达图数据（现在安全了）
+        if radar_values:  # 🔧 v7.147: 额外检查确保非空
+            for dim_id, value in radar_values.items():
+                dim_detail = radar_summary.get("dimension_details", {}).get(dim_id, {})
+                entries.append(
+                    {
+                        "id": f"radar_{dim_id}",
+                        "question": dim_detail.get("name", dim_id),
+                        "value": value,
+                        "type": "slider",
+                        "tendency": dim_detail.get("tendency", ""),
+                    }
+                )
 
         # 添加Gap问题答案
         for q_id, answer in gap_answers.items():

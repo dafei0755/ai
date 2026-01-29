@@ -21,6 +21,9 @@ import yaml
 from langchain_core.messages import HumanMessage, SystemMessage
 from loguru import logger
 
+# 🆕 v7.131: 导入LLM重试工具
+from ..utils.llm_retry import LLMRetryConfig, ainvoke_llm_with_retry
+
 
 class LLMGapQuestionGenerator:
     """基于 LLM 生成任务信息补充问题"""
@@ -136,10 +139,18 @@ class LLMGapQuestionGenerator:
                     max_tokens=self.generation_config.get("max_tokens", 2000),
                 )
 
-            # 调用 LLM
+            # 🆕 v7.131: 使用重试机制调用 LLM
             messages = [SystemMessage(content=self.system_prompt), HumanMessage(content=user_prompt)]
 
-            response = await llm.ainvoke(messages)
+            # 配置重试参数（从配置文件读取或使用默认值）
+            retry_config = LLMRetryConfig(
+                max_attempts=self.generation_config.get("max_retry_attempts", 3),
+                min_wait=self.generation_config.get("retry_min_wait", 1.0),
+                max_wait=self.generation_config.get("retry_max_wait", 10.0),
+                timeout=self.generation_config.get("llm_timeout", 30.0),
+            )
+
+            response = await ainvoke_llm_with_retry(llm, messages, config=retry_config)
             response_text = response.content if hasattr(response, "content") else str(response)
 
             # 🆕 P1修复: 使用统一JSON解析器
@@ -152,8 +163,18 @@ class LLMGapQuestionGenerator:
                 default={"questions": [], "generation_rationale": ""},
             )
 
-            questions = data.get("questions", [])
-            rationale = data.get("generation_rationale", "")
+            # 🔧 v7.130: 修复数据类型错误 - 处理LLM返回list的情况
+            if isinstance(data, list):
+                logger.warning(f"⚠️ [LLMGapQuestionGenerator] LLM返回列表而非字典，自动转换")
+                questions = data
+                rationale = ""
+            elif isinstance(data, dict):
+                questions = data.get("questions", [])
+                rationale = data.get("generation_rationale", "")
+            else:
+                logger.error(f"❌ [LLMGapQuestionGenerator] 意外的数据类型: {type(data)}")
+                questions = []
+                rationale = ""
 
             # 🆕 v7.110: 验证和修复问题类型（复用 LLMQuestionGenerator 的逻辑）
             questions = self._validate_and_fix_questions(questions)

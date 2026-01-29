@@ -269,6 +269,19 @@ class V6ChiefEngineerContent(BaseModel):
     implementation_roadmap: str = Field(default="", description="实施路线图")
 
 
+class V7EmotionalInsightContent(BaseModel):
+    """V7情感洞察专家的内容结构"""
+
+    model_config = ConfigDict(extra="forbid")
+
+    emotional_landscape: str = Field(default="", description="情绪地图：空间情绪转化路径")
+    spiritual_aspirations: str = Field(default="", description="精神追求：基于马斯洛需求层次的精神目标")
+    psychological_safety_needs: str = Field(default="", description="心理安全需求：安全基地需求和恐惧对抗策略")
+    ritual_behaviors: str = Field(default="", description="仪式行为：日常仪式感行为及其心理意义")
+    memory_anchors: str = Field(default="", description="记忆锚点：承载情感记忆的物品和元素")
+    human_centered_synthesis: str = Field(default="", description="人性维度综合：整体情感洞察与设计建议")
+
+
 # ============================================================================
 # 报告章节数据模型
 # ============================================================================
@@ -417,10 +430,11 @@ class FinalReport(BaseModel):
     6. 各专家的报告
     7. 建议（整合所有专家的建议）
 
-    ✅ 配置 extra='forbid' 以支持 OpenAI Structured Outputs 的 strict mode
+    🔧 v7.154: 将 extra='forbid' 改为 extra='ignore' 以允许 LLM 返回额外字段
+    这样可以避免因 LLM 返回 sections 等额外字段而导致验证失败
     """
 
-    model_config = ConfigDict(extra="forbid", populate_by_name=True)
+    model_config = ConfigDict(extra="ignore", populate_by_name=True)
 
     # 🔥 3. 洞察（已废弃 - 改用需求分析师的 structured_requirements）
     insights: Optional[InsightsSection] = Field(default=None, description="[已废弃] 从所有专家分析中提炼的核心洞察（不再使用）")
@@ -460,6 +474,9 @@ class FinalReport(BaseModel):
 
     # 🔥 审核可视化（可选）
     review_visualization: Optional[ReviewVisualization] = Field(default=None, description="多轮审核可视化数据（红蓝对抗过程的火力图）")
+
+    # 🆕 v7.154: 添加 sections 字段以支持 LLM 返回的章节数据
+    sections: Optional[List[Dict[str, Any]]] = Field(default=None, description="报告章节列表（LLM 可能返回此字段）")
 
 
 class ResultAggregatorAgent(LLMAgent):
@@ -884,7 +901,8 @@ class ResultAggregatorAgent(LLMAgent):
                         raise ValueError("LLM response parsed as None and no raw message available")
                 else:
                     # 转换 Pydantic 模型为字典
-                    final_report = final_report_pydantic.model_dump()
+                    # 🔥 Phase 0优化: 排除None和默认值以减少token消耗
+                    final_report = final_report_pydantic.model_dump(exclude_none=True, exclude_defaults=True)
 
                 # ✅ 新增: 检查 sections 是否为空，如果为空则手动填充
                 if not final_report.get("sections") or len(final_report["sections"]) == 0:
@@ -1162,6 +1180,51 @@ class ResultAggregatorAgent(LLMAgent):
         """
         lines = []
 
+        # 🆕 V7情感洞察专家特殊处理
+        if agent_id.startswith("7-") or agent_id.startswith("V7_"):
+            expert_name = result.get("expert_name", "V7_情感洞察专家")
+            confidence = structured_output.get("confidence", 0.0)
+
+            lines.append(f"### {expert_name} ({agent_id}) - 人性维度洞察")
+            lines.append(f"**分析置信度**: {confidence:.1%}")
+            lines.append("")
+
+            # 提取情感字段
+            emotional_fields = {
+                "emotional_landscape": "情绪地图",
+                "spiritual_aspirations": "精神追求",
+                "psychological_safety_needs": "心理安全需求",
+                "ritual_behaviors": "仪式行为洞察",
+                "memory_anchors": "记忆锚点识别",
+            }
+
+            for field_key, field_name in emotional_fields.items():
+                field_value = structured_output.get(field_key)
+                if field_value:
+                    lines.append(f"**{field_name}**:")
+                    if isinstance(field_value, dict):
+                        for k, v in field_value.items():
+                            lines.append(f"  - {k}: {v}")
+                    elif isinstance(field_value, list):
+                        for item in field_value:
+                            if isinstance(item, dict):
+                                lines.append(f"  - {json.dumps(item, ensure_ascii=False)}")
+                            else:
+                                lines.append(f"  - {item}")
+                    else:
+                        lines.append(f"  {field_value}")
+                    lines.append("")
+
+            # targeted_analysis特殊处理
+            targeted = structured_output.get("targeted_analysis")
+            if targeted:
+                lines.append("**专项情感分析**:")
+                lines.append(json.dumps(targeted, ensure_ascii=False, indent=2))
+                lines.append("")
+
+            return "\n".join(lines).strip()
+
+        # 原有V2-V6专家处理逻辑
         # 专家基本信息
         expert_summary = structured_output.get("expert_summary", {})
         expert_name = expert_summary.get("expert_name", result.get("expert_name", agent_id))
@@ -1301,10 +1364,15 @@ class ResultAggregatorAgent(LLMAgent):
             return self._create_fallback_report(llm_response, state)
 
     def _create_fallback_report(self, content: str, state: ProjectAnalysisState) -> Dict[str, Any]:
-        """创建备用的报告结构"""
+        """
+        创建备用的报告结构
+
+        🔧 v7.154: 增强 fallback 路径，从专家报告中提取实际内容而非占位符
+        """
         structured_requirements = state.get("structured_requirements", {})
         agent_results = state.get("agent_results", {})
         active_agents = state.get("active_agents", [])
+        strategic_analysis = state.get("strategic_analysis", {})
 
         # ✅ P1修复: 使用动态角色ID提取内容，而非硬编码的agent key
         # 辅助函数：根据动态role_id提取内容
@@ -1326,6 +1394,102 @@ class ResultAggregatorAgent(LLMAgent):
                     if isinstance(agent_result, dict):
                         return agent_result.get("confidence", 0.0)
             return 0.0
+
+        # 🆕 v7.154: 从专家报告中提取关键发现
+        def extract_key_findings() -> List[str]:
+            """从专家报告中提取关键发现"""
+            findings = []
+            for role_id in active_agents:
+                if not any(role_id.startswith(prefix) for prefix in ["V2_", "V3_", "V4_", "V5_", "V6_", "V7_"]):
+                    continue
+                agent_result = agent_results.get(role_id, {})
+                if not isinstance(agent_result, dict):
+                    continue
+
+                # 从 structured_data 中提取
+                structured_data = agent_result.get("structured_data", {})
+                if isinstance(structured_data, dict):
+                    ter = structured_data.get("task_execution_report", {})
+                    if isinstance(ter, dict):
+                        # 提取 additional_insights
+                        insights = ter.get("additional_insights", [])
+                        if isinstance(insights, list):
+                            for insight in insights[:2]:
+                                if isinstance(insight, str) and insight and len(insight) > 10:
+                                    findings.append(insight[:150])
+                        # 提取 task_completion_summary
+                        summary = ter.get("task_completion_summary", "")
+                        if isinstance(summary, str) and summary and len(summary) > 20:
+                            findings.append(summary[:150])
+
+                # 从 analysis 字段提取
+                analysis = agent_result.get("analysis", "")
+                if isinstance(analysis, str) and analysis and len(analysis) > 50:
+                    # 提取第一句话作为发现
+                    first_sentence = analysis.split("。")[0]
+                    if first_sentence and len(first_sentence) > 10:
+                        findings.append(first_sentence[:150])
+
+                if len(findings) >= 5:
+                    break
+
+            return findings[:5] if findings else ["基于多智能体分析的综合发现"]
+
+        # 🆕 v7.154: 从专家报告中提取建议
+        def extract_key_recommendations() -> List[str]:
+            """从专家报告中提取关键建议"""
+            recommendations = []
+            for role_id in active_agents:
+                if not any(role_id.startswith(prefix) for prefix in ["V2_", "V3_", "V4_", "V5_", "V6_", "V7_"]):
+                    continue
+                agent_result = agent_results.get(role_id, {})
+                if not isinstance(agent_result, dict):
+                    continue
+
+                structured_data = agent_result.get("structured_data", {})
+                if isinstance(structured_data, dict):
+                    ter = structured_data.get("task_execution_report", {})
+                    if isinstance(ter, dict):
+                        # 提取 execution_challenges 作为建议
+                        challenges = ter.get("execution_challenges", [])
+                        if isinstance(challenges, list):
+                            for challenge in challenges[:2]:
+                                if isinstance(challenge, str) and challenge:
+                                    recommendations.append(f"注意: {challenge[:100]}")
+                                elif isinstance(challenge, dict):
+                                    desc = challenge.get("description", challenge.get("challenge", ""))
+                                    if desc:
+                                        recommendations.append(f"注意: {desc[:100]}")
+
+                if len(recommendations) >= 5:
+                    break
+
+            return recommendations[:5] if recommendations else ["基于分析结果的核心建议"]
+
+        # 🆕 v7.154: 提取跨领域洞察
+        def extract_cross_domain_insights() -> List[str]:
+            """提取跨领域洞察"""
+            insights = []
+            expert_summaries = []
+
+            for role_id in active_agents:
+                if not any(role_id.startswith(prefix) for prefix in ["V2_", "V3_", "V4_", "V5_", "V6_", "V7_"]):
+                    continue
+                agent_result = agent_results.get(role_id, {})
+                if not isinstance(agent_result, dict):
+                    continue
+
+                role_name = agent_result.get("role_name", role_id)
+                analysis = agent_result.get("analysis", "")
+                if analysis and len(analysis) > 50:
+                    expert_summaries.append(f"{role_name}: {analysis[:100]}")
+
+            if expert_summaries:
+                insights.append(f"综合{len(expert_summaries)}位专家的分析视角")
+                for summary in expert_summaries[:3]:
+                    insights.append(summary)
+
+            return insights if insights else ["跨领域的关键洞察"]
 
         # 🆕 对所有可能包含 JTBD 公式的字段进行转换
         transformed_requirements = structured_requirements.copy()
@@ -1358,7 +1522,7 @@ class ResultAggregatorAgent(LLMAgent):
         # 从专家结果中提取交付物名称
         deliverable_names = []
         for role_id in active_agents:
-            if any(role_id.startswith(prefix) for prefix in ["V2_", "V3_", "V4_", "V5_", "V6_"]):
+            if any(role_id.startswith(prefix) for prefix in ["V2_", "V3_", "V4_", "V5_", "V6_", "V7_"]):
                 agent_result = agent_results.get(role_id, {})
                 if isinstance(agent_result, dict):
                     structured = agent_result.get("structured_data", {})
@@ -1375,14 +1539,38 @@ class ResultAggregatorAgent(LLMAgent):
         if not deliverable_names:
             deliverable_names = ["综合分析报告", "专家建议汇总"]
 
+        # 🆕 v7.154: 提取实际内容而非占位符
+        key_findings = extract_key_findings()
+        key_recommendations = extract_key_recommendations()
+        cross_domain_insights = extract_cross_domain_insights()
+
+        # 🆕 v7.154: 从 strategic_analysis 提取推敲过程
+        query_type = "深度优先探询"
+        query_type_reasoning = ""
+        role_selection = []
+        if isinstance(strategic_analysis, dict):
+            query_type = strategic_analysis.get("query_type", "深度优先探询")
+            query_type_reasoning = strategic_analysis.get("query_type_reasoning", "")
+            selected_roles = strategic_analysis.get("selected_roles", [])
+            for role in selected_roles[:5]:
+                if isinstance(role, dict):
+                    role_name = role.get("dynamic_role_name", role.get("role_id", ""))
+                    reason = role.get("selection_reason", "")
+                    if role_name:
+                        role_selection.append(f"{role_name}: {reason[:50]}" if reason else role_name)
+
         return {
             "executive_summary": {
                 "project_overview": transform_jtbd_to_natural_language(
                     structured_requirements.get("project_overview", "")
                 ),
-                "key_findings": ["基于多智能体分析的综合发现"],
-                "key_recommendations": ["基于分析结果的核心建议"],
-                "success_factors": ["项目成功的关键要素"],
+                "key_findings": key_findings,
+                "key_recommendations": key_recommendations,
+                "success_factors": [
+                    f"专家团队协作: {len(active_agents)}位专家参与分析",
+                    "多维度视角: 涵盖设计、研究、叙事等多个领域",
+                    "结构化输出: 提供可执行的交付物清单",
+                ],
             },
             # 🔥 v7.26.2: 添加 core_answer 字段（fallback 路径必须）
             "core_answer": {
@@ -1394,15 +1582,18 @@ class ResultAggregatorAgent(LLMAgent):
             },
             # 🔥 v7.26.2: 添加 insights 字段（fallback 路径必须）
             "insights": {
-                "key_insights": [structured_requirements.get("project_overview", "基于用户需求的综合分析"), "请查看各专家报告获取详细洞察"],
-                "cross_domain_connections": ["设计与商业的整合分析"],
+                "key_insights": key_findings[:3]
+                if key_findings
+                else [structured_requirements.get("project_overview", "基于用户需求的综合分析")],
+                "cross_domain_connections": cross_domain_insights[:3],
                 "user_needs_interpretation": structured_requirements.get("project_task", "用户需求的深度解读"),
             },
-            # 🔥 v7.26.2: 添加 deliberation_process 字段（fallback 路径必须）
+            # 🔥 v7.154: 增强 deliberation_process 字段
             "deliberation_process": {
-                "strategic_thinking": "基于用户需求进行多维度分析",
-                "role_selection_rationale": f"选择了 {len(active_agents)} 位专家进行协同分析",
-                "inquiry_architecture": "深度优先探询",
+                "inquiry_architecture": query_type,
+                "reasoning": query_type_reasoning[:200] if query_type_reasoning else "基于用户需求进行多维度分析",
+                "role_selection": role_selection if role_selection else [f"选择了 {len(active_agents)} 位专家进行协同分析"],
+                "strategic_approach": f"采用{query_type}策略，综合{len(active_agents)}位专家的专业视角进行深度分析",
             },
             "sections": {
                 ReportSection.REQUIREMENTS_ANALYSIS.value: {
@@ -1437,12 +1628,21 @@ class ResultAggregatorAgent(LLMAgent):
                 },
             },
             "comprehensive_analysis": {
-                "cross_domain_insights": ["跨领域的关键洞察"],
-                "integration_recommendations": ["整合建议"],
-                "risk_assessment": ["风险评估"],
-                "implementation_roadmap": ["实施路线图"],
+                "cross_domain_insights": cross_domain_insights,
+                "integrated_recommendations": key_recommendations,
+                "risk_assessment": [challenge for challenge in key_recommendations if "注意" in challenge]
+                or ["请参考各专家报告中的风险提示"],
+                "implementation_roadmap": [f"交付物: {name}" for name in deliverable_names[:5]],
             },
-            "conclusions": {"summary": "项目分析总结", "next_steps": ["下一步行动建议"], "success_metrics": ["成功指标"]},
+            "conclusions": {
+                "project_analysis_summary": structured_requirements.get("project_overview", "项目分析总结"),
+                "next_steps": key_recommendations[:3] if key_recommendations else ["下一步行动建议"],
+                "success_metrics": [
+                    f"完成{len(deliverable_names)}项核心交付物",
+                    f"获得{len(active_agents)}位专家的专业分析",
+                    "形成可执行的实施方案",
+                ],
+            },
             "raw_content": content,
         }
 
@@ -1808,11 +2008,13 @@ class ResultAggregatorAgent(LLMAgent):
         """
         获取专家分布统计
 
+        🔧 v7.154: 修复模式匹配逻辑，支持完整格式 role_id
+
         Args:
             agent_results: 专家执行结果
 
         Returns:
-            按专家层级（V2-V6）分类的数量统计
+            按专家层级（V2-V7）分类的数量统计
         """
         distribution = {
             "V2_设计总监": 0,
@@ -1820,20 +2022,27 @@ class ResultAggregatorAgent(LLMAgent):
             "V4_研究专家": 0,
             "V5_创新专家": 0,
             "V6_实施专家": 0,
+            "V7_情感专家": 0,  # 🆕 v7.154: 添加 V7 支持
         }
 
         for role_id in agent_results.keys():
             if isinstance(role_id, str):
-                if role_id.startswith("2-"):
+                # 🔧 v7.154: 支持多种格式
+                # 格式1: "2-1" (短格式)
+                # 格式2: "V2_设计总监_2-1" (完整格式)
+
+                if role_id.startswith("V2_") or "2-" in role_id:
                     distribution["V2_设计总监"] += 1
-                elif role_id.startswith("3-"):
+                elif role_id.startswith("V3_") or "3-" in role_id:
                     distribution["V3_领域专家"] += 1
-                elif role_id.startswith("4-"):
+                elif role_id.startswith("V4_") or "4-" in role_id:
                     distribution["V4_研究专家"] += 1
-                elif role_id.startswith("5-"):
+                elif role_id.startswith("V5_") or "5-" in role_id:
                     distribution["V5_创新专家"] += 1
-                elif role_id.startswith("6-"):
+                elif role_id.startswith("V6_") or "6-" in role_id:
                     distribution["V6_实施专家"] += 1
+                elif role_id.startswith("V7_") or "7-" in role_id:
+                    distribution["V7_情感专家"] += 1
 
         # 只返回有值的分布
         return {k: v for k, v in distribution.items() if v > 0}
@@ -2325,6 +2534,24 @@ class ResultAggregatorAgent(LLMAgent):
         deliverable_answers = []
         expert_support_chain = []
         owners_set = set()  # 记录已作为owner的专家
+        seen_names = {}  # 🆕 v7.154: 用于交付物名称去重
+
+        # 🆕 v7.283: 数据验证 - 过滤异常ID（防止搜索结果混入）
+        import re
+
+        valid_deliverable_pattern = re.compile(r"^\d+-\d+_\d+_\d+_[a-z]{3}$")  # 正确格式：2-1_1_143022_abc
+        invalid_count = 0
+
+        for deliverable_id in list(deliverable_metadata.keys()):
+            if not valid_deliverable_pattern.match(deliverable_id):
+                logger.error(f"🚫 [v7.283] 检测到异常交付物ID格式: {deliverable_id}，已过滤")
+                logger.error(f"   交付物名称: {deliverable_metadata[deliverable_id].get('name', 'N/A')}")
+                logger.error(f"   正确格式应为: role_id_sequence_timestamp_hash (如 2-1_1_143022_abc)")
+                deliverable_metadata.pop(deliverable_id)
+                invalid_count += 1
+
+        if invalid_count > 0:
+            logger.warning(f"⚠️ [v7.283] 已过滤 {invalid_count} 个异常交付物ID（可能是搜索结果数据混入）")
 
         # 1. 提取每个交付物的责任者答案
         for deliverable_id, metadata in deliverable_metadata.items():
@@ -2352,17 +2579,42 @@ class ResultAggregatorAgent(LLMAgent):
                 quality_score = self._extract_quality_score(owner_result)
 
             # 🆕 v7.108: 提取概念图
+            # 🔧 v7.154: 增强概念图关联逻辑
             concept_images = []
             if owner_result:
                 concept_images_data = owner_result.get("concept_images", [])
                 # 过滤出属于该交付物的概念图
                 for img_data in concept_images_data:
-                    if img_data.get("deliverable_id") == deliverable_id:
+                    img_deliverable_id = img_data.get("deliverable_id", "")
+                    # 精确匹配
+                    if img_deliverable_id == deliverable_id:
                         concept_images.append(img_data)
+                    # 🆕 v7.154: 如果是主交付物（如 D1），关联该专家的所有概念图
+                    elif deliverable_id.startswith("D") and deliverable_id[1:].isdigit():
+                        # D1, D2 等主交付物，关联该专家的所有概念图
+                        concept_images.append(img_data)
+                        logger.debug(f"🖼️ [v7.154] 主交付物 {deliverable_id} 关联概念图: {img_deliverable_id}")
+
+            # 🆕 v7.154: 交付物名称去重
+            deliverable_name = metadata.get("name", deliverable_id)
+            if deliverable_name in seen_names:
+                # 名称重复，添加后缀区分
+                seen_names[deliverable_name] += 1
+                # 从 owner_role 中提取专家标识作为后缀
+                import re
+
+                suffix_match = re.search(r"(\d+-\d+)$", owner_role)
+                if suffix_match:
+                    deliverable_name = f"{deliverable_name} ({suffix_match.group(1)})"
+                else:
+                    deliverable_name = f"{deliverable_name} ({seen_names[deliverable_name]})"
+                logger.debug(f"🔄 [v7.154] 交付物名称去重: {metadata.get('name')} -> {deliverable_name}")
+            else:
+                seen_names[deliverable_name] = 1
 
             deliverable_answer = {
                 "deliverable_id": deliverable_id,
-                "deliverable_name": metadata.get("name", deliverable_id),
+                "deliverable_name": deliverable_name,
                 "deliverable_type": metadata.get("type", "unknown"),
                 "owner_role": owner_role,
                 "owner_answer": owner_answer,
@@ -2408,8 +2660,24 @@ class ResultAggregatorAgent(LLMAgent):
         question = structured_requirements.get("project_task") or user_input[:200] if user_input else "待定"
         deliverables_list = [d.get("deliverable_name", d.get("deliverable_id")) for d in deliverable_answers]
         answer_summary = self._generate_combined_summary(deliverable_answers)
-        timeline = structured_requirements.get("timeline", "待定")
-        budget_range = structured_requirements.get("budget_range", "待定")
+
+        # 🆕 v7.154: 增强 timeline 和 budget 提取逻辑
+        # 优先级：顶层字段 > constraints 子字段 > 默认值
+        timeline = structured_requirements.get("timeline")
+        if not timeline or timeline == "待定":
+            constraints = structured_requirements.get("constraints", {})
+            if isinstance(constraints, dict):
+                timeline = constraints.get("timeline") or constraints.get("project_timeline")
+        if not timeline or timeline in ["待定", "未明确", "N/A", None]:
+            timeline = "请参考专家报告中的实施规划"
+
+        budget_range = structured_requirements.get("budget_range")
+        if not budget_range or budget_range == "待定":
+            constraints = structured_requirements.get("constraints", {})
+            if isinstance(constraints, dict):
+                budget_range = constraints.get("budget") or constraints.get("budget_range")
+        if not budget_range or budget_range in ["待定", "未明确", "N/A", None]:
+            budget_range = "请参考专家报告中的成本估算"
 
         result = {
             "deliverable_answers": deliverable_answers,
@@ -2417,8 +2685,8 @@ class ResultAggregatorAgent(LLMAgent):
             "question": question,
             "answer": answer_summary,
             "deliverables": deliverables_list,
-            "timeline": timeline if isinstance(timeline, str) else "待定",
-            "budget_range": budget_range if isinstance(budget_range, str) else "待定",
+            "timeline": timeline if isinstance(timeline, str) else "请参考专家报告中的实施规划",
+            "budget_range": budget_range if isinstance(budget_range, str) else "请参考专家报告中的成本估算",
         }
 
         logger.info(f"🎯 [v7.0] 提取完成: {len(deliverable_answers)} 个交付物答案, {len(expert_support_chain)} 个支撑专家")
@@ -2428,25 +2696,51 @@ class ResultAggregatorAgent(LLMAgent):
         """
         在 agent_results 中查找匹配的专家输出
 
-        owner_role 可能是完整描述如 "V2_设计总监_室内策略方向"
+        owner_role 可能是完整描述如 "V2_高净值住宅空间与个性化设计总规划师_2-1"
         agent_results key 可能是 "V2_设计总监_2-1"
-        需要通过前缀匹配
+
+        匹配策略（按优先级）：
+        1. 精确匹配
+        2. 后缀匹配（如 "2-1"）- 最可靠，因为后缀是唯一标识符
+        3. 前缀匹配（如 "V2_"）- 作为兜底
+
+        🔧 v7.154: 增强匹配逻辑，支持动态角色名称与简化角色名称的匹配
         """
-        # 精确匹配
+        import re
+
+        # 1. 精确匹配
         if owner_role in agent_results:
             return agent_results[owner_role]
 
-        # 提取前缀（如 V2_设计总监）
+        # 2. 后缀匹配（提取 "2-1" 这样的后缀）
+        # owner_role 格式: "V2_高净值住宅空间与个性化设计总规划师_2-1"
+        # agent_results key 格式: "V2_设计总监_2-1"
+        suffix_match = re.search(r"(\d+-\d+)$", owner_role)
+        if suffix_match:
+            suffix = suffix_match.group(1)  # 如 "2-1"
+            tier_prefix = owner_role.split("_")[0] if "_" in owner_role else ""  # 如 "V2"
+
+            for key in agent_results.keys():
+                # 检查 key 是否以相同后缀结尾，且前缀匹配
+                if key.endswith(f"_{suffix}") or key.endswith(f"-{suffix}"):
+                    # 确保层级前缀也匹配（V2 匹配 V2，不匹配 V3）
+                    key_prefix = key.split("_")[0] if "_" in key else ""
+                    if tier_prefix and key_prefix == tier_prefix:
+                        logger.debug(f"🎯 [v7.154] 后缀匹配成功: {owner_role} -> {key} (suffix={suffix})")
+                        return agent_results[key]
+
+        # 3. 前缀匹配（如 V2_）- 作为兜底
         parts = owner_role.split("_")
-        if len(parts) >= 2:
-            prefix = f"{parts[0]}_{parts[1]}"  # V2_设计总监
+        if len(parts) >= 1:
+            tier_prefix = parts[0]  # V2, V3, V4 等
 
             # 查找以此前缀开头的专家
             for key in agent_results.keys():
-                if key.startswith(prefix):
-                    logger.debug(f"找到匹配专家: {owner_role} -> {key}")
+                if key.startswith(f"{tier_prefix}_"):
+                    logger.debug(f"🔄 [v7.154] 前缀匹配成功: {owner_role} -> {key} (prefix={tier_prefix})")
                     return agent_results[key]
 
+        logger.warning(f"⚠️ [v7.154] 未找到匹配的专家: {owner_role}")
         return None
 
     def _extract_owner_deliverable_output(self, owner_result: Dict[str, Any], deliverable_id: str) -> str:

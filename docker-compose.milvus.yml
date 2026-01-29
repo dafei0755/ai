@@ -1,0 +1,50 @@
+# Docker Compose 配置 - Milvus 向量数据库服务
+# 用法: docker-compose -f docker-compose.milvus.yml up -d
+
+version: '3.8'
+
+services:
+  # Milvus Standalone 服务
+  milvus-standalone:
+    image: milvusdb/milvus:v2.4.0
+    container_name: milvus-standalone
+    restart: unless-stopped
+    command: milvus run standalone
+    ports:
+      - "19530:19530"  # Milvus gRPC 端口
+      - "9091:9091"    # Milvus Web UI 端口
+    environment:
+      ETCD_USE_EMBED: "true"
+      COMMON_STORAGETYPE: local
+    volumes:
+      - ./data/milvus:/var/lib/milvus
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9091/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 90s
+    networks:
+      - milvus
+
+  # Attu - Milvus 可视化管理界面 (可选)
+  attu:
+    image: zilliz/attu:v2.4
+    container_name: milvus-attu
+    restart: unless-stopped
+    ports:
+      - "3000:3000"  # Attu Web UI 端口
+    environment:
+      MILVUS_URL: milvus-standalone:19530
+    depends_on:
+      - milvus-standalone
+    networks:
+      - milvus
+
+networks:
+  milvus:
+    driver: bridge
+
+volumes:
+  milvus-data:
+    driver: local

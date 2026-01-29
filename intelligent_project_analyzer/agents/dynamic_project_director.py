@@ -133,6 +133,8 @@ class RoleSelection(BaseModel):
             return f"V5_场景与行业专家_{role_id}"  # ✅ 配置文件键名
         elif role_id.startswith("6-"):
             return f"V6_专业总工程师_{role_id}"
+        elif role_id.startswith("7-"):
+            return f"V7_情感洞察专家_{role_id}"  # 🆕 V7情感洞察专家
         else:
             # 未知格式，直接返回
             return role_id

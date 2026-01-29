@@ -10,7 +10,6 @@ from pathlib import Path
 from typing import Any, Dict, List
 
 import yaml
-from langchain_openai import ChatOpenAI
 from loguru import logger
 
 
@@ -31,10 +30,22 @@ class DynamicDimensionGenerator:
         # 加载配置
         self.config = self._load_config()
 
-        # 初始化LLM
-        model_name = os.getenv("DIMENSION_LLM_MODEL", "gpt-4o-mini")
-        self.llm = ChatOpenAI(model=model_name, temperature=0.7, timeout=30)
-        logger.info(f"   LLM模型: {model_name}")
+        # 🔧 v7.150: 使用 LLMFactory 而非直接创建 ChatOpenAI
+        # 解决 OpenRouter 配置下的 HTTP header 编码问题（emoji 导致 ASCII 编码失败）
+        try:
+            from intelligent_project_analyzer.services.llm_factory import LLMFactory
+
+            model_name = os.getenv("DIMENSION_LLM_MODEL", "gpt-4o-mini")
+            self.llm = LLMFactory.create_llm(temperature=0.7, timeout=30)
+            logger.info(f"   LLM模型: {model_name} (via LLMFactory)")
+        except Exception as e:
+            # 降级：直接创建 ChatOpenAI（仅限 OpenAI 官方 API）
+            logger.warning(f"⚠️ LLMFactory 创建失败，降级使用 ChatOpenAI: {e}")
+            from langchain_openai import ChatOpenAI
+
+            model_name = os.getenv("DIMENSION_LLM_MODEL", "gpt-4o-mini")
+            self.llm = ChatOpenAI(model=model_name, temperature=0.7, timeout=30)
+            logger.info(f"   LLM模型: {model_name} (降级模式)")
 
     def _load_config(self) -> Dict[str, Any]:
         """加载Prompt配置"""
@@ -164,8 +175,19 @@ class DynamicDimensionGenerator:
             return self._default_coverage_result()
 
     def _default_coverage_result(self) -> Dict[str, Any]:
-        """降级策略：返回默认覆盖度结果"""
-        return {"coverage_score": 0.95, "should_generate": False, "missing_aspects": [], "analysis": "LLM调用失败，降级为默认覆盖度"}
+        """降级策略：返回默认覆盖度结果
+
+        🔧 v7.154: 降级时仍触发维度生成，确保用户获得动态维度体验
+        - should_generate 改为 True
+        - missing_aspects 提供默认值，触发 generate_dimensions
+        """
+        logger.warning("⚠️ [降级策略] LLM覆盖度分析失败，启用降级生成模式")
+        return {
+            "coverage_score": 0.70,  # 🔧 v7.154: 降低分数表示覆盖不足
+            "should_generate": True,  # 🔧 v7.154: 改为True，确保触发生成
+            "missing_aspects": ["用户独特需求", "项目特色要求"],  # 🔧 v7.154: 提供默认缺失方面
+            "analysis": "LLM调用失败，降级为智能生成模式",
+        }
 
     def generate_dimensions(
         self, user_input: str, structured_data: Dict[str, Any], missing_aspects: List[str], target_count: int = 2
@@ -321,7 +343,9 @@ class DynamicDimensionGenerator:
                 return False
 
         # 规则2: ID格式
-        id_pattern = rules.get("id_pattern", r"^[a-z][a-z0-9_]{2,30}$")
+        id_pattern_raw = rules.get("id_pattern", r"^[a-z][a-z0-9_]{2,30}$")
+        # YAML 模板中使用了 {{ }} 进行转义，这里需要恢复为正则语法
+        id_pattern = id_pattern_raw.replace("{{", "{").replace("}}", "}")
         if not re.match(id_pattern, dimension["id"]):
             logger.warning(f"❌ 维度ID格式错误: {dimension['id']}")
             return False

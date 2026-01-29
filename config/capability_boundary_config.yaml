@@ -72,10 +72,10 @@ checkpoints:
   # 三步问卷 - Step 3 信息补齐
   progressive_step3_gap_filling:
     enabled: true
-    check_type: "info"                # 仅检查信息充足性
+    check_type: "full"                # 完整检查（交付物+信息）
     auto_transform: true
     interaction_threshold: 0.5
-    notes: "补充信息时，检查是否提供了足够的细节"
+    notes: "补充信息时，检查交付物能力边界并提供足够的细节"
 
   # 角色任务统一审核
   role_task_unified_review:

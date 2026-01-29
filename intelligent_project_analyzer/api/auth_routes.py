@@ -79,31 +79,34 @@ async def refresh_token(request: Request):
 
     logger.info("🔄 Token 刷新请求")
 
-    # 验证旧 Token
-    payload = jwt_service.verify_jwt_token(old_token)
-    if not payload:
-        logger.warning("❌ Token 验证失败，刷新被拒绝")
-        raise HTTPException(status_code=401, detail="Token 无效或已过期")
-
-    # 生成新 Token
+    # 🔧 [Bug修复] 直接尝试刷新Token，让refresh_jwt_token方法处理过期验证
+    # 旧逻辑：先验证Token，过期则直接拒绝（无法利用7天宽限期）
+    # 新逻辑：直接调用refresh，让JWT服务内部处理宽限期逻辑
     try:
         new_token = jwt_service.refresh_jwt_token(old_token)
         if not new_token:
-            raise HTTPException(status_code=401, detail="Token 刷新失败")
+            logger.warning("❌ Token 刷新失败 - Token无效或已过期超过宽限期")
+            raise HTTPException(status_code=401, detail="Token 无效或已过期超过宽限期")
 
-        logger.info(f"✅ Token 刷新成功: {payload.get('username')}")
+        # 验证新Token以获取用户信息用于日志
+        new_payload = jwt_service.verify_jwt_token(new_token)
+        username = new_payload.get("username", "unknown") if new_payload else "unknown"
+        logger.info(f"✅ Token 刷新成功: {username}")
 
         return {
             "status": "success",
             "token": new_token,
             "user": {
-                "user_id": payload.get("user_id"),
-                "username": payload.get("username"),
-                "email": payload.get("email"),
-                "name": payload.get("name"),
-                "roles": payload.get("roles", []),
+                "user_id": new_payload.get("user_id") if new_payload else None,
+                "username": new_payload.get("username") if new_payload else None,
+                "email": new_payload.get("email") if new_payload else None,
+                "name": new_payload.get("name") if new_payload else None,
+                "roles": new_payload.get("roles", []) if new_payload else [],
             },
         }
+    except HTTPException:
+        # 🔧 v7.283: 直接重新抛出HTTPException，保持原始状态码
+        raise
     except Exception as e:
         logger.error(f"❌ Token 刷新异常: {str(e)}")
         raise HTTPException(status_code=500, detail="Token 刷新失败")

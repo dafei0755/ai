@@ -453,7 +453,51 @@ except Exception as e:
 
 ---
 
-## 📮 反馈与改进
+## � 新增字段完整链路检查清单（MANDATORY）
+
+> **v7.219 新增** - 根据搜索会话字段持久化回归问题总结
+
+**每次新增需要持久化的前端状态字段时，必须同时修改以下 5 个位置**：
+
+| # | 位置 | 文件示例 | 检查项 |
+|---|------|---------|--------|
+| 1 | 前端状态定义 | `page.tsx` SearchState 接口 | 定义字段类型 |
+| 2 | 前端保存 | `page.tsx` saveSearchStateToBackend | 传递给后端 |
+| 3 | 后端API定义 | `search_routes.py` SaveSearchSessionRequest | 接收字段定义 |
+| 4 | 数据库模型+存储 | `session_archive_manager.py` | 模型Column + archive方法 |
+| 5 | 后端返回+前端加载 | `session_archive_manager.py` + `page.tsx` | get方法返回 + load恢复 |
+
+### 字段命名规范
+
+| 层 | 命名风格 | 示例 |
+|---|---------|------|
+| 前端 TypeScript | camelCase | `l0Content`, `problemSolvingThinking` |
+| 后端 Python API | camelCase (接收前端) | `l0Content`, `problemSolvingThinking` |
+| 数据库列 | snake_case | `l0_content`, `problem_solving_thinking` |
+| 后端返回 JSON | camelCase (返回前端) | `l0Content`, `problemSolvingThinking` |
+
+### 检查清单
+
+```
+[ ] 1. 前端 SearchState 接口已定义新字段
+[ ] 2. 前端 saveSearchStateToBackend 已传递新字段
+[ ] 3. 后端 SaveSearchSessionRequest 已定义新字段
+[ ] 4. 后端 archive_search_session 已提取并存储新字段
+[ ] 5. 数据库模型 ArchivedSearchSession 已添加新列
+[ ] 6. 后端 get_search_session 已返回新字段
+[ ] 7. 前端 loadSearchStateFromBackend 已恢复新字段
+[ ] 8. 已创建数据库迁移脚本添加新列
+```
+
+### 历史案例
+
+**v7.219 回归问题**：`l0Content`、`problemSolvingThinking`、`structuredInfo` 字段只在前端定义和加载时尝试恢复，但从未在保存链路中传递，导致刷新后数据丢失。
+
+**教训**：新功能开发时"前端先行"但遗漏了完整的持久化链路。
+
+---
+
+## �📮 反馈与改进
 
 如果发现本规范未能防止某类错误，请：
 1. 在 `.github/historical_fixes/` 记录案例（参考v7.107.1模板）

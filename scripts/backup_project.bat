@@ -121,6 +121,20 @@ git diff HEAD > "%BACKUP_DIR%\git_diff.patch" 2>nul
 git log -10 --oneline > "%BACKUP_DIR%\git_log.txt" 2>nul
 git status > "%BACKUP_DIR%\git_status.txt" 2>nul
 
+REM 创建完整的 Git bundle（包含所有分支和历史）
+echo    [创建Git bundle...]
+git bundle create "%BACKUP_DIR%\repo.bundle" --all >nul 2>&1
+if exist "%BACKUP_DIR%\repo.bundle" (
+    echo    [✓] Git bundle创建成功
+    REM 记录当前提交和分支信息
+    git rev-parse HEAD > "%BACKUP_DIR%\git_current_commit.txt" 2>nul
+    git branch --show-current > "%BACKUP_DIR%\git_current_branch.txt" 2>nul
+    git branch -a > "%BACKUP_DIR%\git_branches.txt" 2>nul
+    git tag > "%BACKUP_DIR%\git_tags.txt" 2>nul
+) else (
+    echo    [!] 警告: Git bundle创建失败
+)
+
 REM 8. 创建备份清单
 echo %MSG8% 创建备份清单
 echo 项目自动备份 > "%BACKUP_DIR%\BACKUP_INFO.txt"
@@ -138,6 +152,7 @@ echo - Python 后端模块 (agents/, workflow/, api/, services/, interaction/, r
 echo - Next.js 前端代码 (app/, components/, lib/, types/, contexts/, hooks/, public/ - 完整) >> "%BACKUP_DIR%\BACKUP_INFO.txt"
 echo - 数据目录 (data/ - 仅数据库文件，排除图片/上传文件) >> "%BACKUP_DIR%\BACKUP_INFO.txt"
 echo - Git 快照 (diff, log, status) >> "%BACKUP_DIR%\BACKUP_INFO.txt"
+echo - Git bundle (repo.bundle - 完整历史，可恢复到任意版本) >> "%BACKUP_DIR%\BACKUP_INFO.txt"
 echo. >> "%BACKUP_DIR%\BACKUP_INFO.txt"
 echo 已排除内容（节省空间）: >> "%BACKUP_DIR%\BACKUP_INFO.txt"
 echo - 图片文件 (archived_images/, followup_images/, generated_images/) >> "%BACKUP_DIR%\BACKUP_INFO.txt"
@@ -147,12 +162,21 @@ echo - Node依赖 (node_modules/, .next/) >> "%BACKUP_DIR%\BACKUP_INFO.txt"
 echo - Python缓存 (__pycache__/, *.pyc) >> "%BACKUP_DIR%\BACKUP_INFO.txt"
 echo ================================ >> "%BACKUP_DIR%\BACKUP_INFO.txt"
 
-REM 9. 清理旧备份（保留最近14天，即28个备份）
+REM 9. 清理旧备份（保留最近7天，即14个备份）
 echo %MSG_CLEAN% 清理旧备份
-forfiles /p "%BACKUP_ROOT%" /m "auto_backup_*" /d -14 /c "cmd /c if @isdir==TRUE rmdir /s /q @path" >nul 2>&1
+forfiles /p "%BACKUP_ROOT%" /m "auto_backup_*" /d -7 /c "cmd /c if @isdir==TRUE rmdir /s /q @path" >nul 2>&1
 
 REM 计算备份大小（简化版，避免管道转义问题）
 set BACKUP_SIZE=未知
+
+REM 10. 验证备份完整性
+echo 验证备份完整性...
+python "%PROJECT_ROOT%\scripts\verify_backup.py" --latest >nul 2>&1
+if %ERRORLEVEL% EQU 0 (
+    echo [✓] 备份验证通过
+) else (
+    echo [!] 警告: 备份验证失败，请检查
+)
 
 echo ========================================
 echo 备份完成: %date% %time%

@@ -30,7 +30,7 @@ def main():
     bocha_configured = settings.bocha.api_key and settings.bocha.api_key != "your_bocha_api_key_here"
     print(f"  Bocha API Key: {'已配置' if bocha_configured else '未配置'}")
     print(f"  ArXiv Enabled: {settings.arxiv.enabled}")
-    print(f"  RAGFlow API Key: {'已配置' if settings.ragflow.api_key else '未配置'}")
+    print(f"  Milvus Enabled: {settings.milvus.enabled}")  # v7.154: RAGFlow → Milvus
     print()
 
     # 步骤2: 创建工具实例

@@ -13,19 +13,22 @@ Flexible Output Models - V6 Chief Engineer Roles
 - V6-4: 成本与价值工程师
 """
 
-from typing import List, Dict, Any, Optional, Literal
-from pydantic import BaseModel, Field, model_validator
 from enum import Enum
+from typing import Any, Dict, List, Literal, Optional
+
+from pydantic import BaseModel, Field, model_validator
 
 
 class OutputMode(str, Enum):
     """输出模式枚举"""
-    TARGETED = "targeted"          # 针对性问答模式
+
+    TARGETED = "targeted"  # 针对性问答模式
     COMPREHENSIVE = "comprehensive"  # 完整报告模式
 
 
 class TechnicalOption(BaseModel):
     """单一技术选项模型"""
+
     option_name: str = Field(description="方案名称，如：'钢框架-支撑体系', '单元式玻璃幕墙'")
     advantages: List[str] = Field(description="该方案的优点列表，如：'成本低', '施工速度快'")
     disadvantages: List[str] = Field(description="该方案的缺点列表，如：'对建筑形态限制大', '外观效果一般'")
@@ -34,6 +37,7 @@ class TechnicalOption(BaseModel):
 
 class KeyNodeAnalysis(BaseModel):
     """单一关键技术节点分析模型"""
+
     node_name: str = Field(description="关键节点名称，如：'大跨度屋顶', '自由曲面转角', '超大玻璃肋'")
     challenge: str = Field(description="该节点的核心技术挑战")
     proposed_solution: str = Field(description="初步建议的解决方案")
@@ -73,11 +77,7 @@ class V6_1_FlexibleOutput(BaseModel):
         """
     )
 
-    confidence: float = Field(
-        description="分析置信度 (0.0-1.0)",
-        ge=0,
-        le=1
-    )
+    confidence: float = Field(description="分析置信度 (0.0-1.0)", ge=0, le=1)
 
     design_rationale: str = Field(
         description="""
@@ -94,7 +94,7 @@ class V6_1_FlexibleOutput(BaseModel):
         description="""
         【Comprehensive模式必需】对V2设计意图的综合技术可行性评估
         明确指出哪些是常规技术可实现的，哪些是具有高度挑战性的
-        """
+        """,
     )
 
     structural_system_options: Optional[List[TechnicalOption]] = Field(
@@ -102,7 +102,7 @@ class V6_1_FlexibleOutput(BaseModel):
         description="""
         【Comprehensive模式必需】针对建筑主体，提出至少两种结构体系方案
         进行优缺点和经济性比较
-        """
+        """,
     )
 
     facade_system_options: Optional[List[TechnicalOption]] = Field(
@@ -110,7 +110,7 @@ class V6_1_FlexibleOutput(BaseModel):
         description="""
         【Comprehensive模式必需】针对建筑外立面，提出至少两种幕墙/表皮系统方案
         进行优缺点和经济性比较
-        """
+        """,
     )
 
     key_technical_nodes: Optional[List[KeyNodeAnalysis]] = Field(
@@ -118,7 +118,7 @@ class V6_1_FlexibleOutput(BaseModel):
         description="""
         【Comprehensive模式必需】识别并分析方案中最重要的2-3个关键技术节点
         及其初步解决方案
-        """
+        """,
     )
 
     risk_analysis_and_recommendations: Optional[str] = Field(
@@ -126,7 +126,7 @@ class V6_1_FlexibleOutput(BaseModel):
         description="""
         【Comprehensive模式必需】对潜在的结构与幕墙风险进行分析
         （如超限、变形、漏水），并提出需要优先进行深化设计或实验验证的建议
-        """
+        """,
     )
 
     # ===== 第三层：灵活内容区（针对性模式的核心输出） =====
@@ -199,7 +199,7 @@ class V6_1_FlexibleOutput(BaseModel):
         - 以上模板仅为参考，可根据具体问题灵活调整
         - 关键原则：结构清晰、信息完整、针对性强
         - 避免在targeted_analysis中塞入与问题无关的内容
-        """
+        """,
     )
 
     # ===== 第四层：扩展性保障 =====
@@ -208,21 +208,15 @@ class V6_1_FlexibleOutput(BaseModel):
         description="""
         补充性洞察或跨领域分析
         用于提供额外的、对决策有价值的信息
-        """
+        """,
     )
 
     # ===== v3.5 Expert Autonomy Protocol 扩展字段 =====
-    expert_handoff_response: Optional[Dict[str, Any]] = Field(
-        None,
-        description="对expert_handoff的结构化响应（v3.5协议）"
-    )
+    expert_handoff_response: Optional[Dict[str, Any]] = Field(None, description="对expert_handoff的结构化响应（v3.5协议）")
 
-    challenge_flags: Optional[List[Dict[str, str]]] = Field(
-        None,
-        description="挑战标记列表（如有）（v3.5协议）"
-    )
+    challenge_flags: Optional[List[Dict[str, str]]] = Field(None, description="挑战标记列表（如有）（v3.5协议）")
 
-    @model_validator(mode='after')
+    @model_validator(mode="after")
     def validate_output_consistency(self):
         """
         验证输出一致性
@@ -234,50 +228,53 @@ class V6_1_FlexibleOutput(BaseModel):
         """
         mode = self.output_mode
 
-        if mode == 'comprehensive':
+        if mode == "comprehensive":
             # 完整报告模式：检查所有标准字段是否填充
             required_fields = [
-                'feasibility_assessment',
-                'structural_system_options',
-                'facade_system_options',
-                'key_technical_nodes',
-                'risk_analysis_and_recommendations'
+                "feasibility_assessment",
+                "structural_system_options",
+                "facade_system_options",
+                "key_technical_nodes",
+                "risk_analysis_and_recommendations",
             ]
 
             missing = [f for f in required_fields if not getattr(self, f)]
             if missing:
-                raise ValueError(
-                    f"⚠️ Comprehensive模式下必需字段缺失: {', '.join(missing)}\n"
-                    f"完整报告模式要求提供系统性的全面分析，请填充所有标准字段。"
-                )
+                raise ValueError(f"⚠️ Comprehensive模式下必需字段缺失: {', '.join(missing)}\n" f"完整报告模式要求提供系统性的全面分析，请填充所有标准字段。")
 
-        elif mode == 'targeted':
+        elif mode == "targeted":
             # 针对性模式：检查targeted_analysis是否填充
             if not self.targeted_analysis:
                 raise ValueError(
-                    "⚠️ Targeted模式下必须填充targeted_analysis字段\n"
-                    "针对性模式要求直接回答用户的核心问题，请在targeted_analysis中提供专项分析。"
+                    "⚠️ Targeted模式下必须填充targeted_analysis字段\n" "针对性模式要求直接回答用户的核心问题，请在targeted_analysis中提供专项分析。"
                 )
 
             # 可选：警告如果在Targeted模式下填充了标准字段（可能是冗余）
             standard_fields_filled = [
-                f for f in ['feasibility_assessment', 'structural_system_options',
-                           'facade_system_options', 'key_technical_nodes',
-                           'risk_analysis_and_recommendations']
+                f
+                for f in [
+                    "feasibility_assessment",
+                    "structural_system_options",
+                    "facade_system_options",
+                    "key_technical_nodes",
+                    "risk_analysis_and_recommendations",
+                ]
                 if getattr(self, f) is not None
             ]
             if standard_fields_filled:
                 import warnings
+
                 warnings.warn(
                     f"⚠️ Targeted模式下不建议填充标准字段：{', '.join(standard_fields_filled)}\n"
                     f"这可能导致输出冗余。针对性模式应聚焦于targeted_analysis字段。",
-                    UserWarning
+                    UserWarning,
                 )
 
         return self
 
     class Config:
         """Pydantic配置"""
+
         # 允许字段别名（Pydantic v2）
         populate_by_name = True
 
@@ -297,19 +294,19 @@ if __name__ == "__main__":
                     "advantages": ["能实现大跨度", "自重较轻", "施工速度快"],
                     "disadvantages": ["用钢量大", "造价偏高", "防火处理复杂"],
                     "cost_level": "高",
-                    "applicability": "适用于跨度>50米的大空间建筑"
+                    "applicability": "适用于跨度>50米的大空间建筑",
                 },
                 {
                     "option_name": "预应力混凝土梁",
                     "advantages": ["整体性好", "耐久性强", "防火性能好"],
                     "disadvantages": ["自重大", "施工周期长", "跨度受限"],
                     "cost_level": "中",
-                    "applicability": "适用于跨度30-50米的常规建筑"
-                }
+                    "applicability": "适用于跨度30-50米的常规建筑",
+                },
             ],
             "recommendation": "综合考虑项目特点，建议采用空间钢桁架体系",
-            "decision_framework": "关键决策维度：跨度能力(权重40%) > 成本(30%) > 施工周期(30%)"
-        }
+            "decision_framework": "关键决策维度：跨度能力(权重40%) > 成本(30%) > 施工周期(30%)",
+        },
     )
 
     print("=" * 60)
@@ -329,7 +326,7 @@ if __name__ == "__main__":
                 option_name="空间钢桁架体系",
                 advantages=["能实现大跨度", "自重较轻"],
                 disadvantages=["用钢量大", "造价偏高"],
-                estimated_cost_level="高"
+                estimated_cost_level="高",
             )
         ],
         facade_system_options=[
@@ -337,17 +334,17 @@ if __name__ == "__main__":
                 option_name="参数化单元式幕墙",
                 advantages=["工厂预制", "质量可控"],
                 disadvantages=["造价极高", "深化工作量大"],
-                estimated_cost_level="高"
+                estimated_cost_level="高",
             )
         ],
         key_technical_nodes=[
             KeyNodeAnalysis(
                 node_name="屋顶无柱大跨度中庭",
                 challenge="如何在不设置柱子的情况下覆盖80m x 50m的空间",
-                proposed_solution="建议采用正交张弦梁结构，通过预应力钢索提供向上支撑力"
+                proposed_solution="建议采用正交张弦梁结构，通过预应力钢索提供向上支撑力",
             )
         ],
-        risk_analysis_and_recommendations="主要风险：1. 幕墙成本超支风险...; 2. 结构变形风险..."
+        risk_analysis_and_recommendations="主要风险：1. 幕墙成本超支风险...; 2. 结构变形风险...",
     )
 
     print("\n" + "=" * 60)
@@ -373,8 +370,10 @@ if __name__ == "__main__":
 
 # ===== V6-2: 机电与智能化工程师 =====
 
+
 class SystemSolution(BaseModel):
     """单一机电系统解决方案模型"""
+
     system_name: str = Field(description="系统名称，如：'暖通空调系统 (HVAC)', '智能照明系统'")
     recommended_solution: str = Field(description="推荐的系统方案或技术选型")
     reasoning: str = Field(description="选择此方案的理由，需结合节能、舒适度、成本和与建筑的整合性")
@@ -383,6 +382,7 @@ class SystemSolution(BaseModel):
 
 class SmartScenario(BaseModel):
     """单一智能化场景模型"""
+
     scenario_name: str = Field(description="智能化场景名称，如：'会议模式', '节能离场模式'")
     description: str = Field(description="该场景的用户体验描述")
     triggered_systems: List[str] = Field(description="触发此场景时，联动的机电系统列表")
@@ -422,11 +422,7 @@ class V6_2_FlexibleOutput(BaseModel):
         """
     )
 
-    confidence: float = Field(
-        description="分析置信度 (0.0-1.0)",
-        ge=0,
-        le=1
-    )
+    confidence: float = Field(description="分析置信度 (0.0-1.0)", ge=0, le=1)
 
     design_rationale: str = Field(
         description="""
@@ -443,7 +439,7 @@ class V6_2_FlexibleOutput(BaseModel):
         description="""
         【Comprehensive模式必需】机电总体策略
         阐述本次机电设计的核心目标和主要技术路径
-        """
+        """,
     )
 
     system_solutions: Optional[List[SystemSolution]] = Field(
@@ -451,7 +447,7 @@ class V6_2_FlexibleOutput(BaseModel):
         description="""
         【Comprehensive模式必需】核心机电系统解决方案列表
         至少包含暖通、电气、给排水三大系统
-        """
+        """,
     )
 
     smart_building_scenarios: Optional[List[SmartScenario]] = Field(
@@ -459,7 +455,7 @@ class V6_2_FlexibleOutput(BaseModel):
         description="""
         【Comprehensive模式必需】智能化解决方案
         通过具体的用户场景来描述智能化系统将如何提升空间体验和运营效率
-        """
+        """,
     )
 
     coordination_and_clash_points: Optional[str] = Field(
@@ -467,7 +463,7 @@ class V6_2_FlexibleOutput(BaseModel):
         description="""
         【Comprehensive模式必需】与其他专业的协同与碰撞点
         明确指出机电系统与结构、幕墙、内装等专业最主要的矛盾点及建议的解决方案
-        """
+        """,
     )
 
     sustainability_and_energy_saving: Optional[str] = Field(
@@ -475,7 +471,7 @@ class V6_2_FlexibleOutput(BaseModel):
         description="""
         【Comprehensive模式必需】可持续与节能策略
         列出本项目中采用的主要绿色建筑技术和预期节能目标
-        """
+        """,
     )
 
     # ===== 第三层：灵活内容区（针对性模式的核心输出） =====
@@ -550,7 +546,7 @@ class V6_2_FlexibleOutput(BaseModel):
         - 以上模板仅为参考，可根据具体问题灵活调整
         - 关键原则：结构清晰、信息完整、针对性强
         - 避免在targeted_analysis中塞入与问题无关的内容
-        """
+        """,
     )
 
     # ===== 第四层：扩展性保障 =====
@@ -559,21 +555,15 @@ class V6_2_FlexibleOutput(BaseModel):
         description="""
         补充性洞察或跨领域分析
         用于提供额外的、对决策有价值的信息
-        """
+        """,
     )
 
     # ===== v3.5 Expert Autonomy Protocol 扩展字段 =====
-    expert_handoff_response: Optional[Dict[str, Any]] = Field(
-        None,
-        description="对expert_handoff的结构化响应（v3.5协议）"
-    )
+    expert_handoff_response: Optional[Dict[str, Any]] = Field(None, description="对expert_handoff的结构化响应（v3.5协议）")
 
-    challenge_flags: Optional[List[Dict[str, str]]] = Field(
-        None,
-        description="挑战标记列表（如有）（v3.5协议）"
-    )
+    challenge_flags: Optional[List[Dict[str, str]]] = Field(None, description="挑战标记列表（如有）（v3.5协议）")
 
-    @model_validator(mode='after')
+    @model_validator(mode="after")
     def validate_output_consistency(self):
         """
         验证输出一致性
@@ -585,61 +575,68 @@ class V6_2_FlexibleOutput(BaseModel):
         """
         mode = self.output_mode
 
-        if mode == 'comprehensive':
+        if mode == "comprehensive":
             # 完整报告模式：检查所有标准字段是否填充
             required_fields = [
-                'mep_overall_strategy',
-                'system_solutions',
-                'smart_building_scenarios',
-                'coordination_and_clash_points',
-                'sustainability_and_energy_saving'
+                "mep_overall_strategy",
+                "system_solutions",
+                "smart_building_scenarios",
+                "coordination_and_clash_points",
+                "sustainability_and_energy_saving",
             ]
 
             missing = [f for f in required_fields if not getattr(self, f)]
             if missing:
-                raise ValueError(
-                    f"⚠️ Comprehensive模式下必需字段缺失: {', '.join(missing)}\n"
-                    f"完整报告模式要求提供系统性的全面分析，请填充所有标准字段。"
-                )
+                raise ValueError(f"⚠️ Comprehensive模式下必需字段缺失: {', '.join(missing)}\n" f"完整报告模式要求提供系统性的全面分析，请填充所有标准字段。")
 
-        elif mode == 'targeted':
+        elif mode == "targeted":
             # 针对性模式：检查targeted_analysis是否填充
             if not self.targeted_analysis:
                 raise ValueError(
-                    "⚠️ Targeted模式下必须填充targeted_analysis字段\n"
-                    "针对性模式要求直接回答用户的核心问题，请在targeted_analysis中提供专项分析。"
+                    "⚠️ Targeted模式下必须填充targeted_analysis字段\n" "针对性模式要求直接回答用户的核心问题，请在targeted_analysis中提供专项分析。"
                 )
 
             # 可选：警告如果在Targeted模式下填充了标准字段（可能是冗余）
             standard_fields_filled = [
-                f for f in ['mep_overall_strategy', 'system_solutions',
-                           'smart_building_scenarios', 'coordination_and_clash_points',
-                           'sustainability_and_energy_saving']
+                f
+                for f in [
+                    "mep_overall_strategy",
+                    "system_solutions",
+                    "smart_building_scenarios",
+                    "coordination_and_clash_points",
+                    "sustainability_and_energy_saving",
+                ]
                 if getattr(self, f) is not None
             ]
             if standard_fields_filled:
                 import warnings
+
                 warnings.warn(
                     f"⚠️ Targeted模式下不建议填充标准字段：{', '.join(standard_fields_filled)}\n"
                     f"这可能导致输出冗余。针对性模式应聚焦于targeted_analysis字段。",
-                    UserWarning
+                    UserWarning,
                 )
 
         return self
 
     class Config:
         """Pydantic配置"""
+
         # 允许字段别名（Pydantic v2）
         populate_by_name = True
+
     class Config:
         """Pydantic配置"""
+
         populate_by_name = True
 
 
 # ===== V6-3: 室内工艺与材料专家 =====
 
+
 class MaterialSpec(BaseModel):
     """单一关键材料规格模型"""
+
     material_name: str = Field(description="材料名称")
     application_area: str = Field(description="该材料主要应用的区域")
     key_specifications: List[str] = Field(description="关键技术规格列表")
@@ -648,6 +645,7 @@ class MaterialSpec(BaseModel):
 
 class NodeDetail(BaseModel):
     """单一关键节点深化方案模型"""
+
     node_name: str = Field(description="节点名称")
     challenge: str = Field(description="施工难点和核心挑战")
     proposed_solution: str = Field(description="建议的深化设计方案")
@@ -655,17 +653,18 @@ class NodeDetail(BaseModel):
 
 class V6_3_FlexibleOutput(BaseModel):
     """V6-3 室内工艺与材料专家 - 灵活输出模型"""
+
     output_mode: Literal["targeted", "comprehensive"]
     user_question_focus: str
     confidence: float = Field(ge=0, le=1)
     design_rationale: str
-    
+
     craftsmanship_strategy: Optional[str] = None
     key_material_specifications: Optional[List[MaterialSpec]] = None
     critical_node_details: Optional[List[NodeDetail]] = None
     quality_control_and_mockup: Optional[str] = None
     risk_analysis: Optional[str] = None
-    
+
     targeted_analysis: Optional[Dict[str, Any]] = None
     expert_handoff_response: Optional[Dict[str, Any]] = None
     challenge_flags: Optional[List[Dict[str, str]]] = None
@@ -674,7 +673,13 @@ class V6_3_FlexibleOutput(BaseModel):
     def validate_output_consistency(self):
         mode = self.output_mode
         if mode == "comprehensive":
-            required_fields = ["craftsmanship_strategy", "key_material_specifications", "critical_node_details", "quality_control_and_mockup", "risk_analysis"]
+            required_fields = [
+                "craftsmanship_strategy",
+                "key_material_specifications",
+                "critical_node_details",
+                "quality_control_and_mockup",
+                "risk_analysis",
+            ]
             missing = [f for f in required_fields if not getattr(self, f)]
             if missing:
                 raise ValueError(f"⚠️ Comprehensive模式下必需字段缺失: {', '.join(missing)}")
@@ -689,8 +694,10 @@ class V6_3_FlexibleOutput(BaseModel):
 
 # ===== V6-4: 成本与价值工程师 =====
 
+
 class CostBreakdown(BaseModel):
     """成本构成模型"""
+
     category: str
     percentage: int
     cost_drivers: List[str]
@@ -698,6 +705,7 @@ class CostBreakdown(BaseModel):
 
 class VEOption(BaseModel):
     """价值工程选项模型"""
+
     area: str
     original_scheme: str
     proposed_option: str
@@ -706,17 +714,18 @@ class VEOption(BaseModel):
 
 class V6_4_FlexibleOutput(BaseModel):
     """V6-4 成本与价值工程师 - 灵活输出模型"""
+
     output_mode: Literal["targeted", "comprehensive"]
     user_question_focus: str
     confidence: float = Field(ge=0, le=1)
     design_rationale: str
-    
+
     cost_estimation_summary: Optional[str] = None
     cost_breakdown_analysis: Optional[List[CostBreakdown]] = None
     value_engineering_options: Optional[List[VEOption]] = None
     budget_control_strategy: Optional[str] = None
     cost_overrun_risk_analysis: Optional[str] = None
-    
+
     targeted_analysis: Optional[Dict[str, Any]] = None
     expert_handoff_response: Optional[Dict[str, Any]] = None
     challenge_flags: Optional[List[Dict[str, str]]] = None
@@ -725,7 +734,13 @@ class V6_4_FlexibleOutput(BaseModel):
     def validate_output_consistency(self):
         mode = self.output_mode
         if mode == "comprehensive":
-            required_fields = ["cost_estimation_summary", "cost_breakdown_analysis", "value_engineering_options", "budget_control_strategy", "cost_overrun_risk_analysis"]
+            required_fields = [
+                "cost_estimation_summary",
+                "cost_breakdown_analysis",
+                "value_engineering_options",
+                "budget_control_strategy",
+                "cost_overrun_risk_analysis",
+            ]
             missing = [f for f in required_fields if not getattr(self, f)]
             if missing:
                 raise ValueError(f"⚠️ Comprehensive模式下必需字段缺失: {', '.join(missing)}")
@@ -740,8 +755,10 @@ class V6_4_FlexibleOutput(BaseModel):
 
 # ===== V5-1: 居住场景与生活方式专家 =====
 
+
 class FamilyMemberProfile(BaseModel):
     """单一家庭成员画像与空间需求模型"""
+
     member: str = Field(description="成员称谓，如：'男主人', '女主人', '长子(10岁)'")
     daily_routine: str = Field(description="该成员典型的'一日生活剧本'")
     spatial_needs: List[str] = Field(description="该成员最核心的空间需求列表")
@@ -750,6 +767,7 @@ class FamilyMemberProfile(BaseModel):
 
 class DesignChallenge(BaseModel):
     """单一设计挑战模型"""
+
     challenge: str = Field(description="一个明确的设计挑战，以'如何...(How might we...)'句式提出")
     context: str = Field(description="该挑战产生的背景和原因")
     constraints: List[str] = Field(description="设计必须遵守的约束条件列表")
@@ -757,20 +775,21 @@ class DesignChallenge(BaseModel):
 
 class V5_1_FlexibleOutput(BaseModel):
     """V5-1 居住场景与生活方式专家 - 灵活输出模型"""
+
     output_mode: Literal["targeted", "comprehensive"]
     user_question_focus: str
     confidence: float = Field(ge=0, le=1)
     design_rationale: str
-    
+
     # 标准字段（Comprehensive模式必需）
     family_profile_and_needs: Optional[List[FamilyMemberProfile]] = None
     operational_blueprint: Optional[str] = None
     key_performance_indicators: Optional[List[str]] = None
     design_challenges_for_v2: Optional[List[DesignChallenge]] = None
-    
+
     # 灵活内容区（Targeted模式核心输出）
     targeted_analysis: Optional[Dict[str, Any]] = None
-    
+
     # v3.5协议字段
     expert_handoff_response: Optional[Dict[str, Any]] = None
     challenge_flags: Optional[List[Dict[str, str]]] = None
@@ -779,7 +798,12 @@ class V5_1_FlexibleOutput(BaseModel):
     def validate_output_consistency(self):
         mode = self.output_mode
         if mode == "comprehensive":
-            required_fields = ["family_profile_and_needs", "operational_blueprint", "key_performance_indicators", "design_challenges_for_v2"]
+            required_fields = [
+                "family_profile_and_needs",
+                "operational_blueprint",
+                "key_performance_indicators",
+                "design_challenges_for_v2",
+            ]
             missing = [f for f in required_fields if not getattr(self, f)]
             if missing:
                 raise ValueError(f"⚠️ Comprehensive模式下必需字段缺失: {', '.join(missing)}")
@@ -794,8 +818,10 @@ class V5_1_FlexibleOutput(BaseModel):
 
 # ===== V5-2: 商业零售运营专家 =====
 
+
 class RetailKPI(BaseModel):
     """单一零售KPI模型"""
+
     metric: str = Field(description="指标名称，如：'顾客平均停留时间'")
     target: str = Field(description="该指标的具体目标值")
     spatial_strategy: str = Field(description="为达成此目标，空间设计需要采取的关键策略")
@@ -803,20 +829,21 @@ class RetailKPI(BaseModel):
 
 class V5_2_FlexibleOutput(BaseModel):
     """V5-2 商业零售运营专家 - 灵活输出模型"""
+
     output_mode: Literal["targeted", "comprehensive"]
     user_question_focus: str
     confidence: float = Field(ge=0, le=1)
     design_rationale: str
-    
+
     # 标准字段（Comprehensive模式必需）
     business_goal_analysis: Optional[str] = None
     operational_blueprint: Optional[str] = None
     key_performance_indicators: Optional[List[RetailKPI]] = None
     design_challenges_for_v2: Optional[List[DesignChallenge]] = None
-    
+
     # 灵活内容区（Targeted模式核心输出）
     targeted_analysis: Optional[Dict[str, Any]] = None
-    
+
     # v3.5协议字段
     expert_handoff_response: Optional[Dict[str, Any]] = None
     challenge_flags: Optional[List[Dict[str, str]]] = None
@@ -825,7 +852,12 @@ class V5_2_FlexibleOutput(BaseModel):
     def validate_output_consistency(self):
         mode = self.output_mode
         if mode == "comprehensive":
-            required_fields = ["business_goal_analysis", "operational_blueprint", "key_performance_indicators", "design_challenges_for_v2"]
+            required_fields = [
+                "business_goal_analysis",
+                "operational_blueprint",
+                "key_performance_indicators",
+                "design_challenges_for_v2",
+            ]
             missing = [f for f in required_fields if not getattr(self, f)]
             if missing:
                 raise ValueError(f"⚠️ Comprehensive模式下必需字段缺失: {', '.join(missing)}")
@@ -840,13 +872,15 @@ class V5_2_FlexibleOutput(BaseModel):
 
 # ===== V2-1: 居住空间设计总监 =====
 
+
 class V2_1_FlexibleOutput(BaseModel):
     """V2-1 居住空间设计总监 - 灵活输出模型"""
+
     output_mode: Literal["targeted", "comprehensive"]
     user_question_focus: str
     confidence: float = Field(ge=0, le=1)
     decision_rationale: str  # V2专用：设计决策权衡逻辑
-    
+
     # 标准字段（Comprehensive模式必需）
     project_vision_summary: Optional[str] = None
     spatial_concept: Optional[str] = None
@@ -855,10 +889,10 @@ class V2_1_FlexibleOutput(BaseModel):
     functional_planning: Optional[str] = None
     material_palette: Optional[str] = None
     implementation_guidance: Optional[str] = None
-    
+
     # 灵活内容区（Targeted模式核心输出）
     targeted_analysis: Optional[Dict[str, Any]] = None
-    
+
     # v3.5协议字段
     expert_handoff_response: Optional[Dict[str, Any]] = None
     challenge_flags: Optional[List[Dict[str, str]]] = None
@@ -867,9 +901,15 @@ class V2_1_FlexibleOutput(BaseModel):
     def validate_output_consistency(self):
         mode = self.output_mode
         if mode == "comprehensive":
-            required_fields = ["project_vision_summary", "spatial_concept", "narrative_translation", 
-                             "aesthetic_framework", "functional_planning", "material_palette", 
-                             "implementation_guidance"]
+            required_fields = [
+                "project_vision_summary",
+                "spatial_concept",
+                "narrative_translation",
+                "aesthetic_framework",
+                "functional_planning",
+                "material_palette",
+                "implementation_guidance",
+            ]
             missing = [f for f in required_fields if not getattr(self, f)]
             if missing:
                 raise ValueError(f"⚠️ Comprehensive模式下必需字段缺失: {', '.join(missing)}")
@@ -884,13 +924,15 @@ class V2_1_FlexibleOutput(BaseModel):
 
 # ===== V2-2: 商业空间设计总监 =====
 
+
 class V2_2_FlexibleOutput(BaseModel):
     """V2-2 商业空间设计总监 - 灵活输出模型"""
+
     output_mode: Literal["targeted", "comprehensive"]
     user_question_focus: str
     confidence: float = Field(ge=0, le=1)
     decision_rationale: str  # V2专用：设计决策权衡逻辑
-    
+
     # 标准字段（Comprehensive模式必需）
     project_vision_summary: Optional[str] = None
     spatial_concept: Optional[str] = None
@@ -899,10 +941,10 @@ class V2_2_FlexibleOutput(BaseModel):
     functional_planning: Optional[str] = None
     material_palette: Optional[str] = None
     implementation_guidance: Optional[str] = None
-    
+
     # 灵活内容区（Targeted模式核心输出）
     targeted_analysis: Optional[Dict[str, Any]] = None
-    
+
     # v3.5协议字段
     expert_handoff_response: Optional[Dict[str, Any]] = None
     challenge_flags: Optional[List[Dict[str, str]]] = None
@@ -911,9 +953,15 @@ class V2_2_FlexibleOutput(BaseModel):
     def validate_output_consistency(self):
         mode = self.output_mode
         if mode == "comprehensive":
-            required_fields = ["project_vision_summary", "spatial_concept", "business_strategy_translation", 
-                             "aesthetic_framework", "functional_planning", "material_palette", 
-                             "implementation_guidance"]
+            required_fields = [
+                "project_vision_summary",
+                "spatial_concept",
+                "business_strategy_translation",
+                "aesthetic_framework",
+                "functional_planning",
+                "material_palette",
+                "implementation_guidance",
+            ]
             missing = [f for f in required_fields if not getattr(self, f)]
             if missing:
                 raise ValueError(f"⚠️ Comprehensive模式下必需字段缺失: {', '.join(missing)}")
@@ -928,8 +976,10 @@ class V2_2_FlexibleOutput(BaseModel):
 
 # ===== V3-2: 品牌叙事与顾客体验专家 =====
 
+
 class TouchpointScript(BaseModel):
     """单一体验触点脚本模型"""
+
     touchpoint_name: str = Field(description="触点名称")
     emotional_goal: str = Field(description="情感目标")
     sensory_script: str = Field(description="五感设计脚本")
@@ -937,21 +987,22 @@ class TouchpointScript(BaseModel):
 
 class V3_2_FlexibleOutput(BaseModel):
     """V3-2 品牌叙事与顾客体验专家 - 灵活输出模型"""
+
     output_mode: Literal["targeted", "comprehensive"]
     user_question_focus: str
     confidence: float = Field(ge=0, le=1)
     design_rationale: str
-    
+
     # 标准字段（Comprehensive模式必需）
     brand_narrative_core: Optional[str] = None
     customer_archetype: Optional[str] = None
     emotional_journey_map: Optional[str] = None
     key_touchpoint_scripts: Optional[List[TouchpointScript]] = None
     narrative_guidelines_for_v2: Optional[str] = None
-    
+
     # 灵活内容区（Targeted模式核心输出）
     targeted_analysis: Optional[Dict[str, Any]] = None
-    
+
     # v3.5协议字段
     expert_handoff_response: Optional[Dict[str, Any]] = None
     challenge_flags: Optional[List[Dict[str, str]]] = None
@@ -960,8 +1011,13 @@ class V3_2_FlexibleOutput(BaseModel):
     def validate_output_consistency(self):
         mode = self.output_mode
         if mode == "comprehensive":
-            required_fields = ["brand_narrative_core", "customer_archetype", "emotional_journey_map", 
-                             "key_touchpoint_scripts", "narrative_guidelines_for_v2"]
+            required_fields = [
+                "brand_narrative_core",
+                "customer_archetype",
+                "emotional_journey_map",
+                "key_touchpoint_scripts",
+                "narrative_guidelines_for_v2",
+            ]
             missing = [f for f in required_fields if not getattr(self, f)]
             if missing:
                 raise ValueError(f"⚠️ Comprehensive模式下必需字段缺失: {', '.join(missing)}")
@@ -976,23 +1032,25 @@ class V3_2_FlexibleOutput(BaseModel):
 
 # ===== V4-1: 设计研究者 =====
 
+
 class V4_1_FlexibleOutput(BaseModel):
     """V4-1 设计研究者 - 灵活输出模型"""
+
     output_mode: Literal["targeted", "comprehensive"]
     user_question_focus: str
     confidence: float = Field(ge=0, le=1)
     design_rationale: str
-    
+
     # 标准字段（Comprehensive模式必需）
     research_focus: Optional[str] = None
     methodology: Optional[str] = None
     key_findings: Optional[List[str]] = None
     design_implications: Optional[str] = None
     evidence_base: Optional[str] = None
-    
+
     # 灵活内容区（Targeted模式核心输出）
     targeted_analysis: Optional[Dict[str, Any]] = None
-    
+
     # v3.5协议字段
     expert_handoff_response: Optional[Dict[str, Any]] = None
     challenge_flags: Optional[List[Dict[str, str]]] = None
@@ -1001,8 +1059,7 @@ class V4_1_FlexibleOutput(BaseModel):
     def validate_output_consistency(self):
         mode = self.output_mode
         if mode == "comprehensive":
-            required_fields = ["research_focus", "methodology", "key_findings", 
-                             "design_implications", "evidence_base"]
+            required_fields = ["research_focus", "methodology", "key_findings", "design_implications", "evidence_base"]
             missing = [f for f in required_fields if not getattr(self, f)]
             if missing:
                 raise ValueError(f"⚠️ Comprehensive模式下必需字段缺失: {', '.join(missing)}")
@@ -1017,8 +1074,10 @@ class V4_1_FlexibleOutput(BaseModel):
 
 # ===== V5-0: 通用场景策略师 =====
 
+
 class ScenarioInsight(BaseModel):
     """场景洞察模型"""
+
     insight_type: str = Field(description="洞察类型")
     description: str = Field(description="洞察描述")
     design_implications: List[str] = Field(description="对设计的启示")
@@ -1026,19 +1085,20 @@ class ScenarioInsight(BaseModel):
 
 class V5_0_FlexibleOutput(BaseModel):
     """V5-0 通用场景策略师 - 灵活输出模型"""
+
     output_mode: Literal["targeted", "comprehensive"]
     user_question_focus: str
     confidence: float = Field(ge=0, le=1)
     design_rationale: str
-    
+
     scenario_deconstruction: Optional[str] = None
     operational_logic: Optional[str] = None
     stakeholder_analysis: Optional[str] = None
     key_performance_indicators: Optional[List[str]] = None
     design_challenges_for_v2: Optional[List[DesignChallenge]] = None
-    
+
     targeted_analysis: Optional[Dict[str, Any]] = None
-    
+
     expert_handoff_response: Optional[Dict[str, Any]] = None
     challenge_flags: Optional[List[Dict[str, str]]] = None
 
@@ -1046,7 +1106,13 @@ class V5_0_FlexibleOutput(BaseModel):
     def validate_output_consistency(self):
         mode = self.output_mode
         if mode == "comprehensive":
-            required_fields = ["scenario_deconstruction", "operational_logic", "stakeholder_analysis", "key_performance_indicators", "design_challenges_for_v2"]
+            required_fields = [
+                "scenario_deconstruction",
+                "operational_logic",
+                "stakeholder_analysis",
+                "key_performance_indicators",
+                "design_challenges_for_v2",
+            ]
             missing = [f for f in required_fields if not getattr(self, f)]
             if missing:
                 raise ValueError(f"Comprehensive mode missing required fields: {', '.join(missing)}")
@@ -1061,8 +1127,10 @@ class V5_0_FlexibleOutput(BaseModel):
 
 # ===== V2-0: 项目设计总监 =====
 
+
 class SubprojectBrief(BaseModel):
     """子项目简要模型"""
+
     subproject_name: str
     area_sqm: Optional[float] = None
     key_requirements: List[str]
@@ -1071,19 +1139,20 @@ class SubprojectBrief(BaseModel):
 
 class V2_0_FlexibleOutput(BaseModel):
     """V2-0 项目设计总监 - 灵活输出模型"""
+
     output_mode: Literal["targeted", "comprehensive"]
     user_question_focus: str
     confidence: float = Field(ge=0, le=1)
     decision_rationale: str
-    
+
     master_plan_strategy: Optional[str] = None
     spatial_zoning_concept: Optional[str] = None
     circulation_integration: Optional[str] = None
     subproject_coordination: Optional[List[SubprojectBrief]] = None
     design_unity_and_variation: Optional[str] = None
-    
+
     targeted_analysis: Optional[Dict[str, Any]] = None
-    
+
     expert_handoff_response: Optional[Dict[str, Any]] = None
     challenge_flags: Optional[List[Dict[str, str]]] = None
 
@@ -1091,7 +1160,13 @@ class V2_0_FlexibleOutput(BaseModel):
     def validate_output_consistency(self):
         mode = self.output_mode
         if mode == "comprehensive":
-            required_fields = ["master_plan_strategy", "spatial_zoning_concept", "circulation_integration", "subproject_coordination", "design_unity_and_variation"]
+            required_fields = [
+                "master_plan_strategy",
+                "spatial_zoning_concept",
+                "circulation_integration",
+                "subproject_coordination",
+                "design_unity_and_variation",
+            ]
             missing = [f for f in required_fields if not getattr(self, f)]
             if missing:
                 raise ValueError(f"Comprehensive mode missing required fields: {', '.join(missing)}")
@@ -1106,21 +1181,23 @@ class V2_0_FlexibleOutput(BaseModel):
 
 # ===== V5-3: 企业办公策略专家 =====
 
+
 class V5_3_FlexibleOutput(BaseModel):
     """V5-3 企业办公策略专家 - 灵活输出模型"""
+
     output_mode: Literal["targeted", "comprehensive"]
     user_question_focus: str
     confidence: float = Field(ge=0, le=1)
     design_rationale: str
-    
+
     organizational_analysis: Optional[str] = None
     collaboration_model: Optional[str] = None
     workspace_strategy: Optional[str] = None
     key_performance_indicators: Optional[List[str]] = None
     design_challenges_for_v2: Optional[List[DesignChallenge]] = None
-    
+
     targeted_analysis: Optional[Dict[str, Any]] = None
-    
+
     expert_handoff_response: Optional[Dict[str, Any]] = None
     challenge_flags: Optional[List[Dict[str, str]]] = None
 
@@ -1128,7 +1205,13 @@ class V5_3_FlexibleOutput(BaseModel):
     def validate_output_consistency(self):
         mode = self.output_mode
         if mode == "comprehensive":
-            required = ["organizational_analysis", "collaboration_model", "workspace_strategy", "key_performance_indicators", "design_challenges_for_v2"]
+            required = [
+                "organizational_analysis",
+                "collaboration_model",
+                "workspace_strategy",
+                "key_performance_indicators",
+                "design_challenges_for_v2",
+            ]
             missing = [f for f in required if not getattr(self, f)]
             if missing:
                 raise ValueError(f"Comprehensive mode missing: {', '.join(missing)}")
@@ -1143,21 +1226,23 @@ class V5_3_FlexibleOutput(BaseModel):
 
 # ===== V5-4: 酒店餐饮运营专家 =====
 
+
 class V5_4_FlexibleOutput(BaseModel):
     """V5-4 酒店餐饮运营专家 - 灵活输出模型"""
+
     output_mode: Literal["targeted", "comprehensive"]
     user_question_focus: str
     confidence: float = Field(ge=0, le=1)
     design_rationale: str
-    
+
     service_process_analysis: Optional[str] = None
     operational_efficiency: Optional[str] = None
     guest_experience_blueprint: Optional[str] = None
     key_performance_indicators: Optional[List[RetailKPI]] = None
     design_challenges_for_v2: Optional[List[DesignChallenge]] = None
-    
+
     targeted_analysis: Optional[Dict[str, Any]] = None
-    
+
     expert_handoff_response: Optional[Dict[str, Any]] = None
     challenge_flags: Optional[List[Dict[str, str]]] = None
 
@@ -1165,7 +1250,13 @@ class V5_4_FlexibleOutput(BaseModel):
     def validate_output_consistency(self):
         mode = self.output_mode
         if mode == "comprehensive":
-            required = ["service_process_analysis", "operational_efficiency", "guest_experience_blueprint", "key_performance_indicators", "design_challenges_for_v2"]
+            required = [
+                "service_process_analysis",
+                "operational_efficiency",
+                "guest_experience_blueprint",
+                "key_performance_indicators",
+                "design_challenges_for_v2",
+            ]
             missing = [f for f in required if not getattr(self, f)]
             if missing:
                 raise ValueError(f"Comprehensive mode missing: {', '.join(missing)}")
@@ -1180,21 +1271,23 @@ class V5_4_FlexibleOutput(BaseModel):
 
 # ===== V5-5: 文化教育场景专家 =====
 
+
 class V5_5_FlexibleOutput(BaseModel):
     """V5-5 文化教育场景专家 - 灵活输出模型"""
+
     output_mode: Literal["targeted", "comprehensive"]
     user_question_focus: str
     confidence: float = Field(ge=0, le=1)
     design_rationale: str
-    
+
     visitor_journey_analysis: Optional[str] = None
     educational_model: Optional[str] = None
     public_service_strategy: Optional[str] = None
     key_performance_indicators: Optional[List[str]] = None
     design_challenges_for_v2: Optional[List[DesignChallenge]] = None
-    
+
     targeted_analysis: Optional[Dict[str, Any]] = None
-    
+
     expert_handoff_response: Optional[Dict[str, Any]] = None
     challenge_flags: Optional[List[Dict[str, str]]] = None
 
@@ -1202,7 +1295,13 @@ class V5_5_FlexibleOutput(BaseModel):
     def validate_output_consistency(self):
         mode = self.output_mode
         if mode == "comprehensive":
-            required = ["visitor_journey_analysis", "educational_model", "public_service_strategy", "key_performance_indicators", "design_challenges_for_v2"]
+            required = [
+                "visitor_journey_analysis",
+                "educational_model",
+                "public_service_strategy",
+                "key_performance_indicators",
+                "design_challenges_for_v2",
+            ]
             missing = [f for f in required if not getattr(self, f)]
             if missing:
                 raise ValueError(f"Comprehensive mode missing: {', '.join(missing)}")
@@ -1217,21 +1316,23 @@ class V5_5_FlexibleOutput(BaseModel):
 
 # ===== V5-6: 医疗康养场景专家 =====
 
+
 class V5_6_FlexibleOutput(BaseModel):
     """V5-6 医疗康养场景专家 - 灵活输出模型"""
+
     output_mode: Literal["targeted", "comprehensive"]
     user_question_focus: str
     confidence: float = Field(ge=0, le=1)
     design_rationale: str
-    
+
     healthcare_process_analysis: Optional[str] = None
     patient_experience_blueprint: Optional[str] = None
     wellness_strategy: Optional[str] = None
     key_performance_indicators: Optional[List[str]] = None
     design_challenges_for_v2: Optional[List[DesignChallenge]] = None
-    
+
     targeted_analysis: Optional[Dict[str, Any]] = None
-    
+
     expert_handoff_response: Optional[Dict[str, Any]] = None
     challenge_flags: Optional[List[Dict[str, str]]] = None
 
@@ -1239,7 +1340,13 @@ class V5_6_FlexibleOutput(BaseModel):
     def validate_output_consistency(self):
         mode = self.output_mode
         if mode == "comprehensive":
-            required = ["healthcare_process_analysis", "patient_experience_blueprint", "wellness_strategy", "key_performance_indicators", "design_challenges_for_v2"]
+            required = [
+                "healthcare_process_analysis",
+                "patient_experience_blueprint",
+                "wellness_strategy",
+                "key_performance_indicators",
+                "design_challenges_for_v2",
+            ]
             missing = [f for f in required if not getattr(self, f)]
             if missing:
                 raise ValueError(f"Comprehensive mode missing: {', '.join(missing)}")
@@ -1254,21 +1361,23 @@ class V5_6_FlexibleOutput(BaseModel):
 
 # ===== V2-3: 办公空间设计总监 =====
 
+
 class V2_3_FlexibleOutput(BaseModel):
     """V2-3 办公空间设计总监 - 灵活输出模型"""
+
     output_mode: Literal["targeted", "comprehensive"]
     user_question_focus: str
     confidence: float = Field(ge=0, le=1)
     decision_rationale: str
-    
+
     workspace_vision: Optional[str] = None
     spatial_strategy: Optional[str] = None
     collaboration_and_focus_balance: Optional[str] = None
     brand_and_culture_expression: Optional[str] = None
     implementation_guidance: Optional[str] = None
-    
+
     targeted_analysis: Optional[Dict[str, Any]] = None
-    
+
     expert_handoff_response: Optional[Dict[str, Any]] = None
     challenge_flags: Optional[List[Dict[str, str]]] = None
 
@@ -1276,7 +1385,13 @@ class V2_3_FlexibleOutput(BaseModel):
     def validate_output_consistency(self):
         mode = self.output_mode
         if mode == "comprehensive":
-            required = ["workspace_vision", "spatial_strategy", "collaboration_and_focus_balance", "brand_and_culture_expression", "implementation_guidance"]
+            required = [
+                "workspace_vision",
+                "spatial_strategy",
+                "collaboration_and_focus_balance",
+                "brand_and_culture_expression",
+                "implementation_guidance",
+            ]
             missing = [f for f in required if not getattr(self, f)]
             if missing:
                 raise ValueError(f"Comprehensive mode missing: {', '.join(missing)}")
@@ -1291,21 +1406,23 @@ class V2_3_FlexibleOutput(BaseModel):
 
 # ===== V2-4: 酒店餐饮空间设计总监 =====
 
+
 class V2_4_FlexibleOutput(BaseModel):
     """V2-4 酒店餐饮空间设计总监 - 灵活输出模型"""
+
     output_mode: Literal["targeted", "comprehensive"]
     user_question_focus: str
     confidence: float = Field(ge=0, le=1)
     decision_rationale: str
-    
+
     experiential_vision: Optional[str] = None
     spatial_concept: Optional[str] = None
     sensory_design_framework: Optional[str] = None
     guest_journey_design: Optional[str] = None
     implementation_guidance: Optional[str] = None
-    
+
     targeted_analysis: Optional[Dict[str, Any]] = None
-    
+
     expert_handoff_response: Optional[Dict[str, Any]] = None
     challenge_flags: Optional[List[Dict[str, str]]] = None
 
@@ -1313,7 +1430,13 @@ class V2_4_FlexibleOutput(BaseModel):
     def validate_output_consistency(self):
         mode = self.output_mode
         if mode == "comprehensive":
-            required = ["experiential_vision", "spatial_concept", "sensory_design_framework", "guest_journey_design", "implementation_guidance"]
+            required = [
+                "experiential_vision",
+                "spatial_concept",
+                "sensory_design_framework",
+                "guest_journey_design",
+                "implementation_guidance",
+            ]
             missing = [f for f in required if not getattr(self, f)]
             if missing:
                 raise ValueError(f"Comprehensive mode missing: {', '.join(missing)}")
@@ -1328,21 +1451,23 @@ class V2_4_FlexibleOutput(BaseModel):
 
 # ===== V2-5: 文化与公共建筑设计总监 =====
 
+
 class V2_5_FlexibleOutput(BaseModel):
     """V2-5 文化与公共建筑设计总监 - 灵活输出模型"""
+
     output_mode: Literal["targeted", "comprehensive"]
     user_question_focus: str
     confidence: float = Field(ge=0, le=1)
     decision_rationale: str
-    
+
     public_vision: Optional[str] = None
     spatial_accessibility: Optional[str] = None
     community_engagement: Optional[str] = None
     cultural_expression: Optional[str] = None
     implementation_guidance: Optional[str] = None
-    
+
     targeted_analysis: Optional[Dict[str, Any]] = None
-    
+
     expert_handoff_response: Optional[Dict[str, Any]] = None
     challenge_flags: Optional[List[Dict[str, str]]] = None
 
@@ -1350,7 +1475,13 @@ class V2_5_FlexibleOutput(BaseModel):
     def validate_output_consistency(self):
         mode = self.output_mode
         if mode == "comprehensive":
-            required = ["public_vision", "spatial_accessibility", "community_engagement", "cultural_expression", "implementation_guidance"]
+            required = [
+                "public_vision",
+                "spatial_accessibility",
+                "community_engagement",
+                "cultural_expression",
+                "implementation_guidance",
+            ]
             missing = [f for f in required if not getattr(self, f)]
             if missing:
                 raise ValueError(f"Comprehensive mode missing: {', '.join(missing)}")
@@ -1365,21 +1496,23 @@ class V2_5_FlexibleOutput(BaseModel):
 
 # ===== V2-6: 建筑及景观设计总监 =====
 
+
 class V2_6_FlexibleOutput(BaseModel):
     """V2-6 建筑及景观设计总监 - 灵活输出模型"""
+
     output_mode: Literal["targeted", "comprehensive"]
     user_question_focus: str
     confidence: float = Field(ge=0, le=1)
     decision_rationale: str
-    
+
     architectural_concept: Optional[str] = None
     facade_and_envelope: Optional[str] = None
     landscape_integration: Optional[str] = None
     indoor_outdoor_relationship: Optional[str] = None
     implementation_guidance: Optional[str] = None
-    
+
     targeted_analysis: Optional[Dict[str, Any]] = None
-    
+
     expert_handoff_response: Optional[Dict[str, Any]] = None
     challenge_flags: Optional[List[Dict[str, str]]] = None
 
@@ -1387,7 +1520,13 @@ class V2_6_FlexibleOutput(BaseModel):
     def validate_output_consistency(self):
         mode = self.output_mode
         if mode == "comprehensive":
-            required = ["architectural_concept", "facade_and_envelope", "landscape_integration", "indoor_outdoor_relationship", "implementation_guidance"]
+            required = [
+                "architectural_concept",
+                "facade_and_envelope",
+                "landscape_integration",
+                "indoor_outdoor_relationship",
+                "implementation_guidance",
+            ]
             missing = [f for f in required if not getattr(self, f)]
             if missing:
                 raise ValueError(f"Comprehensive mode missing: {', '.join(missing)}")
@@ -1402,21 +1541,23 @@ class V2_6_FlexibleOutput(BaseModel):
 
 # ===== V3-1: 个体叙事与心理洞察专家 =====
 
+
 class V3_1_FlexibleOutput(BaseModel):
     """V3-1 个体叙事与心理洞察专家 - 灵活输出模型"""
+
     output_mode: Literal["targeted", "comprehensive"]
     user_question_focus: str
     confidence: float = Field(ge=0, le=1)
     design_rationale: str
-    
+
     individual_narrative_core: Optional[str] = None
     psychological_profile: Optional[str] = None
     lifestyle_blueprint: Optional[str] = None
     key_spatial_moments: Optional[List[TouchpointScript]] = None
     narrative_guidelines_for_v2: Optional[str] = None
-    
+
     targeted_analysis: Optional[Dict[str, Any]] = None
-    
+
     expert_handoff_response: Optional[Dict[str, Any]] = None
     challenge_flags: Optional[List[Dict[str, str]]] = None
 
@@ -1424,7 +1565,13 @@ class V3_1_FlexibleOutput(BaseModel):
     def validate_output_consistency(self):
         mode = self.output_mode
         if mode == "comprehensive":
-            required = ["individual_narrative_core", "psychological_profile", "lifestyle_blueprint", "key_spatial_moments", "narrative_guidelines_for_v2"]
+            required = [
+                "individual_narrative_core",
+                "psychological_profile",
+                "lifestyle_blueprint",
+                "key_spatial_moments",
+                "narrative_guidelines_for_v2",
+            ]
             missing = [f for f in required if not getattr(self, f)]
             if missing:
                 raise ValueError(f"Comprehensive mode missing: {', '.join(missing)}")
@@ -1439,21 +1586,23 @@ class V3_1_FlexibleOutput(BaseModel):
 
 # ===== V3-3: 空间叙事与情感体验专家 =====
 
+
 class V3_3_FlexibleOutput(BaseModel):
     """V3-3 空间叙事与情感体验专家 - 灵活输出模型"""
+
     output_mode: Literal["targeted", "comprehensive"]
     user_question_focus: str
     confidence: float = Field(ge=0, le=1)
     design_rationale: str
-    
+
     spatial_narrative_concept: Optional[str] = None
     emotional_journey_map: Optional[str] = None
     sensory_experience_design: Optional[str] = None
     key_spatial_moments: Optional[List[TouchpointScript]] = None
     narrative_guidelines_for_v2: Optional[str] = None
-    
+
     targeted_analysis: Optional[Dict[str, Any]] = None
-    
+
     expert_handoff_response: Optional[Dict[str, Any]] = None
     challenge_flags: Optional[List[Dict[str, str]]] = None
 
@@ -1461,7 +1610,13 @@ class V3_3_FlexibleOutput(BaseModel):
     def validate_output_consistency(self):
         mode = self.output_mode
         if mode == "comprehensive":
-            required = ["spatial_narrative_concept", "emotional_journey_map", "sensory_experience_design", "key_spatial_moments", "narrative_guidelines_for_v2"]
+            required = [
+                "spatial_narrative_concept",
+                "emotional_journey_map",
+                "sensory_experience_design",
+                "key_spatial_moments",
+                "narrative_guidelines_for_v2",
+            ]
             missing = [f for f in required if not getattr(self, f)]
             if missing:
                 raise ValueError(f"Comprehensive mode missing: {', '.join(missing)}")
@@ -1476,21 +1631,23 @@ class V3_3_FlexibleOutput(BaseModel):
 
 # ===== V4-2: 趋势研究与未来洞察专家 =====
 
+
 class V4_2_FlexibleOutput(BaseModel):
     """V4-2 趋势研究与未来洞察专家 - 灵活输出模型"""
+
     output_mode: Literal["targeted", "comprehensive"]
     user_question_focus: str
     confidence: float = Field(ge=0, le=1)
     design_rationale: str
-    
+
     trend_analysis: Optional[str] = None
     future_scenarios: Optional[str] = None
     opportunity_identification: Optional[str] = None
     design_implications: Optional[str] = None
     risk_assessment: Optional[str] = None
-    
+
     targeted_analysis: Optional[Dict[str, Any]] = None
-    
+
     expert_handoff_response: Optional[Dict[str, Any]] = None
     challenge_flags: Optional[List[Dict[str, str]]] = None
 
@@ -1498,7 +1655,164 @@ class V4_2_FlexibleOutput(BaseModel):
     def validate_output_consistency(self):
         mode = self.output_mode
         if mode == "comprehensive":
-            required = ["trend_analysis", "future_scenarios", "opportunity_identification", "design_implications", "risk_assessment"]
+            required = [
+                "trend_analysis",
+                "future_scenarios",
+                "opportunity_identification",
+                "design_implications",
+                "risk_assessment",
+            ]
+            missing = [f for f in required if not getattr(self, f)]
+            if missing:
+                raise ValueError(f"Comprehensive mode missing: {', '.join(missing)}")
+        elif mode == "targeted":
+            if not self.targeted_analysis:
+                raise ValueError("Targeted mode requires targeted_analysis")
+        return self
+
+    class Config:
+        populate_by_name = True
+
+
+# ===== V7-1: 情感洞察专家 =====
+
+
+class V7_1_FlexibleOutput(BaseModel):
+    """
+    V7-1 情感洞察专家 - 灵活输出模型
+
+    核心定位：洞察空间对人的情绪、心理、精神的影响
+    理论基础：环境心理学、依恋理论、创伤知情设计、马斯洛需求层次
+    """
+
+    # ===== 第一层：元数据层（必需字段） =====
+    output_mode: Literal["targeted", "comprehensive"] = Field(description="输出模式：targeted=针对性问答，comprehensive=完整分析")
+
+    user_question_focus: str = Field(description="用户问题的核心关注点（从需求分析师传递）")
+
+    confidence: float = Field(ge=0, le=1, description="分析置信度：0.9-1.0=情感需求明确，0.7-0.9=部分推测，0.5-0.7=缺失较大")
+
+    design_rationale: str = Field(description="情感洞察的核心逻辑与理论支撑（如：基于依恋理论分析安全基地需求）")
+
+    # ===== 第二层：标准字段层（Comprehensive模式必需） =====
+    emotional_landscape: Optional[Dict[str, Any]] = Field(
+        None,
+        description="""
+        【Comprehensive模式必需】情绪地图
+        从入口到核心空间的情绪转化路径，基于Plutchik情绪轮盘理论
+        结构示例：{
+          "entry_emotion": "紧张/疲惫",
+          "transition_path": "玄关→客厅→卧室的情绪递进",
+          "core_emotion": "安全感/归属感",
+          "design_triggers": ["光线柔化", "动线渐进", "私密层级"]
+        }
+        """,
+    )
+
+    spiritual_aspirations: Optional[str] = Field(
+        None,
+        description="""
+        【Comprehensive模式必需】精神追求
+        基于马斯洛需求层次（安全→归属→尊重→自我实现）的精神目标分析
+        如：从职场压力中寻求"自我实现"的冥想空间需求
+        """,
+    )
+
+    psychological_safety_needs: Optional[Dict[str, Any]] = Field(
+        None,
+        description="""
+        【Comprehensive模式必需】心理安全需求
+        基于依恋理论和创伤知情设计原则的安全基地分析
+        结构示例：{
+          "fear_source": "职场焦虑/家庭关系",
+          "safety_strategy": "可控边界+安全撤退区",
+          "refuge_space": "书房/阳台/储藏室的心理庇护功能"
+        }
+        """,
+    )
+
+    ritual_behaviors: Optional[List[Dict[str, Any]]] = Field(
+        None,
+        description="""
+        【Comprehensive模式必需】仪式行为洞察
+        日常行为的意义化分析，识别承载情感价值的行为模式
+        结构示例：[
+          {
+            "behavior_name": "睡前阅读仪式",
+            "psychological_meaning": "日常压力的边界仪式",
+            "space_requirements": "床头柔光+独立阅读角",
+            "trigger_conditions": "工作日晚间10点后"
+          }
+        ]
+        """,
+    )
+
+    memory_anchors: Optional[List[Dict[str, Any]]] = Field(
+        None,
+        description="""
+        【Comprehensive模式必需】记忆锚点识别
+        承载情感记忆的物品、元素与空间关系
+        结构示例：[
+          {
+            "item_name": "童年玩具/家族照片/旧书桌",
+            "emotional_value": "情感补偿/身份认同",
+            "memory_type": "童年补偿/成长纪念",
+            "spatial_treatment": "展示柜可见性+触摸可及性"
+          }
+        ]
+        """,
+    )
+
+    # ===== 第三层：灵活内容区（Targeted模式核心输出） =====
+    targeted_analysis: Optional[Dict[str, Any]] = Field(
+        None,
+        description="""
+        【Targeted模式核心字段】根据user_question_focus动态生成的专项情感分析
+
+        结构建议（根据问题类型选择）:
+
+        📊 类型1: 心理安全需求类（如"如何缓解职场焦虑?"）
+        {
+          "fear_diagnosis": "具体恐惧源分析",
+          "safety_base_design": "安全基地空间策略",
+          "sensory_calming": "感官舒缓方案（光线/声音/触感）"
+        }
+
+        📊 类型2: 仪式行为设计类（如"如何支持冥想习惯?"）
+        {
+          "ritual_analysis": "行为模式深度分析",
+          "spatial_container": "仪式空间容器设计",
+          "temporal_rhythm": "时间节奏支持策略"
+        }
+
+        📊 类型3: 情感记忆整合类（如"如何融入童年记忆?"）
+        {
+          "memory_inventory": "记忆元素清单",
+          "emotional_mapping": "情感价值地图",
+          "integration_strategy": "空间整合策略"
+        }
+        """,
+    )
+
+    # ===== 第四层：v3.5协议字段 =====
+    expert_handoff_response: Optional[Dict[str, Any]] = Field(None, description="响应其他专家的具体问题（v3.5 handoff协议）")
+
+    challenge_flags: Optional[List[Dict[str, str]]] = Field(
+        None, description="标记超出能力范围的问题，如：[{'flag': '需要临床心理学评估', 'reason': '用户描述疑似PTSD症状'}]"
+    )
+
+    @model_validator(mode="after")
+    def validate_output_consistency(self):
+        """验证输出模式的一致性"""
+        mode = self.output_mode
+        if mode == "comprehensive":
+            required = [
+                "emotional_landscape",
+                "spiritual_aspirations",
+                "psychological_safety_needs",
+                "ritual_behaviors",
+                "memory_anchors",
+            ]
             missing = [f for f in required if not getattr(self, f)]
             if missing:
                 raise ValueError(f"Comprehensive mode missing: {', '.join(missing)}")

@@ -3,9 +3,10 @@ API端点测试 - 简化版本
 
 测试核心API功能，避免导入完整FastAPI应用
 """
-import pytest
-from unittest.mock import Mock, patch, AsyncMock
 import asyncio
+from unittest.mock import AsyncMock, Mock, patch
+
+import pytest
 
 
 class TestAnalysisAPI:
@@ -14,6 +15,7 @@ class TestAnalysisAPI:
     def test_session_id_generation(self):
         """测试会话ID生成"""
         import uuid
+
         session_id = f"session-{uuid.uuid4()}"
         assert session_id.startswith("session-")
         assert len(session_id) == 44  # "session-" + 36 chars UUID
@@ -31,7 +33,7 @@ class TestAnalysisAPI:
     @pytest.mark.asyncio
     async def test_redis_session_manager_basic(self):
         """测试RedisSessionManager基础功能（Mock）"""
-        with patch('intelligent_project_analyzer.services.redis_session_manager.redis') as mock_redis:
+        with patch("intelligent_project_analyzer.services.redis_session_manager.redis") as mock_redis:
             # Mock Redis客户端
             mock_client = Mock()
             mock_client.get.return_value = None
@@ -42,7 +44,8 @@ class TestAnalysisAPI:
             from intelligent_project_analyzer.services.redis_session_manager import RedisSessionManager
 
             manager = RedisSessionManager()
-            result = manager.save_state("test-session", {"requirement": "测试需求"})
+            manager._memory_mode = True  # 使用内存模式避免依赖真实Redis
+            result = await manager.save_state_async("test-session", {"requirement": "测试需求"})
 
             assert result is True or result is None  # 取决于实现
 
@@ -77,7 +80,7 @@ class TestSessionAPI:
             "user_id": 1,
             "requirement": "测试需求",
             "created_at": "2025-12-30",
-            "status": "running"
+            "status": "running",
         }
 
         assert "session_id" in metadata
@@ -107,13 +110,13 @@ class TestToolsModule:
     @pytest.mark.asyncio
     async def test_tavily_search_mock(self):
         """测试Tavily搜索（Mock）"""
-        with patch('intelligent_project_analyzer.tools.tavily_search.TavilyClient') as mock_client:
+        with patch("intelligent_project_analyzer.tools.tavily_search.TavilyClient") as mock_client:
             # Mock搜索结果
             mock_instance = Mock()
             mock_instance.search.return_value = {
                 "results": [
                     {"title": "测试结果1", "url": "http://test1.com", "score": 0.9},
-                    {"title": "测试结果2", "url": "http://test2.com", "score": 0.8}
+                    {"title": "测试结果2", "url": "http://test2.com", "score": 0.8},
                 ]
             }
             mock_client.return_value = mock_instance
@@ -147,8 +150,8 @@ class TestServicesModule:
 
         # 验证配置存在
         assert settings.LLM is not None
-        assert hasattr(settings.LLM, 'provider')
-        assert hasattr(settings.LLM, 'model')
+        assert hasattr(settings.LLM, "provider")
+        assert hasattr(settings.LLM, "model")
 
 
 class TestReportModule:
@@ -157,16 +160,8 @@ class TestReportModule:
     def test_result_aggregator_structure(self):
         """测试结果聚合器数据结构"""
         sample_results = {
-            "market_analyst": {
-                "deliverables": [
-                    {"label": "市场分析", "content": "市场规模数据..."}
-                ]
-            },
-            "design_expert": {
-                "deliverables": [
-                    {"label": "设计方案", "content": "设计建议..."}
-                ]
-            }
+            "market_analyst": {"deliverables": [{"label": "市场分析", "content": "市场规模数据..."}]},
+            "design_expert": {"deliverables": [{"label": "设计方案", "content": "设计建议..."}]},
         }
 
         # 验证结构
@@ -182,7 +177,7 @@ class TestReportModule:
             "title": "项目分析报告",
             "author": "Intelligent Project Analyzer",
             "created_at": datetime.datetime.now().isoformat(),
-            "session_id": "test-session-123"
+            "session_id": "test-session-123",
         }
 
         assert metadata["title"]

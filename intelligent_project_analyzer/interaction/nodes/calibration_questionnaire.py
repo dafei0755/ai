@@ -3,21 +3,22 @@
 import json
 import os
 from datetime import datetime
-from typing import Dict, Any, Literal, Optional, Tuple, List
-from loguru import logger
-from langgraph.types import interrupt, Command
+from typing import Any, Dict, List, Literal, Optional, Tuple
+
 from langgraph.store.base import BaseStore
+from langgraph.types import Command, interrupt
+from loguru import logger
 
 from ...core.state import ProjectAnalysisState
 from ...core.workflow_flags import WorkflowFlagManager
 from ..questionnaire import (
-    QuestionContext,
-    FallbackQuestionGenerator,
-    PhilosophyQuestionGenerator,
+    AnswerParser,
     BiddingStrategyGenerator,
     ConflictQuestionGenerator,
+    FallbackQuestionGenerator,
+    PhilosophyQuestionGenerator,
     QuestionAdjuster,
-    AnswerParser
+    QuestionContext,
 )
 
 # 🆕 v7.18: 环境变量控制是否使用 QuestionnaireAgent
@@ -72,11 +73,7 @@ class CalibrationQuestionnaireNode:
 
         if isinstance(user_response, dict):
             additional_notes = str(user_response.get("additional_info") or user_response.get("notes") or "").strip()
-            raw_answers = (
-                user_response.get("answers")
-                or user_response.get("entries")
-                or user_response.get("responses")
-            )
+            raw_answers = user_response.get("answers") or user_response.get("entries") or user_response.get("responses")
         elif isinstance(user_response, list):
             raw_answers = user_response
         elif isinstance(user_response, str):
@@ -97,8 +94,7 @@ class CalibrationQuestionnaireNode:
 
     @staticmethod
     def _build_answer_entries(
-        questionnaire: Dict[str, Any],
-        raw_answers: Optional[Any]
+        questionnaire: Dict[str, Any], raw_answers: Optional[Any]
     ) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
         """将原始答案与问卷元数据合并为结构化摘要."""
         if not raw_answers:
@@ -136,12 +132,7 @@ class CalibrationQuestionnaireNode:
 
         for idx, question in enumerate(questions, 1):
             q_id = question.get("id") or f"Q{idx}"
-            potential_keys = [
-                str(q_id),
-                f"q{idx}",
-                question.get("question"),
-                str(idx)
-            ]
+            potential_keys = [str(q_id), f"q{idx}", question.get("question"), str(idx)]
 
             answer_value = None
             for key in potential_keys:
@@ -167,7 +158,7 @@ class CalibrationQuestionnaireNode:
                 "question": question.get("question", ""),
                 "value": normalized_value,
                 "type": question.get("type"),
-                "context": question.get("context", "")
+                "context": question.get("context", ""),
             }
             entries.append(entry)
             compact_answers[q_id] = normalized_value
@@ -216,9 +207,8 @@ class CalibrationQuestionnaireNode:
 
     @staticmethod
     def execute(
-        state: ProjectAnalysisState,
-        store: Optional[BaseStore] = None
-    ) -> Command[Literal["requirements_confirmation", "requirements_analyst"]]:
+        state: ProjectAnalysisState, store: Optional[BaseStore] = None
+    ) -> Command[Literal["project_director", "requirements_analyst"]]:
         """
         执行战略校准问卷交互
 
@@ -237,8 +227,19 @@ class CalibrationQuestionnaireNode:
         logger.info("🎯 Starting calibration questionnaire interaction")
         logger.info("=" * 80)
 
-        # 🔍 诊断日志：检查 skip_calibration 标志
-        logger.info(f"🔍 [DEBUG] skip_calibration 标志: {state.get('skip_calibration')}")
+        # 🔍 v7.154: 增强诊断日志
+        logger.info(f"🔍 [v7.154 问卷诊断] skip_calibration 标志: {state.get('skip_calibration')}")
+        logger.info(f"🔍 [v7.154 问卷诊断] is_followup 标志: {state.get('is_followup')}")
+        logger.info(f"🔍 [v7.154 问卷诊断] calibration_questionnaire 存在: {bool(state.get('calibration_questionnaire'))}")
+        logger.info(f"🔍 [v7.154 问卷诊断] questionnaire_responses 存在: {bool(state.get('questionnaire_responses'))}")
+
+        # 如果问卷存在，记录详细信息
+        questionnaire = state.get("calibration_questionnaire", {})
+        if questionnaire:
+            questions = questionnaire.get("questions", [])
+            logger.info(f"🔍 [v7.154 问卷诊断] 问卷包含 {len(questions)} 个问题")
+        else:
+            logger.info(f"🔍 [v7.154 问卷诊断] 问卷尚未生成")
 
         # 🆕 v7.4: 问卷不可跳过
         # 原 v3.7 逻辑已移除：即使是中等复杂度任务，也必须完成问卷
@@ -255,20 +256,17 @@ class CalibrationQuestionnaireNode:
             update_dict = {"calibration_processed": True, "calibration_skipped": True}
             update_dict = WorkflowFlagManager.preserve_flags(state, update_dict)
 
-            return Command(
-                update=update_dict,
-                goto="requirements_confirmation"
-            )
+            return Command(update=update_dict, goto="project_director")  # 🔧 v7.152: 改为 project_director
 
         # ✅ 检查是否已经处理过问卷（避免死循环）
         calibration_processed = state.get("calibration_processed")
         calibration_answers = state.get("calibration_answers")
         questionnaire_summary = state.get("questionnaire_summary")
-        
+
         logger.info(f"🔍 [DEBUG] calibration_processed 标志: {calibration_processed}")
         logger.info(f"🔍 [DEBUG] calibration_answers 存在: {bool(calibration_answers)}")
         logger.info(f"🔍 [DEBUG] questionnaire_summary 存在: {bool(questionnaire_summary)}")
-        
+
         # 🛡️ v7.24 增强防御：检查多个信号源判断问卷是否已处理
         # 信号源优先级：calibration_processed > calibration_answers > questionnaire_summary
         if not calibration_processed:
@@ -278,17 +276,14 @@ class CalibrationQuestionnaireNode:
             elif questionnaire_summary and questionnaire_summary.get("answers"):
                 logger.warning("⚠️ v7.24: calibration_processed=False 但 questionnaire_summary.answers 存在，视为已处理")
                 calibration_processed = True
-        
+
         if calibration_processed:
-            logger.info("✅ Calibration already processed, skipping to requirements confirmation")
-            logger.info("🔄 [DEBUG] Returning Command(goto='requirements_confirmation')")
+            logger.info("✅ Calibration already processed, skipping to project_director")
+            logger.info("🔄 [DEBUG] Returning Command(goto='project_director')")
             # 自动保留持久化标志
             update_dict = {"calibration_processed": True}  # 🔧 v7.24: 显式设置，确保传递
             update_dict = WorkflowFlagManager.preserve_flags(state, update_dict)
-            return Command(
-                update=update_dict,
-                goto="requirements_confirmation"
-            )
+            return Command(update=update_dict, goto="project_director")  # 🆕 v7.151: 直接路由到 project_director
 
         # 获取需求分析结果
         agent_results = state.get("agent_results", {})
@@ -300,10 +295,7 @@ class CalibrationQuestionnaireNode:
 
         if not requirements_result:
             logger.warning("⚠️ No requirements analysis found, returning to requirements analyst")
-            return Command(
-                update={"error": "No requirements analysis found"},
-                goto="requirements_analyst"
-            )
+            return Command(update={"error": "No requirements analysis found"}, goto="requirements_analyst")
 
         # 🆕 v7.3: 问卷生成架构调整
         # 获取分析结果，用于动态生成问卷
@@ -341,14 +333,13 @@ class CalibrationQuestionnaireNode:
             if USE_V718_QUESTIONNAIRE_AGENT:
                 try:
                     from ...agents.questionnaire_agent import QuestionnaireAgent
-                    
+
                     logger.info("🤖 [v7.18] 使用 QuestionnaireAgent (StateGraph) 生成问卷...")
                     questionnaire_agent = QuestionnaireAgent(llm_model=None)
                     base_questions, generation_method = questionnaire_agent.generate(
-                        user_input=user_input,
-                        structured_data=structured_data
+                        user_input=user_input, structured_data=structured_data
                     )
-                    
+
                     if base_questions and generation_method in ("llm_generated", "regenerated"):
                         logger.info(f"✅ [v7.18] QuestionnaireAgent 生成成功：{len(base_questions)} 个问题")
                         questionnaire = {
@@ -356,33 +347,30 @@ class CalibrationQuestionnaireNode:
                             "questions": base_questions,
                             "note": "这些问题直接针对您提到的具体内容，帮助我们提供更精准的设计建议",
                             "source": generation_method,
-                            "generation_method": "stategraph_agent"
+                            "generation_method": "stategraph_agent",
                         }
                         generation_source = generation_method
                     else:
                         logger.warning(f"⚠️ [v7.18] QuestionnaireAgent 返回回退方案，将使用规则生成")
                         raise Exception("QuestionnaireAgent 返回回退方案")
-                        
+
                 except Exception as agent_error:
                     logger.warning(f"⚠️ [v7.18] QuestionnaireAgent 失败: {agent_error}，回退到 LLMQuestionGenerator")
                     # 回退到原有 v7.5 逻辑
                     USE_V718_QUESTIONNAIRE_AGENT_FALLBACK = True
             else:
                 USE_V718_QUESTIONNAIRE_AGENT_FALLBACK = True
-            
+
             # v7.5 原有逻辑（作为 v7.18 的回退或独立使用）
             if not questionnaire or not questionnaire.get("questions"):
                 try:
                     from ..questionnaire.llm_generator import LLMQuestionGenerator
-                    
+
                     logger.info("🤖 [v7.5] 尝试使用 LLM 生成问卷...")
                     base_questions, generation_method = LLMQuestionGenerator.generate(
-                        user_input=user_input,
-                        structured_data=structured_data,
-                        llm_model=None,  # 使用默认LLM实例
-                        timeout=30
+                        user_input=user_input, structured_data=structured_data, llm_model=None, timeout=30  # 使用默认LLM实例
                     )
-                    
+
                     if base_questions and generation_method == "llm_generated":
                         logger.info(f"✅ [v7.5] LLM生成成功：{len(base_questions)} 个定制问题")
                         questionnaire = {
@@ -390,22 +378,23 @@ class CalibrationQuestionnaireNode:
                             "questions": base_questions,
                             "note": "这些问题直接针对您提到的具体内容，帮助我们提供更精准的设计建议",
                             "source": "llm_generated",
-                            "generation_method": "llm_driven"
+                            "generation_method": "llm_driven",
                         }
                         generation_source = "llm_generated"
                     else:
                         logger.warning(f"⚠️ [v7.5] LLM生成返回回退方案，将使用规则生成")
                         raise Exception("LLM返回回退方案")
-                        
+
                 except Exception as llm_error:
                     logger.warning(f"⚠️ [v7.5] LLM生成失败: {llm_error}，使用回退方案")
-                    
+
                     # 🔄 回退到原有的 FallbackQuestionGenerator
                     logger.info("🔄 [v7.5] 回退到规则驱动的问卷生成...")
-                    
+
                     # 智能提取关键信息
-                    from ..questionnaire.context import KeywordExtractor
                     import sys
+
+                    from ..questionnaire.context import KeywordExtractor
 
                     try:
                         extracted_info = KeywordExtractor.extract(user_input, structured_data)
@@ -416,9 +405,7 @@ class CalibrationQuestionnaireNode:
 
                     # 使用 FallbackQuestionGenerator 生成基础问题集
                     base_questions = FallbackQuestionGenerator.generate(
-                        structured_data,
-                        user_input=user_input,
-                        extracted_info=extracted_info
+                        structured_data, user_input=user_input, extracted_info=extracted_info
                     )
                     logger.info(f"✅ 规则生成完成：{len(base_questions)} 个问题")
 
@@ -427,7 +414,7 @@ class CalibrationQuestionnaireNode:
                         "questions": base_questions,
                         "note": "基于您的需求深度分析结果生成的定制问卷",
                         "source": "dynamic_generation",
-                        "generation_method": "rule_based_fallback"
+                        "generation_method": "rule_based_fallback",
                     }
                     generation_source = "dynamic_generation"
 
@@ -441,6 +428,7 @@ class CalibrationQuestionnaireNode:
         except Exception as e:
             logger.error(f"❌ [DEBUG] Step 2 异常: {type(e).__name__}: {e}")
             import traceback
+
             traceback.print_exc()
             philosophy_questions = []
         if philosophy_questions:
@@ -462,6 +450,7 @@ class CalibrationQuestionnaireNode:
             except Exception as e:
                 logger.error(f"❌ [DEBUG] Step 2.6 异常: {type(e).__name__}: {e}")
                 import traceback
+
                 traceback.print_exc()
                 bidding_strategy_questions = []
             if bidding_strategy_questions:
@@ -474,8 +463,9 @@ class CalibrationQuestionnaireNode:
         conflict_questions = []
 
         # 🆕 v7.4: 获取用户提及的约束（从 extracted_info 或重新提取）
-        if 'extracted_info' not in dir() or extracted_info is None:
+        if "extracted_info" not in dir() or extracted_info is None:
             from ..questionnaire.context import KeywordExtractor
+
             extracted_info = KeywordExtractor.extract(user_input, structured_data)
         user_mentioned_constraints = extracted_info.get("user_mentioned_constraints", [])
 
@@ -483,14 +473,13 @@ class CalibrationQuestionnaireNode:
             try:
                 # 🚀 v7.4优化：传入 user_mentioned_constraints 参数
                 conflict_questions = ConflictQuestionGenerator.generate(
-                    feasibility,
-                    scenario_type,
-                    user_mentioned_constraints=user_mentioned_constraints
+                    feasibility, scenario_type, user_mentioned_constraints=user_mentioned_constraints
                 )
                 logger.info(f"🔍 [DEBUG] Step 3 完成: 生成 {len(conflict_questions)} 个冲突问题")
             except Exception as e:
                 logger.error(f"❌ [DEBUG] Step 3 异常: {type(e).__name__}: {e}")
                 import traceback
+
                 traceback.print_exc()
                 conflict_questions = []
             if conflict_questions:
@@ -509,26 +498,37 @@ class CalibrationQuestionnaireNode:
                 philosophy_questions=philosophy_questions,
                 conflict_questions=conflict_questions,
                 original_question_count=len(original_questions),
-                feasibility_data=feasibility
+                feasibility_data=feasibility,
             )
-            logger.info(f"🔍 [DEBUG] Step 4 完成: 调整后理念={len(adjusted_philosophy_questions)}, 冲突={len(adjusted_conflict_questions)}")
+            logger.info(
+                f"🔍 [DEBUG] Step 4 完成: 调整后理念={len(adjusted_philosophy_questions)}, 冲突={len(adjusted_conflict_questions)}"
+            )
         except Exception as e:
             logger.error(f"❌ [DEBUG] Step 4 异常: {type(e).__name__}: {e}")
             import traceback
+
             traceback.print_exc()
             adjusted_philosophy_questions = philosophy_questions
             adjusted_conflict_questions = conflict_questions
 
         # 合并调整后的理念问题和冲突问题
         # 🚀 P1优化：竞标策略问题优先级最高，放在最前面
-        all_injected_questions = bidding_strategy_questions + adjusted_philosophy_questions + adjusted_conflict_questions
+        all_injected_questions = (
+            bidding_strategy_questions + adjusted_philosophy_questions + adjusted_conflict_questions
+        )
 
         if all_injected_questions:
             if bidding_strategy_questions:
                 logger.info(f"🎯 [P1] 竞标策略问题 {len(bidding_strategy_questions)} 个已加入注入队列")
-            logger.info(f"✨ 总计注入 {len(all_injected_questions)} 个动态问题（理念{len(adjusted_philosophy_questions)}个 + 资源{len(adjusted_conflict_questions)}个）")
-            if len(adjusted_philosophy_questions) < len(philosophy_questions) or len(adjusted_conflict_questions) < len(conflict_questions):
-                logger.info(f"📊 动态调整: 理念问题 {len(philosophy_questions)}→{len(adjusted_philosophy_questions)}, 冲突问题 {len(conflict_questions)}→{len(adjusted_conflict_questions)}")
+            logger.info(
+                f"✨ 总计注入 {len(all_injected_questions)} 个动态问题（理念{len(adjusted_philosophy_questions)}个 + 资源{len(adjusted_conflict_questions)}个）"
+            )
+            if len(adjusted_philosophy_questions) < len(philosophy_questions) or len(adjusted_conflict_questions) < len(
+                conflict_questions
+            ):
+                logger.info(
+                    f"📊 动态调整: 理念问题 {len(philosophy_questions)}→{len(adjusted_philosophy_questions)}, 冲突问题 {len(conflict_questions)}→{len(adjusted_conflict_questions)}"
+                )
 
             # 将问题插入到问卷中（单选题之后）
             # 找到第一个非单选题的位置
@@ -539,9 +539,7 @@ class CalibrationQuestionnaireNode:
                     break
             # 插入所有动态问题
             updated_questions = (
-                original_questions[:insert_position] +
-                all_injected_questions +
-                original_questions[insert_position:]
+                original_questions[:insert_position] + all_injected_questions + original_questions[insert_position:]
             )
             questionnaire["questions"] = updated_questions
             logger.info(f"✅ 已将动态问题插入到位置 {insert_position}，总问题数: {len(updated_questions)}")
@@ -556,14 +554,14 @@ class CalibrationQuestionnaireNode:
         # 🔧 修复问卷题型顺序（确保：单选→多选→文字输入）
         questions = questionnaire.get("questions", [])
         original_order = [q.get("type", "") for q in questions]
-        
+
         single_choice = [q for q in questions if q.get("type") == "single_choice"]
         multiple_choice = [q for q in questions if q.get("type") == "multiple_choice"]
         open_ended = [q for q in questions if q.get("type") == "open_ended"]
-        
+
         fixed_questions = single_choice + multiple_choice + open_ended
         fixed_order = [q.get("type", "") for q in fixed_questions]
-        
+
         if original_order != fixed_order:
             logger.warning(f"⚠️ 问卷题型顺序不正确，已自动修复：")
             logger.warning(f"   原始: {original_order}")
@@ -599,25 +597,21 @@ class CalibrationQuestionnaireNode:
                 "questionnaire": {
                     "introduction": questionnaire.get("introduction", "以下问题旨在精准捕捉您在战术执行和美学表达层面的个人偏好"),
                     "questions": questionnaire.get("questions", []),
-                    "note": questionnaire.get("note") or "这些问题不会改变核心战略方向，只是帮助我们更好地实现既定目标"
+                    "note": questionnaire.get("note") or "这些问题不会改变核心战略方向，只是帮助我们更好地实现既定目标",
                 },
-                "options": {
-                    "submit": "提交问卷答案"
-                }
+                "options": {"submit": "提交问卷答案"},
             }
 
             logger.info(f"🛑 [QUESTIONNAIRE] 即将调用 interrupt()，等待用户输入...")
             logger.info(f"🛑 [QUESTIONNAIRE] payload keys: {list(questionnaire_payload.keys())}")
-            logger.info(f"🛑 [QUESTIONNAIRE] questions count: {len(questionnaire_payload['questionnaire']['questions'])}")
-            
+            logger.info(
+                f"🛑 [QUESTIONNAIRE] questions count: {len(questionnaire_payload['questionnaire']['questions'])}"
+            )
+
             user_response = interrupt(questionnaire_payload)
             logger.info(f"Received questionnaire response: {type(user_response)}")
 
-            intent_result = parse_user_intent(
-                user_response,
-                context="战略校准问卷",
-                stage="calibration_questionnaire"
-            )
+            intent_result = parse_user_intent(user_response, context="战略校准问卷", stage="calibration_questionnaire")
 
             intent = intent_result["intent"]
             content = intent_result.get("content", "")
@@ -634,7 +628,7 @@ class CalibrationQuestionnaireNode:
                     str(user_response.get("intent", "")),
                     str(user_response.get("action", "")),
                     str(user_response.get("value", "")),
-                    str(user_response.get("resume_value", ""))
+                    str(user_response.get("resume_value", "")),
                 ]
                 normalized_response = next((val.strip().lower() for val in possible_keys if val), "")
 
@@ -664,7 +658,7 @@ class CalibrationQuestionnaireNode:
                     "type": "calibration_questionnaire",
                     "intent": "skip",
                     "timestamp": datetime.now().isoformat(),
-                    "question_count": len(questionnaire.get("questions", []))
+                    "question_count": len(questionnaire.get("questions", [])),
                 }
                 history = state.get("interaction_history", [])
                 updated_state["interaction_history"] = history + [skip_entry]
@@ -673,7 +667,7 @@ class CalibrationQuestionnaireNode:
                 updated_state = WorkflowFlagManager.preserve_flags(state, updated_state)
 
                 logger.info(f"🔍 [DEBUG] Command.update 包含的键: {list(updated_state.keys())}")
-                return Command(update=updated_state, goto="requirements_confirmation")
+                return Command(update=updated_state, goto="project_director")  # 🆕 v7.151
 
             if intent not in {"modify", "add", "revise"} and not answers_map:
                 skip_attempts += 1
@@ -696,7 +690,7 @@ class CalibrationQuestionnaireNode:
             "calibration_questionnaire": questionnaire,
             "calibration_skip_attempts": skip_attempts,
             "calibration_warning": warning_message,
-            "agent_results": agent_results
+            "agent_results": agent_results,
         }
 
         # 自动保留持久化标志
@@ -706,7 +700,7 @@ class CalibrationQuestionnaireNode:
             "type": "calibration_questionnaire",
             "intent": intent,
             "timestamp": timestamp,
-            "question_count": len(questionnaire.get("questions", []))
+            "question_count": len(questionnaire.get("questions", [])),
         }
         if answers_map:
             interaction_entry["answers"] = answers_map
@@ -716,7 +710,7 @@ class CalibrationQuestionnaireNode:
         history = state.get("interaction_history", [])
         updated_state["interaction_history"] = history + [interaction_entry]
 
-        next_node = "requirements_confirmation"
+        next_node = "project_director"  # 🆕 v7.151: 直接路由到 project_director
         should_reanalyze = False
 
         if intent == "modify":
@@ -732,11 +726,11 @@ class CalibrationQuestionnaireNode:
         elif intent == "add":
             logger.info(f"📝 User provided additional information: {content[:100]}")
             supplement_text = notes or content
-            
+
             # ✅ 修复: 无论是否有补充文本，都要保存问卷答案（用于后续聚合）
             if answers_map:
                 updated_state["calibration_answers"] = answers_map
-                
+
                 # 🔧 新增: 构建并保存 questionnaire_summary/responses（与 approve 分支一致）
                 summary_entries = entries
                 summary_payload = {
@@ -745,14 +739,14 @@ class CalibrationQuestionnaireNode:
                     "submitted_at": timestamp,
                     "timestamp": timestamp,
                     "notes": notes,
-                    "source": "calibration_questionnaire"
+                    "source": "calibration_questionnaire",
                 }
                 updated_state["questionnaire_summary"] = summary_payload
                 updated_state["questionnaire_responses"] = summary_payload
                 # 🔥 v7.13: 修复 - add 意图也需要标记问卷已处理，防止 resume 后重复生成
                 updated_state["calibration_processed"] = True
                 logger.info(f"✅ [add 意图] 已保存 {len(answers_map)} 个问卷答案到 questionnaire_summary")
-            
+
             if supplement_text:
                 updated_state["additional_requirements"] = supplement_text
 
@@ -782,7 +776,7 @@ class CalibrationQuestionnaireNode:
                     "submitted_at": timestamp,
                     "timestamp": timestamp,
                     "notes": notes,
-                    "source": "calibration_questionnaire"
+                    "source": "calibration_questionnaire",
                 }
 
                 updated_state["calibration_answers"] = answers_map
@@ -815,11 +809,11 @@ class CalibrationQuestionnaireNode:
                     "insights": {entry["id"]: entry["value"] for entry in summary_entries},
                     "submitted_at": timestamp,
                     "notes": notes,
-                    "source": "calibration_questionnaire"
+                    "source": "calibration_questionnaire",
                 }
                 updated_state["structured_requirements"] = {
                     **existing_requirements,
-                    "questionnaire_insights": questionnaire_insights
+                    "questionnaire_insights": questionnaire_insights,
                 }
 
                 next_node = "requirements_analyst"

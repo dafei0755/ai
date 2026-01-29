@@ -17,6 +17,8 @@
 3. **配置管理** - 查看和热重载系统配置，无需重启服务
 4. **会话管理** - 查看所有用户会话，强制终止会话，批量操作
 5. **日志查看器** - 实时查看服务器、认证、错误、性能日志
+6. **搜索过滤器管理** - 配置黑名单（屏蔽低质量站点）和白名单（优先推荐权威媒体）
+7. **能力边界监控** - 监控交付物能力约束违规，防止用户选择超出系统能力范围的交付物（v7.130新增）
 
 ---
 
@@ -247,6 +249,146 @@ ADMIN_WHITELIST=admin,superuser,devops
 **路径**: `/admin/logs`
 
 **功能**:
+- 📜 实时查看服务器日志
+- 🔍 按日志类型筛选（server/auth/error/performance）
+- ⏱️ 按时间范围筛选
+- 🔄 自动滚动（尾部追踪模式）
+
+**API端点**:
+- `GET /api/admin/logs?type=server&lines=100` - 获取日志
+- `POST /api/admin/logs/clear` - 清空日志
+
+### 6. 搜索过滤器管理
+
+**路径**: `/admin/search-filters`
+
+**功能**:
+- 🚫 配置黑名单（屏蔽低质量站点，如：社交媒体、论坛、广告站点）
+- ✅ 配置白名单（优先推荐权威媒体，如：行业协会、专业期刊）
+- 📊 查看过滤统计（拦截次数、通过次数）
+- 💾 实时保存配置到 `config/search_filters.yaml`
+
+**API端点**:
+- `GET /api/admin/search-filters/config` - 获取当前配置
+- `POST /api/admin/search-filters/config` - 更新配置
+- `GET /api/admin/search-filters/stats` - 查看统计数据
+
+**配置示例**:
+```yaml
+blacklist:
+  enabled: true
+  domains:
+    - youtube.com
+    - facebook.com
+    - twitter.com
+  keywords:
+    - "广告"
+    - "推广"
+
+whitelist:
+  enabled: true
+  domains:
+    - zhihu.com
+    - archdaily.com
+    - designboom.com
+```
+
+**v7.130修复**: 修复页面加载时的null-safety问题，使用可选链操作符防止config加载前访问嵌套属性报错。
+
+### 7. 能力边界监控 🆕 v7.130
+
+**路径**: `/admin/capability-boundary`
+
+**功能**:
+- ⚠️ 监控用户选择超出系统能力范围的交付物（CAD施工图、3D效果图、精确清单等）
+- 📊 查看违规统计（按节点、按交付物类型、按时间趋势）
+- 🔍 分析用户误解模式（高频违规项识别）
+- 📋 查看实时违规记录和自动转换日志
+
+**三个监控标签**:
+
+#### 7.1 节点配置
+
+显示各工作流节点的能力边界规则配置：
+
+| 节点名称 | 检查类型 | 支持的交付物 | 不支持的交付物 |
+|---------|---------|-------------|--------------|
+| progressive_step3_gap_filling | full | 设计策略文档、空间概念描述、材料选择指导、预算框架、分析报告 | CAD施工图、3D效果图、精确材料清单、精确预算清单 |
+| requirements_confirmation | full | 需求分析报告、设计思路、方案建议 | 详细施工图纸、3D渲染图 |
+| expert_collaboration | info | 专业分析、概念设计、策略建议 | 精确技术图纸 |
+
+**配置文件**: `config/capability_boundary_config.yaml`
+
+#### 7.2 违规记录
+
+显示用户选择超出能力范围交付物的历史记录：
+
+```typescript
+{
+  timestamp: "2026-01-04T10:30:15",
+  node: "progressive_step3_gap_filling",
+  user_id: "user_12345",
+  violations: [
+    {
+      original: "CAD施工图",
+      transformed: "设计策略文档",
+      reason: "需要AutoCAD/Revit等专业工具"
+    }
+  ],
+  session_id: "sess_abc123"
+}
+```
+
+**字段说明**:
+- `original`: 用户原始选择
+- `transformed`: 系统自动转换后的可执行交付物
+- `reason`: 不支持原始选择的原因说明
+
+#### 7.3 违规模式分析
+
+识别高频违规项和用户误解趋势：
+
+| 违规交付物 | 出现次数 | 占比 | 自动转换目标 |
+|-----------|---------|------|-------------|
+| CAD施工图 | 127 | 35% | 设计策略文档 |
+| 3D效果图 | 89 | 24% | 空间概念描述 |
+| 精确材料清单 | 76 | 21% | 材料选择指导 |
+| 精确预算清单 | 73 | 20% | 预算框架 |
+
+**告警规则**:
+- ⚠️ 违规率 ≥ 30%: 需要优化前端提示或用户引导
+- 🚨 单个违规项 ≥ 100次/周: 说明用户对系统定位有误解，建议增加FAQ说明
+
+**API端点**:
+- `GET /api/admin/capability-boundary/stats` - 获取统计数据
+- `GET /api/admin/capability-boundary/violations?page=1&page_size=20` - 查看违规记录
+- `GET /api/admin/capability-boundary/patterns` - 分析违规模式
+
+**多层防御机制**:
+
+1. **配置层**: `capability_boundary_config.yaml` 定义每个节点的check_type（full/info/none）
+2. **提示层**: `gap_question_generator.yaml` LLM提示包含40行能力边界约束说明
+3. **模板层**: `task_completeness_analyzer.py` 硬编码问题选项仅包含系统支持的交付物
+4. **代码层**: `progressive_questionnaire.py` 调用 `CapabilityBoundaryService.check_questionnaire_answers()` 进行实时检查和转换
+
+**转换规则详情**:
+
+| 用户选择（超出能力） | 系统转换（支持范围） | 原因说明 |
+|---------------------|---------------------|----------|
+| CAD施工图 | 设计策略文档 | 需要AutoCAD/Revit等专业工具，系统提供策略性设计思路 |
+| 3D效果图 | 空间概念描述 | 需要3ds Max/SketchUp等渲染工具，系统提供文字概念描述 |
+| 软装清单/精确材料清单 | 材料选择指导 | 需要现场测量和尺寸核对，系统提供材料建议和选择指导 |
+| 精确预算清单 | 预算框架 | 需要实时市场询价和供应商报价，系统提供预算区间估算 |
+
+**监控价值**:
+- 识别用户对系统能力的理解偏差
+- 优化前端交互提示文案
+- 指导功能边界文档完善
+- 为产品迭代提供数据支持（哪些功能用户期待最高）
+
+---
+
+**功能**:
 - 📝 实时查看日志文件
 - 🔍 关键词搜索
 - 📂 多日志类型切换（server/auth/errors/performance）
@@ -296,7 +438,8 @@ intelligent_project_analyzer/
 ├── utils/
 │   └── config_manager.py        # 🔥 配置热重载管理器
 └── services/
-    └── redis_session_manager.py # 会话管理器
+    ├── redis_session_manager.py # 会话管理器
+    └── capability_boundary.py   # 🆕 v7.130: 能力边界检查服务
 
 frontend-nextjs/
 ├── app/
@@ -311,8 +454,12 @@ frontend-nextjs/
 │       │   └── page.tsx         # 配置管理
 │       ├── sessions/
 │       │   └── page.tsx         # 会话管理
-│       └── logs/
-│           └── page.tsx         # 日志查看器
+│       ├── logs/
+│       │   └── page.tsx         # 日志查看器
+│       ├── search-filters/
+│       │   └── page.tsx         # 🔥 搜索过滤器管理（黑白名单）
+│       └── capability-boundary/ # 🆕 v7.130: 能力边界监控
+│           └── page.tsx
 └── middleware.ts                # ✅ 扩展: /admin路由保护
 ```
 

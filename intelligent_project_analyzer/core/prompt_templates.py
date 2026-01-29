@@ -155,6 +155,9 @@ class ExpertPromptTemplate:
         # 🆕 构建任务优先级提示（如果有confirmed_core_tasks）
         task_priority_section = self._build_task_priority_section(state)
 
+        # 🆕 v7.154: 构建角色差异化指令（防止V4/V5输出同质化）
+        role_differentiation_section = self._build_role_differentiation_section()
+
         # 🔥 拼接预构建的静态部分（80%）+ 动态部分（20%）
         system_prompt = f"""
 {self.base_system_prompt}
@@ -162,6 +165,7 @@ class ExpertPromptTemplate:
 # 🎯 动态角色定义
 你在本次分析中的具体角色：{dynamic_role_name}
 {creative_mode_note}
+{role_differentiation_section}
 # 📋 TaskInstruction - 你的明确任务指令
 
 {task_instruction_section}
@@ -349,6 +353,48 @@ class ExpertPromptTemplate:
         sections.append("- 衍生任务虽然重要，但应在核心任务满足后再深化")
 
         return "\n".join(sections)
+
+    def _build_role_differentiation_section(self) -> str:
+        """
+        🆕 v7.154: 构建角色差异化指令
+
+        防止V4和V5输出内容同质化，明确各角色的独特视角和分析焦点
+
+        Returns:
+            角色差异化指令文本，如果不是V4/V5则返回空字符串
+        """
+        if self.role_type == "V4":
+            return """
+# 🎯 角色差异化指令 (v7.154)
+
+**你是V4设计研究员，你的独特视角是：**
+- 📊 **数据驱动分析**：用数据和统计支撑观点，而非主观描述
+- 🌍 **国际视野**：优先引用国际案例、全球趋势、跨文化对比
+- 📈 **趋势研判**：关注行业发展方向、新兴技术、未来预测
+- 🔬 **方法论严谨**：使用学术研究方法、引用权威来源
+
+**⚠️ 差异化要求（避免与V5重复）：**
+- ❌ 不要过多描述本地场景适配和用户行为细节（这是V5的职责）
+- ❌ 不要罗列大量本地案例（应聚焦国际标杆和数据对比）
+- ✅ 应该提供：数据对比表、趋势图表描述、国际案例分析、研究方法论
+"""
+        elif self.role_type == "V5":
+            return """
+# 🎯 角色差异化指令 (v7.154)
+
+**你是V5场景行业专家，你的独特视角是：**
+- 🏠 **本地化适配**：关注本地市场、文化习惯、法规标准
+- 👥 **用户行为洞察**：深入分析用户动线、使用习惯、痛点需求
+- 🎬 **场景模拟**：描述具体使用场景、时间节奏、功能分区
+- 💡 **实操建议**：提供可落地的具体建议，而非理论分析
+
+**⚠️ 差异化要求（避免与V4重复）：**
+- ❌ 不要过多引用国际案例和数据趋势（这是V4的职责）
+- ❌ 不要进行宏观的行业分析和方法论探讨
+- ✅ 应该提供：用户旅程图、场景描述、功能分区建议、本地化适配方案
+"""
+        else:
+            return ""
 
 
 # 🔥 全局模板缓存（单例模式）

@@ -1,9 +1,25 @@
 {
   "version": "1.0",
-  "last_updated": "2026-01-02T20:26:00",
-  "total_fixes": 2,
+  "last_updated": "2026-01-08T16:30:00",
+  "total_fixes": 3,
   "total_failures": 0,
   "fixes": [
+    {
+      "id": "fix-2026-01-08-multimodal-visual-reference-dataflow",
+      "title": "修复多模态视觉参考数据流断裂问题",
+      "date": "2026-01-08",
+      "status": "success",
+      "tags": ["multimodal", "visual-reference", "dataflow", "state-management", "concept-image"],
+      "files": [
+        "intelligent_project_analyzer/core/state.py",
+        "intelligent_project_analyzer/api/server.py",
+        "intelligent_project_analyzer/services/file_processor.py"
+      ],
+      "error_type": "DataFlowBreak",
+      "error_message": "uploaded_visual_references always None in LangGraph State",
+      "session_id": "guest-20260108152419-15952fdd",
+      "path": ".github/historical_fixes/multimodal_visual_reference_dataflow_fix_v7.156.md"
+    },
     {
       "id": "fix-2026-01-02-quality-preflight-data-structure",
       "title": "修复质量预检警告前后端数据结构不匹配",

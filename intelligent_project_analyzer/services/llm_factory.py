@@ -88,7 +88,31 @@ class LLMFactory:
             # 如果禁用自动降级，直接使用原始方法
             if not auto_fallback:
                 logger.info(f"📌 自动降级已禁用，只使用 {primary_provider}")
-                return LLMFactory._create_llm_original(config, **kwargs)
+
+                # 🔧 关键修复：即使禁用自动降级，也必须尊重 LLM_PROVIDER。
+                # 否则会走 _create_llm_original（仅绑定 OPENAI_API_KEY/OPENAI_*），
+                # 导致在 openrouter/deepseek/qwen 等场景下 LLM 调用失败，进而触发问卷/维度的硬编码回退。
+                if primary_provider == "openai":
+                    return LLMFactory._create_llm_original(config, **kwargs)
+
+                from intelligent_project_analyzer.services.multi_llm_factory import MultiLLMFactory
+
+                cfg = config or settings.llm
+                extra_kwargs = dict(kwargs)
+                extra_kwargs.pop("provider", None)
+                extra_kwargs.pop("temperature", None)
+                extra_kwargs.pop("max_tokens", None)
+                extra_kwargs.pop("timeout", None)
+                extra_kwargs.pop("max_retries", None)
+
+                return MultiLLMFactory.create_llm(
+                    provider=primary_provider,
+                    temperature=kwargs.get("temperature", cfg.temperature),
+                    max_tokens=kwargs.get("max_tokens", cfg.max_tokens),
+                    timeout=kwargs.get("timeout", cfg.timeout),
+                    max_retries=kwargs.get("max_retries", cfg.max_retries),
+                    **extra_kwargs,
+                )
 
             # 尝试使用多LLM工厂创建(支持自动降级)
             from intelligent_project_analyzer.services.multi_llm_factory import FallbackLLM, MultiLLMFactory
@@ -154,7 +178,29 @@ class LLMFactory:
         # 如果禁用自动降级，直接使用原始方法
         if not auto_fallback:
             logger.info(f"📌 自动降级已禁用，只使用 {primary_provider}")
-            return LLMFactory._create_llm_original(config, **kwargs)
+
+            # 同上：尊重 LLM_PROVIDER
+            if primary_provider == "openai":
+                return LLMFactory._create_llm_original(config, **kwargs)
+
+            from intelligent_project_analyzer.services.multi_llm_factory import MultiLLMFactory
+
+            cfg = config or settings.llm
+            extra_kwargs = dict(kwargs)
+            extra_kwargs.pop("provider", None)
+            extra_kwargs.pop("temperature", None)
+            extra_kwargs.pop("max_tokens", None)
+            extra_kwargs.pop("timeout", None)
+            extra_kwargs.pop("max_retries", None)
+
+            return MultiLLMFactory.create_llm(
+                provider=primary_provider,
+                temperature=kwargs.get("temperature", cfg.temperature),
+                max_tokens=kwargs.get("max_tokens", cfg.max_tokens),
+                timeout=kwargs.get("timeout", cfg.timeout),
+                max_retries=kwargs.get("max_retries", cfg.max_retries),
+                **extra_kwargs,
+            )
 
         # 尝试使用多LLM工厂创建(支持自动降级)
         try:
@@ -415,11 +461,15 @@ class LLMFactory:
                 get_global_balancer,
             )
 
+            # 🔧 v7.153: 过滤掉 ChatOpenAI 不支持的参数
+            # provider 是 MultiLLMFactory 的参数，不应传递给 ChatOpenAI
+            filtered_kwargs = {k: v for k, v in kwargs.items() if k not in ["provider"]}
+
             # 创建配置
             config = LoadBalancerConfig(strategy=strategy)
 
             # 获取全局负载均衡器
-            balancer = get_global_balancer(config=config, model=model, **kwargs)
+            balancer = get_global_balancer(config=config, model=model, **filtered_kwargs)
 
             # 返回 LLM 实例
             return balancer.get_llm()

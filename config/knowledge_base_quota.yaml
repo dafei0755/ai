@@ -1,0 +1,128 @@
+# 知识库配额配置 - v7.141.3
+# 定义不同会员等级的知识库使用限制
+
+# 会员等级定义
+membership_tiers:
+  free:
+    name: "免费版"
+    display_name: "Free"
+    quota:
+      # 文档数量限制
+      max_documents: 10
+      # 存储空间限制 (MB)
+      max_storage_mb: 50
+      # 单个文档大小限制 (MB)
+      max_file_size_mb: 5
+      # 文档有效期 (天)
+      document_expiry_days: 30
+      # 允许的文档类型
+      allowed_document_types:
+        - "文档"
+      # 是否允许共享文档
+      allow_sharing: false
+      # 是否允许创建团队知识库
+      allow_team_kb: false
+
+  basic:
+    name: "基础版"
+    display_name: "Basic"
+    quota:
+      max_documents: 100
+      max_storage_mb: 500
+      max_file_size_mb: 10
+      document_expiry_days: 90
+      allowed_document_types:
+        - "文档"
+        - "技术知识"
+        - "案例库"
+      allow_sharing: true
+      allow_team_kb: false
+
+  professional:
+    name: "专业版"
+    display_name: "Professional"
+    quota:
+      max_documents: 1000
+      max_storage_mb: 5120  # 5GB
+      max_file_size_mb: 50
+      document_expiry_days: 365
+      allowed_document_types:
+        - "文档"
+        - "技术知识"
+        - "案例库"
+        - "设计规范"
+      allow_sharing: true
+      allow_team_kb: true
+      # 团队知识库限制
+      max_team_documents: 500
+
+  enterprise:
+    name: "企业版"
+    display_name: "Enterprise"
+    quota:
+      max_documents: -1  # -1 表示无限制
+      max_storage_mb: -1
+      max_file_size_mb: 100
+      document_expiry_days: -1  # 永不过期
+      allowed_document_types:
+        - "文档"
+        - "技术知识"
+        - "案例库"
+        - "设计规范"
+      allow_sharing: true
+      allow_team_kb: true
+      max_team_documents: -1
+
+# 默认配额 (用户未指定会员等级时)
+default_tier: "free"
+
+# 配额检查设置
+quota_check:
+  # 是否启用配额检查
+  enabled: true
+  # 配额检查频率 (秒)
+  check_interval: 3600  # 每小时检查一次
+  # 接近配额警告阈值 (%)
+  warning_threshold: 80
+  # 超出配额后的宽限期 (天)
+  grace_period_days: 7
+
+# 过期文档清理设置
+expiry_cleanup:
+  # 是否启用自动清理
+  enabled: true
+  # 清理任务执行时间 (cron 表达式)
+  cron_schedule: "0 2 * * *"  # 每天凌晨 2 点
+  # 软删除还是硬删除
+  soft_delete: true
+  # 软删除保留期 (天)
+  soft_delete_retention_days: 30
+  # 清理通知
+  notify_user: true
+
+# 对话记录过期同步设置
+conversation_sync:
+  # 是否与对话记录过期机制同步
+  enabled: true
+  # 对话记录配置文件路径
+  conversation_config_path: "config/conversation_retention.yaml"
+  # 同步策略: "strict" (严格同步) | "loose" (宽松同步)
+  sync_strategy: "strict"
+  # 说明：
+  # - strict: 知识库文档的过期时间必须 <= 对话记录过期时间
+  # - loose: 知识库文档可以比对话记录存活更久
+
+# 存储空间计算方式
+storage_calculation:
+  # 是否包含向量数据
+  include_vectors: true
+  # 是否包含元数据
+  include_metadata: true
+  # 压缩率估算 (用于估算实际存储空间)
+  compression_ratio: 0.7
+
+# 特殊用户豁免列表 (用户ID列表)
+exempt_users:
+  - "admin"
+  - "system"
+  # 这些用户不受配额限制

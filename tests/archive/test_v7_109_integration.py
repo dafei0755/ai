@@ -8,13 +8,31 @@ v7.109 集成测试脚本（简化版）
 3. 用户修改处理逻辑
 """
 
-import io
 import sys
 from pathlib import Path
 
-# 🔧 修复Windows终端UTF-8编码问题
-sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
-sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8")
+# 🔧 修复Windows终端UTF-8编码问题（优先使用 reconfigure，避免关闭底层流）
+if sys.platform == "win32":
+    for stream_name in ("stdout", "stderr"):
+        stream = getattr(sys, stream_name, None)
+        if stream is None:
+            continue
+
+        if hasattr(stream, "reconfigure"):
+            try:
+                stream.reconfigure(encoding="utf-8", errors="replace")
+                continue
+            except Exception:
+                pass
+
+        if hasattr(stream, "buffer"):
+            import io
+
+            setattr(
+                sys,
+                stream_name,
+                io.TextIOWrapper(stream.buffer, encoding="utf-8", errors="replace"),
+            )
 
 # 添加项目路径
 sys.path.insert(0, str(Path(__file__).parent))

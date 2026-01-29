@@ -1,0 +1,216 @@
+# 维度关联规则配置
+# v7.139 Phase 3: 维度关联建模
+# 定义维度之间的关联关系，用于检测冲突和推荐调整
+
+metadata:
+  version: "1.0"
+  description: "维度关联规则配置，定义互斥、正相关、负相关关系"
+  created_date: "2025-01-05"
+  author: "AI Assistant"
+
+# ========================================
+# 关联类型说明
+# ========================================
+# mutual_exclusion（互斥）: 两个维度不应同时设置高值，如极简风格 vs 装饰丰富度
+# positive_correlation（正相关）: 两个维度倾向于同时增高或降低，如预算 vs 材料品质
+# negative_correlation（负相关）: 一个维度增高时另一个倾向于降低，如成本 vs 可持续性
+# threshold（冲突阈值）: 触发冲突提示的阈值（差值或和值）
+# severity（严重程度）: critical（严重，必须调整）、warning（警告，建议调整）、info（信息，可选调整）
+
+# ========================================
+# 互斥关系（Mutual Exclusion）
+# ========================================
+# 两个维度不应同时设置高值
+mutual_exclusion:
+  # 风格类互斥
+  - dimension_a: "minimalist_aesthetic"  # 极简美学
+    dimension_b: "decorative_richness"  # 装饰丰富度
+    threshold: 140  # 两个维度之和超过140触发警告
+    severity: "warning"
+    reason: "极简美学与装饰丰富度存在天然矛盾，两者同时设置高值会导致风格混乱"
+    suggestion: "如果追求极简风格（>70），建议将装饰丰富度控制在60以下；反之亦然"
+
+  - dimension_a: "cultural_axis"  # 文化轴（传统）
+    dimension_b: "future_adaptability"  # 未来适应性（前卫）
+    threshold: 150  # 两个维度之和超过150触发信息
+    severity: "info"
+    reason: "传统文化与未来科技的融合需要谨慎平衡，过度强调一方可能削弱另一方"
+    suggestion: "如果注重文化传承（>80），建议适度控制未来适应性（<70），保持风格一致性"
+
+  # 功能类互斥
+  - dimension_a: "space_flexibility"  # 空间灵活性（多功能）
+    dimension_b: "specific_functionality"  # 专项功能（专用）
+    threshold: 145  # 两个维度之和超过145触发警告
+    severity: "warning"
+    reason: "多功能空间与专项功能存在冲突，过度灵活可能导致功能深度不足"
+    suggestion: "如果需要高灵活性（>75），建议降低专项功能专业度（<70）；反之则专注单一功能"
+
+  # 成本类互斥
+  - dimension_a: "budget_priority"  # 预算优先级（成本敏感）
+    dimension_b: "material_quality"  # 材料品质（高端）
+    threshold: 155  # 两个维度之和超过155触发信息
+    severity: "info"
+    reason: "成本控制与高端材料追求需要权衡，预算有限时难以实现顶级品质"
+    suggestion: "如果预算紧张（budget_priority>75），建议合理控制材料品质期望（<80）"
+
+# ========================================
+# 正相关关系（Positive Correlation）
+# ========================================
+# 两个维度倾向于同时增高或降低
+positive_correlation:
+  # 品质与成本正相关
+  - dimension_a: "material_quality"  # 材料品质
+    dimension_b: "craftsmanship_level"  # 工艺水平
+    min_diff: 25  # 两个维度差值超过25触发警告
+    severity: "warning"
+    reason: "高品质材料通常需要高水平工艺配合，两者差距过大可能导致资源浪费或效果不佳"
+    suggestion: "材料品质和工艺水平建议保持一致（差值<25），如material_quality=80则craftsmanship_level应在55-105"
+
+  - dimension_a: "budget_priority"  # 预算优先级（低预算→高分）
+    dimension_b: "cost_efficiency"  # 成本效率（追求性价比→高分）
+    min_diff: 20  # 两个维度差值超过20触发信息
+    severity: "info"
+    reason: "预算紧张时通常需要更高的成本效率，两者应协同优化"
+    suggestion: "如果预算有限（budget_priority>70），建议同时提高成本效率（cost_efficiency>50）"
+
+  # 可持续性相关
+  - dimension_a: "ecological_consciousness"  # 生态意识
+    dimension_b: "material_health"  # 材料健康（环保）
+    min_diff: 30  # 两个维度差值超过30触发警告
+    severity: "warning"
+    reason: "生态意识与材料健康紧密相关，注重生态但忽视材料环保会导致理念与实践脱节"
+    suggestion: "如果强调生态意识（>70），建议同步提升材料健康要求（差值<30）"
+
+  # 科技与自动化正相关
+  - dimension_a: "tech_integration"  # 科技集成
+    dimension_b: "automation_workflow"  # 自动化工作流
+    min_diff: 25  # 两个维度差值超过25触发信息
+    severity: "info"
+    reason: "科技集成通常伴随自动化需求，两者协同可提升居住体验"
+    suggestion: "如果追求科技集成（>70），建议同步提升自动化水平（差值<25）"
+
+  # 文化与美学正相关
+  - dimension_a: "cultural_axis"  # 文化轴
+    dimension_b: "aesthetic_uniqueness"  # 美学独特性
+    min_diff: 30  # 两个维度差值超过30触发信息
+    severity: "info"
+    reason: "文化深度与美学独特性相辅相成，深厚的文化通常带来独特的美学表达"
+    suggestion: "如果注重文化传承（>75），建议提升美学独特性（差值<30），避免文化符号堆砌"
+
+# ========================================
+# 负相关关系（Negative Correlation）
+# ========================================
+# 一个维度增高时另一个倾向于降低
+negative_correlation:
+  # 成本与品质负相关
+  - dimension_a: "budget_priority"  # 预算优先级（成本敏感→高分）
+    dimension_b: "material_quality"  # 材料品质（高端→高分）
+    max_sum: 140  # 两个维度之和超过140触发警告
+    severity: "warning"
+    reason: "成本控制与高端材料追求天然矛盾，预算有限时难以实现顶级品质"
+    suggestion: "如果预算紧张（budget_priority>70），建议合理降低材料品质期望（material_quality<70）"
+    adjustment_rule:
+      - condition: "budget_priority > 75"
+        recommendation: "material_quality < 65"
+        reason: "预算极度敏感，建议选择性价比材料"
+
+  - dimension_a: "cost_efficiency"  # 成本效率（追求性价比→高分）
+    dimension_b: "luxury_experience"  # 奢华体验（追求高端→高分）
+    max_sum: 145  # 两个维度之和超过145触发警告
+    severity: "warning"
+    reason: "性价比与奢华体验难以兼得，过度追求性价比可能牺牲奢华感"
+    suggestion: "如果追求性价比（cost_efficiency>70），建议适度降低奢华期望（luxury_experience<75）"
+
+  # 灵活性与专业性负相关
+  - dimension_a: "space_flexibility"  # 空间灵活性（多功能→高分）
+    dimension_b: "specific_functionality"  # 专项功能（专业深度→高分）
+    max_sum: 150  # 两个维度之和超过150触发信息
+    severity: "info"
+    reason: "多功能设计与专业深度存在权衡，过度灵活可能削弱专业性"
+    suggestion: "如果需要高灵活性（>75），建议降低单一功能的专业深度（<75）"
+
+  # 极简与丰富负相关
+  - dimension_a: "minimalist_aesthetic"  # 极简美学（极简→高分）
+    dimension_b: "decorative_richness"  # 装饰丰富度（装饰多→高分）
+    max_sum: 130  # 两个维度之和超过130触发警告
+    severity: "warning"
+    reason: "极简美学与装饰丰富度根本对立，两者同时高分会导致风格混乱"
+    suggestion: "如果追求极简（minimalist_aesthetic>75），建议大幅降低装饰丰富度（<55）"
+    adjustment_rule:
+      - condition: "minimalist_aesthetic > 80"
+        recommendation: "decorative_richness < 50"
+        reason: "极致极简风格，装饰应减至最少"
+
+# ========================================
+# 特殊约束（Special Constraints）
+# ========================================
+# 特定场景下的强制性约束
+special_constraints:
+  # 老年人适老化约束
+  - constraint_id: "elderly_accessibility"
+    trigger_condition:
+      dimension: "accessibility_level"
+      threshold: 70  # 无障碍水平>70触发
+    required_adjustments:
+      - dimension: "safety_priority"
+        min_value: 65
+        reason: "适老化设计必须优先考虑安全性，避免跌倒、碰撞等风险"
+      - dimension: "ease_of_use"
+        min_value: 60
+        reason: "老年人需要简单易用的设施，避免复杂操作"
+    severity: "critical"
+
+  # 儿童安全约束
+  - constraint_id: "child_safety"
+    trigger_condition:
+      dimension: "child_friendliness"
+      threshold: 70  # 儿童友好度>70触发
+    required_adjustments:
+      - dimension: "safety_priority"
+        min_value: 70
+        reason: "儿童活动空间必须优先考虑安全，防护措施到位"
+      - dimension: "material_health"
+        min_value: 65
+        reason: "儿童接触材料必须环保无毒，保障健康"
+    severity: "critical"
+
+  # 极端环境约束
+  - constraint_id: "extreme_environment"
+    trigger_condition:
+      dimension: "environmental_adaptation"
+      threshold: 75  # 环境适应性>75触发
+    required_adjustments:
+      - dimension: "structural_stability"
+        min_value: 70
+        reason: "极端环境下结构稳定性至关重要，抵御自然灾害"
+      - dimension: "material_durability"
+        min_value: 65
+        reason: "材料必须耐候性强，适应恶劣气候"
+    severity: "critical"
+
+# ========================================
+# 检测配置（Detection Config）
+# ========================================
+detection_config:
+  # 启用关联检测
+  enabled: true
+
+  # 检测模式
+  # - strict: 严格模式，所有冲突都提示
+  # - balanced: 平衡模式，仅提示warning和critical（默认）
+  # - lenient: 宽松模式，仅提示critical
+  mode: "balanced"
+
+  # 自动调整建议
+  auto_suggest_adjustments: true
+
+  # 推荐调整的范围（±N）
+  adjustment_range: 10
+
+  # 最小置信度（0.0-1.0）
+  # 低于此置信度的冲突不提示
+  min_confidence: 0.7
+
+  # 冲突优先级排序
+  # severity顺序：critical > warning > info
+  priority_order: ["critical", "warning", "info"]

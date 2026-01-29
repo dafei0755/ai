@@ -139,6 +139,67 @@ class MotivationTypeRegistry:
         """获取所有启用的类型"""
         return [t for t in self._types.values() if t.enabled]
 
+    def reload(self, config_path: Optional[str] = None) -> Dict[str, Any]:
+        """
+        热更新配置 - v7.261
+
+        重新从配置文件加载动机类型，无需重启服务。
+
+        Args:
+            config_path: 配置文件路径，默认使用 config/motivation_types.yaml
+
+        Returns:
+            更新结果字典，包含:
+            - success: 是否成功
+            - previous_count: 更新前类型数量
+            - current_count: 更新后类型数量
+            - added: 新增的类型ID列表
+            - removed: 移除的类型ID列表
+            - updated: 更新的类型ID列表
+        """
+        previous_types = set(self._types.keys())
+        previous_count = len(self._types)
+
+        # 清空现有配置
+        self._types.clear()
+        self._config.clear()
+
+        # 重新加载
+        try:
+            self.load_from_config(config_path)
+
+            current_types = set(self._types.keys())
+            current_count = len(self._types)
+
+            # 计算变更
+            added = list(current_types - previous_types)
+            removed = list(previous_types - current_types)
+            updated = list(current_types & previous_types)
+
+            logger.info(
+                f"🔄 [MotivationRegistry] 热更新完成 | 之前={previous_count}, 现在={current_count}, 新增={len(added)}, 移除={len(removed)}"
+            )
+
+            return {
+                "success": True,
+                "previous_count": previous_count,
+                "current_count": current_count,
+                "added": added,
+                "removed": removed,
+                "updated": updated,
+            }
+
+        except Exception as e:
+            logger.error(f"❌ [MotivationRegistry] 热更新失败: {e}")
+            # 恢复降级类型
+            self._load_fallback_types()
+            return {
+                "success": False,
+                "error": str(e),
+                "previous_count": previous_count,
+                "current_count": len(self._types),
+            }
+
     def get_types_by_priority(self, priority: str) -> List[MotivationType]:
         """按优先级获取类型"""
         return [t for t in self._types.values() if t.priority == priority and t.enabled]

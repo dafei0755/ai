@@ -1,8 +1,13 @@
 """
-L2 Perspective Activator - v7.270
+L2 Perspective Activator - v7.280
 
 Programmatically determine which L2 extended perspectives should be activated
-based on project type and user input keywords.
+based on project type, user input keywords, and motivation types.
+
+v7.280 更新：
+- 支持动机类型到视角的映射
+- 从 motivation_perspective_mapping.yaml 加载映射规则
+- 动机类型作为视角选择的依据
 
 Base perspectives (always active):
 - psychological, sociological, aesthetic, emotional, ritual
@@ -19,8 +24,9 @@ Date: 2026-01-25
 """
 
 import os
+from typing import Any, Dict, List, Optional, Tuple
+
 import yaml
-from typing import List, Dict, Any, Optional
 from loguru import logger
 
 
@@ -32,38 +38,38 @@ class L2PerspectiveActivator:
         "business": {
             "activate_when": {
                 "project_type": ["commercial_enterprise", "hybrid_residential_commercial", "hospitality_tourism"],
-                "keywords": ["roi", "盈利", "商业模式", "市场", "竞争", "品牌", "坪效", "运营", "成本"]
+                "keywords": ["roi", "盈利", "商业模式", "市场", "竞争", "品牌", "坪效", "运营", "成本"],
             },
-            "description": "商业视角：ROI、市场定位、竞争优势、商业模式"
+            "description": "商业视角：ROI、市场定位、竞争优势、商业模式",
         },
         "technical": {
             "activate_when": {
                 "project_type": ["commercial_enterprise", "office_coworking"],
-                "keywords": ["智能", "系统", "技术", "集成", "自动化", "设备", "ai", "数字", "科技"]
+                "keywords": ["智能", "系统", "技术", "集成", "自动化", "设备", "ai", "数字", "科技"],
             },
-            "description": "技术视角：可行性、技术栈、集成复杂度、维护成本"
+            "description": "技术视角：可行性、技术栈、集成复杂度、维护成本",
         },
         "ecological": {
             "activate_when": {
                 "project_type": ["cultural_educational", "healthcare_wellness"],
-                "keywords": ["可持续", "环保", "绿色", "节能", "生态", "leed", "碳", "有机", "自然"]
+                "keywords": ["可持续", "环保", "绿色", "节能", "生态", "leed", "碳", "有机", "自然"],
             },
-            "description": "生态视角：可持续性、环境影响、循环经济、碳足迹"
+            "description": "生态视角：可持续性、环境影响、循环经济、碳足迹",
         },
         "cultural": {
             "activate_when": {
                 "project_type": ["cultural_educational", "hospitality_tourism"],
-                "keywords": ["文化", "传统", "历史", "遗产", "地域", "在地", "符号", "民族", "精神"]
+                "keywords": ["文化", "传统", "历史", "遗产", "地域", "在地", "符号", "民族", "精神"],
             },
-            "description": "文化视角：文化语境、象征意义、遗产保护、地域特色"
+            "description": "文化视角：文化语境、象征意义、遗产保护、地域特色",
         },
         "political": {
             "activate_when": {
                 "project_type": ["commercial_enterprise", "cultural_educational"],
-                "keywords": ["社区", "利益相关者", "政策", "法规", "公共", "影响", "居民", "政府"]
+                "keywords": ["社区", "利益相关者", "政策", "法规", "公共", "影响", "居民", "政府"],
             },
-            "description": "政治视角：利益相关者权力动态、监管环境、社区影响"
-        }
+            "description": "政治视角：利益相关者权力动态、监管环境、社区影响",
+        },
     }
 
     def __init__(self, config_path: Optional[str] = None):
@@ -87,9 +93,11 @@ class L2PerspectiveActivator:
         """
         if config_path and os.path.exists(config_path):
             try:
-                with open(config_path, 'r', encoding='utf-8') as f:
+                with open(config_path, "r", encoding="utf-8") as f:
                     config = yaml.safe_load(f)
-                    rules = config.get("l2_perspective_activation", ).get("conditional_perspectives", {})
+                    rules = config.get(
+                        "l2_perspective_activation",
+                    ).get("conditional_perspectives", {})
                     if rules:
                         logger.info(f"✅ [L2 Activator] Loaded activation rules from {config_path}")
                         return rules
@@ -98,16 +106,12 @@ class L2PerspectiveActivator:
 
         # Try default path
         default_path = os.path.join(
-            os.path.dirname(__file__),
-            "..",
-            "config",
-            "prompts",
-            "requirements_analyst_phase2.yaml"
+            os.path.dirname(__file__), "..", "config", "prompts", "requirements_analyst_phase2.yaml"
         )
 
         if os.path.exists(default_path):
             try:
-                with open(default_path, 'r', encoding='utf-8') as f:
+                with open(default_path, "r", encoding="utf-8") as f:
                     config = yaml.safe_load(f)
                     rules = config.get("l2_perspective_activation", {}).get("conditional_perspectives", {})
                     if rules:
@@ -121,10 +125,7 @@ class L2PerspectiveActivator:
         return self.DEFAULT_ACTIVATION_RULES
 
     def determine_active_perspectives(
-        self,
-        project_type: Optional[str],
-        user_input: str,
-        phase1_result: Optional[Dict[str, Any]] = None
+        self, project_type: Optional[str], user_input: str, phase1_result: Optional[Dict[str, Any]] = None
     ) -> List[str]:
         """
         Determine which extended perspectives to activate
@@ -160,7 +161,7 @@ class L2PerspectiveActivator:
         perspective: str,
         project_type: Optional[str],
         user_input_lower: str,
-        phase1_result: Optional[Dict[str, Any]] = None
+        phase1_result: Optional[Dict[str, Any]] = None,
     ) -> bool:
         """
         Check if perspective should be activated based on rules
@@ -207,10 +208,7 @@ class L2PerspectiveActivator:
         rules = self.activation_rules.get(perspective, {})
         return rules.get("description", f"{perspective} perspective")
 
-    def format_activation_summary(
-        self,
-        active_perspectives: List[str]
-    ) -> str:
+    def format_activation_summary(self, active_perspectives: List[str]) -> str:
         """
         Format activation summary for logging or prompt injection
 
@@ -236,11 +234,7 @@ class L2PerspectiveActivator:
 
         return summary
 
-    def inject_into_prompt(
-        self,
-        base_prompt: str,
-        active_perspectives: List[str]
-    ) -> str:
+    def inject_into_prompt(self, base_prompt: str, active_perspectives: List[str]) -> str:
         """
         Inject active perspectives into Phase 2 prompt
 
@@ -278,13 +272,55 @@ class L2PerspectiveActivator:
         # Fallback: append at end
         return base_prompt + injection
 
+    def determine_active_perspectives_with_motivation(
+        self,
+        motivation_id: str,
+        user_input: str,
+        secondary_motivations: Optional[List[str]] = None,
+        project_type: Optional[str] = None,
+    ) -> Tuple[List[str], List[str]]:
+        """
+        v7.280: 基于动机类型激活视角
+
+        Args:
+            motivation_id: 主导动机类型ID
+            user_input: 用户原始输入
+            secondary_motivations: 次要动机类型列表
+            project_type: 项目类型
+
+        Returns:
+            (激活的视角列表, 激活原因列表)
+        """
+        try:
+            from intelligent_project_analyzer.services.analysis_dimensions_loader import get_dimensions_config
+
+            config = get_dimensions_config()
+            perspectives, reasons = config.get_perspectives_for_motivation(
+                primary_motivation=motivation_id,
+                secondary_motivations=secondary_motivations,
+                user_input=user_input,
+            )
+
+            logger.info(f"✅ [L2 Activator] 动机驱动视角激活 | motivation={motivation_id}, perspectives={perspectives}")
+
+            return perspectives, reasons
+
+        except ImportError:
+            logger.warning("⚠️ [L2 Activator] 动机映射配置不可用，使用传统规则")
+            # 降级到传统规则
+            perspectives = self.determine_active_perspectives(
+                project_type=project_type,
+                user_input=user_input,
+            )
+            return perspectives, ["使用传统关键词规则"]
+
 
 # Convenience function
 def determine_active_perspectives(
     project_type: Optional[str],
     user_input: str,
     phase1_result: Optional[Dict[str, Any]] = None,
-    config_path: Optional[str] = None
+    config_path: Optional[str] = None,
 ) -> List[str]:
     """
     Convenience function to determine active L2 perspectives
@@ -300,7 +336,32 @@ def determine_active_perspectives(
     """
     activator = L2PerspectiveActivator(config_path=config_path)
     return activator.determine_active_perspectives(
-        project_type=project_type,
+        project_type=project_type, user_input=user_input, phase1_result=phase1_result
+    )
+
+
+def determine_active_perspectives_with_motivation(
+    motivation_id: str,
+    user_input: str,
+    secondary_motivations: Optional[List[str]] = None,
+    project_type: Optional[str] = None,
+) -> Tuple[List[str], List[str]]:
+    """
+    v7.280: 便捷函数 - 基于动机类型激活视角
+
+    Args:
+        motivation_id: 主导动机类型ID
+        user_input: 用户原始输入
+        secondary_motivations: 次要动机类型列表
+        project_type: 项目类型
+
+    Returns:
+        (激活的视角列表, 激活原因列表)
+    """
+    activator = L2PerspectiveActivator()
+    return activator.determine_active_perspectives_with_motivation(
+        motivation_id=motivation_id,
         user_input=user_input,
-        phase1_result=phase1_result
+        secondary_motivations=secondary_motivations,
+        project_type=project_type,
     )

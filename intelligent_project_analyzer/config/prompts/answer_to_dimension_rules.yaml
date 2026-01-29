@@ -1,0 +1,407 @@
+# 问卷答案 → 雷达图维度默认值推理规则
+# v7.137 Phase 1: 智能利用 Step2 gap_filling_answers 信息
+# 根据用户在信息补全阶段的答案，智能推理维度默认值
+
+metadata:
+  version: "7.137.0"
+  description: "从用户问卷答案中提取语义，推理雷达图维度默认值"
+  created_at: "2026-01-05"
+  author: "雷达图智能化优化 Phase 1"
+
+# ========================================
+# 推理规则定义
+# ========================================
+# 每条规则包含：
+# - question_keywords: 问题中的关键词（用于匹配问题类型）
+# - answer_patterns: 答案模式 → 维度值映射
+# - dimension_id: 目标维度
+# - confidence: 推理置信度 (0-1)
+
+inference_rules:
+  # ------ 预算相关 ------
+
+  - rule_id: "budget_to_budget_priority"
+    question_keywords: ["预算", "造价", "投资", "花费"]
+    dimension_id: "budget_priority"
+    answer_patterns:
+      # 低预算 → 成本敏感 (0-30)
+      - pattern: ["预算有限", "紧张", "控制成本", "尽量省", "经济实惠", "性价比", "平价"]
+        value: 20
+        confidence: 0.9
+        reason: "预算有限，需要成本敏感"
+
+      - pattern: ["10万以下", "5万", "3万"]
+        value: 15
+        confidence: 0.95
+        reason: "极低预算，极致成本控制"
+
+      # 中等预算 → 平衡 (30-70)
+      - pattern: ["适中", "合理", "20-30万", "15-25万"]
+        value: 50
+        confidence: 0.8
+        reason: "中等预算，平衡成本与品质"
+
+      # 高预算 → 品质优先 (70-100)
+      - pattern: ["充足", "不限", "品质优先", "不在乎预算", "50万以上", "100万"]
+        value: 85
+        confidence: 0.9
+        reason: "预算充足，追求品质"
+
+  - rule_id: "budget_to_cost_efficiency"
+    question_keywords: ["预算", "造价"]
+    dimension_id: "cost_efficiency"
+    answer_patterns:
+      - pattern: ["性价比", "经济", "实惠", "省钱", "控制成本"]
+        value: 80
+        confidence: 0.85
+        reason: "强调性价比，追求成本效率"
+
+      - pattern: ["品质", "不在乎", "预算充足"]
+        value: 20
+        confidence: 0.8
+        reason: "品质优先，不追求极致性价比"
+
+  # ------ 风格相关 ------
+
+  - rule_id: "style_to_cultural_axis"
+    question_keywords: ["风格", "喜好", "偏好", "审美"]
+    dimension_id: "cultural_axis"
+    answer_patterns:
+      # 东方风格 (0-30)
+      - pattern: ["中式", "新中式", "日式", "东方", "禅意", "侘寂", "wabi-sabi", "传统", "古典"]
+        value: 20
+        confidence: 0.9
+        reason: "偏好东方传统美学"
+
+      # 西方风格 (70-100)
+      - pattern: ["现代", "简约", "北欧", "欧式", "美式", "工业风", "极简", "当代"]
+        value: 75
+        confidence: 0.85
+        reason: "偏好西方现代设计"
+
+      # 折中风格 (40-60)
+      - pattern: ["混搭", "融合", "中西结合", "现代中式"]
+        value: 50
+        confidence: 0.7
+        reason: "中西融合风格"
+
+  - rule_id: "style_to_aesthetic_direction"
+    question_keywords: ["风格", "喜好", "装饰"]
+    dimension_id: "aesthetic_direction"
+    answer_patterns:
+      # 极简 (0-30)
+      - pattern: ["极简", "简约", "留白", "简洁", "纯粹", "minimalism"]
+        value: 25
+        confidence: 0.9
+        reason: "追求极简美学"
+
+      # 丰富装饰 (70-100)
+      - pattern: ["装饰", "华丽", "复杂", "细节", "奢华", "丰富"]
+        value: 75
+        confidence: 0.85
+        reason: "喜欢丰富装饰"
+
+      # 适度装饰 (40-60)
+      - pattern: ["适中", "平衡", "不要太简", "不要太复杂"]
+        value: 50
+        confidence: 0.7
+        reason: "适度装饰，平衡美学"
+
+  # ------ 材质相关 ------
+
+  - rule_id: "material_to_temperature"
+    question_keywords: ["材质", "材料", "喜欢的材料", "质感"]
+    dimension_id: "material_temperature"
+    answer_patterns:
+      # 冷峻 (0-30)
+      - pattern: ["金属", "混凝土", "石材", "玻璃", "工业", "冰冷", "硬朗"]
+        value: 20
+        confidence: 0.9
+        reason: "偏好冷峻硬朗材质"
+
+      # 温润 (70-100)
+      - pattern: ["木质", "原木", "实木", "皮革", "织物", "温暖", "柔和"]
+        value: 80
+        confidence: 0.9
+        reason: "偏好温润柔和材质"
+
+      # 混合 (40-60)
+      - pattern: ["混合", "搭配", "多种"]
+        value: 50
+        confidence: 0.6
+        reason: "混合材质"
+
+  - rule_id: "environmental_to_sustainability"
+    question_keywords: ["环保", "可持续", "绿色", "材料"]
+    dimension_id: "material_sustainability"
+    answer_patterns:
+      - pattern: ["环保", "可持续", "绿色", "生态", "FSC", "零碳", "低碳"]
+        value: 80
+        confidence: 0.9
+        reason: "强调环保可持续"
+
+      - pattern: ["无所谓", "不关注", "不重要"]
+        value: 40
+        confidence: 0.7
+        reason: "不特别关注环保"
+
+  # ------ 功能需求相关 ------
+
+  - rule_id: "storage_to_priority"
+    question_keywords: ["收纳", "储物", "杂物", "整理"]
+    dimension_id: "storage_priority"
+    answer_patterns:
+      # 开放展示 (0-30)
+      - pattern: ["开放", "展示", "不需要", "很少", "极简"]
+        value: 25
+        confidence: 0.85
+        reason: "倾向开放展示"
+
+      # 隐藏收纳 (70-100)
+      - pattern: ["大量", "隐藏", "全封闭", "柜子", "收纳需求高", "东西多"]
+        value: 80
+        confidence: 0.9
+        reason: "需要大量隐藏收纳"
+
+      # 适中 (40-60)
+      - pattern: ["适中", "正常", "一般"]
+        value: 50
+        confidence: 0.7
+        reason: "收纳需求适中"
+
+  - rule_id: "practical_to_function_intensity"
+    question_keywords: ["功能", "实用", "好用", "使用"]
+    dimension_id: "function_intensity"
+    answer_patterns:
+      # 形式优先 (0-30)
+      - pattern: ["美观", "艺术", "设计感", "形式", "颜值"]
+        value: 25
+        confidence: 0.8
+        reason: "更注重形式美感"
+
+      # 功能优先 (70-100)
+      - pattern: ["实用", "好用", "功能", "便捷", "效率", "功能性"]
+        value: 80
+        confidence: 0.9
+        reason: "功能性优先"
+
+      # 平衡 (40-60)
+      - pattern: ["平衡", "兼顾", "既要又要"]
+        value: 50
+        confidence: 0.7
+        reason: "功能与美学平衡"
+
+  - rule_id: "flexibility_to_space"
+    question_keywords: ["空间", "灵活", "多功能", "变化"]
+    dimension_id: "space_flexibility"
+    answer_patterns:
+      # 固定 (0-30)
+      - pattern: ["固定", "专用", "明确分区", "不需要变化"]
+        value: 25
+        confidence: 0.8
+        reason: "倾向固定专用空间"
+
+      # 灵活 (70-100)
+      - pattern: ["灵活", "多功能", "可变", "适应", "场景切换"]
+        value: 80
+        confidence: 0.9
+        reason: "需要灵活多变空间"
+
+  # ------ 科技智能相关 ------
+
+  - rule_id: "smart_to_tech_visibility"
+    question_keywords: ["智能", "科技", "智能家居", "自动化"]
+    dimension_id: "tech_visibility"
+    answer_patterns:
+      # 隐藏科技 (0-30)
+      - pattern: ["隐藏", "不显露", "低调", "无感", "不喜欢"]
+        value: 20
+        confidence: 0.85
+        reason: "科技应隐藏融入"
+
+      # 显性科技 (70-100)
+      - pattern: ["显性", "科技感", "未来感", "展示", "酷炫", "黑科技"]
+        value: 80
+        confidence: 0.9
+        reason: "强调科技展示"
+
+      # 适中 (40-60)
+      - pattern: ["适中", "自然", "有需要就用"]
+        value: 50
+        confidence: 0.7
+        reason: "科技适度融入"
+
+  - rule_id: "automation_to_workflow"
+    question_keywords: ["自动化", "智能控制", "操作"]
+    dimension_id: "automation_workflow"
+    answer_patterns:
+      # 手动操作 (0-30)
+      - pattern: ["手动", "传统", "不需要", "简单"]
+        value: 20
+        confidence: 0.8
+        reason: "倾向手动操作"
+
+      # 全自动 (70-100)
+      - pattern: ["全自动", "智能", "一键", "语音", "自动化"]
+        value: 85
+        confidence: 0.9
+        reason: "追求全自动化"
+
+  # ------ 体验氛围相关 ------
+
+  - rule_id: "atmosphere_to_energy"
+    question_keywords: ["氛围", "感觉", "气氛", "情绪"]
+    dimension_id: "energy_level"
+    answer_patterns:
+      # 静谧 (0-30)
+      - pattern: ["安静", "宁静", "放松", "平静", "冥想", "禅意", "静谧"]
+        value: 20
+        confidence: 0.9
+        reason: "追求静谧放松氛围"
+
+      # 活力 (70-100)
+      - pattern: ["活力", "热闹", "动感", "激情", "社交", "派对"]
+        value: 80
+        confidence: 0.9
+        reason: "追求活力动感氛围"
+
+      # 适中 (40-60)
+      - pattern: ["适中", "平衡", "有时安静有时热闹"]
+        value: 50
+        confidence: 0.7
+        reason: "能量层级适中"
+
+  - rule_id: "privacy_to_level"
+    question_keywords: ["隐私", "开放", "私密", "社交"]
+    dimension_id: "privacy_level"
+    answer_patterns:
+      # 开放社交 (0-30)
+      - pattern: ["开放", "社交", "公共", "共享", "不需要隐私"]
+        value: 25
+        confidence: 0.85
+        reason: "倾向开放社交"
+
+      # 私密隔离 (70-100)
+      - pattern: ["私密", "隐私", "隔离", "独处", "封闭"]
+        value: 80
+        confidence: 0.9
+        reason: "强调私密隔离"
+
+      # 平衡 (40-60)
+      - pattern: ["平衡", "适度", "有公共也有私密"]
+        value: 50
+        confidence: 0.7
+        reason: "隐私与社交平衡"
+
+  - rule_id: "nature_to_connection"
+    question_keywords: ["自然", "户外", "采光", "绿化", "景观"]
+    dimension_id: "natural_connection"
+    answer_patterns:
+      # 城市封闭 (0-30)
+      - pattern: ["不需要", "城市", "封闭", "人工光"]
+        value: 25
+        confidence: 0.8
+        reason: "城市封闭环境"
+
+      # 自然开放 (70-100)
+      - pattern: ["大量", "充足", "开放", "景观", "绿化", "阳台", "露台", "落地窗"]
+        value: 85
+        confidence: 0.9
+        reason: "强调自然连接"
+
+      # 适中 (40-60)
+      - pattern: ["适中", "正常", "基本"]
+        value: 50
+        confidence: 0.7
+        reason: "自然连接适中"
+
+  # ------ 特殊需求相关 ------
+
+  - rule_id: "accessibility_to_level"
+    question_keywords: ["老人", "小孩", "残障", "无障碍", "适老"]
+    dimension_id: "accessibility_level"
+    answer_patterns:
+      - pattern: ["老人", "适老", "无障碍", "残障", "轮椅", "全龄"]
+        value: 80
+        confidence: 0.95
+        reason: "需要无障碍设计"
+
+      - pattern: ["不需要", "年轻人", "常规"]
+        value: 40
+        confidence: 0.7
+        reason: "常规标准即可"
+
+  - rule_id: "family_to_conflict_mediation"
+    question_keywords: ["家庭成员", "代际", "需求", "冲突"]
+    dimension_id: "conflict_mediation"
+    answer_patterns:
+      - pattern: ["多代", "三代", "需求不同", "冲突", "矛盾", "差异大"]
+        value: 80
+        confidence: 0.9
+        reason: "需要调和不同需求"
+
+      - pattern: ["单身", "夫妻", "需求一致"]
+        value: 30
+        confidence: 0.7
+        reason: "需求相对统一"
+
+  - rule_id: "acoustic_to_performance"
+    question_keywords: ["音乐", "声音", "噪音", "隔音", "声学"]
+    dimension_id: "acoustic_performance"
+    answer_patterns:
+      - pattern: ["音乐", "录音", "影音", "家庭影院", "专业", "高要求"]
+        value: 85
+        confidence: 0.95
+        reason: "需要专业声学设计"
+
+      - pattern: ["常规", "基本", "不重要"]
+        value: 40
+        confidence: 0.7
+        reason: "常规隔音即可"
+
+  # ------ 商业相关 ------
+
+  - rule_id: "brand_to_visibility"
+    question_keywords: ["品牌", "形象", "识别", "VI"]
+    dimension_id: "brand_visibility"
+    answer_patterns:
+      - pattern: ["强调", "突出", "展示", "识别", "强烈"]
+        value: 85
+        confidence: 0.9
+        reason: "强调品牌展示"
+
+      - pattern: ["低调", "内敛", "不需要"]
+        value: 25
+        confidence: 0.8
+        reason: "品牌低调内敛"
+
+  - rule_id: "customer_to_traffic"
+    question_keywords: ["客户", "动线", "流量", "路径"]
+    dimension_id: "traffic_flow"
+    answer_patterns:
+      - pattern: ["高效", "快速", "直达", "效率"]
+        value: 80
+        confidence: 0.9
+        reason: "强调动线效率"
+
+      - pattern: ["探索", "漫游", "体验", "发现"]
+        value: 30
+        confidence: 0.85
+        reason: "鼓励探索体验"
+
+# ========================================
+# 推理算法配置
+# ========================================
+
+inference_config:
+  # 模糊匹配阈值
+  fuzzy_match_threshold: 0.7  # 相似度 > 70% 认为匹配
+
+  # 多规则冲突解决策略
+  conflict_resolution: "highest_confidence"  # 使用置信度最高的规则
+
+  # 推理值调整范围
+  adjustment_range: 5  # 推理值 ± 5 的随机调整，避免过于机械
+
+  # 最低置信度阈值
+  min_confidence: 0.6  # 置信度 < 60% 不应用推理

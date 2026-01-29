@@ -38,6 +38,13 @@ except ImportError:
     DeliverableQueryBuilder = None
     SearchQualityControl = None
 
+# 🆕 v7.164: 导入搜索结果ID生成器
+try:
+    from ..utils.search_id_generator import add_ids_to_search_results
+except ImportError:
+    logger.warning("⚠️ v7.164 search_id_generator not available")
+    add_ids_to_search_results = None
+
 
 class ArxivSearchTool:
     """Arxiv学术搜索工具类"""
@@ -279,8 +286,13 @@ class ArxivSearchTool:
                 "journal_ref": result.journal_ref,
                 "doi": result.doi,
                 "comment": result.comment,
+                "url": result.entry_id,  # 🆕 v7.164: 添加url字段用于ID生成
             }
             processed["results"].append(processed_result)
+
+        # 🆕 v7.164: 为搜索结果添加唯一ID
+        if add_ids_to_search_results and processed["results"]:
+            processed["results"] = add_ids_to_search_results(processed["results"], source_tool="arxiv")
 
         return processed
 

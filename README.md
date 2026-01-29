@@ -3,7 +3,7 @@
 > 基于 LangGraph 的多智能体设计项目分析系统
 > 智能化设计项目需求分析 | 多专家协作 | 全流程质量保障
 
-[![Version](https://img.shields.io/badge/version-v7.122-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-v7.140-blue.svg)](CHANGELOG.md)
 [![Python](https://img.shields.io/badge/python-3.10+-green.svg)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-orange.svg)](LICENSE)
 [![CI/CD](https://github.com/dafei0755/ai/actions/workflows/ci.yml/badge.svg)](https://github.com/dafei0755/ai/actions/workflows/ci.yml)
@@ -21,6 +21,8 @@
 - 📚 [完整开发规范](.github/DEVELOPMENT_RULES.md) - 深度查阅特定章节
 - ✅ [变更检查清单](.github/PRE_CHANGE_CHECKLIST.md) - 修改前强制流程
 - 📖 [历史修复记录](.github/historical_fixes/) - 5+ 精选bug修复案例
+- 🐛 **[Bug修复索引](docs/BUGFIX_INDEX.md)** - v7.122+ 所有修复记录
+- 🚀 **[Phase 0 Token优化](docs/PHASE0_TOKEN_OPTIMIZATION_INDEX.md)** - v7.129 性能优化（11-38%节省）
 
 **强制流程**：诊断问题 → 查阅历史 → 报告方案 → 获得批准 → 执行修改 → 更新文档
 
@@ -32,11 +34,12 @@
 
 ### ✨ 核心特性
 
-- **🤖 动态多智能体协作** - 6大核心Agent（需求分析、项目总监、专家协作、质量审核、报告生成、追问系统）
+- **🤖 动态多智能体协作** - 6大核心Agent（需求分析、项目总监、专家协作、质量审核、报告生成、追问系统）+ **V2-V7专家池**（设计总监、叙事专家、研究员、场景专家、工程师、**情感洞察专家**）
 - **💬 智能人机交互** - 校准问卷、需求确认、任务审批、雷达图维度混合策略（70%固定+30%LLM动态）
-- **🔍 外部搜索工具集成** - 4种搜索工具（Tavily网络搜索、Bocha中文AI、ArXiv学术论文、RAGFlow知识库）v7.122 数据流优化：问卷→搜索→概念图
+- **🧠 情感洞察系统** - **V7情感洞察专家**基于5大理论框架（马斯洛需求层次、环境心理学、依恋理论、创伤知情设计、Plutchik情绪轮），提供情绪地图、心理安全分析、精神需求洞察、仪式行为识别、记忆锚点设计
+- **🔍 外部搜索工具集成** - 4种搜索工具（Tavily网络搜索、Bocha中文AI、ArXiv学术论文、Milvus向量知识库）v7.122 数据流优化：问卷→搜索→概念图
 - **🛡️ 四阶段质量审核** - 红队批判 → 蓝队辩护 → 评委裁决 → 甲方终审
-- **⚡ 性能优化** - WebSocket实时推送（延迟↓40倍）、Redis缓存（响应↑60%）、性能监控系统
+- **⚡ 性能优化** - WebSocket实时推送（延迟↓40倍）、Redis缓存（响应↑60%）、性能监控系统、**v7.129 Token优化**（11-38%节省，年节省$342）
 - **🎨 双模式分析** - 普通模式（快速验证）& 深度思考模式（多角度可视化）v7.110 配置驱动架构
 - **🔌 扩展能力** - 多模态输入（文本/PDF/图片OCR）、WordPress SSO
 
@@ -89,6 +92,35 @@ docker-compose up -d
 
 ---
 
+## 🎯 智能维度选择 (v7.147+)
+
+系统支持 **3 级智能维度选择**，告别硬编码维度：
+
+### 🚀 快速启用
+
+在 `.env` 文件中设置：
+```bash
+# 启用智能学习（推荐）
+ENABLE_DIMENSION_LEARNING=true
+
+# 启用动态生成（可选，增加延迟）
+USE_DYNAMIC_GENERATION=false
+```
+
+### 📊 智能等级
+
+| 等级 | 环境变量 | 能力 | 性能影响 |
+|------|----------|------|----------|
+| **Level 1: 智能学习** ⭐ | `ENABLE_DIMENSION_LEARNING=true` | 历史数据学习 + 场景检测 | 最小 (<500ms) |
+| **Level 2: 动态生成** | `USE_DYNAMIC_GENERATION=true` | LLM 实时生成自定义维度 | 高 (+2-5s) |
+| **Level 3: LLM 推荐** | `ENABLE_LLM_DIMENSION_RECOMMENDER=true` | 深度需求理解 | 中等 |
+
+### 📖 详细文档
+
+参见 [雷达维度智能选择指南](docs/RADAR_DIMENSION_INTELLIGENCE_GUIDE.md)
+
+---
+
 ## 📚 完整文档
 
 | 类别 | 文档 | 说明 |
@@ -96,6 +128,7 @@ docker-compose up -d
 | **入门** | [QUICKSTART.md](QUICKSTART.md) | 5分钟快速启动 |
 | **贡献** | [CONTRIBUTING.md](CONTRIBUTING.md) | 贡献指南和开发规范 |
 | **架构** | [docs/README.md](docs/README.md) | 完整文档导航 |
+| **工作流** | [docs/SYSTEM_WORKFLOW_COMPLETE_GUIDE.md](docs/SYSTEM_WORKFLOW_COMPLETE_GUIDE.md) | 🆕 系统工作流完整指南（31节点详解） |
 | **更新** | [CHANGELOG.md](CHANGELOG.md) | 版本历史 |
 | **紧急** | [EMERGENCY_RECOVERY.md](EMERGENCY_RECOVERY.md) | 快速恢复到历史版本 |
 | **备份** | [BACKUP_GUIDE.md](BACKUP_GUIDE.md) | 多版本备份系统 |
@@ -189,7 +222,7 @@ MIT License - 详见 [LICENSE](LICENSE)
 
 <div align="center">
 
-**当前版本**: v7.116.1 | **最后更新**: 2026-01-02
+**当前版本**: v7.141.4 | **最后更新**: 2026-01-06
 
 ⭐ 如果这个项目对你有帮助，请给我们一个 Star！
 

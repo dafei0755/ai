@@ -35,7 +35,7 @@ class MetricsCollector:
         记录搜索操作指标
 
         Args:
-            tool: 工具名称 ("tavily", "arxiv", "ragflow", "bocha")
+            tool: 工具名称 ("tavily", "arxiv", "milvus", "bocha")
             operation: 操作类型 ("search", "search_for_deliverable")
             execution_time: 执行时间（秒）
             success: 是否成功

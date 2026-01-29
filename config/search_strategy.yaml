@@ -1,0 +1,355 @@
+﻿# 搜索策略配置 (v7.170)
+#
+# 实现5轮渐进式搜索：
+# 1. 基础概念探索 - 获取定义和框架
+# 2. 维度深化 - 深入各影响维度
+# 3. 学术深度 - 搜索论文和方法论
+# 4. 实践案例 - 搜索项目案例
+# 5. 数据支撑 - 搜索统计数据
+
+search_orchestrator:
+  enabled: true
+  max_rounds: 5
+
+  # 并行搜索配置
+  parallel_search: true
+  max_concurrent_searches: 3
+
+  # 超时配置（秒）
+  round_timeout: 60
+  total_timeout: 300
+
+  rounds:
+    # 第1轮：基础概念探索
+    - name: "concepts"
+      description: "基础概念探索"
+      purpose: "获取概念定义和基本框架"
+      query_patterns:
+        - "{concept} 定义 含义"
+        - "{concept} 对 {domain} 影响"
+        - "{concept} 概念 框架"
+        - "{concept} 是什么"
+      tools:
+        chinese: ["bocha"]
+        english: ["tavily"]
+        default: ["bocha", "tavily"]
+      max_results: 10
+      priority: 1
+
+    # 第2轮：维度深化
+    - name: "dimensions"
+      description: "维度深化"
+      purpose: "深入探索各个影响维度"
+      query_patterns:
+        - "{concept} {dimension} 影响"
+        - "{concept} {dimension} 特点"
+        - "{concept} {dimension} 设计"
+        - "{concept} {dimension} 应用"
+      tools:
+        default: ["bocha", "tavily"]
+      max_results: 8
+      priority: 2
+      # 动态维度：从第1轮结果中提取
+      dynamic_dimensions: true
+
+    # 第3轮：学术深度
+    - name: "academic"
+      description: "学术深度"
+      purpose: "获取学术研究和方法论"
+      query_patterns:
+        - "{concept} 研究 论文"
+        - "{concept} 方法论 框架"
+        - "{concept} 理论 分析"
+        - "{concept} 学术 综述"
+      tools:
+        default: ["arxiv", "tavily", "bocha"]
+      max_results: 5
+      priority: 3
+      # 学术来源优先
+      source_preference:
+        - "arxiv.org"
+        - "cnki.net"
+        - "wanfangdata.com.cn"
+        - "scholar.google.com"
+
+    # 第4轮：实践案例
+    - name: "cases"
+      description: "实践案例"
+      purpose: "获取实际案例和项目"
+      query_patterns:
+        - "{concept} 案例 项目"
+        - "{concept} 设计 实践"
+        - "{concept} 作品 分析"
+        - "{concept} 成功案例"
+      tools:
+        international: ["tavily"]
+        domestic: ["bocha"]
+        default: ["tavily", "bocha"]
+      max_results: 8
+      priority: 4
+      # 案例来源优先
+      source_preference:
+        - "archdaily.com"
+        - "dezeen.com"
+        - "gooood.cn"
+        - "archcollege.com"
+
+    # 第5轮：数据支撑
+    - name: "data"
+      description: "数据支撑"
+      purpose: "获取统计数据和趋势"
+      query_patterns:
+        - "{related_field} 数据 统计 {year}"
+        - "{related_field} 趋势 报告"
+        - "{related_field} 市场 规模"
+        - "{related_field} 行业 分析"
+      tools:
+        default: ["tavily", "bocha"]
+      max_results: 5
+      priority: 5
+      # 数据来源优先
+      source_preference:
+        - "stats.gov.cn"
+        - "statista.com"
+        - "iresearch.cn"
+
+  # 维度提取关键词
+  dimension_keywords:
+    # 设计相关
+    - "哲学"
+    - "理念"
+    - "空间"
+    - "布局"
+    - "材料"
+    - "装饰"
+    - "功能"
+    - "风格"
+    - "色彩"
+    - "照明"
+    # 技术相关
+    - "技术"
+    - "智能"
+    - "可持续"
+    - "环保"
+    - "节能"
+    # 社会相关
+    - "文化"
+    - "社会"
+    - "经济"
+    - "政策"
+    - "市场"
+
+  # 领域映射（用于搜索词生成）
+  domain_mapping:
+    interior_design: "室内设计"
+    commercial_space: "商业空间设计"
+    residential: "住宅设计"
+    hospitality: "酒店民宿设计"
+    retail: "零售空间设计"
+    office: "办公空间设计"
+    restaurant: "餐饮空间设计"
+
+  # 内容类型词
+  content_type_keywords:
+    academic: ["论文", "研究", "方法论", "理论", "综述"]
+    case: ["案例", "项目", "作品", "实践", "设计"]
+    data: ["数据", "统计", "报告", "趋势", "市场"]
+    news: ["新闻", "动态", "最新", "发布"]
+
+  # 时间限定词
+  time_keywords:
+    recent: ["2024", "2025", "最新", "近期"]
+    historical: ["历史", "传统", "演变", "发展"]
+
+# 质量控制增强配置
+quality_control:
+  # 内容深度评估
+  depth_evaluation:
+    enabled: true
+    indicators:
+      has_framework: 20      # 是否有分析框架
+      has_comparison: 15     # 是否有对比分析
+      has_data: 15           # 是否有数据支撑
+      has_case_study: 15     # 是否有案例研究
+      has_methodology: 15    # 是否有方法论
+      has_conclusion: 10     # 是否有结论/建议
+      content_length: 10     # 内容长度（>1000字）
+
+    # 深度检测关键词
+    framework_keywords:
+      - "框架"
+      - "模型"
+      - "体系"
+      - "结构"
+      - "维度"
+      - "层面"
+
+    comparison_keywords:
+      - "对比"
+      - "比较"
+      - "区别"
+      - "差异"
+      - "vs"
+      - "相比"
+
+    data_keywords:
+      - "%"
+      - "数据"
+      - "统计"
+      - "调查"
+      - "报告"
+      - "增长"
+      - "下降"
+
+    methodology_keywords:
+      - "方法"
+      - "步骤"
+      - "流程"
+      - "策略"
+      - "原则"
+      - "指南"
+
+# 结果整合配置
+result_integration:
+  # 去重策略
+  deduplication:
+    url_exact: true
+    title_similarity: 0.8
+    content_similarity: 0.7
+
+  # 分类策略
+  categorization:
+    auto_categorize: true
+    categories:
+      - "概念定义"
+      - "理论框架"
+      - "实践案例"
+      - "数据统计"
+      - "趋势分析"
+
+  # 引用格式
+  citation_format: "numbered"  # numbered, author-date, footnote
+
+  # 输出格式
+  output_format:
+    include_summary: true
+    include_dimensions: true
+    include_references: true
+    max_references: 20
+
+# 元数据
+metadata:
+  version: "1.1.0"
+  created: "2026-01-09"
+  updated: "2026-01-10"
+  author: "search_optimization"
+  description: "搜索策略配置（含ucppt深度迭代搜索）"
+
+
+# ==================== ucppt 深度迭代搜索配置 (v7.198) ====================
+# 借鉴 ucppt 的21轮迭代搜索范式，实现"自主探索引擎"
+# v7.198: 对标竞品 ucppt，提高搜索深度标准
+# 特点：动态轮次、思考-搜索循环、知识框架构建、实时进度推送
+
+ucppt_search:
+  enabled: true
+
+  # 核心参数 (v7.198 调整)
+  max_rounds: 30              # 最大搜索轮数（ucppt使用21轮，我们扩展到30轮）
+  min_rounds: 6               # 最小搜索轮数（3→6，确保多维度覆盖）
+  confidence_threshold: 0.92  # 信息充分度阈值（0.80→0.92，提高标准）
+
+  # 模型配置（成本优化）
+  models:
+    reflect: "gpt-4o-mini"    # 反思评估用小模型（成本低）
+    framework: "gpt-4o-mini"  # 框架构建用小模型
+    synthesis: "gpt-4o"       # 最终整合用主模型（质量高）
+
+  # 轮次策略
+  round_strategy:
+    # 第1-2轮：核心概念探索
+    initial_rounds: 2
+    initial_focus:
+      - "核心概念定义"
+      - "基础框架理解"
+
+    # 第3-5轮：维度深化
+    dimension_rounds: 3
+    dimension_focus:
+      - "知识维度探索"
+      - "多角度分析"
+
+    # 第6轮+：动态补充
+    dynamic_rounds: 25
+    dynamic_triggers:
+      - "信息缺口填补"
+      - "关键概念深挖"
+      - "交叉验证"
+
+  # 知识框架配置
+  knowledge_framework:
+    max_core_concepts: 5      # 最大核心概念数
+    max_dimensions: 5         # 最大知识维度数
+    max_gaps: 10              # 最大信息缺口数
+    concept_confidence_threshold: 0.6  # 概念置信度阈值
+
+  # 反思评估配置
+  reflection:
+    enabled: true
+    model: "gpt-4o-mini"      # 使用小模型节省成本
+    timeout: 30               # 反思超时（秒）
+
+    # 评估维度
+    evaluation_dimensions:
+      - name: "coverage"
+        description: "信息覆盖度"
+        weight: 0.25
+      - name: "depth"
+        description: "分析深度"
+        weight: 0.25
+      - name: "authority"
+        description: "来源权威性"
+        weight: 0.20
+      - name: "recency"
+        description: "信息时效性"
+        weight: 0.15
+      - name: "diversity"
+        description: "视角多元性"
+        weight: 0.15
+
+    # 停止条件 (v7.198 调整)
+    stop_conditions:
+      confidence_reached: true      # 置信度达标
+      no_new_info_rounds: 3         # 连续N轮无新信息（2→3，增加容忍度）
+      max_rounds_reached: true      # 达到最大轮数
+
+  # 深度钻取配置
+  deep_drilling:
+    enabled: true
+    max_drill_concepts: 3     # 最多钻取N个概念
+    drill_threshold: 0.6      # 置信度低于此值的概念需要钻取
+
+  # 实时推送配置
+  progress_streaming:
+    enabled: true
+    events:
+      - "phase"               # 阶段变化
+      - "framework"           # 知识框架
+      - "round_start"         # 轮次开始
+      - "round_sources"       # 轮次来源
+      - "round_reflecting"    # 反思中
+      - "round_complete"      # 轮次完成
+      - "drill_start"         # 钻取开始
+      - "drill_complete"      # 钻取完成
+      - "answer_chunk"        # 答案片段
+      - "done"                # 完成
+      - "error"               # 错误
+
+  # 性能优化
+  performance:
+    parallel_search: true
+    max_concurrent_searches: 3
+    round_timeout: 60         # 单轮超时（秒）
+    total_timeout: 600        # 总超时（秒，10分钟）
+    cache_enabled: true
+    cache_ttl: 3600           # 缓存1小时

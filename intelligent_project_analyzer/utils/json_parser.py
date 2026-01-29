@@ -42,17 +42,17 @@ def extract_json_from_markdown(text: str) -> str:
         logger.debug("✂️ 从Markdown代码块中提取JSON")
         return match.group(1).strip()
 
-    # 2. 尝试找到第一个完整的{}或[]
-    json_obj_pattern = r"\{[\s\S]*\}"
-    match = re.search(json_obj_pattern, text, re.DOTALL)
-    if match:
-        logger.debug("✂️ 从文本中提取JSON对象")
-        return match.group(0).strip()
-
+    # 2. 尝试找到第一个完整的[]或{}
     json_arr_pattern = r"\[[\s\S]*\]"
     match = re.search(json_arr_pattern, text, re.DOTALL)
     if match:
         logger.debug("✂️ 从文本中提取JSON数组")
+        return match.group(0).strip()
+
+    json_obj_pattern = r"\{[\s\S]*\}"
+    match = re.search(json_obj_pattern, text, re.DOTALL)
+    if match:
+        logger.debug("✂️ 从文本中提取JSON对象")
         return match.group(0).strip()
 
     # 3. 原样返回
@@ -60,21 +60,26 @@ def extract_json_from_markdown(text: str) -> str:
 
 
 def fix_json_quotes(text: str) -> str:
-    """
-    修复JSON中的引号问题
+    """将常见的全角/花体引号规范化为标准ASCII引号"""
 
-    - 智能替换中文引号
-    - 修复未转义的引号
+    if not text:
+        return text
 
-    Args:
-        text: JSON字符串
+    replacements = {
+        "“": '"',
+        "”": '"',
+        "„": '"',
+        "‟": '"',
+        "«": '"',
+        "»": '"',
+        "‚": "'",
+        "‘": "'",
+        "’": "'",
+        "‛": "'",
+    }
 
-    Returns:
-        修复后的JSON字符串
-    """
-    # 替换中文引号
-    text = text.replace('"', '"').replace('"', '"')
-    text = text.replace(""", "'").replace(""", "'")
+    for src, dst in replacements.items():
+        text = text.replace(src, dst)
 
     return text
 

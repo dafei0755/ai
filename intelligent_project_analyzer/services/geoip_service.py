@@ -1,64 +1,88 @@
 """
 GeoIP 地理位置服务
 
-使用 MaxMind GeoLite2 离线数据库识别 IP 地址的地理位置
+使用 ip-api.com 免费 API 识别 IP 地址的地理位置
 支持国家、省份、城市、经纬度识别
+无需注册，免费使用（限制：45次/分钟）
 """
 
-import os
+import time
 from pathlib import Path
 from typing import Any, Dict, Optional
 
+import httpx
 from fastapi import Request
 from loguru import logger
 
 try:
-    import geoip2.database
-    from geoip2.errors import AddressNotFoundError
+    import geoip2.database  # type: ignore
+    from geoip2.errors import AddressNotFoundError  # type: ignore
+except Exception:  # pragma: no cover - geoip2 为可选依赖
+    geoip2 = None
 
-    GEOIP2_AVAILABLE = True
-except ImportError:
-    GEOIP2_AVAILABLE = False
-    logger.warning("⚠️ geoip2 未安装，IP地理位置功能将不可用")
+    class AddressNotFoundError(Exception):
+        """占位异常，兼容未安装 geoip2 时的类型引用"""
+
+        pass
 
 
 class GeoIPService:
-    """GeoIP 地理位置服务"""
+    """GeoIP 地理位置服务（支持本地数据库 + ip-api.com 双模式）"""
+
+    # ip-api.com 免费版限制：45次/分钟
+    API_URL = "http://ip-api.com/json/{ip}"
+    API_PARAMS = {
+        "fields": "status,message,country,countryCode,region,regionName,city,lat,lon,timezone,query",
+        "lang": "zh-CN",  # 返回中文地名
+    }
+
+    DEFAULT_DB_PATH = Path("data/GeoLite2-City.mmdb")
+
+    # 速率限制：45次/分钟，保守设为40次
+    RATE_LIMIT = 40
+    RATE_WINDOW = 60  # 秒
 
     def __init__(self, db_path: Optional[str] = None):
-        """
-        初始化 GeoIP 服务
+        """初始化 GeoIP 服务"""
 
-        Args:
-            db_path: GeoLite2-City.mmdb 数据库路径，默认为 data/GeoLite2-City.mmdb
-        """
-        self.db_path = db_path or self._get_default_db_path()
-        self.reader: Optional[geoip2.database.Reader] = None
+        self.db_path = db_path or str(self.DEFAULT_DB_PATH)
+        self._request_times: list[float] = []
+        self.reader = None
         self.is_available = False
+        self.use_local_db = db_path is not None
 
-        if GEOIP2_AVAILABLE:
-            self._initialize_reader()
-
-    def _get_default_db_path(self) -> str:
-        """获取默认数据库路径"""
-        # 项目根目录的 data 文件夹
-        project_root = Path(__file__).parent.parent.parent.parent
-        return str(project_root / "data" / "GeoLite2-City.mmdb")
-
-    def _initialize_reader(self):
-        """初始化数据库读取器"""
-        try:
-            if not os.path.exists(self.db_path):
-                logger.warning(f"⚠️ GeoLite2 数据库不存在: {self.db_path}\n" f"💡 请运行: python scripts/download_geoip_db.py")
+        if self.use_local_db:
+            if geoip2 is None:
+                logger.warning("⚠️ 未安装 geoip2 库，无法启用本地 GeoIP 数据库模式")
                 return
 
-            self.reader = geoip2.database.Reader(self.db_path)
-            self.is_available = True
-            logger.info(f"✅ GeoIP 数据库加载成功: {self.db_path}")
+            db_file = Path(self.db_path)
+            if not db_file.exists():
+                logger.warning("⚠️ GeoLite2 数据库文件不存在: %s", db_file)
+                return
 
-        except Exception as e:
-            logger.error(f"❌ GeoIP 数据库加载失败: {e}")
-            self.is_available = False
+            try:
+                self.reader = geoip2.database.Reader(str(db_file))
+                self.is_available = True
+                logger.info("✅ GeoIP 服务初始化成功（使用 MaxMind 数据库）: %s", db_file)
+            except Exception as exc:
+                logger.warning(f"⚠️ 无法加载 GeoLite2 数据库: {exc}")
+        else:
+            self.is_available = True
+            logger.info("✅ GeoIP 服务初始化成功（使用 ip-api.com 免费API）")
+
+    def _check_rate_limit(self) -> bool:
+        """检查是否超过速率限制"""
+        now = time.time()
+        # 清理超过时间窗口的请求记录
+        self._request_times = [t for t in self._request_times if now - t < self.RATE_WINDOW]
+
+        if len(self._request_times) >= self.RATE_LIMIT:
+            logger.warning(f"⚠️ 达到速率限制：{self.RATE_LIMIT}次/{self.RATE_WINDOW}秒")
+            return False
+
+        self._request_times.append(now)
+        return True
 
     def get_client_ip(self, request: Request) -> str:
         """
@@ -95,7 +119,7 @@ class GeoIPService:
 
     def get_location(self, ip: str) -> Dict[str, Any]:
         """
-        从 IP 地址识别地理位置
+        从 IP 地址识别地理位置（使用 ip-api.com API）
 
         Args:
             ip: IP 地址字符串
@@ -113,6 +137,12 @@ class GeoIPService:
                 "is_valid": True
             }
         """
+        # 空IP或无效格式检查
+        if not ip or not isinstance(ip, str) or len(ip.strip()) == 0:
+            return self._get_unknown_location(ip or "空IP", reason="IP地址为空")
+
+        ip = ip.strip()
+
         # 本地回环地址特殊处理
         if ip in ["127.0.0.1", "localhost", "::1"]:
             return self._get_localhost_location(ip)
@@ -121,45 +151,12 @@ class GeoIPService:
         if self._is_private_ip(ip):
             return self._get_private_ip_location(ip)
 
-        # GeoIP2 不可用时返回未知
-        if not self.is_available or not self.reader:
-            return self._get_unknown_location(ip, reason="GeoIP服务不可用")
+        if self.use_local_db:
+            if not self.is_available or self.reader is None:
+                return self._get_unknown_location(ip, reason="GeoIP数据库不可用")
+            return self._lookup_local_database(ip)
 
-        try:
-            response = self.reader.city(ip)
-
-            # 提取中文地名（优先）
-            country = response.country.names.get("zh-CN", response.country.name or "未知")
-            city = response.city.names.get("zh-CN", response.city.name or "未知")
-            province = ""
-
-            # 获取省份信息
-            if response.subdivisions:
-                province = response.subdivisions.most_specific.names.get(
-                    "zh-CN", response.subdivisions.most_specific.name or ""
-                )
-
-            location = {
-                "ip": ip,
-                "country": country,
-                "province": province,
-                "city": city,
-                "latitude": response.location.latitude,
-                "longitude": response.location.longitude,
-                "timezone": response.location.time_zone or "未知",
-                "is_valid": True,
-            }
-
-            logger.debug(f"✅ IP定位成功: {ip} -> {country}/{province}/{city}")
-            return location
-
-        except AddressNotFoundError:
-            logger.warning(f"⚠️ IP地址未找到: {ip}")
-            return self._get_unknown_location(ip, reason="IP不在数据库中")
-
-        except Exception as e:
-            logger.error(f"❌ IP定位失败: {ip}, 错误: {e}")
-            return self._get_unknown_location(ip, reason=str(e))
+        return self._lookup_remote_service(ip)
 
     def _is_private_ip(self, ip: str) -> bool:
         """检查是否为内网IP"""
@@ -186,6 +183,85 @@ class GeoIPService:
             return False
         except:
             return False
+
+    def _lookup_local_database(self, ip: str) -> Dict[str, Any]:
+        """使用本地 GeoLite 数据库查询"""
+
+        try:
+            result = self.reader.city(ip)
+        except AddressNotFoundError:
+            return self._get_unknown_location(ip, reason="地址未收录")
+        except Exception as exc:
+            logger.error(f"❌ 本地 GeoIP 查询失败: {ip}, 错误: {exc}")
+            return self._get_unknown_location(ip, reason=str(exc))
+
+        country_data = getattr(result, "country", None)
+        subdivision = getattr(getattr(result, "subdivisions", None), "most_specific", None)
+        city_data = getattr(result, "city", None)
+
+        country = (getattr(country_data, "names", {}) or {}).get("zh-CN") or getattr(country_data, "name", "未知")
+        province = (getattr(subdivision, "names", {}) or {}).get("zh-CN") or getattr(subdivision, "name", "")
+        city = (getattr(city_data, "names", {}) or {}).get("zh-CN") or getattr(city_data, "name", "未知")
+
+        location_data = getattr(result, "location", None)
+
+        location = {
+            "ip": ip,
+            "country": country or "未知",
+            "province": province or "",
+            "city": city or "未知",
+            "latitude": getattr(location_data, "latitude", None),
+            "longitude": getattr(location_data, "longitude", None),
+            "timezone": getattr(location_data, "time_zone", "未知"),
+            "is_valid": True,
+        }
+
+        logger.debug(f"✅ 本地数据库定位成功: {ip} -> {location['country']}/{location['province']}/{location['city']}")
+        return location
+
+    def _lookup_remote_service(self, ip: str) -> Dict[str, Any]:
+        """使用 ip-api.com 查询"""
+
+        # 检查速率限制
+        if not self._check_rate_limit():
+            logger.warning(f"⚠️ 速率限制，跳过IP查询: {ip}")
+            return self._get_unknown_location(ip, reason="速率限制")
+
+        try:
+            url = self.API_URL.format(ip=ip)
+            with httpx.Client(timeout=5.0) as client:
+                response = client.get(url, params=self.API_PARAMS)
+                response.raise_for_status()
+                data = response.json()
+
+            if data.get("status") != "success":
+                error_msg = data.get("message", "未知错误")
+                logger.warning(f"⚠️ IP查询失败: {ip}, 原因: {error_msg}")
+                return self._get_unknown_location(ip, reason=error_msg)
+
+            location = {
+                "ip": data.get("query", ip),
+                "country": data.get("country", "未知"),
+                "province": data.get("regionName", ""),
+                "city": data.get("city", "未知"),
+                "latitude": data.get("lat"),
+                "longitude": data.get("lon"),
+                "timezone": data.get("timezone", "未知"),
+                "is_valid": True,
+            }
+
+            logger.debug(f"✅ IP定位成功: {ip} -> {location['country']}/{location['province']}/{location['city']}")
+            return location
+
+        except httpx.TimeoutException:
+            logger.warning(f"⚠️ IP查询超时: {ip}")
+            return self._get_unknown_location(ip, reason="请求超时")
+        except httpx.HTTPError as exc:
+            logger.error(f"❌ IP查询HTTP错误: {ip}, 错误: {exc}")
+            return self._get_unknown_location(ip, reason=f"HTTP错误: {exc}")
+        except Exception as exc:
+            logger.error(f"❌ IP定位失败: {ip}, 错误: {exc}")
+            return self._get_unknown_location(ip, reason=str(exc))
 
     def _get_localhost_location(self, ip: str) -> Dict[str, Any]:
         """获取本地回环地址的位置信息"""
@@ -229,14 +305,23 @@ class GeoIPService:
             "error": reason,
         }
 
-    def __del__(self):
-        """清理资源"""
-        if self.reader:
-            try:
-                self.reader.close()
-                logger.debug("👋 GeoIP 数据库连接已关闭")
-            except:
-                pass
+    def batch_get_locations(self, ips: list[str]) -> list[Dict[str, Any]]:
+        """
+        批量查询IP地理位置（注意速率限制）
+
+        Args:
+            ips: IP地址列表
+
+        Returns:
+            地理位置信息列表
+        """
+        results = []
+        for ip in ips:
+            results.append(self.get_location(ip))
+            # 避免触发速率限制，每次查询间隔
+            if len(ips) > 10:
+                time.sleep(0.1)
+        return results
 
 
 # 全局单例

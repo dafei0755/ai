@@ -12,9 +12,59 @@ from unittest.mock import AsyncMock, Mock, patch
 import pytest
 import pytest_asyncio
 
+# ============================================================================
+# Pytest 兼容性与自定义选项
+# ============================================================================
+
+
+def pytest_addoption(parser):
+    """注册自定义命令行参数。
+
+    一些历史测试/脚本会通过 config.getoption("--run-performance") 控制性能测试是否执行。
+    """
+    parser.addoption(
+        "--run-performance",
+        action="store_true",
+        default=False,
+        help="Run performance tests (may require real API keys / network).",
+    )
+
+
+def pytest_configure(config):
+    """兼容旧写法 pytest.config.getoption(...)
+
+    pytest>=8 已移除 pytest.config 属性；部分历史测试仍在 import 阶段引用。
+    这里提供一个最小兼容层，避免测试收集阶段直接报错。
+    """
+    setattr(pytest, "config", config)
+
+
 # 添加项目根目录到路径
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
+# 导入测试fixtures和工具
+from tests.fixtures.mocks import (
+    MockAsyncLLM,
+    MockCheckpointer,
+    MockRedisClient,
+    MockStore,
+    MockWorkflowState,
+    create_mock_llm,
+    create_mock_redis,
+    create_mock_state,
+    create_mock_upload_file,
+    create_mock_websocket,
+    create_mock_workflow_components,
+)
+from tests.fixtures.test_data import (
+    SAMPLE_ANALYSIS_RESULTS,
+    SAMPLE_EXPERT_POOL,
+    SAMPLE_LLM_RESPONSES,
+    SAMPLE_QUESTIONNAIRE,
+    SAMPLE_SEARCH_RESULTS,
+    SAMPLE_SESSION_DATA,
+    SAMPLE_USER_INPUTS,
+)
 
 # ============================================================================
 # 事件循环配置
@@ -347,6 +397,136 @@ def env_setup(monkeypatch):
 def temp_dir(tmp_path):
     """提供临时目录用于文件操作测试"""
     return tmp_path
+
+
+# ============================================================================
+# 新增Mock Fixtures（统一管理）
+# ============================================================================
+
+
+@pytest.fixture
+def mock_llm_unified() -> MockAsyncLLM:
+    """
+    统一的Mock LLM对象（支持ainvoke/astream）
+
+    使用示例:
+        def test_agent(mock_llm_unified):
+            mock_llm_unified.responses = ["需求分析结果..."]
+            result = await agent.analyze(mock_llm_unified)
+    """
+    return create_mock_llm([SAMPLE_LLM_RESPONSES["requirements_analysis"]])
+
+
+@pytest.fixture
+def mock_redis_unified() -> MockRedisClient:
+    """
+    统一的Mock Redis客户端
+
+    使用示例:
+        def test_session(mock_redis_unified):
+            await mock_redis_unified.set("key", "value")
+            assert await mock_redis_unified.get("key") == b"value"
+    """
+    return create_mock_redis()
+
+
+@pytest.fixture
+def mock_workflow_state() -> MockWorkflowState:
+    """
+    Mock LangGraph状态对象
+
+    使用示例:
+        def test_node(mock_workflow_state):
+            mock_workflow_state.state = create_mock_state()
+            result = await node_function(mock_workflow_state.state)
+    """
+    return MockWorkflowState(create_mock_state())
+
+
+@pytest.fixture
+def mock_checkpointer() -> MockCheckpointer:
+    """Mock LangGraph Checkpointer"""
+    return MockCheckpointer()
+
+
+@pytest.fixture
+def mock_store() -> MockStore:
+    """Mock LangGraph Store"""
+    return MockStore()
+
+
+@pytest.fixture
+def mock_workflow_components():
+    """完整的Mock工作流组件集（state、checkpointer、store）"""
+    return create_mock_workflow_components()
+
+
+@pytest.fixture
+def mock_upload_file_text():
+    """
+    Mock文本文件上传
+
+    使用示例:
+        async def test_upload(client, mock_upload_file_text):
+            response = await client.post(
+                "/upload",
+                files={"file": (mock_upload_file_text.filename, mock_upload_file_text.content)}
+            )
+    """
+    return create_mock_upload_file("test.txt", "测试文件内容")
+
+
+@pytest.fixture
+def mock_websocket_connection():
+    """Mock WebSocket连接"""
+    return create_mock_websocket()
+
+
+# ============================================================================
+# 测试数据Fixtures
+# ============================================================================
+
+
+@pytest.fixture
+def sample_user_input_simple() -> str:
+    """简单用户输入"""
+    return SAMPLE_USER_INPUTS["simple"]
+
+
+@pytest.fixture
+def sample_user_input_detailed() -> str:
+    """详细用户输入"""
+    return SAMPLE_USER_INPUTS["detailed"]
+
+
+@pytest.fixture
+def sample_questionnaire() -> dict:
+    """样本问卷数据"""
+    return SAMPLE_QUESTIONNAIRE.copy()
+
+
+@pytest.fixture
+def sample_expert_pool() -> list:
+    """样本专家池"""
+    return [expert.copy() for expert in SAMPLE_EXPERT_POOL]
+
+
+@pytest.fixture
+def sample_analysis_results() -> dict:
+    """样本分析结果"""
+    return {k: v.copy() for k, v in SAMPLE_ANALYSIS_RESULTS.items()}
+
+
+@pytest.fixture
+def sample_search_results() -> dict:
+    """样本搜索结果"""
+    return SAMPLE_SEARCH_RESULTS.copy()
+
+
+@pytest.fixture
+def sample_session() -> dict:
+    """样本会话数据"""
+    return SAMPLE_SESSION_DATA.copy()
 
 
 # ============================================================================

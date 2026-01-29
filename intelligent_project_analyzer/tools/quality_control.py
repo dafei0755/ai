@@ -1,14 +1,70 @@
 """
-Search Quality Control (v7.64)
+Search Quality Control (v7.197 + 语义去重 + 动态权重)
 
-搜索结果质量控制管道：过滤 → 去重 → 可信度评估 → 质量评分 → 排序
+搜索结果质量控制管道：黑名单过滤 → 相关性过滤 → 语义去重 → 可信度评估 → 白名单提升 → 排序 → 域名统计
+
+v7.197 新增：
+- 语义去重：使用 Embedding 相似度替代前100字符对比
+- 动态权重：根据查询类型动态调整时效性/可信度权重
+- 查询分类器集成：自动识别 news/academic/case/concept 等类型
 """
 
-from typing import List, Dict, Any, Optional, Set
-from datetime import datetime, timedelta
 import re
-from loguru import logger
+from datetime import datetime, timedelta
+from typing import Any, Dict, List, Optional, Set
 from urllib.parse import urlparse
+
+from loguru import logger
+
+# v7.197: 导入语义去重和查询分类器
+_semantic_dedup_module = None
+_query_classifier_module = None
+
+
+def _get_semantic_dedup():
+    """延迟加载语义去重模块"""
+    global _semantic_dedup_module
+    if _semantic_dedup_module is None:
+        try:
+            from . import semantic_dedup
+
+            _semantic_dedup_module = semantic_dedup
+        except Exception as e:
+            logger.warning(f"⚠️ 语义去重模块加载失败，使用前缀去重: {e}")
+            _semantic_dedup_module = False
+    return _semantic_dedup_module if _semantic_dedup_module else None
+
+
+def _get_query_classifier():
+    """延迟加载查询分类器模块"""
+    global _query_classifier_module
+    if _query_classifier_module is None:
+        try:
+            from . import query_classifier
+
+            _query_classifier_module = query_classifier
+        except Exception as e:
+            logger.warning(f"⚠️ 查询分类器模块加载失败，使用默认权重: {e}")
+            _query_classifier_module = False
+    return _query_classifier_module if _query_classifier_module else None
+
+
+# 域名质量统计服务（延迟导入以避免循环依赖）
+_domain_stats_service = None
+
+
+def _get_domain_stats_service():
+    """获取域名统计服务（延迟加载）"""
+    global _domain_stats_service
+    if _domain_stats_service is None:
+        try:
+            from ..services.domain_quality_stats import get_domain_stats_service
+
+            _domain_stats_service = get_domain_stats_service()
+        except Exception as e:
+            logger.warning(f"⚠️ 域名质量统计服务加载失败: {e}")
+            _domain_stats_service = False  # 标记为加载失败，避免重复尝试
+    return _domain_stats_service if _domain_stats_service else None
 
 
 class SearchQualityControl:
@@ -24,48 +80,138 @@ class SearchQualityControl:
     6. 排序和编号 - 按质量分数排序
     """
 
-    # 🔒 可信域名白名单（分级）
+    # 🔒 可信域名白名单（分级 v7.155扩展, v7.174学术增强）
     TRUSTED_DOMAINS = {
         "high": [
-            # 学术机构
-            "arxiv.org", ".edu", ".ac.uk", ".edu.cn",
+            # 学术机构 (v7.174: 扩展学术域名)
+            "arxiv.org",
+            ".edu",
+            ".ac.uk",
+            ".edu.cn",
+            ".ac.cn",
+            ".edu.hk",
+            ".edu.tw",
+            # 🆕 v7.174: 学术数据库
+            "cnki.net",
+            "wanfangdata.com.cn",
+            "cqvip.com",
+            "scholar.google.com",
+            "researchgate.net",
+            "academia.edu",
+            "sciencedirect.com",
+            "springer.com",
+            "wiley.com",
+            "nature.com",
+            "science.org",
+            "ieee.org",
+            "acm.org",
+            "jstor.org",
             # 政府/标准组织
-            ".gov", ".gov.cn", "iso.org", "w3.org",
+            ".gov",
+            ".gov.cn",
+            "iso.org",
+            "w3.org",
             # 知名设计/技术站点
-            "nngroup.com", "smashingmagazine.com", "a11yproject.com",
-            "designbetter.co", "ideo.com", "frogdesign.com"
+            "nngroup.com",
+            "smashingmagazine.com",
+            "a11yproject.com",
+            "designbetter.co",
+            "ideo.com",
+            "frogdesign.com",
+            # 🆕 v7.174 国际设计权威（扩展）
+            "archdaily.com",
+            "archdaily.cn",
+            "dezeen.com",
+            "designboom.com",
+            "architizer.com",
+            "interiordesign.net",
+            "gooood.cn",
+            "archcollege.com",
+            # 🆕 v7.174: 百度学术单独加入（区别于百度系其他产品）
+            "xueshu.baidu.com",
         ],
         "medium": [
             # 专业社区
-            "medium.com", "stackoverflow.com", "github.com",
-            "dribbble.com", "behance.net", "awwwards.com",
+            "medium.com",
+            "stackoverflow.com",
+            "github.com",
+            "dribbble.com",
+            "behance.net",
+            "awwwards.com",
             # 行业媒体
-            "designmilk.com", "dezeen.com", "archdaily.com",
-            "interiordesign.net", "architizer.com"
+            "designmilk.com",
+            "pinterest.com",
+            # 🆕 v7.174 中文设计媒体（扩展）
+            "uisdc.com",
+            "zcool.com.cn",
+            "ui.cn",
+            "站酷.com",
         ],
         "low": [
             # 商业内容平台（可能质量不稳定）
-            "zhihu.com", "jianshu.com", "csdn.net"
-        ]
+            "zhihu.com",
+            "jianshu.com",
+            "csdn.net",
+            # 🆕 v7.174 营销类站点（降级到low）
+            "shejiben.com",
+            "to8to.com",
+        ],
     }
 
     # ⚠️ 内容完整性阈值
     MIN_CONTENT_LENGTH = 50  # 最小内容长度（字符）
     MIN_RELEVANCE_THRESHOLD = 0.6  # 最小相关性分数（0-1）
 
-    # 📊 质量评分权重
+    # 🔒 占位符URL模式（扩展 v7.155）
+    PLACEHOLDER_PATTERNS = [
+        "example.com",
+        "example2.com",
+        "example3.com",
+        "placeholder",
+        "test.com",
+        "localhost",
+        "127.0.0.1",
+        "0.0.0.0",
+        "dummy",
+        "fake",
+        "sample",
+        "xxx.com",
+        "yyy.com",
+        "mock",
+    ]
+
+    # 🔒 无效URL模式（v7.155）
+    INVALID_URL_PATTERNS = [
+        r"^javascript:",
+        r"^data:",
+        r"^mailto:",
+        r"^tel:",
+        r"^#",
+    ]
+
+    # 📊 质量评分权重 (v7.197: 支持动态权重)
+    # 默认权重 - 会被查询分类器动态覆盖
     SCORE_WEIGHTS = {
-        "relevance": 0.4,      # 相关性 40%
-        "timeliness": 0.2,     # 时效性 20%
-        "credibility": 0.2,    # 可信度 20%
-        "completeness": 0.2    # 完整性 20%
+        "relevance": 0.35,  # 相关性 35%
+        "timeliness": 0.10,  # 时效性 10% (动态：news=30%, academic=5%)
+        "credibility": 0.35,  # 可信度 35% (动态：academic=45%)
+        "completeness": 0.20,  # 完整性 20%
     }
+
+    # 🆕 v7.174: 学术来源额外加分
+    ACADEMIC_BOOST = 15.0  # 学术域名额外加15分
+
+    # 🆕 v7.197: 语义去重配置
+    SEMANTIC_DEDUP_ENABLED = True
+    SEMANTIC_DEDUP_THRESHOLD = 0.85  # 相似度阈值
 
     def __init__(
         self,
         min_relevance: float = 0.6,
         min_content_length: int = 50,
-        enable_deduplication: bool = True
+        enable_deduplication: bool = True,
+        enable_filters: bool = True,
+        query: Optional[str] = None,  # v7.197: 支持传入查询用于动态权重
     ):
         """
         初始化质量控制器
@@ -74,22 +220,72 @@ class SearchQualityControl:
             min_relevance: 最小相关性阈值
             min_content_length: 最小内容长度
             enable_deduplication: 是否启用去重
+            enable_filters: 是否启用黑白名单过滤
+            query: 用户查询（用于动态权重计算）
         """
         self.min_relevance = min_relevance
         self.min_content_length = min_content_length
         self.enable_deduplication = enable_deduplication
+        self.enable_filters = enable_filters
+        self.query = query  # v7.197: 保存查询用于动态权重
+
+        # 🆕 v7.197: 动态权重计算
+        self._dynamic_weights = None
+        self._init_dynamic_weights(query)
+
+        # 🆕 加载黑白名单管理器
+        self.filter_manager = None
+        if enable_filters:
+            try:
+                from ..services.search_filter_manager import get_filter_manager
+
+                self.filter_manager = get_filter_manager()
+                logger.info("✅ 搜索黑白名单过滤器已启用")
+            except Exception as e:
+                logger.warning(f"⚠️ 黑白名单过滤器加载失败: {e}")
+                self.filter_manager = None
 
         logger.info(
             f"✅ SearchQualityControl initialized: "
             f"min_relevance={min_relevance}, "
             f"min_content_length={min_content_length}, "
-            f"dedup={enable_deduplication}"
+            f"dedup={enable_deduplication}, "
+            f"filters={enable_filters}"
         )
 
+    def _init_dynamic_weights(self, query: Optional[str]) -> None:
+        """
+        初始化动态权重 (v7.197)
+
+        根据查询类型动态调整权重。
+        """
+        if not query:
+            self._dynamic_weights = dict(self.SCORE_WEIGHTS)
+            return
+
+        classifier = _get_query_classifier()
+        if not classifier:
+            self._dynamic_weights = dict(self.SCORE_WEIGHTS)
+            return
+
+        try:
+            weights = classifier.get_dynamic_weights(query)
+            self._dynamic_weights = weights
+            logger.info(
+                f"🎯 [动态权重] 查询='{query[:30]}...' | "
+                f"时效性={weights.get('timeliness', 0.10):.0%} | "
+                f"可信度={weights.get('credibility', 0.35):.0%}"
+            )
+        except Exception as e:
+            logger.warning(f"⚠️ 动态权重计算失败: {e}")
+            self._dynamic_weights = dict(self.SCORE_WEIGHTS)
+
+    def get_weights(self) -> Dict[str, float]:
+        """获取当前权重（动态或默认）"""
+        return self._dynamic_weights or dict(self.SCORE_WEIGHTS)
+
     def process_results(
-        self,
-        results: List[Dict[str, Any]],
-        deliverable_context: Optional[Dict[str, Any]] = None
+        self, results: List[Dict[str, Any]], deliverable_context: Optional[Dict[str, Any]] = None
     ) -> List[Dict[str, Any]]:
         """
         处理搜索结果（完整管道）
@@ -108,8 +304,19 @@ class SearchQualityControl:
 
         logger.info(f"🔧 Processing {len(results)} search results")
 
+        # Step 0: 🆕 黑名单过滤（优先级最高）
+        if self.enable_filters and self.filter_manager:
+            filtered = self._apply_blacklist(results)
+            logger.debug(f"📌 After blacklist filter: {len(filtered)} results")
+        else:
+            filtered = results
+
+        # Step 0.5: 🆕 v7.155 URL有效性过滤（新增）
+        filtered = self._filter_by_url_validity(filtered)
+        logger.debug(f"📌 After URL validity filter: {len(filtered)} results")
+
         # Step 1: 相关性过滤
-        filtered = self._filter_by_relevance(results)
+        filtered = self._filter_by_relevance(filtered)
         logger.debug(f"📌 After relevance filter: {len(filtered)} results")
 
         # Step 2: 内容完整性过滤
@@ -126,25 +333,133 @@ class SearchQualityControl:
         # Step 4: 可信度评估 + 质量评分
         for result in unique:
             # 评估来源可信度
-            result["source_credibility"] = self.assess_credibility(
-                result.get("url", "")
-            )
+            result["source_credibility"] = self.assess_credibility(result.get("url", ""))
 
             # 计算综合质量分数
             result["quality_score"] = self.calculate_composite_score(result)
 
-        # Step 5: 排序（按质量分数降序）
-        sorted_results = sorted(
-            unique,
-            key=lambda x: x.get("quality_score", 0),
-            reverse=True
-        )
+        # Step 5: 🆕 白名单优先级提升
+        if self.enable_filters and self.filter_manager:
+            self._boost_whitelist(unique)
 
-        logger.info(
-            f"✅ Quality control completed: {len(sorted_results)} high-quality results"
-        )
+        # Step 6: 排序（按质量分数降序）
+        sorted_results = sorted(unique, key=lambda x: x.get("quality_score", 0), reverse=True)
+
+        # Step 7: 🆕 域名质量统计收集（用于自动评估审核）
+        self._record_domain_quality_stats(sorted_results)
+
+        logger.info(f"✅ Quality control completed: {len(sorted_results)} high-quality results")
 
         return sorted_results
+
+    def _record_domain_quality_stats(self, results: List[Dict[str, Any]]) -> None:
+        """
+        记录域名质量统计（用于自动评估审核队列）
+
+        Args:
+            results: 已处理的搜索结果列表
+        """
+        try:
+            stats_service = _get_domain_stats_service()
+            if not stats_service:
+                return
+
+            for result in results:
+                url = result.get("url", "")
+                if not url:
+                    continue
+
+                quality_score = result.get("quality_score", 0)
+                relevance_score = (
+                    result.get("relevance_score") or result.get("similarity_score") or result.get("score", 0)
+                )
+                if isinstance(relevance_score, float) and relevance_score <= 1:
+                    relevance_score *= 100
+
+                content = result.get("content", "") or result.get("snippet", "") or ""
+                content_length = len(content)
+
+                # 记录到统计服务
+                stats_service.record_result(
+                    url=url,
+                    quality_score=quality_score,
+                    relevance_score=relevance_score,
+                    content_length=content_length,
+                    is_duplicate=False,
+                )
+
+        except Exception as e:
+            logger.debug(f"⚠️ 域名质量统计记录失败: {e}")
+
+    def _apply_blacklist(self, results: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """
+        应用黑名单过滤
+
+        完全移除黑名单中的域名结果
+
+        Args:
+            results: 搜索结果列表
+
+        Returns:
+            过滤后的结果列表
+        """
+        if not self.filter_manager:
+            return results
+
+        filtered = []
+        blocked_count = 0
+
+        for result in results:
+            url = result.get("url", "")
+            if not url:
+                filtered.append(result)
+                continue
+
+            # 检查是否在黑名单中
+            if self.filter_manager.is_blacklisted(url):
+                blocked_count += 1
+                logger.debug(f"🚫 [黑名单过滤] {url}")
+                continue
+
+            filtered.append(result)
+
+        if blocked_count > 0:
+            logger.info(f"🚫 黑名单过滤: 移除 {blocked_count} 个结果")
+
+        return filtered
+
+    def _boost_whitelist(self, results: List[Dict[str, Any]]) -> None:
+        """
+        提升白名单域名的质量分数
+
+        Args:
+            results: 搜索结果列表（原地修改）
+        """
+        if not self.filter_manager:
+            return
+
+        boost_score = self.filter_manager.get_boost_score()
+        boost_points = boost_score * 100 if boost_score <= 1 else boost_score
+        boosted_count = 0
+
+        for result in results:
+            url = result.get("url", "")
+            if not url:
+                continue
+
+            # 检查是否在白名单中
+            if self.filter_manager.is_whitelisted(url):
+                # 提升质量分数
+                original_score = result.get("quality_score", 0)
+                result["quality_score"] = min(100.0, original_score + boost_points)
+                result["whitelist_boosted"] = True
+                boosted_count += 1
+                logger.debug(
+                    f"⭐ [白名单提升] {url}: {original_score:.2f} → {result['quality_score']:.2f} (+{boost_points:.2f})"
+                )
+
+        if boosted_count > 0:
+            logger.info(f"⭐ 白名单提升: {boosted_count} 个结果获得优先级")
 
     def _filter_by_relevance(self, results: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """
@@ -155,13 +470,26 @@ class SearchQualityControl:
 
         Returns:
             过滤后的结果列表
+
+        Note:
+            v7.176: 如果结果没有任何相关性分数字段，默认让其通过过滤
+            （因为此时相关性分数尚未计算，后续会在评分阶段计算）
         """
-        filtered = [
-            r for r in results
-            if r.get("relevance_score", 0) >= self.min_relevance or
-               r.get("similarity_score", 0) >= self.min_relevance or
-               r.get("score", 0) >= self.min_relevance
-        ]
+        filtered = []
+        for r in results:
+            # 检查是否有任何相关性分数字段
+            has_relevance = any(["relevance_score" in r, "similarity_score" in r, "score" in r])
+
+            if not has_relevance:
+                # 没有相关性分数，默认通过（后续评分阶段会计算）
+                filtered.append(r)
+            elif (
+                r.get("relevance_score", 0) >= self.min_relevance
+                or r.get("similarity_score", 0) >= self.min_relevance
+                or r.get("score", 0) >= self.min_relevance
+            ):
+                # 有相关性分数且满足阈值
+                filtered.append(r)
 
         removed_count = len(results) - len(filtered)
         if removed_count > 0:
@@ -188,20 +516,105 @@ class SearchQualityControl:
             else:
                 r["content_complete"] = False
                 logger.debug(
-                    f"⚠️ Filtered out incomplete result: '{r.get('title', 'N/A')}' "
-                    f"(length={len(content)})"
+                    f"⚠️ Filtered out incomplete result: '{r.get('title', 'N/A')}' " f"(length={len(content)})"
                 )
+
+        return filtered
+
+    def _filter_by_url_validity(self, results: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """
+        🆕 v7.155: 按URL有效性过滤
+
+        过滤规则:
+        1. URL必须以http/https开头
+        2. 不能包含占位符域名
+        3. 不能是无效协议
+
+        Args:
+            results: 搜索结果列表
+
+        Returns:
+            过滤后的结果列表
+        """
+        filtered = []
+        blocked_count = 0
+
+        for result in results:
+            url = result.get("url", "")
+
+            # 1. 检查URL是否存在
+            if not url or not isinstance(url, str):
+                blocked_count += 1
+                logger.debug(f"🚫 [URL过滤] 空URL或非字符串")
+                continue
+
+            # 2. 检查协议
+            if not url.startswith(("http://", "https://")):
+                blocked_count += 1
+                logger.debug(f"🚫 [URL过滤] 无效协议: {url}")
+                continue
+
+            # 3. 检查占位符域名
+            url_lower = url.lower()
+            is_placeholder = any(placeholder in url_lower for placeholder in self.PLACEHOLDER_PATTERNS)
+            if is_placeholder:
+                blocked_count += 1
+                logger.warning(f"🚫 [URL过滤] 占位符URL: {url}")
+                continue
+
+            # 4. 检查无效URL模式
+            is_invalid = any(re.match(pattern, url_lower) for pattern in self.INVALID_URL_PATTERNS)
+            if is_invalid:
+                blocked_count += 1
+                logger.debug(f"🚫 [URL过滤] 无效URL模式: {url}")
+                continue
+
+            # 通过所有检查
+            filtered.append(result)
+
+        if blocked_count > 0:
+            logger.info(f"🚫 URL有效性过滤: 移除 {blocked_count} 个无效URL")
 
         return filtered
 
     def _deduplicate(self, results: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """
-        去重和聚类
+        去重和聚类 (v7.197: 支持语义去重)
 
         策略：
         1. 按URL去重（完全相同）
-        2. 按标题相似度去重（编辑距离）
-        3. 按内容相似度去重（简化版：前100字符对比）
+        2. 按标题相似度去重
+        3. 按内容语义去重（使用 Embedding 相似度）
+
+        Args:
+            results: 搜索结果列表
+
+        Returns:
+            去重后的结果列表
+        """
+        # v7.197: 尝试使用语义去重
+        if self.SEMANTIC_DEDUP_ENABLED:
+            semantic_dedup = _get_semantic_dedup()
+            if semantic_dedup:
+                try:
+                    unique_results, removed_count = semantic_dedup.semantic_deduplicate(
+                        results,
+                        threshold=self.SEMANTIC_DEDUP_THRESHOLD,
+                        content_key="content",
+                        fallback_key="snippet",
+                    )
+                    if removed_count > 0:
+                        logger.info(f"🧹 [语义去重] 移除 {removed_count} 个重复结果")
+                    return unique_results
+                except Exception as e:
+                    logger.warning(f"⚠️ 语义去重失败，回退到前缀去重: {e}")
+
+        # 回退：使用原始前缀去重方法
+        return self._deduplicate_by_prefix(results)
+
+    def _deduplicate_by_prefix(self, results: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """
+        前缀去重（回退方法）
 
         Args:
             results: 搜索结果列表
@@ -265,8 +678,8 @@ class SearchQualityControl:
 
         # 转小写、去除多余空格和标点
         normalized = text.lower().strip()
-        normalized = re.sub(r'\s+', ' ', normalized)
-        normalized = re.sub(r'[^\w\s]', '', normalized)
+        normalized = re.sub(r"\s+", " ", normalized)
+        normalized = re.sub(r"[^\w\s]", "", normalized)
 
         return normalized
 
@@ -311,10 +724,11 @@ class SearchQualityControl:
 
     def calculate_composite_score(self, result: Dict[str, Any]) -> float:
         """
-        计算综合质量分数
+        计算综合质量分数 (v7.197: 支持动态权重)
 
         公式:
-        Quality Score = Relevance(40%) + Timeliness(20%) + Credibility(20%) + Completeness(20%)
+        Quality Score = Relevance(35%) + Timeliness(动态) + Credibility(动态) + Completeness(动态)
+        + Academic Boost (学术来源额外+15分)
 
         分数范围: [30, 100]
 
@@ -324,19 +738,19 @@ class SearchQualityControl:
         Returns:
             综合质量分数（0-100）
         """
+        # v7.197: 获取动态权重
+        weights = self.get_weights()
+
         # 1. 相关性分数（0-100）
         relevance = (
-            result.get("relevance_score") or
-            result.get("similarity_score") or
-            result.get("score") or
-            0.7  # 默认中等相关
+            result.get("relevance_score") or result.get("similarity_score") or result.get("score") or 0.7  # 默认中等相关
         )
         relevance_score = relevance * 100
 
         # 2. 时效性分数（0-100）
         timeliness_score = self._calculate_timeliness_score(result)
 
-        # 3. 可信度分数（0-100）
+        # 3. 可信度分数（0-100）- v7.174增强
         credibility = result.get("source_credibility", "unknown")
         credibility_map = {"high": 100, "medium": 70, "low": 50, "unknown": 60}
         credibility_score = credibility_map.get(credibility, 60)
@@ -344,18 +758,83 @@ class SearchQualityControl:
         # 4. 完整性分数（0-100）
         completeness_score = 100 if result.get("content_complete", True) else 50
 
-        # 加权计算
+        # v7.197: 使用动态权重计算
         composite = (
-            relevance_score * self.SCORE_WEIGHTS["relevance"] +
-            timeliness_score * self.SCORE_WEIGHTS["timeliness"] +
-            credibility_score * self.SCORE_WEIGHTS["credibility"] +
-            completeness_score * self.SCORE_WEIGHTS["completeness"]
+            relevance_score * weights.get("relevance", 0.35)
+            + timeliness_score * weights.get("timeliness", 0.10)
+            + credibility_score * weights.get("credibility", 0.35)
+            + completeness_score * weights.get("completeness", 0.20)
         )
+
+        # 🆕 v7.174: 学术来源额外加分
+        url = result.get("url", "")
+        if self._is_academic_source(url):
+            composite += self.ACADEMIC_BOOST
+            result["is_academic"] = True
+            logger.debug(f"📚 学术来源加分: {url} (+{self.ACADEMIC_BOOST})")
 
         # 确保在合理范围内（30-100）
         composite = max(30.0, min(100.0, composite))
 
         return round(composite, 2)
+
+    def _is_academic_source(self, url: str) -> bool:
+        """
+        判断URL是否来自学术来源 (v7.174新增)
+
+        Args:
+            url: 来源URL
+
+        Returns:
+            是否为学术来源
+        """
+        if not url:
+            return False
+
+        url_lower = url.lower()
+
+        # 学术域名关键词
+        academic_indicators = [
+            # 学术数据库
+            "cnki.net",
+            "wanfangdata",
+            "cqvip.com",
+            "scholar.google",
+            "researchgate.net",
+            "academia.edu",
+            "sciencedirect",
+            "springer.com",
+            "wiley.com",
+            "nature.com",
+            "science.org",
+            "ieee.org",
+            "acm.org",
+            "jstor.org",
+            "arxiv.org",
+            "xueshu.baidu.com",
+            # 教育机构
+            ".edu",
+            ".edu.cn",
+            ".edu.hk",
+            ".edu.tw",
+            ".ac.uk",
+            ".ac.cn",
+            ".ac.jp",
+            # 论文/研究相关URL模式
+            "/paper/",
+            "/article/",
+            "/publication/",
+            "/thesis/",
+            "/journal/",
+            "/proceedings/",
+            "/research/",
+        ]
+
+        for indicator in academic_indicators:
+            if indicator in url_lower:
+                return True
+
+        return False
 
     def _calculate_timeliness_score(self, result: Dict[str, Any]) -> float:
         """
@@ -366,7 +845,9 @@ class SearchQualityControl:
         - 1-2年: 90分
         - 2-3年: 80分
         - 3-5年: 70分
-        - 5年以上: 60分
+        - 5-10年: 60分
+        - 🆕 v7.155 未来日期: 0分（拒绝）
+        - 🆕 v7.155 10年以上: 50分（过期）
         - 无日期: 70分（中性）
 
         Args:
@@ -377,10 +858,11 @@ class SearchQualityControl:
         """
         # 尝试从多个字段获取发布日期
         date_str = (
-            result.get("published_date") or
-            result.get("published") or
-            result.get("updated") or
-            result.get("last_updated")
+            result.get("published_date")
+            or result.get("datePublished")  # 🆕 v7.155 Bocha字段
+            or result.get("published")
+            or result.get("updated")
+            or result.get("last_updated")
         )
 
         if not date_str:
@@ -388,15 +870,36 @@ class SearchQualityControl:
 
         try:
             # 解析日期（支持多种格式）
+            pub_date = None
             if isinstance(date_str, str):
-                # ISO格式
-                pub_date = datetime.fromisoformat(date_str.replace("Z", "+00:00"))
+                # 尝试多种日期格式
+                for fmt in [
+                    "%Y-%m-%dT%H:%M:%SZ",
+                    "%Y-%m-%d",
+                    "%Y/%m/%d",
+                    "%Y年%m月%d日",
+                ]:
+                    try:
+                        pub_date = datetime.strptime(date_str, fmt)
+                        break
+                    except ValueError:
+                        continue
+
+                if pub_date is None:
+                    # ISO格式（最后尝试）
+                    pub_date = datetime.fromisoformat(date_str.replace("Z", "+00:00"))
             else:
                 pub_date = date_str
 
             # 计算时间差
             now = datetime.now(pub_date.tzinfo) if pub_date.tzinfo else datetime.now()
             delta = now - pub_date
+
+            # 🆕 v7.155: 检查未来日期
+            if delta.days < 0:
+                logger.warning(f"⚠️ 检测到未来日期: {date_str}，拒绝此结果")
+                return 0.0  # 未来日期，返回0分（将被过滤）
+
             years = delta.days / 365.25
 
             # 分级评分
@@ -408,8 +911,12 @@ class SearchQualityControl:
                 return 80.0
             elif years < 5:
                 return 70.0
-            else:
+            elif years < 10:
                 return 60.0
+            else:
+                # 🆕 v7.155: 超过10年的内容降低分数
+                logger.debug(f"⚠️ 内容过期: {years:.1f}年前发布")
+                return 50.0
 
         except Exception as e:
             logger.debug(f"⚠️ Failed to parse date '{date_str}': {e}")
@@ -420,10 +927,8 @@ class SearchQualityControl:
 # 辅助函数：快速使用
 # ============================================================================
 
-def quick_quality_control(
-    results: List[Dict[str, Any]],
-    min_relevance: float = 0.6
-) -> List[Dict[str, Any]]:
+
+def quick_quality_control(results: List[Dict[str, Any]], min_relevance: float = 0.6) -> List[Dict[str, Any]]:
     """
     快速质量控制（单例模式）
 
@@ -435,4 +940,722 @@ def quick_quality_control(
         处理后的结果列表
     """
     qc = SearchQualityControl(min_relevance=min_relevance)
+    return qc.process_results(results)
+
+
+# ============================================================================
+# v7.170 新增：内容深度评估器
+# ============================================================================
+
+
+class ContentDepthEvaluator:
+    """
+    内容深度评估器 (v7.170)
+
+    评估搜索结果的内容深度，区分"有分析框架的深度内容"和"简单罗列的浅层内容"
+
+    评估维度：
+    1. 是否有分析框架 (20分)
+    2. 是否有对比分析 (15分)
+    3. 是否有数据支撑 (15分)
+    4. 是否有案例研究 (15分)
+    5. 是否有方法论 (15分)
+    6. 是否有结论/建议 (10分)
+    7. 内容长度 (10分)
+    """
+
+    # 深度评估权重
+    DEPTH_WEIGHTS = {
+        "has_framework": 20,  # 是否有分析框架
+        "has_comparison": 15,  # 是否有对比分析
+        "has_data": 15,  # 是否有数据支撑
+        "has_case_study": 15,  # 是否有案例研究
+        "has_methodology": 15,  # 是否有方法论
+        "has_conclusion": 10,  # 是否有结论/建议
+        "content_length": 10,  # 内容长度
+    }
+
+    # 框架关键词
+    FRAMEWORK_KEYWORDS = [
+        "框架",
+        "模型",
+        "体系",
+        "结构",
+        "维度",
+        "层面",
+        "系统",
+        "framework",
+        "model",
+        "structure",
+        "dimension",
+        "system",
+    ]
+
+    # 对比关键词
+    COMPARISON_KEYWORDS = [
+        "对比",
+        "比较",
+        "区别",
+        "差异",
+        "vs",
+        "相比",
+        "不同",
+        "compare",
+        "comparison",
+        "difference",
+        "versus",
+        "contrast",
+    ]
+
+    # 数据关键词
+    DATA_KEYWORDS = [
+        "%",
+        "数据",
+        "统计",
+        "调查",
+        "报告",
+        "增长",
+        "下降",
+        "比例",
+        "data",
+        "statistics",
+        "survey",
+        "report",
+        "growth",
+        "percentage",
+    ]
+
+    # 案例关键词
+    CASE_KEYWORDS = ["案例", "项目", "实例", "实践", "作品", "设计案例", "case", "project", "example", "practice", "case study"]
+
+    # 方法论关键词
+    METHODOLOGY_KEYWORDS = [
+        "方法",
+        "步骤",
+        "流程",
+        "策略",
+        "原则",
+        "指南",
+        "方法论",
+        "method",
+        "step",
+        "process",
+        "strategy",
+        "principle",
+        "guideline",
+        "methodology",
+    ]
+
+    # 结论关键词
+    CONCLUSION_KEYWORDS = [
+        "结论",
+        "建议",
+        "总结",
+        "启示",
+        "展望",
+        "未来",
+        "conclusion",
+        "recommendation",
+        "summary",
+        "insight",
+        "future",
+    ]
+
+    def __init__(self, min_content_length: int = 500):
+        """
+        初始化内容深度评估器
+
+        Args:
+            min_content_length: 被认为是"长内容"的最小字符数
+        """
+        self.min_content_length = min_content_length
+
+    def evaluate_depth(self, result: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        评估单个搜索结果的内容深度
+
+        Args:
+            result: 搜索结果字典
+
+        Returns:
+            包含深度评分和各维度得分的字典
+        """
+        content = result.get("content", "") or result.get("snippet", "") or result.get("summary", "")
+        title = result.get("title", "")
+        text = f"{title} {content}".lower()
+
+        # 评估各维度
+        scores = {
+            "has_framework": self._check_keywords(text, self.FRAMEWORK_KEYWORDS),
+            "has_comparison": self._check_keywords(text, self.COMPARISON_KEYWORDS),
+            "has_data": self._check_keywords(text, self.DATA_KEYWORDS),
+            "has_case_study": self._check_keywords(text, self.CASE_KEYWORDS),
+            "has_methodology": self._check_keywords(text, self.METHODOLOGY_KEYWORDS),
+            "has_conclusion": self._check_keywords(text, self.CONCLUSION_KEYWORDS),
+            "content_length": len(content) >= self.min_content_length,
+        }
+
+        # 计算总分
+        total_score = sum(self.DEPTH_WEIGHTS[key] if value else 0 for key, value in scores.items())
+
+        return {
+            "depth_score": total_score,
+            "depth_indicators": scores,
+            "depth_level": self._get_depth_level(total_score),
+        }
+
+    def _check_keywords(self, text: str, keywords: List[str]) -> bool:
+        """检查文本是否包含关键词"""
+        return any(keyword.lower() in text for keyword in keywords)
+
+    def _get_depth_level(self, score: int) -> str:
+        """
+        根据分数获取深度等级
+
+        Args:
+            score: 深度分数 (0-100)
+
+        Returns:
+            深度等级: "deep", "medium", "shallow"
+        """
+        if score >= 60:
+            return "deep"
+        elif score >= 30:
+            return "medium"
+        else:
+            return "shallow"
+
+    def evaluate_batch(self, results: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """
+        批量评估搜索结果的内容深度
+
+        Args:
+            results: 搜索结果列表
+
+        Returns:
+            添加了深度评分的结果列表
+        """
+        for result in results:
+            depth_info = self.evaluate_depth(result)
+            result["depth_score"] = depth_info["depth_score"]
+            result["depth_indicators"] = depth_info["depth_indicators"]
+            result["depth_level"] = depth_info["depth_level"]
+
+        return results
+
+    def filter_by_depth(
+        self, results: List[Dict[str, Any]], min_depth_score: int = 30, min_depth_level: str = "medium"
+    ) -> List[Dict[str, Any]]:
+        """
+        按深度过滤搜索结果
+
+        Args:
+            results: 搜索结果列表
+            min_depth_score: 最小深度分数
+            min_depth_level: 最小深度等级
+
+        Returns:
+            过滤后的结果列表
+        """
+        depth_levels = {"shallow": 0, "medium": 1, "deep": 2}
+        min_level_value = depth_levels.get(min_depth_level, 1)
+
+        filtered = []
+        for result in results:
+            # 如果还没有评估深度，先评估
+            if "depth_score" not in result:
+                depth_info = self.evaluate_depth(result)
+                result.update(depth_info)
+
+            # 检查是否满足条件
+            result_level_value = depth_levels.get(result.get("depth_level", "shallow"), 0)
+            if result.get("depth_score", 0) >= min_depth_score or result_level_value >= min_level_value:
+                filtered.append(result)
+
+        return filtered
+
+    def sort_by_depth(self, results: List[Dict[str, Any]], descending: bool = True) -> List[Dict[str, Any]]:
+        """
+        按深度分数排序
+
+        Args:
+            results: 搜索结果列表
+            descending: 是否降序
+
+        Returns:
+            排序后的结果列表
+        """
+        # 确保所有结果都有深度评分
+        for result in results:
+            if "depth_score" not in result:
+                depth_info = self.evaluate_depth(result)
+                result.update(depth_info)
+
+        return sorted(results, key=lambda x: x.get("depth_score", 0), reverse=descending)
+
+
+class EnhancedSearchQualityControl(SearchQualityControl):
+    """
+    增强版搜索质量控制器 (v7.170)
+
+    在原有质量控制基础上，增加内容深度评估
+    """
+
+    def __init__(
+        self,
+        min_relevance: float = 0.6,
+        min_content_length: int = 50,
+        enable_deduplication: bool = True,
+        enable_filters: bool = True,
+        enable_depth_evaluation: bool = True,
+        min_depth_score: int = 20,
+    ):
+        """
+        初始化增强版质量控制器
+
+        Args:
+            min_relevance: 最小相关性阈值
+            min_content_length: 最小内容长度
+            enable_deduplication: 是否启用去重
+            enable_filters: 是否启用黑白名单过滤
+            enable_depth_evaluation: 是否启用深度评估
+            min_depth_score: 最小深度分数
+        """
+        super().__init__(
+            min_relevance=min_relevance,
+            min_content_length=min_content_length,
+            enable_deduplication=enable_deduplication,
+            enable_filters=enable_filters,
+        )
+
+        self.enable_depth_evaluation = enable_depth_evaluation
+        self.min_depth_score = min_depth_score
+        self.depth_evaluator = ContentDepthEvaluator() if enable_depth_evaluation else None
+
+        logger.info(f"✅ EnhancedSearchQualityControl initialized: depth_eval={enable_depth_evaluation}")
+
+    def process_results(
+        self, results: List[Dict[str, Any]], deliverable_context: Optional[Dict[str, Any]] = None
+    ) -> List[Dict[str, Any]]:
+        """
+        处理搜索结果（增强版管道）
+
+        Pipeline: Filter → Deduplicate → Assess → Depth Evaluate → Score → Sort
+
+        Args:
+            results: 原始搜索结果列表
+            deliverable_context: 交付物上下文
+
+        Returns:
+            处理后的结果列表
+        """
+        # 调用父类的处理方法
+        processed = super().process_results(results, deliverable_context)
+
+        # 添加深度评估
+        if self.enable_depth_evaluation and self.depth_evaluator:
+            logger.debug(f"🔬 Evaluating content depth for {len(processed)} results")
+            processed = self.depth_evaluator.evaluate_batch(processed)
+
+            # 更新综合分数（加入深度分数）
+            for result in processed:
+                depth_score = result.get("depth_score", 0)
+                original_score = result.get("quality_score", 50)
+                # 深度分数占20%权重
+                result["quality_score"] = round(original_score * 0.8 + depth_score * 0.2, 2)
+
+            # 重新排序
+            processed = sorted(processed, key=lambda x: x.get("quality_score", 0), reverse=True)
+
+            logger.info(f"✅ Depth evaluation completed for {len(processed)} results")
+
+        return processed
+
+
+# 便捷函数
+def evaluate_content_depth(results: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """
+    快速评估内容深度
+
+    Args:
+        results: 搜索结果列表
+
+    Returns:
+        添加了深度评分的结果列表
+    """
+    evaluator = ContentDepthEvaluator()
+    return evaluator.evaluate_batch(results)
+
+
+def enhanced_quality_control(
+    results: List[Dict[str, Any]], min_relevance: float = 0.6, enable_depth: bool = True
+) -> List[Dict[str, Any]]:
+    """
+    增强版质量控制
+
+    Args:
+        results: 搜索结果列表
+        min_relevance: 最小相关性阈值
+        enable_depth: 是否启用深度评估
+
+    Returns:
+        处理后的结果列表
+    """
+    qc = EnhancedSearchQualityControl(min_relevance=min_relevance, enable_depth_evaluation=enable_depth)
+    return qc.process_results(results)
+
+
+# ============================================================================
+# v7.180 新增：人性维度评估器
+# ============================================================================
+
+
+class HumanDimensionEvaluator:
+    """
+    人性维度评估器 (v7.180)
+
+    评估搜索结果是否触及用户的人性维度需求：
+    - 情感共鸣度 (emotional)
+    - 精神追求 (spiritual)
+    - 心理安全 (safety)
+    - 仪式感支持 (ritual)
+    - 记忆锚点关联 (memory)
+
+    使用示例：
+        evaluator = HumanDimensionEvaluator()
+        result = evaluator.evaluate(search_result, user_model)
+        # result = {"human_score": 60, "matched_dimensions": ["emotional", "ritual"], ...}
+    """
+
+    def __init__(self):
+        """初始化人性维度评估器"""
+        # 延迟导入以避免循环依赖
+        try:
+            from ..utils.insight_methodology import InsightMethodology
+
+            self.methodology = InsightMethodology
+        except ImportError:
+            logger.warning("⚠️ InsightMethodology not available, using fallback")
+            self.methodology = None
+
+        # 备用关键词（如果方法论模块不可用）
+        self.FALLBACK_DIMENSIONS = {
+            "emotional": ["情感", "感受", "体验", "氛围", "温度", "情绪", "温馨", "舒适"],
+            "spiritual": ["精神", "追求", "价值", "意义", "信仰", "理想", "自我", "成长"],
+            "safety": ["安全", "庇护", "私密", "边界", "保护", "归属", "依恋", "稳定"],
+            "ritual": ["仪式", "习惯", "日常", "节奏", "规律", "传统", "晨间", "睡前"],
+            "memory": ["记忆", "回忆", "故事", "传承", "历史", "纪念", "怀旧", "童年"],
+        }
+
+        logger.info("✅ HumanDimensionEvaluator initialized")
+
+    def evaluate(self, result: Dict[str, Any], user_model: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """
+        评估单个搜索结果的人性维度相关性
+
+        Args:
+            result: 搜索结果
+            user_model: 用户模型（来自L2分析）
+
+        Returns:
+            {
+                "human_score": 0-100,
+                "matched_dimensions": ["emotional", "ritual", ...],
+                "relevance_details": {...},
+                "dimension_scores": {...}
+            }
+        """
+        content = result.get("content", "") or result.get("snippet", "") or ""
+        title = result.get("title", "")
+        text = f"{title} {content}"
+
+        # 提取匹配的人性维度
+        if self.methodology:
+            matched = self.methodology.extract_human_dimensions(text)
+        else:
+            matched = self._extract_dimensions_fallback(text)
+
+        # 计算各维度分数
+        dimension_scores = {}
+        matched_dims = []
+        total_score = 0
+
+        for dim_name, keywords in matched.items():
+            if keywords:
+                matched_dims.append(dim_name)
+                # 每个维度基础20分，每个额外关键词+2分（最多30分/维度）
+                dim_score = min(30, 20 + len(keywords) * 2)
+                dimension_scores[dim_name] = dim_score
+                total_score += dim_score
+
+        # 基础分数（最多100分）
+        base_score = min(100, total_score)
+
+        # 如果有用户模型，计算与用户需求的匹配度
+        user_match_bonus = 0
+        if user_model and self.methodology:
+            user_relevance = self.methodology.calculate_human_relevance(text, user_model)
+            user_match_bonus = user_relevance * 0.2  # 用户匹配最多加20分
+
+        final_score = min(100, base_score + user_match_bonus)
+
+        return {
+            "human_score": round(final_score, 2),
+            "matched_dimensions": matched_dims,
+            "relevance_details": matched,
+            "dimension_scores": dimension_scores,
+            "user_match_bonus": round(user_match_bonus, 2),
+        }
+
+    def _extract_dimensions_fallback(self, text: str) -> Dict[str, List[str]]:
+        """
+        备用维度提取方法（当方法论模块不可用时）
+
+        Args:
+            text: 输入文本
+
+        Returns:
+            维度 → 匹配关键词列表
+        """
+        result = {dim: [] for dim in self.FALLBACK_DIMENSIONS.keys()}
+
+        if not text:
+            return result
+
+        text_lower = text.lower()
+
+        for dimension, keywords in self.FALLBACK_DIMENSIONS.items():
+            matched = []
+            for keyword in keywords:
+                if keyword in text or keyword.lower() in text_lower:
+                    matched.append(keyword)
+            result[dimension] = list(set(matched))
+
+        return result
+
+    def evaluate_batch(
+        self, results: List[Dict[str, Any]], user_model: Optional[Dict[str, Any]] = None
+    ) -> List[Dict[str, Any]]:
+        """
+        批量评估搜索结果
+
+        Args:
+            results: 搜索结果列表
+            user_model: 用户模型
+
+        Returns:
+            添加了人性维度评分的结果列表
+        """
+        for result in results:
+            eval_result = self.evaluate(result, user_model)
+            result["human_score"] = eval_result["human_score"]
+            result["matched_dimensions"] = eval_result["matched_dimensions"]
+            result["dimension_scores"] = eval_result.get("dimension_scores", {})
+
+        return results
+
+    def filter_by_human_score(
+        self, results: List[Dict[str, Any]], min_score: float = 20.0, user_model: Optional[Dict[str, Any]] = None
+    ) -> List[Dict[str, Any]]:
+        """
+        按人性维度分数过滤结果
+
+        Args:
+            results: 搜索结果列表
+            min_score: 最小人性维度分数
+            user_model: 用户模型
+
+        Returns:
+            过滤后的结果列表
+        """
+        # 先评估
+        evaluated = self.evaluate_batch(results, user_model)
+
+        # 过滤
+        filtered = [r for r in evaluated if r.get("human_score", 0) >= min_score]
+
+        logger.debug(f"📌 Human dimension filter: {len(results)} → {len(filtered)} results")
+        return filtered
+
+    def sort_by_human_score(
+        self, results: List[Dict[str, Any]], descending: bool = True, user_model: Optional[Dict[str, Any]] = None
+    ) -> List[Dict[str, Any]]:
+        """
+        按人性维度分数排序
+
+        Args:
+            results: 搜索结果列表
+            descending: 是否降序
+            user_model: 用户模型
+
+        Returns:
+            排序后的结果列表
+        """
+        # 确保所有结果都有评分
+        for result in results:
+            if "human_score" not in result:
+                eval_result = self.evaluate(result, user_model)
+                result["human_score"] = eval_result["human_score"]
+                result["matched_dimensions"] = eval_result["matched_dimensions"]
+
+        return sorted(results, key=lambda x: x.get("human_score", 0), reverse=descending)
+
+
+class InsightAwareQualityControl(EnhancedSearchQualityControl):
+    """
+    洞察感知质量控制器 (v7.180)
+
+    在原有质量控制基础上，增加人性维度评估
+
+    评分权重：
+    - 原有质量分数: 85%
+    - 人性维度分数: 15%
+
+    使用示例：
+        qc = InsightAwareQualityControl(
+            enable_human_evaluation=True,
+            user_model={"psychological": "...", "emotional": "..."}
+        )
+        results = qc.process_results(search_results)
+    """
+
+    def __init__(
+        self,
+        min_relevance: float = 0.6,
+        min_content_length: int = 50,
+        enable_deduplication: bool = True,
+        enable_filters: bool = True,
+        enable_depth_evaluation: bool = True,
+        enable_human_evaluation: bool = True,
+        min_depth_score: int = 20,
+        user_model: Optional[Dict[str, Any]] = None,
+        human_weight: float = 0.15,
+    ):
+        """
+        初始化洞察感知质量控制器
+
+        Args:
+            min_relevance: 最小相关性阈值
+            min_content_length: 最小内容长度
+            enable_deduplication: 是否启用去重
+            enable_filters: 是否启用黑白名单过滤
+            enable_depth_evaluation: 是否启用深度评估
+            enable_human_evaluation: 是否启用人性维度评估
+            min_depth_score: 最小深度分数
+            user_model: 用户模型（来自L2分析）
+            human_weight: 人性维度分数权重（默认15%）
+        """
+        super().__init__(
+            min_relevance=min_relevance,
+            min_content_length=min_content_length,
+            enable_deduplication=enable_deduplication,
+            enable_filters=enable_filters,
+            enable_depth_evaluation=enable_depth_evaluation,
+            min_depth_score=min_depth_score,
+        )
+
+        self.enable_human_evaluation = enable_human_evaluation
+        self.user_model = user_model
+        self.human_weight = human_weight
+        self.human_evaluator = HumanDimensionEvaluator() if enable_human_evaluation else None
+
+        logger.info(
+            f"✅ InsightAwareQualityControl initialized: "
+            f"human_eval={enable_human_evaluation}, human_weight={human_weight}"
+        )
+
+    def process_results(
+        self, results: List[Dict[str, Any]], deliverable_context: Optional[Dict[str, Any]] = None
+    ) -> List[Dict[str, Any]]:
+        """
+        处理搜索结果（洞察感知版管道）
+
+        Pipeline: 父类处理 → 人性维度评估 → 综合评分 → 重新排序
+
+        Args:
+            results: 原始搜索结果列表
+            deliverable_context: 交付物上下文
+
+        Returns:
+            处理后的结果列表
+        """
+        # 调用父类处理
+        processed = super().process_results(results, deliverable_context)
+
+        # 人性维度评估
+        if self.enable_human_evaluation and self.human_evaluator:
+            logger.debug(f"🧠 Evaluating human dimensions for {len(processed)} results")
+            processed = self.human_evaluator.evaluate_batch(processed, self.user_model)
+
+            # 更新综合分数（加入人性维度分数）
+            base_weight = 1.0 - self.human_weight
+            for result in processed:
+                human_score = result.get("human_score", 0)
+                original_score = result.get("quality_score", 50)
+                # 加权计算
+                result["quality_score"] = round(original_score * base_weight + human_score * self.human_weight, 2)
+                result["human_evaluation_applied"] = True
+
+            # 重新排序
+            processed = sorted(processed, key=lambda x: x.get("quality_score", 0), reverse=True)
+
+            logger.info(f"✅ Human dimension evaluation completed for {len(processed)} results")
+
+        return processed
+
+    def set_user_model(self, user_model: Dict[str, Any]) -> None:
+        """
+        设置用户模型（用于动态更新）
+
+        Args:
+            user_model: 用户模型
+        """
+        self.user_model = user_model
+        logger.debug("📌 User model updated for InsightAwareQualityControl")
+
+
+# 便捷函数
+def evaluate_human_dimensions(
+    results: List[Dict[str, Any]], user_model: Optional[Dict[str, Any]] = None
+) -> List[Dict[str, Any]]:
+    """
+    快速评估人性维度
+
+    Args:
+        results: 搜索结果列表
+        user_model: 用户模型
+
+    Returns:
+        添加了人性维度评分的结果列表
+    """
+    evaluator = HumanDimensionEvaluator()
+    return evaluator.evaluate_batch(results, user_model)
+
+
+def insight_aware_quality_control(
+    results: List[Dict[str, Any]],
+    min_relevance: float = 0.6,
+    enable_depth: bool = True,
+    enable_human: bool = True,
+    user_model: Optional[Dict[str, Any]] = None,
+) -> List[Dict[str, Any]]:
+    """
+    洞察感知质量控制（便捷函数）
+
+    Args:
+        results: 搜索结果列表
+        min_relevance: 最小相关性阈值
+        enable_depth: 是否启用深度评估
+        enable_human: 是否启用人性维度评估
+        user_model: 用户模型
+
+    Returns:
+        处理后的结果列表
+    """
+    qc = InsightAwareQualityControl(
+        min_relevance=min_relevance,
+        enable_depth_evaluation=enable_depth,
+        enable_human_evaluation=enable_human,
+        user_model=user_model,
+    )
     return qc.process_results(results)

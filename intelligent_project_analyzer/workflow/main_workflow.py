@@ -6,13 +6,15 @@
 
 # 🆕 v7.16: LangGraph Agent 升级版本（通过环境变量控制）
 import os
+import sqlite3
 import uuid
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Literal, Optional, Union
 
 import yaml
-from langgraph.checkpoint.memory import MemorySaver
+from langgraph.checkpoint.base import BaseCheckpointSaver
+from langgraph.checkpoint.sqlite import SqliteSaver
 from langgraph.graph import END, START, StateGraph
 from langgraph.store.memory import InMemoryStore
 from langgraph.types import Command, Send
@@ -26,10 +28,8 @@ from ..agents.feasibility_analyst import FeasibilityAnalystAgent  # 🆕 V1.5可
 from ..agents.quality_monitor import QualityMonitor  # 🆕
 from ..core.state import AnalysisStage, ProjectAnalysisState, StateManager
 from ..core.types import AgentType, format_role_display_name
-from ..interaction.interaction_nodes import (  # FinalReviewNode,  # 已移除：客户需求中没有最终审核阶段
-    AnalysisReviewNode,
+from ..interaction.interaction_nodes import (  # FinalReviewNode,  # 已移除：客户需求中没有最终审核阶段; AnalysisReviewNode,  # 🗑️ v2.2: 已废弃，质量审核已前置化
     CalibrationQuestionnaireNode,
-    RequirementsConfirmationNode,
     UserQuestionNode,
 )
 from ..interaction.nodes.manual_review import ManualReviewNode  # 🆕 人工审核节点
@@ -42,6 +42,9 @@ from ..interaction.nodes.progressive_questionnaire import (
     progressive_step3_gap_filling_node,
 )
 from ..interaction.nodes.quality_preflight import QualityPreflightNode  # 🆕
+
+# 🆕 v7.135: 问卷汇总节点（需求重构）
+from ..interaction.nodes.questionnaire_summary import questionnaire_summary_node
 
 # 🆕 统一审核节点（合并角色选择和任务分派审核）
 from ..interaction.role_task_unified_review import role_task_unified_review_node
@@ -60,7 +63,7 @@ USE_V718_QUESTIONNAIRE_AGENT = os.getenv("USE_V718_QUESTIONNAIRE_AGENT", "false"
 USE_PROGRESSIVE_QUESTIONNAIRE = os.getenv("USE_PROGRESSIVE_QUESTIONNAIRE", "true").lower() == "true"
 USE_MULTI_ROUND_QUESTIONNAIRE = os.getenv("USE_MULTI_ROUND_QUESTIONNAIRE", "false").lower() == "true"
 if USE_V716_AGENTS:
-    from ..agents.analysis_review_agent import AnalysisReviewAgent, AnalysisReviewNodeCompat
+    # from ..agents.analysis_review_agent import AnalysisReviewAgent, AnalysisReviewNodeCompat  # 🗑️ v2.2: 已废弃
     from ..agents.challenge_detection_agent import ChallengeDetectionAgent, detect_and_handle_challenges_v2
     from ..agents.quality_preflight_agent import QualityPreflightAgent, QualityPreflightNodeCompat
     from ..agents.questionnaire_agent import LLMQuestionGeneratorCompat, QuestionnaireAgent
@@ -87,7 +90,12 @@ from ..utils.ontology_loader import OntologyLoader
 class MainWorkflow:
     """主工作流编排器"""
 
-    def __init__(self, llm_model: Optional[Any] = None, config: Optional[Dict[str, Any]] = None):
+    def __init__(
+        self,
+        llm_model: Optional[Any] = None,
+        config: Optional[Dict[str, Any]] = None,
+        checkpointer: Optional[BaseCheckpointSaver[str]] = None,
+    ):
         """
         初始化主工作流
 
@@ -106,7 +114,21 @@ class MainWorkflow:
 
         # 初始化存储和检查点
         self.store = InMemoryStore()
-        self.checkpointer = MemorySaver()
+
+        # 🆕 支持外部传入 AsyncSqliteSaver（默认回退到同步版）
+        self._sqlite_conn: Optional[sqlite3.Connection] = None
+        if checkpointer is not None:
+            self.checkpointer = checkpointer
+            logger.info("✅ 使用外部提供的检查点存储 (AsyncSqliteSaver/自定义)")
+        else:
+            # 🆕 P1修复: 使用SqliteSaver替代MemorySaver，实现持久化存储
+            # 解决服务器重启后工作流状态丢失导致76%进度停滞问题
+            db_path = Path("./data/checkpoints/workflow.db")
+            db_path.parent.mkdir(parents=True, exist_ok=True)
+
+            self._sqlite_conn = sqlite3.connect(str(db_path), check_same_thread=False, isolation_level=None)  # 自动提交模式
+            self.checkpointer = SqliteSaver(self._sqlite_conn)
+            logger.info(f"✅ 使用持久化检查点存储: {db_path}")
 
         # 初始化本体论加载器
         self.ontology_loader = OntologyLoader(
@@ -165,13 +187,15 @@ class MainWorkflow:
             workflow.add_node("progressive_step1_core_task", self._progressive_step1_node)
             workflow.add_node("progressive_step2_radar", self._progressive_step2_node)
             workflow.add_node("progressive_step3_gap_filling", self._progressive_step3_node)
+            # 🆕 v7.135: 需求洞察节点（需求重构）
+            workflow.add_node("questionnaire_summary", self._questionnaire_summary_node)
             logger.info("🎯 [v7.87] 启用三步递进式问卷（progressive_questionnaire）")
         else:
             # 旧版单轮问卷（向后兼容）
             workflow.add_node("calibration_questionnaire", self._calibration_questionnaire_node)
             logger.info("⚠️ [v7.87] 使用旧版单轮问卷（calibration_questionnaire），建议设置 USE_PROGRESSIVE_QUESTIONNAIRE=true")
 
-        workflow.add_node("requirements_confirmation", self._requirements_confirmation_node)
+        # 🆕 v7.151: requirements_confirmation 已合并到 questionnaire_summary（需求洞察）
 
         # ============================================================================
         # 2. 角色选择与任务分派节点
@@ -183,7 +207,9 @@ class MainWorkflow:
         workflow.add_node("search_query_generator", self._search_query_generator_node)
         # 🆕 统一审核节点（合并角色选择和任务分派）
         workflow.add_node("role_task_unified_review", self._role_task_unified_review_node)
-        workflow.add_node("quality_preflight", self._quality_preflight_node)  # 🆕 质量预检
+        # 🗑️ v7.280: role_selection_quality_review 已合并到 role_task_unified_review 的 TaskGenerationGuard
+        # workflow.add_node("role_selection_quality_review", self._role_selection_quality_review_node)
+        workflow.add_node("quality_preflight", self._quality_preflight_node)  # 🆕 质量预检（静默模式）
 
         # ============================================================================
         # 3. 🆕 动态批次执行节点（核心重构）
@@ -198,7 +224,7 @@ class MainWorkflow:
         # ============================================================================
         # 4. 审核与结果生成节点
         # ============================================================================
-        workflow.add_node("analysis_review", self._analysis_review_node)
+        # workflow.add_node("analysis_review", self._analysis_review_node)  # 🗑️ v2.2: 已废弃，被role_selection_quality_review替代
         workflow.add_node("manual_review", self._manual_review_node)  # 🆕 人工审核节点
         workflow.add_node("result_aggregator", self._result_aggregator_node)
         workflow.add_node("pdf_generator", self._pdf_generator_node)
@@ -221,26 +247,31 @@ class MainWorkflow:
             workflow.add_edge("unified_input_validator_secondary", "progressive_step1_core_task")
             # progressive_step1 使用 Command 路由到 progressive_step2_radar 或 requirements_analyst
             # progressive_step2 使用 Command 路由到 progressive_step3_gap_filling 或 progressive_step1
-            # progressive_step3 使用 Command 路由到 requirements_confirmation 或 progressive_step2
-            logger.info("🎯 [v7.87] 配置三步递进式问卷流程")
+            # progressive_step3 使用 Command 路由到 questionnaire_summary（v7.135: 需求重构）
+            # 🆕 v7.151: questionnaire_summary 升级为需求洞察，使用 Command 动态路由
+            # - 确认/微调 → project_director
+            # - 重大修改 → requirements_analyst
+            # ❌ 移除静态边: workflow.add_edge("questionnaire_summary", "requirements_confirmation")
+            logger.info("🎯 [v7.151] 配置需求洞察流程（合并需求洞察+需求确认）")
         elif USE_MULTI_ROUND_QUESTIONNAIRE:
             # 多轮迭代问卷已停用，回退到三步递进式
             logger.warning("⚠️ [v7.87] 多轮迭代问卷已停用，回退到三步递进式问卷")
             workflow.add_edge("unified_input_validator_secondary", "progressive_step1_core_task")
+            # 🆕 v7.151: 同样使用 Command 动态路由
         else:
             # 旧版单轮问卷
             workflow.add_edge("unified_input_validator_secondary", "calibration_questionnaire")
             # ✅ calibration_questionnaire 使用 Command 完全动态路由（无静态 edge）
 
-        # ✅ requirements_confirmation 使用 Command 动态路由到 requirements_analyst 或 project_director
-
         workflow.add_edge("project_director", "deliverable_id_generator")  # 🆕 v7.108 生成交付物ID
         workflow.add_edge("deliverable_id_generator", "search_query_generator")  # 🆕 v7.109 搜索查询生成
         workflow.add_edge("search_query_generator", "role_task_unified_review")  # 🆕 统一审核
-        # ❌ 移除静态边，让 role_task_unified_review 使用 Command 动态路由
-        # workflow.add_edge("role_task_unified_review", "quality_preflight")  # 🆕 质量预检
+        # 🆕 v7.280: 质量控制前置化重构
+        # - role_selection_quality_review 已合并到 role_task_unified_review 的 TaskGenerationGuard
+        # - 统一审核直接连接到 quality_preflight（静默模式，不再阻塞用户）
+        workflow.add_edge("role_task_unified_review", "quality_preflight")
+        # ✅ 质量预检节点快速通过，静态边连接到批次执行
         workflow.add_edge("quality_preflight", "batch_executor")  # 🆕 预检后执行
-        # role_task_unified_review 使用 Command 路由到 batch_executor 或 quality_preflight
 
         # ============================================================================
         # 🆕 动态批次执行流程（核心循环）
@@ -269,7 +300,7 @@ class MainWorkflow:
 
         # 批次路由器根据 current_batch 和 total_batches 决定：
         # - 如果还有下一批次 → batch_strategy_review（审核后继续）
-        # - 如果所有批次完成 → analysis_review
+        # - 如果所有批次完成 → detect_challenges → result_aggregator（🆕 v2.2: 跳过analysis_review）
         # 路由逻辑在 _batch_router_node 中通过 Command 实现
 
         # 批次策略审核 → 批次执行器（形成循环）
@@ -285,12 +316,10 @@ class MainWorkflow:
         # ============================================================================
         # 审核与结果生成流程
         # ============================================================================
-        # analysis_review 使用 Command 动态路由到：
-        # - detect_challenges（批准后先检测挑战）
-        # - batch_executor（重执行特定批次）
-        # - project_director（重新规划）
+        # 🗑️ v2.2: analysis_review 已废弃，质量审核已前移到 role_selection_quality_review
+        # 新流程: batch_router → detect_challenges → result_aggregator → pdf_generator
 
-        # 🆕 v3.5: 挑战检测在审核通过后、结果聚合前执行
+        # 🆕 v3.5: 挑战检测在所有批次完成后、结果聚合前执行
         workflow.add_conditional_edges(
             "detect_challenges",
             self._route_after_challenge_detection,
@@ -685,15 +714,20 @@ class MainWorkflow:
         logger.info("🎯 [v7.87 Step 3] Executing progressive questionnaire - Gap Filling")
         return progressive_step3_gap_filling_node(state, self.store)
 
-    def _requirements_confirmation_node(self, state: ProjectAnalysisState) -> Command:
+    def _questionnaire_summary_node(self, state: ProjectAnalysisState) -> Command:
         """
-        需求确认节点
+        🆕 v7.135: 需求洞察节点（需求重构）
+        🆕 v7.151: 升级为"需求洞察"节点，合并了原 requirements_confirmation 功能
+        🔧 v7.152: 修复返回类型声明，正确返回 Command 对象
 
-        注意: 不要捕获Interrupt异常!
-        Interrupt是LangGraph的正常控制流,必须让它传播到框架层
+        在三步问卷完成后，智能重构生成结构化需求文档，而非机械回顾问卷。
+        用户可直接在此节点确认/微调需求。
+
+        Returns:
+            Command 对象，指向 project_director 或 requirements_analyst
         """
-        logger.info("Executing requirements confirmation node")
-        return RequirementsConfirmationNode.execute(state, self.store)
+        logger.info("📋 [v7.152] Executing questionnaire summary - Requirements Insight (Command routing)")
+        return questionnaire_summary_node(state, self.store)
 
     def _find_matching_role(self, predicted_role: str, active_agents: List[str]) -> Optional[str]:
         """
@@ -932,6 +966,38 @@ class MainWorkflow:
     # def _task_assignment_review_node(self, state: ProjectAnalysisState):
     #     """任务分派审核节点 - 已合并到 role_task_unified_review"""
     #     pass
+
+    def _role_selection_quality_review_node(self, state: ProjectAnalysisState):
+        """
+        🆕 v2.2 角色选择质量审核节点（红蓝对抗）
+
+        在角色选择后、任务分解前运行，审核角色配置的合理性
+
+        返回: Command对象（用于动态路由到 user_question 或 quality_preflight）
+        """
+        try:
+            logger.info("🔍 Executing role selection quality review node")
+            from ..interaction.nodes.role_selection_quality_review import role_selection_quality_review_node
+
+            # 传递 llm_model 通过 config
+            config = {"configurable": {"llm_model": self.llm_model}}
+
+            return role_selection_quality_review_node(state, config=config)
+        except Exception as e:
+            # 只捕获非Interrupt异常
+            if "Interrupt" not in str(type(e)):
+                logger.error(f"❌ Role selection quality review node failed: {e}")
+                import traceback
+
+                traceback.print_exc()
+                # 失败时跳过审核，继续流程
+                return Command(
+                    update={"role_quality_review_result": {"skipped": True, "reason": f"审核失败: {str(e)}"}},
+                    goto="quality_preflight",
+                )
+            else:
+                # 重新抛出Interrupt异常
+                raise
 
     async def _quality_preflight_node(self, state: ProjectAnalysisState) -> Dict[str, Any]:
         """
@@ -1348,10 +1414,13 @@ class MainWorkflow:
                     logger.warning(f"⚠️ {role_id} 质量不达标，触发重试")
 
                     try:
-                        # 使用相同的role_object进行重试
+                        # 🆕 v7.129: 重试时也传递tools
                         state[f"retry_count_{role_id}"] = 1
                         expert_result_retry = await expert_factory.execute_expert(
-                            role_object=role_object, context=context, state=state  # 直接使用state
+                            role_object=role_object,
+                            context=context,
+                            state=state,
+                            tools=list(role_tools.values()) if role_tools else None,  # ✅ 传递工具列表
                         )
 
                         # 更新结果
@@ -1412,20 +1481,25 @@ class MainWorkflow:
 
                     from intelligent_project_analyzer.api.server import broadcast_to_websockets
 
-                    asyncio.create_task(
-                        broadcast_to_websockets(
-                            session_id,
-                            {
-                                "type": "agent_result",
-                                "role_id": role_id,
-                                "role_name": role_name,
-                                "dynamic_role_name": dynamic_role_name,
-                                "analysis": result_content,
-                                "structured_data": structured_data,
-                                "timestamp": datetime.now().isoformat(),
-                            },
-                        )
-                    )
+                    # 🔥 v7.153: 提取该专家的搜索引用用于WebSocket推送
+                    expert_search_refs = expert_result.get("search_references", [])
+
+                    broadcast_payload = {
+                        "type": "agent_result",
+                        "role_id": role_id,
+                        "role_name": role_name,
+                        "dynamic_role_name": dynamic_role_name,
+                        "analysis": result_content,
+                        "structured_data": structured_data,
+                        "timestamp": datetime.now().isoformat(),
+                    }
+
+                    # 🔥 v7.153: 包含搜索引用（如果有）
+                    if expert_search_refs:
+                        broadcast_payload["search_references"] = expert_search_refs
+                        logger.info(f"📚 [v7.153] 专家 {role_id} 推送包含 {len(expert_search_refs)} 个搜索引用")
+
+                    asyncio.create_task(broadcast_to_websockets(session_id, broadcast_payload))
                     logger.info(f"📤 [Progressive] 已推送专家结果: {role_id} ({dynamic_role_name})")
                 except Exception as broadcast_error:
                     logger.warning(f"⚠️ WebSocket推送失败: {broadcast_error}")
@@ -1468,8 +1542,7 @@ class MainWorkflow:
                             # 初始化图片生成器
                             image_generator = ImageGeneratorService()
 
-                            # 获取专家分析摘要（用于图片生成）
-                            expert_summary = result_content[:500]  # 取前500字符
+                            # 🔥 v7.128: 准备专家分析内容（现在result_content已是完整内容）
                             session_id_for_image = state.get("session_id", "unknown")
                             project_type = state.get("project_type", "interior")
 
@@ -1484,18 +1557,48 @@ class MainWorkflow:
                                     continue
 
                                 try:
-                                    image_metadata = await image_generator.generate_deliverable_image(
+                                    # 🆕 v7.128: 提取特定交付物的专家分析内容
+                                    deliverable_name = metadata.get("name", "")
+                                    deliverable_specific_content = ""
+
+                                    # 从 expert_result 的 structured_output 中提取
+                                    structured_output = expert_result.get("structured_output", {})
+                                    task_exec_report = structured_output.get("task_execution_report", {})
+                                    deliverable_outputs = task_exec_report.get("deliverable_outputs", [])
+
+                                    # 精准匹配交付物名称
+                                    for deliverable in deliverable_outputs:
+                                        if deliverable.get("deliverable_name") == deliverable_name:
+                                            deliverable_specific_content = deliverable.get("content", "")[:3000]
+                                            logger.info(
+                                                f"  [v7.128] 为交付物 '{deliverable_name}' 提取专家分析: {len(deliverable_specific_content)} 字符"
+                                            )
+                                            break
+
+                                    # 降级：如果没找到，使用完整内容
+                                    if not deliverable_specific_content:
+                                        deliverable_specific_content = result_content[:3000]
+                                        logger.warning(f"  [v7.128] 未找到交付物 '{deliverable_name}' 的精准匹配，使用完整内容")
+
+                                    # 🆕 v7.127: 返回值改为 List[ImageMetadata]
+                                    # 🆕 v7.128: 传递完整专家分析内容
+                                    image_metadata_list = await image_generator.generate_deliverable_image(
                                         deliverable_metadata=metadata,
-                                        expert_analysis=expert_summary,
+                                        expert_analysis=deliverable_specific_content,  # 🔥 v7.128: 完整内容
                                         session_id=session_id_for_image,
                                         project_type=project_type,
                                         aspect_ratio="16:9",
                                         questionnaire_data=questionnaire_summary,  # 🆕 v7.121: 传递问卷数据
                                     )
 
-                                    # 转换为字典存储
-                                    concept_images.append(image_metadata.model_dump())
-                                    logger.info(f"  ✅ 生成概念图: {image_metadata.filename}")
+                                    # 🆕 v7.127: 遍历添加所有生成的图片
+                                    # 🔥 Phase 0优化: 排除None和默认值
+                                    for img_metadata in image_metadata_list:
+                                        concept_images.append(
+                                            img_metadata.model_dump(exclude_none=True, exclude_defaults=True)
+                                        )
+
+                                    logger.info(f"  ✅ 生成 {len(image_metadata_list)} 张概念图（交付物 {deliverable_id}）")
 
                                 except Exception as img_error:
                                     logger.error(f"  ❌ 生成概念图失败 (交付物 {deliverable_id}): {img_error}")
@@ -1827,6 +1930,31 @@ class MainWorkflow:
             logger.info(f"✅ 批次 {current_batch} 聚合完成")
             logger.info(f"🔄 已完成批次: {completed_batches_updated}")
 
+            # 🆕 v7.271: 合并各专家的搜索引用到全局状态
+            all_search_refs = []
+            for role_id in current_batch_roles:
+                if role_id in agent_results:
+                    result = agent_results[role_id]
+                    # 从 structured_output 中提取搜索引用
+                    structured_output = result.get("structured_output", {})
+                    if structured_output:
+                        task_report = structured_output.get("task_execution_report", {})
+                        deliverable_outputs = task_report.get("deliverable_outputs", [])
+                        for deliverable in deliverable_outputs:
+                            refs = deliverable.get("search_references", [])
+                            if refs:
+                                all_search_refs.extend(refs)
+
+                    # 也检查顶层的 search_references
+                    top_level_refs = result.get("search_references", [])
+                    if top_level_refs:
+                        all_search_refs.extend(top_level_refs)
+
+            if all_search_refs:
+                logger.info(f"📚 [v7.271] 批次 {current_batch} 合并了 {len(all_search_refs)} 条搜索引用")
+            else:
+                logger.debug(f"ℹ️ [v7.271] 批次 {current_batch} 无搜索引用")
+
             # 返回状态更新（下一步由second_batch_strategy_review决定路由）
 
             # 🔧 修复（2025-11-30）：构造更具体的detail消息，显示刚完成的专家
@@ -1847,6 +1975,7 @@ class MainWorkflow:
                 "completed_batches": completed_batches_updated,
                 "updated_at": datetime.now().isoformat(),
                 "detail": detail_message,
+                "search_references": all_search_refs,  # 🆕 v7.271: 添加搜索引用到返回值
             }
 
         except Exception as e:
@@ -2069,9 +2198,10 @@ class MainWorkflow:
                     )
                 else:
                     # 需要二次审核（一般不会走到这里，因为我们设置了skip_second_review=True）
-                    logger.info("🔄 重新执行完成，返回分析审核进行评估")
+                    logger.info("🔄 重新执行完成，返回挑战检测进行评估")
                     return Command(
-                        update={"is_rerun": False, "specific_agents_to_run": []}, goto="analysis_review"  # 清除标记  # 清空
+                        update={"is_rerun": False, "specific_agents_to_run": []},  # 清除标记  # 清空
+                        goto="detect_challenges",  # 🆕 v2.2: 直接到detect_challenges，跳过analysis_review
                     )
 
             # 验证批次完成情况
@@ -2091,7 +2221,7 @@ class MainWorkflow:
 
                 return Command(update={"current_batch": next_batch}, goto="batch_strategy_review")
             else:
-                # 所有批次完成，检查是否已审核通过
+                # 所有批次完成，直接进入挑战检测
                 logger.info(f"✅ All {total_batches} batches completed")
 
                 # ✅ 修复：如果已审核通过（第1轮触发detect_challenges），不再重复触发
@@ -2099,16 +2229,16 @@ class MainWorkflow:
                     logger.info("✅ 分析已审核通过，跳过重复审核")
                     return Command(goto=END)
 
-                logger.info("➡️  Routing to analysis review")
-                return Command(goto="analysis_review")
+                logger.info("➡️  Routing to detect_challenges (🆕 v2.2: 跳过analysis_review)")
+                return Command(goto="detect_challenges")  # 🆕 v2.2: 直接到detect_challenges
 
         except Exception as e:
             logger.error(f"❌ Batch router failed: {e}")
             import traceback
 
             traceback.print_exc()
-            # 出错时默认进入审核
-            return Command(goto="analysis_review")
+            # 出错时默认进入挑战检测
+            return Command(goto="detect_challenges")  # 🆕 v2.2: 直接到detect_challenges
 
     def _batch_strategy_review_node(self, state: ProjectAnalysisState) -> Command:
         """
@@ -2235,28 +2365,31 @@ class MainWorkflow:
                 # 重新抛出Interrupt异常（LangGraph需要）
                 raise
 
-    def _analysis_review_node(self, state: ProjectAnalysisState) -> Command:
-        """
-        分析审核节点 - 递进式单轮审核 (v2.0)
-
-        核心改进:
-        1. 移除多轮迭代逻辑
-        2. 递进式三阶段：红→蓝→评委→甲方
-        3. 输出改进建议（而非重新执行）
-        4. 记录final_ruling到state
-
-        🔥 v7.16: 支持新版 LangGraph AnalysisReviewAgent
-        """
-        logger.info("Executing progressive single-round analysis review node")
-
-        # 🆕 v7.16: 使用新版 LangGraph Agent（如果启用）
-        if USE_V716_AGENTS:
-            logger.info("🚀 [v7.16] 使用 AnalysisReviewAgent")
-            return AnalysisReviewNodeCompat.execute(
-                state=state, store=self.store, llm_model=self.llm_model, config=self.config
-            )
-
-        return AnalysisReviewNode.execute(state=state, store=self.store, llm_model=self.llm_model, config=self.config)
+    # def _analysis_review_node(self, state: ProjectAnalysisState) -> Command:
+    #     """
+    #     🗑️ v2.2: 分析审核节点 - 已废弃
+    #
+    #     原功能: 递进式单轮审核 (v2.0) - 红→蓝→评委→甲方
+    #     新方案: 质量审核已前移到 role_selection_quality_review（角色选择后）
+    #
+    #     核心改进:
+    #     1. 移除多轮迭代逻辑
+    #     2. 递进式三阶段：红→蓝→评委→甲方
+    #     3. 输出改进建议（而非重新执行）
+    #     4. 记录final_ruling到state
+    #
+    #     🔥 v7.16: 支持新版 LangGraph AnalysisReviewAgent
+    #     """
+    #     logger.info("Executing progressive single-round analysis review node")
+    #
+    #     # 🆕 v7.16: 使用新版 LangGraph Agent（如果启用）
+    #     if USE_V716_AGENTS:
+    #         logger.info("🚀 [v7.16] 使用 AnalysisReviewAgent")
+    #         return AnalysisReviewNodeCompat.execute(
+    #             state=state, store=self.store, llm_model=self.llm_model, config=self.config
+    #         )
+    #
+    #     return AnalysisReviewNode.execute(state=state, store=self.store, llm_model=self.llm_model, config=self.config)
 
     def _manual_review_node(self, state: ProjectAnalysisState) -> Command:
         """
@@ -2384,14 +2517,8 @@ class MainWorkflow:
         logger.info("🔀 [batch_aggregator] 路由到 batch_router 检查批次状态")
         return "batch_router"
 
-    def _route_after_requirements_confirmation(
-        self, state: ProjectAnalysisState
-    ) -> Literal["project_director", "requirements_analyst"]:
-        """需求确认后的路由"""
-        if state.get("requirements_confirmed"):
-            return "project_director"
-        else:
-            return "requirements_analyst"
+    # 🆕 v7.151: _route_after_requirements_confirmation 已移除
+    # 需求确认逻辑已合并到 questionnaire_summary（需求洞察）节点，使用 Command 动态路由
 
     def _route_after_pdf_generator(self, state: ProjectAnalysisState) -> Union[str, Any]:
         """报告生成后的路由: 直接结束，由前端负责结果呈现和追问交互"""
@@ -2512,17 +2639,19 @@ class MainWorkflow:
         role_type = role_id.split("_")[0] if "_" in role_id else role_id[:2]
 
         # 角色工具映射（基于角色YAML配置）
-        # V2: 设计总监 - 仅允许内部知识库，禁止外部搜索避免盲目跟风
-        # V3: 叙事专家 - 中文搜索(Bocha) + 国际搜索(Tavily) + 知识库(Ragflow)
-        # V4: 设计研究员 - 全部工具（学术论文Arxiv + 所有搜索）
-        # V5: 场景专家 - 中文搜索(Bocha) + 国际搜索(Tavily) + 知识库(Ragflow)
-        # V6: 总工程师 - 全部工具（技术规范需要Arxiv）
+        # 🔥 v7.153: V2 设计总监改为只能使用知识库（内部知识，不做外部搜索）
+        # V2: 设计总监 - 仅知识库（高层决策者，可查阅内部知识库，但不做外部搜索）
+        # V3: 叙事专家 - 中文搜索(Bocha) + 国际搜索(Tavily) + 知识库(Milvus)
+        # V4: 设计研究员 - 全部工具（学术论文Arxiv + 所有搜索 + Milvus）
+        # V5: 场景专家 - 中文搜索(Bocha) + 国际搜索(Tavily) + 知识库(Milvus)
+        # V6: 总工程师 - 全部工具（技术规范需要Arxiv + Milvus）
         role_tool_mapping = {
-            "V2": ["ragflow"],  # 设计总监：允许内部知识库，禁止外部搜索
-            "V3": ["bocha", "tavily", "ragflow"],  # 叙事专家
-            "V4": ["bocha", "tavily", "arxiv", "ragflow"],  # 设计研究员（全部工具）
-            "V5": ["bocha", "tavily", "ragflow"],  # 场景专家
-            "V6": ["bocha", "tavily", "arxiv", "ragflow"],  # 总工程师（全部工具）
+            "V2": ["milvus"],  # 🔥 v7.153: 设计总监仅知识库搜索（内部知识）
+            "V3": ["bocha", "tavily", "milvus"],  # 叙事专家 (博查主导+Tavily辅助+Milvus知识库)
+            "V4": ["bocha", "tavily", "arxiv", "milvus"],  # 设计研究员（博查+Tavily+学术+Milvus）
+            "V5": ["bocha", "tavily", "milvus"],  # 场景专家 (博查主导+Tavily辅助+Milvus)
+            "V6": ["bocha", "tavily", "arxiv", "milvus"],  # 总工程师（博查+Tavily+学术+Milvus）
+            "V7": ["bocha", "tavily", "arxiv", "milvus"],  # 🔥 v7.156: 情感洞察专家（博查+Tavily+学术+Milvus）
         }
 
         allowed_tool_names = role_tool_mapping.get(role_type, [])

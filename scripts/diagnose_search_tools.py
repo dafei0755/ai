@@ -18,6 +18,13 @@ import time
 from datetime import datetime
 from pathlib import Path
 
+# 🔧 修复Windows GBK编码问题
+if sys.platform == "win32":
+    import io
+
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8")
+
 # 添加项目根目录到Python路径
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
@@ -67,7 +74,7 @@ class SearchToolsDiagnostic:
             "Tavily": bool(settings.tavily.api_key),
             "Bocha": settings.bocha.enabled and settings.bocha.api_key != "your_bocha_api_key_here",
             "ArXiv": settings.arxiv.enabled,
-            "RAGFlow": bool(settings.ragflow.api_key),
+            "Milvus": settings.milvus.enabled,  # v7.141: 替代RAGFlow
         }
 
         for name, configured in configs.items():
@@ -141,13 +148,13 @@ class SearchToolsDiagnostic:
         """检查角色工具映射策略"""
         self.print_section("2/5 角色工具映射检查")
 
-        # 硬编码的角色工具映射（来自main_workflow.py:2574-2580）
+        # 硬编码的角色工具映射（来自main_workflow.py:2592-2598）
         role_tool_mapping = {
             "V2": [],  # 设计总监：禁止外部搜索
-            "V3": ["bocha", "tavily", "ragflow"],
-            "V4": ["bocha", "tavily", "arxiv", "ragflow"],
-            "V5": ["bocha", "tavily", "ragflow"],
-            "V6": ["bocha", "tavily", "arxiv", "ragflow"],
+            "V3": ["bocha", "tavily", "milvus"],  # v7.141: ragflow → milvus
+            "V4": ["bocha", "tavily", "arxiv", "milvus"],
+            "V5": ["bocha", "tavily", "milvus"],
+            "V6": ["bocha", "tavily", "arxiv", "milvus"],
         }
 
         print("角色工具映射规则:")

@@ -23,6 +23,251 @@ from .base import LLMAgent
 # from ..workflow.batch_scheduler import BatchScheduler  # Moved to local import to avoid circular dependency
 
 
+# ============ 任务分配验证函数 (v7.140 新增) ============
+
+
+def _validate_task_distribution_embedded(
+    state: ProjectAnalysisState, strategic_analysis: Dict[str, Any]
+) -> Dict[str, Any]:
+    """
+    在 project_director 内部调用的验证函数
+    检查当前任务分配的合理性
+
+    返回格式:
+    {
+        "status": "passed" | "warning" | "failed",
+        "issues": List[Dict],
+        "summary": str,
+        "total_issues": int
+    }
+    """
+    issues = []
+
+    # 获取任务分配信息
+    selected_roles = strategic_analysis.get("selected_roles", [])
+    task_distribution = strategic_analysis.get("task_distribution", {})
+    execution_batches = strategic_analysis.get("execution_batches", [])
+
+    # 1. 任务完整性检查
+    required_capabilities = _extract_required_capabilities_from_requirements(state)
+    assigned_capabilities = _extract_assigned_capabilities_from_distribution(task_distribution, selected_roles)
+
+    missing_caps = set(required_capabilities) - set(assigned_capabilities)
+    if missing_caps:
+        issues.append(
+            {
+                "severity": "critical",
+                "type": "missing_task",
+                "description": f"以下需求未分配任务: {', '.join(missing_caps)}",
+                "missing_capabilities": list(missing_caps),
+                "suggestion": "建议增加相应专家或调整现有专家的任务范围",
+            }
+        )
+
+    # 2. 角色能力匹配检查
+    for role_id, task_data in task_distribution.items():
+        # 提取任务描述
+        if hasattr(task_data, "tasks"):
+            tasks_list = task_data.tasks
+        elif isinstance(task_data, dict) and "tasks" in task_data:
+            tasks_list = task_data["tasks"]
+        else:
+            tasks_list = [str(task_data)]
+
+        # 查找对应的角色对象
+        role_obj = None
+        for role in selected_roles:
+            if isinstance(role, dict):
+                if role.get("role_id") == role_id:
+                    role_obj = role
+                    break
+            elif hasattr(role, "role_id"):
+                if role.role_id == role_id:
+                    role_obj = role
+                    break
+
+        if role_obj:
+            role_name = role_obj.get("name") if isinstance(role_obj, dict) else getattr(role_obj, "name", "未知角色")
+            expertise = role_obj.get("expertise") if isinstance(role_obj, dict) else getattr(role_obj, "expertise", "")
+
+            # 检查能力匹配度
+            if not _check_capability_match(expertise, tasks_list):
+                issues.append(
+                    {
+                        "severity": "high",
+                        "type": "capability_mismatch",
+                        "role_id": role_id,
+                        "role_name": role_name,
+                        "description": f"{role_name} 的专业能力可能无法完全胜任分配的任务",
+                        "tasks": tasks_list[:2],  # 只显示前两个任务
+                        "suggestion": f"建议重新评估 {role_name} 的任务分配，或选择更匹配的专家",
+                    }
+                )
+
+    # 3. 批次依赖检查
+    if execution_batches and len(execution_batches) > 1:
+        dependency_issues = _check_batch_dependency_conflicts(execution_batches, task_distribution)
+        issues.extend(dependency_issues)
+
+    # 判定验证状态
+    critical_count = sum(1 for i in issues if i["severity"] == "critical")
+    high_count = sum(1 for i in issues if i["severity"] == "high")
+
+    if critical_count > 0:
+        status = "failed"
+    elif high_count > 2:
+        status = "warning"
+    else:
+        status = "passed"
+
+    return {
+        "status": status,
+        "issues": issues,
+        "summary": f"验证结果: {critical_count} 个严重问题, {high_count} 个高风险问题",
+        "total_issues": len(issues),
+    }
+
+
+def _extract_required_capabilities_from_requirements(state: ProjectAnalysisState) -> List[str]:
+    """
+    从需求中提取所需的关键能力
+    """
+    capabilities = []
+
+    requirements = state.get("structured_requirements", {})
+    confirmed_tasks = state.get("confirmed_core_tasks", [])
+
+    # 从结构化需求中提取
+    if "functional_requirements" in requirements:
+        for req in requirements["functional_requirements"]:
+            if isinstance(req, str):
+                capabilities.append(req[:30])  # 取前30个字符作为能力标识
+
+    # 从用户确认任务中提取
+    if confirmed_tasks:
+        for task in confirmed_tasks:
+            if isinstance(task, dict):
+                title = task.get("title", "")
+                if title:
+                    capabilities.append(title[:30])
+            elif isinstance(task, str):
+                capabilities.append(task[:30])
+
+    return capabilities
+
+
+def _extract_assigned_capabilities_from_distribution(task_distribution: Dict, selected_roles: List) -> List[str]:
+    """
+    从任务分配中提取已分配的能力
+    """
+    capabilities = []
+
+    for role_id, task_data in task_distribution.items():
+        # 提取任务描述
+        if hasattr(task_data, "tasks"):
+            tasks_list = task_data.tasks
+        elif isinstance(task_data, dict) and "tasks" in task_data:
+            tasks_list = task_data["tasks"]
+        else:
+            tasks_list = [str(task_data)]
+
+        # 将任务描述作为能力
+        for task in tasks_list:
+            task_str = str(task)
+            capabilities.append(task_str[:30])
+
+    return capabilities
+
+
+def _check_capability_match(expertise: str, tasks: List[str]) -> bool:
+    """
+    检查专家能力是否匹配任务需求
+
+    简化版：检查 expertise 中是否包含任务关键词
+    """
+    if not expertise or not tasks:
+        return True  # 无法判断时默认通过
+
+    expertise_lower = expertise.lower()
+
+    # 关键词匹配
+    for task in tasks:
+        task_lower = str(task).lower()
+        # 提取任务中的关键词
+        task_keywords = [w for w in task_lower.split() if len(w) > 2]
+
+        # 如果至少有一个关键词匹配，认为有能力
+        matched = any(keyword in expertise_lower for keyword in task_keywords[:5])
+        if not matched:
+            return False
+
+    return True
+
+
+def _check_batch_dependency_conflicts(batches: List[List[str]], task_distribution: Dict) -> List[Dict]:
+    """
+    检查批次间的依赖冲突
+    """
+    issues = []
+
+    # 简化版：检查是否有明显的依赖关系被违反
+    # 例如：需求分析应该在设计之前
+    dependency_rules = [
+        ("需求", "设计"),
+        ("设计", "实现"),
+        ("分析", "方案"),
+    ]
+
+    for batch_idx, batch_roles in enumerate(batches):
+        for dependent, prerequisite in dependency_rules:
+            # 检查当前批次是否有依赖项，而前置项在后续批次
+            has_dependent = any(dependent in str(task_distribution.get(role, "")).lower() for role in batch_roles)
+
+            if has_dependent:
+                # 检查前置项是否在后续批次
+                for later_batch_idx in range(batch_idx + 1, len(batches)):
+                    later_batch = batches[later_batch_idx]
+                    has_prerequisite = any(
+                        prerequisite in str(task_distribution.get(role, "")).lower() for role in later_batch
+                    )
+
+                    if has_prerequisite:
+                        issues.append(
+                            {
+                                "severity": "medium",
+                                "type": "dependency_conflict",
+                                "description": f"批次{batch_idx+1}的'{dependent}'任务可能依赖批次{later_batch_idx+1}的'{prerequisite}'任务",
+                                "suggestion": "建议调整批次顺序，确保依赖关系正确",
+                            }
+                        )
+
+    return issues
+
+
+def _generate_correction_feedback(validation_result: Dict[str, Any]) -> str:
+    """
+    基于验证结果生成反馈，供 LLM 自我修正
+    """
+    feedback_parts = ["任务分配验证失败，需要调整：\n\n"]
+
+    for issue in validation_result["issues"]:
+        if issue["severity"] in ["critical", "high"]:
+            if issue["type"] == "missing_task":
+                feedback_parts.append(
+                    f"❌ 缺失任务：{issue['description']}\n" f"   建议：{issue.get('suggestion', '请为这些能力需求分配合适的专家')}\n\n"
+                )
+            elif issue["type"] == "capability_mismatch":
+                feedback_parts.append(
+                    f"⚠️  能力不匹配：{issue['role_name']} 无法胜任任务\n" f"   建议：{issue.get('suggestion', '重新选择具有相关专业能力的专家')}\n\n"
+                )
+            elif issue["type"] == "dependency_conflict":
+                feedback_parts.append(
+                    f"⚠️  依赖冲突：{issue['description']}\n" f"   建议：{issue.get('suggestion', '调整批次划分或任务顺序')}\n\n"
+                )
+
+    return "".join(feedback_parts)
+
+
 class ProjectDirectorAgent(LLMAgent):
     """
     项目总监智能体 - Dynamic Mode Only
@@ -303,11 +548,21 @@ class ProjectDirectorAgent(LLMAgent):
         动态模式执行 - 使用角色配置系统动态选择角色
 
         🆕 v7.106: 融合用户确认的核心任务，确保专家分配与用户意图对齐
+        🆕 v7.140: 集成内置验证循环，自动修正任务分配问题
         """
-        logger.info("Executing in dynamic mode with role configuration system")
+        logger.info("Executing in dynamic mode with role configuration system (validation-enabled)")
 
-        # 提取需求信息
-        requirements = state.get("structured_requirements", {})
+        # 🔧 v7.144: 优先使用需求洞察生成的 restructured_requirements（更完整），回退到标准流程的 structured_requirements
+        restructured_requirements = state.get("restructured_requirements", {})
+        structured_requirements = state.get("structured_requirements", {})
+
+        if restructured_requirements:
+            logger.info("📋 [v7.144] 使用需求洞察生成的 restructured_requirements 进行角色选择")
+            requirements = restructured_requirements
+        else:
+            logger.info("📋 [v7.144] 使用标准流程的 structured_requirements 进行角色选择")
+            requirements = structured_requirements
+
         requirements_text = self._format_requirements_for_selection(requirements)
 
         # 🆕 v7.106: 获取用户确认的核心任务
@@ -315,59 +570,130 @@ class ProjectDirectorAgent(LLMAgent):
         if confirmed_tasks:
             logger.info(f"📋 [v7.106] 检测到 {len(confirmed_tasks)} 个用户确认的核心任务，将融合到角色选择中")
 
-        # 使用动态项目总监选择角色（由LLM自主判断复杂度）
-        try:
-            # 🆕 v7.106: 如果有核心任务，传递给 select_roles_for_task
-            if confirmed_tasks:
-                # 构建包含核心任务的增强需求文本
-                requirements_with_tasks = self._format_requirements_with_tasks(requirements_text, confirmed_tasks)
-                selection = self.dynamic_director.select_roles_for_task(
-                    requirements_with_tasks, confirmed_core_tasks=confirmed_tasks  # 🆕 传递用于验证
-                )
-            else:
-                selection = self.dynamic_director.select_roles_for_task(requirements_text)
+        # 🆕 v7.140: 验证循环（最多3次）
+        max_validation_retries = 3
+        validation_passed = False
+        final_validation_report = None
+        selection = None
 
-            logger.info(f"Dynamic director selected {len(selection.selected_roles)} roles")
-            logger.debug(f"Selected roles: {selection.selected_roles}")
+        for attempt in range(max_validation_retries):
+            logger.info(f"🔄 [v7.140] 任务分配尝试 {attempt + 1}/{max_validation_retries}")
 
-            # 🆕 能力边界检查：验证任务分派前的交付物能力
-            primary_deliverables = requirements.get("primary_deliverables", [])
-            if primary_deliverables:
-                logger.info("🔍 [CapabilityBoundary] 验证任务分派前的交付物能力")
-                boundary_check = CapabilityBoundaryService.check_deliverable_list(
-                    deliverables=primary_deliverables,
-                    context={
-                        "node": "project_director",
-                        "stage": "before_assignment",
-                        "session_id": state.get("session_id", ""),
-                    },
-                )
+            # 使用动态项目总监选择角色（由LLM自主判断复杂度）
+            try:
+                # 检查是否有修正反馈（第2次及以后的尝试）
+                correction_feedback = state.get("correction_feedback", "")
+                if correction_feedback:
+                    logger.warning(f"📝 [v7.140] 收到修正反馈，将调整任务分配：\n{correction_feedback}")
 
-                logger.info(f"📊 交付物能力边界检查结果:")
-                logger.info(f"   在能力范围内: {boundary_check.within_capability}")
-                logger.info(f"   能力匹配度: {boundary_check.capability_score:.2f}")
+                # 🆕 v7.106: 如果有核心任务，传递给 select_roles_for_task
+                if confirmed_tasks:
+                    # 构建包含核心任务的增强需求文本
+                    requirements_with_tasks = self._format_requirements_with_tasks(requirements_text, confirmed_tasks)
 
-                # 如果有超出能力的交付物，标记限制说明
-                if not boundary_check.within_capability:
-                    logger.warning(f"⚠️ 部分交付物超出能力范围，已标记限制说明")
+                    # 🆕 v7.140: 如果有修正反馈，添加到需求文本中
+                    if correction_feedback:
+                        requirements_with_tasks += f"\n\n## 修正要求\n{correction_feedback}"
 
-                    for i, deliv in enumerate(primary_deliverables):
-                        deliv_type = deliv.get("type", "")
-
-                        # 查找对应的检查结果
-                        for check in boundary_check.deliverable_checks:
-                            if not check.within_capability and check.original_type == deliv_type:
-                                # 标记受限的交付物
-                                deliv["capability_limited"] = True
-                                deliv["limitation_note"] = check.transformation_reason or "超出系统能力范围"
-                                logger.info(f"     - {deliv.get('deliverable_id', f'D{i+1}')}: {deliv_type} (受限)")
-                                break
+                    selection = self.dynamic_director.select_roles_for_task(
+                        requirements_with_tasks, confirmed_core_tasks=confirmed_tasks  # 🆕 传递用于验证
+                    )
                 else:
-                    logger.info("✅ 所有交付物在能力范围内")
+                    if correction_feedback:
+                        requirements_text_with_feedback = f"{requirements_text}\n\n## 修正要求\n{correction_feedback}"
+                    else:
+                        requirements_text_with_feedback = requirements_text
 
-        except Exception as e:
-            logger.error(f"Failed to select roles dynamically: {e}")
-            raise ValueError(f"Dynamic role selection failed: {e}")
+                    selection = self.dynamic_director.select_roles_for_task(requirements_text_with_feedback)
+
+                logger.info(f"Dynamic director selected {len(selection.selected_roles)} roles")
+                logger.debug(f"Selected roles: {selection.selected_roles}")
+
+                # 🆕 v7.140: 立即验证任务分配
+                strategic_analysis_for_validation = {
+                    "selected_roles": selection.selected_roles,
+                    "task_distribution": selection.task_distribution,
+                    "execution_batches": selection.execution_batches if hasattr(selection, "execution_batches") else [],
+                }
+
+                validation_report = _validate_task_distribution_embedded(state, strategic_analysis_for_validation)
+                final_validation_report = validation_report
+
+                logger.info(f"✓ [v7.140] 验证结果（第{attempt+1}次）: {validation_report['status']}")
+                logger.info(f"   {validation_report['summary']}")
+
+                if validation_report["status"] == "passed":
+                    # 验证通过，直接退出循环
+                    validation_passed = True
+                    logger.info(f"✅ [v7.140] 任务分配验证通过！")
+                    break
+
+                elif validation_report["status"] == "failed" and attempt < max_validation_retries - 1:
+                    # 验证失败，生成修正反馈
+                    correction_feedback = _generate_correction_feedback(validation_report)
+                    logger.warning(f"❌ [v7.140] 任务分配验证失败，准备重试 ({attempt + 2}/{max_validation_retries})")
+
+                    # 注入反馈到 state，供下一轮迭代使用
+                    state = dict(state)
+                    state["correction_feedback"] = correction_feedback
+                    state["previous_validation_issues"] = validation_report["issues"]
+
+                    # 继续下一轮
+                    continue
+
+                else:
+                    # 达到最大重试或状态为 warning
+                    if validation_report["status"] == "warning":
+                        validation_passed = True  # warning 状态也算通过，但有警告
+                        logger.warning(f"⚠️  [v7.140] 任务分配存在警告，但可继续执行")
+                    else:
+                        logger.warning(f"⚠️  [v7.140] 任务分配验证未完全通过，已达最大重试次数")
+                    break
+
+            except Exception as e:
+                logger.error(f"Failed to select roles dynamically (attempt {attempt + 1}): {e}")
+                if attempt == max_validation_retries - 1:
+                    raise ValueError(f"Dynamic role selection failed after {max_validation_retries} attempts: {e}")
+                continue
+
+        # 如果循环结束后仍无有效 selection，抛出错误
+        if selection is None:
+            raise ValueError("Failed to generate valid task distribution")
+
+        # 🆕 能力边界检查：验证任务分派前的交付物能力
+        primary_deliverables = requirements.get("primary_deliverables", [])
+        if primary_deliverables:
+            logger.info("🔍 [CapabilityBoundary] 验证任务分派前的交付物能力")
+            boundary_check = CapabilityBoundaryService.check_deliverable_list(
+                deliverables=primary_deliverables,
+                context={
+                    "node": "project_director",
+                    "stage": "before_assignment",
+                    "session_id": state.get("session_id", ""),
+                },
+            )
+
+            logger.info(f"📊 交付物能力边界检查结果:")
+            logger.info(f"   在能力范围内: {boundary_check.within_capability}")
+            logger.info(f"   能力匹配度: {boundary_check.capability_score:.2f}")
+
+            # 如果有超出能力的交付物，标记限制说明
+            if not boundary_check.within_capability:
+                logger.warning(f"⚠️ 部分交付物超出能力范围，已标记限制说明")
+
+                for i, deliv in enumerate(primary_deliverables):
+                    deliv_type = deliv.get("type", "")
+
+                    # 查找对应的检查结果
+                    for check in boundary_check.deliverable_checks:
+                        if not check.within_capability and check.original_type == deliv_type:
+                            # 标记受限的交付物
+                            deliv["capability_limited"] = True
+                            deliv["limitation_note"] = check.transformation_reason or "超出系统能力范围"
+                            logger.info(f"     - {deliv.get('deliverable_id', f'D{i+1}')}: {deliv_type} (受限)")
+                            break
+            else:
+                logger.info("✅ 所有交付物在能力范围内")
 
         # 创建动态智能体的Send命令
         parallel_commands = []
@@ -512,8 +838,10 @@ class ProjectDirectorAgent(LLMAgent):
             total_batches = 1
 
         # ✅ 序列化 selected_roles 为字典列表（保留完整信息）
+        # 🔥 Phase 0优化: 排除None和默认值
         serialized_roles = [
-            role.model_dump() if hasattr(role, "model_dump") else role for role in selection.selected_roles
+            role.model_dump(exclude_none=True, exclude_defaults=True) if hasattr(role, "model_dump") else role
+            for role in selection.selected_roles
         ]
 
         # 更新状态
@@ -537,12 +865,22 @@ class ProjectDirectorAgent(LLMAgent):
             "execution_batches": execution_batches,  # List[List[str]] - batch list
             "current_batch": current_batch,  # int - current batch number (1-based)
             "total_batches": total_batches,  # int - total number of batches
+            # 🆕 v7.140: 验证报告字段
+            "validation_report": final_validation_report,  # Dict - 验证结果
+            "validation_passed": validation_passed,  # bool - 是否通过验证
+            "validation_retry_count": attempt + 1,  # int - 验证重试次数
         }
 
         end_time = time.time()
         self._track_execution_time(start_time, end_time)
 
         logger.info(f"Dynamic mode analysis completed, dispatching {len(parallel_commands)} dynamic agents")
+        if final_validation_report:
+            logger.info(f"📊 [v7.140] 验证报告: {final_validation_report['summary']}")
+            if validation_passed:
+                logger.info(f"✅ [v7.140] 任务分配已通过验证")
+            else:
+                logger.warning(f"⚠️  [v7.140] 任务分配存在警告，详情见 state.validation_report")
 
         # 返回Command对象
         return Command(update=state_update, goto=parallel_commands)

@@ -11,11 +11,12 @@
 """
 
 from abc import ABC, abstractmethod
-from typing import Dict, Any, Optional, Literal, List
 from datetime import datetime
-from loguru import logger
-from langgraph.types import interrupt, Command
+from typing import Any, Dict, List, Literal, Optional
+
 from langgraph.store.base import BaseStore
+from langgraph.types import Command, interrupt
+from loguru import logger
 
 from ...core.state import ProjectAnalysisState
 from ...core.workflow_flags import WorkflowFlagManager
@@ -45,8 +46,8 @@ class InteractionAgent(ABC):
 
         Examples:
             - "calibration_questionnaire"
-            - "requirements_confirmation"
             - "role_task_unified_review"
+            - "questionnaire_summary" (v7.151: 需求洞察，合并了 requirements_confirmation)
 
         Returns:
             str: 交互类型字符串
@@ -55,9 +56,7 @@ class InteractionAgent(ABC):
 
     @abstractmethod
     def _prepare_interaction_data(
-        self,
-        state: ProjectAnalysisState,
-        store: Optional[BaseStore] = None
+        self, state: ProjectAnalysisState, store: Optional[BaseStore] = None
     ) -> Dict[str, Any]:
         """准备交互数据 (子类实现)
 
@@ -75,10 +74,7 @@ class InteractionAgent(ABC):
 
     @abstractmethod
     def _process_response(
-        self,
-        state: ProjectAnalysisState,
-        user_response: Any,
-        store: Optional[BaseStore] = None
+        self, state: ProjectAnalysisState, user_response: Any, store: Optional[BaseStore] = None
     ) -> Command:
         """处理用户响应并路由到下一节点 (子类实现)
 
@@ -130,10 +126,7 @@ class InteractionAgent(ABC):
         return "requirements_analyst"  # 默认返回需求分析师
 
     def _update_interaction_history(
-        self,
-        state: ProjectAnalysisState,
-        interaction_data: Dict[str, Any],
-        user_response: Any
+        self, state: ProjectAnalysisState, interaction_data: Dict[str, Any], user_response: Any
     ) -> List[Dict[str, Any]]:
         """更新交互历史 (子类可选重写)
 
@@ -146,22 +139,20 @@ class InteractionAgent(ABC):
             List: 更新后的交互历史
         """
         history = state.get("interaction_history", [])
-        history.append({
-            "type": self.interaction_type,
-            "interaction_data": interaction_data,
-            "user_response": user_response,
-            "timestamp": datetime.now().isoformat(),
-            "node_name": self.node_name
-        })
+        history.append(
+            {
+                "type": self.interaction_type,
+                "interaction_data": interaction_data,
+                "user_response": user_response,
+                "timestamp": datetime.now().isoformat(),
+                "node_name": self.node_name,
+            }
+        )
         return history
 
     # ========== 统一执行流程 (不建议重写) ==========
 
-    def execute(
-        self,
-        state: ProjectAnalysisState,
-        store: Optional[BaseStore] = None
-    ) -> Command:
+    def execute(self, state: ProjectAnalysisState, store: Optional[BaseStore] = None) -> Command:
         """统一的执行流程 (模板方法)
 
         执行顺序:
@@ -202,10 +193,7 @@ class InteractionAgent(ABC):
         if not is_valid:
             logger.warning(f"⚠️ State validation failed: {error_message}")
             fallback_node = self._get_fallback_node(state)
-            return Command(
-                update={"error": error_message},
-                goto=fallback_node
-            )
+            return Command(update={"error": error_message}, goto=fallback_node)
 
         try:
             # Step 4: 准备交互数据
@@ -227,11 +215,7 @@ class InteractionAgent(ABC):
             logger.info(f"✅ Received user response: {type(user_response)}")
 
             # Step 6: 更新交互历史
-            updated_history = self._update_interaction_history(
-                state,
-                interaction_data,
-                user_response
-            )
+            updated_history = self._update_interaction_history(state, interaction_data, user_response)
 
             # Step 7: 处理响应
             logger.info(f"🔄 Processing user response...")
@@ -258,21 +242,14 @@ class InteractionAgent(ABC):
             # 记录其他异常
             logger.error(f"❌ {self.node_name} execution failed: {e}")
             import traceback
+
             traceback.print_exc()
 
             # 返回错误处理
             fallback_node = self._get_fallback_node(state)
-            return Command(
-                update={"error": f"{self.node_name} failed: {str(e)}"},
-                goto=fallback_node
-            )
+            return Command(update={"error": f"{self.node_name} failed: {str(e)}"}, goto=fallback_node)
 
-    def _process_skip(
-        self,
-        state: ProjectAnalysisState,
-        skip_reason: str,
-        update_dict: Dict[str, Any]
-    ) -> Command:
+    def _process_skip(self, state: ProjectAnalysisState, skip_reason: str, update_dict: Dict[str, Any]) -> Command:
         """处理跳过逻辑 (子类可选重写)
 
         Args:
@@ -299,10 +276,9 @@ class InteractionAgent(ABC):
             str: 下一节点名称
         """
         # 默认实现: 根据交互类型决定
+        # 🆕 v7.151: requirements_confirmation 已合并到 questionnaire_summary（需求洞察）
         if self.interaction_type == "calibration_questionnaire":
-            return "requirements_confirmation"
-        elif self.interaction_type == "requirements_confirmation":
-            return "project_director"
+            return "project_director"  # 旧版单轮问卷直接到 project_director
         elif self.interaction_type == "role_task_unified_review":
             return "batch_executor"
         else:
@@ -311,6 +287,7 @@ class InteractionAgent(ABC):
 
 
 # ========== 工具函数 ==========
+
 
 def normalize_user_response(user_response: Any) -> Dict[str, Any]:
     """规范化用户响应为统一格式
@@ -349,11 +326,6 @@ def extract_intent_from_response(user_response: Any) -> str:
     normalized = normalize_user_response(user_response)
 
     # 尝试多个字段名
-    intent = (
-        normalized.get("intent") or
-        normalized.get("action") or
-        normalized.get("type") or
-        ""
-    )
+    intent = normalized.get("intent") or normalized.get("action") or normalized.get("type") or ""
 
     return str(intent).strip().lower()

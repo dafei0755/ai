@@ -59,6 +59,11 @@ class DeliverableFormat(str, Enum):
     PROFILE = "profile"  # 档案/画像
     INSIGHT = "insight"  # 洞察报告
     MAPPING = "mapping"  # 映射/对应关系
+    # 🆕 v7.130: 补充缺失的枚举值（修复 Pydantic 验证错误）
+    GUIDE = "guide"  # 指南
+    VISUALIZATION = "visualization"  # 可视化
+    CATALOG = "catalog"  # 目录
+    LIST = "list"  # 清单列表
 
 
 # 🆕 v7.20+v7.23: LLM 输出格式映射表（将非标准格式映射到标准枚举）
@@ -522,7 +527,9 @@ class SearchReference(BaseModel):
     """
 
     # === 基本信息 ===
-    source_tool: Literal["tavily", "arxiv", "ragflow", "bocha"] = Field(title="来源工具", description="搜索工具名称")
+    source_tool: Literal["tavily", "arxiv", "milvus", "bocha"] = Field(
+        title="来源工具", description="搜索工具名称"
+    )  # v7.154: ragflow → milvus
     title: str = Field(title="标题", description="搜索结果标题")
     url: Optional[str] = Field(title="URL", default=None, description="结果链接（知识库可能无URL）")
     snippet: str = Field(title="摘要", max_length=300, description="搜索结果摘要（限制300字）")

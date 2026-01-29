@@ -11,7 +11,7 @@
 1. [架构概览](#架构概览)
 2. [主Agent层 (Main Agents)](#主agent层)
 3. [StateGraph Agent层 (v7.16)](#stategraph-agent层)
-4. [动态SubAgent池 (V2-V6专家)](#动态subagent池)
+4. [动态SubAgent池 (V2-V7专家)](#动态subagent池)
 5. [安全守卫层](#安全守卫层)
 6. [人机交互层](#人机交互层)
 7. [能力边界检查服务 (v7.117)](#能力边界检查服务)
@@ -41,7 +41,7 @@
           │               │
      ┌────▼────┐    ┌─────▼─────┐
      │动态专家池│    │人机交互层  │
-     │(V2-V6)  │    │  (3个)    │
+     │(V2-V7)  │    │  (3个)    │
      └─────────┘    └───────────┘
 ```
 
@@ -106,7 +106,7 @@
 **文件位置**: `intelligent_project_analyzer/agents/dynamic_project_director.py`
 
 **职责**:
-- 动态选择专家角色（V2-V6）
+- 动态选择专家角色（V2-V7）
 - 分配任务给每个角色
 - 生成批次执行计划
 - 拓扑排序依赖关系
@@ -183,6 +183,9 @@
 批次4: [V2 设计总监]             ← 综合决策，依赖V3/V4/V5
   ↓
 批次5: [V6 专业总工程师]         ← 技术落地，依赖V2
+
+特殊场景:
+  [V7 情感洞察专家]              ← 特殊人群/情感需求场景，与V3并行
 ```
 
 **性能指标**:
@@ -514,7 +517,7 @@ graph LR
 
 ## 🤖 动态SubAgent池
 
-### V2-V6 专家层级
+### V2-V7 专家层级
 
 | 层级 | 角色名称 | 数量 | 选择策略 | 依赖关系 |
 |------|---------|------|---------|---------|
@@ -523,6 +526,7 @@ graph LR
 | **V4** | 基础研究 | 0-1 | 可选 | 无依赖 |
 | **V5** | 创新专家 | 0-2 | 可选 | 依赖V4 |
 | **V6** | 实施专家 | 0-2 | 可选 | 依赖V2 |
+| **V7** | 情感洞察专家 | 0-1 | 特殊场景 | 与V3并行 |
 
 ---
 
@@ -631,6 +635,71 @@ graph LR
 
 **触发条件**:
 - 提及"预算"、"施工"、"工期"
+
+---
+
+### V7 情感洞察专家 (0-1位)
+
+**角色列表**:
+- 7-1 情感洞察专家
+
+**职责**:
+- 情绪地图构建（入口情绪→过渡路径→核心情绪）
+- 心理安全需求分析（创伤知情设计）
+- 精神需求洞察（意义感、归属感、自我实现）
+- 仪式行为识别（日常仪式、过渡仪式、家庭仪式）
+- 记忆锚点设计（感官记忆、情感记忆、时间记忆）
+
+**理论框架**:
+- 马斯洛需求层次理论（生理→安全→归属→尊重→自我实现）
+- 环境心理学（Ulrich, Kaplan - 恢复性环境）
+- 依恋理论（Bowlby, Ainsworth - 安全基地设计）
+- 创伤知情设计（安全感、信任、选择、协作、赋能）
+- Plutchik情绪轮（8种基本情绪 + 空间调节策略）
+
+**输出结构**:
+```python
+{
+    "emotional_landscape": {        # 情绪地图
+        "entry_emotion": str,       # 入口情绪
+        "transition_path": str,     # 过渡路径
+        "core_emotion": str,        # 核心情绪
+        "design_triggers": List[str] # 设计触发点
+    },
+    "psychological_safety_needs": { # 心理安全需求
+        "trauma_awareness": str,    # 创伤意识
+        "control_needs": str,       # 控制感需求
+        "predictability": str       # 可预测性需求
+    },
+    "spiritual_aspirations": {      # 精神需求
+        "meaning_seeking": str,     # 意义追寻
+        "belonging": str,           # 归属感
+        "self_actualization": str   # 自我实现
+    },
+    "ritual_behaviors": {           # 仪式行为
+        "daily_rituals": List[str], # 日常仪式
+        "transition_rituals": List[str], # 过渡仪式
+        "family_rituals": List[str] # 家庭仪式
+    },
+    "memory_anchors": {             # 记忆锚点
+        "sensory_memories": List[str], # 感官记忆
+        "emotional_memories": List[str], # 情感记忆
+        "temporal_memories": List[str]  # 时间记忆
+    }
+}
+```
+
+**触发条件**:
+- 特殊人群项目（老人、儿童、特殊需求人群）
+- 明确提及心理状态（压力、焦虑、孤独、创伤）
+- 家庭关系复杂或情感需求明确
+- 涉及生命过渡期（新婚、新生儿、空巢、退休）
+- 治愈性空间需求（冥想、休息、情绪调节）
+
+**协作关系**:
+- 与V3叙事专家并行工作，提供情感维度补充
+- 为V2设计总监提供人性化设计依据
+- 与V5用户体验专家协同，确保情感需求落地
 
 ---
 
@@ -758,7 +827,9 @@ def _process_response(self, state, user_response, store) -> Command:
 - 原版本: 260行
 - 重构后: ~100行 (**减少60%**)
 
-**重构文件**: `requirements_confirmation_refactored.py`
+**重构文件**: ~~`requirements_confirmation_refactored.py`~~ (已废弃 v7.151，功能合并到 `questionnaire_summary.py`)
+
+> **⚠️ v7.151 变更**: RequirementsConfirmation 节点已合并到 QuestionnaireSummary（需求洞察），不再作为独立节点存在。
 
 ---
 
@@ -961,10 +1032,11 @@ class CapabilityBoundaryService:
    - 检查: 用户首次提交需求
    - 记录: `initial_boundary_check`, `capability_score`
 
-2. **requirements_confirmation** - 用户修改需求检查
-   - 位置: `intelligent_project_analyzer/interaction/nodes/requirements_confirmation.py`
-   - 检查: 用户修改或补充需求时
+2. **questionnaire_summary** - 需求洞察（合并需求确认 v7.151）
+   - 位置: `intelligent_project_analyzer/interaction/nodes/questionnaire_summary.py`
+   - 检查: 用户确认/编辑需求理解时
    - 记录: `boundary_alert`, `boundary_check_record`
+   - 功能: 需求洞察 + 需求确认（v7.151 合并）
 
 3. **progressive_questionnaire Step1** - 任务确认检查
    - 位置: `intelligent_project_analyzer/interaction/nodes/progressive_questionnaire.py`

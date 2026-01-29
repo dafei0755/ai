@@ -2,15 +2,19 @@
 // v7.105: 统一的三步递进式问卷组件 - 连续流畅的用户体验
 // 特性：步骤指示器、平滑过渡动画、统一UI风格、localStorage缓存、必填字段验证
 // v7.112: 集成骨架屏加载动画，优化确认等待体验
+// v7.147: 添加 Step 4 问卷汇总展示
+// v7.154: 统一确认按钮，移除 QuestionnaireSummaryDisplay 内部按钮
 
 'use client';
 
 import { CheckCircle2, ArrowRight } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Radar } from 'react-chartjs-2';
 import NProgress from 'nprogress';
 import 'nprogress/nprogress.css';
 import QuestionnaireSkeletonLoader from './QuestionnaireSkeletonLoader';
+import { QuestionnaireSummaryDisplay, type QuestionnaireSummaryDisplayRef } from './QuestionnaireSummaryDisplay';
+import type { RestructuredRequirements } from '@/types';
 import {
   saveQuestionnaireCache,
   getQuestionnaireCache,
@@ -28,15 +32,14 @@ import {
 
 ChartJS.register(RadialLinearScale, PointElement, LineElement, Filler, Tooltip, Legend);
 
+// 🆕 v7.130: 简化 Props 接口，使用统一的 stepData 和 onConfirm
+// 🆕 v7.147: 支持 Step 4 (问卷汇总)
 interface UnifiedProgressiveQuestionnaireModalProps {
   isOpen: boolean;
-  currentStep: number; // 1, 2, 3
-  step1Data?: any;
-  step2Data?: any;
-  step3Data?: any;
-  onStep1Confirm: (data?: { extracted_tasks?: EditableTask[] }) => void;
-  onStep2Confirm: (data: any) => void;
-  onStep3Confirm: (data: any) => void;
+  currentStep: number; // 0=关闭, 1=任务梳理, 2=信息补全, 3=雷达图, 4=问卷汇总
+  stepData?: any;      // 🆕 v7.130: 统一数据对象
+  onConfirm: (data?: any) => void;  // 🆕 v7.130: 统一确认回调
+  onSkip: () => void;   // 🆕 v7.130: 统一跳过回调
   sessionId?: string;
 }
 
@@ -74,15 +77,13 @@ interface EditableQuestion {
   userAnswer?: string | string[];
 }
 
+// 🆕 v7.130: 简化组件参数
 export function UnifiedProgressiveQuestionnaireModal({
   isOpen,
   currentStep,
-  step1Data,
-  step2Data,
-  step3Data,
-  onStep1Confirm,
-  onStep2Confirm,
-  onStep3Confirm,
+  stepData,
+  onConfirm,
+  onSkip,
   sessionId = 'default'
 }: UnifiedProgressiveQuestionnaireModalProps) {
   const [dimensionValues, setDimensionValues] = useState<Record<string, number>>({});
@@ -96,23 +97,33 @@ export function UnifiedProgressiveQuestionnaireModal({
   const [originalTasksCount, setOriginalTasksCount] = useState(0);
   const [isSummaryExpanded, setIsSummaryExpanded] = useState(false); // 需求摘要折叠状态
 
-  // 当步骤数据更新时，停止加载状态
+  // 🆕 v7.154: QuestionnaireSummaryDisplay ref，用于获取编辑内容
+  const summaryDisplayRef = useRef<QuestionnaireSummaryDisplayRef>(null);
+
+  // Ref for content container to control scroll position
+  const contentRef = useRef<HTMLDivElement>(null);
+
+  // 🆕 v7.130: 当步骤数据更新时，停止加载状态
+  // 🆕 v7.147: 添加 Step 4 支持
   useEffect(() => {
-    if (currentStep === 1 && step1Data?.extracted_tasks) {
+    if (currentStep === 1 && stepData?.extracted_tasks) {
       setIsLoading(false);
       NProgress.done();
-    } else if (currentStep === 2 && step2Data?.dimensions) {
+    } else if (currentStep === 2 && stepData?.questionnaire) {
       setIsLoading(false);
       NProgress.done();
-    } else if (currentStep === 3 && step3Data?.questionnaire) {
+    } else if (currentStep === 3 && stepData?.dimensions) {
+      setIsLoading(false);
+      NProgress.done();
+    } else if (currentStep === 4 && stepData?.restructured_requirements) {
       setIsLoading(false);
       NProgress.done();
     }
-  }, [currentStep, step1Data, step2Data, step3Data]);
+  }, [currentStep, stepData]);
 
   // 初始化任务列表
   useEffect(() => {
-    if (step1Data?.extracted_tasks && isOpen && currentStep === 1) {
+    if (stepData?.extracted_tasks && isOpen && currentStep === 1) {
       // 尝试从localStorage恢复草稿
       try {
         const draftKey = `questionnaire-tasks-draft-${sessionId}`;
@@ -123,7 +134,7 @@ export function UnifiedProgressiveQuestionnaireModal({
           // 1小时有效期
           if (Date.now() - cacheTime < 3600000) {
             setEditedTasks(parsed.tasks);
-            setOriginalTasksCount(step1Data.extracted_tasks.length);
+            setOriginalTasksCount(stepData.extracted_tasks.length);
             return;
           }
         }
@@ -132,7 +143,7 @@ export function UnifiedProgressiveQuestionnaireModal({
       }
 
       // 没有缓存，使用原始数据
-      setEditedTasks(step1Data.extracted_tasks.map((task: any) => ({
+      setEditedTasks(stepData.extracted_tasks.map((task: any) => ({
         // 现有字段 (v7.0)
         id: task.id,
         title: task.title || '',
@@ -154,9 +165,9 @@ export function UnifiedProgressiveQuestionnaireModal({
         task_type: task.task_type,
         priority: task.priority
       })));
-      setOriginalTasksCount(step1Data.extracted_tasks.length);
+      setOriginalTasksCount(stepData.extracted_tasks.length);
     }
-  }, [step1Data?.extracted_tasks, isOpen, currentStep, sessionId]);
+  }, [stepData?.extracted_tasks, isOpen, currentStep, sessionId]);
 
   // 自动保存任务草稿到localStorage
   useEffect(() => {
@@ -187,6 +198,13 @@ export function UnifiedProgressiveQuestionnaireModal({
     }
   }, [currentStep, isOpen]);
 
+  // Reset scroll position to top when step changes
+  useEffect(() => {
+    if (isOpen && !isLoading && contentRef.current) {
+      contentRef.current.scrollTop = 0;
+    }
+  }, [currentStep, isOpen, isLoading]);
+
   // 加载缓存
   useEffect(() => {
     if (sessionId && isOpen) {
@@ -211,24 +229,42 @@ export function UnifiedProgressiveQuestionnaireModal({
     }
   }, [answers, sessionId, isOpen]);
 
-  // 初始化维度默认值
+  // 🆕 v7.130: 初始化维度默认值（第3步雷达图）
+  // 🔧 v7.146: 增强类型检查
   useEffect(() => {
-    if (step2Data?.dimensions && step2Data.dimensions.length > 0 && Object.keys(dimensionValues).length === 0) {
-      const initialValues: Record<string, number> = {};
-      step2Data.dimensions.forEach((dim: any) => {
-        initialValues[dim.id || dim.dimension_id] = dim.default_value || 50;
-      });
-      setDimensionValues(initialValues);
-    }
-  }, [step2Data?.dimensions, dimensionValues]);
+    if (currentStep === 3 && stepData?.dimensions) {
+      // 🔧 v7.146+: 兼容后端 v7.139+ 可能返回 { dimensions: [...] }
+      const rawDimensions = stepData.dimensions;
+      const resolvedDimensions = Array.isArray(rawDimensions)
+        ? rawDimensions
+        : Array.isArray(rawDimensions?.dimensions)
+          ? rawDimensions.dimensions
+          : null;
 
-  // 调试：打印Step3问题数据 & 标准化类型
+      // 类型验证
+      if (!resolvedDimensions) {
+        console.error('❌ Step3初始化: dimensions 不是数组', typeof rawDimensions, rawDimensions);
+        return;
+      }
+
+      if (resolvedDimensions.length > 0 && Object.keys(dimensionValues).length === 0) {
+        const initialValues: Record<string, number> = {};
+        resolvedDimensions.forEach((dim: any) => {
+          initialValues[dim.id || dim.dimension_id] = dim.default_value || 50;
+        });
+        setDimensionValues(initialValues);
+        console.log('✅ Step3初始化: 已设置', resolvedDimensions.length, '个维度的默认值');
+      }
+    }
+  }, [currentStep, stepData?.dimensions, dimensionValues]);
+
+  // 🆕 v7.130: 调试打印第2步（信息补全）问题数据 & 标准化类型
   useEffect(() => {
-    if (currentStep === 3 && step3Data?.questionnaire?.questions) {
-      console.log('🔍 Step3 Questions Debug:', step3Data.questionnaire.questions);
+    if (currentStep === 2 && stepData?.questionnaire?.questions) {
+      console.log('🔍 Step2 Questions Debug:', stepData.questionnaire.questions);
 
       // 🔧 标准化问题类型（修复 multi_choice -> multiple_choice）
-      step3Data.questionnaire.questions = step3Data.questionnaire.questions.map((q: any) => {
+      stepData.questionnaire.questions = stepData.questionnaire.questions.map((q: any) => {
         let normalizedType = q.type?.toLowerCase() || 'open_ended';
 
         // 修复常见的类型错误
@@ -250,7 +286,8 @@ export function UnifiedProgressiveQuestionnaireModal({
         return { ...q, type: normalizedType };
       });
 
-      step3Data.questionnaire.questions.forEach((q: any, index: number) => {
+      // 调试输出
+      stepData.questionnaire.questions.forEach((q: any, index: number) => {
         console.log(`  Question ${index + 1}:`, {
           id: q.id,
           question: q.question,
@@ -261,36 +298,31 @@ export function UnifiedProgressiveQuestionnaireModal({
         });
       });
     }
-  }, [currentStep, step3Data]);
+  }, [currentStep, stepData]);
 
   if (!isOpen) return null;
 
-  const getCurrentData = () => {
-    switch (currentStep) {
-      case 1: return step1Data;
-      case 2: return step2Data;
-      case 3: return step3Data;
-      default: return null;
-    }
-  };
+  // 🆕 v7.130: 直接使用 stepData
+  if (!stepData) return null;
 
-  const data = getCurrentData();
-  if (!data) return null;
-
-  const { title, message } = data;
+  const { title, message } = stepData;
 
   // 步骤配置
+  // 🔄 v7.128: 调整步骤顺序为 Step 1 → Step 3 → Step 2
+  // 🆕 v7.147: 添加 Step 4 问卷汇总
   const steps = [
     { number: 1, label: '任务梳理', icon: '1' },
-    { number: 2, label: '偏好雷达图', icon: '2' },
-    { number: 3, label: '信息补全', icon: '3' }
+    { number: 2, label: '信息补全', icon: '2' },  // Step 3 现在显示为第2步
+    { number: 3, label: '偏好雷达图', icon: '3' },  // Step 2 现在显示为第3步
+    { number: 4, label: '需求洞察', icon: '4' }  // 🆕 v7.147: Step 4 需求洞察
   ];
 
-  // 验证Step 3必填字段
+  // 🆕 v7.130: 验证信息补全步骤的必填字段（使用统一的 stepData）
   const validateStep3Required = (): boolean => {
-    if (currentStep !== 3 || !step3Data?.questionnaire?.questions) return true;
+    // 🆕 v7.130: 验证第2步（信息补全）必填字段
+    if (currentStep !== 2 || !stepData?.questionnaire?.questions) return true;
 
-    const requiredQuestions = step3Data.questionnaire.questions.filter((q: any) => q.is_required);
+    const requiredQuestions = stepData.questionnaire.questions.filter((q: any) => q.is_required);
     for (const q of requiredQuestions) {
       const answer = answers[q.id];
       if (!answer || (Array.isArray(answer) && answer.length === 0) || (typeof answer === 'string' && answer.trim() === '')) {
@@ -300,10 +332,11 @@ export function UnifiedProgressiveQuestionnaireModal({
     return true;
   };
 
-  // 处理确认
-  const handleConfirm = () => {
-    // Step 3验证必填字段
-    if (currentStep === 3 && !validateStep3Required()) {
+  // 🆕 v7.130: 统一确认处理
+  // 🆕 v7.147: 添加 Step 4 支持
+  const handleConfirmClick = () => {
+    // 第2步（信息补全）需要验证必填字段
+    if (currentStep === 2 && !validateStep3Required()) {
       alert('请完成所有必填项（标记 * 的问题）');
       return;
     }
@@ -316,12 +349,14 @@ export function UnifiedProgressiveQuestionnaireModal({
     if (currentStep === 1) {
       setLoadingMessage('AI 正在智能拆解任务...');
     } else if (currentStep === 2) {
-      setLoadingMessage('正在生成多维度问卷...');
-    } else {
-      setLoadingMessage('正在提交问卷数据...');
+      setLoadingMessage('正在分析信息完整性...');
+    } else if (currentStep === 3) {
+      setLoadingMessage('正在生成需求洞察...');
+    } else if (currentStep === 4) {
+      setLoadingMessage('正在进入需求确认...');
     }
 
-    // 立即执行，无延迟
+    // 根据步骤构建数据并调用统一的 onConfirm
     if (currentStep === 1) {
       // 检查是否有任务正在编辑
       const hasEditing = editedTasks.some(t => t.isEditing);
@@ -348,19 +383,32 @@ export function UnifiedProgressiveQuestionnaireModal({
         }
 
         // 将修改后的任务传递给后端
-        onStep1Confirm({ extracted_tasks: validTasks });
+        onConfirm({ extracted_tasks: validTasks });
       } else {
-        onStep1Confirm();
+        onConfirm();
       }
     } else if (currentStep === 2) {
-      onStep2Confirm({ dimension_values: dimensionValues });
-    } else if (currentStep === 3) {
       clearQuestionnaireCache(sessionId);
-      onStep3Confirm({ answers });
+      onConfirm({ answers });
+    } else if (currentStep === 3) {
+      onConfirm({ dimension_values: dimensionValues });
+    } else if (currentStep === 4) {
+      // 🆕 v7.154: Step 4 需求洞察确认，检查是否有编辑修改
+      const modifications = summaryDisplayRef.current?.getModifications();
+      if (modifications && Object.keys(modifications).length > 0) {
+        console.log('📝 [Step4] 用户修改:', modifications);
+        onConfirm({
+          intent: 'confirm',
+          modifications: modifications
+        });
+      } else {
+        onConfirm();
+      }
     }
   };
 
   // 获取确认按钮文本
+  // 🆕 v7.147: 添加 Step 4 支持
   const getConfirmButtonText = () => {
     if (currentStep === 1) {
       const validTasks = editedTasks.filter(t => !t.isEditing);
@@ -377,6 +425,7 @@ export function UnifiedProgressiveQuestionnaireModal({
     switch (currentStep) {
       case 2: return '确认偏好设置';
       case 3: return '提交问卷';
+      case 4: return '确认无误，继续';
       default: return '确认';
     }
   };
@@ -413,7 +462,7 @@ export function UnifiedProgressiveQuestionnaireModal({
       setEditedTasks(prev => prev.filter((_, i) => i !== index));
     } else {
       // 恢复原始数据
-      const originalTask = step1Data?.extracted_tasks?.[index];
+      const originalTask = stepData?.extracted_tasks?.[index];
       if (originalTask) {
         setEditedTasks(prev => prev.map((t, i) =>
           i === index ? { ...originalTask, isEditing: false, isNew: false } : t
@@ -466,7 +515,7 @@ export function UnifiedProgressiveQuestionnaireModal({
 
   // 渲染 Step 1
   const renderStep1Content = () => {
-    const { user_input_summary } = step1Data || {};
+    const { user_input_summary } = stepData || {};
 
     // 计算修改统计
     const validTasks = editedTasks.filter(t => !t.isEditing);
@@ -479,7 +528,7 @@ export function UnifiedProgressiveQuestionnaireModal({
 
     return (
       <div className="space-y-4">
-        {/* 任务列表 */}}
+        {/* 任务列表 */}
         <div className="task-list-container space-y-6">
           {editedTasks.map((task, index) => {
             const isEditing = task.isEditing;
@@ -710,10 +759,28 @@ export function UnifiedProgressiveQuestionnaireModal({
     );
   };
 
-  // 渲染 Step 2
-  const renderStep2Content = () => {
-    const { dimensions } = step2Data || {};
-    if (!dimensions || dimensions.length === 0) return null;
+  // 🆕 v7.130: 渲染 Step 3（雷达图）
+  const renderStep3Content = () => {
+    const rawDimensions = stepData?.dimensions;
+    const dimensions = Array.isArray(rawDimensions)
+      ? rawDimensions
+      : Array.isArray(rawDimensions?.dimensions)
+        ? rawDimensions.dimensions
+        : rawDimensions;
+
+    // 🔧 v7.146: 增强类型检查，防止 dimensions 不是数组
+    if (!dimensions) {
+      console.error('❌ Step3: dimensions 为 undefined 或 null');
+      return null;
+    }
+    if (!Array.isArray(dimensions)) {
+      console.error('❌ Step3: dimensions 不是数组，实际类型:', typeof dimensions, dimensions);
+      return null;
+    }
+    if (dimensions.length === 0) {
+      console.warn('⚠️ Step3: dimensions 数组为空');
+      return null;
+    }
 
     const chartData = {
       labels: dimensions.map((d: any) => d.name || d.dimension_name),
@@ -823,9 +890,9 @@ export function UnifiedProgressiveQuestionnaireModal({
     );
   };
 
-  // 渲染 Step 3
-  const renderStep3Content = () => {
-    const { questionnaire } = step3Data || {};
+  // 🆕 v7.130: 渲染 Step 2（信息补全问卷）
+  const renderStep2Content = () => {
+    const { questionnaire } = stepData || {};
     if (!questionnaire) return null;
 
     const { introduction, questions, note } = questionnaire;
@@ -990,19 +1057,70 @@ export function UnifiedProgressiveQuestionnaireModal({
   };
 
   // 渲染当前步骤内容
+  // 🆕 v7.147: 添加 Step 4 支持
   const renderContent = () => {
     // 如果正在加载，显示骨架屏
     if (isLoading) {
-      const skeletonType = currentStep === 1 ? 'tasks' : currentStep === 2 ? 'radar' : 'both';
+      const skeletonType = currentStep === 1 ? 'tasks' : currentStep === 2 ? 'both' : 'radar';
       return <QuestionnaireSkeletonLoader type={skeletonType} message={loadingMessage} />;
     }
 
+    // 🆕 v7.130: 直接映射步骤到渲染函数
+    // 🆕 v7.147: 添加 Step 4
     switch (currentStep) {
       case 1: return renderStep1Content();
       case 2: return renderStep2Content();
       case 3: return renderStep3Content();
+      case 4: return renderStep4Content();
       default: return null;
     }
+  };
+
+  // 🆕 v7.151: 渲染 Step 4 - 需求洞察（原问卷汇总+需求确认合并）
+  // 🔧 v7.153: 增强状态检测
+  const renderStep4Content = () => {
+    // 检查数据是否存在
+    if (!stepData?.restructured_requirements) {
+      return (
+        <div className="text-center py-12">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-500">正在生成需求洞察...</p>
+          <p className="text-sm text-gray-400 mt-2">AI 正在深度分析您的需求，请稍候</p>
+        </div>
+      );
+    }
+
+    // 🔧 v7.153: 检测洞察状态，处理 pending/degraded
+    const insightStatus = stepData.restructured_requirements?.insight_summary?._status;
+    const isPending = insightStatus === 'pending';
+
+    // 如果状态是 pending，显示加载中（这种情况在 v7.153 后应该不会出现了）
+    if (isPending) {
+      return (
+        <div className="text-center py-12">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600 font-medium">洞察正在生成中，请稍候...</p>
+          <p className="text-sm text-gray-400 mt-2">系统正在分析您的需求，这可能需要几秒钟</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="mt-4 px-4 py-2 text-sm text-blue-600 hover:text-blue-800 underline"
+          >
+            刷新页面
+          </button>
+        </div>
+      );
+    }
+
+    // 🆕 v7.154: 确认逻辑已移至底部统一按钮，此处仅渲染展示组件
+    return (
+      <QuestionnaireSummaryDisplay
+        ref={summaryDisplayRef}
+        data={stepData.restructured_requirements as RestructuredRequirements}
+        summaryText={stepData.requirements_summary_text}
+        onConfirm={() => {}}  // 保留接口兼容，实际确认由底部按钮处理
+        onBack={undefined}
+      />
+    );
   };
 
   return (
@@ -1051,7 +1169,7 @@ export function UnifiedProgressiveQuestionnaireModal({
 
           {/* Header - 需求显示 */}
           <div className="border-b border-gray-200 px-6 py-3 bg-white">
-            {(step1Data?.user_input_summary || step2Data?.user_input_summary || step3Data?.user_input_summary) && (
+            {stepData?.user_input_summary && (
               <div
                 className="flex items-start gap-2 cursor-pointer hover:bg-gray-50 rounded-lg p-3 -m-2 transition-colors"
                 onClick={() => setIsSummaryExpanded(!isSummaryExpanded)}
@@ -1059,7 +1177,7 @@ export function UnifiedProgressiveQuestionnaireModal({
                 <span className="text-sm font-medium text-blue-600 flex-shrink-0">需求：</span>
                 <div className="flex-1 min-w-0">
                   <span className={`text-sm leading-relaxed text-gray-600 ${isSummaryExpanded ? '' : 'line-clamp-6'}`}>
-                    {step1Data?.user_input_summary || step2Data?.user_input_summary || step3Data?.user_input_summary}
+                    {stepData.user_input_summary}
                   </span>
                 </div>
               </div>
@@ -1143,9 +1261,7 @@ export function UnifiedProgressiveQuestionnaireModal({
         {/* Header */}
         <div className="border-b border-gray-200 px-6 py-3 bg-white">
           {/* 固定需求显示 - 所有步骤通用（优先显示完整user_input，回退到摘要） */}
-          {(step1Data?.user_input || step1Data?.user_input_summary ||
-            step2Data?.user_input || step2Data?.user_input_summary ||
-            step3Data?.user_input || step3Data?.user_input_summary) && (
+          {(stepData?.user_input || stepData?.user_input_summary) && (
             <div
               className="flex items-start gap-2 cursor-pointer hover:bg-gray-50 rounded-lg p-3 -m-2 transition-colors"
               onClick={() => setIsSummaryExpanded(!isSummaryExpanded)}
@@ -1153,9 +1269,7 @@ export function UnifiedProgressiveQuestionnaireModal({
               <span className="text-sm font-medium text-blue-600 flex-shrink-0">需求：</span>
               <div className="flex-1 min-w-0">
                 <span className={`text-sm leading-relaxed text-gray-600 ${isSummaryExpanded ? '' : 'line-clamp-6'}`}>
-                  {step1Data?.user_input || step1Data?.user_input_summary ||
-                   step2Data?.user_input || step2Data?.user_input_summary ||
-                   step3Data?.user_input || step3Data?.user_input_summary}
+                  {stepData?.user_input || stepData?.user_input_summary}
                 </span>
               </div>
             </div>
@@ -1163,7 +1277,7 @@ export function UnifiedProgressiveQuestionnaireModal({
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto px-4 py-4 bg-gray-50">
+        <div ref={contentRef} className="flex-1 overflow-y-auto px-4 py-4 bg-gray-50">
           <div className={`transition-all duration-200 ${isTransitioning ? 'opacity-0 translate-y-2' : 'opacity-100 translate-y-0'}`}>
             {renderContent()}
           </div>
@@ -1172,13 +1286,13 @@ export function UnifiedProgressiveQuestionnaireModal({
         {/* Footer */}
         <div className="border-t border-gray-200 px-6 py-4 bg-white flex items-center justify-end gap-3">
           <button
-            onClick={handleConfirm}
-            disabled={currentStep === 3 && !validateStep3Required()}
+            onClick={handleConfirmClick}
+            disabled={currentStep === 2 && !validateStep3Required()}
             className="flex items-center gap-2 px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-medium shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <CheckCircle2 className="w-4 h-4" />
             <span>{getConfirmButtonText()}</span>
-            {currentStep < 3 && <ArrowRight className="w-4 h-4" />}
+            {currentStep < 4 && <ArrowRight className="w-4 h-4" />}
           </button>
         </div>
       </div>

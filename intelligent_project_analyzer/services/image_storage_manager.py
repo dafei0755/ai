@@ -8,12 +8,13 @@ Created: 2025-12-29
 Version: v1.0
 """
 
-import os
-import json
 import base64
+import json
+import os
+from datetime import datetime
 from pathlib import Path
 from typing import List, Optional
-from datetime import datetime
+
 from loguru import logger
 
 
@@ -38,7 +39,7 @@ class ImageStorageManager:
         owner_role: str,
         filename: str,
         visual_prompt: str,
-        aspect_ratio: str = "16:9"
+        aspect_ratio: str = "16:9",
     ) -> dict:
         """
         保存图片到文件系统并更新索引
@@ -80,12 +81,13 @@ class ImageStorageManager:
             metadata = {
                 "deliverable_id": deliverable_id,
                 "filename": filename,
-                "url": url,
+                "url": url,  # ✅ 标准字段名
+                "image_url": url,  # 🔧 v7.123: 兼容前端期待的字段名
                 "owner_role": owner_role,
                 "prompt": visual_prompt,
                 "aspect_ratio": aspect_ratio,
                 "file_size_bytes": file_size,
-                "created_at": datetime.now().isoformat()
+                "created_at": datetime.now().isoformat(),
             }
 
             # 5. 更新metadata.json索引
@@ -108,11 +110,7 @@ class ImageStorageManager:
             with open(index_path, "r", encoding="utf-8") as f:
                 index_data = json.load(f)
         else:
-            index_data = {
-                "session_id": session_id,
-                "created_at": datetime.now().isoformat(),
-                "images": []
-            }
+            index_data = {"session_id": session_id, "created_at": datetime.now().isoformat(), "images": []}
 
         # 追加新图片
         index_data["images"].append(new_image)

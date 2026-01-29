@@ -56,18 +56,35 @@ class ToolCallRecorder(BaseCallbackHandler):
         # 当前正在执行的工具调用（用于关联start和end）
         self.active_tool_call: Optional[Dict[str, Any]] = None
 
-        # 工具调用日志文件路径
+        # 🆕 v7.133: 增强日志持久化 - 确保日志目录和文件存在
         self.log_file = Path("logs/tool_calls.jsonl")
-        self.log_file.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            self.log_file.parent.mkdir(parents=True, exist_ok=True)
+
+            # 创建空文件（如果不存在）
+            if not self.log_file.exists():
+                self.log_file.touch()
+                logger.info(f"📝 [v7.133] 创建 tool_calls.jsonl 日志文件: {self.log_file.absolute()}")
+            else:
+                logger.debug(f"📂 [v7.133] tool_calls.jsonl 已存在: {self.log_file.absolute()}")
+        except Exception as e:
+            logger.error(f"❌ [v7.133] 创建日志文件失败: {e}")
+            # 创建备用日志路径
+            import tempfile
+
+            self.log_file = Path(tempfile.gettempdir()) / "tool_calls.jsonl"
+            logger.warning(f"⚠️ [v7.133] 使用备用日志路径: {self.log_file}")
 
         logger.info(
-            f"✅ ToolCallRecorder initialized for role={role_id}, "
-            f"deliverable={deliverable_id}, recording={enable_recording}"
+            f"✅ [v7.133] ToolCallRecorder初始化 | role={role_id} | "
+            f"deliverable={deliverable_id} | log_file={self.log_file}"
         )
 
     def _write_to_jsonl(self, tool_call: Dict[str, Any]) -> None:
         """
-        将工具调用记录写入JSONL文件
+        🆕 v7.153: 直接同步写入JSONL文件 - 确保日志不丢失
+
+        之前使用 loguru.bind() 方式可能导致日志丢失，改为直接文件写入
 
         Args:
             tool_call: 工具调用记录
@@ -86,12 +103,28 @@ class ToolCallRecorder(BaseCallbackHandler):
                 "error": tool_call.get("error"),
             }
 
-            # 追加写入JSONL文件
-            with open(self.log_file, "a", encoding="utf-8") as f:
-                f.write(json.dumps(log_entry, ensure_ascii=False) + "\n")
+            # 🆕 v7.153: 直接同步写入文件（确保持久化）
+            import fcntl  # 文件锁，防止并发写入问题
+            import os
+
+            try:
+                # Windows 不支持 fcntl，使用简单追加模式
+                with open(self.log_file, "a", encoding="utf-8") as f:
+                    f.write(json.dumps(log_entry, ensure_ascii=False) + "\n")
+                    f.flush()  # 立即刷新到磁盘
+                    os.fsync(f.fileno())  # 确保写入磁盘
+                logger.debug(f"✅ [v7.153] 工具调用已写入日志: {tool_call['tool_name']}")
+            except (ImportError, AttributeError):
+                # fcntl 在 Windows 不可用，直接写入
+                with open(self.log_file, "a", encoding="utf-8") as f:
+                    f.write(json.dumps(log_entry, ensure_ascii=False) + "\n")
+                    f.flush()
+                logger.debug(f"✅ [v7.153] 工具调用已写入日志(Windows): {tool_call['tool_name']}")
 
         except Exception as e:
-            logger.error(f"❌ Failed to write tool call to JSONL: {e}")
+            logger.error(f"❌ [v7.153] 写入tool_calls.jsonl失败: {e}")
+            logger.error(f"   工具名称: {tool_call.get('tool_name')}")
+            logger.error(f"   日志文件路径: {self.log_file}")
 
     def on_tool_start(self, serialized: Dict[str, Any], input_str: str, **kwargs: Any) -> None:
         """
@@ -197,6 +230,42 @@ class ToolCallRecorder(BaseCallbackHandler):
         # 清空当前工具调用
         self.active_tool_call = None
 
+    def _add_search_result(
+        self,
+        tool_name: str,
+        query: str,
+        result: Dict[str, Any],
+    ) -> None:
+        """
+        🆕 v7.175: 手动添加搜索结果（用于 SearchOrchestrator 集成）
+
+        当使用 SearchOrchestrator 进行5轮渐进式搜索时，需要手动将结果添加到记录器，
+        而不是通过 LangChain 回调机制。
+
+        Args:
+            tool_name: 工具名称（如 "bocha", "tavily", "arxiv"）
+            query: 搜索查询
+            result: 搜索结果字典（包含 title, url, snippet 等）
+        """
+        from datetime import datetime
+
+        # 创建工具调用记录
+        tool_call = {
+            "tool_name": tool_name,
+            "input": query,
+            "output": json.dumps({"results": [result]}, ensure_ascii=False),
+            "status": "completed",
+            "start_time": datetime.now().isoformat(),
+            "end_time": datetime.now().isoformat(),
+            "role_id": self.role_id,
+            "deliverable_id": self.deliverable_id,
+            "duration_ms": 0,
+            "source": "orchestrator",  # 标记来源为编排器
+        }
+
+        self.tool_calls.append(tool_call)
+        logger.debug(f"📝 [v7.175] 手动添加搜索结果: {tool_name} - {result.get('title', '')[:50]}")
+
     def get_tool_calls(self) -> List[Dict[str, Any]]:
         """
         获取所有工具调用记录
@@ -266,7 +335,14 @@ class ToolCallRecorder(BaseCallbackHandler):
         Returns:
             是否为搜索工具
         """
-        search_tools = ["tavily_search", "arxiv_search", "ragflow_kb", "ragflow_kb_tool", "bocha_search"]
+        search_tools = [
+            "serper_search",
+            "tavily_search",
+            "arxiv_search",
+            "milvus_kb",  # v7.154: ragflow_kb 已废弃
+            "milvus_kb_tool",
+            "bocha_search",
+        ]
         return any(st in tool_name.lower() for st in search_tools)
 
     def _convert_to_search_reference(
@@ -298,11 +374,25 @@ class ToolCallRecorder(BaseCallbackHandler):
                 logger.debug(f"⚠️ Skipping result with empty snippet: {title}")
                 return None
 
+            # 🔥 v7.154: 验证URL有效性，过滤占位符URL
+            url = result.get("url", "")
+            if not url or not isinstance(url, str):
+                url = None
+            elif not url.startswith("http"):
+                logger.debug(f"⚠️ 过滤无效URL (非http): {url}")
+                url = None
+            elif any(
+                placeholder in url.lower()
+                for placeholder in ["example.com", "example2.com", "placeholder", "test.com", "localhost", "127.0.0.1"]
+            ):
+                logger.warning(f"⚠️ 过滤占位符URL: {url}")
+                url = None
+
             # 构建SearchReference字典
             reference = {
                 "source_tool": source_tool,
                 "title": title,
-                "url": result.get("url"),
+                "url": url,  # 使用验证后的URL
                 "snippet": snippet[:300],  # 限制300字符
                 "relevance_score": result.get("relevance_score", 0.7),
                 "quality_score": result.get("quality_score"),
@@ -329,7 +419,7 @@ class ToolCallRecorder(BaseCallbackHandler):
             tool_name: 原始工具名称
 
         Returns:
-            标准工具名称: "tavily" | "arxiv" | "ragflow" | "bocha"
+            标准工具名称: "tavily" | "arxiv" | "milvus" | "bocha"
         """
         tool_name_lower = tool_name.lower()
 
@@ -337,8 +427,9 @@ class ToolCallRecorder(BaseCallbackHandler):
             return "tavily"
         elif "arxiv" in tool_name_lower:
             return "arxiv"
-        elif "ragflow" in tool_name_lower:
-            return "ragflow"
+        elif "milvus" in tool_name_lower or "ragflow" in tool_name_lower:
+            # v7.154: ragflow 已废弃，统一映射到 milvus
+            return "milvus"
         elif "bocha" in tool_name_lower:
             return "bocha"
         else:

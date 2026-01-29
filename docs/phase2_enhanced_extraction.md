@@ -222,7 +222,7 @@ $ python test_phase2.py
 |---------|-------|---------|---------|------|
 | PDF | `.pdf` | 10MB | 文本（按页） | ✅ v3.7 |
 | 文本 | `.txt` | 5MB | 完整文本（智能编码） | ✅ v3.7 |
-| 图片 | `.png`, `.jpg`, `.jpeg` | 5MB | 基本信息 + Vision分析 | ✅ v3.8 |
+| 图片 | `.png`, `.jpg`, `.jpeg`, `.webp` | 5MB | 基本信息 + Vision分析 | ✅ v3.8 |
 | Word | `.docx` | 10MB | 段落 + 表格 | ✅ v3.8 |
 | Excel | `.xlsx` | 10MB | 所有工作表 + 数据 | ✅ v3.8 |
 

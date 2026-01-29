@@ -90,13 +90,26 @@ class AdaptiveDimensionGenerator:
             选中的维度列表
         """
         # Step 1: 基础选择（规则引擎）
-        base_dimensions = self.base_selector.select_for_project(
+        result = self.base_selector.select_for_project(
             project_type=project_type,
             user_input=user_input,
             min_dimensions=min_dimensions,
             max_dimensions=max_dimensions,
             special_scenes=special_scenes,
         )
+
+        # 🔧 v7.139: 兼容字典返回格式（包含dimensions/conflicts/adjustment_suggestions）
+        if isinstance(result, dict):
+            base_dimensions = result.get("dimensions", [])
+            conflicts = result.get("conflicts", [])
+            adjustment_suggestions = result.get("adjustment_suggestions", [])
+            self.logger.info(f"[AdaptiveDimGen] v7.139格式: 维度={len(base_dimensions)}, 冲突={len(conflicts)}")
+        else:
+            # 向后兼容旧版本的列表返回格式
+            base_dimensions = result
+            conflicts = []
+            adjustment_suggestions = []
+            self.logger.info(f"[AdaptiveDimGen] 使用旧版本列表格式（向后兼容）")
 
         # 标记来源
         for dim in base_dimensions:

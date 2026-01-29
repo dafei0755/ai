@@ -15,6 +15,12 @@ interface RoleData {
 	expected_output?: string;
 	dependencies?: string[];
 	task_count?: number;
+	// 🆕 v7.129: 工具权限
+	tool_settings?: {
+		enable_search?: boolean;
+		available_tools?: string[];
+		recommended?: string[];
+	};
 }
 
 interface RoleTaskReviewModalProps {
@@ -34,6 +40,9 @@ export function RoleTaskReviewModal({ isOpen, data, onConfirm }: RoleTaskReviewM
 			// 从 role_selection.selected_roles 或 task_assignment.task_list 提取角色数据
 			let roles: RoleData[] = [];
 
+			// 🆕 v7.129: 提取工具设置
+			const toolSettings = data.tool_settings || {};
+
 			if (data.task_assignment?.task_list) {
 				// 使用 task_list（包含完整任务信息）
 				roles = data.task_assignment.task_list.map((role: any) => ({
@@ -44,7 +53,9 @@ export function RoleTaskReviewModal({ isOpen, data, onConfirm }: RoleTaskReviewM
 					focus_areas: role.focus_areas || [],
 					expected_output: role.expected_output || '',
 					dependencies: role.dependencies || [],
-					task_count: role.task_count
+					task_count: role.task_count,
+					// 🆕 v7.129: 添加工具设置
+					tool_settings: toolSettings[role.role_id]
 				}));
 			} else if (data.role_selection?.selected_roles) {
 				// 备用：使用 selected_roles
@@ -55,7 +66,9 @@ export function RoleTaskReviewModal({ isOpen, data, onConfirm }: RoleTaskReviewM
 					tasks: role.tasks || [],
 					focus_areas: role.focus_areas || [],
 					expected_output: role.expected_output || '',
-					dependencies: role.dependencies || []
+					dependencies: role.dependencies || [],
+					// 🆕 v7.129: 添加工具设置
+					tool_settings: toolSettings[role.role_id]
 				}));
 			}
 
@@ -311,6 +324,70 @@ export function RoleTaskReviewModal({ isOpen, data, onConfirm }: RoleTaskReviewM
 																{dep}
 															</span>
 														))}
+													</div>
+												</div>
+											)}
+
+											{/* 🆕 v7.129: 工具权限 */}
+											{role.tool_settings && (
+												<div className="mt-4">
+													<h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">工具权限</h4>
+													<div className="space-y-2">
+														{/* 搜索工具状态 */}
+														<div className="flex items-center gap-2">
+															<span className="text-sm text-gray-600 dark:text-gray-400">搜索工具:</span>
+															{role.tool_settings.enable_search ? (
+																<span className="text-xs font-medium text-green-700 dark:text-green-300 bg-green-100 dark:bg-green-900/30 px-2 py-1 rounded">
+																	已启用
+																</span>
+															) : (
+																<span className="text-xs font-medium text-gray-600 dark:text-gray-400 bg-gray-200 dark:bg-gray-700 px-2 py-1 rounded">
+																	已禁用
+																</span>
+															)}
+														</div>
+
+														{/* 可用工具列表 */}
+														{role.tool_settings.available_tools && role.tool_settings.available_tools.length > 0 && (
+															<div>
+																<span className="text-sm text-gray-600 dark:text-gray-400">可用工具:</span>
+																<div className="flex flex-wrap gap-1 mt-1">
+																	{role.tool_settings.available_tools.map((tool, i) => {
+																		const isRecommended = role.tool_settings?.recommended?.includes(tool);
+																		return (
+																			<span
+																				key={i}
+																				className={`text-xs px-2 py-1 rounded ${
+																					isRecommended
+																						? 'text-blue-700 dark:text-blue-300 bg-blue-100 dark:bg-blue-900/30 font-medium'
+																						: 'text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-700'
+																				}`}
+																			>
+																				{tool}
+																				{isRecommended && ' ✓'}
+																			</span>
+																		);
+																	})}
+																</div>
+															</div>
+														)}
+
+														{/* 推荐工具提示 */}
+														{role.tool_settings.recommended && role.tool_settings.recommended.length > 0 && (
+															<p className="text-xs text-blue-600 dark:text-blue-400 italic">
+																✓ = 推荐使用
+															</p>
+														)}
+
+														{/* V2角色特殊提示 */}
+														{role.role_id.startsWith('V2') || role.role_id.startsWith('2-') && !role.tool_settings.enable_search && (
+															<div className="flex items-start gap-2 p-2 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded">
+																<AlertCircle className="w-4 h-4 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+																<p className="text-xs text-amber-800 dark:text-amber-200">
+																	设计总监角色仅允许使用内部知识库，避免外部搜索干扰创意判断
+																</p>
+															</div>
+														)}
 													</div>
 												</div>
 											)}

@@ -22,7 +22,7 @@ challenge_protocol_integration:
     - "timeline_pressure"      # 时间压力
     - "quality_tradeoff"       # 质量权衡
     - "capability_boundary"    # 能力边界
-  
+
   # 汇总规则
   aggregation_rules:
     - "将所有 challenge_flag=true 的专家输出单独汇总"
@@ -286,6 +286,36 @@ prompt: |
   - `deliberation_process` (DeliberationProcess)
   - `expert_reports` (Dict[str, str]) - 由系统自动填充
   - `recommendations` (RecommendationsSection)
+  - `sections` (List[Dict]) - 🆕 v7.154: 必须返回，包含所有专家的分析结果
+
+  ### sections 字段格式要求（🆕 v7.154）
+  `sections` 是一个数组，每个元素代表一个专家的分析章节：
+  ```json
+  "sections": [
+    {
+      "section_id": "requirements_analysis",
+      "title": "需求分析",
+      "content": "需求分析师的完整分析内容...",
+      "confidence": 0.85
+    },
+    {
+      "section_id": "design_research",
+      "title": "设计研究",
+      "content": "V4设计研究员的完整分析内容...",
+      "confidence": 0.8
+    },
+    {
+      "section_id": "technical_architecture",
+      "title": "技术架构",
+      "content": "V6工程师的完整分析内容...",
+      "confidence": 0.75
+    }
+  ]
+  ```
+  **重要**:
+  - 每个 section 必须包含 section_id, title, content, confidence 四个字段
+  - content 必须是该专家的完整分析内容，不能为空或使用占位符
+  - confidence 是 0-1 之间的浮点数，表示该章节的置信度
 
   ### 可选字段
   - `questionnaire_responses` - 仅当用户有修改问卷时填充

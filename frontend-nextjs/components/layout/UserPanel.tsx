@@ -135,25 +135,18 @@ export function UserPanel() {
           {/* 会员信息 */}
           <MembershipCard />
 
-          {/* 服务协议链接 */}
+          {/* 快捷链接 */}
           <div className="px-4 py-3 border-b border-[var(--border-color)] space-y-2">
+            {/* 🆕 v7.141.3: 用户中心链接（统一入口） */}
             <a
-              href="https://www.ucppt.com/terms"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center space-x-2 text-sm text-[var(--foreground)] hover:text-blue-500 transition-colors"
+              href="/user/dashboard"
+              className="flex items-center space-x-2 text-sm text-[var(--foreground)] hover:text-blue-500 transition-colors font-semibold"
             >
-              <Shield className="w-4 h-4 text-[var(--foreground-secondary)]" />
-              <span>服务条款</span>
-            </a>
-            <a
-              href="https://www.ucppt.com/privacy"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center space-x-2 text-sm text-[var(--foreground)] hover:text-blue-500 transition-colors"
-            >
-              <Shield className="w-4 h-4 text-[var(--foreground-secondary)]" />
-              <span>隐私政策</span>
+              <User className="w-4 h-4 text-[var(--foreground-secondary)]" />
+              <span>用户中心</span>
+              <svg className="w-3 h-3 ml-auto text-[var(--foreground-secondary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
             </a>
           </div>
 

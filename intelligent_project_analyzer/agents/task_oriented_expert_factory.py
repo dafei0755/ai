@@ -209,6 +209,55 @@ class TaskOrientedExpertFactory:
 
         return total_tokens
 
+    def _detect_gibberish(self, text: str) -> bool:
+        """
+        🆕 v7.271: 检测文本是否包含乱码/幻觉内容
+
+        检测规则:
+        1. 无效URL模式 (test, placeholder, example)
+        2. 连续无意义汉字 (无标点分隔的长串)
+        3. 重复字符模式
+
+        Args:
+            text: 待检测的文本
+
+        Returns:
+            bool: True 表示检测到乱码
+        """
+        import re
+
+        if not text:
+            return False
+
+        text_str = str(text)
+
+        # 检测无效URL模式（不受长度限制）
+        invalid_url_patterns = [
+            r"http://[a-z]+/test\d+",  # 测试URL如 http://locear/test0010456
+            r"(?:^|[^a-zA-Z])(?:example\.com|example2\.com|placeholder|locear)(?:[^a-zA-Z]|$)",  # 占位符域名
+        ]
+        for pattern in invalid_url_patterns:
+            if re.search(pattern, text_str, re.IGNORECASE):
+                return True
+
+        # 以下检测仅对较长文本有效
+        if len(text_str) < 50:
+            return False
+
+        # 检测连续无意义汉字（30+汉字无标点分隔）
+        # 正常中文每10-15字会有标点
+        chinese_without_punct = re.findall(r"[\u4e00-\u9fff]{30,}", text_str)
+        for segment in chinese_without_punct:
+            # 检查这段文字是否缺少标点
+            if not re.search(r'[。，！？、；：""' "（）【】]", segment):
+                return True
+
+        # 检测重复字符模式（同一字符连续出现5次以上）
+        if re.search(r"(.)\1{5,}", text_str):
+            return True
+
+        return False
+
     async def execute_expert(
         self,
         role_object: Dict[str, Any],
@@ -217,7 +266,11 @@ class TaskOrientedExpertFactory:
         tools: Optional[List[Any]] = None,  # 🔥 v7.63.1: 添加工具支持
     ) -> Dict[str, Any]:
         """
-        执行任务导向的专家分析
+        🆕 v7.154: 两阶段执行 - 分离搜索和报告生成
+
+        执行任务导向的专家分析，分为两个阶段：
+        1. 搜索阶段：使用 bind_tools 执行搜索工具调用
+        2. 报告阶段：使用 with_structured_output 生成结构化报告
 
         Args:
             role_object: 包含TaskInstruction的角色对象
@@ -229,40 +282,88 @@ class TaskOrientedExpertFactory:
             标准化的专家执行结果
         """
         try:
-            # 构建任务导向的专家提示词
-            expert_prompt = self._build_task_oriented_expert_prompt(
-                role_object=role_object, context=context, state=state
-            )
-
-            # 调用LLM生成专家分析
-            # 🔥 v7.19优化：使用角色专属的LLM实例
-            role_type = self._extract_base_type(role_object.get("role_id", ""))
+            role_id = role_object.get("role_id", "unknown")
+            role_type = self._extract_base_type(role_id)
 
             # 🔥 v7.52优化：计算交付物数量以动态分配token
             task_instruction = role_object.get("task_instruction", {})
             deliverable_count = len(task_instruction.get("deliverables", []))
 
-            llm = self._get_llm(role_type, deliverable_count)
+            # ========== 阶段1: 搜索阶段 ==========
+            search_results = []
+            search_recorder = None
 
-            # 🆕 v7.64: 创建工具调用记录器（如果有工具）
-            recorder = None
             if tools and ToolCallRecorder:
-                role_id = role_object.get("role_id", "unknown")
-                # 使用角色ID作为deliverable_id的前缀
-                recorder = ToolCallRecorder(role_id=role_id, deliverable_id=f"{role_id}_analysis")
-                logger.info(f"🔧 [v7.64] {role_id} 启用工具调用记录器")
+                logger.info(f"🔍 [v7.154] {role_id} 开始搜索阶段...")
 
-            # 🔥 v7.63.1: 如果提供了工具，绑定到LLM
-            if tools:
+                # 验证工具可用性
                 tool_names = [getattr(tool, "name", str(tool)) for tool in tools]
-                logger.info(f"🔧 [v7.63.1] {role_object.get('role_id', 'unknown')} 绑定 {len(tools)} 个工具: {tool_names}")
-                # 🆕 v7.64: 绑定工具时传入callbacks
-                if recorder:
-                    llm = llm.bind_tools(tools, callbacks=[recorder])
-                else:
-                    llm = llm.bind_tools(tools)
+                logger.info(f"✅ {role_id} 获得工具: {tool_names}")
+
+                # 检查预期工具是否缺失
+                role_tool_mapping = {
+                    "V2": [],  # 设计总监：无工具
+                    "V3": ["bocha", "tavily", "milvus"],
+                    "V4": ["bocha", "tavily", "arxiv", "milvus"],
+                    "V5": ["bocha", "tavily", "milvus"],
+                    "V6": ["bocha", "tavily", "arxiv", "milvus"],
+                    "V7": ["bocha", "tavily", "arxiv", "milvus"],  # 🔥 v7.156: 情感洞察专家
+                }
+
+                expected_tools = role_tool_mapping.get(role_type, [])
+                if expected_tools:
+                    actual_tool_keys = []
+                    for name in tool_names:
+                        if "bocha" in name.lower():
+                            actual_tool_keys.append("bocha")
+                        elif "tavily" in name.lower():
+                            actual_tool_keys.append("tavily")
+                        elif "arxiv" in name.lower():
+                            actual_tool_keys.append("arxiv")
+                        elif "milvus" in name.lower() or "ragflow" in name.lower():
+                            actual_tool_keys.append("milvus")
+
+                    missing_tools = [t for t in expected_tools if t not in actual_tool_keys]
+                    if missing_tools:
+                        logger.warning(f"⚠️ {role_id} 缺少工具: {missing_tools}（配置问题或创建失败）")
+
+                # 执行搜索阶段
+                search_results, search_recorder = await self._execute_search_phase(
+                    role_object=role_object,
+                    context=context,
+                    state=state,
+                    tools=tools,
+                )
+                logger.info(f"📚 [v7.154] {role_id} 搜索阶段完成，获得 {len(search_results)} 条结果")
             else:
-                logger.debug(f"ℹ️ [v7.63.1] {role_object.get('role_id', 'unknown')} 无工具（综合者模式）")
+                if not tools:
+                    logger.warning(f"⚠️ [v7.154] {role_id} 没有可用工具，跳过搜索阶段")
+                    # 检查是否应该有工具但实际没有
+                    role_tool_mapping = {
+                        "V2": [],
+                        "V3": ["bocha", "tavily", "milvus"],
+                        "V4": ["bocha", "tavily", "arxiv", "milvus"],
+                        "V5": ["bocha", "tavily", "milvus"],
+                        "V6": ["bocha", "tavily", "arxiv", "milvus"],
+                        "V7": ["bocha", "tavily", "arxiv", "milvus"],  # 🔥 v7.156: 情感洞察专家
+                    }
+                    expected_tools = role_tool_mapping.get(role_type, [])
+                    if expected_tools:
+                        logger.error(f"❌ {role_id} 应该有工具 {expected_tools} 但实际为空（严重配置问题）")
+
+            # ========== 阶段2: 报告生成阶段 ==========
+            logger.info(f"📝 [v7.154] {role_id} 开始报告生成阶段...")
+
+            # 将搜索结果注入到上下文中
+            enhanced_context = self._inject_search_results(context, search_results)
+
+            # 构建任务导向的专家提示词
+            expert_prompt = self._build_task_oriented_expert_prompt(
+                role_object=role_object, context=enhanced_context, state=state
+            )
+
+            # 获取 LLM（不绑定工具，只用于结构化输出）
+            llm = self._get_llm(role_type, deliverable_count)
 
             # 🔥 v7.18: 强制JSON Schema输出（降低解析失败率 15% → 3%）
             llm_with_structure = llm.with_structured_output(
@@ -279,16 +380,25 @@ class TaskOrientedExpertFactory:
             # 🔥 v7.18: response直接是TaskOrientedExpertOutput实例，无需解析
             response = await llm_with_structure.ainvoke(messages)
 
+            # 使用搜索阶段的 recorder 进行后续处理
+            recorder = search_recorder
+
             # 将Pydantic模型转换为字典（保持向后兼容）
-            structured_output = response.dict() if hasattr(response, "dict") else response.model_dump()
+            # 🔥 Phase 0优化: 排除None和默认值以减少token消耗
+            structured_output = (
+                response.dict(exclude_none=True, exclude_defaults=True)
+                if hasattr(response, "dict")
+                else response.model_dump(exclude_none=True, exclude_defaults=True)
+            )
 
             # 构建标准化返回结果
             result = {
                 "expert_id": role_object.get("role_id", "unknown"),
                 "expert_name": role_object.get("dynamic_role_name", role_object.get("role_name", "Unknown Expert")),
-                "analysis": structured_output.get("task_execution_report", {}).get(
+                "analysis": self._extract_full_deliverable_content(structured_output),  # 🔥 v7.128: 使用完整内容
+                "summary": structured_output.get("task_execution_report", {}).get(
                     "task_completion_summary", ""
-                ),  # 🔥 v7.18: 从结构化输出获取摘要
+                ),  # 🔥 v7.128: 保留摘要用于其他用途
                 "structured_output": structured_output,  # 已验证的结构化输出
                 "task_instruction": role_object.get("task_instruction", {}),  # 任务指令
                 "role_definition": role_object,
@@ -316,6 +426,35 @@ class TaskOrientedExpertFactory:
                 result["structured_output"] = structured_output
                 logger.info("✅ 交付物补全完成")
 
+            # 🆕 v7.154: 自评分校准 - 基于内容特征客观调整LLM自评分
+            structured_output = self._calibrate_quality_scores(structured_output, recorder)
+            result["structured_output"] = structured_output
+
+            # 🆕 v7.129: 工具使用情况统计
+            if recorder:
+                tool_calls = recorder.get_tool_calls()
+                role_id = role_object.get("role_id", "unknown")
+
+                logger.info(f"📊 [v7.129] {role_id} 工具使用统计:")
+                logger.info(f"   总调用次数: {len(tool_calls)}")
+
+                if tool_calls:
+                    # 按工具类型分类
+                    tool_counts = {}
+                    for call in tool_calls:
+                        tool_name = call.get("tool_name", "unknown")
+                        tool_counts[tool_name] = tool_counts.get(tool_name, 0) + 1
+
+                    for tool_name, count in tool_counts.items():
+                        logger.info(f"   - {tool_name}: {count} 次")
+
+                    # 统计成功/失败
+                    success_count = sum(1 for call in tool_calls if call.get("status") == "completed")
+                    failed_count = sum(1 for call in tool_calls if call.get("status") == "failed")
+                    logger.info(f"   成功: {success_count}, 失败: {failed_count}")
+                else:
+                    logger.warning(f"   ⚠️ 未调用任何工具")
+
             # 🆕 v7.64: 从工具调用记录器提取搜索引用并添加到state
             if recorder and add_references_to_state:
                 search_references = recorder.get_search_references()
@@ -328,16 +467,40 @@ class TaskOrientedExpertFactory:
                     task_exec_report = structured_output.get("task_execution_report", {})
                     deliverable_outputs = task_exec_report.get("deliverable_outputs", [])
 
+                    # 🔥 v7.154: 用真实搜索引用覆盖LLM生成的虚假引用
                     # 为每个交付物关联相关的搜索引用
                     for deliverable in deliverable_outputs:
                         deliverable_name = deliverable.get("deliverable_name", "")
+
+                        # 🔥 v7.154: 检测并移除LLM生成的虚假引用
+                        existing_refs = deliverable.get("search_references", [])
+                        if existing_refs:
+                            fake_refs = [
+                                ref
+                                for ref in existing_refs
+                                if ref.get("url")
+                                and any(
+                                    placeholder in ref.get("url", "").lower()
+                                    for placeholder in ["example.com", "example2.com", "placeholder", "test.com"]
+                                )
+                            ]
+                            if fake_refs:
+                                logger.warning(f"  ⚠️ [v7.154] 检测到 {len(fake_refs)} 条LLM生成的虚假引用，将被覆盖")
+
                         # 筛选与此交付物相关的引用（基于deliverable_id前缀匹配）
                         related_refs = [
                             ref for ref in search_references if deliverable_name in ref.get("deliverable_id", "")
                         ]
+
+                        # 🔥 v7.154: 如果没有精确匹配，使用所有真实引用
+                        if not related_refs and search_references:
+                            related_refs = search_references
+                            logger.info(f"  ℹ️ [v7.154] 无精确匹配，使用全部 {len(related_refs)} 条真实引用")
+
                         if related_refs:
+                            # 强制覆盖，确保使用真实引用
                             deliverable["search_references"] = related_refs
-                            logger.debug(f"  ↳ 为交付物 '{deliverable_name}' 关联了 {len(related_refs)} 条引用")
+                            logger.info(f"  ✅ [v7.154] 为交付物 '{deliverable_name}' 关联了 {len(related_refs)} 条真实引用")
 
             # 🆕 v7.108: 为该专家的交付物生成概念图
             try:
@@ -378,8 +541,7 @@ class TaskOrientedExpertFactory:
                     logger.debug(f"  🔧 初始化 ImageGeneratorService...")
                     image_generator = ImageGeneratorService()
 
-                    # 获取专家分析摘要（用于图片生成）
-                    expert_summary = result.get("analysis", "")[:500]  # 取前500字符
+                    # 🔥 v7.128: 准备专家分析内容（完整版本，不再截断至500字）
                     session_id = state.get("session_id", "unknown")
                     project_type = state.get("project_type", "interior")
 
@@ -393,7 +555,14 @@ class TaskOrientedExpertFactory:
                         }
                         logger.info(f"  📊 [v7.122] 准备注入问卷数据到概念图生成")
 
-                    logger.info(f"  📄 专家摘要长度: {len(expert_summary)} 字符")
+                    # 🆕 v7.155: 提取视觉参考用于概念图生成
+                    visual_references = state.get("uploaded_visual_references", None)
+                    visual_style_anchor = state.get("visual_style_anchor", None)
+                    if visual_references:
+                        logger.info(f"  🖼️ [v7.155] 准备注入 {len(visual_references)} 个视觉参考到概念图生成")
+                    if visual_style_anchor:
+                        logger.info(f"  🎨 [v7.155] 全局风格锚点: {visual_style_anchor[:50]}...")
+
                     logger.info(f"  🆔 会话ID: {session_id}")
                     logger.info(f"  🏷️  项目类型: {project_type}")
 
@@ -420,23 +589,36 @@ class TaskOrientedExpertFactory:
 
                         try:
                             logger.info(f"    🖼️  开始生成概念图...")
+
+                            # 🆕 v7.128: 使用精准匹配的交付物专家分析内容
+                            deliverable_specific_content = self._extract_deliverable_specific_content(
+                                structured_output=result.get("structured_output", {}), deliverable_metadata=metadata
+                            )
+
                             # 🆕 v7.122: 传递问卷数据到概念图生成器
-                            image_metadata = await image_generator.generate_deliverable_image(
+                            # 🆕 v7.127: 返回值改为 List[ImageMetadata]
+                            # 🆕 v7.128: 传递完整专家分析内容（最多3000字）
+                            # 🆕 v7.155: 传递视觉参考和全局风格锚点
+                            image_metadata_list = await image_generator.generate_deliverable_image(
                                 deliverable_metadata=metadata,
-                                expert_analysis=expert_summary,
+                                expert_analysis=deliverable_specific_content,  # 🔥 v7.128: 完整内容
                                 session_id=session_id,
                                 project_type=project_type,
                                 aspect_ratio="16:9",
                                 questionnaire_data=questionnaire_data,  # 🔥 v7.122: 注入问卷数据
+                                visual_references=visual_references,  # 🆕 v7.155: 注入视觉参考
+                                global_style_anchor=visual_style_anchor,  # 🆕 v7.155: 注入全局风格锚点
                             )
 
-                            # 转换为字典存储
-                            concept_images.append(image_metadata.model_dump())
-                            logger.info(f"    ✅ 概念图生成成功")
-                            logger.info(f"      📁 文件名: {image_metadata.filename}")
-                            logger.info(
-                                f"      🔗 URL: {image_metadata.url if hasattr(image_metadata, 'url') else 'N/A'}"
-                            )
+                            # 🆕 v7.127: 遍历添加所有生成的图片
+                            # 🔥 Phase 0优化: 排除None和默认值
+                            for img_metadata in image_metadata_list:
+                                concept_images.append(img_metadata.model_dump(exclude_none=True, exclude_defaults=True))
+
+                            logger.info(f"    ✅ 成功生成 {len(image_metadata_list)} 张概念图")
+                            for idx, img in enumerate(image_metadata_list, 1):
+                                logger.info(f"      [{idx}] 文件名: {img.filename}")
+                                logger.info(f"      [{idx}] URL: {img.url if hasattr(img, 'url') else 'N/A'}")
 
                         except Exception as img_error:
                             logger.error(f"    ❌ 概念图生成失败: {img_error}")
@@ -521,6 +703,534 @@ class TaskOrientedExpertFactory:
                     "failure_type": "exception",  # 🆕 失败类型
                 },
             }
+
+    async def _execute_search_phase(
+        self,
+        role_object: Dict[str, Any],
+        context: str,
+        state: ProjectAnalysisState,
+        tools: List[Any],
+    ) -> tuple:
+        """
+        🆕 v7.175: 搜索阶段 - 使用5轮渐进式搜索编排器
+        🆕 v7.180: 支持需求分析上下文注入，增强搜索精准度
+
+        替代原有的 LLM 自主决定模式，使用 SearchOrchestrator 执行结构化的5轮搜索：
+        1. 基础概念探索 - 获取定义和框架
+        2. 维度深化 - 深入各影响维度
+        3. 学术深度 - 搜索论文和方法论
+        4. 实践案例 - 搜索项目案例
+        5. 数据支撑 - 搜索统计数据
+
+        v7.180 增强：
+        - 从state提取需求分析结果（JTBD、核心矛盾、人性维度）
+        - 使用JTBDQueryBuilder构建增强查询
+        - 使用InsightAwareQualityControl评估结果
+
+        Args:
+            role_object: 角色对象
+            context: 项目上下文
+            state: 当前状态
+            tools: 可用的工具列表
+
+        Returns:
+            tuple: (search_results, recorder)
+                - search_results: 搜索引用列表
+                - recorder: ToolCallRecorder 实例（用于后续统计）
+        """
+        import os
+
+        role_id = role_object.get("role_id", "unknown")
+        role_type = self._extract_base_type(role_id)
+
+        # 🆕 v7.175: 检查是否启用5轮渐进式搜索
+        use_progressive_search = os.getenv("USE_PROGRESSIVE_SEARCH", "true").lower() == "true"
+
+        # 创建工具调用记录器
+        recorder = ToolCallRecorder(role_id=role_id, deliverable_id=f"{role_id}_search")
+        logger.info(f"🔧 [v7.180] {role_id} 创建搜索阶段 ToolCallRecorder")
+
+        if use_progressive_search:
+            # 🆕 v7.175/v7.180: 使用5轮渐进式搜索编排器（支持需求分析上下文）
+            try:
+                from ..services.search_orchestrator import get_search_orchestrator
+
+                orchestrator = get_search_orchestrator()
+                task_instruction = role_object.get("task_instruction", {})
+                deliverables = task_instruction.get("deliverables", [])
+
+                # 构建搜索查询
+                project_type = state.get("project_type", "设计")
+                original_requirements = state.get("original_requirements", "")
+
+                # 为每个交付物执行5轮渐进式搜索
+                all_search_results = []
+                for deliverable in deliverables:
+                    deliverable_name = deliverable.get("name", "")
+                    deliverable_desc = deliverable.get("description", "")
+                    query = f"{original_requirements} {deliverable_name} {deliverable_desc}"
+
+                    context_dict = {
+                        "project_type": project_type,
+                        "role_id": role_id,
+                        "deliverable_name": deliverable_name,
+                    }
+
+                    logger.info(f"🔍 [v7.180] {role_id} 开始5轮渐进式搜索: {deliverable_name}")
+                    logger.info(f"   📝 Query: {query[:100]}...")
+
+                    # 🆕 v7.180: 执行5轮编排搜索（传入state以提取需求分析上下文）
+                    result = orchestrator.orchestrate(
+                        query, context_dict, max_rounds=5, state=state  # 🆕 v7.180: 传入state
+                    )
+
+                    # 提取搜索结果
+                    sources = result.get("all_sources", [])
+                    rounds_completed = result.get("rounds_completed", 0)
+                    execution_time = result.get("execution_time", 0)
+                    enhanced_query_count = result.get("enhanced_queries", [])
+
+                    logger.info(f"   ✅ 完成 {rounds_completed} 轮搜索, 获取 {len(sources)} 条结果, 耗时 {execution_time:.2f}s")
+                    if enhanced_query_count:
+                        logger.info(f"   🔍 使用了 {len(enhanced_query_count)} 个增强查询（来自需求分析）")
+
+                    # 转换为搜索引用格式
+                    for source in sources:
+                        ref = {
+                            "title": source.get("title", ""),
+                            "url": source.get("url", source.get("link", "")),
+                            "snippet": source.get("content", source.get("snippet", "")),
+                            "source": source.get("source", "web"),
+                            "round": source.get("round", "unknown"),
+                            "deliverable": deliverable_name,
+                            # 🆕 v7.180: 添加人性维度评估结果
+                            "human_score": source.get("human_score"),
+                            "matched_dimensions": source.get("matched_dimensions", []),
+                        }
+                        all_search_results.append(ref)
+
+                        # 记录到 recorder
+                        recorder._add_search_result(
+                            tool_name=source.get("tool", "orchestrator"), query=query[:50], result=ref
+                        )
+
+                logger.info(f"🎉 [v7.180] {role_id} 渐进式搜索完成: 共 {len(all_search_results)} 条引用")
+
+                # 添加到 state
+                if all_search_results and add_references_to_state:
+                    add_references_to_state(state, recorder)
+                    logger.info(f"📚 [v7.180] 已将 {len(all_search_results)} 条搜索引用添加到 state")
+
+                return all_search_results, recorder
+
+            except Exception as e:
+                logger.warning(f"⚠️ [v7.180] 渐进式搜索失败，回退到LLM自主搜索: {e}")
+                # 回退到原有方式
+
+        # 原有的 LLM 自主搜索模式 (fallback)
+        # 获取基础 LLM（不使用 structured_output）
+        llm = self._get_llm(role_type)
+
+        # 绑定工具和回调
+        tool_names = [getattr(tool, "name", str(tool)) for tool in tools]
+        logger.info(f"🔧 [v7.175] {role_id} 绑定 {len(tools)} 个工具: {tool_names}")
+
+        llm_with_tools = llm.bind_tools(tools, callbacks=[recorder])
+        logger.info(f"✅ [v7.175] {role_id} 工具绑定成功 + ToolCallRecorder已启用")
+        logger.info(f"   📝 工具调用将记录到: {recorder.log_file}")
+
+        # 构建搜索专用 prompt
+        search_prompt = self._build_search_prompt(role_object, context, state)
+
+        messages = [
+            {"role": "system", "content": search_prompt["system_prompt"]},
+            {"role": "user", "content": search_prompt["user_prompt"]},
+        ]
+
+        # 执行搜索（允许 LLM 自主决定调用哪些工具）
+        try:
+            logger.info(f"🔍 [v7.175] {role_id} 开始执行LLM自主搜索...")
+            response = await llm_with_tools.ainvoke(messages)
+            logger.info(f"✅ [v7.175] {role_id} 搜索执行完成")
+        except Exception as e:
+            logger.error(f"❌ [v7.175] {role_id} 搜索执行失败: {e}")
+            # 搜索失败不阻塞流程，返回空结果
+            return [], recorder
+
+        # 提取搜索结果
+        search_references = recorder.get_search_references()
+
+        # 记录工具使用统计
+        tool_calls = recorder.get_tool_calls()
+        logger.info(f"📊 [v7.175] {role_id} 搜索阶段统计:")
+        logger.info(f"   总调用次数: {len(tool_calls)}")
+
+        if tool_calls:
+            # 按工具类型分类
+            tool_counts = {}
+            for call in tool_calls:
+                tool_name = call.get("tool_name", "unknown")
+                tool_counts[tool_name] = tool_counts.get(tool_name, 0) + 1
+
+            for tool_name, count in tool_counts.items():
+                logger.info(f"   - {tool_name}: {count} 次")
+
+            # 统计成功/失败
+            success_count = sum(1 for call in tool_calls if call.get("status") == "completed")
+            failed_count = sum(1 for call in tool_calls if call.get("status") == "failed")
+            logger.info(f"   成功: {success_count}, 失败: {failed_count}")
+        else:
+            logger.warning(f"   ⚠️ 搜索阶段未调用任何工具")
+
+        # 添加到 state
+        if search_references and add_references_to_state:
+            add_references_to_state(state, recorder)
+            logger.info(f"📚 [v7.175] 已将 {len(search_references)} 条搜索引用添加到 state")
+
+        logger.info(f"🔍 [v7.175] {role_id} 搜索阶段: {len(tool_calls)} 次工具调用, {len(search_references)} 条引用")
+
+        return search_references, recorder
+
+    def _build_search_prompt(
+        self,
+        role_object: Dict[str, Any],
+        context: str,
+        state: ProjectAnalysisState,
+    ) -> Dict[str, str]:
+        """
+        🆕 v7.154: 构建搜索阶段专用 prompt
+
+        这个 prompt 专注于引导 LLM 调用搜索工具，而不是生成报告。
+        通过明确的指令和示例，确保 LLM 理解需要调用工具。
+
+        Args:
+            role_object: 角色对象
+            context: 项目上下文
+            state: 当前状态
+
+        Returns:
+            Dict: 包含 system_prompt 和 user_prompt
+        """
+        task_instruction = role_object.get("task_instruction", {})
+        deliverables = task_instruction.get("deliverables", [])
+        role_name = role_object.get("dynamic_role_name", role_object.get("role_name", "专家"))
+
+        # 提取需要搜索的交付物
+        deliverable_names = [d.get("name", "") for d in deliverables]
+
+        system_prompt = f"""你是一位专业的研究助手，正在为 {role_name} 收集外部资料。
+
+# 🎯 你的任务
+为以下交付物搜索相关资料：
+{chr(10).join([f'- {name}' for name in deliverable_names])}
+
+# 🔍 搜索工具说明
+你有以下搜索工具可用，**必须调用它们**：
+
+1. **bocha_search** - 中文搜索引擎
+   - 适用于：中文内容、国内案例、中文行业报告
+   - 优先用于中文项目
+
+2. **tavily_search** - 国际搜索引擎
+   - 适用于：英文内容、全球案例、国际趋势
+   - 适合获取国际视角
+
+3. **arxiv_search** - 学术论文搜索
+   - 适用于：学术理论、研究方法、技术论文
+   - 适合需要学术支撑的内容
+
+4. **milvus_kb_search** - 内部知识库搜索
+   - 适用于：历史项目、内部案例、专有知识
+
+# 📋 搜索策略
+1. **每个交付物至少搜索 2-3 次**
+2. **使用不同的关键词组合**
+3. **中文项目优先使用 bocha_search**
+4. **学术内容使用 arxiv_search**
+
+# 🔥 搜索内容建议
+- 最新案例和趋势（2024-2025年）
+- 行业最佳实践
+- 相关理论和方法论
+- 竞品分析和市场数据
+
+# ⚠️ 重要提醒
+- **你必须调用搜索工具**，不要仅凭内部知识回答
+- 每次搜索后简要说明搜索目的
+- 完成所有搜索后，回复 "搜索完成"
+- 不要生成报告，只需要调用搜索工具收集资料
+
+# 示例
+如果交付物是"用户画像分析"，你应该：
+1. 调用 bocha_search("用户画像 设计方法 2024")
+2. 调用 tavily_search("user persona design methodology")
+3. 调用 bocha_search("目标用户 需求分析 案例")
+"""
+
+        user_input = state.get("user_input", "")
+        project_type = state.get("project_type", "设计项目")
+
+        user_prompt = f"""# 项目背景
+{context[:2000]}
+
+# 用户需求
+{user_input}
+
+# 项目类型
+{project_type}
+
+# 需要搜索的交付物
+{chr(10).join([f'- {name}' for name in deliverable_names])}
+
+请开始搜索相关资料。记住：
+1. **必须调用搜索工具**
+2. 不要直接生成内容
+3. 每个交付物至少搜索 2-3 次
+4. 完成后回复 "搜索完成"
+"""
+
+        return {"system_prompt": system_prompt, "user_prompt": user_prompt}
+
+    def _inject_search_results(
+        self,
+        context: str,
+        search_results: List[Dict[str, Any]],
+    ) -> str:
+        """
+        🆕 v7.154: 将搜索结果注入到上下文中
+        🆕 v7.271: 添加乱码/无效结果预过滤
+
+        将搜索阶段收集的资料格式化后注入到报告生成阶段的上下文中，
+        确保专家在生成报告时能够引用这些外部资料。
+
+        Args:
+            context: 原始上下文
+            search_results: 搜索引用列表
+
+        Returns:
+            str: 增强后的上下文
+        """
+        if not search_results:
+            logger.debug("[v7.154] 无搜索结果需要注入")
+            return context
+
+        # 🆕 v7.271: 过滤无效搜索结果
+        valid_results = []
+        filtered_count = 0
+        for ref in search_results:
+            url = ref.get("url", "")
+            snippet = ref.get("snippet", "")
+            title = ref.get("title", "")
+
+            # 跳过无效URL
+            invalid_url_patterns = ["test", "example", "placeholder", "locear", "localhost"]
+            if url and any(invalid in url.lower() for invalid in invalid_url_patterns):
+                logger.warning(f"⚠️ [v7.271] 过滤无效URL搜索结果: {url[:50]}")
+                filtered_count += 1
+                continue
+
+            # 跳过乱码内容
+            if self._detect_gibberish(snippet) or self._detect_gibberish(title):
+                logger.warning(f"⚠️ [v7.271] 过滤乱码搜索结果: {title[:30] if title else 'N/A'}")
+                filtered_count += 1
+                continue
+
+            valid_results.append(ref)
+
+        if filtered_count > 0:
+            logger.info(
+                f"📊 [v7.271] 搜索结果过滤: 原始 {len(search_results)} 条, 过滤 {filtered_count} 条, 有效 {len(valid_results)} 条"
+            )
+
+        if not valid_results:
+            logger.warning("[v7.271] 所有搜索结果均被过滤，跳过注入")
+            return context
+
+        # 格式化搜索结果
+        formatted_results = []
+        for idx, ref in enumerate(valid_results[:15], 1):  # 最多15条
+            title = ref.get("title", "N/A")
+            source = ref.get("source_tool", "N/A")
+            snippet = ref.get("snippet", "N/A")[:400]  # 限制摘要长度
+            url = ref.get("url", "N/A")
+            query = ref.get("query", "")
+
+            formatted_results.append(
+                f"""
+### 参考资料 {idx}
+- **标题**: {title}
+- **来源**: {source}
+- **搜索词**: {query}
+- **摘要**: {snippet}
+- **URL**: {url}
+"""
+            )
+
+        search_section = f"""
+# 📚 搜索结果（共 {len(search_results)} 条）
+
+以下是为本次分析收集的外部资料，请在分析中引用这些内容：
+
+{''.join(formatted_results)}
+
+---
+**注意**: 请在你的分析中适当引用上述资料，确保内容有据可依。
+"""
+
+        logger.info(f"[v7.154] 已将 {len(search_results)} 条搜索结果注入到上下文中")
+        return f"{context}\n\n{search_section}"
+
+    async def execute_expert_with_retry(
+        self,
+        role_object: Dict[str, Any],
+        context: str,
+        state: ProjectAnalysisState,
+        tools: Optional[List[Any]] = None,
+        max_retries: int = 3,
+    ) -> Dict[str, Any]:
+        """
+        🆕 v7.129 Week2 P2: 带重试机制的专家执行包装函数
+
+        如果V4/V6角色未使用工具，将增强prompt并重试，确保搜索工具被正确调用。
+
+        Args:
+            role_object: 包含TaskInstruction的角色对象
+            context: 项目上下文
+            state: 当前状态
+            tools: 可用的工具列表（可选）
+            max_retries: 最大重试次数（默认3次）
+
+        Returns:
+            标准化的专家执行结果
+        """
+        role_id = role_object.get("role_id", "unknown")
+        role_type = self._extract_base_type(role_id)
+
+        # 检查是否为需要搜索工具的角色
+        search_required_roles = ["V4", "V6"]
+        requires_search = role_type in search_required_roles
+
+        logger.info(f"🔄 [v7.129 Retry] {role_id} 开始执行（最多{max_retries}次重试）")
+        logger.info(f"   需要搜索工具: {'是' if requires_search else '否'}")
+
+        attempt = 0
+        last_result = None
+
+        while attempt < max_retries:
+            attempt += 1
+            logger.info(f"📍 [v7.129 Retry] {role_id} 第 {attempt}/{max_retries} 次尝试")
+
+            # 如果是重试，增强prompt以强调工具使用
+            if attempt > 1 and requires_search:
+                logger.info(f"🔧 [v7.129 Retry] {role_id} 增强prompt（第{attempt}次尝试）")
+                # 在task_instruction中添加强制工具使用提示
+                task_instruction = role_object.get("task_instruction", {})
+
+                # 🔥 渐进式增强策略
+                if attempt == 2:
+                    # 第2次：温和提醒
+                    task_instruction["execution_notes"] = (
+                        task_instruction.get("execution_notes", "")
+                        + "\n\n⚠️ IMPORTANT: 请务必使用搜索工具（tavily_search, arxiv_search等）进行研究，"
+                        + "不要仅凭内部知识生成内容。至少调用3个不同的工具。"
+                    )
+                elif attempt == 3:
+                    # 第3次：强烈要求
+                    task_instruction["execution_notes"] = (
+                        task_instruction.get("execution_notes", "")
+                        + "\n\n🔴 CRITICAL: 前两次尝试未使用搜索工具，这是不可接受的！"
+                        + "你必须调用至少5次搜索工具（tavily_search, arxiv_search, bocha_search）。"
+                        + "每个deliverable都需要有外部搜索支持。立即开始使用工具！"
+                    )
+
+                role_object["task_instruction"] = task_instruction
+
+            # 执行专家分析
+            try:
+                result = await self.execute_expert(role_object=role_object, context=context, state=state, tools=tools)
+
+                last_result = result
+
+                # 检查工具使用情况（通过structured_output中的protocol_execution）
+                if requires_search and tools:
+                    structured_output = result.get("structured_output", {})
+                    protocol_exec = structured_output.get("protocol_execution", {})
+                    tools_used = protocol_exec.get("tools_used", [])
+
+                    if len(tools_used) == 0:
+                        logger.warning(f"⚠️ [v7.129 Retry] {role_id} 第{attempt}次尝试未使用任何工具")
+
+                        if attempt < max_retries:
+                            logger.info(f"🔄 [v7.129 Retry] {role_id} 准备重试...")
+                            continue  # 继续下一次尝试
+                        else:
+                            logger.error(f"❌ [v7.129 Retry] {role_id} 已达最大重试次数，但仍未使用工具")
+
+                            # 🆕 v7.129 Week2 P2: 触发搜索降级策略
+                            logger.warning(f"🔻 [v7.129 Fallback] {role_id} 触发搜索降级策略")
+                            try:
+                                fallback_refs = await self._execute_fallback_search(
+                                    role_object=role_object, context=context, state=state, tools=tools
+                                )
+
+                                if fallback_refs:
+                                    logger.info(f"✅ [v7.129 Fallback] {role_id} 降级搜索获得 {len(fallback_refs)} 条引用")
+
+                                    # 将降级搜索结果添加到state
+                                    if add_references_to_state and state:
+                                        existing_refs = state.get("search_references", [])
+                                        state["search_references"] = existing_refs + fallback_refs
+                                        logger.info(f"📚 [v7.129 Fallback] 已将降级搜索结果添加到state")
+
+                                    # 添加降级标记到警告
+                                    result["warnings"] = result.get("warnings", [])
+                                    result["warnings"].append(
+                                        {
+                                            "type": "fallback_search_executed",
+                                            "message": f"LLM未主动调用工具，系统自动执行了降级搜索",
+                                            "fallback_references_count": len(fallback_refs),
+                                        }
+                                    )
+                                else:
+                                    logger.warning(f"⚠️ [v7.129 Fallback] {role_id} 降级搜索未获得结果")
+                            except Exception as fallback_error:
+                                logger.error(f"❌ [v7.129 Fallback] {role_id} 降级搜索失败: {fallback_error}")
+
+                            # 添加工具缺失警告标记到结果
+                            result["warnings"] = result.get("warnings", [])
+                            result["warnings"].append(
+                                {
+                                    "type": "missing_tool_usage",
+                                    "message": f"角色{role_id}应使用搜索工具但未执行，已尝试{max_retries}次",
+                                    "impact": "结果可能缺乏外部验证和最新信息",
+                                }
+                            )
+                            # 降低confidence
+                            result["confidence"] = min(0.6, result.get("confidence", 1.0))
+                    else:
+                        logger.info(f"✅ [v7.129 Retry] {role_id} 第{attempt}次尝试成功使用了工具: {tools_used}")
+                        # 成功使用工具，退出重试循环
+                        break
+                else:
+                    # 不需要搜索工具的角色，或未提供工具，直接成功
+                    logger.info(f"✅ [v7.129 Retry] {role_id} 执行成功（无需工具检查）")
+                    break
+
+            except Exception as e:
+                logger.error(f"❌ [v7.129 Retry] {role_id} 第{attempt}次尝试失败: {e}")
+                if attempt >= max_retries:
+                    logger.error(f"❌ [v7.129 Retry] {role_id} 已达最大重试次数，返回失败结果")
+                    # 返回最后一次的结果或错误结果
+                    if last_result:
+                        return last_result
+                    else:
+                        raise
+                else:
+                    logger.info(f"🔄 [v7.129 Retry] {role_id} 准备重试...")
+                    continue
+
+        logger.info(f"🏁 [v7.129 Retry] {role_id} 执行完成（共{attempt}次尝试）")
+        return last_result
 
     def _get_role_config_filename(self, role_id: str) -> str:
         """
@@ -870,6 +1580,110 @@ class TaskOrientedExpertFactory:
                 "dependencies_satisfied": True,
             },
         }
+
+    def _calibrate_quality_scores(
+        self, structured_output: Dict[str, Any], recorder: Optional[Any] = None
+    ) -> Dict[str, Any]:
+        """
+        🆕 v7.154: 自评分校准 - 基于内容特征客观调整LLM自评分
+
+        LLM自评分往往虚高（都在0.9+），此方法基于客观指标进行校准：
+        1. 内容长度：过短的内容降低评分
+        2. 搜索引用：缺少真实引用降低评分
+        3. 具体案例：缺少具体案例降低评分
+        4. 数据支撑：缺少数据支撑降低评分
+
+        🔧 v7.154.1: 调整惩罚系数，使校准更温和
+        - 原惩罚总和最高 0.33，导致 0.95 → 0.62
+        - 新惩罚总和最高 0.20，使 0.95 → 0.75
+
+        Args:
+            structured_output: 专家的结构化输出
+            recorder: 工具调用记录器（用于检查搜索引用）
+
+        Returns:
+            校准后的结构化输出
+        """
+        try:
+            task_exec_report = structured_output.get("task_execution_report", {})
+            deliverable_outputs = task_exec_report.get("deliverable_outputs", [])
+
+            if not deliverable_outputs:
+                return structured_output
+
+            # 获取真实搜索引用数量
+            real_search_refs_count = 0
+            if recorder:
+                search_refs = recorder.get_search_references()
+                # 过滤掉占位符URL
+                real_search_refs_count = len(
+                    [
+                        ref
+                        for ref in search_refs
+                        if ref.get("url")
+                        and not any(
+                            placeholder in ref.get("url", "").lower()
+                            for placeholder in ["example.com", "example2.com", "placeholder"]
+                        )
+                    ]
+                )
+
+            for deliverable in deliverable_outputs:
+                original_score = deliverable.get("quality_self_assessment", 0.9)
+                content = deliverable.get("content", "")
+
+                # 计算惩罚 (🔧 v7.154.1: 调整惩罚系数)
+                penalties = 0.0
+
+                # 1. 内容长度惩罚 (降低惩罚)
+                content_length = len(str(content)) if content else 0
+                if content_length < 200:
+                    penalties += 0.10  # 原 0.15
+                    logger.debug(f"  📉 内容过短惩罚: -0.10 (长度: {content_length})")
+                elif content_length < 500:
+                    penalties += 0.03  # 原 0.05
+                    logger.debug(f"  📉 内容较短惩罚: -0.03 (长度: {content_length})")
+
+                # 2. 搜索引用惩罚 (降低惩罚)
+                if real_search_refs_count == 0:
+                    penalties += 0.05  # 原 0.1
+                    logger.debug(f"  📉 缺少搜索引用惩罚: -0.05")
+                elif real_search_refs_count < 3:
+                    penalties += 0.02  # 原 0.05
+                    logger.debug(f"  📉 搜索引用较少惩罚: -0.02 (数量: {real_search_refs_count})")
+
+                # 3. 具体案例检测 (降低惩罚)
+                content_str = str(content).lower() if content else ""
+                case_keywords = ["案例", "例如", "比如", "实例", "case", "example"]
+                has_cases = any(kw in content_str for kw in case_keywords)
+                if not has_cases:
+                    penalties += 0.03  # 原 0.05
+                    logger.debug(f"  📉 缺少具体案例惩罚: -0.03")
+
+                # 4. 数据支撑检测 (降低惩罚)
+                data_patterns = ["数据", "统计", "调研", "研究表明", "%", "比例", "增长"]
+                has_data = any(pattern in content_str for pattern in data_patterns)
+                if not has_data:
+                    penalties += 0.02  # 原 0.03
+                    logger.debug(f"  📉 缺少数据支撑惩罚: -0.02")
+
+                # 计算校准后的评分 (🔧 v7.154.1: 提高最低分)
+                calibrated_score = max(0.6, original_score - penalties)  # 原 0.5
+
+                if penalties > 0:
+                    deliverable_name = deliverable.get("deliverable_name", "未知")
+                    logger.info(
+                        f"📊 [v7.154] 自评分校准: {deliverable_name} "
+                        f"{original_score:.2f} → {calibrated_score:.2f} (惩罚: -{penalties:.2f})"
+                    )
+                    deliverable["quality_self_assessment"] = calibrated_score
+                    deliverable["quality_calibration_note"] = f"原始评分{original_score:.2f}，校准后{calibrated_score:.2f}"
+
+            return structured_output
+
+        except Exception as e:
+            logger.warning(f"⚠️ [v7.154] 自评分校准失败: {e}")
+            return structured_output
 
     def _extract_meaningful_content(self, raw_output: str) -> Any:
         """
@@ -1471,6 +2285,252 @@ class TaskOrientedExpertFactory:
     def _get_timestamp(self) -> str:
         """获取当前时间戳"""
         return datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    def _extract_full_deliverable_content(self, structured_output: Dict[str, Any]) -> str:
+        """
+        🆕 v7.128: 提取所有交付物的完整内容（用于概念图生成）
+
+        Args:
+            structured_output: 专家结构化输出
+
+        Returns:
+            拼接后的完整内容（包含设计理念、空间布局、材料选型等所有细节）
+            格式：## 交付物名称1\n\n详细内容...\n\n## 交付物名称2\n\n详细内容...
+        """
+        task_exec_report = structured_output.get("task_execution_report", {})
+        deliverable_outputs = task_exec_report.get("deliverable_outputs", [])
+
+        full_content = []
+        for deliverable in deliverable_outputs:
+            name = deliverable.get("deliverable_name", "")
+            content = deliverable.get("content", "")
+            if content:
+                full_content.append(f"## {name}\n\n{content}")
+
+        result = "\n\n".join(full_content) if full_content else ""
+        logger.debug(f"[v7.128] 提取完整内容长度: {len(result)} 字符")
+        return result
+
+    def _extract_deliverable_specific_content(
+        self, structured_output: Dict[str, Any], deliverable_metadata: dict
+    ) -> str:
+        """
+        🆕 v7.128: 提取特定交付物的完整分析内容
+
+        Args:
+            structured_output: 专家结构化输出
+            deliverable_metadata: 交付物元数据（包含name）
+
+        Returns:
+            该交付物的完整分析内容（最多3000字）
+        """
+        deliverable_name = deliverable_metadata.get("name", "")
+
+        task_exec_report = structured_output.get("task_execution_report", {})
+        deliverable_outputs = task_exec_report.get("deliverable_outputs", [])
+
+        # 精准匹配交付物名称
+        for deliverable in deliverable_outputs:
+            if deliverable.get("deliverable_name") == deliverable_name:
+                content = deliverable.get("content", "")
+                limited_content = content[:3000]  # 限制3000字
+                logger.info(f"[v7.128] 为交付物 '{deliverable_name}' 提取专家分析: {len(limited_content)} 字符")
+                return limited_content
+
+        # 降级：返回所有内容的拼接
+        all_content = "\n\n".join(d.get("content", "") for d in deliverable_outputs)
+        limited_content = all_content[:3000]
+        logger.warning(f"[v7.128] 未找到交付物 '{deliverable_name}' 的精准匹配，返回所有内容: {len(limited_content)} 字符")
+        return limited_content
+
+    async def _execute_fallback_search(
+        self,
+        role_object: Dict[str, Any],
+        context: str,
+        state: ProjectAnalysisState,
+        tools: Optional[List[Any]] = None,
+    ) -> List[Dict[str, Any]]:
+        """
+        🆕 v7.129 Week2 P2: 执行降级搜索
+
+        当LLM未主动调用工具时，系统自动执行搜索作为后备方案，
+        确保至少有基本的搜索引用。优先级: Serper > Tavily > Bocha (v7.130+)
+
+        Args:
+            role_object: 角色对象
+            context: 项目上下文
+            state: 当前状态
+            tools: 可用的工具列表
+
+        Returns:
+            搜索引用列表
+        """
+        role_id = role_object.get("role_id", "unknown")
+        logger.info(f"🔻 [v7.129 Fallback] {role_id} 开始执行降级搜索")
+
+        search_references = []
+
+        try:
+            # 1. 从tools中找到搜索工具（优先博查 → Tavily → Milvus）
+            bocha_tool = None
+            tavily_tool = None
+            serper_tool = None
+
+            if tools:
+                for tool in tools:
+                    tool_name = getattr(tool, "name", "")
+                    if "bocha" in tool_name.lower():
+                        bocha_tool = tool
+                    elif "tavily" in tool_name.lower():
+                        tavily_tool = tool
+                    elif "serper" in tool_name.lower():
+                        serper_tool = tool
+
+            # 2. 如果tools中没有，从ToolFactory创建（博查优先）
+            if not bocha_tool and not tavily_tool and not serper_tool:
+                logger.info(f"📦 [v7.129 Fallback] {role_id} 从ToolFactory创建搜索工具")
+                from ..services.tool_factory import ToolFactory
+
+                try:
+                    bocha_tool = ToolFactory.create_bocha_tool()
+                    logger.info(f"✅ [v7.129 Fallback] 博查工具创建成功（优先）")
+                except Exception as e:
+                    logger.warning(f"⚠️ [v7.129 Fallback] 博查工具创建失败: {e}")
+                    try:
+                        tavily_tool = ToolFactory.create_tavily_tool()
+                        logger.info(f"✅ [v7.129 Fallback] Tavily工具创建成功（降级）")
+                    except Exception as e2:
+                        logger.warning(f"⚠️ [v7.129 Fallback] Tavily工具也创建失败: {e2}")
+                        try:
+                            serper_tool = ToolFactory.create_serper_tool()
+                            logger.info(f"✅ [v7.129 Fallback] Serper工具创建成功（二次降级）")
+                        except Exception as e3:
+                            logger.error(f"❌ [v7.129 Fallback] 所有搜索工具创建失败: {e3}")
+
+            # 3. 提取搜索查询关键词
+            task_instruction = role_object.get("task_instruction", {})
+            deliverables = task_instruction.get("deliverables", [])
+
+            # 构建基本搜索查询
+            user_input = state.get("user_input", "")
+            base_query = user_input[:100] if user_input else context[:100]
+
+            # 生成搜索查询列表（最多3个）
+            search_queries = []
+
+            # Query 1: 基于用户输入
+            if user_input:
+                search_queries.append(base_query + " 设计案例 2025")
+
+            # Query 2: 基于第一个deliverable
+            if deliverables and len(deliverables) > 0:
+                first_deliverable = deliverables[0].get("name", "")
+                if first_deliverable:
+                    search_queries.append(f"{first_deliverable} 最佳实践")
+
+            # Query 3: 基于角色名称
+            role_name = role_object.get("dynamic_role_name", role_object.get("role_name", ""))
+            if role_name:
+                search_queries.append(f"{role_name} 专业分析方法")
+
+            # 确保至少有1个查询
+            if not search_queries:
+                search_queries.append(base_query)
+
+            # 限制最多3个查询
+            search_queries = search_queries[:3]
+
+            logger.info(f"🔍 [v7.129 Fallback] {role_id} 执行 {len(search_queries)} 个搜索查询")
+
+            # 4. 执行搜索
+            for idx, query in enumerate(search_queries, 1):
+                try:
+                    logger.info(f"   [{idx}/{len(search_queries)}] 查询: {query[:50]}...")
+
+                    # 🌍 智能语言感知路由：根据查询语言选择最佳工具
+                    # 策略：中文查询 → 博查（中文专用）→ Tavily（全球覆盖）→ Serper
+                    #      英文查询 → Tavily（全球覆盖）→ 博查 → Serper
+
+                    def is_chinese_query(text: str) -> bool:
+                        """判断是否为中文查询（包含中文字符）"""
+                        return any("\u4e00" <= char <= "\u9fff" for char in text)
+
+                    is_chinese = is_chinese_query(query)
+
+                    # 🔥 v7.131: 语言感知路由 - 中文查询优先使用博查
+                    if is_chinese:
+                        # 中文查询: Bocha → Tavily → Serper
+                        tool_to_use = bocha_tool if bocha_tool else (tavily_tool if tavily_tool else serper_tool)
+                        if bocha_tool:
+                            logger.info(f"🇨🇳 [Fallback] 中文查询 '{query[:30]}...'，使用博查（中文专用）")
+                        elif tavily_tool:
+                            logger.warning(f"⚠️ [Fallback] 博查不可用，降级至Tavily")
+                        elif serper_tool:
+                            logger.warning(f"⚠️ [Fallback] 博查和Tavily不可用，降级至Serper")
+                    else:
+                        # 英文查询: Tavily → Bocha → Serper
+                        tool_to_use = tavily_tool if tavily_tool else (bocha_tool if bocha_tool else serper_tool)
+                        if tavily_tool:
+                            logger.info(f"🌍 [Fallback] 英文查询，使用Tavily（全球覆盖）")
+                        elif bocha_tool:
+                            logger.warning(f"⚠️ [Fallback] Tavily不可用，降级至博查")
+                        elif serper_tool:
+                            logger.warning(f"⚠️ [Fallback] Tavily和博查不可用，降级至Serper")
+
+                    if not tool_to_use:
+                        logger.error(f"❌ [v7.129 Fallback] 无可用搜索工具")
+                        break
+
+                    # 调用工具
+                    search_result = await tool_to_use.ainvoke({"query": query})
+
+                    # 解析结果
+                    if isinstance(search_result, dict):
+                        results_list = search_result.get("results", [])
+                    elif isinstance(search_result, list):
+                        results_list = search_result
+                    else:
+                        # 尝试解析字符串结果
+                        import json
+
+                        try:
+                            parsed = json.loads(str(search_result))
+                            results_list = parsed.get("results", []) if isinstance(parsed, dict) else []
+                        except:
+                            logger.warning(f"⚠️ [v7.129 Fallback] 无法解析搜索结果: {type(search_result)}")
+                            results_list = []
+
+                    # 转换为search_references格式
+                    for result in results_list[:5]:  # 每个查询最多5条结果
+                        ref = {
+                            "title": result.get("title", ""),
+                            "url": result.get("url", ""),
+                            "snippet": result.get("snippet", result.get("content", ""))[:500],
+                            "source": f"fallback_{tool_to_use.name}"
+                            if hasattr(tool_to_use, "name")
+                            else "fallback_search",
+                            "query": query,
+                            "role_id": role_id,
+                            "deliverable_id": f"{role_id}_fallback",
+                            "timestamp": self._get_timestamp(),
+                        }
+                        search_references.append(ref)
+
+                    logger.info(f"   ✅ 查询{idx}获得 {len(results_list)} 条结果")
+
+                except Exception as search_error:
+                    logger.error(f"   ❌ 查询{idx}失败: {search_error}")
+                    continue
+
+            logger.info(f"🏁 [v7.129 Fallback] {role_id} 降级搜索完成，共获得 {len(search_references)} 条引用")
+
+        except Exception as e:
+            logger.error(f"❌ [v7.129 Fallback] {role_id} 降级搜索异常: {e}")
+            import traceback
+
+            traceback.print_exc()
+
+        return search_references
 
 
 # 兼容性接口：为现有代码提供平滑过渡
