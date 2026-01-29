@@ -9015,7 +9015,21 @@ L3张力: {json.dumps(analysis_excerpt["l3_tension"], ensure_ascii=False)[:300]}
         if project_context:
             framework.collected_evidence["_project_context"] = [project_context]
         if deliverables and isinstance(deliverables, list):
+            # v7.301: 验证交付物质量
+            validation_result = self._validate_deliverables(deliverables)
+            if not validation_result["is_valid"]:
+                logger.warning(f"⚠️ [v7.301] 交付物质量不达标 | 评分={validation_result['score']:.1f} | 问题数={len(validation_result['issues'])}")
+                for issue in validation_result["issues"]:
+                    logger.warning(f"  - {issue}")
+            else:
+                logger.info(f"✅ [v7.301] 交付物质量合格 | 评分={validation_result['score']:.1f} | 数量={validation_result['deliverable_count']}")
+
             framework.collected_evidence["_deliverables"] = deliverables
+            framework.collected_evidence["_deliverables_validation"] = [
+                f"质量评分: {validation_result['score']:.1f}",
+                f"数量: {validation_result['deliverable_count']}",
+                f"问题数: {len(validation_result['issues'])}"
+            ]
         if design_requirements and isinstance(design_requirements, list):
             framework.collected_evidence["_design_requirements"] = design_requirements
         if final_output_format:
@@ -9191,7 +9205,64 @@ L3张力: {json.dumps(analysis_excerpt["l3_tension"], ensure_ascii=False)[:300]}
             logger.info(f"    使用默认信息面: {len(framework.key_aspects)}个")
 
         return framework
-    
+
+    def _validate_deliverables(self, deliverables: List[str]) -> Dict[str, Any]:
+        """
+        验证交付物质量 - v7.301 新增
+
+        检查交付物是否符合质量标准：
+        1. 数量：10-15 项
+        2. 具体性：包含动词 + 具体对象
+        3. 长度：每项至少 8 个字符
+
+        Returns:
+            Dict with 'is_valid', 'issues', 'score'
+        """
+        issues = []
+        score = 100.0
+
+        # 检查数量
+        if len(deliverables) < 10:
+            issues.append(f"交付物数量不足：{len(deliverables)}/10（最少）")
+            score -= 20
+        elif len(deliverables) > 15:
+            issues.append(f"交付物数量过多：{len(deliverables)}/15（最多）")
+            score -= 10
+
+        # 检查每个交付物的质量
+        action_verbs = ["解析", "设计", "规划", "选择", "制定", "分析", "研究", "提取", "创作", "构建", "评估", "优化"]
+        generic_count = 0
+
+        for i, deliverable in enumerate(deliverables, 1):
+            # 检查长度
+            if len(deliverable) < 8:
+                issues.append(f"交付物{i}过于简短：'{deliverable}'")
+                score -= 3
+                generic_count += 1
+                continue
+
+            # 检查是否包含动词
+            has_verb = any(verb in deliverable for verb in action_verbs)
+            if not has_verb:
+                issues.append(f"交付物{i}缺少动词：'{deliverable}'")
+                score -= 2
+                generic_count += 1
+
+        # 如果超过 30% 的交付物有问题，标记为不合格
+        if generic_count > len(deliverables) * 0.3:
+            issues.append(f"过多泛化交付物：{generic_count}/{len(deliverables)}")
+            score -= 15
+
+        is_valid = score >= 70  # 70分及格
+
+        return {
+            "is_valid": is_valid,
+            "score": max(0, score),
+            "issues": issues,
+            "deliverable_count": len(deliverables),
+            "generic_count": generic_count
+        }
+
     async def _analyze_question(
         self,
         query: str,
