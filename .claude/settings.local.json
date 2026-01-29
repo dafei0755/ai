@@ -1,7 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "Bash(git reset)"
+      "Bash(git reset)",
+      "Bash(python -c \"\nimport sys\nsys.path.insert\\(0, ''..''\\)\n\n# The issue is that the YAML template contains JSON examples with curly braces\n# Python''s .format\\(\\) tries to interpret ALL curly braces as placeholders\n# We need to escape them by doubling: { -> {{ and } -> }}\n\nprint\\(''The problem:''\\)\nprint\\(''='' * 60\\)\nprint\\(''The YAML template contains JSON examples like:''\\)\nprint\\(''  {\"\"mission_1_user_problem_analysis\"\": {...}}''\\)\nprint\\(''''\\)\nprint\\(''Python .format\\(\\) sees these { } as placeholders and fails.''\\)\nprint\\(''''\\)\nprint\\(''Solution: We need to modify the code to NOT use .format\\(\\)''\\)\nprint\\(''Instead, use simple string replacement.''\\)\n\")"
     ]
   }
 }

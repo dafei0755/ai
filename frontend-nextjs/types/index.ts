@@ -903,6 +903,136 @@ export interface EditableSearchStep {
   isNew?: boolean;
 }
 
+// ==================== 🔥 v7.302: 4条使命框架类型 ====================
+
+/** 使命1：用户问题分析 */
+export interface Mission1UserProblemAnalysis {
+  title: string;
+  description: string;
+  content: {
+    user_identity: string;
+    project_type: string;
+    project_location: string;
+    project_scale: string;
+    core_theme: string;
+    key_constraints: string[];
+    user_motivation: string;
+    core_tension: string;
+  };
+}
+
+/** 使命2：明确目标 - 交付物项 */
+export interface DeliverableItem {
+  id: string;
+  name: string;
+  description: string;
+  priority: 'MUST_HAVE' | 'NICE_TO_HAVE';
+}
+
+/** 使命2：明确目标 */
+export interface Mission2ClearObjectives {
+  title: string;
+  description: string;
+  content: {
+    final_deliverable_type: string;
+    output_format: string;
+    key_deliverables: DeliverableItem[];
+    success_criteria: string[];
+    target_audience: string;
+  };
+}
+
+/** 使命3：任务维度 - 关键步骤 */
+export interface KeyStep {
+  step_id: string;
+  action: string;
+  purpose: string;
+  expected_output: string;
+}
+
+/** 使命3：任务维度 - 突破点 */
+export interface BreakthroughPoint {
+  point: string;
+  why_key: string;
+  how_to_leverage: string;
+}
+
+/** 使命3：任务维度 */
+export interface Mission3TaskDimensions {
+  title: string;
+  description: string;
+  content: {
+    task_type: 'design' | 'research' | 'analysis' | 'planning';
+    complexity_level: 'simple' | 'moderate' | 'complex' | 'highly_complex';
+    solution_approach: string;
+    key_steps: KeyStep[];
+    breakthrough_points: BreakthroughPoint[];
+    required_expertise: string[];
+  };
+}
+
+/** 使命4：执行要求 */
+export interface Mission4ExecutionRequirements {
+  title: string;
+  description: string;
+  content: {
+    quality_standards: string[];
+    constraints_to_respect: string[];
+    anti_patterns: string[];
+    risk_alerts: string[];
+    recommended_tools: string[];
+  };
+}
+
+/** 分析质量元数据 */
+export interface AnalysisQuality {
+  l5_sharpness_score: number;
+  deliverables_validation_score: number;
+  overall_confidence: number;
+}
+
+/** L1-L5 分析层（存储在metadata中） */
+export interface AnalysisLayers {
+  L1_facts: string[];
+  L2_user_model: {
+    psychological: string;
+    sociological: string;
+    aesthetic: string;
+  };
+  L3_core_tension: string;
+  L4_search_task: string;
+  L5_sharpness: {
+    score: number;
+    specificity: string;
+    actionability: string;
+    depth: string;
+  };
+}
+
+/** 人性维度（存储在metadata中） */
+export interface HumanDimensionsMetadata {
+  enabled: boolean;
+  emotional_landscape: string;
+  spiritual_aspirations: string;
+  psychological_safety_needs: string;
+  ritual_behaviors: string;
+  memory_anchors: string;
+}
+
+/** 4条使命完整结构 */
+export interface FourMissions {
+  mission_1_user_problem_analysis: Mission1UserProblemAnalysis;
+  mission_2_clear_objectives: Mission2ClearObjectives;
+  mission_3_task_dimensions: Mission3TaskDimensions;
+  mission_4_execution_requirements: Mission4ExecutionRequirements;
+  creation_command: string;
+  metadata: {
+    analysis_quality: AnalysisQuality;
+    analysis_layers: AnalysisLayers;
+    human_dimensions: HumanDimensionsMetadata;
+  };
+}
+
 /** v7.300: 第1步分析输出 - 复用 L0-L5 框架 */
 export interface Step1AnalysisOutput {
   // L0: 用户画像

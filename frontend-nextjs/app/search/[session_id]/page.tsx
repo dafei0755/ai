@@ -48,8 +48,9 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import ImageViewer from '@/components/search/ImageViewer';
 import DeepAnalysisCard from '@/components/search/DeepAnalysisCard';
+import FourMissionsDisplay from '@/components/search/FourMissionsDisplay';  // v7.302: 4条使命展示
 import Step2TaskListEditor from '@/components/search/Step2TaskListEditor';  // v7.300: 可编辑任务列表
-import type { DeepAnalysisResult, Step2SearchPlan, EditableSearchStep } from '@/types';
+import type { DeepAnalysisResult, Step2SearchPlan, EditableSearchStep, FourMissions } from '@/types';
 // v7.290: 搜索页面为独立体验，移除侧边栏组件
 
 // 类型定义
@@ -238,6 +239,9 @@ interface SearchState {
   // 🆕 v7.280: 深度分析结果
   deepAnalysisResult: DeepAnalysisResult | null;
 
+  // 🆕 v7.302: 4条使命结果
+  fourMissionsResult: FourMissions | null;
+
   // v7.218: 分析进度状态（解决164秒无进度提示问题）
   analysisProgress: {
     stage: string;
@@ -363,11 +367,8 @@ const TaskUnderstandingCard = ({ content, isExpanded, onToggle, isLoading, isWai
 
   return (
     <div className="ucppt-card">
-      {/* v7.243: 标题栏 - 使用统一样式类 */}
-      <div
-        className={`ucppt-card-header ${shouldExpand ? 'ucppt-card-header-expanded' : 'ucppt-card-header-collapsed'}`}
-        onClick={onToggle}
-      >
+      {/* v7.243: 标题栏 - 使用统一样式类 - v7.300: 移除折叠功能，始终展开 */}
+      <div className="ucppt-card-header ucppt-card-header-expanded">
         <div className="flex items-center gap-3">
           <div className={`ucppt-icon-circle ${isWaiting && !content ? 'ucppt-icon-indigo' : 'ucppt-icon-blue'}`}>
             {isWaiting && !content ? (
@@ -382,13 +383,10 @@ const TaskUnderstandingCard = ({ content, isExpanded, onToggle, isLoading, isWai
             </span>
           </div>
         </div>
-        <ChevronRight
-          className={`w-5 h-5 text-gray-400 transition-transform ${shouldExpand ? 'rotate-90' : ''}`}
-        />
       </div>
 
-      {/* 对话内容 - v7.219: 流式输出时也显示内容 */}
-      {shouldExpand && content && (
+      {/* 对话内容 - v7.219: 流式输出时也显示内容 - v7.300: 始终展开显示 */}
+      {content && (
         <div className="px-4 py-3 border-t border-gray-200 dark:border-gray-700">
           <div className="prose prose-sm max-w-none dark:prose-invert">
             <div className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-wrap">
@@ -416,8 +414,8 @@ const TaskUnderstandingCard = ({ content, isExpanded, onToggle, isLoading, isWai
         </div>
       )} */}
 
-      {/* 加载中占位（流式输出开始但暂无内容时显示） */}
-      {shouldExpand && isLoading && !isWaiting && !content && (
+      {/* 加载中占位（流式输出开始但暂无内容时显示） - v7.300: 始终显示 */}
+      {isLoading && !isWaiting && !content && (
         <div className="px-4 py-3 border-t border-gray-200 dark:border-gray-700 flex items-center gap-2 text-blue-500">
           <Loader2 className="w-4 h-4 animate-spin" />
           <span className="text-sm">正在理解您的需求并进行深度分析...</span>
@@ -595,11 +593,8 @@ const FrameworkChecklistCard = ({
 
   return (
     <div className="ucppt-card">
-      {/* v7.243: 标题栏 - 使用统一样式类 */}
-      <div
-        className={`ucppt-card-header ${isExpanded ? 'ucppt-card-header-expanded' : 'ucppt-card-header-collapsed'}`}
-        onClick={onToggle}
-      >
+      {/* v7.243: 标题栏 - 使用统一样式类 - v7.300: 移除折叠功能，始终展开 */}
+      <div className="ucppt-card-header ucppt-card-header-expanded">
         <div className="flex items-center gap-3">
           <div className="ucppt-icon-circle ucppt-icon-indigo">
             <Target className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
@@ -608,43 +603,19 @@ const FrameworkChecklistCard = ({
             <span className="ucppt-title-indigo">
               搜索框架清单
             </span>
-            <span className="ucppt-badge ucppt-badge-indigo">
-              {checklist.main_directions.length}个方向
-            </span>
-            {onUpdateChecklist && (
-              <span className="text-xs text-gray-400 dark:text-gray-500 hidden sm:inline">
-                (可编辑)
-              </span>
-            )}
+            {/* 已隐藏: {checklist.main_directions.length}个方向 徽章 */}
+            {/* 已隐藏: (可编辑) 文本 */}
           </div>
         </div>
-        <ChevronRight
-          className={`w-5 h-5 text-gray-400 transition-transform ${isExpanded ? 'rotate-90' : ''}`}
-        />
       </div>
 
-      {/* 内容区域 */}
-      {isExpanded && (
-        <div className="ucppt-card-content space-y-4">
-          {/* 核心问题 */}
-          <div className="bg-indigo-50 dark:bg-indigo-900/20 rounded-lg p-3 border border-indigo-200 dark:border-indigo-700">
-            <div className="text-xs text-indigo-500 dark:text-indigo-400 mb-1 font-medium">
-              核心问题
-            </div>
-            <div className="text-sm text-indigo-700 dark:text-indigo-300 font-medium">
-              {checklist.core_summary}
-            </div>
-          </div>
+      {/* 内容区域 - v7.300: 始终显示 */}
+      <div className="ucppt-card-content space-y-4">
+        {/* 已隐藏: 核心问题卡片 */}
 
-          {/* 搜索主线 - 可编辑版本 */}
+        {/* 搜索主线 - 可编辑版本 */}
           <div>
-            <div className="text-xs text-gray-500 dark:text-gray-400 mb-2 font-medium flex items-center gap-1">
-              <ListChecks className="w-3.5 h-3.5" />
-              搜索主线
-              {onUpdateChecklist && (
-                <span className="text-xs text-indigo-400 ml-2">💡 点击内容可编辑</span>
-              )}
-            </div>
+            {/* 已隐藏: 搜索主线标题和可编辑提示 */}
             <div className="space-y-2">
               {checklist.main_directions.map((direction, index) => (
                 <div
@@ -711,57 +682,66 @@ const FrameworkChecklistCard = ({
             {onUpdateChecklist && (
               <div className="mt-3">
                 {isAddingNew ? (
-                  <div className="bg-indigo-50 dark:bg-indigo-900/20 rounded-lg p-3 border border-indigo-300 dark:border-indigo-600 space-y-2">
-                    <input
-                      type="text"
-                      value={newDirection.direction}
-                      onChange={(e) => setNewDirection({ ...newDirection, direction: e.target.value })}
-                      className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-                      placeholder="搜索方向名称..."
-                    />
-                    <input
-                      type="text"
-                      value={newDirection.purpose}
-                      onChange={(e) => setNewDirection({ ...newDirection, purpose: e.target.value })}
-                      className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-                      placeholder="搜索目的..."
-                    />
-                    <input
-                      type="text"
-                      value={newDirection.expected_outcome}
-                      onChange={(e) => setNewDirection({ ...newDirection, expected_outcome: e.target.value })}
-                      className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-                      placeholder="期望结果..."
-                    />
-                    <div className="flex gap-2 pt-1">
-                      <button
-                        onClick={handleAddNew}
-                        disabled={!newDirection.direction.trim()}
-                        className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-white bg-indigo-500 hover:bg-indigo-600 rounded disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        <Check className="w-3.5 h-3.5" />
-                        添加
-                      </button>
+                  <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-700">
+                    <div className="flex items-start gap-2 mb-3">
+                      <span className="flex-shrink-0 w-5 h-5 rounded-full bg-indigo-500 text-white text-xs flex items-center justify-center font-medium mt-0.5">
+                        {checklist.main_directions.length + 1}
+                      </span>
+                      <div className="flex-1 space-y-2">
+                        <textarea
+                          value={newDirection.direction}
+                          onChange={(e) => setNewDirection({ ...newDirection, direction: e.target.value })}
+                          className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-200 focus:ring-2 focus:ring-indigo-500 focus:outline-none resize-none"
+                          placeholder="输入搜索方向名称..."
+                          rows={2}
+                        />
+                        <textarea
+                          value={newDirection.purpose}
+                          onChange={(e) => setNewDirection({ ...newDirection, purpose: e.target.value })}
+                          className="w-full px-3 py-2 text-xs border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-400 focus:ring-2 focus:ring-indigo-500 focus:outline-none resize-none"
+                          placeholder="目的: 描述搜索目的..."
+                          rows={2}
+                        />
+                        <textarea
+                          value={newDirection.expected_outcome}
+                          onChange={(e) => setNewDirection({ ...newDirection, expected_outcome: e.target.value })}
+                          className="w-full px-3 py-2 text-xs border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-400 focus:ring-2 focus:ring-indigo-500 focus:outline-none resize-none"
+                          placeholder="期望: 描述期望结果..."
+                          rows={2}
+                        />
+                      </div>
+                    </div>
+                    <div className="flex gap-2 justify-end">
                       <button
                         onClick={() => {
                           setIsAddingNew(false);
                           setNewDirection({ direction: '', purpose: '', expected_outcome: '' });
                         }}
-                        className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-gray-600 dark:text-gray-400 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 rounded"
+                        className="px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-400 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
                       >
-                        <X className="w-3.5 h-3.5" />
                         取消
+                      </button>
+                      <button
+                        onClick={handleAddNew}
+                        disabled={!newDirection.direction.trim()}
+                        className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      >
+                        确认添加
                       </button>
                     </div>
                   </div>
                 ) : (
-                  <button
-                    onClick={() => setIsAddingNew(true)}
-                    className="w-full flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium text-indigo-600 dark:text-indigo-400 border border-dashed border-indigo-300 dark:border-indigo-600 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-colors"
-                  >
-                    <Plus className="w-4 h-4" />
-                    添加搜索方向
-                  </button>
+                  <div className="relative flex items-center">
+                    <div className="flex-grow border-t border-dashed border-gray-300 dark:border-gray-600"></div>
+                    <button
+                      onClick={() => setIsAddingNew(true)}
+                      className="mx-3 flex-shrink-0 w-4 h-4 rounded-full bg-gray-400 dark:bg-gray-600 hover:bg-indigo-500 hover:dark:bg-indigo-600 text-white flex items-center justify-center transition-all hover:scale-110 shadow-sm"
+                      title="添加新搜索方向"
+                    >
+                      <Plus className="w-2.5 h-2.5" />
+                    </button>
+                    <div className="flex-grow border-t border-dashed border-gray-300 dark:border-gray-600"></div>
+                  </div>
                 )}
               </div>
             )}
@@ -787,18 +767,7 @@ const FrameworkChecklistCard = ({
             </div>
           )}
 
-          {/* 回答目标 */}
-          {checklist.answer_goal && (
-            <div className="bg-emerald-50 dark:bg-emerald-900/20 rounded-lg p-3 border border-emerald-200 dark:border-emerald-700">
-              <div className="text-xs text-emerald-500 dark:text-emerald-400 mb-1 font-medium flex items-center gap-1">
-                <Target className="w-3.5 h-3.5" />
-                回答目标
-              </div>
-              <div className="text-sm text-emerald-700 dark:text-emerald-300">
-                {checklist.answer_goal}
-              </div>
-            </div>
-          )}
+          {/* 已隐藏: 回答目标 */}
 
           {/* v7.250 新增：深度分析洞察 */}
           {(checklist.user_context?.identity || checklist.key_entities?.length || checklist.core_tension || checklist.user_task) && (
@@ -870,7 +839,6 @@ const FrameworkChecklistCard = ({
             </div>
           )}
         </div>
-      )}
     </div>
   );
 };
@@ -1475,6 +1443,8 @@ export default function SearchResultPage() {
     frameworkChecklist: null,
     // 🆕 v7.280: 深度分析结果
     deepAnalysisResult: null,
+    // 🆕 v7.302: 4条使命结果
+    fourMissionsResult: null,
     // v7.218: 分析进度
     analysisProgress: null,
     // v7.226: 对话缓冲区
@@ -1690,6 +1660,8 @@ export default function SearchResultPage() {
               qualityAssessment: session.qualityAssessment || null,
               // v7.280: 深度分析结果
               deepAnalysisResult: session.deepAnalysisResult || null,
+              // v7.302: 4条使命结果
+              fourMissionsResult: session.fourMissionsResult || null,
               // v7.280: 等待用户确认
               awaitingConfirmation: false,
             },
@@ -2015,6 +1987,8 @@ export default function SearchResultPage() {
       awaitingConfirmation: false,
       // v7.280: 重置深度分析结果
       deepAnalysisResult: null,
+      // v7.302: 重置4条使命结果
+      fourMissionsResult: null,
       // v7.281: 重置质量评估
       qualityAssessment: null,
     });
@@ -2653,42 +2627,63 @@ export default function SearchResultPage() {
 
       // 🆕 v7.237: 搜索框架就绪（v7.220 引入的新事件，替代 search_master_line_ready）
       // v7.301: 简化处理，只保留 frameworkChecklist，移除 masterLine 转换
+      // v7.302: 检测并解析4条使命格式
       case 'search_framework_ready':
-        console.log('📋 [v7.301] 搜索框架就绪:', data);
+        console.log('📋 [v7.302] 搜索框架就绪:', data);
         {
-          // v7.240: 提取框架清单
-          // v7.250: 新增深度分析摘要字段
-          // v7.301: 简化处理，只保留 frameworkChecklist
-          const frameworkChecklist: FrameworkChecklist | null = data.framework_checklist ? {
-            core_summary: data.framework_checklist.core_summary || '',
-            main_directions: data.framework_checklist.main_directions || [],
-            boundaries: data.framework_checklist.boundaries || [],
-            answer_goal: data.framework_checklist.answer_goal || '',
-            generated_at: data.framework_checklist.generated_at || '',
-            plain_text: data.framework_checklist.plain_text || '',
-            // v7.250 新增字段
-            user_context: data.framework_checklist.user_context || undefined,
-            key_entities: data.framework_checklist.key_entities || undefined,
-            analysis_perspectives: data.framework_checklist.analysis_perspectives || undefined,
-            core_tension: data.framework_checklist.core_tension || undefined,
-            user_task: data.framework_checklist.user_task || undefined,
-            sharpness_check: data.framework_checklist.sharpness_check || undefined,
-          } : null;
+          // v7.302: 检测是否为4条使命格式
+          const has4Missions = data.four_missions &&
+            data.four_missions.mission_1_user_problem_analysis &&
+            data.four_missions.mission_2_clear_objectives &&
+            data.four_missions.mission_3_task_dimensions &&
+            data.four_missions.mission_4_execution_requirements;
 
-          console.log('📋 [v7.301] 框架清单接收:', {
-            hasChecklist: !!frameworkChecklist,
-            coreSummary: frameworkChecklist?.core_summary,
-            directionsCount: frameworkChecklist?.main_directions.length,
-          });
+          if (has4Missions) {
+            // v7.302: 使用4条使命格式
+            console.log('✅ [v7.302] 检测到4条使命格式');
+            const fourMissions: FourMissions = data.four_missions;
 
-          setSearchState(prev => ({
-            ...prev,
-            // v7.240: 存储框架清单（v7.301: 唯一的搜索方向展示）
-            frameworkChecklist: frameworkChecklist,
-            statusMessage: `已规划 ${frameworkChecklist?.main_directions.length || 0} 个搜索方向${data.quality_grade ? ` (${data.quality_grade})` : ''}`,
-            // v7.280: 框架就绪后进入等待确认状态，允许用户编辑搜索方向
-            awaitingConfirmation: true,
-          }));
+            setSearchState(prev => ({
+              ...prev,
+              fourMissionsResult: fourMissions,
+              statusMessage: `已完成4条使命分析`,
+              awaitingConfirmation: true,
+            }));
+          } else {
+            // v7.240: 提取框架清单（旧格式）
+            // v7.250: 新增深度分析摘要字段
+            // v7.301: 简化处理，只保留 frameworkChecklist
+            const frameworkChecklist: FrameworkChecklist | null = data.framework_checklist ? {
+              core_summary: data.framework_checklist.core_summary || '',
+              main_directions: data.framework_checklist.main_directions || [],
+              boundaries: data.framework_checklist.boundaries || [],
+              answer_goal: data.framework_checklist.answer_goal || '',
+              generated_at: data.framework_checklist.generated_at || '',
+              plain_text: data.framework_checklist.plain_text || '',
+              // v7.250 新增字段
+              user_context: data.framework_checklist.user_context || undefined,
+              key_entities: data.framework_checklist.key_entities || undefined,
+              analysis_perspectives: data.framework_checklist.analysis_perspectives || undefined,
+              core_tension: data.framework_checklist.core_tension || undefined,
+              user_task: data.framework_checklist.user_task || undefined,
+              sharpness_check: data.framework_checklist.sharpness_check || undefined,
+            } : null;
+
+            console.log('📋 [v7.301] 框架清单接收:', {
+              hasChecklist: !!frameworkChecklist,
+              coreSummary: frameworkChecklist?.core_summary,
+              directionsCount: frameworkChecklist?.main_directions.length,
+            });
+
+            setSearchState(prev => ({
+              ...prev,
+              // v7.240: 存储框架清单（v7.301: 唯一的搜索方向展示）
+              frameworkChecklist: frameworkChecklist,
+              statusMessage: `已规划 ${frameworkChecklist?.main_directions.length || 0} 个搜索方向${data.quality_grade ? ` (${data.quality_grade})` : ''}`,
+              // v7.280: 框架就绪后进入等待确认状态，允许用户编辑搜索方向
+              awaitingConfirmation: true,
+            }));
+          }
         }
         break;
 
@@ -4044,8 +4039,16 @@ export default function SearchResultPage() {
               />
             )}
 
+            {/* 🆕 v7.302: 4条使命展示卡片 - 优先显示新格式 */}
+            {searchState.fourMissionsResult && (
+              <FourMissionsDisplay
+                missions={searchState.fourMissionsResult}
+                className="mb-6"
+              />
+            )}
+
             {/* 🆕 v7.280: 深度分析结果卡片 - 显示完整的 L1-L5 维度和人性化维度 */}
-            {searchState.deepAnalysisResult && (
+            {searchState.deepAnalysisResult && !searchState.fourMissionsResult && (
               <DeepAnalysisCard
                 analysis={searchState.deepAnalysisResult}
                 isExpanded={deepAnalysisExpanded}
