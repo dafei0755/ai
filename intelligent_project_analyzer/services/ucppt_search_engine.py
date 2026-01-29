@@ -720,6 +720,10 @@ class SearchFramework:
     # === v7.240: 框架清单 ===
     framework_checklist: Optional["FrameworkChecklist"] = None
 
+    # === v7.300: 交付物和输出格式 ===
+    deliverables: List[str] = field(default_factory=list)  # 交付物清单（10-15项）
+    final_output_format: str = ""                          # 最终输出格式说明
+
     def get_next_target(self) -> Optional[SearchTarget]:
         """获取下一个待搜索的目标"""
         # 按优先级排序，返回第一个未完成的
@@ -1043,6 +1047,11 @@ class FrameworkChecklist:
     user_task: str = ""  # L4 JTBD
     sharpness_check: Dict[str, str] = field(default_factory=dict)  # L5锐度自检
 
+    # === v7.300 新增：创作指令和交付物 ===
+    creation_command: str = ""                   # 创作指令
+    deliverables: List[str] = field(default_factory=list)  # 交付物清单
+    final_output_format: str = ""                # 输出格式说明
+
     def to_plain_text(self) -> str:
         """
         生成纯文字格式的框架清单 - v7.250
@@ -1135,11 +1144,31 @@ class FrameworkChecklist:
         # 回答目标
         lines.append("## 回答目标")
         lines.append(self.answer_goal)
+        lines.append("")
+
+        # v7.300 新增：创作指令
+        if self.creation_command:
+            lines.append("## 创作指令")
+            lines.append(self.creation_command)
+            lines.append("")
+
+        # v7.300 新增：交付物清单
+        if self.deliverables:
+            lines.append(f"## 交付物清单（{len(self.deliverables)}项）")
+            for i, deliverable in enumerate(self.deliverables, 1):
+                lines.append(f"{i}. {deliverable}")
+            lines.append("")
+
+        # v7.300 新增：最终输出格式
+        if self.final_output_format:
+            lines.append("## 最终输出格式")
+            lines.append(self.final_output_format)
+            lines.append("")
 
         return "\n".join(lines)
 
     def to_dict(self) -> Dict[str, Any]:
-        """转换为字典 - v7.261 增强"""
+        """转换为字典 - v7.300 增强"""
         return {
             "core_summary": self.core_summary,
             "main_directions": self.main_directions,
@@ -1159,6 +1188,10 @@ class FrameworkChecklist:
             "core_tension": self.core_tension,
             "user_task": self.user_task,
             "sharpness_check": self.sharpness_check,
+            # v7.300 新增
+            "creation_command": self.creation_command,
+            "deliverables": self.deliverables,
+            "final_output_format": self.final_output_format,
         }
 
 
@@ -6462,15 +6495,27 @@ class UcpptSearchEngine:
 
 现在，基于以上解题思路，生成**可执行的搜索任务清单**。
 
-### 搜索任务设计原则
+### 搜索任务设计原则（v7.300 增强）
 
 1. **任务粒度**：每个搜索任务对应解题路径中的1-2个步骤
+   - 目标：生成 10-13 个详细的搜索步骤
+   - 每个步骤都应该是独立可执行的
+   - 步骤之间应该有清晰的逻辑顺序
+
 2. **优先级分层**：
    - P1（高优先级）：回答问题的必需信息（品牌核心、地点特征、核心概念）
    - P2（中优先级）：深化理解的补充信息（案例参考、融合策略）
    - P3（低优先级）：锦上添花的延展信息（趋势、专家观点）
+
 3. **预设关键词**：每个任务必须包含3-5个精准搜索关键词
+
 4. **质量标准**：明确每个任务的完成标准（找到什么算成功）
+
+5. **任务数量要求**：
+   - 简单问题：8-10个步骤
+   - 中等复杂度：10-12个步骤
+   - 复杂问题：12-15个步骤
+   - 确保覆盖所有关键信息面
 
 ### 搜索任务模板
 
@@ -6556,18 +6601,22 @@ class UcpptSearchEngine:
 }}
 ```
 
-## 输出要求
+## 输出要求（v7.300 增强）
 
 请生成完整的搜索框架JSON，包含：
 1. **core_question**: 问题一句话本质（20字内）
 2. **answer_goal**: 用户期望得到的答案是...
 3. **boundary**: 搜索边界（不搜什么）
-4. **targets**: 搜索任务清单（3-6个任务，按优先级排序）
+4. **targets**: 搜索任务清单（10-13个详细任务，按优先级排序）
+5. **deliverables**: 最终交付物清单（从第一步分析中提取）
+6. **final_output_format**: 最终输出格式说明（从第一步分析中提取）
 
 每个 target 必须包含：
 - id, question, search_for, why_need, success_when
 - priority, category
 - **preset_keywords**（3-5个精准关键词）
+- **step_number**: 步骤序号（1-13）
+- **depends_on**: 依赖的前置步骤ID列表（如果有）
 
 ```json
 {{
@@ -6575,10 +6624,35 @@ class UcpptSearchEngine:
   "answer_goal": "...",
   "boundary": "不搜索：价格信息、施工细节、供应商联系方式",
   "targets": [
-    // 3-6个搜索任务
-  ]
+    {{
+      "id": "T1",
+      "step_number": 1,
+      "question": "...",
+      "search_for": "...",
+      "why_need": "...",
+      "success_when": ["标准1", "标准2"],
+      "priority": 1,
+      "category": "品牌调研",
+      "preset_keywords": ["关键词1", "关键词2", "关键词3"],
+      "depends_on": []
+    }},
+    // ... 10-13个详细任务
+  ],
+  "deliverables": [
+    "交付物1",
+    "交付物2",
+    // ... 10-15项
+  ],
+  "final_output_format": "最终输出格式说明"
 }}
 ```
+
+⚠️ **重要提示**：
+- 必须生成 10-13 个详细的搜索任务
+- 每个任务都应该是独立可执行的
+- 任务之间应该有清晰的逻辑顺序
+- 确保覆盖所有关键信息面
+- deliverables 和 final_output_format 应该从第一步分析中提取
 
 请只输出JSON，不要有其他内容。"""
 
@@ -6649,10 +6723,17 @@ class UcpptSearchEngine:
                     preset_keywords=t.get("preset_keywords", []),
                     quality_criteria=t.get("success_when", []),
                     expected_info=t.get("expected_info", []),
+                    # v7.300: 新增字段
+                    execution_order=t.get("step_number", len(framework.targets)+1),
+                    dependencies=t.get("depends_on", []),
                 )
                 framework.targets.append(target)
 
-            logger.info(f"✅ [v7.270 Step2] 搜索框架生成完成 | targets={len(framework.targets)}")
+            # v7.300: 提取交付物和输出格式
+            framework.deliverables = data.get("deliverables", [])
+            framework.final_output_format = data.get("final_output_format", "")
+
+            logger.info(f"✅ [v7.270 Step2] 搜索框架生成完成 | targets={len(framework.targets)}, deliverables={len(framework.deliverables)}")
             return framework
 
         except Exception as e:
@@ -7204,6 +7285,19 @@ class UcpptSearchEngine:
 
         logger.debug(f" [v7.260] 框架清单深度分析摘要 | 实体数={len(key_entities)}, 视角数={len(analysis_perspectives)}, 张力={bool(core_tension)}, JTBD={bool(user_task)}, 复杂度={complexity_score:.2f}")
 
+        # === v7.300 新增：提取创作指令和交付物 ===
+        creation_command = ""
+        deliverables = []
+        final_output_format = ""
+
+        # 从 analysis_data 中提取（如果存在）
+        if "creation_command" in analysis_data:
+            creation_command = analysis_data.get("creation_command", "")
+        if "deliverables" in analysis_data:
+            deliverables = analysis_data.get("deliverables", [])
+        if "final_output_format" in analysis_data:
+            final_output_format = analysis_data.get("final_output_format", "")
+
         return FrameworkChecklist(
             core_summary=core_summary,
             main_directions=main_directions,
@@ -7222,6 +7316,10 @@ class UcpptSearchEngine:
             core_tension=core_tension,
             user_task=user_task,
             sharpness_check=sharpness_check,
+            # v7.300 新增字段
+            creation_command=creation_command,
+            deliverables=deliverables,
+            final_output_format=final_output_format,
         )
 
     def _generate_main_directions_fallback(self, framework: SearchFramework) -> List[Dict[str, Any]]:
