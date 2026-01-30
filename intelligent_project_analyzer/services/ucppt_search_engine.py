@@ -3822,23 +3822,21 @@ class UcpptSearchEngine:
                 for i in range(len(results))
             ]
 
-    def _try_extract_mission_from_partial_json(
-        self, partial_json: str, mission_key: str
-    ) -> Optional[Any]:
+    def _try_extract_mission_from_partial_json(self, partial_json: str, mission_key: str) -> Optional[Any]:
         """
         v7.302.8: 从部分JSON中尝试提取指定使命的数据
-        
+
         用于流式解析：在LLM生成JSON的过程中，尝试提取已完成的部分
-        
+
         Args:
             partial_json: 部分生成的JSON字符串
             mission_key: 要提取的使命键名 (如 "mission_1_user_problem_analysis")
-            
+
         Returns:
             提取到的使命数据，失败返回 None
         """
         import re
-        
+
         # 特殊处理 creation_command（简单字符串值）
         if mission_key == "creation_command":
             # 匹配 "creation_command": "..." 格式
@@ -3847,14 +3845,14 @@ class UcpptSearchEngine:
             if match:
                 return match.group(1)
             return None
-        
+
         # 对于使命对象，检查是否包含完整的使命数据
         # 使命格式: "mission_x_xxx": { "title": "...", "description": "...", "content": {...} }
-        
+
         # 首先检查是否存在该键
         if f'"{mission_key}"' not in partial_json:
             return None
-        
+
         # 尝试提取完整的使命对象
         # 使用计数器匹配嵌套的花括号
         try:
@@ -3863,20 +3861,20 @@ class UcpptSearchEngine:
             match = re.search(key_pattern, partial_json)
             if not match:
                 return None
-            
+
             start_pos = match.end() - 1  # 定位到 { 的位置
-            
+
             # 计数花括号来找到完整对象
             brace_count = 0
             end_pos = start_pos
             in_string = False
             escape_next = False
-            
+
             for i, char in enumerate(partial_json[start_pos:], start_pos):
                 if escape_next:
                     escape_next = False
                     continue
-                if char == '\\':
+                if char == "\\":
                     escape_next = True
                     continue
                 if char == '"' and not escape_next:
@@ -3884,28 +3882,28 @@ class UcpptSearchEngine:
                     continue
                 if in_string:
                     continue
-                if char == '{':
+                if char == "{":
                     brace_count += 1
-                elif char == '}':
+                elif char == "}":
                     brace_count -= 1
                     if brace_count == 0:
                         end_pos = i + 1
                         break
-            
+
             if brace_count != 0:
                 # 对象不完整
                 return None
-            
+
             # 提取并解析对象
             mission_str = partial_json[start_pos:end_pos]
             mission_data = json.loads(mission_str)
-            
+
             # 验证使命数据结构是否完整
             if isinstance(mission_data, dict) and "content" in mission_data:
                 return mission_data
-            
+
             return None
-            
+
         except (json.JSONDecodeError, Exception):
             return None
 
@@ -4303,24 +4301,28 @@ class UcpptSearchEngine:
                             creation_command = internal_data.get("creation_command", "")
                             four_missions_data = {
                                 "creation_command": creation_command,
-                                "mission_1_user_problem_analysis": internal_data.get("mission_1_user_problem_analysis", {}),
+                                "mission_1_user_problem_analysis": internal_data.get(
+                                    "mission_1_user_problem_analysis", {}
+                                ),
                                 "mission_2_clear_objectives": internal_data.get("mission_2_clear_objectives", {}),
                                 "mission_3_task_dimensions": internal_data.get("mission_3_task_dimensions", {}),
-                                "mission_4_execution_requirements": internal_data.get("mission_4_execution_requirements", {}),
-                                "metadata": internal_data.get("metadata", {
-                                    "analysis_quality": {
-                                        "l5_sharpness_score": 0,
-                                        "deliverables_validation_score": 0,
-                                        "overall_confidence": 0.0
-                                    }
-                                })
+                                "mission_4_execution_requirements": internal_data.get(
+                                    "mission_4_execution_requirements", {}
+                                ),
+                                "metadata": internal_data.get(
+                                    "metadata",
+                                    {
+                                        "analysis_quality": {
+                                            "l5_sharpness_score": 0,
+                                            "deliverables_validation_score": 0,
+                                            "overall_confidence": 0.0,
+                                        }
+                                    },
+                                ),
                             }
 
                             # 发送4条使命就绪事件（完整数据）
-                            yield {
-                                "type": "four_missions_ready",
-                                "data": four_missions_data
-                            }
+                            yield {"type": "four_missions_ready", "data": four_missions_data}
                             four_missions_already_sent = True  # v7.302.12: 标记已发送
                             logger.info("✅ [v7.302.12] 4条使命完成事件已发送（去重）")
                         else:
@@ -4333,9 +4335,9 @@ class UcpptSearchEngine:
                 # 传递其他事件（排除内部事件、旧版事件和已显式处理的事件）
                 # v7.302.11: 过滤列表更新 - 移除旧版 dialogue 事件
                 if event_type not in (
-                    "unified_dialogue_chunk", 
+                    "unified_dialogue_chunk",
                     "unified_dialogue_complete",
-                    "analysis_data_ready", 
+                    "analysis_data_ready",
                     "search_framework_ready",
                     "dialogue_chunk",  # v7.302.11: 旧版事件，已废弃
                     "dialogue_complete",  # v7.302.11: 旧版事件，已废弃
@@ -5615,9 +5617,7 @@ class UcpptSearchEngine:
             dialogue_prompt = dialogue_template.replace("{datetime_info}", datetime_info)
             dialogue_prompt = dialogue_prompt.replace("{user_input}", query)
 
-            logger.info(
-                f"✅ [v7.302.1] 已加载对话式prompt | 长度={len(dialogue_prompt)}"
-            )
+            logger.info(f"✅ [v7.302.1] 已加载对话式prompt | 长度={len(dialogue_prompt)}")
 
             return dialogue_prompt
 
@@ -6104,7 +6104,7 @@ class UcpptSearchEngine:
 
         dialogue_content = ""
         json_content = ""
-        
+
         # v7.302.11: 4使命流式解析状态
         current_mission = 0  # 0=未开始, 1-4=正在解析对应使命
         mission_contents = ["", "", "", ""]  # 4个使命的内容缓冲
@@ -6121,21 +6121,21 @@ class UcpptSearchEngine:
 
             logger.info("📝 [v7.302.11] 第一次调用：生成4使命格式内容（流式输出）...")
 
-            # v7.303: 流式输出4使命内容，增加max_tokens到8000确保输出完整
+            # v7.303: 流式输出4使命内容，增加max_tokens到12000确保输出完整的L1-L5分析
             async for chunk in self._call_llm_stream_with_reasoning(
-                dialogue_prompt, model=self.thinking_model, max_tokens=8000
+                dialogue_prompt, model=self.thinking_model, max_tokens=12000
             ):
                 chunk_text = ""
                 if chunk.get("type") == "reasoning":
                     chunk_text = chunk.get("content", "")
                 elif chunk.get("type") == "content":
                     chunk_text = chunk.get("content", "")
-                
+
                 if not chunk_text:
                     continue
-                    
+
                 dialogue_content += chunk_text
-                
+
                 # v7.302.11: 检测使命标记并切换当前使命
                 for i, marker in enumerate(mission_markers):
                     if marker in chunk_text:
@@ -6144,16 +6144,16 @@ class UcpptSearchEngine:
                         if new_mission != current_mission:
                             logger.info(f"📍 [v7.302.11] 检测到使命{new_mission}开始")
                             current_mission = new_mission
-                
+
                 # 发送4使命流式事件（统一发送，前端根据内容解析使命）
                 yield {
                     "type": "four_missions_stream",
                     "data": {
                         "content": chunk_text,
                         "current_mission": current_mission,
-                    }
+                    },
                 }
-                
+
                 # 累积当前使命内容
                 if current_mission > 0:
                     mission_contents[current_mission - 1] += chunk_text
@@ -6164,7 +6164,7 @@ class UcpptSearchEngine:
                 "data": {
                     "message": "4使命流式输出完成",
                     "total_length": len(dialogue_content),
-                }
+                },
             }
 
             logger.info(f"✅ [v7.302.11] 第一次调用完成 | dialogue_len={len(dialogue_content)}")
@@ -6416,6 +6416,7 @@ class UcpptSearchEngine:
         """
         from datetime import datetime
         from pathlib import Path
+
         import yaml
 
         try:
@@ -6448,9 +6449,7 @@ class UcpptSearchEngine:
             json_prompt = json_prompt.replace("{user_input}", query)
             json_prompt = json_prompt.replace("{dialogue_content}", dialogue_content)
 
-            logger.info(
-                f"✅ [v7.302.1] 已加载JSON提取prompt | 长度={len(json_prompt)}"
-            )
+            logger.info(f"✅ [v7.302.1] 已加载JSON提取prompt | 长度={len(json_prompt)}")
 
             return json_prompt
 
