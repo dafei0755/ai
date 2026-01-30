@@ -3822,6 +3822,93 @@ class UcpptSearchEngine:
                 for i in range(len(results))
             ]
 
+    def _try_extract_mission_from_partial_json(
+        self, partial_json: str, mission_key: str
+    ) -> Optional[Any]:
+        """
+        v7.302.8: 从部分JSON中尝试提取指定使命的数据
+        
+        用于流式解析：在LLM生成JSON的过程中，尝试提取已完成的部分
+        
+        Args:
+            partial_json: 部分生成的JSON字符串
+            mission_key: 要提取的使命键名 (如 "mission_1_user_problem_analysis")
+            
+        Returns:
+            提取到的使命数据，失败返回 None
+        """
+        import re
+        
+        # 特殊处理 creation_command（简单字符串值）
+        if mission_key == "creation_command":
+            # 匹配 "creation_command": "..." 格式
+            pattern = r'"creation_command"\s*:\s*"([^"]*)"'
+            match = re.search(pattern, partial_json)
+            if match:
+                return match.group(1)
+            return None
+        
+        # 对于使命对象，检查是否包含完整的使命数据
+        # 使命格式: "mission_x_xxx": { "title": "...", "description": "...", "content": {...} }
+        
+        # 首先检查是否存在该键
+        if f'"{mission_key}"' not in partial_json:
+            return None
+        
+        # 尝试提取完整的使命对象
+        # 使用计数器匹配嵌套的花括号
+        try:
+            # 找到使命键的位置
+            key_pattern = f'"{mission_key}"\\s*:\\s*\\{{'
+            match = re.search(key_pattern, partial_json)
+            if not match:
+                return None
+            
+            start_pos = match.end() - 1  # 定位到 { 的位置
+            
+            # 计数花括号来找到完整对象
+            brace_count = 0
+            end_pos = start_pos
+            in_string = False
+            escape_next = False
+            
+            for i, char in enumerate(partial_json[start_pos:], start_pos):
+                if escape_next:
+                    escape_next = False
+                    continue
+                if char == '\\':
+                    escape_next = True
+                    continue
+                if char == '"' and not escape_next:
+                    in_string = not in_string
+                    continue
+                if in_string:
+                    continue
+                if char == '{':
+                    brace_count += 1
+                elif char == '}':
+                    brace_count -= 1
+                    if brace_count == 0:
+                        end_pos = i + 1
+                        break
+            
+            if brace_count != 0:
+                # 对象不完整
+                return None
+            
+            # 提取并解析对象
+            mission_str = partial_json[start_pos:end_pos]
+            mission_data = json.loads(mission_str)
+            
+            # 验证使命数据结构是否完整
+            if isinstance(mission_data, dict) and "content" in mission_data:
+                return mission_data
+            
+            return None
+            
+        except (json.JSONDecodeError, Exception):
+            return None
+
     def _safe_parse_json(self, text: str, context: str = "", expect_dict: bool = True) -> Optional[Dict[str, Any]]:
         """
         安全的 JSON 解析，支持多种格式 (v7.214 增强)
@@ -4145,11 +4232,13 @@ class UcpptSearchEngine:
         等待用户确认/编辑后再继续 Step 2
 
         v7.280 新增
+        v7.302.12: 添加去重逻辑，防止 four_missions_ready 事件重复发送
         """
         logger.info(f"📋 [v7.280] Step1 Only 模式 | query={query[:50]}...")
 
         framework = None
         problem_solving_approach = None
+        four_missions_already_sent = False  # v7.302.12: 去重标志
 
         try:
             # 发送阶段开始
@@ -4166,27 +4255,94 @@ class UcpptSearchEngine:
             async for event in self._unified_analysis_stream(query, None):
                 event_type = event.get("type")
 
-                # 流式输出 thinking 内容
-                if event_type == "unified_dialogue_chunk":
+                # v7.302.11: 转发4使命流式事件（新版）
+                if event_type == "four_missions_stream":
                     yield event
 
-                # 捕获框架
+                # v7.302.11: 转发4使命流式完成事件
+                if event_type == "four_missions_stream_complete":
+                    yield event
+
+                # 捕获框架（仅内部使用，不向前端发送）
                 if event_type == "search_framework_ready":
                     framework = event.get("_internal_framework")
-                    yield event
+                    # 不发送
 
                 # 捕获解题思路
                 if event_type == "problem_solving_approach_ready":
                     problem_solving_approach = event.get("_internal_approach")
                     yield event
 
-                # v7.290: 捕获分析数据（内部使用，不向外传递）
+                # v7.302.10: 捕获分析数据，发送完整的 four_missions_ready
                 if event_type == "analysis_data_ready":
+                    internal_data = event.get("_internal_data", {})
+
+                    # 增强日志输出
+                    logger.info(f"📊 [v7.302.10] 分析数据就绪 | 数据键: {list(internal_data.keys())}")
+
+                    # v7.302.12: 检查是否已发送过 four_missions_ready（去重）
+                    if four_missions_already_sent:
+                        logger.info("⏭️ [v7.302.12] 跳过重复的 four_missions_ready 事件")
+                        pass
+                    else:
+                        # 检测4条使命格式
+                        required_keys = [
+                            "mission_1_user_problem_analysis",
+                            "mission_2_clear_objectives",
+                            "mission_3_task_dimensions",
+                            "mission_4_execution_requirements",
+                        ]
+
+                        missing_keys = [key for key in required_keys if key not in internal_data]
+                        has_4_missions = len(missing_keys) == 0
+
+                        if has_4_missions:
+                            logger.info("✅ [v7.302.8] 检测到4条使命数据，发送完成事件")
+
+                            # v7.302.8: 只发送完成事件（流式事件已在 _unified_analysis_stream 中发送）
+                            creation_command = internal_data.get("creation_command", "")
+                            four_missions_data = {
+                                "creation_command": creation_command,
+                                "mission_1_user_problem_analysis": internal_data.get("mission_1_user_problem_analysis", {}),
+                                "mission_2_clear_objectives": internal_data.get("mission_2_clear_objectives", {}),
+                                "mission_3_task_dimensions": internal_data.get("mission_3_task_dimensions", {}),
+                                "mission_4_execution_requirements": internal_data.get("mission_4_execution_requirements", {}),
+                                "metadata": internal_data.get("metadata", {
+                                    "analysis_quality": {
+                                        "l5_sharpness_score": 0,
+                                        "deliverables_validation_score": 0,
+                                        "overall_confidence": 0.0
+                                    }
+                                })
+                            }
+
+                            # 发送4条使命就绪事件（完整数据）
+                            yield {
+                                "type": "four_missions_ready",
+                                "data": four_missions_data
+                            }
+                            four_missions_already_sent = True  # v7.302.12: 标记已发送
+                            logger.info("✅ [v7.302.12] 4条使命完成事件已发送（去重）")
+                        else:
+                            logger.warning(f"⚠️ [v7.302.10] 未检测到4条使命数据，缺少字段: {missing_keys}")
+                            logger.info(f"📋 [v7.302.10] 可用字段: {list(internal_data.keys())}")
+
                     # 内部事件，不需要向路由处理器传递
                     pass
 
-                # 传递其他事件（排除内部事件）
-                if event_type not in ("unified_dialogue_chunk", "analysis_data_ready"):
+                # 传递其他事件（排除内部事件、旧版事件和已显式处理的事件）
+                # v7.302.11: 过滤列表更新 - 移除旧版 dialogue 事件
+                if event_type not in (
+                    "unified_dialogue_chunk", 
+                    "unified_dialogue_complete",
+                    "analysis_data_ready", 
+                    "search_framework_ready",
+                    "dialogue_chunk",  # v7.302.11: 旧版事件，已废弃
+                    "dialogue_complete",  # v7.302.11: 旧版事件，已废弃
+                    "analysis_progress",  # v7.302.11: 内部事件
+                    "four_missions_stream",  # 已在上面显式转发
+                    "four_missions_stream_complete",  # 已在上面显式转发
+                ):
                     yield event
 
             # 发送等待确认事件
@@ -4517,12 +4673,18 @@ class UcpptSearchEngine:
                         async for event in self._unified_analysis_stream(query, context):
                             event_type = event.get("type")
 
-                            # 流式输出 thinking 内容给前端
-                            if event_type == "unified_dialogue_chunk":
+                            # v7.302.9: 旧版事件已废弃，不再发送
+                            # unified_dialogue_chunk 和 unified_dialogue_complete 不再使用
+                            # 用户只看到 four_missions_stream 流式输出
+                            if event_type in ("unified_dialogue_chunk", "unified_dialogue_complete"):
+                                pass  # 已废弃，不转发
+
+                            # v7.302.9: 转发4条使命流式事件
+                            elif event_type == "four_missions_stream":
                                 yield event
 
-                            # 对话完成
-                            elif event_type == "unified_dialogue_complete":
+                            # v7.302.9: 转发分析进度
+                            elif event_type == "analysis_progress":
                                 yield event
 
                             # 结构化信息就绪
@@ -4545,17 +4707,18 @@ class UcpptSearchEngine:
                                 yield event  # 转发给前端
                                 logger.info(f"✅ [v7.270] 第一步完成 | step2_context={'有' if step2_context else '无'}")
 
-                            # 搜索主线就绪（旧流程兼容）
+                            # v7.302.9: 旧版搜索主线已废弃
                             elif event_type == "search_master_line_ready":
                                 search_master_line = event.get("_internal_master_line")
-                                yield {
-                                    "type": "search_master_line",
-                                    "data": event.get("data"),
-                                }
+                                # 不再发送给前端，仅内部使用
 
-                            # v7.243: 搜索框架就绪（旧流程兼容）
+                            # v7.302.9: 旧版搜索框架已废弃，使用 four_missions_ready 替代
                             elif event_type == "search_framework_ready":
                                 framework = event.get("_internal_framework")
+                                # 不再发送给前端，仅内部使用
+
+                            # v7.302.9: 4条使命就绪（新版）
+                            elif event_type == "four_missions_ready":
                                 yield event
 
                             # 分析完成
@@ -5414,14 +5577,13 @@ class UcpptSearchEngine:
 
     def _build_dialogue_analysis_prompt(self, query: str, context: Optional[Dict[str, Any]] = None) -> str:
         """
-        构建对话式分析 Prompt - v7.302 从YAML配置加载4条使命框架
+        构建对话式分析 Prompt - v7.302.1 修复
         第一次调用：生成自然语言分析（流式输出给用户）
 
-        v7.302 更新：
-        - 从YAML配置文件加载4条使命框架
-        - 支持智能适配机制（根据问题类型调整分析侧重点）
-        - 包含Few-Shot示范案例
-        - 降级处理：如果YAML加载失败，使用v7.300版本prompt
+        v7.302.1 修复：
+        - 使用 dialogue_prompt_template 而不是 task_description_template
+        - 第一次调用只生成自然语言，不输出JSON
+        - 降级处理：如果YAML加载失败，使用fallback prompt
         """
         from datetime import datetime
         from pathlib import Path
@@ -5433,38 +5595,34 @@ class UcpptSearchEngine:
             config_path = Path(__file__).parent.parent / "config" / "prompts" / "search_question_analysis.yaml"
 
             if not config_path.exists():
-                logger.warning(f"⚠️ [v7.302] YAML配置文件不存在: {config_path}")
+                logger.warning(f"⚠️ [v7.302.1] YAML配置文件不存在: {config_path}")
                 return self._build_dialogue_analysis_prompt_fallback(query, context)
 
             with open(config_path, "r", encoding="utf-8") as f:
                 config = yaml.safe_load(f)
 
-            # 获取system_prompt和task_description_template
-            system_prompt = config.get("system_prompt", "")
-            task_description_template = config.get("task_description_template", "")
+            # 🆕 使用 dialogue_prompt_template 而不是 task_description_template
+            dialogue_template = config.get("dialogue_prompt_template", "")
 
-            if not system_prompt or not task_description_template:
-                logger.warning(f"⚠️ [v7.302] YAML配置不完整，使用降级方案")
+            if not dialogue_template:
+                logger.warning(f"⚠️ [v7.302.1] dialogue_prompt_template 不存在，使用降级方案")
                 return self._build_dialogue_analysis_prompt_fallback(query, context)
 
             # 构建datetime_info
             datetime_info = f"当前时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
 
-            # 替换模板变量（使用简单字符串替换，避免.format()与JSON示例中的{}冲突）
-            task_description = task_description_template.replace("{datetime_info}", datetime_info)
-            task_description = task_description.replace("{user_input}", query)
-
-            # 组合完整prompt
-            full_prompt = f"{system_prompt}\n\n{task_description}"
+            # 替换模板变量
+            dialogue_prompt = dialogue_template.replace("{datetime_info}", datetime_info)
+            dialogue_prompt = dialogue_prompt.replace("{user_input}", query)
 
             logger.info(
-                f"✅ [v7.302] 已加载4条使命框架 | prompt长度={len(full_prompt)} | version={config.get('metadata', {}).get('version')}"
+                f"✅ [v7.302.1] 已加载对话式prompt | 长度={len(dialogue_prompt)}"
             )
 
-            return full_prompt
+            return dialogue_prompt
 
         except Exception as e:
-            logger.error(f"❌ [v7.302] 加载YAML配置失败: {e}", exc_info=True)
+            logger.error(f"❌ [v7.302.1] 加载YAML配置失败: {e}", exc_info=True)
             return self._build_dialogue_analysis_prompt_fallback(query, context)
 
     def _build_dialogue_analysis_prompt_fallback(self, query: str, context: Optional[Dict[str, Any]] = None) -> str:
@@ -5942,66 +6100,93 @@ class UcpptSearchEngine:
         - 系统可以获得结构化数据
         - 分离关注点，更清晰
         """
-        logger.info(f" [统一分析 v7.270] 开始第一步分析（两次调用） | query={query[:50]}...")
+        logger.info(f" [统一分析 v7.302.11] 开始第一步分析 | query={query[:50]}...")
 
         dialogue_content = ""
         json_content = ""
+        
+        # v7.302.11: 4使命流式解析状态
+        current_mission = 0  # 0=未开始, 1-4=正在解析对应使命
+        mission_contents = ["", "", "", ""]  # 4个使命的内容缓冲
+        mission_markers = [
+            "【使命1：",
+            "【使命2：",
+            "【使命3：",
+            "【使命4：",
+        ]
 
         try:
-            # ==================== 第一次调用：对话式分析（流式输出给用户）====================
+            # ==================== 第一次调用：按4使命格式流式输出 ====================
             dialogue_prompt = self._build_dialogue_analysis_prompt(query, context)
 
-            logger.info(" [v7.270] 第一次调用：生成对话式分析内容...")
+            logger.info("📝 [v7.302.11] 第一次调用：生成4使命格式内容（流式输出）...")
 
+            # v7.303: 流式输出4使命内容，增加max_tokens到8000确保输出完整
             async for chunk in self._call_llm_stream_with_reasoning(
-                dialogue_prompt, model=self.thinking_model, max_tokens=2000
+                dialogue_prompt, model=self.thinking_model, max_tokens=8000
             ):
+                chunk_text = ""
                 if chunk.get("type") == "reasoning":
-                    # DeepSeek 的 reasoning_content（OpenAI 不会进入这里）
-                    reasoning_text = chunk.get("content", "")
-                    dialogue_content += reasoning_text
-                    filtered_text = self._filter_verbose_monologue(reasoning_text)
-                    if filtered_text.strip():
-                        yield {
-                            "type": "unified_dialogue_chunk",
-                            "content": filtered_text,
-                        }
+                    chunk_text = chunk.get("content", "")
                 elif chunk.get("type") == "content":
-                    # OpenAI 的 content（包含对话式分析）
-                    content_text = chunk.get("content", "")
-                    dialogue_content += content_text
-                    # 实时传递给前端
-                    if content_text.strip():
-                        yield {
-                            "type": "unified_dialogue_chunk",
-                            "content": content_text,
-                        }
+                    chunk_text = chunk.get("content", "")
+                
+                if not chunk_text:
+                    continue
+                    
+                dialogue_content += chunk_text
+                
+                # v7.302.11: 检测使命标记并切换当前使命
+                for i, marker in enumerate(mission_markers):
+                    if marker in chunk_text:
+                        # 切换到新使命
+                        new_mission = i + 1
+                        if new_mission != current_mission:
+                            logger.info(f"📍 [v7.302.11] 检测到使命{new_mission}开始")
+                            current_mission = new_mission
+                
+                # 发送4使命流式事件（统一发送，前端根据内容解析使命）
+                yield {
+                    "type": "four_missions_stream",
+                    "data": {
+                        "content": chunk_text,
+                        "current_mission": current_mission,
+                    }
+                }
+                
+                # 累积当前使命内容
+                if current_mission > 0:
+                    mission_contents[current_mission - 1] += chunk_text
 
-            # 对话内容完成
+            # v7.302.11: 流式输出完成
             yield {
-                "type": "unified_dialogue_complete",
-                "content": dialogue_content,
+                "type": "four_missions_stream_complete",
+                "data": {
+                    "message": "4使命流式输出完成",
+                    "total_length": len(dialogue_content),
+                }
             }
 
-            logger.info(f"✅ [v7.270] 第一次调用完成 | dialogue_len={len(dialogue_content)}")
+            logger.info(f"✅ [v7.302.11] 第一次调用完成 | dialogue_len={len(dialogue_content)}")
 
-            # ==================== 第二次调用：生成结构化 JSON（系统内部使用）====================
+            # ==================== 第二次调用：生成结构化 JSON（后台执行）====================
             json_prompt = self._build_json_extraction_prompt(query, dialogue_content, context)
 
-            logger.info(" [v7.270] 第二次调用：生成结构化 JSON...")
+            logger.info("📊 [v7.302.11] 第二次调用：生成结构化JSON（后台）...")
 
+            # v7.302.11: 后台生成JSON，不流式显示
             async for chunk in self._call_llm_stream_with_reasoning(
-                json_prompt, model=self.thinking_model, max_tokens=3000
+                json_prompt, model=self.thinking_model, max_tokens=5000
             ):
                 if chunk.get("type") == "content":
                     json_content += chunk.get("content", "")
                 elif chunk.get("type") == "reasoning":
                     json_content += chunk.get("content", "")
 
-            logger.info(f"✅ [v7.270] 第二次调用完成 | json_len={len(json_content)}")
+            logger.info(f"✅ [v7.302.11] 第二次调用完成 | json_len={len(json_content)}")
 
             # 解析 JSON 结果
-            data = self._safe_parse_json(json_content, context="统一分析(v7.270)")
+            data = self._safe_parse_json(json_content, context="统一分析(v7.302.11)")
             if data is None:
                 raise ValueError("无法解析统一分析结果")
 
@@ -6009,7 +6194,7 @@ class UcpptSearchEngine:
             problem_solving_data = data.get("problem_solving_approach", {})
             step2_context = data.get("step2_context", {})
             logger.info(
-                f" [v7.270] JSON解析完成 | problem_solving_approach={'有' if problem_solving_data else '无'}, step2_context={'有' if step2_context else '无'}"
+                f"📋 [v7.302.11] JSON解析完成 | problem_solving_approach={'有' if problem_solving_data else '无'}, step2_context={'有' if step2_context else '无'}"
             )
 
             # v7.234: 质量评估（不阻塞流程）
@@ -6188,13 +6373,8 @@ class UcpptSearchEngine:
                 }
 
         except Exception as e:
-            logger.warning(f"⚠️ [统一分析 v7.270] 分析失败: {e}")
-            # 如果有对话内容，先发送
-            if dialogue_content:
-                yield {
-                    "type": "unified_dialogue_complete",
-                    "content": dialogue_content,
-                }
+            logger.warning(f"⚠️ [统一分析 v7.302.9] 分析失败: {e}")
+            # v7.302.9: 不再发送 unified_dialogue_complete，已废弃
             # 发送默认的解题思路
             default_approach = self._build_default_problem_solving_approach(query)
             yield {
@@ -6226,13 +6406,64 @@ class UcpptSearchEngine:
         self, query: str, dialogue_content: str, context: Optional[Dict[str, Any]] = None
     ) -> str:
         """
-        构建 JSON 提取 Prompt - v7.280 强化版
-        第二次调用：从对话内容中提取结构化 JSON（系统内部使用）
+        构建 JSON 提取 Prompt - v7.302.1 修复
+        第二次调用：基于对话内容生成结构化 JSON（系统内部使用）
 
-        v7.280 更新：
-        - 强化每个字段的必填说明
-        - 添加示例值引导
-        - 扩展 L2/L5/人性化维度字段
+        v7.302.1 修复：
+        - 尝试从YAML加载 json_extraction_prompt_template
+        - 如果不存在，使用 task_description_template
+        - 降级处理：如果YAML加载失败，使用内置prompt
+        """
+        from datetime import datetime
+        from pathlib import Path
+        import yaml
+
+        try:
+            config_path = Path(__file__).parent.parent / "config" / "prompts" / "search_question_analysis.yaml"
+
+            if not config_path.exists():
+                logger.warning(f"⚠️ [v7.302.1] YAML配置文件不存在，使用内置prompt")
+                return self._build_json_extraction_prompt_fallback(query, dialogue_content, context)
+
+            with open(config_path, "r", encoding="utf-8") as f:
+                config = yaml.safe_load(f)
+
+            # 🆕 优先使用 json_extraction_prompt_template
+            json_template = config.get("json_extraction_prompt_template", "")
+
+            if not json_template:
+                # 如果没有专门的JSON提取模板，使用原有的 task_description_template
+                logger.info("ℹ️ [v7.302.1] json_extraction_prompt_template 不存在，使用 task_description_template")
+                json_template = config.get("task_description_template", "")
+
+            if not json_template:
+                logger.warning(f"⚠️ [v7.302.1] 所有模板都不存在，使用内置prompt")
+                return self._build_json_extraction_prompt_fallback(query, dialogue_content, context)
+
+            # 构建datetime_info
+            datetime_info = f"当前时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+
+            # 替换模板变量
+            json_prompt = json_template.replace("{datetime_info}", datetime_info)
+            json_prompt = json_prompt.replace("{user_input}", query)
+            json_prompt = json_prompt.replace("{dialogue_content}", dialogue_content)
+
+            logger.info(
+                f"✅ [v7.302.1] 已加载JSON提取prompt | 长度={len(json_prompt)}"
+            )
+
+            return json_prompt
+
+        except Exception as e:
+            logger.error(f"❌ [v7.302.1] 加载JSON提取prompt失败: {e}", exc_info=True)
+            return self._build_json_extraction_prompt_fallback(query, dialogue_content, context)
+
+    def _build_json_extraction_prompt_fallback(
+        self, query: str, dialogue_content: str, context: Optional[Dict[str, Any]] = None
+    ) -> str:
+        """
+        降级版本的JSON提取prompt - v7.302.1
+        当YAML加载失败时使用
         """
         return f"""基于以下用户问题和分析内容，提取结构化的JSON数据。
 
@@ -6243,177 +6474,161 @@ class UcpptSearchEngine:
 {dialogue_content}
 
 ## 输出要求
-请提取以下结构的JSON，确保完整填写所有字段（不要留空）：
-
-⚠️ **必填字段说明**：
-- 所有标注 "必填" 的字段必须有值
-- 数组字段至少包含1个元素
-- 字符串字段不能为空字符串
+请将分析内容转换为以下4条使命的JSON格式：
 
 ```json
 {{
-    "user_profile": {{
-        "location": "地理位置（必填，如：四川峨眉山）",
-        "occupation": "职业推断（必填，如：民宿业主/设计师）",
-        "identity_tags": ["标签1", "标签2", "标签3"],
-        "explicit_need": "用户明确表达的需求（必填）",
-        "implicit_needs": ["隐性需求1", "隐性需求2"],
-        "motivation_types": {{
-            "primary": "主导动机类型ID（必填，从12种选择）",
-            "primary_reason": "判断依据（必填，一句话说明）",
-            "secondary": ["次要动机类型ID"],
-            "secondary_reason": "次要动机判断依据"
+  "creation_command": "一句话总结用户的核心需求（20字内）",
+  "mission_1_user_problem_analysis": {{
+    "title": "用户问题分析",
+    "description": "结构化梳理用户信息",
+    "content": {{
+      "user_identity": "用户身份/角色",
+      "project_type": "项目类型",
+      "project_location": "项目地点",
+      "project_scale": "项目规模",
+      "core_theme": "核心主题",
+      "key_constraints": ["约束1", "约束2"],
+      "user_motivation": "用户深层动机（基于心理/社会/美学分析）",
+      "core_tension": "核心矛盾（最尖锐的对立面）"
+    }}
+  }},
+  "mission_2_clear_objectives": {{
+    "title": "明确目标",
+    "description": "用户最后要的是什么",
+    "content": {{
+      "final_deliverable_type": "最终交付物类型",
+      "output_format": "输出格式",
+      "target_audience": "目标受众",
+      "key_deliverables": [
+        {{
+          "id": "D1",
+          "name": "交付物名称",
+          "description": "具体描述（动词+对象+成果）",
+          "priority": "MUST_HAVE"
+        }},
+        {{
+          "id": "D2",
+          "name": "交付物名称",
+          "description": "具体描述",
+          "priority": "MUST_HAVE"
         }}
+      ],
+      "success_criteria": ["成功标准1", "成功标准2"]
+    }}
+  }},
+  "mission_3_task_dimensions": {{
+    "title": "任务维度",
+    "description": "解题思路",
+    "content": {{
+      "task_type": "design/research/analysis/planning",
+      "complexity_level": "simple/moderate/complex/highly_complex",
+      "solution_approach": "解题方法论",
+      "required_expertise": ["专业领域1", "专业领域2"],
+      "key_steps": [
+        {{
+          "step_id": "S1",
+          "action": "具体行动",
+          "purpose": "目的",
+          "expected_output": "预期输出"
+        }},
+        {{
+          "step_id": "S2",
+          "action": "具体行动",
+          "purpose": "目的",
+          "expected_output": "预期输出"
+        }}
+      ],
+      "breakthrough_points": [
+        {{
+          "point": "突破点描述",
+          "why_key": "为什么关键",
+          "how_to_leverage": "如何利用"
+        }}
+      ]
+    }}
+  }},
+  "mission_4_execution_requirements": {{
+    "title": "执行要求",
+    "description": "注意事项",
+    "content": {{
+      "quality_standards": ["质量标准1", "质量标准2"],
+      "constraints_to_respect": ["必须遵守的约束1"],
+      "anti_patterns": ["应避免的做法1"],
+      "risk_alerts": ["潜在风险1"],
+      "recommended_tools": ["推荐工具1"]
+    }}
+  }},
+  "metadata": {{
+    "analysis_quality": {{
+      "l5_sharpness_score": 75,
+      "deliverables_validation_score": 80,
+      "overall_confidence": 0.85
     }},
-    "analysis": {{
-        "l1_facts": {{
-            "brand_entities": [
-                {{
-                    "name": "品牌名（必填）",
-                    "product_lines": ["产品线1", "产品线2"],
-                    "designers": ["设计师1"],
-                    "color_system": ["标志性色彩"],
-                    "materials": ["常用材质"],
-                    "design_philosophy": "设计哲学"
-                }}
-            ],
-            "location_entities": [
-                {{
-                    "name": "地名（必填）",
-                    "climate": "气候特征",
-                    "altitude": "海拔",
-                    "local_materials": ["在地材料1", "在地材料2"],
-                    "architecture_style": "建筑风格",
-                    "cultural_context": "文化背景"
-                }}
-            ],
-            "style_entities": [
-                {{
-                    "name": "风格名称",
-                    "characteristics": ["特征1", "特征2"],
-                    "era": "所属时代",
-                    "representatives": ["代表作品或设计师"]
-                }}
-            ],
-            "scene_entities": [
-                {{
-                    "type": "场景类型",
-                    "target_users": "目标用户群",
-                    "business_model": "商业模式特征",
-                    "usage_patterns": ["使用模式"]
-                }}
-            ],
-            "competitor_entities": [
-                {{
-                    "name": "案例名",
-                    "positioning": "市场定位",
-                    "differentiator": "差异化特点",
-                    "success_factors": ["成功因素"]
-                }}
-            ],
-            "person_entities": [
-                {{
-                    "name": "姓名",
-                    "role": "角色/身份",
-                    "works": ["代表作品"],
-                    "influence": "影响力领域"
-                }}
-            ]
-        }},
-        "l2_models": {{
-            "selected_perspectives": ["视角1", "视角2", "视角3"],
-            "psychological": "心理学分析（具体描述，不能为空）",
-            "sociological": "社会学分析（具体描述）",
-            "aesthetic": "美学分析（具体描述）",
-            "emotional": "情感视角分析",
-            "ritual": "仪式视角分析",
-            "business": "商业视角分析（如激活）",
-            "technical": "技术视角分析（如激活）",
-            "ecological": "生态视角分析（如激活）",
-            "cultural": "文化视角分析（如激活）",
-            "political": "政治视角分析（如激活）"
-        }},
-        "l3_tension": {{
-            "formula": "[具体元素A] vs [具体元素B]（必填，不能是泛化描述）",
-            "description": "张力详细描述（必填）",
-            "resolution_strategy": "解决策略（必填，至少1条可操作方案）"
-        }},
-        "l4_jtbd": "当[情境]时，我想要[动作]，以便[价值]（必填）",
-        "l5_sharpness": {{
-            "score": 0,
-            "specificity": "专一性回答（此分析只适用于本问题吗？）",
-            "actionability": "可操作性回答（能直接指导下一步行动吗？）",
-            "depth": "深度回答（触及了用户未明说的深层诉求吗？）"
-        }},
-        "human_dimensions": {{
-            "emotion_map": {{
-                "current_state": "当前情绪状态",
-                "desired_state": "期望情绪状态",
-                "triggers": ["情绪触发因素"]
-            }},
-            "spiritual_pursuit": {{
-                "core_values": ["核心价值观"],
-                "meaning_source": "意义来源",
-                "aspiration": "精神追求"
-            }},
-            "psychological_safety": {{
-                "fears": ["担忧和恐惧"],
-                "assurance_needs": ["保障需求"],
-                "risk_tolerance": "风险承受能力"
-            }},
-            "ritual_behaviors": {{
-                "daily_rituals": ["日常仪式"],
-                "special_occasions": ["特殊场合仪式"],
-                "habit_patterns": ["习惯模式"]
-            }},
-            "memory_anchors": {{
-                "positive_memories": ["正向记忆"],
-                "nostalgic_elements": ["怀旧元素"],
-                "emotional_connections": ["情感联结"]
-            }}
-        }}
+    "analysis_layers": {{
+      "L1_facts": {{}},
+      "L2_user_model": {{}},
+      "L3_core_tension": "",
+      "L4_user_task": "",
+      "L5_sharpness": {{}}
+    }}
+  }},
+  "user_profile": {{
+        "location": "地理位置",
+        "occupation": "职业推断",
+        "identity_tags": ["标签1", "标签2"],
+        "explicit_need": "用户明确表达的需求",
+        "implicit_needs": ["隐性需求1", "隐性需求2"]
     }},
     "problem_solving_approach": {{
-        "task_type": "任务类型（必填：research/design/decision/exploration/verification）",
-        "task_type_description": "任务类型描述（必填）",
-        "complexity_level": "复杂度（必填：simple/moderate/complex/highly_complex）",
-        "required_expertise": ["专业领域1", "专业领域2", "专业领域3"],
+        "task_type": "任务类型（research/design/decision/exploration/verification）",
+        "task_type_description": "任务类型描述",
+        "complexity_level": "复杂度（simple/moderate/complex/highly_complex）",
+        "required_expertise": ["专业领域1", "专业领域2"],
         "solution_steps": [
             {{
                 "step_id": "S1",
-                "action": "具体行动（必填，可执行级别）",
-                "purpose": "目的（必填）",
-                "expected_output": "预期产出（必填，具体可验证）"
+                "action": "具体行动",
+                "purpose": "目的",
+                "expected_output": "预期产出"
             }}
         ],
         "breakthrough_points": [
             {{
-                "point": "突破要点（必填）",
-                "why_key": "为什么关键（必填）",
-                "how_to_leverage": "如何利用（必填）"
+                "point": "突破要点",
+                "why_key": "为什么关键",
+                "how_to_leverage": "如何利用"
             }}
         ],
         "expected_deliverable": {{
-            "format": "输出格式（report/list/comparison/recommendation/plan）",
-            "sections": ["章节1", "章节2", "章节3"],
-            "key_elements": ["关键元素1", "关键元素2"],
-            "quality_criteria": ["质量标准1", "质量标准2"]
+            "format": "输出格式",
+            "sections": ["章节1", "章节2"],
+            "key_elements": ["关键元素1"],
+            "quality_criteria": ["质量标准1"]
         }},
         "original_requirement": "{query}",
-        "refined_requirement": "结构化需求描述（必填）",
-        "confidence_score": 0.0,
-        "alternative_approaches": ["备选路径1", "备选路径2"]
+        "refined_requirement": "结构化需求描述",
+        "confidence_score": 0.85,
+        "alternative_approaches": []
     }},
     "step2_context": {{
-        "core_question": "问题一句话本质（必填，20字内）",
-        "answer_goal": "用户期望得到的答案是...（必填）",
-        "solution_steps_summary": ["S1:步骤摘要", "S2:步骤摘要"],
-        "breakthrough_tensions": ["核心张力1"]
+        "core_question": "问题一句话本质（20字内）",
+        "answer_goal": "用户期望得到的答案",
+        "solution_steps_summary": ["S1:步骤摘要"],
+        "breakthrough_tensions": []
     }}
 }}
 ```
 
-请只输出JSON，不要有其他内容。确保所有必填字段都有值。"""
+**重要提示**：
+1. 从分析内容中提取信息，填充到4条使命结构中
+2. 如果某些信息未明确，标注"未明确"或"待确认"
+3. key_deliverables必须有10-15项，每项包含动词+对象+成果
+4. key_steps必须有5-8个具体步骤
+5. 所有字段必须基于分析内容动态生成
+6. 同时保留 user_profile、problem_solving_approach、step2_context 用于向后兼容
+
+请只输出JSON，不要有其他内容。"""
 
     def _build_default_problem_solving_approach(self, query: str) -> ProblemSolvingApproach:
         """
