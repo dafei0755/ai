@@ -288,7 +288,7 @@ if __name__ == "__main__":
 
     try:
         # 1. 获取当前用户会员信息
-        print("📋 当前用户会员信息:")
+        print(" 当前用户会员信息:")
         membership = api.get_my_membership()
 
         print(f"  用户名: {membership['username']}")
@@ -302,10 +302,10 @@ if __name__ == "__main__":
             print(f"  是否激活: {membership['membership']['is_active']}")
             print(f"  剩余天数: {membership['membership']['days_remaining']} 天")
         else:
-            print("  ⚠️ 未开通会员")
+            print("  ️ 未开通会员")
 
         # 2. 获取订单信息
-        print("\n📦 订单信息:")
+        print("\n 订单信息:")
         user_id = membership["user_id"]
         orders = api.get_user_orders(user_id=user_id)
 
@@ -324,7 +324,7 @@ if __name__ == "__main__":
             print(f"    时间: {latest_order['date_created']}")
 
         # 3. 获取钱包信息
-        print("\n💰 钱包信息:")
+        print("\n 钱包信息:")
         wallet = api.get_user_wallet(user_id=user_id)
 
         print(f"  可用余额: ¥{wallet['balance']:.2f}")
@@ -337,10 +337,10 @@ if __name__ == "__main__":
         print(f"    可提现: ¥{wallet['commission']['available']:.2f}")
         print(f"    已提现: ¥{wallet['commission']['withdrawn']:.2f}")
 
-        print("\n✅ 所有测试通过！")
+        print("\n 所有测试通过！")
 
     except Exception as e:
-        print(f"\n❌ 错误: {e}")
+        print(f"\n 错误: {e}")
         import traceback
 
         traceback.print_exc()

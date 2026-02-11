@@ -38,14 +38,14 @@ class ReportGuardNode:
             更新后的状态
         """
         logger.info("=" * 100)
-        logger.info("🛡️ 报告审核：最终内容安全检查")
+        logger.info("️ 报告审核：最终内容安全检查")
         logger.info("=" * 100)
         
         final_report = state.get("final_report", "")
         session_id = state.get("session_id", "")
         
         if not final_report:
-            logger.warning("⚠️ 报告内容为空，跳过审核")
+            logger.warning("️ 报告内容为空，跳过审核")
             return {}
         
         # 初始化检测器
@@ -55,13 +55,13 @@ class ReportGuardNode:
         # 提取文本（如果是字典/对象，先转换）
         report_text = ReportGuardNode._extract_text(final_report)
         
-        logger.info(f"📄 报告长度: {len(report_text)} 字符")
+        logger.info(f" 报告长度: {len(report_text)} 字符")
         
         # === 内容安全检测 ===
         safety_result = safety_guard.check(report_text, context="report")
         
         if not safety_result["is_safe"]:
-            logger.warning(f"⚠️ 报告包含不当内容: {safety_result['violations']}")
+            logger.warning(f"️ 报告包含不当内容: {safety_result['violations']}")
             
             # 记录违规
             violation_logger.log({
@@ -74,7 +74,7 @@ class ReportGuardNode:
             
             # 根据风险级别处理
             if safety_result["risk_level"] == "high":
-                logger.error("🚨 高风险内容，替换为安全版本")
+                logger.error(" 高风险内容，替换为安全版本")
                 safe_report = ReportGuardNode._generate_error_report(safety_result)
                 
                 return {
@@ -84,7 +84,7 @@ class ReportGuardNode:
                 }
             
             elif safety_result["risk_level"] == "medium":
-                logger.warning("⚠️ 中风险内容，执行脱敏处理")
+                logger.warning("️ 中风险内容，执行脱敏处理")
                 sanitized_text = safety_result.get("sanitized_text", report_text)
                 
                 # 如果报告是字典，替换对应字段
@@ -111,7 +111,7 @@ class ReportGuardNode:
                 }
         
         # === 通过检测 ===
-        logger.info("✅ 报告内容安全检查通过")
+        logger.info(" 报告内容安全检查通过")
         logger.info("=" * 100)
         return {
             "report_safety_status": "passed",

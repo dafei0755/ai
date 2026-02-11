@@ -109,7 +109,7 @@ class LLMSafetyDetector:
             }
         """
         if not self.llm_model:
-            logger.warning("⚠️ LLM模型未配置，跳过语义检测")
+            logger.warning("️ LLM模型未配置，跳过语义检测")
             return {"is_safe": True, "confidence": 0.0, "violation": None}
 
         try:
@@ -134,7 +134,7 @@ class LLMSafetyDetector:
             return result
 
         except Exception as e:
-            logger.error(f"❌ LLM语义检测异常: {e}")
+            logger.error(f" LLM语义检测异常: {e}")
             # 出错时默认安全，避免误拦截
             return {"is_safe": True, "confidence": 0.0, "violation": None, "error": str(e)}
 
@@ -152,7 +152,7 @@ class LLMSafetyDetector:
             return str(response)
 
         except Exception as e:
-            logger.error(f"❌ LLM调用失败: {e}")
+            logger.error(f" LLM调用失败: {e}")
             raise
 
     def _parse_response(self, response: str) -> Dict[str, Any]:
@@ -186,12 +186,12 @@ class LLMSafetyDetector:
             }
 
         except json.JSONDecodeError as e:
-            logger.error(f"❌ JSON解析失败: {e}")
+            logger.error(f" JSON解析失败: {e}")
             logger.debug(f"原始响应: {response}")
             raise ValueError(f"无效的JSON响应: {e}")
 
         except Exception as e:
-            logger.error(f"❌ 响应解析异常: {e}")
+            logger.error(f" 响应解析异常: {e}")
             raise
 
     def batch_check(self, texts: list, mode: str = "normal") -> list:

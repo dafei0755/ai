@@ -49,17 +49,17 @@ class FeasibilityAnalystAgent(LLMAgent):
             standards_path = Path(__file__).parent.parent / "knowledge_base" / "industry_standards.yaml"
 
             if not standards_path.exists():
-                logger.warning(f"⚠️ 行业标准文件不存在: {standards_path}")
+                logger.warning(f"️ 行业标准文件不存在: {standards_path}")
                 return {}
 
             with open(standards_path, 'r', encoding='utf-8') as f:
                 standards = yaml.safe_load(f)
 
-            logger.info(f"✅ 已加载行业标准知识库: {standards.get('version', 'unknown')}")
+            logger.info(f" 已加载行业标准知识库: {standards.get('version', 'unknown')}")
             return standards
 
         except Exception as e:
-            logger.error(f"❌ 加载行业标准失败: {e}")
+            logger.error(f" 加载行业标准失败: {e}")
             return {}
 
     def validate_input(self, state: ProjectAnalysisState) -> bool:
@@ -74,14 +74,14 @@ class FeasibilityAnalystAgent(LLMAgent):
 
         if not prompt_config:
             raise ValueError(
-                "❌ 未找到V1.5提示词配置: feasibility_analyst\n"
+                " 未找到V1.5提示词配置: feasibility_analyst\n"
                 "请确保配置文件存在: config/prompts/feasibility_analyst.yaml"
             )
 
         system_prompt = prompt_config.get("system_prompt", "")
 
         if not system_prompt:
-            raise ValueError("❌ 配置文件中缺少 system_prompt 字段")
+            raise ValueError(" 配置文件中缺少 system_prompt 字段")
 
         logger.info(f"[V1.5] 已加载可行性分析师提示词: {len(system_prompt)} 字符")
 
@@ -145,11 +145,11 @@ class FeasibilityAnalystAgent(LLMAgent):
         start_time = time.time()
         
         try:
-            logger.info(f"🚀 [V1.5] 开始可行性分析: session={state.get('session_id')}")
+            logger.info(f" [V1.5] 开始可行性分析: session={state.get('session_id')}")
             
             # 验证输入
             if not self.validate_input(state):
-                raise ValueError("❌ 无效输入: 缺少V1需求分析师的输出(structured_requirements)")
+                raise ValueError(" 无效输入: 缺少V1需求分析师的输出(structured_requirements)")
             
             # 准备消息
             messages = self.prepare_messages(state)
@@ -166,14 +166,14 @@ class FeasibilityAnalystAgent(LLMAgent):
             
             # AnalysisResult 使用 confidence 来表示结果质量
             if result.confidence >= 0.8:
-                logger.info(f"✅ [V1.5] 可行性分析完成，耗时: {end_time - start_time:.2f}s，置信度: {result.confidence}")
+                logger.info(f" [V1.5] 可行性分析完成，耗时: {end_time - start_time:.2f}s，置信度: {result.confidence}")
             else:
-                logger.warning(f"⚠️ [V1.5] 可行性分析完成但置信度较低: {result.confidence}")
+                logger.warning(f"️ [V1.5] 可行性分析完成但置信度较低: {result.confidence}")
             
             return result
             
         except Exception as e:
-            logger.error(f"❌ [V1.5] 可行性分析失败: {e}")
+            logger.error(f" [V1.5] 可行性分析失败: {e}")
             error = self.handle_error(e, "V1.5 feasibility analysis")
             raise error
 
@@ -211,7 +211,7 @@ class FeasibilityAnalystAgent(LLMAgent):
             missing_fields = [f for f in required_fields if f not in feasibility_data]
 
             if missing_fields:
-                logger.warning(f"⚠️ V1.5输出缺少字段: {missing_fields}")
+                logger.warning(f"️ V1.5输出缺少字段: {missing_fields}")
 
             # 构建成功结果 - 使用正确的 AnalysisResult 构造参数
             return self.create_analysis_result(
@@ -222,7 +222,7 @@ class FeasibilityAnalystAgent(LLMAgent):
             )
 
         except json.JSONDecodeError as e:
-            logger.error(f"❌ V1.5 JSON解析失败: {e}")
+            logger.error(f" V1.5 JSON解析失败: {e}")
 
             # 返回带有原始响应的结果
             return self.create_analysis_result(
@@ -233,7 +233,7 @@ class FeasibilityAnalystAgent(LLMAgent):
             )
 
         except Exception as e:
-            logger.error(f"❌ V1.5结果验证失败: {e}")
+            logger.error(f" V1.5结果验证失败: {e}")
 
             return self.create_analysis_result(
                 content=raw_response,

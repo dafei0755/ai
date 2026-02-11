@@ -1,5 +1,5 @@
 """
-🔥 v7.15: 追问智能体 - 基于 LangGraph 的独立 Agent
+ v7.15: 追问智能体 - 基于 LangGraph 的独立 Agent
 
 功能：
 1. 意图识别节点：closed/open/creative/general
@@ -78,17 +78,17 @@ INTENT_PROMPTS = {
 - 如报告未涉及，明确说明""",
     
     "open_with_context": """【扩展模式】用户希望获得更广泛的见解，在报告基础上扩展回答：
-- 首先回应报告中的相关内容【📖 报告内容】
-- 然后补充专业知识和行业经验【🌐 扩展知识】
-- 可以提供类似案例参考【📚 业界参考】
+- 首先回应报告中的相关内容【 报告内容】
+- 然后补充专业知识和行业经验【 扩展知识】
+- 可以提供类似案例参考【 业界参考】
 - 确保用户能区分哪些是报告结论，哪些是扩展建议""",
     
     "creative": """【创意模式】用户希望进行头脑风暴或探索性讨论：
 - 自由发挥专业知识和创意思维
 - 提供多种可能性和方向
 - 鼓励「What-if」假设性探讨
-- 结合行业趋势和前沿理念【💡 创意建议】
-- 可以跨领域类比借鉴【🔗 跨界启发】""",
+- 结合行业趋势和前沿理念【 创意建议】
+- 可以跨领域类比借鉴【 跨界启发】""",
     
     "general": """请综合报告内容和专业知识回答，注意标注信息来源。"""
 }
@@ -159,7 +159,7 @@ def classify_intent_node(state: FollowupAgentState) -> Dict[str, Any]:
     
     intent_prompt = INTENT_PROMPTS.get(intent, INTENT_PROMPTS["general"])
     
-    log_msg = f"🎯 意图分类: {intent}" + (f" (关键词: {matched_keyword})" if matched_keyword else " (默认)")
+    log_msg = f" 意图分类: {intent}" + (f" (关键词: {matched_keyword})" if matched_keyword else " (默认)")
     logger.info(log_msg)
     
     return {
@@ -205,7 +205,7 @@ def retrieve_context_node(state: FollowupAgentState) -> Dict[str, Any]:
                 content = str(result)
             sections.append({"title": f"专家分析: {agent_id}", "content": content[:800]})
     
-    log_msg = f"📚 检索到 {len(sections)} 个相关章节"
+    log_msg = f" 检索到 {len(sections)} 个相关章节"
     logger.info(log_msg)
     
     return {
@@ -242,7 +242,7 @@ def generate_answer_node(state: FollowupAgentState) -> Dict[str, Any]:
     
     context_summary = "\n\n".join(context_parts) if context_parts else "（暂无相关上下文）"
     
-    # 🔥 使用智能上下文管理器
+    #  使用智能上下文管理器
     temp_manager = FollowupHistoryManager(session_manager=None)
     context_result = temp_manager.build_context_for_llm(
         history=conversation_history,
@@ -259,16 +259,16 @@ def generate_answer_node(state: FollowupAgentState) -> Dict[str, Any]:
 1. 帮助用户理解刚刚完成的项目分析报告
 2. 回答关于报告内容的任何问题
 3. 提供深入的解释和补充信息
-4. 🔥 充分发挥专业知识，提供高价值洞察
+4.  充分发挥专业知识，提供高价值洞察
 5. 保持专业、友好、耐心的语气
 
 {intent_prompt}
 
 回答规范：
-✅ 使用结构化格式（标题、列表、要点）
-✅ 明确标注信息来源（📖报告/🌐扩展/💡创意）
-✅ 鼓励用户继续追问和深挖
-❌ 不要使用过于技术化的术语
+ 使用结构化格式（标题、列表、要点）
+ 明确标注信息来源（报告/扩展/创意）
+ 鼓励用户继续追问和深挖
+ 不要使用过于技术化的术语
 
 {context_str}
 """
@@ -279,16 +279,16 @@ def generate_answer_node(state: FollowupAgentState) -> Dict[str, Any]:
         SystemMessage(content=system_prompt),
         HumanMessage(content=f"""用户问题：{question}
 
-请基于上述报告内容回答，并在回答末尾标注引用的章节（格式：📖 引用：第X章）。""")
+请基于上述报告内容回答，并在回答末尾标注引用的章节（格式： 引用：第X章）。""")
     ]
     
     try:
         response = llm.invoke(messages)
         answer = response.content
-        log_msg = f"✅ 回答生成成功 ({len(answer)} 字符)"
+        log_msg = f" 回答生成成功 ({len(answer)} 字符)"
     except Exception as e:
         answer = f"抱歉，生成回答时遇到问题: {str(e)}"
-        log_msg = f"❌ 回答生成失败: {e}"
+        log_msg = f" 回答生成失败: {e}"
     
     logger.info(log_msg)
     
@@ -356,7 +356,7 @@ def generate_suggestions_node(state: FollowupAgentState) -> Dict[str, Any]:
     else:
         suggestions = general_suggestions[:3]
     
-    log_msg = f"💡 生成 {len(suggestions)} 条后续建议"
+    log_msg = f" 生成 {len(suggestions)} 条后续建议"
     logger.info(log_msg)
     
     return {
@@ -401,7 +401,7 @@ def build_followup_agent() -> StateGraph:
 
 class FollowupAgent:
     """
-    🔥 v7.15: 追问智能体 - 基于 LangGraph
+     v7.15: 追问智能体 - 基于 LangGraph
     
     替代原有的 ConversationAgent（服务类）
     升级为真正的独立 Agent
@@ -410,7 +410,7 @@ class FollowupAgent:
     def __init__(self):
         """初始化追问智能体"""
         self.graph = build_followup_agent()
-        logger.info("🚀 FollowupAgent (LangGraph) 已初始化")
+        logger.info(" FollowupAgent (LangGraph) 已初始化")
     
     def answer_question(
         self,
@@ -449,7 +449,7 @@ class FollowupAgent:
             "processing_log": []
         }
         
-        logger.info(f"🤖 FollowupAgent 处理问题: {question[:50]}...")
+        logger.info(f" FollowupAgent 处理问题: {question[:50]}...")
         
         # 运行图
         try:
@@ -463,13 +463,13 @@ class FollowupAgent:
                 "processing_log": final_state.get("processing_log", [])
             }
         except Exception as e:
-            logger.error(f"❌ FollowupAgent 执行失败: {e}")
+            logger.error(f" FollowupAgent 执行失败: {e}")
             return {
                 "answer": f"抱歉，处理问题时遇到错误: {str(e)}",
                 "intent": "error",
                 "references": [],
                 "suggestions": ["请尝试重新提问"],
-                "processing_log": [f"❌ 执行失败: {e}"]
+                "processing_log": [f" 执行失败: {e}"]
             }
     
     async def answer_question_async(

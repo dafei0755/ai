@@ -21,7 +21,7 @@ from loguru import logger
 from playwright.async_api import Browser, Playwright, async_playwright
 
 # ============================================================
-# 🔥 v7.1.2: Playwright 浏览器池单例
+#  v7.1.2: Playwright 浏览器池单例
 # ============================================================
 
 
@@ -56,7 +56,7 @@ class PlaywrightBrowserPool:
 
     async def initialize(self) -> None:
         """
-        🆕 P1修复: 增强初始化容错与降级策略
+         P1修复: 增强初始化容错与降级策略
 
         初始化浏览器池（异步方法，在服务启动时调用）
         - Windows下强制ProactorEventLoop
@@ -68,19 +68,19 @@ class PlaywrightBrowserPool:
                 return
 
             try:
-                logger.info("🚀 正在初始化 Playwright 浏览器池...")
+                logger.info(" 正在初始化 Playwright 浏览器池...")
 
-                # 🆕 P1修复: Windows平台检测与事件循环优化
+                #  P1修复: Windows平台检测与事件循环优化
                 import platform
                 import sys
 
                 if platform.system() == "Windows" and sys.version_info >= (3, 13):
-                    logger.info("🔧 检测到Windows+Python3.13，已启用ProactorEventLoop兼容模式")
+                    logger.info(" 检测到Windows+Python3.13，已启用ProactorEventLoop兼容模式")
 
-                # 🆕 P1修复: 添加超时控制
+                #  P1修复: 添加超时控制
                 self._playwright = await asyncio.wait_for(async_playwright().start(), timeout=30.0)
 
-                # 🆕 P1修复: 检查chromium是否已安装
+                #  P1修复: 检查chromium是否已安装
                 try:
                     self._browser = await asyncio.wait_for(
                         self._playwright.chromium.launch(
@@ -95,28 +95,28 @@ class PlaywrightBrowserPool:
                         timeout=30.0,
                     )
                 except Exception as launch_error:
-                    # 🆕 P1修复: 友好的安装提示
+                    #  P1修复: 友好的安装提示
                     error_msg = str(launch_error)
                     if "Executable doesn't exist" in error_msg or "not found" in error_msg:
-                        logger.error("❌ Chromium浏览器未安装")
-                        logger.error("💡 请运行: playwright install chromium")
-                        logger.warning("⚠️ PDF导出功能将不可用，系统将以降级模式运行")
+                        logger.error(" Chromium浏览器未安装")
+                        logger.error(" 请运行: playwright install chromium")
+                        logger.warning("️ PDF导出功能将不可用，系统将以降级模式运行")
                         self._initialized = False
-                        return  # 🆕 P1修复: 失败不阻塞服务启动
+                        return  #  P1修复: 失败不阻塞服务启动
                     raise
 
                 self._initialized = True
-                logger.success("✅ Playwright 浏览器池初始化成功")
+                logger.success(" Playwright 浏览器池初始化成功")
 
             except asyncio.TimeoutError:
-                logger.error("❌ Playwright初始化超时（30秒）")
-                logger.warning("⚠️ PDF导出功能将不可用，系统将以降级模式运行")
+                logger.error(" Playwright初始化超时（30秒）")
+                logger.warning("️ PDF导出功能将不可用，系统将以降级模式运行")
                 self._initialized = False
             except Exception as e:
-                logger.error(f"❌ Playwright 浏览器池初始化失败: {e}")
-                logger.warning("⚠️ PDF导出功能将不可用，系统将以降级模式运行")
+                logger.error(f" Playwright 浏览器池初始化失败: {e}")
+                logger.warning("️ PDF导出功能将不可用，系统将以降级模式运行")
                 self._initialized = False
-                # 🆕 P1修复: 不抛出异常，允许服务继续启动
+                #  P1修复: 不抛出异常，允许服务继续启动
 
     async def get_browser(self) -> Browser:
         """获取浏览器实例（懒初始化）"""
@@ -125,7 +125,7 @@ class PlaywrightBrowserPool:
 
         # 检查浏览器是否仍然连接
         if self._browser is None or not self._browser.is_connected():
-            logger.warning("⚠️ 浏览器连接丢失，正在重新初始化...")
+            logger.warning("️ 浏览器连接丢失，正在重新初始化...")
             self._initialized = False
             await self.initialize()
 
@@ -137,18 +137,18 @@ class PlaywrightBrowserPool:
             if self._browser:
                 try:
                     await self._browser.close()
-                    logger.info("✅ Playwright 浏览器已关闭")
+                    logger.info(" Playwright 浏览器已关闭")
                 except Exception as e:
-                    logger.warning(f"⚠️ 关闭浏览器时出错: {e}")
+                    logger.warning(f"️ 关闭浏览器时出错: {e}")
                 finally:
                     self._browser = None
 
             if self._playwright:
                 try:
                     await self._playwright.stop()
-                    logger.info("✅ Playwright 已停止")
+                    logger.info(" Playwright 已停止")
                 except Exception as e:
-                    logger.warning(f"⚠️ 停止 Playwright 时出错: {e}")
+                    logger.warning(f"️ 停止 Playwright 时出错: {e}")
                 finally:
                     self._playwright = None
 
@@ -1165,14 +1165,14 @@ class HTMLPDFGenerator:
     def _clean_json_artifacts(self, text: str) -> str:
         """清理文本中残留的JSON/字典符号
 
-        🔥 v7.1 增强：处理 deliverable_outputs 等复杂结构
+         v7.1 增强：处理 deliverable_outputs 等复杂结构
         """
         if not text:
             return text
 
         text = text.strip()
 
-        # 🔥 首先处理字面换行符（\n 作为字符串）
+        #  首先处理字面换行符（\n 作为字符串）
         text = text.replace("\\n\\n", "\n\n")
         text = text.replace("\\n", "\n")
 
@@ -1182,7 +1182,7 @@ class HTMLPDFGenerator:
         text = re.sub(r"\[\]", "", text)
         text = re.sub(r"\[\s*\]", "", text)
 
-        # 🔥 处理 'key': 'value', 'key2': 'value2' 格式（字典展开为可读格式）
+        #  处理 'key': 'value', 'key2': 'value2' 格式（字典展开为可读格式）
         # 先检测是否为字典字符串格式
         if re.match(r"^\s*['\"][a-zA-Z_\u4e00-\u9fff]", text):
             # 将字典键值对转为可读格式
@@ -1285,10 +1285,10 @@ class HTMLPDFGenerator:
                         parts.append(f"<strong>{label}</strong>:<br>{val}")
                     else:
                         parts.append(f"<strong>{label}</strong>: {val}")
-            return "<br><br>".join(parts)  # 🔥 用双换行分隔不同字段
+            return "<br><br>".join(parts)  #  用双换行分隔不同字段
 
         text = str(value)
-        # 🔥 先处理字面换行符
+        #  先处理字面换行符
         text = self._normalize_newlines(text)
         # 清理 JSON 符号
         text = self._clean_json_artifacts(text)
@@ -1296,7 +1296,7 @@ class HTMLPDFGenerator:
         text = self._translate_all_english(text)
         # 统一列表格式（作为子列表处理）
         text = self._unify_list_format(text, is_sublist=True)
-        # 🔥 最后将换行符转为 <br>
+        #  最后将换行符转为 <br>
         text = text.replace("\n\n", "<br><br>")
         text = text.replace("\n", "<br>")
 
@@ -1412,7 +1412,7 @@ class HTMLPDFGenerator:
         return items if items else [text]
 
     def _parse_deliverable_outputs(self, title: str, value: Any) -> Optional[Dict[str, Any]]:
-        """🔥 v7.1: 专门处理交付物输出字段
+        """ v7.1: 专门处理交付物输出字段
 
         交付物输出是 v7.0 任务导向架构的核心输出格式，包含：
         - deliverable_name: 交付物名称
@@ -1564,7 +1564,7 @@ class HTMLPDFGenerator:
 
         title = self.translate_label(key)
 
-        # 🔥 v7.1: 特殊处理 deliverable_outputs（交付物输出）
+        #  v7.1: 特殊处理 deliverable_outputs（交付物输出）
         if key_lower in ("deliverable_outputs", "deliverable_answers"):
             return self._parse_deliverable_outputs(title, value)
 
@@ -1720,7 +1720,7 @@ class HTMLPDFGenerator:
     ) -> bytes:
         """异步生成 PDF
 
-        🆕 P1修复: 添加Playwright可用性检查与降级策略
+         P1修复: 添加Playwright可用性检查与降级策略
 
         Args:
             experts: 专家数据列表
@@ -1743,41 +1743,41 @@ class HTMLPDFGenerator:
         # 渲染 HTML
         html = self.render_html(experts, title, subtitle, session_id)
         html_time = time.time()
-        logger.debug(f"📄 HTML 渲染耗时: {html_time - start_time:.2f}s")
+        logger.debug(f" HTML 渲染耗时: {html_time - start_time:.2f}s")
 
-        # 🆕 P1修复: 检查浏览器池健康状态
+        #  P1修复: 检查浏览器池健康状态
         browser_pool = get_browser_pool()
 
         try:
             browser = await asyncio.wait_for(browser_pool.get_browser(), timeout=15.0)
 
-            # 🆕 P1修复: 二次验证浏览器连接
+            #  P1修复: 二次验证浏览器连接
             if browser is None or not browser.is_connected():
                 raise RuntimeError("浏览器未初始化或连接已断开")
 
         except (asyncio.TimeoutError, RuntimeError, Exception) as browser_error:
-            logger.error(f"❌ 获取Playwright浏览器失败: {browser_error}")
-            logger.warning("⚠️ 正在尝试降级策略：返回HTML内容")
+            logger.error(f" 获取Playwright浏览器失败: {browser_error}")
+            logger.warning("️ 正在尝试降级策略：返回HTML内容")
 
-            # 🆕 P1修复: 降级到HTML
+            #  P1修复: 降级到HTML
             # 返回HTML字节（前端可检测Content-Type并显示提示）
-            logger.info("📄 使用HTML降级模式代替PDF")
+            logger.info(" 使用HTML降级模式代替PDF")
             return html.encode("utf-8")
 
         browser_time = time.time()
-        logger.debug(f"🌐 获取浏览器耗时: {browser_time - html_time:.2f}s")
+        logger.debug(f" 获取浏览器耗时: {browser_time - html_time:.2f}s")
 
         # 创建新的 context 和 page（context 比 browser 轻量很多）
         context = await browser.new_context()
         page = await context.new_page()
 
         try:
-            # 🔥 v7.1.2: 优化等待策略
+            #  v7.1.2: 优化等待策略
             # 使用 domcontentloaded 而非 networkidle
             # 因为 HTML 使用内嵌样式，无需等待外部资源
             await page.set_content(html, wait_until="domcontentloaded")
             content_time = time.time()
-            logger.debug(f"📝 设置内容耗时: {content_time - browser_time:.2f}s")
+            logger.debug(f" 设置内容耗时: {content_time - browser_time:.2f}s")
 
             # PDF 默认选项
             default_options = {
@@ -1800,14 +1800,14 @@ class HTMLPDFGenerator:
 
             pdf_bytes = await page.pdf(**default_options)
             pdf_time = time.time()
-            logger.debug(f"📑 PDF 生成耗时: {pdf_time - content_time:.2f}s")
+            logger.debug(f" PDF 生成耗时: {pdf_time - content_time:.2f}s")
 
         finally:
-            # 🔥 只关闭 context，不关闭 browser（复用）
+            #  只关闭 context，不关闭 browser（复用）
             await context.close()
 
         total_time = time.time() - start_time
-        logger.info(f"✅ PDF 生成完成，总耗时: {total_time:.2f}s")
+        logger.info(f" PDF 生成完成，总耗时: {total_time:.2f}s")
 
         return pdf_bytes
 

@@ -4,13 +4,13 @@ Batch Strategy Review Interaction Node (Refactored - Dynamic Batch Support)
 
 在每批专家执行前,允许用户审核和调整其工作策略
 
-🎯 重构亮点:
+ 重构亮点:
 - 使用 StrategyGenerator 服务消除 V2/V6 重复逻辑 (~240 行)
 - 路由到 batch_executor 节点，由它创建 Send 对象 (2025-11-19)
 - 支持动态批次调度（1-N批）- 2025-11-18
 - 代码行数从 928 行减少到 ~150 行 (-84%)
 
-🔧 修复记录 (2025-11-19):
+ 修复记录 (2025-11-19):
 - 修复 InvalidUpdateError: 不再返回 Command(goto=List[Send])
 - 改为返回 Command(goto="batch_executor")，由 batch_executor 根据 current_batch 创建 Send 对象
 - **修复批次2跳过问题**: 移除重复的 `next_batch = current_batch + 1` 操作
@@ -48,7 +48,7 @@ class SecondBatchStrategyReviewNode:
         self.role_manager = role_manager or RoleManager()
         self.llm_model = llm_model
 
-        # 🆕 初始化 StrategyGenerator 服务
+        #  初始化 StrategyGenerator 服务
         self.strategy_generator = StrategyGenerator(
             role_manager=self.role_manager,
             llm_model=self.llm_model
@@ -65,7 +65,7 @@ class SecondBatchStrategyReviewNode:
         - 基于 execution_batches 自动判断下一批次
         - 如果没有下一批次，直接进入 analysis_review
 
-        🚀 方案C优化 (2025-11-25): 全自动批次执行
+         方案C优化 (2025-11-25): 全自动批次执行
         - skip_review=True（默认）: 自动批准，不触发 interrupt
         - skip_review=False: 正常审核流程，触发 interrupt（保留以便未来启用）
 
@@ -86,15 +86,15 @@ class SecondBatchStrategyReviewNode:
         total_batches = state.get("total_batches", len(batches))
         completed_batches = state.get("completed_batches", [])
 
-        logger.info(f"📊 批次状态: 当前批次={current_batch}/{total_batches}, 已完成={completed_batches}")
+        logger.info(f" 批次状态: 当前批次={current_batch}/{total_batches}, 已完成={completed_batches}")
 
-        # 🔧 修复 (2025-11-19): batch_router已经将current_batch更新为即将执行的批次
+        #  修复 (2025-11-19): batch_router已经将current_batch更新为即将执行的批次
         # 这里直接使用current_batch，不再+1
-        logger.info(f"🎯 准备审核即将执行的批次: 批次 {current_batch}/{total_batches}")
+        logger.info(f" 准备审核即将执行的批次: 批次 {current_batch}/{total_batches}")
 
         # 检查批次是否已超出范围
         if current_batch > total_batches:
-            logger.info("✅ 所有批次已完成，直接进入多视角审核")
+            logger.info(" 所有批次已完成，直接进入多视角审核")
             return Command(
                 update={"all_batches_completed": True},
                 goto="analysis_review"  # 直接进入审核
@@ -109,7 +109,7 @@ class SecondBatchStrategyReviewNode:
             )
 
         current_batch_roles = batches[current_batch - 1]
-        logger.info(f"📋 批次 {current_batch} 角色列表: {current_batch_roles}")
+        logger.info(f" 批次 {current_batch} 角色列表: {current_batch_roles}")
 
         # ========================================
         # 2. 动态生成当前批次的策略预览
@@ -125,7 +125,7 @@ class SecondBatchStrategyReviewNode:
             # 提取角色前缀 (V2, V3, V4, V5, V6)
             role_prefix = role_id.split("_")[0] if "_" in role_id else role_id
 
-            logger.info(f"🔍 生成 {role_id} 的策略预览...")
+            logger.info(f" 生成 {role_id} 的策略预览...")
             strategy = self.strategy_generator.generate_strategy_preview(
                 expert_type=role_prefix,
                 agent_results=agent_results,
@@ -170,9 +170,9 @@ class SecondBatchStrategyReviewNode:
         # ========================================
         # 4. 调用 interrupt 等待用户审核（或自动批准）
         # ========================================
-        # 🚀 方案C优化：默认自动批准（skip_review=True）
+        #  方案C优化：默认自动批准（skip_review=True）
         if skip_review:
-            logger.info(f"⚡ 批次 {current_batch} 自动批准（方案C：全自动批次执行）")
+            logger.info(f" 批次 {current_batch} 自动批准（方案C：全自动批次执行）")
             return Command(
                 update={
                     "batch_strategy_approved": True,
@@ -200,14 +200,14 @@ class SecondBatchStrategyReviewNode:
             stage="batch_strategy_review"
         )
 
-        logger.info(f"💬 用户意图解析: {intent_result['intent']} (方法: {intent_result['method']})")
+        logger.info(f" 用户意图解析: {intent_result['intent']} (方法: {intent_result['method']})")
 
         intent = intent_result["intent"]
 
         if intent == "approve":
-            logger.info(f"✅ User approved batch {current_batch} strategies, proceeding to execution")
+            logger.info(f" User approved batch {current_batch} strategies, proceeding to execution")
 
-            # 🔧 修复 (2025-11-19): 不再更新 current_batch，batch_router 已经更新过了
+            #  修复 (2025-11-19): 不再更新 current_batch，batch_router 已经更新过了
             # batch_executor 会根据 current_batch 自动创建对应批次的 Send 对象
             return Command(
                 update={
@@ -218,7 +218,7 @@ class SecondBatchStrategyReviewNode:
             )
 
         elif intent in ["reject", "revise"]:
-            logger.warning(f"⚠️ User {intent} batch {current_batch} strategies")
+            logger.warning(f"️ User {intent} batch {current_batch} strategies")
             return Command(
                 update={
                     "batch_strategy_approved": False,
@@ -230,7 +230,7 @@ class SecondBatchStrategyReviewNode:
             )
 
         elif intent == "modify":
-            logger.info(f"📝 User requested strategy modifications for batch {current_batch}")
+            logger.info(f" User requested strategy modifications for batch {current_batch}")
             return Command(
                 update={
                     "batch_strategy_approved": False,
@@ -244,7 +244,7 @@ class SecondBatchStrategyReviewNode:
             # 默认批准
             logger.info(f"User {intent}, defaulting to approve")
 
-            # 🔧 修复 (2025-11-19): 不再更新 current_batch，batch_router 已经更新过了
+            #  修复 (2025-11-19): 不再更新 current_batch，batch_router 已经更新过了
             # batch_executor 会根据 current_batch 自动创建对应批次的 Send 对象
             return Command(
                 update={

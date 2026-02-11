@@ -1,6 +1,6 @@
 /**
  * 🔥 v7.48: 图片生成对话窗口
- * 
+ *
  * 类似 Google AI Studio 的连续对话界面
  * - 上部：对话历史（用户请求 + AI响应图片）
  * - 下部：输入区（提示词 + 参考图上传 + 比例/风格选择）
@@ -78,35 +78,35 @@ export default function ImageChatModal({
   // 对话历史
   const [chatHistory, setChatHistory] = useState<ImageChatTurn[]>([]);
   const [isLoadingHistory, setIsLoadingHistory] = useState(true);
-  
+
   // 输入状态
   const [prompt, setPrompt] = useState('');
   const [aspectRatio, setAspectRatio] = useState<AspectRatio>('16:9');
   const [styleType, setStyleType] = useState<StyleType>('interior');
   const [referenceImage, setReferenceImage] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
-  
+
   // 🔥 v7.61: Vision 图像分析状态
   const [useVisionAnalysis, setUseVisionAnalysis] = useState(true);
   const [visionFocus, setVisionFocus] = useState<'comprehensive' | 'style' | 'composition' | 'colors'>('comprehensive');
   const [isAnalyzingVision, setIsAnalyzingVision] = useState(false);
-  
+
   // 🔥 v7.62: Inpainting 编辑模式状态
   const [editMode, setEditMode] = useState(false);
   const [maskData, setMaskData] = useState<string | null>(null);
-  
+
   // 下拉菜单状态
   const [showAspectDropdown, setShowAspectDropdown] = useState(false);
   const [showStyleDropdown, setShowStyleDropdown] = useState(false);
-  
+
   // 智能推荐
   const [suggestedPrompts, setSuggestedPrompts] = useState<SuggestedPrompt[]>([]);
   const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
-  
+
   // 图片查看器
   const [viewingImage, setViewingImage] = useState<ExpertGeneratedImage | null>(null);
   const [zoomLevel, setZoomLevel] = useState(1);
-  
+
   // Refs
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -232,7 +232,7 @@ export default function ImageChatModal({
         reference_image: referenceImage || undefined,
         context: context || undefined
       };
-      
+
       // 编辑模式：添加 Mask 参数
       if (editMode && maskData && referenceImage) {
         requestParams.mask_image = maskData;
@@ -242,7 +242,7 @@ export default function ImageChatModal({
         requestParams.use_vision_analysis = useVisionAnalysis;
         requestParams.vision_focus = visionFocus;
       }
-      
+
       const result = await api.regenerateImageWithContext(sessionId, expertName, requestParams);
 
       // 替换加载中的消息为实际结果
@@ -331,7 +331,30 @@ export default function ImageChatModal({
   // ==================== 保存对话历史 ====================
   const saveChatHistory = async () => {
     try {
-      await api.saveImageChatHistory(sessionId, expertName, chatHistory);
+      // 过滤并转换数据，确保必填字段存在
+      const validTurns = chatHistory
+        .filter(t => t.turn_id && t.type && t.timestamp)
+        .map(t => ({
+          turn_id: t.turn_id!,
+          type: t.type!,
+          timestamp: t.timestamp!,
+          prompt: t.prompt,
+          aspect_ratio: t.aspect_ratio as string | undefined,
+          style_type: t.style_type as string | undefined,
+          reference_image_url: t.reference_image_url,
+          image: t.image ? {
+            expert_name: t.image.expert_name || expertName,
+            image_url: t.image.image_url || '',
+            prompt: t.image.prompt || '',
+            prompt_used: t.image.prompt_used,
+            id: t.image.id,
+            aspect_ratio: t.image.aspect_ratio as string | undefined,
+            style_type: t.image.style_type as string | undefined,
+            created_at: t.image.created_at
+          } : undefined,
+          error: t.error
+        }));
+      await api.saveImageChatHistory(sessionId, expertName, validTurns);
     } catch (error) {
       console.error('保存对话历史失败:', error);
     }
@@ -353,7 +376,7 @@ export default function ImageChatModal({
 
     // 从历史中移除
     setChatHistory(prev => prev.filter(t => t.turn_id !== turnId));
-    
+
     // 保存更新后的历史
     await saveChatHistory();
 
@@ -406,7 +429,7 @@ export default function ImageChatModal({
   }, []);
 
   const handleDownloadImage = () => {
-    if (!viewingImage) return;
+    if (!viewingImage || !viewingImage.image_url) return;
     const link = document.createElement('a');
     link.href = viewingImage.image_url;
     link.download = `${expertName}-concept-${Date.now()}.png`;
@@ -466,7 +489,7 @@ export default function ImageChatModal({
               <ChatMessage
                 key={turn.turn_id}
                 turn={turn}
-                onDelete={() => handleDeleteTurn(turn.turn_id)}
+                onDelete={() => turn.turn_id && handleDeleteTurn(turn.turn_id)}
                 onViewImage={() => turn.image && openImageViewer(turn.image)}
               />
             ))
@@ -481,10 +504,10 @@ export default function ImageChatModal({
               {suggestedPrompts.slice(0, 4).map((suggestion, idx) => (
                 <button
                   key={idx}
-                  onClick={() => setPrompt(suggestion.prompt)}
+                  onClick={() => setPrompt(suggestion.text)}
                   className="flex-shrink-0 px-3 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-full text-sm text-white/70 hover:text-white transition-colors"
                 >
-                  {suggestion.label}
+                  {suggestion.text}
                 </button>
               ))}
             </div>
@@ -817,7 +840,7 @@ function ChatMessage({ turn, onDelete, onViewImage }: ChatMessageProps) {
               <Maximize2 className="w-8 h-8 text-white" />
             </div>
           </div>
-          
+
           {/* 悬停时显示删除按钮 */}
           <button
             onClick={(e) => {

@@ -1,7 +1,7 @@
 """
 结果聚合智能体 (LangGraph StateGraph)
 
-🔥 v7.16: 将 ResultAggregatorAgent 升级为真正的 LangGraph Agent
+ v7.16: 将 ResultAggregatorAgent 升级为真正的 LangGraph Agent
 
 核心功能:
 1. 提取专家报告 (Extract Reports)
@@ -66,7 +66,7 @@ def extract_reports_node(state: ResultAggregatorState) -> Dict[str, Any]:
     """
     提取专家报告节点 - 从 agent_results 中提取各专家的输出
     """
-    logger.info("📋 执行专家报告提取节点")
+    logger.info(" 执行专家报告提取节点")
     
     agent_results = state.get("agent_results", {})
     selected_roles = state.get("selected_roles", [])
@@ -109,9 +109,9 @@ def extract_reports_node(state: ResultAggregatorState) -> Dict[str, Any]:
         
         if content:
             expert_reports[display_name] = content
-            logger.debug(f"  ✅ 提取 {display_name}: {len(content)} 字符")
+            logger.debug(f"   提取 {display_name}: {len(content)} 字符")
     
-    log_entry = f"📋 提取完成: {len(expert_reports)} 个专家报告"
+    log_entry = f" 提取完成: {len(expert_reports)} 个专家报告"
     logger.info(log_entry)
     
     return {
@@ -124,7 +124,7 @@ def extract_context_node(state: ResultAggregatorState) -> Dict[str, Any]:
     """
     提取上下文数据节点 - 问卷回答、需求分析等
     """
-    logger.info("📝 执行上下文数据提取节点")
+    logger.info(" 执行上下文数据提取节点")
     
     context_data = {}
     
@@ -132,21 +132,21 @@ def extract_context_node(state: ResultAggregatorState) -> Dict[str, Any]:
     questionnaire_data = state.get("questionnaire_data", {})
     if questionnaire_data:
         context_data["questionnaire_responses"] = questionnaire_data
-        logger.debug(f"  ✅ 问卷数据: {len(questionnaire_data)} 项")
+        logger.debug(f"   问卷数据: {len(questionnaire_data)} 项")
     
     # 提取需求分析
     structured_requirements = state.get("structured_requirements", {})
     if structured_requirements:
         context_data["requirements_analysis"] = structured_requirements
-        logger.debug("  ✅ 需求分析已提取")
+        logger.debug("   需求分析已提取")
     
     # 提取审核历史
     review_history = state.get("review_history", [])
     if review_history:
         context_data["review_history"] = review_history
-        logger.debug(f"  ✅ 审核历史: {len(review_history)} 轮")
+        logger.debug(f"   审核历史: {len(review_history)} 轮")
     
-    log_entry = f"📝 上下文提取完成: {len(context_data)} 类数据"
+    log_entry = f" 上下文提取完成: {len(context_data)} 类数据"
     logger.info(log_entry)
     
     return {
@@ -159,7 +159,7 @@ def generate_report_node(state: ResultAggregatorState) -> Dict[str, Any]:
     """
     生成报告节点 - 调用LLM生成结构化报告
     """
-    logger.info("🤖 执行LLM报告生成节点")
+    logger.info(" 执行LLM报告生成节点")
     
     llm_model = state.get("_llm_model")
     expert_reports = state.get("expert_reports", {})
@@ -167,7 +167,7 @@ def generate_report_node(state: ResultAggregatorState) -> Dict[str, Any]:
     user_input = state.get("user_input", "")
     
     if not llm_model:
-        logger.warning("⚠️ 未提供LLM模型，使用模板报告")
+        logger.warning("️ 未提供LLM模型，使用模板报告")
         return _generate_template_report(expert_reports, context_data, user_input)
     
     # 构建报告生成提示
@@ -199,7 +199,7 @@ def generate_report_node(state: ResultAggregatorState) -> Dict[str, Any]:
         # 解析响应
         llm_response = _parse_llm_response(response.content)
         
-        log_entry = f"🤖 LLM生成完成: {elapsed_time:.2f}秒"
+        log_entry = f" LLM生成完成: {elapsed_time:.2f}秒"
         logger.info(log_entry)
         
         return {
@@ -208,7 +208,7 @@ def generate_report_node(state: ResultAggregatorState) -> Dict[str, Any]:
         }
         
     except Exception as e:
-        logger.error(f"❌ LLM报告生成失败: {e}")
+        logger.error(f" LLM报告生成失败: {e}")
         return _generate_template_report(expert_reports, context_data, user_input)
 
 
@@ -216,7 +216,7 @@ def validate_output_node(state: ResultAggregatorState) -> Dict[str, Any]:
     """
     验证输出节点 - 检查报告完整性并合成最终报告
     """
-    logger.info("✅ 执行报告验证节点")
+    logger.info(" 执行报告验证节点")
     
     expert_reports = state.get("expert_reports", {})
     context_data = state.get("context_data", {})
@@ -261,7 +261,7 @@ def validate_output_node(state: ResultAggregatorState) -> Dict[str, Any]:
         "has_requirements": bool(context_data.get("requirements_analysis"))
     }
     
-    log_entry = f"✅ 验证完成: {'通过' if is_valid else f'失败({len(validation_errors)}个错误)'}"
+    log_entry = f" 验证完成: {'通过' if is_valid else f'失败({len(validation_errors)}个错误)'}"
     logger.info(log_entry)
     
     return {
@@ -373,7 +373,7 @@ def _parse_llm_response(content: str) -> Dict[str, Any]:
         return json.loads(content)
         
     except json.JSONDecodeError:
-        logger.warning("⚠️ LLM响应非JSON格式，使用文本摘要")
+        logger.warning("️ LLM响应非JSON格式，使用文本摘要")
         return {
             "executive_summary": {
                 "project_overview": content[:500],
@@ -396,7 +396,7 @@ def _generate_template_report(
 ) -> Dict[str, Any]:
     """生成模板报告（无LLM时的回退）"""
     
-    log_entry = "⚠️ 使用模板报告生成（无LLM）"
+    log_entry = "️ 使用模板报告生成（无LLM）"
     logger.warning(log_entry)
     
     return {
@@ -473,7 +473,7 @@ class ResultAggregatorAgentV2:
         # 构建并编译状态图
         self._graph = build_result_aggregator_graph().compile()
         
-        logger.info("🚀 ResultAggregatorAgentV2 (LangGraph) 已初始化")
+        logger.info(" ResultAggregatorAgentV2 (LangGraph) 已初始化")
     
     def execute(self, state: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -485,7 +485,7 @@ class ResultAggregatorAgentV2:
         Returns:
             聚合结果字典
         """
-        logger.info("🎯 ResultAggregatorAgentV2 开始执行")
+        logger.info(" ResultAggregatorAgentV2 开始执行")
         start_time = time.time()
         
         # 准备初始状态
@@ -520,7 +520,7 @@ class ResultAggregatorAgentV2:
             # 提取结果
             final_report = final_state.get("final_report", {})
             
-            logger.info(f"✅ ResultAggregatorAgentV2 完成: {len(final_report.get('expert_reports', {}))} 专家报告")
+            logger.info(f" ResultAggregatorAgentV2 完成: {len(final_report.get('expert_reports', {}))} 专家报告")
             
             # 记录性能指标
             PerformanceMonitor.record("ResultAggregatorAgentV2", time.time() - start_time, "v7.16")
@@ -535,7 +535,7 @@ class ResultAggregatorAgentV2:
             # 记录失败时的性能指标
             PerformanceMonitor.record("ResultAggregatorAgentV2", time.time() - start_time, "v7.16-error")
             
-            logger.error(f"❌ ResultAggregatorAgentV2 执行失败: {e}")
+            logger.error(f" ResultAggregatorAgentV2 执行失败: {e}")
             import traceback
             traceback.print_exc()
             
@@ -547,7 +547,7 @@ class ResultAggregatorAgentV2:
                     "error": str(e)
                 },
                 "validation": {"is_valid": False, "errors": [str(e)]},
-                "processing_log": [f"❌ 执行失败: {e}"]
+                "processing_log": [f" 执行失败: {e}"]
             }
     
     def _extract_questionnaire_from_state(self, state: Dict[str, Any]) -> Dict[str, Any]:
@@ -588,12 +588,12 @@ class ResultAggregatorAgentCompat:
         
         if self.use_langgraph:
             self._agent = ResultAggregatorAgentV2(llm_model, config)
-            logger.info("📊 使用 LangGraph 版本 ResultAggregatorAgent")
+            logger.info(" 使用 LangGraph 版本 ResultAggregatorAgent")
         else:
             # 导入原版
             from ..report.result_aggregator import ResultAggregatorAgent as OriginalAgent
             self._agent = OriginalAgent(llm_model=llm_model, config=config)
-            logger.info("📊 使用原版 ResultAggregatorAgent")
+            logger.info(" 使用原版 ResultAggregatorAgent")
     
     def execute(self, state, config=None, store=None):
         """统一执行接口"""

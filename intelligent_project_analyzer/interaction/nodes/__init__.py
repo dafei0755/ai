@@ -5,17 +5,19 @@
 """
 
 from .calibration_questionnaire import CalibrationQuestionnaireNode
-from .requirements_confirmation import RequirementsConfirmationNode
-from .analysis_review import AnalysisReviewNode
+
+# from .analysis_review import AnalysisReviewNode  # ️ v2.2: 已废弃，被role_selection_quality_review替代
 from .final_review import FinalReviewNode
+from .quality_preflight import QualityPreflightNode  # 
+from .role_selection_quality_review import RoleSelectionQualityReviewNode, role_selection_quality_review_node  #  v2.2
 from .user_question import UserQuestionNode
-from .quality_preflight import QualityPreflightNode  # 🆕
 
 __all__ = [
     "CalibrationQuestionnaireNode",
-    "RequirementsConfirmationNode",
-    "AnalysisReviewNode",
+    # "AnalysisReviewNode",  # ️ v2.2: 已废弃
     "FinalReviewNode",
     "UserQuestionNode",
-    "QualityPreflightNode",  # 🆕
+    "QualityPreflightNode",  # 
+    "RoleSelectionQualityReviewNode",  #  v2.2
+    "role_selection_quality_review_node",  #  v2.2
 ]

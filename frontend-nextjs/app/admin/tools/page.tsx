@@ -26,8 +26,30 @@ interface ToolsStatsResponse {
   message?: string;
 }
 
+// 🔥 v7.153: 新增工具调用率接口
+interface RoleCallRate {
+  role_id: string;
+  session_count: number;
+  total_calls: number;
+  calls_per_session: number;
+  success_rate: number;
+}
+
+interface CallRateResponse {
+  role_call_rates: RoleCallRate[];
+  overall: {
+    total_sessions: number;
+    sessions_with_tools: number;
+    sessions_without_tools: number;
+    tool_usage_rate: number;
+  };
+  time_range_hours: number;
+  timestamp: string;
+}
+
 export default function ToolsPage() {
   const [stats, setStats] = useState<ToolsStatsResponse | null>(null);
+  const [callRate, setCallRate] = useState<CallRateResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [timeRange, setTimeRange] = useState<number>(24);
@@ -44,16 +66,20 @@ export default function ToolsPage() {
         return;
       }
 
-      const response = await axios.get<ToolsStatsResponse>(
-        `http://localhost:8000/api/admin/tools/stats?hours=${timeRange}`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
+      // 并行获取工具统计和调用率
+      const [statsResponse, callRateResponse] = await Promise.all([
+        axios.get<ToolsStatsResponse>(
+          `http://localhost:8000/api/admin/tools/stats?hours=${timeRange}`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        ),
+        axios.get<CallRateResponse>(
+          `http://localhost:8000/api/admin/tools/call-rate?hours=${timeRange}`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        ).catch(() => ({ data: null })),  // 调用率接口失败不影响主页面
+      ]);
 
-      setStats(response.data);
+      setStats(statsResponse.data);
+      setCallRate(callRateResponse.data);
     } catch (err: any) {
       console.error('获取工具统计失败:', err);
       setError(err.response?.data?.detail || '获取数据失败');
@@ -75,7 +101,8 @@ export default function ToolsPage() {
     tavily_search: '🌐 Tavily (国际搜索)',
     arxiv_search: '📚 arXiv (学术论文)',
     ragflow_kb: '🗂️ RAGFlow (知识库)',
-    bocha_search: '🔍 Bocha (本地搜索)',
+    milvus: '🗃️ Milvus (向量知识库)',
+    bocha_search: '🔍 Bocha (中文搜索)',
   };
 
   // 工具颜色主题
@@ -83,6 +110,7 @@ export default function ToolsPage() {
     tavily_search: 'blue',
     arxiv_search: 'purple',
     ragflow_kb: 'green',
+    milvus: 'teal',
     bocha_search: 'orange',
   };
 
@@ -91,6 +119,7 @@ export default function ToolsPage() {
       blue: { bg: 'bg-blue-50', text: 'text-blue-600', border: 'border-blue-200', progress: 'bg-blue-500' },
       purple: { bg: 'bg-purple-50', text: 'text-purple-600', border: 'border-purple-200', progress: 'bg-purple-500' },
       green: { bg: 'bg-green-50', text: 'text-green-600', border: 'border-green-200', progress: 'bg-green-500' },
+      teal: { bg: 'bg-teal-50', text: 'text-teal-600', border: 'border-teal-200', progress: 'bg-teal-500' },
       orange: { bg: 'bg-orange-50', text: 'text-orange-600', border: 'border-orange-200', progress: 'bg-orange-500' },
     };
     return colorMap[color] || colorMap.blue;
@@ -161,7 +190,7 @@ export default function ToolsPage() {
 
       {/* 统计概览 */}
       <div className="bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg p-6 text-white">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           <div>
             <p className="text-blue-100 text-sm">总调用次数</p>
             <p className="text-4xl font-bold mt-1">{stats?.total_calls || 0}</p>
@@ -171,11 +200,85 @@ export default function ToolsPage() {
             <p className="text-4xl font-bold mt-1">{stats?.tools.length || 0}</p>
           </div>
           <div>
+            <p className="text-blue-100 text-sm">工具调用率</p>
+            <p className="text-4xl font-bold mt-1">{callRate?.overall?.tool_usage_rate || 0}%</p>
+          </div>
+          <div>
             <p className="text-blue-100 text-sm">统计时间范围</p>
             <p className="text-4xl font-bold mt-1">{stats?.time_range_hours || 24}h</p>
           </div>
         </div>
       </div>
+
+      {/* 🔥 v7.153: 工具调用率监控卡片 */}
+      {callRate && callRate.role_call_rates.length > 0 && (
+        <div className="bg-white rounded-lg shadow-lg border border-gray-200 p-6">
+          <h2 className="text-xl font-bold text-gray-900 mb-4">📊 角色工具调用率</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            {/* 总体统计 */}
+            <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-lg p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-gray-600 text-sm">使用工具的会话</p>
+                  <p className="text-2xl font-bold text-green-600 mt-1">
+                    {callRate.overall.sessions_with_tools} / {callRate.overall.total_sessions}
+                  </p>
+                </div>
+                <div className="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center">
+                  <span className="text-white text-xl font-bold">{callRate.overall.tool_usage_rate}%</span>
+                </div>
+              </div>
+            </div>
+            <div className="bg-gradient-to-r from-red-50 to-orange-50 border border-red-200 rounded-lg p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-gray-600 text-sm">未调用工具的会话</p>
+                  <p className="text-2xl font-bold text-red-600 mt-1">
+                    {callRate.overall.sessions_without_tools}
+                  </p>
+                </div>
+                <div className="w-16 h-16 bg-red-500 rounded-full flex items-center justify-center">
+                  <span className="text-white text-xl">⚠️</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* 各角色调用率表格 */}
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-100">
+                <tr>
+                  <th className="px-4 py-2 text-left">角色ID</th>
+                  <th className="px-4 py-2 text-right">会话数</th>
+                  <th className="px-4 py-2 text-right">总调用</th>
+                  <th className="px-4 py-2 text-right">每会话调用</th>
+                  <th className="px-4 py-2 text-right">成功率</th>
+                </tr>
+              </thead>
+              <tbody>
+                {callRate.role_call_rates.map((role) => (
+                  <tr key={role.role_id} className="border-b hover:bg-gray-50">
+                    <td className="px-4 py-2 font-medium">{role.role_id}</td>
+                    <td className="px-4 py-2 text-right">{role.session_count}</td>
+                    <td className="px-4 py-2 text-right">{role.total_calls}</td>
+                    <td className="px-4 py-2 text-right">
+                      <span className={`font-bold ${role.calls_per_session > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        {role.calls_per_session}
+                      </span>
+                    </td>
+                    <td className="px-4 py-2 text-right">
+                      <span className={`font-bold ${role.success_rate >= 90 ? 'text-green-600' : role.success_rate >= 70 ? 'text-yellow-600' : 'text-red-600'}`}>
+                        {role.success_rate}%
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {/* 工具详情卡片 */}
       {stats?.message ? (

@@ -1,5 +1,5 @@
 """
-🆕 P2优化: 结构化错误上报工具
+ P2优化: 结构化错误上报工具
 
 提供统一的错误日志格式，便于监控系统聚合和追踪
 """
@@ -26,7 +26,7 @@ class StructuredErrorReporter:
         extra: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """
-        🆕 P2优化: 上报结构化错误
+         P2优化: 上报结构化错误
 
         Args:
             error: 异常对象
@@ -71,7 +71,7 @@ class StructuredErrorReporter:
         details: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """
-        🆕 P2优化: 上报超时事件
+         P2优化: 上报超时事件
 
         Args:
             operation: 操作名称（如"LLM调用"、"工具执行"）
@@ -97,7 +97,7 @@ class StructuredErrorReporter:
         }
 
         logger.warning(
-            f"⏱️ [{operation}] 操作超时: {duration_ms:.2f}ms (阈值: {threshold_ms}ms)",
+            f"️ [{operation}] 操作超时: {duration_ms:.2f}ms (阈值: {threshold_ms}ms)",
             extra={"timeout_event": timeout_data, "session_id": session_id, "user_id": user_id},
         )
 
@@ -113,7 +113,7 @@ class StructuredErrorReporter:
         threshold_ms: float = 1000.0,
     ) -> Dict[str, Any]:
         """
-        🆕 P2优化: 上报慢查询
+         P2优化: 上报慢查询
 
         Args:
             query_type: 查询类型（如"Redis读取"、"数据库查询"）
@@ -139,7 +139,7 @@ class StructuredErrorReporter:
         }
 
         logger.warning(
-            f"🐌 [{query_type}] 慢查询检测: {duration_ms:.2f}ms",
+            f" [{query_type}] 慢查询检测: {duration_ms:.2f}ms",
             extra={"slow_query": slow_query_data, "session_id": session_id},
         )
 

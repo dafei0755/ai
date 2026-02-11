@@ -89,7 +89,7 @@ export function ConfirmationModal({
             {editedItems.map((item, index) => (
               <div
                 key={index}
-                className="bg-gray-50 dark:bg-gray-800/30 border border-gray-200 dark:border-gray-700 rounded-lg p-5"
+                className="card"
               >
                 {/* 标题行 */}
                 <div className="flex items-start gap-3 mb-3">
@@ -102,7 +102,7 @@ export function ConfirmationModal({
                         type="text"
                         value={item.label || ''}
                         onChange={(e) => handleEdit(index, 'label', e.target.value)}
-                        className="w-full px-3 py-2 text-base font-medium text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none"
+                        className="input-base text-base font-medium"
                         placeholder="输入标题..."
                       />
                     ) : (
@@ -132,8 +132,8 @@ export function ConfirmationModal({
 
           {/* 编辑提示 */}
           {isEditing && (
-            <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-              <p className="text-sm text-blue-800 dark:text-blue-200">
+            <div className="info-box mt-4">
+              <p className="text-sm text-gray-700 dark:text-gray-300">
                 编辑模式：您可以修改标题和内容，点击&ldquo;保存并继续&rdquo;提交修改。
               </p>
             </div>
@@ -141,7 +141,7 @@ export function ConfirmationModal({
         </div>
 
         {/* Footer Actions */}
-        <div className="border-t border-gray-200 dark:border-[var(--border-color)] px-6 py-4 bg-gray-50 dark:bg-gray-800/50 flex items-center justify-end gap-3">
+        <div className="px-6 py-4 bg-white dark:bg-gray-900 flex items-center justify-end gap-3">
           {isEditing ? (
             <>
               <button
@@ -161,7 +161,7 @@ export function ConfirmationModal({
                   setIsEditing(false);
                   handleConfirm();
                 }}
-                className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition"
+                className="btn-primary"
               >
                 保存并继续
               </button>
@@ -169,7 +169,7 @@ export function ConfirmationModal({
           ) : (
             <button
               onClick={handleConfirm}
-              className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition"
+              className="btn-primary"
             >
               确认继续
             </button>

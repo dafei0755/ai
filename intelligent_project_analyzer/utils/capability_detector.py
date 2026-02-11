@@ -58,14 +58,24 @@ class CapabilityDetector:
     # ═══════════════════════════════════════════════════════════════════════════
     
     # 系统核心能力 - 完全支持的交付物类型
+    # 🆕 v7.620: 扩展细分类型识别（解决96%单一化问题）
     FULL_CAPABILITY_TYPES = {
         # 文案/创意类
         "naming_list": ["命名", "取名", "起名", "标题", "名称方案"],
         "brand_narrative": ["品牌故事", "叙事策略", "品牌叙事", "故事文案"],
         "copywriting_plan": ["文案策划", "文案方案", "广告文案", "宣传文案"],
         
-        # 策略/指导类
+        # 策略/指导类  
         "design_strategy": ["设计策略", "设计思路", "空间规划思路", "设计理念", "设计方向"],
+        "concept_diagram": ["意向图", "概念图", "示意图", "参考图", "氛围板"],
+        
+        # 🆕 v7.620: 新增细分类型（基于50场景测试）
+        "lighting_design": ["灯光设计", "照明方案", "光影设计", "灯光布局", "灯光", "照明"],
+        "material_palette": ["材质选择", "材料方案", "色彩搭配", "材质板", "选材"],
+        "spatial_planning": ["空间规划", "功能分区", "动线设计", "布局方案", "分区"],
+        "furniture_specification": ["家具选型", "家具配置", "定制家具", "家具清单"],
+        "technical_requirements": ["技术要求", "声学设计", "隔音方案", "新风系统", "智能家居"],
+        
         "material_guidance": ["材料选择指导", "材料建议", "材质方向", "选材指南"],
         "selection_framework": ["选型框架", "选择标准", "评估维度", "决策框架"],
         "procurement_guidance": ["采购指南", "采购建议", "供应商建议"],
@@ -171,9 +181,9 @@ class CapabilityDetector:
         },
     }
     
-    # 信息充足阈值
-    INFO_SUFFICIENT_THRESHOLD = 0.5  # 信息量评分超过此值认为充足
-    INFO_ELEMENT_MIN_COUNT = 3       # 至少需要的信息元素数量
+    # 信息充足阈值（v7.620优化：0.5→0.45→0.40，提升sufficient判定率）
+    INFO_SUFFICIENT_THRESHOLD = 0.40  # 信息量评分超过此值认为充足
+    INFO_ELEMENT_MIN_COUNT = 2        # 至少需要的信息元素数量（降低3→2）
     
     # ═══════════════════════════════════════════════════════════════════════════
     # 核心检测方法
@@ -248,7 +258,7 @@ class CapabilityDetector:
         
         logger.info(f"[能力检测] 检测到 {len(results)} 个交付物需求")
         for r in results:
-            status = "✅" if r.within_capability else f"⚠️→{r.transformed_type}"
+            status = "" if r.within_capability else f"️→{r.transformed_type}"
             logger.debug(f"  - {r.original_type}: {status} (关键词: {r.detected_keywords})")
         
         return results
@@ -295,6 +305,64 @@ class CapabilityDetector:
         return mapping.get("default")
     
     @classmethod
+    def _detect_implicit_info(cls, user_input: str) -> float:
+        """
+        检测输入中的隐含信息，进行智能推断加分
+        
+        基于v7.620质量测试发现：
+        - "创业者" → 隐含高净值、时间紧张
+        - "企业家" → 隐含预算充足
+        - 特定人群词 → 隐含功能需求
+        
+        Args:
+            user_input: 用户输入文本
+            
+        Returns:
+            加分值（0-0.3）
+        """
+        boost = 0.0
+        
+        # 高净值人群隐含信息
+        high_net_worth_keywords = ["创业者", "企业家", "高管", "CEO", "董事长", "总裁", "投行", "金融", "合伙人"]
+        if any(kw in user_input for kw in high_net_worth_keywords):
+            boost += 0.20  # 提升加分（原15→20）
+            logger.debug("  → 推断：高净值人群（预算充足）")
+        
+        # 特殊需求人群隐含功能
+        special_needs = [
+            ("自闭症", 0.15, "特殊医疗需求"),
+            ("失眠", 0.12, "睡眠环境优化"),
+            ("过敏", 0.10, "材料筛选要求"),
+            ("电竞", 0.12, "专业设备需求"),
+            ("直播", 0.08, "设备+声光需求"),
+            ("瑜伽", 0.08, "功能区需求"),
+            ("健身", 0.08, "功能区需求"),
+            ("收藏", 0.10, "展示+收纳需求"),
+            ("冥想", 0.08, "氛围设计需求")
+        ]
+        for keyword, score, desc in special_needs:
+            if keyword in user_input:
+                boost += score
+                logger.debug(f"  → 推断：{desc}")
+        
+        # 大规模项目隐含详细需求
+        import re
+        area_match = re.search(r'(\d+)\s*(平米|㎡|平方)', user_input)
+        if area_match:
+            area = int(area_match.group(1))
+            if area > 300:  # 大面积项目
+                boost += 0.1
+                logger.debug(f"  → 推断：大面积项目（{area}㎡）→ 复杂需求")
+        
+        # 商业项目隐含多方需求
+        commercial_keywords = ["酒店", "餐厅", "商场", "办公楼", "展厅", "菜市场", "商业"]
+        if any(kw in user_input for kw in commercial_keywords):
+            boost += 0.1
+            logger.debug("  → 推断：商业项目（多维度约束）")
+        
+        return min(boost, 0.3)  # 最多加0.3分
+    
+    @classmethod
     def check_info_sufficiency(cls, user_input: str) -> InfoSufficiencyCheck:
         """
         程序化检测用户输入的信息充足性
@@ -338,6 +406,12 @@ class CapabilityDetector:
         if text_length > 500:
             total_score += 0.1
         
+        # 🆕 v7.620: 隐含信息推断（提升判断智能度）
+        implicit_boost = cls._detect_implicit_info(user_input)
+        total_score += implicit_boost
+        if implicit_boost > 0:
+            logger.debug(f"[隐含信息] 推断加分 +{implicit_boost:.2f}")
+        
         # 判断是否充足
         is_sufficient = (
             total_score >= cls.INFO_SUFFICIENT_THRESHOLD and
@@ -358,7 +432,7 @@ class CapabilityDetector:
             reason=reason
         )
         
-        logger.info(f"[信息充足性] {'✅ 充足' if is_sufficient else '⚠️ 不足'} - {reason}")
+        logger.info(f"[信息充足性] {' 充足' if is_sufficient else '️ 不足'} - {reason}")
         
         return result
     

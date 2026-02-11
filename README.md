@@ -61,23 +61,29 @@
 ### 一键启动（Windows）
 
 ```cmd
-# 配置 .env 文件后直接运行
+# 1. 配置环境变量
+copy .env.example .env
+# 编辑 .env 填写 OPENAI_API_KEY
+
+# 2. 安装依赖
+pip install -r requirements.txt
+cd frontend-nextjs && npm install && cd ..
+
+# 3. 启动服务
 start_services.bat
 ```
 
 ### 分步启动
 
 ```bash
-# 1. 后端服务
-python -B scripts\run_server_production.py  # Python 3.13+ Windows
-python -B scripts\run_server.py  # 开发模式（热重载）
-python -B -m uvicorn intelligent_project_analyzer.api.server:app --host 0.0.0.0 --port 8000 --reload  # Python 3.10-3.12
+# 1. 后端服务（Python 3.13 Windows 推荐）
+python -B scripts\run_server_production.py
 
-# 2. 前端服务
+# 2. 前端服务（新终端）
 cd frontend-nextjs && npm run dev
 
 # 访问
-# 前端: http://localhost:3000
+# 前端: http://localhost:3001
 # API: http://localhost:8000/docs
 ```
 
@@ -100,6 +106,7 @@ docker-compose up -d
 | **紧急** | [EMERGENCY_RECOVERY.md](EMERGENCY_RECOVERY.md) | 快速恢复到历史版本 |
 | **备份** | [BACKUP_GUIDE.md](BACKUP_GUIDE.md) | 多版本备份系统 |
 | **测试** | [README_TESTING.md](README_TESTING.md) | 测试指南 |
+| **机制复盘** | [docs/mechanism-reviews/](docs/mechanism-reviews/INDEX.md) | 核心机制深度解析 |
 
 ### 核心开发文档
 
@@ -108,13 +115,22 @@ docker-compose up -d
 - ✅ [变更检查清单](.github/PRE_CHANGE_CHECKLIST.md) - 修改前强制流程
 - 📖 [历史修复案例](.github/historical_fixes/) - 5+ 精选修复记录
 
+### 机制复盘文档
+
+- [📖 机制复盘索引](docs/mechanism-reviews/INDEX.md) - 核心机制系统性解析
+- [🗜️ 智能上下文压缩策略](docs/mechanism-reviews/CONTEXT_COMPRESSION_GUIDE.md) - v7.502 动态压缩机制，节省15-50% Token
+- [⭐ 专家输出质量优化方案](docs/mechanism-reviews/EXPERT_OUTPUT_QUALITY_OPTIMIZATION.md) - v1.0 **新增** 14个优化方向，质量提升50%，包含P0快速见效方案
+  - [✅ P0优化1主报告](docs/implementation/P0_OPTIMIZATION_1_FEW_SHOT_IMPLEMENTATION.md) - Few-Shot示例库 (V2_0+V4_1完成，66.7%进度)
+    - [✅ V4_1扩展报告](docs/implementation/P0_OPTIMIZATION_1_V4_1_EXTENSION.md) - 设计研究者示例库 (3个示例，14657字符) ⭐新增
+- [🎭 专家角色定义系统](docs/mechanism-reviews/EXPERT_ROLE_DEFINITION_SYSTEM.md) - v2.8 配置驱动架构，22+专家角色，6000+行配置
+- [🤖 动态专家机制](docs/mechanism-reviews/DYNAMIC_EXPERT_MECHANISM_REVIEW.md) - v7.17 角色选择、批次调度与性能瓶颈分析
+
 ### 功能文档
 
 - [WordPress SSO集成](docs/features/wordpress-sso/) - 单点登录完整指南
-- [问卷系统](docs/archive/bugfixes/questionnaire/) - 校准问卷实现
 - [搜索引用功能](docs/V7.120_SEARCH_REFERENCES_RELEASE.md) - v7.120 外部搜索工具集成
-- [搜索查询数据利用优化](docs/V7.121_SEARCH_QUERY_DATA_UTILIZATION.md) - v7.121 充分利用用户输入和问卷数据 🆕
-- [性能优化](docs/archive/bugfixes/backend/) - 性能监控与优化
+- [搜索查询数据利用优化](docs/V7.121_SEARCH_QUERY_DATA_UTILIZATION.md) - v7.121 充分利用用户输入和问卷数据
+- [v7.502 性能突破](P0_OPTIMIZATION_IMPLEMENTATION_v7.502.md) - 真并行执行 + 智能提升
 
 ---
 
@@ -141,18 +157,19 @@ pytest -m "not llm"         # 跳过LLM调用测试
 ## ❓ 常见问题
 
 ### Q: Python 3.13 Windows 用户启动失败？
-A: 必须使用 `run_server_production.py`，详见 [Playwright修复文档](.github/historical_fixes/playwright_python313_windows_fix.md)
+A: 必须使用 `python -B scripts\run_server_production.py` 启动，详见 [Playwright修复文档](.github/historical_fixes/playwright_python313_windows_fix.md)
 
 ### Q: 端口被占用？
 ```bash
-taskkill /F /IM python.exe  # 终止后端
-Get-Process node | Stop-Process -Force  # 终止前端
+# Windows
+taskkill /F /IM python.exe
+Get-Process node | Stop-Process -Force
 ```
 
 ### Q: 如何切换LLM服务商？
 编辑 `.env` 文件配置 `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` / `GOOGLE_API_KEY`
 
-更多问题参见 [FAQ](docs/getting-started/FAQ.md)
+更多问题参见 [QUICKSTART.md](QUICKSTART.md#常见问题)
 
 ---
 
@@ -189,7 +206,7 @@ MIT License - 详见 [LICENSE](LICENSE)
 
 <div align="center">
 
-**当前版本**: v7.116.1 | **最后更新**: 2026-01-02
+**当前版本**: v7.502 | **最后更新**: 2026-02-10
 
 ⭐ 如果这个项目对你有帮助，请给我们一个 Star！
 

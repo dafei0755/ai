@@ -24,7 +24,7 @@ class LLMFactory:
     - 支持配置注入
     - 易于测试(可Mock)
     - 避免配置漂移
-    - 🆕 自动降级: OpenAI失败时切换到Qwen
+    -  自动降级: OpenAI失败时切换到Qwen
     """
 
     @staticmethod
@@ -38,7 +38,7 @@ class LLMFactory:
         """
         创建LLM实例 (支持 OpenRouter 多 Key 负载均衡 + SSL重试)
 
-        🆕 v7.4.2: 优先使用 OpenRouter 多 Key 负载均衡
+         v7.4.2: 优先使用 OpenRouter 多 Key 负载均衡
         - 如果配置了多个 OpenRouter Keys，自动启用负载均衡
         - 如果禁用自动降级，只使用配置的提供商
         - 重试策略: 指数退避,最多3次,针对网络连接错误
@@ -67,7 +67,7 @@ class LLMFactory:
         """
         import os
 
-        # 🆕 v7.4.2: 检查是否使用 OpenRouter 且配置了多个 Keys
+        #  v7.4.2: 检查是否使用 OpenRouter 且配置了多个 Keys
         primary_provider = os.getenv("LLM_PROVIDER", "openai").lower()
         auto_fallback = os.getenv("LLM_AUTO_FALLBACK", "false").lower() == "true"
 
@@ -75,11 +75,11 @@ class LLMFactory:
         if primary_provider == "openrouter":
             openrouter_keys = os.getenv("OPENROUTER_API_KEYS", "")
             if openrouter_keys and "," in openrouter_keys:
-                logger.info("🔄 检测到多个 OpenRouter Keys，启用负载均衡")
+                logger.info(" 检测到多个 OpenRouter Keys，启用负载均衡")
                 try:
                     return LLMFactory.create_openrouter_balanced_llm(**kwargs)
                 except Exception as e:
-                    logger.warning(f"⚠️ OpenRouter 负载均衡创建失败: {e}")
+                    logger.warning(f"️ OpenRouter 负载均衡创建失败: {e}")
                     # 继续使用原始方法
 
         # 全局捕获 LLM 连接异常，返回友好提示
@@ -87,8 +87,32 @@ class LLMFactory:
             # ...existing code...
             # 如果禁用自动降级，直接使用原始方法
             if not auto_fallback:
-                logger.info(f"📌 自动降级已禁用，只使用 {primary_provider}")
-                return LLMFactory._create_llm_original(config, **kwargs)
+                logger.info(f" 自动降级已禁用，只使用 {primary_provider}")
+
+                #  关键修复：即使禁用自动降级，也必须尊重 LLM_PROVIDER。
+                # 否则会走 _create_llm_original（仅绑定 OPENAI_API_KEY/OPENAI_*），
+                # 导致在 openrouter/deepseek/qwen 等场景下 LLM 调用失败，进而触发问卷/维度的硬编码回退。
+                if primary_provider == "openai":
+                    return LLMFactory._create_llm_original(config, **kwargs)
+
+                from intelligent_project_analyzer.services.multi_llm_factory import MultiLLMFactory
+
+                cfg = config or settings.llm
+                extra_kwargs = dict(kwargs)
+                extra_kwargs.pop("provider", None)
+                extra_kwargs.pop("temperature", None)
+                extra_kwargs.pop("max_tokens", None)
+                extra_kwargs.pop("timeout", None)
+                extra_kwargs.pop("max_retries", None)
+
+                return MultiLLMFactory.create_llm(
+                    provider=primary_provider,
+                    temperature=kwargs.get("temperature", cfg.temperature),
+                    max_tokens=kwargs.get("max_tokens", cfg.max_tokens),
+                    timeout=kwargs.get("timeout", cfg.timeout),
+                    max_retries=kwargs.get("max_retries", cfg.max_retries),
+                    **extra_kwargs,
+                )
 
             # 尝试使用多LLM工厂创建(支持自动降级)
             from intelligent_project_analyzer.services.multi_llm_factory import FallbackLLM, MultiLLMFactory
@@ -127,7 +151,7 @@ class LLMFactory:
                     fallback_chain.append("openai")
             # 使用降级链创建LLM
             if len(fallback_chain) > 1:
-                logger.info(f"🔄 启用自动降级: {' → '.join(fallback_chain)}")
+                logger.info(f" 启用自动降级: {' → '.join(fallback_chain)}")
                 return FallbackLLM(
                     providers=fallback_chain,
                     temperature=kwargs.get("temperature", config.temperature if config else settings.llm.temperature),
@@ -145,16 +169,38 @@ class LLMFactory:
                     **kwargs,
                 )
         except (openai.APIConnectionError, httpcore.ConnectError, ConnectionError) as e:
-            logger.error(f"❌ LLM服务连接异常: {e}")
+            logger.error(f" LLM服务连接异常: {e}")
             raise RuntimeError("LLM服务连接异常，请稍后重试。")
         except Exception as e:
-            logger.error(f"❌ LLM实例创建异常: {e}")
+            logger.error(f" LLM实例创建异常: {e}")
             raise
 
         # 如果禁用自动降级，直接使用原始方法
         if not auto_fallback:
-            logger.info(f"📌 自动降级已禁用，只使用 {primary_provider}")
-            return LLMFactory._create_llm_original(config, **kwargs)
+            logger.info(f" 自动降级已禁用，只使用 {primary_provider}")
+
+            # 同上：尊重 LLM_PROVIDER
+            if primary_provider == "openai":
+                return LLMFactory._create_llm_original(config, **kwargs)
+
+            from intelligent_project_analyzer.services.multi_llm_factory import MultiLLMFactory
+
+            cfg = config or settings.llm
+            extra_kwargs = dict(kwargs)
+            extra_kwargs.pop("provider", None)
+            extra_kwargs.pop("temperature", None)
+            extra_kwargs.pop("max_tokens", None)
+            extra_kwargs.pop("timeout", None)
+            extra_kwargs.pop("max_retries", None)
+
+            return MultiLLMFactory.create_llm(
+                provider=primary_provider,
+                temperature=kwargs.get("temperature", cfg.temperature),
+                max_tokens=kwargs.get("max_tokens", cfg.max_tokens),
+                timeout=kwargs.get("timeout", cfg.timeout),
+                max_retries=kwargs.get("max_retries", cfg.max_retries),
+                **extra_kwargs,
+            )
 
         # 尝试使用多LLM工厂创建(支持自动降级)
         try:
@@ -202,7 +248,7 @@ class LLMFactory:
 
             # 使用降级链创建LLM
             if len(fallback_chain) > 1:
-                logger.info(f"🔄 启用自动降级: {' → '.join(fallback_chain)}")
+                logger.info(f" 启用自动降级: {' → '.join(fallback_chain)}")
                 return FallbackLLM(
                     providers=fallback_chain,
                     temperature=kwargs.get("temperature", config.temperature if config else settings.llm.temperature),
@@ -221,7 +267,7 @@ class LLMFactory:
                     **kwargs,
                 )
         except Exception as e:
-            logger.warning(f"⚠️ MultiLLM降级失败,使用原始方法: {e}")
+            logger.warning(f"️ MultiLLM降级失败,使用原始方法: {e}")
             # 降级到原始方法
             return LLMFactory._create_llm_original(config, **kwargs)
 
@@ -348,7 +394,7 @@ class LLMFactory:
         provider: str = "openai", enable_cache: bool = True, enable_fallback: bool = True, **kwargs
     ):
         """
-        🆕 v3.9: 创建高并发 LLM 实例
+         v3.9: 创建高并发 LLM 实例
 
         支持:
         - 多 Key 负载均衡
@@ -376,7 +422,7 @@ class LLMFactory:
                 preferred_provider=provider, enable_cache=enable_cache, enable_fallback=enable_fallback, **kwargs
             )
         except Exception as e:
-            logger.warning(f"⚠️ 高并发LLM创建失败,回退到普通LLM: {e}")
+            logger.warning(f"️ 高并发LLM创建失败,回退到普通LLM: {e}")
             return LLMFactory.create_llm(**kwargs)
 
     @staticmethod
@@ -384,7 +430,7 @@ class LLMFactory:
         model: str = "openai/gpt-4o-2024-11-20", strategy: str = "round_robin", **kwargs
     ):
         """
-        🆕 v7.4.2: 创建 OpenRouter 负载均衡 LLM 实例
+         v7.4.2: 创建 OpenRouter 负载均衡 LLM 实例
 
         使用多个 API Key 进行负载均衡，提高稳定性和吞吐量。
 
@@ -415,17 +461,21 @@ class LLMFactory:
                 get_global_balancer,
             )
 
+            #  v7.153: 过滤掉 ChatOpenAI 不支持的参数
+            # provider 是 MultiLLMFactory 的参数，不应传递给 ChatOpenAI
+            filtered_kwargs = {k: v for k, v in kwargs.items() if k not in ["provider"]}
+
             # 创建配置
             config = LoadBalancerConfig(strategy=strategy)
 
             # 获取全局负载均衡器
-            balancer = get_global_balancer(config=config, model=model, **kwargs)
+            balancer = get_global_balancer(config=config, model=model, **filtered_kwargs)
 
             # 返回 LLM 实例
             return balancer.get_llm()
 
         except Exception as e:
-            logger.warning(f"⚠️ OpenRouter 负载均衡器创建失败，回退到普通 LLM: {e}")
+            logger.warning(f"️ OpenRouter 负载均衡器创建失败，回退到普通 LLM: {e}")
             return LLMFactory.create_llm(**kwargs)
 
 

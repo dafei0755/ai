@@ -42,11 +42,19 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       actualTheme = theme;
     }
 
-    // 应用主题
-    root.setAttribute('data-theme', theme);
+    // 应用主题到 data-theme 属性
+    root.setAttribute('data-theme', actualTheme);
+
+    // 🔧 同时应用/移除 dark class（用于 Tailwind dark: 选择器）
+    if (actualTheme === 'dark') {
+      root.classList.add('dark');
+    } else {
+      root.classList.remove('dark');
+    }
+
     setResolvedTheme(actualTheme);
 
-    // 保存到 localStorage
+    // 保存用户选择到 localStorage（保存选择，而不是解析后的主题）
     localStorage.setItem('theme', theme);
   }, [theme]);
 
@@ -56,7 +64,17 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
     const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
     const handleChange = (e: MediaQueryListEvent) => {
-      setResolvedTheme(e.matches ? 'dark' : 'light');
+      const newResolvedTheme = e.matches ? 'dark' : 'light';
+      setResolvedTheme(newResolvedTheme);
+
+      // 🔧 同步更新 DOM
+      const root = document.documentElement;
+      root.setAttribute('data-theme', newResolvedTheme);
+      if (newResolvedTheme === 'dark') {
+        root.classList.add('dark');
+      } else {
+        root.classList.remove('dark');
+      }
     };
 
     mediaQuery.addEventListener('change', handleChange);

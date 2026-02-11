@@ -82,15 +82,15 @@ export default function AdminLayout({
   }
 
   return (
-    <div className="flex h-screen bg-gray-100">
+    <div className="flex h-screen bg-gray-100 admin-layout">
       {/* 侧边栏 */}
-      <aside className="w-64 bg-white shadow-lg">
-        <div className="p-4 border-b">
+      <aside className="w-64 bg-white shadow-lg flex flex-col h-full">
+        <div className="p-4 border-b flex-shrink-0">
           <h1 className="text-xl font-bold text-gray-800">管理后台</h1>
           <p className="text-sm text-gray-500 mt-1">System Admin</p>
         </div>
 
-        <nav className="p-4">
+        <nav className="p-4 flex-1 overflow-y-auto">
           <ul className="space-y-2">
             <li>
               <Link
@@ -108,6 +108,15 @@ export default function AdminLayout({
               >
                 <span className="mr-3">📈</span>
                 系统监控
+              </Link>
+            </li>
+            <li>
+              <Link
+                href="/admin/database"
+                className="flex items-center px-4 py-2 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-colors"
+              >
+                <span className="mr-3">🗄️</span>
+                数据库监控
               </Link>
             </li>
             <li>
@@ -148,6 +157,33 @@ export default function AdminLayout({
             </li>
             <li>
               <Link
+                href="/admin/search-filters"
+                className="flex items-center px-4 py-2 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-colors"
+              >
+                <span className="mr-3">🛡️</span>
+                搜索过滤器
+              </Link>
+            </li>
+            <li>
+              <Link
+                href="/admin/knowledge-base"
+                className="flex items-center px-4 py-2 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-colors"
+              >
+                <span className="mr-3">📚</span>
+                知识库管理
+              </Link>
+            </li>
+            <li>
+              <Link
+                href="/admin/capability-boundary"
+                className="flex items-center px-4 py-2 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-colors"
+              >
+                <span className="mr-3">⚠️</span>
+                能力边界监控
+              </Link>
+            </li>
+            <li>
+              <Link
                 href="/admin/concept-maps"
                 className="flex items-center px-4 py-2 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-colors"
               >
@@ -162,6 +198,24 @@ export default function AdminLayout({
               >
                 <span className="mr-3">🧠</span>
                 维度学习
+              </Link>
+            </li>
+            <li>
+              <Link
+                href="/admin/ontology"
+                className="flex items-center px-4 py-2 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-colors"
+              >
+                <span className="mr-3">🔷</span>
+                动态本体论
+              </Link>
+            </li>
+            <li>
+              <Link
+                href="/admin/ontology/review"
+                className="flex items-center px-4 py-2 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-colors"
+              >
+                <span className="mr-3">✅</span>
+                本体论扩展审核
               </Link>
             </li>
             <li>
@@ -182,17 +236,45 @@ export default function AdminLayout({
                 配置管理
               </Link>
             </li>
-            <li className="pt-4 border-t">
-              <Link
-                href="/"
-                className="flex items-center px-4 py-2 text-gray-700 hover:bg-gray-50 rounded-lg transition-colors"
+            <li className="pt-4 mt-4 border-t">
+              <div className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase">
+                精选展示
+              </div>
+            </li>
+            <li>
+              <a
+                href="/showcase"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center px-4 py-2 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-colors"
               >
-                <span className="mr-3">🏠</span>
-                返回首页
+                <span className="mr-3">🎬</span>
+                展示页面
+                <span className="ml-auto text-xs text-gray-400">↗</span>
+              </a>
+            </li>
+            <li>
+              <Link
+                href="/admin/showcase-config"
+                className="flex items-center px-4 py-2 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-colors"
+              >
+                <span className="mr-3">⚙️</span>
+                展示配置
               </Link>
             </li>
           </ul>
         </nav>
+
+        {/* 固定底部操作区 */}
+        <div className="border-t border-gray-200 p-4 flex-shrink-0">
+          <Link
+            href="/"
+            className="flex items-center justify-center w-full px-4 py-2 text-gray-700 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors"
+          >
+            <span className="mr-2">🏠</span>
+            返回首页
+          </Link>
+        </div>
       </aside>
 
       {/* 主内容区 */}

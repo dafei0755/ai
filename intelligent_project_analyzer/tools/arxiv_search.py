@@ -29,14 +29,21 @@ except ImportError:
     logger.warning("LangChain not available, tool wrapping disabled")
     LANGCHAIN_AVAILABLE = False
 
-# 🆕 v7.64: 导入精准搜索和质量控制模块
+#  v7.64: 导入精准搜索和质量控制模块
 try:
     from .quality_control import SearchQualityControl
     from .query_builder import DeliverableQueryBuilder
 except ImportError:
-    logger.warning("⚠️ v7.64 modules not available. search_for_deliverable() will use fallback mode.")
+    logger.warning("️ v7.64 modules not available. search_for_deliverable() will use fallback mode.")
     DeliverableQueryBuilder = None
     SearchQualityControl = None
+
+#  v7.164: 导入搜索结果ID生成器
+try:
+    from ..utils.search_id_generator import add_ids_to_search_results
+except ImportError:
+    logger.warning("️ v7.164 search_id_generator not available")
+    add_ids_to_search_results = None
 
 
 class ArxivSearchTool:
@@ -65,7 +72,7 @@ class ArxivSearchTool:
             "sort_order": arxiv.SortOrder.Descending,
         }
 
-        # 🆕 v7.64: 初始化精准搜索和质量控制模块
+        #  v7.64: 初始化精准搜索和质量控制模块
         self.query_builder = DeliverableQueryBuilder() if DeliverableQueryBuilder else None
         self.qc = SearchQualityControl() if SearchQualityControl else None
 
@@ -108,44 +115,44 @@ class ArxivSearchTool:
                 category_filter = " OR ".join([f"cat:{cat}" for cat in categories])
                 search_params["query"] = f"({query}) AND ({category_filter})"
 
-            logger.info(f"🔍 [Arxiv] Starting search")
-            logger.info(f"📝 [Arxiv] Query: {query}")
+            logger.info(f" [Arxiv] Starting search")
+            logger.info(f" [Arxiv] Query: {query}")
             logger.debug(
-                f"⚙️ [Arxiv] Search params: max_results={search_params['max_results']}, sort_by={search_params['sort_by']}"
+                f"️ [Arxiv] Search params: max_results={search_params['max_results']}, sort_by={search_params['sort_by']}"
             )
             if categories:
-                logger.debug(f"🏷️ [Arxiv] Categories filter: {categories}")
+                logger.debug(f"️ [Arxiv] Categories filter: {categories}")
 
             # 创建搜索对象
-            logger.debug(f"📚 [Arxiv] Creating search object...")
+            logger.debug(f" [Arxiv] Creating search object...")
             search = arxiv.Search(**search_params)
 
             # 执行搜索
-            logger.debug(f"🌐 [Arxiv] Calling Arxiv API...")
+            logger.debug(f" [Arxiv] Calling Arxiv API...")
             api_start = time.time()
             results = list(self.client.results(search))
             api_time = time.time() - api_start
 
-            logger.info(f"✅ [Arxiv] API call completed in {api_time:.2f}s, found {len(results)} papers")
+            logger.info(f" [Arxiv] API call completed in {api_time:.2f}s, found {len(results)} papers")
             if results:
-                logger.debug(f"📄 [Arxiv] First result: {results[0].title[:50]}...")
-                logger.debug(f"📊 [Arxiv] Categories in results: {set([r.primary_category for r in results[:5]])}")
+                logger.debug(f" [Arxiv] First result: {results[0].title[:50]}...")
+                logger.debug(f" [Arxiv] Categories in results: {set([r.primary_category for r in results[:5]])}")
 
             # 处理响应
-            logger.debug(f"⚙️ [Arxiv] Processing response...")
+            logger.debug(f"️ [Arxiv] Processing response...")
             process_start = time.time()
             processed_response = self._process_search_response(results, query, time.time() - start_time)
             process_time = time.time() - process_start
 
-            logger.debug(f"⚙️ [Arxiv] Response processing took {process_time:.2f}s")
-            logger.info(f"✅ [Arxiv] Search completed in {processed_response['execution_time']:.2f}s")
+            logger.debug(f"️ [Arxiv] Response processing took {process_time:.2f}s")
+            logger.info(f" [Arxiv] Search completed in {processed_response['execution_time']:.2f}s")
 
             return processed_response
 
         except Exception as e:
-            logger.error(f"❌ [Arxiv] Search failed: {str(e)}", exc_info=True)
-            logger.error(f"❌ [Arxiv] Failed query: {query}")
-            logger.error(f"❌ [Arxiv] Categories: {categories if categories else 'None'}")
+            logger.error(f" [Arxiv] Search failed: {str(e)}", exc_info=True)
+            logger.error(f" [Arxiv] Failed query: {query}")
+            logger.error(f" [Arxiv] Categories: {categories if categories else 'None'}")
             return {"success": False, "error": str(e), "query": query, "results": [], "execution_time": 0}
 
     def search_by_id(self, paper_ids: List[str]) -> Dict[str, Any]:
@@ -279,8 +286,13 @@ class ArxivSearchTool:
                 "journal_ref": result.journal_ref,
                 "doi": result.doi,
                 "comment": result.comment,
+                "url": result.entry_id,  #  v7.164: 添加url字段用于ID生成
             }
             processed["results"].append(processed_result)
+
+        #  v7.164: 为搜索结果添加唯一ID
+        if add_ids_to_search_results and processed["results"]:
+            processed["results"] = add_ids_to_search_results(processed["results"], source_tool="arxiv")
 
         return processed
 
@@ -364,7 +376,7 @@ class ArxivSearchTool:
         focus_recent: bool = False,
     ) -> Dict[str, Any]:
         """
-        🆕 v7.64: 针对交付物的精准学术搜索
+         v7.64: 针对交付物的精准学术搜索
 
         核心改进：
         1. 从交付物构建学术化查询（强调方法论术语）
@@ -385,31 +397,31 @@ class ArxivSearchTool:
             start_time = time.time()
             deliverable_name = deliverable.get("name", "Unknown")
 
-            logger.info(f"🎯 [Arxiv Deliverable] Starting search for deliverable: {deliverable_name}")
+            logger.info(f" [Arxiv Deliverable] Starting search for deliverable: {deliverable_name}")
             logger.debug(
-                f"📋 [Arxiv Deliverable] Deliverable details: {json.dumps(deliverable, ensure_ascii=False, indent=2)}"
+                f" [Arxiv Deliverable] Deliverable details: {json.dumps(deliverable, ensure_ascii=False, indent=2)}"
             )
-            logger.debug(f"🏷️ [Arxiv Deliverable] Project type: {project_type}")
-            logger.debug(f"⚙️ [Arxiv Deliverable] Max results: {max_results}, QC: {enable_qc}, Recent: {focus_recent}")
+            logger.debug(f"️ [Arxiv Deliverable] Project type: {project_type}")
+            logger.debug(f"️ [Arxiv Deliverable] Max results: {max_results}, QC: {enable_qc}, Recent: {focus_recent}")
 
             # Step 1: 构建学术化查询
-            logger.debug(f"📝 [Arxiv Deliverable] Step 1: Building academic query...")
+            logger.debug(f" [Arxiv Deliverable] Step 1: Building academic query...")
             if self.query_builder:
                 query_start = time.time()
                 queries = self.query_builder.build_multi_tool_queries(deliverable, project_type)
                 precise_query = queries.get("arxiv", deliverable.get("name", ""))
                 query_time = time.time() - query_start
-                logger.info(f"🔍 [Arxiv Deliverable] Academic query built in {query_time:.2f}s: {precise_query}")
+                logger.info(f" [Arxiv Deliverable] Academic query built in {query_time:.2f}s: {precise_query}")
             else:
                 precise_query = deliverable.get("name", "")
-                logger.warning(f"⚠️ [Arxiv Deliverable] Query builder not available, using name: {precise_query}")
+                logger.warning(f"️ [Arxiv Deliverable] Query builder not available, using name: {precise_query}")
 
             # Step 2: 执行搜索
             sort_by = arxiv.SortCriterion.SubmittedDate if focus_recent else arxiv.SortCriterion.Relevance
             search_count = max_results * 2 if enable_qc else max_results
 
             logger.debug(
-                f"🔎 [Arxiv Deliverable] Step 2: Executing search (requesting {search_count} results, sort_by={sort_by})..."
+                f" [Arxiv Deliverable] Step 2: Executing search (requesting {search_count} results, sort_by={sort_by})..."
             )
             search_start = time.time()
             search_results = self.search(
@@ -417,18 +429,18 @@ class ArxivSearchTool:
             )
             search_time = time.time() - search_start
             logger.info(
-                f"✅ [Arxiv Deliverable] Search completed in {search_time:.2f}s, success={search_results.get('success', False)}"
+                f" [Arxiv Deliverable] Search completed in {search_time:.2f}s, success={search_results.get('success', False)}"
             )
 
             if not search_results.get("success", False):
-                logger.error(f"❌ [Arxiv Deliverable] Search failed: {search_results.get('error', 'Unknown error')}")
+                logger.error(f" [Arxiv Deliverable] Search failed: {search_results.get('error', 'Unknown error')}")
                 return search_results
 
             initial_count = len(search_results.get("results", []))
-            logger.debug(f"📊 [Arxiv Deliverable] Initial papers count: {initial_count}")
+            logger.debug(f" [Arxiv Deliverable] Initial papers count: {initial_count}")
 
             # Step 3: 归一化结果格式（Arxiv结果结构不同于Tavily）
-            logger.debug(f"🔄 [Arxiv Deliverable] Step 3: Normalizing result format...")
+            logger.debug(f" [Arxiv Deliverable] Step 3: Normalizing result format...")
             normalize_start = time.time()
             normalized_results = []
             for result in search_results.get("results", []):
@@ -445,12 +457,12 @@ class ArxivSearchTool:
                 normalized_results.append(normalized)
             normalize_time = time.time() - normalize_start
             logger.debug(
-                f"⚙️ [Arxiv Deliverable] Normalization took {normalize_time:.2f}s, {len(normalized_results)} results"
+                f"️ [Arxiv Deliverable] Normalization took {normalize_time:.2f}s, {len(normalized_results)} results"
             )
 
             # Step 4: 质量控制
             if enable_qc and self.qc:
-                logger.debug(f"🔬 [Arxiv Deliverable] Step 4: Running quality control...")
+                logger.debug(f" [Arxiv Deliverable] Step 4: Running quality control...")
                 qc_start = time.time()
                 processed_results = self.qc.process_results(normalized_results, deliverable_context=deliverable)
                 qc_time = time.time() - qc_start
@@ -462,21 +474,21 @@ class ArxivSearchTool:
                 search_results["results"] = processed_results
                 search_results["quality_controlled"] = True
                 logger.info(
-                    f"✅ [Arxiv Deliverable] QC completed in {qc_time:.2f}s: {initial_count} → {before_limit} → {after_limit} results"
+                    f" [Arxiv Deliverable] QC completed in {qc_time:.2f}s: {initial_count} → {before_limit} → {after_limit} results"
                 )
                 logger.debug(
-                    f"📉 [Arxiv Deliverable] QC pipeline: initial={initial_count}, after_qc={before_limit}, after_limit={after_limit}"
+                    f" [Arxiv Deliverable] QC pipeline: initial={initial_count}, after_qc={before_limit}, after_limit={after_limit}"
                 )
             else:
                 search_results["results"] = normalized_results[:max_results]
                 search_results["quality_controlled"] = False
-                logger.debug(f"⏭️ [Arxiv Deliverable] Quality control skipped")
+                logger.debug(f"️ [Arxiv Deliverable] Quality control skipped")
 
             # Step 5: 添加编号
-            logger.debug(f"🔢 [Arxiv Deliverable] Step 5: Adding reference numbers...")
+            logger.debug(f" [Arxiv Deliverable] Step 5: Adding reference numbers...")
             for idx, result in enumerate(search_results.get("results", []), start=1):
                 result["reference_number"] = idx
-            logger.debug(f"✅ [Arxiv Deliverable] Reference numbers added (1-{len(search_results.get('results', []))})")
+            logger.debug(f" [Arxiv Deliverable] Reference numbers added (1-{len(search_results.get('results', []))})")
 
             end_time = time.time()
             total_time = end_time - start_time
@@ -484,17 +496,17 @@ class ArxivSearchTool:
             search_results["deliverable_name"] = deliverable_name
             search_results["precise_query"] = precise_query
 
-            logger.info(f"🎉 [Arxiv Deliverable] Search for deliverable completed in {total_time:.2f}s")
+            logger.info(f" [Arxiv Deliverable] Search for deliverable completed in {total_time:.2f}s")
             logger.info(
-                f"📊 [Arxiv Deliverable] Final results: {len(search_results.get('results', []))} papers, QC={search_results.get('quality_controlled', False)}"
+                f" [Arxiv Deliverable] Final results: {len(search_results.get('results', []))} papers, QC={search_results.get('quality_controlled', False)}"
             )
 
             return search_results
 
         except Exception as e:
-            logger.error(f"❌ [Arxiv Deliverable] search_for_deliverable failed: {str(e)}", exc_info=True)
-            logger.error(f"❌ [Arxiv Deliverable] Failed deliverable: {deliverable.get('name', 'Unknown')}")
-            logger.error(f"❌ [Arxiv Deliverable] Full deliverable data: {json.dumps(deliverable, ensure_ascii=False)}")
+            logger.error(f" [Arxiv Deliverable] search_for_deliverable failed: {str(e)}", exc_info=True)
+            logger.error(f" [Arxiv Deliverable] Failed deliverable: {deliverable.get('name', 'Unknown')}")
+            logger.error(f" [Arxiv Deliverable] Full deliverable data: {json.dumps(deliverable, ensure_ascii=False)}")
             return {
                 "success": False,
                 "error": str(e),
@@ -567,7 +579,7 @@ class ArxivSearchTool:
 
             return output
 
-        # 🆕 v7.65: 根据role_type提供简化版/完整版描述
+        #  v7.65: 根据role_type提供简化版/完整版描述
         role_type = getattr(self, "_current_role_type", None)
 
         if role_type in ["V4", "V6"]:  # 研究型角色使用完整描述

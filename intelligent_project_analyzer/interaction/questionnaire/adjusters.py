@@ -26,7 +26,7 @@ class QuestionAdjuster:
         feasibility_data: Dict[str, Any]
     ) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
         """
-        动态调整问题数量（🆕 P2进阶功能）
+        动态调整问题数量（ P2进阶功能）
 
         核心策略：
         1. 根据问卷总长度动态调整：避免问卷过长导致用户疲劳
@@ -67,19 +67,19 @@ class QuestionAdjuster:
         if total_length <= 7:
             # 短问卷：保留全部
             keep_ratio = 1.0
-            logger.info(f"📊 动态调整: 问卷总长度{total_length}≤7, 保留全部问题")
+            logger.info(f" 动态调整: 问卷总长度{total_length}≤7, 保留全部问题")
         elif total_length <= 10:
             # 中等问卷：轻度裁剪
             keep_ratio = 0.8
-            logger.info(f"📊 动态调整: 问卷总长度{total_length}在8-10, 轻度裁剪（保留80%）")
+            logger.info(f" 动态调整: 问卷总长度{total_length}在8-10, 轻度裁剪（保留80%）")
         elif total_length <= 13:
             # 较长问卷：中度裁剪
             keep_ratio = 0.6
-            logger.info(f"📊 动态调整: 问卷总长度{total_length}在11-13, 中度裁剪（保留60%）")
+            logger.info(f" 动态调整: 问卷总长度{total_length}在11-13, 中度裁剪（保留60%）")
         else:
             # 超长问卷：重度裁剪
             keep_ratio = 0.4
-            logger.info(f"📊 动态调整: 问卷总长度{total_length}≥14, 重度裁剪（保留40%）")
+            logger.info(f" 动态调整: 问卷总长度{total_length}≥14, 重度裁剪（保留40%）")
 
         # 如果不需要裁剪，直接返回
         if keep_ratio >= 1.0:
@@ -159,9 +159,9 @@ class QuestionAdjuster:
         if len(kept_questions) < len(scored_questions):
             dropped = scored_questions[target_count:]
             dropped_labels = [q["label"] for q in dropped]
-            logger.info(f"📊 动态裁剪: 移除 {len(dropped)} 个低优先级问题: {', '.join(dropped_labels)}")
+            logger.info(f" 动态裁剪: 移除 {len(dropped)} 个低优先级问题: {', '.join(dropped_labels)}")
             kept_labels = [q["label"] for q in kept_questions]
-            logger.info(f"📊 保留问题: {', '.join(kept_labels)}")
+            logger.info(f" 保留问题: {', '.join(kept_labels)}")
 
         return adjusted_philosophy, adjusted_conflict
 

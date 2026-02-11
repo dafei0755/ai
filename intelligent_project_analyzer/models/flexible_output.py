@@ -137,7 +137,7 @@ class V6_1_FlexibleOutput(BaseModel):
 
         结构建议（根据问题类型选择）:
 
-        📊 类型1: 方案比选类（如"有哪些结构方案?"）
+         类型1: 方案比选类（如"有哪些结构方案?"）
         {
           "comparison_matrix": [
             {
@@ -152,7 +152,7 @@ class V6_1_FlexibleOutput(BaseModel):
           "decision_framework": "决策考量的关键维度"
         }
 
-        🔧 类型2: 优化建议类（如"如何优化XX?"）
+         类型2: 优化建议类（如"如何优化XX?"）
         {
           "current_state_diagnosis": "现状问题诊断",
           "optimization_proposals": [
@@ -166,7 +166,7 @@ class V6_1_FlexibleOutput(BaseModel):
           "priority_ranking": "优化行动优先级排序"
         }
 
-        ⚠️ 类型3: 风险评估类（如"有什么风险?"）
+        ️ 类型3: 风险评估类（如"有什么风险?"）
         {
           "risk_catalog": [
             {
@@ -181,7 +181,7 @@ class V6_1_FlexibleOutput(BaseModel):
           "monitoring_plan": "风险监控建议"
         }
 
-        💰 类型4: 成本分析类（如"如何控制成本?"）
+         类型4: 成本分析类（如"如何控制成本?"）
         {
           "cost_drivers": "成本主要驱动因素",
           "cost_reduction_strategies": [
@@ -195,7 +195,7 @@ class V6_1_FlexibleOutput(BaseModel):
           "value_engineering_recommendations": "价值工程建议"
         }
 
-        ⚠️ 重要提示：
+        ️ 重要提示：
         - 以上模板仅为参考，可根据具体问题灵活调整
         - 关键原则：结构清晰、信息完整、针对性强
         - 避免在targeted_analysis中塞入与问题无关的内容
@@ -247,7 +247,7 @@ class V6_1_FlexibleOutput(BaseModel):
             missing = [f for f in required_fields if not getattr(self, f)]
             if missing:
                 raise ValueError(
-                    f"⚠️ Comprehensive模式下必需字段缺失: {', '.join(missing)}\n"
+                    f"️ Comprehensive模式下必需字段缺失: {', '.join(missing)}\n"
                     f"完整报告模式要求提供系统性的全面分析，请填充所有标准字段。"
                 )
 
@@ -255,7 +255,7 @@ class V6_1_FlexibleOutput(BaseModel):
             # 针对性模式：检查targeted_analysis是否填充
             if not self.targeted_analysis:
                 raise ValueError(
-                    "⚠️ Targeted模式下必须填充targeted_analysis字段\n"
+                    "️ Targeted模式下必须填充targeted_analysis字段\n"
                     "针对性模式要求直接回答用户的核心问题，请在targeted_analysis中提供专项分析。"
                 )
 
@@ -269,7 +269,7 @@ class V6_1_FlexibleOutput(BaseModel):
             if standard_fields_filled:
                 import warnings
                 warnings.warn(
-                    f"⚠️ Targeted模式下不建议填充标准字段：{', '.join(standard_fields_filled)}\n"
+                    f"️ Targeted模式下不建议填充标准字段：{', '.join(standard_fields_filled)}\n"
                     f"这可能导致输出冗余。针对性模式应聚焦于targeted_analysis字段。",
                     UserWarning
                 )
@@ -368,7 +368,7 @@ if __name__ == "__main__":
         print("\n" + "=" * 60)
         print("示例3: 验证器捕获错误")
         print("=" * 60)
-        print(f"✅ 成功捕获错误: {e}")
+        print(f" 成功捕获错误: {e}")
 
 
 # ===== V6-2: 机电与智能化工程师 =====
@@ -486,7 +486,7 @@ class V6_2_FlexibleOutput(BaseModel):
 
         结构建议（根据问题类型选择）:
 
-        📊 类型1: 系统比选类（如"HVAC系统有哪些方案?"）
+         类型1: 系统比选类（如"HVAC系统有哪些方案?"）
         {
           "comparison_matrix": [
             {
@@ -502,7 +502,7 @@ class V6_2_FlexibleOutput(BaseModel):
           "decision_framework": "决策考量的关键维度"
         }
 
-        🔧 类型2: 节能优化类（如"如何降低能耗?"）
+         类型2: 节能优化类（如"如何降低能耗?"）
         {
           "current_energy_diagnosis": "当前能耗问题诊断",
           "optimization_measures": [
@@ -517,7 +517,7 @@ class V6_2_FlexibleOutput(BaseModel):
           "priority_ranking": "优化措施优先级排序"
         }
 
-        ⚡ 类型3: 专业协调类（如"机电与结构如何协同?"）
+         类型3: 专业协调类（如"机电与结构如何协同?"）
         {
           "coordination_challenges": [
             {
@@ -532,7 +532,7 @@ class V6_2_FlexibleOutput(BaseModel):
           "critical_coordination_nodes": "关键协同节点"
         }
 
-        🏠 类型4: 智能化场景设计类（如"如何设计会议模式?"）
+         类型4: 智能化场景设计类（如"如何设计会议模式?"）
         {
           "scenario_details": {
             "scenario_name": "场景名称",
@@ -546,7 +546,7 @@ class V6_2_FlexibleOutput(BaseModel):
           "user_interaction": "用户交互方式"
         }
 
-        ⚠️ 重要提示：
+        ️ 重要提示：
         - 以上模板仅为参考，可根据具体问题灵活调整
         - 关键原则：结构清晰、信息完整、针对性强
         - 避免在targeted_analysis中塞入与问题无关的内容
@@ -598,7 +598,7 @@ class V6_2_FlexibleOutput(BaseModel):
             missing = [f for f in required_fields if not getattr(self, f)]
             if missing:
                 raise ValueError(
-                    f"⚠️ Comprehensive模式下必需字段缺失: {', '.join(missing)}\n"
+                    f"️ Comprehensive模式下必需字段缺失: {', '.join(missing)}\n"
                     f"完整报告模式要求提供系统性的全面分析，请填充所有标准字段。"
                 )
 
@@ -606,7 +606,7 @@ class V6_2_FlexibleOutput(BaseModel):
             # 针对性模式：检查targeted_analysis是否填充
             if not self.targeted_analysis:
                 raise ValueError(
-                    "⚠️ Targeted模式下必须填充targeted_analysis字段\n"
+                    "️ Targeted模式下必须填充targeted_analysis字段\n"
                     "针对性模式要求直接回答用户的核心问题，请在targeted_analysis中提供专项分析。"
                 )
 
@@ -620,7 +620,7 @@ class V6_2_FlexibleOutput(BaseModel):
             if standard_fields_filled:
                 import warnings
                 warnings.warn(
-                    f"⚠️ Targeted模式下不建议填充标准字段：{', '.join(standard_fields_filled)}\n"
+                    f"️ Targeted模式下不建议填充标准字段：{', '.join(standard_fields_filled)}\n"
                     f"这可能导致输出冗余。针对性模式应聚焦于targeted_analysis字段。",
                     UserWarning
                 )
@@ -677,10 +677,10 @@ class V6_3_FlexibleOutput(BaseModel):
             required_fields = ["craftsmanship_strategy", "key_material_specifications", "critical_node_details", "quality_control_and_mockup", "risk_analysis"]
             missing = [f for f in required_fields if not getattr(self, f)]
             if missing:
-                raise ValueError(f"⚠️ Comprehensive模式下必需字段缺失: {', '.join(missing)}")
+                raise ValueError(f"️ Comprehensive模式下必需字段缺失: {', '.join(missing)}")
         elif mode == "targeted":
             if not self.targeted_analysis:
-                raise ValueError("⚠️ Targeted模式下必须填充targeted_analysis字段")
+                raise ValueError("️ Targeted模式下必须填充targeted_analysis字段")
         return self
 
     class Config:
@@ -728,10 +728,10 @@ class V6_4_FlexibleOutput(BaseModel):
             required_fields = ["cost_estimation_summary", "cost_breakdown_analysis", "value_engineering_options", "budget_control_strategy", "cost_overrun_risk_analysis"]
             missing = [f for f in required_fields if not getattr(self, f)]
             if missing:
-                raise ValueError(f"⚠️ Comprehensive模式下必需字段缺失: {', '.join(missing)}")
+                raise ValueError(f"️ Comprehensive模式下必需字段缺失: {', '.join(missing)}")
         elif mode == "targeted":
             if not self.targeted_analysis:
-                raise ValueError("⚠️ Targeted模式下必须填充targeted_analysis字段")
+                raise ValueError("️ Targeted模式下必须填充targeted_analysis字段")
         return self
 
     class Config:
@@ -782,10 +782,10 @@ class V5_1_FlexibleOutput(BaseModel):
             required_fields = ["family_profile_and_needs", "operational_blueprint", "key_performance_indicators", "design_challenges_for_v2"]
             missing = [f for f in required_fields if not getattr(self, f)]
             if missing:
-                raise ValueError(f"⚠️ Comprehensive模式下必需字段缺失: {', '.join(missing)}")
+                raise ValueError(f"️ Comprehensive模式下必需字段缺失: {', '.join(missing)}")
         elif mode == "targeted":
             if not self.targeted_analysis:
-                raise ValueError("⚠️ Targeted模式下必须填充targeted_analysis字段")
+                raise ValueError("️ Targeted模式下必须填充targeted_analysis字段")
         return self
 
     class Config:
@@ -828,10 +828,10 @@ class V5_2_FlexibleOutput(BaseModel):
             required_fields = ["business_goal_analysis", "operational_blueprint", "key_performance_indicators", "design_challenges_for_v2"]
             missing = [f for f in required_fields if not getattr(self, f)]
             if missing:
-                raise ValueError(f"⚠️ Comprehensive模式下必需字段缺失: {', '.join(missing)}")
+                raise ValueError(f"️ Comprehensive模式下必需字段缺失: {', '.join(missing)}")
         elif mode == "targeted":
             if not self.targeted_analysis:
-                raise ValueError("⚠️ Targeted模式下必须填充targeted_analysis字段")
+                raise ValueError("️ Targeted模式下必须填充targeted_analysis字段")
         return self
 
     class Config:
@@ -872,10 +872,10 @@ class V2_1_FlexibleOutput(BaseModel):
                              "implementation_guidance"]
             missing = [f for f in required_fields if not getattr(self, f)]
             if missing:
-                raise ValueError(f"⚠️ Comprehensive模式下必需字段缺失: {', '.join(missing)}")
+                raise ValueError(f"️ Comprehensive模式下必需字段缺失: {', '.join(missing)}")
         elif mode == "targeted":
             if not self.targeted_analysis:
-                raise ValueError("⚠️ Targeted模式下必须填充targeted_analysis字段")
+                raise ValueError("️ Targeted模式下必须填充targeted_analysis字段")
         return self
 
     class Config:
@@ -916,10 +916,10 @@ class V2_2_FlexibleOutput(BaseModel):
                              "implementation_guidance"]
             missing = [f for f in required_fields if not getattr(self, f)]
             if missing:
-                raise ValueError(f"⚠️ Comprehensive模式下必需字段缺失: {', '.join(missing)}")
+                raise ValueError(f"️ Comprehensive模式下必需字段缺失: {', '.join(missing)}")
         elif mode == "targeted":
             if not self.targeted_analysis:
-                raise ValueError("⚠️ Targeted模式下必须填充targeted_analysis字段")
+                raise ValueError("️ Targeted模式下必须填充targeted_analysis字段")
         return self
 
     class Config:
@@ -964,10 +964,10 @@ class V3_2_FlexibleOutput(BaseModel):
                              "key_touchpoint_scripts", "narrative_guidelines_for_v2"]
             missing = [f for f in required_fields if not getattr(self, f)]
             if missing:
-                raise ValueError(f"⚠️ Comprehensive模式下必需字段缺失: {', '.join(missing)}")
+                raise ValueError(f"️ Comprehensive模式下必需字段缺失: {', '.join(missing)}")
         elif mode == "targeted":
             if not self.targeted_analysis:
-                raise ValueError("⚠️ Targeted模式下必须填充targeted_analysis字段")
+                raise ValueError("️ Targeted模式下必须填充targeted_analysis字段")
         return self
 
     class Config:
@@ -1005,10 +1005,10 @@ class V4_1_FlexibleOutput(BaseModel):
                              "design_implications", "evidence_base"]
             missing = [f for f in required_fields if not getattr(self, f)]
             if missing:
-                raise ValueError(f"⚠️ Comprehensive模式下必需字段缺失: {', '.join(missing)}")
+                raise ValueError(f"️ Comprehensive模式下必需字段缺失: {', '.join(missing)}")
         elif mode == "targeted":
             if not self.targeted_analysis:
-                raise ValueError("⚠️ Targeted模式下必须填充targeted_analysis字段")
+                raise ValueError("️ Targeted模式下必须填充targeted_analysis字段")
         return self
 
     class Config:

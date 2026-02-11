@@ -4,22 +4,24 @@
 定义项目分析系统的状态结构和管理逻辑
 """
 
-from typing import Dict, List, Optional, Any, Annotated
-from typing_extensions import TypedDict
+import operator
 from datetime import datetime
 from enum import Enum
-import operator
+from typing import Annotated, Any, Dict, List, Optional
 
-from langgraph.graph import add_messages
 from langchain_core.messages import BaseMessage
+from langgraph.graph import add_messages
+from typing_extensions import TypedDict
 
 
 class AnalysisStage(Enum):
     """分析阶段枚举"""
+
     INIT = "init"
     REQUIREMENT_COLLECTION = "requirement_collection"
     REQUIREMENT_CONFIRMATION = "requirement_confirmation"
     STRATEGIC_ANALYSIS = "strategic_analysis"
+    ROLE_SELECTION = "role_selection"  #  v2.2: 角色选择质量审核阶段
     PARALLEL_ANALYSIS = "parallel_analysis"
     BATCH_EXECUTION = "batch_execution"  # 批次执行阶段
     ANALYSIS_REVIEW = "analysis_review"  # 分析结果审核
@@ -33,6 +35,7 @@ class AnalysisStage(Enum):
 
 class AgentType(Enum):
     """智能体类型枚举（仅保留核心智能体，V2-V6 已移除）"""
+
     REQUIREMENTS_ANALYST = "requirements_analyst"
     PROJECT_DIRECTOR = "project_director"
     RESULT_AGGREGATOR = "result_aggregator"
@@ -134,22 +137,24 @@ def take_last(left: Optional[str], right: Optional[str]) -> Optional[str]:
 
 class ProjectAnalysisState(TypedDict):
     """项目分析系统的核心状态"""
-    
+
     # 基础信息
     session_id: str
     user_id: Optional[str]
     created_at: Annotated[str, take_max_timestamp]
     updated_at: Annotated[str, take_max_timestamp]
 
-    # 🆕 v7.107: 分析模式
-    analysis_mode: Optional[str]  # "normal" 或 "deep_thinking"，控制概念图生成数量
+    #  v7.107: 分析模式
+    analysis_mode: Optional[str]  # "normal"(深度思考) 或 "deep_thinking"(深度思考pro)，控制概念图生成数量
 
     # 用户输入和需求
     user_input: str
     structured_requirements: Optional[Dict[str, Any]]
-    feasibility_assessment: Optional[Dict[str, Any]]  # 🆕 V1.5可行性分析结果（后台决策支持）
-    project_type: Optional[str]  # 🆕 项目类型（用于本体论注入）: "personal_residential" | "hybrid_residential_commercial" | "commercial_enterprise"
-    
+    feasibility_assessment: Optional[Dict[str, Any]]  #  V1.5可行性分析结果（后台决策支持）
+    project_type: Optional[
+        str
+    ]  #  项目类型（用于本体论注入）: "personal_residential" | "hybrid_residential_commercial" | "commercial_enterprise"
+
     # 分析策略和任务分派
     # 使用Annotated和reducer函数来处理并发更新
     strategic_analysis: Annotated[Optional[Dict[str, Any]], merge_agent_results]
@@ -160,7 +165,7 @@ class ProjectAnalysisState(TypedDict):
     agent_results: Annotated[Optional[Dict[str, Any]], merge_agent_results]
     agent_type: Optional[Any]  # 当前执行的智能体类型(用于Send API并行执行)
 
-    # 🆕 交付物ID管理（v7.108）- 支持概念图精准关联
+    #  交付物ID管理（v7.108）- 支持概念图精准关联
     deliverable_metadata: Annotated[Optional[Dict[str, Dict[str, Any]]], merge_agent_results]
     """
     交付物元数据索引，键为交付物ID，值为元数据字典
@@ -196,18 +201,27 @@ class ProjectAnalysisState(TypedDict):
     final_report: Optional[str]
     pdf_file_path: Optional[str]
 
-    # 🆕 v7.64: 搜索引用集合（跨专家聚合）
+    #  v7.64: 搜索引用集合（跨专家聚合）
+    #  v7.164: 每个搜索结果现在包含唯一ID，格式: "{source_tool}_{hash}"
     search_references: Annotated[Optional[List[Dict[str, Any]]], merge_lists]
     """
     所有专家工具调用产生的搜索引用集合（v7.64+）
     用于在PDF报告末尾生成统一的参考文献章节
-    每个元素为 SearchReference 的字典形式
+    每个元素为 SearchReference 的字典形式:
+    {
+        "id": "tavily_a1b2c3d4e5f6",  #  v7.164: 唯一标识符
+        "source_tool": "tavily",
+        "title": "...",
+        "url": "...",
+        "snippet": "...",
+        ...
+    }
     """
 
     # 交互和历史
     conversation_history: Annotated[List[BaseMessage], add_messages]
     human_feedback: Optional[Dict[str, Any]]
-    
+
     # 流程控制
     current_stage: str  # AnalysisStage
     detail: Annotated[Optional[str], take_last]  # 当前节点的详细描述（用于前端实时显示，支持并发更新）
@@ -215,15 +229,15 @@ class ProjectAnalysisState(TypedDict):
     active_agents: Annotated[List[str], merge_lists]  # 当前活跃的智能体
     completed_agents: Annotated[List[str], merge_lists]  # 已完成的智能体
     failed_agents: Annotated[List[str], merge_lists]  # 失败的智能体
-    
-    # 🆕 流程跳过标志
+
+    #  流程跳过标志
     skip_unified_review: Optional[bool]  # 是否跳过统一审核
-    skip_calibration: Optional[bool]  # 🆕 是否跳过校准问卷（中等复杂度任务）
+    skip_calibration: Optional[bool]  #  是否跳过校准问卷（中等复杂度任务）
     requirements_confirmed: Optional[bool]  # 需求是否已确认
     user_modification_processed: Optional[bool]  # 用户修改是否已处理
     modification_confirmation_round: Optional[int]  # 修改确认轮次
 
-    # 🆕 问卷流程控制标志
+    #  问卷流程控制标志
     calibration_processed: Optional[bool]  # 是否已处理问卷（避免重复显示）
     calibration_skipped: Optional[bool]  # 是否跳过问卷（用户选择或系统判断）
     calibration_questionnaire: Optional[Dict[str, Any]]  # 生成的校准问卷
@@ -233,11 +247,39 @@ class ProjectAnalysisState(TypedDict):
     interaction_history: Annotated[List[Dict[str, Any]], merge_lists]  # 交互历史记录
     post_completion_followup_completed: Optional[bool]  # 报告完成后的追问是否已结束
 
+    #  v7.80+ 渐进式问卷状态（修复关键字段丢失问题）
+    progressive_questionnaire_step: Optional[int]  # 当前步骤 (1, 2, 3)
+    progressive_questionnaire_completed: Optional[bool]  # 是否完成
+
+    # Step 1: 任务梳理
+    extracted_core_tasks: Annotated[Optional[List[Dict[str, Any]]], merge_lists]
+    confirmed_core_tasks: Annotated[Optional[List[Dict[str, Any]]], merge_lists]
+    core_task_summary: Optional[str]
+    confirmed_core_task: Optional[str]  # 兼容旧字段
+    extracted_core_task: Optional[str]  # 兼容旧字段
+    poetic_metadata: Optional[Dict[str, Any]]
+    special_scene_metadata: Optional[Dict[str, Any]]
+    step1_boundary_check: Optional[Any]
+
+    # Step 2: 信息补全 (Gap Filling)
+    gap_filling_answers: Optional[Dict[str, Any]]
+    task_completeness_analysis: Optional[Dict[str, Any]]
+    task_gap_filling_questionnaire: Optional[Dict[str, Any]]
+
+    # Step 3: 雷达图 (Radar)
+    selected_dimensions: Annotated[
+        Optional[List[Dict[str, Any]]], merge_lists
+    ]  # 关键：questionnaire_summary 读取此字段 ( v7.151)
+    selected_radar_dimensions: Optional[List[Dict[str, Any]]]  # Step 2 输出
+    radar_dimension_values: Optional[Dict[str, Any]]
+    radar_analysis_summary: Optional[Dict[str, Any]]
+    dimension_weights: Optional[Dict[str, Any]]
+
     # 任务依赖关系 - 新增字段
     execution_batch: Optional[str]  # 当前执行批次: "first" 或 "second" (旧字段，保留兼容)
     dependency_summary: Optional[Dict[str, Any]]  # 第一批专家的完成情况摘要
 
-    # 🆕 批次调度字段（2025-11-18）- 支持动态批次调度
+    #  批次调度字段（2025-11-18）- 支持动态批次调度
     execution_batches: Optional[List[List[str]]]  # 批次列表，每个批次是一个角色 ID 列表
     """
     批次列表，每个批次是一个角色 ID 列表（可并行执行）
@@ -254,7 +296,7 @@ class ProjectAnalysisState(TypedDict):
     current_batch: int  # 当前执行的批次编号（从 1 开始）
     total_batches: int  # 总批次数
 
-    # 🆕 执行模式配置（v3.6）- 控制批次确认行为
+    #  执行模式配置（v3.6）- 控制批次确认行为
     execution_mode: Optional[str]  # 执行模式: "manual"（手动确认）, "automatic"（自动执行）, "preview"（显示后自动执行）
 
     completed_batches: Annotated[List[int], merge_lists]  # 已完成的批次编号列表
@@ -264,24 +306,55 @@ class ProjectAnalysisState(TypedDict):
     second_batch_approved: Optional[bool]  # 第二批策略是否被批准
     second_batch_strategies: Optional[Dict[str, Any]]  # 第二批专家的工作策略
 
-    # 🆕 多轮审核控制 - 循环控制字段
+    #  多轮审核控制 - 循环控制字段
     review_round: int  # 当前审核轮次（从0开始）
     review_history: Annotated[List[Dict[str, Any]], merge_lists]  # 审核历史记录
     best_result: Optional[Dict[str, Any]]  # 历史最佳专家结果
     best_score: float  # 历史最佳评分
     review_feedback: Optional[Dict[str, Any]]  # 审核反馈（传递给专家用于改进）
-    
-    # 🆕 v2.0 递进式审核结果字段
-    review_result: Optional[Dict[str, Any]]  # 完整审核结果（红蓝评委甲方）
-    final_ruling: Optional[str]  # 最终裁定文档（甲方输出的可执行改进路线图）
-    improvement_suggestions: Annotated[List[Dict[str, Any]], merge_lists]  # 改进建议列表
-    skip_second_review: Optional[bool]  # 整改后跳过第二次审核标记
+
+    #  v2.0 递进式审核结果字段
+    review_result: Optional[Dict[str, Any]]  # [DEPRECATED] 完整审核结果（红蓝评委甲方）- 已被role_quality_review_result替代
+    final_ruling: Optional[str]  # [DEPRECATED] 最终裁定文档（甲方输出的可执行改进路线图）- 已废弃
+    improvement_suggestions: Annotated[List[Dict[str, Any]], merge_lists]  # [DEPRECATED] 改进建议列表 - 已废弃
+    skip_second_review: Optional[bool]  # [DEPRECATED] 整改后跳过第二次审核标记 - 已废弃
+
+    #  v2.2 角色选择质量审核字段（2026-01-26）
+    role_quality_review_result: Optional[Dict[str, Any]]  # 角色选择质量审核结果（红蓝对抗）
+    """
+    角色选择质量审核结果，包含：
+    {
+        "critical_issues": [...],  # 关键问题（阻塞流程）
+        "warnings": [...],         # 警告（不阻塞）
+        "strengths": [...],        # 优势
+        "overall_assessment": "...",  # 总体评估
+        "red_review": {...},       # 红队原始审核
+        "blue_review": {...}       # 蓝队原始审核
+    }
+    """
+    role_quality_review_completed: Optional[bool]  # 角色选择质量审核是否完成
+    pending_user_question: Optional[Dict[str, Any]]  # 待处理的用户问题（质量审核发现问题时）
+
+    #  v7.280 前置质量控制字段（TaskGenerationGuard）
+    task_guard_result: Optional[Dict[str, Any]]  # TaskGenerationGuard 评估结果
+    """
+    前置质量控制评估结果，包含：
+    {
+        "risks": [...],           # 识别的风险点
+        "auto_mitigations": [...], # 自动应用的修正措施
+        "role_adjustments": {...}, # 角色优化调整
+        "confidence_score": 75,    # 整体置信度
+        "high_risk_roles": [...],  # 高风险角色列表
+        "evaluation_summary": "..."  # 评估摘要
+    }
+    """
+    auto_mitigations: Annotated[Optional[List[str]], merge_lists]  # 自动修正历史记录
 
     # 错误处理
     errors: List[Dict[str, Any]]
     retry_count: int
-    
-    # 🆕 输入拒绝字段（内容安全与领域过滤）
+
+    #  输入拒绝字段（内容安全与领域过滤）
     rejection_reason: Optional[str]  # 拒绝原因代码
     rejection_message: Optional[str]  # 用户友好的拒绝提示消息
     domain_risk_flag: Optional[bool]  # 领域风险标记
@@ -320,21 +393,67 @@ class ProjectAnalysisState(TypedDict):
     followup_turn_count: int
     """当前会话的追问轮次计数"""
 
+    #  v7.155: 多模态视觉参考（用户上传的参考图）
+    uploaded_visual_references: Optional[List[Dict[str, Any]]]
+    """
+    用户上传的视觉参考图列表，每个元素包含：
+    {
+        "file_path": str,           # 文件路径（用于按需加载原始图片）
+        "width": int,
+        "height": int,
+        "format": str,
+        "vision_analysis": str,     # Vision API文本分析
+        "structured_features": {    # 结构化视觉特征（轻量数据，直接存储）
+            "dominant_colors": List[str],      # 主色调
+            "style_keywords": List[str],       # 风格关键词
+            "materials": List[str],            # 材质
+            "spatial_layout": str,             # 空间布局描述
+            "mood_atmosphere": str,            # 氛围描述
+            "design_elements": List[str],      # 设计元素
+        },
+        "user_description": Optional[str],  # 用户追加描述
+        "reference_type": str,      # 参考类型: "style" | "layout" | "color" | "general"
+    }
+
+    性能优化说明：
+    - base64_data 不存储在 state 中，避免 Redis 内存压力
+    - 通过 file_path 按需加载原始图片（概念图生成时）
+    - structured_features 为轻量数据（约几KB），直接存储
+    """
+
+    visual_style_anchor: Optional[str]
+    """
+    从上传图片提取的全局风格锚点
+    用于确保全流程输出风格一致性
+    格式: "Scandinavian minimalist, warm wood tones, natural lighting"
+    """
+
     # 元数据
     metadata: Dict[str, Any]
 
 
 class StateManager:
     """状态管理器"""
-    
+
     @staticmethod
     def create_initial_state(
         user_input: str,
         session_id: str,
         user_id: Optional[str] = None,
-        analysis_mode: Optional[str] = "normal"  # 🆕 v7.107: 分析模式
+        analysis_mode: Optional[str] = "normal",  #  v7.107: 分析模式
+        uploaded_visual_references: Optional[List[Dict[str, Any]]] = None,  #  v7.156: 多模态视觉参考
+        visual_style_anchor: Optional[str] = None,  #  v7.156: 全局风格锚点
     ) -> ProjectAnalysisState:
-        """创建初始状态"""
+        """创建初始状态
+
+        Args:
+            user_input: 用户输入
+            session_id: 会话ID
+            user_id: 用户ID
+            analysis_mode: 分析模式
+            uploaded_visual_references: 用户上传的多模态视觉参考图片列表
+            visual_style_anchor: 从视觉参考中提取的全局风格锚点描述
+        """
         now = datetime.now().isoformat()
 
         return ProjectAnalysisState(
@@ -343,39 +462,32 @@ class StateManager:
             user_id=user_id,
             created_at=now,
             updated_at=now,
-
-            # 🆕 v7.107: 分析模式
+            #  v7.107: 分析模式
             analysis_mode=analysis_mode,
-
             # 用户输入
             user_input=user_input,
             structured_requirements=None,
-            feasibility_assessment=None,  # 🆕 V1.5可行性分析结果初始化,
-            
+            feasibility_assessment=None,  #  V1.5可行性分析结果初始化,
             # 分析策略
             strategic_analysis=None,
             subagents=None,
             # agents_to_execute=None,  # 已移除（Fixed Mode 专用字段）
             agent_results={},
-
             # 专业分析结果（V2-V6 字段已移除，使用 agent_results 字典）
             # v2_design_research=None,
             # v3_technical_architecture=None,
             # v4_ux_design=None,
             # v5_business_model=None,
             # v6_implementation_plan=None,
-            
             # 结果聚合
             aggregated_results=None,
             final_report=None,
             pdf_file_path=None,
-            
             # 交互历史
             conversation_history=[],
             human_feedback=None,
-            
-            # 🆕 问卷流程控制初始化
-            skip_calibration=False,  # 🆕 是否跳过校准问卷
+            #  问卷流程控制初始化
+            skip_calibration=False,  #  是否跳过校准问卷
             calibration_processed=False,
             calibration_skipped=False,
             calibration_questionnaire=None,
@@ -384,44 +496,59 @@ class StateManager:
             questionnaire_summary=None,
             interaction_history=[],
             post_completion_followup_completed=False,
-
-            # 🆕 追问对话历史初始化（v3.11新增）
+            #  v7.80+ 渐进式问卷初始化
+            progressive_questionnaire_step=0,
+            progressive_questionnaire_completed=False,
+            extracted_core_tasks=None,
+            confirmed_core_tasks=None,
+            core_task_summary=None,
+            confirmed_core_task=None,
+            extracted_core_task=None,
+            poetic_metadata=None,
+            special_scene_metadata=None,
+            step1_boundary_check=None,
+            gap_filling_answers=None,
+            task_completeness_analysis=None,
+            task_gap_filling_questionnaire=None,
+            selected_dimensions=None,
+            selected_radar_dimensions=None,
+            radar_dimension_values=None,
+            radar_analysis_summary=None,
+            dimension_weights=None,
+            #  追问对话历史初始化（v3.11新增）
             followup_history=[],
             followup_turn_count=0,
-
+            #  v7.155→v7.156: 多模态视觉参考（从会话数据传入，不再硬编码为 None）
+            uploaded_visual_references=uploaded_visual_references,
+            visual_style_anchor=visual_style_anchor,
             # 流程控制
             current_stage=AnalysisStage.INIT.value,
             active_agents=[],
             completed_agents=[],
             failed_agents=[],
-
-            # 🆕 批次调度初始化（2025-11-18）
+            #  批次调度初始化（2025-11-18）
             execution_batches=None,  # 将由BatchScheduler计算
             current_batch=0,
             total_batches=0,
             completed_batches=[],
-
-            # 🆕 多轮审核控制 - 初始化
+            #  多轮审核控制 - 初始化
             review_round=0,
             review_history=[],
             best_result=None,
             best_score=0.0,
             review_feedback=None,
-            
-            # 🆕 v2.0 递进式审核结果 - 初始化
+            #  v2.0 递进式审核结果 - 初始化
             review_result=None,
             final_ruling=None,
             improvement_suggestions=[],
             skip_second_review=False,
-            
             # 错误处理
             errors=[],
             retry_count=0,
-            
             # 元数据
-            metadata={}
+            metadata={},
         )
-    
+
     @staticmethod
     def update_state(state: ProjectAnalysisState, updates: Dict[str, Any]) -> ProjectAnalysisState:
         """更新状态"""
@@ -433,28 +560,19 @@ class StateManager:
     @staticmethod
     def update_stage(state: ProjectAnalysisState, new_stage: AnalysisStage) -> Dict[str, Any]:
         """更新分析阶段"""
-        return {
-            "current_stage": new_stage.value,
-            "updated_at": datetime.now().isoformat()
-        }
-    
+        return {"current_stage": new_stage.value, "updated_at": datetime.now().isoformat()}
+
     @staticmethod
-    def add_agent_result(
-        state: ProjectAnalysisState,
-        agent_type: AgentType,
-        result: Dict[str, Any]
-    ) -> Dict[str, Any]:
+    def add_agent_result(state: ProjectAnalysisState, agent_type: AgentType, result: Dict[str, Any]) -> Dict[str, Any]:
         """
         添加智能体分析结果
 
-        ✅ 已修复: 移除对已删除的V2-V6枚举值的引用
+         已修复: 移除对已删除的V2-V6枚举值的引用
         现在使用agent_results字典存储所有智能体结果
         """
-        update = {
-            "updated_at": datetime.now().isoformat()
-        }
+        update = {"updated_at": datetime.now().isoformat()}
 
-        # ✅ 修复: 不再使用已删除的V2-V6枚举值
+        #  修复: 不再使用已删除的V2-V6枚举值
         # 所有结果统一存储在agent_results字典中
         # 这个方法现在主要用于更新完成状态
 
@@ -471,47 +589,40 @@ class StateManager:
         update["active_agents"] = active_agents
 
         return update
-    
+
     @staticmethod
     def add_error(
-        state: ProjectAnalysisState,
-        error_type: str,
-        error_message: str,
-        agent_type: Optional[AgentType] = None
+        state: ProjectAnalysisState, error_type: str, error_message: str, agent_type: Optional[AgentType] = None
     ) -> Dict[str, Any]:
         """添加错误信息"""
         error_info = {
             "type": error_type,
             "message": error_message,
             "timestamp": datetime.now().isoformat(),
-            "agent": agent_type.value if agent_type else None
+            "agent": agent_type.value if agent_type else None,
         }
-        
+
         errors = state.get("errors", []).copy()
         errors.append(error_info)
-        
+
         failed_agents = state.get("failed_agents", []).copy()
         if agent_type and agent_type.value not in failed_agents:
             failed_agents.append(agent_type.value)
-        
-        return {
-            "errors": errors,
-            "failed_agents": failed_agents,
-            "updated_at": datetime.now().isoformat()
-        }
-    
+
+        return {"errors": errors, "failed_agents": failed_agents, "updated_at": datetime.now().isoformat()}
+
     @staticmethod
     def is_analysis_complete(state: ProjectAnalysisState) -> bool:
         """
         检查分析是否完成
 
-        ✅ 已修复: 移除对已删除的V2-V6枚举值的引用
+         已修复: 移除对已删除的V2-V6枚举值的引用
         现在基于动态分派的智能体列表判断完成状态
         """
         completed_agents = state.get("completed_agents", [])
         subagents = state.get("subagents", {})
 
-        # ✅ 修复: 基于动态分派的智能体判断完成状态
+        #  修复: 基于动态分派的智能体判断完成状态
         # 不再使用硬编码的V2-V6枚举值
         if subagents:
             # 检查所有分派的智能体是否都已完成
@@ -521,14 +632,14 @@ class StateManager:
         # 如果没有分派信息,检查agent_results是否有内容
         agent_results = state.get("agent_results", {})
         return len(agent_results) > 0 and len(completed_agents) > 0
-    
+
     @staticmethod
     def get_analysis_progress(state: ProjectAnalysisState) -> Dict[str, Any]:
         """获取分析进度"""
         subagents = state.get("subagents", {})
         completed_agents = state.get("completed_agents", [])
         failed_agents = state.get("failed_agents", [])
-        
+
         if subagents:
             total_agents = len(subagents)
             completed_count = len([agent for agent in subagents.keys() if agent in completed_agents])
@@ -538,13 +649,13 @@ class StateManager:
             total_agents = 6
             completed_count = len(completed_agents)
             failed_count = len(failed_agents)
-        
+
         progress_percentage = (completed_count / total_agents * 100) if total_agents > 0 else 0
-        
+
         return {
             "total_agents": total_agents,
             "completed_count": completed_count,
             "failed_count": failed_count,
             "progress_percentage": progress_percentage,
-            "current_stage": state.get("current_stage", AnalysisStage.INIT.value)
+            "current_stage": state.get("current_stage", AnalysisStage.INIT.value),
         }

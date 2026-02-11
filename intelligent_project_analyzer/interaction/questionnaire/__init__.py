@@ -4,8 +4,8 @@
 提供问卷生成、调整和答案解析功能，支持战略校准问卷的模块化管理。
 
 v7.5 更新：
-- 🆕 LLMQuestionGenerator：LLM驱动的智能问卷生成，提升问题与用户需求的结合度
-- 🆕 QuestionRelevanceValidator：问题相关性验证，过滤低质量问题
+-  LLMQuestionGenerator：LLM驱动的智能问卷生成，提升问题与用户需求的结合度
+-  QuestionRelevanceValidator：问题相关性验证，过滤低质量问题
 
 v7.4 更新：
 - 新增 KeywordExtractor：智能关键词提取，支持领域识别和核心概念提取

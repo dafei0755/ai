@@ -1,8 +1,8 @@
 """
 挑战检测智能体 (LangGraph StateGraph)
 
-🔥 v7.16: 将 detect_challenges_node 升级为真正的 LangGraph Agent
-🔥 v7.16.1: 添加性能监控和共享工具函数
+ v7.16: 将 detect_challenges_node 升级为真正的 LangGraph Agent
+ v7.16.1: 添加性能监控和共享工具函数
 
 核心功能:
 1. 扫描专家输出 (Scan Outputs)
@@ -65,7 +65,7 @@ def scan_outputs_node(state: ChallengeDetectionState) -> Dict[str, Any]:
     """
     扫描专家输出节点 - 提取所有挑战标记
     """
-    logger.info("🔍 执行专家输出扫描节点")
+    logger.info(" 执行专家输出扫描节点")
     
     agent_results = state.get("agent_results", {})
     batch_results = state.get("batch_results", {})
@@ -129,7 +129,7 @@ def scan_outputs_node(state: ChallengeDetectionState) -> Dict[str, Any]:
                             "source": "batch_results"
                         })
     
-    log_entry = f"🔍 扫描完成: 发现 {len(raw_challenges)} 个原始挑战"
+    log_entry = f" 扫描完成: 发现 {len(raw_challenges)} 个原始挑战"
     logger.info(log_entry)
     
     return {
@@ -142,7 +142,7 @@ def classify_challenges_node(state: ChallengeDetectionState) -> Dict[str, Any]:
     """
     分类挑战节点 - 对挑战进行分类和优先级排序
     """
-    logger.info("📊 执行挑战分类节点")
+    logger.info(" 执行挑战分类节点")
     
     raw_challenges = state.get("raw_challenges", [])
     
@@ -185,7 +185,7 @@ def classify_challenges_node(state: ChallengeDetectionState) -> Dict[str, Any]:
     severity_order = {"high": 0, "medium": 1, "low": 2}
     classified.sort(key=lambda x: severity_order.get(x.get("severity", "low"), 2))
     
-    log_entry = f"📊 分类完成: {len([c for c in classified if c.get('severity') == 'high'])} high, {len([c for c in classified if c.get('severity') == 'medium'])} medium, {len([c for c in classified if c.get('severity') == 'low'])} low"
+    log_entry = f" 分类完成: {len([c for c in classified if c.get('severity') == 'high'])} high, {len([c for c in classified if c.get('severity') == 'medium'])} medium, {len([c for c in classified if c.get('severity') == 'low'])} low"
     logger.info(log_entry)
     
     return {
@@ -198,7 +198,7 @@ def route_decision_node(state: ChallengeDetectionState) -> Dict[str, Any]:
     """
     路由决策节点 - 决定后续处理路径
     """
-    logger.info("🚦 执行路由决策节点")
+    logger.info(" 执行路由决策节点")
     
     classified = state.get("classified_challenges", [])
     
@@ -245,7 +245,7 @@ def route_decision_node(state: ChallengeDetectionState) -> Dict[str, Any]:
         "reason": feedback_loop_reason
     }
     
-    log_entry = f"🚦 路由决策: manual={requires_manual_review}, client={requires_client_review}, feedback={requires_feedback_loop}"
+    log_entry = f" 路由决策: manual={requires_manual_review}, client={requires_client_review}, feedback={requires_feedback_loop}"
     logger.info(log_entry)
     
     return {
@@ -308,7 +308,7 @@ class ChallengeDetectionAgent:
         # 构建并编译状态图
         self._graph = build_challenge_detection_graph().compile()
         
-        logger.info("🚀 ChallengeDetectionAgent (LangGraph) 已初始化")
+        logger.info(" ChallengeDetectionAgent (LangGraph) 已初始化")
     
     def execute(self, state: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -320,7 +320,7 @@ class ChallengeDetectionAgent:
         Returns:
             挑战检测结果字典
         """
-        logger.info("🎯 ChallengeDetectionAgent 开始执行")
+        logger.info(" ChallengeDetectionAgent 开始执行")
         
         # 准备初始状态
         initial_state = {
@@ -359,11 +359,11 @@ class ChallengeDetectionAgent:
                 "processing_log": final_state.get("processing_log", [])
             }
             
-            logger.info(f"✅ ChallengeDetectionAgent 完成: {result['challenge_detection'].get('total_count', 0)} 个挑战")
+            logger.info(f" ChallengeDetectionAgent 完成: {result['challenge_detection'].get('total_count', 0)} 个挑战")
             return result
             
         except Exception as e:
-            logger.error(f"❌ ChallengeDetectionAgent 执行失败: {e}")
+            logger.error(f" ChallengeDetectionAgent 执行失败: {e}")
             import traceback
             traceback.print_exc()
             
@@ -377,7 +377,7 @@ class ChallengeDetectionAgent:
                 "requires_manual_review": False,
                 "escalated_challenges": [],
                 "feedback_loop_reason": "",
-                "processing_log": [f"❌ 执行失败: {e}"],
+                "processing_log": [f" 执行失败: {e}"],
                 "error": str(e)
             }
 
@@ -390,7 +390,7 @@ def detect_and_handle_challenges_v2(state: Dict[str, Any]) -> Dict[str, Any]:
     """
     向后兼容函数 - 替换原有的 detect_and_handle_challenges_node
     
-    🔥 v7.16.1: 添加性能监控
+     v7.16.1: 添加性能监控
     """
     start_time = time.time()
     agent = ChallengeDetectionAgent()

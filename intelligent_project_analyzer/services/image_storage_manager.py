@@ -8,12 +8,13 @@ Created: 2025-12-29
 Version: v1.0
 """
 
-import os
-import json
 import base64
+import json
+import os
+from datetime import datetime
 from pathlib import Path
 from typing import List, Optional
-from datetime import datetime
+
 from loguru import logger
 
 
@@ -38,7 +39,7 @@ class ImageStorageManager:
         owner_role: str,
         filename: str,
         visual_prompt: str,
-        aspect_ratio: str = "16:9"
+        aspect_ratio: str = "16:9",
     ) -> dict:
         """
         保存图片到文件系统并更新索引
@@ -80,22 +81,23 @@ class ImageStorageManager:
             metadata = {
                 "deliverable_id": deliverable_id,
                 "filename": filename,
-                "url": url,
+                "url": url,  #  标准字段名
+                "image_url": url,  #  v7.123: 兼容前端期待的字段名
                 "owner_role": owner_role,
                 "prompt": visual_prompt,
                 "aspect_ratio": aspect_ratio,
                 "file_size_bytes": file_size,
-                "created_at": datetime.now().isoformat()
+                "created_at": datetime.now().isoformat(),
             }
 
             # 5. 更新metadata.json索引
             await cls._update_metadata_index(session_id, metadata)
 
-            logger.info(f"✅ [ImageStorage] 保存图片: {filename} ({file_size} bytes)")
+            logger.info(f" [ImageStorage] 保存图片: {filename} ({file_size} bytes)")
             return metadata
 
         except Exception as e:
-            logger.error(f"❌ [ImageStorage] 保存图片失败: {e}")
+            logger.error(f" [ImageStorage] 保存图片失败: {e}")
             raise
 
     @classmethod
@@ -108,11 +110,7 @@ class ImageStorageManager:
             with open(index_path, "r", encoding="utf-8") as f:
                 index_data = json.load(f)
         else:
-            index_data = {
-                "session_id": session_id,
-                "created_at": datetime.now().isoformat(),
-                "images": []
-            }
+            index_data = {"session_id": session_id, "created_at": datetime.now().isoformat(), "images": []}
 
         # 追加新图片
         index_data["images"].append(new_image)
@@ -143,14 +141,14 @@ class ImageStorageManager:
             target_image = next((img for img in images if img["deliverable_id"] == deliverable_id), None)
 
             if not target_image:
-                logger.warning(f"⚠️ [ImageStorage] 图片不存在: {deliverable_id}")
+                logger.warning(f"️ [ImageStorage] 图片不存在: {deliverable_id}")
                 return False
 
             # 删除文件
             file_path = cls.BASE_DIR / session_id / target_image["filename"]
             if file_path.exists():
                 file_path.unlink()
-                logger.info(f"✅ [ImageStorage] 删除文件: {target_image['filename']}")
+                logger.info(f" [ImageStorage] 删除文件: {target_image['filename']}")
 
             # 更新索引
             index_path = cls.BASE_DIR / session_id / "metadata.json"
@@ -166,5 +164,5 @@ class ImageStorageManager:
             return True
 
         except Exception as e:
-            logger.error(f"❌ [ImageStorage] 删除图片失败: {e}")
+            logger.error(f" [ImageStorage] 删除图片失败: {e}")
             return False

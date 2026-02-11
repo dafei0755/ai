@@ -40,7 +40,7 @@ class DomainValidatorNode:
             Command: 仅在拒绝时返回 Command(goto="input_rejected")
         """
         logger.info("=" * 100)
-        logger.info("🔍 领域验证:深度一致性检查")
+        logger.info(" 领域验证:深度一致性检查")
         logger.info("=" * 100)
         
         # 从 agent_results 中提取 requirements_analyst 的结果
@@ -57,7 +57,7 @@ class DomainValidatorNode:
         user_input = state.get("user_input", "")
         session_id = state.get("session_id", "")
         
-        logger.info(f"🔍 [DEBUG] requirements_result keys: {list(requirements_result.keys()) if requirements_result else 'None'}")
+        logger.info(f" [DEBUG] requirements_result keys: {list(requirements_result.keys()) if requirements_result else 'None'}")
         
         # 初始化检测器
         domain_classifier = DomainClassifier(llm_model=llm_model)
@@ -68,20 +68,20 @@ class DomainValidatorNode:
         project_summary = DomainValidatorNode._extract_project_summary(requirements_result)
         
         if not project_summary:
-            logger.error("❌ 需求分析结果为空，无法继续")
+            logger.error(" 需求分析结果为空，无法继续")
             return {
                 "error": "Requirements analysis result is empty",
                 "calibration_skipped": True
             }
         
-        logger.info(f"📄 项目摘要: {project_summary[:200]}...")
+        logger.info(f" 项目摘要: {project_summary[:200]}...")
         
         # 重新分类项目内容
         domain_result = domain_classifier.classify(project_summary)
         
         # === 情况1：明确非设计类（漂移检测） ===
         if domain_result["is_design_related"] == False:
-            logger.error("🚨 领域漂移检测：需求分析结果偏离设计领域")
+            logger.error(" 领域漂移检测：需求分析结果偏离设计领域")
             
             # 记录漂移尝试
             violation_logger.log({
@@ -95,7 +95,7 @@ class DomainValidatorNode:
             # Interrupt：让用户确认是否调整
             drift_data = {
                 "interaction_type": "domain_drift_alert",
-                "message": "⚠️ 检测到需求可能偏离空间设计领域",
+                "message": "️ 检测到需求可能偏离空间设计领域",
                 "drift_details": {
                     "original_input": user_input[:300],
                     "analysis_summary": project_summary[:300],
@@ -123,7 +123,7 @@ class DomainValidatorNode:
                 adjustment = ""
             
             if action == "reject":
-                logger.info("❌ 用户确认终止分析")
+                logger.info(" 用户确认终止分析")
                 return Command(
                     update={
                         "rejection_reason": "domain_drift_confirmed",
@@ -133,7 +133,7 @@ class DomainValidatorNode:
                 )
             
             elif action == "adjust" and adjustment:
-                logger.info("🔄 用户提供调整意见，重新分析需求")
+                logger.info(" 用户提供调整意见，重新分析需求")
                 return Command(
                     update={
                         "user_input": adjustment,
@@ -144,7 +144,7 @@ class DomainValidatorNode:
                 )
             
             # action == "continue"：用户坚持继续，标记为风险项
-            logger.warning("⚠️ 用户坚持继续，标记为领域风险项")
+            logger.warning("️ 用户坚持继续，标记为领域风险项")
             return Command(
                 update={
                     "domain_risk_flag": True,
@@ -155,13 +155,13 @@ class DomainValidatorNode:
         
         # === 情况2：领域不明确 ===
         if domain_result["is_design_related"] == "unclear":
-            logger.info("⚠️ 领域一致性不明确，置信度不足")
+            logger.info("️ 领域一致性不明确，置信度不足")
             
             # 如果输入预检时置信度已经很高，这里不再打断
             input_confidence = state.get("domain_confidence", 0)
             if input_confidence >= 0.7:
-                logger.info("✅ 输入预检置信度高，信任初始判断")
-                logger.info("🔄 [DEBUG] High input confidence, continuing to calibration_questionnaire")
+                logger.info(" 输入预检置信度高，信任初始判断")
+                logger.info(" [DEBUG] High input confidence, continuing to calibration_questionnaire")
                 return {}
             
             # 否则，让用户确认
@@ -198,16 +198,16 @@ class DomainValidatorNode:
                 )
             
             # 用户确认为设计类
-            logger.info("✅ 用户确认为设计类，继续流程")
-            logger.info("🔄 [DEBUG] User confirmed design domain, continuing to calibration_questionnaire")
+            logger.info(" 用户确认为设计类，继续流程")
+            logger.info(" [DEBUG] User confirmed design domain, continuing to calibration_questionnaire")
             return {"domain_user_confirmed": True}
         
         # === 情况3：确认为设计类 ===
-        logger.info(f"✅ 领域验证通过 (置信度: {domain_result.get('confidence', 0):.2f})")
+        logger.info(f" 领域验证通过 (置信度: {domain_result.get('confidence', 0):.2f})")
         if domain_result.get('matched_categories'):
             logger.info(f"   匹配类别: {domain_result['matched_categories']}")
         
-        logger.info("🔄 [DEBUG] Domain validation passed, continuing to calibration_questionnaire")
+        logger.info(" [DEBUG] Domain validation passed, continuing to calibration_questionnaire")
         return {
             "domain_validation_passed": True,
             "validated_confidence": domain_result.get("confidence", 0)

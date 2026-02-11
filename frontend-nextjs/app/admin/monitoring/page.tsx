@@ -34,12 +34,12 @@ export default function MonitoringPage() {
   const dashboards = [
     {
       name: 'API 性能监控',
-      url: `${grafanaUrl}/d-solo/api-perf/api-performance?orgId=1&refresh=10s&from=now-1h&to=now&theme=light`,
+      url: `${grafanaUrl}/d-solo/api-perf/api-performance?orgId=1&panelId=1&refresh=10s&from=now-1h&to=now&theme=light`,
       description: '实时监控 API 响应时间、请求量、错误率'
     },
     {
       name: 'LLM 调用统计',
-      url: `${grafanaUrl}/d-solo/llm-stats/llm-statistics?orgId=1&refresh=30s&from=now-6h&to=now&theme=light`,
+      url: `${grafanaUrl}/d-solo/llm-stats/llm-statistics?orgId=1&panelId=1&refresh=30s&from=now-6h&to=now&theme=light`,
       description: '跟踪 LLM 调用次数、Token 消耗、成本统计'
     }
   ];

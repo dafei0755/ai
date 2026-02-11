@@ -1,7 +1,7 @@
 """
 问卷生成智能体 (LangGraph StateGraph)
 
-🔥 v7.16: 将 LLMQuestionGenerator 升级为真正的 LangGraph Agent
+ v7.16: 将 LLMQuestionGenerator 升级为真正的 LangGraph Agent
 
 核心功能:
 1. 上下文提取 (Extract Context) - 从需求分析中提取关键信息
@@ -68,7 +68,7 @@ def extract_context_node(state: QuestionnaireState) -> Dict[str, Any]:
     """
     上下文提取节点 - 从需求分析中提取关键信息
     """
-    logger.info("📊 执行上下文提取节点")
+    logger.info(" 执行上下文提取节点")
     
     structured_data = state.get("structured_data", {})
     user_input = state.get("user_input", "")
@@ -146,7 +146,7 @@ def extract_context_node(state: QuestionnaireState) -> Dict[str, Any]:
     # 提取用户关键词（用于相关性验证）
     user_keywords = _extract_keywords(user_input)
     
-    log_entry = f"📊 上下文提取完成: 摘要长度 {len(analysis_summary)}, 提取 {len(user_keywords)} 个关键词"
+    log_entry = f" 上下文提取完成: 摘要长度 {len(analysis_summary)}, 提取 {len(user_keywords)} 个关键词"
     logger.info(log_entry)
     
     return {
@@ -160,7 +160,7 @@ def generate_questions_node(state: QuestionnaireState) -> Dict[str, Any]:
     """
     问题生成节点 - 使用LLM生成定制化问题
     """
-    logger.info("🤖 执行问题生成节点")
+    logger.info(" 执行问题生成节点")
     
     user_input = state.get("user_input", "")
     analysis_summary = state.get("analysis_summary", "")
@@ -172,7 +172,7 @@ def generate_questions_node(state: QuestionnaireState) -> Dict[str, Any]:
     is_regeneration = regeneration_count > 0
     
     if llm_model is None:
-        logger.warning("⚠️ LLM模型未提供，使用回退方案")
+        logger.warning("️ LLM模型未提供，使用回退方案")
         return _fallback_generate(user_input, state.get("structured_data", {}))
     
     try:
@@ -194,13 +194,13 @@ def generate_questions_node(state: QuestionnaireState) -> Dict[str, Any]:
         questions = questionnaire_data.get("questions", [])
         
         if not questions:
-            logger.warning("⚠️ LLM返回空问卷，使用回退方案")
+            logger.warning("️ LLM返回空问卷，使用回退方案")
             return _fallback_generate(user_input, state.get("structured_data", {}))
         
         # 验证和修复问题格式
         validated_questions = _validate_questions(questions)
         
-        log_entry = f"🤖 问题生成完成: {len(validated_questions)} 个问题 (重新生成: {is_regeneration})"
+        log_entry = f" 问题生成完成: {len(validated_questions)} 个问题 (重新生成: {is_regeneration})"
         logger.info(log_entry)
         
         return {
@@ -212,7 +212,7 @@ def generate_questions_node(state: QuestionnaireState) -> Dict[str, Any]:
         }
         
     except Exception as e:
-        logger.error(f"❌ LLM生成失败: {e}")
+        logger.error(f" LLM生成失败: {e}")
         return _fallback_generate(user_input, state.get("structured_data", {}))
 
 
@@ -220,7 +220,7 @@ def validate_relevance_node(state: QuestionnaireState) -> Dict[str, Any]:
     """
     相关性验证节点 - 验证问题与用户输入的相关性
     """
-    logger.info("🎯 执行相关性验证节点")
+    logger.info(" 执行相关性验证节点")
     
     questions = state.get("questions", [])
     user_input = state.get("user_input", "").lower()
@@ -230,7 +230,7 @@ def validate_relevance_node(state: QuestionnaireState) -> Dict[str, Any]:
         return {
             "relevance_score": 0.0,
             "low_relevance_questions": [],
-            "processing_log": ["⚠️ 无问题可验证"]
+            "processing_log": ["️ 无问题可验证"]
         }
     
     relevant_count = 0
@@ -265,7 +265,7 @@ def validate_relevance_node(state: QuestionnaireState) -> Dict[str, Any]:
     
     relevance_score = relevant_count / len(questions) if questions else 0.0
     
-    log_entry = f"🎯 相关性验证完成: 分数 {relevance_score:.2f}, {len(low_relevance_questions)} 个低相关问题"
+    log_entry = f" 相关性验证完成: 分数 {relevance_score:.2f}, {len(low_relevance_questions)} 个低相关问题"
     logger.info(log_entry)
     
     return {
@@ -285,7 +285,7 @@ def should_regenerate(state: QuestionnaireState) -> str:
     
     # 如果相关性太低且还有重试机会
     if relevance_score < 0.3 and regeneration_count < max_regenerations:
-        logger.info(f"🔄 相关性过低 ({relevance_score:.2f})，触发重新生成")
+        logger.info(f" 相关性过低 ({relevance_score:.2f})，触发重新生成")
         return "regenerate"
     
     return "complete"
@@ -298,7 +298,7 @@ def increment_regeneration_node(state: QuestionnaireState) -> Dict[str, Any]:
     current_count = state.get("_regeneration_count", 0)
     return {
         "_regeneration_count": current_count + 1,
-        "processing_log": [f"🔄 触发第 {current_count + 1} 次重新生成"]
+        "processing_log": [f" 触发第 {current_count + 1} 次重新生成"]
     }
 
 
@@ -368,7 +368,7 @@ def _build_system_prompt(is_regeneration: bool, user_keywords: List[str]) -> str
         keywords_str = "、".join(user_keywords[:10]) if user_keywords else "用户输入中的关键词"
         base_prompt += f"""
 
-## ⚠️ 重新生成注意事项
+## ️ 重新生成注意事项
 
 上一次生成的问题相关性不足。这次必须：
 
@@ -376,7 +376,7 @@ def _build_system_prompt(is_regeneration: bool, user_keywords: List[str]) -> str
 2. **每个问题必须包含**至少一个用户原话中的关键词或数字
 3. **禁止使用通用模板问题**
 
-⚠️ 如果问题不包含用户输入的关键词，将被判定为无效问题！"""
+️ 如果问题不包含用户输入的关键词，将被判定为无效问题！"""
 
     return base_prompt
 
@@ -404,7 +404,7 @@ def _build_human_prompt(user_input: str, analysis_summary: str, is_regeneration:
     if is_regeneration and user_keywords:
         prompt += f"""
 
-⚠️ 必须在问题中引用的关键词：
+️ 必须在问题中引用的关键词：
 {', '.join(user_keywords[:10])}
 
 请确保每个问题至少包含上述关键词之一！"""
@@ -429,7 +429,7 @@ def _parse_llm_response(raw_content: str) -> Dict[str, Any]:
         
         return json.loads(raw_content)
     except json.JSONDecodeError as e:
-        logger.warning(f"⚠️ JSON解析失败: {e}")
+        logger.warning(f"️ JSON解析失败: {e}")
         return {"questions": []}
 
 
@@ -453,7 +453,7 @@ def _validate_questions(questions: List[Dict]) -> List[Dict]:
 
 def _fallback_generate(user_input: str, structured_data: Dict[str, Any]) -> Dict[str, Any]:
     """回退生成方案"""
-    logger.info("📋 使用回退问卷生成方案")
+    logger.info(" 使用回退问卷生成方案")
     
     # 基于项目类型生成基础问题
     project_type = structured_data.get("project_type", "personal_residential")
@@ -487,7 +487,7 @@ def _fallback_generate(user_input: str, structured_data: Dict[str, Any]) -> Dict
         "relevance_score": 0.5,
         "generation_source": "fallback",
         "generation_rationale": "LLM生成失败，使用回退方案",
-        "processing_log": ["📋 使用回退问卷生成方案"]
+        "processing_log": [" 使用回退问卷生成方案"]
     }
 
 
@@ -554,7 +554,7 @@ class QuestionnaireAgent:
         # 构建并编译状态图
         self._graph = build_questionnaire_graph().compile()
         
-        logger.info("🚀 QuestionnaireAgent (LangGraph) 已初始化")
+        logger.info(" QuestionnaireAgent (LangGraph) 已初始化")
     
     def generate(
         self, 
@@ -573,7 +573,7 @@ class QuestionnaireAgent:
                 - 问题列表
                 - 生成来源标识
         """
-        logger.info("🎯 QuestionnaireAgent 开始执行")
+        logger.info(" QuestionnaireAgent 开始执行")
         start_time = time.time()
         
         # 准备初始状态
@@ -607,7 +607,7 @@ class QuestionnaireAgent:
             questions = final_state.get("questions", [])
             source = final_state.get("generation_source", "unknown")
             
-            logger.info(f"✅ QuestionnaireAgent 完成: {len(questions)} 个问题, 来源: {source}")
+            logger.info(f" QuestionnaireAgent 完成: {len(questions)} 个问题, 来源: {source}")
             
             # 记录性能指标
             PerformanceMonitor.record("QuestionnaireAgent", time.time() - start_time, "v7.16")
@@ -618,7 +618,7 @@ class QuestionnaireAgent:
             # 记录失败时的性能指标
             PerformanceMonitor.record("QuestionnaireAgent", time.time() - start_time, "v7.16-error")
             
-            logger.error(f"❌ QuestionnaireAgent 执行失败: {e}")
+            logger.error(f" QuestionnaireAgent 执行失败: {e}")
             import traceback
             traceback.print_exc()
             
@@ -657,7 +657,7 @@ class QuestionnaireAgent:
         try:
             return self._graph.invoke(initial_state)
         except Exception as e:
-            logger.error(f"❌ QuestionnaireAgent 执行失败: {e}")
+            logger.error(f" QuestionnaireAgent 执行失败: {e}")
             return {
                 "questions": [],
                 "relevance_score": 0.0,

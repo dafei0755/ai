@@ -126,7 +126,7 @@ class AnalysisAPIClient:
         response.raise_for_status()
         return response.json()
     
-    # 🆕 对话相关方法
+    #  对话相关方法
     
     def ask_question(
         self,

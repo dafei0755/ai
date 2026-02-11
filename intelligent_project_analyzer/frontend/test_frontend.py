@@ -24,30 +24,30 @@ def test_imports():
     
     try:
         import streamlit as st
-        print("✅ Streamlit 导入成功")
+        print(" Streamlit 导入成功")
     except ImportError as e:
-        print(f"❌ Streamlit 导入失败: {e}")
+        print(f" Streamlit 导入失败: {e}")
         return False
     
     try:
         from intelligent_project_analyzer.frontend import app
-        print("✅ 前端应用模块导入成功")
+        print(" 前端应用模块导入成功")
     except ImportError as e:
-        print(f"❌ 前端应用模块导入失败: {e}")
+        print(f" 前端应用模块导入失败: {e}")
         return False
     
     try:
         from intelligent_project_analyzer.frontend import frontend_components
-        print("✅ 前端组件模块导入成功")
+        print(" 前端组件模块导入成功")
     except ImportError as e:
-        print(f"❌ 前端组件模块导入失败: {e}")
+        print(f" 前端组件模块导入失败: {e}")
         return False
     
     try:
         from intelligent_project_analyzer.workflow.main_workflow import MainWorkflow
-        print("✅ 工作流模块导入成功")
+        print(" 工作流模块导入成功")
     except ImportError as e:
-        print(f"❌ 工作流模块导入失败: {e}")
+        print(f" 工作流模块导入失败: {e}")
         return False
     
     print()
@@ -67,21 +67,21 @@ def test_env_config():
     env_file = project_root / ".env"
     if env_file.exists():
         load_dotenv(env_file)
-        print(f"✅ .env 文件存在: {env_file}")
+        print(f" .env 文件存在: {env_file}")
     else:
-        print(f"⚠️  .env 文件不存在: {env_file}")
+        print(f"️  .env 文件不存在: {env_file}")
     
     # 检查 API 密钥
     api_key = os.getenv("OPENAI_API_KEY")
     if api_key:
-        print(f"✅ OPENAI_API_KEY 已配置 (长度: {len(api_key)})")
+        print(f" OPENAI_API_KEY 已配置 (长度: {len(api_key)})")
     else:
-        print("❌ OPENAI_API_KEY 未配置")
+        print(" OPENAI_API_KEY 未配置")
     
     # 检查 API Base
     api_base = os.getenv("OPENAI_API_BASE")
     if api_base:
-        print(f"✅ OPENAI_API_BASE 已配置: {api_base}")
+        print(f" OPENAI_API_BASE 已配置: {api_base}")
     else:
         print("ℹ️  OPENAI_API_BASE 未配置 (将使用默认值)")
     
@@ -105,7 +105,7 @@ def test_workflow_creation():
     
     api_key = os.getenv("OPENAI_API_KEY")
     if not api_key:
-        print("❌ 无法测试工作流创建: 缺少 API 密钥")
+        print(" 无法测试工作流创建: 缺少 API 密钥")
         return False
     
     try:
@@ -121,7 +121,7 @@ def test_workflow_creation():
             llm_config["base_url"] = api_base
         
         llm = ChatOpenAI(**llm_config)
-        print("✅ LLM 创建成功")
+        print(" LLM 创建成功")
         
         # 创建工作流 (Fixed 模式)
         config_fixed = {
@@ -129,7 +129,7 @@ def test_workflow_creation():
             "enable_role_config": False
         }
         workflow_fixed = MainWorkflow(llm, config_fixed)
-        print("✅ Fixed 模式工作流创建成功")
+        print(" Fixed 模式工作流创建成功")
         
         # 创建工作流 (Dynamic 模式)
         config_dynamic = {
@@ -137,10 +137,10 @@ def test_workflow_creation():
             "enable_role_config": True
         }
         workflow_dynamic = MainWorkflow(llm, config_dynamic)
-        print("✅ Dynamic 模式工作流创建成功")
+        print(" Dynamic 模式工作流创建成功")
         
     except Exception as e:
-        print(f"❌ 工作流创建失败: {e}")
+        print(f" 工作流创建失败: {e}")
         import traceback
         traceback.print_exc()
         return False
@@ -165,15 +165,15 @@ def test_frontend_components():
             render_agent_card
         )
         
-        print("✅ apply_custom_css 函数导入成功")
-        print("✅ render_header 函数导入成功")
-        print("✅ render_sidebar 函数导入成功")
-        print("✅ render_progress_tracker 函数导入成功")
-        print("✅ render_analysis_results 函数导入成功")
-        print("✅ render_agent_card 函数导入成功")
+        print(" apply_custom_css 函数导入成功")
+        print(" render_header 函数导入成功")
+        print(" render_sidebar 函数导入成功")
+        print(" render_progress_tracker 函数导入成功")
+        print(" render_analysis_results 函数导入成功")
+        print(" render_agent_card 函数导入成功")
         
     except ImportError as e:
-        print(f"❌ 前端组件导入失败: {e}")
+        print(f" 前端组件导入失败: {e}")
         return False
     
     print()
@@ -201,9 +201,9 @@ def test_file_structure():
     for filename in required_files:
         filepath = frontend_dir / filename
         if filepath.exists():
-            print(f"✅ {filename} 存在")
+            print(f" {filename} 存在")
         else:
-            print(f"❌ {filename} 不存在")
+            print(f" {filename} 不存在")
             all_exist = False
     
     print()
@@ -213,7 +213,7 @@ def test_file_structure():
 def main():
     """主函数"""
     print("\n")
-    print("🤖 智能项目分析系统 - 前端功能测试")
+    print(" 智能项目分析系统 - 前端功能测试")
     print("=" * 60)
     print()
     
@@ -235,7 +235,7 @@ def main():
     failed = 0
     
     for test_name, result in results:
-        status = "✅ 通过" if result else "❌ 失败"
+        status = " 通过" if result else " 失败"
         print(f"{test_name}: {status}")
         if result:
             passed += 1
@@ -247,13 +247,13 @@ def main():
     print()
     
     if failed == 0:
-        print("🎉 所有测试通过！前端已准备就绪。")
+        print(" 所有测试通过！前端已准备就绪。")
         print()
         print("启动前端:")
         print("  streamlit run intelligent_project_analyzer/frontend/app.py")
         print()
     else:
-        print("⚠️  部分测试失败，请检查配置。")
+        print("️  部分测试失败，请检查配置。")
         print()
     
     return failed == 0

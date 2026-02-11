@@ -17,16 +17,16 @@ from loguru import logger
 
 class TaskComplexityAnalyzer:
     """
-    任务复杂度分析器 - v7.110.0
+    任务复杂度分析器 - v7.110.0 / v7.503增强
 
     根据用户输入的信息密度和复杂程度，智能评估建议的任务数量。
-    不再硬编码5-7个任务，而是基于实际需求动态调整（3-12个范围）。
+    v7.503: 扩展任务上限到20个，支持超大型项目（城市规划、综合体设计等）。
     """
 
-    # 配置参数
-    MIN_TASKS = 3  # 最少任务数（简单需求）
-    MAX_TASKS = 12  # 最多任务数（复杂需求）
-    BASE_TASKS = 5  # 基准任务数
+    # 配置参数（v7.503优化：扩展任务范围5-30，复杂度与面积无关）
+    MIN_TASKS = 5  # 最少任务数（简单需求）
+    MAX_TASKS = 30  # 最多任务数（超大型项目，v7.503提升到30）
+    BASE_TASKS = 8  # 基准任务数
 
     @classmethod
     def analyze(cls, user_input: str, structured_data: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
@@ -64,10 +64,10 @@ class TaskComplexityAnalyzer:
             reasoning_parts.append("输入非常详细")
         complexity_score += length_score * 0.15
 
-        # 2. 信息维度数量（关键维度）
+        # 2. 信息维度数量（关键维度）- v7.503: 降低面积权重
         dimension_count = 0
         dimensions = {
-            "空间规模": [r"\d+平米", r"\d+㎡", r"\d+平方米", r"\d+万平", r"别墅", r"住宅", r"办公", r"商业"],
+            "项目类型": [r"别墅", r"住宅", r"办公", r"商业", r"民宿", r"酒店", r"学校", r"医院"],  # 仅识别类型，不看面积
             "预算约束": [r"\d+万", r"预算", r"资金", r"成本", r"有限"],
             "对标案例": [r"对标", r"参考", r"案例", r"标杆", r"像.*一样"],
             "文化要素": [r"文化", r"传统", r"在地", r"历史", r"特色", r"渔村", r"老街"],
@@ -79,14 +79,16 @@ class TaskComplexityAnalyzer:
             "时间约束": [r"\d+个月", r"\d+年", r"工期", r"交付"],
             "地理位置": [r"上海", r"北京", r"深圳", r"蛇口", r"弄堂", r"老城区"],
             "特殊场景": [r"老房翻新", r"旧改", r"菜市场", r"历史建筑", r"文保"],
+            "多业态融合": [r"[^，。]{2,}\+[^，。]{2,}\+", r"综合体", r"复合", r"一体化"],  # 识别复杂业态
+            "多阶段工程": [r"分期", r"一期", r"二期", r"首期", r"阶段"],  # 识别项目规模
         }
 
         for dimension_name, patterns in dimensions.items():
             if any(re.search(pattern, user_input, re.IGNORECASE) for pattern in patterns):
                 dimension_count += 1
 
-        dimension_score = min(dimension_count / 8, 1.0)  # 8个维度为满分
-        complexity_score += dimension_score * 0.35
+        dimension_score = min(dimension_count / 10, 1.0)  # 10个维度为满分（增加维度数）
+        complexity_score += dimension_score * 0.40  # 提高维度权重（从0.35→0.40）
         reasoning_parts.append(f"包含{dimension_count}个信息维度")
 
         # 3. 结构化数据深度（增强维度）
@@ -137,24 +139,28 @@ class TaskComplexityAnalyzer:
             complexity_score += 0.1
             reasoning_parts.append("包含多个具体数据")
 
-        # 计算建议任务数量范围
-        # 复杂度 0-0.3 -> 3-5个任务（简单）
-        # 复杂度 0.3-0.6 -> 5-8个任务（中等）
-        # 复杂度 0.6-1.0 -> 8-12个任务（复杂）
+        # 计算建议任务数量范围（v7.503优化：新映射关系）
+        # 复杂度 0-0.25 -> 5-8个任务（简单需求）
+        # 复杂度 0.25-0.5 -> 9-15个任务（中等需求）
+        # 复杂度 0.5-0.75 -> 15-20个任务（复杂需求）
+        # 复杂度 0.75-1.0 -> 20-30个任务（超大型项目）
 
-        if complexity_score < 0.3:
-            recommended_min = cls.MIN_TASKS
-            recommended_max = cls.BASE_TASKS
-        elif complexity_score < 0.6:
-            recommended_min = cls.BASE_TASKS
+        if complexity_score < 0.25:
+            recommended_min = 5
             recommended_max = 8
+        elif complexity_score < 0.5:
+            recommended_min = 9
+            recommended_max = 15
+        elif complexity_score < 0.75:
+            recommended_min = 15
+            recommended_max = 20
         else:
-            recommended_min = 7
-            recommended_max = cls.MAX_TASKS
+            recommended_min = 20
+            recommended_max = cls.MAX_TASKS  # 30
 
         reasoning = "; ".join(reasoning_parts)
 
-        logger.info(f"📊 [TaskComplexityAnalyzer] 复杂度={complexity_score:.2f}, 建议任务数={recommended_min}-{recommended_max}")
+        logger.info(f" [TaskComplexityAnalyzer] 复杂度={complexity_score:.2f}, 建议任务数={recommended_min}-{recommended_max}")
 
         return {
             "recommended_min": recommended_min,
@@ -189,9 +195,9 @@ class CoreTaskDecomposer:
         try:
             with open(config_path, "r", encoding="utf-8") as f:
                 self._config = yaml.safe_load(f)
-            logger.info(f"✅ [CoreTaskDecomposer] 配置加载成功: {config_path}")
+            logger.info(f" [CoreTaskDecomposer] 配置加载成功: {config_path}")
         except Exception as e:
-            logger.warning(f"⚠️ [CoreTaskDecomposer] 配置加载失败: {e}")
+            logger.warning(f"️ [CoreTaskDecomposer] 配置加载失败: {e}")
             self._config = {}
 
     @property
@@ -251,7 +257,7 @@ class CoreTaskDecomposer:
         system_prompt = self.config.get("system_prompt", "")
         user_template = self.config.get("user_prompt_template", "")
 
-        # 🔧 v7.118: 修复 KeyError - 使用 task_count_range 参数
+        #  v7.118: 修复 KeyError - 使用 task_count_range 参数
         task_min = task_count_range[0] if task_count_range else 5
         task_max = task_count_range[1] if task_count_range else 7
 
@@ -276,7 +282,7 @@ class CoreTaskDecomposer:
             任务列表，每个任务包含 id, title, description, source_keywords, task_type, priority
         """
         try:
-            # 🆕 P1: 增强 JSON 提取能力 - 添加 debug 日志
+            #  P1: 增强 JSON 提取能力 - 添加 debug 日志
             logger.debug(f"[CoreTaskDecomposer] LLM 原始响应 (前500字符): {response[:500]}")
 
             response_text = response.strip()
@@ -310,7 +316,7 @@ class CoreTaskDecomposer:
 
                     if end_idx != -1:
                         response_text = response_text[start_idx:end_idx]
-                        logger.info(f"✅ [CoreTaskDecomposer] 使用括号平衡提取 JSON (长度: {len(response_text)})")
+                        logger.info(f" [CoreTaskDecomposer] 使用括号平衡提取 JSON (长度: {len(response_text)})")
 
             # 策略 3: 尝试移除 JSON 中的注释（// 或 /* */）
             import re
@@ -345,42 +351,42 @@ class CoreTaskDecomposer:
                     "source_keywords": task.get("source_keywords", []),
                     "task_type": task.get("task_type", "research"),
                     "priority": task.get("priority", "medium"),
-                    # 🆕 v7.106: 添加依赖和执行顺序
+                    #  v7.106: 添加依赖和执行顺序
                     "dependencies": task.get("dependencies", []),
                     "execution_order": task.get("execution_order", i + 1),
-                    # 🆕 v7.109+: 添加搜索和概念图配置
+                    #  v7.109+: 添加搜索和概念图配置
                     "support_search": task.get("support_search", False),
                     "needs_concept_image": task.get("needs_concept_image", False),
                     "concept_image_count": task.get("concept_image_count", 1 if task.get("needs_concept_image") else 0),
                 }
                 validated_tasks.append(validated_task)
 
-                # 🔥 v7.119: 添加概念图相关日志
+                #  v7.119: 添加概念图相关日志
                 if validated_task["needs_concept_image"]:
-                    logger.info(f"🎨 [任务 {validated_task['id']}] 需要生成概念图")
-                    logger.info(f"  📊 数量: {validated_task['concept_image_count']} 张")
-                    logger.info(f"  📝 任务标题: {validated_task['title']}")
+                    logger.info(f" [任务 {validated_task['id']}] 需要生成概念图")
+                    logger.info(f"   数量: {validated_task['concept_image_count']} 张")
+                    logger.info(f"   任务标题: {validated_task['title']}")
                 if validated_task["support_search"]:
-                    logger.debug(f"🔍 [任务 {validated_task['id']}] 支持搜索功能")
+                    logger.debug(f" [任务 {validated_task['id']}] 支持搜索功能")
 
-            logger.info(f"✅ [CoreTaskDecomposer] 成功解析 {len(validated_tasks)} 个任务")
+            logger.info(f" [CoreTaskDecomposer] 成功解析 {len(validated_tasks)} 个任务")
 
             # 统计概念图相关任务
             tasks_with_images = [t for t in validated_tasks if t.get("needs_concept_image")]
             total_image_count = sum(t.get("concept_image_count", 0) for t in validated_tasks)
             if tasks_with_images:
-                logger.info(f"📸 [概念图统计] {len(tasks_with_images)} 个任务需要概念图，共 {total_image_count} 张")
+                logger.info(f" [概念图统计] {len(tasks_with_images)} 个任务需要概念图，共 {total_image_count} 张")
                 for t in tasks_with_images:
                     logger.debug(f"  • {t['title']}: {t.get('concept_image_count', 0)} 张")
 
             return validated_tasks
 
         except json.JSONDecodeError as e:
-            logger.error(f"❌ [CoreTaskDecomposer] JSON 解析失败: {e}")
+            logger.error(f" [CoreTaskDecomposer] JSON 解析失败: {e}")
             logger.debug(f"[CoreTaskDecomposer] 解析失败的文本: {response_text[:200]}")
             return self._fallback_decompose(response)
         except Exception as e:
-            logger.error(f"❌ [CoreTaskDecomposer] 响应解析异常: {e}")
+            logger.error(f" [CoreTaskDecomposer] 响应解析异常: {e}")
             return []
 
     def _fallback_decompose(self, text: str) -> List[Dict[str, Any]]:
@@ -393,7 +399,7 @@ class CoreTaskDecomposer:
         Returns:
             简化的任务列表
         """
-        logger.warning("⚠️ [CoreTaskDecomposer] 使用回退策略提取任务")
+        logger.warning("️ [CoreTaskDecomposer] 使用回退策略提取任务")
 
         # 尝试从文本中提取编号列表
         lines = text.split("\n")
@@ -410,7 +416,7 @@ class CoreTaskDecomposer:
                 # 提取任务内容
                 content = line.lstrip("0123456789.、)- •").strip()
                 if content and len(content) > 5:
-                    # 🆕 v7.109+: 简单规则判断是否需要搜索和概念图
+                    #  v7.109+: 简单规则判断是否需要搜索和概念图
                     is_research_task = any(kw in content for kw in ["研究", "调研", "分析", "对标", "案例"])
                     is_design_task = any(kw in content for kw in ["设计", "方案", "规划", "框架"])
 
@@ -424,7 +430,7 @@ class CoreTaskDecomposer:
                             "priority": "medium",
                             "dependencies": [],
                             "execution_order": len(tasks) + 1,
-                            # 🆕 v7.109+: 默认配置
+                            #  v7.109+: 默认配置
                             "support_search": is_research_task,  # 研究类任务默认需要搜索
                             "needs_concept_image": is_design_task,  # 设计类任务默认需要概念图
                             "concept_image_count": 1 if is_design_task else 0,
@@ -457,9 +463,9 @@ class CoreTaskDecomposer:
         from ..services.motivation_engine import get_motivation_engine
 
         engine = get_motivation_engine()
-        logger.info(f"🔧 [v7.106] 使用动机识别引擎处理 {len(tasks)} 个任务")
+        logger.info(f" [v7.106] 使用动机识别引擎处理 {len(tasks)} 个任务")
 
-        # 🚀 v7.122: 并行执行所有推断任务（优化性能）
+        #  v7.122: 并行执行所有推断任务（优化性能）
         import asyncio
         import time
 
@@ -493,10 +499,10 @@ class CoreTaskDecomposer:
                 task["motivation_label"] = result.primary_label
                 task["ai_reasoning"] = result.reasoning
                 task["confidence_score"] = result.confidence
-                logger.info(f"   ✅ {task['title'][:30]}: {result.primary_label} ({result.confidence:.2f})")
+                logger.info(f"    {task['title'][:30]}: {result.primary_label} ({result.confidence:.2f})")
             else:
                 error = result_data["error"]
-                logger.warning(f"⚠️ 任务 '{task.get('title', 'unknown')}' 动机推断失败: {error}")
+                logger.warning(f"️ 任务 '{task.get('title', 'unknown')}' 动机推断失败: {error}")
                 # 降级到默认
                 task["motivation_type"] = "mixed"
                 task["motivation_label"] = "综合"
@@ -504,7 +510,7 @@ class CoreTaskDecomposer:
                 task["confidence_score"] = 0.3
 
         elapsed_time = time.time() - start_time
-        logger.info(f"⚡ [并行优化] {len(tasks)} 个任务推断完成，耗时 {elapsed_time:.2f}s")
+        logger.info(f" [并行优化] {len(tasks)} 个任务推断完成，耗时 {elapsed_time:.2f}s")
 
 
 async def decompose_core_tasks(
@@ -523,13 +529,13 @@ async def decompose_core_tasks(
     """
     decomposer = CoreTaskDecomposer()
 
-    # 🆕 v7.110.0: 智能分析输入复杂度，动态决定任务数量
+    #  v7.110.0: 智能分析输入复杂度，动态决定任务数量
     complexity_analysis = TaskComplexityAnalyzer.analyze(user_input, structured_data)
     recommended_min = complexity_analysis["recommended_min"]
     recommended_max = complexity_analysis["recommended_max"]
     complexity_score = complexity_analysis["complexity_score"]
 
-    logger.info(f"🎯 [智能任务数量] 推荐范围: {recommended_min}-{recommended_max}个 (复杂度={complexity_score:.2f})")
+    logger.info(f" [智能任务数量] 推荐范围: {recommended_min}-{recommended_max}个 (复杂度={complexity_score:.2f})")
     logger.info(f"   分析依据: {complexity_analysis['reasoning']}")
 
     # 构建 prompt（传入智能计算的任务数量）
@@ -557,7 +563,7 @@ async def decompose_core_tasks(
                     summary_parts.append(f"{key}: {structured_data[key]}")
             structured_summary = "\n".join(summary_parts) if summary_parts else "暂无"
 
-        # 🆕 v7.117: 直接使用占位符传入任务数量（不再使用正则替换）
+        #  v7.117: 直接使用占位符传入任务数量（不再使用正则替换）
         user_prompt = user_template.format(
             user_input=user_input,
             structured_data_summary=structured_summary,
@@ -565,10 +571,10 @@ async def decompose_core_tasks(
             task_count_max=recommended_max,
         )
 
-        # 🔧 v7.117: 增强调试日志
-        logger.info(f"🎯 [智能任务数量] 输入长度={len(user_input)}字符")
-        logger.info(f"🎯 [智能任务数量] 复杂度分析: {complexity_analysis['reasoning']}")
-        logger.info(f"📝 [Prompt] 任务数量要求: {recommended_min}-{recommended_max}个")
+        #  v7.117: 增强调试日志
+        logger.info(f" [智能任务数量] 输入长度={len(user_input)}字符")
+        logger.info(f" [智能任务数量] 复杂度分析: {complexity_analysis['reasoning']}")
+        logger.info(f" [Prompt] 任务数量要求: {recommended_min}-{recommended_max}个")
 
         messages = [SystemMessage(content=system_prompt), HumanMessage(content=user_prompt)]
 
@@ -580,12 +586,12 @@ async def decompose_core_tasks(
 
         if not tasks:
             # 如果解析失败，使用简单回退
-            logger.warning("⚠️ LLM 任务拆解为空，使用回退策略")
+            logger.warning("️ LLM 任务拆解为空，使用回退策略")
             tasks = _simple_fallback_decompose(user_input, structured_data, complexity_analysis)
         else:
-            # 🆕 v7.110.0: 智能截断 - 不超过推荐最大值
+            #  v7.110.0: 智能截断 - 不超过推荐最大值
             if len(tasks) > recommended_max:
-                logger.warning(f"⚠️ LLM生成了{len(tasks)}个任务，超过推荐上限{recommended_max}，智能截断")
+                logger.warning(f"️ LLM生成了{len(tasks)}个任务，超过推荐上限{recommended_max}，智能截断")
                 # 优先保留 high priority 的任务
                 high_priority_tasks = [t for t in tasks if t.get("priority") == "high"]
                 other_tasks = [t for t in tasks if t.get("priority") != "high"]
@@ -595,15 +601,15 @@ async def decompose_core_tasks(
             if len(tasks) < recommended_min:
                 logger.info(f"ℹ️ LLM生成了{len(tasks)}个任务，少于推荐最小值{recommended_min}（可能是简单需求）")
 
-        # 🆕 v7.106: 使用动机识别引擎为任务添加motivation_label字段
+        #  v7.106: 使用动机识别引擎为任务添加motivation_label字段
         if tasks:
             await decomposer._infer_task_metadata_async(tasks, user_input, structured_data)
 
-        logger.info(f"✅ [任务拆解完成] 最终生成{len(tasks)}个任务")
+        logger.info(f" [任务拆解完成] 最终生成{len(tasks)}个任务")
         return tasks
 
     except Exception as e:
-        logger.error(f"❌ [decompose_core_tasks] LLM 调用失败: {e}")
+        logger.error(f" [decompose_core_tasks] LLM 调用失败: {e}")
         # 回退到简单拆解
         return _simple_fallback_decompose(user_input, structured_data, complexity_analysis)
 
@@ -631,15 +637,15 @@ def _simple_fallback_decompose(
     """
 
     tasks = []
-    logger.info("🔄 [Fallback] 使用增强版回退策略，基于结构化数据生成任务")
+    logger.info(" [Fallback] 使用增强版回退策略，基于结构化数据生成任务")
 
-    # 🆕 v7.110.0: 获取智能推荐的任务数量范围
+    #  v7.110.0: 获取智能推荐的任务数量范围
     if complexity_analysis is None:
         complexity_analysis = TaskComplexityAnalyzer.analyze(user_input, structured_data)
 
     recommended_min = complexity_analysis["recommended_min"]
     recommended_max = complexity_analysis["recommended_max"]
-    logger.info(f"🎯 [Fallback智能] 目标任务数: {recommended_min}-{recommended_max}个")
+    logger.info(f" [Fallback智能] 目标任务数: {recommended_min}-{recommended_max}个")
 
     # 从结构化数据中提取关键信息
     design_challenge = ""
@@ -649,7 +655,7 @@ def _simple_fallback_decompose(
         design_challenge = structured_data.get("design_challenge", "")
         character_narrative = structured_data.get("character_narrative", "")
         project_type = structured_data.get("project_type", "")
-        logger.info(f"📊 [Fallback] 提取到结构化数据: design_challenge={bool(design_challenge)}, project_type={project_type}")
+        logger.info(f" [Fallback] 提取到结构化数据: design_challenge={bool(design_challenge)}, project_type={project_type}")
 
     # ==========================================================================
     # 1. 提取核心张力任务（优先级最高）
@@ -662,7 +668,7 @@ def _simple_fallback_decompose(
         if match:
             tension_a = match.group(1).strip()
             tension_b = match.group(2).strip()
-            logger.info(f'✅ [Fallback] 提取核心张力: "{tension_a}" vs "{tension_b}"')
+            logger.info(f' [Fallback] 提取核心张力: "{tension_a}" vs "{tension_b}"')
             tasks.append(
                 {
                     "id": f"task_{len(tasks) + 1}",
@@ -681,7 +687,7 @@ def _simple_fallback_decompose(
             if match:
                 tension_a = match.group(1).strip()
                 tension_b = match.group(2).strip()
-                logger.info(f"✅ [Fallback] 提取核心张力 (模式2): {tension_a} vs {tension_b}")
+                logger.info(f" [Fallback] 提取核心张力 (模式2): {tension_a} vs {tension_b}")
                 tasks.append(
                     {
                         "id": f"task_{len(tasks) + 1}",
@@ -957,12 +963,12 @@ def _simple_fallback_decompose(
             break
 
     # ==========================================================================
-    # 8. 🆕 v7.110.0: 智能补齐和截断（不再固定5-7个）
+    # 8.  v7.110.0: 智能补齐和截断（不再固定5-7个）
     # ==========================================================================
     current_count = len(tasks)
 
     if current_count < recommended_min:
-        logger.warning(f"⚠️ [Fallback] 当前仅生成 {current_count} 个任务，补充通用任务至{recommended_min}个")
+        logger.warning(f"️ [Fallback] 当前仅生成 {current_count} 个任务，补充通用任务至{recommended_min}个")
         # 补充通用任务
         generic_tasks = [
             {"title": "项目需求明确", "description": "明确项目的核心需求、期望目标和关键约束条件", "task_type": "analysis", "priority": "high"},
@@ -986,9 +992,9 @@ def _simple_fallback_decompose(
                     }
                 )
 
-    # 🆕 v7.110.0: 智能截断 - 不超过推荐最大值（优先保留高优先级）
+    #  v7.110.0: 智能截断 - 不超过推荐最大值（优先保留高优先级）
     if len(tasks) > recommended_max:
-        logger.warning(f"⚠️ [Fallback] 生成了{len(tasks)}个任务，超过推荐上限{recommended_max}，智能截断")
+        logger.warning(f"️ [Fallback] 生成了{len(tasks)}个任务，超过推荐上限{recommended_max}，智能截断")
         # 优先保留 high priority 的任务
         high_priority_tasks = [t for t in tasks if t.get("priority") == "high"]
         other_tasks = [t for t in tasks if t.get("priority") != "high"]
@@ -1000,7 +1006,7 @@ def _simple_fallback_decompose(
             task["execution_order"] = idx
 
     logger.info(
-        f"✅ [Fallback] 生成 {len(tasks)} 个任务（推荐范围{recommended_min}-{recommended_max}，包含 {sum(1 for t in tasks if t['priority'] == 'high')} 个高优先级任务）"
+        f" [Fallback] 生成 {len(tasks)} 个任务（推荐范围{recommended_min}-{recommended_max}，包含 {sum(1 for t in tasks if t['priority'] == 'high')} 个高优先级任务）"
     )
 
     return tasks
@@ -1027,7 +1033,7 @@ def decompose_core_tasks_sync(
         loop = asyncio.get_event_loop()
         if loop.is_running():
             # 如果已经在事件循环中，使用回退策略
-            logger.warning("⚠️ 检测到运行中的事件循环，使用回退策略")
+            logger.warning("️ 检测到运行中的事件循环，使用回退策略")
             return _simple_fallback_decompose(user_input)
         else:
             return loop.run_until_complete(decompose_core_tasks(user_input, structured_data, llm))

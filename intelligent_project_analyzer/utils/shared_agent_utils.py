@@ -75,10 +75,10 @@ class PerformanceMonitor:
         """输出性能汇总日志"""
         stats = cls.get_comparison()
         if not stats:
-            logger.info("📊 暂无性能数据")
+            logger.info(" 暂无性能数据")
             return
         
-        logger.info("📊 v7.16 Agent 性能汇总:")
+        logger.info(" v7.16 Agent 性能汇总:")
         logger.info("-" * 60)
         for name, data in stats.items():
             logger.info(f"  {name}: {data['avg_ms']:.2f}ms (avg), {data['count']} 次调用")
@@ -408,18 +408,18 @@ def generate_quality_checklists(
         
         # 基础检查项
         checks = [
-            f"✓ {role_name} 是否理解任务目标",
-            f"✓ {role_name} 是否有明确的交付物",
-            f"✓ {role_name} 是否考虑了用户约束"
+            f" {role_name} 是否理解任务目标",
+            f" {role_name} 是否有明确的交付物",
+            f" {role_name} 是否考虑了用户约束"
         ]
         
         # 根据角色类型添加特定检查
         if "研究" in role_name or "4-" in role_id:
-            checks.append(f"✓ {role_name} 是否提供了数据支撑")
+            checks.append(f" {role_name} 是否提供了数据支撑")
         if "设计" in role_name or "2-" in role_id:
-            checks.append(f"✓ {role_name} 是否考虑了美观与功能平衡")
+            checks.append(f" {role_name} 是否考虑了美观与功能平衡")
         if "叙事" in role_name or "3-" in role_id:
-            checks.append(f"✓ {role_name} 是否创建了情感连接")
+            checks.append(f" {role_name} 是否创建了情感连接")
         
         checklists[role_id] = checks
     
@@ -427,12 +427,12 @@ def generate_quality_checklists(
 
 
 # ============================================================================
-# 🆕 v7.18: 问卷生成共享函数
+#  v7.18: 问卷生成共享函数
 # ============================================================================
 
 def build_questionnaire_analysis_summary(structured_data: Dict[str, Any]) -> str:
     """
-    🆕 v7.18: 从需求分析结果中提取关键信息，构建 LLM 提示词上下文
+     v7.18: 从需求分析结果中提取关键信息，构建 LLM 提示词上下文
     
     统一 llm_generator.py 和 questionnaire_agent.py 的 _build_analysis_summary 逻辑
     
@@ -522,7 +522,7 @@ def build_questionnaire_analysis_summary(structured_data: Dict[str, Any]) -> str
         summary_parts.append(f"## 约束与机遇\n{constraints_opportunities}")
     
     if not summary_parts:
-        logger.warning("⚠️ [build_questionnaire_analysis_summary] structured_data 字段全部为空")
+        logger.warning("️ [build_questionnaire_analysis_summary] structured_data 字段全部为空")
         return "（需求分析数据不足，请基于用户原始输入生成问卷）"
     
     return "\n\n".join(summary_parts)
@@ -530,7 +530,7 @@ def build_questionnaire_analysis_summary(structured_data: Dict[str, Any]) -> str
 
 def extract_user_keywords(user_input: str, max_keywords: int = 15) -> List[str]:
     """
-    🆕 v7.18: 从用户输入中提取关键词
+     v7.18: 从用户输入中提取关键词
     
     统一各处关键词提取逻辑
     
@@ -582,7 +582,7 @@ def check_questionnaire_relevance(
     threshold: float = 0.3
 ) -> Tuple[float, List[str]]:
     """
-    🆕 v7.18: 检查问题与用户输入的相关性
+     v7.18: 检查问题与用户输入的相关性
     
     统一相关性验证逻辑
     

@@ -21,6 +21,9 @@ import yaml
 from langchain_core.messages import HumanMessage, SystemMessage
 from loguru import logger
 
+#  v7.131: 导入LLM重试工具
+from ..utils.llm_retry import LLMRetryConfig, ainvoke_llm_with_retry
+
 
 class LLMGapQuestionGenerator:
     """基于 LLM 生成任务信息补充问题"""
@@ -43,10 +46,10 @@ class LLMGapQuestionGenerator:
         try:
             with open(config_path, "r", encoding="utf-8") as f:
                 config = yaml.safe_load(f)
-                logger.info(f"✅ [LLMGapQuestionGenerator] 配置文件加载成功: {config_path}")
+                logger.info(f" [LLMGapQuestionGenerator] 配置文件加载成功: {config_path}")
                 return config
         except Exception as e:
-            logger.error(f"❌ [LLMGapQuestionGenerator] 配置文件加载失败: {e}")
+            logger.error(f" [LLMGapQuestionGenerator] 配置文件加载失败: {e}")
             return {}
 
     def _calculate_target_count(self, missing_dimensions: List[str]) -> int:
@@ -136,13 +139,21 @@ class LLMGapQuestionGenerator:
                     max_tokens=self.generation_config.get("max_tokens", 2000),
                 )
 
-            # 调用 LLM
+            #  v7.131: 使用重试机制调用 LLM
             messages = [SystemMessage(content=self.system_prompt), HumanMessage(content=user_prompt)]
 
-            response = await llm.ainvoke(messages)
+            # 配置重试参数（从配置文件读取或使用默认值）
+            retry_config = LLMRetryConfig(
+                max_attempts=self.generation_config.get("max_retry_attempts", 3),
+                min_wait=self.generation_config.get("retry_min_wait", 1.0),
+                max_wait=self.generation_config.get("retry_max_wait", 10.0),
+                timeout=self.generation_config.get("llm_timeout", 30.0),
+            )
+
+            response = await ainvoke_llm_with_retry(llm, messages, config=retry_config)
             response_text = response.content if hasattr(response, "content") else str(response)
 
-            # 🆕 P1修复: 使用统一JSON解析器
+            #  P1修复: 使用统一JSON解析器
             from ..utils.json_parser import parse_json_safe
 
             data = parse_json_safe(
@@ -152,24 +163,34 @@ class LLMGapQuestionGenerator:
                 default={"questions": [], "generation_rationale": ""},
             )
 
-            questions = data.get("questions", [])
-            rationale = data.get("generation_rationale", "")
+            #  v7.130: 修复数据类型错误 - 处理LLM返回list的情况
+            if isinstance(data, list):
+                logger.warning(f"️ [LLMGapQuestionGenerator] LLM返回列表而非字典，自动转换")
+                questions = data
+                rationale = ""
+            elif isinstance(data, dict):
+                questions = data.get("questions", [])
+                rationale = data.get("generation_rationale", "")
+            else:
+                logger.error(f" [LLMGapQuestionGenerator] 意外的数据类型: {type(data)}")
+                questions = []
+                rationale = ""
 
-            # 🆕 v7.110: 验证和修复问题类型（复用 LLMQuestionGenerator 的逻辑）
+            #  v7.110: 验证和修复问题类型（复用 LLMQuestionGenerator 的逻辑）
             questions = self._validate_and_fix_questions(questions)
 
-            logger.info(f"✅ [LLMGapQuestionGenerator] 成功生成 {len(questions)} 个问题")
+            logger.info(f" [LLMGapQuestionGenerator] 成功生成 {len(questions)} 个问题")
             if rationale:
                 logger.info(f"[LLMGapQuestionGenerator] 生成理由: {rationale}")
 
             return questions
 
         except Exception as e:
-            logger.error(f"❌ [LLMGapQuestionGenerator] 处理失败: {e}")
+            logger.error(f" [LLMGapQuestionGenerator] 处理失败: {e}")
             return self._fallback_generate(missing_dimensions, confirmed_tasks)
 
         except Exception as e:
-            logger.error(f"❌ [LLMGapQuestionGenerator] LLM 调用失败: {e}")
+            logger.error(f" [LLMGapQuestionGenerator] LLM 调用失败: {e}")
             return self._fallback_generate(missing_dimensions, confirmed_tasks)
 
     def _fallback_generate(
@@ -201,18 +222,18 @@ class LLMGapQuestionGenerator:
                 target_count=fallback_count,
             )
 
-            logger.info(f"✅ [LLMGapQuestionGenerator] 回退成功，生成 {len(questions)} 个硬编码问题")
+            logger.info(f" [LLMGapQuestionGenerator] 回退成功，生成 {len(questions)} 个硬编码问题")
             return questions
 
         except Exception as e:
-            logger.error(f"❌ [LLMGapQuestionGenerator] 回退策略失败: {e}")
+            logger.error(f" [LLMGapQuestionGenerator] 回退策略失败: {e}")
             return []
 
     def _validate_and_fix_questions(self, questions: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """
         验证和修复问题格式（与 LLMQuestionGenerator 保持一致）
 
-        🆕 v7.110: 添加类型标准化，修复 multi_choice 等错误类型
+         v7.110: 添加类型标准化，修复 multi_choice 等错误类型
 
         Args:
             questions: 原始问题列表
@@ -240,7 +261,7 @@ class LLMGapQuestionGenerator:
             q_type = q.get("type", "").lower()
             original_type = q_type  # 记录原始类型用于日志
 
-            # 🆕 v7.110: 类型别名标准化映射（修复 multi_choice 等错误类型）
+            #  v7.110: 类型别名标准化映射（修复 multi_choice 等错误类型）
             type_aliases = {
                 # multiple_choice 的各种错误拼写
                 "multi_choice": "multiple_choice",
@@ -270,7 +291,7 @@ class LLMGapQuestionGenerator:
             # 应用类型别名映射
             if q_type in type_aliases:
                 q_type = type_aliases[q_type]
-                logger.warning(f"🔧 [Gap类型修复] 问题 {q.get('id', i+1)}: '{original_type}' → '{q_type}'")
+                logger.warning(f" [Gap类型修复] 问题 {q.get('id', i+1)}: '{original_type}' → '{q_type}'")
 
             # 如果仍然不合法，从问题文本推断类型
             if q_type not in ["single_choice", "multiple_choice", "open_ended"]:
@@ -290,7 +311,7 @@ class LLMGapQuestionGenerator:
 
                 # 记录推断结果
                 if original_type:
-                    logger.warning(f"🔍 [Gap类型推断] 问题 {q.get('id', i+1)}: 未知类型 '{original_type}' → 推断为 '{q_type}'")
+                    logger.warning(f" [Gap类型推断] 问题 {q.get('id', i+1)}: 未知类型 '{original_type}' → 推断为 '{q_type}'")
 
             q["type"] = q_type
             type_count[q_type] = type_count.get(q_type, 0) + 1
@@ -299,7 +320,7 @@ class LLMGapQuestionGenerator:
             if q_type in ["single_choice", "multiple_choice"]:
                 if not q.get("options") or not isinstance(q["options"], list):
                     q["options"] = ["选项A", "选项B", "选项C"]
-                    logger.warning(f"⚠️ Gap问题 {q['id']} 缺少选项，使用占位选项")
+                    logger.warning(f"️ Gap问题 {q['id']} 缺少选项，使用占位选项")
 
             # 验证开放题的placeholder
             if q_type == "open_ended":
@@ -313,7 +334,7 @@ class LLMGapQuestionGenerator:
             validated.append(q)
 
         logger.info(
-            f"📊 [Gap问卷验证] 问题类型分布: 单选={type_count['single_choice']}, "
+            f" [Gap问卷验证] 问题类型分布: 单选={type_count['single_choice']}, "
             f"多选={type_count['multiple_choice']}, 开放={type_count['open_ended']}"
         )
 
@@ -355,5 +376,5 @@ class LLMGapQuestionGenerator:
                 )
             )
         except Exception as e:
-            logger.error(f"❌ [LLMGapQuestionGenerator] 同步调用失败: {e}")
+            logger.error(f" [LLMGapQuestionGenerator] 同步调用失败: {e}")
             return self._fallback_generate(missing_dimensions, confirmed_tasks)

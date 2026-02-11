@@ -44,7 +44,7 @@ class UnifiedInputValidatorNode:
             Command对象，指向下一个节点
         """
         logger.info("=" * 100)
-        logger.info("🛡️ 统一输入验证 - 阶段1: 初始验证")
+        logger.info("️ 统一输入验证 - 阶段1: 初始验证")
         logger.info("=" * 100)
 
         user_input = state.get("user_input", "")
@@ -58,11 +58,11 @@ class UnifiedInputValidatorNode:
         # ============================================================================
         # 第1关：内容安全检测
         # ============================================================================
-        logger.info("🔍 第1关：内容安全检测")
+        logger.info(" 第1关：内容安全检测")
         safety_result = safety_guard.check(user_input, context="input")
 
         if not safety_result["is_safe"]:
-            logger.error(f"🚨 内容安全检测失败: {safety_result['violations']}")
+            logger.error(f" 内容安全检测失败: {safety_result['violations']}")
 
             # 记录违规尝试
             violation_logger.log({
@@ -85,12 +85,12 @@ class UnifiedInputValidatorNode:
 
             return Command(update=updated_state, goto="input_rejected")
 
-        logger.info("✅ 内容安全检测通过")
+        logger.info(" 内容安全检测通过")
 
         # ============================================================================
         # 第2关：领域分类检测
         # ============================================================================
-        logger.info("🔍 第2关：领域分类检测")
+        logger.info(" 第2关：领域分类检测")
         domain_result = domain_classifier.classify(user_input)
 
         # 处理命名任务（特殊逻辑）
@@ -101,7 +101,7 @@ class UnifiedInputValidatorNode:
             confidence = domain_result.get("confidence", 0)
 
             if confidence > 0.8 and not is_naming_task:
-                logger.warning(f"❌ 非设计领域问题（置信度{confidence:.2f}），直接拒绝")
+                logger.warning(f" 非设计领域问题（置信度{confidence:.2f}），直接拒绝")
 
                 violation_logger.log({
                     "session_id": session_id,
@@ -124,11 +124,11 @@ class UnifiedInputValidatorNode:
 
             # 中低置信度：标记风险但继续
             else:
-                logger.warning(f"⚠️ 可能非设计领域（置信度{confidence:.2f}），标记风险但继续")
+                logger.warning(f"️ 可能非设计领域（置信度{confidence:.2f}），标记风险但继续")
 
         # 领域不明确：interrupt 用户澄清
         elif domain_result["is_design_related"] == "unclear":
-            logger.info("⚠️ 领域不明确，需要用户澄清")
+            logger.info("️ 领域不明确，需要用户澄清")
 
             clarification_data = {
                 "interaction_type": "domain_clarification",
@@ -170,7 +170,7 @@ class UnifiedInputValidatorNode:
 
             elif action == "clarify" and clarification_text:
                 # 用户重新描述，更新user_input并重新检测
-                logger.info("🔄 用户重新描述需求，更新输入")
+                logger.info(" 用户重新描述需求，更新输入")
                 updated_state = {
                     "user_input": clarification_text,
                     "original_input": user_input,
@@ -184,9 +184,9 @@ class UnifiedInputValidatorNode:
                 )
 
             # 默认：用户确认是设计类，继续流程
-            logger.info("✅ 用户确认为设计类需求")
+            logger.info(" 用户确认为设计类需求")
 
-        logger.info(f"✅ 领域检测通过 (置信度: {domain_result.get('confidence', 0):.2f})")
+        logger.info(f" 领域检测通过 (置信度: {domain_result.get('confidence', 0):.2f})")
         if domain_result.get('matched_categories'):
             logger.info(f"   匹配类别: {domain_result['matched_categories']}")
 
@@ -197,9 +197,9 @@ class UnifiedInputValidatorNode:
         needs_secondary_validation = initial_confidence < 0.85
 
         if needs_secondary_validation:
-            logger.info(f"⚠️ 初始置信度 {initial_confidence:.2f} < 0.85，标记需要二次验证")
+            logger.info(f"️ 初始置信度 {initial_confidence:.2f} < 0.85，标记需要二次验证")
         else:
-            logger.info(f"✅ 初始置信度 {initial_confidence:.2f} ≥ 0.85，跳过二次验证")
+            logger.info(f" 初始置信度 {initial_confidence:.2f} ≥ 0.85，跳过二次验证")
 
         # ============================================================================
         # 通过所有检测，放行
@@ -213,7 +213,7 @@ class UnifiedInputValidatorNode:
             "needs_secondary_validation": needs_secondary_validation
         }
 
-        logger.info("🎉 初始验证通过，进入需求分析")
+        logger.info(" 初始验证通过，进入需求分析")
         logger.info("=" * 100)
         return Command(update=updated_state, goto="requirements_analyst")
 
@@ -244,7 +244,7 @@ class UnifiedInputValidatorNode:
             Command(goto="requirements_analyst"): 重新分析
         """
         logger.info("=" * 100)
-        logger.info("🛡️ 统一输入验证 - 阶段2: 二次验证")
+        logger.info("️ 统一输入验证 - 阶段2: 二次验证")
         logger.info("=" * 100)
 
         # ============================================================================
@@ -254,13 +254,13 @@ class UnifiedInputValidatorNode:
         initial_confidence = state.get("domain_confidence", 0)
 
         if not needs_secondary and initial_confidence >= 0.85:
-            logger.info(f"✅ 初始置信度 {initial_confidence:.2f} ≥ 0.85，跳过二次验证")
+            logger.info(f" 初始置信度 {initial_confidence:.2f} ≥ 0.85，跳过二次验证")
             return {
                 "secondary_validation_skipped": True,
                 "secondary_validation_reason": "high_initial_confidence"
             }
 
-        logger.info(f"🔍 初始置信度 {initial_confidence:.2f}，执行二次验证")
+        logger.info(f" 初始置信度 {initial_confidence:.2f}，执行二次验证")
 
         # ============================================================================
         # 第2步：提取需求分析结果的项目摘要
@@ -276,19 +276,19 @@ class UnifiedInputValidatorNode:
         user_input = state.get("user_input", "")
         session_id = state.get("session_id", "")
 
-        logger.info(f"🔍 [DEBUG] requirements_result keys: {list(requirements_result.keys()) if requirements_result else 'None'}")
+        logger.info(f" [DEBUG] requirements_result keys: {list(requirements_result.keys()) if requirements_result else 'None'}")
 
         # 提取项目摘要
         project_summary = UnifiedInputValidatorNode._extract_project_summary(requirements_result)
 
         if not project_summary:
-            logger.error("❌ 需求分析结果为空，无法继续")
+            logger.error(" 需求分析结果为空，无法继续")
             return {
                 "error": "Requirements analysis result is empty",
                 "secondary_validation_skipped": True
             }
 
-        logger.info(f"📄 项目摘要: {project_summary[:200]}...")
+        logger.info(f" 项目摘要: {project_summary[:200]}...")
 
         # ============================================================================
         # 第3步：重新领域分类
@@ -299,7 +299,7 @@ class UnifiedInputValidatorNode:
         domain_result = domain_classifier.classify(project_summary)
         secondary_confidence = domain_result.get("confidence", 0)
 
-        logger.info(f"📊 二次验证结果:")
+        logger.info(f" 二次验证结果:")
         logger.info(f"   是否设计类: {domain_result['is_design_related']}")
         logger.info(f"   置信度: {secondary_confidence:.2f}")
         logger.info(f"   匹配类别: {domain_result.get('matched_categories', [])}")
@@ -308,7 +308,7 @@ class UnifiedInputValidatorNode:
         # 第4步：领域漂移检测
         # ============================================================================
         if domain_result["is_design_related"] == False:
-            logger.error("🚨 领域漂移检测：需求分析结果偏离设计领域")
+            logger.error(" 领域漂移检测：需求分析结果偏离设计领域")
 
             # 记录漂移尝试
             violation_logger.log({
@@ -322,7 +322,7 @@ class UnifiedInputValidatorNode:
             # Interrupt：让用户确认是否调整
             drift_data = {
                 "interaction_type": "domain_drift_alert",
-                "message": "⚠️ 检测到需求可能偏离空间设计领域",
+                "message": "️ 检测到需求可能偏离空间设计领域",
                 "drift_details": {
                     "original_input": user_input[:300],
                     "analysis_summary": project_summary[:300],
@@ -350,7 +350,7 @@ class UnifiedInputValidatorNode:
                 adjustment = ""
 
             if action == "reject":
-                logger.info("❌ 用户确认终止分析")
+                logger.info(" 用户确认终止分析")
                 return Command(
                     update={
                         "rejection_reason": "domain_drift_confirmed",
@@ -360,7 +360,7 @@ class UnifiedInputValidatorNode:
                 )
 
             elif action == "adjust" and adjustment:
-                logger.info("🔄 用户提供调整意见，重新分析需求")
+                logger.info(" 用户提供调整意见，重新分析需求")
                 return Command(
                     update={
                         "user_input": adjustment,
@@ -371,7 +371,7 @@ class UnifiedInputValidatorNode:
                 )
 
             # action == "continue"：用户坚持继续，标记为风险项
-            logger.warning("⚠️ 用户坚持继续，标记为领域风险项")
+            logger.warning("️ 用户坚持继续，标记为领域风险项")
             return {
                 "domain_risk_flag": True,
                 "domain_risk_details": domain_result,
@@ -383,11 +383,11 @@ class UnifiedInputValidatorNode:
         # 第5步：领域不明确处理
         # ============================================================================
         if domain_result["is_design_related"] == "unclear":
-            logger.info("⚠️ 领域一致性不明确，置信度不足")
+            logger.info("️ 领域一致性不明确，置信度不足")
 
             # 如果输入预检时置信度已经很高，这里不再打断
             if initial_confidence >= 0.7:
-                logger.info("✅ 输入预检置信度高，信任初始判断")
+                logger.info(" 输入预检置信度高，信任初始判断")
                 return {
                     "secondary_validation_passed": True,
                     "secondary_domain_confidence": secondary_confidence,
@@ -428,7 +428,7 @@ class UnifiedInputValidatorNode:
                 )
 
             # 用户确认为设计类
-            logger.info("✅ 用户确认为设计类，继续流程")
+            logger.info(" 用户确认为设计类，继续流程")
             return {
                 "domain_user_confirmed": True,
                 "secondary_validation_passed": True,
@@ -441,18 +441,18 @@ class UnifiedInputValidatorNode:
         confidence_delta = secondary_confidence - initial_confidence
 
         if confidence_delta > 0.2:
-            logger.info(f"📈 置信度显著上升: {initial_confidence:.2f} → {secondary_confidence:.2f} (+{confidence_delta:.2f})")
+            logger.info(f" 置信度显著上升: {initial_confidence:.2f} → {secondary_confidence:.2f} (+{confidence_delta:.2f})")
             # 可以考虑更新推荐专家（未来优化）
         elif confidence_delta < -0.2:
-            logger.warning(f"📉 置信度显著下降: {initial_confidence:.2f} → {secondary_confidence:.2f} ({confidence_delta:.2f})")
+            logger.warning(f" 置信度显著下降: {initial_confidence:.2f} → {secondary_confidence:.2f} ({confidence_delta:.2f})")
             # 警告但继续
         else:
-            logger.info(f"📊 置信度稳定: {initial_confidence:.2f} → {secondary_confidence:.2f} ({confidence_delta:+.2f})")
+            logger.info(f" 置信度稳定: {initial_confidence:.2f} → {secondary_confidence:.2f} ({confidence_delta:+.2f})")
 
         # ============================================================================
         # 第7步：通过验证
         # ============================================================================
-        logger.info(f"✅ 二次验证通过 (置信度: {secondary_confidence:.2f})")
+        logger.info(f" 二次验证通过 (置信度: {secondary_confidence:.2f})")
         if domain_result.get('matched_categories'):
             logger.info(f"   匹配类别: {domain_result['matched_categories']}")
 
@@ -540,19 +540,19 @@ class UnifiedInputValidatorNode:
 
 作为空间设计专业智能体，我专注于提供：
 
-✅ **建筑与室内空间设计分析**
+ **建筑与室内空间设计分析**
    - 办公空间、零售空间、展厅设计
    - 住宅、餐饮、酒店空间规划
 
-✅ **商业空间规划与优化**
+ **商业空间规划与优化**
    - 功能分区与动线设计
    - 品牌形象与空间定位
 
-✅ **用户体验与设计方案**
+ **用户体验与设计方案**
    - 用户行为分析
    - 空间体验优化
 
-✅ **技术架构与实施方案**
+ **技术架构与实施方案**
    - 材料与工艺选择
    - 施工计划与成本控制
 
@@ -563,35 +563,35 @@ class UnifiedInputValidatorNode:
         """构造领域引导消息"""
         return """感谢您的咨询！不过，您的问题似乎不在我的专业领域范围内。
 
-🏢 **我的专业领域：空间设计**
+ **我的专业领域：空间设计**
 
 我擅长以下类型的设计分析：
 
-✅ **办公空间设计**
+ **办公空间设计**
    - 企业办公室、联合办公
    - 开放式/传统式办公布局
 
-✅ **零售空间设计**
+ **零售空间设计**
    - 品牌专卖店、集合店
    - 购物中心、商业街店铺
 
-✅ **展览展厅设计**
+ **展览展厅设计**
    - 企业展厅、博物馆
    - 体验中心、艺术空间
 
-✅ **餐饮空间设计**
+ **餐饮空间设计**
    - 餐厅、咖啡厅、酒吧
    - 快餐店、主题餐饮
 
-✅ **住宅空间设计**
+ **住宅空间设计**
    - 公寓、别墅、样板间
    - 室内装修与软装方案
 
-✅ **其他空间类型**
+ **其他空间类型**
    - 酒店、会所、公共空间
    - 景观设计、户外空间
 
-📝 **如何正确提问？**
+ **如何正确提问？**
 
 请尝试这样描述您的需求：
 • "我需要设计一个200平米的咖啡厅"
@@ -621,7 +621,7 @@ class InputRejectedNode:
             最终状态
         """
         logger.info("=" * 100)
-        logger.info("❌ 输入被拒绝，流程终止")
+        logger.info(" 输入被拒绝，流程终止")
         logger.info("=" * 100)
 
         rejection_reason = state.get("rejection_reason", "unknown")

@@ -71,7 +71,7 @@ const pricingTiers: PricingTier[] = [
     color: 'text-purple-400',
     gradient: 'from-purple-500 to-pink-600',
     // 🔧 v3.0.23样式统一：移除popular标记，使两个套餐样式一致
-  },  
+  },
 ];
 
 export default function PricingPage() {
@@ -318,7 +318,7 @@ export default function PricingPage() {
                 如何升级会员？
               </h3>
               <p className="text-sm text-[var(--foreground-secondary)]">
-                点击上方套餐卡片的"升级"按钮，系统会跳转到WordPress会员中心完成支付。升级后立即生效。
+                点击上方套餐卡片的&ldquo;升级&rdquo;按钮，系统会跳转到WordPress会员中心完成支付。升级后立即生效。
               </p>
             </div>
             <div>

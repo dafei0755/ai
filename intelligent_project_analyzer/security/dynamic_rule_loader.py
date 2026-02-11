@@ -50,7 +50,7 @@ class DynamicRuleLoader:
         # 首次加载
         self._reload_rules()
 
-        logger.info(f"✅ 动态规则加载器初始化成功 (配置文件: {self.config_path})")
+        logger.info(f" 动态规则加载器初始化成功 (配置文件: {self.config_path})")
 
     def get_rules(self) -> Dict[str, Any]:
         """
@@ -121,7 +121,7 @@ class DynamicRuleLoader:
             if current_modified > self._last_modified:
                 self._reload_rules()
         except Exception as e:
-            logger.error(f"❌ 检查配置文件修改时间失败: {e}")
+            logger.error(f" 检查配置文件修改时间失败: {e}")
 
     def _reload_rules(self):
         """重新加载配置文件"""
@@ -131,14 +131,14 @@ class DynamicRuleLoader:
                     rules = yaml.safe_load(f)
 
                 if not rules:
-                    logger.error("❌ 配置文件为空")
+                    logger.error(" 配置文件为空")
                     return
 
                 self._rules = rules
                 self._last_modified = os.path.getmtime(self.config_path)
 
                 logger.info(
-                    f"✅ 安全规则已重载 "
+                    f" 安全规则已重载 "
                     f"(版本: {rules.get('version', 'unknown')}, "
                     f"关键词类别: {len(rules.get('keywords', {}))}, "
                     f"隐私模式: {len(rules.get('privacy_patterns', {}))}, "
@@ -146,13 +146,13 @@ class DynamicRuleLoader:
                 )
 
             except yaml.YAMLError as e:
-                logger.error(f"❌ YAML解析错误: {e}")
+                logger.error(f" YAML解析错误: {e}")
             except Exception as e:
-                logger.error(f"❌ 加载配置文件失败: {e}")
+                logger.error(f" 加载配置文件失败: {e}")
 
     def force_reload(self):
         """强制重新加载配置"""
-        logger.info("🔄 强制重新加载安全规则...")
+        logger.info(" 强制重新加载安全规则...")
         self._reload_rules()
 
     def update_threat_intelligence(
@@ -174,15 +174,15 @@ class DynamicRuleLoader:
 
             if domains is not None:
                 threat_intel.setdefault("malicious_domains", {})["domains"] = domains
-                logger.info(f"✅ 更新恶意域名: {len(domains)}个")
+                logger.info(f" 更新恶意域名: {len(domains)}个")
 
             if ips is not None:
                 threat_intel.setdefault("malicious_ips", {})["ips"] = ips
-                logger.info(f"✅ 更新恶意IP: {len(ips)}个")
+                logger.info(f" 更新恶意IP: {len(ips)}个")
 
             if keywords is not None:
                 threat_intel.setdefault("malicious_keywords", {})["keywords"] = keywords
-                logger.info(f"✅ 更新威胁关键词: {len(keywords)}个")
+                logger.info(f" 更新威胁关键词: {len(keywords)}个")
 
             # 更新时间戳
             threat_intel["last_updated"] = datetime.now().isoformat()
@@ -193,9 +193,9 @@ class DynamicRuleLoader:
             try:
                 with open(self.config_path, 'w', encoding='utf-8') as f:
                     yaml.safe_dump(self._rules, f, allow_unicode=True, default_flow_style=False)
-                logger.info("✅ 威胁情报已保存到配置文件")
+                logger.info(" 威胁情报已保存到配置文件")
             except Exception as e:
-                logger.error(f"❌ 保存威胁情报失败: {e}")
+                logger.error(f" 保存威胁情报失败: {e}")
 
     def get_stats(self) -> Dict[str, Any]:
         """

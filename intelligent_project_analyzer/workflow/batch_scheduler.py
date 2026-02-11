@@ -97,9 +97,9 @@ class BatchScheduler:
                     # 添加所有匹配的角色（可能有多个子角色）
                     dynamic_deps.update(matching_roles)
                 else:
-                    # ✅ 依赖未选择，自动忽略（项目总监智能判断不需要）
+                    #  依赖未选择，自动忽略（项目总监智能判断不需要）
                     logger.info(
-                        f"✅ 角色 {format_role_display_name(role_id)} 的依赖 {dep_base} 未被选择，已自动忽略"
+                        f" 角色 {format_role_display_name(role_id)} 的依赖 {dep_base} 未被选择，已自动忽略"
                     )
 
             dependency_graph[role_id] = dynamic_deps
@@ -206,7 +206,7 @@ class BatchScheduler:
         # 3. 验证
         self._validate_batches(batches, dependency_graph)
 
-        logger.info(f"✅ 批次调度完成: {len(batches)} 个批次")
+        logger.info(f" 批次调度完成: {len(batches)} 个批次")
         return batches
 
     def _extract_base_type(self, role_id: str) -> str:
@@ -285,7 +285,7 @@ class BatchScheduler:
             # 标记当前批次为已执行
             executed.update(batch)
 
-        logger.info("✅ 批次验证通过")
+        logger.info(" 批次验证通过")
 
     def get_batch_number(
         self,

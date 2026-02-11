@@ -36,7 +36,7 @@ class FallbackQuestionGenerator:
         """
         在缺失问卷时构建兜底问题集，确保问卷流程不会被跳过
 
-        🚨 v7.4优化：
+         v7.4优化：
         - 支持从用户输入提取关键词生成定制问题
         - 核心矛盾从用户输入中智能提取
         - 领域专业问题优先于通用问题
@@ -48,7 +48,7 @@ class FallbackQuestionGenerator:
         """
         import re
 
-        # 🆕 v7.4: 智能提取关键信息
+        #  v7.4: 智能提取关键信息
         if extracted_info is None and user_input:
             extracted_info = KeywordExtractor.extract(user_input, structured_data)
         elif extracted_info is None:
@@ -76,7 +76,7 @@ class FallbackQuestionGenerator:
             if core_tension else "展示与体验、功能与情绪之间的权衡"
         )
 
-        # 🆕 v7.4: 使用领域标签
+        #  v7.4: 使用领域标签
         domain_label = domain.get("label", "空间")
         type_label = {
             "personal_residential": "住宅空间",
@@ -84,12 +84,12 @@ class FallbackQuestionGenerator:
             "commercial_enterprise": "商业项目"
         }.get(project_type or "", domain_label)
 
-        # 🔥 v7.4优化：智能提取核心矛盾
+        #  v7.4优化：智能提取核心矛盾
         # 优先从用户输入的核心概念中提取，而非使用通用模板
         tension_a = ""
         tension_b = ""
 
-        # 🔥 v7.4.4: 过滤无效的核心概念（系统生成的标题等）
+        #  v7.4.4: 过滤无效的核心概念（系统生成的标题等）
         valid_concepts = [c for c in core_concepts if c and c not in {
             "用户需求描述", "附件材料", "附件", "说明", "摘要", "内容", 
             "背景资料", "参考信息", "明确要求", "背景信息", "项目背景"
@@ -112,7 +112,7 @@ class FallbackQuestionGenerator:
                     tension_b = match.group(2).strip()
                     logger.info(f"[Fallback补齐] 从design_challenge提取核心矛盾(双引号): \"{tension_a}\" vs \"{tension_b}\"")
                 else:
-                    # 🆕 模式1b: 'A'...与...'B' 格式（中文单引号/英文单引号）
+                    #  模式1b: 'A'...与...'B' 格式（中文单引号/英文单引号）
                     match = re.search(r"'([^']{2,30})'[^']{0,50}与[^']{0,50}'([^']{2,30})'", design_challenge)
                     if match:
                         tension_a = match.group(1).strip()
@@ -129,7 +129,7 @@ class FallbackQuestionGenerator:
         # 方法3: 从用户输入中提取引号内容
         if not tension_a or not tension_b:
             if user_input:
-                # 🆕 v7.4.4: 支持多种引号格式
+                #  v7.4.4: 支持多种引号格式
                 # 优先尝试中文双引号
                 quoted_matches = re.findall(r'"([^"]{2,20})"', user_input)
                 # 如果没有，尝试单引号
@@ -150,7 +150,7 @@ class FallbackQuestionGenerator:
             tension_a = "功能性需求"
         if not tension_b:
             tension_b = "情感化需求"
-            logger.warning("[Fallback补齐] ⚠️ 使用通用矛盾模板，建议优化用户输入解析")
+            logger.warning("[Fallback补齐] ️ 使用通用矛盾模板，建议优化用户输入解析")
 
         # 提取时间线索（从character_narrative中）
         time_hint = "一天"
@@ -163,17 +163,17 @@ class FallbackQuestionGenerator:
         is_residential = "residential" in project_type
         is_commercial = "commercial" in project_type
 
-        # 🆕 v7.4: 基于领域识别
+        #  v7.4: 基于领域识别
         is_tech = domain.get("type") == "tech_innovation"
         is_hospitality = domain.get("type") == "hospitality"
         is_office = domain.get("type") == "office"
 
-        # 🎯 生成完整的7-10个问题（按照YAML要求）
+        #  生成完整的7-10个问题（按照YAML要求）
         questions = []
 
         # === 单选题部分（2-3个）===
 
-        # 🆕 v7.4: 科技创新领域专用问题
+        #  v7.4: 科技创新领域专用问题
         if is_tech and valid_concepts:
             # 科技领域：核心概念实现路径
             primary_concept = valid_concepts[0] if valid_concepts else "核心功能"
@@ -235,7 +235,7 @@ class FallbackQuestionGenerator:
                 ]
             })
         else:
-            # 🆕 v7.5: 优化兜底问题，使用更具体的设计维度
+            #  v7.5: 优化兜底问题，使用更具体的设计维度
             # 根据项目类型选择不同的核心问题
             if is_residential:
                 questions.append({
@@ -303,7 +303,7 @@ class FallbackQuestionGenerator:
 
         # === 多选题部分（2-3个）===
 
-        # 🆕 v7.4: 科技创新领域专用多选题
+        #  v7.4: 科技创新领域专用多选题
         if is_tech:
             keyword_names = [k[0] for k in keywords] if keywords else []
 
@@ -370,7 +370,7 @@ class FallbackQuestionGenerator:
                 ]
             })
         else:
-            # 🆕 v7.5: 优化通用多选题，使用更具体的功能维度
+            #  v7.5: 优化通用多选题，使用更具体的功能维度
             questions.append({
                 "id": "general_experience",
                 "question": "在日常使用中，以下哪些体验对您最重要？(多选)",
@@ -415,7 +415,7 @@ class FallbackQuestionGenerator:
                 ]
             })
         else:
-            # 🆕 v7.5: 优化通用功能优先级题，使用更具体的表达
+            #  v7.5: 优化通用功能优先级题，使用更具体的表达
             questions.append({
                 "id": "space_allocation",
                 "question": "在空间分配上，以下哪些区域是必须保证的？(多选)",
@@ -447,7 +447,7 @@ class FallbackQuestionGenerator:
 
         # === 开放题部分（2个）===
 
-        # 🆕 v7.4: 科技领域专用开放题
+        #  v7.4: 科技领域专用开放题
         if is_tech and valid_concepts:
             primary_concept = valid_concepts[0] if valid_concepts else "核心功能"
             questions.append({
@@ -486,8 +486,8 @@ class FallbackQuestionGenerator:
 
         # 统计日志
         domain_info = f"领域({domain.get('label', '通用')})" if domain else "领域(通用)"
-        logger.info(f"[Fallback补齐] ✅ 智能生成 {len(questions)} 个问题（单选:{sum(1 for q in questions if q['type']=='single_choice')} + 多选:{sum(1 for q in questions if q['type']=='multiple_choice')} + 开放:{sum(1 for q in questions if q['type']=='open_ended')}）")
-        logger.info(f"[Fallback补齐] 📊 提取策略: {domain_info}, 核心概念({core_concepts[:3]}), 项目类型({project_type})")
+        logger.info(f"[Fallback补齐]  智能生成 {len(questions)} 个问题（单选:{sum(1 for q in questions if q['type']=='single_choice')} + 多选:{sum(1 for q in questions if q['type']=='multiple_choice')} + 开放:{sum(1 for q in questions if q['type']=='open_ended')}）")
+        logger.info(f"[Fallback补齐]  提取策略: {domain_info}, 核心概念({core_concepts[:3]}), 项目类型({project_type})")
 
         return questions
 
@@ -505,7 +505,7 @@ class BiddingStrategyGenerator:
     @staticmethod
     def generate(user_input: str, structured_data: Dict[str, Any]) -> List[Dict[str, Any]]:
         """
-        🚀 P1优化：为竞标策略场景生成专用问题
+         P1优化：为竞标策略场景生成专用问题
 
         核心逻辑：
         - 提取竞争对手信息
@@ -543,7 +543,7 @@ class BiddingStrategyGenerator:
         if location_match:
             location = location_match.group(1)
 
-        logger.info(f"🎯 [P1] 竞标策略问题生成: 竞争对手={competitors}, 项目={project_name}, 地点={location}")
+        logger.info(f" [P1] 竞标策略问题生成: 竞争对手={competitors}, 项目={project_name}, 地点={location}")
 
         # 问题1：差异化优势选择（单选）
         competitor_str = "、".join(competitors[:3]) if competitors else "重量级对手"
@@ -627,7 +627,7 @@ class BiddingStrategyGenerator:
             "priority": "medium"
         })
 
-        logger.info(f"🎯 [P1] 竞标策略问题生成完成: {len(questions)} 个问题")
+        logger.info(f" [P1] 竞标策略问题生成完成: {len(questions)} 个问题")
         return questions
 
 
@@ -644,7 +644,7 @@ class PhilosophyQuestionGenerator:
     @staticmethod
     def generate(structured_data: Dict[str, Any]) -> List[Dict[str, Any]]:
         """
-        基于V1战略洞察生成理念探索问题（🆕 理念维度增强）
+        基于V1战略洞察生成理念探索问题（ 理念维度增强）
 
         核心逻辑：
         - 基于design_challenge提取核心矛盾，生成理念选择问题
@@ -658,27 +658,27 @@ class PhilosophyQuestionGenerator:
         Returns:
             理念探索问题列表（单选题+开放题）
         """
-        import re  # 🔥 移到方法开头，确保始终可用
+        import re  #  移到方法开头，确保始终可用
         
-        logger.debug("🔍 [TRACE] _build_philosophy_questions 开始执行")
+        logger.debug(" [TRACE] _build_philosophy_questions 开始执行")
         philosophy_questions = []
 
         # 提取V1的战略洞察数据
         design_challenge = structured_data.get("design_challenge", "")
         project_task = structured_data.get("project_task", "")
         expert_handoff = structured_data.get("expert_handoff", {})
-        logger.debug(f"🔍 [TRACE] 数据提取完成: design_challenge长度={len(design_challenge)}, project_task长度={len(project_task)}")
+        logger.debug(f" [TRACE] 数据提取完成: design_challenge长度={len(design_challenge)}, project_task长度={len(project_task)}")
 
         # 1. 基于design_challenge生成理念问题
         if design_challenge:
-            logger.debug("🔍 [TRACE] 处理 design_challenge...")
+            logger.debug(" [TRACE] 处理 design_challenge...")
             # 提取核心矛盾 (格式: 作为[身份]的[需求A]与[需求B]的对立)
             # 限制正则匹配的字符串长度，避免潜在的性能问题
             safe_challenge = design_challenge[:500] if len(design_challenge) > 500 else design_challenge
-            # 🔧 修复: 使用更简单的正则，避免灾难性回溯
-            # 🔥 紧急修复: 改用贪婪匹配 + 更短的限制，避免挂起
+            #  修复: 使用更简单的正则，避免灾难性回溯
+            #  紧急修复: 改用贪婪匹配 + 更短的限制，避免挂起
             match = re.search(r'作为\[([^\]]{1,30})\]的\[([^\]]{1,30})\]与\[([^\]]{1,30})\]', safe_challenge)
-            logger.debug(f"🔍 [TRACE] 正则匹配完成: match={bool(match)}")
+            logger.debug(f" [TRACE] 正则匹配完成: match={bool(match)}")
             if match:
                 identity = match.group(1)
                 need_a = match.group(2)
@@ -686,7 +686,7 @@ class PhilosophyQuestionGenerator:
 
                 philosophy_questions.append({
                     "id": "v1_design_philosophy",
-                    "question": f"💭 在'{need_a}'与'{need_b}'的矛盾中，您更认同哪种设计理念？(单选)",
+                    "question": f" 在'{need_a}'与'{need_b}'的矛盾中，您更认同哪种设计理念？(单选)",
                     "context": f"这个问题关乎您作为'{identity}'的核心价值取向，将深刻影响设计的精神内核。",
                     "type": "single_choice",
                     "options": [
@@ -699,7 +699,7 @@ class PhilosophyQuestionGenerator:
                     "dimension": "philosophy"
                 })
 
-                logger.info(f"🎨 基于design_challenge生成理念问题: {need_a} vs {need_b}")
+                logger.info(f" 基于design_challenge生成理念问题: {need_a} vs {need_b}")
 
         # 2. 基于expert_handoff.design_challenge_spectrum生成方案倾向问题
         design_spectrum = expert_handoff.get("design_challenge_spectrum", {})
@@ -724,7 +724,7 @@ class PhilosophyQuestionGenerator:
 
                 philosophy_questions.append({
                     "id": "v1_approach_spectrum",
-                    "question": f"🎯 在设计方案的光谱上，您的理想立场是？(单选)",
+                    "question": f" 在设计方案的光谱上，您的理想立场是？(单选)",
                     "context": f"从'{极端A}'到'{极端B}'之间存在多种可能性，您的选择将决定方案的整体调性。",
                     "type": "single_choice",
                     "options": options,
@@ -732,23 +732,23 @@ class PhilosophyQuestionGenerator:
                     "dimension": "approach"
                 })
 
-                logger.info(f"🎨 基于design_challenge_spectrum生成方案倾向问题: {极端A} ↔ {极端B}")
+                logger.info(f" 基于design_challenge_spectrum生成方案倾向问题: {极端A} ↔ {极端B}")
 
         # 3. 基于project_task生成目标理念问题
         if project_task:
-            logger.debug("🔍 [TRACE] 处理 project_task...")
+            logger.debug(" [TRACE] 处理 project_task...")
             # 提取"雇佣空间完成[X]与[Y]"部分
             safe_task = project_task[:2000] if len(project_task) > 2000 else project_task
-            # 🔧 修复: 使用非贪婪匹配和长度限制，避免灾难性回溯
+            #  修复: 使用非贪婪匹配和长度限制，避免灾难性回溯
             match = re.search(r'雇佣空间完成\[([^\]]{1,50}?)\]与\[([^\]]{1,50}?)\]', safe_task)
-            logger.debug(f"🔍 [TRACE] project_task 正则匹配完成: match={bool(match)}")
+            logger.debug(f" [TRACE] project_task 正则匹配完成: match={bool(match)}")
             if match:
                 goal_x = match.group(1)
                 goal_y = match.group(2)
 
                 philosophy_questions.append({
                     "id": "v1_goal_philosophy",
-                    "question": f"🌟 对于这个项目，您更看重哪个层面的成功？(单选)",
+                    "question": f" 对于这个项目，您更看重哪个层面的成功？(单选)",
                     "context": f"V1分析显示您希望空间完成'{goal_x}'与'{goal_y}'，但在实际决策中往往需要确定主次。",
                     "type": "single_choice",
                     "options": [
@@ -761,12 +761,12 @@ class PhilosophyQuestionGenerator:
                     "dimension": "goal"
                 })
 
-                logger.info(f"🎨 基于project_task生成目标理念问题: {goal_x} vs {goal_y}")
+                logger.info(f" 基于project_task生成目标理念问题: {goal_x} vs {goal_y}")
 
         # 4. 基于expert_handoff.critical_questions_for_experts生成开放探索问题
         critical_questions_raw = expert_handoff.get("critical_questions_for_experts", [])
         
-        # 🔧 v7.3修复：兼容处理Dict格式（按角色分组）和List格式
+        #  v7.3修复：兼容处理Dict格式（按角色分组）和List格式
         if isinstance(critical_questions_raw, dict):
             # 将所有角色的问题合并为一个列表
             critical_questions = []
@@ -775,7 +775,7 @@ class PhilosophyQuestionGenerator:
                     critical_questions.extend(questions)
                 elif isinstance(questions, str):
                     critical_questions.append(questions)
-            logger.debug(f"🔧 critical_questions_for_experts 是Dict格式，已扁平化为 {len(critical_questions)} 个问题")
+            logger.debug(f" critical_questions_for_experts 是Dict格式，已扁平化为 {len(critical_questions)} 个问题")
         else:
             critical_questions = critical_questions_raw if isinstance(critical_questions_raw, list) else []
         
@@ -785,7 +785,7 @@ class PhilosophyQuestionGenerator:
 
             philosophy_questions.append({
                 "id": "v1_critical_exploration",
-                "question": f"💡 {first_question}",
+                "question": f" {first_question}",
                 "context": "V1分析师识别出这是项目的关键决策点，您的思考将帮助专家团队更好地理解您的深层需求。",
                 "type": "open_ended",
                 "placeholder": "请分享您的想法、担忧或不确定的地方...",
@@ -793,9 +793,9 @@ class PhilosophyQuestionGenerator:
                 "dimension": "exploration"
             })
 
-            logger.info(f"🎨 基于critical_questions生成开放探索问题")
+            logger.info(f" 基于critical_questions生成开放探索问题")
 
-        logger.debug(f"🔍 [TRACE] _build_philosophy_questions 完成，生成 {len(philosophy_questions)} 个问题")
+        logger.debug(f" [TRACE] _build_philosophy_questions 完成，生成 {len(philosophy_questions)} 个问题")
         return philosophy_questions
 
 
@@ -820,15 +820,15 @@ class ConflictQuestionGenerator:
         user_mentioned_constraints: Optional[List[str]] = None
     ) -> List[Dict[str, Any]]:
         """
-        基于V1.5可行性分析结果生成针对性问题（🆕 价值体现点1 - 资源维度）
+        基于V1.5可行性分析结果生成针对性问题（ 价值体现点1 - 资源维度）
 
-        🚀 v7.4优化：冲突问题必须由用户约束激活
+         v7.4优化：冲突问题必须由用户约束激活
 
         核心逻辑：
         - 当检测到critical级别冲突时，生成单选题要求用户明确优先级
         - 针对预算/时间/空间三类冲突，分别生成不同的问题
-        - 🆕 v7.4: 只有当用户提及相关约束时才生成对应问题
-        - 🆕 根据场景类型过滤：竞标策略场景跳过施工相关冲突
+        -  v7.4: 只有当用户提及相关约束时才生成对应问题
+        -  根据场景类型过滤：竞标策略场景跳过施工相关冲突
         - 问题插入到问卷开头，确保用户优先回答
 
         Args:
@@ -841,12 +841,12 @@ class ConflictQuestionGenerator:
         """
         conflict_questions = []
 
-        # 🚀 P0优化：竞标策略场景跳过施工相关冲突问题
+        #  P0优化：竞标策略场景跳过施工相关冲突问题
         if scenario_type == "bidding_strategy":
-            logger.info("🎯 竞标策略场景：跳过施工相关冲突问题（预算、工期、空间）")
+            logger.info(" 竞标策略场景：跳过施工相关冲突问题（预算、工期、空间）")
             return []
 
-        # 🆕 v7.4: 初始化用户约束列表
+        #  v7.4: 初始化用户约束列表
         if user_mentioned_constraints is None:
             user_mentioned_constraints = []
 
@@ -854,7 +854,7 @@ class ConflictQuestionGenerator:
         conflicts = feasibility.get("conflict_detection", {})
 
         # 1. 预算冲突问题
-        # 🆕 v7.4: 只有当用户提及预算约束时才生成
+        #  v7.4: 只有当用户提及预算约束时才生成
         budget_mentioned = "budget" in user_mentioned_constraints
         budget_conflicts = conflicts.get("budget_conflicts", [])
 
@@ -865,8 +865,8 @@ class ConflictQuestionGenerator:
             # 仅针对critical和high级别的冲突生成问题
             if severity in ["critical", "high"]:
                 if not budget_mentioned:
-                    # 🆕 v7.4: 用户未提及预算，跳过此问题
-                    logger.info(f"⏭️ [v7.4] 用户未提及预算约束，跳过预算冲突问题（severity={severity}）")
+                    #  v7.4: 用户未提及预算，跳过此问题
+                    logger.info(f"️ [v7.4] 用户未提及预算约束，跳过预算冲突问题（severity={severity}）")
                 else:
                     description = conflict.get("description", "预算约束")
                     details = conflict.get("details", {})
@@ -882,7 +882,7 @@ class ConflictQuestionGenerator:
 
                     conflict_questions.append({
                         "id": "v15_budget_conflict",
-                        "question": f"⚠️ 可行性分析发现：{description}。您倾向于如何调整？(单选)",
+                        "question": f"️ 可行性分析发现：{description}。您倾向于如何调整？(单选)",
                         "context": f"V1.5检测到预算缺口约{gap_percentage}%，这是项目推进的关键决策点。",
                         "type": "single_choice",
                         "options": options,
@@ -890,10 +890,10 @@ class ConflictQuestionGenerator:
                         "severity": severity
                     })
 
-                    logger.info(f"🔍 V1.5预算冲突问题生成：severity={severity}, gap={gap}, gap_percentage={gap_percentage}%")
+                    logger.info(f" V1.5预算冲突问题生成：severity={severity}, gap={gap}, gap_percentage={gap_percentage}%")
 
         # 2. 时间冲突问题
-        # 🆕 v7.4: 只有当用户提及工期约束时才生成
+        #  v7.4: 只有当用户提及工期约束时才生成
         timeline_mentioned = "timeline" in user_mentioned_constraints
         timeline_conflicts = conflicts.get("timeline_conflicts", [])
 
@@ -903,8 +903,8 @@ class ConflictQuestionGenerator:
 
             if severity in ["critical", "high", "medium"]:
                 if not timeline_mentioned:
-                    # 🆕 v7.4: 用户未提及工期，跳过此问题
-                    logger.info(f"⏭️ [v7.4] 用户未提及工期约束，跳过时间冲突问题（severity={severity}）")
+                    #  v7.4: 用户未提及工期，跳过此问题
+                    logger.info(f"️ [v7.4] 用户未提及工期约束，跳过时间冲突问题（severity={severity}）")
                 else:
                     description = conflict.get("description", "工期约束")
                     details = conflict.get("details", {})
@@ -918,7 +918,7 @@ class ConflictQuestionGenerator:
 
                     conflict_questions.append({
                         "id": "v15_timeline_conflict",
-                        "question": f"⚠️ 可行性分析发现：{description}。您倾向于如何调整？(单选)",
+                        "question": f"️ 可行性分析发现：{description}。您倾向于如何调整？(单选)",
                         "context": "V1.5检测到工期紧张可能影响质量标准，需要明确时间与质量的优先级。",
                         "type": "single_choice",
                         "options": options,
@@ -926,10 +926,10 @@ class ConflictQuestionGenerator:
                         "severity": severity
                     })
 
-                    logger.info(f"🔍 V1.5时间冲突问题生成：severity={severity}, gap={gap}天")
+                    logger.info(f" V1.5时间冲突问题生成：severity={severity}, gap={gap}天")
 
         # 3. 空间冲突问题
-        # 🆕 v7.4: 只有当用户提及空间约束时才生成
+        #  v7.4: 只有当用户提及空间约束时才生成
         space_mentioned = "space" in user_mentioned_constraints
         space_conflicts = conflicts.get("space_conflicts", [])
 
@@ -939,8 +939,8 @@ class ConflictQuestionGenerator:
 
             if severity in ["critical", "high"]:
                 if not space_mentioned:
-                    # 🆕 v7.4: 用户未提及空间，跳过此问题
-                    logger.info(f"⏭️ [v7.4] 用户未提及空间约束，跳过空间冲突问题（severity={severity}）")
+                    #  v7.4: 用户未提及空间，跳过此问题
+                    logger.info(f"️ [v7.4] 用户未提及空间约束，跳过空间冲突问题（severity={severity}）")
                 else:
                     description = conflict.get("description", "空间约束")
                     details = conflict.get("details", {})
@@ -954,7 +954,7 @@ class ConflictQuestionGenerator:
 
                     conflict_questions.append({
                         "id": "v15_space_conflict",
-                        "question": f"⚠️ 可行性分析发现：{description}。您倾向于如何调整？(单选)",
+                        "question": f"️ 可行性分析发现：{description}。您倾向于如何调整？(单选)",
                         "context": f"V1.5检测到空间缺口约{gap}㎡，需要重新权衡功能配置。",
                         "type": "single_choice",
                         "options": options,
@@ -962,11 +962,11 @@ class ConflictQuestionGenerator:
                         "severity": severity
                     })
 
-                    logger.info(f"🔍 V1.5空间冲突问题生成：severity={severity}, gap={gap}㎡")
+                    logger.info(f" V1.5空间冲突问题生成：severity={severity}, gap={gap}㎡")
 
-        # 🆕 v7.4: 统计日志
+        #  v7.4: 统计日志
         if not conflict_questions and conflicts:
-            logger.info(f"⏭️ [v7.4] 检测到冲突但用户未提及相关约束，跳过所有冲突问题（用户约束: {user_mentioned_constraints}）")
+            logger.info(f"️ [v7.4] 检测到冲突但用户未提及相关约束，跳过所有冲突问题（用户约束: {user_mentioned_constraints}）")
 
         return conflict_questions
 
@@ -1124,7 +1124,7 @@ class DomainSpecificQuestionGenerator:
         # 获取领域模板
         templates = cls.DOMAIN_QUESTION_TEMPLATES.get(domain_type, {})
         if not templates:
-            logger.info(f"⏭️ [DomainSpecific] 领域 {domain_type} 无专用模板，跳过")
+            logger.info(f"️ [DomainSpecific] 领域 {domain_type} 无专用模板，跳过")
             return []
 
         # 按题型顺序生成问题
@@ -1147,5 +1147,5 @@ class DomainSpecificQuestionGenerator:
 
                 questions.append(question)
 
-        logger.info(f"🎯 [DomainSpecific] 为领域 {domain_type} 生成 {len(questions)} 个专业问题")
+        logger.info(f" [DomainSpecific] 为领域 {domain_type} 生成 {len(questions)} 个专业问题")
         return questions

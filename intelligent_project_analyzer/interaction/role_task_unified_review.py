@@ -3,8 +3,13 @@
 Role Selection and Task Assignment Unified Review Node
 
 合并角色选择审核和任务分派审核，减少人机交互次数
+
+v7.280: 集成 TaskGenerationGuard 前置质量控制
+- 在用户确认前自动评估并优化任务
+- 风险自动修正，无需用户介入
 """
 
+import asyncio
 import re
 from datetime import datetime
 from typing import Any, Dict, List, Literal, Optional
@@ -12,6 +17,8 @@ from typing import Any, Dict, List, Literal, Optional
 from langgraph.types import Command, interrupt
 from loguru import logger
 
+#  v7.280: 前置质量控制
+from intelligent_project_analyzer.agents.review.task_generation_guard import TaskGenerationGuard
 from intelligent_project_analyzer.core.state import AnalysisStage
 from intelligent_project_analyzer.core.strategy_manager import StrategyManager
 from intelligent_project_analyzer.services.capability_boundary_service import CapabilityBoundaryService
@@ -57,11 +64,17 @@ class RoleTaskUnifiedReviewNode:
     def __init__(self):
         """初始化审核节点"""
         self.strategy_manager = StrategyManager()
-        logger.info("✅ Role-Task unified review node initialized")
+        self.task_guard = TaskGenerationGuard()  #  v7.280: 前置质量控制
+        logger.info(" Role-Task unified review node initialized")
 
     def execute(self, state: Dict[str, Any]) -> Command[Literal["batch_executor", "project_director"]]:
         """
         执行统一审核：同时审核角色选择和任务分派
+
+        v7.280: 集成前置质量控制
+        - 在展示给用户前，先进行风险评估
+        - 自动应用修正措施
+        - 评估结果记录到 state 但不阻塞流程
 
         Args:
             state: 当前状态
@@ -69,16 +82,16 @@ class RoleTaskUnifiedReviewNode:
         Returns:
             Command对象，指向下一节点
         """
-        logger.info("🔍 Starting unified role & task review interaction")
+        logger.info(" Starting unified role & task review interaction")
 
-        # 🔥 强制执行人工审核 - 不再跳过角色任务审核
-        logger.info("📋 角色任务审核：需要人工确认")
+        #  强制执行人工审核 - 不再跳过角色任务审核
+        logger.info(" 角色任务审核：需要人工确认")
 
         # 获取项目总监的分析结果
-        strategic_analysis = state.get("strategic_analysis") or {}  # 🔥 修复：确保不为 None
+        strategic_analysis = state.get("strategic_analysis") or {}  #  修复：确保不为 None
 
         if not strategic_analysis:
-            logger.error("❌ No strategic_analysis found in state")
+            logger.error(" No strategic_analysis found in state")
             logger.debug(f"Available state keys: {list(state.keys())}")
             raise ValueError("Missing strategic_analysis in state")
 
@@ -87,7 +100,7 @@ class RoleTaskUnifiedReviewNode:
         selection_reasoning = strategic_analysis.get("strategy_overview", "")
         strategy_name = "goal_oriented_adaptive_collaboration_v7.2"
 
-        logger.info(f"📋 Project director selected {len(selected_roles)} roles")
+        logger.info(f" Project director selected {len(selected_roles)} roles")
 
         # 验证角色选择
         role_validation = self.strategy_manager.validate_role_selection(selected_roles, strategy_name)
@@ -132,10 +145,41 @@ class RoleTaskUnifiedReviewNode:
         tool_settings = self._generate_tool_settings(selected_roles)
         concept_image_settings = self._generate_concept_image_settings(selected_roles)
 
+        # =====  v7.280: 前置质量控制 =====
+        # 在展示给用户前，先进行风险评估和自动优化
+        guard_result = self._run_task_guard(
+            selected_roles=selected_roles,
+            structured_requirements=state.get("structured_requirements", {}),
+            user_input=state.get("user_input", ""),
+        )
+
+        # 应用自动修正（如补充的提示词、搜索关键词等）
+        if guard_result.get("role_adjustments"):
+            for role in selected_roles:
+                role_id = role.get("role_id", "")
+                if role_id in guard_result["role_adjustments"]:
+                    adjustments = guard_result["role_adjustments"][role_id]
+                    # 将修正信息注入到角色配置中
+                    if adjustments.get("enhanced_prompt"):
+                        existing_context = role.get("additional_context", "")
+                        role["additional_context"] = f"{existing_context}\n{adjustments['enhanced_prompt']}".strip()
+                    if adjustments.get("search_keywords"):
+                        role["recommended_search_keywords"] = adjustments["search_keywords"]
+                    logger.info(f" [TaskGuard] 已为 {role_id} 应用自动优化")
+
         # ===== 构建统一的交互数据 =====
         interaction_data = {
             "interaction_type": "role_and_task_unified_review",
             "message": "项目总监已完成角色选择和任务分派，请审核并确认：",
+            #  v7.153: 通知前端关闭之前的模态框（如 progressive questionnaire）
+            "close_previous_modal": True,
+            #  v7.280: 前置质量评估结果（仅供参考，不阻塞）
+            "quality_guard_result": {
+                "confidence_score": guard_result.get("confidence_score", 70),
+                "high_risk_roles": guard_result.get("high_risk_roles", []),
+                "auto_mitigations": guard_result.get("auto_mitigations", []),
+                "summary": guard_result.get("evaluation_summary", ""),
+            },
             # 角色选择部分
             "role_selection": {
                 "decision_explanation": role_decision_explanation,
@@ -159,9 +203,9 @@ class RoleTaskUnifiedReviewNode:
                 "assignment_principles": assignment_principles,
                 "summary": task_summary,
             },
-            # 🆕 工具设置
+            #  工具设置
             "tool_settings": tool_settings,
-            # 🆕 概念图设置
+            #  概念图设置
             "concept_image_settings": concept_image_settings,
             # 操作选项
             "options": {
@@ -173,24 +217,24 @@ class RoleTaskUnifiedReviewNode:
             },
         }
 
-        logger.info(f"📤 Sending unified review request to user")
+        logger.info(f" Sending unified review request to user")
         logger.debug(f"Review data: {len(selected_roles)} roles, {total_tasks} tasks")
 
         # 触发人机交互，等待用户响应
         user_decision = interrupt(interaction_data)
 
-        # 🔧 P1修复: 处理字符串或字典类型的user_decision
+        #  P1修复: 处理字符串或字典类型的user_decision
         if isinstance(user_decision, str):
             # 简单模式：字符串直接作为action
             decision_dict = {"action": user_decision}
-            logger.info(f"📥 User decision received (string): {user_decision}")
+            logger.info(f" User decision received (string): {user_decision}")
         elif isinstance(user_decision, dict):
             # 复杂模式：字典包含action和其他字段
             decision_dict = user_decision
-            logger.info(f"📥 User decision received (dict): {decision_dict.get('action', 'unknown')}")
+            logger.info(f" User decision received (dict): {decision_dict.get('action', 'unknown')}")
         else:
             # 异常类型：默认approve
-            logger.warning(f"⚠️ Unexpected user_decision type: {type(user_decision)}, defaulting to approve")
+            logger.warning(f"️ Unexpected user_decision type: {type(user_decision)}, defaulting to approve")
             decision_dict = {"action": "approve"}
 
         # ===== 处理用户决策 =====
@@ -200,7 +244,7 @@ class RoleTaskUnifiedReviewNode:
         """格式化角色信息供审核"""
         formatted_roles = []
         for role in selected_roles:
-            # 🔥 P1修复: 优先从 task_instruction 提取信息
+            #  P1修复: 优先从 task_instruction 提取信息
             tasks = role.get("tasks", [])
             focus_areas = role.get("focus_areas", [])
             expected_output = role.get("expected_output", "")
@@ -208,14 +252,14 @@ class RoleTaskUnifiedReviewNode:
             if not tasks and "task_instruction" in role:
                 task_instruction = role["task_instruction"]
                 if isinstance(task_instruction, dict) and "deliverables" in task_instruction:
-                    # 🔥 P1修复: 格式化任务描述，包含交付物名称
+                    #  P1修复: 格式化任务描述，包含交付物名称
                     tasks = [
                         f"【{d.get('name', '')}】{d.get('description', '')}"
                         for d in task_instruction.get("deliverables", [])
                     ]
                     focus_areas = [d.get("name", "") for d in task_instruction.get("deliverables", [])]
 
-                    # 🔥 P1修复: 格式化预期输出，包含验收标准
+                    #  P1修复: 格式化预期输出，包含验收标准
                     objective = task_instruction.get("objective", "")
                     success_criteria = task_instruction.get("success_criteria", [])
                     if success_criteria:
@@ -256,7 +300,7 @@ class RoleTaskUnifiedReviewNode:
             # 提取角色的任务
             role_tasks = role.get("tasks", [])
 
-            # 🔥 P1修复: 如果 tasks 为空但有 task_instruction (v2格式)，从中提取
+            #  P1修复: 如果 tasks 为空但有 task_instruction (v2格式)，从中提取
             if not role_tasks and "task_instruction" in role:
                 task_instruction = role["task_instruction"]
                 if isinstance(task_instruction, dict) and "deliverables" in task_instruction:
@@ -281,7 +325,7 @@ class RoleTaskUnifiedReviewNode:
 
                     # 回填到 role 对象中以便后续使用
                     role["tasks"] = role_tasks
-                    logger.info(f"🔄 Extracted {len(role_tasks)} tasks from task_instruction for role {role_id}")
+                    logger.info(f" Extracted {len(role_tasks)} tasks from task_instruction for role {role_id}")
 
             # 为每个任务生成详细信息
             task_details = []
@@ -369,7 +413,7 @@ class RoleTaskUnifiedReviewNode:
                 "recommended": ["tavily", "arxiv"] if enable_by_default else [],
             }
 
-        logger.info(f"🔧 Generated tool settings for {len(tool_settings)} roles")
+        logger.info(f" Generated tool settings for {len(tool_settings)} roles")
         return tool_settings
 
     def _generate_concept_image_settings(self, selected_roles: List[Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
@@ -421,8 +465,59 @@ class RoleTaskUnifiedReviewNode:
             if deliverables_info:
                 concept_settings[role_id] = {"deliverables": deliverables_info}
 
-        logger.info(f"🎨 Generated concept image settings for {len(concept_settings)} roles")
+        logger.info(f" Generated concept image settings for {len(concept_settings)} roles")
         return concept_settings
+
+    def _run_task_guard(
+        self,
+        selected_roles: List[Dict[str, Any]],
+        structured_requirements: Dict[str, Any],
+        user_input: str,
+    ) -> Dict[str, Any]:
+        """
+        运行前置质量控制守卫（同步包装器）
+
+        v7.280: 在任务分派审核前评估风险并自动优化
+
+        Args:
+            selected_roles: 已选角色列表
+            structured_requirements: 结构化需求
+            user_input: 用户原始输入
+
+        Returns:
+            guard 评估结果
+        """
+        try:
+            logger.info("️ [TaskGuard] 执行前置质量评估...")
+
+            # 使用 asyncio 运行异步方法
+            loop = asyncio.new_event_loop()
+            try:
+                result = loop.run_until_complete(
+                    self.task_guard.evaluate_and_optimize(
+                        selected_roles=selected_roles,
+                        structured_requirements=structured_requirements,
+                        user_input=user_input,
+                    )
+                )
+            finally:
+                loop.close()
+
+            logger.info(f" [TaskGuard] 评估完成，置信度: {result.get('confidence_score', 0)}%")
+            return result
+
+        except Exception as e:
+            logger.warning(f"️ [TaskGuard] 评估失败（不阻塞流程）: {e}")
+            # 失败时返回空结果，不阻塞流程
+            return {
+                "risks": [],
+                "auto_mitigations": [],
+                "role_adjustments": {},
+                "confidence_score": 50,
+                "high_risk_roles": [],
+                "evaluation_summary": f"评估跳过: {str(e)}",
+                "guard_completed": False,
+            }
 
     def _validate_task_assignment(
         self, selected_roles: List[Dict[str, Any]], actual_tasks: List[Dict[str, Any]]
@@ -450,21 +545,21 @@ class RoleTaskUnifiedReviewNode:
         """处理用户的审核决策"""
         action = user_decision.get("action", "")
 
-        # 🔥 修复: 兼容 'approve' 和 'confirm' 两种确认值
+        #  修复: 兼容 'approve' 和 'confirm' 两种确认值
         if action in ["approve", "confirm"]:
-            logger.info("✅ User approved role selection and task assignment")
+            logger.info(" User approved role selection and task assignment")
 
-            # 🆕 提取工具设置和概念图设置
+            #  提取工具设置和概念图设置
             tool_settings = user_decision.get("tool_settings", {})
             concept_image_settings = user_decision.get("concept_image_settings", {})
 
             # 检查是否有任务修改
             modifications = user_decision.get("modifications", {})
             if modifications:
-                logger.info(f"📝 User provided task modifications for {len(modifications)} roles")
+                logger.info(f" User provided task modifications for {len(modifications)} roles")
 
-                # 🆕 能力边界检查：检查任务修改是否引入超范围需求
-                logger.info("🔍 [CapabilityBoundary] 检查任务修改的能力边界")
+                #  能力边界检查：检查任务修改是否引入超范围需求
+                logger.info(" [CapabilityBoundary] 检查任务修改的能力边界")
 
                 # 提取原始任务
                 original_tasks = {}
@@ -480,12 +575,12 @@ class RoleTaskUnifiedReviewNode:
                     context={"node": "role_task_unified_review", "session_id": state.get("session_id", "")},
                 )
 
-                logger.info(f"📊 任务修改能力边界检查结果:")
+                logger.info(f" 任务修改能力边界检查结果:")
                 logger.info(f"   在能力范围内: {boundary_check.within_capability}")
                 if boundary_check.has_new_deliverables:
                     logger.info(f"   新增交付物: {len(boundary_check.new_deliverables)} 项")
                     if not boundary_check.within_capability:
-                        logger.warning(f"⚠️ 任务修改包含超范围需求")
+                        logger.warning(f"️ 任务修改包含超范围需求")
                         for warning in boundary_check.capability_warnings:
                             logger.warning(f"     - {warning}")
 
@@ -497,12 +592,12 @@ class RoleTaskUnifiedReviewNode:
                         logger.info(f"  - 更新 {role_id} 的 {len(modified_tasks)} 个任务")
                         role["tasks"] = modified_tasks
 
-                    # 🆕 应用工具设置
+                    #  应用工具设置
                     if role_id in tool_settings:
                         role["enable_search"] = tool_settings[role_id].get("enable_search", True)
                         logger.info(f"  - 应用 {role_id} 的搜索工具设置: {role.get('enable_search')}")
 
-                    # 🆕 应用概念图设置
+                    #  应用概念图设置
                     if role_id in concept_image_settings:
                         role["concept_image_config"] = concept_image_settings[role_id]
                         logger.info(f"  - 应用 {role_id} 的概念图设置")
@@ -516,8 +611,8 @@ class RoleTaskUnifiedReviewNode:
                         **state.get("strategic_analysis", {}),
                         "selected_roles": selected_roles,
                         "user_modifications_applied": True,
-                        "user_tool_settings_applied": True,  # 🆕 标记
-                        "user_concept_settings_applied": True,  # 🆕 标记
+                        "user_tool_settings_applied": True,  #  标记
+                        "user_concept_settings_applied": True,  #  标记
                     },
                     "unified_review_result": {
                         "approved": True,
@@ -526,7 +621,9 @@ class RoleTaskUnifiedReviewNode:
                         "tasks_count": interaction_data["task_assignment"]["summary"]["total_tasks"],
                         "has_user_modifications": True,
                     },
-                    # 🆕 保存能力边界检查记录
+                    #  v7.271: 持久化 TaskGuard 审核结果
+                    "task_guard_result": interaction_data.get("quality_guard_result", {}),
+                    #  保存能力边界检查记录
                     "task_modification_boundary_check": boundary_check,
                 }
             else:
@@ -536,12 +633,12 @@ class RoleTaskUnifiedReviewNode:
                 for role in selected_roles:
                     role_id = role.get("role_id", "")
 
-                    # 🆕 应用工具设置
+                    #  应用工具设置
                     if role_id in tool_settings:
                         role["enable_search"] = tool_settings[role_id].get("enable_search", True)
                         logger.info(f"  - 应用 {role_id} 的搜索工具设置: {role.get('enable_search')}")
 
-                    # 🆕 应用概念图设置
+                    #  应用概念图设置
                     if role_id in concept_image_settings:
                         role["concept_image_config"] = concept_image_settings[role_id]
                         logger.info(f"  - 应用 {role_id} 的概念图设置")
@@ -553,8 +650,8 @@ class RoleTaskUnifiedReviewNode:
                     "strategic_analysis": {
                         **state.get("strategic_analysis", {}),
                         "selected_roles": selected_roles,
-                        "user_tool_settings_applied": True,  # 🆕 标记
-                        "user_concept_settings_applied": True,  # 🆕 标记
+                        "user_tool_settings_applied": True,  #  标记
+                        "user_concept_settings_applied": True,  #  标记
                     },
                     "unified_review_result": {
                         "approved": True,
@@ -562,12 +659,14 @@ class RoleTaskUnifiedReviewNode:
                         "roles_count": len(selected_roles),
                         "tasks_count": interaction_data["task_assignment"]["summary"]["total_tasks"],
                     },
+                    #  v7.271: 持久化 TaskGuard 审核结果
+                    "task_guard_result": interaction_data.get("quality_guard_result", {}),
                 }
 
-            return Command(update=state_updates, goto="quality_preflight")  # 🔥 修复：进入预检，而不是直接跳到batch_executor
+            return Command(update=state_updates, goto="quality_preflight")  #  修复：进入预检，而不是直接跳到batch_executor
 
         elif action == "modify_roles":
-            logger.info("🔄 User requested role modification")
+            logger.info(" User requested role modification")
             modifications = user_decision.get("modifications", {})
 
             state_updates = {
@@ -579,7 +678,7 @@ class RoleTaskUnifiedReviewNode:
             return Command(update=state_updates, goto="project_director")
 
         elif action == "modify_tasks":
-            logger.info("🔄 User requested task modification")
+            logger.info(" User requested task modification")
             modifications = user_decision.get("modifications", {})
 
             state_updates = {
@@ -591,7 +690,7 @@ class RoleTaskUnifiedReviewNode:
             return Command(update=state_updates, goto="project_director")
 
         elif action == "change_strategy":
-            logger.info("🔄 User requested strategy change")
+            logger.info(" User requested strategy change")
             new_strategy = user_decision.get("new_strategy", "")
 
             state_updates = {
@@ -603,7 +702,7 @@ class RoleTaskUnifiedReviewNode:
             return Command(update=state_updates, goto="project_director")
 
         elif action == "reject":
-            logger.warning("❌ User rejected role selection and task assignment")
+            logger.warning(" User rejected role selection and task assignment")
             rejection_reason = user_decision.get("reason", "未提供原因")
 
             state_updates = {
@@ -616,7 +715,7 @@ class RoleTaskUnifiedReviewNode:
             return Command(update=state_updates, goto="project_director")
 
         else:
-            logger.error(f"❌ Unknown user action: {action}")
+            logger.error(f" Unknown user action: {action}")
             # 默认返回项目总监重新规划
             return Command(update={"retry_reason": f"未知操作: {action}"}, goto="project_director")
 

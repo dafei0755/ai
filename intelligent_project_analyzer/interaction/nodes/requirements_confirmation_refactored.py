@@ -28,7 +28,7 @@ class RequirementsConfirmationNode(InteractionAgent):
 
     def _should_skip(self, state: ProjectAnalysisState) -> tuple[bool, str]:
         """检查是否应跳过需求确认"""
-        # 🔥 检查是否是用户修改后的重新分析（应直接跳过确认）
+        #  检查是否是用户修改后的重新分析（应直接跳过确认）
         if state.get("user_modification_processed"):
             return True, "用户修改已重新分析完成，跳过二次确认"
 
@@ -63,16 +63,16 @@ class RequirementsConfirmationNode(InteractionAgent):
         structured_requirements = state.get("structured_requirements", {})
         current_datetime = datetime.now().strftime("%Y年%m月%d日 %H:%M")
 
-        # ✅ 构建带中文标签的需求摘要
+        #  构建带中文标签的需求摘要
         requirements_summary = []
 
         field_mapping = [
-            ("project_task", "项目任务", "📋"),
-            ("character_narrative", "核心用户画像", "👤"),
-            ("space_constraints", "空间约束", "📐"),
-            ("inspiration_references", "灵感参考", "💡"),
-            ("experience_behavior", "体验行为", "🎯"),
-            ("core_tension", "核心张力", "⚡")
+            ("project_task", "项目任务", ""),
+            ("character_narrative", "核心用户画像", ""),
+            ("space_constraints", "空间约束", ""),
+            ("inspiration_references", "灵感参考", ""),
+            ("experience_behavior", "体验行为", ""),
+            ("core_tension", "核心张力", "")
         ]
 
         for field_key, field_label, icon in field_mapping:
@@ -88,7 +88,7 @@ class RequirementsConfirmationNode(InteractionAgent):
         # 检查是否已融合问卷信息
         message = "请确认以下需求分析是否准确（如需修改，直接编辑后提交即可）："
         if state.get("calibration_processed"):
-            message = "✅ 已根据您的问卷反馈更新分析结果。请确认以下需求分析是否准确（如需修改，直接编辑后提交即可）："
+            message = " 已根据您的问卷反馈更新分析结果。请确认以下需求分析是否准确（如需修改，直接编辑后提交即可）："
 
         return {
             "interaction_type": self.interaction_type,
@@ -136,20 +136,20 @@ class RequirementsConfirmationNode(InteractionAgent):
         if is_approved:
             if has_real_modifications or has_additions:
                 # 用户批准但提供了修改/补充
-                logger.info("⚠️ User approved BUT provided modifications/additions")
+                logger.info("️ User approved BUT provided modifications/additions")
                 return self._handle_approved_with_modifications(
                     state, modifications, additional_info, has_real_modifications
                 )
             else:
                 # 纯粹的批准
-                logger.info("✅ Requirements confirmed without modifications")
+                logger.info(" Requirements confirmed without modifications")
                 return Command(
                     update={"requirements_confirmed": True, "modification_confirmation_round": 0},
                     goto="project_director"
                 )
         else:
             # 需要修订
-            logger.info("⚠️ Requirements need revision")
+            logger.info("️ Requirements need revision")
             return self._handle_revision(state, feedback, modifications, additional_info)
 
     # ========== 辅助方法 ==========
@@ -200,10 +200,10 @@ class RequirementsConfirmationNode(InteractionAgent):
 
                 # 只有差异超过10个字符才算真实修改
                 if diff_chars > 10:
-                    logger.info(f"🔍 检测到字段 '{field}' 有真实修改 (差异字符数: {diff_chars})")
+                    logger.info(f" 检测到字段 '{field}' 有真实修改 (差异字符数: {diff_chars})")
                     return True
 
-        logger.info("✅ 用户提交的 modifications 与当前值相同(或差异<10字符),视为无修改")
+        logger.info(" 用户提交的 modifications 与当前值相同(或差异<10字符),视为无修改")
         return False
 
     def _handle_approved_with_modifications(
@@ -214,7 +214,7 @@ class RequirementsConfirmationNode(InteractionAgent):
         has_real_modifications: bool
     ) -> Command[Literal["requirements_analyst"]]:
         """处理：用户批准但提供了修改/补充"""
-        logger.info("🔄 用户修改需要重新分析以更新 expert_handoff，但不再返回确认页面")
+        logger.info(" 用户修改需要重新分析以更新 expert_handoff，但不再返回确认页面")
 
         updated_state = {}
 
@@ -225,7 +225,7 @@ class RequirementsConfirmationNode(InteractionAgent):
 
             for field_key, new_value in modifications.items():
                 if field_key in updated_requirements:
-                    logger.info(f"📝 融入用户修改: {field_key}")
+                    logger.info(f" 融入用户修改: {field_key}")
                     updated_requirements[field_key] = new_value
 
             updated_state["structured_requirements"] = updated_requirements
@@ -247,7 +247,7 @@ class RequirementsConfirmationNode(InteractionAgent):
         updated_state["user_modification_processed"] = True
         updated_state["user_modification_summary"] = supplement_text
 
-        logger.info("🔄 返回 requirements_analyst 重新分析以更新 expert_handoff")
+        logger.info(" 返回 requirements_analyst 重新分析以更新 expert_handoff")
 
         return Command(update=updated_state, goto="requirements_analyst")
 

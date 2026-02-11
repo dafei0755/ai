@@ -7,7 +7,7 @@
 import os
 
 # ============================================================================
-# 🔧 v7.122: 全局 UTF-8 编码设置（解决 Windows 控制台 Emoji 编码错误）
+#  v7.122: 全局 UTF-8 编码设置（解决 Windows 控制台 Emoji 编码错误）
 # ============================================================================
 import sys
 
@@ -16,12 +16,27 @@ os.environ["PYTHONIOENCODING"] = "utf-8"
 
 # Windows 平台特殊处理
 if sys.platform == "win32":
-    # 强制标准输出和标准错误使用 UTF-8
-    if hasattr(sys.stdout, "buffer"):
-        import io
+    # 强制标准输出和标准错误使用 UTF-8（优先使用 reconfigure，避免替换底层流被提前关闭）
+    for stream_name in ("stdout", "stderr"):
+        stream = getattr(sys, stream_name, None)
+        if stream is None:
+            continue
 
-        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
-        sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
+        if hasattr(stream, "reconfigure"):
+            try:
+                stream.reconfigure(encoding="utf-8", errors="replace")
+                continue
+            except Exception:
+                pass
+
+        if hasattr(stream, "buffer"):
+            import io
+
+            setattr(
+                sys,
+                stream_name,
+                io.TextIOWrapper(stream.buffer, encoding="utf-8", errors="replace"),
+            )
 
     # 尝试设置 Windows 控制台代码页为 UTF-8 (65001)
     try:

@@ -255,6 +255,16 @@ export default function AdminDashboardPage() {
           link="/admin/tools"
         />
 
+        {/* 搜索过滤器 */}
+        <MetricCard
+          title="搜索过滤器"
+          value="管理"
+          subtitle="黑白名单配置"
+          status="normal"
+          icon="🛡️"
+          link="/admin/search-filters"
+        />
+
         {/* 概念图统计 */}
         <MetricCard
           title="概念图 (7d)"
@@ -288,7 +298,7 @@ export default function AdminDashboardPage() {
       {/* 提示信息 */}
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
         <p className="text-blue-800">
-          💡 <strong>提示：</strong>数据每60秒自动刷新。点击右上角"刷新"按钮可立即更新数据。
+          💡 <strong>提示：</strong>数据每60秒自动刷新。点击右上角&ldquo;刷新&rdquo;按钮可立即更新数据。
         </p>
       </div>
     </div>

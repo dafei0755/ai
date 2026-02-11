@@ -9,7 +9,7 @@ from typing import Dict, List, Any, Optional
 from datetime import datetime
 import os
 
-# ✅ 导入统一配置
+#  导入统一配置
 from intelligent_project_analyzer.settings import settings
 
 
@@ -180,7 +180,7 @@ def render_header():
     """渲染页面头部"""
     st.markdown("""
     <div class="main-header">
-        🎨 设计知外 Design Beyond
+         设计知外 Design Beyond
     </div>
     <div style="text-align: center; color: #666; margin-bottom: 2rem;">
         <p style="font-size: 1.1rem;">专业室内设计/空间设计智能咨询系统</p>
@@ -199,7 +199,7 @@ def render_sidebar() -> bool:
     mode_changed = False
     
     with st.sidebar:
-        st.markdown("### ⚙️ 系统配置")
+        st.markdown("### ️ 系统配置")
         
         # 默认使用 Dynamic Mode（Fixed Mode 已移除）
         selected_mode = "dynamic"
@@ -209,10 +209,10 @@ def render_sidebar() -> bool:
         # 模式说明
         st.info("""
         **Dynamic模式特点:**
-        - ✨ 智能选择3-8个最合适的角色
-        - ✨ 根据需求定制分析团队
-        - ✨ 适合特定领域深度分析
-        - ✨ 灵活度更高
+        -  智能选择3-8个最合适的角色
+        -  根据需求定制分析团队
+        -  适合特定领域深度分析
+        -  灵活度更高
 
         注：Fixed模式已移除，系统现在仅支持Dynamic模式
         """)
@@ -220,27 +220,27 @@ def render_sidebar() -> bool:
         st.markdown("---")
         
         # API配置检查
-        st.markdown("### 🔑 API配置")
-        # ✅ 从统一配置读取
+        st.markdown("###  API配置")
+        #  从统一配置读取
         api_key = settings.llm.api_key
         api_base = settings.llm.api_base
 
         if api_key:
-            st.success("✅ API密钥已加载")
+            st.success(" API密钥已加载")
             if api_base:
-                st.info(f"📍 API Base: {api_base[:30]}...")
+                st.info(f" API Base: {api_base[:30]}...")
             else:
-                st.info("📍 使用 OpenAI 官方地址")
+                st.info(" 使用 OpenAI 官方地址")
         else:
-            st.error("❌ 未配置 API 密钥")
+            st.error(" 未配置 API 密钥")
             st.warning("请在 .env 文件中设置 OPENAI_API_KEY")
         
         st.markdown("---")
         
         # 系统信息
-        st.markdown("### 📊 系统状态")
+        st.markdown("###  系统状态")
         
-        status_color = "🟢" if not st.session_state.get('analysis_started', False) else "🟡"
+        status_color = "" if not st.session_state.get('analysis_started', False) else ""
         status_text = "就绪" if not st.session_state.get('analysis_started', False) else "分析中"
         
         st.markdown(f"""
@@ -255,7 +255,7 @@ def render_sidebar() -> bool:
         st.markdown("---")
         
         # 帮助信息
-        with st.expander("📖 使用指南"):
+        with st.expander(" 使用指南"):
             st.markdown("""
             **快速开始:**
             1. 选择运行模式（Fixed/Dynamic）
@@ -279,11 +279,11 @@ def render_sidebar() -> bool:
             基于第一性原理的多维度设计分析方法。
 
             **核心特性:**
-            - 🎨 专业设计分析（V2-V6专家团队）
-            - 🧠 智能查询分类（深度/广度/直接）
-            - 📊 自适应报告生成
-            - 💬 三层分析协议（L1→L2→L3）
-            - 🔍 核心张力判定
+            -  专业设计分析（V2-V6专家团队）
+            -  智能查询分类（深度/广度/直接）
+            -  自适应报告生成
+            -  三层分析协议（L1→L2→L3）
+            -  核心张力判定
 
             **专家团队:**
             - V2 设计总监（首席空间产品官）
@@ -308,7 +308,7 @@ def render_analysis_results(events: List[Dict[str, Any]]):
     Args:
         events: 事件列表
     """
-    st.markdown("### 📊 分析结果")
+    st.markdown("###  分析结果")
     
     # 提取各智能体的结果
     agent_results = {}
@@ -322,7 +322,7 @@ def render_analysis_results(events: List[Dict[str, Any]]):
     
     # 显示结果
     if agent_results:
-        tabs = st.tabs([f"📌 {agent}" for agent in agent_results.keys()])
+        tabs = st.tabs([f" {agent}" for agent in agent_results.keys()])
         
         for tab, (agent_name, result) in zip(tabs, agent_results.items()):
             with tab:
@@ -353,7 +353,7 @@ def render_agent_result(agent_name: str, result: Dict[str, Any]):
     
     # 显示结构化数据
     if 'structured_data' in result:
-        with st.expander("📋 查看结构化数据"):
+        with st.expander(" 查看结构化数据"):
             st.json(result['structured_data'])
 
 
@@ -374,10 +374,10 @@ def render_agent_card(
     """
     status_class = f"status-{status}"
     status_text = {
-        "pending": "⏳ 等待中",
-        "running": "🔄 执行中",
-        "complete": "✅ 已完成"
-    }.get(status, "❓ 未知")
+        "pending": " 等待中",
+        "running": " 执行中",
+        "complete": " 已完成"
+    }.get(status, " 未知")
     
     st.markdown(f"""
     <div class="agent-card">

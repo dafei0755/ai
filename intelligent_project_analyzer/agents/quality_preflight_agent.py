@@ -1,7 +1,7 @@
 """
 质量预检智能体 (LangGraph StateGraph)
 
-🔥 v7.16: 将 QualityPreflightNode 升级为真正的 LangGraph Agent
+ v7.16: 将 QualityPreflightNode 升级为真正的 LangGraph Agent
 
 核心功能:
 1. 风险分析 (Analyze Risks)
@@ -63,7 +63,7 @@ def analyze_risks_node(state: QualityPreflightState) -> Dict[str, Any]:
     """
     风险分析节点 - 评估每个任务的潜在风险
     """
-    logger.info("⚠️ 执行风险分析节点")
+    logger.info("️ 执行风险分析节点")
     
     active_agents = state.get("active_agents", [])
     selected_roles = state.get("selected_roles", [])
@@ -129,7 +129,7 @@ def analyze_risks_node(state: QualityPreflightState) -> Dict[str, Any]:
     risk_assessments.sort(key=lambda x: x.get("risk_score", 0), reverse=True)
     
     high_risk_count = len([r for r in risk_assessments if r.get("risk_level") == "high"])
-    log_entry = f"⚠️ 风险分析完成: {high_risk_count} 高风险, {len(risk_assessments)} 总计"
+    log_entry = f"️ 风险分析完成: {high_risk_count} 高风险, {len(risk_assessments)} 总计"
     logger.info(log_entry)
     
     return {
@@ -142,7 +142,7 @@ def generate_checklists_node(state: QualityPreflightState) -> Dict[str, Any]:
     """
     生成质量检查清单节点 - 为每个专家生成个性化清单
     """
-    logger.info("📋 执行质量检查清单生成节点")
+    logger.info(" 执行质量检查清单生成节点")
     
     risk_assessments = state.get("risk_assessments", [])
     
@@ -156,32 +156,32 @@ def generate_checklists_node(state: QualityPreflightState) -> Dict[str, Any]:
         
         # 基础检查项
         checklist = [
-            "✅ 输出符合任务要求",
-            "✅ 内容完整性检查",
-            "✅ 与用户需求对齐"
+            " 输出符合任务要求",
+            " 内容完整性检查",
+            " 与用户需求对齐"
         ]
         
         # 根据风险因素添加特定检查项
         if "任务描述不够详细" in risk_factors:
-            checklist.append("⚠️ 确认任务理解正确")
-            checklist.append("⚠️ 主动询问澄清问题")
+            checklist.append("️ 确认任务理解正确")
+            checklist.append("️ 主动询问澄清问题")
         
         if "依赖" in str(risk_factors):
-            checklist.append("⚠️ 确认依赖输入已获取")
-            checklist.append("⚠️ 验证与上游专家一致性")
+            checklist.append("️ 确认依赖输入已获取")
+            checklist.append("️ 验证与上游专家一致性")
         
         if "创意类任务" in str(risk_factors):
-            checklist.append("⚠️ 提供创意理念说明")
-            checklist.append("⚠️ 包含可执行的具体建议")
+            checklist.append("️ 提供创意理念说明")
+            checklist.append("️ 包含可执行的具体建议")
         
         if "用户输入信息有限" in risk_factors:
-            checklist.append("⚠️ 使用专业假设填补信息缺口")
-            checklist.append("⚠️ 标注假设和不确定性")
+            checklist.append("️ 使用专业假设填补信息缺口")
+            checklist.append("️ 标注假设和不确定性")
         
         # 高风险专家额外检查
         if risk_level == "high":
-            checklist.append("🔴 需要额外审核关注")
-            checklist.append("🔴 建议分步骤交付")
+            checklist.append(" 需要额外审核关注")
+            checklist.append(" 建议分步骤交付")
         
         quality_checklists[role_id] = {
             "role_name": role_name,
@@ -189,7 +189,7 @@ def generate_checklists_node(state: QualityPreflightState) -> Dict[str, Any]:
             "risk_level": risk_level
         }
     
-    log_entry = f"📋 生成 {len(quality_checklists)} 个专家检查清单"
+    log_entry = f" 生成 {len(quality_checklists)} 个专家检查清单"
     logger.info(log_entry)
     
     return {
@@ -202,7 +202,7 @@ def validate_capability_node(state: QualityPreflightState) -> Dict[str, Any]:
     """
     验证能力匹配度节点 - 检查专家配置是否充足
     """
-    logger.info("🎯 执行能力匹配度验证节点")
+    logger.info(" 执行能力匹配度验证节点")
     
     risk_assessments = state.get("risk_assessments", [])
     quality_checklists = state.get("quality_checklists", {})
@@ -248,7 +248,7 @@ def validate_capability_node(state: QualityPreflightState) -> Dict[str, Any]:
     
     preflight_completed = True
     
-    log_entry = f"🎯 能力验证完成: 平均分 {preflight_report['average_capability_score']:.2f}, {len(high_risk_warnings)} 个高风险"
+    log_entry = f" 能力验证完成: 平均分 {preflight_report['average_capability_score']:.2f}, {len(high_risk_warnings)} 个高风险"
     logger.info(log_entry)
     
     return {
@@ -308,13 +308,13 @@ class QualityPreflightAgent:
         # 构建并编译状态图
         self._graph = build_quality_preflight_graph().compile()
         
-        logger.info("🚀 QualityPreflightAgent (LangGraph) 已初始化")
+        logger.info(" QualityPreflightAgent (LangGraph) 已初始化")
     
     def execute(self, state: Dict[str, Any]) -> Dict[str, Any]:
         """
         执行质量预检
         
-        🔥 v7.16.1: 添加性能监控
+         v7.16.1: 添加性能监控
         
         Args:
             state: 项目分析状态
@@ -323,7 +323,7 @@ class QualityPreflightAgent:
             预检结果字典
         """
         start_time = time.time()
-        logger.info("🎯 QualityPreflightAgent 开始执行")
+        logger.info(" QualityPreflightAgent 开始执行")
         
         # 提取 strategic_analysis
         strategic_analysis = state.get("strategic_analysis", {})
@@ -366,14 +366,14 @@ class QualityPreflightAgent:
             # 记录性能指标
             PerformanceMonitor.record("QualityPreflightAgent", time.time() - start_time, "v7.16")
             
-            logger.info(f"✅ QualityPreflightAgent 完成: {len(result['high_risk_warnings'])} 个高风险警告")
+            logger.info(f" QualityPreflightAgent 完成: {len(result['high_risk_warnings'])} 个高风险警告")
             return result
             
         except Exception as e:
             # 记录失败时的性能指标
             PerformanceMonitor.record("QualityPreflightAgent", time.time() - start_time, "v7.16-error")
             
-            logger.error(f"❌ QualityPreflightAgent 执行失败: {e}")
+            logger.error(f" QualityPreflightAgent 执行失败: {e}")
             import traceback
             traceback.print_exc()
             
@@ -382,7 +382,7 @@ class QualityPreflightAgent:
                 "preflight_report": {},
                 "quality_checklists": {},
                 "high_risk_warnings": [],
-                "processing_log": [f"❌ 执行失败: {e}"],
+                "processing_log": [f" 执行失败: {e}"],
                 "error": str(e)
             }
     

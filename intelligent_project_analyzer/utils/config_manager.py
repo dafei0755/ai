@@ -50,7 +50,7 @@ class HotReloadConfigManager:
         # 启动后台监听线程
         self._start_polling()
 
-        logger.info(f"✅ 配置热重载管理器已启动（检查间隔: {check_interval}秒）")
+        logger.info(f" 配置热重载管理器已启动（检查间隔: {check_interval}秒）")
 
     def _reload_settings(self):
         """重新加载配置（内部方法）"""
@@ -63,9 +63,9 @@ class HotReloadConfigManager:
             # 重新创建 Settings 实例
             self._settings = Settings()
 
-            logger.info("🔄 配置已重新加载")
+            logger.info(" 配置已重新加载")
         except Exception as e:
-            logger.error(f"❌ 配置重载失败: {e}")
+            logger.error(f" 配置重载失败: {e}")
 
     def reload(self) -> bool:
         """
@@ -79,14 +79,14 @@ class HotReloadConfigManager:
                 self._reload_settings()
                 return True
             except Exception as e:
-                logger.error(f"❌ 手动重载配置失败: {e}")
+                logger.error(f" 手动重载配置失败: {e}")
                 return False
 
     def _start_polling(self):
         """启动后台轮询线程"""
 
         def poll():
-            logger.debug("🔍 配置文件监听线程已启动")
+            logger.debug(" 配置文件监听线程已启动")
             while not self._stop_event.is_set():
                 try:
                     # 检查文件是否被修改
@@ -94,7 +94,7 @@ class HotReloadConfigManager:
                         current_modified = os.path.getmtime(self.env_path)
 
                         if current_modified > self._last_modified:
-                            logger.info("📝 检测到 .env 文件变更")
+                            logger.info(" 检测到 .env 文件变更")
                             with self._lock:
                                 self._reload_settings()
 
@@ -102,7 +102,7 @@ class HotReloadConfigManager:
                     self._stop_event.wait(self.check_interval)
 
                 except Exception as e:
-                    logger.error(f"❌ 配置文件监听错误: {e}")
+                    logger.error(f" 配置文件监听错误: {e}")
                     self._stop_event.wait(self.check_interval)
 
         self._polling_thread = threading.Thread(target=poll, daemon=True, name="ConfigReloadThread")
@@ -111,7 +111,7 @@ class HotReloadConfigManager:
     def stop(self):
         """停止配置监听"""
         if self._polling_thread and self._polling_thread.is_alive():
-            logger.info("⏹️ 停止配置文件监听")
+            logger.info("️ 停止配置文件监听")
             self._stop_event.set()
             self._polling_thread.join(timeout=5)
 
@@ -146,7 +146,7 @@ class HotReloadConfigManager:
                     return default
             return value
         except Exception as e:
-            logger.warning(f"⚠️ 获取配置 {key} 失败: {e}")
+            logger.warning(f"️ 获取配置 {key} 失败: {e}")
             return default
 
     def get_sanitized_config(self) -> dict:

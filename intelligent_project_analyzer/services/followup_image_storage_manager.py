@@ -94,7 +94,7 @@ class FollowupImageStorageManager:
             with open(original_path, "wb") as f:
                 f.write(image_bytes)
 
-            logger.info(f"✅ [FollowupImage] 保存原图: {stored_filename} ({file_size} bytes, {width}x{height})")
+            logger.info(f" [FollowupImage] 保存原图: {stored_filename} ({file_size} bytes, {width}x{height})")
 
             # 6. 生成并保存缩略图
             thumbnail = cls._generate_thumbnail(img)
@@ -102,7 +102,7 @@ class FollowupImageStorageManager:
             thumbnail.save(thumb_path, "JPEG", quality=cls.THUMBNAIL_QUALITY)
 
             thumb_size = thumb_path.stat().st_size
-            logger.info(f"✅ [FollowupImage] 生成缩略图: {thumb_filename} ({thumb_size} bytes)")
+            logger.info(f" [FollowupImage] 生成缩略图: {thumb_filename} ({thumb_size} bytes)")
 
             # 7. 构建元数据
             metadata = {
@@ -125,7 +125,7 @@ class FollowupImageStorageManager:
             return metadata
 
         except Exception as e:
-            logger.error(f"❌ [FollowupImage] 保存图片失败: {e}")
+            logger.error(f" [FollowupImage] 保存图片失败: {e}")
             raise
 
     @staticmethod
@@ -228,7 +228,7 @@ class FollowupImageStorageManager:
         with open(index_path, "w", encoding="utf-8") as f:
             json.dump(index_data, f, ensure_ascii=False, indent=2)
 
-        logger.info(f"✅ [FollowupImage] 更新索引: {index_path}")
+        logger.info(f" [FollowupImage] 更新索引: {index_path}")
 
     @classmethod
     async def get_session_images(cls, session_id: str) -> list[Dict[str, Any]]:
@@ -268,7 +268,7 @@ class FollowupImageStorageManager:
             target_images = [img for img in images if img.get("turn_id") == turn_id]
 
             if not target_images:
-                logger.warning(f"⚠️ [FollowupImage] 未找到 turn_id={turn_id} 的图片")
+                logger.warning(f"️ [FollowupImage] 未找到 turn_id={turn_id} 的图片")
                 return False
 
             # 删除文件
@@ -278,13 +278,13 @@ class FollowupImageStorageManager:
                 original_path = session_dir / image["stored_filename"]
                 if original_path.exists():
                     original_path.unlink()
-                    logger.info(f"✅ [FollowupImage] 删除原图: {image['stored_filename']}")
+                    logger.info(f" [FollowupImage] 删除原图: {image['stored_filename']}")
 
                 # 删除缩略图
                 thumb_path = session_dir / image["thumbnail_filename"]
                 if thumb_path.exists():
                     thumb_path.unlink()
-                    logger.info(f"✅ [FollowupImage] 删除缩略图: {image['thumbnail_filename']}")
+                    logger.info(f" [FollowupImage] 删除缩略图: {image['thumbnail_filename']}")
 
             # 更新索引
             index_path = session_dir / "metadata.json"
@@ -301,5 +301,5 @@ class FollowupImageStorageManager:
             return True
 
         except Exception as e:
-            logger.error(f"❌ [FollowupImage] 删除图片失败: {e}")
+            logger.error(f" [FollowupImage] 删除图片失败: {e}")
             return False

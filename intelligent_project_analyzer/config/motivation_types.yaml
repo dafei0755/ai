@@ -71,7 +71,7 @@ motivation_types:
     label_zh: 健康疗愈
     label_en: Health & Wellness
     priority: P0
-    description: 物理健康、心理疗愈、医疗标准、安全环境
+    description: 物理健康、心理疗愈、医疗标准、安全环境、特殊需求群体
     keywords:
       - 健康
       - 疗愈
@@ -81,6 +81,15 @@ motivation_types:
       - 过敏
       - 失眠
       - 自闭
+      - 自闭症
+      - ASD
+      - 特殊需求
+      - 特殊儿童
+      - 感官
+      - 刺激
+      - 敏感
+      - 可预测
+      - 避难
       - 病房
       - 诊所
       - 新风
@@ -88,11 +97,16 @@ motivation_types:
       - 正念
       - 冥想
       - 安全
+      - 无障碍
+      - 适老
+      - 疗愈环境
     llm_examples:
-      - "自闭症儿童友好空间"
+      - "自闭症儿童友好空间（低感官刺激、可预测性设计）"
       - "过敏症患者低敏材料"
       - "临终病房的尊严与温暖"
       - "失眠者的正念空间"
+      - "特殊儿童感官调节室"
+      - "适老化无障碍住宅"
     enabled: true
     color: "#90EE90"  # 疗愈绿
 

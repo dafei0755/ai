@@ -43,29 +43,29 @@ async def get_my_membership(current_user: Dict[str, Any] = Depends(auth_middlewa
         raise HTTPException(status_code=503, detail="会员API服务不可用")
 
     try:
-        print(f"[MemberRoutes] 🔍 开始获取会员信息...")
+        print(f"[MemberRoutes]  开始获取会员信息...")
         print(f"[MemberRoutes] 当前用户信息: {current_user}")
 
         api = WPCOMMemberAPI()
         user_id = current_user.get("user_id")
 
         if not user_id:
-            print(f"[MemberRoutes] ❌ 用户ID缺失，current_user: {current_user}")
+            print(f"[MemberRoutes]  用户ID缺失，current_user: {current_user}")
             raise HTTPException(status_code=400, detail="用户ID缺失")
 
-        print(f"[MemberRoutes] 📡 正在调用 WordPress API 获取用户 {user_id} 的会员信息...")
+        print(f"[MemberRoutes]  正在调用 WordPress API 获取用户 {user_id} 的会员信息...")
 
         # 获取会员信息
-        print(f"[MemberRoutes] 📞 调用 api.get_user_membership({user_id})...")
+        print(f"[MemberRoutes]  调用 api.get_user_membership({user_id})...")
         result = api.get_user_membership(user_id)
-        print(f"[MemberRoutes] ✅ WordPress API 返回结果: {result}")
+        print(f"[MemberRoutes]  WordPress API 返回结果: {result}")
 
         membership = result.get("membership", {})
         meta = result.get("meta", {})
         print(f"[MemberRoutes] 会员数据: {membership}")
         print(f"[MemberRoutes] Meta 数据: {meta}")
 
-        # 🔥 如果 membership 为空，尝试从 meta 字段读取 VIP 数据
+        #  如果 membership 为空，尝试从 meta 字段读取 VIP 数据
         if not membership or membership.get("level") is None:
             # 从 WordPress meta 字段提取 VIP 信息
             vip_type = meta.get("wp_vip_type")  # "1", "2", "3"
@@ -98,7 +98,7 @@ async def get_my_membership(current_user: Dict[str, Any] = Depends(auth_middlewa
             wallet_result = api.get_user_wallet(user_id)
             print(f"[MemberRoutes] 钱包 API 返回结果: {wallet_result}")
 
-            # 🔥 修复：处理多种可能的返回格式
+            #  修复：处理多种可能的返回格式
             if isinstance(wallet_result, dict):
                 # 方式1: 直接返回 balance 字段
                 if "balance" in wallet_result:
@@ -120,22 +120,22 @@ async def get_my_membership(current_user: Dict[str, Any] = Depends(auth_middlewa
             wallet_balance = 0.0
 
         # 格式化返回数据
-        # ✅ 处理 membership 为 None 的情况（用户未购买会员）
+        #  处理 membership 为 None 的情况（用户未购买会员）
         if membership is None:
-            print(f"[MemberRoutes] ⚠️ 用户 {user_id} 没有会员数据，返回免费用户")
+            print(f"[MemberRoutes] ️ 用户 {user_id} 没有会员数据，返回免费用户")
             level = 0
             expire_date = ""
-            is_expired = False  # 🔧 v3.0.23修复：免费用户不显示"已过期"
+            is_expired = False  #  v3.0.23修复：免费用户不显示"已过期"
         else:
             level = int(membership.get("level", "0")) if membership.get("level") else 0
             expire_date = membership.get("expire_date", "")
             is_expired = not membership.get("is_active", False)
 
-        # 🎨 会员等级名称映射（与 WordPress 显示保持一致）
+        #  会员等级名称映射（与 WordPress 显示保持一致）
         level_names = {0: "免费用户", 1: "普通会员", 2: "超级会员", 3: "钻石会员"}  # VIP 1 → 普通会员  # VIP 2 → 超级会员  # VIP 3 → 钻石会员
         level_name = level_names.get(level, f"VIP {level}")
 
-        print(f"[MemberRoutes] ✅ 用户 {user_id} 会员等级: {level_name}")
+        print(f"[MemberRoutes]  用户 {user_id} 会员等级: {level_name}")
 
         return {
             "level": level,
@@ -148,7 +148,7 @@ async def get_my_membership(current_user: Dict[str, Any] = Depends(auth_middlewa
     except HTTPException:
         raise
     except Exception as e:
-        print(f"[MemberRoutes] ❌ 获取会员信息失败: {e}")
+        print(f"[MemberRoutes]  获取会员信息失败: {e}")
         import traceback
 
         traceback.print_exc()

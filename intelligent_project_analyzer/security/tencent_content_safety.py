@@ -16,7 +16,7 @@ try:
     from tencentcloud.common.exception.tencent_cloud_sdk_exception import TencentCloudSDKException
     from tencentcloud.tms.v20201229 import tms_client, models
 except ImportError:
-    logger.warning("⚠️ 腾讯云SDK未安装，内容安全功能将不可用")
+    logger.warning("️ 腾讯云SDK未安装，内容安全功能将不可用")
     tms_client = None
 
 
@@ -64,7 +64,7 @@ class TencentContentSafetyClient:
         # 创建客户端
         self.client = tms_client.TmsClient(self.cred, self.region, clientProfile)
 
-        logger.info(f"✅ 腾讯云内容安全客户端初始化成功 (Region: {self.region})")
+        logger.info(f" 腾讯云内容安全客户端初始化成功 (Region: {self.region})")
 
     def check_text(
         self,
@@ -160,7 +160,7 @@ class TencentContentSafetyClient:
             }
 
         except TencentCloudSDKException as e:
-            logger.error(f"❌ 腾讯云内容安全API调用失败: {e.get_message()}")
+            logger.error(f" 腾讯云内容安全API调用失败: {e.get_message()}")
             # 返回安全（避免误拦截）
             return {
                 "is_safe": True,
@@ -169,7 +169,7 @@ class TencentContentSafetyClient:
                 "error": str(e)
             }
         except Exception as e:
-            logger.error(f"❌ 腾讯云内容安全检测异常: {e}")
+            logger.error(f" 腾讯云内容安全检测异常: {e}")
             return {
                 "is_safe": True,
                 "risk_level": "safe",
@@ -227,7 +227,7 @@ def get_tencent_content_safety_client() -> Optional[TencentContentSafetyClient]:
         try:
             _client_instance = TencentContentSafetyClient()
         except Exception as e:
-            logger.warning(f"⚠️ 腾讯云内容安全客户端初始化失败: {e}")
+            logger.warning(f"️ 腾讯云内容安全客户端初始化失败: {e}")
             return None
 
     return _client_instance

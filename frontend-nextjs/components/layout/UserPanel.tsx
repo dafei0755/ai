@@ -100,7 +100,7 @@ export function UserPanel() {
           <div className="px-4 py-3 border-b border-[var(--border-color)]">
             <div className="flex items-center space-x-3">
               {/* 首字母头像 - v7.105.2: 改为灰色与新建按钮一致 */}
-              <div className="w-10 h-10 rounded-full bg-gray-700 dark:bg-gray-600 flex items-center justify-center text-white font-bold text-lg flex-shrink-0">
+              <div className="w-10 h-10 rounded-full ucppt-icon-avatar text-lg flex-shrink-0">
                 {initials}
               </div>
               <div className="flex-1 min-w-0">
@@ -118,7 +118,7 @@ export function UserPanel() {
           <div className="px-4 py-3 border-b border-[var(--border-color)]">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-2">
-                <Palette className="w-4 h-4 text-[var(--foreground-secondary)]" />
+                <Palette className="w-4 h-4 text-gray-500" />
                 <span className="text-sm text-[var(--foreground)]">主题外观</span>
               </div>
               <select
@@ -135,25 +135,18 @@ export function UserPanel() {
           {/* 会员信息 */}
           <MembershipCard />
 
-          {/* 服务协议链接 */}
+          {/* 快捷链接 */}
           <div className="px-4 py-3 border-b border-[var(--border-color)] space-y-2">
+            {/* 🆕 v7.141.3: 用户中心链接（统一入口） */}
             <a
-              href="https://www.ucppt.com/terms"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center space-x-2 text-sm text-[var(--foreground)] hover:text-blue-500 transition-colors"
+              href="/user/dashboard"
+              className="flex items-center space-x-2 text-sm text-[var(--foreground)] hover:text-blue-500 transition-colors font-semibold"
             >
-              <Shield className="w-4 h-4 text-[var(--foreground-secondary)]" />
-              <span>服务条款</span>
-            </a>
-            <a
-              href="https://www.ucppt.com/privacy"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center space-x-2 text-sm text-[var(--foreground)] hover:text-blue-500 transition-colors"
-            >
-              <Shield className="w-4 h-4 text-[var(--foreground-secondary)]" />
-              <span>隐私政策</span>
+              <User className="w-4 h-4 text-gray-500" />
+              <span>用户中心</span>
+              <svg className="w-3 h-3 ml-auto text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
             </a>
           </div>
 
@@ -177,7 +170,7 @@ export function UserPanel() {
       >
         <div className="flex items-center space-x-3">
           {/* 首字母头像 - v7.105.2: 改为灰色与新建按钮一致 */}
-          <div className="w-8 h-8 rounded-full bg-gray-700 dark:bg-gray-600 flex items-center justify-center text-white font-bold flex-shrink-0">
+          <div className="w-8 h-8 rounded-full ucppt-icon-avatar flex-shrink-0">
             {initials}
           </div>
 
@@ -193,7 +186,7 @@ export function UserPanel() {
 
           {/* 箭头图标 */}
           <ChevronUp
-            className={`w-4 h-4 text-[var(--foreground-secondary)] transition-transform flex-shrink-0 ${
+            className={`w-4 h-4 text-gray-500 transition-transform flex-shrink-0 ${
               isMenuOpen ? 'rotate-180' : ''
             }`}
           />

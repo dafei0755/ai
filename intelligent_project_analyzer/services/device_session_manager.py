@@ -73,10 +73,10 @@ class DeviceSessionManager:
             self.redis_client = Redis.from_url(self.redis_url, encoding="utf-8", decode_responses=True)
             await self.redis_client.ping()
             self._initialized = True
-            logger.info("✅ DeviceSessionManager Redis 连接成功")
+            logger.info(" DeviceSessionManager Redis 连接成功")
             return True
         except Exception as e:
-            logger.error(f"❌ DeviceSessionManager Redis 连接失败: {e}")
+            logger.error(f" DeviceSessionManager Redis 连接失败: {e}")
             return False
 
     async def close(self):
@@ -123,11 +123,11 @@ class DeviceSessionManager:
 
                 if old_device_id == device_id:
                     # 同一设备，更新登录时间
-                    logger.info(f"🔄 用户 {user_id} 同一设备重新登录: {device_id[:8]}...")
+                    logger.info(f" 用户 {user_id} 同一设备重新登录: {device_id[:8]}...")
                     old_device_id = None  # 不算踢出
                 else:
                     # 不同设备，踢出旧设备
-                    logger.warning(f"⚠️ 用户 {user_id} 新设备登录，踢出旧设备: {old_device_id[:8]}...")
+                    logger.warning(f"️ 用户 {user_id} 新设备登录，踢出旧设备: {old_device_id[:8]}...")
 
             # 保存新设备信息
             new_data = {
@@ -138,7 +138,7 @@ class DeviceSessionManager:
 
             await self.redis_client.setex(key, self.device_ttl, json.dumps(new_data))
 
-            logger.info(f"✅ 用户 {user_id} 设备注册成功: {device_id[:8]}...")
+            logger.info(f" 用户 {user_id} 设备注册成功: {device_id[:8]}...")
 
             return {
                 "success": True,
@@ -147,7 +147,7 @@ class DeviceSessionManager:
             }
 
         except Exception as e:
-            logger.error(f"❌ 设备注册失败: {e}")
+            logger.error(f" 设备注册失败: {e}")
             return {"success": False, "kicked_device": None, "message": f"设备注册失败: {str(e)}"}
 
     async def verify_device(self, user_id: int, device_id: str) -> Dict[str, Any]:
@@ -175,7 +175,7 @@ class DeviceSessionManager:
             if not data_str:
                 # 没有设备记录，可能是旧 Token（无设备ID）
                 # 为了向后兼容，允许通过
-                logger.debug(f"⚠️ 用户 {user_id} 无设备记录（旧Token兼容模式）")
+                logger.debug(f"️ 用户 {user_id} 无设备记录（旧Token兼容模式）")
                 return {"valid": True, "reason": "legacy_token"}
 
             data = json.loads(data_str)
@@ -186,11 +186,11 @@ class DeviceSessionManager:
                 return {"valid": True, "reason": "device_match"}
             else:
                 # 设备已被踢出
-                logger.warning(f"⚠️ 用户 {user_id} 设备已被踢出: {device_id[:8]}... (当前有效: {current_device_id[:8]}...)")
+                logger.warning(f"️ 用户 {user_id} 设备已被踢出: {device_id[:8]}... (当前有效: {current_device_id[:8]}...)")
                 return {"valid": False, "reason": "device_kicked", "message": "您的账号已在其他设备登录，当前设备已被踢出"}
 
         except Exception as e:
-            logger.error(f"❌ 设备验证失败: {e}")
+            logger.error(f" 设备验证失败: {e}")
             # 验证失败时，允许通过（降级处理）
             return {"valid": True, "reason": "verification_error"}
 
@@ -211,10 +211,10 @@ class DeviceSessionManager:
 
         try:
             await self.redis_client.delete(key)
-            logger.info(f"✅ 用户 {user_id} 设备已登出")
+            logger.info(f" 用户 {user_id} 设备已登出")
             return True
         except Exception as e:
-            logger.error(f"❌ 设备登出失败: {e}")
+            logger.error(f" 设备登出失败: {e}")
             return False
 
     async def get_device_info(self, user_id: int) -> Optional[Dict[str, Any]]:
@@ -238,7 +238,7 @@ class DeviceSessionManager:
                 return json.loads(data_str)
             return None
         except Exception as e:
-            logger.error(f"❌ 获取设备信息失败: {e}")
+            logger.error(f" 获取设备信息失败: {e}")
             return None
 
 

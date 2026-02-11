@@ -23,12 +23,12 @@ except ImportError:
     logger.warning("LangChain not available, tool wrapping disabled")
     LANGCHAIN_AVAILABLE = False
 
-# 🆕 v7.64: 导入精准搜索和质量控制模块
+#  v7.64: 导入精准搜索和质量控制模块
 try:
     from .quality_control import SearchQualityControl
     from .query_builder import DeliverableQueryBuilder
 except ImportError:
-    logger.warning("⚠️ v7.64 modules not available. search_for_deliverable() will use fallback mode.")
+    logger.warning("️ v7.64 modules not available. search_for_deliverable() will use fallback mode.")
     DeliverableQueryBuilder = None
     SearchQualityControl = None
 
@@ -71,7 +71,7 @@ class RagflowKBTool:
             "rerank_id": "BAAI/bge-reranker-v2-m3",
         }
 
-        # 🆕 v7.64: 初始化精准搜索和质量控制模块
+        #  v7.64: 初始化精准搜索和质量控制模块
         self.query_builder = DeliverableQueryBuilder() if DeliverableQueryBuilder else None
         self.qc = SearchQualityControl() if SearchQualityControl else None
 
@@ -97,7 +97,7 @@ class RagflowKBTool:
             搜索结果字典
         """
         if self.is_placeholder:
-            logger.info(f"⚠️ [RAGFlow] Placeholder mode - returning mock results for: {query}")
+            logger.info(f"️ [RAGFlow] Placeholder mode - returning mock results for: {query}")
             return self._placeholder_search_response(query)
 
         try:
@@ -106,13 +106,13 @@ class RagflowKBTool:
             # 使用提供的dataset_id或默认值
             dataset_id = knowledge_base_id or self.dataset_id
             if not dataset_id:
-                logger.warning(f"⚠️ [RAGFlow] No dataset_id provided, using placeholder response")
+                logger.warning(f"️ [RAGFlow] No dataset_id provided, using placeholder response")
                 return self._placeholder_search_response(query)
 
-            logger.info(f"🔍 [RAGFlow] Starting knowledge base search")
-            logger.info(f"📝 [RAGFlow] Query: {query}")
-            logger.debug(f"📚 [RAGFlow] Dataset ID: {dataset_id}")
-            logger.debug(f"⚙️ [RAGFlow] Max results: {max_results}, Similarity threshold: {similarity_threshold}")
+            logger.info(f" [RAGFlow] Starting knowledge base search")
+            logger.info(f" [RAGFlow] Query: {query}")
+            logger.debug(f" [RAGFlow] Dataset ID: {dataset_id}")
+            logger.debug(f"️ [RAGFlow] Max results: {max_results}, Similarity threshold: {similarity_threshold}")
 
             # 构建请求参数（基于RAGFlow官方API文档）
             payload = {
@@ -131,34 +131,34 @@ class RagflowKBTool:
                 "highlight": kwargs.get("highlight", False),
             }
 
-            logger.debug(f"📦 [RAGFlow] Request payload: {json.dumps(payload, ensure_ascii=False, indent=2)}")
+            logger.debug(f" [RAGFlow] Request payload: {json.dumps(payload, ensure_ascii=False, indent=2)}")
 
             # 调用RAGFlow检索API
-            logger.debug(f"🌐 [RAGFlow] Calling RAGFlow API endpoint: /api/v1/retrieval")
+            logger.debug(f" [RAGFlow] Calling RAGFlow API endpoint: /api/v1/retrieval")
             api_start = time.time()
             response = self._make_api_request("/api/v1/retrieval", payload)
             api_time = time.time() - api_start
 
-            logger.info(f"✅ [RAGFlow] API call completed in {api_time:.2f}s")
-            logger.debug(f"📥 [RAGFlow] Response code: {response.get('code', 'unknown')}")
+            logger.info(f" [RAGFlow] API call completed in {api_time:.2f}s")
+            logger.debug(f" [RAGFlow] Response code: {response.get('code', 'unknown')}")
 
             # 处理响应
-            logger.debug(f"⚙️ [RAGFlow] Processing response...")
+            logger.debug(f"️ [RAGFlow] Processing response...")
             process_start = time.time()
             processed_response = self._process_search_response(response, time.time() - start_time, query)
             process_time = time.time() - process_start
 
-            logger.debug(f"⚙️ [RAGFlow] Response processing took {process_time:.2f}s")
+            logger.debug(f"️ [RAGFlow] Response processing took {process_time:.2f}s")
             logger.info(
-                f"✅ [RAGFlow] Search completed in {processed_response.get('execution_time', 0):.2f}s, found {processed_response.get('total_results', 0)} results"
+                f" [RAGFlow] Search completed in {processed_response.get('execution_time', 0):.2f}s, found {processed_response.get('total_results', 0)} results"
             )
 
             return processed_response
 
         except Exception as e:
-            logger.error(f"❌ [RAGFlow] Search failed: {str(e)}", exc_info=True)
-            logger.error(f"❌ [RAGFlow] Failed query: {query}")
-            logger.error(f"❌ [RAGFlow] Dataset ID: {knowledge_base_id or self.dataset_id}")
+            logger.error(f" [RAGFlow] Search failed: {str(e)}", exc_info=True)
+            logger.error(f" [RAGFlow] Failed query: {query}")
+            logger.error(f" [RAGFlow] Dataset ID: {knowledge_base_id or self.dataset_id}")
             return {"success": False, "error": str(e), "query": query, "results": [], "execution_time": 0}
 
     def get_document(self, document_id: str) -> Dict[str, Any]:
@@ -369,7 +369,7 @@ class RagflowKBTool:
         similarity_threshold: float = 0.6,
     ) -> Dict[str, Any]:
         """
-        🆕 v7.64: 针对交付物的精准知识库搜索
+         v7.64: 针对交付物的精准知识库搜索
 
         核心改进：
         1. 从交付物构建中文优化查询（内部知识库以中文为主）
@@ -390,55 +390,55 @@ class RagflowKBTool:
             start_time = time.time()
             deliverable_name = deliverable.get("name", "Unknown")
 
-            logger.info(f"🎯 [RAGFlow Deliverable] Starting KB search for deliverable: {deliverable_name}")
+            logger.info(f" [RAGFlow Deliverable] Starting KB search for deliverable: {deliverable_name}")
             logger.debug(
-                f"📋 [RAGFlow Deliverable] Deliverable details: {json.dumps(deliverable, ensure_ascii=False, indent=2)}"
+                f" [RAGFlow Deliverable] Deliverable details: {json.dumps(deliverable, ensure_ascii=False, indent=2)}"
             )
-            logger.debug(f"🏷️ [RAGFlow Deliverable] Project type: {project_type}")
+            logger.debug(f"️ [RAGFlow Deliverable] Project type: {project_type}")
             logger.debug(
-                f"⚙️ [RAGFlow Deliverable] Max results: {max_results}, QC: {enable_qc}, Threshold: {similarity_threshold}"
+                f"️ [RAGFlow Deliverable] Max results: {max_results}, QC: {enable_qc}, Threshold: {similarity_threshold}"
             )
 
             # Step 1: 构建查询（内部知识库优先使用中文原文）
-            logger.debug(f"📝 [RAGFlow Deliverable] Step 1: Building Chinese-optimized query...")
+            logger.debug(f" [RAGFlow Deliverable] Step 1: Building Chinese-optimized query...")
             if self.query_builder:
                 query_start = time.time()
                 queries = self.query_builder.build_multi_tool_queries(deliverable, project_type)
                 precise_query = queries.get("ragflow", deliverable.get("name", ""))
                 query_time = time.time() - query_start
-                logger.info(f"🔍 [RAGFlow Deliverable] Query built in {query_time:.2f}s: {precise_query}")
+                logger.info(f" [RAGFlow Deliverable] Query built in {query_time:.2f}s: {precise_query}")
             else:
                 # Fallback: 使用交付物名称+描述前50字
                 name = deliverable.get("name", "")
                 desc = deliverable.get("description", "")
                 precise_query = f"{name} {desc[:50]}" if desc else name
                 logger.warning(
-                    f"⚠️ [RAGFlow Deliverable] Query builder not available, using name+description: {precise_query}"
+                    f"️ [RAGFlow Deliverable] Query builder not available, using name+description: {precise_query}"
                 )
 
             # Step 2: 执行搜索
             search_count = max_results * 2 if enable_qc else max_results
-            logger.debug(f"🔎 [RAGFlow Deliverable] Step 2: Executing KB search (requesting {search_count} results)...")
+            logger.debug(f" [RAGFlow Deliverable] Step 2: Executing KB search (requesting {search_count} results)...")
             search_start = time.time()
             search_results = self.search_knowledge(
                 query=precise_query, max_results=search_count, similarity_threshold=similarity_threshold
             )
             search_time = time.time() - search_start
             logger.info(
-                f"✅ [RAGFlow Deliverable] KB search completed in {search_time:.2f}s, success={search_results.get('success', False)}"
+                f" [RAGFlow Deliverable] KB search completed in {search_time:.2f}s, success={search_results.get('success', False)}"
             )
 
             if not search_results.get("success", False):
                 logger.error(
-                    f"❌ [RAGFlow Deliverable] KB search failed: {search_results.get('error', 'Unknown error')}"
+                    f" [RAGFlow Deliverable] KB search failed: {search_results.get('error', 'Unknown error')}"
                 )
                 return search_results
 
             initial_count = len(search_results.get("results", []))
-            logger.debug(f"📊 [RAGFlow Deliverable] Initial KB chunks count: {initial_count}")
+            logger.debug(f" [RAGFlow Deliverable] Initial KB chunks count: {initial_count}")
 
             # Step 3: 归一化结果格式（RAGFlow结果结构）
-            logger.debug(f"🔄 [RAGFlow Deliverable] Step 3: Normalizing KB result format...")
+            logger.debug(f" [RAGFlow Deliverable] Step 3: Normalizing KB result format...")
             normalize_start = time.time()
             normalized_results = []
             for result in search_results.get("results", []):
@@ -456,12 +456,12 @@ class RagflowKBTool:
                 normalized_results.append(normalized)
             normalize_time = time.time() - normalize_start
             logger.debug(
-                f"⚙️ [RAGFlow Deliverable] Normalization took {normalize_time:.2f}s, {len(normalized_results)} results"
+                f"️ [RAGFlow Deliverable] Normalization took {normalize_time:.2f}s, {len(normalized_results)} results"
             )
 
             # Step 4: 质量控制
             if enable_qc and self.qc:
-                logger.debug(f"🔬 [RAGFlow Deliverable] Step 4: Running quality control...")
+                logger.debug(f" [RAGFlow Deliverable] Step 4: Running quality control...")
                 qc_start = time.time()
                 processed_results = self.qc.process_results(normalized_results, deliverable_context=deliverable)
                 qc_time = time.time() - qc_start
@@ -473,22 +473,22 @@ class RagflowKBTool:
                 search_results["results"] = processed_results
                 search_results["quality_controlled"] = True
                 logger.info(
-                    f"✅ [RAGFlow Deliverable] QC completed in {qc_time:.2f}s: {initial_count} → {before_limit} → {after_limit} results"
+                    f" [RAGFlow Deliverable] QC completed in {qc_time:.2f}s: {initial_count} → {before_limit} → {after_limit} results"
                 )
                 logger.debug(
-                    f"📉 [RAGFlow Deliverable] QC pipeline: initial={initial_count}, after_qc={before_limit}, after_limit={after_limit}"
+                    f" [RAGFlow Deliverable] QC pipeline: initial={initial_count}, after_qc={before_limit}, after_limit={after_limit}"
                 )
             else:
                 search_results["results"] = normalized_results[:max_results]
                 search_results["quality_controlled"] = False
-                logger.debug(f"⏭️ [RAGFlow Deliverable] Quality control skipped")
+                logger.debug(f"️ [RAGFlow Deliverable] Quality control skipped")
 
             # Step 5: 添加编号
-            logger.debug(f"🔢 [RAGFlow Deliverable] Step 5: Adding reference numbers...")
+            logger.debug(f" [RAGFlow Deliverable] Step 5: Adding reference numbers...")
             for idx, result in enumerate(search_results.get("results", []), start=1):
                 result["reference_number"] = idx
             logger.debug(
-                f"✅ [RAGFlow Deliverable] Reference numbers added (1-{len(search_results.get('results', []))})"
+                f" [RAGFlow Deliverable] Reference numbers added (1-{len(search_results.get('results', []))})"
             )
 
             end_time = time.time()
@@ -497,18 +497,18 @@ class RagflowKBTool:
             search_results["deliverable_name"] = deliverable_name
             search_results["precise_query"] = precise_query
 
-            logger.info(f"🎉 [RAGFlow Deliverable] KB search for deliverable completed in {total_time:.2f}s")
+            logger.info(f" [RAGFlow Deliverable] KB search for deliverable completed in {total_time:.2f}s")
             logger.info(
-                f"📊 [RAGFlow Deliverable] Final results: {len(search_results.get('results', []))} chunks, QC={search_results.get('quality_controlled', False)}"
+                f" [RAGFlow Deliverable] Final results: {len(search_results.get('results', []))} chunks, QC={search_results.get('quality_controlled', False)}"
             )
 
             return search_results
 
         except Exception as e:
-            logger.error(f"❌ [RAGFlow Deliverable] search_for_deliverable failed: {str(e)}", exc_info=True)
-            logger.error(f"❌ [RAGFlow Deliverable] Failed deliverable: {deliverable.get('name', 'Unknown')}")
+            logger.error(f" [RAGFlow Deliverable] search_for_deliverable failed: {str(e)}", exc_info=True)
+            logger.error(f" [RAGFlow Deliverable] Failed deliverable: {deliverable.get('name', 'Unknown')}")
             logger.error(
-                f"❌ [RAGFlow Deliverable] Full deliverable data: {json.dumps(deliverable, ensure_ascii=False)}"
+                f" [RAGFlow Deliverable] Full deliverable data: {json.dumps(deliverable, ensure_ascii=False)}"
             )
             return {
                 "success": False,

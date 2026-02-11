@@ -1,5 +1,5 @@
 """
-🆕 P2优化: 请求超时监控装饰器
+ P2优化: 请求超时监控装饰器
 
 为关键操作（LLM调用、工具执行、数据库查询）添加超时监控
 """
@@ -15,7 +15,7 @@ from .error_reporter import report_slow_query, report_timeout
 
 def monitor_timeout(operation_name: str, threshold_ms: float = 5000.0, log_args: bool = False):
     """
-    🆕 P2优化: 超时监控装饰器
+     P2优化: 超时监控装饰器
 
     用法:
         @monitor_timeout("LLM调用", threshold_ms=10000)
@@ -56,13 +56,13 @@ def monitor_timeout(operation_name: str, threshold_ms: float = 5000.0, log_args:
                         details=details,
                     )
                 else:
-                    logger.debug(f"✅ [{operation_name}] 完成: {duration_ms:.2f}ms")
+                    logger.debug(f" [{operation_name}] 完成: {duration_ms:.2f}ms")
 
                 return result
 
             except Exception as e:
                 duration_ms = (time.time() - start_time) * 1000
-                logger.error(f"❌ [{operation_name}] 失败: {e} (耗时: {duration_ms:.2f}ms)")
+                logger.error(f" [{operation_name}] 失败: {e} (耗时: {duration_ms:.2f}ms)")
                 raise
 
         @functools.wraps(func)
@@ -90,13 +90,13 @@ def monitor_timeout(operation_name: str, threshold_ms: float = 5000.0, log_args:
                         details=details,
                     )
                 else:
-                    logger.debug(f"✅ [{operation_name}] 完成: {duration_ms:.2f}ms")
+                    logger.debug(f" [{operation_name}] 完成: {duration_ms:.2f}ms")
 
                 return result
 
             except Exception as e:
                 duration_ms = (time.time() - start_time) * 1000
-                logger.error(f"❌ [{operation_name}] 失败: {e} (耗时: {duration_ms:.2f}ms)")
+                logger.error(f" [{operation_name}] 失败: {e} (耗时: {duration_ms:.2f}ms)")
                 raise
 
         # 根据函数类型返回不同的wrapper
@@ -112,7 +112,7 @@ def monitor_timeout(operation_name: str, threshold_ms: float = 5000.0, log_args:
 
 def monitor_db_query(query_type: str, threshold_ms: float = 1000.0):
     """
-    🆕 P2优化: 数据库慢查询监控装饰器
+     P2优化: 数据库慢查询监控装饰器
 
     用法:
         @monitor_db_query("Redis读取", threshold_ms=500)
@@ -154,7 +154,7 @@ def monitor_db_query(query_type: str, threshold_ms: float = 1000.0):
 
             except Exception as e:
                 duration_ms = (time.time() - start_time) * 1000
-                logger.error(f"❌ [{query_type}] 查询失败: {e} (耗时: {duration_ms:.2f}ms)")
+                logger.error(f" [{query_type}] 查询失败: {e} (耗时: {duration_ms:.2f}ms)")
                 raise
 
         @functools.wraps(func)
@@ -186,7 +186,7 @@ def monitor_db_query(query_type: str, threshold_ms: float = 1000.0):
 
             except Exception as e:
                 duration_ms = (time.time() - start_time) * 1000
-                logger.error(f"❌ [{query_type}] 查询失败: {e} (耗时: {duration_ms:.2f}ms)")
+                logger.error(f" [{query_type}] 查询失败: {e} (耗时: {duration_ms:.2f}ms)")
                 raise
 
         import asyncio

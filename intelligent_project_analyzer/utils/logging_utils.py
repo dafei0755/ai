@@ -164,14 +164,14 @@ class StructuredLogger:
 
     def search_started(self, tool: str, query: str, **params):
         """搜索开始"""
-        self.log("info", "search_started", f"🔍 [{tool}] Starting search", tool=tool, query=query, **params)
+        self.log("info", "search_started", f" [{tool}] Starting search", tool=tool, query=query, **params)
 
     def search_completed(self, tool: str, execution_time: float, result_count: int, **metrics):
         """搜索完成"""
         self.log(
             "info",
             "search_completed",
-            f"✅ [{tool}] Search completed in {execution_time:.2f}s",
+            f" [{tool}] Search completed in {execution_time:.2f}s",
             tool=tool,
             execution_time=execution_time,
             result_count=result_count,
@@ -183,7 +183,7 @@ class StructuredLogger:
         self.log(
             "error",
             "search_failed",
-            f"❌ [{tool}] Search failed: {error}",
+            f" [{tool}] Search failed: {error}",
             tool=tool,
             error=error,
             query=query,
@@ -207,7 +207,7 @@ class ConditionalLogger:
         """如果操作过慢则记录警告"""
         if execution_time > self.slow_query_threshold:
             logger.warning(
-                f"⚠️ Slow operation detected: {operation} took {execution_time:.2f}s (threshold: {self.slow_query_threshold}s)",
+                f"️ Slow operation detected: {operation} took {execution_time:.2f}s (threshold: {self.slow_query_threshold}s)",
                 **context,
             )
 
@@ -234,14 +234,14 @@ def log_function_call(sanitize_args: bool = True):
             args_repr = repr(args) if not sanitize_args else "***"
             kwargs_repr = repr(LogDataSanitizer.sanitize(kwargs)) if sanitize_args else repr(kwargs)
 
-            logger.debug(f"🔧 Calling {func_name}(args={args_repr}, kwargs={kwargs_repr})")
+            logger.debug(f" Calling {func_name}(args={args_repr}, kwargs={kwargs_repr})")
 
             try:
                 result = func(*args, **kwargs)
-                logger.debug(f"✅ {func_name} completed successfully")
+                logger.debug(f" {func_name} completed successfully")
                 return result
             except Exception as e:
-                logger.error(f"❌ {func_name} failed: {str(e)}", exc_info=True)
+                logger.error(f" {func_name} failed: {str(e)}", exc_info=True)
                 raise
 
         return wrapper

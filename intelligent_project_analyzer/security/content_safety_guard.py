@@ -57,9 +57,9 @@ class ContentSafetyGuard:
                 from .dynamic_rule_loader import get_rule_loader
 
                 self._rule_loader = get_rule_loader()
-                logger.info("✅ 动态规则加载器已启用")
+                logger.info(" 动态规则加载器已启用")
             except Exception as e:
-                logger.warning(f"⚠️ 动态规则加载器初始化失败，使用回退规则: {e}")
+                logger.warning(f"️ 动态规则加载器初始化失败，使用回退规则: {e}")
                 self.use_dynamic_rules = False
         return self._rule_loader
 
@@ -95,7 +95,7 @@ class ContentSafetyGuard:
                 api_violations = self._check_with_external_api(text)
                 violations.extend(api_violations)
             except Exception as e:
-                logger.warning(f"⚠️ 外部API检测失败: {e}")
+                logger.warning(f"️ 外部API检测失败: {e}")
 
         # 4. LLM深度检测（可选，用于语义理解）
         if len(violations) == 0 and self.llm_model:
@@ -104,7 +104,7 @@ class ContentSafetyGuard:
                 if not llm_result["is_safe"]:
                     violations.append(llm_result["violation"])
             except Exception as e:
-                logger.warning(f"⚠️ LLM安全检测失败: {e}")
+                logger.warning(f"️ LLM安全检测失败: {e}")
 
         # 5. 综合判断（改进：更宽容、更智能）
         if len(violations) == 0:
@@ -144,7 +144,7 @@ class ContentSafetyGuard:
         if high_severity > 0:
             # 但如果只有1个 high 且文本较长（超过200字），可能是学术讨论
             if high_severity == 1 and text_length > 200:
-                logger.warning(f"⚠️ 检测到1个高危词汇，但文本较长({text_length}字)，可能是学术/专业讨论，降级处理")
+                logger.warning(f"️ 检测到1个高危词汇，但文本较长({text_length}字)，可能是学术/专业讨论，降级处理")
                 return {
                     "is_safe": True,  # 改为True，允许通过
                     "risk_level": "safe",
@@ -160,7 +160,7 @@ class ContentSafetyGuard:
         if medium_severity > 0:
             # 如果只有1-2个 medium，且文本不短（超过500字），放行
             if medium_severity <= 2 and text_length > 500:
-                logger.info(f"✅ 检测到{medium_severity}个中危词汇，文本较长({text_length}字)，判定为正常使用，放行")
+                logger.info(f" 检测到{medium_severity}个中危词汇，文本较长({text_length}字)，判定为正常使用，放行")
                 return {
                     "is_safe": True,
                     "risk_level": "safe",
@@ -186,11 +186,11 @@ class ContentSafetyGuard:
         if low_severity > 0:
             # low 级别一般不拦截，除非密度过高
             if violation_density > 0.1:  # 每100字超过10个违规
-                logger.warning(f"⚠️ 低危违规密度过高({violation_density:.2f}/100字)，拒绝")
+                logger.warning(f"️ 低危违规密度过高({violation_density:.2f}/100字)，拒绝")
                 return {"is_safe": False, "risk_level": "medium", "violations": violations, "action": "reject"}
 
             # 正常情况，放行
-            logger.info(f"✅ 仅有{low_severity}个低危违规，判定为正常，放行")
+            logger.info(f" 仅有{low_severity}个低危违规，判定为正常，放行")
             return {"is_safe": True, "risk_level": "safe", "violations": [], "action": "allow"}
 
         # 默认情况（不应该到达这里）
@@ -206,7 +206,7 @@ class ContentSafetyGuard:
             try:
                 keywords_config = self.rule_loader.get_keywords()
             except Exception as e:
-                logger.warning(f"⚠️ 获取动态关键词失败，使用回退规则: {e}")
+                logger.warning(f"️ 获取动态关键词失败，使用回退规则: {e}")
                 keywords_config = self.FALLBACK_KEYWORDS
         else:
             keywords_config = self.FALLBACK_KEYWORDS
@@ -235,7 +235,7 @@ class ContentSafetyGuard:
         """正则模式检测（隐私信息和变形规避）"""
         # 两类正则都关闭时直接跳过
         if not self.enable_privacy_check and not self.enable_evasion_check:
-            logger.debug("⏭️ 正则检测已禁用（隐私/规避均关闭），跳过")
+            logger.debug("️ 正则检测已禁用（隐私/规避均关闭），跳过")
             return []
 
         try:
@@ -253,7 +253,7 @@ class ContentSafetyGuard:
             return violations
 
         except Exception as e:
-            logger.warning(f"⚠️ 增强正则检测失败，回退到基础检测: {e}")
+            logger.warning(f"️ 增强正则检测失败，回退到基础检测: {e}")
             # 回退到基础检测（仅覆盖手机号/身份证）
             return self._check_patterns_basic(text) if self.enable_privacy_check else []
 
@@ -307,7 +307,7 @@ class ContentSafetyGuard:
             return result.get("violations", [])
 
         except Exception as e:
-            logger.warning(f"⚠️ 外部API检测失败: {e}")
+            logger.warning(f"️ 外部API检测失败: {e}")
             return []
 
     def _llm_safety_check(self, text: str) -> Dict:
@@ -335,5 +335,5 @@ class ContentSafetyGuard:
             return {"is_safe": False, "violation": violation}
 
         except Exception as e:
-            logger.error(f"❌ LLM安全检测异常: {e}")
+            logger.error(f" LLM安全检测异常: {e}")
             return {"is_safe": True}  # 出错时假定安全，避免误拦截

@@ -40,7 +40,7 @@ class FollowupHistoryManager:
             session_manager: Redis会话管理器实例
         """
         self.session_manager = session_manager
-        logger.info("✅ FollowupHistoryManager 已初始化")
+        logger.info(" FollowupHistoryManager 已初始化")
 
     async def add_turn(
         self,
@@ -84,12 +84,12 @@ class FollowupHistoryManager:
         # 限制存储长度（只保留最近N轮）
         if len(history) > self.MAX_STORED_TURNS:
             history = history[-self.MAX_STORED_TURNS:]
-            logger.warning(f"⚠️ 追问历史超过{self.MAX_STORED_TURNS}轮，已截断")
+            logger.warning(f"️ 追问历史超过{self.MAX_STORED_TURNS}轮，已截断")
 
         # 保存到Redis
         await self._save_history(session_id, history)
 
-        logger.info(f"✅ 添加追问轮次 #{turn_data['turn_id']}: {question[:50]}...")
+        logger.info(f" 添加追问轮次 #{turn_data['turn_id']}: {question[:50]}...")
         return turn_data
 
     async def get_history(
@@ -119,7 +119,7 @@ class FollowupHistoryManager:
                 )
                 history = json.loads(data) if data else []
             except Exception as e:
-                logger.error(f"❌ 获取追问历史失败: {e}")
+                logger.error(f" 获取追问历史失败: {e}")
                 history = []
 
         # 限制返回数量
@@ -152,7 +152,7 @@ class FollowupHistoryManager:
                     json.dumps(history, ensure_ascii=False)
                 )
             except Exception as e:
-                logger.error(f"❌ 保存追问历史失败: {e}")
+                logger.error(f" 保存追问历史失败: {e}")
 
     def _estimate_tokens(self, text: str) -> int:
         """
@@ -207,7 +207,7 @@ class FollowupHistoryManager:
         )
 
         if available_for_history < 0:
-            logger.warning(f"⚠️ 报告过长({report_tokens} tokens)，历史空间不足")
+            logger.warning(f"️ 报告过长({report_tokens} tokens)，历史空间不足")
             available_for_history = 500  # 最少保留500 tokens给历史
 
         # 3. 选择历史处理策略
@@ -246,7 +246,7 @@ class FollowupHistoryManager:
             "mode": "memory_all" if enable_memory_all else "recent_only"
         }
 
-        logger.info(f"📊 上下文构建: {metadata}")
+        logger.info(f" 上下文构建: {metadata}")
 
         return {
             "context_str": context_str,
@@ -272,7 +272,7 @@ class FollowupHistoryManager:
         current_tokens = 0
 
         for turn in reversed(history):
-            # 🔥 v7.108: 添加图片引用（如果有）
+            #  v7.108: 添加图片引用（如果有）
             turn_text = f"第{turn['turn_id']}轮：\nQ: {turn['question']}\n"
 
             # 处理附件（图片）
@@ -330,7 +330,7 @@ class FollowupHistoryManager:
         recent_tokens = 0
 
         for turn in recent_turns:
-            # 🔥 v7.108: 添加图片引用（如果有）
+            #  v7.108: 添加图片引用（如果有）
             turn_text = f"第{turn['turn_id']}轮：\nQ: {turn['question']}\n"
 
             # 处理附件（图片）
@@ -396,4 +396,4 @@ class FollowupHistoryManager:
             session_id: 会话ID
         """
         await self._save_history(session_id, [])
-        logger.info(f"🗑️ 已清空会话 {session_id} 的追问历史")
+        logger.info(f"️ 已清空会话 {session_id} 的追问历史")

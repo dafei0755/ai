@@ -11,6 +11,11 @@ export type WebSocketMessage =
   | { type: 'node_update'; current_node: string; node_name?: string; detail: string; timestamp: string }  // ✅ 统一使用 current_node，保留 node_name 用于向后兼容
   | { type: 'interrupt'; status: string; interrupt_data: any }
   | { type: 'followup_answer'; turn_id: number; question: string; answer: string; intent: string; referenced_sections: string[]; timestamp: string }  // 🔥 v3.11 新增：追问回答推送
+  | { type: 'tool_permissions_initialized'; tool_settings: any }  // 🆕 v7.129: 工具权限初始化
+  | { type: 'problem_solving_approach_ready'; data: any }  // 🆕 v7.270: 解题思路就绪
+  | { type: 'step1_complete'; data: any }  // 🆕 v7.270: 第一步完成
+  | { type: 'step2_start'; data: any }  // 🆕 v7.270: 第二步开始
+  | { type: 'step2_complete'; data: any }  // 🆕 v7.270: 第二步完成
   | { type: 'ping' }
   | { type: 'pong' };
 

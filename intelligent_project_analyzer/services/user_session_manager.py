@@ -87,7 +87,7 @@ class UserSessionManager:
         """连接 Redis"""
         self._session_manager = RedisSessionManager()
         await self._session_manager.connect()
-        logger.info("✅ 用户会话隔离管理器已连接")
+        logger.info(" 用户会话隔离管理器已连接")
     
     async def disconnect(self):
         """断开连接"""
@@ -121,7 +121,7 @@ class UserSessionManager:
         # 检查用户并发限制
         active_count = await self._get_user_active_count(user_id)
         if active_count >= self.MAX_CONCURRENT_PER_USER:
-            logger.warning(f"⚠️ 用户 {user_id} 已达并发上限 ({active_count}/{self.MAX_CONCURRENT_PER_USER})")
+            logger.warning(f"️ 用户 {user_id} 已达并发上限 ({active_count}/{self.MAX_CONCURRENT_PER_USER})")
             # 不阻止，只警告
         
         # 创建会话
@@ -143,7 +143,7 @@ class UserSessionManager:
         # 初始化进度
         await self.update_progress(user_id, session_id, status="initializing", progress=0.0)
         
-        logger.info(f"✅ 用户 {user_id} 创建会话: {session_id}")
+        logger.info(f" 用户 {user_id} 创建会话: {session_id}")
         return session_id
     
     async def get_user_sessions(self, user_id: str, limit: int = 10) -> List[Dict[str, Any]]:

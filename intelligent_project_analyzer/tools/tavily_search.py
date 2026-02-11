@@ -5,6 +5,7 @@ Tavily搜索工具
 """
 
 import json
+import os
 import time
 from typing import Any, Dict, List, Optional, Union
 
@@ -17,6 +18,7 @@ except ImportError:
     TavilyClient = None
 
 from ..core.types import ToolConfig
+from ..settings import settings
 
 # LangChain Tool integration
 try:
@@ -28,14 +30,21 @@ except ImportError:
     logger.warning("LangChain not available, tool wrapping disabled")
     LANGCHAIN_AVAILABLE = False
 
-# 🆕 v7.64: 导入精准搜索和质量控制模块
+#  v7.64: 导入精准搜索和质量控制模块
 try:
     from .quality_control import SearchQualityControl
     from .query_builder import DeliverableQueryBuilder
 except ImportError:
-    logger.warning("⚠️ v7.64 modules not available. search_for_deliverable() will use fallback mode.")
+    logger.warning("️ v7.64 modules not available. search_for_deliverable() will use fallback mode.")
     DeliverableQueryBuilder = None
     SearchQualityControl = None
+
+#  v7.164: 导入搜索结果ID生成器
+try:
+    from ..utils.search_id_generator import add_ids_to_search_results
+except ImportError:
+    logger.warning("️ v7.164 search_id_generator not available")
+    add_ids_to_search_results = None
 
 
 class TavilySearchTool:
@@ -66,7 +75,7 @@ class TavilySearchTool:
             "include_images": False,
         }
 
-        # 🆕 v7.64: 初始化精准搜索和质量控制模块
+        #  v7.64: 初始化精准搜索和质量控制模块
         self.query_builder = DeliverableQueryBuilder() if DeliverableQueryBuilder else None
         self.qc = SearchQualityControl() if SearchQualityControl else None
 
@@ -109,40 +118,40 @@ class TavilySearchTool:
                 **kwargs,
             }
 
-            logger.info(f"🔍 [Tavily] Starting search")
-            logger.info(f"📝 [Tavily] Query: {query}")
-            logger.debug(f"⚙️ [Tavily] Search params: {json.dumps(search_params, ensure_ascii=False, indent=2)}")
+            logger.info(f" [Tavily] Starting search")
+            logger.info(f" [Tavily] Query: {query}")
+            logger.debug(f"️ [Tavily] Search params: {json.dumps(search_params, ensure_ascii=False, indent=2)}")
 
             # 执行搜索
-            logger.debug(f"🌐 [Tavily] Calling Tavily API...")
+            logger.debug(f" [Tavily] Calling Tavily API...")
             api_start = time.time()
             response = self.client.search(**search_params)
             api_time = time.time() - api_start
 
-            logger.info(f"✅ [Tavily] API call completed in {api_time:.2f}s")
-            logger.debug(f"📥 [Tavily] Raw response keys: {list(response.keys())}")
+            logger.info(f" [Tavily] API call completed in {api_time:.2f}s")
+            logger.debug(f" [Tavily] Raw response keys: {list(response.keys())}")
             logger.debug(
-                f"📊 [Tavily] Response summary: {len(response.get('results', []))} results, has_answer={bool(response.get('answer'))}"
+                f" [Tavily] Response summary: {len(response.get('results', []))} results, has_answer={bool(response.get('answer'))}"
             )
 
             # 处理响应
-            logger.debug(f"⚙️ [Tavily] Processing response...")
+            logger.debug(f"️ [Tavily] Processing response...")
             process_start = time.time()
             processed_response = self._process_search_response(response, time.time() - start_time)
             process_time = time.time() - process_start
 
-            logger.debug(f"⚙️ [Tavily] Response processing took {process_time:.2f}s")
+            logger.debug(f"️ [Tavily] Response processing took {process_time:.2f}s")
             logger.info(
-                f"✅ [Tavily] Search completed in {processed_response['execution_time']:.2f}s, found {len(processed_response.get('results', []))} results"
+                f" [Tavily] Search completed in {processed_response['execution_time']:.2f}s, found {len(processed_response.get('results', []))} results"
             )
 
             return processed_response
 
         except Exception as e:
-            logger.error(f"❌ [Tavily] Search failed: {str(e)}", exc_info=True)
-            logger.error(f"❌ [Tavily] Failed query: {query}")
+            logger.error(f" [Tavily] Search failed: {str(e)}", exc_info=True)
+            logger.error(f" [Tavily] Failed query: {query}")
             logger.error(
-                f"❌ [Tavily] Failed params: {json.dumps(search_params if 'search_params' in locals() else {}, ensure_ascii=False)}"
+                f" [Tavily] Failed params: {json.dumps(search_params if 'search_params' in locals() else {}, ensure_ascii=False)}"
             )
             return {"success": False, "error": str(e), "query": query, "results": [], "execution_time": 0}
 
@@ -246,6 +255,10 @@ class TavilySearchTool:
             }
             processed["results"].append(processed_result)
 
+        #  v7.164: 为搜索结果添加唯一ID
+        if add_ids_to_search_results and processed["results"]:
+            processed["results"] = add_ids_to_search_results(processed["results"], source_tool="tavily")
+
         return processed
 
     def search_for_agent(self, query: str, agent_context: str = "", max_results: int = 5) -> Dict[str, Any]:
@@ -308,7 +321,7 @@ class TavilySearchTool:
         similarity_threshold: float = 0.6,
     ) -> Dict[str, Any]:
         """
-        🆕 v7.64: 针对交付物的精准搜索
+         v7.64: 针对交付物的精准搜索
 
         核心改进：
         1. 从交付物的name + description提取关键词构建精准查询
@@ -338,49 +351,49 @@ class TavilySearchTool:
             start_time = time.time()
             deliverable_name = deliverable.get("name", "Unknown")
 
-            logger.info(f"🎯 [Tavily Deliverable] Starting search for deliverable: {deliverable_name}")
+            logger.info(f" [Tavily Deliverable] Starting search for deliverable: {deliverable_name}")
             logger.debug(
-                f"📋 [Tavily Deliverable] Deliverable details: {json.dumps(deliverable, ensure_ascii=False, indent=2)}"
+                f" [Tavily Deliverable] Deliverable details: {json.dumps(deliverable, ensure_ascii=False, indent=2)}"
             )
-            logger.debug(f"🏷️ [Tavily Deliverable] Project type: {project_type}")
-            logger.debug(f"⚙️ [Tavily Deliverable] Max results: {max_results}, QC enabled: {enable_qc}")
+            logger.debug(f"️ [Tavily Deliverable] Project type: {project_type}")
+            logger.debug(f"️ [Tavily Deliverable] Max results: {max_results}, QC enabled: {enable_qc}")
 
             # Step 1: 构建精准查询
-            logger.debug(f"📝 [Tavily Deliverable] Step 1: Building precise query...")
+            logger.debug(f" [Tavily Deliverable] Step 1: Building precise query...")
             if self.query_builder:
                 query_start = time.time()
                 precise_query = self.query_builder.build_query(deliverable, project_type)
                 query_time = time.time() - query_start
-                logger.info(f"🔍 [Tavily Deliverable] Precise query built in {query_time:.2f}s: {precise_query}")
+                logger.info(f" [Tavily Deliverable] Precise query built in {query_time:.2f}s: {precise_query}")
             else:
                 # Fallback: 使用交付物名称
                 precise_query = deliverable.get("name", "")
                 logger.warning(
-                    f"⚠️ [Tavily Deliverable] Query builder not available, using deliverable name: {precise_query}"
+                    f"️ [Tavily Deliverable] Query builder not available, using deliverable name: {precise_query}"
                 )
 
             # Step 2: 执行搜索（获取2倍结果用于质量过滤）
             search_count = max_results * 2 if enable_qc else max_results
-            logger.debug(f"🔎 [Tavily Deliverable] Step 2: Executing search (requesting {search_count} results)...")
+            logger.debug(f" [Tavily Deliverable] Step 2: Executing search (requesting {search_count} results)...")
             search_start = time.time()
             search_results = self.search(
                 query=precise_query, max_results=search_count, search_depth="advanced", include_answer=True
             )
             search_time = time.time() - search_start
             logger.info(
-                f"✅ [Tavily Deliverable] Search completed in {search_time:.2f}s, success={search_results.get('success', False)}"
+                f" [Tavily Deliverable] Search completed in {search_time:.2f}s, success={search_results.get('success', False)}"
             )
 
             if not search_results.get("success", False):
-                logger.error(f"❌ [Tavily Deliverable] Search failed: {search_results.get('error', 'Unknown error')}")
+                logger.error(f" [Tavily Deliverable] Search failed: {search_results.get('error', 'Unknown error')}")
                 return search_results
 
             initial_count = len(search_results.get("results", []))
-            logger.debug(f"📊 [Tavily Deliverable] Initial results count: {initial_count}")
+            logger.debug(f" [Tavily Deliverable] Initial results count: {initial_count}")
 
             # Step 3: 质量控制
             if enable_qc and self.qc:
-                logger.debug(f"🔬 [Tavily Deliverable] Step 3: Running quality control...")
+                logger.debug(f" [Tavily Deliverable] Step 3: Running quality control...")
                 qc_start = time.time()
                 processed_results = self.qc.process_results(
                     search_results.get("results", []), deliverable_context=deliverable
@@ -395,22 +408,22 @@ class TavilySearchTool:
                 search_results["results"] = processed_results
                 search_results["quality_controlled"] = True
                 logger.info(
-                    f"✅ [Tavily Deliverable] QC completed in {qc_time:.2f}s: {initial_count} → {before_limit} → {after_limit} results"
+                    f" [Tavily Deliverable] QC completed in {qc_time:.2f}s: {initial_count} → {before_limit} → {after_limit} results"
                 )
                 logger.debug(
-                    f"📉 [Tavily Deliverable] QC pipeline: initial={initial_count}, after_qc={before_limit}, after_limit={after_limit}"
+                    f" [Tavily Deliverable] QC pipeline: initial={initial_count}, after_qc={before_limit}, after_limit={after_limit}"
                 )
             else:
                 search_results["quality_controlled"] = False
                 logger.debug(
-                    f"⏭️ [Tavily Deliverable] Quality control skipped (enable_qc={enable_qc}, qc_available={self.qc is not None})"
+                    f"️ [Tavily Deliverable] Quality control skipped (enable_qc={enable_qc}, qc_available={self.qc is not None})"
                 )
 
             # Step 4: 添加编号（按质量分数排序）
-            logger.debug(f"🔢 [Tavily Deliverable] Step 4: Adding reference numbers...")
+            logger.debug(f" [Tavily Deliverable] Step 4: Adding reference numbers...")
             for idx, result in enumerate(search_results.get("results", []), start=1):
                 result["reference_number"] = idx
-            logger.debug(f"✅ [Tavily Deliverable] Reference numbers added (1-{len(search_results.get('results', []))})")
+            logger.debug(f" [Tavily Deliverable] Reference numbers added (1-{len(search_results.get('results', []))})")
 
             end_time = time.time()
             total_time = end_time - start_time
@@ -418,17 +431,17 @@ class TavilySearchTool:
             search_results["deliverable_name"] = deliverable_name
             search_results["precise_query"] = precise_query
 
-            logger.info(f"🎉 [Tavily Deliverable] Search for deliverable completed in {total_time:.2f}s")
+            logger.info(f" [Tavily Deliverable] Search for deliverable completed in {total_time:.2f}s")
             logger.info(
-                f"📊 [Tavily Deliverable] Final results: {len(search_results.get('results', []))} items, QC={search_results.get('quality_controlled', False)}"
+                f" [Tavily Deliverable] Final results: {len(search_results.get('results', []))} items, QC={search_results.get('quality_controlled', False)}"
             )
 
             return search_results
 
         except Exception as e:
-            logger.error(f"❌ [Tavily Deliverable] search_for_deliverable failed: {str(e)}", exc_info=True)
-            logger.error(f"❌ [Tavily Deliverable] Failed deliverable: {deliverable.get('name', 'Unknown')}")
-            logger.error(f"❌ [Tavily Deliverable] Full deliverable data: {json.dumps(deliverable, ensure_ascii=False)}")
+            logger.error(f" [Tavily Deliverable] search_for_deliverable failed: {str(e)}", exc_info=True)
+            logger.error(f" [Tavily Deliverable] Failed deliverable: {deliverable.get('name', 'Unknown')}")
+            logger.error(f" [Tavily Deliverable] Full deliverable data: {json.dumps(deliverable, ensure_ascii=False)}")
             return {
                 "success": False,
                 "error": str(e),
@@ -489,29 +502,60 @@ class TavilySearchTool:
 
             return output
 
-        # 🆕 v7.65: 根据role_type提供简化版/完整版描述
+        #  v7.65: 根据role_type提供简化版/完整版描述
         role_type = getattr(self, "_current_role_type", None)
 
         if role_type in ["V4", "V6"]:  # 研究型角色使用完整描述
-            description = """Tavily实时网络搜索 - 获取最新行业信息、设计案例、技术趋势
+            description = """Tavily全球网络搜索 - 多语言全球覆盖，打破语言壁垒
 
-适用场景:
-- 需要2023年后的最新设计趋势、案例
-- 国际化项目需要海外案例参考
-- 商业空间、零售、餐饮等行业最新动态
-- 新兴技术在设计领域的应用
+ 核心能力:
+- **全球网站无障碍访问**：欧美、亚洲、各大洲所有主流网站
+- **多语言智能理解**：支持中文查询，自动匹配全球英文/多语言结果
+- **语言壁垒打破**：中文查询 → 全球英文网站 → 智能匹配
+- **国际内容深度**：设计案例、技术趋势、市场数据
 
-不适用场景:
-- 学术论文查询（使用arxiv）
-- 纯中文本土案例（使用bocha）
-- 内部组织知识（使用ragflow）
+ 优先使用场景（中英文均可）:
+- **任何需要全球视野的查询**：无论中文还是英文
+- **国际设计案例**："日本极简餐厅设计" / "Japanese minimalist restaurant"
+- **海外技术趋势**："可持续零售设计2024" / "sustainable retail 2024"
+- **全球市场分析**："北欧商业空间照明" / "Scandinavian commercial lighting"
+- **最新国际信息**：2023年后的全球设计动态
 
-查询示例: "2024 commercial space design trends sustainable"""
+️ 仅在以下情况使用博查:
+- 明确只需要国内网站内容（如国内政策文件、地方性报告）
+- 仅需中文本土品牌案例（如"国内某某品牌店铺"）
+
+查询示例:
+- "可持续商业空间设计趋势" → Tavily查全球
+- "日本餐饮空间设计案例" → Tavily查全球
+- "Scandinavian retail design 2024" → Tavily查全球"""
         else:  # 其他角色使用简化描述
-            description = "Tavily实时网络搜索 - 提供最新行业信息、国际设计案例、技术趋势（适合需要2023+数据的场景）"
+            description = "Tavily全球网络搜索 - 多语言全球覆盖，中英文查询均可访问全球网站（优先使用Tavily获取国际视野）"
 
         tool = StructuredTool(
             name=self.name, description=description, func=tavily_search_func, args_schema=TavilySearchInput
         )
 
         return tool
+
+
+# ----------------------------------------------------------------------------
+# 简化接口：兼容旧版直接函数调用 tavily_search("关键词")
+# ----------------------------------------------------------------------------
+_DEFAULT_CLIENT: Optional[TavilySearchTool] = None
+
+
+def tavily_search(query: str, max_results: int = 5, **kwargs) -> Dict[str, Any]:
+    """兼容旧版的 Tavily 搜索函数接口."""
+
+    global _DEFAULT_CLIENT
+
+    api_key = kwargs.pop("api_key", None) or settings.tavily.api_key or os.getenv("TAVILY_API_KEY", "")
+    if not api_key:
+        logger.warning("️ Tavily API Key 未配置，使用测试占位符以便单元测试运行")
+        api_key = "test-key"
+
+    if _DEFAULT_CLIENT is None or _DEFAULT_CLIENT.api_key != api_key:
+        _DEFAULT_CLIENT = TavilySearchTool(api_key=api_key)
+
+    return _DEFAULT_CLIENT.search(query=query, max_results=max_results, **kwargs)

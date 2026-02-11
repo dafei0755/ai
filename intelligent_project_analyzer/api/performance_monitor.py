@@ -45,14 +45,14 @@ class PerformanceMonitor:
 
             # 慢请求警告
             if duration > self.slow_request_threshold:
-                logger.warning(f"🐌 慢请求检测: {method} {path} 耗时 {duration:.2f}秒")
+                logger.warning(f" 慢请求检测: {method} {path} 耗时 {duration:.2f}秒")
 
             # 写入持久化日志
             self._write_metric(path, method, duration, status_code)
 
     def _write_metric(self, path: str, method: str, duration: float, status_code: int):
         """写入性能指标到文件"""
-        # 🔥 v7.105: 添加文件锁定保护，避免Permission denied错误
+        #  v7.105: 添加文件锁定保护，避免Permission denied错误
         try:
             metric = {
                 "timestamp": datetime.now().isoformat(),
@@ -72,7 +72,7 @@ class PerformanceMonitor:
                     self._write_error_count = 0
                 self._write_error_count += 1
                 if self._write_error_count % 10 == 1:
-                    logger.debug(f"⚠️ 性能指标写入跳过 (文件被占用，已跳过{self._write_error_count}次)")
+                    logger.debug(f"️ 性能指标写入跳过 (文件被占用，已跳过{self._write_error_count}次)")
         except Exception as e:
             # 其他异常也不影响主流程
             pass
@@ -225,17 +225,17 @@ async def performance_monitoring_middleware(request: Request, call_next: Callabl
 
         # 正常请求记录（INFO 级别）
         if duration < 0.5:
-            logger.info(f"⚡ {request.method} {request.url.path} - {response.status_code} - {duration:.3f}s")
+            logger.info(f" {request.method} {request.url.path} - {response.status_code} - {duration:.3f}s")
         elif duration < 1.0:
-            logger.info(f"🔶 {request.method} {request.url.path} - {response.status_code} - {duration:.3f}s")
+            logger.info(f" {request.method} {request.url.path} - {response.status_code} - {duration:.3f}s")
         else:
-            logger.warning(f"🐌 {request.method} {request.url.path} - {response.status_code} - {duration:.3f}s")
+            logger.warning(f" {request.method} {request.url.path} - {response.status_code} - {duration:.3f}s")
 
         return response
 
     except Exception as e:
         duration = time.time() - start_time
-        logger.error(f"❌ {request.method} {request.url.path} - ERROR - {duration:.3f}s - {str(e)}")
+        logger.error(f" {request.method} {request.url.path} - ERROR - {duration:.3f}s - {str(e)}")
 
         # 记录失败请求
         performance_monitor.record_request(
@@ -269,12 +269,12 @@ class LLMPerformanceTracker:
 
             # 记录慢 LLM 调用
             if duration > 5.0:
-                logger.warning(f"🐌 LLM 慢调用: {model} - {operation} - {duration:.2f}秒")
+                logger.warning(f" LLM 慢调用: {model} - {operation} - {duration:.2f}秒")
             else:
-                logger.debug(f"🤖 LLM 调用: {model} - {operation} - {duration:.2f}秒 - {tokens} tokens")
+                logger.debug(f" LLM 调用: {model} - {operation} - {duration:.2f}秒 - {tokens} tokens")
 
         except Exception as e:
-            logger.error(f"❌ 记录 LLM 性能失败: {e}")
+            logger.error(f" 记录 LLM 性能失败: {e}")
 
 
 # 全局 LLM 性能追踪器

@@ -113,38 +113,48 @@ class TokenBucket:
             
         Returns:
             是否成功获取令牌
-        """
-        deadline = time.monotonic() + timeout
         
-        while True:
-            with self._lock:
-                self._refill()
-                if self.tokens >= 1:
-                    self.tokens -= 1
-                    return True
-            
-            # 检查超时
-            if time.monotonic() >= deadline:
-                return False
-            
-            # 等待一小段时间再重试
-            time.sleep(0.1)
+         v7.501: 使用智能等待（可监控）
+        """
+        # 使用智能等待条件
+        from ..utils.async_helpers import wait_for_condition_sync
+        
+        try:
+            return wait_for_condition_sync(
+                condition_fn=lambda: self._try_acquire_internal(),
+                timeout=timeout,
+                poll_interval=0.05,  # 50ms轮询（比原100ms更快）
+                error_message="令牌获取超时"
+            )
+        except TimeoutError:
+            return False
+    
+    def _try_acquire_internal(self) -> bool:
+        """内部令牌获取尝试（无等待）"""
+        with self._lock:
+            self._refill()
+            if self.tokens >= 1:
+                self.tokens -= 1
+                return True
+            return False
     
     async def acquire_async(self, timeout: float = 30.0) -> bool:
-        """异步获取令牌"""
-        deadline = time.monotonic() + timeout
+        """
+        异步获取令牌
         
-        while True:
-            with self._lock:
-                self._refill()
-                if self.tokens >= 1:
-                    self.tokens -= 1
-                    return True
-            
-            if time.monotonic() >= deadline:
-                return False
-            
-            await asyncio.sleep(0.1)
+         v7.501: 使用智能等待（可监控）
+        """
+        from ..utils.async_helpers import wait_for_condition
+        
+        try:
+            return await wait_for_condition(
+                condition_fn=lambda: self._try_acquire_internal(),
+                timeout=timeout,
+                poll_interval=0.05,  # 50ms轮询（比原100ms更快）
+                error_message="令牌获取超时（异步）"
+            )
+        except TimeoutError:
+            return False
     
     @property
     def available_tokens(self) -> float:
@@ -292,7 +302,7 @@ class LLMRateLimiter:
         self._lock = threading.Lock()
         
         logger.info(
-            f"🚦 LLM 限流器初始化: provider={provider}, "
+            f" LLM 限流器初始化: provider={provider}, "
             f"rate={self.config.tokens_per_second}/s, "
             f"concurrent={self.config.max_concurrent}, "
             f"window={self.config.max_requests_per_window}/{self.config.window_size}s"
@@ -307,13 +317,13 @@ class LLMRateLimiter:
         """
         # 1. 检查滑动窗口
         if not self.sliding_window.allow():
-            logger.warning(f"⚠️ [{self.provider}] 滑动窗口限流: {self.sliding_window.current_count}/{self.config.max_requests_per_window}")
+            logger.warning(f"️ [{self.provider}] 滑动窗口限流: {self.sliding_window.current_count}/{self.config.max_requests_per_window}")
             self._record_rejection()
             return False
         
         # 2. 获取令牌
         if not await self.token_bucket.acquire_async(timeout=self.config.acquire_timeout):
-            logger.warning(f"⚠️ [{self.provider}] 令牌桶限流")
+            logger.warning(f"️ [{self.provider}] 令牌桶限流")
             self._record_rejection()
             return False
         
@@ -336,19 +346,19 @@ class LLMRateLimiter:
         """
         # 1. 检查滑动窗口
         if not self.sliding_window.allow():
-            logger.warning(f"⚠️ [{self.provider}] 滑动窗口限流")
+            logger.warning(f"️ [{self.provider}] 滑动窗口限流")
             self._record_rejection()
             return False
         
         # 2. 获取令牌
         if not self.token_bucket.acquire(timeout=self.config.acquire_timeout):
-            logger.warning(f"⚠️ [{self.provider}] 令牌桶限流")
+            logger.warning(f"️ [{self.provider}] 令牌桶限流")
             self._record_rejection()
             return False
         
         # 3. 获取并发许可
         if not self.concurrency_limiter.acquire_sync(timeout=self.config.acquire_timeout):
-            logger.warning(f"⚠️ [{self.provider}] 并发限流")
+            logger.warning(f"️ [{self.provider}] 并发限流")
             self._record_rejection()
             return False
         
@@ -410,7 +420,7 @@ class GlobalRateLimitManager:
         self._user_limiters: Dict[str, Dict[str, LLMRateLimiter]] = {}
         self._initialized = True
         
-        logger.info("🚦 全局限流管理器已初始化")
+        logger.info(" 全局限流管理器已初始化")
     
     def get_limiter(self, provider: str = "openai", user_id: Optional[str] = None) -> LLMRateLimiter:
         """

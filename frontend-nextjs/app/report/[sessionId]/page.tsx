@@ -26,6 +26,7 @@ import {
 } from '@/components/report';
 import RequirementsAnalysisSection from '@/components/report/RequirementsAnalysisSection';
 import ChallengeDetectionCard from '@/components/report/ChallengeDetectionCard';
+import { SearchReferencesDisplay } from '@/components/report/SearchReferencesDisplay';
 
 const DEFAULT_FOLLOWUP_QUESTIONS = [
   '能否进一步分析关键技术的实现难点？',
@@ -40,6 +41,7 @@ interface ReportState {
   createdAt?: string;
   userInput?: string;  // 用户原始输入
   structuredReport?: StructuredReport | null;
+  analysisMode?: 'normal' | 'deep_thinking';  // 🆕 分析模式
 }
 
 // 🔥 v7.109: 使用全局类型定义（从 @/types 导入）
@@ -202,6 +204,7 @@ export default function ReportPage() {
           createdAt: result.created_at,
           userInput: result.user_input,  // 保存用户原始输入
           structuredReport: result.structured_report,
+          analysisMode: result.analysis_mode,  // 🆕 保存分析模式
         });
         setFetchStatus('success');
       } catch (err: any) {
@@ -400,7 +403,7 @@ export default function ReportPage() {
     const styles = `
       <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { 
+        body {
           font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans SC", sans-serif;
           line-height: 1.8;
           color: #333;
@@ -456,7 +459,7 @@ export default function ReportPage() {
             font-size: 10px;
             color: #666;
           }
-          @page { 
+          @page {
             margin: 20mm 15mm 15mm 15mm;
             size: A4;
           }
@@ -488,7 +491,7 @@ export default function ReportPage() {
     // 执行摘要
     if (sr.executive_summary) {
       let summaryHTML = '<div class="section"><h2>执行摘要</h2>';
-      
+
       if (sr.executive_summary.project_overview) {
         summaryHTML += `<h3>项目概述</h3><p>${sr.executive_summary.project_overview}</p>`;
       }
@@ -513,7 +516,7 @@ export default function ReportPage() {
         });
         summaryHTML += '</ul>';
       }
-      
+
       summaryHTML += '</div><div class="divider"></div>';
       sections.push(summaryHTML);
     }
@@ -535,7 +538,7 @@ export default function ReportPage() {
     if (sr.comprehensive_analysis) {
       let caHTML = '<div class="section"><h2>综合分析</h2>';
       const ca = sr.comprehensive_analysis;
-      
+
       if (ca.cross_domain_insights?.length) {
         caHTML += '<h3>跨领域洞察</h3><ul>';
         ca.cross_domain_insights.forEach(item => { caHTML += `<li>${item}</li>`; });
@@ -556,7 +559,7 @@ export default function ReportPage() {
         ca.implementation_roadmap.forEach(item => { caHTML += `<li>${item}</li>`; });
         caHTML += '</ul>';
       }
-      
+
       caHTML += '</div><div class="divider"></div>';
       sections.push(caHTML);
     }
@@ -564,7 +567,7 @@ export default function ReportPage() {
     // 结论与建议
     if (sr.conclusions) {
       let concHTML = '<div class="section"><h2>结论与建议</h2>';
-      
+
       if (sr.conclusions.project_analysis_summary) {
         concHTML += `<h3>分析总结</h3><p>${sr.conclusions.project_analysis_summary}</p>`;
       }
@@ -578,7 +581,7 @@ export default function ReportPage() {
         sr.conclusions.success_metrics.forEach(item => { concHTML += `<li>${item}</li>`; });
         concHTML += '</ul>';
       }
-      
+
       concHTML += '</div>';
       sections.push(concHTML);
     }
@@ -599,14 +602,14 @@ export default function ReportPage() {
     try {
       // 调用后端 API 下载 PDF
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/analysis/report/${sessionId}/download-pdf`);
-      
+
       if (!response.ok) {
         throw new Error('下载失败');
       }
-      
+
       // 获取 PDF 数据
       const blob = await response.blob();
-      
+
       // 创建下载链接
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -614,7 +617,7 @@ export default function ReportPage() {
       a.download = `项目分析报告_${sessionId}.pdf`;
       document.body.appendChild(a);
       a.click();
-      
+
       // 清理
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
@@ -828,7 +831,7 @@ export default function ReportPage() {
                 <TableOfContents report={report.structuredReport} />
               </div>
             )}
-            
+
             {/* 主内容区域 - 🔥 Phase 1.4+ 重构：新的报告结构 */}
             <div className="flex-1 space-y-6">
               {/* 1. 用户原始需求 */}
@@ -872,6 +875,16 @@ export default function ReportPage() {
                 </div>
               )}
 
+              {/* 🆕 v7.120: 搜索引用 */}
+              {report.structuredReport.search_references &&
+               report.structuredReport.search_references.length > 0 && (
+                <div id="search-references">
+                  <SearchReferencesDisplay
+                    references={report.structuredReport.search_references}
+                  />
+                </div>
+              )}
+
               {/* 7. 推敲过程 */}
               <DeliberationProcessSection deliberationProcess={report.structuredReport.deliberation_process} />
 
@@ -901,29 +914,19 @@ export default function ReportPage() {
 
   return (
     <div className="min-h-screen bg-[var(--background)] text-[var(--foreground)]">
-      <header className="h-14 border-b border-[var(--border-color)] flex items-center justify-between px-6 bg-[var(--background)]">
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => router.push('/')}
-            className="p-2 text-[var(--foreground-secondary)] hover:text-[var(--foreground)] hover:bg-[var(--card-bg)] rounded-lg transition-colors"
-            title="返回首页"
-          >
-            <ArrowLeft className="w-5 h-5" />
-          </button>
-          <h1 className="text-lg font-semibold">分析报告查看</h1>
-        </div>
-        <div className="flex items-center gap-4">
-          {/* TOC 切换按钮 (仅在结构化视图显示) */}
-          {report?.structuredReport && (
+      {/* v7.290.1: 顶部导航栏 - 统一体验 */}
+      <header className="sticky top-0 z-10 bg-[var(--sidebar-bg)] border-b border-[var(--border-color)]">
+        <div className="flex items-center justify-between px-4 py-3">
+          <div className="flex items-center gap-3">
             <button
-              onClick={() => setShowToc(!showToc)}
-              className="hidden lg:flex p-2 text-gray-400 hover:text-white hover:bg-[var(--card-bg)] rounded-lg transition-colors items-center gap-1.5"
-              title={showToc ? '隐藏导航' : '显示导航'}
+              onClick={() => router.push('/')}
+              className="p-2 text-[var(--foreground-secondary)] hover:text-[var(--foreground)] hover:bg-[var(--card-bg)] rounded-lg transition-colors"
+              title="返回首页"
             >
-              <List className="w-4 h-4" />
+              <ArrowLeft className="w-5 h-5" />
             </button>
-          )}
-          <div className="text-sm text-gray-500">设计高参 · 智能项目分析</div>
+            <h1 className="text-lg font-semibold">分析报告查看</h1>
+          </div>
         </div>
       </header>
 

@@ -14,7 +14,7 @@ try:
     from intelligent_project_analyzer.core.prompt_manager import PromptManager
     PROMPT_MANAGER_AVAILABLE = True
 except ImportError:
-    logger.warning("⚠️ PromptManager 不可用，将使用硬编码配置")
+    logger.warning("️ PromptManager 不可用，将使用硬编码配置")
     PROMPT_MANAGER_AVAILABLE = False
 
 
@@ -111,7 +111,7 @@ class UserIntentParser:
         for intent, keywords in self.intent_keywords.items():
             for keyword in keywords:
                 if text_lower == keyword.lower():
-                    logger.info(f"🎯 快速匹配: '{user_text}' → {intent}")
+                    logger.info(f" 快速匹配: '{user_text}' → {intent}")
                     return {
                         "intent": intent,
                         "content": "",
@@ -124,7 +124,7 @@ class UserIntentParser:
     
     def _llm_parse(self, user_text: str, context: str, stage: str) -> Dict:
         """使用LLM解析用户意图"""
-        logger.info(f"🤖 使用LLM解析用户意图: {user_text[:50]}...")
+        logger.info(f" 使用LLM解析用户意图: {user_text[:50]}...")
 
         # 使用配置中的提示词模板
         prompt = self.llm_prompt_template.format(
@@ -145,7 +145,7 @@ class UserIntentParser:
             
             result = json.loads(content)
             
-            logger.info(f"🤖 LLM解析结果: intent={result['intent']}, reasoning={result.get('reasoning', '')[:50]}")
+            logger.info(f" LLM解析结果: intent={result['intent']}, reasoning={result.get('reasoning', '')[:50]}")
             
             return {
                 "intent": result["intent"],
@@ -163,7 +163,7 @@ class UserIntentParser:
     
     def _keyword_parse(self, user_text: str) -> Dict:
         """基于关键词解析用户意图"""
-        logger.info(f"🔍 使用关键词匹配: {user_text[:50]}...")
+        logger.info(f" 使用关键词匹配: {user_text[:50]}...")
         
         text_lower = user_text.lower()
         
@@ -193,7 +193,7 @@ class UserIntentParser:
             else:
                 intent = "approve"  # 短文本当作批准
         
-        logger.info(f"🔍 关键词匹配结果: {intent} (scores: {scores})")
+        logger.info(f" 关键词匹配结果: {intent} (scores: {scores})")
         
         return {
             "intent": intent,
@@ -211,7 +211,7 @@ class UserIntentParser:
             配置字典
         """
         if not PROMPT_MANAGER_AVAILABLE:
-            logger.info("📋 使用硬编码配置（PromptManager 不可用）")
+            logger.info(" 使用硬编码配置（PromptManager 不可用）")
             return self._get_default_config()
 
         try:
@@ -220,14 +220,14 @@ class UserIntentParser:
             # PromptManager 直接通过 prompts 属性访问配置
             if "intent_parser" in prompt_manager.prompts:
                 config = prompt_manager.prompts["intent_parser"]
-                logger.info("✅ 成功从 YAML 加载 intent_parser 配置")
+                logger.info(" 成功从 YAML 加载 intent_parser 配置")
                 return config
             else:
-                logger.warning("⚠️ YAML 配置未找到，使用硬编码配置")
+                logger.warning("️ YAML 配置未找到，使用硬编码配置")
                 return self._get_default_config()
 
         except Exception as e:
-            logger.warning(f"⚠️ 加载 YAML 配置失败: {e}，使用硬编码配置")
+            logger.warning(f"️ 加载 YAML 配置失败: {e}，使用硬编码配置")
             return self._get_default_config()
 
     def _get_default_config(self) -> Dict[str, Any]:

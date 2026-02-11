@@ -45,24 +45,24 @@ class ConversationAgent:
     5. 多轮记忆：维护对话历史上下文
     """
     
-    # 系统提示词模板 - 🔥 v7.14: 开放性增强
+    # 系统提示词模板 -  v7.14: 开放性增强
     SYSTEM_PROMPT = """你是一个专业的项目分析顾问助手，名叫「设计高参 AI」。
 
 你的职责：
 1. 帮助用户理解刚刚完成的项目分析报告
 2. 回答关于报告内容的任何问题
 3. 提供深入的解释和补充信息
-4. 🔥 发挥专业知识，扩展回答视野
+4.  发挥专业知识，扩展回答视野
 5. 保持专业、友好、耐心的语气
 
 回答规范：
-✅ 优先基于报告内容回答，引用具体章节和数据
-✅ 可以结合专业知识扩展回答（用【扩展知识】标注）
-✅ 可以提供行业案例和最佳实践（用【业界参考】标注）
-✅ 使用结构化格式（标题、列表、要点）
-✅ 鼓励用户继续追问和深挖
-⚠️ 明确区分报告内容 vs 扩展知识（标注来源）
-❌ 不要使用过于技术化的术语
+ 优先基于报告内容回答，引用具体章节和数据
+ 可以结合专业知识扩展回答（用【扩展知识】标注）
+ 可以提供行业案例和最佳实践（用【业界参考】标注）
+ 使用结构化格式（标题、列表、要点）
+ 鼓励用户继续追问和深挖
+️ 明确区分报告内容 vs 扩展知识（标注来源）
+ 不要使用过于技术化的术语
 
 当前分析报告上下文：
 {context_summary}
@@ -71,7 +71,7 @@ class ConversationAgent:
 {conversation_history}
 """
     
-    # 🔥 v7.14: 问题类型专属提示词
+    #  v7.14: 问题类型专属提示词
     INTENT_PROMPTS = {
         # 闭环问题：严格基于报告
         "closed": """【闭环模式】用户询问的是报告中的具体内容，请严格基于报告回答：
@@ -81,9 +81,9 @@ class ConversationAgent:
         
         # 开放问题（基于报告扩展）：允许扩展但标注来源
         "open_with_context": """【扩展模式】用户希望获得更广泛的见解，在报告基础上扩展回答：
-- 首先回应报告中的相关内容【📖 报告内容】
-- 然后补充专业知识和行业经验【🌐 扩展知识】
-- 可以提供类似案例参考【📚 业界参考】
+- 首先回应报告中的相关内容【 报告内容】
+- 然后补充专业知识和行业经验【 扩展知识】
+- 可以提供类似案例参考【 业界参考】
 - 确保用户能区分哪些是报告结论，哪些是扩展建议""",
         
         # 创意发散问题：充分发挥LLM能力
@@ -91,8 +91,8 @@ class ConversationAgent:
 - 自由发挥专业知识和创意思维
 - 提供多种可能性和方向
 - 鼓励「What-if」假设性探讨
-- 结合行业趋势和前沿理念【💡 创意建议】
-- 可以跨领域类比借鉴【🔗 跨界启发】""",
+- 结合行业趋势和前沿理念【 创意建议】
+- 可以跨领域类比借鉴【 跨界启发】""",
         
         # 通用问题
         "general": """请综合报告内容和专业知识回答，注意标注信息来源。"""
@@ -134,9 +134,9 @@ class ConversationAgent:
         """
         logger.info(f"Processing question: {question[:100]}...")
         
-        # 🔥 v7.14: 启用增强意图分类
+        #  v7.14: 启用增强意图分类
         intent = self._classify_intent(question, conversation_history)
-        logger.info(f"🎯 Detected intent: {intent}")
+        logger.info(f" Detected intent: {intent}")
         
         # 2. 上下文检索 (简化版：直接使用全部上下文)
         relevant_context = self._retrieve_relevant_context(
@@ -153,7 +153,7 @@ class ConversationAgent:
             intent=intent
         )
         
-        # 4. 🔥 v7.14: 生成智能后续建议（传入intent）
+        # 4.  v7.14: 生成智能后续建议（传入intent）
         suggestions = self._generate_suggestions(
             question=question,
             answer=answer_data["answer"],
@@ -174,7 +174,7 @@ class ConversationAgent:
         history: Optional[List[ConversationTurn]]
     ) -> Literal["closed", "open_with_context", "creative", "general"]:
         """
-        🔥 v7.14: 增强意图分类 - 区分问题类型以选择回答模式
+         v7.14: 增强意图分类 - 区分问题类型以选择回答模式
         
         分类维度：
         - closed: 闭环问题，询问报告具体内容（数据、结论、章节）
@@ -221,21 +221,21 @@ class ConversationAgent:
         # 优先级：creative > open > closed > general
         for keyword in creative_keywords:
             if keyword in question_lower:
-                logger.info(f"🎨 意图分类: creative (匹配关键词: {keyword})")
+                logger.info(f" 意图分类: creative (匹配关键词: {keyword})")
                 return "creative"
         
         for keyword in open_keywords:
             if keyword in question_lower:
-                logger.info(f"🌐 意图分类: open_with_context (匹配关键词: {keyword})")
+                logger.info(f" 意图分类: open_with_context (匹配关键词: {keyword})")
                 return "open_with_context"
         
         for keyword in closed_keywords:
             if keyword in question_lower:
-                logger.info(f"📖 意图分类: closed (匹配关键词: {keyword})")
+                logger.info(f" 意图分类: closed (匹配关键词: {keyword})")
                 return "closed"
         
         # 默认使用开放模式（充分发挥LLM能力）
-        logger.info("💬 意图分类: general (默认模式)")
+        logger.info(" 意图分类: general (默认模式)")
         return "general"
     
     def _retrieve_relevant_context(
@@ -282,9 +282,9 @@ class ConversationAgent:
         """
         生成回答
 
-        🔥 v3.11 增强：使用智能上下文管理（支持"记忆全部"模式）
+         v3.11 增强：使用智能上下文管理（支持"记忆全部"模式）
         """
-        # 🔥 使用FollowupHistoryManager构建智能上下文
+        #  使用FollowupHistoryManager构建智能上下文
         from ..services.followup_history_manager import FollowupHistoryManager
 
         # 转换历史为字典格式
@@ -305,7 +305,7 @@ class ConversationAgent:
         # 格式化报告摘要
         context_summary = self._format_context_summary(relevant_context)
 
-        # 🔥 使用智能上下文管理器（临时实例）
+        #  使用智能上下文管理器（临时实例）
         temp_manager = FollowupHistoryManager(session_manager=None)  # 只用方法，不用Redis
 
         # 构建智能上下文
@@ -313,18 +313,18 @@ class ConversationAgent:
             history=history_data,
             report_summary=context_summary,
             current_question=question,
-            enable_memory_all=True  # 🔥 启用"记忆全部"模式
+            enable_memory_all=True  #  启用"记忆全部"模式
         )
 
         context_str = context_result["context_str"]
         metadata = context_result["metadata"]
 
         # 记录上下文统计
-        logger.info(f"📊 上下文构建完成: {metadata}")
+        logger.info(f" 上下文构建完成: {metadata}")
         if metadata.get("truncated"):
-            logger.warning(f"⚠️ 上下文已截断: 总轮次={metadata['total_turns']}, 包含轮次={metadata['included_turns']}")
+            logger.warning(f"️ 上下文已截断: 总轮次={metadata['total_turns']}, 包含轮次={metadata['included_turns']}")
 
-        # 🔥 v7.14: 根据意图选择提示词模式
+        #  v7.14: 根据意图选择提示词模式
         intent_prompt = self.INTENT_PROMPTS.get(intent, self.INTENT_PROMPTS["general"])
         
         # 构建提示词 - 开放性增强版
@@ -334,16 +334,16 @@ class ConversationAgent:
 1. 帮助用户理解刚刚完成的项目分析报告
 2. 回答关于报告内容的任何问题
 3. 提供深入的解释和补充信息
-4. 🔥 充分发挥专业知识，提供高价值洞察
+4.  充分发挥专业知识，提供高价值洞察
 5. 保持专业、友好、耐心的语气
 
 {intent_prompt}
 
 回答规范：
-✅ 使用结构化格式（标题、列表、要点）
-✅ 明确标注信息来源（📖报告/🌐扩展/💡创意）
-✅ 鼓励用户继续追问和深挖
-❌ 不要使用过于技术化的术语
+ 使用结构化格式（标题、列表、要点）
+ 明确标注信息来源（报告/扩展/创意）
+ 鼓励用户继续追问和深挖
+ 不要使用过于技术化的术语
 
 {context_str}
 """
@@ -353,7 +353,7 @@ class ConversationAgent:
             SystemMessage(content=system_message),
             HumanMessage(content=f"""用户问题：{question}
 
-请基于上述报告内容回答，并在回答末尾标注引用的章节（格式：📖 引用：第X章）。""")
+请基于上述报告内容回答，并在回答末尾标注引用的章节（格式： 引用：第X章）。""")
         ]
 
         response = self.llm.invoke(messages)
@@ -368,7 +368,7 @@ class ConversationAgent:
         return {
             "answer": answer,
             "references": references,
-            "context_metadata": metadata  # 🔥 返回上下文元数据
+            "context_metadata": metadata  #  返回上下文元数据
         }
     
     def _format_context_summary(self, relevant_context: Dict[str, Any]) -> str:
@@ -412,7 +412,7 @@ class ConversationAgent:
         intent: str = "general"
     ) -> List[str]:
         """
-        🔥 v7.14: 智能后续建议生成 - 根据问题类型推荐不同方向
+         v7.14: 智能后续建议生成 - 根据问题类型推荐不同方向
         
         策略：
         - 闭环问题 → 引导深挖报告细节

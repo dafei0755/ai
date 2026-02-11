@@ -12,19 +12,21 @@ OpenRouter 多 Key 负载均衡器
 """
 
 import os
-import time
 import random
-from typing import List, Dict, Optional, Any
+import time
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from threading import Lock
-from loguru import logger
+from typing import Any, Dict, List, Optional
+
 from langchain_openai import ChatOpenAI
+from loguru import logger
 
 
 @dataclass
 class APIKeyStats:
     """API Key 统计信息"""
+
     key_id: str  # Key 的唯一标识（前8位）
     total_requests: int = 0
     successful_requests: int = 0
@@ -51,6 +53,7 @@ class APIKeyStats:
 @dataclass
 class LoadBalancerConfig:
     """负载均衡器配置"""
+
     # 健康检查配置
     health_check_interval: int = 300  # 健康检查间隔（秒）
     max_consecutive_failures: int = 3  # 最大连续失败次数
@@ -91,7 +94,7 @@ class OpenRouterLoadBalancer:
         api_keys: Optional[List[str]] = None,
         config: Optional[LoadBalancerConfig] = None,
         model: str = "openai/gpt-4o-2024-11-20",
-        **llm_kwargs
+        **llm_kwargs,
     ):
         """
         初始化负载均衡器
@@ -104,7 +107,9 @@ class OpenRouterLoadBalancer:
         """
         self.config = config or LoadBalancerConfig()
         self.model = model
-        self.llm_kwargs = llm_kwargs
+        #  v7.153: 过滤掉 ChatOpenAI 不支持的参数
+        # provider 是 MultiLLMFactory 的参数，不应传递给 ChatOpenAI
+        self.llm_kwargs = {k: v for k, v in llm_kwargs.items() if k not in ["provider"]}
 
         # 加载 API Keys
         self.api_keys = self._load_api_keys(api_keys)
@@ -113,8 +118,7 @@ class OpenRouterLoadBalancer:
 
         # 初始化统计信息
         self.stats: Dict[str, APIKeyStats] = {
-            self._get_key_id(key): APIKeyStats(key_id=self._get_key_id(key))
-            for key in self.api_keys
+            self._get_key_id(key): APIKeyStats(key_id=self._get_key_id(key)) for key in self.api_keys
         }
 
         # 负载均衡状态
@@ -123,14 +127,11 @@ class OpenRouterLoadBalancer:
         self._last_health_check = datetime.now()
 
         # 速率限制追踪
-        self._rate_limit_tracker: Dict[str, List[datetime]] = {
-            self._get_key_id(key): []
-            for key in self.api_keys
-        }
+        self._rate_limit_tracker: Dict[str, List[datetime]] = {self._get_key_id(key): [] for key in self.api_keys}
 
-        logger.info(f"✅ OpenRouter 负载均衡器初始化完成: {len(self.api_keys)} 个 API Keys")
-        logger.info(f"📊 负载均衡策略: {self.config.strategy}")
-        logger.info(f"🔄 最大重试次数: {self.config.max_retries}")
+        logger.info(f" OpenRouter 负载均衡器初始化完成: {len(self.api_keys)} 个 API Keys")
+        logger.info(f" 负载均衡策略: {self.config.strategy}")
+        logger.info(f" 最大重试次数: {self.config.max_retries}")
 
     def _load_api_keys(self, api_keys: Optional[List[str]]) -> List[str]:
         """
@@ -149,13 +150,13 @@ class OpenRouterLoadBalancer:
         if keys_env:
             keys = [key.strip() for key in keys_env.split(",") if key.strip()]
             if keys:
-                logger.info(f"📥 从 OPENROUTER_API_KEYS 加载了 {len(keys)} 个 API Keys")
+                logger.info(f" 从 OPENROUTER_API_KEYS 加载了 {len(keys)} 个 API Keys")
                 return keys
 
         # 从环境变量加载单个 Key
         single_key = os.getenv("OPENROUTER_API_KEY", "")
         if single_key and single_key != "your_openrouter_api_key_here":
-            logger.info("📥 从 OPENROUTER_API_KEY 加载了 1 个 API Key")
+            logger.info(" 从 OPENROUTER_API_KEY 加载了 1 个 API Key")
             return [single_key]
 
         return []
@@ -173,13 +174,10 @@ class OpenRouterLoadBalancer:
         """
         with self._lock:
             # 过滤出健康的 Keys
-            healthy_keys = [
-                key for key in self.api_keys
-                if self.stats[self._get_key_id(key)].is_healthy
-            ]
+            healthy_keys = [key for key in self.api_keys if self.stats[self._get_key_id(key)].is_healthy]
 
             if not healthy_keys:
-                logger.warning("⚠️ 所有 API Keys 都不健康，尝试使用所有 Keys")
+                logger.warning("️ 所有 API Keys 都不健康，尝试使用所有 Keys")
                 healthy_keys = self.api_keys
 
             # 根据策略选择
@@ -192,10 +190,7 @@ class OpenRouterLoadBalancer:
                 key = random.choice(healthy_keys)
             elif self.config.strategy == "least_used":
                 # 最少使用策略
-                key = min(
-                    healthy_keys,
-                    key=lambda k: self.stats[self._get_key_id(k)].total_requests
-                )
+                key = min(healthy_keys, key=lambda k: self.stats[self._get_key_id(k)].total_requests)
             else:
                 # 默认轮询
                 key = healthy_keys[self._current_index % len(healthy_keys)]
@@ -217,10 +212,7 @@ class OpenRouterLoadBalancer:
         window_start = now - timedelta(seconds=self.config.rate_limit_window)
 
         # 清理过期的请求记录
-        self._rate_limit_tracker[key_id] = [
-            ts for ts in self._rate_limit_tracker[key_id]
-            if ts > window_start
-        ]
+        self._rate_limit_tracker[key_id] = [ts for ts in self._rate_limit_tracker[key_id] if ts > window_start]
 
         # 检查是否超限
         if len(self._rate_limit_tracker[key_id]) >= self.config.rate_limit_per_key:
@@ -256,10 +248,7 @@ class OpenRouterLoadBalancer:
             # 检查是否需要标记为不健康
             if stats.consecutive_failures >= self.config.max_consecutive_failures:
                 stats.is_healthy = False
-                logger.warning(
-                    f"⚠️ API Key {key_id} 标记为不健康 "
-                    f"(连续失败 {stats.consecutive_failures} 次)"
-                )
+                logger.warning(f"️ API Key {key_id} 标记为不健康 " f"(连续失败 {stats.consecutive_failures} 次)")
 
     def _perform_health_check(self):
         """执行健康检查，恢复冷却期已过的 Keys"""
@@ -278,7 +267,7 @@ class OpenRouterLoadBalancer:
                 if stats.last_error_time < cooldown_threshold:
                     stats.is_healthy = True
                     stats.consecutive_failures = 0
-                    logger.info(f"✅ API Key {key_id} 已恢复健康状态")
+                    logger.info(f" API Key {key_id} 已恢复健康状态")
 
     def get_llm(self, **override_kwargs) -> ChatOpenAI:
         """
@@ -299,7 +288,7 @@ class OpenRouterLoadBalancer:
 
         # 检查速率限制
         if not self._check_rate_limit(key_id):
-            logger.warning(f"⚠️ API Key {key_id} 达到速率限制，切换到其他 Key")
+            logger.warning(f"️ API Key {key_id} 达到速率限制，切换到其他 Key")
             # 尝试选择另一个 Key
             api_key = self._select_key()
             key_id = self._get_key_id(api_key)
@@ -311,10 +300,10 @@ class OpenRouterLoadBalancer:
             "base_url": "https://openrouter.ai/api/v1",
             "max_retries": self.config.max_retries,
             **self.llm_kwargs,
-            **override_kwargs
+            **override_kwargs,
         }
 
-        logger.debug(f"🔑 使用 API Key: {key_id} (成功率: {self.stats[key_id].success_rate:.2%})")
+        logger.debug(f" 使用 API Key: {key_id} (成功率: {self.stats[key_id].success_rate:.2%})")
 
         return ChatOpenAI(**llm_params)
 
@@ -346,14 +335,12 @@ class OpenRouterLoadBalancer:
 
             except Exception as e:
                 last_error = str(e)
-                key_id = self._get_key_id(llm.openai_api_key) if 'llm' in locals() else "unknown"
+                key_id = self._get_key_id(llm.openai_api_key) if "llm" in locals() else "unknown"
 
                 # 更新统计
                 self._update_stats(key_id, success=False, error=last_error)
 
-                logger.warning(
-                    f"⚠️ API Key {key_id} 调用失败 (尝试 {attempt + 1}/{self.config.max_retries}): {last_error}"
-                )
+                logger.warning(f"️ API Key {key_id} 调用失败 (尝试 {attempt + 1}/{self.config.max_retries}): {last_error}")
 
                 # 如果不是最后一次尝试，等待后重试
                 if attempt < self.config.max_retries - 1:
@@ -390,10 +377,10 @@ class OpenRouterLoadBalancer:
                     "is_healthy": stats.is_healthy,
                     "consecutive_failures": stats.consecutive_failures,
                     "last_used": stats.last_used.isoformat() if stats.last_used else None,
-                    "last_error": stats.last_error
+                    "last_error": stats.last_error,
                 }
                 for key_id, stats in self.stats.items()
-            }
+            },
         }
 
     def print_stats(self):
@@ -401,7 +388,7 @@ class OpenRouterLoadBalancer:
         summary = self.get_stats_summary()
 
         logger.info("=" * 60)
-        logger.info("📊 OpenRouter 负载均衡器统计")
+        logger.info(" OpenRouter 负载均衡器统计")
         logger.info("=" * 60)
         logger.info(f"总 Keys: {summary['total_keys']}")
         logger.info(f"健康 Keys: {summary['healthy_keys']}")
@@ -412,14 +399,10 @@ class OpenRouterLoadBalancer:
         logger.info(f"总成功率: {summary['overall_success_rate']:.2%}")
         logger.info("-" * 60)
 
-        for key_id, stats in summary['keys'].items():
-            status = "✅" if stats['is_healthy'] else "❌"
-            logger.info(
-                f"{status} Key {key_id}: "
-                f"{stats['total_requests']} 请求, "
-                f"{stats['success_rate']:.2%} 成功率"
-            )
-            if stats['last_error']:
+        for key_id, stats in summary["keys"].items():
+            status = "" if stats["is_healthy"] else ""
+            logger.info(f"{status} Key {key_id}: " f"{stats['total_requests']} 请求, " f"{stats['success_rate']:.2%} 成功率")
+            if stats["last_error"]:
                 logger.info(f"   最后错误: {stats['last_error']}")
 
         logger.info("=" * 60)

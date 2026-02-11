@@ -31,9 +31,9 @@ class RequirementsConfirmationNode:
         """
         logger.info("Starting requirements confirmation interaction")
 
-        # 🔥 检查是否是用户修改后的重新分析（应直接跳过确认）
+        #  检查是否是用户修改后的重新分析（应直接跳过确认）
         if state.get("user_modification_processed"):
-            logger.info("✅ 用户修改已重新分析完成，跳过二次确认，直接进入项目总监")
+            logger.info(" 用户修改已重新分析完成，跳过二次确认，直接进入项目总监")
             return Command(
                 update={"requirements_confirmed": True, "user_modification_processed": False}, goto="project_director"
             )
@@ -48,16 +48,16 @@ class RequirementsConfirmationNode:
         # 获取当前日期时间
         current_datetime = datetime.now().strftime("%Y年%m月%d日 %H:%M")
 
-        # ✅ 构建带中文标签的需求摘要（标签与内容不分离）
+        #  构建带中文标签的需求摘要（标签与内容不分离）
         requirements_summary = []
 
         field_mapping = [
-            ("project_task", "项目任务", "📋"),
-            ("character_narrative", "核心用户画像", "👤"),
-            ("space_constraints", "空间约束", "📐"),
-            ("inspiration_references", "灵感参考", "💡"),
-            ("experience_behavior", "体验行为", "🎯"),
-            ("core_tension", "核心张力", "⚡"),
+            ("project_task", "项目任务", ""),
+            ("character_narrative", "核心用户画像", ""),
+            ("space_constraints", "空间约束", ""),
+            ("inspiration_references", "灵感参考", ""),
+            ("experience_behavior", "体验行为", ""),
+            ("core_tension", "核心张力", ""),
         ]
 
         for field_key, field_label, icon in field_mapping:
@@ -70,34 +70,34 @@ class RequirementsConfirmationNode:
         # 检查是否已融合问卷信息
         message = "请确认以下需求分析是否准确（如需修改，直接编辑后提交即可）："
         if state.get("calibration_processed"):
-            message = "✅ 已根据您的问卷反馈更新分析结果。请确认以下需求分析是否准确（如需修改，直接编辑后提交即可）："
+            message = " 已根据您的问卷反馈更新分析结果。请确认以下需求分析是否准确（如需修改，直接编辑后提交即可）："
 
         confirmation_data = {
             "interaction_type": "requirements_confirmation",
             "message": message,
-            # ✨ 分析元数据（datetime 功能可见性）
+            #  分析元数据（datetime 功能可见性）
             "analysis_metadata": {
                 "analysis_datetime": current_datetime,
                 "datetime_enabled": True,
                 "datetime_purpose": "确保分析结果基于最新的设计趋势和行业数据",
             },
-            # ✅ 优化：标签与内容组合，便于前端直接渲染
+            #  优化：标签与内容组合，便于前端直接渲染
             "requirements_summary": requirements_summary,
             "options": {"approve": "确认需求分析准确，继续项目分析", "revise": "需求分析需要修改，重新分析需求"},
         }
 
-        logger.info(f"🔍 [DEBUG] 准备 requirements_confirmation interrupt 数据")
-        logger.info(f"🔍 [DEBUG] requirements_summary 字段数: {len(requirements_summary)}")
-        logger.info(f"🔍 [DEBUG] message: {message}")
+        logger.info(f" [DEBUG] 准备 requirements_confirmation interrupt 数据")
+        logger.info(f" [DEBUG] requirements_summary 字段数: {len(requirements_summary)}")
+        logger.info(f" [DEBUG] message: {message}")
 
         # 使用interrupt暂停执行，等待用户确认
         user_response = interrupt(confirmation_data)
         logger.info(f"Received user response: {user_response}")
-        logger.info(f"🔍 [DEBUG] user_response type: {type(user_response)}")
-        logger.info(f"🔍 [DEBUG] user_response content: {user_response}")
+        logger.info(f" [DEBUG] user_response type: {type(user_response)}")
+        logger.info(f" [DEBUG] user_response content: {user_response}")
 
         # 更新状态
-        # 🔧 修复: 移除 current_stage 更新，避免与后续节点冲突
+        #  修复: 移除 current_stage 更新，避免与后续节点冲突
         updated_state = {
             "interaction_history": state.get("interaction_history", [])
             + [
@@ -117,20 +117,20 @@ class RequirementsConfirmationNode:
         modifications = None
 
         if isinstance(user_response, str):
-            # 🔥 修复: 兼容 'approve' 和 'confirm' 两种确认值
+            #  修复: 兼容 'approve' 和 'confirm' 两种确认值
             is_approved = user_response in ["approve", "confirm"]
         elif isinstance(user_response, dict):
-            # 🔥 修复: 兼容 "intent" 和 "action" 两种字段名
+            #  修复: 兼容 "intent" 和 "action" 两种字段名
             intent_or_action = user_response.get("intent") or user_response.get("action", "")
             is_approved = intent_or_action == "approve"
             feedback = user_response.get("feedback")
             additional_info = user_response.get("additional_info", "")
-            modifications = user_response.get("modifications", {})  # 🔥 改为 {},避免空字符串
+            modifications = user_response.get("modifications", {})  #  改为 {},避免空字符串
         else:
             logger.warning(f"Unexpected user_response type: {type(user_response)}, defaulting to revise")
             is_approved = False
 
-        # 🔧 智能修改检测: 检查用户提交的修改是否真的改变了内容
+        #  智能修改检测: 检查用户提交的修改是否真的改变了内容
         has_real_modifications = False
         has_additions = additional_info and len(str(additional_info).strip()) > 10
 
@@ -172,24 +172,24 @@ class RequirementsConfirmationNode:
                     # 只有差异超过10个字符才算真实修改
                     if diff_chars > 10:
                         has_real_modifications = True
-                        logger.info(f"🔍 [DEBUG] 检测到字段 '{field}' 有真实修改 (差异字符数: {diff_chars})")
+                        logger.info(f" [DEBUG] 检测到字段 '{field}' 有真实修改 (差异字符数: {diff_chars})")
                         logger.info(f"   原值长度: {len(current_normalized)}, 新值长度: {len(new_normalized)}")
                         logger.info(f"   原值前100字: {current_normalized[:100]}...")
                         logger.info(f"   新值前100字: {new_normalized[:100]}...")
                         break
 
             if not has_real_modifications:
-                logger.info("✅ 用户提交的 modifications 与当前值相同(或差异<10字符),视为无修改")
+                logger.info(" 用户提交的 modifications 与当前值相同(或差异<10字符),视为无修改")
 
         has_modifications = has_real_modifications
 
         if is_approved:
             if has_modifications or has_additions:
-                logger.info("⚠️ User approved BUT provided modifications/additions")
-                logger.info("🔄 用户修改需要重新分析以更新 expert_handoff，但不再返回确认页面")
-                logger.info(f"🔍 [DEBUG] has_modifications={has_modifications}, has_additions={has_additions}")
+                logger.info("️ User approved BUT provided modifications/additions")
+                logger.info(" 用户修改需要重新分析以更新 expert_handoff，但不再返回确认页面")
+                logger.info(f" [DEBUG] has_modifications={has_modifications}, has_additions={has_additions}")
 
-                # 🔥 关键修改：将用户修改融入 structured_requirements
+                #  关键修改：将用户修改融入 structured_requirements
                 if has_modifications:
                     # 先复制当前的结构化需求
                     current_requirements = state.get("structured_requirements", {})
@@ -198,12 +198,12 @@ class RequirementsConfirmationNode:
                     # 将修改内容更新到结构化需求中
                     for field_key, new_value in modifications.items():
                         if field_key in updated_requirements:
-                            logger.info(f"📝 融入用户修改: {field_key}")
+                            logger.info(f" 融入用户修改: {field_key}")
                             updated_requirements[field_key] = new_value
 
                     updated_state["structured_requirements"] = updated_requirements
 
-                # 🆕 能力边界检查：检查用户修改是否引入超范围需求
+                #  能力边界检查：检查用户修改是否引入超范围需求
                 modification_text = ""
                 if has_modifications:
                     mod_text = "\n".join([f"{k}: {v}" for k, v in modifications.items()])
@@ -212,7 +212,7 @@ class RequirementsConfirmationNode:
                     modification_text += f"\n{additional_info}"
 
                 if modification_text:
-                    logger.info("🔍 [CapabilityBoundary] 检查用户修改的能力边界")
+                    logger.info(" [CapabilityBoundary] 检查用户修改的能力边界")
                     boundary_check = CapabilityBoundaryService.check_user_input(
                         user_input=modification_text,
                         context={
@@ -227,15 +227,15 @@ class RequirementsConfirmationNode:
                     if not boundary_check.within_capability:
                         alert = CapabilityBoundaryService.generate_boundary_alert(boundary_check)
                         updated_state["boundary_alert"] = alert
-                        logger.warning(f"⚠️ 用户修改包含超出能力的需求: {alert['message']}")
+                        logger.warning(f"️ 用户修改包含超出能力的需求: {alert['message']}")
                         logger.info(f"   转化建议: {alert['transformations']}")
                     else:
-                        logger.info("✅ 用户修改在能力范围内")
+                        logger.info(" 用户修改在能力范围内")
 
                     # 保存检查记录
                     updated_state["boundary_check_record"] = boundary_check
 
-                # 🔥 将修改追加到 user_input，让需求分析师知道用户补充了什么
+                #  将修改追加到 user_input，让需求分析师知道用户补充了什么
                 original_input = state.get("user_input", "")
                 supplement_text = ""
 
@@ -250,29 +250,29 @@ class RequirementsConfirmationNode:
                 updated_state["user_input"] = original_input + supplement_text
                 updated_state["requirements_confirmed"] = False  # 标记为未确认，需要重新分析
                 updated_state["has_user_modifications"] = True
-                updated_state["user_modification_processed"] = True  # 🔥 新增标志：用户修改已处理，跳过二次确认
-                # 🆕 保存用户修改摘要（用于前端展示）
+                updated_state["user_modification_processed"] = True  #  新增标志：用户修改已处理，跳过二次确认
+                #  保存用户修改摘要（用于前端展示）
                 updated_state["user_modification_summary"] = supplement_text
-                # 🔥 强制触发角色任务审核 - 即使用户修改了需求也需要审核
-                logger.info("🔄 返回 requirements_analyst 重新分析以更新 expert_handoff")
-                logger.info("✅ 用户修改后将重新分析，并继续到任务审批")
+                #  强制触发角色任务审核 - 即使用户修改了需求也需要审核
+                logger.info(" 返回 requirements_analyst 重新分析以更新 expert_handoff")
+                logger.info(" 用户修改后将重新分析，并继续到任务审批")
 
                 return Command(update=updated_state, goto="requirements_analyst")
             else:
-                logger.info("✅ Requirements confirmed without modifications")
+                logger.info(" Requirements confirmed without modifications")
 
             updated_state["requirements_confirmed"] = True
-            # 🔥 强制触发角色任务审核 - 不再自动跳过
-            # 🔥 重置修改确认轮次
+            #  强制触发角色任务审核 - 不再自动跳过
+            #  重置修改确认轮次
             updated_state["modification_confirmation_round"] = 0
-            logger.info(f"🔍 [DEBUG] Routing to project_director with updated_state keys: {list(updated_state.keys())}")
-            logger.info("✅ 需求已确认，将继续到项目拆分和任务审批")
+            logger.info(f" [DEBUG] Routing to project_director with updated_state keys: {list(updated_state.keys())}")
+            logger.info(" 需求已确认，将继续到项目拆分和任务审批")
             return Command(update=updated_state, goto="project_director")
         else:
-            logger.info("⚠️ Requirements need revision")
+            logger.info("️ Requirements need revision")
             updated_state["requirements_confirmed"] = False
             logger.info(
-                f"🔍 [DEBUG] Routing back to requirements_analyst with updated_state keys: {list(updated_state.keys())}"
+                f" [DEBUG] Routing back to requirements_analyst with updated_state keys: {list(updated_state.keys())}"
             )
 
             # 收集所有反馈信息

@@ -161,9 +161,9 @@ async def trigger_weekly_analysis(background_tasks: BackgroundTasks) -> Dict[str
     async def run_analysis():
         try:
             report = await learning.weekly_pattern_analysis()
-            logger.info(f"✅ [Admin] 周分析完成: {report.get('case_count', 0)} 个案例")
+            logger.info(f" [Admin] 周分析完成: {report.get('case_count', 0)} 个案例")
         except Exception as e:
-            logger.error(f"❌ [Admin] 周分析失败: {e}")
+            logger.error(f" [Admin] 周分析失败: {e}")
 
     background_tasks.add_task(run_analysis)
 
@@ -200,7 +200,7 @@ async def get_analysis_history(limit: int = 10) -> Dict[str, Any]:
                     }
                 )
         except Exception as e:
-            logger.warning(f"⚠️ 读取报告失败 {file_path}: {e}")
+            logger.warning(f"️ 读取报告失败 {file_path}: {e}")
 
     return {"total": len(reports), "reports": reports}
 
@@ -249,7 +249,7 @@ async def approve_suggestions(type_id: str, keywords_to_add: List[str], reason: 
     # TODO: 实际应用到配置文件
     # 这里需要修改YAML文件或数据库
 
-    logger.info(f"✅ [Admin] 批准关键词添加: {type_id} + {keywords_to_add}")
+    logger.info(f" [Admin] 批准关键词添加: {type_id} + {keywords_to_add}")
 
     return {
         "status": "approved",
@@ -266,7 +266,7 @@ async def reject_suggestions(type_id: str, keywords: List[str], reason: str) -> 
     """
     拒绝关键词建议
     """
-    logger.info(f"⚠️ [Admin] 拒绝关键词建议: {type_id} - {keywords}")
+    logger.info(f"️ [Admin] 拒绝关键词建议: {type_id} - {keywords}")
 
     return {
         "status": "rejected",
@@ -306,9 +306,9 @@ async def review_case(session_id: str, correct_type: str, feedback: str) -> Dict
         with open(review_log_path, "a", encoding="utf-8") as f:
             f.write(json.dumps(review_record, ensure_ascii=False) + "\n")
     except Exception as e:
-        logger.error(f"❌ [Admin] 记录审核失败: {e}")
+        logger.error(f" [Admin] 记录审核失败: {e}")
 
-    logger.info(f"✅ [Admin] 案例审核完成: {session_id} -> {correct_type}")
+    logger.info(f" [Admin] 案例审核完成: {session_id} -> {correct_type}")
 
     return {"status": "reviewed", "session_id": session_id, "correct_type": correct_type, "message": "审核已记录，将用于未来模型优化"}
 
@@ -380,7 +380,7 @@ async def toggle_motivation_type(type_id: str) -> Dict[str, Any]:
     # TODO: 实际修改配置文件
     new_state = not motivation_type.enabled
 
-    logger.info(f"✅ [Admin] 切换类型状态: {type_id} -> {new_state}")
+    logger.info(f" [Admin] 切换类型状态: {type_id} -> {new_state}")
 
     return {"status": "updated", "type_id": type_id, "enabled": new_state, "message": "需要重启服务以生效"}
 
@@ -411,7 +411,7 @@ def _get_latest_analysis_report() -> Optional[Dict[str, Any]]:
             "new_dimensions_count": len(report.get("llm_analysis", {}).get("new_dimensions", [])),
         }
     except Exception as e:
-        logger.warning(f"⚠️ 获取最新报告失败: {e}")
+        logger.warning(f"️ 获取最新报告失败: {e}")
         return None
 
 

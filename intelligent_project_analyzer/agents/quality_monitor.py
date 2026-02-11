@@ -38,16 +38,16 @@ class QualityMonitor:
         
         # 构建质量约束部分
         quality_section = "\n\n" + "="*60 + "\n"
-        quality_section += "⚠️ **质量控制要求**（请务必遵守）\n"
+        quality_section += "️ **质量控制要求**（请务必遵守）\n"
         quality_section += "="*60 + "\n\n"
         
         # 风险提示
         if risk_level == "high":
-            quality_section += "🔴 **本任务为高风险任务，请格外注意以下风险点**：\n"
+            quality_section += " **本任务为高风险任务，请格外注意以下风险点**：\n"
         elif risk_level == "medium":
-            quality_section += "🟡 **本任务为中等风险任务，请注意以下风险点**：\n"
+            quality_section += " **本任务为中等风险任务，请注意以下风险点**：\n"
         else:
-            quality_section += "🟢 **本任务风险可控，但仍需注意**：\n"
+            quality_section += " **本任务风险可控，但仍需注意**：\n"
         
         for i, risk in enumerate(risk_points, 1):
             quality_section += f"{i}. {risk}\n"
@@ -55,14 +55,14 @@ class QualityMonitor:
         quality_section += "\n"
         
         # 质量检查清单
-        quality_section += "📋 **输出前必须完成的自查清单**：\n"
+        quality_section += " **输出前必须完成的自查清单**：\n"
         for i, item in enumerate(checklist_items, 1):
             quality_section += f"[ ] {i}. {item}\n"
         
         quality_section += "\n"
         
         # 自我审查指令
-        quality_section += "🔍 **自我审查流程**：\n"
+        quality_section += " **自我审查流程**：\n"
         quality_section += "1. 完成初步分析后，先不要输出\n"
         quality_section += "2. 对照上述清单逐项检查\n"
         quality_section += "3. 发现问题立即修正\n"
@@ -73,7 +73,7 @@ class QualityMonitor:
         # 将质量约束插入到prompt中（在主要任务描述之后，例子之前）
         enhanced_prompt = original_prompt + quality_section
         
-        logger.debug(f"✅ 已注入质量约束（风险等级: {risk_level}）")
+        logger.debug(f" 已注入质量约束（风险等级: {risk_level}）")
         
         return enhanced_prompt
     
@@ -184,7 +184,7 @@ class QualityMonitor:
         }
         
         # 记录日志
-        status = "✅ 通过" if passed else "❌ 未通过"
+        status = " 通过" if passed else " 未通过"
         logger.info(f"{status} 快速验证 [{role_id}]: 评分={quality_score}, 错误={len(errors)}, 警告={len(warnings)}")
         
         return result
@@ -210,7 +210,7 @@ class QualityMonitor:
             )
             
             if has_critical_error or quality_score < 60:
-                logger.warning("⚠️ 检测到质量问题，建议重试")
+                logger.warning("️ 检测到质量问题，建议重试")
                 return True
         
         return False
@@ -230,35 +230,35 @@ class QualityMonitor:
         suggestions = validation_result.get("suggestions", [])
         quality_score = validation_result.get("quality_score", 0)
         
-        retry_section = "\n\n" + "🔄 " + "="*60 + "\n"
+        retry_section = "\n\n" + " " + "="*60 + "\n"
         retry_section += "**重要提示：第一次分析存在以下问题，请改进**\n"
         retry_section += "="*60 + "\n\n"
         
-        retry_section += f"**质量评分**: {quality_score}/100 ⚠️\n\n"
+        retry_section += f"**质量评分**: {quality_score}/100 ️\n\n"
         
         if errors:
-            retry_section += "❌ **必须修复的错误**：\n"
+            retry_section += " **必须修复的错误**：\n"
             for i, error in enumerate(errors, 1):
                 retry_section += f"{i}. {error}\n"
             retry_section += "\n"
         
         if warnings:
-            retry_section += "⚠️ **需要改进的警告**：\n"
+            retry_section += "️ **需要改进的警告**：\n"
             for i, warning in enumerate(warnings, 1):
                 retry_section += f"{i}. {warning}\n"
             retry_section += "\n"
         
         if suggestions:
-            retry_section += "💡 **改进建议**：\n"
+            retry_section += " **改进建议**：\n"
             for i, suggestion in enumerate(suggestions, 1):
                 retry_section += f"{i}. {suggestion}\n"
             retry_section += "\n"
         
-        retry_section += "🎯 **请针对上述问题重新分析，确保质量达标**\n"
+        retry_section += " **请针对上述问题重新分析，确保质量达标**\n"
         retry_section += "="*60 + "\n\n"
         
         enhanced_prompt = retry_section + original_prompt
         
-        logger.info("📝 已生成重试prompt")
+        logger.info(" 已生成重试prompt")
         
         return enhanced_prompt

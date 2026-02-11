@@ -149,7 +149,7 @@ class HighConcurrencyLLM:
         self._fallback_count = 0
         
         logger.info(
-            f"🚀 高并发 LLM 初始化: provider={preferred_provider}, "
+            f" 高并发 LLM 初始化: provider={preferred_provider}, "
             f"model={self.model}, fallback={enable_fallback}"
         )
     
@@ -189,7 +189,7 @@ class HighConcurrencyLLM:
             cached = self.cache.get(prompt_str, self.model)
             if cached:
                 self._cache_hits += 1
-                logger.debug(f"📦 缓存命中")
+                logger.debug(f" 缓存命中")
                 return AIMessage(content=cached)
         
         # 获取限流器
@@ -204,7 +204,7 @@ class HighConcurrencyLLM:
             key_info, provider = key_balancer.get_key_with_fallback(self.preferred_provider)
             
             if not key_info:
-                logger.error("❌ 没有可用的 API Key")
+                logger.error(" 没有可用的 API Key")
                 raise RuntimeError("没有可用的 API Key")
             
             if provider != self.preferred_provider:
@@ -215,7 +215,7 @@ class HighConcurrencyLLM:
             try:
                 # 获取限流许可
                 if not limiter.acquire_sync():
-                    logger.warning(f"⚠️ 限流等待超时，尝试下一个 Key")
+                    logger.warning(f"️ 限流等待超时，尝试下一个 Key")
                     continue
                 
                 try:
@@ -249,7 +249,7 @@ class HighConcurrencyLLM:
                 else:
                     key_balancer.report_failure(key_info)
                 
-                logger.warning(f"⚠️ 调用失败 (attempt {attempt + 1}): {e}")
+                logger.warning(f"️ 调用失败 (attempt {attempt + 1}): {e}")
                 
                 if not self.enable_fallback:
                     break
@@ -316,7 +316,7 @@ class HighConcurrencyLLM:
                 else:
                     key_balancer.report_failure(key_info)
                 
-                logger.warning(f"⚠️ 异步调用失败 (attempt {attempt + 1}): {e}")
+                logger.warning(f"️ 异步调用失败 (attempt {attempt + 1}): {e}")
                 
                 if not self.enable_fallback:
                     break
@@ -327,13 +327,13 @@ class HighConcurrencyLLM:
         self,
         inputs: List[Any],
         max_concurrent: int = 5,
-        enable_adaptive: bool = True,  # 🆕 P3优化：启用自适应并发控制
+        enable_adaptive: bool = True,  #  P3优化：启用自适应并发控制
         **kwargs
     ) -> List[Any]:
         """
         异步批量调用（控制并发）
 
-        🚀 P3优化：支持自适应并发控制，基于 429 错误动态调整并发数
+         P3优化：支持自适应并发控制，基于 429 错误动态调整并发数
 
         Args:
             inputs: 输入列表
@@ -344,7 +344,7 @@ class HighConcurrencyLLM:
         Returns:
             结果列表
         """
-        # 🚀 P3优化：使用自适应信号量
+        #  P3优化：使用自适应信号量
         if enable_adaptive:
             semaphore = AdaptiveSemaphore(
                 initial_concurrent=max_concurrent,
@@ -381,16 +381,16 @@ class HighConcurrencyLLM:
         final_results = []
         for i, result in enumerate(results):
             if isinstance(result, Exception):
-                logger.error(f"❌ 批量调用第 {i} 项失败: {result}")
+                logger.error(f" 批量调用第 {i} 项失败: {result}")
                 final_results.append(None)
             else:
                 final_results.append(result)
 
-        # 🚀 P3优化：记录自适应统计
+        #  P3优化：记录自适应统计
         if enable_adaptive and isinstance(semaphore, AdaptiveSemaphore):
             stats = semaphore.stats
             logger.info(
-                f"📊 [AdaptiveSemaphore] 批量调用完成: "
+                f" [AdaptiveSemaphore] 批量调用完成: "
                 f"并发数={stats['current_concurrent']}, "
                 f"限流次数={stats['rate_limit_count']}, "
                 f"调整次数={stats['increase_count'] + stats['decrease_count']}"
@@ -437,7 +437,7 @@ class AdaptiveSemaphore:
     """
     自适应信号量 - 基于 429 错误动态调整并发数
 
-    🚀 P3 优化：自动适应 API 限流，提升吞吐量 10-20%
+     P3 优化：自动适应 API 限流，提升吞吐量 10-20%
 
     特性：
     - 成功时逐步增加并发数（保守策略）
@@ -485,7 +485,7 @@ class AdaptiveSemaphore:
         self.increase_step = increase_step
         self.decrease_step = decrease_step
 
-        # 🔧 使用计数器而非固定 Semaphore，支持动态调整
+        #  使用计数器而非固定 Semaphore，支持动态调整
         self._active_count = 0  # 当前活跃的并发数
         self._lock = asyncio.Lock()  # 保护并发数调整
         self._waiters = []  # 等待队列
@@ -498,7 +498,7 @@ class AdaptiveSemaphore:
         self._adjustment_history = []  # 调整历史
 
         logger.info(
-            f"🚀 [AdaptiveSemaphore] 初始化: "
+            f" [AdaptiveSemaphore] 初始化: "
             f"initial={initial_concurrent}, "
             f"range=[{min_concurrent}, {max_concurrent}], "
             f"threshold={increase_threshold}"
@@ -592,12 +592,12 @@ class AdaptiveSemaphore:
                 })
 
                 logger.info(
-                    f"📈 [AdaptiveSemaphore] 增加并发数: "
+                    f" [AdaptiveSemaphore] 增加并发数: "
                     f"{old_concurrent} → {new_concurrent} "
                     f"(连续成功 {self.increase_threshold} 次)"
                 )
 
-                # 🔧 唤醒等待者以利用新增的并发槽位
+                #  唤醒等待者以利用新增的并发槽位
                 while self._waiters and self._active_count < self.current_concurrent:
                     waiter = self._waiters.pop(0)
                     waiter.set()
@@ -625,7 +625,7 @@ class AdaptiveSemaphore:
                 })
 
                 logger.warning(
-                    f"📉 [AdaptiveSemaphore] 减少并发数: "
+                    f" [AdaptiveSemaphore] 减少并发数: "
                     f"{old_concurrent} → {new_concurrent} "
                     f"(遇到 429 限流)"
                 )
@@ -635,8 +635,8 @@ class AdaptiveSemaphore:
         """获取统计信息"""
         return {
             "current_concurrent": self.current_concurrent,
-            "active_count": self._active_count,  # 🆕 当前活跃并发数
-            "waiters_count": len(self._waiters),  # 🆕 等待队列长度
+            "active_count": self._active_count,  #  当前活跃并发数
+            "waiters_count": len(self._waiters),  #  等待队列长度
             "min_concurrent": self.min_concurrent,
             "max_concurrent": self.max_concurrent,
             "success_count": self._success_count,

@@ -69,6 +69,11 @@ version_notes: |
       - 体育/娱乐/艺术 (Sports/Entertainment) - 核心体验/观众体验/运营特殊性
   7.  **覆盖面达到100% (100% Coverage)**: 从住宅、办公、商业到医疗、文化、体育等全领域，每个类型包含3-4个维度、8-12个参数。
 
+  **🆕 v7.500 质量优化协议 (Quality Assurance Protocol)**:
+  8.  **理论约束验证 (Theory Constraint Validation)**: 所有理论引用必须来自Pre-approved清单（8大学科透镜），禁止自创理论或模糊表述。
+  9.  **输出锚定机制 (Output Anchoring)**: 核心张力固定2-3个，术语标准化，优先级基于Maslow层次。
+  10. **确定性输出 (Deterministic Output)**: 系统已配置低温度模式（temperature=0.1）确保同一输入产生一致输出。
+
   v3.2 "Restored Core" 核心升级 (Core Upgrades):
   1.  **恢复核心协议 (Restored Core Protocol)**: 重新引入完整的 Apex Insight Protocol™ (L0-L5)，恢复AI的战略分析与系统思考能力。
   2.  **恢复深度本体论 (Restored Deep Ontology)**: 补全所有本体论参数的详细描述、自问和示例，为深度分析提供坚实基础。
@@ -89,6 +94,13 @@ business_config:
     - "office_coworking"                  # 办公/联合办公 (Office/Co-working)
     - "hospitality_tourism"               # 酒店/文旅 (Hospitality/Tourism)
     - "sports_entertainment_arts"         # 体育/娱乐/艺术 (Sports/Entertainment/Arts)
+  
+  # 🆕 v7.500 质量优化开关
+  quality_features:
+    enable_theory_validation: true        # 启用理论引用验证
+    enable_output_anchoring: true         # 启用输出锚定
+    enable_consistency_check: true        # 启用一致性检查
+    enable_structured_output: true        # 🆕 v7.501: 启用结构化输出约束（防止幻觉）
   # 功能开关 (Feature Flags)
   enable_dynamic_datetime: true      # 注入当前日期时间 (Inject current datetime)
   enable_output_example: true        # 在提示词中包含完整示例 (Include full example in prompt)
@@ -174,6 +186,30 @@ ___
       4. **惊喜测试** - 你的洞察是否让用户感到"被深度理解"甚至"说出了我自己都没意识到的需求"?
       5. **矛盾性测试** - 你的设计挑战是否真的存在对立需求?如果很容易平衡,说明不够核心。
   -   **锐度标准 (Sharpness Standards):** 避免以下模糊表述:"平衡A与B"、"兼顾X和Y"、"既...又..."。真正的设计挑战应当凸显"要么A要么B"的对立性。
+  
+  ### **🆕 L5+: 理论约束验证协议 (Theory Constraint Validation Protocol)**
+  -   **🚨 强制要求 (Mandatory Requirements):**
+      您的分析中引用的**所有理论**必须严格来自下方"Pre-approved理论清单"（8大学科透镜的明确条目）。
+      
+  -   **❌ 禁止行为 (Prohibited Actions):**
+      1. ❌ 引用不在Pre-approved清单中的理论（如"后现代灵性消费理论"、"新都市主义理论"等）
+      2. ❌ 自创理论名称（如"空间身份重构理论"、"场所精神复兴论"）
+      3. ❌ 使用模糊表述（如"根据相关研究"、"心理学研究表明"、"有学者认为"）
+      4. ❌ 混合多个理论名称创造新概念
+      
+  -   **✅ 正确做法 (Correct Approach):**
+      1. ✅ 每个理论引用必须注明具体透镜来源（如"[心理学透镜] Maslow's Hierarchy"）
+      2. ✅ 使用Pre-approved清单中的标准英文名称（括号内可补充中文）
+      3. ✅ 在分析中明确说明理论如何应用到本项目（避免生硬套用）
+      
+  -   **🔍 输出前自检清单 (Pre-Output Self-Check):**
+      在提交最终输出前，必须完成以下验证：
+      - [ ] 我引用的每个理论都在8大透镜的Pre-approved清单中吗？
+      - [ ] 我是否标注了每个理论的具体透镜来源？
+      - [ ] 我是否使用了清单中的标准名称（而非自创变体）？
+      - [ ] 我是否避免了"研究表明"等模糊表述？
+      - [ ] 核心张力的数量是否为2-3个（不多不少）？
+      - [ ] 术语是否标准化？（如使用"身份认同"而非"自我定位"）
 
 ---
 
@@ -1085,7 +1121,7 @@ meta_framework:
             example: "民宿的'过度设计'：每个角落都为Instagram优化，但失去了'家'的本质——这是拟像的胜利。"
       
       技术哲学/STS透镜: # Philosophy of Technology & STS Lens
-        when_to_use: "当项目涉及'智能家居''数字化''自动化''技术伦理'时"
+        when_to_use: "当项目涉及'智能家居''数字化''自动化''技术伦理''AI''算法''数据隐私'时"
         core_concepts:
           - name: "技术的价值负载 (Value-Laden Technology)"
             application: "技术不是'中性工具'，它内嵌了特定的价值观和权力关系。"
@@ -1098,6 +1134,27 @@ meta_framework:
           - name: "数字劳动与隐形工作 (Digital Labor & Invisible Work)"
             application: "智能家居省去的是什么劳动？新增的是什么劳动（学习、维护、数据管理）？"
             example: "'智能'冰箱需要手动输入食材信息——技术承诺的'解放'，变成了新的'数字家务'。"
+          
+          # 🆕 v7.502: 新增4个前沿理论
+          - name: "算法治理 (Algorithmic Governance)"
+            application: "算法如何塑造空间的规则、分配资源、影响决策权？谁控制算法，谁就控制空间。"
+            example: "共享办公空间的算法座位分配：优先给VIP窗边座位，加剧空间不平等。对策：透明化规则+公平性审计。"
+            when_to_use: "智能办公、共享空间、自动化系统、资源算法分配"
+          
+          - name: "数据主权 (Data Sovereignty)"
+            application: "在智能空间中，谁拥有数据？谁控制隐私？便利的代价是什么？"
+            example: "智能家居的Alexa录音困境：便利vs隐私侵蚀。对策：本地存储+用户可删除+透明协议。"
+            when_to_use: "智能家居、物联网、行为追踪、隐私保护设计"
+          
+          - name: "后人类中心设计 (Post-Anthropocentric Design)"
+            application: "设计不只服务人类，还考虑非人类主体（动物、植物、AI、生态系统）的需求。多物种正义。"
+            example: "住宅阳台：为鸟类设置饮水站、为昆虫保留野生草地，人类获得自然连接感+生物多样性保护。"
+            when_to_use: "生态建筑、人宠共居、与AI共生、可持续设计"
+          
+          - name: "故障美学 (Glitch Aesthetics)"
+            application: "拥抱技术的'不完美'和'失控'，将bug、故障、意外作为设计语言，对抗'高清完美'霸权。"
+            example: "画廊投影刻意加入扫描线、像素噪点、色块错位，创造'数字废墟'怀旧感+讽刺大科技公司。"
+            when_to_use: "数字艺术、后工业风、反叛型文化空间、批判设计"
       
       物质文化研究透镜: # Material Culture Studies Lens
         when_to_use: "当项目涉及'工艺''材料''可持续''手工''物性'时"

@@ -32,9 +32,9 @@ class RoleSelectionReviewNode:
         """
         logger.info("Starting role selection review interaction")
 
-        # ✅ 检查是否是重新执行模式，如果是则跳过审核
+        #  检查是否是重新执行模式，如果是则跳过审核
         if state.get("skip_role_review"):
-            logger.info("🔄 重新执行模式，跳过角色选择审核，直接进入任务分配审核")
+            logger.info(" 重新执行模式，跳过角色选择审核，直接进入任务分配审核")
             return Command(
                 update={"role_selection_approved": True},
                 goto="task_assignment_review"
@@ -42,7 +42,7 @@ class RoleSelectionReviewNode:
 
         # 获取项目总监的角色选择结果
         # 项目总监返回的数据在 strategic_analysis 键中
-        strategic_analysis = state.get("strategic_analysis") or {}  # 🔥 修复：确保不为 None
+        strategic_analysis = state.get("strategic_analysis") or {}  #  修复：确保不为 None
 
         if not strategic_analysis:
             logger.error("No strategic analysis found in state")
@@ -58,10 +58,10 @@ class RoleSelectionReviewNode:
         logger.info(f"Project director selected {len(selected_roles)} roles using '{strategy_name}' strategy")
         logger.debug(f"Selected roles: {selected_roles}")
 
-        # 🆕 Phase 1.3增强：交付物约束验证（审核层）
+        #  Phase 1.3增强：交付物约束验证（审核层）
         constraint_validation_result = self._validate_deliverable_constraints(state, selected_roles)
         if not constraint_validation_result["is_valid"]:
-            logger.error(f"❌ 约束验证失败：{constraint_validation_result['error_message']}")
+            logger.error(f" 约束验证失败：{constraint_validation_result['error_message']}")
             # 自动拒绝并返回项目总监重新选择
             return Command(
                 update={
@@ -124,7 +124,7 @@ class RoleSelectionReviewNode:
         logger.info(f"Received user response: {type(user_response)}")
         logger.debug(f"User response content: {user_response}")
         
-        # 🆕 使用意图解析器（支持自然语言）
+        #  使用意图解析器（支持自然语言）
         from ..utils.intent_parser import parse_user_intent
         
         intent_result = parse_user_intent(
@@ -133,13 +133,13 @@ class RoleSelectionReviewNode:
             stage="role_selection_review"
         )
         
-        logger.info(f"💬 用户意图解析: {intent_result['intent']} (方法: {intent_result['method']})")
+        logger.info(f" 用户意图解析: {intent_result['intent']} (方法: {intent_result['method']})")
         
-        # 🆕 根据意图直接返回Command进行路由
+        #  根据意图直接返回Command进行路由
         intent = intent_result["intent"]
         
         if intent == "approve":
-            logger.info("✅ User approved role selection, proceeding to task assignment")
+            logger.info(" User approved role selection, proceeding to task assignment")
             return Command(
                 update={
                     "role_selection_approved": True,
@@ -148,7 +148,7 @@ class RoleSelectionReviewNode:
                 goto="task_assignment_review"
             )
         elif intent in ["reject", "revise"]:
-            logger.warning(f"⚠️ User {intent} role selection, returning to project director")
+            logger.warning(f"️ User {intent} role selection, returning to project director")
             return Command(
                 update={
                     "role_selection_approved": False,
@@ -158,7 +158,7 @@ class RoleSelectionReviewNode:
                 goto="project_director"
             )
         elif intent == "modify":
-            logger.info(f"📝 User requested modifications, returning to project director")
+            logger.info(f" User requested modifications, returning to project director")
             return Command(
                 update={
                     "role_selection_approved": False,
@@ -193,7 +193,7 @@ class RoleSelectionReviewNode:
         formatted_roles = []
 
         for i, role in enumerate(selected_roles):
-            # ✅ 兼容两种格式：
+            #  兼容两种格式：
             # 1. 新格式：selected_roles 是 List[RoleObject]
             # 2. 旧格式：selected_roles 是 List[str]
             
@@ -222,7 +222,7 @@ class RoleSelectionReviewNode:
                 
                 formatted_roles.append({
                     "role_id": full_role_id,
-                    "role_name": dynamic_role_name,  # ✅ 使用动态名称
+                    "role_name": dynamic_role_name,  #  使用动态名称
                     "tasks": tasks,
                     "focus_areas": focus_areas,
                     "expected_output": expected_output,
@@ -256,7 +256,7 @@ class RoleSelectionReviewNode:
                     dependencies = []
                 else:
                     # 未知格式，记录警告并使用默认值
-                    logger.warning(f"⚠️ 未知的 task_distribution 格式: {type(role_tasks)} for role {role_id}")
+                    logger.warning(f"️ 未知的 task_distribution 格式: {type(role_tasks)} for role {role_id}")
                     tasks = []
                     focus_areas = []
                     expected_output = ""
@@ -300,7 +300,7 @@ class RoleSelectionReviewNode:
         selected_roles: List[str]
     ) -> Dict[str, Any]:
         """
-        🆕 Phase 1.3: 验证角色分配是否符合交付物约束
+         Phase 1.3: 验证角色分配是否符合交付物约束
 
         本方法是审核层的第二道防线，用于拦截不符合约束的角色分配：
         1. 检查配置文件中的must_include/must_exclude规则
@@ -315,7 +315,7 @@ class RoleSelectionReviewNode:
         """
         from intelligent_project_analyzer.utils.constraint_loader import validate_allocation
 
-        logger.info("🔍 [约束验证] 开始验证角色分配约束...")
+        logger.info(" [约束验证] 开始验证角色分配约束...")
 
         # 1. 提取交付物列表
         requirements_analysis = state.get("requirements_analysis", {})
@@ -326,7 +326,7 @@ class RoleSelectionReviewNode:
         primary_deliverables = requirements_analysis.get("primary_deliverables", [])
 
         if not primary_deliverables:
-            logger.warning("[约束验证] ⚠️ 未找到primary_deliverables，跳过验证")
+            logger.warning("[约束验证] ️ 未找到primary_deliverables，跳过验证")
             return {"is_valid": True, "error_message": ""}
 
         logger.info(f"[约束验证] 找到 {len(primary_deliverables)} 个交付物")
@@ -341,7 +341,7 @@ class RoleSelectionReviewNode:
             elif isinstance(role, str):
                 role_ids.append(role)
             else:
-                logger.warning(f"[约束验证] ⚠️ 未知角色格式: {type(role)}")
+                logger.warning(f"[约束验证] ️ 未知角色格式: {type(role)}")
 
         logger.info(f"[约束验证] 提取到 {len(role_ids)} 个角色ID: {role_ids}")
 
@@ -350,9 +350,9 @@ class RoleSelectionReviewNode:
             is_valid, error_msg = validate_allocation(primary_deliverables, role_ids)
 
             if not is_valid:
-                logger.error(f"[约束验证] ❌ 验证失败: {error_msg}")
+                logger.error(f"[约束验证]  验证失败: {error_msg}")
             else:
-                logger.info("[约束验证] ✅ 验证通过")
+                logger.info("[约束验证]  验证通过")
 
             return {
                 "is_valid": is_valid,
@@ -360,7 +360,7 @@ class RoleSelectionReviewNode:
             }
 
         except Exception as e:
-            logger.error(f"[约束验证] ⚠️ 验证过程出错: {str(e)}", exc_info=True)
+            logger.error(f"[约束验证] ️ 验证过程出错: {str(e)}", exc_info=True)
             # 出错时默认通过，避免阻塞流程
             return {
                 "is_valid": True,
@@ -377,13 +377,13 @@ class RoleSelectionReviewNode:
         Returns:
             显示名称
         """
-        # ✅ 修正后的名称映射 - 与角色配置文件保持一致
+        #  修正后的名称映射 - 与角色配置文件保持一致
         name_mapping = {
             "V2_设计总监": "设计总监",
-            "V3_人物及叙事专家": "人物及叙事专家",  # ✅ 修复: 原来错误地映射为"技术架构师"
-            "V4_设计研究员": "设计研究员",  # ✅ 修复: 原来错误地映射为"用户体验设计师"
-            "V5_场景与用户生态专家": "场景与用户生态专家",  # ✅ 修复: 原来错误地映射为"商业分析师"
-            "V6_专业总工程师": "专业总工程师"  # ✅ 修复: 原来键名为"V6_专业员工群"
+            "V3_人物及叙事专家": "人物及叙事专家",  #  修复: 原来错误地映射为"技术架构师"
+            "V4_设计研究员": "设计研究员",  #  修复: 原来错误地映射为"用户体验设计师"
+            "V5_场景与用户生态专家": "场景与用户生态专家",  #  修复: 原来错误地映射为"商业分析师"
+            "V6_专业总工程师": "专业总工程师"  #  修复: 原来键名为"V6_专业员工群"
         }
 
         # 提取角色类别前缀
@@ -415,19 +415,19 @@ class RoleSelectionReviewNode:
         Returns:
             更新后的状态
         """
-        # 🆕 优先使用意图解析结果（支持自然语言对话）
+        #  优先使用意图解析结果（支持自然语言对话）
         if intent_result:
             intent = intent_result["intent"]
             content = intent_result.get("content", "")
             
             if intent == "approve":
-                logger.info("✅ User approved role selection, proceeding")
+                logger.info(" User approved role selection, proceeding")
                 return {
                     "role_selection_approved": True,
                     "role_selection_modified": False
                 }
             elif intent in ["reject", "revise"]:
-                logger.warning(f"⚠️ User {intent} role selection, need to reselect")
+                logger.warning(f"️ User {intent} role selection, need to reselect")
                 return {
                     "role_selection_approved": False,
                     "role_selection_modified": False,
@@ -435,7 +435,7 @@ class RoleSelectionReviewNode:
                     "rejection_reason": content or f"User {intent}"
                 }
             elif intent == "modify":
-                logger.info(f"📝 User requested modifications: {content[:50]}")
+                logger.info(f" User requested modifications: {content[:50]}")
                 return {
                     "role_selection_approved": False,
                     "role_selection_modified": True,

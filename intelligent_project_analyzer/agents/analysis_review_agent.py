@@ -1,7 +1,7 @@
 """
 分析审核智能体 (LangGraph StateGraph)
 
-🔥 v7.16: 将 AnalysisReviewNode 升级为真正的 LangGraph Agent
+ v7.16: 将 AnalysisReviewNode 升级为真正的 LangGraph Agent
 
 核心功能:
 1. 红蓝对抗 (Red-Blue Debate)
@@ -69,7 +69,7 @@ def red_blue_debate_node(state: AnalysisReviewState) -> Dict[str, Any]:
     红队：批判性审查，找问题
     蓝队：防御性辩护，过滤误判
     """
-    logger.info("⚔️ 执行红蓝对抗节点")
+    logger.info("️ 执行红蓝对抗节点")
     
     agent_results = state.get("agent_results", {})
     requirements = state.get("requirements", {})
@@ -81,21 +81,21 @@ def red_blue_debate_node(state: AnalysisReviewState) -> Dict[str, Any]:
     llm_model = state.get("_llm_model")
     
     if not llm_model:
-        logger.warning("⚠️ 未提供 LLM 模型，使用空结果")
+        logger.warning("️ 未提供 LLM 模型，使用空结果")
         return {
             "red_review": {"issues": [], "overall_assessment": "未执行"},
             "blue_review": {"defenses": [], "overall_assessment": "未执行"},
             "red_blue_debate": {"issues": [], "validated_issues": []},
-            "processing_log": ["⚠️ 红蓝对抗跳过：未提供LLM模型"]
+            "processing_log": ["️ 红蓝对抗跳过：未提供LLM模型"]
         }
     
     # 执行红队审核
-    logger.info("🔴 红队审核：批判性分析...")
+    logger.info(" 红队审核：批判性分析...")
     red_team = RedTeamReviewer(llm_model)
     red_review = red_team.review(review_content)
     
     # 执行蓝队审核（基于红队结果）
-    logger.info("🔵 蓝队审核：防御性辩护...")
+    logger.info(" 蓝队审核：防御性辩护...")
     blue_team = BlueTeamReviewer(llm_model)
     blue_review = blue_team.review(review_content, red_review)
     
@@ -128,7 +128,7 @@ def red_blue_debate_node(state: AnalysisReviewState) -> Dict[str, Any]:
         "validated_count": len(validated_issues)
     }
     
-    log_entry = f"⚔️ 红蓝对抗完成：红队发现{len(red_issues)}个问题，蓝队验证{len(validated_issues)}个"
+    log_entry = f"️ 红蓝对抗完成：红队发现{len(red_issues)}个问题，蓝队验证{len(validated_issues)}个"
     logger.info(log_entry)
     
     return {
@@ -143,7 +143,7 @@ def client_review_node(state: AnalysisReviewState) -> Dict[str, Any]:
     """
     甲方决策节点 - 基于红蓝对抗结果做最终决策
     """
-    logger.info("👔 执行甲方决策节点")
+    logger.info(" 执行甲方决策节点")
     
     agent_results = state.get("agent_results", {})
     requirements = state.get("requirements", {})
@@ -156,14 +156,14 @@ def client_review_node(state: AnalysisReviewState) -> Dict[str, Any]:
     llm_model = state.get("_llm_model")
     
     if not llm_model:
-        logger.warning("⚠️ 未提供 LLM 模型，使用默认决策")
+        logger.warning("️ 未提供 LLM 模型，使用默认决策")
         return {
             "client_review": {
                 "final_decision": "approve",
                 "confidence": 0.5,
                 "reasoning": "未执行LLM审核，默认通过"
             },
-            "processing_log": ["⚠️ 甲方决策跳过：未提供LLM模型"]
+            "processing_log": ["️ 甲方决策跳过：未提供LLM模型"]
         }
     
     # 执行甲方审核
@@ -174,7 +174,7 @@ def client_review_node(state: AnalysisReviewState) -> Dict[str, Any]:
     )
     
     final_decision = client_review.get("final_decision", "approve")
-    log_entry = f"👔 甲方决策完成：{final_decision}"
+    log_entry = f" 甲方决策完成：{final_decision}"
     logger.info(log_entry)
     
     return {
@@ -187,7 +187,7 @@ def generate_ruling_node(state: AnalysisReviewState) -> Dict[str, Any]:
     """
     生成最终裁定节点 - 汇总审核结果，生成改进建议
     """
-    logger.info("📋 生成最终裁定")
+    logger.info(" 生成最终裁定")
     
     red_blue_debate = state.get("red_blue_debate", {})
     client_review = state.get("client_review", {})
@@ -239,7 +239,7 @@ def generate_ruling_node(state: AnalysisReviewState) -> Dict[str, Any]:
         analysis_approved
     )
     
-    log_entry = f"📋 裁定生成完成：{must_fix_count}个must_fix问题，{'通过' if analysis_approved else '需整改'}"
+    log_entry = f" 裁定生成完成：{must_fix_count}个must_fix问题，{'通过' if analysis_approved else '需整改'}"
     logger.info(log_entry)
     
     return {
@@ -280,7 +280,7 @@ def _generate_ruling_document(
 # 分析审核裁定文档
 
 ## 审核结论
-- **状态**: {'✅ 审核通过' if analysis_approved else '⚠️ 需要整改'}
+- **状态**: {' 审核通过' if analysis_approved else '️ 需要整改'}
 - **甲方决策**: {client_review.get('final_decision', 'N/A')}
 - **红蓝对抗问题数**: {red_blue_debate.get('total_issues', 0)}
 - **验证后问题数**: {red_blue_debate.get('validated_count', 0)}
@@ -359,7 +359,7 @@ class AnalysisReviewAgent:
         # 构建并编译状态图
         self._graph = build_analysis_review_graph().compile()
         
-        logger.info("🚀 AnalysisReviewAgent (LangGraph) 已初始化")
+        logger.info(" AnalysisReviewAgent (LangGraph) 已初始化")
     
     def execute(
         self,
@@ -378,7 +378,7 @@ class AnalysisReviewAgent:
         Returns:
             审核结果字典
         """
-        logger.info(f"🎯 AnalysisReviewAgent 开始审核 (轮次 {review_iteration_round})")
+        logger.info(f" AnalysisReviewAgent 开始审核 (轮次 {review_iteration_round})")
         start_time = time.time()
         
         # 准备初始状态
@@ -422,14 +422,14 @@ class AnalysisReviewAgent:
             # 记录性能指标
             PerformanceMonitor.record("AnalysisReviewAgent", time.time() - start_time, "v7.16")
             
-            logger.info(f"✅ AnalysisReviewAgent 完成: {result['must_fix_count']} must_fix, approved={result['analysis_approved']}")
+            logger.info(f" AnalysisReviewAgent 完成: {result['must_fix_count']} must_fix, approved={result['analysis_approved']}")
             return result
             
         except Exception as e:
             # 记录失败时的性能指标
             PerformanceMonitor.record("AnalysisReviewAgent", time.time() - start_time, "v7.16-error")
             
-            logger.error(f"❌ AnalysisReviewAgent 执行失败: {e}")
+            logger.error(f" AnalysisReviewAgent 执行失败: {e}")
             import traceback
             traceback.print_exc()
             
@@ -442,7 +442,7 @@ class AnalysisReviewAgent:
                 "agents_to_improve": [],
                 "red_blue_debate": {},
                 "client_review": {},
-                "processing_log": [f"❌ 执行失败: {e}"],
+                "processing_log": [f" 执行失败: {e}"],
                 "error": str(e)
             }
     
@@ -531,7 +531,7 @@ class AnalysisReviewNodeCompat:
         agents_to_improve = result.get("agents_to_improve", [])
         
         if must_fix_count > 0 and review_iteration_round < 1 and agents_to_improve:
-            logger.warning(f"🔄 发现{must_fix_count}个must_fix问题，触发专家整改")
+            logger.warning(f" 发现{must_fix_count}个must_fix问题，触发专家整改")
             
             # 构建反馈
             agent_feedback = {}

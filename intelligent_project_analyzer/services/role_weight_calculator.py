@@ -54,23 +54,23 @@ class RoleWeightCalculator:
 
             self.jieba = jieba
             self._jieba_available = True
-            logger.info("✅ jieba 分词库已加载")
+            logger.info(" jieba 分词库已加载")
         except ImportError:
             self.jieba = None
             self._jieba_available = False
-            logger.warning("⚠️ jieba 未安装，将使用简单分词方法")
+            logger.warning("️ jieba 未安装，将使用简单分词方法")
 
     def _load_config(self) -> Dict[str, Any]:
         """加载配置文件"""
         try:
             with open(self.config_path, "r", encoding="utf-8") as f:
                 config = yaml.safe_load(f)
-            logger.info(f"✅ 已加载权重配置: {self.config_path}")
+            logger.info(f" 已加载权重配置: {self.config_path}")
             logger.info(f"   版本: {config.get('version')}")
             logger.info(f"   策略: {config.get('default_strategy', {}).get('name')}")
             return config
         except Exception as e:
-            logger.error(f"❌ 加载配置文件失败: {e}")
+            logger.error(f" 加载配置文件失败: {e}")
             raise
 
     def calculate_weights(
@@ -79,7 +79,7 @@ class RoleWeightCalculator:
         """
         计算角色权重
 
-        🆕 增强功能：如果提供confirmed_core_tasks，从任务中提取额外关键词，
+         增强功能：如果提供confirmed_core_tasks，从任务中提取额外关键词，
         提升权重计算精度。这解决了"问卷数据未融入权重计算"的问题。
 
         Args:
@@ -95,13 +95,13 @@ class RoleWeightCalculator:
                 ...
             }
         """
-        logger.info("🔍 开始计算角色权重...")
+        logger.info(" 开始计算角色权重...")
 
         # 1. 提取关键词（从需求文本）
         keywords = self._extract_keywords(requirements)
         logger.debug(f"   从需求文本提取到 {len(keywords)} 个关键词")
 
-        # 🆕 1.5. 从confirmed_core_tasks提取额外关键词
+        #  1.5. 从confirmed_core_tasks提取额外关键词
         task_keywords = set()
         if confirmed_core_tasks:
             for task in confirmed_core_tasks:
@@ -110,7 +110,7 @@ class RoleWeightCalculator:
                 task_text = f"{task_title} {task_desc}"
                 task_keywords.update(self._extract_keywords(task_text))
 
-            logger.info(f"   📋 从 {len(confirmed_core_tasks)} 个确认任务提取到 {len(task_keywords)} 个额外关键词")
+            logger.info(f"    从 {len(confirmed_core_tasks)} 个确认任务提取到 {len(task_keywords)} 个额外关键词")
             # 合并关键词
             keywords.update(task_keywords)
             logger.debug(f"   合并后共 {len(keywords)} 个关键词")
@@ -139,7 +139,7 @@ class RoleWeightCalculator:
         # 按权重排序（方便查看）
         sorted_weights = dict(sorted(weights.items(), key=lambda x: x[1], reverse=True))
 
-        logger.info(f"📊 权重计算完成:")
+        logger.info(f" 权重计算完成:")
         for role, weight in sorted_weights.items():
             logger.info(f"   {role}: {weight:.1f}")
 
@@ -223,7 +223,7 @@ class RoleWeightCalculator:
 
             if is_match:
                 matched_tags.append(tag_name)
-                logger.debug(f"   ✅ 匹配标签 '{tag_name}': 关键词 {matched_kws}")
+                logger.debug(f"    匹配标签 '{tag_name}': 关键词 {matched_kws}")
 
         return matched_tags
 
@@ -345,9 +345,9 @@ if __name__ == "__main__":
         # 判断 V4 是否被选中
         v4_weight = weights.get("V4_设计研究员", 0.0)
         if v4_weight >= 2.0:
-            print(f"\n✅ V4 权重为 {v4_weight:.1f}，应该被选中")
+            print(f"\n V4 权重为 {v4_weight:.1f}，应该被选中")
         else:
-            print(f"\n⚠️ V4 权重为 {v4_weight:.1f}，可能不会被选中")
+            print(f"\n️ V4 权重为 {v4_weight:.1f}，可能不会被选中")
 
     except Exception as e:
         logger.error(f"测试失败: {e}")

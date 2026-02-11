@@ -20,7 +20,7 @@ class PromptManager:
     2. 提供提示词查询接口
     3. 支持模板变量替换
     4. 创建默认配置模板
-    5. 🆕 单例模式 + 类级别缓存,避免重复加载
+    5.  单例模式 + 类级别缓存,避免重复加载
     """
 
     # 类级别缓存
@@ -87,10 +87,10 @@ class PromptManager:
                 self.prompts = {}
                 return
 
-            # 🆕 仅首次加载时输出详细日志
+            #  仅首次加载时输出详细日志
             is_first_load = len(PromptManager._instances) == 1
             if is_first_load:
-                print(f"[INFO] 🔄 Loading prompts from directory: {self.config_path}")
+                print(f"[INFO]  Loading prompts from directory: {self.config_path}")
 
             self.prompts = {}
             yaml_files = list(self.config_path.glob("*.yaml")) + list(self.config_path.glob("*.yml"))
@@ -109,7 +109,7 @@ class PromptManager:
                     self.prompts[agent_name] = file_content
 
             if is_first_load:
-                print(f"[OK] ✅ Successfully loaded {len(self.prompts)} prompt configuration(s) (cached)")
+                print(f"[OK]  Successfully loaded {len(self.prompts)} prompt configuration(s) (cached)")
             else:
                 # 后续调用仅输出简洁信息
                 print(f"[INFO] Using cached prompts ({len(self.prompts)} configs)")
@@ -123,7 +123,7 @@ class PromptManager:
         验证配置完整性 - 检查所有核心提示词配置文件是否存在
 
         核心配置文件:
-        - requirements_analyst_lite.yaml: 需求分析师 (🔧 v4.2: 精简版)
+        - requirements_analyst_lite.yaml: 需求分析师 ( v4.2: 精简版)
         - review_agents.yaml: 审核系统（红队、蓝队、评委、甲方）
         - result_aggregator.yaml: 结果聚合器
         - dynamic_project_director_v2.yaml: 项目总监 (v2.1)
@@ -131,10 +131,10 @@ class PromptManager:
         如果缺失核心配置，将抛出异常
         """
         required_configs = [
-            "requirements_analyst_lite",  # 🔧 v4.2: 使用精简版配置
+            "requirements_analyst_lite",  #  v4.2: 使用精简版配置
             "review_agents",
             "result_aggregator",
-            "dynamic_project_director_v2",  # 🔧 v2.1: 使用新版配置
+            "dynamic_project_director_v2",  #  v2.1: 使用新版配置
         ]
 
         missing_configs = []
@@ -149,7 +149,7 @@ class PromptManager:
 
         if missing_configs:
             error_msg = (
-                "❌ 配置完整性检查失败！缺少以下核心提示词配置文件:\n"
+                " 配置完整性检查失败！缺少以下核心提示词配置文件:\n"
                 + "\n".join(f"  - {name}" for name in missing_configs)
                 + f"\n\n请确保这些文件存在于: {self.config_path}\n"
                 + "系统无法使用硬编码提示词，必须提供完整的配置文件。"

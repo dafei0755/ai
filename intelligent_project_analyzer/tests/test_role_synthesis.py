@@ -273,9 +273,9 @@ class TestRoleSynthesisProtocol:
         assert "synthesis_constraints" in synthesis_protocol, "缺少合成约束"
         assert "synthesis_example" in synthesis_protocol, "缺少合成示例"
         
-        print(f"✅ 配置文件验证通过")
-        print(f"📋 合成步骤数: {len(synthesis_protocol['synthesis_steps'])}")
-        print(f"⚠️  约束条件数: {len(synthesis_protocol['synthesis_constraints'])}")
+        print(f" 配置文件验证通过")
+        print(f" 合成步骤数: {len(synthesis_protocol['synthesis_steps'])}")
+        print(f"️  约束条件数: {len(synthesis_protocol['synthesis_constraints'])}")
         
         # 模拟合成结果 (实际应用中由LLM生成)
         mock_synthesis_result = self._generate_mock_synthesis(test_case)
@@ -283,7 +283,7 @@ class TestRoleSynthesisProtocol:
         # 评估合成质量
         quality_report = SynthesisQualityScorer.evaluate(mock_synthesis_result)
         
-        print(f"\n📊 质量评估报告:")
+        print(f"\n 质量评估报告:")
         print(f"   总分: {quality_report['总分']}/10")
         print(f"   等级: {quality_report['等级']}")
         print(f"   详细评分: {quality_report['详细评分']}")
@@ -296,7 +296,7 @@ class TestRoleSynthesisProtocol:
         assert quality_report["详细评分"]["跨战略层"] == 10, \
             "违反约束: 父角色必须来自不同战略层"
         
-        print(f"\n✅ 场景 '{test_case.scenario_name}' 测试通过")
+        print(f"\n 场景 '{test_case.scenario_name}' 测试通过")
     
     def _generate_mock_synthesis(self, test_case: RoleSynthesisTestCase) -> Dict[str, Any]:
         """
@@ -384,7 +384,7 @@ class TestRoleSynthesisProtocol:
         # 验证约束3: 最小化依赖
         assert any("dependencies" in c for c in constraints), "缺少依赖最小化约束"
         
-        print(f"✅ 所有约束条件验证通过")
+        print(f" 所有约束条件验证通过")
 
 
 # ============================================================================
@@ -395,9 +395,9 @@ if __name__ == "__main__":
     print("="*80)
     print("动态角色合成协议测试套件")
     print("="*80)
-    print(f"\n📋 测试场景数量: {len(TEST_SCENARIOS)}")
-    print(f"📊 评分维度数量: 7个")
-    print(f"✅ 合格标准: 总分 >= 7.0/10\n")
+    print(f"\n 测试场景数量: {len(TEST_SCENARIOS)}")
+    print(f" 评分维度数量: 7个")
+    print(f" 合格标准: 总分 >= 7.0/10\n")
     
     # 运行测试
     pytest.main([__file__, "-v", "-s"])

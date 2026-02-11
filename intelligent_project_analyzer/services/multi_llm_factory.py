@@ -133,7 +133,7 @@ class MultiLLMFactory:
         max_retries = max_retries if max_retries is not None else getattr(settings.llm, 'max_retries', 3)
         
         logger.debug(
-            f"📊 使用配置: temperature={temperature}, max_tokens={max_tokens}, "
+            f" 使用配置: temperature={temperature}, max_tokens={max_tokens}, "
             f"timeout={timeout}s, max_retries={max_retries}"
         )
         
@@ -146,11 +146,11 @@ class MultiLLMFactory:
         model_env = config.get("model_env", "")
         model_name = os.getenv(model_env, config.get("default_model", "unknown"))
         
-        logger.info(f"🔧 Creating LLM instance: provider={provider}, model={model_name}, temperature={temperature}, max_tokens={max_tokens}")
+        logger.info(f" Creating LLM instance: provider={provider}, model={model_name}, temperature={temperature}, max_tokens={max_tokens}")
         
         # 验证提供商
         if provider not in cls.PROVIDER_CONFIGS:
-            logger.error(f"❌ Unknown provider: {provider}")
+            logger.error(f" Unknown provider: {provider}")
             raise ValueError(f"Unknown LLM provider: {provider}")
         
         # 获取提供商配置
@@ -179,7 +179,7 @@ class MultiLLMFactory:
         # 获取API Key
         api_key = os.getenv(config["api_key_env"])
         if not api_key or api_key == "your_xxx_api_key_here":
-            raise ValueError(f"❌ Missing or invalid API key: {config['api_key_env']}")
+            raise ValueError(f" Missing or invalid API key: {config['api_key_env']}")
         
         # 获取模型名称
         model = os.getenv(config["model_env"], config["default_model"])
@@ -209,9 +209,9 @@ class MultiLLMFactory:
                 "HTTP-Referer": site_url,
                 "X-Title": app_name
             }
-            logger.info(f"✅ OpenRouter headers: referer={site_url}, title={app_name}")
+            logger.info(f" OpenRouter headers: referer={site_url}, title={app_name}")
         
-        logger.info(f"✅ Creating {model} (timeout={timeout}s, max_tokens={max_tokens})")
+        logger.info(f" Creating {model} (timeout={timeout}s, max_tokens={max_tokens})")
         
         return config["class"](**llm_params)
     
@@ -229,7 +229,7 @@ class MultiLLMFactory:
         
         api_key = os.getenv(config["api_key_env"])
         if not api_key or api_key == "your_anthropic_api_key_here":
-            raise ValueError(f"❌ Missing or invalid API key: {config['api_key_env']}")
+            raise ValueError(f" Missing or invalid API key: {config['api_key_env']}")
         
         model = os.getenv(config["model_env"], config["default_model"])
         
@@ -243,7 +243,7 @@ class MultiLLMFactory:
             **kwargs
         }
         
-        logger.info(f"✅ Creating {model} (Anthropic)")
+        logger.info(f" Creating {model} (Anthropic)")
         
         return config["class"](**llm_params)
     
@@ -265,7 +265,7 @@ class MultiLLMFactory:
         api_version = os.getenv(config["version_env"], config["default_version"])
         
         if not all([api_key, endpoint, deployment]):
-            raise ValueError("❌ Missing Azure OpenAI configuration")
+            raise ValueError(" Missing Azure OpenAI configuration")
         
         llm_params = {
             "azure_deployment": deployment,
@@ -279,7 +279,7 @@ class MultiLLMFactory:
             **kwargs
         }
         
-        logger.info(f"✅ Creating Azure OpenAI: {deployment}")
+        logger.info(f" Creating Azure OpenAI: {deployment}")
         
         return config["class"](**llm_params)
     
@@ -313,7 +313,7 @@ class MultiLLMFactory:
                 providers=["openai", "openrouter", "deepseek"]
             )
         """
-        logger.info(f"🔄 Attempting to create LLM with fallback: {providers}")
+        logger.info(f" Attempting to create LLM with fallback: {providers}")
         
         last_error = None
         for provider in providers:
@@ -326,15 +326,15 @@ class MultiLLMFactory:
                     max_retries=max_retries,
                     **kwargs
                 )
-                logger.info(f"✅ Successfully created LLM with provider: {provider}")
+                logger.info(f" Successfully created LLM with provider: {provider}")
                 return llm
             except Exception as e:
-                logger.warning(f"⚠️ Failed to create {provider} LLM: {e}")
+                logger.warning(f"️ Failed to create {provider} LLM: {e}")
                 last_error = e
                 continue
         
         # 所有提供商都失败
-        logger.error(f"❌ All providers failed. Last error: {last_error}")
+        logger.error(f" All providers failed. Last error: {last_error}")
         raise RuntimeError(f"Failed to create LLM with any provider: {providers}")
     
     @classmethod
@@ -358,10 +358,10 @@ class MultiLLMFactory:
         try:
             llm = cls.create_llm(provider=provider, timeout=10)
             result = llm.invoke("Say hello")
-            logger.info(f"✅ Provider {provider} test passed: {result.content[:50]}")
+            logger.info(f" Provider {provider} test passed: {result.content[:50]}")
             return True
         except Exception as e:
-            logger.error(f"❌ Provider {provider} test failed: {e}")
+            logger.error(f" Provider {provider} test failed: {e}")
             return False
 
 
@@ -406,14 +406,14 @@ class FallbackLLM:
                     **kwargs
                 )
                 self.llm_instances[provider] = llm
-                logger.info(f"✅ 预创建 {provider} LLM 成功")
+                logger.info(f" 预创建 {provider} LLM 成功")
             except Exception as e:
-                logger.warning(f"⚠️ 预创建 {provider} LLM 失败: {e}")
+                logger.warning(f"️ 预创建 {provider} LLM 失败: {e}")
         
         if not self.llm_instances:
             raise RuntimeError(f"无法创建任何 LLM 实例: {providers}")
         
-        logger.info(f"🔄 降级链就绪: {' → '.join(self.llm_instances.keys())}")
+        logger.info(f" 降级链就绪: {' → '.join(self.llm_instances.keys())}")
     
     def invoke(self, *args, **kwargs):
         """调用 LLM，支持自动降级"""
@@ -421,27 +421,27 @@ class FallbackLLM:
         
         for provider, llm in self.llm_instances.items():
             try:
-                logger.debug(f"🔧 尝试使用 {provider} 调用 LLM...")
+                logger.debug(f" 尝试使用 {provider} 调用 LLM...")
                 response = llm.invoke(*args, **kwargs)
-                logger.success(f"✅ {provider} 调用成功")
+                logger.success(f" {provider} 调用成功")
                 return response
                 
             except Exception as e:
                 error_msg = str(e)
-                logger.warning(f"⚠️ {provider} 调用失败: {error_msg[:100]}")
+                logger.warning(f"️ {provider} 调用失败: {error_msg[:100]}")
                 last_error = e
                 
                 # 如果是配额问题，立即尝试下一个
                 if "429" in error_msg or "quota" in error_msg.lower():
-                    logger.info(f"🔄 检测到配额问题，切换到下一个提供商...")
+                    logger.info(f" 检测到配额问题，切换到下一个提供商...")
                     continue
                 
                 # 其他错误也尝试降级
-                logger.info(f"🔄 尝试降级到下一个提供商...")
+                logger.info(f" 尝试降级到下一个提供商...")
                 continue
         
         # 所有提供商都失败
-        logger.error(f"❌ 所有提供商调用失败")
+        logger.error(f" 所有提供商调用失败")
         raise RuntimeError(f"所有 LLM 提供商调用失败: {list(self.llm_instances.keys())}") from last_error
     
     def __getattr__(self, name):

@@ -1,15 +1,16 @@
 """
 工具集成模块
 
-包含外部工具的集成：Tavily搜索、Arxiv学术、Ragflow知识库等
+包含外部工具的集成：Tavily搜索、Arxiv学术等
 """
 
-from .tavily_search import TavilySearchTool
 from .arxiv_search import ArxivSearchTool
-from .ragflow_kb import RagflowKBTool
+from .tavily_search import TavilySearchTool
+
+# from .ragflow_kb import RagflowKBTool  # Ragflow已停用
 
 __all__ = [
     "TavilySearchTool",
     "ArxivSearchTool",
-    "RagflowKBTool"
+    # "RagflowKBTool"  # Ragflow已停用
 ]

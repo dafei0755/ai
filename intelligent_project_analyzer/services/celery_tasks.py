@@ -9,7 +9,7 @@ import asyncio
 import io
 import sys
 from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 from celery import current_task, shared_task
 from celery.exceptions import SoftTimeLimitExceeded
@@ -50,7 +50,9 @@ def run_async(coro):
 
 
 @celery_app.task(bind=True, name="analyze_project")
-def analyze_project(self, session_id: str, user_input: str, user_id: str = "celery_user") -> Dict[str, Any]:
+def analyze_project(
+    self, session_id: str, user_input: str, user_id: str = "celery_user", analysis_mode: str = "normal"
+) -> Dict[str, Any]:
     """
     异步分析项目任务
 
@@ -58,11 +60,12 @@ def analyze_project(self, session_id: str, user_input: str, user_id: str = "cele
         session_id: 会话ID
         user_input: 用户输入
         user_id: 用户ID
+        analysis_mode: 分析模式 (normal/deep_thinking)
 
     Returns:
         分析结果
     """
-    logger.info(f"🚀 [Celery] 开始分析任务: {session_id}")
+    logger.info(f" [Celery] 开始分析任务: {session_id}, 模式: {analysis_mode}")
 
     try:
         # 更新任务状态
@@ -72,24 +75,241 @@ def analyze_project(self, session_id: str, user_input: str, user_id: str = "cele
         )
 
         # 执行异步分析
-        result = run_async(_run_workflow(self, session_id, user_input, user_id))
+        result = run_async(_run_workflow(self, session_id, user_input, user_id, analysis_mode))
 
-        logger.info(f"✅ [Celery] 分析任务完成: {session_id}")
+        logger.info(f" [Celery] 分析任务完成: {session_id}")
         return result
 
     except SoftTimeLimitExceeded:
-        logger.warning(f"⏰ [Celery] 任务超时: {session_id}")
+        logger.warning(f" [Celery] 任务超时: {session_id}")
         return {"session_id": session_id, "status": "timeout", "error": "分析任务超时，请尝试简化输入"}
     except Exception as e:
-        logger.error(f"❌ [Celery] 任务失败: {session_id}, 错误: {str(e)}")
+        logger.error(f" [Celery] 任务失败: {session_id}, 错误: {str(e)}")
         import traceback
 
         return {"session_id": session_id, "status": "failed", "error": str(e), "traceback": traceback.format_exc()}
 
 
-async def _run_workflow(task, session_id: str, user_input: str, user_id: str) -> Dict[str, Any]:
+@celery_app.task(bind=True, name="analyze_project_with_files")
+def analyze_project_with_files(
+    self,
+    session_id: str,
+    combined_input: str,
+    user_id: str = "celery_user",
+    analysis_mode: str = "normal",
+    visual_references: Optional[List[Dict[str, Any]]] = None,
+    visual_style_anchor: Optional[str] = None,
+) -> Dict[str, Any]:
+    """
+    异步分析项目任务（带文件/视觉参考）
+
+    Args:
+        session_id: 会话ID
+        combined_input: 合并后的用户输入（包含文件内容摘要）
+        user_id: 用户ID
+        analysis_mode: 分析模式 (normal/deep_thinking)
+        visual_references: 视觉参考列表
+        visual_style_anchor: 全局风格锚点
+
+    Returns:
+        分析结果
+    """
+    logger.info(f" [Celery] 开始带文件分析任务: {session_id}, 模式: {analysis_mode}")
+    if visual_references:
+        logger.info(f"️ [Celery] 视觉参考数量: {len(visual_references)}")
+
+    try:
+        self.update_state(
+            state="PROGRESS",
+            meta={"session_id": session_id, "progress": 0.05, "current_stage": "初始化", "message": "正在启动分析流程..."},
+        )
+
+        result = run_async(
+            _run_workflow_with_files(
+                self, session_id, combined_input, user_id, analysis_mode, visual_references, visual_style_anchor
+            )
+        )
+
+        logger.info(f" [Celery] 带文件分析任务完成: {session_id}")
+        return result
+
+    except SoftTimeLimitExceeded:
+        logger.warning(f" [Celery] 任务超时: {session_id}")
+        return {"session_id": session_id, "status": "timeout", "error": "分析任务超时，请尝试简化输入"}
+    except Exception as e:
+        logger.error(f" [Celery] 任务失败: {session_id}, 错误: {str(e)}")
+        import traceback
+
+        return {"session_id": session_id, "status": "failed", "error": str(e), "traceback": traceback.format_exc()}
+
+
+async def _run_workflow_with_files(
+    task,
+    session_id: str,
+    combined_input: str,
+    user_id: str,
+    analysis_mode: str = "normal",
+    visual_references: Optional[List[Dict[str, Any]]] = None,
+    visual_style_anchor: Optional[str] = None,
+) -> Dict[str, Any]:
+    """
+    执行带文件的工作流
+
+    Args:
+        task: Celery 任务实例
+        session_id: 会话ID
+        combined_input: 合并后的用户输入
+        user_id: 用户ID
+        analysis_mode: 分析模式
+        visual_references: 视觉参考列表
+        visual_style_anchor: 全局风格锚点
+    """
+    from intelligent_project_analyzer.core.state import StateManager
+    from intelligent_project_analyzer.services.redis_session_manager import RedisSessionManager
+    from intelligent_project_analyzer.workflow.main_workflow import MainWorkflow
+
+    session_manager = RedisSessionManager()
+    await session_manager.connect()
+
+    try:
+        await session_manager.update(session_id, {"status": "running", "progress": 0.1, "task_id": task.request.id})
+
+        workflow = MainWorkflow()
+        workflow.build()
+
+        task.update_state(
+            state="PROGRESS",
+            meta={"session_id": session_id, "progress": 0.15, "current_stage": "工作流初始化", "message": "正在创建分析工作流..."},
+        )
+
+        # 创建初始状态（包含视觉参考）
+        initial_state = StateManager.create_initial_state(
+            user_input=combined_input,
+            session_id=session_id,
+            user_id=user_id,
+            analysis_mode=analysis_mode,
+            uploaded_visual_references=visual_references,
+            visual_style_anchor=visual_style_anchor,
+        )
+
+        config = {"configurable": {"thread_id": session_id}, "recursion_limit": 100}
+
+        node_progress_map = {
+            "unified_input_validator_initial": 0.05,
+            "unified_input_validator_secondary": 0.10,
+            "requirements_analyst": 0.15,
+            "feasibility_analyst": 0.20,
+            "calibration_questionnaire": 0.25,
+            "questionnaire_summary": 0.35,
+            "project_director": 0.40,
+            "role_task_unified_review": 0.45,
+            "quality_preflight": 0.50,
+            "batch_executor": 0.55,
+            "agent_executor": 0.70,
+            "batch_aggregator": 0.75,
+            "batch_router": 0.76,
+            "batch_strategy_review": 0.78,
+            "detect_challenges": 0.80,
+            "analysis_review": 0.85,
+            "result_aggregator": 0.90,
+            "report_guard": 0.95,
+            "pdf_generator": 0.98,
+        }
+
+        events = []
+        final_state = None
+
+        async for chunk in workflow.graph.astream(initial_state, config):
+            events.append(chunk)
+
+            for node_name, node_output in chunk.items():
+                if node_name == "__interrupt__":
+                    interrupt_data = chunk["__interrupt__"]
+                    await session_manager.update(
+                        session_id,
+                        {
+                            "status": "waiting_for_input",
+                            "interrupt_data": _serialize_interrupt(interrupt_data),
+                            "current_node": "interrupt",
+                        },
+                    )
+
+                    task.update_state(
+                        state="WAITING",
+                        meta={
+                            "session_id": session_id,
+                            "progress": node_progress_map.get(node_name, 0.5),
+                            "current_stage": "等待用户输入",
+                            "message": "需要您的确认才能继续",
+                            "interrupt_data": _serialize_interrupt(interrupt_data),
+                        },
+                    )
+
+                    return {
+                        "session_id": session_id,
+                        "status": "waiting_for_input",
+                        "interrupt_data": _serialize_interrupt(interrupt_data),
+                    }
+
+                new_progress = node_progress_map.get(node_name, 0.5)
+                detail = ""
+                if isinstance(node_output, dict):
+                    detail = node_output.get("detail", node_output.get("current_stage", ""))
+
+                current_data = await session_manager.get(session_id)
+                old_progress = current_data.get("progress", 0) if current_data else 0
+                progress = max(new_progress, old_progress if isinstance(old_progress, (int, float)) else 0)
+
+                await session_manager.update(
+                    session_id, {"progress": progress, "current_node": node_name, "detail": detail}
+                )
+
+                task.update_state(
+                    state="PROGRESS",
+                    meta={
+                        "session_id": session_id,
+                        "progress": progress,
+                        "current_stage": node_name,
+                        "detail": detail,
+                        "message": f"正在执行: {node_name}",
+                    },
+                )
+
+                final_state = node_output
+
+        final_report = None
+        if final_state and isinstance(final_state, dict):
+            final_report = final_state.get("final_report") or final_state.get("report_text")
+
+        await session_manager.update(
+            session_id,
+            {
+                "status": "completed",
+                "progress": 1.0,
+                "events": events,
+                "final_report": final_report,
+                "completed_at": datetime.now().isoformat(),
+            },
+        )
+
+        return {"session_id": session_id, "status": "completed", "progress": 1.0, "final_report": final_report}
+
+    finally:
+        await session_manager.disconnect()
+
+
+async def _run_workflow(
+    task, session_id: str, user_input: str, user_id: str, analysis_mode: str = "normal"
+) -> Dict[str, Any]:
     """
     执行工作流的异步内部函数
+
+    Args:
+        task: Celery 任务实例
+        session_id: 会话ID
+        user_input: 用户输入
+        user_id: 用户ID
+        analysis_mode: 分析模式 (normal/deep_thinking)
     """
     from intelligent_project_analyzer.core.state import StateManager
     from intelligent_project_analyzer.services.redis_session_manager import RedisSessionManager
@@ -115,11 +335,13 @@ async def _run_workflow(task, session_id: str, user_input: str, user_id: str) ->
         )
 
         # 创建初始状态
-        initial_state = StateManager.create_initial_state(user_input=user_input, session_id=session_id, user_id=user_id)
+        initial_state = StateManager.create_initial_state(
+            user_input=user_input, session_id=session_id, user_id=user_id, analysis_mode=analysis_mode  #  传递分析模式
+        )
 
         config = {"configurable": {"thread_id": session_id}, "recursion_limit": 100}
 
-        # 🎯 v7.21: 节点进度映射（与 main_workflow.py 实际节点名称对齐）
+        #  v7.21: 节点进度映射（与 main_workflow.py 实际节点名称对齐）
         node_progress_map = {
             # 输入验证阶段 (0-15%)
             "unified_input_validator_initial": 0.05,
@@ -128,7 +350,7 @@ async def _run_workflow(task, session_id: str, user_input: str, user_id: str) ->
             "requirements_analyst": 0.15,
             "feasibility_analyst": 0.20,
             "calibration_questionnaire": 0.25,
-            "requirements_confirmation": 0.35,
+            "questionnaire_summary": 0.35,  #  v7.151: 替换 requirements_confirmation
             # 项目规划阶段 (35-55%)
             "project_director": 0.40,
             "role_task_unified_review": 0.45,
@@ -192,7 +414,7 @@ async def _run_workflow(task, session_id: str, user_input: str, user_id: str) ->
                 if isinstance(node_output, dict):
                     detail = node_output.get("detail", node_output.get("current_stage", ""))
 
-                # 🔥 防止进度回退：获取当前进度并取最大值
+                #  防止进度回退：获取当前进度并取最大值
                 current_data = await session_manager.get(session_id)
                 old_progress = current_data.get("progress", 0) if current_data else 0
                 progress = max(new_progress, old_progress if isinstance(old_progress, (int, float)) else 0)
@@ -262,13 +484,13 @@ def resume_analysis(self, session_id: str, resume_value: Any) -> Dict[str, Any]:
     Returns:
         分析结果
     """
-    logger.info(f"🔄 [Celery] 恢复分析任务: {session_id}")
+    logger.info(f" [Celery] 恢复分析任务: {session_id}")
 
     try:
         result = run_async(_resume_workflow(self, session_id, resume_value))
         return result
     except Exception as e:
-        logger.error(f"❌ [Celery] 恢复任务失败: {session_id}, 错误: {str(e)}")
+        logger.error(f" [Celery] 恢复任务失败: {session_id}, 错误: {str(e)}")
         import traceback
 
         return {"session_id": session_id, "status": "failed", "error": str(e), "traceback": traceback.format_exc()}
@@ -328,14 +550,14 @@ def cleanup_expired_sessions() -> Dict[str, Any]:
     """
     清理过期会话（定期任务）
     """
-    logger.info("🧹 [Celery] 开始清理过期会话")
+    logger.info(" [Celery] 开始清理过期会话")
 
     try:
         result = run_async(_cleanup_sessions())
-        logger.info(f"✅ [Celery] 清理完成: {result}")
+        logger.info(f" [Celery] 清理完成: {result}")
         return result
     except Exception as e:
-        logger.error(f"❌ [Celery] 清理失败: {str(e)}")
+        logger.error(f" [Celery] 清理失败: {str(e)}")
         return {"status": "failed", "error": str(e)}
 
 

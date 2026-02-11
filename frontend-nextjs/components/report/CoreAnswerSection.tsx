@@ -50,29 +50,41 @@ import { formatExpertName as getRoleDisplayName } from '@/lib/formatters';
 /** 单个交付物卡片组件 */
 function DeliverableCard({ deliverable, index }: { deliverable: DeliverableAnswer; index: number }) {
   const [expanded, setExpanded] = useState(index === 0); // 第一个默认展开
-  
+
   return (
     <div className="bg-[var(--card-bg)] border border-[var(--border-color)] rounded-xl overflow-hidden mb-4">
       {/* 卡片头部 */}
-      <div 
+      <div
         className="flex items-center justify-between p-5 cursor-pointer hover:bg-[var(--hover-bg)] transition-colors"
         onClick={() => setExpanded(!expanded)}
       >
-        <div className="flex items-center gap-4">
-          <div className="w-10 h-10 rounded-lg bg-green-500/20 flex items-center justify-center">
-            <span className="text-green-400 font-bold text-lg">{deliverable.deliverable_id || `D${index + 1}`}</span>
+        <div className="flex-1 flex items-center gap-4">
+          {/* 简化的序号徽章 */}
+          <div className="w-10 h-10 rounded-lg bg-green-500/20 flex items-center justify-center flex-shrink-0">
+            <span className="text-green-400 font-bold text-lg">{index + 1}</span>
           </div>
-          <div>
-            <h4 className="text-white font-semibold text-lg">{deliverable.deliverable_name}</h4>
-            <div className="flex items-center gap-2 mt-1">
+
+          {/* 标题和元数据 */}
+          <div className="flex-1 min-w-0">
+            <h4 className="text-white font-semibold text-lg mb-2">{deliverable.deliverable_name}</h4>
+            <div className="flex items-center gap-3 flex-wrap">
+              {/* 完整ID作为小标签(可选,如果需要显示) */}
+              {deliverable.deliverable_id && (
+                <span className="text-xs px-2 py-0.5 rounded bg-gray-700/50 text-gray-400 font-mono">
+                  {deliverable.deliverable_id}
+                </span>
+              )}
+              {/* 负责专家 */}
               <span className="text-xs px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-400">
                 {getRoleDisplayName(deliverable.owner_role)}
               </span>
+              {/* 完成度 */}
               {deliverable.quality_score && (
                 <span className="text-xs px-2 py-0.5 rounded-full bg-green-500/20 text-green-400">
                   完成度 {Math.round(deliverable.quality_score)}%
                 </span>
               )}
+              {/* 字数统计 */}
               {deliverable.owner_answer && (
                 <span className="text-xs text-gray-500">
                   {deliverable.owner_answer.length} 字
@@ -94,7 +106,7 @@ function DeliverableCard({ deliverable, index }: { deliverable: DeliverableAnswe
           )}
         </div>
       </div>
-      
+
       {/* 展开内容 */}
       {expanded && (
         <div className="border-t border-[var(--border-color)] p-6">
@@ -135,12 +147,12 @@ function DeliverableCard({ deliverable, index }: { deliverable: DeliverableAnswe
 /** 专家支撑链组件 */
 function ExpertSupportChainSection({ chain }: { chain: ExpertSupportChain[] }) {
   const [expanded, setExpanded] = useState(false);
-  
+
   if (!chain || chain.length === 0) return null;
-  
+
   return (
     <div className="mt-6 bg-[var(--card-bg)] border border-[var(--border-color)] rounded-xl overflow-hidden">
-      <div 
+      <div
         className="flex items-center justify-between p-4 cursor-pointer hover:bg-[var(--hover-bg)] transition-colors"
         onClick={() => setExpanded(!expanded)}
       >
@@ -155,7 +167,7 @@ function ExpertSupportChainSection({ chain }: { chain: ExpertSupportChain[] }) {
           <ChevronDown className="w-5 h-5 text-gray-400" />
         )}
       </div>
-      
+
       {expanded && (
         <div className="border-t border-[var(--border-color)] p-4 space-y-3">
           {chain.map((expert, idx) => (

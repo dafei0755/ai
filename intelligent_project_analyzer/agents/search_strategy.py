@@ -33,12 +33,12 @@ class SearchStrategyGenerator:
         keywords: list = None,
         constraints: dict = None,
         project_task: str = "",
-        user_input: str = "",  # 🔥 v7.121: 新增 - 用户原始问题
-        questionnaire_summary: dict = None,  # 🔥 v7.121: 新增 - 问卷精炼摘要
+        user_input: str = "",  #  v7.121: 新增 - 用户原始问题
+        questionnaire_summary: dict = None,  #  v7.121: 新增 - 问卷精炼摘要
         num_queries: int = 3,
     ) -> list:
         """
-        ✅ v7.121: 为单个交付物生成搜索查询（增强数据利用）
+         v7.121: 为单个交付物生成搜索查询（增强数据利用）
 
         Args:
             deliverable_name: 交付物名称
@@ -56,7 +56,7 @@ class SearchStrategyGenerator:
         keywords = keywords or []
         constraints = constraints or {}
 
-        # 🔥 v7.121: 降级方案 - 生成基于模板的查询（整合用户数据）
+        #  v7.121: 降级方案 - 生成基于模板的查询（整合用户数据）
         queries = []
 
         # 从问卷摘要中提取关键信息
@@ -95,14 +95,14 @@ class SearchStrategyGenerator:
                     deliverable_description=deliverable_description,
                     keywords=keywords,
                     project_task=project_task,
-                    user_input=user_input,  # 🔥 v7.121: 传递用户输入
-                    questionnaire_summary=questionnaire_summary,  # 🔥 v7.121: 传递问卷摘要
+                    user_input=user_input,  #  v7.121: 传递用户输入
+                    questionnaire_summary=questionnaire_summary,  #  v7.121: 传递问卷摘要
                     num_queries=num_queries,
                 )
                 if llm_queries:
                     queries = llm_queries
             except Exception as e:
-                logger.warning(f"⚠️ LLM生成查询失败: {e}，使用降级方案")
+                logger.warning(f"️ LLM生成查询失败: {e}，使用降级方案")
 
         return queries[:num_queries]
 
@@ -112,13 +112,13 @@ class SearchStrategyGenerator:
         deliverable_description: str,
         keywords: list,
         project_task: str,
-        user_input: str = "",  # 🔥 v7.121: 新增参数
-        questionnaire_summary: dict = None,  # 🔥 v7.121: 新增参数
+        user_input: str = "",  #  v7.121: 新增参数
+        questionnaire_summary: dict = None,  #  v7.121: 新增参数
         num_queries: int = 3,
     ) -> list:
         """使用LLM生成智能搜索查询（v7.121增强）"""
 
-        # 🔥 v7.121: 构建问卷摘要文本
+        #  v7.121: 构建问卷摘要文本
         questionnaire_text = ""
         if questionnaire_summary:
             # 提取关键信息：风格偏好、功能需求、情感需求等
@@ -135,7 +135,7 @@ class SearchStrategyGenerator:
                 if emotional_needs:
                     questionnaire_text += f"- 情感需求: {', '.join(emotional_needs)}\n"
 
-        # 🔥 v7.121: 用户原始问题（提取关键部分）
+        #  v7.121: 用户原始问题（提取关键部分）
         user_context = ""
         if user_input and len(user_input) > 20:
             user_context = f"\n用户原始需求:\n{user_input[:300]}\n"
@@ -173,7 +173,7 @@ class SearchStrategyGenerator:
             json_str = content[start_idx:end_idx]
             queries = json.loads(json_str)
             if isinstance(queries, list) and len(queries) > 0:
-                logger.debug(f"✅ LLM生成查询: {queries}")
+                logger.debug(f" LLM生成查询: {queries}")
                 return queries
 
         return None

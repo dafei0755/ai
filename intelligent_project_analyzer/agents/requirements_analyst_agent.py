@@ -33,6 +33,24 @@
    [END]
 """
 
+# ============================================================
+# 🔧 Emoji Encoding 深度修复（必须在最前面）
+# ============================================================
+try:
+    import sys
+    import os
+    # 添加项目根目录到path
+    project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    if project_root not in sys.path:
+        sys.path.insert(0, project_root)
+    
+    from fix_emoji_encoding import apply_all_patches
+    apply_all_patches()
+    print("[RequirementsAnalystAgent] ✅ Emoji编码修复已应用")
+except Exception as e:
+    print(f"[RequirementsAnalystAgent] ⚠️ Emoji修复加载失败: {e}")
+# ============================================================
+
 import json
 import time
 from datetime import datetime
@@ -127,7 +145,7 @@ def precheck_node(state: RequirementsAnalystState) -> Dict[str, Any]:
     start_time = time.time()
     user_input = state.get("user_input", "")
 
-    logger.info("🔍 [Precheck] 程序化能力边界预检测...")
+    logger.info("[Precheck] [Precheck] 程序化能力边界预检测...")
 
     # 调用程序化检测器
     precheck_result = check_capability(user_input)
@@ -138,7 +156,7 @@ def precheck_node(state: RequirementsAnalystState) -> Dict[str, Any]:
     info_suff = precheck_result.get("info_sufficiency", {})
     deliv_cap = precheck_result.get("deliverable_capability", {})
 
-    logger.info(f"✅ [Precheck] 完成，耗时 {elapsed_ms:.1f}ms")
+    logger.info(f"[OK] [Precheck] 完成，耗时 {elapsed_ms:.1f}ms")
     logger.info(f"   - 信息充足: {info_suff.get('is_sufficient')}")
     logger.info(f"   - 能力匹配: {deliv_cap.get('capability_score', 1.0):.0%}")
 
@@ -168,7 +186,7 @@ def phase1_node(state: RequirementsAnalystState) -> Dict[str, Any]:
     llm_model = state.get("_llm_model")
     prompt_manager = state.get("_prompt_manager")
 
-    logger.info("📋 [Phase1] 开始快速定性 + 交付物识别...")
+    logger.info("[Phase1] [Phase1] 开始快速定性 + 交付物识别...")
 
     # 加载 Phase1 提示词
     phase1_config = prompt_manager.get_prompt("requirements_analyst_phase1", return_full_config=True)
@@ -192,6 +210,13 @@ def phase1_node(state: RequirementsAnalystState) -> Dict[str, Any]:
     # 调用 LLM
     try:
         messages = [{"role": "system", "content": system_prompt}, {"role": "user", "content": task_description}]
+        
+        #  强制清理emoji (防止Windows GBK编码错误)
+        import re
+        emoji_pattern = re.compile(r'[\U0001F000-\U0001F9FF\U00002300-\U000023FF\U00002600-\U000027BF\U00002700-\U000027BF\U0001F900-\U0001F9FF]+', flags=re.UNICODE)
+        for msg in messages:
+            msg['content'] = emoji_pattern.sub('', msg['content'])
+        
         response = llm_model.invoke(messages)
         response_content = response.content if hasattr(response, "content") else str(response)
 
@@ -210,14 +235,14 @@ def phase1_node(state: RequirementsAnalystState) -> Dict[str, Any]:
     recommended_next = phase1_result.get("recommended_next_step", "questionnaire_first")
     deliverables = phase1_result.get("primary_deliverables", [])
 
-    logger.info(f"✅ [Phase1] 完成，耗时 {elapsed_ms:.0f}ms")
+    logger.info(f"[OK] [Phase1] 完成，耗时 {elapsed_ms:.0f}ms")
     logger.info(f"   - info_status: {info_status}")
     logger.info(f"   - deliverables: {len(deliverables)}个")
     logger.info(f"   - next_step: {recommended_next}")
 
-    # 🆕 能力边界检查：验证Phase1输出的交付物
+    # NEW 能力边界检查：验证Phase1输出的交付物
     if deliverables:
-        logger.info("🔍 [CapabilityBoundary] 验证Phase1输出的交付物能力")
+        logger.info("[Precheck] [CapabilityBoundary] 验证Phase1输出的交付物能力")
         boundary_check = CapabilityBoundaryService.check_deliverable_list(
             deliverables=deliverables,
             context={
@@ -227,13 +252,13 @@ def phase1_node(state: RequirementsAnalystState) -> Dict[str, Any]:
             },
         )
 
-        logger.info(f"📊 交付物能力边界检查结果:")
+        logger.info(f"[Data] 交付物能力边界检查结果:")
         logger.info(f"   在能力范围内: {boundary_check.within_capability}")
         logger.info(f"   能力匹配度: {boundary_check.capability_score:.2f}")
 
         # 如果有超出能力的交付物，应用转化
         if not boundary_check.within_capability:
-            logger.warning(f"⚠️ Phase1输出包含超出能力的交付物")
+            logger.warning(f"[Warning] Phase1输出包含超出能力的交付物")
             logger.info(f"   转化建议: {len(boundary_check.transformations_needed)} 项")
 
             # 更新交付物清单（应用转化）
@@ -258,7 +283,7 @@ def phase1_node(state: RequirementsAnalystState) -> Dict[str, Any]:
 
             deliverables = transformed_deliverables
         else:
-            logger.info("✅ 所有交付物在能力范围内")
+            logger.info("[OK] 所有交付物在能力范围内")
 
     return {
         "phase1_result": phase1_result,
@@ -287,7 +312,7 @@ def phase2_node(state: RequirementsAnalystState) -> Dict[str, Any]:
     llm_model = state.get("_llm_model")
     prompt_manager = state.get("_prompt_manager")
 
-    logger.info("🔬 [Phase2] 开始深度分析 + 专家接口构建...")
+    logger.info("[Phase2] [Phase2] 开始深度分析 + 专家接口构建...")
 
     # 加载 Phase2 提示词
     phase2_config = prompt_manager.get_prompt("requirements_analyst_phase2", return_full_config=True)
@@ -312,6 +337,13 @@ def phase2_node(state: RequirementsAnalystState) -> Dict[str, Any]:
     # 调用 LLM
     try:
         messages = [{"role": "system", "content": system_prompt}, {"role": "user", "content": task_description}]
+        
+        #  强制清理emoji (防止Windows GBK编码错误)
+        import re
+        emoji_pattern = re.compile(r'[\U0001F000-\U0001F9FF\U00002300-\U000023FF\U00002600-\U000027BF\U00002700-\U000027BF\U0001F900-\U0001F9FF]+', flags=re.UNICODE)
+        for msg in messages:
+            msg['content'] = emoji_pattern.sub('', msg['content'])
+        
         response = llm_model.invoke(messages)
         response_content = response.content if hasattr(response, "content") else str(response)
 
@@ -325,7 +357,7 @@ def phase2_node(state: RequirementsAnalystState) -> Dict[str, Any]:
 
     elapsed_ms = (time.time() - start_time) * 1000
 
-    logger.info(f"✅ [Phase2] 完成，耗时 {elapsed_ms:.0f}ms")
+    logger.info(f"[OK] [Phase2] 完成，耗时 {elapsed_ms:.0f}ms")
 
     return {
         "phase2_result": phase2_result,
@@ -354,7 +386,7 @@ def output_node(state: RequirementsAnalystState) -> Dict[str, Any]:
     has_phase2 = bool(phase2_result)
     analysis_mode = "two_phase" if has_phase2 else "phase1_only"
 
-    logger.info(f"📦 [Output] 构建输出 ({analysis_mode})...")
+    logger.info(f" [Output] 构建输出 ({analysis_mode})...")
 
     if has_phase2:
         # 合并 Phase1 和 Phase2 结果
@@ -386,7 +418,7 @@ def output_node(state: RequirementsAnalystState) -> Dict[str, Any]:
         + elapsed_ms
     )
 
-    logger.info(f"✅ [Output] 完成，总耗时 {total_elapsed:.0f}ms")
+    logger.info(f"[OK] [Output] 完成，总耗时 {total_elapsed:.0f}ms")
 
     return {
         "structured_data": structured_data,
@@ -421,10 +453,10 @@ def should_execute_phase2(state: RequirementsAnalystState) -> Literal["phase2", 
     recommended_next = state.get("recommended_next_step", "questionnaire_first")
 
     if info_status == "sufficient" and recommended_next != "questionnaire_first":
-        logger.info("🔀 [路由] 信息充足，进入 Phase2")
+        logger.info("[Route] [路由] 信息充足，进入 Phase2")
         return "phase2"
     else:
-        logger.info(f"🔀 [路由] 跳过 Phase2 (info_status={info_status}, next={recommended_next})")
+        logger.info(f"[Route] [路由] 跳过 Phase2 (info_status={info_status}, next={recommended_next})")
         return "output"
 
 
@@ -435,18 +467,18 @@ def should_execute_phase2(state: RequirementsAnalystState) -> Literal["phase2", 
 
 def _format_precheck_hints(precheck_result: Dict[str, Any]) -> str:
     """格式化预检测结果为 LLM 提示"""
-    hints = ["### 🔍 程序化预检测结果（已完成，请参考）"]
+    hints = ["### [Precheck] 程序化预检测结果（已完成，请参考）"]
 
     info_suff = precheck_result.get("info_sufficiency", {})
     if info_suff.get("is_sufficient"):
-        hints.append(f"✅ **信息充足性**: 充足（得分 {info_suff.get('score', 0):.2f}）")
+        hints.append(f"[OK] **信息充足性**: 充足（得分 {info_suff.get('score', 0):.2f}）")
         hints.append(f"   - 已识别: {', '.join(info_suff.get('present_elements', []))}")
     else:
-        hints.append(f"⚠️ **信息充足性**: 不足（得分 {info_suff.get('score', 0):.2f}）")
+        hints.append(f"[Warning] **信息充足性**: 不足（得分 {info_suff.get('score', 0):.2f}）")
         hints.append(f"   - 缺少: {', '.join(info_suff.get('missing_elements', [])[:5])}")
 
     deliv_cap = precheck_result.get("deliverable_capability", {})
-    hints.append(f"✅ **能力匹配度**: {deliv_cap.get('capability_score', 1.0):.0%}")
+    hints.append(f"[OK] **能力匹配度**: {deliv_cap.get('capability_score', 1.0):.0%}")
 
     capable = precheck_result.get("capable_deliverables", [])
     if capable:
@@ -455,7 +487,7 @@ def _format_precheck_hints(precheck_result: Dict[str, Any]) -> str:
 
     transformations = precheck_result.get("transformations", [])
     if transformations:
-        hints.append("⚠️ **需要转化的需求**:")
+        hints.append("[Warning] **需要转化的需求**:")
         for t in transformations[:3]:
             hints.append(f"   - '{t.get('original')}' → '{t.get('transformed_to')}'")
 
@@ -737,7 +769,7 @@ class RequirementsAnalystAgentV2:
         # 构建并编译图
         self._graph = build_requirements_analyst_graph().compile()
 
-        logger.info("✅ [RequirementsAnalystAgentV2] StateGraph Agent 初始化完成")
+        logger.info("[OK] [RequirementsAnalystAgentV2] StateGraph Agent 初始化完成")
 
     def execute(self, user_input: str, session_id: str = "unknown") -> AnalysisResult:
         """
@@ -750,7 +782,7 @@ class RequirementsAnalystAgentV2:
         Returns:
             AnalysisResult 分析结果
         """
-        logger.info(f"🚀 [RequirementsAnalystAgentV2] 启动分析 (session: {session_id})")
+        logger.info(f" [RequirementsAnalystAgentV2] 启动分析 (session: {session_id})")
 
         # 构建初始状态
         initial_state: RequirementsAnalystState = {
@@ -781,7 +813,7 @@ class RequirementsAnalystAgentV2:
             },
         )
 
-        logger.info(f"🏁 [RequirementsAnalystAgentV2] 分析完成，耗时 {final_state.get('total_elapsed_ms', 0):.0f}ms")
+        logger.info(f" [RequirementsAnalystAgentV2] 分析完成，耗时 {final_state.get('total_elapsed_ms', 0):.0f}ms")
 
         return result
 

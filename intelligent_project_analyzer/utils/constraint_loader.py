@@ -44,16 +44,16 @@ class ConstraintLoader:
             self._role_boundaries = config.get('role_boundaries', {})
             self._validation_rules = config.get('validation_rules', {})
 
-            logger.info(f"✅ 成功加载交付物约束配置：{len(self._constraints)} 个类型")
+            logger.info(f" 成功加载交付物约束配置：{len(self._constraints)} 个类型")
 
         except FileNotFoundError:
-            logger.warning(f"⚠️ 约束配置文件不存在：{self.config_path}")
+            logger.warning(f"️ 约束配置文件不存在：{self.config_path}")
             self._constraints = {}
             self._role_boundaries = {}
             self._validation_rules = {}
 
         except Exception as e:
-            logger.error(f"❌ 加载约束配置失败：{e}")
+            logger.error(f" 加载约束配置失败：{e}")
             self._constraints = {}
             self._role_boundaries = {}
             self._validation_rules = {}
@@ -72,7 +72,7 @@ class ConstraintLoader:
             return self._constraints[deliverable_type]
 
         # 如果类型未定义，返回custom规则
-        logger.warning(f"⚠️ 交付物类型 '{deliverable_type}' 未定义，使用custom规则")
+        logger.warning(f"️ 交付物类型 '{deliverable_type}' 未定义，使用custom规则")
         return self._constraints.get('custom', {
             'must_include': [],
             'must_exclude': [],
@@ -118,7 +118,7 @@ class ConstraintLoader:
             for required_role in must_include:
                 if required_role not in role_prefixes:
                     error_msg = (
-                        f"❌ 交付物 '{d_desc}' (类型：{d_type}) 必须包含角色 {required_role}，但当前未激活\n"
+                        f" 交付物 '{d_desc}' (类型：{d_type}) 必须包含角色 {required_role}，但当前未激活\n"
                         f"当前激活的角色：{list(role_prefixes)}\n"
                         f"原因：{constraints.get('reason', '未说明')}"
                     )
@@ -130,7 +130,7 @@ class ConstraintLoader:
             violated_roles = role_prefixes.intersection(set(must_exclude))
             if violated_roles:
                 error_msg = (
-                    f"❌ 交付物 '{d_desc}' (类型：{d_type}) 禁止激活角色 {list(violated_roles)}，但当前已激活\n"
+                    f" 交付物 '{d_desc}' (类型：{d_type}) 禁止激活角色 {list(violated_roles)}，但当前已激活\n"
                     f"当前激活的角色：{list(role_prefixes)}\n"
                     f"原因：{constraints.get('reason', '未说明')}"
                 )
@@ -144,15 +144,15 @@ class ConstraintLoader:
             min_roles = validation_rules.get('min_roles', 2)
 
             if len(selected_roles) > max_roles:
-                warning_msg = f"⚠️ 当前激活了 {len(selected_roles)} 个角色，超过最大建议数量 {max_roles}，可能存在冗余"
+                warning_msg = f"️ 当前激活了 {len(selected_roles)} 个角色，超过最大建议数量 {max_roles}，可能存在冗余"
                 logger.warning(f"[约束验证] {warning_msg}")
                 # 这里只警告，不阻止
 
             if len(selected_roles) < min_roles:
-                warning_msg = f"⚠️ 当前激活了 {len(selected_roles)} 个角色，少于最小建议数量 {min_roles}，可能不足"
+                warning_msg = f"️ 当前激活了 {len(selected_roles)} 个角色，少于最小建议数量 {min_roles}，可能不足"
                 logger.warning(f"[约束验证] {warning_msg}")
 
-        logger.info(f"[约束验证] ✅ 所有约束验证通过")
+        logger.info(f"[约束验证]  所有约束验证通过")
         return True, ""
 
     def validate_anti_pattern(
@@ -200,7 +200,7 @@ class ConstraintLoader:
 
                 if prefix in role_prefixes:
                     error_msg = (
-                        f"❌ 交付物 '{d_desc}' 的anti_pattern检测失败\n"
+                        f" 交付物 '{d_desc}' 的anti_pattern检测失败\n"
                         f"禁止激活的角色 '{anti_pattern_prefix}' 被错误分配\n"
                         f"当前激活的角色：{list(role_prefixes)}\n"
                         f"建议：{owner_suggestion.get('owner_rationale', '未说明')}"
@@ -208,7 +208,7 @@ class ConstraintLoader:
                     logger.error(f"[anti_pattern验证] {error_msg}")
                     return False, error_msg
 
-        logger.info(f"[anti_pattern验证] ✅ 所有anti_pattern验证通过")
+        logger.info(f"[anti_pattern验证]  所有anti_pattern验证通过")
         return True, ""
 
     def get_role_boundary(self, role_prefix: str) -> Dict:

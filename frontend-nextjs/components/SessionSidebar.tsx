@@ -1,6 +1,6 @@
 /**
  * SessionSidebar - 会话历史侧边栏公共组件
- * 
+ *
  * 用于显示用户的历史会话列表，支持：
  * - 按日期分组（今天/昨天/7天内/30天内/按月份）
  * - 进度显示（运行中/失败/拒绝状态）
@@ -18,7 +18,8 @@ import {
   Edit2,
   Pin,
   Share2,
-  Trash2
+  Trash2,
+  Sparkles
 } from 'lucide-react';
 
 export interface Session {
@@ -29,13 +30,13 @@ export interface Session {
   progress?: number;
   analysis_mode?: string;
   isTemporary?: boolean;
+  session_type?: 'analysis' | 'search';  // 🆕 v7.180: 区分会话类型
+  pinned?: boolean;  // 🆕 置顶标记
 }
 
 interface SessionSidebarProps {
   sessions: Session[];
   currentSessionId?: string;
-  showNewButton?: boolean;
-  onNewSession?: () => void;
   onRenameSession?: (sessionId: string) => void;
   onPinSession?: (sessionId: string) => void;
   onShareSession?: (sessionId: string) => void;
@@ -47,8 +48,6 @@ interface SessionSidebarProps {
 export function SessionSidebar({
   sessions,
   currentSessionId,
-  showNewButton = true,
-  onNewSession,
   onRenameSession,
   onPinSession,
   onShareSession,
@@ -92,7 +91,14 @@ export function SessionSidebar({
       byMonth: {}
     };
 
-    sessions.forEach(session => {
+    // 🆕 按置顶状态排序：置顶会话在前
+    const sortedSessions = [...sessions].sort((a, b) => {
+      if (a.pinned && !b.pinned) return -1;
+      if (!a.pinned && b.pinned) return 1;
+      return 0;
+    });
+
+    sortedSessions.forEach(session => {
       const sessionDate = new Date(session.created_at);
       const sessionDay = new Date(sessionDate.getFullYear(), sessionDate.getMonth(), sessionDate.getDate());
 
@@ -131,29 +137,58 @@ export function SessionSidebar({
   };
 
   // 渲染单个会话项
-  const renderSessionItem = (session: Session) => (
-    <div key={`sidebar-${session.session_id}`} className="relative group">
+  const renderSessionItem = (session: Session) => {
+    const isCurrentSession = session.session_id === currentSessionId;
+
+    return (
+      <div key={`sidebar-${session.session_id}`} className="relative group">
       <button
-        onClick={() => {
-          if (session.status === 'completed') {
-            router.push(`/report/${session.session_id}`);
+        onClick={(e) => {
+          // v7.290: 默认在新标签页打开历史记录
+          let targetUrl = '';
+          if (session.session_type === 'search') {
+            targetUrl = `/search/${session.session_id}`;
+          } else if (session.status === 'completed') {
+            targetUrl = `/report/${session.session_id}`;
           } else {
-            router.push(`/analysis/${session.session_id}`);
+            targetUrl = `/analysis/${session.session_id}`;
+          }
+
+          // 始终在新标签页打开
+          window.open(targetUrl, '_blank');
+        }}
+        onAuxClick={(e) => {
+          // v7.290: 中键点击在新标签页打开
+          if (e.button === 1) {
+            e.preventDefault();
+            let targetUrl = '';
+            if (session.session_type === 'search') {
+              targetUrl = `/search/${session.session_id}`;
+            } else if (session.status === 'completed') {
+              targetUrl = `/report/${session.session_id}`;
+            } else {
+              targetUrl = `/analysis/${session.session_id}`;
+            }
+            window.open(targetUrl, '_blank');
           }
         }}
-        className="w-full text-sm text-[var(--foreground-secondary)] hover:bg-[var(--card-bg)] hover:text-[var(--foreground)] px-3 py-2 rounded-lg transition-colors text-left"
+        className={`w-full text-sm px-3 py-2 rounded-lg transition-colors text-left ${
+          isCurrentSession
+            ? 'bg-[var(--card-bg)] text-[var(--foreground)] border border-blue-500/30'
+            : 'text-[var(--foreground-secondary)] hover:bg-[var(--card-bg)] hover:text-[var(--foreground)]'
+        }`}
       >
         <div className="flex items-center gap-2">
           <div className="flex-1 pr-6 line-clamp-2">{session.user_input || '未命名会话'}</div>
         </div>
-        
+
         <div className="flex items-center gap-1.5 mt-1">
           <div className="text-xs text-gray-500">
-            {new Date(session.created_at).toLocaleString('zh-CN', { 
-              month: 'numeric', 
-              day: 'numeric', 
-              hour: '2-digit', 
-              minute: '2-digit' 
+            {new Date(session.created_at).toLocaleString('zh-CN', {
+              month: 'numeric',
+              day: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit'
             })}
             {session.progress !== undefined &&
              ['running', 'failed', 'rejected'].includes(session.status) && (
@@ -166,8 +201,19 @@ export function SessionSidebar({
               </span>
             )}
           </div>
-          {session.analysis_mode === 'deep_thinking' && (
-            <span className="text-xs text-gray-500">[深度思考]</span>
+          {/* 🆕 置顶图标 - 放在时间戳后面 */}
+          {session.pinned && (
+            <Pin size={12} className="text-yellow-500 flex-shrink-0" fill="currentColor" />
+          )}
+          {/* 🆕 v7.180: 会话类型标记 */}
+          {session.session_type === 'search' && (
+            <span className="text-xs text-green-500">[深度搜索]</span>
+          )}
+          {session.session_type !== 'search' && session.analysis_mode === 'deep_thinking' && (
+            <span className="text-xs text-orange-500">[深度思考pro]</span>
+          )}
+          {session.session_type !== 'search' && session.analysis_mode !== 'deep_thinking' && (
+            <span className="text-xs text-blue-500">[深度思考]</span>
           )}
         </div>
       </button>
@@ -203,8 +249,8 @@ export function SessionSidebar({
               }}
               className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-[var(--sidebar-bg)] transition-colors text-left"
             >
-              <Pin size={14} />
-              <span>置顶</span>
+              <Pin size={14} className={session.pinned ? 'fill-yellow-500 text-yellow-500' : ''} />
+              <span>{session.pinned ? '取消置顶' : '置顶'}</span>
             </button>
             <button
               onClick={() => {
@@ -231,70 +277,58 @@ export function SessionSidebar({
         </>
       )}
     </div>
-  );
+    );
+  };
 
   return (
     <div className="flex flex-col flex-1 min-h-0">
       {/* Logo 和标题 - v7.105.2: 调整padding与右侧header对齐 */}
       <div className="px-3 py-3 border-b border-[var(--border-color)] flex-shrink-0">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center text-white font-bold text-lg">
-            AI
+          <div className="w-8 h-8 rounded-lg ucppt-icon-brand">
+            <Sparkles size={20} />
           </div>
           <h1 className="text-lg font-semibold text-[var(--foreground)]">方案高参</h1>
         </div>
       </div>
 
-      {/* 新建按钮 */}
-      {showNewButton && (
-        <div className="px-3 pt-3 pb-2 flex-shrink-0">
-          <button
-            onClick={onNewSession}
-            className="w-full flex items-center gap-2 px-4 py-2 bg-gray-700 dark:bg-gray-600 hover:bg-gray-600 dark:hover:bg-gray-500 text-white rounded-lg transition-colors"
-          >
-            <Plus size={18} />
-            <span>开启新对话</span>
-          </button>
-        </div>
-      )}
-
       {/* 会话列表 */}
       <div className="flex-1 overflow-y-auto p-3 pb-20">
         {/* 今天 */}
-        {groupedSessions.today.filter((s) => s.session_id !== currentSessionId).length > 0 && (
+        {groupedSessions.today.length > 0 && (
           <div className="mb-4">
             <div className="text-xs font-medium text-[var(--foreground-secondary)] px-3 py-1 mb-1">今天</div>
-            {groupedSessions.today.filter((s) => s.session_id !== currentSessionId).map(renderSessionItem)}
+            {groupedSessions.today.map(renderSessionItem)}
           </div>
         )}
 
         {/* 昨天 */}
-        {groupedSessions.yesterday.filter((s) => s.session_id !== currentSessionId).length > 0 && (
+        {groupedSessions.yesterday.length > 0 && (
           <div className="mb-4">
             <div className="text-xs font-medium text-[var(--foreground-secondary)] px-3 py-1 mb-1">昨天</div>
-            {groupedSessions.yesterday.filter((s) => s.session_id !== currentSessionId).map(renderSessionItem)}
+            {groupedSessions.yesterday.map(renderSessionItem)}
           </div>
         )}
 
         {/* 7天内 */}
-        {groupedSessions.last7Days.filter((s) => s.session_id !== currentSessionId).length > 0 && (
+        {groupedSessions.last7Days.length > 0 && (
           <div className="mb-4">
             <div className="text-xs font-medium text-[var(--foreground-secondary)] px-3 py-1 mb-1">7天内</div>
-            {groupedSessions.last7Days.filter((s) => s.session_id !== currentSessionId).map(renderSessionItem)}
+            {groupedSessions.last7Days.map(renderSessionItem)}
           </div>
         )}
 
         {/* 30天内 */}
-        {groupedSessions.last30Days.filter((s) => s.session_id !== currentSessionId).length > 0 && (
+        {groupedSessions.last30Days.length > 0 && (
           <div className="mb-4">
             <div className="text-xs font-medium text-[var(--foreground-secondary)] px-3 py-1 mb-1">30天内</div>
-            {groupedSessions.last30Days.filter((s) => s.session_id !== currentSessionId).map(renderSessionItem)}
+            {groupedSessions.last30Days.map(renderSessionItem)}
           </div>
         )}
 
         {/* 按月份分组 */}
         {Object.keys(groupedSessions.byMonth).sort().reverse().map(monthKey => {
-          const monthSessions = groupedSessions.byMonth[monthKey].filter((s) => s.session_id !== currentSessionId);
+          const monthSessions = groupedSessions.byMonth[monthKey];
           if (monthSessions.length === 0) return null;
           return (
             <div key={monthKey} className="mb-4">
@@ -305,12 +339,12 @@ export function SessionSidebar({
             </div>
           );
         })}
-        
+
         {/* 🔥 v7.105.3: Intersection Observer 滚动加载触发器 - 条件渲染 */}
         {loadMoreTriggerRef && (
-          <div 
-            ref={loadMoreTriggerRef} 
-            className="h-1 w-full opacity-0" 
+          <div
+            ref={loadMoreTriggerRef}
+            className="h-1 w-full opacity-0"
             aria-hidden="true"
             data-trigger="scroll-load"
           />

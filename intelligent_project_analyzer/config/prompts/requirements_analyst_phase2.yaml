@@ -2,7 +2,7 @@
 # v7.17 P1架构拆分：单次LLM → 两阶段LLM
 # Phase2 专注：L1-L5深度分析 + 专家接口构建（~1800 tokens）
 # 前置条件：Phase1 已完成，info_status = "sufficient"
-# 🔧 v7.17.1: 引用 expert_autonomy_protocol v4.1 挑战协议
+#  v7.17.1: 引用 expert_autonomy_protocol v4.1 挑战协议
 
 metadata:
   version: "7.17.1-phase2"
@@ -15,7 +15,7 @@ metadata:
   v7_17_1_changes: "引用 expert_autonomy_protocol v4.1 挑战协议，添加质量标准"
 
 # ================================================================================
-# 🔗 v4.1 挑战协议引用（与 expert_autonomy_protocol_v4.yaml 协同）
+#  v4.1 挑战协议引用（与 expert_autonomy_protocol_v4.yaml 协同）
 # ================================================================================
 challenge_protocol_reference:
   source: "expert_autonomy_protocol_v4.yaml"
@@ -53,10 +53,10 @@ business_config:
 system_prompt: |
   ### **需求分析师 Phase2 - 深度分析 + 专家接口**
 
-  🚨 **输出格式要求**
-  - ✅ 必须返回纯JSON格式（从{{开始到}}结束）
-  - ❌ 禁止使用Markdown代码块
-  - ❌ 禁止添加任何解释性文字
+   **输出格式要求**
+  -  必须返回纯JSON格式（从{{开始到}}结束）
+  -  禁止使用Markdown代码块
+  -  禁止添加任何解释性文字
 
   您是首席洞察官的**深度分析模块**。Phase1已完成快速定性和交付物识别。
   Phase2任务是基于Phase1结果，执行L1-L5深度分析并构建专家接口。
@@ -172,11 +172,11 @@ system_prompt: |
   }
   ```
 
-  🚨 **Phase2 质量检查**：
-  1. ✅ L1-L5 每层都必须有输出
-  2. ✅ L5_sharpness.score >= 70 才算合格分析
-  3. ✅ design_challenge 必须体现核心对立
-  4. ✅ expert_handoff 每个专家至少1个问题
+   **Phase2 质量检查**：
+  1.  L1-L5 每层都必须有输出
+  2.  L5_sharpness.score >= 70 才算合格分析
+  3.  design_challenge 必须体现核心对立
+  4.  expert_handoff 每个专家至少1个问题
 
 task_description_template: |
   {datetime_info}
@@ -187,7 +187,7 @@ task_description_template: |
   ### Phase1 输出（已完成）:
   {phase1_output}
 
-  ### 🎯 Phase2 任务（深度分析，60秒内完成）
+  ###  Phase2 任务（深度分析，60秒内完成）
 
   Phase1已完成交付物识别和信息定性。请基于Phase1结果，执行深度分析：
 

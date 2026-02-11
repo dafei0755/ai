@@ -13,12 +13,12 @@ class DomainClassifier:
     
     # 设计领域关键词
     DESIGN_KEYWORDS = {
-        "空间设计": ["空间", "室内", "建筑", "景观", "展厅", "办公室", "住宅", "商业空间", "店铺", "餐厅", "酒店", "包房"],  # 🆕 添加"包房"
+        "空间设计": ["空间", "室内", "建筑", "景观", "展厅", "办公室", "住宅", "商业空间", "店铺", "餐厅", "酒店", "包房"],  #  添加"包房"
         "设计元素": ["布局", "动线", "材质", "色彩", "照明", "家具", "装饰", "软装", "硬装", "吊顶", "地面"],
         "设计风格": ["现代", "简约", "工业风", "新中式", "北欧", "轻奢", "极简", "复古", "日式", "欧式"],
         "设计阶段": ["方案设计", "概念设计", "施工图", "效果图", "深化设计", "软装设计", "平面图"],
         "空间类型": ["办公空间", "零售空间", "展览空间", "餐饮空间", "酒店空间", "会所", "公共空间", "咖啡厅", "咖啡馆", "客厅"],
-        "设计需求": ["装修", "改造", "翻新", "设计方案", "空间规划", "功能分区", "氛围营造", "设计", "命名", "起名", "取名"],  # 🆕 添加命名类
+        "设计需求": ["装修", "改造", "翻新", "设计方案", "空间规划", "功能分区", "氛围营造", "设计", "命名", "起名", "取名"],  #  添加命名类
         "技术要素": ["结构", "机电", "暖通", "智能化", "可持续", "BIM", "节能", "环保"],
         "用户体验": ["用户体验", "交互", "动线设计", "氛围", "舒适度", "视觉效果"],
         "商业要素": ["成本", "预算", "ROI", "招商", "运营", "品牌", "定位"],
@@ -72,7 +72,7 @@ class DomainClassifier:
         non_design_strength = non_design_stats["strength"]
 
         logger.info(
-            "📊 关键词命中: 设计=%s (hits=%s, categories=%s), 非设计=%s (hits=%s, categories=%s)",
+            " 关键词命中: 设计=%s (hits=%s, categories=%s), 非设计=%s (hits=%s, categories=%s)",
             design_strength,
             design_stats["hits"],
             design_stats["categories"],
@@ -86,9 +86,9 @@ class DomainClassifier:
         if self.llm_model:
             try:
                 llm_result = self._llm_classify(user_input)
-                logger.info(f"🤖 LLM判断: is_design={llm_result['is_design']}, confidence={llm_result.get('confidence', 0):.2f}")
+                logger.info(f" LLM判断: is_design={llm_result['is_design']}, confidence={llm_result.get('confidence', 0):.2f}")
             except Exception as e:
-                logger.warning(f"⚠️ LLM分类失败: {e}")
+                logger.warning(f"️ LLM分类失败: {e}")
         
         def _design_response(confidence: Optional[float] = None) -> Dict[str, Any]:
             final_conf = confidence if confidence is not None else self._compute_confidence(design_stats)
@@ -110,12 +110,12 @@ class DomainClassifier:
             }
 
         # 3. 综合决策
-        # 🆕 规则0: 优先检查命名任务（不依赖LLM置信度）
-        # ⚠️ 命名类任务视为设计相关（空间命名、品牌命名等）
+        #  规则0: 优先检查命名任务（不依赖LLM置信度）
+        # ️ 命名类任务视为设计相关（空间命名、品牌命名等）
         is_naming_task = any(kw in normalized_input for kw in ["命名", "起名", "取名", "名字", "叫什么"])
 
         if is_naming_task and design_strength >= 1:
-            logger.info("🏷️ 检测到命名任务+设计关键词，放行处理")
+            logger.info("️ 检测到命名任务+设计关键词，放行处理")
             return _design_response(confidence=0.75)
 
         # 规则1: LLM明确判断为非设计类（高置信度）
@@ -217,16 +217,16 @@ class DomainClassifier:
             prompt = f"""你是空间设计领域分类专家。判断以下用户输入是否属于空间设计领域。
 
 空间设计领域包括：
-✅ 建筑设计、室内设计、景观设计
-✅ 办公空间、零售空间、展厅空间、餐饮空间、住宅空间
-✅ 空间规划、动线设计、装修方案
-✅ 材料选择、色彩搭配、照明设计
-✅ 家具布置、软装设计
+ 建筑设计、室内设计、景观设计
+ 办公空间、零售空间、展厅空间、餐饮空间、住宅空间
+ 空间规划、动线设计、装修方案
+ 材料选择、色彩搭配、照明设计
+ 家具布置、软装设计
 
 不属于设计领域：
-❌ 编程开发、医疗健康、法律金融
-❌ 网站设计、APP设计（除非是展厅的数字界面）
-❌ 平面设计、UI设计（除非与空间设计结合）
+ 编程开发、医疗健康、法律金融
+ 网站设计、APP设计（除非是展厅的数字界面）
+ 平面设计、UI设计（除非与空间设计结合）
 
 用户输入：
 {user_input}
@@ -261,7 +261,7 @@ class DomainClassifier:
             return {"is_design": True, "confidence": 0.5, "categories": []}
             
         except Exception as e:
-            logger.error(f"❌ LLM分类异常: {e}")
+            logger.error(f" LLM分类异常: {e}")
             return {"is_design": True, "confidence": 0.5, "categories": []}
 
     def _check_task_type_override(self, user_input: str) -> Optional[Dict[str, Any]]:
@@ -285,7 +285,7 @@ class DomainClassifier:
         ]
         if any(re.search(p, text) for p in naming_patterns):
             # 即使含"文化"、"苏东坡"也判simple
-            logger.info("🎯 任务类型覆盖: 检测到命名类任务，强制判定为simple")
+            logger.info(" 任务类型覆盖: 检测到命名类任务，强制判定为simple")
             return {
                 "complexity": "simple",
                 "confidence": 0.9,
@@ -305,7 +305,7 @@ class DomainClassifier:
             r"\d+个[主题概念风格方案]"  #10个主题（紧凑版）
         ]
         if any(re.search(p, text) for p in recommend_patterns):
-            logger.info("🎯 任务类型覆盖: 检测到推荐类任务，强制判定为simple")
+            logger.info(" 任务类型覆盖: 检测到推荐类任务，强制判定为simple")
             return {
                 "complexity": "simple",
                 "confidence": 0.85,
@@ -330,7 +330,7 @@ class DomainClassifier:
                 "confidence": float,
                 "reasoning": str,
                 "suggested_workflow": str,
-                "suggested_experts": List[str],  # 🆕 推荐的专家组合
+                "suggested_experts": List[str],  #  推荐的专家组合
                 "estimated_duration": str  # 预估时长
             }
         """
@@ -373,7 +373,7 @@ class DomainClassifier:
             "文化维度": [r"文化", r"历史", r"传统", r"标杆", r"示范", r"城市更新", r"文化传承"],
             "跨领域协作": [r"跨界", r"融合", r"综合", r"一体化", r"全产业链"],
 
-            # ========== 🆕 P0.1优化: 新增7个维度 ==========
+            # ==========  P0.1优化: 新增7个维度 ==========
 
             # 1. 大面积项目（解决#7/#15/#16误判）
             "大型项目面积": [
@@ -464,7 +464,7 @@ class DomainClassifier:
                     complex_matches.append(category)
                     break
 
-        logger.info(f"📊 复杂度得分: 简单={simple_score}, 中等={medium_score}, 复杂={complex_score}")
+        logger.info(f" 复杂度得分: 简单={simple_score}, 中等={medium_score}, 复杂={complex_score}")
         logger.info(f"   简单特征: {simple_matches}")
         logger.info(f"   中等特征: {medium_matches}")
         logger.info(f"   复杂特征: {complex_matches}")
@@ -535,7 +535,7 @@ class DomainClassifier:
         """
         为简单任务推荐专家组合
 
-        🔥 重要：返回完整的角色ID（如 "V3_叙事与体验专家_3-2"），而不是简化ID（如 "v3"）
+         重要：返回完整的角色ID（如 "V3_叙事与体验专家_3-2"），而不是简化ID（如 "v3"）
         这样可以确保与完整流程（ProjectDirector）选择相同的子角色，保持逻辑一致性
 
         参考 ProjectDirector 的"轻量级任务"配置：

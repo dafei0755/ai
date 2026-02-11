@@ -48,7 +48,7 @@ class SafeLLMWrapper:
             safety_result = self.safety_guard.check(text, context="output")
             
             if not safety_result["is_safe"]:
-                logger.error(f"🚨 LLM输出违规: {safety_result['violations']}")
+                logger.error(f" LLM输出违规: {safety_result['violations']}")
                 
                 # 记录违规
                 self.violation_logger.log({
@@ -66,7 +66,7 @@ class SafeLLMWrapper:
                         response.content = safe_response
                     else:
                         response = safe_response
-                    logger.warning("⚠️ 已替换为安全内容")
+                    logger.warning("️ 已替换为安全内容")
                 else:
                     # 中低风险：尝试脱敏
                     if "sanitized_text" in safety_result:
@@ -74,12 +74,12 @@ class SafeLLMWrapper:
                             response.content = safety_result["sanitized_text"]
                         else:
                             response = safety_result["sanitized_text"]
-                        logger.info("✅ 已完成内容脱敏")
+                        logger.info(" 已完成内容脱敏")
             
             return response
             
         except Exception as e:
-            logger.error(f"❌ SafeLLMWrapper异常: {e}")
+            logger.error(f" SafeLLMWrapper异常: {e}")
             # 出错时返回原始响应，避免阻断流程
             return self.base_llm.invoke(messages, **kwargs)
     

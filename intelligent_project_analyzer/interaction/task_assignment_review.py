@@ -34,25 +34,25 @@ class TaskAssignmentReviewNode:
         """
         logger.info("Starting task assignment review interaction")
 
-        # ✅ 检查是否是重新执行模式，如果是则跳过审核
+        #  检查是否是重新执行模式，如果是则跳过审核
         if state.get("skip_task_review"):
-            logger.info("🔄 重新执行模式，跳过任务分配审核，直接进入批次执行")
+            logger.info(" 重新执行模式，跳过任务分配审核，直接进入批次执行")
             return Command(
                 update={"task_assignment_approved": True},
-                goto="batch_executor"  # 🆕 更新：使用新的批次执行器
+                goto="batch_executor"  #  更新：使用新的批次执行器
             )
 
         # 获取项目总监的结果
         # 项目总监返回的数据在 strategic_analysis 键中
-        strategic_analysis = state.get("strategic_analysis") or {}  # 🔥 修复：确保不为 None
+        strategic_analysis = state.get("strategic_analysis") or {}  #  修复：确保不为 None
 
-        # 🔍 详细调试日志
-        logger.info(f"🔍 [DEBUG] strategic_analysis 类型: {type(strategic_analysis)}")
-        logger.info(f"🔍 [DEBUG] strategic_analysis 内容: {strategic_analysis}")
-        logger.info(f"🔍 [DEBUG] strategic_analysis 长度: {len(strategic_analysis) if strategic_analysis else 0}")
+        #  详细调试日志
+        logger.info(f" [DEBUG] strategic_analysis 类型: {type(strategic_analysis)}")
+        logger.info(f" [DEBUG] strategic_analysis 内容: {strategic_analysis}")
+        logger.info(f" [DEBUG] strategic_analysis 长度: {len(strategic_analysis) if strategic_analysis else 0}")
 
         if not strategic_analysis:
-            logger.error("❌ No strategic_analysis found in state")
+            logger.error(" No strategic_analysis found in state")
             logger.debug(f"Available state keys: {list(state.keys())}")
             return state
 
@@ -80,7 +80,7 @@ class TaskAssignmentReviewNode:
         # 计算实际的任务统计
         total_tasks = sum(len(tasks) for tasks in actual_tasks.values())
         
-        # ✅ 修复：从 selected_roles 中提取角色ID并构造完整ID
+        #  修复：从 selected_roles 中提取角色ID并构造完整ID
         role_ids_with_tasks = []
         for role in selected_roles:
             if isinstance(role, dict):
@@ -129,7 +129,7 @@ class TaskAssignmentReviewNode:
         logger.info(f"Received user response: {type(user_response)}")
         logger.debug(f"User response content: {user_response}")
         
-        # 🆕 使用意图解析器（支持自然语言）
+        #  使用意图解析器（支持自然语言）
         from ..utils.intent_parser import parse_user_intent
         
         intent_result = parse_user_intent(
@@ -138,15 +138,15 @@ class TaskAssignmentReviewNode:
             stage="task_assignment_review"
         )
         
-        logger.info(f"💬 用户意图解析: {intent_result['intent']} (方法: {intent_result['method']})")
+        logger.info(f" 用户意图解析: {intent_result['intent']} (方法: {intent_result['method']})")
         
-        # 🆕 根据意图直接返回Command进行路由
+        #  根据意图直接返回Command进行路由
         intent = intent_result["intent"]
 
         if intent == "approve":
-            logger.info("✅ User approved task assignment, proceeding to execution")
+            logger.info(" User approved task assignment, proceeding to execution")
 
-            # 🆕 2025-11-18: 集成 BatchScheduler 计算批次
+            #  2025-11-18: 集成 BatchScheduler 计算批次
             from intelligent_project_analyzer.workflow.batch_scheduler import BatchScheduler
 
             # 1. 计算批次（基于依赖关系的拓扑排序）
@@ -154,14 +154,14 @@ class TaskAssignmentReviewNode:
             active_agents = state.get("active_agents", [])
             batches = scheduler.schedule_batches(active_agents)
 
-            logger.info(f"📊 BatchScheduler 计算得到 {len(batches)} 个批次:")
+            logger.info(f" BatchScheduler 计算得到 {len(batches)} 个批次:")
             for i, batch in enumerate(batches, start=1):
                 logger.info(f"  批次 {i}: {batch}")
 
             # 2. 创建第一批的 Send 对象
             # 使用新方法：SendFactory.create_batch_sends()
-            # 🔧 修复 (2025-11-18): 直接传递 batches 参数，避免时序问题
-            # 🔧 修复 (2025-11-19): 使用正确的节点名 agent_executor
+            #  修复 (2025-11-18): 直接传递 batches 参数，避免时序问题
+            #  修复 (2025-11-19): 使用正确的节点名 agent_executor
             send_list = SendFactory.create_batch_sends(
                 state=state,
                 batch_number=1,
@@ -174,7 +174,7 @@ class TaskAssignmentReviewNode:
                     "task_assignment_approved": True,
                     "task_assignment_modified": False,
                     "proceed_to_execution": True,
-                    # 🆕 保存批次信息到状态
+                    #  保存批次信息到状态
                     "execution_batches": batches,
                     "current_batch": 1,
                     "total_batches": len(batches)
@@ -182,7 +182,7 @@ class TaskAssignmentReviewNode:
                 goto=send_list  # 使用 Send 列表进行并行执行
             )
         elif intent in ["reject", "revise"]:
-            logger.warning(f"⚠️ User {intent} task assignment, returning to project director")
+            logger.warning(f"️ User {intent} task assignment, returning to project director")
             return Command(
                 update={
                     "task_assignment_approved": False,
@@ -192,7 +192,7 @@ class TaskAssignmentReviewNode:
                 goto="project_director"
             )
         elif intent == "modify":
-            logger.info(f"📝 User requested modifications, returning to project director")
+            logger.info(f" User requested modifications, returning to project director")
             return Command(
                 update={
                     "task_assignment_approved": False,
@@ -205,19 +205,19 @@ class TaskAssignmentReviewNode:
             # 默认approve
             logger.info(f"User {intent}, defaulting to approve")
 
-            # 🆕 2025-11-18: 集成 BatchScheduler 计算批次（同上）
+            #  2025-11-18: 集成 BatchScheduler 计算批次（同上）
             from intelligent_project_analyzer.workflow.batch_scheduler import BatchScheduler
 
             scheduler = BatchScheduler()
             active_agents = state.get("active_agents", [])
             batches = scheduler.schedule_batches(active_agents)
 
-            logger.info(f"📊 BatchScheduler 计算得到 {len(batches)} 个批次")
+            logger.info(f" BatchScheduler 计算得到 {len(batches)} 个批次")
             for i, batch in enumerate(batches, start=1):
                 logger.info(f"  批次 {i}: {batch}")
 
-            # 🔧 修复 (2025-11-18): 直接传递 batches 参数
-            # 🔧 修复 (2025-11-19): 使用正确的节点名 agent_executor
+            #  修复 (2025-11-18): 直接传递 batches 参数
+            #  修复 (2025-11-19): 使用正确的节点名 agent_executor
             send_list = SendFactory.create_batch_sends(
                 state=state,
                 batch_number=1,
@@ -238,7 +238,7 @@ class TaskAssignmentReviewNode:
 
     def _generate_detailed_task_list(
         self,
-        selected_roles: List[Union[str, Any]],  # ✅ 支持字符串或 RoleObject
+        selected_roles: List[Union[str, Any]],  #  支持字符串或 RoleObject
         task_distribution: Dict[str, Any]
     ) -> tuple[List[Dict[str, Any]], Dict[str, List[str]]]:
         """
@@ -255,7 +255,7 @@ class TaskAssignmentReviewNode:
         actual_tasks = {}  # 记录实际使用的任务（包括模板任务）
 
         for role in selected_roles:
-            # ✅ 兼容两种格式：
+            #  兼容两种格式：
             # 1. 新格式：selected_roles 是 List[RoleObject]
             # 2. 旧格式：selected_roles 是 List[str]
             
@@ -281,13 +281,13 @@ class TaskAssignmentReviewNode:
                 full_role_id = self._construct_full_role_id(role_id)
                 actual_tasks[full_role_id] = tasks
                 
-                logger.info(f"✅ {full_role_id} (动态名称: {dynamic_role_name}) 包含 {len(tasks)} 个任务")
+                logger.info(f" {full_role_id} (动态名称: {dynamic_role_name}) 包含 {len(tasks)} 个任务")
                 
                 detailed_list.append({
                     "role_id": full_role_id,
-                    "static_role_name": full_role_id,  # ✅ 主角色名称（静态，用于配置查找）
-                    "dynamic_role_name": dynamic_role_name,  # ✅ 动态角色名称（显示用）
-                    "role_name": dynamic_role_name,  # ⚠️ 保留兼容旧代码
+                    "static_role_name": full_role_id,  #  主角色名称（静态，用于配置查找）
+                    "dynamic_role_name": dynamic_role_name,  #  动态角色名称（显示用）
+                    "role_name": dynamic_role_name,  # ️ 保留兼容旧代码
                     "tasks": [
                         {
                             "task_id": f"{full_role_id}_task_{i+1}",
@@ -307,15 +307,15 @@ class TaskAssignmentReviewNode:
             # 旧格式：字符串 role_id
             role_tasks = task_distribution.get(role, {})
 
-            # 🔍 调试日志：输出每个角色的 task_data
-            logger.info(f"🔍 [DEBUG] 处理角色: {role}")
-            logger.info(f"🔍 [DEBUG] role_tasks 类型: {type(role_tasks)}")
+            #  调试日志：输出每个角色的 task_data
+            logger.info(f" [DEBUG] 处理角色: {role}")
+            logger.info(f" [DEBUG] role_tasks 类型: {type(role_tasks)}")
             if hasattr(role_tasks, '__dict__'):
-                logger.info(f"🔍 [DEBUG] role_tasks 属性: {role_tasks.__dict__}")
+                logger.info(f" [DEBUG] role_tasks 属性: {role_tasks.__dict__}")
             elif isinstance(role_tasks, dict):
-                logger.info(f"🔍 [DEBUG] role_tasks keys: {list(role_tasks.keys())}")
+                logger.info(f" [DEBUG] role_tasks keys: {list(role_tasks.keys())}")
             elif isinstance(role_tasks, str):
-                logger.info(f"🔍 [DEBUG] role_tasks 字符串长度: {len(role_tasks)}")
+                logger.info(f" [DEBUG] role_tasks 字符串长度: {len(role_tasks)}")
 
             # 提取任务列表 - 兼容 TaskDetail 对象、字典和字符串格式
             tasks = []
@@ -329,7 +329,7 @@ class TaskAssignmentReviewNode:
                 focus_areas = role_tasks.focus_areas
                 expected_output = role_tasks.expected_output
                 dependencies = role_tasks.dependencies
-                logger.info(f"✅ {role} 使用 TaskDetail 格式，包含 {len(tasks)} 个定制任务")
+                logger.info(f" {role} 使用 TaskDetail 格式，包含 {len(tasks)} 个定制任务")
 
             # 情况2: 字典格式（兼容）
             elif isinstance(role_tasks, dict):
@@ -338,17 +338,17 @@ class TaskAssignmentReviewNode:
                 expected_output = role_tasks.get("expected_output", "")
                 dependencies = role_tasks.get("dependencies", [])
                 if tasks:
-                    logger.info(f"✅ {role} 使用字典格式，包含 {len(tasks)} 个定制任务")
+                    logger.info(f" {role} 使用字典格式，包含 {len(tasks)} 个定制任务")
 
             # 情况3: 字符串格式（旧格式兼容）
             elif isinstance(role_tasks, str):
                 tasks = [role_tasks]
-                logger.info(f"✅ {role} 使用字符串格式，已转换为任务列表")
+                logger.info(f" {role} 使用字符串格式，已转换为任务列表")
 
             # 如果没有任务,使用模板生成默认任务
             if not tasks:
                 tasks = self.strategy_manager.get_task_template(role)
-                logger.info(f"⚠️ {role} 没有定制任务，使用 {len(tasks)} 个模板任务")
+                logger.info(f"️ {role} 没有定制任务，使用 {len(tasks)} 个模板任务")
 
             # 记录实际使用的任务
             actual_tasks[role] = tasks
@@ -358,9 +358,9 @@ class TaskAssignmentReviewNode:
             
             detailed_list.append({
                 "role_id": role,
-                "static_role_name": role,  # ✅ 主角色名称（静态）
-                "dynamic_role_name": display_name,  # ✅ 动态显示名称
-                "role_name": display_name,  # ⚠️ 保留兼容旧代码
+                "static_role_name": role,  #  主角色名称（静态）
+                "dynamic_role_name": display_name,  #  动态显示名称
+                "role_name": display_name,  # ️ 保留兼容旧代码
                 "tasks": [
                     {
                         "task_id": f"{role}_task_{i+1}",
@@ -380,13 +380,13 @@ class TaskAssignmentReviewNode:
     
     def _get_role_display_name(self, role_id: str) -> str:
         """获取角色的显示名称"""
-        # ✅ 修正后的名称映射 - 与角色配置文件保持一致
+        #  修正后的名称映射 - 与角色配置文件保持一致
         name_mapping = {
             "V2_设计总监": "设计总监",
-            "V3_人物及叙事专家": "人物及叙事专家",  # ✅ 修复: 原来错误地映射为"技术架构师"
-            "V4_设计研究员": "设计研究员",  # ✅ 修复: 原来错误地映射为"用户体验设计师"
-            "V5_场景与用户生态专家": "场景与用户生态专家",  # ✅ 修复: 原来错误地映射为"商业分析师"
-            "V6_专业总工程师": "专业总工程师"  # ✅ 修复: 原来键名为"V6_专业员工群"
+            "V3_人物及叙事专家": "人物及叙事专家",  #  修复: 原来错误地映射为"技术架构师"
+            "V4_设计研究员": "设计研究员",  #  修复: 原来错误地映射为"用户体验设计师"
+            "V5_场景与用户生态专家": "场景与用户生态专家",  #  修复: 原来错误地映射为"商业分析师"
+            "V6_专业总工程师": "专业总工程师"  #  修复: 原来键名为"V6_专业员工群"
         }
 
         for prefix, display_name in name_mapping.items():
@@ -435,7 +435,7 @@ class TaskAssignmentReviewNode:
 
         # 检查每个角色是否都有任务
         for role in selected_roles:
-            # ✅ 从 RoleObject 中提取 role_id
+            #  从 RoleObject 中提取 role_id
             if isinstance(role, dict):
                 role_id = role.get('role_id', '')
             elif hasattr(role, 'role_id'):
@@ -488,19 +488,19 @@ class TaskAssignmentReviewNode:
         Returns:
             更新后的状态
         """
-        # 🆕 优先使用意图解析结果（支持自然语言对话）
+        #  优先使用意图解析结果（支持自然语言对话）
         if intent_result:
             intent = intent_result["intent"]
             content = intent_result.get("content", "")
             
             if intent == "approve":
-                logger.info("✅ User approved task assignment, proceeding to execution")
+                logger.info(" User approved task assignment, proceeding to execution")
                 return {
                     "task_assignment_approved": True,
                     "task_assignment_modified": False
                 }
             elif intent in ["reject", "revise"]:
-                logger.warning(f"⚠️ User {intent} task assignment, need to reassign")
+                logger.warning(f"️ User {intent} task assignment, need to reassign")
                 return {
                     "task_assignment_approved": False,
                     "task_assignment_modified": False,
@@ -508,7 +508,7 @@ class TaskAssignmentReviewNode:
                     "rejection_reason": content or f"User {intent}"
                 }
             elif intent == "modify":
-                logger.info(f"📝 User requested task modifications: {content[:50]}")
+                logger.info(f" User requested task modifications: {content[:50]}")
                 return {
                     "task_assignment_approved": False,
                     "task_assignment_modified": True,

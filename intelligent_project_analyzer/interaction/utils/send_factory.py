@@ -67,23 +67,23 @@ class SendFactory:
         if batches is None:
             batches = state.get("execution_batches", [])
             if not batches:
-                logger.error("❌ state 中未找到 execution_batches，且未提供 batches 参数")
+                logger.error(" state 中未找到 execution_batches，且未提供 batches 参数")
                 logger.warning("请先调用 BatchScheduler.schedule_batches() 计算批次")
                 logger.debug(f"可用的 state 键: {list(state.keys())}")
                 return []
-            logger.debug(f"📖 从 state 读取批次列表: {len(batches)} 个批次")
+            logger.debug(f" 从 state 读取批次列表: {len(batches)} 个批次")
         else:
-            logger.debug(f"✅ 使用传入的 batches 参数: {len(batches)} 个批次")
+            logger.debug(f" 使用传入的 batches 参数: {len(batches)} 个批次")
 
         # 2. 验证批次编号
         if batch_number < 1 or batch_number > len(batches):
-            logger.error(f"❌ 批次编号 {batch_number} 超出范围 [1, {len(batches)}]")
+            logger.error(f" 批次编号 {batch_number} 超出范围 [1, {len(batches)}]")
             logger.debug(f"批次列表: {batches}")
             return []
 
         # 3. 获取当前批次的角色
         current_batch_roles = batches[batch_number - 1]
-        logger.info(f"📦 创建批次 {batch_number}/{len(batches)} 的 Send 对象")
+        logger.info(f" 创建批次 {batch_number}/{len(batches)} 的 Send 对象")
         logger.info(f"   角色列表: {current_batch_roles}")
         logger.info(f"   目标节点: {node_name}")
 
@@ -97,9 +97,9 @@ class SendFactory:
             agent_state["current_stage"] = AnalysisStage.PARALLEL_ANALYSIS.value
 
             send_list.append(Send(node_name, agent_state))
-            logger.debug(f"   [{i}/{len(current_batch_roles)}] ✅ 创建 Send({node_name}, role_id={role_id})")
+            logger.debug(f"   [{i}/{len(current_batch_roles)}]  创建 Send({node_name}, role_id={role_id})")
 
-        logger.info(f"✅ 成功创建 {len(send_list)} 个 Send 对象")
+        logger.info(f" 成功创建 {len(send_list)} 个 Send 对象")
         return send_list
 
     @staticmethod
@@ -156,7 +156,7 @@ class SendFactory:
         - 旧代码：使用硬编码前缀过滤 (V3_, V4_, V5_)
         - 新代码：应使用 create_batch_sends(state, batch_number=1)
 
-        ⚠️ 废弃警告: 此方法将在未来版本中移除
+        ️ 废弃警告: 此方法将在未来版本中移除
         请使用 create_batch_sends() 代替
         """
         logger.warning(
@@ -166,7 +166,7 @@ class SendFactory:
         # 检查是否已经计算了批次
         if state.get("execution_batches"):
             # 使用新方法
-            # 🔧 修复 (2025-11-19): 使用正确的节点名 agent_executor
+            #  修复 (2025-11-19): 使用正确的节点名 agent_executor
             return SendFactory.create_batch_sends(state, batch_number=1, node_name="agent_executor")
 
         # 降级到旧逻辑（硬编码前缀过滤）
@@ -198,7 +198,7 @@ class SendFactory:
         - 旧代码：使用硬编码前缀过滤 (V2_, V6_)
         - 新代码：应使用 create_batch_sends(state, batch_number=2)
 
-        ⚠️ 废弃警告: 此方法将在未来版本中移除
+        ️ 废弃警告: 此方法将在未来版本中移除
         请使用 create_batch_sends() 代替
         """
         logger.warning(
@@ -217,7 +217,7 @@ class SendFactory:
                 )
                 if has_v2_v6:
                     logger.info(f"找到 V2/V6 在批次 {i}")
-                    # 🔧 修复 (2025-11-19): 使用正确的节点名 agent_executor
+                    #  修复 (2025-11-19): 使用正确的节点名 agent_executor
                     return SendFactory.create_batch_sends(state, batch_number=i, node_name="agent_executor")
 
         # 降级到旧逻辑（硬编码前缀过滤）

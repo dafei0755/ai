@@ -38,10 +38,10 @@ class ViolationLogger:
             with open(self.log_file, 'a', encoding='utf-8') as f:
                 f.write(json.dumps(violation, ensure_ascii=False) + '\n')
             
-            logger.info(f"📝 违规记录已保存: {violation.get('violation_type', 'unknown')}")
+            logger.info(f" 违规记录已保存: {violation.get('violation_type', 'unknown')}")
             
         except Exception as e:
-            logger.error(f"❌ 保存违规记录失败: {e}")
+            logger.error(f" 保存违规记录失败: {e}")
     
     def get_statistics(self, time_range: str = "24h") -> Dict[str, Any]:
         """
@@ -80,5 +80,5 @@ class ViolationLogger:
             }
             
         except Exception as e:
-            logger.error(f"❌ 获取违规统计失败: {e}")
+            logger.error(f" 获取违规统计失败: {e}")
             return {"total": 0, "error": str(e)}

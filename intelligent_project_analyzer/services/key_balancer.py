@@ -87,7 +87,7 @@ class APIKeyInfo:
             self.rate_limit_count += 1
             self.status = KeyStatus.RATE_LIMITED
             self.rate_limit_until = time.time() + retry_after
-            logger.warning(f"🔒 Key {self.key[:8]}... 被限流，{retry_after}秒后恢复")
+            logger.warning(f" Key {self.key[:8]}... 被限流，{retry_after}秒后恢复")
         
         # 失败后降低权重
         self.weight = max(0.1, self.weight * 0.8)
@@ -95,12 +95,12 @@ class APIKeyInfo:
     def mark_exhausted(self):
         """标记配额用尽"""
         self.status = KeyStatus.EXHAUSTED
-        logger.error(f"❌ Key {self.key[:8]}... 配额用尽")
+        logger.error(f" Key {self.key[:8]}... 配额用尽")
     
     def mark_invalid(self):
         """标记无效"""
         self.status = KeyStatus.INVALID
-        logger.error(f"❌ Key {self.key[:8]}... 无效")
+        logger.error(f" Key {self.key[:8]}... 无效")
 
 
 class LoadBalanceStrategy(Enum):
@@ -133,7 +133,7 @@ class APIKeyPool:
         self._index = 0
         self._lock = threading.Lock()
         
-        logger.info(f"🔑 {provider} Key 池初始化: {len(self.keys)} 个 Key")
+        logger.info(f" {provider} Key 池初始化: {len(self.keys)} 个 Key")
     
     def get_key(self) -> Optional[APIKeyInfo]:
         """
@@ -146,7 +146,7 @@ class APIKeyPool:
             available_keys = [k for k in self.keys if k.is_available]
             
             if not available_keys:
-                logger.warning(f"⚠️ {self.provider} 没有可用的 Key")
+                logger.warning(f"️ {self.provider} 没有可用的 Key")
                 return None
             
             if self.strategy == LoadBalanceStrategy.ROUND_ROBIN:
@@ -282,7 +282,7 @@ class MultiKeyLoadBalancer:
                 self.add_keys(provider, keys)
                 self._provider_priority.append(provider)
         
-        logger.info(f"🔑 加载完成: {[f'{p}({len(self._pools[p].keys)})' for p in self._provider_priority]}")
+        logger.info(f" 加载完成: {[f'{p}({len(self._pools[p].keys)})' for p in self._provider_priority]}")
     
     def add_keys(
         self,
@@ -339,7 +339,7 @@ class MultiKeyLoadBalancer:
             if provider != preferred_provider:
                 key = self.get_key(provider)
                 if key:
-                    logger.info(f"🔄 {preferred_provider} 不可用，回退到 {provider}")
+                    logger.info(f" {preferred_provider} 不可用，回退到 {provider}")
                     return key, provider
         
         return None, ""

@@ -85,28 +85,28 @@ export function SearchReferences({ references, className = '' }: SearchReference
   }
 
   return (
-    <div className={`border rounded-lg bg-white shadow-sm ${className}`}>
+    <div className={`border border-[var(--border-color)] rounded-lg bg-[var(--card-bg)] shadow-sm ${className}`}>
       {/* 头部 */}
       <div
-        className="flex items-center justify-between p-4 cursor-pointer hover:bg-gray-50 transition-colors border-b"
+        className="flex items-center justify-between p-4 cursor-pointer hover:bg-[var(--sidebar-bg)] transition-colors border-b border-[var(--border-color)]"
         onClick={() => setIsExpanded(!isExpanded)}
       >
         <div className="flex items-center gap-3">
           <span className="text-2xl">📚</span>
           <div>
-            <h3 className="text-lg font-semibold text-gray-900">
+            <h3 className="text-lg font-semibold text-[var(--foreground)]">
               参考文献
             </h3>
-            <p className="text-sm text-gray-500">
+            <p className="text-sm text-[var(--foreground-secondary)]">
               专家分析使用的搜索资料 · {references.length} 条引用
             </p>
           </div>
         </div>
-        <button className="p-1 hover:bg-gray-100 rounded-lg transition-colors">
+        <button className="p-1 hover:bg-[var(--sidebar-bg)] rounded-lg transition-colors">
           {isExpanded ? (
-            <ChevronUp className="w-5 h-5 text-gray-600" />
+            <ChevronUp className="w-5 h-5 text-[var(--foreground-secondary)]" />
           ) : (
-            <ChevronDown className="w-5 h-5 text-gray-600" />
+            <ChevronDown className="w-5 h-5 text-[var(--foreground-secondary)]" />
           )}
         </button>
       </div>
@@ -118,23 +118,23 @@ export function SearchReferences({ references, className = '' }: SearchReference
           <div className="flex flex-col sm:flex-row gap-3">
             {/* 搜索框 */}
             <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--foreground-secondary)]" />
               <input
                 type="text"
                 placeholder="搜索标题、摘要或查询..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full pl-10 pr-4 py-2 border border-[var(--border-color)] rounded-lg bg-[var(--background)] text-[var(--foreground)] focus:ring-2 focus:ring-[var(--primary)] focus:border-transparent"
               />
             </div>
 
             {/* 工具筛选 */}
             <div className="flex items-center gap-2">
-              <Filter className="w-4 h-4 text-gray-400" />
+              <Filter className="w-4 h-4 text-[var(--foreground-secondary)]" />
               <select
                 value={selectedTool}
                 onChange={(e) => setSelectedTool(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="px-3 py-2 border border-[var(--border-color)] rounded-lg bg-[var(--background)] text-[var(--foreground)] focus:ring-2 focus:ring-[var(--primary)] focus:border-transparent"
               >
                 <option value="all">所有来源 ({references.length})</option>
                 {Object.entries(toolStats).map(([tool, count]) => (
@@ -149,7 +149,7 @@ export function SearchReferences({ references, className = '' }: SearchReference
           {/* 引用列表 */}
           <div className="space-y-3">
             {filteredReferences.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">
+              <div className="text-center py-8 text-[var(--foreground-secondary)]">
                 <Search className="w-12 h-12 mx-auto mb-2 opacity-30" />
                 <p>未找到匹配的引用</p>
               </div>
@@ -165,7 +165,7 @@ export function SearchReferences({ references, className = '' }: SearchReference
   );
 }
 
-// 单个引用卡片
+// 单个引用卡片 - 🔧 v7.175: 统一字体样式
 function ReferenceCard({ reference, index }: { reference: SearchReference; index: number }) {
   const [isExpanded, setIsExpanded] = useState(false);
 
@@ -173,26 +173,26 @@ function ReferenceCard({ reference, index }: { reference: SearchReference; index
   const toolName = TOOL_NAMES[reference.source_tool] || reference.source_tool;
 
   return (
-    <div className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow bg-gray-50">
+    <div className="group border border-[var(--border-color)] rounded-lg p-4 hover:shadow-md hover:border-[var(--primary)] transition-all bg-[var(--card-bg)]">
       {/* 头部信息 */}
       <div className="flex items-start gap-3">
-        <span className="flex-shrink-0 w-8 h-8 flex items-center justify-center bg-blue-100 text-blue-700 rounded-full text-sm font-semibold">
+        <span className="flex-shrink-0 w-6 h-6 flex items-center justify-center bg-[var(--primary)] text-white rounded-full text-xs font-semibold">
           {index}
         </span>
 
         <div className="flex-1 min-w-0">
           {/* 标题和链接 */}
           <div className="flex items-start justify-between gap-2 mb-2">
-            <h4 className="font-medium text-gray-900 flex-1">
+            <h4 className="font-medium text-sm leading-snug text-[var(--foreground)] flex-1">
               {reference.url ? (
                 <a
                   href={reference.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="hover:text-blue-600 hover:underline inline-flex items-center gap-1"
+                  className="hover:text-[var(--primary)] transition-colors inline-flex items-start gap-1.5"
                 >
-                  {reference.title}
-                  <ExternalLink className="w-4 h-4 flex-shrink-0" />
+                  <span className="line-clamp-2">{reference.title}</span>
+                  <ExternalLink className="w-3.5 h-3.5 flex-shrink-0 mt-0.5 opacity-0 group-hover:opacity-60 transition-opacity" />
                 </a>
               ) : (
                 reference.title
@@ -200,32 +200,32 @@ function ReferenceCard({ reference, index }: { reference: SearchReference; index
             </h4>
 
             {/* 来源标签 */}
-            <span className="flex-shrink-0 px-2 py-1 bg-white border border-gray-300 rounded text-xs text-gray-600">
+            <span className="flex-shrink-0 px-2 py-1 bg-[var(--sidebar-bg)] border border-[var(--border-color)] rounded-full text-xs font-medium text-[var(--foreground-secondary)]">
               {toolIcon} {toolName}
             </span>
           </div>
 
-          {/* 摘要 */}
-          <p className="text-sm text-gray-600 mb-2 line-clamp-2">
+          {/* 摘要 - 🔧 v7.175: 统一字体样式 */}
+          <p className="text-xs leading-relaxed text-[var(--foreground-secondary)] mb-3 line-clamp-2">
             {reference.snippet}
           </p>
 
-          {/* 元信息 */}
-          <div className="flex flex-wrap items-center gap-3 text-xs text-gray-500">
-            <span className="flex items-center gap-1">
+          {/* 元信息 - 🔧 v7.175: 统一颜色变量 */}
+          <div className="flex flex-wrap items-center gap-2 text-xs">
+            <span className="flex items-center gap-1 text-[var(--foreground-secondary)]">
               <Search className="w-3 h-3" />
-              查询: {reference.query}
+              {reference.query}
             </span>
 
             {reference.relevance_score !== undefined && (
-              <span className="px-2 py-0.5 bg-green-100 text-green-700 rounded">
+              <span className="px-2 py-0.5 bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-300 rounded-full">
                 相关性: {(reference.relevance_score * 100).toFixed(0)}%
               </span>
             )}
 
             {reference.deliverable_id && (
-              <span className="text-gray-400">
-                交付物: {reference.deliverable_id.split('_')[0]}
+              <span className="text-[var(--foreground-secondary)]">
+                #{reference.deliverable_id.split('_')[0]}
               </span>
             )}
           </div>
@@ -234,19 +234,19 @@ function ReferenceCard({ reference, index }: { reference: SearchReference; index
           {(reference.llm_relevance_score || reference.llm_scoring_reason) && (
             <button
               onClick={() => setIsExpanded(!isExpanded)}
-              className="mt-2 text-xs text-blue-600 hover:text-blue-700 hover:underline"
+              className="mt-3 text-xs text-[var(--primary)] hover:opacity-80 font-medium"
             >
-              {isExpanded ? '收起详情' : '查看详情'}
+              {isExpanded ? '收起详情 ↑' : '查看详情 ↓'}
             </button>
           )}
 
           {/* 详细信息 */}
           {isExpanded && (
-            <div className="mt-3 p-3 bg-white rounded border border-gray-200 text-sm space-y-2">
+            <div className="mt-3 p-3 bg-[var(--sidebar-bg)] rounded-lg border border-[var(--border-color)] text-sm space-y-2">
               {reference.llm_relevance_score !== undefined && (
                 <div>
-                  <span className="font-medium text-gray-700">LLM评分: </span>
-                  <span className="text-gray-600">
+                  <span className="font-medium text-[var(--foreground)]">LLM评分: </span>
+                  <span className="text-[var(--foreground-secondary)]">
                     {(reference.llm_relevance_score * 100).toFixed(0)}%
                   </span>
                 </div>
@@ -254,19 +254,19 @@ function ReferenceCard({ reference, index }: { reference: SearchReference; index
 
               {reference.llm_scoring_reason && (
                 <div>
-                  <span className="font-medium text-gray-700">评分理由: </span>
-                  <span className="text-gray-600">{reference.llm_scoring_reason}</span>
+                  <span className="font-medium text-[var(--foreground)]">评分理由: </span>
+                  <span className="text-[var(--foreground-secondary)]">{reference.llm_scoring_reason}</span>
                 </div>
               )}
 
               {reference.url && (
                 <div>
-                  <span className="font-medium text-gray-700">URL: </span>
+                  <span className="font-medium text-[var(--foreground)]">URL: </span>
                   <a
                     href={reference.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-blue-600 hover:underline break-all"
+                    className="text-[var(--primary)] hover:underline break-all"
                   >
                     {reference.url}
                   </a>
@@ -274,8 +274,8 @@ function ReferenceCard({ reference, index }: { reference: SearchReference; index
               )}
 
               <div>
-                <span className="font-medium text-gray-700">时间: </span>
-                <span className="text-gray-600">
+                <span className="font-medium text-[var(--foreground)]">时间: </span>
+                <span className="text-[var(--foreground-secondary)]">
                   {new Date(reference.timestamp).toLocaleString('zh-CN')}
                 </span>
               </div>

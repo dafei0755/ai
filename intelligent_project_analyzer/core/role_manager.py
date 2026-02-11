@@ -260,11 +260,11 @@ class RoleManager:
             # 保存到文件
             self._save_roles()
             
-            print(f"✅ 成功添加角色: {base_type}_{role_id}")
+            print(f" 成功添加角色: {base_type}_{role_id}")
             return True
         
         except Exception as e:
-            print(f"❌ 添加角色失败: {e}")
+            print(f" 添加角色失败: {e}")
             return False
     
     def _save_roles(self) -> None:
@@ -273,7 +273,7 @@ class RoleManager:
             with open(self.config_path, 'w', encoding='utf-8') as f:
                 yaml.dump(self.roles, f, allow_unicode=True, default_flow_style=False)
         except Exception as e:
-            print(f"❌ 保存角色配置失败: {e}")
+            print(f" 保存角色配置失败: {e}")
     
     def get_role_summary(self) -> str:
         """

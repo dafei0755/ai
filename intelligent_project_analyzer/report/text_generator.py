@@ -44,7 +44,7 @@ class TextGeneratorAgent(BaseAgent):
             
             # 验证输入（如果没有 final_report，尝试使用审核结果生成简化报告）
             if not self.validate_input(state):
-                logger.warning("⚠️ final_report 不存在，尝试使用审核结果生成简化报告")
+                logger.warning("️ final_report 不存在，尝试使用审核结果生成简化报告")
                 text_path = self._generate_fallback_report(state)
             else:
                 # 生成完整纯文本报告
@@ -73,9 +73,9 @@ class TextGeneratorAgent(BaseAgent):
         """生成纯文本报告"""
         final_report = state.get("final_report", {})
         session_id = state.get("session_id", "unknown")
-        strategic_analysis = state.get("strategic_analysis") or {}  # 🔥 修复：确保不为 None
+        strategic_analysis = state.get("strategic_analysis") or {}  #  修复：确保不为 None
 
-        # ✅ 获取角色信息（包含动态名称）
+        #  获取角色信息（包含动态名称）
         selected_roles = strategic_analysis.get("selected_roles", []) if isinstance(strategic_analysis, dict) else []
         role_map = {}  # {完整角色ID: 动态名称}
         
@@ -103,7 +103,7 @@ class TextGeneratorAgent(BaseAgent):
                 
                 role_map[full_id] = dynamic_name
         
-        logger.info(f"📋 构建角色映射: {len(role_map)} 个动态角色")
+        logger.info(f" 构建角色映射: {len(role_map)} 个动态角色")
         
         # 创建报告目录
         report_dir = "./reports"
@@ -136,7 +136,7 @@ class TextGeneratorAgent(BaseAgent):
         lines.append("1. 执行摘要")
         lines.append("=" * 80)
         
-        # ✅ 修复v4.0: 如果没有 executive_summary 或内容为空，从其他字段合成
+        #  修复v4.0: 如果没有 executive_summary 或内容为空，从其他字段合成
         executive_summary = final_report.get("executive_summary", {})
         if not executive_summary or executive_summary.get("project_overview") in [None, "N/A", ""]:
             # 从 core_answer、insights、recommendations 合成
@@ -170,7 +170,7 @@ class TextGeneratorAgent(BaseAgent):
                 "key_recommendations": key_recommendations,
                 "success_factors": success_factors
             }
-            logger.info("✅ 从 core_answer/insights/recommendations 合成了 executive_summary")
+            logger.info(" 从 core_answer/insights/recommendations 合成了 executive_summary")
         
         lines.append(f"\n项目概述:\n{executive_summary.get('project_overview', 'N/A')}\n")
         
@@ -189,7 +189,7 @@ class TextGeneratorAgent(BaseAgent):
             lines.append(f"  • {factor}")
         lines.append("")
         
-        # 各个分析章节 - ✅ 按角色组织
+        # 各个分析章节 -  按角色组织
         sections = final_report.get("sections", [])
         agent_results = state.get("agent_results", {})
         

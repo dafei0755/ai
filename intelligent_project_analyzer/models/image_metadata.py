@@ -60,7 +60,7 @@ class ImageMetadata(BaseModel):
         description="创建时间（ISO 8601格式）"
     )
 
-    # 🔄 向后兼容字段（可选）
+    #  向后兼容字段（可选）
     base64_data: Optional[str] = Field(
         default=None,
         description="Base64 Data URL（已废弃，仅用于向后兼容）。新系统使用文件存储 + URL引用"

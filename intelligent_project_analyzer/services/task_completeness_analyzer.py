@@ -10,6 +10,16 @@ from typing import Any, Dict, List, Optional, Set
 
 from loguru import logger
 
+#  v7.150: 导出特殊场景检测器常量，供其他模块（如 dimension_selector）使用
+SPECIAL_SCENARIO_DETECTORS = {
+    "poetic_philosophical": {"keywords": ["月亮", "湖面", "诗意", "哲学", "灵魂", "禅", "意境"], "trigger_message": "检测到诗意/哲学表达"},
+    "extreme_environment": {"keywords": ["高海拔", "严寒", "酷暑", "极端", "沙漠", "高原"], "trigger_message": "检测到极端环境场景"},
+    "medical_special_needs": {"keywords": ["无障碍", "适老", "轮椅", "医疗", "康复", "辅助"], "trigger_message": "检测到医疗/无障碍需求"},
+    "cultural_depth": {"keywords": ["传统文化", "非遗", "文化传承", "authentic", "在地文化"], "trigger_message": "检测到文化深度需求"},
+    "tech_geek": {"keywords": ["声学", "录音", "音乐室", "专业级", "发烧友"], "trigger_message": "检测到科技极客场景"},
+    "complex_relationships": {"keywords": ["多代同堂", "冲突", "隐私", "边界", "独立空间"], "trigger_message": "检测到复杂关系场景"},
+}
+
 
 class TaskCompletenessAnalyzer:
     """
@@ -80,6 +90,189 @@ class TaskCompletenessAnalyzer:
             "missing_dimensions": missing_dimensions,
             "critical_gaps": critical_gaps,
             "dimension_scores": dimension_scores,
+        }
+
+    def analyze_with_expert_foresight(
+        self,
+        confirmed_tasks: List[Dict[str, Any]],
+        user_input: str,
+        structured_data: Dict[str, Any],
+        predicted_roles: Optional[List[str]] = None,
+    ) -> Dict[str, Any]:
+        """
+        增强版完整性分析 + 专家视角风险预判
+
+        v7.136: 融合质量预检机制到问卷阶段
+
+        在基础完整性分析的基础上，预判各专家执行时会遇到的信息缺口，
+        提前生成针对性补充问题，避免后续质量预检环节的重复警告。
+
+        Args:
+            confirmed_tasks: Step 1 确认的任务列表
+            user_input: 用户原始输入
+            structured_data: requirements_analyst 的结构化数据
+            predicted_roles: 预测的专家角色列表（可选）
+
+        Returns:
+            基础分析结果 + 专家视角分析:
+            {
+                ...基础分析字段...,
+                "expert_perspective_gaps": {
+                    "V3_叙事专家": {
+                        "risk_score": 65,
+                        "missing_info": ["用户画像数据", "场景细节"],
+                        "suggested_questions": [...],
+                        "reason": "为什么这些信息很关键"
+                    },
+                    ...
+                },
+                "high_risk_roles": ["V3_叙事专家"]  # risk_score > 70
+            }
+        """
+        # 1. 执行基础完整性分析
+        base_analysis = self.analyze(confirmed_tasks, user_input, structured_data)
+
+        # 2. 如果提供了预测角色，执行专家视角分析
+        if predicted_roles:
+            logger.info(f" [v7.136] 开始专家视角风险预判，角色数: {len(predicted_roles)}")
+
+            expert_gaps = self._analyze_expert_perspective_gaps(
+                confirmed_tasks=confirmed_tasks,
+                user_input=user_input,
+                structured_data=structured_data,
+                predicted_roles=predicted_roles,
+            )
+
+            # 识别高风险角色
+            high_risk_roles = [role for role, gaps in expert_gaps.items() if gaps.get("risk_score", 0) > 70]
+
+            # 融合到基础分析结果
+            base_analysis["expert_perspective_gaps"] = expert_gaps
+            base_analysis["high_risk_roles"] = high_risk_roles
+
+            logger.info(f" [v7.136] 专家视角分析完成，高风险角色: {len(high_risk_roles)}个")
+
+        return base_analysis
+
+    def _analyze_expert_perspective_gaps(
+        self,
+        confirmed_tasks: List[Dict[str, Any]],
+        user_input: str,
+        structured_data: Dict[str, Any],
+        predicted_roles: List[str],
+    ) -> Dict[str, Dict[str, Any]]:
+        """
+        从专家视角分析信息缺口
+
+        模拟质量预检的逻辑，但在任务分配前执行
+
+        Args:
+            confirmed_tasks: 确认的任务列表
+            user_input: 用户原始输入
+            structured_data: 结构化数据
+            predicted_roles: 预测的专家角色列表
+
+        Returns:
+            专家视角的信息缺口分析
+        """
+        import json
+        import re
+
+        from ..services.llm_factory import LLMFactory
+
+        results = {}
+
+        # 只分析前3个关键角色，避免过慢
+        roles_to_analyze = predicted_roles[:3]
+
+        logger.info(f" [v7.136] 并行分析 {len(roles_to_analyze)} 个角色的信息需求")
+
+        try:
+            llm = LLMFactory.create_llm(temperature=0.3, max_tokens=800)
+
+            for role_id in roles_to_analyze:
+                # 提取角色名称
+                role_name = role_id.split("_")[1] if "_" in role_id else role_id
+
+                # 构建简化的已有信息摘要
+                info_summary = self._summarize_structured_data(structured_data)
+
+                prompt = f"""你是一个{role_name}，即将执行以下项目任务。
+
+**用户需求**: {user_input[:300]}
+
+**核心任务**:
+{chr(10).join(f"{i+1}. {t.get('title', '')}" for i, t in enumerate(confirmed_tasks[:5]))}
+
+**已有信息**: {info_summary}
+
+请从你的专业视角，快速判断：
+1. 哪些信息不足会导致你无法高质量完成任务？
+2. 你需要补充询问用户哪1-2个最关键的问题？
+
+输出JSON格式（不要有注释）：
+{{
+    "risk_score": 65,
+    "missing_info": ["缺失的关键信息1", "缺失的关键信息2"],
+    "suggested_questions": ["具体的补充问题1？", "具体的补充问题2？"],
+    "reason": "简要说明为什么这些信息很关键"
+}}"""
+
+                try:
+                    response = llm.invoke(prompt)
+                    content = response.content if hasattr(response, "content") else str(response)
+
+                    # 提取JSON
+                    json_match = re.search(r"\{[\s\S]*\}", content)
+                    if json_match:
+                        json_str = json_match.group()
+                        # 清理注释
+                        json_str = re.sub(r"//.*?(?=\n|$)", "", json_str)
+                        json_str = re.sub(r"/\*.*?\*/", "", json_str, flags=re.DOTALL)
+
+                        result = json.loads(json_str)
+                        results[role_id] = result
+
+                        risk_score = result.get("risk_score", 0)
+                        logger.info(f"   {role_name}: 风险={risk_score}, 缺口={len(result.get('missing_info', []))}")
+                    else:
+                        logger.warning(f"  ️ {role_name}: JSON解析失败")
+                        results[role_id] = self._get_default_expert_gap()
+
+                except Exception as e:
+                    logger.warning(f"  ️ {role_name}: 分析失败 - {e}")
+                    results[role_id] = self._get_default_expert_gap()
+
+        except Exception as e:
+            logger.error(f" [v7.136] 专家视角分析失败: {e}")
+            import traceback
+
+            logger.debug(traceback.format_exc())
+
+        return results
+
+    def _summarize_structured_data(self, structured_data: Dict[str, Any]) -> str:
+        """快速摘要结构化数据"""
+        parts = []
+
+        if structured_data.get("project_type"):
+            parts.append(f"类型:{structured_data['project_type']}")
+        if structured_data.get("budget"):
+            parts.append(f"预算:{structured_data['budget']}")
+        if structured_data.get("timeline"):
+            parts.append(f"时间:{structured_data['timeline']}")
+        if structured_data.get("scale") or structured_data.get("area"):
+            parts.append(f"规模:{structured_data.get('scale') or structured_data.get('area')}")
+
+        return " | ".join(parts) if parts else "信息不足"
+
+    def _get_default_expert_gap(self) -> Dict[str, Any]:
+        """获取默认的专家缺口分析"""
+        return {
+            "risk_score": 50,
+            "missing_info": ["需要更多信息"],
+            "suggested_questions": ["请补充更多项目细节"],
+            "reason": "信息不足，建议补充",
         }
 
     def _merge_text(
@@ -168,25 +361,19 @@ class TaskCompletenessAnalyzer:
         """生成缺失原因说明（v7.107.1：动态优先级判断）"""
 
         # v7.107.1：智能判断时间节点优先级
+        #  v7.129: 提高触发阈值，避免过度跳过
         # 如果用户输入聚焦于设计挑战/方案探讨，时间节点非关键
         if dimension == "时间节点":
             design_focus_keywords = [
-                "如何",
-                "怎样",
-                "怎么",
-                "方案",
-                "策略",
-                "体面感",
-                "价值感",
-                "氛围",
-                "调性",
-                "格调",
+                #  v7.129: 移除常见词，只保留明确的设计方法论词汇
+                # 移除: "如何", "怎样", "怎么", "方案", "策略", "体面感", "价值感", "氛围", "调性", "格调", "空间"
                 "设计手法",
                 "设计方向",
-                "视觉",
-                "空间",
             ]
-            if any(kw in all_text for kw in design_focus_keywords):
+            #  v7.129: 提高阈值 - 至少匹配2个关键词才降级（原来是1个）
+            matched_count = sum(1 for kw in design_focus_keywords if kw in all_text)
+            if matched_count >= 2:
+                logger.info(f" [Step 3过滤] 时间节点维度降级：匹配{matched_count}个设计方法论关键词")
                 return None  # 降级为非关键缺失
 
         reasons = {
@@ -280,9 +467,10 @@ class TaskCompletenessAnalyzer:
                 "id": "deliverables",
                 "question": "您期望的交付物包括哪些？（可多选）",
                 "type": "multiple_choice",
-                "options": ["设计方案", "效果图", "施工图", "软装清单", "预算清单", "其他"],
+                "options": ["设计策略文档", "空间概念描述", "材料选择指导", "预算框架", "分析报告", "其他"],
                 "priority": 3,
                 "weight": 8,
+                "context": "系统提供策略性指导，不提供需要专业工具的CAD图纸、3D效果图或精确清单",
             },
             "特殊需求": {
                 "id": "special_requirements",
@@ -379,22 +567,16 @@ class TaskCompletenessAnalyzer:
         """
         special_scenarios = {}
 
-        # 场景检测规则
-        scenario_rules = {
-            "poetic_philosophical": {"keywords": ["月亮", "湖面", "诗意", "哲学", "灵魂", "禅", "意境"], "message": "检测到诗意/哲学表达"},
-            "extreme_environment": {"keywords": ["高海拔", "严寒", "酷暑", "极端", "沙漠", "高原"], "message": "检测到极端环境场景"},
-            "medical_special_needs": {"keywords": ["无障碍", "适老", "轮椅", "医疗", "康复", "辅助"], "message": "检测到医疗/无障碍需求"},
-            "cultural_depth": {"keywords": ["传统文化", "非遗", "文化传承", "authentic", "在地文化"], "message": "检测到文化深度需求"},
-            "tech_geek": {"keywords": ["声学", "录音", "音乐室", "专业级", "发烧友"], "message": "检测到科技极客场景"},
-            "complex_relationships": {"keywords": ["多代同堂", "冲突", "隐私", "边界", "独立空间"], "message": "检测到复杂关系场景"},
-        }
-
+        #  v7.150: 复用模块级常量 SPECIAL_SCENARIO_DETECTORS
         combined_text = f"{user_input} {task_summary}"
 
-        for scenario_id, rule in scenario_rules.items():
+        for scenario_id, rule in SPECIAL_SCENARIO_DETECTORS.items():
             matched = [kw for kw in rule["keywords"] if kw in combined_text]
             if len(matched) >= 2:  # 至少匹配2个关键词
-                special_scenarios[scenario_id] = {"matched_keywords": matched, "trigger_message": rule["message"]}
-                logger.info(f"🎯 [特殊场景检测] {scenario_id}: {matched}")
+                special_scenarios[scenario_id] = {
+                    "matched_keywords": matched,
+                    "trigger_message": rule["trigger_message"],
+                }
+                logger.info(f" [特殊场景检测] {scenario_id}: {matched}")
 
         return special_scenarios

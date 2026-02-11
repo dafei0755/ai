@@ -127,7 +127,7 @@ export default function ConfigPage() {
             <div className="bg-gradient-to-r from-purple-50 to-purple-100 px-5 py-3 border-b border-purple-200">
               <div className="flex items-center justify-between">
                 <p className="text-sm font-semibold text-purple-900">
-                  ✏️ 编辑模式 - 修改配置后点击"保存修改"按钮
+                  ✏️ 编辑模式 - 修改配置后点击&ldquo;保存修改&rdquo;按钮
                 </p>
                 {hasChanges && (
                   <span className="text-xs px-3 py-1 bg-orange-500 text-white rounded-full font-semibold animate-pulse">
@@ -148,7 +148,7 @@ export default function ConfigPage() {
           <div>
             <div className="bg-gradient-to-r from-gray-50 to-gray-100 px-5 py-3 border-b border-gray-200">
               <p className="text-sm font-semibold text-gray-700">
-                👁️ 只读模式 - 点击"编辑配置"按钮进入编辑模式
+                👁️ 只读模式 - 点击&ldquo;编辑配置&rdquo;按钮进入编辑模式
               </p>
             </div>
             <pre className="p-5 overflow-auto h-[600px] bg-gray-50 text-sm text-gray-800 leading-relaxed font-mono">

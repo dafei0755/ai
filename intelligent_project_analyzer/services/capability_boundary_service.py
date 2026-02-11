@@ -14,7 +14,7 @@ Created: 2026-01-02
 
 import logging
 import uuid
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from enum import Enum
 from typing import Any, Dict, List, Literal, Optional
@@ -88,6 +88,36 @@ class BoundaryCheckResult:
     # 上下文
     context: Dict[str, Any] = field(default_factory=dict)
 
+    def to_dict(self) -> Dict[str, Any]:
+        """
+        转换为 JSON 可序列化的字典
+
+         v7.147: 修复 Redis/JSON 序列化问题
+        - 转换 Enum 类型为字符串
+        - 处理嵌套的 dataclass 对象
+        """
+        result = asdict(self)
+
+        # 转换 Enum 为字符串
+        if hasattr(self.check_type, "value"):
+            result["check_type"] = self.check_type.value
+
+        # 处理嵌套的 dataclass 列表
+        if self.deliverable_checks:
+            result["deliverable_checks"] = [
+                asdict(check) if hasattr(check, "__dataclass_fields__") else check for check in self.deliverable_checks
+            ]
+
+        # 处理可选的嵌套 dataclass
+        if self.info_sufficiency:
+            result["info_sufficiency"] = (
+                asdict(self.info_sufficiency)
+                if hasattr(self.info_sufficiency, "__dataclass_fields__")
+                else self.info_sufficiency
+            )
+
+        return result
+
 
 @dataclass
 class TaskModificationCheckResult:
@@ -139,7 +169,7 @@ class CapabilityBoundaryService:
         timestamp = datetime.now().isoformat()
         node_name = context.get("node", "unknown")
 
-        logger.info(f"🔍 [CapabilityBoundary] 开始检查: node={node_name}, type={check_type.value}")
+        logger.info(f" [CapabilityBoundary] 开始检查: node={node_name}, type={check_type.value}")
 
         # 调用现有的 CapabilityDetector
         raw_result = CapabilityDetector.full_capability_check(user_input)
@@ -216,7 +246,7 @@ class CapabilityBoundaryService:
             context=context,
         )
 
-        logger.info(f"✅ [CapabilityBoundary] 检查完成: within_capability={within_capability}, score={capability_score:.2f}")
+        logger.info(f" [CapabilityBoundary] 检查完成: within_capability={within_capability}, score={capability_score:.2f}")
 
         return result
 
@@ -236,7 +266,7 @@ class CapabilityBoundaryService:
         timestamp = datetime.now().isoformat()
         node_name = context.get("node", "unknown")
 
-        logger.info(f"🔍 [CapabilityBoundary] 检查交付物列表: node={node_name}, count={len(deliverables)}")
+        logger.info(f" [CapabilityBoundary] 检查交付物列表: node={node_name}, count={len(deliverables)}")
 
         # 提取交付物类型和描述
         deliverable_texts = []
@@ -273,7 +303,7 @@ class CapabilityBoundaryService:
         check_id = str(uuid.uuid4())
         node_name = context.get("node", "unknown")
 
-        logger.info(f"🔍 [CapabilityBoundary] 检查任务修改: node={node_name}")
+        logger.info(f" [CapabilityBoundary] 检查任务修改: node={node_name}")
 
         # 识别新增的任务
         new_tasks = []
@@ -327,7 +357,7 @@ class CapabilityBoundaryService:
         timestamp = datetime.now().isoformat()
         node_name = context.get("node", f"questionnaire_{questionnaire_type}")
 
-        logger.info(f"🔍 [CapabilityBoundary] 检查问卷答案: type={questionnaire_type}")
+        logger.info(f" [CapabilityBoundary] 检查问卷答案: type={questionnaire_type}")
 
         # 提取答案文本
         answer_texts = []
@@ -369,7 +399,7 @@ class CapabilityBoundaryService:
         check_id = str(uuid.uuid4())
         node_name = context.get("node", "followup")
 
-        logger.info(f"🔍 [CapabilityBoundary] 检查追问: node={node_name}")
+        logger.info(f" [CapabilityBoundary] 检查追问: node={node_name}")
 
         # 检查追问内容
         check_result = cls.check_user_input(
@@ -475,7 +505,7 @@ class CapabilityBoundaryService:
                     # 添加转化说明
                     replacement = f"{transformed}（原需求'{keyword}'已转化）"
                     transformed_input = transformed_input.replace(keyword, replacement, 1)
-                    logger.info(f"🔄 [CapabilityBoundary] 应用转化: {keyword} → {transformed}")
+                    logger.info(f" [CapabilityBoundary] 应用转化: {keyword} → {transformed}")
 
         return transformed_input
 

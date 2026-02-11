@@ -24,7 +24,7 @@ try:
     from openai import OpenAI, AsyncOpenAI
     OPENAI_AVAILABLE = True
 except ImportError:
-    logger.warning("⚠️ OpenAI SDK 未安装，Inpainting 功能将不可用。请运行: pip install openai>=1.0.0")
+    logger.warning("️ OpenAI SDK 未安装，Inpainting 功能将不可用。请运行: pip install openai>=1.0.0")
     OPENAI_AVAILABLE = False
 
 
@@ -76,20 +76,20 @@ class InpaintingService:
         
         # 检查 API Key
         if not api_key:
-            logger.warning("⚠️ 未提供 OPENAI_API_KEY，Inpainting 功能将不可用")
+            logger.warning("️ 未提供 OPENAI_API_KEY，Inpainting 功能将不可用")
             self.client = None
             self.async_client = None
         elif not OPENAI_AVAILABLE:
-            logger.error("❌ OpenAI SDK 未安装，无法使用 Inpainting 功能")
+            logger.error(" OpenAI SDK 未安装，无法使用 Inpainting 功能")
             self.client = None
             self.async_client = None
         else:
             try:
                 self.client = OpenAI(api_key=api_key, timeout=timeout)
                 self.async_client = AsyncOpenAI(api_key=api_key, timeout=timeout)
-                logger.info("✅ InpaintingService 初始化成功")
+                logger.info(" InpaintingService 初始化成功")
             except Exception as e:
-                logger.error(f"❌ InpaintingService 初始化失败: {e}")
+                logger.error(f" InpaintingService 初始化失败: {e}")
                 self.client = None
                 self.async_client = None
     
@@ -115,7 +115,7 @@ class InpaintingService:
         try:
             # 1. 检测是URL还是Base64
             if image_data.startswith('http://') or image_data.startswith('https://'):
-                logger.error("❌ 暂不支持URL格式图像，请使用Base64")
+                logger.error(" 暂不支持URL格式图像，请使用Base64")
                 return None
             
             # 2. 解码Base64
@@ -128,7 +128,7 @@ class InpaintingService:
             # 3. 验证文件大小
             size_mb = len(image_bytes) / (1024 * 1024)
             if size_mb > self.MAX_FILE_SIZE_MB:
-                logger.error(f"❌ {image_type} 图像过大: {size_mb:.2f}MB > {self.MAX_FILE_SIZE_MB}MB")
+                logger.error(f" {image_type} 图像过大: {size_mb:.2f}MB > {self.MAX_FILE_SIZE_MB}MB")
                 return None
             
             # 4. 验证是否为有效图像
@@ -146,11 +146,11 @@ class InpaintingService:
             img.save(output, format='PNG')
             output.seek(0)
             
-            logger.info(f"✅ {image_type} 图像验证成功: {img.size}, {img.mode}, {size_mb:.2f}MB")
+            logger.info(f" {image_type} 图像验证成功: {img.size}, {img.mode}, {size_mb:.2f}MB")
             return output
             
         except Exception as e:
-            logger.error(f"❌ {image_type} 图像验证失败: {e}")
+            logger.error(f" {image_type} 图像验证失败: {e}")
             return None
     
     def _validate_mask(self, mask_bytes: io.BytesIO, original_size: tuple) -> bool:
@@ -170,18 +170,18 @@ class InpaintingService:
             
             # 1. 检查尺寸是否匹配
             if mask_img.size != original_size:
-                logger.error(f"❌ Mask尺寸不匹配: {mask_img.size} != {original_size}")
+                logger.error(f" Mask尺寸不匹配: {mask_img.size} != {original_size}")
                 return False
             
             # 2. 检查是否有透明通道
             if mask_img.mode not in ('RGBA', 'LA', 'P'):
-                logger.warning(f"⚠️ Mask模式: {mask_img.mode}，建议使用RGBA")
+                logger.warning(f"️ Mask模式: {mask_img.mode}，建议使用RGBA")
             
             mask_bytes.seek(0)
             return True
             
         except Exception as e:
-            logger.error(f"❌ Mask验证失败: {e}")
+            logger.error(f" Mask验证失败: {e}")
             return False
     
     async def edit_image_with_mask(
@@ -205,14 +205,14 @@ class InpaintingService:
         Returns:
             InpaintingResult 对象
         """
-        logger.info("🎨 [v7.62 Inpainting] 开始图像编辑")
+        logger.info(" [v7.62 Inpainting] 开始图像编辑")
         logger.info(f"   提示词: {prompt[:100]}...")
         logger.info(f"   尺寸: {size}, 数量: {n}")
         
         # 1. 检查服务可用性
         if not self.is_available():
             error_msg = "Inpainting服务不可用：未配置OPENAI_API_KEY或SDK未安装"
-            logger.error(f"❌ {error_msg}")
+            logger.error(f" {error_msg}")
             return InpaintingResult(
                 success=False,
                 error=error_msg,
@@ -221,12 +221,12 @@ class InpaintingService:
         
         # 2. 验证尺寸
         if size not in self.SUPPORTED_SIZES:
-            logger.warning(f"⚠️ 不支持的尺寸 {size}，使用默认 1024x1024")
+            logger.warning(f"️ 不支持的尺寸 {size}，使用默认 1024x1024")
             size = "1024x1024"
         
         try:
             # 3. 转换原始图像
-            logger.info("🔄 转换原始图像...")
+            logger.info(" 转换原始图像...")
             original_bytes = self._validate_and_convert_image(original_image, "original")
             if not original_bytes:
                 return InpaintingResult(
@@ -242,7 +242,7 @@ class InpaintingService:
             original_bytes.seek(0)
             
             # 4. 转换Mask图像
-            logger.info("🔄 转换Mask图像...")
+            logger.info(" 转换Mask图像...")
             mask_bytes = self._validate_and_convert_image(mask_image, "mask")
             if not mask_bytes:
                 return InpaintingResult(
@@ -260,7 +260,7 @@ class InpaintingService:
                 )
             
             # 6. 调用 OpenAI DALL-E 2 Edit API
-            logger.info("🚀 调用 OpenAI DALL-E 2 Edit API...")
+            logger.info(" 调用 OpenAI DALL-E 2 Edit API...")
             
             response = await self.async_client.images.edit(
                 image=original_bytes,
@@ -275,7 +275,7 @@ class InpaintingService:
             if response.data and len(response.data) > 0:
                 edited_image_url = response.data[0].url
                 
-                logger.info("✅ [v7.62 Inpainting] 图像编辑成功")
+                logger.info(" [v7.62 Inpainting] 图像编辑成功")
                 logger.info(f"   图像URL: {edited_image_url[:80]}...")
                 
                 return InpaintingResult(
@@ -286,7 +286,7 @@ class InpaintingService:
                     fallback_used=False
                 )
             else:
-                logger.error("❌ API返回数据为空")
+                logger.error(" API返回数据为空")
                 return InpaintingResult(
                     success=False,
                     error="API返回数据为空",
@@ -295,7 +295,7 @@ class InpaintingService:
         
         except Exception as e:
             error_msg = f"Inpainting API调用失败: {str(e)}"
-            logger.error(f"❌ {error_msg}")
+            logger.error(f" {error_msg}")
             return InpaintingResult(
                 success=False,
                 error=error_msg,
@@ -354,7 +354,7 @@ def get_inpainting_service(api_key: Optional[str] = None) -> InpaintingService:
     
     if _inpainting_service_instance is None:
         if not api_key:
-            logger.warning("⚠️ 首次调用需提供 api_key")
+            logger.warning("️ 首次调用需提供 api_key")
             return InpaintingService(api_key=None)  # 返回不可用实例
         
         _inpainting_service_instance = InpaintingService(api_key=api_key)

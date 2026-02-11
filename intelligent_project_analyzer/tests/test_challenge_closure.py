@@ -84,24 +84,24 @@ def test_accept_closure():
     _apply_accepted_reinterpretation(mock_state, challenge)
     
     # 验证结果
-    print("\n✅ 验证1: expert_driven_insights字段存在")
-    assert "expert_driven_insights" in mock_state, "❌ 缺少expert_driven_insights字段"
-    print(f"   ✓ expert_driven_insights: {list(mock_state['expert_driven_insights'].keys())}")
+    print("\n 验证1: expert_driven_insights字段存在")
+    assert "expert_driven_insights" in mock_state, " 缺少expert_driven_insights字段"
+    print(f"    expert_driven_insights: {list(mock_state['expert_driven_insights'].keys())}")
     
-    print("\n✅ 验证2: 包含被挑战的项目")
-    assert "核心张力定义" in mock_state["expert_driven_insights"], "❌ 缺少'核心张力定义'条目"
+    print("\n 验证2: 包含被挑战的项目")
+    assert "核心张力定义" in mock_state["expert_driven_insights"], " 缺少'核心张力定义'条目"
     insight = mock_state["expert_driven_insights"]["核心张力定义"]
-    print(f"   ✓ 专家: {insight['accepted_from']}")
-    print(f"   ✓ 重新诠释: {insight['expert_reinterpretation'][:50]}...")
-    print(f"   ✓ 设计影响: {insight['design_impact'][:50]}...")
+    print(f"    专家: {insight['accepted_from']}")
+    print(f"    重新诠释: {insight['expert_reinterpretation'][:50]}...")
+    print(f"    设计影响: {insight['design_impact'][:50]}...")
     
-    print("\n✅ 验证3: insight_updates字段存在")
-    assert "insight_updates" in mock_state, "❌ 缺少insight_updates字段"
-    assert len(mock_state["insight_updates"]) > 0, "❌ insight_updates为空"
-    print(f"   ✓ 更新数量: {len(mock_state['insight_updates'])}")
-    print(f"   ✓ 更新内容: {mock_state['insight_updates'][0]['reason']}")
+    print("\n 验证3: insight_updates字段存在")
+    assert "insight_updates" in mock_state, " 缺少insight_updates字段"
+    assert len(mock_state["insight_updates"]) > 0, " insight_updates为空"
+    print(f"    更新数量: {len(mock_state['insight_updates'])}")
+    print(f"    更新内容: {mock_state['insight_updates'][0]['reason']}")
     
-    print("\n🎉 测试1通过: Accept闭环机制正常工作")
+    print("\n 测试1通过: Accept闭环机制正常工作")
     return True
 
 
@@ -139,24 +139,24 @@ def test_synthesize_closure():
     _synthesize_competing_frames(mock_state, challenges)
     
     # 验证结果
-    print("\n✅ 验证1: framework_synthesis字段存在")
-    assert "framework_synthesis" in mock_state, "❌ 缺少framework_synthesis字段"
-    print(f"   ✓ framework_synthesis: {list(mock_state['framework_synthesis'].keys())}")
+    print("\n 验证1: framework_synthesis字段存在")
+    assert "framework_synthesis" in mock_state, " 缺少framework_synthesis字段"
+    print(f"    framework_synthesis: {list(mock_state['framework_synthesis'].keys())}")
     
-    print("\n✅ 验证2: 包含竞争项的综合")
-    assert "核心场景优先级" in mock_state["framework_synthesis"], "❌ 缺少'核心场景优先级'综合"
+    print("\n 验证2: 包含竞争项的综合")
+    assert "核心场景优先级" in mock_state["framework_synthesis"], " 缺少'核心场景优先级'综合"
     synthesis = mock_state["framework_synthesis"]["核心场景优先级"]
-    print(f"   ✓ 竞争框架数量: {len(synthesis['competing_frames'])}")
-    print(f"   ✓ 综合摘要: {synthesis['synthesis_summary'][:80]}...")
-    print(f"   ✓ 推荐方案: {synthesis['recommendation'][:60]}...")
+    print(f"    竞争框架数量: {len(synthesis['competing_frames'])}")
+    print(f"    综合摘要: {synthesis['synthesis_summary'][:80]}...")
+    print(f"    推荐方案: {synthesis['recommendation'][:60]}...")
     
-    print("\n✅ 验证3: 标志位正确设置")
-    assert mock_state.get("has_competing_frameworks") == True, "❌ has_competing_frameworks未设置"
-    assert mock_state.get("synthesis_required") == True, "❌ synthesis_required未设置"
-    print("   ✓ has_competing_frameworks: True")
-    print("   ✓ synthesis_required: True")
+    print("\n 验证3: 标志位正确设置")
+    assert mock_state.get("has_competing_frameworks") == True, " has_competing_frameworks未设置"
+    assert mock_state.get("synthesis_required") == True, " synthesis_required未设置"
+    print("    has_competing_frameworks: True")
+    print("    synthesis_required: True")
     
-    print("\n🎉 测试2通过: Synthesize闭环机制正常工作")
+    print("\n 测试2通过: Synthesize闭环机制正常工作")
     return True
 
 
@@ -194,24 +194,24 @@ def test_escalate_closure():
         mock_state[key] = value
     
     # 验证结果
-    print("\n✅ 验证1: escalated_challenges字段存在")
-    assert "escalated_challenges" in mock_state, "❌ 缺少escalated_challenges字段"
-    print(f"   ✓ 需要甲方裁决的挑战数量: {len(mock_state['escalated_challenges'])}")
+    print("\n 验证1: escalated_challenges字段存在")
+    assert "escalated_challenges" in mock_state, " 缺少escalated_challenges字段"
+    print(f"    需要甲方裁决的挑战数量: {len(mock_state['escalated_challenges'])}")
     
-    print("\n✅ 验证2: 挑战格式正确")
+    print("\n 验证2: 挑战格式正确")
     if mock_state["escalated_challenges"]:
         escalated = mock_state["escalated_challenges"][0]
-        assert "issue_id" in escalated, "❌ 缺少issue_id"
-        assert "requires_client_decision" in escalated, "❌ 缺少requires_client_decision"
-        print(f"   ✓ issue_id: {escalated['issue_id']}")
-        print(f"   ✓ 描述: {escalated['description']}")
-        print(f"   ✓ 需要甲方决策: {escalated['requires_client_decision']}")
+        assert "issue_id" in escalated, " 缺少issue_id"
+        assert "requires_client_decision" in escalated, " 缺少requires_client_decision"
+        print(f"    issue_id: {escalated['issue_id']}")
+        print(f"    描述: {escalated['description']}")
+        print(f"    需要甲方决策: {escalated['requires_client_decision']}")
     
-    print("\n✅ 验证3: requires_client_review标志位")
-    assert mock_state.get("requires_client_review") == True, "❌ requires_client_review未设置"
-    print("   ✓ requires_client_review: True")
+    print("\n 验证3: requires_client_review标志位")
+    assert mock_state.get("requires_client_review") == True, " requires_client_review未设置"
+    print("    requires_client_review: True")
     
-    print("\n🎉 测试3通过: Escalate闭环机制正常工作")
+    print("\n 测试3通过: Escalate闭环机制正常工作")
     return True
 
 
@@ -234,8 +234,8 @@ def test_routing_logic():
         "escalated_challenges": [{"issue_id": "TEST"}]
     }
     route1 = workflow._route_after_challenge_detection(state1)
-    assert route1 == "analysis_review", f"❌ 路由错误: {route1}"
-    print(f"   ✓ 路由到: {route1}")
+    assert route1 == "analysis_review", f" 路由错误: {route1}"
+    print(f"    路由到: {route1}")
     
     # 测试场景2: 只有revisit_ra
     print("\n场景2: 只有revisit_ra，应回访需求分析师")
@@ -244,8 +244,8 @@ def test_routing_logic():
         "requires_feedback_loop": True
     }
     route2 = workflow._route_after_challenge_detection(state2)
-    assert route2 == "revisit_requirements", f"❌ 路由错误: {route2}"
-    print(f"   ✓ 路由到: {route2}")
+    assert route2 == "revisit_requirements", f" 路由错误: {route2}"
+    print(f"    路由到: {route2}")
     
     # 测试场景3: 无挑战
     print("\n场景3: 无挑战，继续正常流程")
@@ -254,10 +254,10 @@ def test_routing_logic():
         "requires_feedback_loop": False
     }
     route3 = workflow._route_after_challenge_detection(state3)
-    assert route3 == "continue_workflow", f"❌ 路由错误: {route3}"
-    print(f"   ✓ 路由到: {route3}")
+    assert route3 == "continue_workflow", f" 路由错误: {route3}"
+    print(f"    路由到: {route3}")
     
-    print("\n🎉 测试4通过: 路由逻辑优先级正确")
+    print("\n 测试4通过: 路由逻辑优先级正确")
     return True
 
 
@@ -305,40 +305,40 @@ def test_report_integration():
     challenge_resolutions = aggregator._extract_challenge_resolutions(mock_state)
     
     # 验证结果
-    print("\n✅ 验证1: 基本结构")
-    assert challenge_resolutions["has_challenges"] == True, "❌ has_challenges应为True"
-    print(f"   ✓ has_challenges: True")
+    print("\n 验证1: 基本结构")
+    assert challenge_resolutions["has_challenges"] == True, " has_challenges应为True"
+    print(f"    has_challenges: True")
     
-    print("\n✅ 验证2: Accept结果")
-    assert len(challenge_resolutions["accepted_reinterpretations"]) == 1, "❌ Accept结果数量错误"
-    print(f"   ✓ 采纳的重新诠释: {len(challenge_resolutions['accepted_reinterpretations'])}个")
+    print("\n 验证2: Accept结果")
+    assert len(challenge_resolutions["accepted_reinterpretations"]) == 1, " Accept结果数量错误"
+    print(f"    采纳的重新诠释: {len(challenge_resolutions['accepted_reinterpretations'])}个")
     
-    print("\n✅ 验证3: Synthesize结果")
-    assert len(challenge_resolutions["synthesized_frameworks"]) == 1, "❌ Synthesize结果数量错误"
-    print(f"   ✓ 综合的框架: {len(challenge_resolutions['synthesized_frameworks'])}个")
+    print("\n 验证3: Synthesize结果")
+    assert len(challenge_resolutions["synthesized_frameworks"]) == 1, " Synthesize结果数量错误"
+    print(f"    综合的框架: {len(challenge_resolutions['synthesized_frameworks'])}个")
     
-    print("\n✅ 验证4: Escalate结果")
-    assert len(challenge_resolutions["escalated_to_client"]) == 1, "❌ Escalate结果数量错误"
-    print(f"   ✓ 提交甲方的挑战: {len(challenge_resolutions['escalated_to_client'])}个")
+    print("\n 验证4: Escalate结果")
+    assert len(challenge_resolutions["escalated_to_client"]) == 1, " Escalate结果数量错误"
+    print(f"    提交甲方的挑战: {len(challenge_resolutions['escalated_to_client'])}个")
     
-    print("\n✅ 验证5: 统计摘要")
+    print("\n 验证5: 统计摘要")
     summary = challenge_resolutions["summary"]
-    assert summary["total_challenges"] == 3, "❌ 总数错误"
-    assert summary["accepted_count"] == 1, "❌ Accept数量错误"
-    assert summary["synthesized_count"] == 1, "❌ Synthesize数量错误"
-    assert summary["escalated_count"] == 1, "❌ Escalate数量错误"
-    print(f"   ✓ 总挑战数: {summary['total_challenges']}")
-    print(f"   ✓ 闭环率: {summary['closure_rate']}")
+    assert summary["total_challenges"] == 3, " 总数错误"
+    assert summary["accepted_count"] == 1, " Accept数量错误"
+    assert summary["synthesized_count"] == 1, " Synthesize数量错误"
+    assert summary["escalated_count"] == 1, " Escalate数量错误"
+    print(f"    总挑战数: {summary['total_challenges']}")
+    print(f"    闭环率: {summary['closure_rate']}")
     
-    print("\n🎉 测试5通过: 报告生成集成正常")
+    print("\n 测试5通过: 报告生成集成正常")
     return True
 
 
 def run_all_tests():
     """运行所有测试"""
-    print("\n" + "🚀"*40)
+    print("\n" + ""*40)
     print("专家挑战闭环机制 - 完整测试套件")
-    print("🚀"*40)
+    print(""*40)
     
     results = []
     
@@ -346,35 +346,35 @@ def run_all_tests():
     try:
         results.append(("Accept闭环", test_accept_closure()))
     except Exception as e:
-        print(f"❌ Accept闭环测试失败: {e}")
+        print(f" Accept闭环测试失败: {e}")
         results.append(("Accept闭环", False))
     
     # 测试2: Synthesize闭环
     try:
         results.append(("Synthesize闭环", test_synthesize_closure()))
     except Exception as e:
-        print(f"❌ Synthesize闭环测试失败: {e}")
+        print(f" Synthesize闭环测试失败: {e}")
         results.append(("Synthesize闭环", False))
     
     # 测试3: Escalate闭环
     try:
         results.append(("Escalate闭环", test_escalate_closure()))
     except Exception as e:
-        print(f"❌ Escalate闭环测试失败: {e}")
+        print(f" Escalate闭环测试失败: {e}")
         results.append(("Escalate闭环", False))
     
     # 测试4: 路由逻辑
     try:
         results.append(("路由逻辑", test_routing_logic()))
     except Exception as e:
-        print(f"❌ 路由逻辑测试失败: {e}")
+        print(f" 路由逻辑测试失败: {e}")
         results.append(("路由逻辑", False))
     
     # 测试5: 报告集成
     try:
         results.append(("报告集成", test_report_integration()))
     except Exception as e:
-        print(f"❌ 报告集成测试失败: {e}")
+        print(f" 报告集成测试失败: {e}")
         results.append(("报告集成", False))
     
     # 汇总结果
@@ -383,7 +383,7 @@ def run_all_tests():
     print("="*80)
     
     for test_name, passed in results:
-        status = "✅ 通过" if passed else "❌ 失败"
+        status = " 通过" if passed else " 失败"
         print(f"{test_name}: {status}")
     
     total = len(results)
@@ -394,9 +394,9 @@ def run_all_tests():
     print("="*80)
     
     if passed == total:
-        print("\n🎉🎉🎉 所有测试通过！闭环机制实施成功！")
+        print("\n 所有测试通过！闭环机制实施成功！")
     else:
-        print(f"\n⚠️ {total - passed} 个测试失败，请检查实现")
+        print(f"\n️ {total - passed} 个测试失败，请检查实现")
     
     return passed == total
 

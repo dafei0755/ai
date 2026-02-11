@@ -25,19 +25,19 @@ class DeliverableFormat(str, Enum):
     RECOMMENDATION = "recommendation"  # 建议清单
     EVALUATION = "evaluation"  # 评估报告
     GUIDELINE = "guideline"  # 指导方针
-    # 🆕 v7.3扩展：LLM常用的额外格式类型
+    #  v7.3扩展：LLM常用的额外格式类型
     FRAMEWORK = "framework"  # 框架方案
     MODEL = "model"  # 模型/建模
     CHECKLIST = "checklist"  # 检查清单
     PLAN = "plan"  # 计划方案
-    # 🆕 v7.20: 扩展更多 LLM 常生成的格式类型（解决 Pydantic 验证失败问题）
+    #  v7.20: 扩展更多 LLM 常生成的格式类型（解决 Pydantic 验证失败问题）
     REPORT = "report"  # 通用报告
     BLUEPRINT = "blueprint"  # 蓝图/规划图
     CASE_STUDY = "case_study"  # 案例研究
     DOCUMENT = "document"  # 通用文档
     PROPOSAL = "proposal"  # 提案
     DIAGRAM = "diagram"  # 图表/流程图
-    # 🆕 v7.23: 全面扩展 - 解决项目总监6次验证失败问题（日志显示缺失的值）
+    #  v7.23: 全面扩展 - 解决项目总监6次验证失败问题（日志显示缺失的值）
     PRESENTATION = "presentation"  # 演示文稿 (PPT/Keynote)
     GUIDEBOOK = "guidebook"  # 指南手册
     MANUAL = "manual"  # 操作手册
@@ -59,9 +59,14 @@ class DeliverableFormat(str, Enum):
     PROFILE = "profile"  # 档案/画像
     INSIGHT = "insight"  # 洞察报告
     MAPPING = "mapping"  # 映射/对应关系
+    #  v7.130: 补充缺失的枚举值（修复 Pydantic 验证错误）
+    GUIDE = "guide"  # 指南
+    VISUALIZATION = "visualization"  # 可视化
+    CATALOG = "catalog"  # 目录
+    LIST = "list"  # 清单列表
 
 
-# 🆕 v7.20+v7.23: LLM 输出格式映射表（将非标准格式映射到标准枚举）
+#  v7.20+v7.23: LLM 输出格式映射表（将非标准格式映射到标准枚举）
 # 解决项目总监验证失败问题：日志显示 presentation, guidebook, manual 等值验证失败
 DELIVERABLE_FORMAT_MAPPING: Dict[str, str] = {
     # === 设计类映射 ===
@@ -143,7 +148,7 @@ DELIVERABLE_FORMAT_MAPPING: Dict[str, str] = {
     "comparison_matrix": "matrix",
     "business_canvas": "canvas",
     "model_canvas": "canvas",
-    # === 🆕 P1修复: 描述性文本格式映射 ===
+    # ===  P1修复: 描述性文本格式映射 ===
     "schematic drawings": "diagram",
     "schematic drawing": "diagram",
     "3d visualizations": "visualization",
@@ -173,7 +178,7 @@ class Priority(str, Enum):
 class DeliverableSpec(BaseModel):
     """交付物规格说明
 
-    🆕 v7.65: 增加 require_search 字段，支持强制搜索标记
+     v7.65: 增加 require_search 字段，支持强制搜索标记
     """
 
     name: str = Field(title="名称", description="交付物名称")
@@ -182,10 +187,10 @@ class DeliverableSpec(BaseModel):
     priority: Priority = Field(title="优先级", default=Priority.HIGH, description="优先级")
     success_criteria: List[str] = Field(title="验收标准", description="该交付物的验收标准", min_items=1, max_items=3)
 
-    # 🆕 v7.65: 强制搜索标记（针对案例库、趋势分析等必须外部资料的交付物）
+    #  v7.65: 强制搜索标记（针对案例库、趋势分析等必须外部资料的交付物）
     require_search: bool = Field(title="强制搜索", default=False, description="是否强制要求使用搜索工具获取外部资料（适用于案例库、趋势分析等类型）")
 
-    # 🆕 v7.20: 自动映射非标准格式到标准枚举
+    #  v7.20: 自动映射非标准格式到标准枚举
     @validator("format", pre=True)
     def normalize_format(cls, v):
         """将非标准格式名称映射到标准 DeliverableFormat 枚举"""
@@ -209,7 +214,7 @@ class DeliverableSpec(BaseModel):
             # 4. 兜底：返回 ANALYSIS（最通用的类型）
             import logging
 
-            logging.getLogger(__name__).warning(f"⚠️ 未知交付物格式 '{v}'，回退到 analysis")
+            logging.getLogger(__name__).warning(f"️ 未知交付物格式 '{v}'，回退到 analysis")
             return DeliverableFormat.ANALYSIS
         return v
 
@@ -218,7 +223,7 @@ class TaskInstruction(BaseModel):
     """
     统一的任务执行指令（合并tasks+expected_output+focus_areas）
 
-    🆕 v7.10: 支持创意叙事模式标识
+     v7.10: 支持创意叙事模式标识
     """
 
     objective: str = Field(title="核心目标", description="这个角色在本项目中的核心目标（1句话明确表述）")
@@ -226,7 +231,7 @@ class TaskInstruction(BaseModel):
     success_criteria: List[str] = Field(title="成功标准", description="整体任务完成的判断标准（2-4条）", min_items=2, max_items=4)
     constraints: List[str] = Field(title="执行约束", default_factory=list, description="执行约束条件（如时间、预算、技术限制）")
     context_requirements: List[str] = Field(title="上下文需求", default_factory=list, description="执行此任务需要的上下文信息")
-    # 🔥 v7.10: 创意叙事模式标识
+    #  v7.10: 创意叙事模式标识
     is_creative_narrative: bool = Field(title="创意叙事模式", default=False, description="是否为创意叙事类任务（V3专家）- 此模式下放宽量化指标要求")
 
 
@@ -308,15 +313,15 @@ class DeliverableOutput(BaseModel):
     """
     交付物输出
 
-    🆕 v7.10: 支持创意模式 - 叙事类交付物可选填量化指标
-    🔧 v7.18.2: 移除 validator 以修复 OpenAI structured output schema 验证错误
-    🆕 v7.64: 添加搜索引用字段 - 记录工具调用产生的搜索结果
+     v7.10: 支持创意模式 - 叙事类交付物可选填量化指标
+     v7.18.2: 移除 validator 以修复 OpenAI structured output schema 验证错误
+     v7.64: 添加搜索引用字段 - 记录工具调用产生的搜索结果
     """
 
     deliverable_name: str = Field(title="交付物名称", description="对应TaskInstruction中的deliverable名称")
     content: str = Field(title="内容", description="交付物具体内容（纯文本格式）。LLM应直接生成文本内容，而非结构化数据。")
     completion_status: CompletionStatus = Field(title="完成状态", description="完成状态")
-    # 🔥 v7.10: 放宽量化指标约束 - 创意叙事模式下可选
+    #  v7.10: 放宽量化指标约束 - 创意叙事模式下可选
     completion_rate: Optional[float] = Field(
         title="完成度", ge=0.0, le=1.0, default=1.0, description="完成度百分比（创意叙事模式下可省略，默认1.0）"  # 默认完成
     )
@@ -324,7 +329,7 @@ class DeliverableOutput(BaseModel):
     quality_self_assessment: Optional[float] = Field(
         title="质量自评", ge=0.0, le=1.0, default=None, description="质量自评分数（0-1）（创意叙事模式下可省略）"  # 创意模式下可不填
     )
-    # 🆕 v7.64: 搜索引用记录
+    #  v7.64: 搜索引用记录
     search_references: Optional[List["SearchReference"]] = Field(
         title="搜索引用", default=None, description="此交付物使用的搜索结果引用列表（v7.64+）"
     )
@@ -345,11 +350,11 @@ class ExecutionMetadata(BaseModel):
     """
     执行元数据
 
-    🆕 v7.10: 支持创意叙事模式 - 部分字段可选
+     v7.10: 支持创意叙事模式 - 部分字段可选
     """
 
     confidence: float = Field(title="置信度", ge=0.0, le=1.0, description="整体执行置信度")
-    # 🔥 v7.10: 创意叙事模式下可省略 completion_rate
+    #  v7.10: 创意叙事模式下可省略 completion_rate
     completion_rate: Optional[float] = Field(
         title="完成度", ge=0.0, le=1.0, default=1.0, description="整体完成度（创意叙事模式下默认1.0）"
     )
@@ -510,7 +515,7 @@ def generate_task_instruction_template(role_type: str) -> TaskInstruction:
 
 
 # ============================================================================
-# 🆕 v7.64: 搜索工具集成 - 搜索引用和质量控制
+#  v7.64: 搜索工具集成 - 搜索引用和质量控制
 # ============================================================================
 
 
@@ -522,7 +527,9 @@ class SearchReference(BaseModel):
     """
 
     # === 基本信息 ===
-    source_tool: Literal["tavily", "arxiv", "ragflow", "bocha"] = Field(title="来源工具", description="搜索工具名称")
+    source_tool: Literal["tavily", "arxiv", "milvus", "bocha"] = Field(
+        title="来源工具", description="搜索工具名称"
+    )  # v7.154: ragflow → milvus
     title: str = Field(title="标题", description="搜索结果标题")
     url: Optional[str] = Field(title="URL", default=None, description="结果链接（知识库可能无URL）")
     snippet: str = Field(title="摘要", max_length=300, description="搜索结果摘要（限制300字）")

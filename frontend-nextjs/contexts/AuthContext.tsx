@@ -3,13 +3,30 @@
 /**
  * 全局认证上下文
  * 管理用户登录状态、Token、自动跳转等
- * 
+ *
  * 🆕 v3.0.24: 支持设备绑定，限制多设备同时登录
+ * 🆕 v7.277: 开发模式跳过登录，方便本地测试
  */
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { getCurrentUser, isAuthenticated, clearWPToken } from '@/lib/wp-auth';
+
+// 🆕 v7.277: 开发模式配置
+const DEV_MODE = process.env.NEXT_PUBLIC_DEV_MODE === 'true';
+const DEV_SKIP_AUTH = process.env.NEXT_PUBLIC_DEV_SKIP_AUTH === 'true';
+
+// 🆕 v7.277: 开发测试用户（与后端保持一致）
+const DEV_USER: User = {
+  user_id: 9999,
+  username: 'dev_user',
+  name: '开发测试用户',
+  email: 'dev@localhost',
+  display_name: '开发测试用户',
+  roles: ['administrator'],
+  tier: 'enterprise',
+  membership_level: 3,
+};
 
 interface User {
   user_id: number;
@@ -19,6 +36,9 @@ interface User {
   display_name?: string;
   avatar_url?: string;
   roles?: string[];
+  // 🆕 v7.141.3: User tier for quota management
+  tier?: 'free' | 'basic' | 'professional' | 'enterprise';
+  membership_level?: number;  // WordPress VIP level (0-3)
 }
 
 interface AuthContextType {
@@ -38,14 +58,14 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 function getOrCreateDeviceId(): string {
   const DEVICE_ID_KEY = 'wp_device_id';
   let deviceId = localStorage.getItem(DEVICE_ID_KEY);
-  
+
   if (!deviceId) {
     // 生成新的设备 ID：使用随机 UUID + 时间戳
     deviceId = `${crypto.randomUUID()}-${Date.now()}`;
     localStorage.setItem(DEVICE_ID_KEY, deviceId);
     console.log('[AuthContext v3.0.24] 🆕 生成新设备ID:', deviceId.substring(0, 16) + '...');
   }
-  
+
   return deviceId;
 }
 
@@ -56,31 +76,54 @@ function getDeviceInfo(): string {
   const ua = navigator.userAgent;
   let browser = 'Unknown';
   let os = 'Unknown';
-  
+
   // 检测浏览器
   if (ua.includes('Chrome')) browser = 'Chrome';
   else if (ua.includes('Firefox')) browser = 'Firefox';
   else if (ua.includes('Safari')) browser = 'Safari';
   else if (ua.includes('Edge')) browser = 'Edge';
-  
+
   // 检测操作系统
   if (ua.includes('Windows')) os = 'Windows';
   else if (ua.includes('Mac')) os = 'macOS';
   else if (ua.includes('Linux')) os = 'Linux';
   else if (ua.includes('Android')) os = 'Android';
   else if (ua.includes('iPhone') || ua.includes('iPad')) os = 'iOS';
-  
+
   return `${browser} on ${os}`;
 }
 
 /**
  * 辅助函数：保存Token并记录时间戳（v3.0.23新增）
  * 用于统一管理Token设置，避免时序冲突问题
+ * 🆕 v7.189: 添加guest会话迁移逻辑
  */
-function saveTokenWithTimestamp(token: string, user: any) {
+async function saveTokenWithTimestamp(token: string, user: any) {
   localStorage.setItem('wp_jwt_token', token);
   localStorage.setItem('wp_jwt_user', JSON.stringify(user));
   localStorage.setItem('wp_jwt_token_timestamp', Date.now().toString());
+
+  // 🆕 v7.189: 登录后自动迁移guest会话
+  try {
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
+    const response = await fetch(`${API_URL}/api/search/session/migrate`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      }
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      if (data.success && data.migrated_count > 0) {
+        console.log(`[AuthContext v7.189] ✅ 自动迁移了 ${data.migrated_count} 个guest会话`);
+      }
+    }
+  } catch (error) {
+    console.error('[AuthContext v7.189] ⚠️ 会话迁移失败:', error);
+    // 不阻塞登录流程，静默失败
+  }
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -90,15 +133,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const pathname = usePathname();
 
   // 🆕 v3.0.24: 检查设备是否被踢出
+  // 🆕 v7.217: 收到 401 时尝试刷新 Token
   const checkDeviceKicked = useCallback(async () => {
-    const token = localStorage.getItem('wp_jwt_token');
+    let token = localStorage.getItem('wp_jwt_token');
     if (!token) return;
-    
+
     const deviceId = getOrCreateDeviceId();
     const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
-    
+
     try {
-      const response = await fetch(`${API_URL}/api/auth/check-device`, {
+      let response = await fetch(`${API_URL}/api/auth/check-device`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -107,7 +151,56 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         },
         body: JSON.stringify({ device_id: deviceId })
       });
-      
+
+      // 🆕 v7.217: 如果 401（Token 过期），尝试刷新 Token
+      if (response.status === 401) {
+        console.log('[AuthContext v7.217] ⏳ Token 过期，尝试刷新...');
+        try {
+          const refreshResponse = await fetch(`${API_URL}/api/auth/refresh`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            }
+          });
+
+          if (refreshResponse.ok) {
+            const refreshData = await refreshResponse.json();
+            if (refreshData.token) {
+              console.log('[AuthContext v7.217] ✅ Token 刷新成功');
+              // 保存新 Token
+              localStorage.setItem('wp_jwt_token', refreshData.token);
+              localStorage.setItem('wp_jwt_token_timestamp', Date.now().toString());
+              if (refreshData.user) {
+                localStorage.setItem('wp_jwt_user', JSON.stringify(refreshData.user));
+                setUser(refreshData.user);
+              }
+              // 用新 Token 重试设备检查
+              token = refreshData.token;
+              response = await fetch(`${API_URL}/api/auth/check-device`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${token}`,
+                  'X-Device-ID': deviceId
+                },
+                body: JSON.stringify({ device_id: deviceId })
+              });
+            }
+          } else {
+            console.log('[AuthContext v7.217] ❌ Token 刷新失败，需要重新登录');
+            // 刷新失败，清除过期的 Token
+            localStorage.removeItem('wp_jwt_token');
+            localStorage.removeItem('wp_jwt_user');
+            localStorage.removeItem('wp_jwt_token_timestamp');
+            setUser(null);
+            return;
+          }
+        } catch (refreshError) {
+          console.error('[AuthContext v7.217] Token 刷新异常:', refreshError);
+        }
+      }
+
       if (response.ok) {
         const data = await response.json();
         if (data.status === 'kicked' || !data.valid) {
@@ -131,10 +224,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     // 初始检查
     checkDeviceKicked();
-    
+
     // 定期检查
     const interval = setInterval(checkDeviceKicked, 30000);
-    
+
     return () => clearInterval(interval);
   }, [checkDeviceKicked]);
 
@@ -176,14 +269,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               if (tokenResponse.ok) {
                 const tokenData = await tokenResponse.json();
                 if (tokenData.token && tokenData.user) {
-                  console.log('[AuthContext v3.0.23] ✅ 成功获取新用户Token');
-                  console.log('[AuthContext v3.0.23] 新用户:', tokenData.user);
+                  console.log('[AuthContext v7.129.2] ✅ 成功获取新用户Token');
+                  console.log('[AuthContext v7.129.2] 新用户:', tokenData.user);
 
-                  saveTokenWithTimestamp(tokenData.token, tokenData.user);
+                  await saveTokenWithTimestamp(tokenData.token, tokenData.user);
                   setUser(tokenData.user);
 
-                  // 刷新页面以确保所有组件同步
-                  window.location.reload();
+                  // 🔧 v7.129.2修复：移除页面刷新，改用事件通知
+                  // ❌ 移除：window.location.reload(); - 可能触发死循环
+                  // ✅ 改为：发送自定义事件，让组件自行响应
+                  window.dispatchEvent(new CustomEvent('auth-token-updated', {
+                    detail: { user: tokenData.user, timestamp: Date.now() }
+                  }));
+                  console.log('[AuthContext v7.129.2] 🔔 已发送 auth-token-updated 事件');
                 }
               }
             } catch (tokenError) {
@@ -195,19 +293,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           // 情况2：WordPress已退出，但本地仍有用户 → 清除Token
           // 🔥 v3.0.23修复：增加时间窗口保护，避免在初始登录阶段误清除Token
           // 🔥 v3.0.24修复：跨域环境下跳过此检测（localhost无法正确发送Cookie到WordPress）
+          // 🔧 v7.129.2修复：增强跨域检测，防止所有非WordPress主域名环境下的误判
           if (!data.logged_in && localUserId) {
-            // 🆕 v3.0.24: 检查是否在跨域开发环境
-            const isLocalDev = window.location.hostname === 'localhost' || 
-                               window.location.hostname === '127.0.0.1';
-            
-            if (isLocalDev) {
-              // 在本地开发环境，跳过基于 sync-status 的退出检测
+            // 🆕 v7.129.2: 检查是否在跨域环境（任何非WordPress主域名）
+            const currentHost = window.location.hostname;
+            const wpHosts = ['www.ucppt.com', 'ucppt.com'];
+            const isCrossDomain = !wpHosts.includes(currentHost);
+
+            if (isCrossDomain) {
+              // 在跨域环境，跳过基于 sync-status 的退出检测
               // 因为跨域限制，WordPress Cookie 无法正确发送，API 始终返回 logged_in: false
-              // 这会导致误清除 Token，用户被踢出登录
-              console.log('[AuthContext v3.0.24] ⏳ 本地开发环境，跳过 WordPress 退出检测（跨域限制）');
+              // 这会导致误清除 Token，用户被踢出登录 → 死循环
+              console.log('[AuthContext v7.129.2] ⏭️ 跨域环境，跳过 WordPress 退出检测（防止死循环）');
+              console.log(`  当前域名: ${currentHost}, WordPress域名: www.ucppt.com`);
               return;
             }
-            
+
             // 检查Token设置时间，如果是最近30秒内设置的，可能是初始登录中，不清除
             const tokenTimestamp = localStorage.getItem('wp_jwt_token_timestamp');
             const now = Date.now();
@@ -343,6 +444,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const checkAuth = async () => {
       setIsLoading(true);
+
+      // 🆕 v7.277: 开发模式跳过认证
+      if (DEV_MODE && DEV_SKIP_AUTH) {
+        console.log('[AuthContext v7.277] 🔧 开发模式：跳过认证，使用测试用户');
+        setUser(DEV_USER);
+        // 模拟存储 Token（开发模式标识）- 必须与后端 server.py 中的 dev-token-mock 一致
+        localStorage.setItem('wp_jwt_token', 'dev-token-mock');
+        localStorage.setItem('wp_jwt_user', JSON.stringify(DEV_USER));
+        localStorage.setItem('wp_jwt_token_timestamp', Date.now().toString());
+        setIsLoading(false);
+        return;
+      }
 
       const authenticated = isAuthenticated();
       const currentUser = getCurrentUser();

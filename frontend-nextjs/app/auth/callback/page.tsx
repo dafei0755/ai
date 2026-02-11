@@ -3,14 +3,16 @@
 /**
  * OAuth 回调处理页面
  * 接收 WordPress 登录后返回的 JWT Token
+ * v7.209: 添加 dynamic export 防止静态预渲染错误
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { setWPToken } from '@/lib/wp-auth';
 import { Loader2, CheckCircle2, XCircle } from 'lucide-react';
 
-export default function AuthCallbackPage() {
+// v7.209: 内部组件使用 searchParams
+function AuthCallbackContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [status, setStatus] = useState<'processing' | 'success' | 'error'>('processing');
@@ -107,5 +109,21 @@ export default function AuthCallbackPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+// v7.209: 主导出组件，包装在 Suspense 中以避免预渲染错误
+export default function AuthCallbackPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
+        <div className="bg-white shadow-xl rounded-2xl p-8 max-w-md w-full mx-4 text-center">
+          <Loader2 className="w-12 h-12 mx-auto mb-4 text-blue-600 animate-spin" />
+          <h2 className="text-xl font-semibold text-gray-900">正在加载...</h2>
+        </div>
+      </div>
+    }>
+      <AuthCallbackContent />
+    </Suspense>
   );
 }

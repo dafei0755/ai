@@ -45,7 +45,7 @@ NIO_XIAN_CASE = """
 """
 
 
-def print_section(title, emoji="📋"):
+def print_section(title, emoji=""):
     """打印分隔标题"""
     print("\n" + "=" * 80)
     print(f"{emoji} {title}")
@@ -54,11 +54,11 @@ def print_section(title, emoji="📋"):
 
 def test_requirements_analyst_handoff():
     """测试1: 验证需求分析师的expert_handoff生成"""
-    print_section("测试1: 需求分析师的expert_handoff生成", "🔬")
+    print_section("测试1: 需求分析师的expert_handoff生成", "")
     
-    print("\n📝 场景说明:")
+    print("\n 场景说明:")
     print("需求分析师接收NIO×西安案例，应生成包含expert_handoff的分析结果")
-    print("\n✅ 预期expert_handoff应包含:")
+    print("\n 预期expert_handoff应包含:")
     print("  1. critical_questions_for_experts - 开放性关键问题")
     print("  2. tension_design_spectrum - 三种设计立场(Pole A/B/C)")
     print("  3. alternative_interpretations - 备选诠释框架")
@@ -110,9 +110,9 @@ def test_requirements_analyst_handoff():
             ]
         },
         "uncertainty_flags": [
-            "⚠️ 不确定项：'盛唐气度'对用户的真实含义尚未明确（是建筑语言？服务体验？还是精神气质？）",
-            "⚠️ 模糊区域：'网红打卡'与'品牌阵地'的边界在哪里？",
-            "⚠️ 需要澄清：甲方说的'low'指的是什么（形式low？概念low？还是用户行为low？）"
+            "️ 不确定项：'盛唐气度'对用户的真实含义尚未明确（是建筑语言？服务体验？还是精神气质？）",
+            "️ 模糊区域：'网红打卡'与'品牌阵地'的边界在哪里？",
+            "️ 需要澄清：甲方说的'low'指的是什么（形式low？概念low？还是用户行为low？）"
         ],
         "permission_to_diverge": {
             "encouragement": "如果你认为需求分析师的任何判断有误，请大胆挑战！",
@@ -124,7 +124,7 @@ def test_requirements_analyst_handoff():
         }
     }
     
-    print("\n✅ 模拟生成的expert_handoff示例:")
+    print("\n 模拟生成的expert_handoff示例:")
     print(json.dumps(mock_expert_handoff, ensure_ascii=False, indent=2))
     
     # 验证结构
@@ -139,18 +139,18 @@ def test_requirements_analyst_handoff():
     missing_keys = [key for key in required_keys if key not in mock_expert_handoff]
     
     if not missing_keys:
-        print("\n✅ 测试1通过：expert_handoff包含所有必需字段")
+        print("\n 测试1通过：expert_handoff包含所有必需字段")
         return True
     else:
-        print(f"\n❌ 测试1失败：缺少字段 {missing_keys}")
+        print(f"\n 测试1失败：缺少字段 {missing_keys}")
         return False
 
 
 def test_v2_expert_response():
     """测试2: 验证V2专家对expert_handoff的响应"""
-    print_section("测试2: V2专家对expert_handoff的响应", "👨‍🎨")
+    print_section("测试2: V2专家对expert_handoff的响应", "‍")
     
-    print("\n📝 场景说明:")
+    print("\n 场景说明:")
     print("V2设计总监收到expert_handoff后，应该：")
     print("  1. 回答所有critical_questions")
     print("  2. 选择tension_design_spectrum中的立场（或创造新立场）")
@@ -229,7 +229,7 @@ def test_v2_expert_response():
         "confidence": 0.85
     }
     
-    print("\n✅ 模拟V2专家响应示例:")
+    print("\n 模拟V2专家响应示例:")
     print(json.dumps(mock_v2_response, ensure_ascii=False, indent=2)[:1500] + "...")
     
     # 验证响应结构
@@ -237,23 +237,23 @@ def test_v2_expert_response():
     has_challenges = "challenge_flags" in mock_v2_response and len(mock_v2_response["challenge_flags"]) > 0
     has_multiple_proposals = "multiple_proposals" in mock_v2_response and len(mock_v2_response["multiple_proposals"]) > 1
     
-    print(f"\n✅ expert_handoff_response: {'存在' if has_handoff_response else '缺失'}")
-    print(f"✅ challenge_flags: {'存在' if has_challenges else '缺失'} ({len(mock_v2_response.get('challenge_flags', []))}个挑战)")
-    print(f"✅ multiple_proposals: {'存在' if has_multiple_proposals else '缺失'} ({len(mock_v2_response.get('multiple_proposals', []))}个方案)")
+    print(f"\n expert_handoff_response: {'存在' if has_handoff_response else '缺失'}")
+    print(f" challenge_flags: {'存在' if has_challenges else '缺失'} ({len(mock_v2_response.get('challenge_flags', []))}个挑战)")
+    print(f" multiple_proposals: {'存在' if has_multiple_proposals else '缺失'} ({len(mock_v2_response.get('multiple_proposals', []))}个方案)")
     
     if has_handoff_response and has_challenges and has_multiple_proposals:
-        print("\n✅ 测试2通过：V2专家正确响应expert_handoff")
+        print("\n 测试2通过：V2专家正确响应expert_handoff")
         return True, mock_v2_response
     else:
-        print("\n❌ 测试2失败：V2响应不完整")
+        print("\n 测试2失败：V2响应不完整")
         return False, None
 
 
 def test_challenge_detection():
     """测试3: 验证挑战检测机制"""
-    print_section("测试3: 挑战检测机制", "🔍")
+    print_section("测试3: 挑战检测机制", "")
     
-    print("\n📝 场景说明:")
+    print("\n 场景说明:")
     print("ChallengeDetector应该：")
     print("  1. 检测V2输出中的challenge_flags")
     print("  2. 分类挑战类型")
@@ -268,26 +268,26 @@ def test_challenge_detection():
         "design_impact": "这意味着我们不需要'平衡'古今..."
     }
     
-    print("\n✅ 检测到的挑战:")
+    print("\n 检测到的挑战:")
     print(json.dumps(mock_challenge, ensure_ascii=False, indent=2))
     
     # 模拟分类
     challenge_type = "deeper_insight"  # 专家提供了更深的洞察
     handling_decision = "accept"  # 接受这个更深的洞察
     
-    print(f"\n✅ 挑战分类: {challenge_type}")
-    print(f"✅ 处理决策: {handling_decision}")
-    print("✅ 理由: 专家提供了对'盛唐'的更深理解，这是有价值的重新诠释")
+    print(f"\n 挑战分类: {challenge_type}")
+    print(f" 处理决策: {handling_decision}")
+    print(" 理由: 专家提供了对'盛唐'的更深理解，这是有价值的重新诠释")
     
-    print("\n✅ 测试3通过：挑战检测和分类正常工作")
+    print("\n 测试3通过：挑战检测和分类正常工作")
     return True
 
 
 def test_feedback_loop_trigger():
     """测试4: 验证反馈循环触发"""
-    print_section("测试4: 反馈循环触发机制", "🔄")
+    print_section("测试4: 反馈循环触发机制", "")
     
-    print("\n📝 场景说明:")
+    print("\n 场景说明:")
     print("如果挑战类型是'uncertainty_clarification'，应该：")
     print("  1. 设置requires_feedback_loop=True")
     print("  2. 路由回到requirements_analyst")
@@ -301,7 +301,7 @@ def test_feedback_loop_trigger():
         "request": "需要回访用户，澄清'气度'的具体含义"
     }
     
-    print("\n✅ 不确定性挑战:")
+    print("\n 不确定性挑战:")
     print(json.dumps(mock_uncertainty_challenge, ensure_ascii=False, indent=2))
     
     # 模拟处理决策
@@ -309,20 +309,20 @@ def test_feedback_loop_trigger():
     handling_decision = "revisit_ra"
     requires_feedback_loop = True
     
-    print(f"\n✅ 挑战分类: {challenge_type}")
-    print(f"✅ 处理决策: {handling_decision}")
-    print(f"✅ 触发反馈循环: {requires_feedback_loop}")
-    print("✅ 路由: detect_challenges → requirements_analyst")
+    print(f"\n 挑战分类: {challenge_type}")
+    print(f" 处理决策: {handling_decision}")
+    print(f" 触发反馈循环: {requires_feedback_loop}")
+    print(" 路由: detect_challenges → requirements_analyst")
     
-    print("\n✅ 测试4通过：反馈循环触发机制正常")
+    print("\n 测试4通过：反馈循环触发机制正常")
     return True
 
 
 def test_workflow_integration():
     """测试5: 验证工作流完整集成"""
-    print_section("测试5: 工作流完整集成", "🔗")
+    print_section("测试5: 工作流完整集成", "")
     
-    print("\n📝 完整工作流路径:")
+    print("\n 完整工作流路径:")
     print("1. 用户输入（NIO×西安案例）")
     print("   ↓")
     print("2. requirements_analyst 生成expert_handoff")
@@ -331,29 +331,29 @@ def test_workflow_integration():
     print("   ↓")
     print("4. batch_aggregator 聚合V2输出")
     print("   ↓")
-    print("5. 🆕 detect_challenges 检测challenge_flags")
+    print("5.  detect_challenges 检测challenge_flags")
     print("   ├→ 有挑战且需回访 → requirements_analyst（反馈循环）")
     print("   └→ 无挑战或已处理 → batch_router（继续流程）")
     
-    print("\n✅ v3.5关键节点:")
-    print("  ✅ expert_handoff 字段（需求分析师输出）")
-    print("  ✅ expert_handoff_response 字段（专家输入）")
-    print("  ✅ challenge_flags 字段（专家输出）")
-    print("  ✅ detect_challenges 节点（工作流）")
-    print("  ✅ _route_after_challenge_detection 路由（工作流）")
+    print("\n v3.5关键节点:")
+    print("   expert_handoff 字段（需求分析师输出）")
+    print("   expert_handoff_response 字段（专家输入）")
+    print("   challenge_flags 字段（专家输出）")
+    print("   detect_challenges 节点（工作流）")
+    print("   _route_after_challenge_detection 路由（工作流）")
     
-    print("\n✅ 测试5通过：工作流完整集成确认")
+    print("\n 测试5通过：工作流完整集成确认")
     return True
 
 
 def run_all_tests():
     """运行所有实战测试"""
     print("=" * 80)
-    print("🚀 v3.5 实战案例测试")
+    print(" v3.5 实战案例测试")
     print("   案例：蔚来NIO House × 西安盛唐文化融合空间")
     print("=" * 80)
     
-    print("\n📖 案例背景:")
+    print("\n 案例背景:")
     print(NIO_XIAN_CASE)
     
     tests = [
@@ -373,39 +373,39 @@ def run_all_tests():
                 result = test_func()
             results.append((test_name, result))
         except Exception as e:
-            print(f"\n❌ {test_name} 异常: {e}")
+            print(f"\n {test_name} 异常: {e}")
             import traceback
             traceback.print_exc()
             results.append((test_name, False))
     
     # 总结
-    print_section("测试总结", "📊")
+    print_section("测试总结", "")
     
     passed = sum(1 for _, result in results if result)
     total = len(results)
     
     for test_name, result in results:
-        status = "✅" if result else "❌"
+        status = "" if result else ""
         print(f"{status} {test_name}")
     
     print(f"\n总计: {passed}/{total} 测试通过")
     
     if passed == total:
-        print("\n🎉 所有实战测试通过！")
-        print("\n✅ v3.5核心能力验证:")
-        print("   1. ✅ 需求分析师能生成高质量的expert_handoff")
-        print("   2. ✅ 专家能理解并响应handoff中的关键问题")
-        print("   3. ✅ 专家敢于挑战需求分析师的判断")
-        print("   4. ✅ 挑战检测系统能正确分类和处理")
-        print("   5. ✅ 反馈循环机制能在需要时触发")
-        print("\n🚀 v3.5已具备生产环境能力！")
-        print("\n💡 实战洞察:")
+        print("\n 所有实战测试通过！")
+        print("\n v3.5核心能力验证:")
+        print("   1.  需求分析师能生成高质量的expert_handoff")
+        print("   2.  专家能理解并响应handoff中的关键问题")
+        print("   3.  专家敢于挑战需求分析师的判断")
+        print("   4.  挑战检测系统能正确分类和处理")
+        print("   5.  反馈循环机制能在需要时触发")
+        print("\n v3.5已具备生产环境能力！")
+        print("\n 实战洞察:")
         print("   - NIO×西安案例展示了v3.5在处理复杂文化冲突时的价值")
         print("   - 专家的'Pole D'创造展示了真正的主动性")
         print("   - 对'核心张力'的挑战展示了深度协作的可能")
         return True
     else:
-        print(f"\n⚠️ 有 {total - passed} 个测试失败")
+        print(f"\n️ 有 {total - passed} 个测试失败")
         return False
 
 

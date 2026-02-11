@@ -10,7 +10,8 @@
 
 在修改代码前，**必须**阅读以下文档：
 
-1. 🔥 **[核心开发规范](.github/DEVELOPMENT_RULES_CORE.md)** - 200行精简版，AI工具优先加载
+1. 🔥 **[核心开发规范](.github/DEVELOPMENT_RULES_CORE.md)** - v2.1 精简版，AI工具优先加载
+   - 📝 **新增 v2.1**: 任务列表化执行规则 + "继续"指令快速响应
 2. 📚 [完整开发规范](.github/DEVELOPMENT_RULES.md) - 深度查阅特定章节
 3. ✅ [变更检查清单](.github/PRE_CHANGE_CHECKLIST.md) - 修改前强制流程
 4. 📖 [历史修复记录](.github/historical_fixes/) - 5+ 精选 bug 修复案例

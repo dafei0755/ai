@@ -58,7 +58,7 @@ class ErrorAlertMonitor:
         self.monitor_thread = threading.Thread(target=self._background_monitor, daemon=True)
         self.monitor_thread.start()
 
-        logger.info("🚨 错误告警监控器已启动")
+        logger.info(" 错误告警监控器已启动")
 
     def record_error(self, error_msg: str, level: str = "ERROR"):
         """记录错误"""
@@ -85,13 +85,13 @@ class ErrorAlertMonitor:
 
         if errors_1min >= AlertConfig.ERROR_THRESHOLD_1MIN:
             alert_triggered = True
-            alert_message = f"⚠️ 高频错误告警：1分钟内出现 {errors_1min} 个错误！"
+            alert_message = f"️ 高频错误告警：1分钟内出现 {errors_1min} 个错误！"
         elif errors_5min >= AlertConfig.ERROR_THRESHOLD_5MIN:
             alert_triggered = True
-            alert_message = f"⚠️ 错误激增告警：5分钟内出现 {errors_5min} 个错误！"
+            alert_message = f"️ 错误激增告警：5分钟内出现 {errors_5min} 个错误！"
         elif errors_15min >= AlertConfig.ERROR_THRESHOLD_15MIN:
             alert_triggered = True
-            alert_message = f"⚠️ 持续错误告警：15分钟内出现 {errors_15min} 个错误！"
+            alert_message = f"️ 持续错误告警：15分钟内出现 {errors_15min} 个错误！"
 
         if alert_triggered:
             self._trigger_alert(
@@ -123,7 +123,7 @@ class ErrorAlertMonitor:
 
         alert_output = f"""
 {'='*60}
-🚨 错误告警 #{self.alert_count}
+ 错误告警 #{self.alert_count}
 {'='*60}
 时间: {timestamp}
 {alert_message}
@@ -165,16 +165,16 @@ class ErrorAlertMonitor:
             async with aiohttp.ClientSession() as session:
                 async with session.post(AlertConfig.WEBHOOK_URL, json=payload, timeout=5) as resp:
                     if resp.status == 200:
-                        logger.info("✅ Webhook 告警发送成功")
+                        logger.info(" Webhook 告警发送成功")
                     else:
-                        logger.warning(f"⚠️ Webhook 告警发送失败: {resp.status}")
+                        logger.warning(f"️ Webhook 告警发送失败: {resp.status}")
         except Exception as e:
-            logger.error(f"❌ Webhook 告警发送异常: {e}")
+            logger.error(f" Webhook 告警发送异常: {e}")
 
     def _send_email_alert(self, message: str, error_detail: str, stats: Dict):
         """发送邮件告警（可选实现）"""
         # TODO: 实现邮件发送逻辑
-        logger.info("📧 邮件告警功能待实现")
+        logger.info(" 邮件告警功能待实现")
 
     def _background_monitor(self):
         """后台监控线程"""
@@ -190,7 +190,7 @@ class ErrorAlertMonitor:
     def stop(self):
         """停止监控"""
         self.monitoring = False
-        logger.info("🛑 错误告警监控器已停止")
+        logger.info(" 错误告警监控器已停止")
 
     def get_current_stats(self) -> Dict:
         """获取当前统计"""

@@ -383,7 +383,7 @@ class RoleSelectionAnalytics:
         
         if synthesis_ratio > 0.3:
             recommendations.append(
-                f"⚠️ 动态合成模式使用率较高({synthesis_ratio:.1%}), "
+                f"️ 动态合成模式使用率较高({synthesis_ratio:.1%}), "
                 "建议检查是否需要新增常用角色到基因库"
             )
         
@@ -393,21 +393,21 @@ class RoleSelectionAnalytics:
             top_role, top_count = sorted_roles[0]
             if top_count / total > 0.5:
                 recommendations.append(
-                    f"💡 角色 {top_role} 使用率过高({top_count/total:.1%}), "
+                    f" 角色 {top_role} 使用率过高({top_count/total:.1%}), "
                     "建议优化其他角色的keywords以分散负载"
                 )
         
         # 3. 置信度建议
         if avg_confidence < 0.7:
             recommendations.append(
-                f"⚠️ 平均置信度较低({avg_confidence:.2f}), "
+                f"️ 平均置信度较低({avg_confidence:.2f}), "
                 "建议优化角色基因库或增强语义意图匹配能力"
             )
         
         # 4. 成功率建议
         if success_rate < 0.9:
             recommendations.append(
-                f"⚠️ 成功率较低({success_rate:.1%}), "
+                f"️ 成功率较低({success_rate:.1%}), "
                 "建议检查失败案例并优化错误处理机制"
             )
         
@@ -415,7 +415,7 @@ class RoleSelectionAnalytics:
         if top_keywords:
             high_freq_keywords = [kw for kw, count in top_keywords[:5]]
             recommendations.append(
-                f"📊 高频keywords: {', '.join(high_freq_keywords)}, "
+                f" 高频keywords: {', '.join(high_freq_keywords)}, "
                 "建议检查是否需要细分或优化"
             )
         
@@ -473,7 +473,7 @@ class RoleSelectionAnalytics:
 
 ---
 
-## 📊 核心指标
+##  核心指标
 
 | 指标 | 数值 |
 |------|------|
@@ -485,14 +485,14 @@ class RoleSelectionAnalytics:
 
 ---
 
-## 🎯 协同模式分布
+##  协同模式分布
 
 """
         for mode, count in summary.mode_distribution.items():
             percentage = count / summary.total_selections * 100
             report += f"- **{mode}**: {count}次 ({percentage:.1f}%)\n"
         
-        report += "\n---\n\n## 👥 角色使用频率 Top 10\n\n"
+        report += "\n---\n\n##  角色使用频率 Top 10\n\n"
         
         sorted_roles = sorted(
             summary.role_usage_frequency.items(),
@@ -503,12 +503,12 @@ class RoleSelectionAnalytics:
         for i, (role_id, count) in enumerate(sorted_roles, 1):
             report += f"{i}. **{role_id}**: {count}次\n"
         
-        report += "\n---\n\n## 🔑 高频Keywords Top 20\n\n"
+        report += "\n---\n\n##  高频Keywords Top 20\n\n"
         
         for i, (keyword, count) in enumerate(summary.top_keywords, 1):
             report += f"{i}. `{keyword}`: {count}次\n"
         
-        report += "\n---\n\n## 💡 优化建议\n\n"
+        report += "\n---\n\n##  优化建议\n\n"
         
         for i, recommendation in enumerate(summary.recommendations, 1):
             report += f"{i}. {recommendation}\n"
@@ -576,13 +576,13 @@ if __name__ == "__main__":
         success=True
     )
     
-    print("\n✅ 已记录3条模拟数据")
+    print("\n 已记录3条模拟数据")
     
     # 生成分析报告
     print("\n生成分析报告...")
     summary = analytics.generate_summary(period="demo")
     
-    print(f"\n📊 统计摘要:")
+    print(f"\n 统计摘要:")
     print(f"   总选择次数: {summary.total_selections}")
     print(f"   平均置信度: {summary.avg_confidence:.2%}")
     print(f"   成功率: {summary.success_rate:.2%}")
@@ -590,8 +590,8 @@ if __name__ == "__main__":
     
     # 导出报告
     report_path = analytics.export_report(summary)
-    print(f"\n📄 报告已导出: {report_path}")
+    print(f"\n 报告已导出: {report_path}")
     
     print("\n" + "="*80)
-    print("✅ 监控系统部署完成")
+    print(" 监控系统部署完成")
     print("="*80)

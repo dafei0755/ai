@@ -24,7 +24,7 @@ class RoleTaskUnifiedReviewNode(InteractionAgent):
         """初始化审核节点"""
         super().__init__()
         self.strategy_manager = StrategyManager()
-        logger.info("✅ Role-Task unified review node initialized (refactored)")
+        logger.info(" Role-Task unified review node initialized (refactored)")
 
     # ========== 实现抽象方法 ==========
 
@@ -71,7 +71,7 @@ class RoleTaskUnifiedReviewNode(InteractionAgent):
         selection_reasoning = strategic_analysis.get("strategy_overview", "")
         strategy_name = "goal_oriented_adaptive_collaboration_v7.2"
 
-        logger.info(f"📋 Project director selected {len(selected_roles)} roles")
+        logger.info(f" Project director selected {len(selected_roles)} roles")
 
         # ===== 第一部分：角色选择审核 =====
         role_validation = self.strategy_manager.validate_role_selection(
@@ -195,7 +195,7 @@ class RoleTaskUnifiedReviewNode(InteractionAgent):
         elif action == "reject":
             return self._handle_rejection(state, user_response)
         else:
-            logger.error(f"❌ Unknown user action: {action}")
+            logger.error(f" Unknown user action: {action}")
             return Command(
                 update={"retry_reason": f"未知操作: {action}"},
                 goto="project_director"
@@ -261,7 +261,7 @@ class RoleTaskUnifiedReviewNode(InteractionAgent):
                     role_tasks = [f"【{d.get('name', '')}】{d.get('description', '')}"
                                  for d in task_instruction.get("deliverables", [])]
                     role["tasks"] = role_tasks
-                    logger.info(f"🔄 Extracted {len(role_tasks)} tasks from task_instruction for role {role_id}")
+                    logger.info(f" Extracted {len(role_tasks)} tasks from task_instruction for role {role_id}")
 
             # 为每个任务生成详细信息
             task_details = []
@@ -324,13 +324,13 @@ class RoleTaskUnifiedReviewNode(InteractionAgent):
         modifications: Dict
     ) -> Command[Literal["quality_preflight"]]:
         """处理批准操作"""
-        logger.info("✅ User approved role selection and task assignment")
+        logger.info(" User approved role selection and task assignment")
 
         strategic_analysis = state.get("strategic_analysis", {})
         selected_roles = strategic_analysis.get("selected_roles", [])
 
         if modifications:
-            logger.info(f"📝 User provided task modifications for {len(modifications)} roles")
+            logger.info(f" User provided task modifications for {len(modifications)} roles")
             # 应用任务修改
             for role in selected_roles:
                 role_id = role.get("role_id", "")
@@ -375,7 +375,7 @@ class RoleTaskUnifiedReviewNode(InteractionAgent):
         user_response: Dict
     ) -> Command[Literal["project_director"]]:
         """处理修改角色操作"""
-        logger.info("🔄 User requested role modification")
+        logger.info(" User requested role modification")
         modifications = user_response.get("modifications", {})
 
         return Command(
@@ -393,7 +393,7 @@ class RoleTaskUnifiedReviewNode(InteractionAgent):
         user_response: Dict
     ) -> Command[Literal["project_director"]]:
         """处理修改任务操作"""
-        logger.info("🔄 User requested task modification")
+        logger.info(" User requested task modification")
         modifications = user_response.get("modifications", {})
 
         return Command(
@@ -411,7 +411,7 @@ class RoleTaskUnifiedReviewNode(InteractionAgent):
         user_response: Dict
     ) -> Command[Literal["project_director"]]:
         """处理更换策略操作"""
-        logger.info("🔄 User requested strategy change")
+        logger.info(" User requested strategy change")
         new_strategy = user_response.get("new_strategy", "")
 
         return Command(
@@ -429,7 +429,7 @@ class RoleTaskUnifiedReviewNode(InteractionAgent):
         user_response: Dict
     ) -> Command[Literal["project_director"]]:
         """处理拒绝操作"""
-        logger.warning("❌ User rejected role selection and task assignment")
+        logger.warning(" User rejected role selection and task assignment")
         rejection_reason = user_response.get("reason", "未提供原因")
 
         return Command(

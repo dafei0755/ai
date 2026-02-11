@@ -96,16 +96,16 @@ class MotivationTypeRegistry:
                     motivation_type = MotivationType(**item)
                     self._types[motivation_type.id] = motivation_type
 
-            logger.info(f"✅ [MotivationRegistry] 加载 {len(self._types)} 个动机类型")
+            logger.info(f" [MotivationRegistry] 加载 {len(self._types)} 个动机类型")
             logger.debug(f"   启用类型: {list(self._types.keys())}")
 
         except Exception as e:
-            logger.error(f"❌ [MotivationRegistry] 配置加载失败: {e}")
+            logger.error(f" [MotivationRegistry] 配置加载失败: {e}")
             self._load_fallback_types()
 
     def _load_fallback_types(self):
         """降级：加载最小必需类型"""
-        logger.warning("⚠️ [MotivationRegistry] 使用硬编码降级类型")
+        logger.warning("️ [MotivationRegistry] 使用硬编码降级类型")
         basic_types = [
             MotivationType(
                 id="functional",
@@ -138,6 +138,67 @@ class MotivationTypeRegistry:
     def get_all_types(self) -> List[MotivationType]:
         """获取所有启用的类型"""
         return [t for t in self._types.values() if t.enabled]
+
+    def reload(self, config_path: Optional[str] = None) -> Dict[str, Any]:
+        """
+        热更新配置 - v7.261
+
+        重新从配置文件加载动机类型，无需重启服务。
+
+        Args:
+            config_path: 配置文件路径，默认使用 config/motivation_types.yaml
+
+        Returns:
+            更新结果字典，包含:
+            - success: 是否成功
+            - previous_count: 更新前类型数量
+            - current_count: 更新后类型数量
+            - added: 新增的类型ID列表
+            - removed: 移除的类型ID列表
+            - updated: 更新的类型ID列表
+        """
+        previous_types = set(self._types.keys())
+        previous_count = len(self._types)
+
+        # 清空现有配置
+        self._types.clear()
+        self._config.clear()
+
+        # 重新加载
+        try:
+            self.load_from_config(config_path)
+
+            current_types = set(self._types.keys())
+            current_count = len(self._types)
+
+            # 计算变更
+            added = list(current_types - previous_types)
+            removed = list(previous_types - current_types)
+            updated = list(current_types & previous_types)
+
+            logger.info(
+                f" [MotivationRegistry] 热更新完成 | 之前={previous_count}, 现在={current_count}, 新增={len(added)}, 移除={len(removed)}"
+            )
+
+            return {
+                "success": True,
+                "previous_count": previous_count,
+                "current_count": current_count,
+                "added": added,
+                "removed": removed,
+                "updated": updated,
+            }
+
+        except Exception as e:
+            logger.error(f" [MotivationRegistry] 热更新失败: {e}")
+            # 恢复降级类型
+            self._load_fallback_types()
+            return {
+                "success": False,
+                "error": str(e),
+                "previous_count": previous_count,
+                "current_count": len(self._types),
+            }
 
     def get_types_by_priority(self, priority: str) -> List[MotivationType]:
         """按优先级获取类型"""
@@ -188,9 +249,9 @@ class MotivationLearningSystem:
             try:
                 with open(self.feedback_log, "a", encoding="utf-8") as f:
                     f.write(json.dumps(asdict(case), ensure_ascii=False) + "\n")
-                logger.debug(f"📝 [Learning] 记录待学习案例: {case.task_title[:30]}...")
+                logger.debug(f" [Learning] 记录待学习案例: {case.task_title[:30]}...")
             except Exception as e:
-                logger.warning(f"⚠️ [Learning] 记录失败: {e}")
+                logger.warning(f"️ [Learning] 记录失败: {e}")
 
     def get_recent_cases(self, days: int = 7) -> List[UnmatchedCase]:
         """获取最近N天的待学习案例"""
@@ -208,7 +269,7 @@ class MotivationLearningSystem:
                     if case_time >= cutoff:
                         cases.append(UnmatchedCase(**case_dict))
         except Exception as e:
-            logger.warning(f"⚠️ [Learning] 读取日志失败: {e}")
+            logger.warning(f"️ [Learning] 读取日志失败: {e}")
 
         return cases
 
@@ -233,7 +294,7 @@ class MotivationLearningSystem:
         if len(cases) < 5:
             return {"status": "insufficient_data", "case_count": len(cases), "message": "案例不足5个，跳过分析"}
 
-        logger.info(f"🔍 [Learning] 开始分析 {len(cases)} 个案例...")
+        logger.info(f" [Learning] 开始分析 {len(cases)} 个案例...")
 
         # 统计类型分布
         type_distribution = {}
@@ -251,7 +312,7 @@ class MotivationLearningSystem:
         try:
             llm_analysis = await self._llm_pattern_discovery(cases, frequent_phrases)
         except Exception as e:
-            logger.warning(f"⚠️ [Learning] LLM分析失败: {e}")
+            logger.warning(f"️ [Learning] LLM分析失败: {e}")
             llm_analysis = {"error": str(e)}
 
         # 生成报告
@@ -272,9 +333,9 @@ class MotivationLearningSystem:
         try:
             with open(report_path, "w", encoding="utf-8") as f:
                 json.dump(report, f, ensure_ascii=False, indent=2)
-            logger.info(f"✅ [Learning] 分析报告已保存: {report_path}")
+            logger.info(f" [Learning] 分析报告已保存: {report_path}")
         except Exception as e:
-            logger.warning(f"⚠️ [Learning] 保存报告失败: {e}")
+            logger.warning(f"️ [Learning] 保存报告失败: {e}")
 
         return report
 
@@ -301,7 +362,7 @@ class MotivationLearningSystem:
             return [{"phrase": phrase, "count": count} for phrase, count in counter.most_common(top_n)]
 
         except Exception as e:
-            logger.warning(f"⚠️ [Learning] 提取短语失败: {e}")
+            logger.warning(f"️ [Learning] 提取短语失败: {e}")
             return []
 
     async def _llm_pattern_discovery(
@@ -382,7 +443,7 @@ class MotivationLearningSystem:
                 return {"error": "LLM未返回有效JSON", "raw_response": response.content[:500]}
 
         except Exception as e:
-            logger.error(f"❌ [Learning] LLM模式发现失败: {e}")
+            logger.error(f" [Learning] LLM模式发现失败: {e}")
             return {"error": str(e)}
 
     def _generate_recommendation(
@@ -448,30 +509,30 @@ class MotivationInferenceEngine:
                 threshold = self.registry.get_config("llm_inference.min_confidence_threshold", 0.7)
 
                 if result.confidence >= threshold:
-                    logger.info(f"✅ [Level 1] LLM识别: {result.primary} (置信度: {result.confidence:.2f})")
+                    logger.info(f" [Level 1] LLM识别: {result.primary} (置信度: {result.confidence:.2f})")
                     self.learning.record_unmatched_case(task, user_input, result)
                     return result
                 else:
-                    logger.debug(f"⚠️ [Level 1] LLM置信度低 ({result.confidence:.2f})，降级")
+                    logger.debug(f"️ [Level 1] LLM置信度低 ({result.confidence:.2f})，降级")
             except Exception as e:
-                logger.warning(f"⚠️ [Level 1] LLM失败: {e}，降级到关键词匹配")
+                logger.warning(f"️ [Level 1] LLM失败: {e}，降级到关键词匹配")
 
         # Level 2: 增强关键词匹配
         result = self._keyword_matching(task, user_input, structured_data)
         if result.confidence >= 0.6:
-            logger.info(f"✅ [Level 2] 关键词匹配: {result.primary} (置信度: {result.confidence:.2f})")
+            logger.info(f" [Level 2] 关键词匹配: {result.primary} (置信度: {result.confidence:.2f})")
             self.learning.record_unmatched_case(task, user_input, result)
             return result
 
         # Level 3: 规则引擎
         result = self._rule_based_inference(task, structured_data)
         if result.confidence >= 0.5:
-            logger.info(f"✅ [Level 3] 规则推断: {result.primary} (置信度: {result.confidence:.2f})")
+            logger.info(f" [Level 3] 规则推断: {result.primary} (置信度: {result.confidence:.2f})")
             self.learning.record_unmatched_case(task, user_input, result)
             return result
 
         # Level 4: 默认mixed
-        logger.warning(f"⚠️ [Level 4] 使用默认mixed，置信度低 ({result.confidence:.2f})")
+        logger.warning(f"️ [Level 4] 使用默认mixed，置信度低 ({result.confidence:.2f})")
         result = MotivationResult(
             primary="mixed",
             primary_label="综合需求",
@@ -528,19 +589,36 @@ class MotivationInferenceEngine:
 【补充上下文】
 {context_text}
 
-⚠️ **分析重点**：
-1. **专注于当前任务本身**，而非整个项目的整体动机
-2. 同一个项目中，不同任务可以有不同的动机类型
-3. 根据任务的具体内容和关键词判断，不要被项目整体描述过度影响
+️ **任务独立性原则**（最重要）:
+1. **专注分析当前任务本身**，忽略项目整体描述的干扰
+2. **同一项目中不同任务必然有不同的动机类型**（禁止所有任务都选择同一类型）
+3. **根据任务动作词判断**：
+   - "调研"、"搜索"、"分析" → 看调研的对象（文化=cultural, 案例=aesthetic, 产业=commercial）
+   - "对标"、"收集案例" → aesthetic（审美）或professional（专业职能）
+   - "设计"、"规划"、"方案" → functional（功能性）或aesthetic（审美）
+4. **避免过度解读**：不要因为项目涉及文化就将所有任务都标记为cultural
 
-例如：
-- "高原环境适应性研究" → technical（技术创新）
-- "文化符号提炼" → cultural（文化认同）
-- "情感氛围营造" → emotional（情感性）
-- "材料供应链规划" → sustainable（可持续价值）
+ **项目任务示例对照**（学习如何区分）:
+假设项目："四川狮岭村民宿集群设计，融合中日设计大师智慧"
+
+正确标注示例:
+-  错误: "调研狮岭村文化" → cultural（文化认同） 
+  "收集安藤忠雄案例" → cultural（错误！案例研究是审美，不是文化）
+  "分析多元设计趋势" → cultural（错误！趋势分析是专业，不是文化）
+  
+-  正确: 
+  "调研狮岭村在地文化与产业" → commercial（商业价值）或cultural（文化认同，取决于重点）
+  "收集安藤忠雄与隈研吾民宿案例" → aesthetic（审美）- 设计大师案例研究
+  "查找刘家琨、王澍作品和理念" → aesthetic（审美）或professional（专业职能）
+  "分析中日设计融合趋势" → aesthetic（审美）- 设计风格分析
+  "民宿群空间规划与概念方案" → functional（功能性）- 空间布局规划
+
+关键区分点:
+- 文化调研（cultural）≠ 设计案例研究（aesthetic）≠ 商业模式研究（commercial）
+- 同一个项目涉及"文化"，但不同任务的动机完全不同
 
 请分析当前任务的动机类型：
-1. 选择最匹配的主要动机类型（primary）
+1. 选择最匹配的主要动机类型（primary）- 优先考虑任务的动作和对象
 2. 如果有明显的次要动机，列出1-2个（secondary）
 3. 给出0-1之间的置信度（confidence）
 4. 用简短一句话说明推理过程（reasoning，30字以内）
@@ -554,8 +632,8 @@ class MotivationInferenceEngine:
 }}"""
 
         # 调试日志：输出Prompt的前500字符
-        logger.debug(f"🔍 [LLM Prompt Preview] 任务: {task.get('title', '')[:30]}")
-        logger.debug(f"🔍 [动机类型列表] {types_text[:300]}...")
+        logger.debug(f" [LLM Prompt Preview] 任务: {task.get('title', '')[:30]}")
+        logger.debug(f" [动机类型列表] {types_text[:300]}...")
 
         try:
             # 导入LLM
@@ -586,7 +664,7 @@ class MotivationInferenceEngine:
             primary_type = self.registry.get_type(primary_id)
 
             if not primary_type:
-                logger.warning(f"⚠️ LLM返回未知类型: {primary_id}，使用mixed")
+                logger.warning(f"️ LLM返回未知类型: {primary_id}，使用mixed")
                 primary_id = "mixed"
                 primary_type = self.registry.get_type("mixed")
 
@@ -600,7 +678,7 @@ class MotivationInferenceEngine:
                 if self.registry.get_type(sec_id):
                     scores[sec_id] = confidence * 0.6  # 次要动机评分为主要的60%
 
-            logger.info(f"✅ [LLM] 推断完成: {primary_type.label_zh} (置信度: {confidence:.2f})")
+            logger.info(f" [LLM] 推断完成: {primary_type.label_zh} (置信度: {confidence:.2f})")
 
             return MotivationResult(
                 primary=primary_id,
@@ -613,10 +691,10 @@ class MotivationInferenceEngine:
             )
 
         except asyncio.TimeoutError:
-            logger.warning(f"⚠️ [LLM] 超时 ({timeout}s)，降级到关键词匹配")
+            logger.warning(f"️ [LLM] 超时 ({timeout}s)，降级到关键词匹配")
             raise
         except Exception as e:
-            logger.warning(f"⚠️ [LLM] 推理失败: {e}")
+            logger.warning(f"️ [LLM] 推理失败: {e}")
             raise
 
     def _keyword_matching(
@@ -780,7 +858,7 @@ async def deep_motivation_analysis(
         risk_blind_spots = llm_insight.get("risk_blind_spots", [])
 
     except Exception as e:
-        logger.warning(f"⚠️ [Deep Insight] LLM分析失败: {e}")
+        logger.warning(f"️ [Deep Insight] LLM分析失败: {e}")
 
         # 降级：基于规则的简化分析
         l2_implicit = _rule_based_implicit_analysis(basic_result)
@@ -904,7 +982,7 @@ async def _llm_deep_analysis(
             raise ValueError("LLM未返回有效JSON")
 
     except Exception as e:
-        logger.error(f"❌ [Deep Analysis] LLM失败: {e}")
+        logger.error(f" [Deep Analysis] LLM失败: {e}")
         raise
 
 

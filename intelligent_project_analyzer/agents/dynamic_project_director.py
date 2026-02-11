@@ -64,13 +64,13 @@ class RoleObject(BaseModel):
     role_name: str = Field(description="角色基础名称 (如 '居住空间设计总监')")
     dynamic_role_name: str = Field(description="动态角色名称 - 反映本次任务中的具体职责 (如 '三代同堂居住空间与生活模式总设计师')")
 
-    # 🆕 使用新的TaskInstruction替代分散的字段
+    #  使用新的TaskInstruction替代分散的字段
     task_instruction: TaskInstruction = Field(description="统一的任务执行指令（合并了tasks、expected_output、focus_areas）")
 
     dependencies: List[str] = Field(default_factory=list, description="这个动态角色的启动依赖")
     execution_priority: int = Field(default=1, description="执行优先级（1最高）")
 
-    # 🔄 保持兼容性的属性（自动从task_instruction生成）
+    #  保持兼容性的属性（自动从task_instruction生成）
     @property
     def tasks(self) -> List[str]:
         """向后兼容：从task_instruction生成任务列表"""
@@ -93,7 +93,7 @@ class RoleSelection(BaseModel):
     selected_roles: List[RoleObject] = Field(description="选中的角色对象列表，每个对象包含完整的角色信息和任务分配", min_length=3, max_length=8)
     reasoning: str = Field(description="选择这些角色的详细理由,解释为什么这些角色最适合完成任务", min_length=50)
 
-    # ✅ 保留 task_distribution 字段以兼容旧代码，但自动从 selected_roles 生成
+    #  保留 task_distribution 字段以兼容旧代码，但自动从 selected_roles 生成
     @property
     def task_distribution(self) -> Dict[str, Union[TaskDetail, str]]:
         """从 selected_roles 自动生成 task_distribution 以兼容旧代码"""
@@ -126,13 +126,15 @@ class RoleSelection(BaseModel):
         if role_id.startswith("2-"):
             return f"V2_设计总监_{role_id}"
         elif role_id.startswith("3-"):
-            return f"V3_叙事与体验专家_{role_id}"  # ✅ 配置文件键名
+            return f"V3_叙事与体验专家_{role_id}"  #  配置文件键名
         elif role_id.startswith("4-"):
             return f"V4_设计研究员_{role_id}"
         elif role_id.startswith("5-"):
-            return f"V5_场景与行业专家_{role_id}"  # ✅ 配置文件键名
+            return f"V5_场景与行业专家_{role_id}"  #  配置文件键名
         elif role_id.startswith("6-"):
             return f"V6_专业总工程师_{role_id}"
+        elif role_id.startswith("7-"):
+            return f"V7_情感洞察专家_{role_id}"  #  V7情感洞察专家
         else:
             # 未知格式，直接返回
             return role_id
@@ -153,7 +155,7 @@ class RoleSelection(BaseModel):
 
         if not has_v4:
             raise ValueError(
-                "❌ V4_设计研究员是必选角色，但在selected_roles中未找到。\n"
+                " V4_设计研究员是必选角色，但在selected_roles中未找到。\n"
                 "V4是其他角色（V2、V3、V5）的依赖基础，必须包含。\n"
                 f"当前role_ids: {role_ids}\n"
                 "请重新选择，确保包含至少一个role_id以'4-'开头的角色。"
@@ -163,14 +165,14 @@ class RoleSelection(BaseModel):
         v4_roles = [
             role for role in self.selected_roles if role.role_id.startswith("4-") or role.role_id.startswith("V4_")
         ]
-        logger.info(f"✅ V4角色验证通过: {[r.role_id for r in v4_roles]}")
+        logger.info(f" V4角色验证通过: {[r.role_id for r in v4_roles]}")
 
         return self
 
     @model_validator(mode="after")
     def validate_task_distribution_differentiation(self) -> "RoleSelection":
         """
-        🆕 验证任务分配差异化（防止平均分配）
+         验证任务分配差异化（防止平均分配）
 
         确保核心角色承担更多任务，避免所有角色平均分配相同数量的交付物。
         这是针对专题1发现的"任务分配平均化倾向"问题的修复。
@@ -195,12 +197,12 @@ class RoleSelection(BaseModel):
         mean_count = statistics.mean(deliverable_counts)
         stdev_count = statistics.stdev(deliverable_counts) if len(deliverable_counts) > 1 else 0
 
-        logger.info(f"📊 交付物数量分布: {deliverable_counts}, 平均值: {mean_count:.1f}, 标准差: {stdev_count:.2f}")
+        logger.info(f" 交付物数量分布: {deliverable_counts}, 平均值: {mean_count:.1f}, 标准差: {stdev_count:.2f}")
 
         # 如果标准差太小，说明分配过于平均
         if stdev_count < 0.8:  # 阈值可调整
             logger.warning(
-                f"⚠️ 任务分配过于平均化！标准差: {stdev_count:.2f} < 0.8\n"
+                f"️ 任务分配过于平均化！标准差: {stdev_count:.2f} < 0.8\n"
                 f"   交付物数量: {deliverable_counts}\n"
                 f"   建议: 核心角色应承担4-6个交付物，支持角色1-2个"
             )
@@ -211,16 +213,16 @@ class RoleSelection(BaseModel):
         max_count = max(deliverable_counts)
         if max_count >= 4:
             core_roles = [role.role_id for role, count in zip(self.selected_roles, deliverable_counts) if count >= 4]
-            logger.info(f"✅ 检测到核心角色: {core_roles} (交付物数量≥4)")
+            logger.info(f" 检测到核心角色: {core_roles} (交付物数量≥4)")
         else:
-            logger.warning(f"⚠️ 所有角色的交付物数量都<4，可能缺少核心角色")
+            logger.warning(f"️ 所有角色的交付物数量都<4，可能缺少核心角色")
 
         return self
 
     @model_validator(mode="after")
     def validate_task_deliverable_alignment(self) -> "RoleSelection":
         """
-        🆕 验证任务-交付物对齐（确保用户确认的任务被覆盖）
+         验证任务-交付物对齐（确保用户确认的任务被覆盖）
 
         检查confirmed_core_tasks中的每个任务是否至少有一个专家的deliverable与之对应。
         这是针对问卷与任务分配关系研究发现的关键优化：用户确认的任务必须被执行。
@@ -238,10 +240,10 @@ class RoleSelection(BaseModel):
 
         if not confirmed_tasks:
             # 没有confirmed_tasks数据，跳过验证
-            logger.debug("📋 未检测到confirmed_core_tasks，跳过任务-交付物对齐验证")
+            logger.debug(" 未检测到confirmed_core_tasks，跳过任务-交付物对齐验证")
             return self
 
-        logger.info(f"📋 开始验证 {len(confirmed_tasks)} 个确认任务的对齐情况...")
+        logger.info(f" 开始验证 {len(confirmed_tasks)} 个确认任务的对齐情况...")
 
         # 收集所有交付物的关键词
         all_deliverables = []
@@ -280,7 +282,7 @@ class RoleSelection(BaseModel):
                 if match_score >= 0.4:  # 40%匹配度阈值
                     matched = True
                     logger.info(
-                        f"  ✅ 任务 '{task_title}' 已对齐到 {deliverable['role_id']} "
+                        f"   任务 '{task_title}' 已对齐到 {deliverable['role_id']} "
                         f"的交付物 '{deliverable['name']}' (匹配度: {match_score:.0%})"
                     )
                     break
@@ -294,7 +296,7 @@ class RoleSelection(BaseModel):
                     }
                 )
                 logger.warning(
-                    f"  ⚠️ 任务 '{task_title}' 未被充分覆盖！"
+                    f"  ️ 任务 '{task_title}' 未被充分覆盖！"
                     f"最佳匹配: {best_match_deliverable['name'] if best_match_deliverable else 'N/A'} "
                     f"(匹配度仅: {best_match_score:.0%})"
                 )
@@ -302,14 +304,14 @@ class RoleSelection(BaseModel):
         # 汇总验证结果
         if uncovered_tasks:
             logger.warning(
-                f"⚠️ 任务-交付物对齐验证: {len(uncovered_tasks)}/{len(confirmed_tasks)} 个任务未被充分覆盖\n"
+                f"️ 任务-交付物对齐验证: {len(uncovered_tasks)}/{len(confirmed_tasks)} 个任务未被充分覆盖\n"
                 f"   未覆盖任务: {[t['task'] for t in uncovered_tasks]}\n"
                 f"   建议: LLM可能需要为这些任务分配专门的交付物"
             )
             # 注意：这里使用warning而非raise，避免阻断流程
             # 在实际场景中，可以根据业务需求决定是否强制失败
         else:
-            logger.info(f"✅ 任务-交付物对齐验证通过: 所有 {len(confirmed_tasks)} 个确认任务均已覆盖")
+            logger.info(f" 任务-交付物对齐验证通过: 所有 {len(confirmed_tasks)} 个确认任务均已覆盖")
 
         return self
 
@@ -394,7 +396,7 @@ class DynamicProjectDirector:
 
         strategy_path = Path(__file__).parent.parent / "config" / "role_selection_strategy.yaml"
         self.weight_calculator = RoleWeightCalculator(str(strategy_path))
-        logger.info("✅ 权重计算器已初始化")
+        logger.info(" 权重计算器已初始化")
 
     def select_roles_for_task(
         self, requirements: str, confirmed_core_tasks: Optional[List[Dict[str, Any]]] = None, max_retries: int = 3
@@ -424,11 +426,11 @@ class DynamicProjectDirector:
         # 默认 mixed
         if not project_scope:
             project_scope = "mixed"
-        logger.info(f"🔍 解析到 project_scope: {project_scope}")
+        logger.info(f" 解析到 project_scope: {project_scope}")
 
-        # 2. 计算角色权重（🆕 传递confirmed_core_tasks以提升精度）
+        # 2. 计算角色权重（ 传递confirmed_core_tasks以提升精度）
         role_weights = self.weight_calculator.calculate_weights(requirements, confirmed_core_tasks=confirmed_core_tasks)
-        logger.info(f"📊 角色权重计算完成: {role_weights}")
+        logger.info(f" 角色权重计算完成: {role_weights}")
 
         # 3. 获取所有可用角色，并根据 applicable_scope 过滤
         available_roles = self.role_manager.get_available_roles()
@@ -444,10 +446,10 @@ class DynamicProjectDirector:
 
         # 如果过滤后没有角色，使用所有角色作为后备
         if not filtered_roles:
-            logger.warning(f"⚠️ 根据 scope '{project_scope}' 过滤后没有可用角色，将使用所有 {len(available_roles)} 个角色")
+            logger.warning(f"️ 根据 scope '{project_scope}' 过滤后没有可用角色，将使用所有 {len(available_roles)} 个角色")
             filtered_roles = available_roles
 
-        logger.info(f"✅ 最终可用角色数: {len(filtered_roles)}")
+        logger.info(f" 最终可用角色数: {len(filtered_roles)}")
 
         # 4. 构建角色信息字符串（包含权重）
         roles_info = self._format_roles_info_with_weights(filtered_roles, role_weights)
@@ -464,42 +466,42 @@ class DynamicProjectDirector:
         last_error = None
         for attempt in range(max_retries):
             try:
-                logger.info(f"🔄 尝试角色选择 (第 {attempt + 1}/{max_retries} 次)")
+                logger.info(f" 尝试角色选择 (第 {attempt + 1}/{max_retries} 次)")
                 raw_response = None
                 try:
                     raw_response = llm_with_structure.invoke(messages)
-                    logger.debug(f"📥 LLM原始响应类型: {type(raw_response)}")
+                    logger.debug(f" LLM原始响应类型: {type(raw_response)}")
                 except (ValidationError, OutputParserException) as structured_error:
-                    logger.warning(f"⚠️ LangChain结构化输出失败 ({type(structured_error).__name__})\n" f"   尝试从异常中恢复原始响应...")
+                    logger.warning(f"️ LangChain结构化输出失败 ({type(structured_error).__name__})\n" f"   尝试从异常中恢复原始响应...")
                     raw_response = self._extract_raw_response_from_validation_error(structured_error)
                     if raw_response is None:
-                        logger.error("❌ 无法提取LLM原始响应，将在 {max_retries-attempt} 次后降级")
+                        logger.error(" 无法提取LLM原始响应，将在 {max_retries-attempt} 次后降级")
                         raise structured_error
 
                 response = self._validate_response_with_conversion(raw_response)
 
-                # 🆕 将confirmed_core_tasks注入到response对象以便验证器使用
+                #  将confirmed_core_tasks注入到response对象以便验证器使用
                 if confirmed_core_tasks:
                     response._confirmed_tasks = confirmed_core_tasks
 
                 if not response.task_distribution:
-                    error_msg = "❌ task_distribution 不能为空字典！必须为每个选择的角色分配任务。"
+                    error_msg = " task_distribution 不能为空字典！必须为每个选择的角色分配任务。"
                     logger.error(error_msg)
                     raise ValueError(error_msg)
                 task_dist_keys = set(response.task_distribution.keys())
-                logger.info(f"🔍 [DEBUG] task_distribution keys: {task_dist_keys}")
+                logger.info(f" [DEBUG] task_distribution keys: {task_dist_keys}")
                 if len(task_dist_keys) != len(response.selected_roles):
-                    error_msg = f"❌ task_distribution ({len(task_dist_keys)}个) 与 selected_roles ({len(response.selected_roles)}个) 数量不一致"
+                    error_msg = f" task_distribution ({len(task_dist_keys)}个) 与 selected_roles ({len(response.selected_roles)}个) 数量不一致"
                     logger.error(error_msg)
                     raise ValueError(error_msg)
                 if not isinstance(response.task_distribution, dict):
-                    logger.warning(f"⚠️ task_distribution is not a dict: {type(response.task_distribution)}")
+                    logger.warning(f"️ task_distribution is not a dict: {type(response.task_distribution)}")
                     response = self._fix_task_distribution(response)
-                logger.info(f"✅ Role selection successful on attempt {attempt + 1}")
-                logger.info(f"🔍 [DEBUG] task_distribution 类型: {type(response.task_distribution)}")
-                logger.info(f"🔍 [DEBUG] task_distribution 包含 {len(response.task_distribution)} 个角色")
+                logger.info(f" Role selection successful on attempt {attempt + 1}")
+                logger.info(f" [DEBUG] task_distribution 类型: {type(response.task_distribution)}")
+                logger.info(f" [DEBUG] task_distribution 包含 {len(response.task_distribution)} 个角色")
                 for role_id, task_data in response.task_distribution.items():
-                    logger.info(f"🔍 [DEBUG] 角色 {role_id}:")
+                    logger.info(f" [DEBUG] 角色 {role_id}:")
                     logger.info(f"   - task_data 类型: {type(task_data)}")
                     if hasattr(task_data, "tasks"):
                         logger.info(f"   - TaskDetail 对象，包含 {len(task_data.tasks)} 个任务")
@@ -515,27 +517,27 @@ class DynamicProjectDirector:
             except (ValidationError, ValueError, OutputParserException) as e:
                 last_error = e
                 error_type = type(e).__name__
-                logger.warning(f"⚠️ 第 {attempt + 1} 次尝试失败: [{error_type}] {format_for_log(e)}")
+                logger.warning(f"️ 第 {attempt + 1} 次尝试失败: [{error_type}] {format_for_log(e)}")
                 if attempt < max_retries - 1:
-                    logger.info(f"🔄 准备重试... (第 {attempt + 2}/{max_retries} 次)")
+                    logger.info(f" 准备重试... (第 {attempt + 2}/{max_retries} 次)")
                     continue
                 else:
                     logger.error(
-                        f"❌ 所有 {max_retries} 次尝试均失败，降级到默认角色选择\n"
+                        f" 所有 {max_retries} 次尝试均失败，降级到默认角色选择\n"
                         f"   最后错误: [{error_type}] {str(e)[:500]}\n"
-                        f"   🚨 降级警告: 默认选择的任务质量可能低于LLM智能选择"
+                        f"    降级警告: 默认选择的任务质量可能低于LLM智能选择"
                     )
                     # 记录降级事件（可用于监控和优化）
                     self._log_fallback_event(requirements, last_error)
             except Exception as e:
-                # 🔥 新增：捕获网络连接错误（如 SSL/代理问题）
+                #  新增：捕获网络连接错误（如 SSL/代理问题）
                 last_error = e
                 error_type = type(e).__name__
-                logger.error(f"❌ Attempt {attempt + 1} failed with {error_type}: {e}")
+                logger.error(f" Attempt {attempt + 1} failed with {error_type}: {e}")
 
                 # 如果是网络连接错误，记录详细信息
                 if "Connection" in error_type or "SSL" in str(e):
-                    logger.error("🌐 检测到网络连接问题:")
+                    logger.error(" 检测到网络连接问题:")
                     logger.error(f"   - 错误类型: {error_type}")
                     logger.error(f"   - 错误详情: {str(e)[:200]}")
                     logger.error("   - 可能原因: SSL证书验证失败、代理配置问题、网络不稳定")
@@ -545,11 +547,11 @@ class DynamicProjectDirector:
                     import time
 
                     wait_time = 2**attempt  # 指数退避: 1s, 2s, 4s
-                    logger.info(f"🔄 等待 {wait_time}秒后重试... ({attempt + 2}/{max_retries})")
+                    logger.info(f" 等待 {wait_time}秒后重试... ({attempt + 2}/{max_retries})")
                     time.sleep(wait_time)
                     continue
                 else:
-                    logger.error(f"❌ All {max_retries} attempts failed due to {error_type}")
+                    logger.error(f" All {max_retries} attempts failed due to {error_type}")
                     # 抛出异常让上层处理
                     raise
         # ...existing code...
@@ -565,7 +567,7 @@ class DynamicProjectDirector:
         """
         # 【新增】1. 计算角色权重
         role_weights = self.weight_calculator.calculate_weights(requirements)
-        logger.info(f"📊 角色权重计算完成: {role_weights}")
+        logger.info(f" 角色权重计算完成: {role_weights}")
 
         # 获取所有可用角色
         available_roles = self.role_manager.get_available_roles()
@@ -588,61 +590,61 @@ class DynamicProjectDirector:
         last_error = None
         for attempt in range(max_retries):
             try:
-                logger.info(f"🔄 Attempting role selection (attempt {attempt + 1}/{max_retries})")
+                logger.info(f" Attempting role selection (attempt {attempt + 1}/{max_retries})")
                 raw_response = llm_with_structure.invoke(messages)
 
-                # 🔍 调试日志：LLM 返回的原始响应
-                logger.info(f"🔍 [DEBUG] LLM 返回的 raw_response 类型: {type(raw_response)}")
+                #  调试日志：LLM 返回的原始响应
+                logger.info(f" [DEBUG] LLM 返回的 raw_response 类型: {type(raw_response)}")
 
-                # 🚨 手动验证响应（触发 Pydantic 的 @model_validator）
+                #  手动验证响应（触发 Pydantic 的 @model_validator）
                 # 这是关键步骤！with_structured_output 不会调用验证器，需要手动调用
                 try:
                     response = RoleSelection.model_validate(raw_response)
-                    logger.info("✅ Pydantic 验证通过")
+                    logger.info(" Pydantic 验证通过")
                 except Exception as validation_error:
-                    logger.error(f"❌ Pydantic 验证失败: {format_for_log(validation_error)}")
+                    logger.error(f" Pydantic 验证失败: {format_for_log(validation_error)}")
                     raise validation_error
 
-                # 🔍 调试日志：验证后的响应
+                #  调试日志：验证后的响应
                 logger.info(
-                    f"🔍 [DEBUG] response.selected_roles: {format_for_log([r.dict() for r in response.selected_roles])}"
+                    f" [DEBUG] response.selected_roles: {format_for_log([r.dict() for r in response.selected_roles])}"
                 )
-                logger.info(f"🔍 [DEBUG] response.task_distribution 类型: {type(response.task_distribution)}")
+                logger.info(f" [DEBUG] response.task_distribution 类型: {type(response.task_distribution)}")
 
-                # 🚨 额外的手动验证（双重保险）
+                #  额外的手动验证（双重保险）
                 if not response.task_distribution:
-                    error_msg = "❌ task_distribution 不能为空字典！必须为每个选择的角色分配任务。"
+                    error_msg = " task_distribution 不能为空字典！必须为每个选择的角色分配任务。"
                     logger.error(error_msg)
                     raise ValueError(error_msg)
 
-                # 🚨 检查是否所有选择的角色都有任务分配
-                # ✅ 修复：response.task_distribution 的键已经是完整角色ID (通过 @property 自动生成)
+                #  检查是否所有选择的角色都有任务分配
+                #  修复：response.task_distribution 的键已经是完整角色ID (通过 @property 自动生成)
                 # 由于 task_distribution 是从 selected_roles 自动生成的，这个检查实际上总是通过
                 # 保留这个检查仅用于防御性编程
                 task_dist_keys = set(response.task_distribution.keys())
-                logger.info(f"🔍 [DEBUG] task_distribution keys: {task_dist_keys}")
+                logger.info(f" [DEBUG] task_distribution keys: {task_dist_keys}")
 
                 if len(task_dist_keys) != len(response.selected_roles):
-                    error_msg = f"❌ task_distribution ({len(task_dist_keys)}个) 与 selected_roles ({len(response.selected_roles)}个) 数量不一致"
+                    error_msg = f" task_distribution ({len(task_dist_keys)}个) 与 selected_roles ({len(response.selected_roles)}个) 数量不一致"
                     logger.error(error_msg)
                     raise ValueError(error_msg)
 
                 # 验证 task_distribution 是否为字典
                 if not isinstance(response.task_distribution, dict):
-                    logger.warning(f"⚠️ task_distribution is not a dict: {type(response.task_distribution)}")
+                    logger.warning(f"️ task_distribution is not a dict: {type(response.task_distribution)}")
                     # 尝试修复
                     response = self._fix_task_distribution(response)
                     # 尝试修复
                     response = self._fix_task_distribution(response)
 
-                logger.info(f"✅ Role selection successful on attempt {attempt + 1}")
+                logger.info(f" Role selection successful on attempt {attempt + 1}")
 
-                # 🔍 调试日志：输出 task_distribution 的详细信息
-                logger.info(f"🔍 [DEBUG] task_distribution 类型: {type(response.task_distribution)}")
-                logger.info(f"🔍 [DEBUG] task_distribution 包含 {len(response.task_distribution)} 个角色")
+                #  调试日志：输出 task_distribution 的详细信息
+                logger.info(f" [DEBUG] task_distribution 类型: {type(response.task_distribution)}")
+                logger.info(f" [DEBUG] task_distribution 包含 {len(response.task_distribution)} 个角色")
 
                 for role_id, task_data in response.task_distribution.items():
-                    logger.info(f"🔍 [DEBUG] 角色 {role_id}:")
+                    logger.info(f" [DEBUG] 角色 {role_id}:")
                     logger.info(f"   - task_data 类型: {type(task_data)}")
                     if hasattr(task_data, "tasks"):
                         logger.info(f"   - TaskDetail 对象，包含 {len(task_data.tasks)} 个任务")
@@ -659,32 +661,32 @@ class DynamicProjectDirector:
 
             except (ValidationError, ValueError) as e:
                 last_error = e
-                logger.warning(f"⚠️ Attempt {attempt + 1} failed with validation error: {format_for_log(e)}")
+                logger.warning(f"️ Attempt {attempt + 1} failed with validation error: {format_for_log(e)}")
 
                 # 如果不是最后一次尝试，继续重试
                 if attempt < max_retries - 1:
-                    logger.info(f"🔄 Retrying... ({attempt + 2}/{max_retries})")
+                    logger.info(f" Retrying... ({attempt + 2}/{max_retries})")
                     continue
                 else:
                     # 最后一次尝试失败，使用默认模板
-                    logger.error(f"❌ All {max_retries} attempts failed, using default template")
+                    logger.error(f" All {max_retries} attempts failed, using default template")
                     return self._get_default_role_selection(available_roles)
 
             except Exception as e:
                 last_error = e
-                logger.error(f"❌ Attempt {attempt + 1} failed with unexpected error: {e}")
+                logger.error(f" Attempt {attempt + 1} failed with unexpected error: {e}")
 
                 # 如果不是最后一次尝试，继续重试
                 if attempt < max_retries - 1:
-                    logger.info(f"🔄 Retrying... ({attempt + 2}/{max_retries})")
+                    logger.info(f" Retrying... ({attempt + 2}/{max_retries})")
                     continue
                 else:
                     # 最后一次尝试失败，使用默认模板
-                    logger.error(f"❌ All {max_retries} attempts failed, using default template")
+                    logger.error(f" All {max_retries} attempts failed, using default template")
                     return self._get_default_role_selection(available_roles)
 
         # 理论上不会到达这里，但为了安全起见
-        logger.error(f"❌ Unexpected: reached end of retry loop, using default template")
+        logger.error(f" Unexpected: reached end of retry loop, using default template")
         return self._get_default_role_selection(available_roles)
 
     def _fix_task_distribution(self, response: RoleSelection) -> RoleSelection:
@@ -697,26 +699,26 @@ class DynamicProjectDirector:
         Returns:
             修复后的 RoleSelection
         """
-        logger.info(f"🔧 [DEBUG] 开始修复 task_distribution")
-        logger.info(f"🔧 [DEBUG] 原始 task_distribution 类型: {type(response.task_distribution)}")
+        logger.info(f" [DEBUG] 开始修复 task_distribution")
+        logger.info(f" [DEBUG] 原始 task_distribution 类型: {type(response.task_distribution)}")
 
-        # 🚨 检查 task_distribution 是否为空
+        #  检查 task_distribution 是否为空
         if not response.task_distribution:
-            logger.error("❌ task_distribution 为空字典！LLM 没有为任何角色分配任务。")
-            logger.error("❌ 这通常意味着 LLM 没有理解 Prompt 要求，或者生成的响应被截断。")
-            logger.error("❌ 将使用默认角色选择和模板任务。")
+            logger.error(" task_distribution 为空字典！LLM 没有为任何角色分配任务。")
+            logger.error(" 这通常意味着 LLM 没有理解 Prompt 要求，或者生成的响应被截断。")
+            logger.error(" 将使用默认角色选择和模板任务。")
 
             # 获取可用角色列表
             available_roles = self.role_manager.get_available_roles()
             return self._get_default_role_selection(available_roles)
 
-        # 🚨 检查是否所有选择的角色都有任务分配
+        #  检查是否所有选择的角色都有任务分配
         missing_roles = [role for role in response.selected_roles if role not in response.task_distribution]
         if missing_roles:
-            logger.error(f"❌ 以下角色缺少任务分配: {missing_roles}")
-            logger.error(f"❌ selected_roles: {response.selected_roles}")
-            logger.error(f"❌ task_distribution keys: {list(response.task_distribution.keys())}")
-            logger.error("❌ 将使用默认角色选择和模板任务。")
+            logger.error(f" 以下角色缺少任务分配: {missing_roles}")
+            logger.error(f" selected_roles: {response.selected_roles}")
+            logger.error(f" task_distribution keys: {list(response.task_distribution.keys())}")
+            logger.error(" 将使用默认角色选择和模板任务。")
 
             # 获取可用角色列表
             available_roles = self.role_manager.get_available_roles()
@@ -729,8 +731,8 @@ class DynamicProjectDirector:
             for role_id in response.selected_roles:
                 role_task = response.task_distribution.get(role_id)
 
-                logger.info(f"🔧 [DEBUG] 修复角色 {role_id}:")
-                logger.info(f"🔧 [DEBUG]   - 原始类型: {type(role_task)}")
+                logger.info(f" [DEBUG] 修复角色 {role_id}:")
+                logger.info(f" [DEBUG]   - 原始类型: {type(role_task)}")
 
                 # 情况1: 已经是 TaskDetail 对象
                 if isinstance(role_task, TaskDetail):
@@ -740,34 +742,34 @@ class DynamicProjectDirector:
                 # 情况2: 是字典，尝试转换为 TaskDetail
                 if isinstance(role_task, dict):
                     try:
-                        logger.info(f"🔧 [DEBUG]   - 字典 keys: {list(role_task.keys())}")
+                        logger.info(f" [DEBUG]   - 字典 keys: {list(role_task.keys())}")
                         fixed_distribution[role_id] = TaskDetail(**role_task)
-                        logger.info(f"✅ 成功将 {role_id} 的字典转换为 TaskDetail")
+                        logger.info(f" 成功将 {role_id} 的字典转换为 TaskDetail")
                         continue
                     except Exception as e:
-                        logger.warning(f"⚠️ 无法将 {role_id} 的字典转换为 TaskDetail: {e}")
+                        logger.warning(f"️ 无法将 {role_id} 的字典转换为 TaskDetail: {e}")
 
                 # 情况3: 是字符串，转换为 TaskDetail
                 if isinstance(role_task, str):
-                    logger.info(f"🔧 [DEBUG]   - 字符串长度: {len(role_task)}")
-                    logger.info(f"🔧 将 {role_id} 的字符串任务转换为 TaskDetail 格式")
+                    logger.info(f" [DEBUG]   - 字符串长度: {len(role_task)}")
+                    logger.info(f" 将 {role_id} 的字符串任务转换为 TaskDetail 格式")
                     fixed_distribution[role_id] = TaskDetail(
                         tasks=[role_task], focus_areas=[], expected_output="", dependencies=[]
                     )
                     continue
 
                 # 情况4: 没有任务或格式不对，创建默认任务
-                logger.warning(f"⚠️ {role_id} 没有有效任务，创建默认任务")
+                logger.warning(f"️ {role_id} 没有有效任务，创建默认任务")
                 fixed_distribution[role_id] = TaskDetail(
                     tasks=["执行专业分析"], focus_areas=[], expected_output="", dependencies=[]
                 )
 
             response.task_distribution = fixed_distribution
-            logger.info("✅ 成功修复 task_distribution 格式")
+            logger.info(" 成功修复 task_distribution 格式")
             return response
 
         except Exception as e:
-            logger.error(f"❌ Failed to fix task_distribution: {e}")
+            logger.error(f" Failed to fix task_distribution: {e}")
             # 创建默认 TaskDetail 字典
             response.task_distribution = {
                 role_id: TaskDetail(tasks=["执行专业分析"], focus_areas=[], expected_output="", dependencies=[])
@@ -777,7 +779,7 @@ class DynamicProjectDirector:
 
     def _log_fallback_event(self, requirements: str, error: Exception) -> None:
         """
-        🆕 记录降级事件（用于监控和优化）
+         记录降级事件（用于监控和优化）
 
         当LLM选择失败，系统降级到默认选择时调用此方法。
         记录的信息可用于：
@@ -812,16 +814,16 @@ class DynamicProjectDirector:
             with open(log_file, "a", encoding="utf-8") as f:
                 f.write(json.dumps(event, ensure_ascii=False) + "\n")
 
-            logger.info(f"📝 降级事件已记录到: {log_file}")
+            logger.info(f" 降级事件已记录到: {log_file}")
 
         except Exception as log_error:
-            logger.warning(f"⚠️ 记录降级事件失败: {log_error}")
+            logger.warning(f"️ 记录降级事件失败: {log_error}")
 
     def _get_default_role_selection(self, available_roles: List[Dict]) -> RoleSelection:
         """
         获取默认的角色选择（当所有重试都失败时使用）- v2.0任务导向架构
 
-        ⚠️ 此方法仅在LLM多次重试失败后作为降级方案使用
+        ️ 此方法仅在LLM多次重试失败后作为降级方案使用
         生成的TaskInstruction较为基础，建议优化LLM prompt以减少对此方法的依赖
 
         Args:
@@ -830,11 +832,11 @@ class DynamicProjectDirector:
         Returns:
             默认的 RoleSelection（包含完整的RoleObject和TaskInstruction）
         """
-        logger.info("🔧 Creating default role selection with task-oriented architecture")
+        logger.info(" Creating default role selection with task-oriented architecture")
 
         # 如果传入的 available_roles 为空，尝试从 RoleManager 获取所有角色
         if not available_roles:
-            logger.warning("⚠️ 传入的 available_roles 为空，尝试获取所有可用角色")
+            logger.warning("️ 传入的 available_roles 为空，尝试获取所有可用角色")
             available_roles = self.role_manager.get_available_roles()
 
         # 选择每个类别的第一个角色（V2, V3, V4, V6）
@@ -856,7 +858,7 @@ class DynamicProjectDirector:
 
         # 如果没有找到足够的角色，从前4个可用角色生成
         if len(role_objects) < 3:
-            logger.warning(f"⚠️ 只找到{len(role_objects)}个默认角色，尝试补充至3个")
+            logger.warning(f"️ 只找到{len(role_objects)}个默认角色，尝试补充至3个")
             for role in available_roles[:4]:
                 if len(role_objects) >= 4:
                     break
@@ -866,7 +868,7 @@ class DynamicProjectDirector:
                     role_objects.append(role_obj)
                     selected_base_types.add(base_type)
 
-        logger.info(f"✅ Created default selection with {len(role_objects)} roles")
+        logger.info(f" Created default selection with {len(role_objects)} roles")
 
         return RoleSelection(
             selected_roles=role_objects,
@@ -874,7 +876,7 @@ class DynamicProjectDirector:
                 "由于LLM响应格式错误或缺少必需字段，系统自动使用默认角色选择策略。"
                 "已选择核心角色（设计总监、叙事专家、设计研究员等）以确保项目分析的完整性和专业性。"
                 "这些角色将协同工作，从多个维度对项目进行深入分析。"
-                "⚠️ 注意：由于使用默认策略，任务指令较为基础，建议人工审核并优化。"
+                "️ 注意：由于使用默认策略，任务指令较为基础，建议人工审核并优化。"
             ),
         )
 
@@ -889,7 +891,7 @@ class DynamicProjectDirector:
             包含完整TaskInstruction的RoleObject
         """
         role_id = role_config.get("role_id", "unknown")
-        # 🔥 v7.22: 兼容两种字段名 - role_manager 使用 "name"，LLM 输出使用 "role_name"
+        #  v7.22: 兼容两种字段名 - role_manager 使用 "name"，LLM 输出使用 "role_name"
         role_name = role_config.get("role_name") or role_config.get("name", "未知角色")
         base_type = role_config.get("base_type", "")
 
@@ -897,13 +899,13 @@ class DynamicProjectDirector:
         role_type_map = {"V2_设计总监": "V2_design_director", "V3_叙事与体验专家": "V3_narrative_expert"}
         mapped_role_type = role_type_map.get(base_type, "default")
 
-        # 🆕 生成默认的TaskInstruction
+        #  生成默认的TaskInstruction
         default_task_instruction = generate_task_instruction_template(mapped_role_type)
 
-        # 🔥 v7.10: 为V3叙事专家标记创意模式
+        #  v7.10: 为V3叙事专家标记创意模式
         if base_type == "V3_叙事与体验专家" or role_id.startswith("3-"):
             default_task_instruction.is_creative_narrative = True
-            logger.info(f"🎨 为叙事专家 {role_name} 启用创意叙事模式")
+            logger.info(f" 为叙事专家 {role_name} 启用创意叙事模式")
 
         # 尝试从策略管理器获取更详细的任务模板
         try:
@@ -928,9 +930,9 @@ class DynamicProjectDirector:
 
                 if deliverables:
                     default_task_instruction.deliverables = deliverables
-                    logger.info(f"✅ 为 {role_name} 生成了 {len(deliverables)} 个交付物")
+                    logger.info(f" 为 {role_name} 生成了 {len(deliverables)} 个交付物")
         except Exception as e:
-            logger.warning(f"⚠️ 无法从策略管理器获取任务模板: {e}，使用基础模板")
+            logger.warning(f"️ 无法从策略管理器获取任务模板: {e}，使用基础模板")
 
         return RoleObject(
             role_id=role_id,
@@ -983,12 +985,12 @@ class DynamicProjectDirector:
         """
         try:
             if not isinstance(raw_response, dict) or "selected_roles" not in raw_response:
-                logger.error("❌ 原始响应格式不正确,缺少selected_roles")
+                logger.error(" 原始响应格式不正确,缺少selected_roles")
                 return None
 
             selected_roles = raw_response.get("selected_roles", [])
             if not selected_roles:
-                logger.error("❌ selected_roles 为空")
+                logger.error(" selected_roles 为空")
                 return None
 
             converted_roles = []
@@ -999,7 +1001,7 @@ class DynamicProjectDirector:
                     continue
 
                 # 转换老格式到v2
-                logger.info(f"🔄 转换角色 {role_data.get('role_id')} 从老格式到v2")
+                logger.info(f" 转换角色 {role_data.get('role_id')} 从老格式到v2")
 
                 # 提取老格式字段
                 tasks = role_data.get("tasks", [])
@@ -1025,7 +1027,7 @@ class DynamicProjectDirector:
                     "success_criteria": ["完成所有指定任务", "输出符合预期格式和质量要求"],
                     "constraints": [],
                     "context_requirements": [],
-                    # 🔥 v7.10: 为V3叙事专家标记创意模式
+                    #  v7.10: 为V3叙事专家标记创意模式
                     "is_creative_narrative": role_data.get("role_id", "").startswith("3-"),
                 }
 
@@ -1040,7 +1042,7 @@ class DynamicProjectDirector:
                 }
 
                 converted_roles.append(converted_role)
-                logger.info(f"✅ 角色 {converted_role['role_id']} 转换成功")
+                logger.info(f" 角色 {converted_role['role_id']} 转换成功")
 
             # 构造最终响应
             converted_response = {
@@ -1048,11 +1050,11 @@ class DynamicProjectDirector:
                 "reasoning": raw_response.get("reasoning", "角色选择完成"),
             }
 
-            logger.info(f"✅ 成功转换 {len(converted_roles)} 个角色到v2格式")
+            logger.info(f" 成功转换 {len(converted_roles)} 个角色到v2格式")
             return converted_response
 
         except Exception as e:
-            logger.error(f"❌ 格式转换失败: {e}")
+            logger.error(f" 格式转换失败: {e}")
             import traceback
 
             logger.error(traceback.format_exc())
@@ -1061,7 +1063,7 @@ class DynamicProjectDirector:
     def _validate_response_with_conversion(self, raw_response: Any) -> RoleSelection:
         """验证LLM响应，如遇老格式则尝试自动转换。"""
         if isinstance(raw_response, RoleSelection):
-            logger.info("✅ 已收到RoleSelection实例，无需再次验证")
+            logger.info(" 已收到RoleSelection实例，无需再次验证")
             return raw_response
 
         # 字符串响应需要先解析成字典
@@ -1069,30 +1071,30 @@ class DynamicProjectDirector:
             try:
                 raw_response = json.loads(raw_response)
             except json.JSONDecodeError as decode_error:
-                logger.error(f"❌ 无法解析LLM字符串响应为JSON: {decode_error}")
+                logger.error(f" 无法解析LLM字符串响应为JSON: {decode_error}")
                 raise decode_error
 
-        # 🔧 第一步：尝试直接验证（期望v2格式）
+        #  第一步：尝试直接验证（期望v2格式）
         try:
             response = RoleSelection.model_validate(raw_response)
-            logger.info("✅ Pydantic 验证通过（v2格式）")
+            logger.info(" Pydantic 验证通过（v2格式）")
             return response
         except ValidationError as validation_error:
-            # 🆕 第二步：检测到验证失败，尝试从老格式转换
-            logger.warning("⚠️ Pydantic 验证失败，尝试从老格式转换")
+            #  第二步：检测到验证失败，尝试从老格式转换
+            logger.warning("️ Pydantic 验证失败，尝试从老格式转换")
             logger.debug(f"   原始错误: {format_for_log(validation_error)}")
 
             converted_response = self._convert_legacy_format_to_v2(raw_response)
             if converted_response:
                 try:
                     response = RoleSelection.model_validate(converted_response)
-                    logger.info("✅ 老格式转换成功，验证通过")
+                    logger.info(" 老格式转换成功，验证通过")
                     return response
                 except ValidationError as convert_error:
-                    logger.error(f"❌ 转换后仍然验证失败: {format_for_log(convert_error)}")
+                    logger.error(f" 转换后仍然验证失败: {format_for_log(convert_error)}")
                     raise validation_error  # 抛出原始错误，触发重试
 
-            logger.error("❌ 无法转换老格式（检测失败或数据异常）")
+            logger.error(" 无法转换老格式（检测失败或数据异常）")
             raise validation_error  # 抛出原始错误，触发重试
 
     def _extract_raw_response_from_validation_error(self, error: Exception) -> Optional[dict]:
@@ -1120,7 +1122,7 @@ class DynamicProjectDirector:
                             try:
                                 return json.loads(completion)
                             except json.JSONDecodeError:
-                                logger.error("❌ completion 字段非有效JSON字符串")
+                                logger.error(" completion 字段非有效JSON字符串")
 
         # 3. 回退到解析报错文本 (Regex)
         error_text = str(error)
@@ -1131,7 +1133,7 @@ class DynamicProjectDirector:
             try:
                 return json.loads(json_text)
             except json.JSONDecodeError:
-                logger.error("❌ 无法从ValidationError文本解析出有效JSON")
+                logger.error(" 无法从ValidationError文本解析出有效JSON")
 
         # 尝试匹配 OutputParserException 的常见格式 (更宽泛的匹配)
         # 比如 "Failed to parse RoleSelection from completion {...}"
@@ -1144,7 +1146,7 @@ class DynamicProjectDirector:
             except json.JSONDecodeError:
                 pass
 
-        logger.error("❌ 异常中未找到completion片段")
+        logger.error(" 异常中未找到completion片段")
         return None
 
     def _build_system_prompt(self) -> str:
@@ -1162,13 +1164,13 @@ class DynamicProjectDirector:
 
         # 如果v2不存在，回退到v1
         if not prompt:
-            logger.warning("⚠️ 未找到v2版本提示词，回退到v1版本")
+            logger.warning("️ 未找到v2版本提示词，回退到v1版本")
             prompt = self.prompt_manager.get_prompt("dynamic_project_director")
 
         # 如果配置不存在，抛出错误（不再使用硬编码 fallback）
         if not prompt:
             raise ValueError(
-                "❌ 未找到提示词配置: dynamic_project_director 或 dynamic_project_director_v2\n"
+                " 未找到提示词配置: dynamic_project_director 或 dynamic_project_director_v2\n"
                 "请确保配置文件存在: config/prompts/dynamic_project_director_v2.yaml\n"
                 "系统无法使用硬编码提示词，请检查配置文件。"
             )
@@ -1205,7 +1207,7 @@ class DynamicProjectDirector:
 4. 解释你的选择理由
 5. 说明这些角色如何协作完成项目
 
-⚠️ 重要格式要求：
+️ 重要格式要求：
 你必须按照以下JSON格式返回结果：
 
 {{
@@ -1224,7 +1226,7 @@ class DynamicProjectDirector:
   "reasoning": "选择理由（至少50个字符）"
 }}
 
-🚨🚨🚨 关键注意事项：
+ 关键注意事项：
 1. selected_roles 必须是对象数组，不能是字符串数组！
 2. 每个角色对象必须包含 role_id, role_name, dynamic_role_name, tasks 等所有字段
 3. dynamic_role_name 是必填项，要根据本项目需求创造一个精准反映该角色职责的名称
@@ -1342,7 +1344,7 @@ class DynamicProjectDirector:
 
 请根据上述项目需求和权重信息,从可用角色中选择3-8个最合适的角色来完成这个项目。
 
-📊 **任务量分配要求（重要）**：
+ **任务量分配要求（重要）**：
 - **禁止平均分配**：不要给每个角色分配相同数量的任务！
 - **核心角色**（权重≥2.5 或 V2设计总监）：分配 **4-6个交付物**
 - **重要角色**（权重2.0-2.4）：分配 **2-3个交付物**
@@ -1359,7 +1361,7 @@ class DynamicProjectDirector:
 6. 解释你的选择理由（要结合权重信息说明为何某些角色承担更多任务）
 7. 说明这些角色如何协作完成项目
 
-⚠️ 重要格式要求：
+️ 重要格式要求：
 你必须按照以下JSON格式返回结果：
 
 {{
@@ -1391,7 +1393,7 @@ class DynamicProjectDirector:
   "reasoning": "选择理由（至少50个字符，要说明为何不同角色承担不同数量的任务）"
 }}
 
-🚨🚨🚨 关键注意事项：
+ 关键注意事项：
 1. selected_roles 必须是对象数组，不能是字符串数组！
 2. 每个角色对象必须包含 task_instruction（使用新的TaskInstruction结构）
 3. dynamic_role_name 是必填项，要根据本项目需求创造一个精准反映该角色职责的名称
@@ -1439,7 +1441,7 @@ class DynamicProjectDirector:
                 "- 权重 1.5-1.9：基础角色或中等匹配 → **分配1-2个交付物**",
                 "- 权重 <1.5：弱匹配或非必需 → **分配1个交付物**",
                 "",
-                "⚠️ **重要原则**：",
+                "️ **重要原则**：",
                 "- V2设计总监无论权重多少，都必须分配**4-6个交付物**（作为核心整合角色）",
                 "- 禁止平均分配：不同权重的角色承担的任务量应有明显差异",
                 "- 权重仅供参考，最终选择需要你综合判断需求的隐含意图",
@@ -1559,7 +1561,7 @@ class ChallengeDetector:
                 # 确保challenge_flags不为空
                 if challenge_flags and isinstance(challenge_flags, list):
                     for challenge in challenge_flags:
-                        # 🔧 P0修复: 支持字符串类型的JSON解析
+                        #  P0修复: 支持字符串类型的JSON解析
                         if isinstance(challenge, str):
                             try:
                                 import json
@@ -1568,7 +1570,7 @@ class ChallengeDetector:
                                 parsed_challenge = json.loads(challenge)
                                 if isinstance(parsed_challenge, dict):
                                     challenge = parsed_challenge
-                                    logger.debug(f"✅ 成功解析字符串类型的challenge: {challenge.get('challenged_item', '')}")
+                                    logger.debug(f" 成功解析字符串类型的challenge: {challenge.get('challenged_item', '')}")
                                 else:
                                     # 如果解析结果不是字典，抛出异常以触发fallback
                                     raise ValueError("Parsed JSON is not a dict")
@@ -1584,7 +1586,7 @@ class ChallengeDetector:
 
                         # 检查challenge是否为字典类型
                         if not isinstance(challenge, dict):
-                            logger.warning(f"⚠️ 跳过非字典类型的challenge: {type(challenge)}")
+                            logger.warning(f"️ 跳过非字典类型的challenge: {type(challenge)}")
                             continue
 
                         # 添加专家角色信息
@@ -1606,9 +1608,9 @@ class ChallengeDetector:
                             }
                         )
 
-                        logger.warning(f"🔥 检测到挑战 from {expert_role}: {challenge.get('challenged_item')}")
+                        logger.warning(f" 检测到挑战 from {expert_role}: {challenge.get('challenged_item')}")
 
-        # 🔧 修复P1: 改进挑战检测逻辑,确保正确识别challenge_flags
+        #  修复P1: 改进挑战检测逻辑,确保正确识别challenge_flags
         has_challenges = len(challenges) > 0
 
         result = {
@@ -1618,11 +1620,11 @@ class ChallengeDetector:
         }
 
         if has_challenges:
-            logger.warning(f"🔥 [v3.5] 共检测到 {len(challenges)} 个挑战标记,触发反馈循环")
+            logger.warning(f" [v3.5] 共检测到 {len(challenges)} 个挑战标记,触发反馈循环")
             for i, ch in enumerate(challenges, 1):
-                logger.warning(f"   🔥 挑战{i}: {ch.get('expert_role')} 对 '{ch.get('challenged_item')}' 提出质疑")
+                logger.warning(f"    挑战{i}: {ch.get('expert_role')} 对 '{ch.get('challenged_item')}' 提出质疑")
         else:
-            logger.info("✅ [v3.5] 未检测到挑战标记，专家接受需求分析师的洞察")
+            logger.info(" [v3.5] 未检测到挑战标记，专家接受需求分析师的洞察")
 
         return result
 
@@ -1671,22 +1673,22 @@ class ChallengeDetector:
         # 根据挑战类型决定处理方式
         if challenge_type == "deeper_insight":
             # 专家发现了更深的洞察 → 接受专家的重新诠释
-            logger.info(f"📌 决策: 接受专家的更深洞察")
+            logger.info(f" 决策: 接受专家的更深洞察")
             return "accept"
 
         elif challenge_type == "uncertainty_clarification":
             # 专家标记了不确定性需要澄清 → 回访需求分析师或用户
-            logger.info(f"📌 决策: 回访需求分析师或用户确认")
+            logger.info(f" 决策: 回访需求分析师或用户确认")
             return "revisit_ra"
 
         elif challenge_type == "competing_frames":
             # 存在竞争性框架 → 综合多个方案
-            logger.info(f"📌 决策: 综合多个诠释框架")
+            logger.info(f" 决策: 综合多个诠释框架")
             return "synthesize"
 
         else:
             # 其他情况 → 交甲方裁决
-            logger.info(f"📌 决策: 交甲方裁决")
+            logger.info(f" 决策: 交甲方裁决")
             return "escalate"
 
     def handle_challenges(self, detection_result: Dict[str, Any]) -> Dict[str, Any]:
@@ -1738,7 +1740,7 @@ class ChallengeDetector:
             "escalated_challenges": escalated_challenges,
         }
 
-        logger.info(f"✅ 挑战处理完成: 回访={requires_revisit}, 综合={requires_synthesis}, 升级={len(escalated_challenges)}")
+        logger.info(f" 挑战处理完成: 回访={requires_revisit}, 综合={requires_synthesis}, 升级={len(escalated_challenges)}")
 
         return result
 
@@ -1757,9 +1759,9 @@ def _apply_accepted_reinterpretation(state: Dict[str, Any], challenge: Dict[str,
         state: 工作流状态（会被原地修改）
         challenge: 包含专家重新诠释的挑战详情
     """
-    # 🔧 P0修复: 防御性检查
+    #  P0修复: 防御性检查
     if not isinstance(challenge, dict):
-        logger.error(f"❌ _apply_accepted_reinterpretation 收到非字典类型challenge: {type(challenge)}")
+        logger.error(f" _apply_accepted_reinterpretation 收到非字典类型challenge: {type(challenge)}")
         return
 
     expert_role = challenge.get("expert_role", "unknown")
@@ -1794,7 +1796,7 @@ def _apply_accepted_reinterpretation(state: Dict[str, Any], challenge: Dict[str,
         }
     )
 
-    logger.info(f"✅ [Accept闭环] 采纳{expert_role}对'{challenged_item}'的重新诠释")
+    logger.info(f" [Accept闭环] 采纳{expert_role}对'{challenged_item}'的重新诠释")
 
 
 def _synthesize_competing_frames(state: Dict[str, Any], challenges: List[Dict[str, Any]]) -> None:
@@ -1848,7 +1850,7 @@ def _synthesize_competing_frames(state: Dict[str, Any], challenges: List[Dict[st
                 "requires_deep_analysis": True,
             }
 
-            logger.info(f"🔄 [Synthesize闭环] 综合{len(interpretations)}个关于'{item}'的竞争性框架")
+            logger.info(f" [Synthesize闭环] 综合{len(interpretations)}个关于'{item}'的竞争性框架")
 
     # 标记需要综合
     state["has_competing_frameworks"] = True
@@ -1861,7 +1863,7 @@ def detect_and_handle_challenges_node(state: Dict[str, Any]) -> Dict[str, Any]:
 
     在所有专家完成输出后调用，检测challenge_flags并决策处理方式
 
-    🆕 v3.5.1 新增闭环机制:
+     v3.5.1 新增闭环机制:
     - Accept决策: 更新expert_driven_insights
     - Synthesize决策: 综合竞争性框架
     - Escalate决策: 标记需要甲方裁决
@@ -1872,7 +1874,7 @@ def detect_and_handle_challenges_node(state: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         更新的状态，包含挑战检测和处理结果
     """
-    logger.info("🔍 开始检测专家挑战...")
+    logger.info(" 开始检测专家挑战...")
 
     # 初始化检测器
     detector = ChallengeDetector()
@@ -1880,11 +1882,11 @@ def detect_and_handle_challenges_node(state: Dict[str, Any]) -> Dict[str, Any]:
     # 收集所有专家输出
     expert_outputs = {}
 
-    # 🔧 修复：从正确的字段读取专家输出
+    #  修复：从正确的字段读取专家输出
     # 专家输出存储在 state["agent_results"] 中
     agent_results = state.get("agent_results", {})
 
-    logger.debug(f"🔍 开始扫描 {len(agent_results)} 个专家输出...")
+    logger.debug(f" 开始扫描 {len(agent_results)} 个专家输出...")
 
     for agent_id, agent_data in agent_results.items():
         # agent_data 是 AgentExecutionResult 对象转换的字典
@@ -1893,15 +1895,15 @@ def detect_and_handle_challenges_node(state: Dict[str, Any]) -> Dict[str, Any]:
             structured_data = agent_data.get("structured_data", {})
             if structured_data:
                 expert_outputs[agent_id] = structured_data
-                logger.debug(f"   ✅ 提取 {agent_id} 的输出 (包含 {len(structured_data.keys())} 个字段)")
+                logger.debug(f"    提取 {agent_id} 的输出 (包含 {len(structured_data.keys())} 个字段)")
             elif agent_data.get("challenge_flags"):
                 # 兼容旧格式：challenge_flags 直接附着在 agent_data 上
                 expert_outputs[agent_id] = agent_data
-                logger.debug(f"   ✅ 从 {agent_id} 捕获直连的 challenge_flags")
+                logger.debug(f"    从 {agent_id} 捕获直连的 challenge_flags")
             else:
-                logger.debug(f"   ⚠️ {agent_id} 的 structured_data 为空")
+                logger.debug(f"   ️ {agent_id} 的 structured_data 为空")
 
-    # 🆕 兼容批次聚合结果中的 challenge_flags（tests 直接写在 batch_results 中）
+    #  兼容批次聚合结果中的 challenge_flags（tests 直接写在 batch_results 中）
     batch_results = state.get("batch_results", {})
     for batch_id, batch_data in batch_results.items():
         if not isinstance(batch_data, dict):
@@ -1918,7 +1920,7 @@ def detect_and_handle_challenges_node(state: Dict[str, Any]) -> Dict[str, Any]:
             if isinstance(candidate, dict) and candidate.get("challenge_flags"):
                 if agent_id not in expert_outputs:
                     expert_outputs[agent_id] = candidate
-                    logger.debug(f"   ✅ 从 batch {batch_id} 捕获 {agent_id} 的 challenge_flags")
+                    logger.debug(f"    从 batch {batch_id} 捕获 {agent_id} 的 challenge_flags")
 
     # 检测挑战
     detection_result = detector.detect_challenges(expert_outputs)
@@ -1934,7 +1936,7 @@ def detect_and_handle_challenges_node(state: Dict[str, Any]) -> Dict[str, Any]:
         "requires_feedback_loop": handling_result["requires_revisit"],
     }
 
-    # 🆕 执行闭环逻辑
+    #  执行闭环逻辑
     handling_decisions = handling_result.get("handling_decisions", [])
 
     # 1️⃣ Accept闭环: 应用被接受的重新诠释
@@ -1944,14 +1946,14 @@ def detect_and_handle_challenges_node(state: Dict[str, Any]) -> Dict[str, Any]:
 
     if accepted_challenges:
         updated_state["accepted_reinterpretations_count"] = len(accepted_challenges)
-        logger.info(f"✅ [Accept闭环] 应用了{len(accepted_challenges)}个专家的重新诠释")
+        logger.info(f" [Accept闭环] 应用了{len(accepted_challenges)}个专家的重新诠释")
 
     # 2️⃣ Synthesize闭环: 综合竞争性框架
     if handling_result.get("requires_synthesis"):
         synthesis_challenges = [d["challenge"] for d in handling_decisions if d["decision"] == "synthesize"]
         _synthesize_competing_frames(state, synthesis_challenges)
         updated_state["synthesis_required"] = True
-        logger.info(f"🔄 [Synthesize闭环] 综合了{len(synthesis_challenges)}个竞争性框架")
+        logger.info(f" [Synthesize闭环] 综合了{len(synthesis_challenges)}个竞争性框架")
 
     # 3️⃣ Escalate闭环: 标记需要甲方裁决的挑战
     escalated = handling_result.get("escalated_challenges", [])
@@ -1974,11 +1976,11 @@ def detect_and_handle_challenges_node(state: Dict[str, Any]) -> Dict[str, Any]:
 
         updated_state["escalated_challenges"] = escalated_issues
         updated_state["requires_client_review"] = True
-        logger.warning(f"🚨 [Escalate闭环] {len(escalated)}个挑战需要甲方裁决")
+        logger.warning(f" [Escalate闭环] {len(escalated)}个挑战需要甲方裁决")
 
     # 如果需要回访，记录原因
     if handling_result["requires_revisit"]:
-        logger.warning("⚠️ 检测到需要回访需求分析师的挑战")
+        logger.warning("️ 检测到需要回访需求分析师的挑战")
         updated_state["feedback_loop_reason"] = "Expert challenges require clarification"
 
     return updated_state

@@ -17,7 +17,7 @@ from datetime import datetime
 from typing import Dict, Any, Optional, List
 import streamlit as st
 
-# ✅ 不再需要load_dotenv() - Pydantic Settings会自动处理
+#  不再需要load_dotenv() - Pydantic Settings会自动处理
 
 # 添加项目路径
 project_root = Path(__file__).parent.parent.parent
@@ -30,7 +30,7 @@ import requests
 # 页面配置
 st.set_page_config(
     page_title="设计知外 Design Beyond",
-    page_icon="🎨",
+    page_icon="",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -79,7 +79,7 @@ def initialize_session_state():
         st.session_state.just_submitted = False
 
     # API 客户端 - 每次都重新创建以确保可用
-    # ✅ 使用统一配置
+    #  使用统一配置
     api_base_url = settings.api_base_url
     st.session_state.api_client = AnalysisAPIClient(api_base_url)
 
@@ -97,19 +97,19 @@ def run_workflow_with_api():
         try:
             health = st.session_state.api_client.health_check()
             if health.get("status") != "healthy":
-                st.error("❌ 后端服务器未就绪，请先启动后端服务器")
-                st.info("💡 运行命令: `python intelligent_project_analyzer/api/server.py`")
+                st.error(" 后端服务器未就绪，请先启动后端服务器")
+                st.info(" 运行命令: `python intelligent_project_analyzer/api/server.py`")
                 st.session_state.analysis_started = False
                 return
         except requests.exceptions.ConnectionError as ce:
-            st.error("❌ 无法连接到后端服务器，请确保后端正在运行")
-            st.info("💡 运行命令: `python intelligent_project_analyzer/api/server.py`")
+            st.error(" 无法连接到后端服务器，请确保后端正在运行")
+            st.info(" 运行命令: `python intelligent_project_analyzer/api/server.py`")
             st.code(f"连接错误: {ce}")
             st.session_state.analysis_started = False
             return
         except requests.exceptions.HTTPError as he:
-            st.error(f"❌ 后端服务器返回错误: {he}")
-            st.info("💡 请检查后端服务器日志")
+            st.error(f" 后端服务器返回错误: {he}")
+            st.info(" 请检查后端服务器日志")
             st.code(f"HTTP 错误: {he}")
             st.session_state.analysis_started = False
             return
@@ -123,10 +123,10 @@ def run_workflow_with_api():
         st.session_state.session_id = response["session_id"]
         st.session_state.thread_id = response["session_id"]
 
-        st.success(f"✅ 分析已启动，会话ID: {response['session_id']}")
+        st.success(f" 分析已启动，会话ID: {response['session_id']}")
 
     except Exception as e:
-        st.error(f"❌ 启动分析失败: {e}")
+        st.error(f" 启动分析失败: {e}")
         import traceback
         st.code(traceback.format_exc())
         st.session_state.analysis_started = False
@@ -162,16 +162,16 @@ def poll_analysis_status():
         elif status["status"] == "completed":
             # 分析完成
             st.session_state.analysis_complete = True
-            st.session_state.analysis_started = False  # 🔧 停止分析状态
-            st.rerun()  # 🔧 修复: 刷新界面以显示结果
+            st.session_state.analysis_started = False  #  停止分析状态
+            st.rerun()  #  修复: 刷新界面以显示结果
 
         elif status["status"] == "failed":
             # 分析失败
-            st.error(f"❌ 分析失败: {status.get('error', '未知错误')}")
+            st.error(f" 分析失败: {status.get('error', '未知错误')}")
 
             # 显示详细的traceback用于调试
             if status.get("traceback"):
-                with st.expander("🔍 查看详细错误信息（调试用）", expanded=True):
+                with st.expander(" 查看详细错误信息（调试用）", expanded=True):
                     st.code(status["traceback"], language="python")
 
             st.session_state.analysis_started = False
@@ -182,11 +182,11 @@ def poll_analysis_status():
             st.rerun()
         else:
             # 未知状态，显示警告并停止
-            st.warning(f"⚠️ 未知状态: {status['status']}")
+            st.warning(f"️ 未知状态: {status['status']}")
             st.session_state.analysis_started = False
 
     except Exception as e:
-        st.error(f"❌ 获取状态失败: {e}")
+        st.error(f" 获取状态失败: {e}")
         import traceback
         st.code(traceback.format_exc())
 
@@ -212,7 +212,7 @@ def main():
     
     # 主内容区
     if st.session_state.analysis_complete:
-        # 🆕 分析完成 → 进入对话模式
+        #  分析完成 → 进入对话模式
         from conversation_ui import render_conversation_interface
         render_conversation_interface()
     elif st.session_state.waiting_for_user:
@@ -228,10 +228,10 @@ def main():
 
 def render_input_interface():
     """渲染需求输入界面"""
-    st.markdown("## 📝 项目需求输入")
+    st.markdown("##  项目需求输入")
     
     # 示例需求
-    with st.expander("💡 查看示例需求"):
+    with st.expander(" 查看示例需求"):
         st.markdown("""
         **示例1: 深圳南山独立女性住宅设计**
         ```
@@ -281,9 +281,9 @@ def render_input_interface():
     # 开始分析按钮
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
-        if st.button("🎨 开始专业设计分析", type="primary", use_container_width=True):
+        if st.button(" 开始专业设计分析", type="primary", use_container_width=True):
             if not user_input.strip():
-                st.warning("⚠️ 请先输入项目需求")
+                st.warning("️ 请先输入项目需求")
             else:
                 # 保存用户输入
                 st.session_state.user_input = user_input
@@ -301,7 +301,7 @@ def render_input_interface():
 
 def render_interaction_interface():
     """渲染人机交互界面"""
-    st.markdown("## 💬 需要您的确认")
+    st.markdown("##  需要您的确认")
 
     if st.session_state.interrupt_data:
         interrupt_data = st.session_state.interrupt_data
@@ -321,7 +321,7 @@ def render_interaction_interface():
 
             col1, col2 = st.columns(2)
             with col1:
-                if st.button("✅ 确认", type="primary", use_container_width=True):
+                if st.button(" 确认", type="primary", use_container_width=True):
                     try:
                         st.session_state.api_client.resume_analysis(
                             st.session_state.session_id,
@@ -329,14 +329,14 @@ def render_interaction_interface():
                         )
                         st.session_state.waiting_for_user = False
                         st.session_state.interrupt_data = None
-                        st.success("✅ 已确认，继续分析...")
+                        st.success(" 已确认，继续分析...")
                         time.sleep(1)
                         st.rerun()
                     except Exception as e:
-                        st.error(f"❌ 恢复分析失败: {e}")
+                        st.error(f" 恢复分析失败: {e}")
 
             with col2:
-                if st.button("❌ 修改", use_container_width=True):
+                if st.button(" 修改", use_container_width=True):
                     try:
                         st.session_state.api_client.resume_analysis(
                             st.session_state.session_id,
@@ -344,25 +344,25 @@ def render_interaction_interface():
                         )
                         st.session_state.waiting_for_user = False
                         st.session_state.interrupt_data = None
-                        st.info("🔄 返回需求分析...")
+                        st.info(" 返回需求分析...")
                         time.sleep(1)
                         st.rerun()
                     except Exception as e:
-                        st.error(f"❌ 恢复分析失败: {e}")
+                        st.error(f" 恢复分析失败: {e}")
 
 
 def render_requirements_confirmation(interrupt_data):
     """渲染需求确认表单（可编辑）"""
-    st.info("📋 请确认以下需求分析是否准确。如需修改，直接编辑后点击【提交需求分析】即可。")
+    st.info(" 请确认以下需求分析是否准确。如需修改，直接编辑后点击【提交需求分析】即可。")
     
     requirements = interrupt_data.get("requirements_summary", [])
     
-    # 🔥 重要修复：检测 interrupt_data 是否更新，重置编辑状态并递增版本号
+    #  重要修复：检测 interrupt_data 是否更新，重置编辑状态并递增版本号
     current_data_hash = str(requirements)  # 简单哈希，用于检测数据变化
     if 'last_requirements_hash' not in st.session_state or st.session_state.last_requirements_hash != current_data_hash:
         st.session_state.edited_requirements = {}
         st.session_state.last_requirements_hash = current_data_hash
-        # 🔥 关键修复：递增版本号，强制 Streamlit 重新创建所有 text_area widgets
+        #  关键修复：递增版本号，强制 Streamlit 重新创建所有 text_area widgets
         st.session_state.requirements_version = st.session_state.get('requirements_version', 0) + 1
     
     # 获取当前版本号（用于 widget key）
@@ -370,12 +370,12 @@ def render_requirements_confirmation(interrupt_data):
     
     # 渲染每个字段的可编辑文本框
     for item in requirements:
-        st.markdown(f"### {item.get('icon', '📌')} {item.get('label', item.get('key'))}")
+        st.markdown(f"### {item.get('icon', '')} {item.get('label', item.get('key'))}")
         
         original_content = item.get('content', '')
         key = item.get('key')
         
-        # 🔥 使用版本号作为 key 的一部分，确保数据变化时重新创建 widget
+        #  使用版本号作为 key 的一部分，确保数据变化时重新创建 widget
         edited_content = st.text_area(
             label=f"编辑 {item.get('label', key)}",
             value=original_content,
@@ -391,9 +391,9 @@ def render_requirements_confirmation(interrupt_data):
     
     # 单一提交按钮 - 系统自动判断是否有修改
     st.markdown("---")
-    st.info("💡 提示：如需修改，直接编辑上方内容后点击提交；无需修改则直接点击提交")
+    st.info(" 提示：如需修改，直接编辑上方内容后点击提交；无需修改则直接点击提交")
     
-    if st.button("✅ 提交需求分析", type="primary", use_container_width=True):
+    if st.button(" 提交需求分析", type="primary", use_container_width=True):
         # 自动检测是否有修改
         modifications = {}
         for item in requirements:
@@ -413,9 +413,9 @@ def render_requirements_confirmation(interrupt_data):
             payload = {"intent": "approve"}
             if modifications:
                 payload["modifications"] = modifications
-                st.info(f"📝 检测到 {len(modifications)} 个字段有修改，将重新分析")
+                st.info(f" 检测到 {len(modifications)} 个字段有修改，将重新分析")
             else:
-                st.info("✅ 未检测到修改，直接进入下一步")
+                st.info(" 未检测到修改，直接进入下一步")
             
             response = requests.post(
                 f"{st.session_state.api_client.base_url}/api/analysis/resume",
@@ -429,12 +429,12 @@ def render_requirements_confirmation(interrupt_data):
             st.session_state.waiting_for_user = False
             st.session_state.interrupt_data = None
             st.session_state.edited_requirements = {}
-            st.session_state.just_submitted = True  # 🔥 标记刚提交，避免立即轮询
-            st.success("✅ 提交成功，继续分析...")
+            st.session_state.just_submitted = True  #  标记刚提交，避免立即轮询
+            st.success(" 提交成功，继续分析...")
             time.sleep(2)  # 给后端2秒处理时间
             st.rerun()
         except Exception as e:
-            st.error(f"❌ 提交失败: {e}")
+            st.error(f" 提交失败: {e}")
 
 
 def render_questionnaire_form(interrupt_data):
@@ -444,8 +444,8 @@ def render_questionnaire_form(interrupt_data):
     questions = questionnaire.get("questions", [])
     
     if not questions:
-        st.warning("⚠️ 未生成战略校准问卷")
-        if st.button("⏭️ 跳过问卷"):
+        st.warning("️ 未生成战略校准问卷")
+        if st.button("️ 跳过问卷"):
             try:
                 st.session_state.api_client.resume_analysis(
                     st.session_state.session_id,
@@ -455,10 +455,10 @@ def render_questionnaire_form(interrupt_data):
                 st.session_state.interrupt_data = None
                 st.rerun()
             except Exception as e:
-                st.error(f"❌ 操作失败: {e}")
+                st.error(f" 操作失败: {e}")
         return
     
-    st.markdown("### 📋 战略校准问卷")
+    st.markdown("###  战略校准问卷")
     st.info(introduction)
     
     # 初始化答案存储
@@ -509,7 +509,7 @@ def render_questionnaire_form(interrupt_data):
     # 提交按钮
     col1, col2 = st.columns(2)
     with col1:
-        if st.button("✅ 提交问卷答案", type="primary", use_container_width=True):
+        if st.button(" 提交问卷答案", type="primary", use_container_width=True):
             # 验证必填项
             unanswered = []
             for i, q in enumerate(questions, 1):
@@ -519,7 +519,7 @@ def render_questionnaire_form(interrupt_data):
                         unanswered.append(i)
             
             if unanswered:
-                st.error(f"⚠️ 请回答问题: {', '.join(map(str, unanswered))}")
+                st.error(f"️ 请回答问题: {', '.join(map(str, unanswered))}")
             else:
                 try:
                     response = requests.post(
@@ -537,14 +537,14 @@ def render_questionnaire_form(interrupt_data):
                     st.session_state.waiting_for_user = False
                     st.session_state.interrupt_data = None
                     st.session_state.questionnaire_answers = {}
-                    st.success("✅ 问卷已提交，继续分析...")
+                    st.success(" 问卷已提交，继续分析...")
                     time.sleep(1)
                     st.rerun()
                 except Exception as e:
-                    st.error(f"❌ 提交失败: {e}")
+                    st.error(f" 提交失败: {e}")
     
     with col2:
-        if st.button("⏭️ 跳过问卷", use_container_width=True):
+        if st.button("️ 跳过问卷", use_container_width=True):
             try:
                 response = requests.post(
                     f"{st.session_state.api_client.base_url}/api/analysis/resume",
@@ -557,19 +557,19 @@ def render_questionnaire_form(interrupt_data):
                 st.session_state.waiting_for_user = False
                 st.session_state.interrupt_data = None
                 st.session_state.questionnaire_answers = {}
-                st.info("⏭️ 已跳过问卷...")
+                st.info("️ 已跳过问卷...")
                 time.sleep(1)
                 st.rerun()
             except Exception as e:
-                st.error(f"❌ 操作失败: {e}")
+                st.error(f" 操作失败: {e}")
 
 
 def render_analysis_interface():
     """渲染分析进度界面（增强版：阶段展示 + 详细进度）"""
-    st.markdown("## 🔄 智能分析进行中")
+    st.markdown("##  智能分析进行中")
 
     # 显示用户输入的需求摘要
-    with st.expander("📝 查看需求摘要", expanded=False):
+    with st.expander(" 查看需求摘要", expanded=False):
         st.markdown(st.session_state.user_input)
 
     # 获取当前状态
@@ -591,16 +591,16 @@ def render_analysis_interface():
         detail = ""
 
     # ========== 阶段展示区域 ==========
-    st.markdown("### 📊 分析进度")
+    st.markdown("###  分析进度")
     
     # 定义所有阶段（优化关键词匹配）
     stages = [
-        {"name": "需求分析", "keywords": ["requirements", "analyst", "需求"], "icon": "📋"},
-        {"name": "战略校准", "keywords": ["calibration", "questionnaire", "校准", "问卷"], "icon": "🎯"},
-        {"name": "角色选择", "keywords": ["director", "strategic", "role", "总监", "选角"], "icon": "👥"},
-        {"name": "批次执行", "keywords": ["batch", "executor", "批次", "执行"], "icon": "⚙️"},
-        {"name": "多视角审核", "keywords": ["review", "审核"], "icon": "🔍"},
-        {"name": "报告生成", "keywords": ["result", "aggregat", "report", "报告", "pdf"], "icon": "📄"}
+        {"name": "需求分析", "keywords": ["requirements", "analyst", "需求"], "icon": ""},
+        {"name": "战略校准", "keywords": ["calibration", "questionnaire", "校准", "问卷"], "icon": ""},
+        {"name": "角色选择", "keywords": ["director", "strategic", "role", "总监", "选角"], "icon": ""},
+        {"name": "批次执行", "keywords": ["batch", "executor", "批次", "执行"], "icon": "️"},
+        {"name": "多视角审核", "keywords": ["review", "审核"], "icon": ""},
+        {"name": "报告生成", "keywords": ["result", "aggregat", "report", "报告", "pdf"], "icon": ""}
     ]
     
     # 判断当前阶段（使用关键词匹配）
@@ -620,20 +620,20 @@ def render_analysis_interface():
         # 判断阶段状态
         if idx == current_stage_index:
             # 当前阶段
-            st.info(f"🔄 **{stage_icon} {stage_name}** - 进行中...")
+            st.info(f" **{stage_icon} {stage_name}** - 进行中...")
             if detail:
-                st.caption(f"    💬 {detail}")
+                st.caption(f"     {detail}")
         elif idx < current_stage_index:
             # 已完成阶段
-            st.success(f"✅ {stage_icon} {stage_name}")
+            st.success(f" {stage_icon} {stage_name}")
         else:
             # 待执行阶段
-            st.text(f"⏳ {stage_icon} {stage_name}")
+            st.text(f" {stage_icon} {stage_name}")
     
     st.markdown("---")
     
     # ========== 分析状态提示 ==========
-    st.info("⏳ 智能分析进行中，请耐心等待...")
+    st.info(" 智能分析进行中，请耐心等待...")
     
     # ========== 详细状态信息 ==========
     col1, col2 = st.columns(2)
@@ -645,10 +645,10 @@ def render_analysis_interface():
         st.metric("已用时", f"{minutes}分{seconds}秒")
     
     # ========== 分析小贴士 ==========
-    st.info("💡 系统正在进行多维度分析，包括需求理解、战略规划、专家协作等环节")
+    st.info(" 系统正在进行多维度分析，包括需求理解、战略规划、专家协作等环节")
     
     # ========== 会话信息（折叠） ==========
-    with st.expander("🔍 会话详情", expanded=False):
+    with st.expander(" 会话详情", expanded=False):
         st.code(f"会话ID: {st.session_state.session_id}")
         st.code(f"状态: {st.session_state.current_status}")
         st.code(f"当前阶段: {current_stage}")
@@ -658,10 +658,10 @@ def render_analysis_interface():
     if 'start_time' not in st.session_state:
         st.session_state.start_time = time.time()
     
-    # 🔥 如果刚提交，延迟轮询，让用户看到进度界面
+    #  如果刚提交，延迟轮询，让用户看到进度界面
     if st.session_state.get('just_submitted'):
         st.session_state.just_submitted = False
-        st.info("⏳ 正在连接分析引擎...")
+        st.info(" 正在连接分析引擎...")
         time.sleep(2)  # 给后端2秒启动时间
     
     # 开始轮询状态
@@ -677,21 +677,21 @@ def render_analysis_interface():
 
 def render_results_interface():
     """渲染结果展示界面"""
-    st.markdown("## 🎉 设计分析完成")
+    st.markdown("##  设计分析完成")
 
-    st.success("✅ 专业设计分析已完成！")
+    st.success(" 专业设计分析已完成！")
 
     # 获取分析结果
     if st.session_state.session_id:
         try:
-            # 🔥 修复：先检查状态，避免在未完成时调用 get_result()
+            #  修复：先检查状态，避免在未完成时调用 get_result()
             status = st.session_state.api_client.get_status(st.session_state.session_id)
             
             if status.get("status") != "completed":
-                st.warning(f"⚠️ 分析尚未完成，当前状态: {status.get('status')}")
-                st.info("💡 请等待分析完成或返回继续交互")
+                st.warning(f"️ 分析尚未完成，当前状态: {status.get('status')}")
+                st.info(" 请等待分析完成或返回继续交互")
                 
-                if st.button("🔄 刷新状态"):
+                if st.button(" 刷新状态"):
                     st.rerun()
                 
                 if st.button("⬅️ 返回分析界面"):
@@ -707,31 +707,31 @@ def render_results_interface():
                 if "query_type" in strategic:
                     query_type = strategic["query_type"]
                     query_type_emoji = {
-                        "深度优先探询": "🔍",
-                        "广度优先探询": "📊",
-                        "直接探询": "💡"
+                        "深度优先探询": "",
+                        "广度优先探询": "",
+                        "直接探询": ""
                     }
-                    emoji = query_type_emoji.get(query_type, "🎯")
+                    emoji = query_type_emoji.get(query_type, "")
                     st.info(f"{emoji} **查询类型**: {query_type}")
 
             # 显示最终报告
             if "final_report" in result:
-                st.markdown("### 📊 设计分析报告")
+                st.markdown("###  设计分析报告")
                 st.markdown(result["final_report"])
             
-            # 🆕 显示审核反馈章节
+            #  显示审核反馈章节
             if "review_feedback" in result and result["review_feedback"]:
-                with st.expander("🔍 审核反馈与迭代改进", expanded=True):
+                with st.expander(" 审核反馈与迭代改进", expanded=True):
                     st.markdown("#### 多视角审核过程")
                     review_data = result["review_feedback"]
                     
                     # 创建标签页
                     tab1, tab2, tab3, tab4, tab5 = st.tabs([
-                        "📋 迭代总结", 
-                        "🔴 红队质疑", 
-                        "🔵 蓝队验证", 
-                        "⚖️ 评委裁决", 
-                        "👔 甲方决策"
+                        " 迭代总结", 
+                        " 红队质疑", 
+                        " 蓝队验证", 
+                        "️ 评委裁决", 
+                        " 甲方决策"
                     ])
                     
                     with tab1:
@@ -746,18 +746,18 @@ def render_results_interface():
                                     st.markdown(f"**{item.get('issue_id')}**: {item.get('description', '')}")
                                 with col2:
                                     priority_color = {
-                                        "high": "🔴",
-                                        "medium": "🟡",
-                                        "low": "🟢"
+                                        "high": "",
+                                        "medium": "",
+                                        "low": ""
                                     }
-                                    st.markdown(f"{priority_color.get(item.get('priority', 'medium'), '⚪')} {item.get('priority', 'medium')}")
+                                    st.markdown(f"{priority_color.get(item.get('priority', 'medium'), '')} {item.get('priority', 'medium')}")
                                 with col3:
                                     status_color = {
-                                        "已修复": "✅",
-                                        "进行中": "🔄",
-                                        "待处理": "⏳"
+                                        "已修复": "",
+                                        "进行中": "",
+                                        "待处理": ""
                                     }
-                                    st.markdown(f"{status_color.get(item.get('status', '待处理'), '❓')} {item.get('status', '待处理')}")
+                                    st.markdown(f"{status_color.get(item.get('status', '待处理'), '')} {item.get('status', '待处理')}")
                                 st.markdown(f"**响应措施**: {item.get('response', '无')}")
                                 st.markdown("---")
                         else:
@@ -794,9 +794,9 @@ def render_results_interface():
                         else:
                             st.info("无甲方决策记录")
             
-            # 🆕 显示用户访谈记录
+            #  显示用户访谈记录
             if "questionnaire_responses" in result and result["questionnaire_responses"]:
-                with st.expander("📝 用户访谈记录（校准问卷）", expanded=False):
+                with st.expander(" 用户访谈记录（校准问卷）", expanded=False):
                     qr_data = result["questionnaire_responses"]
                     st.markdown(f"**提交时间**: {qr_data.get('timestamp', '未知')}")
                     st.markdown("---")
@@ -814,9 +814,9 @@ def render_results_interface():
                         st.markdown("#### 关键洞察")
                         st.markdown(qr_data["analysis_insights"])
             
-            # 🆕 显示多轮审核可视化
+            #  显示多轮审核可视化
             if "review_visualization" in result and result["review_visualization"]:
-                with st.expander("📊 多轮审核可视化", expanded=False):
+                with st.expander(" 多轮审核可视化", expanded=False):
                     viz_data = result["review_visualization"]
                     
                     st.markdown(f"**总审核轮次**: {viz_data.get('total_rounds', 0)}轮")
@@ -845,23 +845,23 @@ def render_results_interface():
 
             # 显示专家原始报告（如果有）
             if "expert_reports" in result and result["expert_reports"]:
-                with st.expander("👥 查看专家原始报告", expanded=False):
+                with st.expander(" 查看专家原始报告", expanded=False):
                     for expert_id, report in result["expert_reports"].items():
                         st.markdown(f"#### {expert_id}")
                         st.markdown(report)
                         st.markdown("---")
 
             # 显示详细结果
-            with st.expander("🔍 查看完整数据", expanded=False):
+            with st.expander(" 查看完整数据", expanded=False):
                 st.json(result)
 
         except Exception as e:
-            st.error(f"❌ 获取结果失败: {e}")
+            st.error(f" 获取结果失败: {e}")
 
     # 重新分析按钮
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
-        if st.button("🔄 开始新的设计分析", type="primary", use_container_width=True):
+        if st.button(" 开始新的设计分析", type="primary", use_container_width=True):
             # 重置状态
             st.session_state.analysis_started = False
             st.session_state.analysis_complete = False
@@ -874,7 +874,7 @@ def render_results_interface():
 
 def render_role_task_review(interrupt_data):
     """渲染角色与任务统一审核界面（可编辑）"""
-    st.info("📋 请审核项目总监选择的角色和任务分配。您可以直接修改任务内容后提交。")
+    st.info(" 请审核项目总监选择的角色和任务分配。您可以直接修改任务内容后提交。")
     
     message = interrupt_data.get("message", "")
     if message:
@@ -897,7 +897,7 @@ def render_role_task_review(interrupt_data):
     version = st.session_state.get('role_task_version', 0)
     
     if not selected_roles:
-        st.warning("⚠️ 未找到选择的角色")
+        st.warning("️ 未找到选择的角色")
         return
     
     # 渲染每个角色的任务
@@ -910,7 +910,7 @@ def render_role_task_review(interrupt_data):
         expected_output = role.get("expected_output", "")
         dependencies = role.get("dependencies", [])
         
-        with st.expander(f"🎭 {dynamic_role_name} ({role_id})", expanded=idx < 3):
+        with st.expander(f" {dynamic_role_name} ({role_id})", expanded=idx < 3):
             # 显示基本信息
             st.markdown(f"**基础角色**: {role_name}")
             if focus_areas:
@@ -921,7 +921,7 @@ def render_role_task_review(interrupt_data):
                 st.markdown(f"**预期产出**: {expected_output}")
             
             # 任务列表（可编辑）
-            st.markdown("#### 📝 任务清单")
+            st.markdown("####  任务清单")
             for task_idx, task in enumerate(tasks):
                 task_key = f"{role_id}_task_{task_idx}"
                 default_value = st.session_state.role_task_edits.get(task_key, task)
@@ -939,7 +939,7 @@ def render_role_task_review(interrupt_data):
     
     # 提交按钮
     st.markdown("---")
-    if st.button("✅ 提交角色与任务审核", type="primary", use_container_width=True):
+    if st.button(" 提交角色与任务审核", type="primary", use_container_width=True):
         # 检测是否有修改
         has_modifications = False
         modifications = {}
@@ -980,12 +980,12 @@ def render_role_task_review(interrupt_data):
             st.session_state.waiting_for_user = False
             st.session_state.interrupt_data = None
             st.session_state.role_task_edits = {}
-            st.session_state.just_submitted = True  # 🔥 标记刚提交，避免立即轮询
-            st.success("✅ 提交成功，继续分析...")
+            st.session_state.just_submitted = True  #  标记刚提交，避免立即轮询
+            st.success(" 提交成功，继续分析...")
             time.sleep(2)  # 给后端2秒处理时间
             st.rerun()
         except Exception as e:
-            st.error(f"❌ 提交失败: {e}")
+            st.error(f" 提交失败: {e}")
 
 
 if __name__ == "__main__":

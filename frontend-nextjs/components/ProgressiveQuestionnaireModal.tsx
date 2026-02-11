@@ -115,7 +115,7 @@ export function ProgressiveQuestionnaireModal({
     <>
       {/* 用户输入摘要 */}
       {user_input_summary && (
-        <div className="mb-6 p-4 bg-gray-50 dark:bg-gray-800/30 border border-gray-200 dark:border-gray-700 rounded-lg">
+        <div className="card mb-6">
           <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">您的需求</h3>
           <p className="text-sm text-gray-600 dark:text-gray-400">{user_input_summary}</p>
         </div>
@@ -131,10 +131,10 @@ export function ProgressiveQuestionnaireModal({
             {extracted_tasks.map((task: any, index: number) => (
               <div
                 key={task.id || index}
-                className="bg-gray-50 dark:bg-gray-800/30 border border-gray-200 dark:border-gray-700 rounded-lg p-4"
+                className="card"
               >
                 <div className="flex items-start gap-3">
-                  <div className="flex-shrink-0 w-6 h-6 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded flex items-center justify-center text-sm font-medium">
+                  <div className="flex-shrink-0 w-6 h-6 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded flex items-center justify-center text-sm font-medium">
                     {index + 1}
                   </div>
                   <div className="flex-1">
@@ -158,8 +158,8 @@ export function ProgressiveQuestionnaireModal({
       )}
 
       {/* 提示信息 */}
-      <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-        <p className="text-sm text-blue-800 dark:text-blue-200">
+      <div className="info-box mt-6">
+        <p className="text-sm text-gray-700 dark:text-gray-300">
           您可以确认这些任务，或选择跳过问卷直接进入分析流程。
         </p>
       </div>
@@ -441,7 +441,7 @@ export function ProgressiveQuestionnaireModal({
         <div className="border-b border-gray-200 dark:border-[var(--border-color)] px-6 py-5 bg-gray-50 dark:bg-gray-800/50">
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
-              <span className="px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-sm font-medium rounded-full">
+              <span className="badge-gray font-medium">
                 步骤 {step}/{total_steps}
               </span>
             </div>
@@ -466,7 +466,7 @@ export function ProgressiveQuestionnaireModal({
           </button>
           <button
             onClick={handleConfirm}
-            className="flex items-center gap-2 px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition"
+            className="btn-primary flex items-center gap-2"
           >
             <CheckCircle2 className="w-4 h-4" />
             <span>{getConfirmButtonText()}</span>

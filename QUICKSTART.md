@@ -1,205 +1,148 @@
 # 🚀 快速启动指南
 
-> 5分钟快速启动 Intelligent Project Analyzer
+> 3分钟快速启动 Intelligent Project Analyzer
 
 ---
 
 ## 📋 前置要求
 
-- **Python**: 3.10+ （推荐 3.11 或 3.13）
+- **Python**: 3.10+ （推荐 3.13）
 - **Node.js**: 18+
-- **Git**: 用于克隆项目
+- **LLM API Key**: OpenAI/Anthropic/Google 任选其一
 
 ---
 
-## ⚡ 方式一：一键启动（Windows，推荐）
+## ⚡ 一键启动（Windows 推荐）
 
 ```cmd
-# 克隆项目
+# 1. 克隆项目
 git clone https://github.com/dafei0755/ai.git
 cd ai
 
-# 配置环境变量
+# 2. 配置环境变量
 copy .env.example .env
 # 编辑 .env 填写 OPENAI_API_KEY
 
-# 安装依赖
+# 3. 安装依赖
 pip install -r requirements.txt
 cd frontend-nextjs && npm install && cd ..
 
-# 一键启动（后端+前端）
+# 4. 一键启动
 start_services.bat
 ```
 
-访问 http://localhost:3000 即可使用！
+✅ 访问 http://localhost:3001 开始使用！
 
 ---
 
-## 🔧 方式二：分步启动
+## 🔧 分步启动
 
-### 1. 安装后端依赖
+### 1. 安装依赖
 
 ```bash
-# 创建虚拟环境（推荐）
-python -m venv venv
-venv\Scripts\activate  # Windows
-source venv/bin/activate  # Linux/Mac
-
-# 安装依赖
+# 后端
 pip install -r requirements.txt
+
+# 前端
+cd frontend-nextjs && npm install
 ```
 
 ### 2. 配置环境变量
 
 ```bash
-# 复制配置模板
 copy .env.example .env
-
-# 编辑 .env 文件，必填项：
-# OPENAI_API_KEY=your_api_key_here
+# 编辑 .env，必填: OPENAI_API_KEY=your_key
 ```
 
-### 3. 启动后端服务
+### 3. 启动服务
 
 ```bash
-# Python 3.13 Windows用户（推荐）
+# 后端（Python 3.13 Windows）
+taskkill /F /IM python.exe
 python -B scripts\run_server_production.py
 
-# Python 3.10-3.12用户
-python -B scripts\run_server.py
-
-# 或使用 uvicorn 直接启动
-python -B -m uvicorn intelligent_project_analyzer.api.server:app --host 0.0.0.0 --port 8000 --reload
+# 前端（新终端）
+cd frontend-nextjs && npm run dev
 ```
 
-> 💡 **首次启动后，建议配置自动修复记录系统**：
-> ```bash
-> python .github\scripts\install_hooks.py
-> ```
-> 配置完成后，每次提交修复代码时会自动提醒记录到知识库。
+### 4. 访问应用
 
-**成功标志**：
-```
-✅ Playwright 浏览器池初始化成功
-INFO:     Uvicorn running on http://0.0.0.0:8000
-```
-
-### 4. 启动前端服务
-
-```bash
-cd frontend-nextjs
-npm run dev
-```
-
-**成功标志**：
-```
-✓ Ready in 1846ms
-- Local:        http://localhost:3000
-```
-
-### 5. 访问应用
-
-- **前端界面**: http://localhost:3000
+- **前端**: http://localhost:3001
 - **API 文档**: http://localhost:8000/docs
-- **健康检查**: http://localhost:8000/health
 
 ---
 
-## 🎯 基础使用流程
+## 🎯 基础使用
 
-1. **访问系统**：打开 http://localhost:3000
-2. **输入需求**：描述你的设计项目需求
-   ```
-   示例：我需要设计一个150平米的现代简约风格住宅，
-   三室两厅，预算30万，希望注重收纳和采光。
-   ```
-3. **校准问卷**：回答 3-5 个关键问题（可跳过）
-4. **确认需求**：审核系统分析的需求理解
-5. **专家协作**：系统自动选择专家团队并生成分析
-6. **查看报告**：获取完整的项目分析报告
+1. 打开 http://localhost:3001
+2. 输入设计项目需求（如：150平米现代简约住宅设计）
+   
+   💡 **输入质量提示**（提高分析准确度）：
+   - ✅ 项目类型和面积（如：350㎡别墅、25㎡单间）
+   - ✅ 用户身份和特殊需求（如：企业家、自闭症家庭、电竞选手）
+   - ✅ 预算范围和时间约束（如：50万预算、3个月完成）
+   - ✅ 设计偏好或参考案例（如：北欧风格、对标XX项目）
+   
+   详细输入可跳过问卷环节，直达深度分析（当前系统34%场景可实现）
 
----
-
-## 🐳 方式三：Docker 部署
-
-```bash
-# 构建并启动所有服务
-docker-compose up -d
-
-# 查看日志
-docker-compose logs -f
-
-# 停止服务
-docker-compose down
-```
+3. 回答校准问卷（可跳过）
+4. 确认需求分析
+5. 查看专家协作报告
 
 ---
 
 ## ❓ 常见问题
 
-### Q: 端口被占用怎么办？
+### Q: 端口被占用？
 
 ```bash
-# 终止旧进程
+# Windows
 taskkill /F /IM python.exe
 Get-Process node | Stop-Process -Force
 
 # 或修改端口
-PORT=3001 npm run dev  # 前端
-uvicorn ... --port 8001  # 后端
+npm run dev -- -p 4000
 ```
 
-### Q: Python 3.13 Windows 用户必看
+### Q: Python 3.13 Windows 用户
 
-⚠️ 必须使用 `scripts\run_server_production.py` 启动，否则 Playwright PDF 生成功能会失败。
+⚠️ 必须使用 `scripts\run_server_production.py` 启动
 
-详见 [Playwright Python 3.13 修复文档](.github/historical_fixes/playwright_python313_windows_fix.md)
+详见 [Playwright修复文档](.github/historical_fixes/playwright_python313_windows_fix.md)
 
-### Q: Windows终端乱码怎么办？
-
-部分功能（如动态维度生成）需要UTF-8编码环境：
-
-```cmd
-# 临时设置（当前终端）
-chcp 65001
-
-# 永久设置（推荐）
-# 1. Win+R → 输入 intl.cpl → 管理 → 更改系统区域设置
-# 2. 勾选"Beta: 使用 Unicode UTF-8 提供全球语言支持"
-# 3. 重启电脑
-```
-
-### Q: 如何切换 LLM 服务商？
+### Q: 切换 LLM 服务商
 
 编辑 `.env` 文件：
 ```env
-# 使用 OpenAI
 OPENAI_API_KEY=sk-xxx
-
-# 或使用 Anthropic Claude
-ANTHROPIC_API_KEY=sk-ant-xxx
-
-# 或使用 Google Gemini
-GOOGLE_API_KEY=xxx
+# 或 ANTHROPIC_API_KEY / GOOGLE_API_KEY
 ```
+
+### Q: 需求分析的Fallback模式是什么？
+
+**背景**: 当前Windows环境下OpenAI API存在emoji编码问题，系统采用智能Fallback机制保障服务稳定性。
+
+**性能表现** (v7.620优化版):
+- ✅ **稳定性**: 100%成功率，零崩溃
+- ✅ **智能分析**: 34%场景可直接进入深度分析（跳过问卷）
+- ✅ **隐含推断**: 自动识别高净值用户、特殊需求场景
+
+**优化建议**:
+- 提供详细输入可提升分析质量（见上方"输入质量提示"）
+- 长期方案：迁移到Claude API或Docker Linux环境
+
+**详细报告**: 参见 [FALLBACK_OPTIMIZATION_REPORT_v7.620.md](FALLBACK_OPTIMIZATION_REPORT_v7.620.md)
 
 ---
 
-## 📚 下一步
+## 📚 进阶文档
 
 - 📖 [完整文档](docs/README.md) - 架构设计、API 文档
 - 🔧 [开发规范](.github/DEVELOPMENT_RULES_CORE.md) - 修改代码前必读
-- 🐛 [问题反馈](https://github.com/dafei0755/ai/issues) - 遇到问题？提交 Issue
-- 💬 [讨论区](https://github.com/dafei0755/ai/discussions) - 交流使用经验
-- 🤖 [自动修复记录系统](.github/AUTOMATED_FIX_RECORDING_SYSTEM.md) - 避免重复错误的知识库
-- 📊 [v7.122 数据流优化](.github/historical_fixes/data_flow_optimization_v7.122.md) - 问卷→搜索→概念图数据流优化
+- 🎯 [本体论管理控制台](ONTOLOGY_ADMIN_QUICKSTART.md) - 管理员后台使用指南 🆕
+- 🐛 [问题反馈](https://github.com/dafei0755/ai/issues)
+- 💬 [讨论区](https://github.com/dafei0755/ai/discussions)
 
 ---
-
-## 📞 需要帮助？
-
-- **文档**: [docs/](docs/)
-- **Issues**: https://github.com/dafei0755/ai/issues
-- **Discussions**: https://github.com/dafei0755/ai/discussions
 
 **祝你使用愉快！** 🎉

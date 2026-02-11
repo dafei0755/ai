@@ -63,7 +63,7 @@ class RateLimitedLLM:
         else:
             self._limiter = rate_limit_manager.get_limiter(provider, user_id)
         
-        logger.info(f"🔒 创建限流 LLM: provider={provider}, user_id={user_id}")
+        logger.info(f" 创建限流 LLM: provider={provider}, user_id={user_id}")
     
     def invoke(self, input: Any, **kwargs) -> Any:
         """

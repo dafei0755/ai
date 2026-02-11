@@ -27,6 +27,32 @@ ontology_frameworks:
         ask_yourself: "未来3-5年可能发生什么变化？如何设计可扩展、可调整的空间？"
         examples: "模块化家具 (Modular Furniture), 可调整分区 (Adjustable Partitions), 预留技术接口 (Reserved Tech Interfaces), 多功能空间 (Multi-purpose Spaces)"
 
+    contemporary_imperatives: # 当代命题 (Contemporary Imperatives) - 🆕 现代建筑设计的必答题
+      - name: "可持续发展战略 (Sustainability Strategy)"
+        description: "环境、社会、经济三重底线的平衡。从绿色建筑到碳中和的系统性思考。"
+        ask_yourself: "这个项目的碳足迹如何？可再生材料占比？运营阶段的环境影响？社区贡献？"
+        examples: "LEED认证 (LEED Certification), 零碳建筑 (Net-zero Carbon), 循环经济 (Circular Economy), 生物多样性保护 (Biodiversity Protection), 社区共益 (Community Benefit)"
+      - name: "健康与幸福感 (Health & Wellbeing)"
+        description: "从物理健康到心理福祉的全方位人本关怀。WELL认证的核心议题。"
+        ask_yourself: "空气质量达标吗？自然光充足吗？声环境舒适吗？有促进活动的设计吗？社交连接如何？"
+        examples: "空气净化 (Air Purification), 昼光设计 (Daylighting), 声学舒适 (Acoustic Comfort), 运动鼓励 (Movement Encouragement), 生物亲和 (Biophilic Design)"
+      - name: "数字化与智能化 (Digitalization & Intelligence)"
+        description: "物联网、AI、数据驱动的空间管理与用户体验优化。"
+        ask_yourself: "智能系统的介入边界在哪？数据隐私如何保护？技术故障时的备用方案？人机交互是否友好？"
+        examples: "智能楼宇管理 (Smart Building Management), 物联网传感 (IoT Sensing), AI能源优化 (AI Energy Optimization), 无接触交互 (Contactless Interaction), 数字孪生 (Digital Twin)"
+      - name: "韧性与应急能力 (Resilience & Emergency Preparedness)"
+        description: "应对气候变化、自然灾害、公共卫生危机等极端事件的设计韧性。"
+        ask_yourself: "极端天气（暴雨、台风、热浪）如何应对？疫情隔离空间预留了吗？能源/水供应中断时的备用方案？"
+        examples: "洪涝防范 (Flood Resistance), 抗震加固 (Seismic Reinforcement), 应急避难 (Emergency Shelter), 疫情隔离 (Pandemic Isolation), 备用能源 (Backup Energy)"
+      - name: "文化敏感性与地域性 (Cultural Sensitivity & Place Identity)"
+        description: "尊重本土文化、历史记忆、地方特色的设计态度。反对千城一面。"
+        ask_yourself: "这个设计'空降'到这里合适吗？本地文化元素如何转译？历史肌理如何尊重？社区认同感如何建立？"
+        examples: "历史保护 (Heritage Preservation), 本土材料 (Local Materials), 文化符号转译 (Cultural Symbol Translation), 社区参与设计 (Community Co-design), 场所精神 (Genius Loci)"
+      - name: "社会公平与包容性 (Social Equity & Inclusivity)"
+        description: "消除物理、经济、社会障碍，让空间真正为所有人服务。"
+        ask_yourself: "不同能力的人能否平等使用？经济弱势群体被排斥了吗？多元文化是否被尊重？性别友好吗？"
+        examples: "通用设计 (Universal Design), 经济可负担性 (Affordability), 多元文化空间 (Multicultural Space), 性别友好设施 (Gender-inclusive Facilities), 代际融合 (Intergenerational Integration)"
+
   # 个人/住宅项目框架 (Personal/Residential Framework)
   personal_residential:
     spiritual_world: # 精神世界 (Spiritual World)
@@ -359,3 +385,296 @@ ontology_frameworks:
         ask_yourself: "紧急疏散时间达标吗？医疗急救点够吗？恐慌踩踏如何防范？"
         examples: "基础消防 (Basic Fire Safety), 人群管理 (Crowd Management), 医疗配套 (Medical Support), 反恐预案 (Anti-terrorism Plan)"
       - name: "可持续运营与社区共享 (Sustainable Operation & Community Sharing)"
+        description: "赛后场馆的日常开放、社区活动承载与经济可持续性。决定了'白象工程'还是'城市客厅'。"
+        ask_yourself: "非赛事日如何盈利？本地居民能免费使用吗？场馆能承载婚礼/毕业典礼吗？"
+        examples: "赛事专用 (Event-only), 有限开放 (Limited Public Access), 社区共享 (Community Sharing), 混合运营 (Mixed-use Operation)"
+
+  # 工业/制造项目框架 (Industrial/Manufacturing Framework)
+  industrial_manufacturing:
+    production_core: # 生产核心 (Production Core)
+      - name: "生产工艺流程 (Production Process Flow)"
+        description: "从原料进入到成品出库的完整生产链路。是工业建筑布局的决定性因素。"
+        ask_yourself: "物料流向是线性、环形还是网状？哪些工序必须相邻？哪些需要隔离？"
+        examples: "线性流水线 (Linear Assembly Line), U型布局 (U-shaped Layout), 蜂窝式工作站 (Cellular Workstation), 柔性制造系统 (Flexible Manufacturing System)"
+      - name: "设备承载与振动控制 (Equipment Load & Vibration Control)"
+        description: "大型设备的结构承载、振动隔离与地基处理。是工业建筑的特殊技术挑战。"
+        ask_yourself: "重型设备的楼板承载多少吨？精密仪器如何隔振？设备基础如何处理？"
+        examples: "轻型设备区 (<5t/㎡), 中型设备区 (5-20t/㎡), 重型设备区 (>20t/㎡), 精密仪器区 (微振动控制)"
+      - name: "人机工效与作业安全 (Ergonomics & Operational Safety)"
+        description: "操作工人的舒适性、安全性与效率优化。是人本主义工业设计的核心。"
+        ask_yourself: "作业高度是否符合人体工学？重复性劳动如何减轻？危险区域如何防护？"
+        examples: "可调高度工作台 (Adjustable Workbench), 辅助搬运设备 (Material Handling Aids), 防护栏杆/围栏 (Safety Barriers), 防滑地面 (Anti-slip Flooring)"
+
+    logistics_efficiency: # 物流效率 (Logistics Efficiency)
+      - name: "物料流向优化 (Material Flow Optimization)"
+        description: "原材料、半成品、成品的移动路径与储存策略。决定运营效率。"
+        ask_yourself: "物料搬运距离能否最小化？临时储存点设置合理吗？叉车通道宽度够吗？"
+        examples: "直通式物流 (Flow-through Logistics), JIT准时制 (Just-In-Time), 立体仓储 (Vertical Warehousing), 自动化输送 (Automated Conveying)"
+      - name: "货物进出管理 (Cargo Access Management)"
+        description: "卸货区、装载区、周转区的空间配置与交通组织。"
+        ask_yourself: "货车能否直接倒车入库？卸货平台高度标准吗？高峰期会塞车吗？"
+        examples: "平台式卸货 (Dock-level Loading), 坡道式卸货 (Ramp Loading), 内部循环 (Internal Circulation), 外部周转 (External Staging)"
+      - name: "库存管理策略 (Inventory Management Strategy)"
+        description: "原料库、成品库、周转库的容量设计与管理模式。"
+        ask_yourself: "库存周转率是多少？先进先出如何保证？温湿度控制需求？"
+        examples: "高周转小库存 (High Turnover), 战略储备 (Strategic Reserve), 温控仓储 (Climate-controlled), 危化品专库 (Hazardous Material Storage)"
+
+    environmental_compliance: # 环境合规 (Environmental Compliance)
+      - name: "废气废水处理 (Emission & Wastewater Treatment)"
+        description: "生产过程的污染控制与达标排放。是环保红线和社会责任。"
+        ask_yourself: "废气处理设施的处理能力够吗？废水是否分类处理？排放标准达标吗？"
+        examples: "集中除尘 (Centralized Dust Collection), VOCs处理 (VOC Treatment), 废水多级处理 (Multi-stage Wastewater), 零排放目标 (Zero Discharge)"
+      - name: "职业健康防护 (Occupational Health Protection)"
+        description: "噪音、粉尘、有害气体的控制与工人健康保护。"
+        ask_yourself: "噪音区是否隔音？粉尘作业有除尘设备吗？有害气体浓度监测了吗？"
+        examples: "隔音房 (Soundproof Room), 负压除尘 (Negative Pressure Dust Control), 强制通风 (Forced Ventilation), 个人防护装备 (PPE Requirements)"
+      - name: "能源使用效率 (Energy Efficiency)"
+        description: "工业生产的能耗优化与清洁能源替代。"
+        ask_yourself: "能耗最大的环节在哪？余热能否回收？可再生能源占比？"
+        examples: "余热回收 (Waste Heat Recovery), 变频节能 (Variable Frequency Drive), 光伏屋顶 (Rooftop Solar), 能源管理系统 (Energy Management System)"
+
+  # 教育/科研项目框架 (Education/Research Framework)
+  education_research:
+    learning_paradigm: # 学习范式 (Learning Paradigm)
+      - name: "教学模式定位 (Pedagogical Approach)"
+        description: "从传统讲授到主动学习的教学理念光谱。决定空间的灵活性和互动性。"
+        ask_yourself: "以教师为中心还是以学生为中心？学习是'接受'还是'探索'？"
+        examples: "传统讲授式 (Traditional Lecture), 讨论式学习 (Discussion-based), 项目式学习 (Project-based Learning), 混合式学习 (Blended Learning)"
+      - name: "空间类型多样性 (Space Type Diversity)"
+        description: "从正式教室到非正式学习空间的完整生态系统。"
+        ask_yourself: "除了教室，还需要哪些学习场景？学生在哪'偶遇'知识和灵感？"
+        examples: "标准教室 (Standard Classroom), 阶梯教室 (Lecture Hall), 研讨室 (Seminar Room), 创客空间 (Makerspace), 非正式学习区 (Informal Learning Zone)"
+      - name: "可重构性 (Reconfigurability)"
+        description: "空间快速适应不同教学场景的能力。"
+        ask_yourself: "一个空间能否在10分钟内从讲座模式变为小组讨论？家具能否快速重组？"
+        examples: "固定座位 (Fixed Seating), 活动家具 (Movable Furniture), 可折叠隔断 (Foldable Partitions), 全灵活空间 (Fully Flexible Space)"
+
+    knowledge_infrastructure: # 知识基础设施 (Knowledge Infrastructure)
+      - name: "技术赋能程度 (Technology Enablement)"
+        description: "从黑板粉笔到AR/VR的技术工具丰富度。"
+        ask_yourself: "每个学习空间的技术配置标准是什么？远程学习如何支持？"
+        examples: "基础投影 (Basic Projection), 互动白板 (Interactive Whiteboard), 双向视频 (Two-way Video), 沉浸式XR (Immersive XR)"
+      - name: "馆藏资源可达性 (Collection Accessibility)"
+        description: "图书、期刊、数字资源的物理和虚拟可及性。"
+        ask_yourself: "学生能否24小时访问数字资源？实体馆藏的开架比例？特藏如何平衡保护与使用？"
+        examples: "传统闭架 (Closed Stack), 开架借阅 (Open Shelf), 数字优先 (Digital First), 智慧图书馆 (Smart Library)"
+      - name: "实验/实践设施 (Lab & Practice Facilities)"
+        description: "动手实践、实验探究的专业空间配置。"
+        ask_yourself: "实验室的开放时间？设备共享机制？安全防护措施？跨学科实验室如何设计？"
+        examples: "专业实验室 (Specialized Lab), 开放实验室 (Open Lab), 虚拟仿真实验室 (Virtual Lab), 跨学科实验室 (Interdisciplinary Lab)"
+
+    campus_life: # 校园生活 (Campus Life)
+      - name: "社交与协作空间 (Social & Collaborative Space)"
+        description: "促进学生、教师、学科之间非正式互动的'第三空间'。"
+        ask_yourself: "不同专业的学生在哪'偶遇'？师生非正式对话在哪发生？"
+        examples: "中庭休息区 (Atrium Lounge), 咖啡社交区 (Café Social Zone), 户外讨论区 (Outdoor Discussion), 学科交叉中心 (Interdisciplinary Hub)"
+      - name: "身心健康支持 (Physical & Mental Wellbeing)"
+        description: "运动设施、心理咨询、健康服务的空间配置。"
+        ask_yourself: "体育设施是否便捷？心理咨询空间是否私密？冥想/减压空间有吗？"
+        examples: "综合体育馆 (Sports Complex), 心理咨询室 (Counseling Room), 冥想室 (Meditation Room), 健康中心 (Wellness Center)"
+      - name: "包容性与无障碍 (Inclusivity & Accessibility)"
+        description: "特殊需求学生的学习和生活支持。"
+        ask_yourself: "残障学生能独立到达所有区域吗？神经多样性学生有合适的学习空间吗？"
+        examples: "物理无障碍 (Physical Accessibility), 感官友好 (Sensory-friendly), 学习差异支持 (Learning Differences Support), 多语言标识 (Multilingual Signage)"
+
+  # 交通/基础设施项目框架 (Transportation/Infrastructure Framework)
+  transportation_infrastructure:
+    flow_dynamics: # 流动动态 (Flow Dynamics)
+      - name: "客流/车流预测 (Passenger/Vehicle Flow Forecast)"
+        description: "高峰时段、常态时段的人流/车流量预测与空间容量匹配。"
+        ask_yourself: "高峰时段每小时有多少人/车？瓶颈在哪？极端情况（如春运）如何应对？"
+        examples: "常态负荷 (Normal Load), 高峰负荷 (Peak Load), 极端负荷 (Extreme Load), 应急疏散 (Emergency Evacuation)"
+      - name: "换乘/转运效率 (Transfer/Transit Efficiency)"
+        description: "不同交通方式之间的衔接便捷性与时间成本。"
+        ask_yourself: "换乘距离最短多少米？标识系统够清晰吗？行李搬运方便吗？"
+        examples: "同站台换乘 (Same-platform Transfer), 垂直换乘 (Vertical Transfer), 长距离换乘 (Long-distance Transfer), 无缝衔接 (Seamless Connection)"
+      - name: "动线分流与冲突消解 (Flow Segregation & Conflict Resolution)"
+        description: "不同速度、不同方向人流/车流的分离管理。"
+        ask_yourself: "快速通道与慢速观光如何分离？进站与出站人流有冲突吗？非机动车与行人如何分流？"
+        examples: "上下分层 (Vertical Separation), 左右分道 (Lateral Separation), 时间错峰 (Temporal Separation), 智能引导 (Smart Guidance)"
+
+    user_experience: # 用户体验 (User Experience)
+      - name: "等待体验优化 (Waiting Experience Optimization)"
+        description: "减少等待焦虑、提供舒适等待环境的设计策略。"
+        ask_yourself: "等待时间是否可视？有座位吗？有娱乐/信息设施吗？"
+        examples: "实时信息显示 (Real-time Information), 舒适座椅 (Comfortable Seating), 商业配套 (Retail Amenities), 互动装置 (Interactive Installations)"
+      - name: "寻路清晰度 (Wayfinding Clarity)"
+        description: "从入口到目的地的导航系统完整性与直观性。"
+        ask_yourself: "第一次来的人能否不问路找到目的地？多语言/图形标识够吗？弱视者能导航吗？"
+        examples: "多层级标识 (Hierarchical Signage), 地标设计 (Landmark Design), 数字导航 (Digital Navigation), 无障碍导航 (Accessible Wayfinding)"
+      - name: "服务设施配套 (Service Facility Amenities)"
+        description: "洗手间、饮水、充电、商业、行李寄存等配套完善度。"
+        ask_yourself: "高峰期洗手间会排长队吗？行李寄存安全便捷吗？母婴室够吗？"
+        examples: "基础设施 (Basic Facilities), 商业服务 (Commercial Services), 特殊需求 (Special Needs), 增值服务 (Value-added Services)"
+
+    operational_resilience: # 运营韧性 (Operational Resilience)
+      - name: "应急与灾害响应 (Emergency & Disaster Response)"
+        description: "火灾、恐怖袭击、自然灾害等极端情况的预案与空间支持。"
+        ask_yourself: "紧急疏散路径清晰吗？避难区域够大吗？应急广播覆盖吗？"
+        examples: "疏散预案 (Evacuation Plan), 避难区域 (Refuge Area), 应急指挥中心 (Emergency Command Center), 备用系统 (Backup Systems)"
+      - name: "维护与可持续运营 (Maintenance & Sustainable Operation)"
+        description: "设施维护的便捷性与长期运营成本控制。"
+        ask_yourself: "关键设备能否不停运维护？清洁效率如何？能耗能否持续优化？"
+        examples: "模块化设备 (Modular Equipment), 预防性维护 (Preventive Maintenance), 能源管理 (Energy Management), 智能运维 (Smart O&M)"
+      - name: "未来扩展性 (Future Scalability)"
+        description: "应对客流增长、技术升级的预留能力。"
+        ask_yourself: "10年后客流翻倍怎么办？自动驾驶时代的空间如何改造？"
+        examples: "预留扩建空间 (Reserved Expansion), 模块化设计 (Modular Design), 技术接口预留 (Tech Interface Reserve), 功能转换能力 (Function Conversion)"
+
+  # ====================================
+  # 新农村/美丽乡村/城市更新项目框架
+  # ====================================
+  rural_regeneration_urban_renewal:
+    place_identity: # 场所身份 (Place Identity)
+      - name: "历史记忆保护 (Historical Memory Preservation)"
+        description: "地方历史建筑、文化符号、集体记忆的识别与保护策略。"
+        ask_yourself: "什么建筑/空间承载着居民的集体记忆？如何保护而非冻结它们？微改造还是完全保留？"
+        examples: "祠堂/老街保护 (Ancestral Halls/Old Streets), 工业遗产活化 (Industrial Heritage Adaptive Reuse), 口述史记录 (Oral History), 记忆地图绘制 (Memory Mapping)"
+      - name: "地域文化表达 (Regional Cultural Expression)"
+        description: "本土建筑语言、传统工艺、地方材料的当代转译。"
+        ask_yourself: "如何用现代手法表达传统建筑的精神？本地材料能否可持续获取？传统工艺能否传承？"
+        examples: "本土材料再生 (Local Material Regeneration), 传统构造现代化 (Traditional Construction Modernization), 地域符号抽象化 (Regional Symbol Abstraction), 工艺传承计划 (Craft Inheritance)"
+      - name: "社区认同建构 (Community Identity Building)"
+        description: "通过设计强化居民归属感与社区凝聚力。"
+        ask_yourself: "什么空间能成为新的社区地标？如何让居民参与设计？改造后老居民会回来吗？"
+        examples: "居民参与工作坊 (Participatory Workshop), 共创空间设计 (Co-creation Space), 社区营造活动 (Community Building Events), 文化节庆场所 (Cultural Festival Venue)"
+
+    livelihood_economy: # 生计经济 (Livelihood & Economy)
+      - name: "产业植入策略 (Industry Implantation Strategy)"
+        description: "文旅、民宿、特色农业、文创等新产业的空间支持。"
+        ask_yourself: "什么产业适合这里？空间如何支持新业态？本地居民能就业吗？"
+        examples: "民宿集群 (Guesthouse Cluster), 文创工坊 (Cultural Creative Workshop), 农产品加工 (Agricultural Processing), 研学基地 (Study Tour Base)"
+      - name: "原住民生计保障 (Indigenous Livelihood Security)"
+        description: "确保改造不导致原住民被迫迁出或经济边缘化。"
+        ask_yourself: "改造后房租会涨多少？本地人还住得起吗？老居民如何参与新经济？"
+        examples: "租金管控 (Rent Control), 优先就业政策 (Priority Employment), 技能培训 (Skill Training), 集体经济分红 (Collective Profit Sharing)"
+      - name: "公共空间经济价值 (Public Space Economic Value)"
+        description: "广场、街道、绿地等公共空间的经济赋能而非纯消费。"
+        ask_yourself: "集市能在哪摆？农产品展销需要什么空间？社区经济如何孵化？"
+        examples: "周末集市 (Weekend Market), 农产品展销中心 (Agricultural Product Center), 手工艺品街 (Handicraft Street), 社区合作社空间 (Cooperative Space)"
+
+    infrastructure_equity: # 基础设施公平 (Infrastructure Equity)
+      - name: "基础设施补齐 (Infrastructure Gap Closure)"
+        description: "水电气网、污水处理、垃圾分类、消防等基础设施达标。"
+        ask_yourself: "雨污是否分流？消防通道能进车吗？网络覆盖吗？垃圾收运系统完善吗？"
+        examples: "雨污分流改造 (Sewage Separation), 消防通道拓宽 (Fire Lane Widening), 光纤入户 (Fiber Optic), 垃圾分类站 (Waste Sorting Station)"
+      - name: "公共服务可达性 (Public Service Accessibility)"
+        description: "医疗、教育、养老、文化设施的均衡配置。"
+        ask_yourself: "老人看病要走多远？孩子上学安全吗？有文化活动空间吗？"
+        examples: "社区卫生站 (Community Health Center), 儿童活动中心 (Children's Center), 长者食堂 (Elder Canteen), 文化礼堂 (Cultural Hall)"
+      - name: "无障碍与适老化 (Accessibility & Age-friendliness)"
+        description: "考虑农村/老城老龄化现状的无障碍与适老设计。"
+        ask_yourself: "坡道够缓吗？扶手连续吗？地面防滑吗？标识字够大吗？"
+        examples: "无障碍坡道 (Accessible Ramps), 连续扶手系统 (Continuous Handrails), 防滑地面 (Anti-slip Flooring), 大字体标识 (Large Font Signage)"
+
+# ============================================================
+# 专家强化层 (Expert Enhancement Layer)
+# ============================================================
+# 说明：针对特定专家角色的额外分析维度
+# 用途：在基础框架和项目类型框架之上，注入专家特有的关注点
+# 原则：可选注入，仅当专家需要特殊视角时使用
+
+expert_extensions:
+  # V2 需求解析类专家强化
+  requirements_analyst:
+    additional_dimensions:
+      - name: "需求完整性检查 (Requirements Completeness Check)"
+        description: "系统性验证需求陈述的完整性，识别隐含假设与未明确表达的期望。"
+        ask_yourself: "客户说的'高端'具体指什么？'灵活'背后的真实场景是什么？"
+        examples: "功能性需求完整度, 情感性需求挖掘, 约束条件明确化, 成功标准量化"
+      - name: "需求矛盾识别 (Conflict Detection)"
+        description: "发现客户陈述中的逻辑矛盾或资源冲突，提前暴露决策风险。"
+        ask_yourself: "既要'极致私密'又要'社区互动'，如何平衡？预算与愿望清单匹配吗？"
+        examples: "功能冲突, 预算现实性, 时间约束, 价值观矛盾"
+
+  # V3 概念设计类专家强化
+  spatial_planner:
+    additional_dimensions:
+      - name: "空间序列编排 (Spatial Sequence Choreography)"
+        description: "从入口到核心空间的动线叙事与情绪曲线设计。"
+        ask_yourself: "参观者的'啊哈时刻'应该在第几个转角？如何控制空间节奏的疏密缓急？"
+        examples: "渐入式序列 (Gradual Reveal), 震撼式入口 (Grand Entrance), 迷宫式探索 (Labyrinthine Discovery), 线性引导 (Linear Guidance)"
+      - name: "功能邻近度矩阵 (Functional Proximity Matrix)"
+        description: "基于使用频率、流程逻辑、声学干扰等因素的功能分区优化。"
+        ask_yourself: "厨房与餐厅要多近？安静区与活动区如何隔离？后勤动线与访客动线如何分离？"
+        examples: "高频邻近 (High-frequency Adjacency), 流程连贯性 (Process Continuity), 干扰隔离 (Disturbance Isolation), 紧急响应距离 (Emergency Response Distance)"
+
+  conceptual_designer:
+    additional_dimensions:
+      - name: "形式语言定义 (Formal Language Definition)"
+        description: "建筑造型、材料肌理、色彩氛围的语义系统构建。"
+        ask_yourself: "这个项目的'形容词'是什么？如何让形式传达价值观？"
+        examples: "几何原型 (Geometric Archetype), 自然隐喻 (Natural Metaphor), 文化符号转译 (Cultural Symbol Translation), 情绪色彩 (Emotional Color Palette)"
+      - name: "场所记忆与叙事 (Site Memory & Narrative)"
+        description: "场地历史、文化脉络在设计中的转译与再现。"
+        ask_yourself: "这块地曾经是什么？如何让设计'回应'而非'覆盖'历史？"
+        examples: "历史遗迹保护 (Heritage Preservation), 记忆片段重构 (Memory Fragment Reconstruction), 文化基因提取 (Cultural DNA Extraction), 时间层叠 (Temporal Layering)"
+
+  # V4 技术实施类专家强化
+  structural_engineer:
+    additional_dimensions:
+      - name: "结构体系创新空间 (Structural System Innovation)"
+        description: "在安全性与经济性约束下，探索结构体系的创新可能性。"
+        ask_yourself: "大跨度能否成为建筑特色？结构能否'消失'或'显现'？"
+        examples: "传统框架 (Conventional Frame), 大跨度结构 (Long-span Structure), 悬挑/悬索 (Cantilever/Suspension), 参数化结构 (Parametric Structure)"
+      - name: "施工可行性预判 (Constructability Assessment)"
+        description: "从施工工艺、工期、成本角度评估设计方案的现实性。"
+        ask_yourself: "这个节点能现场施工吗？预制化能降低多少成本？特殊工艺的风险可控吗？"
+        examples: "常规工艺 (Standard Practice), 预制装配 (Prefabrication), 特殊工艺 (Special Technique), 实验性尝试 (Experimental Approach)"
+
+  mep_engineer:
+    additional_dimensions:
+      - name: "能源策略分层 (Energy Strategy Hierarchy)"
+        description: "从被动式设计到主动式系统的能源管理分层策略。"
+        ask_yourself: "被动式设计能解决多少？主动系统的介入边界在哪？可再生能源占比目标？"
+        examples: "纯被动式 (Purely Passive), 混合通风 (Mixed-mode Ventilation), 高效主动系统 (High-efficiency Active), 近零能耗 (Near-zero Energy)"
+      - name: "设备空间需求沟通 (Equipment Space Requirement Communication)"
+        description: "机房、管井、设备层与建筑美学的协调谈判。"
+        ask_yourself: "机房能藏在哪？屋顶设备如何不破坏天际线？管道能走艺术化路径吗？"
+        examples: "集中机房 (Centralized Plant), 分散式设备 (Decentralized Equipment), 隐藏式布置 (Concealed Layout), 暴露式设计 (Exposed Design)"
+
+  # V5 管理协调类专家强化
+  cost_estimator:
+    additional_dimensions:
+      - name: "成本敏感度分析 (Cost Sensitivity Analysis)"
+        description: "识别设计中的'高杠杆点'——小改动带来大成本变化的要素。"
+        ask_yourself: "哪个设计决策对成本影响最大？如何用20%的预算实现80%的效果？"
+        examples: "材料替代性 (Material Substitution), 工艺简化 (Process Simplification), 标准化程度 (Standardization Level), 面积优化 (Area Optimization)"
+      - name: "价值工程建议 (Value Engineering Recommendations)"
+        description: "在不损害核心价值的前提下，提出成本优化的系统化建议。"
+        ask_yourself: "哪些是'必须的奢侈'，哪些是'可选的炫耀'？如何让甲方看到省钱的智慧？"
+        examples: "功能等效替代 (Functional Equivalent), 隐蔽工程优化 (Concealed Work Optimization), 可见性投资 (Visible Investment), 分期实施 (Phased Implementation)"
+
+  schedule_coordinator:
+    additional_dimensions:
+      - name: "关键路径识别 (Critical Path Identification)"
+        description: "识别项目工期的瓶颈环节与风险点，优化资源配置。"
+        ask_yourself: "哪个环节会拖累整体进度？并行施工的可能性？长周期材料何时下单？"
+        examples: "设计审批 (Design Approval), 特殊材料订货 (Special Material Procurement), 地基施工 (Foundation Work), 系统调试 (System Commissioning)"
+      - name: "工期压缩策略 (Schedule Compression Strategy)"
+        description: "在质量和成本可控的前提下，探索工期优化方案。"
+        ask_yourself: "快速通道工艺可行吗？多班次施工的成本增量？预制化能省多少时间？"
+        examples: "快速通道 (Fast-tracking), 赶工 (Crashing), 预制装配 (Prefabrication), 施工优化 (Construction Optimization)"
+
+  # V6 验收交付类专家强化
+  quality_inspector:
+    additional_dimensions:
+      - name: "高风险检查点清单 (High-risk Inspection Checklist)"
+        description: "基于行业经验，识别最容易出问题的工艺节点与隐蔽工程。"
+        ask_yourself: "哪些问题现在不查，交付后就是噩梦？隐蔽工程的验收时机？"
+        examples: "防水节点 (Waterproofing Details), 结构连接 (Structural Connections), 管线预埋 (Pipeline Embedding), 精装收口 (Finish Detailing)"
+      - name: "用户使用场景预演 (User Scenario Simulation)"
+        description: "站在最终用户视角，预演真实使用中的痛点与问题。"
+        ask_yourself: "轮椅使用者能否独立通行？暴雨时排水系统会瘫痪吗？搬家具时门够宽吗？"
+        examples: "无障碍测试 (Accessibility Test), 极端天气模拟 (Extreme Weather Simulation), 高峰负荷测试 (Peak Load Test), 维护便利性 (Maintenance Accessibility)"
+
+  handover_specialist:
+    additional_dimensions:
+      - name: "运营培训需求 (Operation Training Requirement)"
+        description: "识别需要专门培训的复杂系统与操作流程，确保接管方能力匹配。"
+        ask_yourself: "物业团队能操作这些智能系统吗？应急预案演练了吗？维修手册通俗易懂吗？"
+        examples: "智能系统操作 (Smart System Operation), 应急响应流程 (Emergency Response), 设备维护计划 (Equipment Maintenance), 能源管理策略 (Energy Management)"
+      - name: "缺陷责任期风险预判 (Defect Liability Risk Assessment)"
+        description: "预判保修期内可能出现的问题，提前制定响应预案。"
+        ask_yourself: "哪些材料/系统在1-2年内可能出问题？供应商的售后响应能力如何？"
+        examples: "材料耐久性 (Material Durability), 系统稳定性 (System Stability), 供应商服务 (Supplier Service), 维修响应时间 (Repair Response Time)"

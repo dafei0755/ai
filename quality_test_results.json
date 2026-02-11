@@ -1,0 +1,558 @@
+{
+  "timestamp": "2026-02-11T19:20:03.061647",
+  "total_scenarios": 50,
+  "success_count": 50,
+  "fallback_count": 50,
+  "results": [
+    {
+      "scenario_id": "1",
+      "success": true,
+      "info_status": "insufficient",
+      "recommended_next": "questionnaire_first",
+      "primary_deliverables": [
+        "design_strategy"
+      ],
+      "is_fallback": true,
+      "project_summary": "从一代创业者的视角，给出设计概念：深圳湾海景别墅......"
+    },
+    {
+      "scenario_id": "2",
+      "success": true,
+      "info_status": "insufficient",
+      "recommended_next": "questionnaire_first",
+      "primary_deliverables": [
+        "design_strategy"
+      ],
+      "is_fallback": true,
+      "project_summary": "以丹麦家居品牌HAY气质为基础的民宿室内设计概念，四川峨眉山七里坪......"
+    },
+    {
+      "scenario_id": "3",
+      "success": true,
+      "info_status": "sufficient",
+      "recommended_next": "proceed_analysis",
+      "primary_deliverables": [
+        "design_strategy"
+      ],
+      "is_fallback": true,
+      "project_summary": "tiffany 蒂芙尼为主题的住宅软装设计概念，35岁单身女性，成都富人区350平米别墅设计思路......"
+    },
+    {
+      "scenario_id": "4",
+      "success": true,
+      "info_status": "insufficient",
+      "recommended_next": "questionnaire_first",
+      "primary_deliverables": [
+        "design_strategy"
+      ],
+      "is_fallback": true,
+      "project_summary": "深圳南山，38岁独立女性，英国海归，不婚主义，200平米大平层，对Audrey Hepburn 赫本情有独钟，基于此给出室内设计建议。......"
+    },
+    {
+      "scenario_id": "5",
+      "success": true,
+      "info_status": "sufficient",
+      "recommended_next": "proceed_analysis",
+      "primary_deliverables": [
+        "design_strategy"
+      ],
+      "is_fallback": true,
+      "project_summary": "基于00后富二代对于别墅设计的普遍认知，给出成都富人区350平米别墅设计思路......"
+    },
+    {
+      "scenario_id": "6",
+      "success": true,
+      "info_status": "sufficient",
+      "recommended_next": "proceed_analysis",
+      "primary_deliverables": [
+        "design_strategy"
+      ],
+      "is_fallback": true,
+      "project_summary": "35岁爸爸，哈工大毕业，程序员，腾讯上班，年薪120万。妈妈34岁，哈工大毕业，在家带孩子。孩子7岁，自闭症。外公外婆每年冬季从四川来短住3个月。深圳前海住宅160平米，基于此给出室内设计建议。......"
+    },
+    {
+      "scenario_id": "7",
+      "success": true,
+      "info_status": "sufficient",
+      "recommended_next": "proceed_analysis",
+      "primary_deliverables": [
+        "design_strategy"
+      ],
+      "is_fallback": true,
+      "project_summary": "深圳蛇口，20000平米，菜市场更新，对标苏州黄桥菜市场，希望融入蛇口渔村传统文化。给出室内改造框架。兼顾蛇口老居民街坊，香港访客，蛇口特色外籍客群，和社区居民。希望能成为深圳城市更新的标杆。......"
+    },
+    {
+      "scenario_id": "8",
+      "success": true,
+      "info_status": "sufficient",
+      "recommended_next": "proceed_analysis",
+      "primary_deliverables": [
+        "design_strategy"
+      ],
+      "is_fallback": true,
+      "project_summary": "用 季裕棠（Tony Chi）的手法，帮00后富二代设计一个400平米的大平层，将对家的理解整理为设计概念。 业主喜欢潮玩，属于王思聪类似的浪子。桀骜不逊，英国海归。重点体现客厅空间。......"
+    },
+    {
+      "scenario_id": "9",
+      "success": true,
+      "info_status": "insufficient",
+      "recommended_next": "questionnaire_first",
+      "primary_deliverables": [
+        "design_strategy"
+      ],
+      "is_fallback": true,
+      "project_summary": "先生是在腾讯就职的IT高管，向往苏东坡生活美学角度。太太是在投行就业的高级合伙人。给出设计概念：深圳湾海景别墅......"
+    },
+    {
+      "scenario_id": "10",
+      "success": true,
+      "info_status": "insufficient",
+      "recommended_next": "questionnaire_first",
+      "primary_deliverables": [
+        "design_strategy"
+      ],
+      "is_fallback": true,
+      "project_summary": "古典文人园林连廊在当下豪宅设计视角的深度解析和反思，成都麓山国际，别墅。给出设计概念。......"
+    },
+    {
+      "scenario_id": "11",
+      "success": true,
+      "info_status": "insufficient",
+      "recommended_next": "questionnaire_first",
+      "primary_deliverables": [
+        "design_strategy"
+      ],
+      "is_fallback": true,
+      "project_summary": "农耕文化与城市化进程对于室内设计概念的影响，......"
+    },
+    {
+      "scenario_id": "12",
+      "success": true,
+      "info_status": "insufficient",
+      "recommended_next": "questionnaire_first",
+      "primary_deliverables": [
+        "implementation_guide"
+      ],
+      "is_fallback": true,
+      "project_summary": "用劳斯莱斯Arcadia轿跑车的定制体系用到高净值人群住宅设计流程，给出方法论......"
+    },
+    {
+      "scenario_id": "13",
+      "success": true,
+      "info_status": "insufficient",
+      "recommended_next": "questionnaire_first",
+      "primary_deliverables": [
+        "design_strategy"
+      ],
+      "is_fallback": true,
+      "project_summary": "心安之处是吾乡：中国都市人乡愁的底层洞察在民宿设计中的应用落地。......"
+    },
+    {
+      "scenario_id": "14",
+      "success": true,
+      "info_status": "insufficient",
+      "recommended_next": "questionnaire_first",
+      "primary_deliverables": [
+        "design_strategy"
+      ],
+      "is_fallback": true,
+      "project_summary": "让安藤忠雄为一个离家多年的50岁男士设计一座田园民居，四川广元农村、300平米，室内设计师职业。......"
+    },
+    {
+      "scenario_id": "15",
+      "success": true,
+      "info_status": "sufficient",
+      "recommended_next": "proceed_analysis",
+      "primary_deliverables": [
+        "design_strategy"
+      ],
+      "is_fallback": true,
+      "project_summary": "给出室内设计概念思路：项目：中国书法大酒店。地点：安徽合肥。面积：50000平米，客房约250间。项目定位：书法文化的酒店，能展览，能住宿，能会议，能交流的综合主题酒店。业主：安徽省书法家协会主席 李..."
+    },
+    {
+      "scenario_id": "16",
+      "success": true,
+      "info_status": "sufficient",
+      "recommended_next": "proceed_analysis",
+      "primary_deliverables": [
+        "design_strategy"
+      ],
+      "is_fallback": true,
+      "project_summary": "给出室内设计概念思路：项目：铜锣湾广场。地点：南充嘉陵区。面积：50000平米，两层商业街区。项目定位：综合商业，餐饮，购物，娱乐。面临的对手：300米以内的王府井商场。......"
+    },
+    {
+      "scenario_id": "17",
+      "success": true,
+      "info_status": "insufficient",
+      "recommended_next": "questionnaire_first",
+      "primary_deliverables": [
+        "design_strategy"
+      ],
+      "is_fallback": true,
+      "project_summary": "成都麓湖片区的地产样板房，需要10个概念主题，给出建议......"
+    },
+    {
+      "scenario_id": "18",
+      "success": true,
+      "info_status": "sufficient",
+      "recommended_next": "proceed_analysis",
+      "primary_deliverables": [
+        "design_strategy"
+      ],
+      "is_fallback": true,
+      "project_summary": "让安藤忠雄和给我设计概念：四川广元农村的民居，让游子能心安回归。300平米建筑面积，田园，70年代的业主，室内设计师。......"
+    },
+    {
+      "scenario_id": "19",
+      "success": true,
+      "info_status": "insufficient",
+      "recommended_next": "questionnaire_first",
+      "primary_deliverables": [
+        "design_strategy"
+      ],
+      "is_fallback": true,
+      "project_summary": "国际顶级建筑事务所对于中国室内设计师的启发维度及深度解析......"
+    },
+    {
+      "scenario_id": "20",
+      "success": true,
+      "info_status": "sufficient",
+      "recommended_next": "proceed_analysis",
+      "primary_deliverables": [
+        "design_strategy"
+      ],
+      "is_fallback": true,
+      "project_summary": "给出设计概念思路（建筑室内景观）：企业家业主，海南七仙岭，自建山地别墅，2500平米，先生63岁，太太38岁，大女儿35岁已成家有2个男孩，二女儿32岁有一个男孩和一个女儿。儿子30岁，未成家。和现任..."
+    },
+    {
+      "scenario_id": "21",
+      "success": true,
+      "info_status": "sufficient",
+      "recommended_next": "proceed_analysis",
+      "primary_deliverables": [
+        "design_strategy"
+      ],
+      "is_fallback": true,
+      "project_summary": "南昌设计项目概况： 地点：江西南昌 建筑：4层楼，1/2/3各1000平米，4楼屋顶500平米 功能：1楼艺术展厅，2楼办公室，3楼业主家庭住宅，4楼带高尔夫练习场露台的会所,中医理疗 风格：纯粹/极..."
+    },
+    {
+      "scenario_id": "22",
+      "success": true,
+      "info_status": "insufficient",
+      "recommended_next": "questionnaire_first",
+      "primary_deliverables": [
+        "naming_list"
+      ],
+      "is_fallback": true,
+      "project_summary": "中餐包房，8间房，以苏东坡的诗词，命名，4个字，传递生活态度和价值观,要求不落俗套......"
+    },
+    {
+      "scenario_id": "23",
+      "success": true,
+      "info_status": "insufficient",
+      "recommended_next": "questionnaire_first",
+      "primary_deliverables": [
+        "design_strategy"
+      ],
+      "is_fallback": true,
+      "project_summary": "设计工作室，设计总监的办公室门牌，用苏东坡的诗词中抽取3个字，能体现亲自干活的意思， 尽量直接从诗词中抽取，不要编造......"
+    },
+    {
+      "scenario_id": "24",
+      "success": true,
+      "info_status": "insufficient",
+      "recommended_next": "questionnaire_first",
+      "primary_deliverables": [
+        "design_strategy"
+      ],
+      "is_fallback": true,
+      "project_summary": "成都新建一个文华东方酒店，我们参与室内设计方案竞标，对手有HBA，ccd郑中设计，杨邦胜设计，刘波设计，季裕棠，琚斌等重量选手，作为不知名的酒店团队，如何通过策略取胜，给出设计概念框架及方向性策略。...."
+    },
+    {
+      "scenario_id": "25",
+      "success": true,
+      "info_status": "sufficient",
+      "recommended_next": "proceed_analysis",
+      "primary_deliverables": [
+        "lighting_design"
+      ],
+      "is_fallback": true,
+      "project_summary": "一位职业电竞选手，需要将他15平米的卧室改造为兼具顶级直播、训练功能和高效休息的空间。要求绝对隔音和专业级的灯光布局。......"
+    },
+    {
+      "scenario_id": "26",
+      "success": true,
+      "info_status": "insufficient",
+      "recommended_next": "questionnaire_first",
+      "primary_deliverables": [
+        "design_strategy"
+      ],
+      "is_fallback": true,
+      "project_summary": "一对刚刚经历婚姻危机并决定复合的夫妻，希望重新设计他们的主卧室，创造一个“重新开始”的象征性空间，预算有限。......"
+    },
+    {
+      "scenario_id": "27",
+      "success": true,
+      "info_status": "insufficient",
+      "recommended_next": "questionnaire_first",
+      "primary_deliverables": [
+        "design_strategy"
+      ],
+      "is_fallback": true,
+      "project_summary": "在上海新天地，一家新的香薰品牌要开第一家旗舰店。业主是化学博士，希望空间能“可视化”气味的分子结构，并与对面的 Aesop 形成差异化竞争。......"
+    },
+    {
+      "scenario_id": "28",
+      "success": true,
+      "info_status": "insufficient",
+      "recommended_next": "questionnaire_first",
+      "primary_deliverables": [
+        "design_strategy"
+      ],
+      "is_fallback": true,
+      "project_summary": "一位在北京长大的美国人，买下了一座小型四合院。他希望保留传统建筑的“气”，但内部要实现纽约Loft的开放、极简和派对功能。......"
+    },
+    {
+      "scenario_id": "29",
+      "success": true,
+      "info_status": "insufficient",
+      "recommended_next": "questionnaire_first",
+      "primary_deliverables": [
+        "design_strategy"
+      ],
+      "is_fallback": true,
+      "project_summary": "儿子为退休的父母在杭州良渚文化村买了一套洋房。父亲是老干部，喜欢红木和中式对称；母亲是退休教师，喜欢明亮、温馨的北欧风格。儿子希望设计师能“让他们都满意”。......"
+    },
+    {
+      "scenario_id": "30",
+      "success": true,
+      "info_status": "insufficient",
+      "recommended_next": "questionnaire_first",
+      "primary_deliverables": [
+        "design_strategy"
+      ],
+      "is_fallback": true,
+      "project_summary": "为一位患有严重花粉和粉尘过敏症的儿童设计卧室。要求所有材料均为低敏或无敏，并集成医疗级新风和空气净化系统，同时空间不能显得“像病房”。......"
+    },
+    {
+      "scenario_id": "31",
+      "success": true,
+      "info_status": "sufficient",
+      "recommended_next": "proceed_analysis",
+      "primary_deliverables": [
+        "design_strategy"
+      ],
+      "is_fallback": true,
+      "project_summary": "刚毕业的大学生，在深圳城中村租了一个25平米的单间，预算仅8000元。希望通过软装和模块化家具，实现居住、工作、会客和收纳的最大化。......"
+    },
+    {
+      "scenario_id": "32",
+      "success": true,
+      "info_status": "insufficient",
+      "recommended_next": "questionnaire_first",
+      "primary_deliverables": [
+        "design_strategy"
+      ],
+      "is_fallback": true,
+      "project_summary": "一位诗人客户，要求他的书房设计概念是“月亮落在结冰的湖面上”。......"
+    },
+    {
+      "scenario_id": "33",
+      "success": true,
+      "info_status": "insufficient",
+      "recommended_next": "questionnaire_first",
+      "primary_deliverables": [
+        "design_strategy"
+      ],
+      "is_fallback": true,
+      "project_summary": "广州一个老旧小区的社区活动中心改造，面积200平米。主要使用者是老年人和放学后的小学生，需要在一个空间内满足棋牌、阅读、书法和儿童托管的“分时复用”功能。......"
+    },
+    {
+      "scenario_id": "34",
+      "success": true,
+      "info_status": "insufficient",
+      "recommended_next": "questionnaire_first",
+      "primary_deliverables": [
+        "design_strategy"
+      ],
+      "is_fallback": true,
+      "project_summary": "一个新锐服装设计师品牌，要和一家咖啡馆合作，在北京三里屯开设一个“店中店”。要求空间既能展示服装，又能融合咖啡体验，风格要体现服装品牌的“反叛与优雅”。......"
+    },
+    {
+      "scenario_id": "35",
+      "success": true,
+      "info_status": "insufficient",
+      "recommended_next": "questionnaire_first",
+      "primary_deliverables": [
+        "design_strategy"
+      ],
+      "is_fallback": true,
+      "project_summary": "一位在字节跳动工作的算法工程师，想为他同样是程序员的女友设计一个求婚场景。地点是他们120平米的毛坯房，希望用代码、光影和简单的装置艺术创造一个“数字时代的浪漫花园”。......"
+    },
+    {
+      "scenario_id": "36",
+      "success": true,
+      "info_status": "sufficient",
+      "recommended_next": "proceed_analysis",
+      "primary_deliverables": [
+        "design_strategy"
+      ],
+      "is_fallback": true,
+      "project_summary": "一位40岁的维吾尔族企业家，在乌鲁木齐市中心的高层公寓，希望空间能体现现代商业精英的身份，同时用一种不落俗套、抽象的方式，融入维吾尔族的美学元素（如几何、色彩、光影）。......"
+    },
+    {
+      "scenario_id": "37",
+      "success": true,
+      "info_status": "sufficient",
+      "recommended_next": "proceed_analysis",
+      "primary_deliverables": [
+        "design_strategy"
+      ],
+      "is_fallback": true,
+      "project_summary": "客户是一位生活方式博主，奉行“断舍离”和极简主义。她要求100平米的家中，所有物品都必须被隐藏起来，视觉中只能看到墙、地、光和三件她指定的家具。给出设计策略。......"
+    },
+    {
+      "scenario_id": "38",
+      "success": true,
+      "info_status": "insufficient",
+      "recommended_next": "questionnaire_first",
+      "primary_deliverables": [
+        "design_strategy"
+      ],
+      "is_fallback": true,
+      "project_summary": "一对丁克夫妻，养了三只猫和一只金毛。他们希望新家的设计首先考虑宠物的舒适、安全和活动路径，其次才是人的需求。......"
+    },
+    {
+      "scenario_id": "39",
+      "success": true,
+      "info_status": "insufficient",
+      "recommended_next": "questionnaire_first",
+      "primary_deliverables": [
+        "design_strategy"
+      ],
+      "is_fallback": true,
+      "project_summary": "改造一栋位于天津五大道的民国时期小洋楼，作为一家高端定制婚纱的工作室。要求在严格保护历史建筑的前提下，营造出梦幻、现代的试纱体验。......"
+    },
+    {
+      "scenario_id": "40",
+      "success": true,
+      "info_status": "sufficient",
+      "recommended_next": "proceed_analysis",
+      "primary_deliverables": [
+        "design_strategy"
+      ],
+      "is_fallback": true,
+      "project_summary": "三位不相关的年轻女性（律师、插画师、瑜伽教练）决定在上海合租一个250平米的大平层。需要设计公共的客厅、餐厅，以及三个能精准反映她们各自职业和个性的独立套房。......"
+    },
+    {
+      "scenario_id": "41",
+      "success": true,
+      "info_status": "insufficient",
+      "recommended_next": "questionnaire_first",
+      "primary_deliverables": [
+        "design_strategy"
+      ],
+      "is_fallback": true,
+      "project_summary": "一位从深圳回到贵州家乡的90后，希望将祖辈的旧木屋改造成一个面向背包客和徒步爱好者的青年旅舍，预算极低，要求尽可能使用本地材料和工艺。......"
+    },
+    {
+      "scenario_id": "42",
+      "success": true,
+      "info_status": "insufficient",
+      "recommended_next": "questionnaire_first",
+      "primary_deliverables": [
+        "design_strategy"
+      ],
+      "is_fallback": true,
+      "project_summary": "为蔚来汽车设计一个新的NIO House（蔚来中心）概念，地点在西安大唐不夜城。如何将智能电动车的未来感与西安的盛唐历史文脉进行深度融合，而非简单拼接？......"
+    },
+    {
+      "scenario_id": "43",
+      "success": true,
+      "info_status": "sufficient",
+      "recommended_next": "proceed_analysis",
+      "primary_deliverables": [
+        "design_strategy"
+      ],
+      "is_fallback": true,
+      "project_summary": "一位35岁的金融从业者，长期失眠并有健康焦虑。他希望将自己的公寓打造成一个“正念空间”，通过设计促进放松和睡眠，并融入冥想、瑜伽和家庭健身的功能区。......"
+    },
+    {
+      "scenario_id": "44",
+      "success": true,
+      "info_status": "insufficient",
+      "recommended_next": "questionnaire_first",
+      "primary_deliverables": [
+        "design_strategy"
+      ],
+      "is_fallback": true,
+      "project_summary": "客户收藏了超过500双限量版球鞋，希望在新家中为这些“宝贝”设计一个博物馆级别的展示墙，同时兼具防潮、防氧化的专业收纳功能。......"
+    },
+    {
+      "scenario_id": "45",
+      "success": true,
+      "info_status": "insufficient",
+      "recommended_next": "questionnaire_first",
+      "primary_deliverables": [
+        "design_strategy"
+      ],
+      "is_fallback": true,
+      "project_summary": "一位电影混音师，需要在家中搭建一个符合杜比全景声（Dolby Atmos）标准的家庭影院和工作室。设计的首要目标是声学效果的完美，美学次之。......"
+    },
+    {
+      "scenario_id": "46",
+      "success": true,
+      "info_status": "insufficient",
+      "recommended_next": "questionnaire_first",
+      "primary_deliverables": [
+        "design_strategy"
+      ],
+      "is_fallback": true,
+      "project_summary": "为一家高端私立医院设计一间“宁静病房”，供临终病人与家人度过最后时光。空间需要摒弃医疗感，营造出温暖、尊严、私密且充满灵性的氛围。......"
+    },
+    {
+      "scenario_id": "47",
+      "success": true,
+      "info_status": "sufficient",
+      "recommended_next": "proceed_analysis",
+      "primary_deliverables": [
+        "design_strategy"
+      ],
+      "is_fallback": true,
+      "project_summary": "一位元宇宙公司的创始人，希望他的办公室能模糊物理世界和虚拟世界的边界。例如，通过投影和屏幕，让办公室的“窗外”可以随时切换成不同的虚拟风景。......"
+    },
+    {
+      "scenario_id": "48",
+      "success": true,
+      "info_status": "insufficient",
+      "recommended_next": "questionnaire_first",
+      "primary_deliverables": [
+        "design_strategy"
+      ],
+      "is_fallback": true,
+      "project_summary": "一位国际记者，每年只在家居住4个月。她需要一个“锁上门就能走”的家，易于维护，安防性强，并且在她回来时能迅速恢复“家”的温馨感。......"
+    },
+    {
+      "scenario_id": "49",
+      "success": true,
+      "info_status": "insufficient",
+      "recommended_next": "questionnaire_first",
+      "primary_deliverables": [
+        "design_strategy"
+      ],
+      "is_fallback": true,
+      "project_summary": "一个再婚家庭，男方带一个16岁的儿子，女方带一个10岁的女儿。需要在一个屋檐下为两个没有血缘关系、处于不同青春期的孩子创造既有公共交流区，又有绝对隐私和独立性的个人空间。......"
+    },
+    {
+      "scenario_id": "50",
+      "success": true,
+      "info_status": "insufficient",
+      "recommended_next": "questionnaire_first",
+      "primary_deliverables": [
+        "design_strategy"
+      ],
+      "is_fallback": true,
+      "project_summary": "设计一个“无人花店”，24小时营业。室内设计需要引导顾客自助完成挑选、包装、付款的全流程，并通过氛围营造传递品牌的情感价值。......"
+    }
+  ]
+}

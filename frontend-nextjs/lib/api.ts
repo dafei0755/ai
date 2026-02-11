@@ -2,10 +2,10 @@
 // 封装所有与 FastAPI 后端的通信
 
 import axios from 'axios';
-import type { 
-  StartAnalysisRequest, 
-  StartAnalysisResponse, 
-  AnalysisStatus, 
+import type {
+  StartAnalysisRequest,
+  StartAnalysisResponse,
+  AnalysisStatus,
   AnalysisReport,
   ImageGenerationParams,  // 🔥 v7.41
   SuggestedPrompt  // 🔥 v7.41
@@ -105,7 +105,7 @@ export const api = {
       // 🔥 v7.105.6: 活跃会话不足一页时，从归档补充
       // 关键修复：正确计算归档offset
       const remaining = pageSize - activeSessions.length;
-      
+
       // 计算归档offset - 把活跃和归档看成一个整体
       // 总数据流：[活跃1-19] [归档1-164]
       // 第1页：取[0-19] → 活跃[0-18] + 归档[0] → offset=0
@@ -119,8 +119,8 @@ export const api = {
       console.log(`[API] 📐 计算 | startPos=${startPos} | archivedOffset=${archivedOffset} | remainingNeeded=${remaining}`);
 
       const archivedResponse = await apiClient.get('/api/sessions/archived', {
-        params: { 
-          limit: remaining, 
+        params: {
+          limit: remaining,
           offset: archivedOffset
         }
       });
@@ -158,13 +158,45 @@ export const api = {
 
   // 更新会话信息（重命名、置顶等）
   async updateSession(sessionId: string, updates: Record<string, any>): Promise<{ success: boolean; message: string }> {
-    const response = await apiClient.patch(`/api/sessions/${sessionId}`, updates);
-    return response.data;
+    // 🔧 v7.303: 智能路由 - 优先尝试更新归档会话，失败则尝试活跃会话
+    try {
+      // 1. 先尝试更新归档会话（大部分历史会话都是归档的）
+      const archivedResponse = await apiClient.patch(`/api/sessions/archived/${sessionId}`, updates);
+      return archivedResponse.data;
+    } catch (archivedError: any) {
+      // 2. 如果归档会话不存在（404），尝试更新活跃会话
+      if (archivedError?.response?.status === 404) {
+        const activeResponse = await apiClient.patch(`/api/sessions/${sessionId}`, updates);
+        return activeResponse.data;
+      }
+      // 3. 其他错误直接抛出
+      throw archivedError;
+    }
   },
 
   // 删除会话
   async deleteSession(sessionId: string): Promise<{ success: boolean; message: string }> {
     const response = await apiClient.delete(`/api/sessions/${sessionId}`);
+    return response.data;
+  },
+
+  // 🆕 v7.189: 创建搜索会话（自动携带 JWT Token）
+  async createSearchSession(query: string, deepMode: boolean = true): Promise<{
+    success: boolean;
+    session_id?: string;
+    query?: string;
+    error?: string;
+  }> {
+    const response = await apiClient.post('/api/search/session/create', {
+      query,
+      deep_mode: deepMode,
+    });
+    return response.data;
+  },
+
+  // 🆕 v7.189: 删除搜索会话
+  async deleteSearchSession(sessionId: string): Promise<{ success: boolean; message: string }> {
+    const response = await apiClient.delete(`/api/search/session/${sessionId}`);
     return response.data;
   },
 
@@ -247,7 +279,7 @@ export const api = {
   },
 
   // 🔥 v7.41: 概念图像管理 API
-  
+
   /**
    * 重新生成专家概念图
    * @param sessionId 会话ID
@@ -257,8 +289,8 @@ export const api = {
   async regenerateImage(
     sessionId: string,
     expertName: string,
-    params: ImageGenerationParams & { 
-      save_as_copy?: boolean; 
+    params: ImageGenerationParams & {
+      save_as_copy?: boolean;
       image_id?: string;
     }
   ): Promise<{
@@ -482,5 +514,133 @@ export const api = {
       edit_mode: params.edit_mode
     });
     return response.data;
+  },
+
+  // 🆕 v7.189: 迁移所有guest会话到用户账户
+  async migrateGuestSessions(): Promise<{
+    success: boolean;
+    migrated_count?: number;
+    message?: string;
+    error?: string;
+  }> {
+    try {
+      const response = await apiClient.post('/api/search/session/migrate');
+      return response.data;
+    } catch (error) {
+      console.error('迁移guest会话失败:', error);
+      return { success: false, error: '迁移会话失败' };
+    }
+  },
+
+  // 🆕 v7.189: 关联单个guest会话到当前用户
+  async associateGuestSession(sessionId: string): Promise<{
+    success: boolean;
+    session_id?: string;
+    message?: string;
+    error?: string;
+  }> {
+    try {
+      const response = await apiClient.post('/api/search/session/associate', null, {
+        params: { session_id: sessionId }
+      });
+      return response.data;
+    } catch (error) {
+      console.error('关联guest会话失败:', error);
+      return { success: false, error: '关联会话失败' };
+    }
+  },
+
+  // 🆕 v7.180: 获取搜索历史列表
+  async getSearchSessions(limit: number = 50, offset: number = 0): Promise<{
+    success: boolean;
+    sessions: Array<{
+      session_id: string;
+      query: string;
+      created_at: string;
+      source_count: number;
+      image_count: number;
+      execution_time: number;
+    }>;
+    count: number;
+  }> {
+    try {
+      const response = await apiClient.get('/api/search/history', {
+        params: { limit, offset }
+      });
+      return response.data;
+    } catch (error) {
+      console.error('获取搜索历史失败:', error);
+      return { success: false, sessions: [], count: 0 };
+    }
+  },
+
+  // 🆕 v7.180: 获取统一会话列表（分析+搜索合并）
+  async getUnifiedSessions(page: number = 1, pageSize: number = 20): Promise<{
+    total: number;
+    sessions: Array<{
+      session_id: string;
+      status: string;
+      mode: string;
+      created_at: string;
+      user_input: string;
+      session_type: 'analysis' | 'search';  // 🆕 区分类型
+      isTemporary?: boolean;
+      analysis_mode?: string;  // 🔥 v7.305: 保留分析模式字段
+    }>;
+    has_next: boolean;
+  }> {
+    try {
+      // 🔥 v7.305 修复策略（最终版）:
+      // 策略演进：
+      // v1 问题：搜索会话过多（20条）淹没分析会话
+      // v2 修复：仅分析会话不足时补充搜索 → 用户反馈：看不到搜索会话
+      // v3 最终：按比例混合显示（分析会话优先，但搜索会话也可见）
+
+      // 策略：分析会话获取pageSize，搜索会话获取pageSize/2
+      // 合并后按时间排序，取前pageSize条
+      // 这样既保证分析会话优先级，又能看到搜索历史
+
+      const analysisData = await this.getSessions(page, pageSize, true);
+
+      // 为分析会话添加类型标记（保留 analysis_mode 字段）
+      const analysisSessions = (analysisData.sessions || []).map(s => ({
+        ...s,
+        session_type: 'analysis' as const
+      }));
+
+      // 🎯 关键修复: 始终获取一定数量的搜索会话（约pageSize的50%）
+      // 这样可以在时间排序后混合显示
+      const searchLimit = Math.ceil(pageSize / 2);  // 10条搜索会话
+      const searchOffset = (page - 1) * searchLimit;
+
+      const searchData = await this.getSearchSessions(searchLimit, searchOffset);
+
+      // 转换搜索会话为统一格式
+      const searchSessions = (searchData.sessions || []).map(s => ({
+        session_id: s.session_id,
+        status: 'completed' as const,
+        mode: 'search',
+        created_at: s.created_at,
+        user_input: s.query,
+        session_type: 'search' as const
+      }));
+
+      // 合并并按时间排序
+      const allSessions = [...analysisSessions, ...searchSessions].sort((a, b) =>
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      );
+
+      // 取前pageSize条（按时间自然混合）
+      const paginatedSessions = allSessions.slice(0, pageSize);
+
+      return {
+        total: analysisData.total + searchData.count,
+        sessions: paginatedSessions,
+        has_next: analysisData.has_next || searchData.count >= searchLimit
+      };
+    } catch (error) {
+      console.error('获取统一会话列表失败:', error);
+      return { total: 0, sessions: [], has_next: false };
+    }
   },
 };

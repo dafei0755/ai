@@ -28,7 +28,7 @@ class DynamicProjectDirectorWithAnalytics:
         # 其他初始化...
         self.role_library = self._load_role_library()
         
-        print("✅ 项目总监已初始化 (已启用监控)")
+        print(" 项目总监已初始化 (已启用监控)")
     
     def select_roles(self, state: Dict) -> Dict:
         """
@@ -80,7 +80,7 @@ class DynamicProjectDirectorWithAnalytics:
             }
             
             # ========================================
-            # 📊 监控集成: 记录成功案例
+            #  监控集成: 记录成功案例
             # ========================================
             execution_time_ms = (time.time() - start_time) * 1000
             
@@ -98,7 +98,7 @@ class DynamicProjectDirectorWithAnalytics:
             
         except Exception as e:
             # ========================================
-            # 📊 监控集成: 记录失败案例
+            #  监控集成: 记录失败案例
             # ========================================
             execution_time_ms = (time.time() - start_time) * 1000
             
@@ -236,17 +236,17 @@ def example_usage():
         {"user_input": "办公空间改造"}
     ]
     
-    print("\n📋 执行角色选择:")
+    print("\n 执行角色选择:")
     for i, state in enumerate(test_requests, 1):
         print(f"\n请求 {i}: {state['user_input']}")
         result = director.select_roles(state)
-        print(f"✅ 选择模式: {result['collaboration_mode']}")
+        print(f" 选择模式: {result['collaboration_mode']}")
         print(f"   置信度: {result['confidence']:.2%}")
         print(f"   选中角色: {len(result['selected_roles'])}个")
     
     # 3. 查看今日统计
     print("\n" + "=" * 80)
-    print("📊 今日统计数据:")
+    print(" 今日统计数据:")
     stats = director.get_daily_stats()
     print(f"   总选择次数: {stats['total_selections']}")
     print(f"   成功率: {stats['success_rate']:.1%}")
@@ -255,12 +255,12 @@ def example_usage():
     
     # 4. 生成周报
     print("\n" + "=" * 80)
-    print("📄 生成周报:")
+    print(" 生成周报:")
     report_path = director.generate_weekly_report()
     print(f"   报告位置: {report_path}")
     
     print("\n" + "=" * 80)
-    print("✅ 演示完成")
+    print(" 演示完成")
     print("=" * 80)
 
 

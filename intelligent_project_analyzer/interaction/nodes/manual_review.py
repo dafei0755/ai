@@ -40,13 +40,13 @@ class ManualReviewNode:
             Command对象，指向下一个节点
         """
         logger.info("=" * 100)
-        logger.info("⚠️ 触发人工审核节点 - 发现严重质量问题")
+        logger.info("️ 触发人工审核节点 - 发现严重质量问题")
         logger.info("=" * 100)
         
         # 获取问题详情
         issues_count = state.get("critical_issues_count", 0)
         improvement_suggestions = state.get("improvement_suggestions", [])
-        review_result = state.get("review_result") or {}  # 🔥 修复：确保不为 None
+        review_result = state.get("review_result") or {}  #  修复：确保不为 None
         
         # 提取must_fix问题
         must_fix_issues = [
@@ -65,7 +65,7 @@ class ManualReviewNode:
         # 准备用户审核数据
         review_data = {
             "interaction_type": "manual_review_required",
-            "message": f"🚨 审核系统发现 {issues_count} 个严重质量问题（超过阈值3个），需要您的裁决",
+            "message": f" 审核系统发现 {issues_count} 个严重质量问题（超过阈值3个），需要您的裁决",
             "severity": "critical",
             "issues_summary": {
                 "total_must_fix": issues_count,
@@ -102,18 +102,18 @@ class ManualReviewNode:
             "recommendation": "建议选择 'abort' 或 'selective_fix'，确保报告质量"
         }
         
-        logger.info(f"\n📊 问题统计:")
+        logger.info(f"\n 问题统计:")
         logger.info(f"   - 必须修复: {issues_count} 个")
         logger.info(f"   - Critical: {review_data['issues_summary']['critical_count']} 个")
         logger.info(f"   - High: {review_data['issues_summary']['high_count']} 个")
-        logger.info(f"\n🔍 前5个问题:")
+        logger.info(f"\n 前5个问题:")
         for issue in review_data['top_issues'][:5]:
             logger.info(f"   [{issue['id']}] {issue['description']}")
         
         # 暂停执行，等待用户裁决
-        logger.info("\n⏸️ 暂停流程，等待用户裁决...")
+        logger.info("\n️ 暂停流程，等待用户裁决...")
         user_decision = interrupt(review_data)
-        logger.info(f"✅ 收到用户裁决: {user_decision}")
+        logger.info(f" 收到用户裁决: {user_decision}")
         
         # 解析用户决策
         if isinstance(user_decision, dict):
@@ -123,7 +123,7 @@ class ManualReviewNode:
             action = user_decision
             selected_issues = []
         else:
-            logger.warning("⚠️ 无效的用户响应，默认继续流程")
+            logger.warning("️ 无效的用户响应，默认继续流程")
             action = "continue"
             selected_issues = []
         
@@ -141,7 +141,7 @@ class ManualReviewNode:
         # 根据用户决策路由
         if action == "abort":
             # 终止流程，触发全面整改
-            logger.info("🔄 用户选择全面整改，提取需要重新执行的专家...")
+            logger.info(" 用户选择全面整改，提取需要重新执行的专家...")
             
             agents_to_rerun = ManualReviewNode._extract_agents_from_issues(
                 must_fix_issues,
@@ -149,7 +149,7 @@ class ManualReviewNode:
             )
             
             if agents_to_rerun:
-                logger.info(f"📌 需要整改的专家: {agents_to_rerun}")
+                logger.info(f" 需要整改的专家: {agents_to_rerun}")
                 updated_state["agents_to_rerun"] = list(agents_to_rerun)
                 updated_state["rerun_reason"] = f"人工审核要求整改{issues_count}个must_fix问题"
                 updated_state["skip_second_review"] = True  # 整改后跳过审核
@@ -158,13 +158,13 @@ class ManualReviewNode:
                 # 路由到专家重新执行
                 return ManualReviewNode._route_to_batch_executor(updated_state)
             else:
-                logger.error("❌ 未能提取专家ID，无法执行整改，继续流程")
+                logger.error(" 未能提取专家ID，无法执行整改，继续流程")
                 updated_state["manual_review_failed"] = True
                 return Command(update=updated_state, goto="detect_challenges")
         
         elif action == "selective_fix":
             # 选择性整改
-            logger.info(f"🎯 用户选择整改 {len(selected_issues)} 个关键问题")
+            logger.info(f" 用户选择整改 {len(selected_issues)} 个关键问题")
             
             if selected_issues:
                 # 根据用户选择的问题提取专家
@@ -179,7 +179,7 @@ class ManualReviewNode:
                 )
                 
                 if agents_to_rerun:
-                    logger.info(f"📌 需要整改的专家: {agents_to_rerun}")
+                    logger.info(f" 需要整改的专家: {agents_to_rerun}")
                     updated_state["agents_to_rerun"] = list(agents_to_rerun)
                     updated_state["rerun_reason"] = f"人工审核要求选择性整改{len(selected_issues)}个关键问题"
                     updated_state["skip_second_review"] = True
@@ -187,13 +187,13 @@ class ManualReviewNode:
                     
                     return ManualReviewNode._route_to_batch_executor(updated_state)
             
-            logger.warning("⚠️ 未选择有效问题或无法提取专家，继续流程")
+            logger.warning("️ 未选择有效问题或无法提取专家，继续流程")
             updated_state["manual_review_failed"] = True
             return Command(update=updated_state, goto="detect_challenges")
         
         else:  # continue
             # 接受风险，继续生成报告
-            logger.warning("⚠️ 用户选择接受风险，继续生成报告（报告可能存在严重缺陷）")
+            logger.warning("️ 用户选择接受风险，继续生成报告（报告可能存在严重缺陷）")
             updated_state["analysis_approved"] = False  # 标记为未通过，但继续
             updated_state["risk_accepted"] = True
             updated_state["requires_manual_review"] = False  # 清除标记
@@ -247,7 +247,7 @@ class ManualReviewNode:
         
         agents_to_rerun = updated_state.get("agents_to_rerun", [])
         if not agents_to_rerun:
-            logger.error("❌ 没有需要重新执行的专家")
+            logger.error(" 没有需要重新执行的专家")
             return Command(update=updated_state, goto="detect_challenges")
         
         # 调用 analysis_review 的路由函数

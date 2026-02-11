@@ -35,7 +35,7 @@ class MetricsCollector:
         记录搜索操作指标
 
         Args:
-            tool: 工具名称 ("tavily", "arxiv", "ragflow", "bocha")
+            tool: 工具名称 ("tavily", "arxiv", "milvus", "bocha")
             operation: 操作类型 ("search", "search_for_deliverable")
             execution_time: 执行时间（秒）
             success: 是否成功
@@ -147,7 +147,7 @@ class MetricsCollector:
     def _report_slow_query(self, tool: str, operation: str, execution_time: float, metric: Dict):
         """上报慢查询"""
         logger.warning(
-            f"🐌 Slow query detected",
+            f" Slow query detected",
             tool=tool,
             operation=operation,
             execution_time=execution_time,
@@ -180,7 +180,7 @@ class PerformanceMonitor:
     def __enter__(self):
         """进入监控上下文"""
         self.start_time = time.time()
-        logger.debug(f"📊 [Monitor] Starting {self.tool}.{self.operation}")
+        logger.debug(f" [Monitor] Starting {self.tool}.{self.operation}")
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
@@ -211,7 +211,7 @@ class PerformanceMonitor:
             )
 
         logger.debug(
-            f"📊 [Monitor] Completed {self.tool}.{self.operation}: "
+            f" [Monitor] Completed {self.tool}.{self.operation}: "
             f"success={self.success}, time={execution_time:.2f}s, results={self.result_count}"
         )
 
