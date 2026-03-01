@@ -1,0 +1,152 @@
+# ============================================================
+# 约束维度显示配置 (v12.1)
+# ============================================================
+# 用途：将后端检测到的 mandatory_dimensions 和 constraints
+#       映射为前端可读的标签、描述和分类。
+# 消费方：output_intent_detection.py → interrupt payload → 前端 Step 1
+#
+# category 分类：
+#   - domain_capability: 领域能力（项目需要覆盖的专业领域）
+#   - project_constraint: 项目约束（硬性限制条件）
+# ============================================================
+
+constraint_dimensions:
+
+  # ─── A. 领域能力（20 个 mandatory_dimensions）───
+
+  acoustics:
+    label: "声学设计"
+    desc: "专业声学处理（隔音、吸音、扩散等）"
+    category: "domain_capability"
+
+  accessibility_safety:
+    label: "无障碍与安全"
+    desc: "全龄友好设计、轮椅通行、儿童安全防护"
+    category: "domain_capability"
+
+  fire_safety:
+    label: "消防安全"
+    desc: "消防规范合规、疏散通道、耐火等级"
+    category: "domain_capability"
+
+  brand_translation:
+    label: "品牌转译"
+    desc: "品牌视觉系统融入空间设计"
+    category: "domain_capability"
+
+  smart_technology:
+    label: "智能科技"
+    desc: "智能家居、传感器、物联网、沉浸式交互"
+    category: "domain_capability"
+
+  multi_sensory:
+    label: "多感官体验"
+    desc: "声环境、气味设计、触感体验、五感营造"
+    category: "domain_capability"
+
+  environmental_control:
+    label: "环境控制"
+    desc: "恒温恒湿、防潮防腐、保温隔热"
+    category: "domain_capability"
+
+  media_production:
+    label: "媒体制作"
+    desc: "拍摄、直播、录音棚等媒体制作空间"
+    category: "domain_capability"
+
+  exhibition_curation:
+    label: "展陈策划"
+    desc: "展厅、博物馆、策展与陈列设计"
+    category: "domain_capability"
+
+  hvac_MEP:
+    label: "暖通机电"
+    desc: "供暖、空调、新风、净化等机电系统"
+    category: "domain_capability"
+
+  sustainability:
+    label: "可持续设计"
+    desc: "环保材料、零碳目标、碳足迹追踪"
+    category: "domain_capability"
+
+  operation_model:
+    label: "运营模式"
+    desc: "坪效优化、翻台率、商业模式设计"
+    category: "domain_capability"
+
+  competitive_strategy:
+    label: "竞争策略"
+    desc: "差异化定位、竞品对标分析"
+    category: "domain_capability"
+
+  cultural_translation:
+    label: "文化转译"
+    desc: "在地文化融合、非遗元素、传统与现代对话"
+    category: "domain_capability"
+
+  psychological_wellbeing:
+    label: "心理健康"
+    desc: "情绪支持空间、疗愈设计、正念冥想"
+    category: "domain_capability"
+
+  structural_engineering:
+    label: "结构工程"
+    desc: "结构加固改造、防水、承重、抗震"
+    category: "domain_capability"
+
+  modularity_storage:
+    label: "模块化收纳"
+    desc: "收纳系统、隐形储物、折叠可变空间"
+    category: "domain_capability"
+
+  security:
+    label: "安防系统"
+    desc: "监控、门禁、隐蔽安全、保密等级"
+    category: "domain_capability"
+
+  pet_integration:
+    label: "宠物友好"
+    desc: "宠物动线、猫狗专属空间设计"
+    category: "domain_capability"
+
+  data_driven_design:
+    label: "数据驱动"
+    desc: "数据可视化、热力图分析、传感器反馈"
+    category: "domain_capability"
+
+  # ─── B. 项目约束（7 个 constraints）───
+
+  budget:
+    label: "预算约束"
+    desc: "项目存在明确的预算限制或成本控制要求"
+    category: "project_constraint"
+
+  regulatory:
+    label: "法规合规"
+    desc: "消防、历史建筑保护、审批等法规约束"
+    category: "project_constraint"
+
+  extreme_environment:
+    label: "极端环境"
+    desc: "极寒、高原、台风、盐雾等特殊环境条件"
+    category: "project_constraint"
+
+  special_population:
+    label: "特殊人群"
+    desc: "无障碍需求、老人/儿童/特殊人群适配"
+    category: "project_constraint"
+
+  time_pressure:
+    label: "时间压力"
+    desc: "紧急工期、快速搭建、限时交付"
+    category: "project_constraint"
+
+  extreme_compact:
+    label: "极限空间"
+    desc: "超小面积空间（≤30㎡）的极限设计"
+    category: "project_constraint"
+
+  stakeholder_conflict:
+    label: "多方冲突"
+    desc: "多方需求矛盾、复杂家庭/团队协调"
+    category: "project_constraint"

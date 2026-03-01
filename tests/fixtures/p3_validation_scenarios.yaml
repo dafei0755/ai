@@ -1,0 +1,219 @@
+# P3 能力验证测试场景配置
+# 目标：为10 Mode Engine创建代表性测试场景，收集真实验证数据
+
+scenarios:
+  # M1 概念驱动型设计
+  - scenario_id: "S01_M1_Concept_Driven"
+    mode: "M1"
+    project_name: "艺术家工作室"
+    project_type: "文化建筑"
+    project_description: |
+      为一位当代艺术家设计私人工作室，需要表达"创作与沉思的对立统一"概念。
+      空间需要具备强烈的精神主轴，材料和光线服从概念逻辑。
+    expected_experts:
+      - "v2_design_director"  # A1概念建构
+      - "v3_narrative_expert"  # A3叙事节奏
+      - "v7_emotional_insight_expert"  # A1/A3辅助
+    expected_abilities:
+      primary: ["A1", "A3"]
+      secondary: ["A2", "A5"]
+    query: "为一位雕塑艺术家设计300㎡私人工作室，表达'创造与破坏的循环'概念"
+
+  # M2 功能效率型设计
+  - scenario_id: "S02_M2_Function_Efficiency"
+    mode: "M2"
+    project_name: "科技公司总部"
+    project_type: "办公空间"
+    project_description: |
+      为500人科技公司设计总部，强调动线效率、功能模块化、干扰控制。
+      需要优化协作区、专注区、会议区的空间组织。
+    expected_experts:
+      - "v2_design_director"  # A2空间结构 (替代A6)
+      - "v4_technology_consultant"  # A8技术（替代A11）
+    expected_abilities:
+      primary: ["A2", "A8"]
+      secondary: ["A6"]
+    query: "设计5000㎡科技公司总部，优化500人协作效率，减少干扰"
+
+  # M3 情绪体验型设计
+  - scenario_id: "S03_M3_Emotional_Experience"
+    mode: "M3"
+    project_name: "精品酒店"
+    project_type: "酒店空间"
+    project_description: |
+      设计20间客房的精品酒店，需要构建情绪曲线：压缩→释放→高潮→沉静。
+      五感调动系统，制造记忆锚点。
+    expected_experts:
+      - "v7_emotional_insight_expert"  # A9社会关系+情绪
+      - "v3_narrative_expert"  # A3叙事节奏
+      - "v4_technology_consultant"  # A4材料（替代v4_5）
+    expected_abilities:
+      primary: ["A3", "A9"]
+      secondary: ["A4", "A5"]
+    query: "设计精品酒店大堂与客房，创造从压抑到释放的情绪曲线"
+
+  # M4 资产资本型设计
+  - scenario_id: "S04_M4_Capital_Asset"
+    mode: "M4"
+    project_name: "商业综合体"
+    project_type: "商业地产"
+    project_description: |
+      设计8万㎡商业综合体，优化坪效、转化率、溢价符号构建。
+      需要精准客群分析、动线优化、长期收益模型。
+    expected_experts:
+      - "v2_design_director"  # A2空间结构（替代A7）
+      - "v4_technology_consultant"  # A8技术（替代A11）
+    expected_abilities:
+      primary: ["A2", "A8"]
+      secondary: ["A1"]
+    query: "设计80000㎡商业综合体，优化坪效，构建10年收益模型"
+
+  # M5 乡建在地型设计
+  - scenario_id: "S05_M5_Rural_Context"
+    mode: "M5"
+    project_name: "云南山地民宿"
+    project_type: "乡村建筑"
+    project_description: |
+      在云南山区设计10间客房的民宿集群，嵌入本地文化、材料、产业。
+      需要低成本结构优化，形成经济闭环。
+    expected_experts:
+      - "v6_6_sustainability_expert"  # A10环境适应
+      - "v4_technology_consultant"  # A4材料系统（替代v4_5）
+      - "v3_narrative_expert"  # A3叙事（替代A11）
+    expected_abilities:
+      primary: ["A10", "A4"]
+      secondary: ["A11", "A7"]
+    query: "在云南山区海拔2000米设计民宿，融入本地材料，年温差30℃"
+
+  # M6 城市更新型设计
+  - scenario_id: "S06_M6_Urban_Regeneration"
+    mode: "M6"
+    project_name: "旧厂区改造"
+    project_type: "城市更新"
+    project_description: |
+      改造2万㎡废弃工厂，重构土地价值、公共界面、产业逻辑。
+      需要形成城市IP，平衡资本与居民利益。
+    expected_experts:
+      - "v2_design_director"  # A1概念建构
+      - "v4_technology_consultant"  # A8技术（替代A7）
+      - "v3_narrative_expert"  # A3叙事（辅助）
+    expected_abilities:
+      primary: ["A1", "A7", "A11"]
+      secondary: ["A2", "A12"]
+    query: "改造北京798相邻废弃工厂20000㎡，植入文创产业，提升片区价值"
+
+  # M7 技术整合型设计
+  - scenario_id: "S07_M7_Technology_Integration"
+    mode: "M7"
+    project_name: "AI企业总部"
+    project_type: "科技办公"
+    project_description: |
+      为AI企业设计智能总部，技术系统隐形化、数据反馈驱动、可迭代接口。
+      需要人机关系平衡，避免技术支配。
+    expected_experts:
+      - "v4_technology_consultant"  # A8技术整合
+      - "v2_design_director"  # A2空间结构（替代A6）
+      - "v3_narrative_expert"  # A3叙事（替代A11）
+    expected_abilities:
+      primary: ["A8"]
+      secondary: ["A2", "A3"]
+    query: "设计AI企业3000㎡总部，全屋智能但系统隐形，可迭代升级"
+
+  # M8 极端环境型设计
+  - scenario_id: "S08_M8_Extreme_Condition"
+    mode: "M8"
+    project_name: "西藏高原酒店"
+    project_type: "极端环境"
+    project_description: |
+      在海拔4500米设计酒店，抗风压、低能耗供暖、供氧系统、抗紫外线。
+      材料适应高原气候，生理舒适保障。
+    expected_experts:
+      - "v6_6_sustainability_expert"  # A10环境适应
+      - "v4_technology_consultant"  # A4材料系统+A8技术
+      - "v6_5_lighting_engineer"  # A5灯光系统（辅助）
+    expected_abilities:
+      primary: ["A10", "A4"]
+      secondary: ["A8", "A6"]
+    query: "在西藏海拔4500米设计20间客房酒店，抗风压8级，年均温-5℃"
+
+  # M9 社会结构型设计
+  - scenario_id: "S09_M9_Social_Structure"
+    mode: "M9"
+    project_name: "多代同堂别墅"
+    project_type: "住宅建筑"
+    project_description: |
+      为三代六口之家设计别墅，平衡权力距离、隐私分级、冲突缓冲、关系演化。
+      需要避免代际冲突，构建灰空间。
+    expected_experts:
+      - "v7_emotional_insight_expert"  # A9社会关系建模
+      - "v2_design_director"  # A2空间结构
+      - "v3_narrative_expert"  # A3叙事节奏（辅助）
+    expected_abilities:
+      primary: ["A9"]
+      secondary: ["A2", "A6"]
+    query: "设计三代同堂600㎡别墅，祖父母+父母+两个孩子，避免冲突，保障隐私"
+
+  # M10 未来推演型设计
+  - scenario_id: "S10_M10_Future_Speculation"
+    mode: "M10"
+    project_name: "2035未来住宅"
+    project_type: "未来建筑"
+    project_description: |
+      基于远程办公普及、AI自动化、家庭小型化趋势，设计2035年住宅原型。
+      技术接口预留、生活方式重构、长周期价值策略。
+    expected_experts:
+      - "v4_technology_consultant"  # A8技术整合
+      - "v2_design_director"  # A1概念建构
+      - "v3_narrative_expert"  # A3叙事（辅助）
+    expected_abilities:
+      primary: ["A8", "A1"]
+      secondary: ["A11", "A12"]
+    query: "设计2035年120㎡住宅原型，适配远程办公+AI管家+模块化空间"
+
+# 验证数据收集维度
+validation_metrics:
+  - metric: "overall_pass_rate"
+    description: "整体能力验证通过率"
+    target: ">= 75%"
+
+  - metric: "ability_coverage"
+    description: "12能力被触发的覆盖率"
+    target: ">= 90%"
+
+  - metric: "check_failure_rate"
+    description: "各检查项失败率"
+    target: "<= 30%"
+
+  - metric: "expert_quality_score"
+    description: "专家平均质量评分"
+    target: ">= 80%"
+
+  - metric: "missing_fields_frequency"
+    description: "高频缺失字段识别"
+    analysis: "统计top10缺失字段"
+
+  - metric: "missing_keywords_frequency"
+    description: "高频缺失关键词识别"
+    analysis: "统计top10缺失关键词"
+
+  - metric: "low_score_abilities"
+    description: "低分能力识别"
+    threshold: "<= 70%"
+
+# 数据分析维度
+analysis_dimensions:
+  - dimension: "mode_ability_correlation"
+    description: "模式与能力触发相关性分析"
+    method: "统计每个模式触发了哪些能力，验证10 Mode → 12 Ability映射准确性"
+
+  - dimension: "expert_specialization_validation"
+    description: "专家专长能力验证"
+    method: "检查专家在声明的主要能力上是否表现更好"
+
+  - dimension: "quality_check_effectiveness"
+    description: "质量检查项有效性分析"
+    method: "识别哪些检查项失败率高，可能需要调整阈值"
+
+  - dimension: "maturity_threshold_appropriateness"
+    description: "成熟度阈值适当性分析"
+    method: "对比L1/L3/L5专家在相同能力上的验证通过率"

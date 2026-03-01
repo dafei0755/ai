@@ -1,0 +1,392 @@
+# 示例:泰康人寿高端养老社区
+# 来源:q.txt Q80
+# 类型:社会商业主导 (Social + Commercial Dominant) / 代际交流养老社区
+# 特征:高端养老、代际交流、商业闭环、打破孤岛感、公共空间层级、动线交叉、运营转化
+# 适用场景:养老社区设计、代际融合空间、商业运营闭环、社区活力激活
+
+example:
+  project_info:
+    name: 泰康人寿高端养老社区
+    description: |
+      泰康人寿投资的高端养老社区项目，核心目标是通过空间布局打破传统养老院的"孤岛感"，
+      引入代际交流机制与商业闭环模式（如社区幼儿园、共享书房、康养商业街等），
+      提升社区活力与入住率。项目需构建完整设计框架，涵盖公共空间层级划分、
+      动线交叉机制与运营转化路径，实现从空间设计到商业运营的全链条闭环。
+      挑战在于平衡老年人的安全舒适需求与社区开放活力之间的矛盾，
+      同时确保代际交流的自然发生而非强制安排。
+
+    feature_vector:
+      commercial: 0.65
+      functional: 0.70
+      social: 0.78
+      cultural: 0.42
+      experiential: 0.60
+      sustainable: 0.48
+      regional: 0.35
+      technical: 0.52
+      material_innovation: 0.30
+      aesthetic: 0.45
+      historical: 0.20
+      symbolic: 0.38
+
+    constraints:
+      - 老年人无障碍与安全需求为底线
+      - 代际交流需自然发生而非强制安排
+      - 商业配套需服务社区而非外部导流
+      - 保险资金投资回报周期与入住率挂钩
+      - 医疗康养配套需满足分级护理标准
+
+    goals:
+      - 打破传统养老院"孤岛感"，构建开放活力社区
+      - 建立代际交流的空间触发机制
+      - 实现商业闭环模式提升运营可持续性
+      - 构建公共空间层级体系与动线交叉网络
+      - 提升入住率至90%以上
+
+  ideal_tasks:
+    # ========== 第一阶段:需求研究与案例调研(Task 1-5) ==========
+
+    - id: task_1
+      title: 搜索 国内外高端养老社区的 代际交流空间模式、成功案例、空间触发机制、效果评估数据
+      description: |
+        系统研究全球高端养老社区中代际交流的空间设计模式，包括日本蔦屋书店式共享空间、
+        荷兰Humanitas代际公寓、美国Sun City活力社区等案例，提取代际交流的空间触发条件、
+        频率数据与满意度评估，为设计提供循证依据。
+      task_type: research
+      motivation: social
+      support_search: true
+      dimensions:
+        - 代际交流模式(自然偶遇型、活动组织型、功能共享型、服务交换型)
+        - 空间触发机制(路径交叉、功能叠合、视线连通、声音渗透)
+        - 成功案例(Humanitas代际公寓、Sun City、日本CCRC社区)
+        - 效果评估(交流频率、孤独感指数、入住满意度、社区归属感)
+      priority: high
+      execution_order: 1
+
+    - id: task_2
+      title: 搜索 养老社区商业闭环模式的 业态组合策略、运营转化路径、收入结构、盈亏平衡模型
+      description: |
+        研究养老社区内部商业生态的构建逻辑，包括社区幼儿园、共享书房、康养商业街、
+        社区食堂、健康管理中心等业态的组合策略，分析各业态的运营转化路径、
+        收入贡献比例与盈亏平衡周期，建立商业闭环的可行性模型。
+      task_type: research
+      motivation: commercial
+      support_search: true
+      dimensions:
+        - 业态组合(幼儿园、共享书房、康养商业街、社区食堂、健康中心)
+        - 运营转化(体验→付费→复购→口碑→新客的转化漏斗)
+        - 收入结构(物业费、商业租金、服务费、增值服务的比例)
+        - 盈亏模型(投资回收期、入住率盈亏线、边际成本分析)
+      priority: high
+      execution_order: 2
+
+    - id: task_3
+      title: 搜索 传统养老院"孤岛感"的 成因分析、空间病理学诊断、心理影响机制、破解策略
+      description: |
+        深入研究传统养老院产生"孤岛感"的空间成因，包括封闭式围墙、单一功能分区、
+        缺乏社会连接节点、过度保护导致的活力丧失等问题，建立空间病理学诊断框架，
+        为设计提供"反面教材"与破解方向。
+      task_type: research
+      motivation: social
+      support_search: true
+      dimensions:
+        - 孤岛成因(封闭围墙、功能单一、社会隔离、过度保护)
+        - 空间病理(走廊化动线、病房化居室、食堂化餐饮、仓储化公区)
+        - 心理影响(孤独感、无用感、失控感、身份丧失)
+        - 破解策略(开放边界、功能混合、社会嵌入、自主选择)
+      priority: high
+      execution_order: 3
+
+    - id: task_4
+      title: 搜索 老年人无障碍设计的 国际标准体系、分级护理空间要求、适老化技术规范、智慧养老设备
+      description: |
+        系统梳理老年人无障碍设计的国际标准(ADA、JIS、GB)，研究自理、介助、介护
+        三级护理对应的空间配置要求，以及适老化家具、智慧养老设备、紧急呼叫系统等
+        技术规范，确保设计满足安全底线。
+      task_type: research
+      motivation: functional
+      support_search: true
+      dimensions:
+        - 无障碍标准(ADA、JIS T0103、GB 50763、通道宽度、坡道坡度)
+        - 分级护理(自理区、介助区、介护区的空间配置差异)
+        - 适老化技术(防滑地面、扶手系统、紧急呼叫、跌倒检测)
+        - 智慧设备(健康监测、定位系统、智能照明、环境控制)
+      priority: high
+      execution_order: 4
+
+    - id: task_5
+      title: 搜索 泰康保险资金投资模式下的 入住率驱动因素、客群画像、决策链路、竞品差异化定位
+      description: |
+        研究泰康人寿保险资金投资养老社区的商业逻辑，调研目标客群(保单持有人及其家庭)
+        的决策链路、入住率驱动因素、竞品(泰康之家燕园/申园/粤园)的差异化定位，
+        为空间设计提供商业策略支撑。
+      task_type: research
+      motivation: commercial
+      support_search: true
+      dimensions:
+        - 客群画像(年龄层、资产水平、健康状态、家庭结构)
+        - 决策链路(子女推荐→老人体验→家庭共识→保单绑定)
+        - 入住率驱动(空间品质、社交活力、医疗保障、子女便利)
+        - 竞品分析(泰康燕园/申园/粤园的空间特色与入住率对比)
+      priority: high
+      execution_order: 5
+
+    # ========== 第二阶段:空间体系设计(Task 6-10) ==========
+
+    - id: task_6
+      title: 设计 公共空间四级层级体系、从私密到开放的梯度划分、面积配比、功能定位
+      description: |
+        构建"居室私密层→组团半私密层→社区公共层→城市开放层"四级公共空间体系，
+        定义各层级的空间尺度、功能定位、使用频率、管理模式，
+        实现从个人领地到社会连接的渐进式空间过渡。
+      task_type: design
+      motivation: functional
+      support_search: false
+      dimensions:
+        - 居室私密层(个人居室+阳台+入户花园，安全感与自主性)
+        - 组团半私密层(6-8户共享客厅+厨房+花园，邻里熟人圈)
+        - 社区公共层(共享书房+食堂+健身房+活动中心，社区归属)
+        - 城市开放层(幼儿园+商业街+公园，城市连接与代际交流)
+        - 面积配比(私密40%、半私密15%、公共30%、开放15%)
+      priority: high
+      execution_order: 6
+
+    - id: task_7
+      title: 设计 代际交流动线交叉机制、自然偶遇节点、视线连通系统、声景渗透策略
+      description: |
+        设计老年人日常动线与幼儿园/商业街/共享空间动线的交叉节点，
+        通过路径重叠、功能叠合、视线连通、声景渗透等手法，
+        创造代际交流的自然偶遇机会，避免强制安排的尴尬感。
+      task_type: design
+      motivation: social
+      support_search: false
+      dimensions:
+        - 动线交叉(老人晨练路径×幼儿园接送路径的重叠段)
+        - 偶遇节点(共享书房入口、社区食堂、花园座椅、商业街廊道)
+        - 视线连通(幼儿园活动场与老人休息廊的视线穿透)
+        - 声景渗透(儿童笑声→半户外空间→老人活动区的声音梯度)
+      priority: high
+      execution_order: 7
+
+    - id: task_8
+      title: 设计 社区幼儿园与养老空间的 共生布局、安全隔离与交流界面、共享活动空间、管理机制
+      description: |
+        设计社区幼儿园与养老区域的空间关系，在确保儿童安全的前提下，
+        创造代际交流的界面空间(如共享花园、故事角、手工坊)，
+        建立定期互动活动的空间支持与日常管理机制。
+      task_type: design
+      motivation: social
+      support_search: false
+      dimensions:
+        - 共生布局(幼儿园位于社区中心，老人居住区环绕，步行5分钟可达)
+        - 安全界面(透明围栏+共享花园+可开启的交流窗口)
+        - 共享空间(代际故事角、手工坊、种植园、小剧场)
+        - 管理机制(定时开放、志愿者陪伴、活动预约、安全监护)
+      priority: high
+      execution_order: 8
+
+    - id: task_9
+      title: 设计 共享书房与社区文化空间的 功能复合策略、时段分配、氛围营造、代际共享模式
+      description: |
+        设计共享书房作为代际交流的核心文化空间，实现阅读、讲座、书法、
+        儿童绘本角等功能的时段复合，通过空间氛围营造促进不同年龄段的自然共处。
+      task_type: design
+      motivation: experiential
+      support_search: false
+      dimensions:
+        - 功能复合(阅读区+讲座区+书法区+儿童绘本角+数字阅读)
+        - 时段分配(上午老人书法→下午亲子阅读→晚间社区讲座)
+        - 氛围营造(木质温暖感、柔和照明、绿植、咖啡香气)
+        - 代际共享(祖孙阅读角、口述历史录音室、代际手工坊)
+      priority: medium
+      execution_order: 9
+
+    - id: task_10
+      title: 设计 康养商业街的 业态布局、动线组织、适老化商业空间、社区服务整合
+      description: |
+        设计社区内部康养商业街的空间布局，整合健康管理中心、康复理疗、
+        社区药房、轻餐饮、生活超市等业态，确保商业空间的适老化设计，
+        同时作为社区活力的核心引擎。
+      task_type: design
+      motivation: commercial
+      support_search: false
+      dimensions:
+        - 业态布局(健康中心→康复理疗→药房→轻餐饮→超市的连续动线)
+        - 动线组织(无障碍通道、休息座椅间距50米、遮阳雨廊连续覆盖)
+        - 适老化商业(低货架、大字标识、宽通道、试用体验区)
+        - 服务整合(健康档案→康复方案→药品配送→餐饮定制的数据闭环)
+      priority: high
+      execution_order: 10
+
+    # ========== 第三阶段:运营策略与转化(Task 11-14) ==========
+
+    - id: task_11
+      title: 制定 商业闭环运营模式、从体验到入住的转化路径、会员体系、收入多元化策略
+      description: |
+        构建"体验日→短住体验→长期入住→增值服务"的运营转化漏斗，
+        设计会员体系(保单持有人优先、家庭联动、积分兑换)，
+        建立物业费+商业租金+服务费+增值服务的多元收入结构。
+      task_type: strategy
+      motivation: commercial
+      support_search: false
+      dimensions:
+        - 转化漏斗(体验日→3天短住→1月试住→年度入住→终身会员)
+        - 会员体系(保单绑定、家庭卡、积分兑换、等级权益)
+        - 收入结构(物业费50%+商业租金20%+服务费20%+增值10%)
+        - 子女驱动(子女体验日、远程健康报告、家庭活动日)
+      priority: high
+      execution_order: 11
+
+    - id: task_12
+      title: 制定 社区活力运营计划、代际活动体系、志愿者机制、社区自治组织培育
+      description: |
+        设计社区活力运营的长效机制，包括代际活动日历(每周/月/季/年)、
+        老年志愿者参与幼儿园的机制、社区自治委员会的培育、
+        以及活力指数的量化评估体系。
+      task_type: strategy
+      motivation: social
+      support_search: false
+      dimensions:
+        - 活动体系(每周代际手工、每月生日会、每季文化节、每年社区运动会)
+        - 志愿者机制(老人故事爷爷/奶奶、园艺导师、书法老师)
+        - 社区自治(业主委员会、兴趣社团、楼栋长制度)
+        - 活力评估(公共空间使用率、活动参与率、社交网络密度)
+      priority: high
+      execution_order: 12
+
+    - id: task_13
+      title: 制定 分级护理与空间适配的 动态调整策略、护理升级路径、空间改造预留、家属沟通机制
+      description: |
+        设计自理→介助→介护三级护理对应的空间动态调整策略，
+        预留居室改造接口(扶手预埋、门宽预留、设备管线)，
+        建立护理升级时的空间无缝切换与家属沟通机制。
+      task_type: strategy
+      motivation: functional
+      support_search: false
+      dimensions:
+        - 护理分级(自理区独立公寓、介助区组团照护、介护区专业护理)
+        - 升级路径(健康评估→护理建议→空间调整→家属确认)
+        - 改造预留(墙体预埋扶手基座、卫生间预留轮椅回转、门宽≥900mm)
+        - 家属沟通(健康报告、空间调整方案、费用变化、情感支持)
+      priority: high
+      execution_order: 13
+
+    - id: task_14
+      title: 整合 智慧养老技术平台、健康数据闭环、安全监护网络、运营数据驾驶舱
+      description: |
+        整合智慧养老技术系统，构建健康监测→数据分析→服务推荐→效果评估的数据闭环，
+        建立安全监护网络(跌倒检测、离院预警、紧急呼叫)，
+        以及运营数据驾驶舱(入住率、满意度、活力指数、商业坪效)。
+      task_type: design
+      motivation: technical
+      support_search: false
+      dimensions:
+        - 健康数据(可穿戴设备、体检数据、用药记录、康复进度)
+        - 安全监护(跌倒检测、离院预警、紧急呼叫、夜间巡查)
+        - 服务推荐(基于健康数据的餐饮定制、运动方案、社交匹配)
+        - 运营驾驶舱(入住率、满意度、NPS、商业坪效、活力指数)
+      priority: medium
+      execution_order: 14
+
+    # ========== 第四阶段:评估与优化(Task 15-16) ==========
+
+    - id: task_15
+      title: 搜索 代际交流空间效果的 量化评估方法、孤独感量表工具、社区归属感测量、国际基准数据
+      description: |
+        研究代际交流空间效果的量化评估方法论，搜索UCLA孤独感量表、
+        社区归属感指数、NPS净推荐值等评估工具的应用案例与国际基准数据，
+        为建立本项目的效果追踪体系提供方法论依据。
+      task_type: research
+      motivation: social
+      support_search: true
+      dimensions:
+        - 交流指标(代际互动频率、参与活动次数、社交网络规模)
+        - 孤独感改善(UCLA孤独感量表、GDS抑郁量表、入住前后对比)
+        - 归属感评估(社区认同度、邻里信任度、自我价值感)
+        - 满意度追踪(NPS净推荐值、续住率、家属满意度、投诉率)
+      priority: medium
+      execution_order: 15
+
+    - id: task_16
+      title: 评估 商业闭环模式的 财务可行性、投资回报周期、风险因素、可复制性分析
+      description: |
+        从财务视角评估商业闭环模式的可行性，分析投资回报周期、
+        入住率盈亏平衡点、关键风险因素(政策、市场、运营)，
+        以及模式在泰康其他社区的可复制性与标准化路径。
+      task_type: analysis
+      motivation: commercial
+      support_search: false
+      dimensions:
+        - 财务可行性(投资总额、年运营成本、收入预测、现金流)
+        - 回报周期(入住率70%盈亏平衡、85%合理回报、95%超额收益)
+        - 风险因素(政策变化、市场竞争、运营团队、医疗事故)
+        - 可复制性(标准化模块、本地化调整、团队培养、品牌溢价)
+      priority: medium
+      execution_order: 16
+
+  quality_highlights:
+    - 16任务全链条覆盖：需求研究31% + 空间设计31% + 运营策略25% + 效果评估13%
+    - 代际交流核心机制：动线交叉偶遇 + 功能空间共享 + 视线声景渗透 + 活动体系支撑
+    - 商业闭环完整路径：体验→短住→入住→增值服务的转化漏斗与多元收入结构
+    - 四级公共空间体系：私密层→半私密层→公共层→开放层的渐进式社会连接
+    - 打破孤岛感策略：开放边界 + 功能混合 + 代际嵌入 + 社区自治的系统性破解
+    - 安全与活力平衡：无障碍底线保障 + 分级护理适配 + 智慧监护 + 自主选择权
+
+# v8.0++ 多维度标签矩阵
+metadata:
+  tags_matrix:
+    space_type:
+      - elderly_community       # 养老社区
+      - mixed_use              # 混合功能
+      - commercial_street      # 康养商业街
+      - kindergarten           # 社区幼儿园
+      - shared_cultural_space  # 共享文化空间
+    scale: large  # 大型社区
+    design_direction:
+      - social          # 社会交流主导
+      - commercial      # 商业闭环
+      - functional      # 功能适老化
+      - experiential    # 体验活力
+    user_profile:
+      - elderly_self_care       # 自理老人
+      - elderly_assisted        # 介助老人
+      - elderly_nursing         # 介护老人
+      - children_kindergarten   # 幼儿园儿童
+      - family_visitors         # 家属访客
+      - commercial_operators    # 商业运营方
+    challenge_type:
+      - intergenerational_exchange  # 代际交流
+      - commercial_loop            # 商业闭环
+      - isolation_breaking         # 打破孤岛感
+      - safety_vitality_balance    # 安全与活力平衡
+      - occupancy_rate_driven      # 入住率驱动
+    methodology:
+      - evidence_based_design      # 循证设计
+      - spatial_hierarchy          # 空间层级体系
+      - circulation_intersection   # 动线交叉设计
+      - operational_conversion     # 运营转化路径
+    phase: master_planning  # 总体规划阶段
+
+  discipline: multidisciplinary  # 多学科（建筑+景观+运营+医疗）
+  urgency: 0.50  # 中等紧急（长期投资项目）
+  innovation_quotient: 0.65  # 中高创新（代际交流+商业闭环）
+  commercial_sensitivity: 0.72  # 高商业敏感（保险资金投资回报）
+  cultural_depth: 0.42  # 中等文化（社区文化营造）
+
+  performance:
+    specialty_score: 0.65  # 养老社区专业性较高
+    recommended_strength: medium  # 建议中度示例
+
+  best_for:
+    - "高端养老社区设计"
+    - "代际交流空间规划"
+    - "养老商业闭环模式"
+    - "打破养老院孤岛感"
+    - "社区活力激活设计"
+    - "保险资金养老投资项目"
+
+  not_suitable_for:
+    - "小型养老机构改造"
+    - "纯医疗护理型养老院"
+    - "普通住宅社区设计"
+    - "单一商业空间项目"

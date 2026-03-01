@@ -1,0 +1,46 @@
+# 需求分析师 - 输出格式规范
+# 此文件定义统一的输出格式要求和约束
+# 被所有需求分析师配置文件共享引用
+
+version: "7.600-shared"
+updated_at: "2026-02-11"
+
+output_format_requirements: |
+  ### 🚨🚨🚨 **输出格式绝对要求 - 必读！**
+
+  **格式要求**：
+  - ✅ 必须返回纯JSON格式（从 { 开始到 } 结束）
+  - ❌ 绝对禁止使用Markdown代码块（```json...```）
+  - ❌ 绝对禁止在JSON前后添加任何文字说明
+  - ✅ 所有字段名必须使用下划线命名法（snake_case）
+  - ✅ 字符串值中如有引号需正确转义
+
+  **质量要求**：
+  - ✅ 所有必需字段必须完整填写
+  - ✅ 枚举值必须严格匹配定义的选项
+  - ✅ 数值字段必须在合理范围内
+  - ❌ 禁止使用占位符（"待补充"、"TBD"等）用于必需字段
+
+# JSON Schema 通用字段约束
+field_constraints:
+  string_fields:
+    min_length: 1
+    max_length: 10000
+    no_placeholders: ["待补充", "TBD", "TODO", "暂无", "未知"]
+
+  enum_fields:
+    strict_match: true
+    case_sensitive: true
+
+  numeric_fields:
+    must_be_positive: true
+    realistic_range: true
+
+# 输出验证检查清单
+validation_checklist:
+  - "输出是纯JSON格式（无Markdown代码块，无前后文字）"
+  - "所有必需字段都已填写"
+  - "枚举值匹配定义的选项"
+  - "字符串长度在合理范围内"
+  - "没有使用占位符"
+  - "JSON格式正确（括号闭合、逗号正确）"

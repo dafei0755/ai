@@ -1,0 +1,474 @@
+# ============================================================================
+# 角色视觉身份配置 (Role Visual Identity Configuration)
+# v7.153 - 配置驱动的角色差异化视觉生成
+# ============================================================================
+#
+# 本配置文件定义了各专家角色(V2-V9)的视觉生成参数，包括：
+# - 视觉类型 (visual_type): 决定生成什么类型的图像
+# - 提取焦点 (extraction_focus): 第一阶段LLM从交付物content中提取的维度
+# - 风格偏好 (style_preferences): 注入生图Prompt的风格关键词
+# - 避免模式 (avoid_patterns): 不应生成的图像类型
+# - 必保留关键词 (required_keywords): 最终Prompt必须包含的词汇
+#
+# 使用方式：
+#   from ..utils.visual_config_loader import get_role_visual_identity
+#   role_config = get_role_visual_identity("V3")
+# ============================================================================
+
+version: "1.0"
+last_updated: "2026-01-07"
+
+# ============================================================================
+# 角色视觉身份定义
+# ============================================================================
+roles:
+  V2:
+    name: "设计总监"
+    perspective: "综合设计协调者"
+    visual_type: "photorealistic_rendering"
+    unique_angle: "整体统筹与空间整合"
+
+    # 第一阶段LLM提取焦点 - 从交付物content中重点提取的维度
+    extraction_focus:
+      - "空间整体效果与协调性"
+      - "材质质感与光影表现"
+      - "色彩搭配与氛围营造"
+      - "家具布局与动线规划"
+      - "设计风格统一性"
+
+    # 风格偏好 - 注入第二阶段Prompt
+    style_preferences:
+      - "photorealistic interior visualization"
+      - "professional architectural photography"
+      - "studio-quality lighting"
+      - "magazine-level composition"
+      - "harmonious spatial coordination"
+
+    # 避免模式
+    avoid_patterns:
+      - "低质量渲染"
+      - "卡通风格"
+      - "过度抽象"
+      - "技术图纸"
+      - "草图线稿"
+
+    # 必保留关键词 - 最终Prompt校验
+    required_keywords:
+      - "space"
+      - "interior"
+      - "lighting"
+
+  V3:
+    name: "叙事体验专家"
+    perspective: "叙事体验设计师"
+    visual_type: "narrative_collage"
+    unique_angle: "情感连接与体验流线"
+
+    extraction_focus:
+      - "情感氛围与心理感受"
+      - "用户故事与生活场景"
+      - "文化元素与符号意义"
+      - "体验流线与情绪节奏"
+      - "记忆触发点与情感锚点"
+
+    style_preferences:
+      - "mood board composition"
+      - "emotional storyboard"
+      - "narrative scene illustration"
+      - "atmospheric collage"
+      - "lifestyle photography"
+
+    avoid_patterns:
+      - "技术图纸"
+      - "工程蓝图"
+      - "CAD图纸"
+      - "线稿模型"
+      - "数据图表"
+
+    required_keywords:
+      - "mood"
+      - "atmosphere"
+      - "emotional"
+
+  V4:
+    name: "设计研究员"
+    perspective: "设计研究分析师"
+    visual_type: "data_infographic"
+    unique_angle: "数据洞察与趋势研判"
+
+    # 🆕 v7.154: 项目类型感知的视觉类型选择
+    # 设计类项目应生成案例对比图，而非数据信息图
+    visual_type_by_project:
+      design_project: "case_comparison"      # 设计类项目 → 案例对比图
+      interior_design: "case_comparison"     # 室内设计 → 案例对比图
+      architectural: "case_comparison"       # 建筑设计 → 案例对比图
+      hybrid_residential_commercial: "case_comparison"  # 混合住宅商业 → 案例对比图
+      data_project: "data_infographic"       # 数据类项目 → 数据信息图
+      research_project: "data_infographic"   # 研究类项目 → 数据信息图
+      default: "data_infographic"            # 默认 → 数据信息图
+
+    extraction_focus:
+      - "数据洞察与统计发现"
+      - "趋势分析与预测"
+      - "案例对比与标杆研究"
+      - "市场定位与竞品分析"
+      - "用户画像与需求矩阵"
+
+    style_preferences:
+      - "clean infographic design"
+      - "data visualization"
+      - "comparison chart"
+      - "trend analysis diagram"
+      - "research presentation"
+
+    avoid_patterns:
+      - "摄影效果图"
+      - "情绪渲染"
+      - "抽象艺术"
+      - "写实场景"
+      - "技术蓝图"
+
+    required_keywords:
+      - "data"
+      - "analysis"
+      - "trend"
+
+  V5:
+    name: "场景行业专家"
+    perspective: "场景与行为专家"
+    visual_type: "journey_diagram"
+    unique_angle: "用户行为与场景模拟"
+
+    extraction_focus:
+      - "用户行为模式与动线"
+      - "场景流转与时间节奏"
+      - "功能分区与使用频率"
+      - "行为触发点与交互节点"
+      - "空间使用效率与舒适度"
+
+    style_preferences:
+      - "user journey map"
+      - "behavior flow diagram"
+      - "scenario visualization"
+      - "activity pattern illustration"
+      - "space utilization diagram"
+
+    avoid_patterns:
+      - "静态效果图"
+      - "纯装饰图像"
+      - "技术图纸"
+      - "情绪渲染"
+      - "数据图表"
+
+    required_keywords:
+      - "journey"
+      - "flow"
+      - "behavior"
+
+  V6:
+    name: "技术工程师"
+    perspective: "技术实施工程师"
+    visual_type: "technical_blueprint"
+    unique_angle: "工程可行性与技术细节"
+
+    extraction_focus:
+      - "施工工艺与节点详图"
+      - "材料规格与技术参数"
+      - "结构连接与构造做法"
+      - "设备安装与管线布局"
+      - "成本控制与工期节点"
+
+    style_preferences:
+      - "technical blueprint"
+      - "construction detail"
+      - "CAD drawing style"
+      - "exploded view diagram"
+      - "material section"
+
+    avoid_patterns:
+      - "艺术效果图"
+      - "摄影级渲染"
+      - "情绪氛围图"
+      - "故事板"
+      - "抽象概念图"
+
+    required_keywords:
+      - "technical"
+      - "detail"
+      - "construction"
+
+  V7:
+    name: "社会关系与心理洞察专家"
+    perspective: "空间社会关系与心理洞察专家"
+    visual_type: "emotional_atmosphere"
+    unique_angle: "心理安全与情感连接"
+
+    extraction_focus:
+      - "心理安全感与归属感"
+      - "情绪触发点与疗愈元素"
+      - "感官体验与舒适度"
+      - "私密性与开放性平衡"
+      - "仪式感与日常仪式空间"
+
+    style_preferences:
+      - "emotional atmosphere rendering"
+      - "psychological comfort visualization"
+      - "sensory experience illustration"
+      - "warm and inviting ambiance"
+      - "therapeutic space concept"
+
+    avoid_patterns:
+      - "冰冷技术图纸"
+      - "纯功能性布局"
+      - "数据图表"
+      - "工程蓝图"
+      - "缺乏人性温度的渲染"
+
+    required_keywords:
+      - "emotional"
+      - "comfort"
+      - "atmosphere"
+
+  V8:
+    name: "政策与治理顾问"
+    perspective: "政策合规与治理结构顾问"
+    visual_type: "data_infographic"
+    unique_angle: "政策对齐与多方治理协调"
+
+    extraction_focus:
+      - "政策框架与法规合规路径"
+      - "利益相关者结构与权力关系"
+      - "社会效益指标与示范效应"
+      - "公共资源对接与审批节点"
+      - "治理模型与决策层级"
+
+    style_preferences:
+      - "policy framework diagram"
+      - "governance structure visualization"
+      - "stakeholder map infographic"
+      - "regulatory compliance flow chart"
+      - "public policy presentation"
+
+    avoid_patterns:
+      - "情绪渲染图"
+      - "纯美学效果图"
+      - "工程施工图纸"
+      - "心理氛围图"
+      - "装饰性艺术图像"
+
+    required_keywords:
+      - "policy"
+      - "governance"
+      - "structure"
+
+  V9:
+    name: "产业链分析师"
+    perspective: "产业链与资本战略分析师"
+    visual_type: "data_infographic"
+    unique_angle: "产业链绑合与投资回报模型"
+
+    extraction_focus:
+      - "产业链结构与上下游关系"
+      - "资本化工具与投资回报模型"
+      - "商业模式验证与盈利预测"
+      - "成本结构分解与优化路径"
+      - "行业竞争格局与市场定位"
+
+    style_preferences:
+      - "industry chain diagram"
+      - "financial model visualization"
+      - "investment analysis infographic"
+      - "business model canvas"
+      - "market structure map"
+
+    avoid_patterns:
+      - "情绪渲染图"
+      - "纯美学效果图"
+      - "工程施工图纸"
+      - "心理氛围图"
+      - "装饰性艺术图像"
+
+    required_keywords:
+      - "industry"
+      - "investment"
+      - "analysis"
+
+# ============================================================================
+# 视觉类型定义
+# ============================================================================
+visual_types:
+  photorealistic_rendering:
+    description: "摄影级写实渲染"
+    description_en: "Photorealistic interior/architectural rendering"
+    keywords_en:
+      - "photorealistic"
+      - "interior visualization"
+      - "architectural photography"
+      - "natural lighting"
+      - "high-end rendering"
+    keywords_cn:
+      - "写实效果图"
+      - "摄影级渲染"
+      - "室内可视化"
+    negative_prompt: "cartoon, sketch, low quality, watermark, blurry, deformed"
+    quality_suffix: "8K resolution, professional photography, magazine quality"
+
+  narrative_collage:
+    description: "叙事情绪拼贴"
+    description_en: "Narrative mood board and emotional storyboard"
+    keywords_en:
+      - "mood board"
+      - "storyboard"
+      - "emotional collage"
+      - "lifestyle illustration"
+      - "narrative composition"
+    keywords_cn:
+      - "情绪板"
+      - "故事板"
+      - "情感拼贴"
+    negative_prompt: "technical drawing, blueprint, chart, graph, CAD"
+    quality_suffix: "artistic composition, curated imagery, cohesive narrative"
+
+  # 🆕 v7.154: 案例对比图（设计类项目V4专用）
+  case_comparison:
+    description: "案例对比图"
+    description_en: "Case study comparison and benchmark analysis visualization"
+    keywords_en:
+      - "case study comparison"
+      - "benchmark analysis"
+      - "design reference"
+      - "before-after comparison"
+      - "side-by-side analysis"
+      - "architectural reference"
+    keywords_cn:
+      - "案例对比"
+      - "标杆分析"
+      - "设计参考"
+      - "对比分析"
+    negative_prompt: "abstract data chart, pie chart, bar graph, statistical diagram"
+    quality_suffix: "clear comparison layout, professional presentation, design-focused visualization"
+
+  data_infographic:
+    description: "数据信息图表"
+    description_en: "Data visualization and infographic design"
+    keywords_en:
+      - "infographic"
+      - "data visualization"
+      - "chart design"
+      - "diagram"
+      - "analytical illustration"
+    keywords_cn:
+      - "信息图表"
+      - "数据可视化"
+      - "分析图表"
+    negative_prompt: "photorealistic, emotional, abstract art, 3D rendering"
+    quality_suffix: "clean design, clear hierarchy, professional presentation"
+
+  journey_diagram:
+    description: "旅程流程图"
+    description_en: "User journey map and behavior flow diagram"
+    keywords_en:
+      - "user journey"
+      - "flow diagram"
+      - "behavior pattern"
+      - "scenario map"
+      - "activity flow"
+    keywords_cn:
+      - "用户旅程图"
+      - "流程图"
+      - "行为模式图"
+    negative_prompt: "static rendering, decorative, emotional, technical blueprint"
+    quality_suffix: "clear flow, intuitive layout, actionable insights"
+
+  technical_blueprint:
+    description: "技术工程图"
+    description_en: "Technical drawing and construction detail"
+    keywords_en:
+      - "technical drawing"
+      - "blueprint"
+      - "construction detail"
+      - "exploded view"
+      - "CAD style"
+    keywords_cn:
+      - "技术图纸"
+      - "施工详图"
+      - "爆炸图"
+    negative_prompt: "artistic, emotional, photorealistic, abstract"
+    quality_suffix: "precise lines, accurate dimensions, professional drafting"
+
+  emotional_atmosphere:
+    description: "情绪氛围渲染"
+    description_en: "Emotional atmosphere and psychological space visualization"
+    keywords_en:
+      - "emotional rendering"
+      - "atmospheric visualization"
+      - "psychological comfort"
+      - "warm ambiance"
+      - "therapeutic space"
+    keywords_cn:
+      - "情绪渲染"
+      - "氛围可视化"
+      - "心理空间"
+    negative_prompt: "cold, technical, clinical, sterile, harsh lighting"
+    quality_suffix: "warm tones, soft lighting, inviting atmosphere, human presence"
+
+# ============================================================================
+# 交付物格式到视觉风格的映射
+# ============================================================================
+deliverable_format_hints:
+  visualization:
+    hint: "📊 生成信息图表/数据可视化/图示"
+    hint_en: "infographic, chart, diagram, data visualization"
+    preferred_visual_type: "data_infographic"
+
+  narrative:
+    hint: "📖 生成故事板/情绪板/场景概念图"
+    hint_en: "storyboard, mood board, scene concept, emotional collage"
+    preferred_visual_type: "narrative_collage"
+
+  technical_doc:
+    hint: "📐 生成技术示意图/流程图/工程蓝图"
+    hint_en: "technical schematic, flowchart, blueprint, CAD drawing"
+    preferred_visual_type: "technical_blueprint"
+
+  architectural_design:
+    hint: "🏗️ 生成建筑剖面/空间协调图"
+    hint_en: "architectural section, spatial coordination, interior rendering"
+    preferred_visual_type: "photorealistic_rendering"
+
+  contextual:
+    hint: "🚶 生成场景流线图/用户行为模式图"
+    hint_en: "user journey, behavior pattern diagram, scenario flow"
+    preferred_visual_type: "journey_diagram"
+
+  emotional_insight:
+    hint: "❤️ 生成情绪氛围渲染/心理空间图"
+    hint_en: "emotional atmosphere, psychological space, therapeutic visualization"
+    preferred_visual_type: "emotional_atmosphere"
+
+  analysis:
+    hint: "📋 生成专业分析可视化"
+    hint_en: "professional analysis visualization, comprehensive diagram"
+    preferred_visual_type: "photorealistic_rendering"
+
+# ============================================================================
+# 全局配置
+# ============================================================================
+global_config:
+  # 视觉简报最大长度
+  visual_brief_max_length: 800
+
+  # 最终Prompt最小长度
+  final_prompt_min_length: 80
+
+  # Style Anchor 长度
+  style_anchor_max_words: 8
+
+  # 降级时的默认风格
+  fallback_style_preferences:
+    - "professional design visualization"
+    - "high quality rendering"
+    - "clean composition"
+
+  # 通用negative prompt
+  universal_negative_prompt: "low quality, blurry, watermark, text, deformed, ugly, bad anatomy"

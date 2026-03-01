@@ -1,0 +1,1058 @@
+# MODE_TASK_LIBRARY.yaml
+# 版本: v7.700 P0
+# 目的: 10 Mode Engine 任务库系统
+# 说明: 根据检测到的设计模式(M1-M10)，保证核心任务100%覆盖
+#
+# 核心机制:
+# 1. Phase2 检测 detected_modes 并输出 JTBD
+# 2. project_director 读取本配置，根据 detected_modes 注入必需任务
+# 3. 确保核心任务必须分配专家，不会因JTBD表述不清而遗漏
+# 4. 任务优先级分层：P0必做、P1推荐、P2可选
+#
+# 任务结构:
+# - task_id: 任务唯一标识
+# - task_name: 任务名称
+# - priority: P0(必做) / P1(推荐) / P2(可选)
+# - target_expert: 目标专家类型（V1-V9）
+# - description: 任务描述
+# - deliverables: 交付物清单
+# - validation_criteria: 验证标准
+
+# ==============================================================================
+# M1: 概念驱动型设计 (Concept-Driven Mode)
+# ==============================================================================
+M1_concept_driven:
+  mode_name: "概念驱动型设计"
+  core_tasks:
+    - task_id: "M1_T01"
+      task_name: "精神主轴建模"
+      priority: "P0"
+      target_expert: "V3"  # 叙事专家
+      description: "提炼项目的核心精神张力（不是风格，而是内在冲突/欲望/自我认同），确保概念能指导整体空间结构"
+      deliverables:
+        - "精神主轴定义（3-5句核心表述）"
+        - "身份→冲突→欲望→自我叙事→空间主轴的推演路径"
+        - "概念如何转化为空间规则（材料/体量/光线/色彩）"
+      quality_target:
+        dimension: "concept_integrity"
+        target_level: "L3"
+        reference: "13_Evaluation_Matrix.concept_integrity.L3"
+        criteria_mapping:
+          - "如果删除概念，空间结构是否崩塌？ → L3: 概念已影响空间的主要决策"
+          - "概念是否影响平面、立面、材料、灯光？ → L3: 概念结构化"
+          - "是否避免了风格标签化？ → L2以上: 避免概念空洞化"
+
+    - task_id: "M1_T02"
+      task_name: "概念结构化设计"
+      priority: "P0"
+      target_expert: "V2"  # 设计总监
+      description: "将抽象概念转化为可执行的空间规则，确保概念贯穿平面、立面、材料、灯光"
+      deliverables:
+        - "概念→空间逻辑转译规则（如'克制'→材料控制+体量压缩）"
+        - "概念影响的平面结构、立面设计、材料选择、灯光策略"
+        - "概念的结构秩序表达方案"
+      quality_target:
+        dimension: "concept_integrity"
+        target_level: "L4"
+        reference: "13_Evaluation_Matrix.concept_integrity.L4"
+        criteria_mapping:
+          - "概念是否从PPT层落地为结构逻辑？ → L4: 概念贯通，贯穿宏观到微观"
+          - "每个设计决策是否能回溯到概念？ → L4: 每个设计决策可回溯到概念"
+          - "是否形成统一的概念系统？ → L4: 概念系统完整性"
+
+    - task_id: "M1_T03"
+      task_name: "文化母题提炼与空间叙事"
+      priority: "P1"
+      target_expert: "V3"  # 叙事专家
+      description: "从文化/哲学/历史中提炼空间母题，构建完整的空间叙事路径"
+      deliverables:
+        - "文化母题系统（如'文人精神'、'工业理性'、'女性自我意识'）"
+        - "空间叙事路径：进入→过渡→聚焦→高潮→沉静→收束"
+        - "材料象征+光线强化+结构呼应的母题表达"
+      quality_target:
+        dimension: "narrative_coherence"
+        target_level: "L4"
+        reference: "13_Evaluation_Matrix.narrative_coherence.L4"
+        criteria_mapping:
+          - "是否避免符号堆砌？ → L4: 叙事深度，避免表面符号堆砌"
+          - "空间是否有明确的'高潮点'和'记忆锚点'？ → L4: 叙事节奏完整"
+          - "叙事节奏是否避免全程高潮或全程平淡？ → L4: 节奏控制"
+
+    - task_id: "M1_T04"
+      task_name: "材料与光线强化概念"
+      priority: "P1"
+      target_expert: "V4"  # 技术专家
+      description: "通过材料选择和光线策略强化核心概念表达"
+      deliverables:
+        - "材料选型逻辑（服从概念而非风格）"
+        - "光线策略（强化叙事节奏和情绪高潮）"
+        - "材料与光线的概念呼应方案"
+      quality_target:
+        dimension: "material_expression"
+        target_level: "L3"
+        reference: "13_Evaluation_Matrix.material_expression.L3"
+        criteria_mapping:
+          L3:
+            - "材料是否服务于概念而非装饰？ → L3: 材料选择有明确逻辑"
+            - "光线是否强化了空间叙事节奏？"
+
+# ==============================================================================
+# M2: 功能效率型设计 (Function Efficiency Mode)
+# ==============================================================================
+M2_function_efficiency:
+  mode_name: "功能效率型设计"
+  core_tasks:
+    - task_id: "M2_T01"
+      task_name: "动线最优化分析"
+      priority: "P0"
+      target_expert: "V6-1"  # 结构工程师
+      description: "分层设计主线动线、次级动线、后勤动线、紧急疏散动线，消除逆行冲突和瓶颈节点"
+      deliverables:
+        - "四层动线系统设计（主线/次级/后勤/紧急疏散）"
+        - "动线冲突点诊断和优化方案"
+        - "瓶颈节点和功能回头路的消除策略"
+      quality_target:
+        dimension: "spatial_logic"
+        target_level: "L4"
+        reference: "13_Evaluation_Matrix.spatial_logic.L4"
+        criteria_mapping:
+          - "是否存在逆行冲突？ → L4: 动线系统完整无冲突"
+          - "是否存在瓶颈节点？ → L4: 流线优化"
+          - "后勤与客流动线是否物理分离？ → L4: 功能分区清晰"
+
+    - task_id: "M2_T02"
+      task_name: "功能模块标准化设计"
+      priority: "P0"
+      target_expert: "V2"  # 设计总监
+      description: "将空间拆解为可复制、可替换的标准模块，提升成本控制和维护便利性"
+      deliverables:
+        - "标准单元模块定义"
+        - "模块组合逻辑和可扩展接口"
+        - "模块化施工图和成本预算"
+      quality_target:
+        dimension: "technical_feasibility"
+        target_level: "L3"
+        reference: "13_Evaluation_Matrix.technical_feasibility.L3"
+        criteria_mapping:
+          L3:
+            - "模块是否可独立运行？ → L3: 技术方案可行且经济"
+            - "模块是否可替换升级？"
+            - "是否避免了过度模块化导致的空间单调？"
+
+    - task_id: "M2_T03"
+      task_name: "干扰控制系统设计"
+      priority: "P1"
+      target_expert: "V6-2"  # MEP工程师
+      description: "控制声学、视觉、气味、社交、光污染等干扰源，实现主动分区控制"
+      deliverables:
+        - "干扰源识别清单（声学/视觉/气味/社交/光）"
+        - "主动分区控制方案"
+        - "声学/气味/光污染解决方案"
+      quality_target:
+        dimension: "functional_efficiency"
+        target_level: "L4"
+        reference: "13_Evaluation_Matrix.functional_efficiency.L4"
+        criteria_mapping:
+          - "是否存在不可控干扰源？ → L4: 干扰源全面识别和控制"
+          - "是否实现主动分区控制而非被动减少？ → L4: 主动控制系统"
+
+    - task_id: "M2_T04"
+      task_name: "后勤与隐形系统优化"
+      priority: "P1"
+      target_expert: "V6-2"  # MEP工程师
+      description: "将支撑系统从可见层剥离，实现前场系统、半后台系统、全后台系统的物理分离"
+      deliverables:
+        - "后勤系统分层设计（前场/半后台/全后台）"
+        - "后勤动线与主线物理分离方案"
+        - "设备机房和管线隐藏策略"
+      quality_target:
+        dimension: "functional_efficiency"
+        target_level: "L4"
+        reference: "13_Evaluation_Matrix.functional_efficiency.L4"
+        criteria_mapping:
+          - "后勤与主线是否交叉？ → L4: 后勤系统完全分离"
+          - "是否提高了效率并减少了冲突？ → L4: 系统优化完整"
+
+# ==============================================================================
+# M3: 情绪体验型设计 (Emotional Experience Mode)
+# ==============================================================================
+M3_emotional_experience:
+  mode_name: "情绪体验型设计"
+  core_tasks:
+    - task_id: "M3_T01"
+      task_name: "情绪节奏曲线设计"
+      priority: "P0"
+      target_expert: "V3"  # 叙事专家
+      description: "构建完整的情绪曲线（压缩→释放→提升→高潮→沉静），避免平铺直叙或全程高潮"
+      deliverables:
+        - "情绪曲线设计（压缩→释放→提升→高潮→沉静）"
+        - "情绪高潮点位置和设计策略"
+        - "空间尺度/光线/材料/声音/视线的节奏变化方案"
+      quality_target:
+        dimension: "narrative_coherence"
+        target_level: "L4"
+        reference: "13_Evaluation_Matrix.narrative_coherence.L4"
+        criteria_mapping:
+          - "空间是否存在明确的'情绪高潮'？ → L4: 叙事节奏完整，有高潮和记忆锚点"
+          - "是否避免了全程高潮（疲劳）或全程平稳（无记忆）？ → L4: 节奏控制"
+          - "是否有情绪缓冲区和沉静区？ → L4: 呼吸节奏"
+
+    - task_id: "M3_T02"
+      task_name: "五感调动系统设计"
+      priority: "P0"
+      target_expert: "V4"  # 技术专家
+      description: "整合视觉、听觉、嗅觉、触觉、温度五感，形成多感官联动体验"
+      deliverables:
+        - "五感系统设计（视觉+听觉+嗅觉+触觉+温度）"
+        - "感官锚点布置（除视觉外的感知节点）"
+        - "材料触感/声学控制/气味记忆方案"
+      quality_target:
+        dimension: "narrative_coherence"
+        target_level: "L3"
+        reference: "13_Evaluation_Matrix.narrative_coherence.L3"
+        criteria_mapping:
+          - "是否有除视觉以外的感知锚点？ → L3: 多感官叙事"
+          - "是否形成五感系统整合（L3级以上）？ → L3: 感官联动"
+
+    - task_id: "M3_T03"
+      task_name: "记忆锚点构建"
+      priority: "P1"
+      target_expert: "V2"  # 设计总监
+      description: "制造1-3个核心记忆锚点（可拍照节点/沉浸节点/仪式节点），避免网红化堆叠"
+      deliverables:
+        - "核心记忆锚点定义（1-3个）"
+        - "锚点类型选择（可拍照/沉浸/仪式/结构转折）"
+        - "锚点空间设计和视觉表达"
+      quality_target:
+        dimension: "narrative_coherence"
+        target_level: "L4"
+        reference: "13_Evaluation_Matrix.narrative_coherence.L4"
+        criteria_mapping:
+          - "是否有1-3个核心锚点而非处处都是锚点？ → L4: 记忆锚点精准"
+          - "是否避免了网红化堆叠？ → L4: 避免符号堆砌"
+
+    - task_id: "M3_T04"
+      task_name: "情绪高潮与沉静控制"
+      priority: "P1"
+      target_expert: "V3"  # 叙事专家
+      description: "平衡高潮与沉静区，确保空间具备'呼吸'节奏"
+      deliverables:
+        - "高潮区与沉静区的节奏对比设计"
+        - "开放/收缩、光强/光暗、声响/安静的对比方案"
+        - "空间呼吸节奏路径"
+      quality_target:
+        dimension: "narrative_coherence"
+        target_level: "L4"
+        reference: "13_Evaluation_Matrix.narrative_coherence.L4"
+        criteria_mapping:
+          - "空间是否存在'呼吸'节奏？ → L4: 节奏控制完整"
+          - "是否避免了持续压迫或持续释放？ → L4: 高潮与沉静平衡"
+
+# ==============================================================================
+# M4: 资产资本型设计 (Capital Asset Mode)
+# ==============================================================================
+M4_capital_asset:
+  mode_name: "资产资本型设计"
+  core_tasks:
+    - task_id: "M4_T01"
+      task_name: "客群资产模型建模"
+      priority: "P0"
+      target_expert: "V1"  # 需求分析师
+      description: "明确'谁付钱'，分析资产规模、消费能力、决策路径、空间需求层级"
+      deliverables:
+        - "目标客群资产等级分析（百万/千万/亿级）"
+        - "消费能力、频率、决策路径模型"
+        - "空间需求层级对应方案"
+      quality_target:
+        dimension: "commercial_closure"
+        target_level: "L3"
+        reference: "13_Evaluation_Matrix.commercial_closure.L3"
+        criteria_mapping:
+          - "空间是否精准对应客群资产等级？ → L3: 客群定位清晰"
+          - "是否避免了用'年轻化'代替资产分析？ → L3: 避免模糊定位"
+
+    - task_id: "M4_T02"
+      task_name: "坪效与转化模型设计"
+      priority: "P0"
+      target_expert: "V2"  # 设计总监
+      description: "优化坪效和转化率，设计高转化区域和冲动消费区"
+      deliverables:
+        - "坪效目标和转化率指标"
+        - "主力动线→停留节点→高转化区域→冲动消费区设计"
+        - "客单价、停留时间、转化率、复购率优化策略"
+      quality_target:
+        dimension: "commercial_closure"
+        target_level: "L4"
+        reference: "13_Evaluation_Matrix.commercial_closure.L4"
+        criteria_mapping:
+          - "是否有明确的坪效目标和转化率指标？ → L4: 商业模型完整"
+          - "是否设计了高转化区域和冲动消费区？ → L4: 转化路径优化"
+
+    - task_id: "M4_T03"
+      task_name: "溢价符号构建"
+      priority: "P1"
+      target_expert: "V2"  # 设计总监
+      description: "通过空间制造'价值感'，实现溢价但不浮夸"
+      deliverables:
+        - "溢价结构设计（尺度+材料等级+灯光层级+空间留白+稀缺性）"
+        - "克制型溢价表达方案（避免材料堆砌）"
+        - "用户'觉得贵'的空间塑造策略"
+      quality_target:
+        dimension: "commercial_closure"
+        target_level: "L4"
+        reference: "13_Evaluation_Matrix.commercial_closure.L4"
+        criteria_mapping:
+          - "空间是否让用户'觉得贵'但不浮夸？ → L4: 溢价结构完整"
+          - "溢价是否来自克制而非材料堆砌？ → L4: 克制型溢价"
+
+    - task_id: "M4_T04"
+      task_name: "生命周期收益逻辑"
+      priority: "P1"
+      target_expert: "V5"  # 成本专家
+      description: "分析建设、运营、维护、升级成本，确保长期收益能力"
+      deliverables:
+        - "全生命周期成本分析（建设/运营/维护/升级）"
+        - "10年以上价值维持策略"
+        - "二次利用能力评估"
+      quality_target:
+        dimension: "commercial_closure"
+        target_level: "L4"
+        reference: "13_Evaluation_Matrix.commercial_closure.L4"
+        criteria_mapping:
+          - "是否能维持10年以上价值？ → L4: 长期价值维持"
+          - "是否只看开业爆发而忽视长期稳定？ → L4: 全生命周期考量"
+
+# ==============================================================================
+# M5: 乡建在地型设计 (Rural Context Mode)
+# ==============================================================================
+M5_rural_context:
+  mode_name: "乡建在地型设计"
+  core_tasks:
+    - task_id: "M5_T01"
+      task_name: "地域文化解码"
+      priority: "P0"
+      target_expert: "V3"  # 叙事专家
+      description: "提炼真正属于该地域的文化结构（历史路径、生产方式、气候特征、聚落形态），避免符号堆砌"
+      deliverables:
+        - "地域文化结构分析（历史路径+生产方式+气候特征+聚落形态）"
+        - "生活习惯和社会结构提炼"
+        - "在地性验证（脱离该地域是否仍成立？）"
+      quality_target:
+        dimension: "cultural_authenticity"
+        target_level: "L4"
+        reference: "13_Evaluation_Matrix.cultural_authenticity.L4"
+        criteria_mapping:
+          - "空间是否脱离该地域仍然成立？如果成立，就是伪在地 → L4: 在地性深度"
+          - "是否避免了砖瓦木堆砌和'古村落样式'模仿？ → L4: 避免符号堆砌"
+
+    - task_id: "M5_T02"
+      task_name: "本地材料系统构建"
+      priority: "P0"
+      target_expert: "V4"  # 技术专家
+      description: "构建本地材料逻辑（易获得、易维护、可复制），与现代工艺结合"
+      deliverables:
+        - "本地材料清单和性能测试"
+        - "材料+现代工艺结合方案"
+        - "成本控制和可维护性评估"
+      quality_target:
+        dimension: "material_expression"
+        target_level: "L4"
+        reference: "13_Evaluation_Matrix.material_expression.L4"
+        criteria_mapping:
+          - "材料是否易获得、易维护、可复制？ → L4: 材料系统完整"
+          - "是否与现代工艺结合而非简单复古？ → L4: 现代工艺融合"
+
+    - task_id: "M5_T03"
+      task_name: "乡村产业嵌入设计"
+      priority: "P1"
+      target_expert: "V1"  # 需求分析师
+      description: "设计产业闭环（住宿+餐饮+手工艺+农产品+教育体验），让村民成为受益者"
+      deliverables:
+        - "产业闭环设计（住宿/餐饮/手工艺/农产品/教育）"
+        - "独立现金流模型"
+        - "村民参与和受益机制"
+      quality_target:
+        dimension: "social_impact"
+        target_level: "L4"
+        reference: "13_Evaluation_Matrix.social_impact.L4"
+        criteria_mapping:
+          - "空间是否具备独立现金流？ → L4: 产业闭环完整"
+          - "是否让村民成为受益者而非旁观者？ → L4: 社会价值创造"
+
+    - task_id: "M5_T04"
+      task_name: "低成本结构优化"
+      priority: "P1"
+      target_expert: "V5"  # 成本专家
+      description: "在有限预算下提升质量，实现结构简化、模块预制、统一施工工艺"
+      deliverables:
+        - "低成本优化策略（结构简化/模块预制/统一工艺）"
+        - "大规模复制可行性评估"
+        - "成本与品质的平衡方案"
+      quality_target:
+        dimension: "technical_feasibility"
+        target_level: "L4"
+        reference: "13_Evaluation_Matrix.technical_feasibility.L4"
+        criteria_mapping:
+          - "是否可大规模复制？ → L4: 可复制性"
+          - "是否避免了过度标准化丢失在地感？ → L4: 标准化与在地性平衡"
+
+    - task_id: "M5_T05"
+      task_name: "施工级深化输出"
+      priority: "P1"
+      target_expert: "V6"  # 施工/工程专家
+      description: "将设计概念转化为施工级可执行文件——含材料规格、做法节点、施工工序、质量验收标准"
+      deliverables:
+        - "关键节点施工做法（夯土墙/木构架/防水层/散水）"
+        - "材料规格与配比表（稳定土配比、夯筑厚度、养护周期）"
+        - "施工工序与质量验收清单"
+        - "风险预案（雨季施工/地基沉降/材料供应）"
+      quality_target:
+        dimension: "construction_feasibility"
+        target_level: "L5"
+        reference: "ability_core_essentials.A4.maturity_L5"
+        criteria_mapping:
+          - "是否达到施工图深度？ → L5: 概念→规格→做法→造价→风险全链路"
+          - "本地工匠是否可执行？ → L5: 在地施工可行性"
+
+    - task_id: "M5_T06"
+      task_name: "政策对齐汇报"
+      priority: "P2"
+      target_expert: "V8"  # 政策与治理顾问 (v10.0 重映射)
+      description: "将项目成果翻译为政策话语体系——对齐乡村振兴/农文旅融合/三产融合等政策框架"
+      deliverables:
+        - "政策对齐矩阵（项目要素↔政策指标映射）"
+        - "量化成效（带动就业人数/农民增收比例/社会资本回流）"
+        - "可申报课题与奖项清单"
+        - "领导汇报版一页纸摘要"
+      quality_target:
+        dimension: "policy_alignment"
+        target_level: "L4"
+        reference: "output_projections.government_policy"
+        criteria_mapping:
+          - "是否使用政策原话对齐？ → L4: 话语体系准确"
+          - "是否包含可量化绩效指标？ → L4: 数据驱动汇报"
+
+    - task_id: "M5_T07"
+      task_name: "美学锋化与传播"
+      priority: "P2"
+      target_expert: "V3"  # 叙事/美学专家
+      description: "提炼设计美学主张的锋利表达——用建筑评论语言将项目定位为一种立场"
+      deliverables:
+        - "核心美学命题（一句话锋利判断）"
+        - "大师冲突定位（师承谱系+超越论点）"
+        - "传播级标题矩阵（Archdaily/Dezeen/谷德风格）"
+        - "感官叙事文本（300字精练版）"
+      quality_target:
+        dimension: "aesthetic_expression"
+        target_level: "L5"
+        reference: "ability_core_essentials.A12.maturity_L5"
+        criteria_mapping:
+          - "是否有原创美学命题而非描述？ → L5: 立场而非描述"
+          - "是否能触发专业讨论？ → L5: 可讨论性"
+
+    - task_id: "M5_T08"
+      task_name: "金融产品化设计"
+      priority: "P1"
+      target_expert: "V9"  # 产业链分析师 (v10.0 重映射)
+      description: "将空间产品与产业链/金融工具结构性绑定——设计四收入结构与投资回报模型"
+      deliverables:
+        - "四收入结构模型（客房/餐饮/深加工/内容经济）"
+        - "投资回报周期测算（保守/中性/乐观三档）"
+        - "空间-产业耦合矩阵（客房↔果园认养+农产品订阅+品牌联名）"
+        - "风险缓释机制（保底收益/淡季保障基金/退出机制）"
+      quality_target:
+        dimension: "financial_viability"
+        target_level: "L4"
+        reference: "ability_core_essentials.A7.maturity_L5"
+        criteria_mapping:
+          - "是否超越单一住宿收入？ → L4: 多元收入结构"
+          - "是否有风险对冲机制？ → L4: 财务韧性"
+
+# ==============================================================================
+# M6: 城市更新型设计 (Urban Regeneration Mode)
+# ==============================================================================
+M6_urban_regeneration:
+  mode_name: "城市更新型设计"
+  core_tasks:
+    - task_id: "M6_T01"
+      task_name: "土地价值重构分析"
+      priority: "P0"
+      target_expert: "V1"  # 需求分析师
+      description: "重新定义土地价值，明确原有属性→目标客群→新业态植入→价值提升路径"
+      deliverables:
+        - "原有土地属性分析（工业/商业/住宅/混合）"
+        - "目标客群升级策略"
+        - "新业态植入方案和价值提升路径"
+      quality_target:
+        dimension: "social_impact"
+        target_level: "L4"
+        reference: "13_Evaluation_Matrix.social_impact.L4"
+        criteria_mapping:
+          - "更新是否改变客群结构？ → L4: 社会结构重构"
+          - "是否带动周边租金和地价？ → L4: 区域价值提升"
+          - "是否只做外立面翻新而不改变业态？ → L4: 避免表面更新"
+
+    - task_id: "M6_T02"
+      task_name: "公共界面塑造"
+      priority: "P0"
+      target_expert: "V2"  # 设计总监
+      description: "设计三层公共界面（城市街道界面、半开放灰空间、内部公共空间），形成新的公共聚集区"
+      deliverables:
+        - "城市街道界面设计（可达性优化）"
+        - "半开放灰空间设计（停留点和社交节点）"
+        - "内部公共空间设计（核心聚集区）"
+      quality_target:
+        dimension: "spatial_logic"
+        target_level: "L4"
+        reference: "13_Evaluation_Matrix.spatial_logic.L4"
+        criteria_mapping:
+          - "是否形成新的公共聚集区？ → L4: 公共空间结构完整"
+          - "三层界面是否贯通？ → L4: 界面层次清晰"
+
+    - task_id: "M6_T03"
+      task_name: "产业逻辑嵌入"
+      priority: "P1"
+      target_expert: "V1"  # 需求分析师
+      description: "嵌入产业组合（文化+创意+餐饮+商业+教育），避免过度文创化和打卡型空城"
+      deliverables:
+        - "产业组合设计（文化/创意/餐饮/商业/教育）"
+        - "稳定流量来源和长期运营计划"
+        - "资本×居民×城市记忆的平衡方案"
+      quality_target:
+        dimension: "commercial_closure"
+        target_level: "L4"
+        reference: "13_Evaluation_Matrix.commercial_closure.L4"
+        criteria_mapping:
+          - "是否形成稳定流量来源？ → L4: 商业模型可持续"
+          - "是否避免过度文创化和打卡型空城？ → L4: 产业组合合理"
+
+    - task_id: "M6_T04"
+      task_name: "城市IP系统构建"
+      priority: "P2"
+      target_expert: "V3"  # 叙事专家
+      description: "创造新的城市记忆点，构建视觉标志+叙事主题+文化活动+长期品牌运营体系"
+      deliverables:
+        - "视觉标志和叙事主题"
+        - "文化活动和品牌运营体系"
+        - "城市IP识别度策略"
+      quality_target:
+        dimension: "cultural_authenticity"
+        target_level: "L4"
+        reference: "13_Evaluation_Matrix.cultural_authenticity.L4"
+        criteria_mapping:
+          - "是否可被外界识别为'某区域的代表'？ → L4: 文化识别度"
+          - "是否有长期运营体系而非只做视觉地标？ → L4: 文化可持续性"
+
+# ==============================================================================
+# M7: 技术整合型设计 (Technology Integration Mode)
+# ==============================================================================
+M7_technology_integration:
+  mode_name: "技术整合型设计"
+  core_tasks:
+    - task_id: "M7_T01"
+      task_name: "系统隐形化结构设计"
+      priority: "P0"
+      target_expert: "V6-2"  # MEP工程师
+      description: "实现技术系统隐形化（预埋管线、模块化检修口、中央控制、隐藏式传感器）"
+      deliverables:
+        - "设备预埋管线和模块化检修口设计"
+        - "中央控制系统替代墙面开关方案"
+        - "隐藏式传感器布置策略"
+      quality_target:
+        dimension: "technical_feasibility"
+        target_level: "L4"
+        reference: "13_Evaluation_Matrix.technical_feasibility.L4"
+        criteria_mapping:
+          - "空间是否被设备破坏纯净感？ → L4: 技术隐形化"
+          - "技术是否'消失'在空间中？ → L4: 系统整合完整"
+
+    - task_id: "M7_T02"
+      task_name: "数据反馈驱动系统"
+      priority: "P0"
+      target_expert: "V7"  # 智能系统专家
+      description: "构建数据闭环（人流/光照/空气/噪音/温湿度），空间能通过数据调整自身状态"
+      deliverables:
+        - "数据采集系统（人流密度/光照/空气质量/噪音/温湿度）"
+        - "数据反馈驱动的空间调整策略"
+        - "自学习系统设计（L5级目标）"
+      quality_target:
+        dimension: "technical_feasibility"
+        target_level: "L5"
+        reference: "13_Evaluation_Matrix.technical_feasibility.L5"
+        criteria_mapping:
+          - "是否存在可优化闭环？ → L5: 数据驱动优化"
+          - "空间是否能通过数据调整自身状态？ → L5: 自学习系统"
+
+    - task_id: "M7_T03"
+      task_name: "可迭代接口设计"
+      priority: "P1"
+      target_expert: "V6-2"  # MEP工程师
+      description: "为未来技术预留接口（设备/网络/模块替换/结构升级），确保10年后可升级"
+      deliverables:
+        - "设备接口和网络接口预留方案"
+        - "模块替换接口和结构升级接口设计"
+        - "10年技术迭代路径规划"
+      quality_target:
+        dimension: "technical_feasibility"
+        target_level: "L4"
+        reference: "13_Evaluation_Matrix.technical_feasibility.L4"
+        criteria_mapping:
+          - "10年后是否可升级？ → L4: 可迭代性"
+          - "是否可在不拆结构的前提下升级？ → L4: 接口预留完整"
+
+    - task_id: "M7_T04"
+      task_name: "人机关系平衡设计"
+      priority: "P1"
+      target_expert: "V7"  # 智能系统专家
+      description: "平衡自动化、半自动、手动控制，保留人的决策权"
+      deliverables:
+        - "三层控制系统（自动化/半自动/手动可控）"
+        - "人工介入机制和故障降级方案"
+        - "系统依赖度评估"
+      quality_target:
+        dimension: "technical_feasibility"
+        target_level: "L4"
+        reference: "13_Evaluation_Matrix.technical_feasibility.L4"
+        criteria_mapping:
+          - "是否保留人的决策权？ → L4: 人机平衡"
+          - "空间是否过度依赖系统？故障时是否瘫痪？ → L4: 故障降级机制"
+
+# ==============================================================================
+# M8: 极端环境型设计 (Extreme Condition Mode)
+# ==============================================================================
+M8_extreme_condition:
+  mode_name: "极端环境型设计"
+  core_tasks:
+    - task_id: "M8_T01"
+      task_name: "结构抗性系统设计"
+      priority: "P0"
+      target_expert: "V6-1"  # 结构工程师
+      description: "基于当地气候数据设计抗风压、抗震、抗雪载、抗腐蚀、抗老化方案"
+      deliverables:
+        - "当地气候数据分析和结构计算"
+        - "抗风压/抗震/抗雪载/抗盐雾腐蚀/抗紫外线老化方案"
+        - "结构抗性验证报告"
+      quality_target:
+        dimension: "technical_feasibility"
+        target_level: "L4"
+        reference: "13_Evaluation_Matrix.technical_feasibility.L4"
+        criteria_mapping:
+          - "结构是否基于当地气候数据计算？ → L4: 数据驱动设计"
+          - "是否避免了套用平原地区结构逻辑？ → L4: 环境适应性"
+
+    - task_id: "M8_T02"
+      task_name: "材料适应系统设计"
+      priority: "P0"
+      target_expert: "V4"  # 技术专家
+      description: "选择适应环境的材料（高寒区低导热、高盐雾区不锈钢升级、防腐木碳化处理）"
+      deliverables:
+        - "环境适应材料清单（高寒/高盐雾/强紫外线）"
+        - "材料长期测试和维护周期评估"
+        - "材料适应性验证报告"
+      quality_target:
+        dimension: "material_expression"
+        target_level: "L4"
+        reference: "13_Evaluation_Matrix.material_expression.L4"
+        criteria_mapping:
+          - "材料是否适应环境而非对抗环境？ → L4: 材料环境适应性"
+          - "材料是否经过长期测试？ → L4: 材料耐久性验证"
+
+    - task_id: "M8_T03"
+      task_name: "能源与生存系统设计"
+      priority: "P1"
+      target_expert: "V6-2"  # MEP工程师
+      description: "构建自给系统（低能耗供暖/太阳能/雨水回收/备用电源/供氧系统）"
+      deliverables:
+        - "低能耗供暖和能源优化方案"
+        - "太阳能/风能/雨水回收系统设计"
+        - "备用电源和供氧系统设计（如需）"
+      quality_target:
+        dimension: "technical_feasibility"
+        target_level: "L4"
+        reference: "13_Evaluation_Matrix.technical_feasibility.L4"
+        criteria_mapping:
+          - "是否可脱离城市能源稳定运行？ → L4: 能源自给能力"
+          - "能源系统是否达到L4半自给或L5完全自给？ → L4: 系统完整性"
+
+    - task_id: "M8_T04"
+      task_name: "生理舒适保障系统"
+      priority: "P1"
+      target_expert: "V6-2"  # MEP工程师
+      description: "保证人体舒适曲线（温度/湿度/氧气浓度/气压/噪音）"
+      deliverables:
+        - "人体舒适曲线达标方案（温度/湿度/氧气/气压/噪音）"
+        - "极端环境下的舒适性保障策略"
+        - "生理指标监测和调节系统"
+      quality_target:
+        dimension: "functional_efficiency"
+        target_level: "L4"
+        reference: "13_Evaluation_Matrix.functional_efficiency.L4"
+        criteria_mapping:
+          - "是否达到人体舒适曲线？ → L4: 舒适性保障"
+          - "是否关注人体反应而非只关注外部条件？ → L4: 以人为本"
+
+# ==============================================================================
+# M9: 社会结构型设计 (Social Structure Mode)
+# ==============================================================================
+M9_social_structure:
+  mode_name: "社会结构型设计"
+  core_tasks:
+    - task_id: "M9_T01"
+      task_name: "权力距离建模"
+      priority: "P0"
+      target_expert: "V2"  # 设计总监
+      description: "明确权力结构（谁主导空间、谁拥有视线控制、谁拥有核心区域），选择合适的空间结构形式"
+      deliverables:
+        - "权力关系分析（主导者/视线控制/核心区域归属）"
+        - "空间结构形式选择（中轴对称/分散式/环绕式）"
+        - "权力平衡方案（避免无意强化不平等）"
+      quality_target:
+        dimension: "social_impact"
+        target_level: "L4"
+        reference: "13_Evaluation_Matrix.social_impact.L4"
+        criteria_mapping:
+          - "空间是否无意强化不平等？ → L4: 社会公平性"
+          - "权力结构是否清晰但不压迫？ → L4: 权力关系平衡"
+
+    - task_id: "M9_T02"
+      task_name: "隐私分级系统设计"
+      priority: "P0"
+      target_expert: "V2"  # 设计总监
+      description: "设计四级隐私系统（公共区→半公共区→半私密区→完全私密区），消除隐私冲突"
+      deliverables:
+        - "四级隐私系统设计（公共/半公共/半私密/完全私密）"
+        - "隐私冲突路径诊断和消除方案"
+        - "物理/视觉/声学/心理四级隐私隔离"
+      quality_target:
+        dimension: "spatial_logic"
+        target_level: "L4"
+        reference: "13_Evaluation_Matrix.spatial_logic.L4"
+        criteria_mapping:
+          - "是否存在隐私冲突路径？ → L4: 隐私系统完整"
+          - "隐私分级是否完整？ → L4: 分级逻辑清晰"
+
+    - task_id: "M9_T03"
+      task_name: "冲突缓冲结构设计"
+      priority: "P1"
+      target_expert: "V2"  # 设计总监
+      description: "设计冲突缓冲机制（灰空间、独立通道、多入口系统、时间错峰），提供'回避路径'"
+      deliverables:
+        - "冲突缓冲机制设计（灰空间/独立通道/多入口）"
+        - "'回避路径'和情绪缓冲带设计"
+        - "时间错峰使用策略"
+      quality_target:
+        dimension: "social_impact"
+        target_level: "L4"
+        reference: "13_Evaluation_Matrix.social_impact.L4"
+        criteria_mapping:
+          - "是否存在'回避路径'？ → L4: 冲突缓冲机制"
+          - "是否避免了完全开放结构缺乏退场机制？ → L4: 情绪缓冲设计"
+
+    - task_id: "M9_T04"
+      task_name: "关系演化适配设计"
+      priority: "P2"
+      target_expert: "V2"  # 设计总监
+      description: "设计可适配关系变化的空间（可拆分房间、可转换功能、独立套间系统）"
+      deliverables:
+        - "关系演化变量分析（孩子长大/父母老去/婚姻变化）"
+        - "可拆分房间和可转换功能设计"
+        - "独立套间系统和10年适配能力评估"
+      quality_target:
+        dimension: "spatial_logic"
+        target_level: "L5"
+        reference: "13_Evaluation_Matrix.spatial_logic.L5"
+        criteria_mapping:
+          - "空间是否可10年内适配变化？ → L5: 结构生成能力"
+          - "是否考虑了代际、婚姻、职业变化？ → L5: 功能变化适应性"
+
+# ==============================================================================
+# M10: 未来推演型设计 (Future Speculation Mode)
+# ==============================================================================
+M10_future_speculation:
+  mode_name: "未来推演型设计"
+  core_tasks:
+    - task_id: "M10_T01"
+      task_name: "趋势推演模型构建"
+      priority: "P0"
+      target_expert: "V1"  # 需求分析师
+      description: "基于社会趋势推演未来行为变化和空间需求（人口结构/远程办公/AI自动化/健康焦虑等）"
+      deliverables:
+        - "趋势变量分析（人口/办公/AI/健康/价值观）"
+        - "趋势→行为变化→空间需求变化→结构调整推演"
+        - "5年后行为模式预测"
+      quality_target:
+        dimension: "concept_integrity"
+        target_level: "L4"
+        reference: "13_Evaluation_Matrix.concept_integrity.L4"
+        criteria_mapping:
+          - "空间是否回应未来趋势而非当前需求？ → L4: 前瞻性概念"
+          - "推演是否基于逻辑而非科幻想象？ → L4: 概念推导逻辑"
+
+    - task_id: "M10_T02"
+      task_name: "技术接口预留系统"
+      priority: "P0"
+      target_expert: "V6-2"  # MEP工程师
+      description: "为未知技术预留接口（可更换墙体、模块化机电、隐藏管线冗余、网络升级接口）"
+      deliverables:
+        - "可更换墙体和模块化机电设计"
+        - "隐藏管线冗余和网络升级接口"
+        - "10年技术迭代接口预留方案"
+      quality_target:
+        dimension: "technical_feasibility"
+        target_level: "L5"
+        reference: "13_Evaluation_Matrix.technical_feasibility.L5"
+        criteria_mapping:
+          - "是否可在不拆结构的前提下升级？ → L5: 技术迭代能力"
+          - "接口预留是否足够？ → L5: 未来适应性"
+
+    - task_id: "M10_T03"
+      task_name: "生活方式重构设计"
+      priority: "P1"
+      target_expert: "V2"  # 设计总监
+      description: "预测未来生活节奏变化（居家办公/多功能空间/共享与独立/沉浸娱乐），设计适配空间"
+      deliverables:
+        - "未来生活方式预测（居家办公/多功能/共享独立/沉浸娱乐）"
+        - "适配未来行为模式的空间设计"
+        - "功能可转换和灵活性方案"
+      quality_target:
+        dimension: "functional_efficiency"
+        target_level: "L5"
+        reference: "13_Evaluation_Matrix.functional_efficiency.L5"
+        criteria_mapping:
+          - "空间是否适配未来行为模式？ → L5: 功能前瞻性"
+          - "是否支持居家办公和多功能空间？ → L5: 功能灵活性"
+
+    - task_id: "M10_T04"
+      task_name: "长周期价值策略"
+      priority: "P1"
+      target_expert: "V2"  # 设计总监
+      description: "设计时间耐久度（中性底盘+可变软装+可替换界面+长期审美不过时）"
+      deliverables:
+        - "中性底盘设计（结构层稳定性）"
+        - "可变软装和可替换界面方案"
+        - "长期审美不过时策略（5年内不过时）"
+      quality_target:
+        dimension: "concept_integrity"
+        target_level: "L5"
+        reference: "13_Evaluation_Matrix.concept_integrity.L5"
+        criteria_mapping:
+          - "空间是否五年内不过时？ → L5: 概念生成力"
+          - "是否采用中性底盘+可变软装策略？ → L5: 长期价值维持"
+
+# ==============================================================================
+# M11: 健康疗愈型设计 (Healthcare & Healing Mode)
+# ==============================================================================
+M11_healthcare_healing:
+  mode_name: "健康疗愈型设计"
+  core_tasks:
+    - task_id: "M11_T01"
+      task_name: "心理安全环境系统设计"
+      priority: "P0"
+      target_expert: "V3"  # 叙事专家
+      description: "设计低刺激、高安全感的空间环境系统，通过色彩约束（低饱和度、大地色系）、声学控制（<45dB静区、白噪声引导）、边界感知（安全角落、避免被监视感）和隐私分级，主动降低使用者的心理防御激活程度"
+      deliverables:
+        - "色彩约束方案（低饱和度、大地色系、拒绝高对比度刺激色）"
+        - "声学控制方案（吸音材料、分贝控制、白噪声引导）"
+        - "安全角落与退场位置设计（不需要表演的区域）"
+        - "隐私分级系统（公共区域也设计半私密退场位置）"
+      quality_target:
+        dimension: "psychological_safety"
+        target_level: "L4"
+        criteria_mapping:
+          - "使用者进入空间后是否有'不需要表演'的区域？ → L4: 心理安全系统完整"
+          - "是否避免了把'开放亮堂'等同于心理安全？ → L4: 理解脆弱状态需求"
+          - "是否提供了可退入的安全角落？ → L4: 退场机制设计"
+
+    - task_id: "M11_T02"
+      task_name: "生理疗愈节律控制方案"
+      priority: "P0"
+      target_expert: "V6-2"  # MEP工程师
+      description: "通过对光、温度、空气质量和声音的精准控制，支持人体的生理恢复节律。包括昼夜光节律调光系统（早晨5000K+/傍晚2700K/夜间<10lux）、温湿度控制（22-24°C, 40-60%RH）、低VOC新风系统（>=30m³/人/时）"
+      deliverables:
+        - "昼夜节律调光系统设计（早晨高色温→傍晚低色温→夜间极低照度）"
+        - "温湿度精准控制方案（22-24°C, 40-60%RH）"
+        - "低VOC材料优先的空气质量方案（新风量>=30m³/人/时）"
+        - "声环境控制方案（避免蓝光过多和眩光）"
+      quality_target:
+        dimension: "physiological_healing"
+        target_level: "L4"
+        criteria_mapping:
+          - "光环境是否配置了昼夜节律调光系统？ → L4: 生理节律支持"
+          - "是否避免了高色温LED作为全天照明？ → L4: 避免节律紊乱"
+
+    - task_id: "M11_T03"
+      task_name: "无障碍尊严设计"
+      priority: "P1"
+      target_expert: "V2"  # 设计总监
+      description: "无障碍设计不是'允许轮椅通过'，而是'让使用轮椅的人不感到弱势被暴露'。功能隐形化（扶手即造型语言、坡道即全人群动线）、决策权还给使用者（独立进出路径）、感知高度平等（坐姿视线与站姿视线一致）"
+      deliverables:
+        - "功能隐形化方案（扶手=造型语言、坡道=全人群动线、无障碍卫生间外观一致）"
+        - "独立进出路径设计（不强制依赖他人帮助）"
+        - "感知高度平等方案（展示高度、柜台高度适配坐姿视线）"
+      quality_target:
+        dimension: "accessibility_dignity"
+        target_level: "L4"
+        criteria_mapping:
+          - "非轮椅使用者是否会使用同一空间且不感到'特殊对待'？ → L4: 尊严隐形化"
+          - "轮椅使用者是否可独立完成所有核心行为？ → L4: 自主性保障"
+
+    - task_id: "M11_T04"
+      task_name: "双视角服务动线设计"
+      priority: "P1"
+      target_expert: "V2"  # 设计总监
+      description: "同时为被服务者（减少焦虑、保护尊严的动线）和服务提供者（效率与情绪缓冲的动线）设计。后勤补给路径与使用者日常动线完全分离，服务者有独立情绪恢复区，家属有独立安顿空间"
+      deliverables:
+        - "被服务者动线设计（无盲区、自主控制感、不暴露服务机制）"
+        - "服务者动线设计（后勤分离、独立情绪恢复区）"
+        - "家属/陪护者空间设计（情绪释放区、非正式社交区、独处空间）"
+      quality_target:
+        dimension: "dual_pathway"
+        target_level: "L4"
+        criteria_mapping:
+          - "服务者的工作状态是否对被服务者不可见？ → L4: 动线分离完整"
+          - "家属等陪护者是否有自己的'安顿空间'？ → L4: 三方均被设计"
+
+# ==============================================================================
+# 全局配置
+# ==============================================================================
+global_config:
+  # 任务注入策略
+  task_injection_strategy:
+    P0_mandatory: true    # P0任务必须100%分配专家
+    P1_recommended: 0.8   # P1任务建议80%以上覆盖
+    P2_optional: 0.3      # P2任务建议30%以上覆盖
+
+  # 模式权重阈值（confidence > threshold 才注入任务）
+  mode_confidence_threshold: 0.3
+
+  # 多模式时的任务融合策略
+  hybrid_mode_strategy:
+    max_tasks_per_mode: 4      # 每个模式最多注入任务数
+    priority_task_limit: 12    # 所有模式合计最多任务数
+    merge_overlapping_tasks: true  # 重叠任务自动合并（如M1+M3都需要叙事专家）
+
+  # 任务验证规则
+  validation_rules:
+    P0_must_assign: true       # P0任务必须分配专家，否则触发警告
+    check_expert_overload: true  # 检查单个专家任务是否过载（>5个任务）
+    validate_deliverables: true  # 验证交付物是否符合模式特征
+
+# ==============================================================================
+# 任务分配映射（Mode → Expert）
+# ==============================================================================
+mode_to_expert_mapping:
+  M1_concept_driven:
+    primary_experts: ["V3", "V2"]      # 叙事专家、设计总监
+    supporting_experts: ["V4"]         # 技术专家
+
+  M2_function_efficiency:
+    primary_experts: ["V6-1", "V2"]    # 结构工程师、设计总监
+    supporting_experts: ["V6-2"]       # MEP工程师
+
+  M3_emotional_experience:
+    primary_experts: ["V3", "V4"]      # 叙事专家、技术专家
+    supporting_experts: ["V2"]         # 设计总监
+
+  M4_capital_asset:
+    primary_experts: ["V1", "V2"]      # 需求分析师、设计总监
+    supporting_experts: ["V5"]         # 成本专家
+
+  M5_rural_context:
+    primary_experts: ["V3", "V4"]      # 叙事专家、技术专家
+    supporting_experts: ["V1", "V5"]   # 需求分析师、成本专家
+
+  M6_urban_regeneration:
+    primary_experts: ["V1", "V2"]      # 需求分析师、设计总监
+    supporting_experts: ["V3"]         # 叙事专家
+
+  M7_technology_integration:
+    primary_experts: ["V6-2", "V7"]    # MEP工程师、智能系统专家
+    supporting_experts: ["V6-1"]       # 结构工程师
+
+  M8_extreme_condition:
+    primary_experts: ["V6-1", "V4"]    # 结构工程师、技术专家
+    supporting_experts: ["V6-2"]       # MEP工程师
+
+  M9_social_structure:
+    primary_experts: ["V2"]            # 设计总监
+    supporting_experts: ["V1"]         # 需求分析师
+
+  M10_future_speculation:
+    primary_experts: ["V1", "V2"]      # 需求分析师、设计总监
+    supporting_experts: ["V6-2"]       # MEP工程师
+
+  M11_healthcare_healing:
+    primary_experts: ["V2", "V3"]      # 设计总监、叙事专家
+    supporting_experts: ["V6-2", "V4"] # MEP工程师、技术专家
+
+# ==============================================================================
+# 🆕 跨模式规则 (cross_mode_rules) - 防止任务数量爆炸
+# 当多个 Mode 同时激活时触发，控制 P0 任务叠加上限
+# ==============================================================================
+cross_mode_rules:
+
+  rules:
+    # --- 规则1: M1 + M5（概念驱动 + 乡建在地）---
+    # 典型场景：狮岭村类项目，文化+哲学双重驱动
+    - id: "CR-01"
+      trigger_modes: ["M1_concept_driven", "M5_rural_context"]
+      max_p0_tasks: 8
+      merge_strategy:
+        # M1_T01 精神主轴 + M5 文化在地研究 → 合并为"文化根植的精神主轴建模"
+        - merge: ["M1_T01", "M5_T01"]
+          into: "文化根植的精神主轴建模"
+          keep_from: "M1_T01"
+          note: "在地文化即是概念来源，无需独立拆分"
+      new_task:
+        task_name: "命题边界验证（文化+概念复合）"
+        priority: "P0"
+        target_expert: "V3"
+        description: "验证概念是否真正扎根在地文化，避免文化符号表面借用"
+
+    # --- 规则2: M1 + M6（概念驱动 + 城市更新）---
+    # 典型场景：菜市场/城市空间改造带强概念
+    - id: "CR-02"
+      trigger_modes: ["M1_concept_driven", "M6_urban_regeneration"]
+      max_p0_tasks: 8
+      merge_strategy:
+        - merge: ["M1_T02", "M6_P0"]
+          into: "概念驱动的城市更新策略"
+          keep_from: "M1_T02"
+          note: "概念结构化与更新策略可以同步推进"
+      new_task:
+        task_name: "公众感知与概念接受度评估"
+        priority: "P1"
+        target_expert: "V4"
+        description: "评估抽象概念在公共空间中的可理解性和传播可能"
+
+    # --- 规则3: M1 + M3（概念驱动 + 情绪体验）---
+    - id: "CR-03"
+      trigger_modes: ["M1_concept_driven", "M3_emotional_experience"]
+      max_p0_tasks: 7
+      merge_strategy:
+        - merge: ["M1_T03", "M3_T01"]
+          into: "情绪导向的空间叙事体系"
+          keep_from: "M1_T03"
+          note: "叙事即情绪设计，两者本质同源"
+      new_task: null
+
+    # --- 规则4: M5 + M9（乡建在地 + 社会结构）---
+    # 典型场景：村落改造、社区营造、利益相关者复杂
+    - id: "CR-04"
+      trigger_modes: ["M5_rural_context", "M9_social_structure"]
+      max_p0_tasks: 8
+      merge_strategy: []
+      new_task:
+        task_name: "多方利益协调与参与设计机制"
+        priority: "P0"
+        target_expert: "V1"
+        description: "设计社区参与机制，协调村集体/外来投资方/使用者之间的空间权益"
+
+  # --- 通用任务上限规则 ---
+  # 任意 3 个及以上 Mode 同时激活时强制生效
+  global_task_cap:
+    trigger: ">=3 modes activated"
+    max_total_p0_tasks: 12
+    max_total_tasks: 40
+    deduplication_rule: "同一 target_expert 下，相似度 ≥ 0.8 的 P1 任务自动合并"
+    note: "防止狮岭村类项目（5+ Mode 激活）产生 47+ 任务"

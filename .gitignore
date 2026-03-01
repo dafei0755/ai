@@ -71,3 +71,33 @@ coverage.xml
 
 # Backup files
 *.bak
+*.bak*
+*_bak
+
+# Temporary diagnostic / output text files (underscore prefix convention)
+_*.txt
+
+# Scratch / one-off scripts and archives
+_archive/
+
+# Database files
+*.db
+*.sqlite3
+
+# Screenshots / generated images at repo root
+homepage_COM.png
+*.COM.png
+
+# Playwright CLI cache
+.playwright-cli/
+
+# Sensitive / runtime config (keep .example.yaml only)
+config/SYSTEM_CONFIG.yaml
+intelligent_project_analyzer/config/crawler_credentials.py
+
+# Generated reports
+diagnosis_report.txt
+server_log.txt
+security-baseline-report.json
+quality_test_results.json
+nul`r`nset

@@ -1,0 +1,130 @@
+# 权重语义翻译模板
+# v14.0: 将雷达图数字权重转译为设计驱动信号
+# 纯规则引擎，零 LLM 调用
+
+metadata:
+  version: "14.0"
+  description: "雷达权重 → 设计驱动力翻译模板"
+  principle: "凡有调整，必有响应"
+
+# ============================================
+# 分层规则：权重值 → 设计驱动层级
+# ============================================
+tiers:
+  core_driver:
+    min_value: 75
+    label: "核心驱动力"
+    icon: "🔴"
+    analysis_depth: "方案级"
+    expert_instruction_template: >
+      此维度为核心驱动力（{value}/100），属于项目的决定性设计考量。
+      分析应达到方案级深度，需提供具体可执行的设计建议，包括材料选型、空间策略、技术方案等落地细节。
+    de_emphasis_note: ""
+    search_boost: true
+
+  important:
+    min_value: 50
+    label: "重要考量"
+    icon: "🟡"
+    analysis_depth: "策略级"
+    expert_instruction_template: >
+      此维度为重要考量（{value}/100），需要清晰的方向指引和关键决策点。
+      分析应覆盖策略选择和利弊权衡，但不必深入到施工细节。
+    de_emphasis_note: ""
+    search_boost: false
+
+  background:
+    min_value: 25
+    label: "背景参考"
+    icon: "⚪"
+    analysis_depth: "概述级"
+    expert_instruction_template: >
+      此维度为背景参考（{value}/100），简要提及即可，避免过度展开。
+    de_emphasis_note: ""
+    search_boost: false
+
+  de_emphasized:
+    min_value: 0
+    label: "明确弱化"
+    icon: "⬇"
+    analysis_depth: "提及级"
+    expert_instruction_template: >
+      此维度被明确弱化（{value}/100），避免在此方向过度投入分析资源。
+      仅需风险提示（如弱化此维度可能带来的隐患），不需生成详细建议。
+    de_emphasis_note: "用户明确弱化此维度，避免过度投入"
+    search_boost: false
+
+# ============================================
+# 调整方向语义模板
+# ============================================
+tendency_templates:
+  # value → 靠近 right_label 的程度
+  extreme_right:
+    threshold: 80
+    template: "强烈倾向「{right_label}」"
+  moderate_right:
+    threshold: 60
+    template: "偏向「{right_label}」"
+  balanced:
+    threshold: 40
+    template: "「{left_label}」与「{right_label}」融合"
+  moderate_left:
+    threshold: 20
+    template: "偏向「{left_label}」"
+  extreme_left:
+    threshold: 0
+    template: "强烈倾向「{left_label}」"
+
+# ============================================
+# 设计意图生成模板（按 category 分组）
+# ============================================
+design_intent_templates:
+  aesthetic:
+    high_template: "{tendency}是本项目的核心美学定位，需从材质选择、色彩体系、空间比例三个层面系统落实"
+    mid_template: "{tendency}作为美学方向的重要参考，需在设计风格和视觉语言上保持一致"
+    low_template: "{tendency}仅作为美学背景参考"
+  functional:
+    high_template: "{tendency}是本项目的核心功能驱动，需从功能分区、动线效率、收纳系统三个层面深入落实"
+    mid_template: "{tendency}需在空间规划和功能配置中得到体现"
+    low_template: "{tendency}仅作为功能配置的次要参考"
+  technology:
+    high_template: "{tendency}是本项目的核心技术策略，需明确智能系统选型、集成方案和用户交互方式"
+    mid_template: "{tendency}需在技术方案中适度体现"
+    low_template: "{tendency}仅作为技术方向的背景参考"
+  resource:
+    high_template: "{tendency}是本项目的核心资源策略，直接影响材料选型、供应链和成本控制方案"
+    mid_template: "{tendency}需在资源分配和采购策略中考量"
+    low_template: "{tendency}仅作为资源规划的次要参考"
+  experience:
+    high_template: "{tendency}是本项目的核心体验目标，需从空间氛围、感官设计、情绪节奏三个层面系统营造"
+    mid_template: "{tendency}需在空间体验设计中适当体现"
+    low_template: "{tendency}仅作为体验设计的背景参考"
+
+# ============================================
+# 维度特殊语义覆盖（per-dimension override）
+# ============================================
+dimension_overrides:
+  budget_priority:
+    high_override: "品质优先策略——选材不以成本为首要约束，追求最优设计效果"
+    low_override: "严控成本策略——需在设计品质和经济性间找到最优平衡点"
+  cultural_axis:
+    extreme_left_action: "引入东方传统设计手法：留白、借景、框景、天然材料"
+    extreme_right_action: "采用西方现代设计语言：开放平面、极简线条、工业材料"
+  function_intensity:
+    high_override: "极致实用是核心驱动，功能分区、动线效率、人体工学必须深入到方案细节"
+  privacy_level:
+    extreme_left_action: "开放社交型空间——减少隔断，增大公共区域，设计社交动线"
+    extreme_right_action: "私密隔离型空间——增加声学隔断，设置多层隐私过渡区"
+
+# ============================================
+# 任务校正映射（权重层级 → task_corrections 动作）
+# ============================================
+task_correction_rules:
+  core_driver:
+    action: "reprioritize"
+    new_priority: "high"
+    reason_template: "设计驱动力「{dim_label}」→ {tendency}，需提升关联任务优先级"
+  de_emphasized:
+    action: "reprioritize"
+    new_priority: "low"
+    reason_template: "维度「{dim_label}」被弱化 → {tendency}，降低关联任务优先级以释放资源"

@@ -1,0 +1,229 @@
+# 示例:Tiffany气质别墅软装
+# 来源:q.txt Q5
+# 类型:审美主导 (Aesthetic Dominant) / 概念驱动 M1 + 情绪体验 M3
+# 特征:品牌精神转译、高端软装、女性身份空间表达、仪式感设计
+# v8.000 (P3-T13): 新增示例，覆盖 M1_concept_driven + M3_emotional_experience
+
+example:
+  project_info:
+    name: Tiffany气质别墅软装设计项目
+    description: |
+      高端别墅的整体软装设计，以Tiffany品牌精神为概念起点，为女性业主打造
+      融合独立、优雅与仪式感的居住空间。项目涵盖色彩体系、材质选配、灯光设计、
+      艺术品配置、场景化生活方式空间营造。
+
+    feature_vector:
+      aesthetic: 0.75
+      symbolic: 0.68
+      experiential: 0.62
+      commercial: 0.35
+      cultural: 0.30
+      material_innovation: 0.48
+      functional: 0.45
+      social: 0.28
+      sustainable: 0.25
+      technical: 0.30
+      historical: 0.32
+      regional: 0.20
+
+    constraints:
+      - Tiffany品牌精神DNA准确转译（非简单颜色搬运）
+      - 适合日常居住（非展示空间）
+      - 预算与品牌定位匹配
+      - 女性业主个人审美偏好融合
+
+    goals:
+      - 建立完整的品牌色彩空间系统
+      - 打造融合日常与仪式感的居住体验
+      - 实现女性独立身份的空间表达
+      - 创造可社交、可独处的多模式空间
+
+  ideal_tasks:
+    # ========== 第一阶段:品牌与人物研究(Task 1-4) ==========
+
+    - id: task_1
+      title: 搜索 Tiffany品牌的 色彩系统起源、品牌DNA要素、空间设计语言、旗舰店空间策略
+      description: |
+        深入研究Tiffany品牌的视觉系统，从Charles Lewis Tiffany时代的蓝色起源到
+        当代品牌空间设计的演变，提取核心设计语言和空间转化策略。
+      task_type: research
+      motivation: aesthetic
+      support_search: true
+      dimensions:
+        - 色彩系统(Tiffany蓝#0ABAB5的由来、色彩心理学、配色体系)
+        - 品牌DNA(钻石切工美学、蓝色盒子仪式、优雅简约传统)
+        - 空间语言(旗舰店材质选择、灯光策略、陈列美学)
+        - 当代演绎(品牌年轻化、跨界合作、空间新表达)
+      priority: high
+      execution_order: 1
+
+    - id: task_2
+      title: 搜索 高端品牌精神住宅转译的 成功案例、色彩心理学应用、材质象征手法、空间仪式感营造
+      description: |
+        调研品牌精神如何成功转化为居住空间语言的案例，如Hermès家居系列、
+        Armani/Casa理念、Fendi私宅项目等，提取品牌→住宅的转译方法论。
+      task_type: research
+      motivation: aesthetic
+      support_search: true
+      dimensions:
+        - 品牌转译案例(Hermès/Armani/Fendi的住宅设计逻辑)
+        - 色彩心理学(蓝色在居住空间的效果、面积比例控制)
+        - 材质象征(贵金属、天然石材、高级面料的品牌联想)
+        - 仪式感营造(入户序列、会客流程、梳妆仪式)
+      priority: high
+      execution_order: 2
+
+    - id: task_3
+      title: 分析 女性业主的 生活方式画像、审美偏好结构、社交需求特征、私密空间需求
+      description: |
+        建立女性业主的生活方式模型，分析其日常行为动线、社交模式、
+        独处偏好、审美标准的形成背景，为空间设计提供精准的用户洞察。
+      task_type: analysis
+      motivation: experiential
+      support_search: false
+      dimensions:
+        - 生活方式画像(晨起-工作-社交-独处的日常节奏)
+        - 审美偏好结构(风格倾向、品牌认知、艺术素养)
+        - 社交需求(会客频率、社交场景、展示需求)
+        - 私密需求(阅读、冥想、护理、独处的空间类型)
+      priority: high
+      execution_order: 3
+
+    - id: task_4
+      title: 搜索 Kelly Wearstler和India Mahdavi的 色彩空间手法、材质混搭策略、女性空间设计哲学
+      description: |
+        研究两位以色彩和女性视角著称的设计师的方法论，
+        为Tiffany气质空间的材质和色彩策略提供专业参考。
+      task_type: research
+      motivation: aesthetic
+      support_search: true
+      dimensions:
+        - 色彩空间手法(大面积色彩运用、色彩层次控制)
+        - 材质混搭(冷暖对比、粗细反差、新旧碰撞)
+        - 女性空间哲学(力量感vs柔美度、独立性表达)
+        - 灯光氛围(自然光引入、装饰灯光、氛围灯光)
+      priority: medium
+      execution_order: 4
+
+    # ========== 第二阶段:概念构建(Task 5-8) ==========
+
+    - id: task_5
+      title: 制定 Tiffany色彩空间系统、主色-辅色-点缀色比例、各空间色彩策略、材质对应关系
+      description: |
+        构建完整的色彩系统，定义Tiffany蓝在不同空间的使用比例和方式，
+        搭配白色、灰色、金色等辅助色彩，确保整体协调且不过度。
+      task_type: design
+      motivation: aesthetic
+      support_search: false
+      dimensions:
+        - 主色系统(Tiffany蓝的5个明度梯度、适用场景)
+        - 辅色搭配(珍珠白、香槟金、烟灰色的比例控制)
+        - 空间色彩策略(客厅60%中性+30%蓝+10%金)
+        - 材质色彩关系(大理石白、黄铜金、丝绒蓝的材质表现)
+      priority: high
+      execution_order: 5
+
+    - id: task_6
+      title: 制定 空间仪式感设计方案、入户体验序列、关键生活场景舞台化、灯光情境脚本
+      description: |
+        设计居住空间中的仪式感节点，包括入户仪式、晨起仪式、下午茶仪式、
+        独处冥想仪式等，通过空间、材质、灯光的精心编排创造仪式体验。
+      task_type: design
+      motivation: experiential
+      support_search: false
+      dimensions:
+        - 入户体验(玄关序列、视线引导、第一印象控制)
+        - 生活场景(晨起+下午茶+社交+沐浴的空间舞台)
+        - 灯光脚本(4个时间模式×5个空间区域的灯光情境)
+        - 感官设计(视觉色彩+触觉材质+嗅觉香氛+听觉背景)
+      priority: high
+      execution_order: 6
+
+    - id: task_7
+      title: 制定 软装材质清单、面料方案、艺术品配置策略、装饰层次系统
+      description: |
+        建立完整的软装材质体系，包括窗帘面料、沙发皮革/织物、
+        地毯材质、寝具配置、艺术品选配原则和装饰品层次规划。
+      task_type: design
+      motivation: aesthetic
+      support_search: true
+      dimensions:
+        - 面料方案(窗帘丝绒+沙发天鹅绒+寝具高支棉)
+        - 皮革与金属(黄铜收边、镜面不锈钢、皮革装饰)
+        - 艺术品配置(原创艺术vs版画的比例、主题选择)
+        - 装饰层次(基底层+结构层+装饰层+点缀层四级体系)
+      priority: medium
+      execution_order: 7
+
+    - id: task_8
+      title: 制定 家具选型方案、经典设计家具清单、定制家具需求、功能与美学平衡策略
+      description: |
+        为各空间选择与Tiffany气质匹配的家具方案，包括经典设计款、
+        定制家具需求清单，确保每件家具在功能性和审美性之间取得平衡。
+      task_type: design
+      motivation: functional
+      support_search: true
+      dimensions:
+        - 经典设计款(Hans Wegner椅+Eero Saarinen桌等候选清单)
+        - 定制家具(梳妆台、书架、餐桌的定制需求与参数)
+        - 功能美学平衡(收纳隐藏、舒适性验证、维护便利性)
+        - 预算分级(核心投入件+品质保证件+氛围补充件)
+      priority: medium
+      execution_order: 8
+
+    # ========== 第三阶段:整合与验证(Task 9-11) ==========
+
+    - id: task_9
+      title: 制定 社交空间与私密空间的 切换机制、灵活分区方案、多模式使用策略
+      description: |
+        设计空间在社交模式和独处模式之间的切换机制，通过灵活隔断、
+        灯光变化、家具重组等手段实现一个空间的多场景使用。
+      task_type: design
+      motivation: functional
+      support_search: false
+      dimensions:
+        - 切换机制(物理隔断+灯光模式+家具重组)
+        - 社交模式(会客动线、展示面、社交座位布局)
+        - 独处模式(阅读角、冥想区、私密护理空间)
+        - 过渡空间(半公共区域的私密性控制)
+      priority: medium
+      execution_order: 9
+
+    - id: task_10
+      title: 制定 全屋灯光系统方案、自然光优化策略、装饰灯选型、智能灯光情境预设
+      description: |
+        构建完整的灯光设计体系，优化自然光引入，选配装饰灯具，
+        编程智能灯光场景预设（日常/社交/独处/夜间4种模式）。
+      task_type: design
+      motivation: experiential
+      support_search: true
+      dimensions:
+        - 自然光优化(窗帘层次、光线反射面、采光角度)
+        - 装饰灯具(FLOS/Foscarini等品牌候选清单)
+        - 功能照明(阅读灯/梳妆灯/厨房灯的参数标准)
+        - 智能场景(4种灯光模式的色温/亮度/分区控制)
+      priority: medium
+      execution_order: 10
+
+    - id: task_11
+      title: 评估 整体方案的 品牌一致性验证、生活实用性审核、预算适配检查、落地可行性分析
+      description: |
+        对整体方案进行最终审核，验证Tiffany精神是否贯穿而非表面化，
+        检查日常使用便利性，核实预算控制，评估供应链和施工可行性。
+      task_type: analysis
+      motivation: commercial
+      support_search: false
+      dimensions:
+        - 品牌一致性(每个空间的Tiffany DNA表达是否到位)
+        - 生活实用性(收纳充足度、清洁便利性、耐用性)
+        - 预算适配(总价控制、优先级排序、分期实施方案)
+        - 落地可行性(供应商确认、工期估算、施工难度评估)
+      priority: medium
+      execution_order: 11
+
+  quality_highlights:
+    - 11任务审美深度：品牌DNA解构+色彩心理学+仪式感场景全覆盖
+    - 品牌转译方法论：从Tiffany品牌精神到居住空间的系统转化
+    - 女性视角设计：独立/优雅/仪式感三维空间表达
+    - 感官体系完整：视觉色彩+触觉材质+嗅觉香氛+灯光氛围四维设计
+    - 社交/独处双模式：空间切换机制+灯光场景预设+家具灵活重组

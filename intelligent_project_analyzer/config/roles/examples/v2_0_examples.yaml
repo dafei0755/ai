@@ -1,0 +1,251 @@
+# Few-Shot Examples for V2-0 Design Director
+# 设计总监角色高质量输出示例
+
+examples:
+  - example_id: "v2_0_targeted_zoning_001"
+    description: "针对性问答 - 功能分区"
+    category: "targeted_mode"
+    user_request: "餐饮空间如何进行功能分区？"
+    context:
+      project_type: "餐饮空间"
+      complexity: "medium"
+
+    correct_output: |
+      {
+        "output_mode": "targeted",
+        "user_question_focus": "餐饮空间的功能分区策略",
+        "confidence": 0.92,
+        "decision_rationale": "用户明确询问分区方法，采用针对性分析模式。餐饮空间功能分区是成熟的设计领域，基于行业标准和运营逻辑可给出明确建议。",
+        "targeted_analysis": {
+          "zoning_principles": {
+            "primary_driver": "客流动线与服务效率双驱动",
+            "spatial_hierarchy": "前场（就餐体验区）→ 中场（服务支持区）→ 后场（后厨准备区）",
+            "adjacency_logic": "高频接触区域邻近（收银-等位-入口），噪音源隔离（包房-厨房-散座）"
+          },
+          "functional_zones": [
+            {
+              "zone_name": "前厅接待区",
+              "area_allocation": "8-10%（典型占地50-80㎡/500㎡总面积）",
+              "position_rationale": "邻近主入口，承担品牌展示和客流疏导双重职能。视线开阔便于等位观察和快速识别。",
+              "interface_requirements": "开放通透界面，最小化视觉遮挡。照度≥500lux，确保迎宾体验。"
+            },
+            {
+              "zone_name": "散座就餐区",
+              "area_allocation": "40-50%（核心营收区，250-350㎡）",
+              "position_rationale": "占据核心位置，最大化翻台率。靠近主动线但避免过道干扰。临窗位优先分配给2-4人桌。",
+              "interface_requirements": "桌间距≥1.2m（满足侍者通行+椅子后倾）。软隔断分割小区域，避免'食堂感'。"
+            },
+            {
+              "zone_name": "包房区",
+              "area_allocation": "20-25%（高客单价区，120-150㎡）",
+              "position_rationale": "相对独立位置，减少散座区噪音干扰。靠近服务通道便于菜品递送。",
+              "interface_requirements": "隔音墙体≥200mm厚，门缝密封条。独立空调系统避免气味串扰。"
+            },
+            {
+              "zone_name": "备餐服务区",
+              "area_allocation": "8-12%（效率支撑区，50-80㎡）",
+              "position_rationale": "位于前场与后厨之间的缓冲带。多点分布减少侍者动线长度（理想<15m到任意餐桌）。",
+              "interface_requirements": "双向传菜口，干净菜品入、脏餐具出分离。水电点位充足（咖啡机/制冰机）。"
+            },
+            {
+              "zone_name": "后厨操作区",
+              "area_allocation": "15-20%（法规要求，100-120㎡）",
+              "position_rationale": "隐蔽位置避免客人直视。邻近货梯/后勤通道便于食材配送。排烟系统对外直排。",
+              "interface_requirements": "完全封闭，双层隔音门+正压新风。地面防滑瓷砖+地漏系统。明厨设计需透明玻璃隔断。"
+            },
+            {
+              "zone_name": "卫生间+储藏",
+              "area_allocation": "5-8%（配套功能，30-50㎡）",
+              "position_rationale": "卫生间分散布局（散座区1处+包房区1处），减少寻找时间。储藏室邻近后厨。",
+              "interface_requirements": "卫生间排风≥10次/h。储藏室分干货区（常温）+冷藏区（冷库）。"
+            }
+          ],
+          "buffer_and_transition": "采用'软硬结合'界面策略：散座区用低矮屏风（≤1.2m高）和绿植分隔，保持视觉通透；包房用实体墙+玻璃门，隔音同时允许光线交流；厨房与前场用服务通道+双向弹簧门缓冲，避免油烟和噪音泄露。过渡带宽度≥1.8m，容纳双向人流错身。",
+          "circulation_strategy": "主动线环形设计：入口→等位区→散座区/包房区→卫生间→出口，形成单向客流避免拥堵。服务动线独立：后厨↔备餐区↔各就餐区，与客流正交最小化冲突。紧急疏散符合《建规》要求，散座区任意点到最近安全出口≤30m。"
+        },
+        "expert_handoff_response": {
+          "compliance_level": "fully_compliant",
+          "compliance_confirmation": "完全接受需求分析师的洞察，按指令执行功能分区分析。",
+          "challenge_details": null,
+          "reinterpretation": null
+        },
+        "execution_metadata": {
+          "confidence": 0.92,
+          "completion_rate": 1.0,
+          "execution_time_estimate": "约8分钟（含案例研究+面积核算）",
+          "execution_notes": "基于《餐饮建筑设计规范》JGJ64-2017及典型500㎡中餐厅实践数据。",
+          "dependencies_satisfied": true
+        }
+      }
+
+  - example_id: "v2_0_comprehensive_masterplan_001"
+    description: "完整报告 - 商业综合体Master Plan"
+    category: "comprehensive_mode"
+    user_request: "请提供商业综合体的总体规划方案"
+    context:
+      project_type: "商业综合体"
+      scale: "大型"
+      complexity: "complex"
+
+    correct_output: |
+      {
+        "output_mode": "comprehensive",
+        "user_question_focus": "商业综合体Master Plan设计",
+        "confidence": 0.88,
+        "decision_rationale": "用户要求完整方案，采用综合报告模式。商业综合体涉及多业态整合，需系统性规划。置信度0.88因缺少具体面积、预算等参数，部分建议为通用最佳实践。",
+        "master_plan_strategy": "采用'垂直分层+水平串联'复合策略：L1零售主力店（快时尚+超市）锚定人流；L2-3餐饮娱乐（影院+美食广场）提升停留时长；L4健身轻奢（SPA+健身房）增加客单价；B1停车+仓储支撑运营。核心中庭贯通4层，自然采光+垂直交通枢纽强化空间识别性。外立面透明化吸引过路客流，内部环形动线最大化商铺曝光率。",
+        "spatial_zoning_concept": "四象限功能分区法：东区定位'家庭消费'（儿童乐园+亲子餐厅+教育培训），南区'年轻潮流'（快时尚+奶茶街+电竞馆），西区'品质生活'（精品超市+家居体验+书店），北区'社交娱乐'（电影院+KTV+酒吧街）。中央中庭为共享空间，四季主题活动+快闪店增强黏性。垂直分层：零售占据低楼层（人流最大化），餐饮占据中高楼层（租金效率+烟道集中），服务业态顶层（减少对零售干扰）。",
+        "circulation_integration": "三级动线体系：【主动线】环形步行街贯穿各楼层，宽度≥6m容纳双向人流+中岛展示。每50m设置垂直交通点（扶梯+观光电梯+楼梯）确保可达性。【次动线】连接停车场与各楼层的快速通道，B1停车场设6个疏散口分散客流。【服务动线】后勤货运通道独立布局，凌晨4-8点配送时段避免与客流冲突。消防疏散符合《商规》要求，任意点到疏散口≤50m，疏散宽度按人数×1.0m/百人计算。",
+        "subproject_coordination": [
+          {
+            "subproject_name": "L1零售主力店区",
+            "area_sqm": 12000,
+            "key_requirements": [
+              "层高≥4.5m适配大型零售商装修需求",
+              "柱网≥8×8m减少结构遮挡",
+              "日均人流≥2万人次，收银区按20台POS机预留电力",
+              "外立面占比≥40%通透橱窗，吸引路过客流"
+            ],
+            "design_priority": "人流引擎，必须优先确保开业时有知名品牌入驻（优衣库/星巴克等）"
+          },
+          {
+            "subproject_name": "L2-3餐饮娱乐区",
+            "area_sqm": 18000,
+            "key_requirements": [
+              "餐饮区集中烟道井，统一油烟处理系统",
+              "影院层高≥6m（含设备层），隔音墙≥300mm",
+              "美食广场采用'档口围合+中央座位'布局，座位数≥600",
+              "卫生间按高峰人流配置（女厕位数=男厕×1.5倍）"
+            ],
+            "design_priority": "停留时长提升器，需设计打卡点（观景露台+网红装置）刺激社交传播"
+          },
+          {
+            "subproject_name": "L4健身轻奢区",
+            "area_sqm": 8000,
+            "key_requirements": [
+              "健身房楼板承重≥500kg/㎡（设备区加强），普通区≥350kg/㎡",
+              "SPA区独立水电系统，24小时热水供应",
+              "高端品牌独立入口+专属电梯，与大众区分流"
+            ],
+            "design_priority": "客单价提升器，奢华装修预算占总造价15%（其他区≤8%）"
+          },
+          {
+            "subproject_name": "B1停车+后勤区",
+            "area_sqm": 15000,
+            "key_requirements": [
+              "停车位≥500个（按3车位/100㎡商业计算），柱间距≥5.4m",
+              "货运区设3个卸货平台（生鲜/干货/垃圾分离），冷库面积≥200㎡",
+              "设备机房集中布局（冷冻站/变配电/消防泵房）"
+            ],
+            "design_priority": "运营基础设施，必须在L1开业前完成调试"
+          }
+        ],
+        "design_unity_and_variation": "统一性策略：全场采用'工业轻奢'设计语言（裸露天花+金属网格+暖色木饰面），中庭吊顶为标志性弧形铝板，各楼层复用形成记忆点。导视系统统一VI（黑底金字+LED背光），每50m一处。差异性策略：各楼层主题色不同（L1白色现代/L2橙色活力/L3蓝色宁静/L4金色奢华），地面铺装+灯光色温呼应主题。重点商户允许个性化门头但需符合总体风格指南（材料库+色卡限定）。",
+        "expert_handoff_response": {
+          "compliance_level": "partially_compliant_with_suggestions",
+          "compliance_confirmation": "接受综合体Master Plan需求，但建议补充具体参数以提升方案精度。",
+          "challenge_details": "当前方案基于通用最佳实践，若能提供：①总建筑面积（影响业态配比）②目标客群定位（家庭/白领/学生）③周边竞品分析（差异化策略），可将置信度提升至0.95+并给出定制化建议。",
+          "reinterpretation": null
+        },
+        "execution_metadata": {
+          "confidence": 0.88,
+          "completion_rate": 1.0,
+          "execution_time_estimate": "约15分钟（含业态研究+面积核算+动线模拟）",
+          "execution_notes": "参考《商业建筑设计规范》JGJ48-2014及典型5万㎡购物中心数据。面积分配基于行业标准但需根据实际情况调整。",
+          "dependencies_satisfied": true
+        }
+      }
+
+  - example_id: "v2_0_targeted_circulation_001"
+    description: "针对性问答 - 动线组织"
+    category: "targeted_mode"
+    user_request: "办公空间的动线组织策略是什么？"
+    context:
+      project_type: "办公空间"
+      complexity: "medium"
+
+    correct_output: |
+      {
+        "output_mode": "targeted",
+        "user_question_focus": "办公空间动线组织的核心策略",
+        "confidence": 0.90,
+        "decision_rationale": "用户聚焦动线单一维度，采用针对性分析。办公动线有成熟模型（开放/封闭/混合），可给出明确建议。",
+        "targeted_analysis": {
+          "circulation_strategy": {
+            "system_type": "混合式动线系统（开放主动线+封闭次动线）",
+            "hierarchy": "三级层级：公共走廊（主）→ 部门内通道（次）→ 工位间隙（支）",
+            "separation_strategy": "人员动线与物流动线分离：访客专用电梯+独立会议层入口；文件传递采用内部楼梯，避免干扰工作区"
+          },
+          "key_circulation_paths": [
+            {
+              "path_name": "员工日常通勤动线",
+              "users": "全体员工",
+              "path_description": "电梯厅 → 前台打卡 → 主走廊 → 部门入口 → 工位",
+              "design_principles": [
+                "主走廊宽度≥2.4m（双向通行+错身空间）",
+                "每30m设置一处饮水/打印等服务节点，避免跨区域移动",
+                "开放工区采用'鱼骨式'布局，工位到走廊最远距离≤15m"
+              ],
+              "bottleneck_avoidance": "早高峰8:30-9:00集中到岗，电梯厅设置3台高速电梯（运力≥15人/分钟），前台打卡区设6个通道分流"
+            },
+            {
+              "path_name": "访客接待动线",
+              "users": "外部访客、合作方",
+              "path_description": "访客电梯 → 前台登记 → 独立会议区 → （禁止进入工作区）",
+              "design_principles": [
+                "访客路径与工作区物理隔离（玻璃隔断+门禁）",
+                "会议区位于独立翼，避免访客穿越开放工区",
+                "前台视线全覆盖接待区，安保监控无死角"
+              ],
+              "bottleneck_avoidance": "大型会议（>20人）预约制，错开日常访客高峰（14:00-16:00）"
+            },
+            {
+              "path_name": "协作互动动线",
+              "users": "跨部门协作团队",
+              "path_description": "工位 → 协作区（茶水间/讨论室/休息区） → 返回工位",
+              "design_principles": [
+                "协作区均匀分布（每1000㎡配置1处），减少长距离移动",
+                "讨论室采用玻璃隔断，可视化占用状态减少无效寻找",
+                "非正式交流空间（沙发区/吧台）位于动线交叉点，促进偶遇"
+              ],
+              "bottleneck_avoidance": "午休时段（12:00-13:30）茶水间需扩容至日常2倍容量（微波炉4台→8台）"
+            },
+            {
+              "path_name": "高管独立动线",
+              "users": "高管、重要客户",
+              "path_description": "专用电梯 → 高管层 → 独立会议室/办公室",
+              "design_principles": [
+                "完全独立于员工动线，避免交叉",
+                "高管办公区门禁双重验证（卡+生物识别）",
+                "会客区设独立茶水间+卫生间，无需共享公共设施"
+              ],
+              "bottleneck_avoidance": "不适用（独立系统无拥堵）"
+            }
+          ],
+          "conflict_resolution": "四策略避免动线冲突：①时间错峰（快递配送夜间进行）②空间分离（访客/员工动线不交叉）③宽度冗余（主走廊按峰值人流×1.3倍设计）④智能引导（地面导向线+吊顶指示牌，5秒内识别目标方向）",
+          "accessibility_compliance": "无障碍设计：无障碍电梯独立设置（轿厢≥1.4×1.1m），主走廊无高差，卫生间设无障碍隔间（≥1.8×1.4m含转身空间）。盲道从电梯厅延伸至前台，盲文标识覆盖所有公共区域。"
+        },
+        "expert_handoff_response": {
+          "compliance_level": "fully_compliant",
+          "compliance_confirmation": "完全遵循需求分析师指令，聚焦动线组织分析。",
+          "challenge_details": null,
+          "reinterpretation": null
+        },
+        "execution_metadata": {
+          "confidence": 0.90,
+          "completion_rate": 1.0,
+          "execution_time_estimate": "约10分钟（含动线模拟+人流计算）",
+          "execution_notes": "基于《办公建筑设计标准》JGJ/T67-2019及5000㎡典型办公楼实践。人流数据按300人规模核算。",
+          "dependencies_satisfied": true
+        }
+      }
+
+metadata:
+  role_id: "V2_0"
+  role_name: "项目总设计师(项目总监)"
+  total_examples: 3
+  coverage:
+    targeted_mode: 2
+    comprehensive_mode: 1
+  quality_verified: true
+  last_updated: "2026-02-10"

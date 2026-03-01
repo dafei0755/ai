@@ -1,0 +1,362 @@
+# 示例:深圳前海自闭症儿童家庭住宅
+# 来源:q.txt Q8
+# 类型:特殊需求主导 (Special Needs Dominant) / 功能疗愈空间
+# 特征:自闭症儿童、感统训练、多代同堂、情绪缓冲、无障碍设计
+# 适用场景:特殊需求家庭、康复空间、无障碍设计、儿童友好设计
+
+example:
+  project_info:
+    name: 深圳前海自闭症儿童家庭住宅
+    description: |
+      深圳前海160㎡住宅，家庭结构：35岁腾讯程序员父亲，34岁全职母亲，
+      7岁自闭症儿童，外公外婆每年冬季短住三个月。
+      项目核心挑战是在有限空间内实现感统训练空间、情绪缓冲区、长辈短住适配系统、
+      收纳与隔音策略，以及家庭互动与私密平衡的多重需求。
+
+    feature_vector:
+      cultural: 0.25
+      commercial: 0.10
+      aesthetic: 0.35
+      functional: 0.85
+      sustainable: 0.40
+      social: 0.68
+      technical: 0.62
+      historical: 0.05
+      regional: 0.20
+      material_innovation: 0.55
+      experiential: 0.72
+      symbolic: 0.30
+
+    constraints:
+      - 160㎡空间需容纳5人+感统训练区
+      - 自闭症儿童的安全保护与独立成长平衡
+      - 长辈冬季短住(3个月)的临时适配
+      - 腾讯程序员的居家办公需求
+      - 全职母亲的高强度照护压力缓解
+
+    goals:
+      - 构建自闭症儿童友好的空间系统
+      - 实现感统训练空间的家庭化整合
+      - 建立情绪缓冲机制与私密层级
+      - 支持家庭成员的心理健康与互动质量
+
+  ideal_tasks:
+    # ========== 第一阶段:特殊需求研究(Task 1-4) ==========
+
+    - id: task_1
+      title: 搜索 自闭症儿童的 空间认知特征、感官敏感度、安全需求、行为模式、成长阶段差异
+      description: |
+        系统研究自闭症儿童的空间需求，包括对声音、光线、色彩、材质的敏感度，
+        空间秩序感的依赖，安全边界的需求，以及7-12岁成长阶段的变化特征。
+      task_type: research
+      motivation: functional
+      support_search: true
+      dimensions:
+        - 空间认知特征(秩序感、可预见性、重复性行为的空间支持)
+        - 感官敏感度(声音过滤、光线柔和、触感安全材料)
+        - 安全需求(锐角防护、门窗安全、逃逸预防)
+        - 行为模式(固定路径、独处需求、情绪爆发应对)
+        - 成长阶段(7岁vs12岁的空间需求变化、可成长性设计)
+      priority: high
+      execution_order: 1
+
+    - id: task_2
+      title: 搜索 家庭感统训练空间的 设备配置标准、空间尺度要求、安全防护措施、多功能整合方案
+      description: |
+        研究家庭化感统训练空间的设计标准，包括平衡木、蹦床、攀爬墙、
+        秋千等设备的尺寸要求、安全距离、防护材料，以及与日常生活空间的整合方式。
+      task_type: research
+      motivation: functional
+      support_search: true
+      dimensions:
+        - 设备配置(平衡木、蹦床、攀爬墙、秋千的家庭版选型)
+        - 空间尺度(净高2.8米+、活动半径3米+、缓冲区1米+)
+        - 安全防护(软包墙面、防撞地垫、设备固定、监控盲区消除)
+        - 多功能整合(训练时段 vs 收纳状态的空间切换)
+      priority: high
+      execution_order: 2
+
+    - id: task_3
+      title: 搜索 多代同堂家庭的 空间层级设计、代际隐私保护、短住适配策略、冲突缓冲机制
+      description: |
+        研究多代同堂(父母+孩子+长辈)的空间组织策略，特别是长辈短住(3个月)
+        的临时适配设计、代际生活习惯差异的空间调和、以及家庭冲突的空间缓冲。
+      task_type: research
+      motivation: social
+      support_search: true
+      dimensions:
+        - 空间层级(公共区、半私密区、私密区的梯度分离)
+        - 代际隐私(独立卫生间、隔音门、视线遮挡)
+        - 短住适配(客房多功能化、储物预留、快速转换机制)
+        - 冲突缓冲(情绪释放角落、独处空间、动静分区)
+      priority: high
+      execution_order: 3
+
+    - id: task_4
+      title: 搜索 照护者心理健康的 空间支持策略、压力释放区域、社交连接机制、居家办公整合
+      description: |
+        关注全职母亲和程序员父亲的心理健康需求，研究照护者的压力释放空间、
+        独处休息角落、远程办公的专注环境、以及社交网络的空间连接。
+      task_type: research
+      motivation: social
+      support_search: true
+      dimensions:
+        - 压力释放(冥想角落、阅读区、阳台透气空间)
+        - 独处空间(可关闭的书房、主卧冥想区、卫生间浴缸)
+        - 社交连接(访客接待不打扰孩子的动线、线上社群支持)
+        - 居家办公(程序员的专注座位、降噪耳机收纳、双显示器布局)
+      priority: high
+      execution_order: 4
+
+    # ========== 第二阶段:空间功能规划(Task 5-9) ==========
+
+    - id: task_5
+      title: 制定 160㎡的功能分区策略、面积分配逻辑、动线组织方案、可成长性预留
+      description: |
+        在160㎡内实现5人居住+感统训练+居家办公的多重需求，
+        定义各功能区的面积比例、空间层级、动线关系，并预留孩子成长的调整空间。
+      task_type: design
+      motivation: functional
+      support_search: false
+      dimensions:
+        - 功能分区(感统训练15㎡、儿童卧室12㎡、主卧18㎡、长辈房12㎡、公区60㎡)
+        - 面积分配(必要空间70% + 弹性空间20% + 储物空间10%)
+        - 动线组织(孩子安全动线、父母高效动线、长辈无障碍动线)
+        - 可成长性(感统区→青少年学习室、儿童房→独立套房的转换预留)
+      priority: high
+      execution_order: 5
+
+    - id: task_6
+      title: 设计 感统训练空间的 设备布局方案、安全防护系统、视觉监控策略、多功能收纳
+      description: |
+        设计15㎡感统训练空间的详细方案，包括蹦床、秋千、攀爬墙的位置布局、
+        软包墙面和防护地垫的范围、监控摄像头的覆盖、以及训练设备的收纳机制。
+      task_type: design
+      motivation: technical
+      support_search: false
+      dimensions:
+        - 设备布局(蹦床占3×3米、秋千吊顶加固、攀爬墙2×2.5米)
+        - 安全防护(墙面软包高度1.5米、地垫厚度5cm、窗户护栏)
+        - 视觉监控(摄像头+父母手机实时查看、盲区消除)
+        - 多功能收纳(墙面收纳柜、可折叠设备、训练道具分类)
+      priority: high
+      execution_order: 6
+
+    - id: task_7
+      title: 设计 儿童卧室的 安全保护机制、情绪调节系统、感官友好环境、睡眠质量优化
+      description: |
+        为自闭症儿童打造安全包容的卧室环境，控制声光刺激、
+        使用柔和材质、设置情绪角落、优化睡眠光环境，支持其情绪稳定和独立成长。
+      task_type: design
+      motivation: functional
+      support_search: false
+      dimensions:
+        - 安全保护(防撞家具、锁定窗户、插座保护盖、夜间小夜灯)
+        - 情绪调节(情绪角落帐篷、压力球、白噪音机、视觉定时器)
+        - 感官友好(柔和灯光、吸音窗帘、温暖木质触感、无刺激色彩)
+        - 睡眠优化(遮光窗帘、温度18-22℃、智能香薰、睡眠节律灯)
+      priority: high
+      execution_order: 7
+
+    - id: task_8
+      title: 设计 长辈短住房的 无障碍适配、快速转换机制、储物预留、独立性保障
+      description: |
+        设计可在非短住期作为多功能房(书房/客房)，短住期快速转换为独立套房的空间，
+        配备无障碍设施、独立卫生间、充足储物、以及隐私保护措施。
+      task_type: design
+      motivation: functional
+      support_search: false
+      dimensions:
+        - 无障碍适配(扶手、防滑地面、坐便器、紧急呼叫按钮)
+        - 快速转换(折叠床→固定床、书桌→梳妆台、书柜→衣柜)
+        - 储物预留(长辈衣物30%衣柜、行李箱收纳、药品收纳盒)
+        - 独立性(独立卫生间、隔音门、专属储物、小茶几)
+      priority: high
+      execution_order: 8
+
+    - id: task_9
+      title: 规划 公共区域的 家庭互动空间、视线连接系统、活动分区策略、情绪缓冲角落
+      description: |
+        设计客厅+餐厅+厨房开放区域(约60㎡)的空间组织，
+        实现家庭成员互动、视线监护孩子、不同活动的声音隔离、以及情绪缓冲角落。
+      task_type: design
+      motivation: social
+      support_search: false
+      dimensions:
+        - 互动空间(家庭共餐区、亲子游戏区、围坐沙发区)
+        - 视线连接(厨房→客厅→感统区的视线通透、监护便利)
+        - 活动分区(安静阅读区 vs 活跃游戏区的声学分隔)
+        - 缓冲角落(窗边独处座位、阳台透气区、书架后的隐蔽角)
+      priority: high
+      execution_order: 9
+
+    # ========== 第三阶段:技术与材料策略(Task 10-13) ==========
+
+    - id: task_10
+      title: 制定 全屋隔音降噪系统、声学分区策略、吸音材料选择、设备噪音控制
+      description: |
+        针对自闭症儿童的声音敏感性，设计全屋隔音系统，
+        包括墙体隔音、门窗隔音、设备降噪、以及吸音材料的局部应用。
+      task_type: design
+      motivation: technical
+      support_search: true
+      dimensions:
+        - 隔音系统(墙体加隔音棉、静音门、三层玻璃窗)
+        - 声学分区(儿童区与公区的声学隔离、感统区重点降噪)
+        - 吸音材料(吸音板、软包、窗帘、地毯的组合应用)
+        - 设备降噪(新风系统静音、空调低噪、冰箱远离卧室)
+      priority: high
+      execution_order: 10
+
+    - id: task_11
+      title: 制定 安全材料选择标准、环保等级要求、防撞防夹措施、儿童友好细节
+      description: |
+        建立材料选择清单，确保所有材料符合儿童安全标准，
+        包括环保等级(E0级)、防撞圆角、防夹合页、无毒涂料等细节控制。
+      task_type: design
+      motivation: functional
+      support_search: true
+      dimensions:
+        - 材料标准(E0级板材、水性漆、无甲醛胶水、抗菌材料)
+        - 防撞措施(圆角家具、墙角软包、玻璃贴防爆膜)
+        - 防夹设计(缓冲合页、抽屉阻尼、门档、柜门粘扣)
+        - 儿童细节(插座保护盖、窗户安全锁、桌角防撞条)
+      priority: high
+      execution_order: 11
+
+    - id: task_12
+      title: 设计 智能家居控制系统、环境监测平台、安全预警机制、远程管理功能
+      description: |
+        整合智能家居技术支持特殊需求家庭，包括环境监测(温湿度、空气质量)、
+        安全预警(门窗状态、摄像头)、以及父母的远程控制与监护功能。
+      task_type: design
+      motivation: technical
+      support_search: true
+      dimensions:
+        - 智能控制(语音控制灯光、自动窗帘、场景模式切换)
+        - 环境监测(PM2.5、CO2、温湿度、甲醛浓度的实时监控)
+        - 安全预警(门窗打开报警、孩子离开感统区提醒、摄像头AI分析)
+        - 远程管理(父母手机APP、外婆视频通话、访客临时授权)
+      priority: medium
+      execution_order: 12
+
+    - id: task_13
+      title: 规划 全屋收纳系统、分类储物策略、视觉整洁维护、快速归位机制
+      description: |
+        针对自闭症儿童对秩序感的需求和多口之家的储物压力，
+        设计高效收纳系统，通过分类标签、视觉整洁、快速归位支持日常生活。
+      task_type: design
+      motivation: functional
+      support_search: false
+      dimensions:
+        - 收纳系统(玄关、厨房、卧室、感统区的定制收纳)
+        - 分类储物(玩具按类别+颜色标签、训练道具挂墙收纳)
+        - 视觉整洁(隐藏式电视柜、封闭式收纳、电线理线盒)
+        - 快速归位(重复性摆放位、视觉提示图、低位儿童取放)
+      priority: medium
+      execution_order: 13
+
+    # ========== 第四阶段:心理与社会支持(Task 14-16) ==========
+
+    - id: task_14
+      title: 构建 情绪调节空间系统、压力释放角落、冥想休息区、家庭成员独处机制
+      description: |
+        为每位家庭成员设计情绪调节空间，包括孩子的情绪角落、
+        母亲的冥想区、父亲的独处书房、长辈的阳台座位，支持心理健康。
+      task_type: design
+      motivation: social
+      support_search: false
+      dimensions:
+        - 孩子情绪角(帐篷+软垫+降噪耳机+压力球)
+        - 母亲冥想区(主卧瑜伽垫+香薰+冥想灯+隔音门)
+        - 父亲独处书房(降噪空间+双显示器+可关闭门+咖啡角)
+        - 长辈休息区(阳台座椅+茶几+绿植+遮阳帘)
+      priority: high
+      execution_order: 14
+
+    - id: task_15
+      title: 制定 访客接待策略、社交不打扰机制、线上支持空间、社区资源连接
+      description: |
+        设计访客接待空间(康复师、亲友)不打扰孩子的动线安排，
+        以及支持父母线上社群交流、连接社区康复资源的空间节点。
+      task_type: design
+      motivation: social
+      support_search: false
+      dimensions:
+        - 访客接待(玄关会客区、不经过儿童房的动线)
+        - 不打扰机制(康复师独立入口、视觉隔断、声音隔离)
+        - 线上空间(父母在公区使用笔记本参加支持小组会议)
+        - 社区连接(社区康复中心步行可达、定期家庭互访)
+      priority: medium
+      execution_order: 15
+
+    - id: task_16
+      title: 评估 空间对家庭生活质量的 支持效果预判、成长适配性、长期可维护性、心理安全感
+      description: |
+        从长期视角评估空间设计对家庭生活质量的提升效果，
+        包括孩子康复进展的空间支持、家庭关系的空间促进、以及10年可维护性。
+      task_type: analysis
+      motivation: social
+      support_search: false
+      dimensions:
+        - 支持效果(感统能力提升、情绪稳定性、家庭互动质量)
+        - 成长适配(7岁→17岁的空间转换路径、功能重组预案)
+        - 可维护性(材料耐久度、设备更换便利性、清洁维护成本)
+        - 心理安全(每位成员的领地感、边界感、归属感)
+      priority: medium
+      execution_order: 16
+
+  quality_highlights:
+    - 16任务全维度覆盖：特殊需求研究25% + 空间功能设计50% + 技术整合15% + 社会支持10%
+    - 核心人物关怀：自闭症儿童(40%) + 照护者(30%) + 长辈(15%) + 父亲工作(15%)
+    - 功能疗愈整合：感统训练空间 + 情绪调节系统 + 安全防护机制
+    - 多代同堂平衡：5人居住 + 临时短住适配 + 代际隐私保护
+    - 可成长性设计：7岁→17岁的空间转换预留机制
+
+# 🆕 v8.0++ 多维度标签矩阵
+metadata:
+  tags_matrix:
+    space_type:
+      - residential
+      - rehabilitation_space  # 康复空间
+      - home_gym             # 家庭感统训练
+      - home_office          # 居家办公
+    scale: medium  # 160㎡
+    design_direction:
+      - functional      # 功能主导
+      - social          # 社会关怀
+      - technical      # 技术整合
+      - experiential   # 心理体验
+    user_profile:
+      - special_needs_child  # 自闭症儿童
+      - full_time_caregiver  # 全职照护者
+      - tech_worker          # 程序员
+      - elderly_short_stay   # 长辈短住
+    challenge_type:
+      - special_needs_adaptation  # 特殊需求适配
+      - multi_generation         # 多代同堂
+      - space_constraint         # 空间限制 (160㎡/5人)
+      - safety_requirement       # 安全防护
+      - emotional_support        # 情绪支持
+    methodology:
+      - evidence_based_design    # 循证设计(自闭症研究)
+      - modular_flexibility      # 模块化灵活性
+      - technology_integration   # 技术整合
+      - safety_first            # 安全优先
+    phase: detailed_design  # 详细设计阶段
+
+  performance:
+    specialty_score: 0.75  # 高度特殊需求
+    recommended_strength: light  # 建议轻示例（项目特殊性高，鼓励创新）
+
+  best_for:
+    - "自闭症儿童家庭住宅"
+    - "特殊需求康复空间"
+    - "多代同堂复杂家庭"
+    - "小空间多功能整合"
+    - "儿童友好安全设计"
+
+  not_suitable_for:
+    - "常规住宅设计"           # 示例为特殊需求主导
+    - "大户型豪宅"             # 示例为空间紧张型
+    - "单身/夫妻住宅"          # 示例为复杂家庭结构

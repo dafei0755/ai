@@ -1,0 +1,309 @@
+# 示例:过敏儿童医疗级卧室设计
+# 来源:q.txt Q32
+# 类型:功能主导 (Functional Dominant) / 医疗级标准 + 儿童健康
+# 特征:医疗级空气质量、过敏原控制、材料安全筛选、心理治愈环境、儿童成长适配
+
+example:
+  project_info:
+    name: 过敏儿童医疗级卧室空间设计
+    description: |
+      深圳福田区90平方米三居室中一间15平方米儿童卧室的医疗级改造，
+      业主5岁女儿患有重度尘螨过敏及轻度哮喘，现有卧室环境导致
+      夜间频繁过敏发作。项目需建立医疗级空气质量控制体系、
+      过敏原全面排除材料方案、心理舒缓治愈环境设计，
+      同时满足5-12岁成长期功能适配需求。
+
+    feature_vector:
+      functional: 0.85
+      technical: 0.70
+      sustainable: 0.60
+      experiential: 0.52
+      aesthetic: 0.40
+      material_innovation: 0.58
+      social: 0.35
+      symbolic: 0.30
+      commercial: 0.20
+      cultural: 0.15
+      historical: 0.10
+      regional: 0.15
+
+    constraints:
+      - 5岁重度尘螨过敏+轻度哮喘的医疗级环境要求
+      - 15平方米有限面积需容纳睡眠+学习+游戏+储物功能
+      - 所有材料需通过CMA认证VOC检测
+      - 空气质量需满足PM2.5小于15微克每立方米、相对湿度40-60%
+      - 设计需适配5-12岁成长期的功能变化需求
+
+    goals:
+      - 建立医疗级室内空气质量控制系统
+      - 构建过敏原全面排除的材料白名单体系
+      - 设计心理舒缓与治愈的空间环境
+      - 实现5-12岁成长适配的灵活空间方案
+      - 降低夜间过敏发作频率至零
+
+  ideal_tasks:
+    - id: task_1
+      title: 搜索 儿童尘螨过敏的 医学环境控制标准、室内过敏原种类、空气质量健康指标、国际防过敏住宅案例
+      description: |
+        系统调研儿童尘螨过敏及哮喘的医学环境控制标准，理解室内过敏原
+        分布规律与控制策略，调研国际防过敏住宅设计案例。
+      task_type: research
+      motivation: functional
+      support_search: true
+      dimensions:
+        - 医学环境控制标准(WHO室内空气质量指南、中国GB/T 18883标准、Allergy UK标准)
+        - 室内过敏原种类(尘螨、霉菌孢子、VOC控制)
+        - 空气质量健康指标(PM2.5、CO2、相对湿度、换气次数)
+        - 国际防过敏住宅案例(Allergy UK认证住宅、日本过敏友好住宅标准)
+      priority: high
+      execution_order: 1
+
+    - id: task_2
+      title: 搜索 医疗级室内材料的 VOC检测标准、防螨材料技术、抗菌表面处理、材料安全白名单构建方法
+      description: |
+        调研医疗级室内材料的安全标准体系，建立过敏儿童卧室专用的材料安全白名单构建方法论。
+      task_type: research
+      motivation: technical
+      support_search: true
+      dimensions:
+        - VOC检测标准(甲醛、TVOC、苯系物检测要求)
+        - 防螨材料技术(防螨织物、防螨涂层、物理屏障)
+        - 抗菌表面处理(银离子抗菌、光触媒、铜离子抑菌)
+        - 材料安全白名单(准入标准、检测报告、供应商审核)
+      priority: high
+      execution_order: 2
+
+    - id: task_3
+      title: 搜索 儿童治愈性空间的 色彩心理学研究、自然元素引入策略、安全感空间构建、感官舒缓设计
+      description: |
+        研究治愈性空间设计在儿童卧室中的应用，包括色彩心理学、自然元素引入、安全感空间构建。
+      task_type: research
+      motivation: experiential
+      support_search: true
+      dimensions:
+        - 色彩心理学(低饱和蓝绿系舒缓效果、色彩面积控制)
+        - 自然元素引入(室内无土水培植物、自然光模拟灯具)
+        - 安全感空间构建(包裹感床帐、角落安全巢穴)
+        - 感官舒缓设计(柔和触感材料、适宜色温2700-3000K)
+      priority: high
+      execution_order: 3
+
+    - id: task_4
+      title: 设计 医疗级空气质量控制系统的 新风净化方案、温湿度控制策略、空气检测装置、系统联动逻辑
+      description: |
+        设计15平方米儿童卧室的医疗级空气质量控制系统，包括新风净化双系统方案、
+        温湿度精准控制、实时空气质量检测装置。
+      task_type: design
+      motivation: technical
+      support_search: false
+      dimensions:
+        - 新风净化方案(新风系统+HEPA H13级四级过滤)
+        - 温湿度控制策略(除湿机维持40-60%RH+温控22-26度)
+        - 空气检测装置(PM2.5/甲醛/CO2/温湿度五参数实时监测)
+        - 系统联动逻辑(自动开启净化器+自动除湿+加大新风)
+      priority: high
+      execution_order: 4
+
+    - id: task_5
+      title: 制定 过敏原全面排除的 材料选型白名单、黑名单排除清单、检测验收流程
+      description: |
+        制定过敏儿童卧室专用的材料选型方案，建立白名单和黑名单，定义检测验收流程。
+      task_type: strategy
+      motivation: functional
+      support_search: false
+      dimensions:
+        - 材料白名单(实木E0级板材、水性漆、防螨面料、医用级硅藻泥)
+        - 黑名单排除(密度板、油性漆、地毯、布艺窗帘、毛绒玩具)
+        - 检测验收流程(施工完成通风30天+CMA检测+空气质量达标)
+        - 供应商审核标准(CMA检测报告、批次追溯号、环保认证)
+      priority: high
+      execution_order: 5
+
+    - id: task_6
+      title: 设计 防螨寝具系统的 床垫选型方案、防螨床品体系、清洗维护周期
+      description: |
+        设计儿童卧室的全套防螨寝具系统，从床垫内芯到床品面料全链路防螨控制。
+      task_type: design
+      motivation: functional
+      support_search: false
+      dimensions:
+        - 床垫选型(天然乳胶床垫防螨+防螨外套全包裹)
+        - 防螨床品体系(防螨面料+60度可洗+抗菌处理)
+        - 枕芯材质标准(乳胶枕替代羽绒、高度适配5岁儿童)
+        - 清洗维护周期(床品周洗60度+床垫季度除螨+枕芯半年更换)
+      priority: high
+      execution_order: 6
+
+    - id: task_7
+      title: 设计 储物系统的 密封防尘方案、衣物收纳分区、玩具管理策略
+      description: |
+        设计防过敏原积聚的储物系统，所有收纳需具备密封防尘功能。
+      task_type: design
+      motivation: functional
+      support_search: false
+      dimensions:
+        - 密封防尘方案(带门衣柜、抽屉密封条、收纳箱密封盖)
+        - 衣物收纳分区(室外衣物隔离区和室内衣物区)
+        - 玩具管理策略(硅胶/木质/塑料玩具准入、毛绒玩具禁入)
+        - 过敏原隔离逻辑(外衣不入卧室、鞋类不入卧室)
+      priority: high
+      execution_order: 7
+
+    - id: task_8
+      title: 设计 15平方米儿童卧室的 功能分区方案、家具布局策略、空间效率优化
+      description: |
+        在15平方米有限面积内规划睡眠区、学习区、游戏区、储物区四大功能。
+      task_type: design
+      motivation: functional
+      support_search: false
+      dimensions:
+        - 功能分区(睡眠区+学习区+游戏区+储物区+通道)
+        - 家具布局(床靠墙、书桌靠窗、衣柜嵌入墙体)
+        - 空间效率优化(床下储物、墙面书架、可折叠游戏桌)
+        - 灵活性预留(可调节书桌高度、可拆换床架)
+      priority: high
+      execution_order: 8
+
+    - id: task_9
+      title: 制定 治愈性色彩与照明方案、舒缓色彩系统、助眠灯光策略
+      description: |
+        基于儿童色彩心理学研究，制定过敏儿童卧室的治愈性色彩与灯光方案。
+      task_type: design
+      motivation: experiential
+      support_search: false
+      dimensions:
+        - 舒缓色彩系统(主色莫兰迪蓝绿+辅色暖米白+点缀柔和粉橙)
+        - 昼夜光环境(白天5000K学习+傍晚3500K过渡+夜间2700K助眠)
+        - 助眠灯光策略(渐暗模式30分钟+低蓝光夜灯)
+        - 自然光优化(薄纱滤光+遮光帘双层)
+      priority: medium
+      execution_order: 9
+
+    - id: task_10
+      title: 设计 5-12岁成长适配方案、家具尺度变化策略、功能渐变规划
+      description: |
+        设计从5岁到12岁的成长适配方案，定义各年龄段的家具尺度变化和功能需求渐变。
+      task_type: design
+      motivation: functional
+      support_search: false
+      dimensions:
+        - 家具尺度变化(书桌高度55到75cm可调、椅子高度可调)
+        - 功能渐变规划(5-7岁游戏为主、8-10岁学习过渡、11-12岁独立空间)
+        - 空间布局调整(游戏区缩小、学习区扩大)
+        - 成长时间线(每2年一次软装微调)
+      priority: medium
+      execution_order: 10
+
+    - id: task_11
+      title: 分析 安全防护系统的 防撞设计方案、窗户安全措施、电气安全标准
+      description: |
+        针对5岁儿童的安全需求，设计全面的安全防护系统。
+      task_type: analysis
+      motivation: functional
+      support_search: false
+      dimensions:
+        - 防撞设计(家具圆角、墙角软包、床边防坠栏)
+        - 窗户安全(限位器、防坠网、儿童锁)
+        - 电气安全(插座安全盖、电线暗装、低压LED)
+        - 夜间安全(感应夜灯路径、床边呼叫按钮)
+      priority: medium
+      execution_order: 11
+
+    - id: task_12
+      title: 制定 施工过程环境控制规程、无尘施工标准、入住前检测流程
+      description: |
+        制定施工全过程的环境控制规程，确保施工期间不引入新的过敏原。
+      task_type: strategy
+      motivation: technical
+      support_search: false
+      dimensions:
+        - 无尘施工标准(施工区域隔离、每日清洁、HEPA吸尘器)
+        - 材料进场检测(批次CMA检测报告核验)
+        - 通风排毒计划(施工完成后30天强制通风+检测)
+        - 入住前检测流程(CMA五项检测+密闭舱法)
+      priority: high
+      execution_order: 12
+
+    - id: task_13
+      title: 制定 日常维护手册、清洁消毒周期表、设备保养计划
+      description: |
+        编制家长可执行的日常维护手册，包括清洁消毒任务清单和设备保养计划。
+      task_type: strategy
+      motivation: functional
+      support_search: false
+      dimensions:
+        - 清洁消毒周期表(每日湿拖+每周床品洗+每月除螨+每季深度清洁)
+        - 设备保养计划(净化器滤芯3月换+新风系统半年维护)
+        - 空气质量监控(每日APP查看+季度专业检测)
+        - 应急预案(过敏发作急救+通风操作+就医联系)
+      priority: medium
+      execution_order: 13
+
+    - id: task_14
+      title: 评估 整体方案的 医疗合规性验证、成本效益分析、家长可执行度
+      description: |
+        对整体设计方案进行综合评估，验证医疗级标准的合规性，分析投入产出。
+      task_type: analysis
+      motivation: functional
+      support_search: false
+      dimensions:
+        - 医疗合规性(各项空气质量指标达标率、材料安全标准满足度)
+        - 成本效益分析(改造总投入vs减少过敏就医费用)
+        - 家长可执行度(日常维护时间控制、操作难度评估)
+        - 长期健康效益(夜间过敏发作频率降低目标)
+      priority: medium
+      execution_order: 14
+
+  quality_highlights:
+    - 14任务医疗级深度 过敏医学标准到材料安全体系到环境控制系统到治愈性空间到维护方案
+    - 空气质量控制体系 新风+HEPA四级过滤+温湿度精控+实时监测+智能联动
+    - 材料安全白名单制 CMA认证准入+黑名单排除+施工过程检测+入住前全项验收
+    - 防螨寝具全链路 乳胶床垫+防螨外套+防螨面料+60度周洗+季度深度除螨
+    - 治愈性空间设计 莫兰迪色彩+助眠灯光+自然元素+安全感包裹+感官舒缓
+    - 成长适配方案 5-12岁七年成长时间线+可调家具+功能渐变+软装微调策略
+
+metadata:
+  tags_matrix:
+    space_type:
+      - bedroom
+      - family_residence
+      - children_room
+    scale: small
+    design_direction:
+      - functional
+      - technical
+      - sustainable
+      - experiential
+    user_profile:
+      - family
+      - children
+      - special_needs
+      - health_sensitive
+    challenge_type:
+      - technical_complexity
+      - health_safety
+      - material_specification
+      - growth_adaptation
+    methodology:
+      - medical_research
+      - technical_innovation
+      - material_testing
+      - evidence_based_design
+    phase: concept_to_detailed
+  discipline: interior_design
+  urgency: 0.65
+  innovation_quotient: 0.60
+  commercial_sensitivity: 0.20
+  cultural_depth: 0.15
+  performance:
+    specialty_score: 0.70
+    recommended_strength: strong
+  best_for:
+    - "医疗级住宅空间设计"
+    - "过敏体质儿童房设计"
+    - "空气质量控制系统整合"
+    - "材料安全标准筛选"
+  not_suitable_for:
+    - "商业空间设计"
+    - "无健康特殊需求项目"
+    - "大型公共建筑"

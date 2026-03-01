@@ -1,0 +1,687 @@
+# ==================================================================================
+# 输出投射配置 (output_projections.yaml)
+# ==================================================================================
+# 版本: v1.0
+# 创建日期: 2026-02-22
+# 用途: 定义多维投射视角 — 同一分析池 × 不同受众 = 不同输出版本
+#
+# 设计原则:
+#   - 分析层保持"受众无关的全维度分析"，投射只在输出层发生
+#   - 每个 projection 定义一种"话语层"切换规则
+#   - 新增受众只需添加一条配置，无需修改分析管线
+#   - case_template 指向 sf/ CASE 示范文件作为 few-shot 模板
+#
+# 架构位置:
+#   result_aggregator → 【projection_dispatcher】→ 【perspective_writers(并行)】→ report_guard
+#
+# 核心概念（五轴元结构）:
+#   每个项目在分析阶段被映射到五轴坐标空间：
+#     - identity_axis: 身份轴（用户/客户画像深度）
+#     - power_axis:    权力轴（利益相关者/决策者结构）
+#     - operation_axis: 生产轴（项目类型/功能/业态）
+#     - emotion_axis:  情绪轴（氛围/体验/情感设计）
+#     - civilization_axis: 文明轴（文化/时间/地域定位）
+#   投射视角通过调整五轴权重来控制输出重心。
+# ==================================================================================
+
+metadata:
+  version: "1.0"
+  description: "多维输出投射配置 — 同一分析结果对不同受众的话语层切换"
+  created_at: "2026-02-22"
+
+# ==================================================================================
+# 五轴元结构定义（Meta-Structure Axes）
+# ==================================================================================
+# 为项目总监和投射调度器提供统一的坐标系描述
+meta_axes:
+  identity_axis:
+    name: "身份轴"
+    description: "用户/客户的身份结构、心理画像、人生阶段"
+    source_components:
+      - "Phase2_A3: 用户深度建模"
+      - "Phase2_B2: JTBD任务定义"
+      - "Phase2_B3: 五层追问"
+    range: "个人→家庭→组织→社区→文明体"
+
+  power_axis:
+    name: "权力轴"
+    description: "利益相关者、决策层级、否决点、隐性权力"
+    source_components:
+      - "Phase2_A2: 利益相关者系统"
+      - "Schema: StakeholderSystem / PowerDynamics"
+      - "expert_A9: 社会关系建模"
+    range: "个人决策→家庭协商→多方博弈→公共治理→制度设计"
+
+  operation_axis:
+    name: "生产轴"
+    description: "项目类型、业态功能、运营逻辑、生产效率"
+    source_components:
+      - "ontology: 13种项目框架"
+      - "mode_detector: M1-M12设计模式"
+      - "E1-E9: 本体论基础"
+    range: "居住→商业→教育→医疗→产业→公共→基础设施"
+
+  emotion_axis:
+    name: "情绪轴"
+    description: "空间氛围、情感体验、感官印记、精神性"
+    source_components:
+      - "M3/M11: 情绪体验/疗愈模式"
+      - "Phase2_A3: emotional_landscape"
+      - "radar: energy_level / sensory_focus"
+    range: "疗愈静谧→日常舒适→兴奋刺激→精神超越"
+
+  civilization_axis:
+    name: "文明轴"
+    description: "文化定位、时间坐标、地域根性、时代议题"
+    source_components:
+      - "radar: cultural_axis / cultural_authenticity"
+      - "ontology E4/E5: 材料时间性/时序动态"
+      - "M5/M6: 在地/更新模式"
+    range: "怀旧复古→传统延续→当代前沿→未来推测"
+
+# ==================================================================================
+# 投射视角定义（Projection Perspectives）
+# ==================================================================================
+projections:
+
+  # ==============================================================================
+  # 设计专业版 — 面向设计师、建筑师、甲方设计顾问
+  # ==============================================================================
+  design_professional:
+    name: "设计专业报告"
+    description: "面向设计师/建筑师，以空间精神性和美学突破为核心"
+    target_audience:
+      - "建筑师/室内设计师"
+      - "甲方设计顾问"
+      - "设计评审委员"
+
+    # 话语层定义
+    discourse_register:
+      tone: "专业批评性写作"
+      vocabulary_bias: ["空间秩序", "概念建构", "材料智性", "叙事节奏", "尺度控制"]
+      avoid: ["投资回报", "审批", "政策", "造价"]
+      depth: "理论→策略→规则→执行"
+
+    # 五轴权重（决定输出重心）
+    axis_weights:
+      identity: 0.15
+      power: 0.05
+      operation: 0.10
+      emotion: 0.30
+      civilization: 0.40
+
+    # 价值锚点与风险焦点
+    value_anchor: "空间精神性与美学突破"
+    risk_focus: "概念一致性、材料适配性、施工可行性"
+
+    # 内容结构（章节优先级）
+    section_priority:
+      - "概念建构与核心命题"
+      - "空间结构与叙事编排"
+      - "材料系统与大师精神转译"
+      - "灯光与环境策略"
+      - "风险与可行性校验"
+
+    # few-shot 模板（对应 sf/CASE 文件）
+    case_template_key: "ability_core_full"
+
+    # 统一中文显示名（全系统唯一来源，各模块从此读取，勿在代码中硬编码）
+    display_name_zh: "设计专业报告"
+
+    # 信息补全追问维度（按项目类型分层，供 LLMGapQuestionGenerator 使用）
+    gap_dimensions:
+      general:
+        - "设计策略方向与核心命题"
+        - "空间关系优先级与叙事编排"
+        - "技术约束边界与可行性"
+        - "交付深度（概念/方案/深化）"
+      premium_residential:
+        - "室内外关系策略与景观资源利用"
+        - "家庭生活动线与隐私分区"
+        - "材料品质取向与工艺精度期待"
+        - "空间精神性与业主文化身份表达"
+      rural:
+        - "在地工艺与地域建造语言转译"
+        - "传统与当代的平衡策略"
+        - "社区文化符号融入方式"
+      commercial:
+        - "品牌体验叙事与打卡点设计"
+        - "空间氛围与客群情感共鸣策略"
+      healthcare:
+        - "心理疗愈环境策略"
+        - "无障碍设计与安全感营造"
+        - "自然光与绿植引入策略"
+
+    # 适用条件（自动激活规则）
+    auto_activate:
+      always: true  # 默认视角，每次分析都生成
+
+  # ==============================================================================
+  # 投资运营版 — 面向投资人、运营团队、资产管理方
+  # ==============================================================================
+  investor_operator:
+    name: "投资运营分析"
+    description: "面向投资人/运营方，以回报模型和产业穿透为核心"
+    target_audience:
+      - "投资人/基金管理人"
+      - "运营团队负责人"
+      - "资产管理方"
+
+    discourse_register:
+      tone: "商业分析语言"
+      vocabulary_bias: ["ROI", "客单价", "翻台率", "坪效", "回报周期", "产业闭环", "认养模型", "股权结构"]
+      avoid: ["精神性", "美学", "哲学", "大师"]
+      depth: "市场→模型→测算→风险→退出"
+
+    axis_weights:
+      identity: 0.10
+      power: 0.25
+      operation: 0.35
+      emotion: 0.05
+      civilization: 0.05
+
+    value_anchor: "回报周期与增长模型"
+    risk_focus: "现金流断裂、市场竞争、季节性波动、退出机制"
+
+    section_priority:
+      - "投资测算与回报模型"
+      - "产业结构与收入来源"
+      - "运营效率与成本控制"
+      - "风险矩阵与对冲策略"
+      - "规模化路径与退出机制"
+
+    case_template_key: "industry_strategy"
+
+    # 统一中文显示名
+    display_name_zh: "投资运营分析"
+
+    # 信息补全追问维度（按项目类型分层）
+    gap_dimensions:
+      general:
+        - "运营主体与管理模式"
+        - "商业目标与投资回报预期"
+        - "目标客群定位"
+      premium_residential:
+        - "自住为主还是计划出租/托管"
+        - "是否委托品牌管理公司运营"
+        - "预期年化回报率或租金收益"
+      rural:
+        - "运营主体（村集体/承包方/品牌方/个人）"
+        - "乡村旅游商业模式"
+        - "目标客群定位"
+        - "投资规模与回报预期"
+      commercial:
+        - "运营主体与品牌授权模式"
+        - "租金收益模型与资产回报率"
+        - "目标客群与品牌定位"
+      office:
+        - "组织规模与扩张预期"
+        - "是否有出租或分时利用计划"
+
+    auto_activate:
+      when_modes: [M4, M5, M6]
+      when_axis_above:
+        operation: 0.6
+
+  # ==============================================================================
+  # 政策汇报版 — 面向政府部门、审批机构、政策决策者
+  # ==============================================================================
+  government_policy:
+    name: "政策汇报方案"
+    description: "面向政府/审批方，以政策对齐和示范效应为核心"
+    target_audience:
+      - "地方政府（区县级）"
+      - "规划审批部门"
+      - "文旅/住建/农业主管"
+
+    discourse_register:
+      tone: "行政汇报体"
+      vocabulary_bias: ["乡村振兴", "示范工程", "社会效益", "共同富裕", "合规", "分阶段实施"]
+      avoid: ["大师", "美学", "精神性", "哲学", "焦虑"]
+      depth: "战略对齐→必要性→规模指标→效益量化→风险可控→实施路径"
+
+    axis_weights:
+      identity: 0.05
+      power: 0.40
+      operation: 0.25
+      emotion: 0.05
+      civilization: 0.25
+
+    value_anchor: "政策对齐与示范效应"
+    risk_focus: "社会稳定、合规性、财政可控、舆论风险"
+
+    section_priority:
+      - "战略定位与政策对齐"
+      - "建设必要性与现实意义"
+      - "规模指标与规划控制"
+      - "投资测算与经济带动"
+      - "社会效益与风险可控"
+      - "阶段实施计划"
+
+    case_template_key: "policy_report"
+
+    # 统一中文显示名
+    display_name_zh: "政策汇报方案"
+
+    # 信息补全追问维度（按项目类型分层）
+    gap_dimensions:
+      general:
+        - "相关政策背景与合规要求"
+        - "审批路径与主管部门"
+        - "社会效益指标与示范意义"
+      rural:
+        - "乡村振兴政策对接与补贴申请路径"
+        - "农业用地与建设用地合规性"
+        - "政府主管部门汇报层级"
+        - "社会效益量化指标预期"
+      public:
+        - "规划许可与城市主管部门审批"
+        - "公众参与机制"
+        - "政府资金比例与配套要求"
+      cultural:
+        - "文旅政策对接方向"
+        - "文物保护相关合规要求"
+
+    auto_activate:
+      when_modes: [M5, M6, M8]
+      when_axis_above:
+        power: 0.5
+
+  # ==============================================================================
+  # 施工深化版 — 面向施工方、工程团队、造价顾问
+  # ==============================================================================
+  construction_execution:
+    name: "施工深化方案"
+    description: "面向施工方/工程团队，以工艺可行性和成本控制为核心"
+    target_audience:
+      - "施工总包/分包"
+      - "驻场工程师"
+      - "造价工程师"
+
+    discourse_register:
+      tone: "工程技术规范"
+      vocabulary_bias: ["配筋", "防水等级", "模板工艺", "清水混凝土", "造价", "节点", "MEP", "耐火等级"]
+      avoid: ["精神性", "文明", "焦虑", "权力", "哲学"]
+      depth: "系统→节点→规格→做法→造价→风险"
+
+    axis_weights:
+      identity: 0.00
+      power: 0.05
+      operation: 0.60
+      emotion: 0.00
+      civilization: 0.00
+
+    value_anchor: "工艺可行性与成本控制"
+    risk_focus: "结构安全、施工难度、材料供应、工期控制"
+
+    section_priority:
+      - "结构系统与基础方案"
+      - "材料规格与施工做法"
+      - "机电系统整合"
+      - "消防与安全规范"
+      - "造价控制与风险提示"
+      - "施工阶段划分"
+
+    case_template_key: "construction_detail"
+
+    # 统一中文显示名
+    display_name_zh: "施工深化方案"
+
+    # 信息补全追问维度（按项目类型分层）
+    gap_dimensions:
+      general:
+        - "施工条件与现场基础设施"
+        - "材料供应与技术约束"
+        - "工期要求与阶段节点"
+      rural:
+        - "在地材料来源与工匠资源可获得性"
+        - "交通可达性与运输条件"
+        - "基础设施（水电网）现状"
+      premium_residential:
+        - "精装工艺标准与验收要求"
+        - "特殊工艺（清水混凝土/石材/定制家具）经验"
+        - "MEP系统整合要求"
+      commercial:
+        - "快速施工要求与抢工计划"
+        - "营业中施工的隔离方案"
+
+    auto_activate:
+      when_modes: [M5, M6, M10]
+      when_task_contains: ["施工", "深化", "落地", "建设"]
+
+  # ==============================================================================
+  # 美学锋化版 — 面向媒体、学术界、品牌传播
+  # ==============================================================================
+  aesthetic_critique:
+    name: "美学评论与传播"
+    description: "面向媒体/学术界，以叙事张力和文明表达为核心"
+    target_audience:
+      - "建筑媒体/设计杂志"
+      - "学术研究者"
+      - "品牌传播团队"
+
+    discourse_register:
+      tone: "批评性叙事"
+      vocabulary_bias: ["冲突美学", "感官剧场", "大师精神", "文明表达", "时代立场", "存在焦虑"]
+      avoid: ["造价", "合规", "审批", "翻台率"]
+      depth: "命题→张力→冲突→美学立场→文明判断"
+
+    axis_weights:
+      identity: 0.20
+      power: 0.05
+      operation: 0.05
+      emotion: 0.35
+      civilization: 0.35
+
+    value_anchor: "故事性与文明立场"
+    risk_focus: "概念空洞、符号堆砌、文化挪用、伪深度"
+
+    section_priority:
+      - "核心命题与时代回应"
+      - "大师冲突美学解构"
+      - "感官剧场与叙事编排"
+      - "材料诗性与时间策略"
+      - "文明判断与50年视角"
+
+    case_template_key: "aesthetic_critique"
+
+    # 统一中文显示名
+    display_name_zh: "美学评论与传播"
+
+    # 信息补全追问维度（按项目类型分层）
+    gap_dimensions:
+      general:
+        - "文化叙事的核心立场（保护性/转化性/批判性）"
+        - "精神性意图与美学参照系的取舍逻辑"
+        - "叙事深度层级（仅引用用户原话中已出现的参照对象）"
+      premium_residential:
+        - "业主的文化身份认同与精神追求"
+        - "对'成就象征'与'内敛厚度'的取向"
+      rural:
+        - "对乡土记忆的叙事立场（保护原真性/当代转化/批判反思）"
+        - "在地文化符号与当代语境的张力处理"
+      cultural:
+        - "机构的文化立场与时代议题回应方式"
+        - "美学与功能之间的优先级取舍逻辑"
+
+    auto_activate:
+      when_modes: [M1, M5, M9]
+      when_axis_above:
+        civilization: 0.6
+
+# ==================================================================================
+# 投射调度规则
+# ==================================================================================
+dispatch_rules:
+  # 默认投射（每次分析至少生成的视角）
+  default_projections:
+    - "design_professional"
+
+  # 最大并行投射数（控制 LLM 调用成本）
+  max_parallel_projections: 3
+
+  # 投射触发阈值
+  activation_threshold: 0.5
+
+  # 用户可手动选择的投射视角（前端交互）
+  user_selectable: true
+
+  # 投射写手的 LLM 参数
+  writer_llm_params:
+    temperature: 0.6
+    max_tokens: 8000
+    # 投射写手复用已有专家分析，不做新搜索
+    tools_enabled: false
+
+# ==================================================================================
+# 五轴坐标自动评分规则（v1.0: 基于已有分析字段的映射）
+# ==================================================================================
+# 投射调度器从 state 中提取以下字段，映射为五轴坐标值
+axis_scoring:
+  identity:
+    sources:
+      - field: "structured_requirements.user_modeling"
+        weight: 0.4
+      - field: "structured_requirements.jtbd"
+        weight: 0.3
+      - field: "structured_requirements.five_layer_why"
+        weight: 0.3
+    default_score: 0.5
+
+  power:
+    sources:
+      - field: "structured_requirements.stakeholder_system"
+        weight: 0.5
+      - field: "structured_requirements.power_dynamics"
+        weight: 0.3
+      - field: "structured_requirements.conflict_synergy"
+        weight: 0.2
+    default_score: 0.3
+
+  operation:
+    sources:
+      - field: "project_classification.primary_mode"
+        weight: 0.4
+        mode_mapping:
+          M1_architecture: 0.9
+          M2_interior: 0.8
+          M3_landscape: 0.7
+          M4_urban: 0.8
+          M5_rural_context: 0.85
+          M6_cultural_heritage: 0.6
+          M7_industrial: 0.9
+      - field: "structured_requirements.spatial_strategy"
+        weight: 0.3
+      - field: "structured_requirements.functional_requirements"
+        weight: 0.3
+    default_score: 0.5
+
+  emotion:
+    sources:
+      - field: "structured_requirements.emotional_landscape"
+        weight: 0.35
+      - field: "radar_dimension_values.energy_level"
+        weight: 0.2
+      - field: "radar_dimension_values.sensory_focus"
+        weight: 0.2
+      - field: "structured_requirements.narrative_characters"
+        weight: 0.25
+    default_score: 0.4
+
+  civilization:
+    sources:
+      - field: "radar_dimension_values.cultural_axis"
+        weight: 0.25
+      - field: "radar_dimension_values.cultural_authenticity"
+        weight: 0.25
+      - field: "structured_requirements.civilizational_position"
+        weight: 0.3
+      - field: "structured_requirements.physical_contexts"
+        weight: 0.2
+    default_score: 0.3
+
+# ==================================================================================
+# v10.x 输出意图检测配置 — 四源交叉验证
+# ==================================================================================
+
+# ---------- 源2: 利益相关方角色 → 投射类型映射 ----------
+stakeholder_projection_mapping:
+  investor_owner:
+    maps_to: investor_operator
+    role_keywords: [投资人, 投资方, 业主, 甲方, 开发商, 基金, 资方, 出资]
+  regulator_government:
+    maps_to: government_policy
+    role_keywords: [政府, 规划局, 住建局, 文旅局, 农业局, 审批, 主管部门, 村委, 镇政府, 县政府, 街道办]
+  supplier_contractor:
+    maps_to: construction_execution
+    role_keywords: [施工方, 总包, 分包, 工程师, 造价, 建设方, 施工队]
+  designer_creative:
+    maps_to: design_professional
+    role_keywords: [设计师, 建筑师, 设计团队, 设计顾问, 室内设计]
+  media_academic:
+    maps_to: aesthetic_critique
+    role_keywords: [媒体, 杂志, 学术, 研究者, 品牌, 传播, 记者]
+  end_consumer:
+    maps_to: null  # 终端用户不直接映射投射
+    role_keywords: [住户, 客户, 旅客, 消费者, 用户]
+  community_neighbor:
+    maps_to: null  # 社区居民不直接映射投射
+    role_keywords: [居民, 村民, 邻居, 社区]
+
+# ---------- 源3: 空间属性 → 必然/可能利益方 ----------
+spatial_attribute_rules:
+  rural_construction:
+    trigger:
+      modes: [M5, M5_rural_context]
+      project_types: [rural, village]
+    mandatory_stakeholders:
+      - regulator_government
+      - community_neighbor
+    likely_stakeholders:
+      - investor_owner
+      - supplier_contractor
+
+  urban_regeneration:
+    trigger:
+      modes: [M6, M6_urban_regeneration]
+      project_types: [urban]
+    mandatory_stakeholders:
+      - regulator_government
+      - investor_owner
+      - community_neighbor
+    likely_stakeholders:
+      - supplier_contractor
+
+  commercial_project:
+    trigger:
+      modes: [M4, M4_capital_asset]
+      project_types: [commercial, hospitality, retail]
+    mandatory_stakeholders:
+      - investor_owner
+    likely_stakeholders:
+      - supplier_contractor
+      - regulator_government
+
+  public_infrastructure:
+    trigger:
+      modes: [M8, M9, M8_extreme_condition, M9_social_structure]
+      project_types: [public]
+    mandatory_stakeholders:
+      - regulator_government
+    likely_stakeholders:
+      - community_neighbor
+
+  concept_research:
+    trigger:
+      modes: [M1, M10, M1_concept_driven, M10_future_speculation]
+      project_types: [concept, academic]
+    mandatory_stakeholders:
+      - designer_creative
+    likely_stakeholders:
+      - media_academic
+
+  healthcare_healing:
+    trigger:
+      modes: [M11, M11_healthcare_healing]
+      project_types: [healthcare, medical]
+    mandatory_stakeholders:
+      - regulator_government
+    likely_stakeholders:
+      - supplier_contractor
+
+# ---------- 源4: 动机/情感/身份 → 投射倾向 ----------
+motivation_projection_mapping:
+  # 12种动机类型映射
+  commercial:
+    primary_projection: investor_operator
+    secondary_projection: null
+    signal_weight: 0.6
+  cultural:
+    primary_projection: aesthetic_critique
+    secondary_projection: government_policy
+    signal_weight: 0.4
+  emotional:
+    primary_projection: design_professional
+    secondary_projection: null
+    signal_weight: 0.3
+  aesthetic:
+    primary_projection: design_professional
+    secondary_projection: aesthetic_critique
+    signal_weight: 0.4
+  wellness:
+    primary_projection: design_professional
+    secondary_projection: null
+    signal_weight: 0.3
+  functional:
+    primary_projection: design_professional
+    secondary_projection: construction_execution
+    signal_weight: 0.3
+  professional:
+    primary_projection: construction_execution
+    secondary_projection: design_professional
+    signal_weight: 0.5
+  sustainable:
+    primary_projection: government_policy
+    secondary_projection: aesthetic_critique
+    signal_weight: 0.4
+  social:
+    primary_projection: government_policy
+    secondary_projection: investor_operator
+    signal_weight: 0.4
+  technical:
+    primary_projection: construction_execution
+    secondary_projection: design_professional
+    signal_weight: 0.4
+  inclusive:
+    primary_projection: government_policy
+    secondary_projection: design_professional
+    signal_weight: 0.3
+  mixed:
+    primary_projection: design_professional
+    secondary_projection: null
+    signal_weight: 0.2
+
+  # 五层追问深层信号
+  five_whys_signals:
+    L4_emotion_keywords:
+      - pattern: [恐惧失败, 焦虑回报, 商业压力, 盈利, 亏损]
+        maps_to: investor_operator
+      - pattern: [自豪, 传承, 文化认同, 留住记忆, 文化自信]
+        maps_to: aesthetic_critique
+      - pattern: [安全, 归属, 家的感觉, 疗愈, 安宁]
+        maps_to: design_professional
+      - pattern: [责任, 公共, 造福, 贡献社会]
+        maps_to: government_policy
+    L5_identity_keywords:
+      - pattern: [企业家, 投资人, 创业者, 运营者, 商人]
+        maps_to: investor_operator
+      - pattern: [文化守护者, 乡贤, 传承人, 知识分子]
+        maps_to: aesthetic_critique
+      - pattern: [改变社区, 造福村民, 公共责任, 示范, 标杆]
+        maps_to: government_policy
+      - pattern: [工匠, 建造者, 技术专家]
+        maps_to: construction_execution
+
+  # 品牌DNA信号
+  brand_dna_signals:
+    has_brand_dna: true
+    maps_to: investor_operator
+    secondary: aesthetic_critique
+    signal_weight: 0.3
+
+  # 竞争思想实验信号
+  competitor_signals:
+    has_competitor_analysis: true
+    maps_to: investor_operator
+    signal_weight: 0.5
+
+  # 符号身份信号
+  symbolic_identity_signals:
+    - pattern: [示范, 标杆, 典型, 模型, 样板]
+      maps_to: government_policy
+    - pattern: [品牌, IP, 网红, 传播, 影响力]
+      maps_to: aesthetic_critique
+    - pattern: [盈利, 回报, 资产, 增值, 商业帝国]
+      maps_to: investor_operator
+    - pattern: [工艺, 营造, 施工, 建造品质]
+      maps_to: construction_execution

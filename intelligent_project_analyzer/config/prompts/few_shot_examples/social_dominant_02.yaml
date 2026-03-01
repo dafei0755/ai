@@ -1,0 +1,279 @@
+# 示例:保障性住房高品质设计模型
+# 来源:q.txt Q69
+# 类型:社会主导 (Social Dominant) / 保障性住房 + 尊严设计
+# 特征:低成本高品质、标准化模块化、社会公平设计、尊严感空间、可复制推广
+
+example:
+  project_info:
+    name: 保障性住房高品质设计模型
+    description: |
+      深圳光明区保障性住房项目，户型面积60-90平方米，目标控制造价在
+      2000元/平方米以内，同时实现不低于商品房80%的居住品质。
+      项目需探索低成本高品质的平衡方法论，建立标准化模块设计体系，
+      确保住户的居住尊严感，并形成可大规模复制推广的设计模型。
+
+    feature_vector:
+      social: 0.70
+      functional: 0.65
+      sustainable: 0.55
+      aesthetic: 0.45
+      commercial: 0.35
+      technical: 0.40
+      material_innovation: 0.38
+      experiential: 0.48
+      cultural: 0.30
+      regional: 0.25
+      historical: 0.15
+      symbolic: 0.40
+
+    constraints:
+      - 造价控制在2000元/平方米以内
+      - 户型面积60-90平方米(一居到三居)
+      - 需满足不低于商品房80%的居住品质
+      - 设计需可大规模标准化复制
+      - 需通过政府保障性住房审核标准
+
+    goals:
+      - 建立低成本高品质的设计平衡模型
+      - 构建4种标准户型+8个功能模块系统
+      - 确保居住尊严感的空间品质表达
+      - 形成可复制的保障性住房设计方法论
+      - 实现政策对接与社会影响力
+
+  ideal_tasks:
+    - id: task_1
+      title: 搜索 国内外保障性住房的 高品质设计标杆、低成本创新案例、尊严设计理论、政策标准
+      description: |
+        系统调研保障性住房的高品质设计案例，包括新加坡HDB组屋体系、
+        维也纳社会住宅传统、日本公营住宅设计标准，提取低成本高品质的设计策略。
+      task_type: research
+      motivation: social
+      support_search: true
+      dimensions:
+        - 高品质设计标杆(新加坡HDB优质组屋、维也纳社会住宅、智利Elemental增量住宅)
+        - 低成本创新案例(模块化预制、集成卫浴、整体厨房、标准化内装)
+        - 尊严设计理论(Universal Design原则、包容性设计、基本空间品质底线)
+        - 政策标准(中国保障性住房面积标准、造价限额、配套要求)
+      priority: high
+      execution_order: 1
+
+    - id: task_2
+      title: 搜索 标准化住宅模块系统的 国际经验、预制装配技术、工业化内装、成本控制方法
+      description: |
+        调研住宅标准化与工业化的国际经验与技术路径。
+      task_type: research
+      motivation: technical
+      support_search: true
+      dimensions:
+        - 国际经验(日本SI住宅体系、欧洲被动房标准化、新加坡PPVC技术)
+        - 预制装配技术(预制构件标准化、模块化卫浴、整体厨房单元)
+        - 工业化内装(干法施工、集成管线墙、标准化收纳模块)
+        - 成本控制方法(规模化采购、简化工艺、减少湿作业、缩短工期)
+      priority: high
+      execution_order: 2
+
+    - id: task_3
+      title: 搜索 低成本材料创新的 性价比材料库、替代材料方案、材料组合策略、品质感提升技巧
+      description: |
+        研究在成本限制下提升材料品质感的策略。
+      task_type: research
+      motivation: material_innovation
+      support_search: true
+      dimensions:
+        - 性价比材料库(国产优质替代进口、新型经济材料、再生材料应用)
+        - 替代材料方案(仿石瓷砖替代天然石材、PVC地板替代实木、水磨石替代大理石)
+        - 材料组合策略(少量精致材料+大面积经济材料的点缀法)
+        - 品质感提升技巧(工艺精度补偿材料档次、色彩协调提升整体感)
+      priority: high
+      execution_order: 3
+
+    - id: task_4
+      title: 分析 目标住户群体的 家庭结构特征、生活行为模式、收纳需求层次、品质期望调研
+      description: |
+        调研保障性住房目标群体的真实需求，为设计提供用户洞察。
+      task_type: analysis
+      motivation: social
+      support_search: false
+      dimensions:
+        - 家庭结构特征(青年夫妻、三口之家、三代同堂的比例与需求)
+        - 生活行为模式(居家办公需求、儿童活动空间、老人日常起居)
+        - 收纳需求层次(基本衣物收纳+厨房储物+杂物归整)
+        - 品质期望调研(最在意的品质点排序 采光通风收纳隐私)
+      priority: high
+      execution_order: 4
+
+    - id: task_5
+      title: 设计 4种标准户型的 平面布局方案、面积效率优化、功能完整性验证、通风采光保障
+      description: |
+        设计一居(60平方米)、小两居(70平方米)、两居(80平方米)、三居(90平方米)
+        四种标准户型，确保每种户型的功能完整性和居住舒适度。
+      task_type: design
+      motivation: functional
+      support_search: false
+      dimensions:
+        - 平面布局方案(四种户型的功能分区、家具布置、动线组织)
+        - 面积效率优化(实用率大于85%、零浪费走廊、多功能空间)
+        - 功能完整性验证(厨卫齐全+收纳充足+起居完整+就寝私密)
+        - 通风采光保障(每户至少两面采光+穿堂风可能+日照时数)
+      priority: high
+      execution_order: 5
+
+    - id: task_6
+      title: 设计 8个标准功能模块的 详细方案、尺寸标准、接口规范、成本控制
+      description: |
+        设计可组合的8个标准功能模块(厨房、卫生间、玄关、主卧、次卧、
+        客厅、阳台、储物)的详细方案。
+      task_type: design
+      motivation: functional
+      support_search: false
+      dimensions:
+        - 模块详细方案(每个模块的平面、立面、设备配置)
+        - 尺寸标准(模数化尺寸、接口标准化、公差控制)
+        - 接口规范(管线接口位置、预埋件标准、模块间连接)
+        - 成本控制(每个模块目标成本、材料BOM清单、人工预估)
+      priority: high
+      execution_order: 6
+
+    - id: task_7
+      title: 制定 尊严设计标准的 空间品质底线、入户仪式感、公共空间品质、细节品质控制
+      description: |
+        定义保障性住房的尊严设计标准，确保低成本不等于低品质。
+      task_type: design
+      motivation: social
+      support_search: false
+      dimensions:
+        - 空间品质底线(最小净高2.7m+最小卧室8平方米+最小厨房4平方米)
+        - 入户仪式感(玄关空间+鞋柜+换鞋凳+挂钩的基本配置)
+        - 公共空间品质(大堂整洁明亮+走廊宽度适当+电梯数量充足)
+        - 细节品质控制(五金件品质+开关面板统一+收口工艺精度)
+      priority: high
+      execution_order: 7
+
+    - id: task_8
+      title: 设计 低成本高品质的 色彩系统、材料组合方案、照明策略、软装指导清单
+      description: |
+        在成本限制下构建提升空间品质感的视觉系统。
+      task_type: design
+      motivation: aesthetic
+      support_search: false
+      dimensions:
+        - 色彩系统(以白色系为基底+局部彩色点缀+木色温暖搭配)
+        - 材料组合方案(白色乳胶漆+仿木纹瓷砖+不锈钢配件)
+        - 照明策略(基础筒灯+重点照明+面板灯带均匀照度)
+        - 软装指导清单(基本家具推荐清单+色彩搭配指南+收纳建议)
+      priority: medium
+      execution_order: 8
+
+    - id: task_9
+      title: 制定 成本工程方案的 分项预算编制、价值工程分析、采购策略、成本红线管理
+      description: |
+        建立精准的成本控制体系，确保2000元/平方米造价目标可达。
+      task_type: strategy
+      motivation: commercial
+      support_search: false
+      dimensions:
+        - 分项预算编制(土建+安装+装修+设备+管理费分项分配)
+        - 价值工程分析(高成本低价值项目削减+低成本高价值项目加强)
+        - 采购策略(集中采购降成本10%以上+战略供应商合作)
+        - 成本红线管理(不可突破项目+弹性调整项目+紧急储备)
+      priority: high
+      execution_order: 9
+
+    - id: task_10
+      title: 设计 可变性预留方案的 家庭成长适配、空间灵活隔断、管线预留策略、一次硬装多次软装
+      description: |
+        设计适应家庭结构变化的空间可变性方案。
+      task_type: design
+      motivation: sustainable
+      support_search: false
+      dimensions:
+        - 家庭成长适配(新婚到三口到三代的空间进化路径)
+        - 空间灵活隔断(轻质隔墙预留+活动门体系+家具隔断)
+        - 管线预留策略(多点位给排水预留+电路扩容空间+网络布线)
+        - 一次硬装多次软装(硬装极简经典+软装可替换更新)
+      priority: medium
+      execution_order: 10
+
+    - id: task_11
+      title: 分析 社会影响力评估的 住户满意度预测、社会公平贡献、政策对接路径、可复制性评估
+      description: |
+        从社会价值维度评估设计方案的综合影响力。
+      task_type: analysis
+      motivation: social
+      support_search: false
+      dimensions:
+        - 住户满意度预测(空间舒适度+功能完整度+品质感知度+邻里关系)
+        - 社会公平贡献(缩小住房品质差距、提升低收入家庭生活质量)
+        - 政策对接路径(符合国家保障房标准、地方配套政策、申报流程)
+        - 可复制性评估(标准化程度+地域适配调整范围+实施门槛)
+      priority: medium
+      execution_order: 11
+
+    - id: task_12
+      title: 整合 保障性住房设计导则、标准户型图集、模块化设计手册、施工指导规范
+      description: |
+        整合形成可推广的保障性住房设计成果文件体系。
+      task_type: strategy
+      motivation: social
+      support_search: false
+      dimensions:
+        - 设计导则(设计原则+品质标准+成本红线+尊严设计要求)
+        - 标准户型图集(4种户型平面图+家具布置图+管线综合图)
+        - 模块化设计手册(8个模块详图+接口规范+组合规则)
+        - 施工指导规范(装配流程+质量控制+验收标准+工期计划)
+      priority: high
+      execution_order: 12
+
+  quality_highlights:
+    - 12任务社会主导分布 标杆研究25%+户型设计25%+成本控制25%+整合推广25%
+    - 低成本高品质平衡 2000元/平方米造价限制下的品质最大化策略
+    - 标准化模块系统 4种户型+8个功能模块的可组合体系
+    - 尊严设计标准 空间品质底线+入户仪式感+细节品质控制
+    - 成本工程方法 价值工程分析+集中采购+成本红线管理
+    - 可复制推广性 标准化设计+地域适配框架+政策对接路径
+
+metadata:
+  tags_matrix:
+    space_type:
+      - apartment
+      - residence
+      - affordable_housing
+    scale: small
+    design_direction:
+      - social
+      - functional
+      - sustainable
+      - aesthetic
+    user_profile:
+      - family
+      - low_income
+      - young
+      - elderly
+    challenge_type:
+      - budget_control
+      - dignity_design
+      - standardization
+      - scalability
+    methodology:
+      - modular_design
+      - cost_engineering
+      - scalable_solution
+      - value_engineering
+    phase: concept_to_detailed
+  discipline: architecture
+  urgency: 0.55
+  innovation_quotient: 0.50
+  commercial_sensitivity: 0.35
+  cultural_depth: 0.25
+  performance:
+    specialty_score: 0.55
+    recommended_strength: medium
+  best_for:
+    - "保障性住房设计"
+    - "低成本高品质平衡"
+    - "标准化模块化设计"
+    - "社会公平设计实践"
+  not_suitable_for:
+    - "高端定制住宅"
+    - "商业空间设计"
+    - "无成本约束项目"

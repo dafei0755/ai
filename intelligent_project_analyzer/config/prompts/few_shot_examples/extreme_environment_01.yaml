@@ -1,0 +1,299 @@
+# 示例:西藏林芝3800米悬崖边精品民宿
+# 来源:q.txt Q85
+# 类型:极端环境技术主导 (Extreme Environment Technical) / 高海拔适应
+# 特征:海拔3800米、低能耗供暖、弥散供氧、强紫外防护、极寒环境
+# 适用场景:极端环境建筑、高海拔设计、技术整合、环境适应
+example:
+  project_info:
+    name: 西藏林芝3800米海拔悬崖边精品民宿
+    description: '西藏林芝海拔3800米悬崖边精品民宿，需解决极寒低能耗供暖、
+
+      弥散式供氧系统隐藏与噪音控制、强紫外线对家具织物老化三大问题。
+
+      核心挑战是技术整合与室内设计的平衡，在确保生理安全的同时营造度假氛围。
+
+      '
+    feature_vector:
+      cultural: 0.35
+      commercial: 0.48
+      aesthetic: 0.5
+      functional: 0.72
+      sustainable: 0.68
+      social: 0.28
+      technical: 0.88
+      historical: 0.25
+      regional: 0.75
+      material_innovation: 0.7
+      experiential: 0.62
+      symbolic: 0.4
+    constraints:
+    - 海拔3800米低氧高寒环境
+    - 极寒气温（冬季-20℃）低能耗供暖
+    - 弥散供氧系统整合与降噪
+    - 强紫外线（UV指数15+）材料防护
+    - 悬崖边地质条件与结构安全
+    goals:
+    - 构建高海拔生理安全保障系统
+    - 实现极寒环境低能耗供暖
+    - 整合技术设备与度假美学
+    - 打造具有地域特色的精品民宿体验
+  ideal_tasks:
+  - id: task_1
+    title: 搜索 高海拔环境的 生理影响机制、供氧标准、适应周期、健康监测指标
+    description: 研究3800米海拔对人体的影响（血氧饱和度、心率、睡眠质量），制定供氧标准（氧浓度25-28%）和应急预案。
+    task_type: research
+    motivation: technical
+    support_search: true
+    priority: high
+    execution_order: 1
+    dimensions:
+    - 3800米海拔对血氧饱和度的影响机制
+    - 弥散供氧的浓度标准与安全阈值
+    - 高海拔睡眠质量影响与适应周期
+    - 宾客健康监测指标与应急预案
+  - id: task_2
+    title: 搜索 极寒环境建筑的 保温构造、低能耗供暖技术、热桥消除、气密性控制
+    description: 研究极寒地区建筑技术（被动房标准、三玻两腔窗、保温材料选择、地暖+暖气片混合系统）。
+    task_type: research
+    motivation: technical
+    support_search: true
+    priority: high
+    execution_order: 2
+    dimensions:
+    - 被动房级保温构造体系选型
+    - 极寒地区低能耗供暖技术对比
+    - 热桥消除的关键节点与做法
+    - 气密性等级与检测验收标准
+  - id: task_3
+    title: 设计 弥散式供氧系统的 设备选型、管道布置、噪音控制、氧浓度监测
+    description: 设计隐藏式供氧系统（吊顶内布置、静音风机<30dB、氧浓度传感器、分区控制）。
+    task_type: design
+    motivation: technical
+    support_search: false
+    priority: high
+    execution_order: 3
+    dimensions:
+    - 弥散式供氧设备选型与性能参数
+    - 管道隐蔽布置与吊顶整合方案
+    - 静音风机噪音控制(<30dB)策略
+    - 分区氧浓度监测与智能调节系统
+  - id: task_4
+    title: 设计 极寒低能耗供暖系统、地暖+暖气片混合、保温节能、智能控制
+    description: 设计供暖方案（地暖主力+暖气片辅助、保温材料厚度、温度分区控制、节能模式）。
+    task_type: design
+    motivation: technical
+    support_search: false
+    priority: high
+    execution_order: 4
+    dimensions:
+    - 地暖+暖气片混合系统的配置方案
+    - 保温材料厚度与热工计算
+    - 温度分区控制与节能模式设计
+    - 极端低温工况的应急供暖预案
+  - id: task_5
+    title: 制定 强紫外防护材料策略、抗UV织物、家具涂层、玻璃隔UV、老化预防
+    description: 选择抗UV材料（UV抗性等级8+织物、家具防护涂层、Low-E玻璃、定期维护计划）。
+    task_type: design
+    motivation: material_innovation
+    support_search: false
+    priority: high
+    execution_order: 5
+    dimensions:
+    - UV抗性等级8+织物的选型标准
+    - 家具涂层防紫外老化解决方案
+    - 选择性Low-E玻璃的光热性能参数
+    - 材料定期维护与更换周期规划
+  - id: task_6
+    title: 设计 藏式美学与现代舒适的融合、地域文化表达、材料本土化、避免符号堆砌
+    description: 提炼藏式美学（色彩/图案/材料）与现代度假的平衡点，避免过度装饰。
+    task_type: design
+    motivation: cultural
+    support_search: false
+    priority: medium
+    execution_order: 6
+    dimensions:
+    - 藏式色彩/图案/材料的现代转译
+    - 地域文化表达与过度装饰的边界
+    - 本土手工艺融入当代空间的手法
+    - 度假氛围与文化敬意的平衡策略
+  - id: task_7
+    title: 规划 客房功能分区、观景窗设计、卫生间防冻、储氧应急系统
+    description: 设计客房布局（观景窗最大化、卫生间电伴热防冻、床头氧气面罩、应急呼叫）。
+    task_type: design
+    motivation: functional
+    support_search: false
+    priority: high
+    execution_order: 7
+    dimensions:
+    - 观景窗最大化与保温性能的平衡
+    - 卫生间电伴热防冻系统的布置
+    - 床头应急氧气面罩的隐蔽设计
+    - 客房功能分区与舒适度优化方案
+  - id: task_8
+    title: 制定 设备维护保养计划、供氧系统检修、供暖设备冬季检查、应急预案
+    description: 建立定期维护流程（供氧系统月检、供暖设备季检、紫外防护年检）。
+    task_type: strategy
+    motivation: technical
+    support_search: false
+    priority: medium
+    execution_order: 8
+    dimensions:
+    - 供氧系统月度检修流程与标准
+    - 供暖设备季度性能检查要点
+    - 紫外防护材料年度老化评估
+    - 突发设备故障的应急响应预案
+  - id: task_9
+    title: 搜索 悬崖边建筑的 地质勘察要求、基础结构选型、抗震设计、边坡稳定性评估
+    description: 研究悬崖边建筑的结构安全体系（岩体承载力评估、锚固基础设计、抗震烈度适配、边坡监测预警系统）。
+    task_type: research
+    motivation: technical
+    support_search: true
+    priority: high
+    execution_order: 9
+    dimensions:
+    - 悬崖边岩体承载力评估方法
+    - 锚固基础设计与抗拔验算
+    - 抗震烈度适配与结构体系选型
+    - 边坡稳定性长期监测与预警系统
+  - id: task_10
+    title: 设计 极寒环境给排水系统、管道防冻伴热、中水回用、污水生态处理
+    description: 设计高海拔极寒条件下的给排水方案（电伴热保温管道、分区供水、中水灌溉回用、人工湿地污水处理）。
+    task_type: design
+    motivation: functional
+    support_search: false
+    priority: high
+    execution_order: 10
+    dimensions:
+    - 极寒管道电伴热保温系统设计
+    - 分区供水与压力平衡方案
+    - 中水回用灌溉的可行性分析
+    - 人工湿地污水处理的高原适应性
+  - id: task_11
+    title: 设计 自然采光与紫外防护的平衡策略、选择性透光玻璃、遮阳系统、室内光环境营造
+    description: 在最大化高原景观视野的同时控制紫外线入射（选择性Low-E镀膜、智能电动遮阳帘、室内照度分区设计）。
+    task_type: design
+    motivation: aesthetic
+    support_search: false
+    priority: medium
+    execution_order: 11
+    dimensions:
+    - 选择性Low-E镀膜的光谱过滤性能
+    - 智能电动遮阳帘的控制策略
+    - 室内照度分区与自然光补充方案
+    - 高原强光环境的视觉舒适度控制
+  - id: task_12
+    title: 设计 山地风噪隔离的声学方案、外墙隔声构造、门窗气密等级、室内声环境控制
+    description: 解决高海拔山地强风噪音问题（外墙复合隔声层、三玻窗气密等级≥8级、室内背景噪声≤30dB、声学软装配置）。
+    task_type: design
+    motivation: experiential
+    support_search: false
+    priority: medium
+    execution_order: 12
+    dimensions:
+    - 外墙复合隔声层构造与性能指标
+    - 三玻窗气密等级≥8级的验收标准
+    - 室内背景噪声≤30dB的声学设计
+    - 声学软装配置与声环境调节策略
+  - id: task_13
+    title: 制定 宾客抵达体验与高原适应协议、接机流程、阶梯式海拔适应、健康监测服务
+    description: 设计从低海拔到3800米的渐进式适应方案（抵达日静养指引、血氧监测手环、适应期活动分级、医疗应急通道）。
+    task_type: strategy
+    motivation: experiential
+    support_search: false
+    priority: high
+    execution_order: 13
+    dimensions:
+    - 低海拔到3800米的渐进适应方案
+    - 血氧监测手环的选型与佩戴指引
+    - 适应期活动分级与安全限制
+    - 医疗应急通道与最近医疗资源对接
+  - id: task_14
+    title: 搜索 本地建材资源与供应链物流、藏区石材木材产地、高原运输限制、施工窗口期
+    description: 调研林芝地区可用建材（本地石材品种与强度、藏区木材可持续采伐、高原公路运输季节限制、施工有效工期评估）。
+    task_type: research
+    motivation: regional
+    support_search: true
+    priority: medium
+    execution_order: 14
+    dimensions:
+    - 林芝地区本地石材品种与强度数据
+    - 藏区木材可持续采伐与供应渠道
+    - 高原公路运输的季节限制与物流方案
+    - 施工有效工期评估与窗口期规划
+  - id: task_15
+    title: 设计 离网能源系统集成方案、光伏发电配置、柴油备用发电机、储能电池、负荷管理
+    description: 设计高海拔离网或弱网条件下的能源保障系统（光伏板高原效率优化、储能容量计算、柴油发电机应急切换、智能负荷调度）。
+    task_type: design
+    motivation: sustainable
+    support_search: false
+    priority: high
+    execution_order: 15
+    dimensions:
+    - 高原光伏板效率优化与安装方案
+    - 储能电池容量计算与选型
+    - 柴油发电机应急切换与负荷管理
+    - 智能负荷调度与能源自给率目标
+  - id: task_16
+    title: 设计 景观与室外过渡空间、悬崖观景平台、防风庭院、本土植被恢复、夜景灯光
+    description: 规划建筑与悬崖自然环境的过渡衔接（悬挑观景平台结构与护栏、围合式防风庭院、高原本土植被景观恢复、低光污染夜景照明）。
+    task_type: design
+    motivation: aesthetic
+    support_search: false
+    priority: medium
+    execution_order: 16
+    dimensions:
+    - 悬挑观景平台的结构与护栏安全
+    - 围合式防风庭院的风环境优化
+    - 高原本土植被选种与景观恢复
+    - 低光污染夜景照明设计策略
+  quality_highlights:
+  - 16任务全维度覆盖：技术研究25% + 设备系统设计37.5% + 美学体验18.75% + 策略运营18.75%
+  - 五大核心技术：供氧系统 + 极寒供暖 + 紫外防护 + 结构安全 + 离网能源
+  - 生理安全闭环：氧浓度监测 + 血氧检测 + 应急系统 + 阶梯式海拔适应协议
+  - 极端环境基础设施：给排水防冻 + 声学隔风噪 + 采光与UV平衡 + 能源自给
+  - 地域资源整合：本地建材供应链 + 藏式美学现代转译 + 本土植被景观恢复
+  - 体验与景观衔接：宾客抵达适应流程 + 悬崖观景平台 + 防风庭院 + 低光污染夜景
+metadata:
+  tags_matrix:
+    space_type:
+    - boutique_hotel
+    - resort
+    - mountain_retreat
+    scale: small
+    design_direction:
+    - technical
+    - sustainable
+    - regional
+    - experiential
+    user_profile:
+    - adventure_traveler
+    - high_altitude_tourist
+    - wellness_seeker
+    challenge_type:
+    - extreme_climate
+    - high_altitude
+    - technical_integration
+    - material_durability
+    - energy_efficiency
+    methodology:
+    - evidence_based_design
+    - technology_intensive
+    - climate_responsive
+    phase: detailed_design
+  discipline: architecture
+  urgency: 0.5
+  innovation_quotient: 0.72
+  commercial_sensitivity: 0.58
+  cultural_depth: 0.38
+  performance:
+    specialty_score: 0.8
+    recommended_strength: light
+  best_for:
+  - 高海拔建筑（>3000米）
+  - 极寒环境设计（<-15℃）
+  - 技术密集型度假酒店
+  - 环境适应性建筑
+  not_suitable_for:
+  - 常规海拔项目
+  - 温和气候区
+  - 低预算项目

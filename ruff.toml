@@ -1,0 +1,32 @@
+line-length = 100
+target-version = "py310"
+
+exclude = [
+    "_archive",
+    "backup",
+    "docs",
+    "frontend",
+    "frontend-nextjs",
+    "sf",
+    "__pycache__",
+]
+
+[lint]
+select = ["E", "W", "F", "I", "UP", "B"]
+ignore = [
+    "E501",   # line too long — formatter handles this
+    "B008",   # do not perform function calls in default arguments
+    "B904",   # raise-without-from-inside-except — too noisy for existing code
+    "UP007",  # use X | Y instead of Optional[X] — Python 3.10 but too many changes
+    "UP006",  # use type instead of Type — too many changes
+    "UP035",  # typing imports deprecated in 3.9 — too many changes
+    "W291",   # trailing whitespace — formatter handles
+    "W293",   # whitespace before ':' — formatter handles
+]
+
+[lint.per-file-ignores]
+"intelligent_project_analyzer/api/server.py" = ["E402", "F401", "F811"]
+"intelligent_project_analyzer/api/member_routes.py" = ["E402"]
+"tests/**/*.py" = ["E402", "F401", "F811"]
+"_*.py" = ["F401", "E402", "F811", "B"]  # root temp scripts
+"scripts/**/*.py" = ["F401", "E402"]

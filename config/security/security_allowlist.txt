@@ -1,0 +1,10 @@
+# Format:
+# bandit|<TEST_ID>|<FILE_PATH>
+# safety|<VULN_ID>|<PACKAGE_NAME>
+#
+# Keep this file minimal. Each line must correspond to a reviewed and accepted risk.
+
+# Baseline verification
+# Date: 2026-02-25
+# Result: bandit medium/high = 0, safety vulnerabilities = 0
+# Note: keep empty until first reviewed finding appears.

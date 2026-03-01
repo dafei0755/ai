@@ -1,0 +1,270 @@
+{
+  "workflow": {
+    "search_mode": "active",
+    "quality_level": "standard",
+    "phase_timeouts": {
+      "planning": 60,
+      "coordination": 300,
+      "distribution": 30,
+      "expansion": 120
+    },
+    "cost_control": {
+      "max_total_cost": 0.5,
+      "max_api_calls": 100,
+      "cost_per_call": 0.01
+    },
+    "performance_optimization": {
+      "enable_caching": true,
+      "cache_ttl": 3600,
+      "enable_batching": true,
+      "batch_size": 5
+    }
+  },
+  "planner": {
+    "enable_dependency_analysis": true,
+    "enable_resource_estimation": true,
+    "max_tasks_per_deliverable": 8,
+    "default_quality_threshold": 0.7,
+    "task_distribution_strategy": "balanced",
+    "enable_task_prioritization": true,
+    "dependency_resolution_timeout": 30
+  },
+  "coordinator": {
+    "max_parallel_searches": 3,
+    "deduplication_enabled": true,
+    "deduplication_threshold": 0.8,
+    "result_sharing_enabled": true,
+    "task_timeout": 60,
+    "retry_failed_tasks": true,
+    "max_task_retries": 2,
+    "load_balancing_enabled": true,
+    "tool_rotation_enabled": true
+  },
+  "distributor": {
+    "enable_smart_distribution": true,
+    "relevance_threshold": 0.6,
+    "enable_cross_deliverable_sharing": true,
+    "distribution_strategy": "relevance_based",
+    "result_filtering_enabled": true,
+    "duplicate_removal_enabled": true
+  },
+  "expander": {
+    "enabled": false,
+    "max_expansion_rounds": 2,
+    "quality_gap_threshold": 0.2,
+    "coverage_gap_threshold": 0.3,
+    "enable_quality_gap_detection": true,
+    "enable_coverage_gap_detection": true,
+    "enable_discovery_signal_detection": true,
+    "max_expansion_tasks": 5,
+    "expansion_quality_boost": 0.1
+  },
+  "search_tools": {
+    "tavily_search": {
+      "tool_name": "tavily_search",
+      "enabled": true,
+      "priority": 1,
+      "timeout": 30,
+      "max_retries": 2,
+      "cost_per_call": 0.005,
+      "specific_config": {
+        "search_depth": "advanced",
+        "include_answer": true,
+        "include_raw_content": false
+      }
+    },
+    "bocha_search": {
+      "tool_name": "bocha_search",
+      "enabled": true,
+      "priority": 2,
+      "timeout": 25,
+      "max_retries": 2,
+      "cost_per_call": 0.003,
+      "specific_config": {
+        "search_type": "web",
+        "result_format": "json"
+      }
+    },
+    "arxiv_search": {
+      "tool_name": "arxiv_search",
+      "enabled": true,
+      "priority": 1,
+      "timeout": 20,
+      "max_retries": 1,
+      "cost_per_call": 0.001,
+      "specific_config": {
+        "max_results": 10,
+        "sort_by": "relevance"
+      }
+    },
+    "milvus_kb": {
+      "tool_name": "milvus_kb",
+      "enabled": true,
+      "priority": 1,
+      "timeout": 15,
+      "max_retries": 1,
+      "cost_per_call": 0.002,
+      "specific_config": {
+        "top_k": 10,
+        "score_threshold": 0.7
+      }
+    }
+  },
+  "search_types": {
+    "concept_exploration": {
+      "search_type": "concept_exploration",
+      "enabled": true,
+      "default_tools": [
+        "tavily_search",
+        "bocha_search"
+      ],
+      "quality_threshold": 0.7,
+      "min_results": 3,
+      "max_results": 8,
+      "estimated_duration": 30,
+      "query_templates": [
+        "{concept} comprehensive overview",
+        "{concept} best practices methodology",
+        "what is {concept} complete guide"
+      ],
+      "query_expansion": true,
+      "query_variations": 2
+    },
+    "academic_research": {
+      "search_type": "academic_research",
+      "enabled": true,
+      "default_tools": [
+        "arxiv_search",
+        "milvus_kb"
+      ],
+      "quality_threshold": 0.8,
+      "min_results": 2,
+      "max_results": 6,
+      "estimated_duration": 25,
+      "query_templates": [
+        "{topic} academic research papers",
+        "scholarly {topic} methodology study",
+        "{topic} peer reviewed research"
+      ],
+      "query_expansion": true,
+      "query_variations": 2
+    },
+    "trend_analysis": {
+      "search_type": "trend_analysis",
+      "enabled": true,
+      "default_tools": [
+        "bocha_search",
+        "tavily_search"
+      ],
+      "quality_threshold": 0.7,
+      "min_results": 3,
+      "max_results": 8,
+      "estimated_duration": 35,
+      "query_templates": [
+        "{domain} emerging trends 2024 2025",
+        "future {domain} innovations",
+        "{domain} industry evolution patterns"
+      ],
+      "query_expansion": true,
+      "query_variations": 2
+    },
+    "case_studies": {
+      "search_type": "case_studies",
+      "enabled": true,
+      "default_tools": [
+        "tavily_search",
+        "bocha_search"
+      ],
+      "quality_threshold": 0.7,
+      "min_results": 2,
+      "max_results": 6,
+      "estimated_duration": 40,
+      "query_templates": [
+        "successful {domain} implementation examples",
+        "{domain} proven case studies",
+        "award winning {domain} projects"
+      ],
+      "query_expansion": true,
+      "query_variations": 2
+    },
+    "data_statistics": {
+      "search_type": "data_statistics",
+      "enabled": true,
+      "default_tools": [
+        "bocha_search",
+        "tavily_search"
+      ],
+      "quality_threshold": 0.6,
+      "min_results": 2,
+      "max_results": 6,
+      "estimated_duration": 25,
+      "query_templates": [
+        "{domain} market statistics data",
+        "{domain} industry metrics 2024",
+        "{domain} quantitative analysis report"
+      ],
+      "query_expansion": true,
+      "query_variations": 2
+    },
+    "expert_insights": {
+      "search_type": "expert_insights",
+      "enabled": true,
+      "default_tools": [
+        "bocha_search",
+        "tavily_search"
+      ],
+      "quality_threshold": 0.7,
+      "min_results": 2,
+      "max_results": 6,
+      "estimated_duration": 30,
+      "query_templates": [
+        "{domain} expert opinions insights",
+        "thought leaders {domain} perspectives",
+        "{domain} industry expert recommendations"
+      ],
+      "query_expansion": true,
+      "query_variations": 2
+    },
+    "technical_specs": {
+      "search_type": "technical_specs",
+      "enabled": true,
+      "default_tools": [
+        "arxiv_search",
+        "tavily_search"
+      ],
+      "quality_threshold": 0.8,
+      "min_results": 2,
+      "max_results": 5,
+      "estimated_duration": 20,
+      "query_templates": [
+        "{technology} technical specifications",
+        "{technology} implementation guidelines",
+        "{technology} architecture documentation"
+      ],
+      "query_expansion": true,
+      "query_variations": 2
+    },
+    "dimension_analysis": {
+      "search_type": "dimension_analysis",
+      "enabled": true,
+      "default_tools": [
+        "tavily_search",
+        "bocha_search"
+      ],
+      "quality_threshold": 0.7,
+      "min_results": 3,
+      "max_results": 8,
+      "estimated_duration": 35,
+      "query_templates": [
+        "{topic} multi-dimensional analysis",
+        "{topic} comprehensive framework",
+        "{topic} systematic evaluation criteria"
+      ],
+      "query_expansion": true,
+      "query_variations": 2
+    }
+  },
+  "config_version": "1.0.0",
+  "last_updated": "2026-01-16 20:51:47.239808",
+  "environment": "development"
+}

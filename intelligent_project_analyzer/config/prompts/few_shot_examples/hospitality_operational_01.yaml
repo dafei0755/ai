@@ -1,0 +1,364 @@
+# 示例:福州亚升雅诗阁公寓式酒店
+# 来源:q.txt Q1
+# 类型:酒店运营主导 (Hospitality Operational) / 品牌迭代升级
+# 特征:高端公寓酒店、品牌旗舰店、生活方式创新、艺术策展逻辑、运营效率
+# 适用场景:高端酒店设计、公寓式酒店、品牌升级、运营产品化
+
+example:
+  project_info:
+    name: 福州亚升投资集团雅诗阁公寓式酒店
+    description: |
+      位于200米城市地标总部大楼的34-39层，引入雅诗阁高级公寓品牌。
+      1楼设转接大堂和艺术展厅，34-38层为135间全套房客房，39层包含双层中空大堂、
+      大堂吧、恒温泳池、全日餐厅及健身瑜伽空间。
+      雅诗阁正处产品迭代升级阶段，本项目定位为全新旗舰形象店，
+      定价约600元/晚，需在高端市场形成"超值"感并与五星级酒店形成明显竞争优势。
+      业主为女性艺术策展人。
+
+    feature_vector:
+      cultural: 0.42
+      commercial: 0.68
+      aesthetic: 0.55
+      functional: 0.72
+      sustainable: 0.38
+      social: 0.35
+      technical: 0.48
+      historical: 0.15
+      regional: 0.25
+      material_innovation: 0.40
+      experiential: 0.65
+      symbolic: 0.52
+
+    constraints:
+      - 雅诗阁品牌标准与旗舰店创新平衡
+      - 600元定价下的超值感构建
+      - 高层建筑的空间限制
+      - 与五星级酒店的差异化定位
+      - 艺术策展逻辑与酒店运营融合
+
+    goals:
+      - 打造雅诗阁全新旗舰形象店
+      - 实现生活方式创新与豪宅精神融合
+      - 建立艺术策展与酒店空间的有机结合
+      - 构建具有行业示范意义的运营效率体系
+
+  ideal_tasks:
+    # ========== 第一阶段:品牌与定位研究(Task 1-4) ==========
+
+    - id: task_1
+      title: 搜索 雅诗阁品牌的 全球产品线演进历史、服务标准体系、设计语言特征、核心客群画像
+      description: |
+        系统研究雅诗阁品牌的发展脉络，包括其在不同市场的产品定位、
+        标准化服务流程、设计美学演变、以及目标客群的生活方式特征。
+      task_type: research
+      motivation: commercial
+      support_search: true
+      dimensions:
+        - 产品线演进(从传统公寓到旗舰店的升级路径)
+        - 服务标准体系(入住流程、客房服务、会员体系)
+        - 设计语言特征(色彩系统、材料偏好、空间比例)
+        - 核心客群画像(商务客、家庭客、长租客需求差异)
+      priority: high
+      execution_order: 1
+
+    - id: task_2
+      title: 搜索 国际高端公寓式酒店的 空间创新策略、服务场景设计、公区与私密空间比例、运营效率优化
+      description: |
+        调研Oakwood、SomniaResidences、CitadinesTotem等标杆品牌的创新实践，
+        重点分析其公共空间的社交场景设计、客房功能模块化、以及运营成本控制经验。
+      task_type: research
+      motivation: commercial
+      support_search: true
+      dimensions:
+        - 空间创新策略(共享厨房、社交客厅、工作空间)
+        - 服务场景设计(自助入住、无接触服务、管家系统)
+        - 空间比例优化(公区10-15% vs 客房85-90%的盈利模型)
+        - 运营效率(人工成本、能耗控制、智能化系统)
+      priority: high
+      execution_order: 2
+
+    - id: task_3
+      title: 对比分析 福州市场五星级酒店与公寓式酒店的 价格带分布、服务差异、客群偏好、竞争空白
+      description: |
+        针对福州本地市场进行竞争分析，识别600元价格带的市场空白，
+        明确五星级酒店(1500-3000元)与经济型公寓(300-500元)之间的差异化空间。
+      task_type: analysis
+      motivation: commercial
+      support_search: true
+      dimensions:
+        - 价格带分布(福州酒店市场梯度分析)
+        - 服务差异(五星级酒店的溢价要素 vs 公寓酒店优势)
+        - 客群偏好(商务客、家庭客、长租客的消费决策因素)
+        - 竞争空白(600元价格带的"超值"感构建点)
+      priority: high
+      execution_order: 3
+
+    - id: task_4
+      title: 搜索 艺术策展空间与酒店融合的 国际案例、动线组织方式、艺术品陈设策略、文化IP构建
+      description: |
+        研究21cMuseumHotels、AceHotel等艺术主题酒店的成功经验，
+        分析艺术展览与酒店运营的空间关系、客群激活方式、以及文化品牌价值。
+      task_type: research
+      motivation: cultural
+      support_search: true
+      dimensions:
+        - 国际标杆案例(艺术酒店的空间模式、策展机制)
+        - 动线组织(展览独立动线 vs 酒店服务动线的分离与交叉)
+        - 艺术品陈设(大堂艺术、客房艺术、公区艺术的层级配置)
+        - 文化IP构建(艺术策展+酒店品牌的协同增值)
+      priority: high
+      execution_order: 4
+
+    # ========== 第二阶段:功能与空间策略(Task 5-9) ==========
+
+    - id: task_5
+      title: 制定 1楼转接大堂与艺术展厅的 空间关系逻辑、动线分流策略、艺术展示系统、入住仪式设计
+      description: |
+        设计1楼164㎡转接大堂与100㎡艺术展厅的空间整合方案，
+        确保酒店客人快速登记入住，同时吸引外部访客参观展览，形成品牌曝光。
+      task_type: design
+      motivation: functional
+      support_search: false
+      dimensions:
+        - 空间关系逻辑(大堂与展厅的物理分隔与视觉连接)
+        - 动线分流(酒店客人快速通道 vs 展览访客慢速路径)
+        - 艺术展示系统(可变展墙、灯光轨道、作品安防)
+        - 入住仪式(从展厅到大堂的情绪转换、品牌记忆植入)
+      priority: high
+      execution_order: 5
+
+    - id: task_6
+      title: 制定 135间全套房客房的 标准化模块设计、功能分区策略、家具系统选型、成本控制方案
+      description: |
+        建立标准化客房设计体系，确保在高层建筑柱网限制下实现高效平面布局，
+        定义起居、睡眠、办公、厨房、卫生间的功能模块化组合逻辑。
+      task_type: design
+      motivation: functional
+      support_search: false
+      dimensions:
+        - 标准化模块(35-45㎡套房的功能分区模板)
+        - 功能分区(起居+卧室分离 vs 一体化空间的选择)
+        - 家具系统(沙发床、折叠餐桌、嵌入式厨房的标准化)
+        - 成本控制(定制家具 vs 品牌采购的成本优化)
+      priority: high
+      execution_order: 6
+
+    - id: task_7
+      title: 设计 39层双层中空大堂的 视觉震撼策略、空间尺度控制、艺术装置植入、社交场景构建
+      description: |
+        充分利用双层中空优势打造品牌形象核心空间，
+        设计大型艺术装置、控制尺度避免空旷感、构建高端社交场景。
+      task_type: design
+      motivation: aesthetic
+      support_search: false
+      dimensions:
+        - 视觉震撼策略(层高7-9米的空间张力、天花造型)
+        - 空间尺度控制(家具组团、地面分区、视线引导)
+        - 艺术装置植入(大型雕塑、灯光艺术、互动装置)
+        - 社交场景(VIP接待区、商务洽谈区、休闲等候区)
+      priority: high
+      execution_order: 7
+
+    - id: task_8
+      title: 规划 39层公共配套设施的 空间流线组织、功能互补关系、时段错峰策略、运营人效比
+      description: |
+        整合大堂吧(200㎡)、恒温泳池(520㎡)、全日餐厅(195+150㎡露台)、
+        健身瑜伽(150㎡)的空间关系，优化服务动线，提升运营效率。
+      task_type: design
+      motivation: functional
+      support_search: false
+      dimensions:
+        - 空间流线组织(客人动线、服务动线、后勤动线的分离)
+        - 功能互补关系(泳池+健身组团、餐厅+大堂吧组团)
+        - 时段错峰策略(早餐高峰、健身高峰、泳池夜场的空间复用)
+        - 运营人效比(共享服务台、标准化流程、智能预约系统)
+      priority: high
+      execution_order: 8
+
+    - id: task_9
+      title: 制定 恒温泳池的 建筑技术整合方案、防水防潮系统、空气质量控制、视觉景观设计
+      description: |
+        解决520㎡恒温泳池在高层建筑中的技术难题，包括结构荷载、
+        防水构造、除湿通风、以及创造高端度假氛围的景观设计。
+      task_type: design
+      motivation: technical
+      support_search: true
+      dimensions:
+        - 技术整合(结构荷载计算、设备管线预留、应急排水)
+        - 防水防潮(泳池防水等级、墙面防潮材料、地面排水坡度)
+        - 空气控制(除湿系统、新风系统、温度湿度监控)
+        - 景观设计(落地窗景观、水下灯光、躺椅区布局)
+      priority: high
+      execution_order: 9
+
+    # ========== 第三阶段:体验与品牌塑造(Task 10-13) ==========
+
+    - id: task_10
+      title: 构建 "超值感"的空间表达系统、材料质感策略、细节设计语言、品牌触点分布
+      description: |
+        在600元价格带下构建"超越期待"的空间体验，通过精准的材料选择、
+        细节设计和品牌触点布置，形成高于五星级酒店的价值感知。
+      task_type: design
+      motivation: experiential
+      support_search: false
+      dimensions:
+        - 空间表达(豪宅尺度感、艺术氛围、轻奢美学)
+        - 材料质感(大理石+木饰面+艺术涂料的组合策略)
+        - 细节设计(把手、开关、五金件的品质感)
+        - 品牌触点(Logo植入、欢迎礼品、气味系统、音乐系统)
+      priority: high
+      execution_order: 10
+
+    - id: task_11
+      title: 设计 全日餐厅+150㎡露台的 多场景功能切换、家具模块化配置、景观视线优化、运营时段规划
+      description: |
+        充分利用露台景观资源，设计可适配早餐、午餐、下午茶、晚餐、
+        鸡尾酒会的多场景空间，通过模块化家具实现快速切换。
+      task_type: design
+      motivation: functional
+      support_search: false
+      dimensions:
+        - 场景切换(早餐自助线、午餐商务餐、下午茶社交区、晚餐情调区)
+        - 家具配置(可移动餐桌椅、组合沙发、吧台座位)
+        - 景观视线(福州城市天际线、露台绿化、灯光夜景)
+        - 时段规划(7:00-23:00全时段运营的动线与服务优化)
+      priority: medium
+      execution_order: 11
+
+    - id: task_12
+      title: 制定 女性艺术策展人视角的 空间美学语言、色彩情绪系统、艺术品采购清单、策展轮换机制
+      description: |
+        结合业主艺术策展人背景，建立独特的空间美学体系，
+        定义色彩情绪、艺术品选择标准、以及定期策展更新的运营机制。
+      task_type: design
+      motivation: cultural
+      support_search: false
+      dimensions:
+        - 美学语言(女性视角的柔和力量、当代艺术气质)
+        - 色彩系统(暖灰调+金属点缀+植物绿的情绪构建)
+        - 艺术品清单(大堂主装置、客房版画、走廊摄影作品)
+        - 策展机制(季度主题更新、本地艺术家合作、艺术沙龙活动)
+      priority: medium
+      execution_order: 12
+
+    - id: task_13
+      title: 建立 雅诗阁品牌标准与创新突破的 平衡机制、必守底线清单、创新空间识别、审批流程设计
+      description: |
+        明确雅诗阁品牌的不可触碰的标准底线(Logo使用、服务流程、安全标准)，
+        同时识别允许创新的空间(艺术表达、材料选择、空间布局)，建立审批机制。
+      task_type: strategy
+      motivation: commercial
+      support_search: false
+      dimensions:
+        - 品牌底线(VI标准、服务SOP、安全规范)
+        - 创新空间(地域文化表达、艺术策展自由度、材料创新)
+        - 平衡机制(标准化70% + 定制化30%的比例控制)
+        - 审批流程(品牌方审核节点、业主决策权限、设计师自由度)
+      priority: medium
+      execution_order: 13
+
+    # ========== 第四阶段:运营与可持续性(Task 14-16) ==========
+
+    - id: task_14
+      title: 构建 智能化酒店管理系统、自助服务流程、能耗监控平台、客户数据分析模型
+      description: |
+        设计支撑运营效率的技术系统，包括自助入住、智能客控、
+        能耗实时监控、以及客户行为数据的采集与分析。
+      task_type: design
+      motivation: technical
+      support_search: true
+      dimensions:
+        - 智能管理系统(PMS、客控系统、员工调度系统)
+        - 自助服务流程(人脸识别入住、手机开门、机器人送物)
+        - 能耗监控(空调、照明、热水的分时分区控制)
+        - 数据分析(入住率、客群画像、服务评价的BI看板)
+      priority: medium
+      execution_order: 14
+
+    - id: task_15
+      title: 制定 600元定价下的 成本控制策略、投资回报模型、分期投入计划、盈利平衡点测算
+      description: |
+        建立精细化成本模型，测算硬装、软装、设备、艺术品的投资比例，
+        预测入住率与客单价组合下的盈利路径，规划3-5年投资回收计划。
+      task_type: strategy
+      motivation: commercial
+      support_search: false
+      dimensions:
+        - 成本控制(硬装3500元/㎡、软装1500元/㎡的目标分解)
+        - 投资模型(总投资、单间成本、年运营成本)
+        - 分期投入(一期开业90间、二期扩展45间的资金计划)
+        - 盈利测算(入住率60%/70%/80%下的收益模型)
+      priority: medium
+      execution_order: 15
+
+    - id: task_16
+      title: 评估 项目作为雅诗阁旗舰店的 品牌示范价值、可复制性分析、行业影响力预判、长期竞争力
+      description: |
+        从战略层面评估本项目对雅诗阁品牌升级的价值，
+        分析其设计创新、运营模式、艺术融合的可复制性，预判行业影响力。
+      task_type: analysis
+      motivation: symbolic
+      support_search: false
+      dimensions:
+        - 品牌示范(旗舰店形象、品牌升级标杆、市场信心提升)
+        - 可复制性(标准化模块提取、艺术策展模式推广)
+        - 行业影响(公寓式酒店创新标杆、600元价格带开创者)
+        - 长期竞争力(品牌黏性、客群忠诚度、持续创新能力)
+      priority: medium
+      execution_order: 16
+
+  quality_highlights:
+    - 16任务全流程覆盖：品牌研究30% + 空间设计40% + 运营策略30%
+    - 双重定位平衡：雅诗阁品牌标准 vs 旗舰店创新突破
+    - 艺术策展融合：从1楼展厅到客房艺术品的系统整合
+    - 运营效率驱动：智能化系统+标准化模块+成本精算
+    - 超值感构建：600元价格带下的豪宅精神表达策略
+
+# 🆕 v8.0++ 多维度标签矩阵
+metadata:
+  tags_matrix:
+    space_type:
+      - hotel
+      - apartment_hotel
+      - public_space  # 艺术展厅
+      - restaurant
+      - fitness
+      - pool
+    scale: large  # 135间客房 + 公共配套
+    design_direction:
+      - commercial  # 运营主导
+      - functional  # 功能效率
+      - aesthetic   # 艺术策展
+      - experiential # 超值感体验
+    user_profile:
+      - business_traveler
+      - family_long_stay
+      - art_enthusiast
+      - female_owner_perspective  # 女性策展人视角
+    challenge_type:
+      - brand_innovation        # 品牌迭代升级
+      - cost_value_balance      # 600元价格带超值感
+      - art_hospitality_fusion  # 艺术与酒店融合
+      - operational_efficiency  # 运营效率优化
+    methodology:
+      - benchmarking            # 国际标杆研究
+      - standardization         # 标准化模块设计
+      - art_curation           # 艺术策展逻辑
+      - data_driven            # 数据驱动运营
+    phase: concept_to_detail  # 从概念到详细设计
+
+  performance:
+    specialty_score: 0.25  # 常规高端酒店，非极端特殊
+    recommended_strength: strong  # 建议强示例（标准化要求高）
+
+  best_for:
+    - "高端公寓式酒店设计"
+    - "品牌旗舰店创新"
+    - "艺术主题酒店"
+    - "600-800元价格带酒店"
+    - "运营效率优化"
+
+  not_suitable_for:
+    - "极低预算经济型酒店"  # 示例为高端定位
+    - "纯度假型酒店"        # 示例为商务+长租主导
+    - "精品民宿"            # 规模和标准化程度差异大

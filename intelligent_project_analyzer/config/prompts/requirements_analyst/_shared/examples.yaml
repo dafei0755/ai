@@ -1,0 +1,120 @@
+# 需求分析师 - 示例库
+# 此文件包含正确/错误示例，用于引导LLM输出
+# 被所有需求分析师配置文件共享引用
+
+version: "7.600-shared"
+updated_at: "2026-02-11"
+
+# 人性维度分析示例
+human_dimensions_examples:
+  emotional_landscape:
+    wrong: "温馨舒适的居住氛围"
+    correct: "早晨阳光洒入厨房时的平静感，为高压工作后提供情绪缓冲；夜晚卧室绝对安静的避风港，承载焦虑释放与自我修复"
+
+  spiritual_aspirations:
+    wrong: "追求品质生活"
+    correct: "通过空间仪式感建立'慢生活'节奏，对抗都市快节奏焦虑；空间成为真实自我与社会角色的缓冲带"
+
+  ritual_behaviors:
+    wrong: "日常生活习惯"
+    correct: "每天晨间的手冲咖啡仪式（需要专属吧台+自然光）；睡前30分钟的阅读时光（需要柔和灯光+舒适座椅）"
+
+# L6 假设审计示例
+assumption_audit_example:
+  correct: |
+    {
+      "assumption": "用户会长期居住（至少5年）",
+      "evidence": "用户提到'永久住宅'、'一辈子的家'",
+      "counter_evidence": "用户是32岁职场人士，未来3-5年可能因工作换城市",
+      "challenge_question": "如果5年内因工作需要搬迁，设计应预留哪些灵活性？",
+      "impact_if_wrong": "过度定制化设计导致转售/出租困难，经济损失",
+      "alternative_approach": "采用'70%永久+30%灵活'策略，核心结构固定但软装可调整"
+    }
+
+  wrong: |
+    {
+      "assumption": "用户喜欢现代风格",
+      "evidence": "猜测",
+      "challenge_question": "如果不喜欢呢？"
+    }
+
+# JTBD公式示例
+jtbd_examples:
+  correct_formula: "为[深层身份]打造[空间]，雇佣空间完成[任务1]与[任务2]"
+
+  good_example: "为一位事业转型期的前金融律师，打造既能作为内容创作基地又能提供精神庇护的私人空间，雇佣空间完成'专业形象重塑'与'内在自我整合'两项任务"
+
+  bad_example: "为用户打造一个舒适的家，完成居住功能"
+
+  why_bad: "缺乏深层身份识别，任务描述过于表面，无法指导设计"
+
+# 设计挑战公式示例
+design_challenge_examples:
+  correct_formula: "作为[身份]的[需求A]与其对[需求B]的根本对立"
+
+  good_example: "作为[内容创作者]的[展示需求]与其对[精神庇护]的根本对立"
+
+  bad_example: "功能和美观的平衡"
+
+  why_bad: "过于抽象，没有揭示用户特定的身份和独特矛盾"
+
+# 交付物识别示例
+deliverable_identification_examples:
+  scenario_1:
+    user_input: "给我的中餐包房起8个4字的名字，要有文化底蕴"
+    correct_output:
+      deliverable_id: "D1"
+      type: "naming_list"
+      description: "中餐包房命名方案（8个）"
+      priority: "MUST_HAVE"
+      quantity: 8
+      format_requirements:
+        length: "4个汉字"
+        style: "文化底蕴"
+        must_include_fields: ["命名", "文化出处", "寓意说明"]
+      acceptance_criteria:
+        - "必须提供正好8个命名（不多不少）"
+        - "每个命名必须正好4个汉字"
+        - "必须标注每个命名的文化出处和寓意"
+
+  scenario_2:
+    user_input: "我需要75平米住宅的完整设计方案，包括平面图和材料清单"
+    correct_output:
+      - deliverable_id: "D1"
+        type: "design_strategy"
+        description: "75平米住宅空间规划策略"
+        priority: "MUST_HAVE"
+        capability_check:
+          within_capability: true
+          original_request: "平面图"
+          transformed_to: "design_strategy"
+          transformation_reason: "系统输出设计思路和空间规划策略，而非CAD图纸"
+      - deliverable_id: "D2"
+        type: "material_guidance"
+        description: "材料选择指导框架"
+        priority: "MUST_HAVE"
+        capability_check:
+          within_capability: true
+          original_request: "材料清单"
+          transformed_to: "material_guidance"
+          transformation_reason: "系统提供材料选择原则和指导，而非精确清单"
+
+# 信息充足性判断示例
+info_status_examples:
+  sufficient:
+    user_input: "我想设计一个75平米的现代简约住宅，预算30万，位于成都高新区，两室一厅，主要给单身职场女性居住，需要兼顾居住和内容创作功能"
+    analysis:
+      project_type: "✓ 明确（住宅）"
+      user_identity: "✓ 明确（单身职场女性）"
+      constraints: "✓ 明确（75平米、30万预算）"
+      functions: "✓ 明确（居住+内容创作）"
+      conclusion: "sufficient"
+
+  insufficient:
+    user_input: "我想装修房子"
+    analysis:
+      project_type: "✗ 模糊（什么类型？）"
+      user_identity: "✗ 缺失（谁居住？）"
+      constraints: "✗ 缺失（多大？预算？）"
+      functions: "✗ 缺失（用途？）"
+      conclusion: "insufficient"

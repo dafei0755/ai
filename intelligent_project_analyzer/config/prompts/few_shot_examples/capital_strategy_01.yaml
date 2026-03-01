@@ -1,0 +1,378 @@
+# 示例:成都麓湖地产样板房概念矩阵
+# 来源:q.txt Q19
+# 类型:资本策略主导 (Capital Strategy Dominant) / 市场穿透力
+# 特征:10个样板房概念、目标客群精准定位、生活方式结构、软装叙事、可复制性
+# 适用场景:地产样板房、市场定位研究、客群画像分析、概念主题策划
+
+example:
+  project_info:
+    name: 成都麓湖地产样板房概念矩阵
+    description: |
+      成都麓湖片区地产样板房项目，需要提出10个具有市场穿透力与精神辨识度的概念主题。
+      每个概念不仅需要概念名称，还需阐述对应目标客群画像、生活方式结构、
+      空间比例控制逻辑、软装叙事系统以及可复制性策略。
+      核心挑战是精准匹配成都高净值人群的细分需求，建立差异化竞争优势。
+
+    feature_vector:
+      cultural: 0.48
+      commercial: 0.75
+      aesthetic: 0.65
+      functional: 0.58
+      sustainable: 0.35
+      social: 0.52
+      technical: 0.38
+      historical: 0.25
+      regional: 0.55
+      material_innovation: 0.45
+      experiential: 0.68
+      symbolic: 0.62
+
+    constraints:
+      - 10个概念需覆盖成都高净值人群的主要细分市场
+      - 每个概念需具备市场穿透力（激发购买欲望）
+      - 精神辨识度（形成品牌记忆）
+      - 可复制性（标准化施工与成本控制）
+      - 与麓湖生态城的整体定位匹配
+
+    goals:
+      - 构建10个差异化样板房概念体系
+      - 精准匹配目标客群的生活方式需求
+      - 建立空间比例与软装叙事的标准模板
+      - 形成可复制的设计交付系统
+
+  ideal_tasks:
+    # ========== 第一阶段:市场研究与客群分析(Task 1-3) ==========
+
+    - id: task_1
+      title: 搜索 成都高净值人群的 财富来源结构、消费心理特征、生活方式偏好、审美趋势演变
+      description: |
+        系统研究成都高净值人群（资产1000万+）的细分特征，
+        包括财富来源（企业主/金融/科技/二代）、消费决策逻辑、
+        生活方式偏好（茶文化/户外/艺术/社交）、以及审美从炫耀到克制的演变。
+      task_type: research
+      motivation: commercial
+      support_search: true
+      dimensions:
+        - 财富来源(传统制造业、互联网科技、金融投资、家族二代)
+        - 消费心理(从炫耀消费→品质消费→精神消费的梯度)
+        - 生活方式(成都茶文化、户外运动、艺术收藏、私密社交)
+        - 审美演变(2010年代欧式奢华→2020年代现代克制)
+      priority: high
+      execution_order: 1
+
+    - id: task_2
+      title: 搜索 成都麓湖生态城的 品牌定位、竞品分析、客群画像、价格带分布、差异化空间
+      description: |
+        调研麓湖生态城的项目定位、周边竞品（华侨城/保利/万科）的产品策略、
+        价格带分布（3-8万/㎡），识别差异化机会点。
+      task_type: research
+      motivation: commercial
+      support_search: true
+      dimensions:
+        - 品牌定位(生态豪宅、艺术社区、高净值生活圈)
+        - 竞品分析(华侨城纯水岸、保利198、万科五龙山)
+        - 客群画像(35-55岁、家庭年收入300万+、2套房+)
+        - 价格带(3万刚需改善、5万品质升级、8万顶级豪宅)
+        - 差异化空间(艺术+生态+社交的未被满足需求)
+      priority: high
+      execution_order: 2
+
+    - id: task_3
+      title: 搜索 国际顶级样板房设计的 概念策划方法、空间叙事技巧、软装搭配逻辑、销售转化策略
+      description: |
+        研究国际标杆样板房案例（如香港太古地产、上海建发央玺、上海绿地海珀），
+        分析其概念策划、空间打造、软装投入、以及如何实现90%+销售转化率。
+      task_type: research
+      motivation: commercial
+      support_search: true
+      dimensions:
+        - 概念策划(生活方式切入点、情绪记忆点、社交话题性)
+        - 空间叙事(从玄关到主卧的情绪递进、惊喜节点设置)
+        - 软装逻辑(硬装简约+软装丰富、艺术品租赁vs购买)
+        - 销售转化(样板房参观路径、置业顾问话术、签约促进点)
+      priority: high
+      execution_order: 3
+
+    # ========== 第二阶段:10个样板房概念策划(Task 4-13) ==========
+
+    - id: task_4
+      title: 策划 概念1"茶隐"：新中式文人生活方式的当代转译、目标客群、空间比例、软装叙事
+      description: |
+        为45-60岁传统企业主设计，融合成都茶文化、文人园林、禅意生活，
+        空间强调留白、茶室核心、书房雅集，软装以老家具+当代艺术+茶器为主。
+      task_type: design
+      motivation: cultural
+      support_search: false
+      dimensions:
+        - 目标客群(45-60岁、传统制造业企业主、茶文化爱好者)
+        - 生活方式(早起喝茶、书房办公、周末雅集、慢生活节奏)
+        - 空间比例(茶室15%、书房10%、主卧20%、客厅25%)
+        - 软装叙事(老红木茶桌、当代水墨画、宜兴紫砂、古琴)
+        - 可复制性(标准化木作、艺术品租赁、软装包5000元/㎡)
+      priority: high
+      execution_order: 4
+
+    - id: task_5
+      title: 策划 概念2"光合"：户外运动家庭的阳光生活、目标客群、空间比例、软装叙事
+      description: |
+        为35-45岁年轻家庭设计，强调自然光线、户外露台、运动收纳、亲子互动，
+        空间开放通透，软装以北欧简约+运动装备展示+绿植为主。
+      task_type: design
+      motivation: experiential
+      support_search: false
+      dimensions:
+        - 目标客群(35-45岁、互联网高管、户外运动爱好者、有娃家庭)
+        - 生活方式(周末骑行、徒步装备、亲子露营、阳光早餐)
+        - 空间比例(露台20%、开放厨房15%、亲子活动区10%)
+        - 软装叙事(自行车墙挂、户外装备展示、绿植系统、木质温暖)
+        - 可复制性(标准化露台、模块化储物、软装包3500元/㎡)
+      priority: high
+      execution_order: 5
+
+    - id: task_6
+      title: 策划 概念3"藏珍"：艺术收藏家的私人美术馆、目标客群、空间比例、软装叙事
+      description: |
+        为40-55岁艺术收藏家设计，强调展示墙、轨道灯光、恒温恒湿、社交展示，
+        空间类似白盒子画廊，软装以艺术品为主角+极简家具为配角。
+      task_type: design
+      motivation: aesthetic
+      support_search: false
+      dimensions:
+        - 目标客群(40-55岁、金融投资人、当代艺术收藏家、社交型)
+        - 生活方式(周末艺术沙龙、藏品展示、朋友品鉴、拍卖采购)
+        - 空间比例(展示墙40%、社交客厅30%、主卧简化15%)
+        - 软装叙事(当代艺术原作、轨道射灯、极简沙发、酒柜吧台)
+        - 可复制性(标准化展示系统、灯光模板、软装包8000元/㎡)
+      priority: high
+      execution_order: 6
+
+    - id: task_7
+      title: 策划 概念4"静谧"：独立女性的精神栖居、目标客群、空间比例、软装叙事
+      description: |
+        为30-45岁独立女性设计，强调优雅、自律、轻盈、独处舒适，
+        空间比例精致、材料温润、软装以法式优雅+现代克制为主。
+      task_type: design
+      motivation: social
+      support_search: false
+      dimensions:
+        - 目标客群(30-45岁、海归女性、不婚主义、文化传媒行业)
+        - 生活方式(瑜伽冥想、阅读品茗、独处享受、少量社交)
+        - 空间比例(主卧套房40%、书房瑜伽室20%、衣帽间15%)
+        - 软装叙事(丝绒沙发、黄铜吊灯、大理石茶几、香薰系统)
+        - 可复制性(标准化主卧套房、软装包6000元/㎡)
+      priority: high
+      execution_order: 7
+
+    - id: task_8
+      title: 策划 概念5"科技巢"：程序员极客的智能生活实验室、目标客群、空间比例、软装叙事
+      description: |
+        为30-40岁科技从业者设计，强调全屋智能、工作区、极简美学、科技感，
+        空间布线隐藏、软装以科技产品+工业风+极简家具为主。
+      task_type: design
+      motivation: technical
+      support_search: false
+      dimensions:
+        - 目标客群(30-40岁、程序员/工程师、极客文化、居家办公)
+        - 生活方式(双显示器工作、智能家居控制、机械键盘收藏)
+        - 空间比例(工作区25%、客厅影音20%、主卧简化20%)
+        - 软装叙事(升降桌、人体工学椅、智能音箱、工业吊灯)
+        - 可复制性(标准化智能系统、软装包4000元/㎡)
+      priority: medium
+      execution_order: 8
+
+    - id: task_9
+      title: 策划 概念6"世家"：家族传承的仪式感空间、目标客群、空间比例、软装叙事
+      description: |
+        为50-65岁家族企业主设计，强调权力感、传承仪式、多代同堂、社交展示，
+        空间尺度宏大、软装以红木+大理石+艺术品+家族照片墙为主。
+      task_type: design
+      motivation: symbolic
+      support_search: false
+      dimensions:
+        - 目标客群(50-65岁、家族企业掌门人、多代同堂、传统价值观)
+        - 生活方式(家族聚餐、商务会客、子女教育、权力象征)
+        - 空间比例(餐厅20%、客厅30%、主卧套房25%、书房15%)
+        - 软装叙事(大理石台面、红木家具、家族照片墙、荣誉展示)
+        - 可复制性(标准化尺度模板、软装包7000元/㎡)
+      priority: medium
+      execution_order: 9
+
+    - id: task_10
+      title: 策划 概念7"摩登"：新锐金融精英的轻奢生活、目标客群、空间比例、软装叙事
+      description: |
+        为28-38岁金融行业精英设计，强调潮流、社交、品牌展示、派对功能，
+        空间时尚感强、软装以轻奢品牌+设计师家具+艺术灯具为主。
+      task_type: design
+      motivation: commercial
+      support_search: false
+      dimensions:
+        - 目标客群(28-38岁、投行/PE/VC、高薪单身/丁克、社交型)
+        - 生活方式(周末派对、品牌消费、健身打卡、社交媒体展示)
+        - 空间比例(开放客厅40%、吧台5%、衣帽间15%、主卧20%)
+        - 软装叙事(Cassina沙发、Tom Dixon灯具、爱马仕橙点缀)
+        - 可复制性(品牌家具采购清单、软装包8000元/㎡)
+      priority: medium
+      execution_order: 10
+
+    - id: task_11
+      title: 策划 概念8"田园诗"：都市回归者的自然主义、目标客群、空间比例、软装叙事
+      description: |
+        为40-55岁财务自由人群设计，强调自然材料、朴素美学、农耕体验、慢生活，
+        空间材料原始、软装以原木+陶艺+植物+手工织物为主。
+      task_type: design
+      motivation: sustainable
+      support_search: false
+      dimensions:
+        - 目标客群(40-55岁、退休企业主、追求精神回归、环保主义者)
+        - 生活方式(阳台种菜、手工陶艺、冥想瑜伽、简单饮食)
+        - 空间比例(露台菜园20%、陶艺工作室10%、开放厨房15%)
+        - 软装叙事(原木家具、手工陶器、亚麻织物、绿植系统)
+        - 可复制性(标准化自然材料、软装包3000元/㎡)
+      priority: medium
+      execution_order: 11
+
+    - id: task_12
+      title: 策划 概念9"诗意栖居"：哲学系教授的精神居所、目标客群、空间比例、软装叙事
+      description: |
+        为知识分子设计，强调思考空间、书籍墙、光影诗意、极简留白，
+        空间克制高级、软装以书籍+极简家具+艺术灯光为主。
+      task_type: design
+      motivation: cultural
+      support_search: false
+      dimensions:
+        - 目标客群(教授学者、作家诗人、思想者、追求精神深度)
+        - 生活方式(阅读写作、独处思考、偶尔雅集、物质极简)
+        - 空间比例(书房40%、冥想区10%、主卧简化15%、客厅20%)
+        - 软装叙事(书墙、安乐椅、落地灯、留白墙面、光影变化)
+        - 可复制性(标准化书墙系统、软装包4000元/㎡)
+      priority: medium
+      execution_order: 12
+
+    - id: task_13
+      title: 策划 概念10"乐活"：LOHAS生活方式的健康住宅、目标客群、空间比例、软装叙事
+      description: |
+        为健康意识强烈人群设计，强调有机材料、新风净化、健身瑜伽、营养厨房，
+        空间功能健康导向、软装以环保材料+健身器材+绿植为主。
+      task_type: design
+      motivation: sustainable
+      support_search: false
+      dimensions:
+        - 目标客群(35-50岁、健康管理者、瑜伽爱好者、有机饮食践行者)
+        - 生活方式(晨起瑜伽、有机烹饪、冥想休息、健康监测)
+        - 空间比例(健身瑜伽室15%、营养厨房20%、冥想室5%)
+        - 软装叙事(瑜伽垫、健身器材、空气净化器、绿植系统)
+        - 可复制性(标准化健身模块、软装包4500元/㎡)
+      priority: medium
+      execution_order: 13
+
+    # ========== 第三阶段:可复制性与成本控制(Task 14-16) ==========
+
+    - id: task_14
+      title: 制定 10个概念的标准化设计模板、硬装施工图标准、软装采购清单、成本控制节点
+      description: |
+        为10个概念建立标准化交付体系，包括硬装施工图模板、
+        软装采购清单（品牌/尺寸/价格）、成本控制节点（硬装3500元/㎡、软装3000-8000元/㎡）。
+      task_type: strategy
+      motivation: commercial
+      support_search: false
+      dimensions:
+        - 硬装模板(墙面/地面/天花的标准做法、水电点位)
+        - 软装清单(家具品牌/灯具型号/艺术品来源/织物供应商)
+        - 成本控制(硬装3500元/㎡、软装分级3000/5000/8000三档)
+        - 质量标准(材料环保等级、施工验收标准、软装验收)
+      priority: high
+      execution_order: 14
+
+    - id: task_15
+      title: 制定 样板房销售转化策略、参观动线设计、置业顾问话术、签约促进机制
+      description: |
+        设计样板房参观路径（从震撼→代入→渴望的情绪递进），
+        培训置业顾问话术（生活方式植入），设置签约促进点（限时优惠/VIP权益）。
+      task_type: strategy
+      motivation: commercial
+      support_search: false
+      dimensions:
+        - 参观动线(入口惊艳点→客厅代入感→主卧渴望感→签约区)
+        - 顾问话术(客群痛点挖掘、生活方式描绘、价值感强化)
+        - 签约促进(VIP卡赠送、装修礼包、家具包折扣、限时优惠)
+        - 效果评估(参观转化率、签约率、客单价提升)
+      priority: high
+      execution_order: 15
+
+    - id: task_16
+      title: 评估 10个概念的市场接受度、差异化竞争力、品牌溢价能力、长期复制价值
+      description: |
+        从战略层面评估10个概念的市场穿透力、与竞品的差异化优势、
+        品牌溢价空间（可提升10-20%售价），以及在其他项目的复制潜力。
+      task_type: analysis
+      motivation: commercial
+      support_search: false
+      dimensions:
+        - 市场接受度(目标客群规模、购买力、决策周期)
+        - 差异化竞争力(与竞品对比的独特价值点)
+        - 品牌溢价(样板房品质可支撑的价格提升空间)
+        - 复制价值(标准化程度、其他城市/项目的适用性)
+      priority: medium
+      execution_order: 16
+
+  quality_highlights:
+    - 16任务系统覆盖：市场研究20% + 10概念策划60% + 复制性15% + 评估5%
+    - 客群精准画像：10个细分人群（年龄/职业/收入/生活方式）
+    - 差异化定位：从茶隐到科技巢覆盖传统到前沿全谱系
+    - 可复制标准：硬装模板+软装清单+成本控制三位一体
+    - 商业转化：参观动线+顾问话术+签约促进完整闭环
+
+# 🆕 v8.0++ 多维度标签矩阵
+metadata:
+  tags_matrix:
+    space_type:
+      - residential
+      - showroom
+      - sales_center
+    scale: medium  # 单个样板房120-200㎡
+    design_direction:
+      - commercial     # 商业主导
+      - cultural       # 生活方式
+      - aesthetic      # 美学表达
+      - experiential   # 情绪体验
+    user_profile:
+      - high_net_worth      # 高净值人群
+      - entrepreneur        # 企业主
+      - young_professional  # 年轻专业人士
+      - art_collector       # 艺术收藏家
+      - independent_woman   # 独立女性
+    challenge_type:
+      - market_segmentation  # 市场细分
+      - brand_differentiation # 品牌差异化
+      - sales_conversion     # 销售转化
+      - replicability       # 可复制性
+      - cost_control        # 成本控制
+    methodology:
+      - market_research     # 市场研究
+      - persona_design      # 人群画像设计
+      - lifestyle_mapping   # 生活方式映射
+      - standardization     # 标准化
+    phase: concept_design  # 概念设计阶段
+
+  # 🆕 v8.100 Phase 3.1: 新增5维
+  discipline: interior  # 室内主导（样板房）
+  urgency: 0.6  # 中等紧急（地产开发周期）
+  innovation_quotient: 0.55  # 中等创新（差异化但需可复制）
+  commercial_sensitivity: 0.92  # 极高商业（销售转化核心）
+  cultural_depth: 0.48  # 中等文化（生活方式表达）
+
+  performance:
+    specialty_score: 0.20  # 常规地产项目
+    recommended_strength: strong  # 建议强示例（标准化要求高）
+
+  best_for:
+    - "地产样板房设计（高端住宅）"
+    - "市场定位与客群研究"
+    - "生活方式概念策划"
+    - "软装叙事系统构建"
+    - "销售转化空间设计"
+
+  not_suitable_for:
+    - "经济适用房"            # 示例为高端定位
+    - "公寓租赁产品"          # 示例为销售导向
+    - "商业办公空间"          # 示例为住宅

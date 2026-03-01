@@ -1,0 +1,374 @@
+# 示例:四川狮岭村乡村民宿集群
+# 来源:q.txt Q3
+# 类型:文化主导 (Cultural Dominant) / 乡建在地 M5_rural_context
+# 特征:乡村振兴、在地文化挖掘、多建筑师协作、农文旅融合
+# v8.000 (P3-T13): 新增示例，覆盖 M5_rural_context 模式
+
+example:
+  project_info:
+    name: 四川狮岭村乡村民宿集群项目
+    description: |
+      位于四川的狮岭村，计划打造融合在地农耕文化、宗族关系和非遗工艺的民宿集群。
+      项目邀请多位知名建筑师（安藤忠雄、隈研吾、刘家琨、王澍、谢柯）参与设计，
+      需平衡文化传承与商业运营，实现乡村振兴与可持续发展。
+
+    feature_vector:
+      cultural: 0.53
+      commercial: 0.31
+      aesthetic: 0.45
+      functional: 0.20
+      sustainable: 0.38
+      social: 0.42
+      technical: 0.15
+      historical: 0.58
+      regional: 0.62
+      material_innovation: 0.35
+      experiential: 0.40
+      symbolic: 0.48
+
+    constraints:
+      - 尊重并保护在地文化遗产
+      - 与村落原有肌理融合
+      - 多建筑师风格协调统一
+      - 村民利益保障与参与机制
+      - 四季运营可持续模型
+
+    goals:
+      - 打造具有文化深度的乡村民宿集群
+      - 实现在地文化的当代转译
+      - 建立可持续的农文旅商业模式
+      - 成为乡村振兴设计示范项目
+
+  ideal_tasks:
+    # ========== 第一阶段:文化研究(Task 1-5) ==========
+
+    - id: task_1
+      title: 搜索 狮岭村的 农耕文化脉络、民俗节庆体系、传统工艺名录、宗族关系结构、地方志历史
+      description: |
+        系统梳理狮岭村的文化基底，包括农耕生产方式的空间影响、节庆活动的场所需求、
+        传统手工艺的空间转化潜力、宗族祠堂的社会功能、村落演变历史对空间格局的塑造。
+      task_type: research
+      motivation: cultural
+      support_search: true
+      dimensions:
+        - 农耕文化空间影响(梯田景观、晒场、农具存放、谷仓)
+        - 民俗节庆场所需求(祭祀空间、庙会广场、戏台)
+        - 传统工艺空间转化(竹编、酿酒、制陶的工坊空间)
+        - 宗族关系空间表达(祠堂、族谱、聚落层级)
+        - 村落历史空间格局(风水布局、水系、道路演变)
+      priority: high
+      execution_order: 1
+
+    - id: task_2
+      title: 搜索 四川乡村振兴设计标杆案例的 文化挖掘方法、在地材料运用、村民参与机制、运营模式
+      description: |
+        调研四川及西南地区成功的乡村设计案例，如丙丁柴窑、竹里、浮云牧场等，
+        提取其文化表达策略、本土材料创新方法、社区共建模式和商业运营经验。
+      task_type: research
+      motivation: cultural
+      support_search: true
+      dimensions:
+        - 文化挖掘方法(田野调查、口述历史、文化符号提取)
+        - 在地材料运用(竹、石、夯土、老木料再利用)
+        - 村民参与机制(共建共享、利益分配、技能培训)
+        - 运营模式(民宿+体验+农产品三位一体)
+      priority: high
+      execution_order: 2
+
+    - id: task_3
+      title: 搜索 安藤忠雄的 清水混凝土建筑语言、光影空间手法、与自然对话策略、在非城市环境中的实践
+      description: |
+        研究安藤忠雄的建筑设计语言在乡村语境下的适配性，包括清水混凝土与乡土材料的对话关系、
+        光影空间在低层建筑中的实现方式、如何在非城市环境中保持其标志性的空间诗意。
+      task_type: research
+      motivation: aesthetic
+      support_search: true
+      dimensions:
+        - 清水混凝土语言(材料表现力、乡村语境适配)
+        - 光影空间手法(低层建筑的天光、庭院光影)
+        - 自然对话策略(水面、植被、山景的框景手法)
+        - 非城市实践(直岛美术馆、地中美术馆的乡村经验)
+      priority: high
+      execution_order: 3
+
+    - id: task_4
+      title: 搜索 隈研吾的 木构建筑系统、在地材料转译手法、消隐建筑策略、中国乡村项目经验
+      description: |
+        研究隈研吾的建筑哲学在乡村场景的应用，特别是竹木材料的当代表达、
+        建筑消隐于环境的手法、以及其在中国乡建项目中的实际经验。
+      task_type: research
+      motivation: aesthetic
+      support_search: true
+      dimensions:
+        - 木构建筑系统(传统木构的当代演绎、节点设计)
+        - 在地材料转译(竹编幕墙、石砌墙体、夯土改良)
+        - 消隐建筑策略(覆土建筑、屋顶绿化、环境融入)
+        - 中国乡建经验(长城脚下的公社、知·美术馆等)
+      priority: high
+      execution_order: 4
+
+    - id: task_5
+      title: 搜索 王澍的 回收材料建筑实践、中国传统园林空间重构、瓦爿墙技法、乡土建筑当代转译
+      description: |
+        研究王澍对中国传统建造文化的当代诠释，特别是回收旧砖旧瓦的建筑方法、
+        传统园林空间序列的当代应用、以及乡村建造智慧的保存与创新。
+      task_type: research
+      motivation: cultural
+      support_search: true
+      dimensions:
+        - 回收材料实践(旧砖、旧瓦、旧窗棂的再利用)
+        - 传统空间重构(园林借景、框景、对景的当代应用)
+        - 瓦爿墙技法(材料考古学、工匠精神、砌筑工艺)
+        - 乡土转译(文村改造、富阳东梓关经验)
+      priority: high
+      execution_order: 5
+
+    - id: task_6
+      title: 搜索 刘家琨的 低技策略建筑实践、在地性空间诗学、西村大院等乡村项目、日常空间改造手法
+      description: |
+        研究刘家琨的建筑思想在乡村语境下的实践，特别是"低技策略"的设计方法、
+        对日常生活空间的细腻观察、以及西村大院等案例中的空间织补智慧。
+      task_type: research
+      motivation: cultural
+      support_search: true
+      dimensions:
+        - 低技策略实践(本地材料、简单工法、低成本创新)
+        - 在地性空间诗学(日常生活观察、场所精神、地域记忆)
+        - 乡村项目经验(西村大院、胡慧姗纪念馆等案例分析)
+        - 日常空间改造(织补策略、微介入手法、灰空间运用)
+      priority: high
+      execution_order: 6
+
+    # ========== 第二阶段:场地与社区分析(Task 7-9) ==========
+
+    - id: task_7
+      title: 分析 狮岭村现有建筑肌理、地形地貌特征、自然景观资源、可利用建筑存量、基础设施现状
+      description: |
+        对狮岭村进行全面的物理环境分析，包括现有建筑的形态、材料、高度，
+        地形的坡度和朝向，水系和植被分布，以及市政基础设施的覆盖状况。
+      task_type: analysis
+      motivation: functional
+      support_search: false
+      dimensions:
+        - 建筑肌理(现有建筑密度、高度、材料、状态)
+        - 地形地貌(坡度、朝向、标高变化、视线通廊)
+        - 自然景观(水系、古树、梯田、远山景观资源)
+        - 建筑存量(可改造建筑评估、结构安全、使用价值)
+        - 基础设施(道路、给排水、电力、通信覆盖)
+      priority: high
+      execution_order: 6
+
+    - id: task_7
+      title: 分析 狮岭村村民需求画像、利益相关者关系、社区运营能力、文化传承人谱系
+      description: |
+        深入分析村民群体的需求和能力，包括不同年龄段的生活需求、
+        村集体与个体的利益关系、本地运营人才储备、以及关键文化传承人的技艺和传承意愿。
+      task_type: analysis
+      motivation: social
+      support_search: false
+      dimensions:
+        - 村民需求画像(居住、就业、教育、医疗需求)
+        - 利益相关者关系(村集体、村民、投资方、政府)
+        - 运营能力评估(本地管理人才、服务技能、语言能力)
+        - 文化传承人谱系(工艺传承人、民俗知识持有者)
+      priority: high
+      execution_order: 7
+
+    - id: task_8
+      title: 制定 五位建筑师的选址策略、风格分区逻辑、相互关系定义、与村落肌理的融合方式
+      description: |
+        为五位建筑师(安藤忠雄、隈研吾、刘家琨、王澍、谢柯)分别选定设计区块，
+        确保每位建筑师的设计语言与所在地块的地形、景观、文化特征匹配，
+        同时定义建筑群之间的视线、步行系统和风格过渡关系。
+      task_type: design
+      motivation: aesthetic
+      support_search: false
+      dimensions:
+        - 选址策略(地块-建筑师匹配逻辑)
+        - 风格分区(材料过渡、尺度协调、色彩统一要素)
+        - 相互关系(视线对话、步行连接、节奏控制)
+        - 肌理融合(新建与旧村的边界处理、缓冲带设计)
+      priority: high
+      execution_order: 8
+
+    # ========== 第三阶段:设计策略(Task 10-14) ==========
+
+    - id: task_10
+      title: 制定 民宿集群的空间叙事策略、文化体验动线、关键场景节点、情绪节奏控制
+      description: |
+        构建从村口到各民宿的完整空间叙事，设计文化体验路径，
+        定义关键场景节点(入村仪式、文化展示、田园体验、社交聚落)的空间特征。
+      task_type: design
+      motivation: experiential
+      support_search: false
+      dimensions:
+        - 空间叙事(入村序列、发现感、惊喜节点)
+        - 文化体验动线(农耕体验线、工艺学习线、自然探索线)
+        - 场景节点(入村广场、中心庭院、观景平台、田间步道)
+        - 情绪节奏(紧缩-释放、遮蔽-开敞的空间节奏)
+      priority: high
+      execution_order: 10
+
+    - id: task_11
+      title: 制定 在地材料策略、乡土建造工法指南、本地工匠协作标准、材料成本控制方案
+      description: |
+        建立适用于狮岭村的材料体系，重点是本地可获取材料(竹、木、石、土)的现代化运用，
+        制定与本地工匠协作的技术标准和工艺规范，确保设计落地的可行性。
+      task_type: design
+      motivation: technical
+      support_search: true
+      dimensions:
+        - 在地材料策略(竹材、木材、石材、夯土的选型与处理)
+        - 乡土建造工法(传统工法改良、现代防水防腐技术融合)
+        - 工匠协作标准(技术交底方式、质量控制节点)
+        - 成本控制(本地材料vs外购材料的成本比较与优化)
+      priority: medium
+      execution_order: 11
+
+    - id: task_12
+      title: 制定 非遗工艺活化空间方案、工坊体验空间设计、文创产品展销空间、文化IP衍生策略
+      description: |
+        将村内非遗工艺(竹编、酿酒、制陶等)转化为可体验的空间产品，
+        设计工坊参观和体验空间，规划文创展销区域，建立文化IP系统。
+      task_type: design
+      motivation: cultural
+      support_search: true
+      dimensions:
+        - 非遗工坊空间(竹编工坊、酿酒体验馆、制陶工作室)
+        - 体验空间设计(参与式体验、展示式观看、沉浸式感受)
+        - 文创展销空间(产品陈列、在线展示、伴手礼包装)
+        - 文化IP策略(品牌视觉系统、IP形象、衍生品开发)
+      priority: medium
+      execution_order: 12
+
+    - id: task_13
+      title: 制定 民宿室内空间标准、客房类型分级体系、公共空间功能配置、家具软装本土化方案
+      description: |
+        建立民宿的室内设计标准体系，定义不同价位客房的空间标准、面积配比、
+        功能配置，以及公共区域(餐厅、书吧、茶室、会议)的空间规划。
+      task_type: design
+      motivation: functional
+      support_search: false
+      dimensions:
+        - 客房空间标准(面积、层高、开窗率、功能模块)
+        - 类型分级(标准间、套房、独栋院落的差异化配置)
+        - 公共空间(餐厅规模、书吧面积、茶室氛围、会议容量)
+        - 家具软装(本地手工家具、织物、陶艺的空间运用)
+      priority: medium
+      execution_order: 13
+
+    - id: task_14
+      title: 制定 可持续运营空间模型、村民参与机制设计、四季收益测算、盈利路径分析
+      description: |
+        设计与空间配置相匹配的运营模式，确保民宿集群能实现四季运营，
+        建立村民参与管理和分红的制度设计，测算投资回报和盈利路径。
+      task_type: strategy
+      motivation: commercial
+      support_search: true
+      dimensions:
+        - 运营空间模型(客房收入+体验收入+农产品电商+研学团建)
+        - 村民参与机制(员工培训、利润分配、管理职责)
+        - 四季收益测算(淡旺季定价、节庆活动策划、研学课程)
+        - 盈利路径(3年回本计划、分期投入策略、政策补贴利用)
+      priority: medium
+      execution_order: 14
+
+    # ========== 第四阶段:整合与验证(Task 15-17) ==========
+
+    - id: task_15
+      title: 制定 景观系统规划、生态修复策略、雨水管理方案、农业景观整合
+      description: |
+        建立民宿集群的景观体系，包括场地生态修复、雨水收集利用、
+        农业景观与度假景观的融合、本地植物选型和四季景观变化。
+      task_type: design
+      motivation: sustainable
+      support_search: false
+      dimensions:
+        - 景观系统(入口景观、院落景观、田园景观、水系景观)
+        - 生态修复(植被恢复、水土保持、生态廊道)
+        - 雨水管理(雨水收集、中水利用、透水铺装)
+        - 农业景观(梯田保护、果林利用、菜园体验)
+      priority: medium
+      execution_order: 15
+
+    - id: task_16
+      title: 整合 建筑师团队设计方案的 统一性审核清单、风格协调方案、村落整体性验证
+      description: |
+        建立多位建筑师设计方案之间的协调机制，确保整体村落呈现统一而多元的品质，
+        定义材料、色彩、尺度的统一底线，识别并解决风格冲突点。
+      task_type: analysis
+      motivation: aesthetic
+      support_search: false
+      dimensions:
+        - 统一性审核(材料底线、色彩范围、尺度上限)
+        - 风格协调策略(相邻建筑过渡、视线关系、材料呼应)
+        - 整体性验证(从不同视角、路径体验的连贯性检查)
+      priority: medium
+      execution_order: 16
+
+    - id: task_17
+      title: 评估 项目对村落社会结构的 影响预判、文化风险识别、社区共建可行性、长期可持续性
+      description: |
+        评估民宿集群对狮岭村社会结构的潜在影响，包括人口回流预期、
+        文化商品化风险、村民生活方式改变、以及项目长期可持续发展的保障措施。
+      task_type: analysis
+      motivation: social
+      support_search: false
+      dimensions:
+        - 社会影响预判(人口变化、就业带动、收入增长预期)
+        - 文化风险(商品化、过度旅游化、原真性流失)
+        - 社区共建(村民决策参与度、利益分配公平性)
+        - 长期可持续(管理接班、品质退化防范、政策风险)
+      priority: medium
+      execution_order: 17
+
+  quality_highlights:
+    - 17任务立体研究：50%文化研究 + 35%建筑师案例 + 15%运营策略
+    - 建筑师独立性：每位建筑师独立研究任务，避免多主体混合
+    - 文化维度深度：农耕文化+宗族关系+非遗工艺系统梳理
+    - 商业可行性：运营模型+盈利路径+村民参与机制完整闭环
+    - 在地材料策略：竹/木/石/土四大本地材料的当代转化方案
+    - 任务层次清晰：阶段1建筑师案例集中 → 阶段2场地分析 → 阶段3设计策略 → 阶段4整合验证
+metadata:
+  tags_matrix:
+    space_type:
+      - rural_residence
+      - boutique_hotel
+      - cluster
+    scale: small
+    design_direction:
+      - cultural
+      - regional
+      - experiential
+      - sustainable
+    user_profile:
+      - cultural_tourist
+      - boutique_traveler
+      - architecture_enthusiast
+    challenge_type:
+      - cultural_heritage
+      - rural_revitalization
+      - architect_integration
+      - community_engagement
+    methodology:
+      - architect_case_study
+      - cultural_research
+      - community_participation
+    phase: concept_to_schematic
+  discipline: architecture
+  urgency: 0.40
+  innovation_quotient: 0.65
+  commercial_sensitivity: 0.45
+  cultural_depth: 0.82
+  performance:
+    specialty_score: 0.55
+    recommended_strength: medium
+  best_for:
+    - "乡村文化旅游项目"
+    - "建筑师案例驱动设计"
+    - "民宿集群规划"
+    - "在地文化保护与转化"
+  not_suitable_for:
+    - "城市商业项目"
+    - "纯技术导向设计"
+    - "标准化连锁酒店"

@@ -1,0 +1,71 @@
+name: Security Allowlist Approval
+description: 审批新增安全白名单豁免（必须双签）
+title: "[Security Approval] <risk-id> <short-summary>"
+labels: ["security-review", "approval-required"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        请完整填写本审批单。未审批不得修改 `config/security/security_allowlist.txt`。
+
+  - type: input
+    id: risk_source
+    attributes:
+      label: 风险来源
+      description: bandit / safety / 其他
+      placeholder: bandit
+    validations:
+      required: true
+
+  - type: input
+    id: risk_id
+    attributes:
+      label: 风险ID
+      placeholder: B602 / PYSEC-xxxx
+    validations:
+      required: true
+
+  - type: textarea
+    id: affected_scope
+    attributes:
+      label: 影响范围
+      description: 文件、模块、用户影响
+    validations:
+      required: true
+
+  - type: textarea
+    id: justification
+    attributes:
+      label: 豁免理由
+      description: 为什么当前不能立即修复
+    validations:
+      required: true
+
+  - type: input
+    id: expiry_date
+    attributes:
+      label: 豁免到期日
+      description: 必填，建议不超过30天
+      placeholder: YYYY-MM-DD
+    validations:
+      required: true
+
+  - type: textarea
+    id: remediation_plan
+    attributes:
+      label: 修复计划
+      description: owner、计划版本、预计完成日期
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: approvals
+    attributes:
+      label: 审批确认
+      options:
+        - label: 安全负责人已审批
+          required: true
+        - label: 技术负责人已审批
+          required: true
+        - label: 同意到期前必须复审并回收豁免
+          required: true

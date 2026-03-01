@@ -1,0 +1,370 @@
+# ==================== 系统全局配置模板 ====================
+# 文件说明: 统一管理所有系统参数，避免硬编码
+# 版本: v7.800
+# 优先级: 环境变量 > 本文件 > 代码默认值
+# 使用方式: 复制为 SYSTEM_CONFIG.yaml 后根据实际需求调整参数
+
+# ==================== 系统基础配置 ====================
+system:
+  version: "7.800"
+  environment: "production"  # 选项: production / staging / development
+
+  # 文件路径配置
+  paths:
+    config_dir: "config"
+    cache_dir: "cache"
+    log_dir: "logs"
+
+  # 默认模式（未检测到有效模式时使用）
+  default_mode: "M2_function_efficiency"
+  fallback_mode: "M2_function_efficiency"
+
+# ==================== 混合模式检测配置 ====================
+# 说明: P2功能，用于检测和处理混合模式冲突
+hybrid_mode:
+  detection:
+    # 最小置信度阈值（低于此值的模式不参与混合判断）
+    min_confidence: 0.45  # 推荐范围: [0.35, 0.55]
+
+    # 最大置信度差（置信度差≤此值视为混合模式）
+    max_confidence_gap: 0.25  # 推荐范围: [0.15, 0.35]
+
+    # 按项目类型的阈值覆盖（可选）
+    thresholds_by_project:
+      experimental:  # 实验性项目（更激进，容易识别混合）
+        min_confidence: 0.35
+        max_confidence_gap: 0.30
+
+      mature:  # 成熟项目（更保守，需明确证据）
+        min_confidence: 0.55
+        max_confidence_gap: 0.20
+
+      prototype:  # 原型项目（非常激进）
+        min_confidence: 0.30
+        max_confidence_gap: 0.35
+
+  resolution:
+    # 启用通用降级策略（混合模式无预定义模式时）
+    enable_generic_fallback: true
+
+    # 生成建议数量范围
+    min_recommendations: 4
+    max_recommendations: 8
+
+    # 置信度差异容忍度（计算混合度）
+    tolerance_ratio: 0.15
+
+# ==================== 模式检测配置 ====================
+# 说明: P0功能，10个设计模式的检测和置信度计算
+mode_detection:
+  # 模式有效性置信度阈值
+  confidence_threshold: 0.30  # 推荐范围: [0.25, 0.40]
+
+  # 按用户类型的阈值覆盖（可选）
+  thresholds_by_user:
+    novice: 0.25    # 新手：更宽松，避免漏检
+    expert: 0.35    # 专家：更严格，减少误报
+    enterprise: 0.40  # 企业：最严格，只要高置信度
+
+  # 最小有效模式数量
+  min_valid_modes: 1  # 至少需要1个有效模式
+
+  # 最大考虑模式数量（性能优化）
+  max_modes_considered: 3  # Top 3模式
+
+# ==================== 问卷配置 ====================
+# 说明: 控制Phase2/Step1/Step2/Step3的问题数量和维度数量
+questionnaire:
+  dimensions:
+    # 优先维度数量限制
+    default_max: 8  # 标准模式默认值
+    min: 4          # 最少维度数（保证信息完整性）
+    max: 15         # 最多维度数（避免用户疲劳）
+
+    # 按模式复杂度动态调整
+    by_complexity:
+      simple: 5      # 单模式主导（1个高置信度模式）
+      moderate: 8    # 双模式均衡（2个接近置信度模式）
+      complex: 12    # 三模式共存（3个模式混合）
+
+  questions:
+    # Step1 任务梳理问题数量
+    step1_max: 5
+    step1_min: 3
+
+    # Step2 维度深挖问题数量（每个维度）
+    step2_max_per_dimension: 2
+    step2_min_per_dimension: 1
+
+    # Step3 查漏补缺问题数量
+    step3_max: 8
+    step3_min: 4
+
+  # 用户体验模式预设（推荐使用）
+  ux_modes:
+    quick:      # 快速模式（10-15分钟完成）
+      dimensions: 5
+      step1_questions: 3
+      step2_per_dim: 1
+      step3_questions: 4
+      description: "适合时间紧张或初步评估"
+
+    standard:   # 标准模式（20-30分钟完成）
+      dimensions: 8
+      step1_questions: 5
+      step2_per_dim: 2
+      step3_questions: 6
+      description: "推荐，信息收集和时间平衡"
+
+    detailed:   # 详细模式（40-60分钟完成）
+      dimensions: 12
+      step1_questions: 8
+      step2_per_dim: 3
+      step3_questions: 10
+      description: "适合复杂项目或详细分析"
+
+  # 当前生效模式（可通过环境变量覆盖）
+  active_ux_mode: "standard"
+
+# ==================== 任务库配置 ====================
+# 说明: 控制JTBD任务的优先级过滤和包含策略
+task_library:
+  priority_filters:
+    # 默认包含的任务优先级
+    default_include:
+      - "P0"  # 必做任务（核心价值）
+      - "P1"  # 推荐任务（重要但非必需）
+
+    # 按项目阶段的优先级过滤策略
+    by_phase:
+      concept:     # 概念阶段（仅核心）
+        include: ["P0"]
+        exclude: ["P2", "P3"]
+        description: "聚焦核心价值，快速验证概念"
+
+      schematic:   # 方案阶段（核心+推荐）
+        include: ["P0", "P1"]
+        exclude: ["P3"]
+        description: "加入推荐任务，丰富方案内容"
+
+      detailed:    # 详细设计阶段（核心+推荐+补充）
+        include: ["P0", "P1", "P2"]
+        exclude: []
+        description: "包含补充任务，确保设计完整"
+
+      construction:  # 施工图阶段（全部任务）
+        include: ["P0", "P1", "P2", "P3"]
+        exclude: []
+        description: "所有任务，支持施工实施"
+
+  # 任务生成数量限制
+  max_mandatory_tasks: 20  # 最多强制任务数
+  min_mandatory_tasks: 4   # 最少强制任务数
+
+  # 当前项目阶段（可通过环境变量覆盖）
+  active_phase: "detailed"
+
+# ==================== 能力验证配置 ====================
+# 说明: P1功能，验证专家输出质量
+validation:
+  # 字段完整性阈值（必填字段填写比例）
+  field_completeness:
+    default: 0.75  # 默认要求75%字段完整
+
+    # 按专家成熟度的阈值调整
+    by_maturity:
+      L1: 0.60  # 初级专家：更宽松（60%）
+      L2: 0.65  # 初中级专家（65%）
+      L3: 0.75  # 中级专家：标准（75%）
+      L4: 0.85  # 中高级专家：严格（85%）
+      L5: 0.90  # 高级专家：最严格（90%）
+
+  # 关键词密度阈值（专业术语使用频率）
+  keyword_density:
+    default: 0.015  # 默认1.5%关键词密度
+
+    # 按专家成熟度的阈值调整
+    by_maturity:
+      L1: 0.010  # 初级：0.10%
+      L2: 0.012  # 初中级：1.2%
+      L3: 0.015  # 中级：1.5%
+      L4: 0.018  # 中高级：1.8%
+      L5: 0.020  # 高级：2.0%
+
+  # 覆盖率分级阈值
+  coverage_grades:
+    excellent: 0.90    # 优秀：≥90%
+    good: 0.80         # 良好：80-90%
+    acceptable: 0.70   # 合格：70-80%
+    insufficient: 0.50 # 不足：50-70%
+    critical: 0.30     # 严重：＜50%
+
+  # 弱覆盖和严重缺口判断阈值
+  weak_threshold: 0.70      # 低于70%视为弱覆盖
+  critical_threshold: 0.50  # 低于50%视为严重缺口
+
+  # 能力成熟度映射
+  maturity_level_mapping:
+    L1: 1
+    L2: 2
+    L3: 3
+    L4: 4
+    L5: 5
+
+# ==================== LLM配置 ====================
+# 说明: 控制LLM调用参数（温度、token等）
+llm:
+  # 模式检测LLM参数
+  mode_detection:
+    temperature: 0.3      # 低温度，确保输出稳定性
+    max_tokens: 2000      # 足够生成10个模式的评分
+    model: "gpt-4"
+
+  # 专家输出LLM参数
+  expert_output:
+    temperature: 0.7      # 中温度，平衡创造性和准确性
+    max_tokens: 4000      # 足够生成详细内容
+    model: "gpt-4-turbo"
+
+  # 问卷生成LLM参数
+  questionnaire_generation:
+    temperature: 0.5      # 中低温度
+    max_tokens: 1500
+    model: "gpt-4"
+
+  # 按场景的温度覆盖（可选）
+  temperature_by_scenario:
+    prototype: 0.8        # 原型阶段：高创造性
+    production: 0.5       # 生产阶段：平衡
+    validation: 0.3       # 验证阶段：低创造性
+    brainstorming: 0.9    # 头脑风暴：最高创造性
+
+# ==================== 性能配置 ====================
+# 说明: 控制系统性能和资源使用
+performance:
+  # 缓存配置
+  cache:
+    enabled: true           # 启用缓存（提升重复查询速度）
+    ttl_seconds: 3600       # 缓存TTL（1小时）
+    max_size_mb: 100        # 最大缓存大小（100MB）
+    cache_config_files: true  # 缓存配置文件解析结果
+
+  # 超时配置（毫秒）
+  timeouts:
+    config_load: 5000       # 配置文件加载超时（5秒）
+    mode_detection: 30000   # 模式检测超时（30秒）
+    expert_execution: 120000  # 专家执行超时（2分钟）
+    llm_call: 60000         # LLM调用超时（1分钟）
+
+  # 并发配置
+  concurrency:
+    max_parallel_experts: 3        # 最多3个专家并行执行
+    max_parallel_validations: 5    # 最多5个验证并行执行
+    max_parallel_llm_calls: 2      # 最多2个LLM并行调用
+
+  # 性能监控
+  monitoring:
+    enable_timing_logs: true       # 启用性能计时日志
+    slow_threshold_ms: 1000        # 慢操作阈值（1秒）
+    enable_memory_profiling: false # 禁用内存分析（生产环境）
+
+# ==================== 日志配置 ====================
+# 说明: 控制日志级别和输出格式
+logging:
+  level: "INFO"  # 选项: DEBUG / INFO / WARNING / ERROR / CRITICAL
+
+  # 按模块的日志级别覆盖（调试特定模块）
+  levels_by_module:
+    hybrid_mode_resolver: "DEBUG"      # P2混合模式：调试级别
+    mode_detector: "INFO"              # P0模式检测：信息级别
+    ability_validator: "INFO"          # P1能力验证：信息级别
+    config_loader: "INFO"              # 配置加载：信息级别
+    llm_service: "WARNING"             # LLM服务：警告级别（减少噪音）
+
+  # 日志格式
+  format: "%(asctime)s | %(levelname)-8s | %(name)-30s | %(message)s"
+  date_format: "%Y-%m-%d %H:%M:%S"
+
+  # 日志文件配置
+  file:
+    enabled: true
+    path: "logs/system.log"
+    max_size_mb: 50       # 单文件最大50MB
+    backup_count: 5       # 保留5个备份文件
+
+  # 性能日志
+  performance_logging:
+    enabled: true
+    threshold_ms: 1000    # 超过1秒的操作记录警告
+
+# ==================== 特性开关 ====================
+# 说明: 控制功能模块的启用/禁用（灰度发布、A/B测试）
+features:
+  # P2功能：混合模式冲突解决
+  hybrid_mode_resolution:
+    enabled: true
+    version: "7.800"
+
+  # P1功能：模式特征验证
+  mode_feature_validation:
+    enabled: true
+    version: "7.301"
+
+  # P1功能：能力验证
+  ability_validation:
+    enabled: true
+    version: "7.300"
+
+  # P0功能：10模式引擎
+  ten_mode_engine:
+    enabled: true
+    version: "7.000"
+
+  # 高级分析（实验性）
+  advanced_analytics:
+    enabled: false
+    description: "高级数据分析和可视化"
+
+  # 实验性功能
+  experimental:
+    dynamic_threshold_adjustment:
+      enabled: false
+      description: "根据历史数据动态调整阈值"
+
+    ai_driven_config:
+      enabled: false
+      description: "AI自动优化系统配置"
+
+    multi_tenant_support:
+      enabled: false
+      description: "多租户配置隔离"
+
+# ==================== 开发和调试配置 ====================
+# 说明: 仅在开发/测试环境使用
+development:
+  # 调试模式
+  debug_mode: false  # 生产环境必须为false
+
+  # 跳过验证（快速测试）
+  skip_validation: false
+
+  # 模拟LLM响应（离线测试）
+  mock_llm_responses: false
+
+  # 详细错误信息
+  verbose_errors: true
+
+  # 性能分析
+  enable_profiling: false
+
+# ==================== 环境变量映射 ====================
+# 说明: 以下配置可通过环境变量覆盖
+# 格式: SECTION_SUBSECTION_KEY=value
+#
+# 示例：
+#   HYBRID_MIN_CONFIDENCE=0.50
+#   QUESTIONNAIRE_UX_MODE=quick
+#   TASK_PROJECT_PHASE=concept
+#   LOG_LEVEL=DEBUG
+#
+# 优先级: 环境变量 > 本文件 > 代码默认值

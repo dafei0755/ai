@@ -1,0 +1,281 @@
+# 示例:西藏林芝高海拔精品民宿
+# 来源:q.txt Q85
+# 类型:技术主导 (Technical Dominant) / 极端环境 M8 + 技术整合 M7
+# 特征:高海拔适配、极端气候应对、材料耐候、可持续技术
+# v8.000 (P3-T13): 新增示例，覆盖 M7_tech_integration + M8_extreme_condition
+
+example:
+  project_info:
+    name: 西藏林芝高海拔精品民宿项目
+    description: |
+      位于西藏林芝地区海拔3500m+的精品民宿项目，面临高海拔、极端温差、
+      强紫外线、缺氧等多重技术挑战。需在极端环境下实现舒适性、设备隐藏、
+      本土美学融合与可持续运营的综合平衡。
+
+    feature_vector:
+      technical: 0.68
+      functional: 0.70
+      sustainable: 0.62
+      regional: 0.58
+      material_innovation: 0.55
+      experiential: 0.50
+      aesthetic: 0.45
+      cultural: 0.38
+      commercial: 0.40
+      social: 0.25
+      historical: 0.20
+      symbolic: 0.35
+
+    constraints:
+      - 海拔3500m+极端气候条件（-20°C至30°C温差）
+      - 强紫外线环境对材料的加速老化
+      - 氧气稀薄需配备供氧系统
+      - 运输困难限制大型预制构件使用
+      - 本地施工技术能力有限
+
+    goals:
+      - 解决极端环境下的居住舒适性问题
+      - 实现设备系统与建筑美学的高度融合
+      - 建立适合高原环境的可持续运营模式
+      - 创造与自然景观和谐共生的建筑体验
+
+  ideal_tasks:
+    # ========== 第一阶段:环境与技术研究(Task 1-5) ==========
+
+    - id: task_1
+      title: 搜索 高海拔建筑设计的 气候适应策略、保温隔热系统、抗紫外线防护、结构抗震标准
+      description: |
+        系统调研3500m+海拔地区的建筑技术挑战及解决方案，包括年温差40°C以上环境的
+        保温隔热体系、UV指数15+环境的材料防护方案、地震带建筑结构加固标准。
+      task_type: research
+      motivation: technical
+      support_search: true
+      dimensions:
+        - 气候适应(日照强度、年温差、季节风向、降水模式)
+        - 保温隔热(外墙保温系统选型、热桥处理、窗户K值)
+        - 抗紫外线(外立面材料耐候性、密封材料寿命、褪色防护)
+        - 抗震标准(西藏地区烈度等级、结构选型、基础处理)
+      priority: high
+      execution_order: 1
+
+    - id: task_2
+      title: 搜索 高原民宿/酒店成功案例的 技术解决方案、设备系统配置、运营经验、失败教训
+      description: |
+        调研西藏、青海、云南高原地区已建成的精品酒店案例，如松赞系列、
+        既下山林芝、拉萨瑞吉等，提取其技术方案和运营经验。
+      task_type: research
+      motivation: technical
+      support_search: true
+      dimensions:
+        - 技术方案(供暖方式、供氧系统、热水系统对比)
+        - 设备系统(太阳能利用率、柴油锅炉配置、备用电源)
+        - 运营经验(设备维护频率、备件库存、技术人员配置)
+        - 失败教训(管道冻裂、设备高原反应、材料开裂等)
+      priority: high
+      execution_order: 2
+
+    - id: task_3
+      title: 搜索 高海拔建筑材料的 耐候性数据、本地可用材料清单、施工工艺适配方案
+      description: |
+        调研适用于3500m+海拔的建筑材料，包括木材防腐处理、金属抗氧化方案、
+        混凝土高原浇筑工艺、密封材料耐UV性能等关键技术参数。
+      task_type: research
+      motivation: technical
+      support_search: true
+      dimensions:
+        - 木材方案(防腐处理、含水率控制、干缩开裂防护)
+        - 金属材料(耐候钢、阳极氧化铝、不锈钢选型)
+        - 混凝土工艺(高原浇筑温度控制、养护期、抗冻标号)
+        - 密封材料(硅酮密封胶UV寿命、膨胀缝处理)
+      priority: high
+      execution_order: 3
+
+    - id: task_4
+      title: 搜索 藏式建筑的 空间原型特征、传统材料智慧、色彩象征体系、当代转译方法
+      description: |
+        研究藏族传统建筑智慧中对极端气候的回应策略，包括厚墙蓄热、小窗防风、
+        坡屋顶排水、传统色彩（白/红/金/黑）的文化含义和空间运用。
+      task_type: research
+      motivation: cultural
+      support_search: true
+      dimensions:
+        - 空间原型(碉楼、平顶石屋、帐篷的气候回应逻辑)
+        - 传统材料(石砌墙体、夯土保温、原木梁架)
+        - 色彩象征(白墙-纯洁、红边-庄严、金饰-神圣)
+        - 当代转译(传统语言的现代化表达方法)
+      priority: high
+      execution_order: 4
+
+    - id: task_5
+      title: 分析 林芝场地的 气象数据、地质条件、景观资源、市政基础设施、运输条件
+      description: |
+        对项目场地进行全面的技术分析，整理多年气象数据、地质勘察结果、
+        周边景观资源评估、水电暖通市政接入条件和材料运输路径。
+      task_type: analysis
+      motivation: functional
+      support_search: false
+      dimensions:
+        - 气象数据(逐月温度/日照/风速/降水/湿度)
+        - 地质条件(地基承载力、地下水位、冻土深度)
+        - 景观资源(雪山视线、河谷景观、林区资源)
+        - 基础设施(电力容量、水源、供暖条件、通信)
+        - 运输条件(最大运输车型、桥梁限载、季节性限制)
+      priority: high
+      execution_order: 5
+
+    # ========== 第二阶段:技术方案设计(Task 6-10) ==========
+
+    - id: task_6
+      title: 制定 围护结构保温隔热方案、热桥处理细节、门窗系统选型、气密性标准
+      description: |
+        设计应对极端温差的围护结构体系，计算各朝向外墙热工性能，
+        详细处理门窗框、阳台、屋顶等关键热桥位置。
+      task_type: design
+      motivation: technical
+      support_search: false
+      dimensions:
+        - 外墙系统(内保温/外保温/夹芯方案比选+热工计算)
+        - 热桥处理(门窗框、梁柱节点、阳台悬挑的断热方案)
+        - 门窗选型(断桥铝+三玻两腔+Low-E膜+暖边间隔条)
+        - 气密性(气密层连续性设计、检测标准n50≤1.5)
+      priority: high
+      execution_order: 6
+
+    - id: task_7
+      title: 制定 供暖与供氧系统方案、热源选型比选、散热方式设计、新风+富氧系统集成
+      description: |
+        设计适合高原环境的供暖和供氧系统，比选地源热泵、空气源热泵（高原型）、
+        燃油锅炉等热源方案，设计弥散式供氧或独立供氧系统。
+      task_type: design
+      motivation: technical
+      support_search: true
+      dimensions:
+        - 热源比选(地源热泵+空气源热泵+燃油锅炉的COP/成本)
+        - 散热方式(地暖+散热器+暖通墙+辐射吊顶方案比较)
+        - 供氧系统(弥散式供氧+独立吸氧终端+新风富氧联动)
+        - 系统集成(供暖/供氧/新风/除湿的一体化控制)
+      priority: high
+      execution_order: 7
+
+    - id: task_8
+      title: 制定 设备间布局方案、管线综合设计、检修通道规划、设备噪音控制
+      description: |
+        在保证设备系统完整性的前提下实现设备的视觉隐藏，设计合理的
+        设备间位置和面积、管线综合排布、检修便利性和噪音控制。
+      task_type: design
+      motivation: functional
+      support_search: false
+      dimensions:
+        - 设备间布局(锅炉房+配电室+制氧机房的选址和面积)
+        - 管线综合(给排水+暖通+电气+供氧管线的综合排布)
+        - 检修通道(设备维护空间预留、检修口设置、搬运路径)
+        - 噪音控制(设备减震+机房隔音+管道消音器选型)
+      priority: high
+      execution_order: 8
+
+    - id: task_9
+      title: 制定 客房空间设计方案、景观窗策略、卫浴系统配置、家具材质选型
+      description: |
+        设计高原民宿客房的空间标准，重点处理景观面最大化与保温矛盾、
+        高原热水系统的稳定性、以及适应干燥低温环境的家具和织物材质。
+      task_type: design
+      motivation: experiential
+      support_search: false
+      dimensions:
+        - 客房空间(面积标准、层高、功能分区、收纳系统)
+        - 景观窗(面积与保温平衡、窗框结露防护、遮阳系统)
+        - 卫浴系统(热水循环方式、地漏防冻、干湿分离)
+        - 材质选型(耐干燥木饰面、防静电织物、抗UV面料)
+      priority: medium
+      execution_order: 9
+
+    - id: task_10
+      title: 制定 建筑外观设计方案、藏式元素当代转化、屋顶形式选择、立面材料策略
+      description: |
+        设计融合藏式传统元素与现代技术的建筑外观，确保文化辨识度的同时
+        满足保温防水性能要求。
+      task_type: design
+      motivation: aesthetic
+      support_search: false
+      dimensions:
+        - 建筑形态(与山体关系、体量控制、天际线融合)
+        - 藏式转化(厚墙意象、窗框色彩、经幡元素的当代表达)
+        - 屋顶形式(平屋顶+坡屋顶方案比选、防水层耐候)
+        - 立面材料(本地石材+耐候板材+原木的组合策略)
+      priority: medium
+      execution_order: 10
+
+    # ========== 第三阶段:整合与验证(Task 11-14) ==========
+
+    - id: task_11
+      title: 制定 可持续能源策略、太阳能系统设计、雨水收集系统、废水处理方案
+      description: |
+        利用林芝地区充沛的太阳能资源，设计光伏+太阳能热水系统；
+        建立雨水收集和中水回用系统；处理高原环境下的废水达标排放。
+      task_type: design
+      motivation: sustainable
+      support_search: true
+      dimensions:
+        - 太阳能光伏(年发电量预测、组件选型、安装角度)
+        - 太阳能热水(集热面积、储热方式、防冻措施)
+        - 雨水收集(收集面积、储水量、处理达标使用用途)
+        - 废水处理(生物处理+人工湿地方案、排放标准)
+      priority: medium
+      execution_order: 11
+
+    - id: task_12
+      title: 制定 施工组织方案、高原施工安全标准、工期规划、分期建设策略
+      description: |
+        针对高原施工的特殊挑战制定施工方案，包括施工人员高原适应、
+        冬季停工期安排、预制构件运输策略和分期建设逻辑。
+      task_type: strategy
+      motivation: technical
+      support_search: false
+      dimensions:
+        - 施工组织(高原作业换班制度、氧气供应、医疗保障)
+        - 工期规划(施工窗口期、冬季停工、雨季影响)
+        - 预制策略(可预制构件清单、尺寸限制、运输方案)
+        - 分期建设(一期核心功能区+二期扩展区的划分逻辑)
+      priority: medium
+      execution_order: 12
+
+    - id: task_13
+      title: 制定 运营维护手册框架、设备检修计划、备件库存清单、应急预案体系
+      description: |
+        建立高原民宿的运营维护体系框架，包括设备的季度/年度检修计划、
+        关键备件的最小安全库存、以及停电/停水/极端天气的应急预案。
+      task_type: strategy
+      motivation: functional
+      support_search: false
+      dimensions:
+        - 设备检修(供暖/供氧/发电设备的维护周期和方法)
+        - 备件库存(关键易损件清单、最小库存量、补货周期)
+        - 应急预案(停电/停水/大雪封路/设备故障的应急流程)
+        - 人员配置(技术维护人员、值班安排、远程技术支持)
+      priority: medium
+      execution_order: 13
+
+    - id: task_14
+      title: 评估 整体方案的 技术可行性验证、成本估算、投资回报分析、风险清单
+      description: |
+        对完整方案进行技术可行性和经济可行性的综合评估，
+        测算建造成本和运营成本，分析投资回报周期，列出主要风险。
+      task_type: analysis
+      motivation: commercial
+      support_search: false
+      dimensions:
+        - 技术可行性(各系统的技术成熟度、供应链可靠性)
+        - 建造成本(高原溢价因素分析、各分项成本估算)
+        - 运营成本(能耗成本、维护成本、人力成本)
+        - 投资回报(客房均价×入住率×运营天数 → 年收入预测)
+        - 风险清单(政策风险、自然灾害、旅游市场波动)
+      priority: medium
+      execution_order: 14
+
+  quality_highlights:
+    - 14任务技术深度：极端环境技术研究占50%，系统集成设计占30%
+    - 三重环境挑战：高海拔+极端温差+强紫外线的系统性应对
+    - 材料耐候体系：木材防腐+金属抗氧化+混凝土抗冻+密封材料抗UV
+    - 设备隐藏策略：设备间布局+管线综合+检修通道+噪音控制四维整合
+    - 可持续能源：太阳能光伏+太阳能热水+雨水收集+废水处理完整闭环
+    - 文化融合：藏式建筑智慧(厚墙蓄热、小窗防风)与现代技术的有机融合

@@ -1,0 +1,297 @@
+# 示例:上海老弄堂120㎡老房翻新（50万预算）
+# 来源:q.txt Q77
+# 类型:预算约束主导 (Budget Constraint Dominant) / 成本控制
+# 特征:全包50万、杂志级效果、资金分配策略、视觉杠杆、成本优化
+# 适用场景:预算有限项目、老房翻新、成本控制、资金分配策略
+example:
+  project_info:
+    name: 上海老弄堂120㎡老房翻新（全包50万预算）
+    description: '上海老弄堂120㎡老房翻新，业主希望实现"杂志级重生效果"，
+
+      但全包预算严格控制在50万人民币以内（含软硬装）。
+
+      核心挑战是在有限预算下实现视觉冲击力，通过精准的资金分配策略和视觉杠杆效应。
+
+      '
+    feature_vector:
+      cultural: 0.35
+      commercial: 0.55
+      aesthetic: 0.68
+      functional: 0.58
+      sustainable: 0.38
+      social: 0.25
+      technical: 0.45
+      historical: 0.48
+      regional: 0.55
+      material_innovation: 0.42
+      experiential: 0.6
+      symbolic: 0.35
+    constraints:
+    - 全包预算50万（硬装+软装+设计）
+    - 120㎡老房翻新（结构限制）
+    - 实现"杂志级"视觉效果
+    - 上海老弄堂历史建筑保护限制
+    - 工期控制在60天内
+    goals:
+    - 在50万预算下实现视觉冲击力
+    - 建立资金分配策略模型
+    - 识别3个必投节点 + 3个可压缩节点
+    - 构建视觉杠杆效应
+  ideal_tasks:
+  - id: task_1
+    title: 制定 50万预算的资金分配策略、硬装/软装/设计费比例、关键节点投入
+    description: 建立预算模型（硬装28万、软装15万、设计费5万、应急2万），明确各项占比和调整空间。
+    task_type: strategy
+    motivation: commercial
+    support_search: false
+    priority: high
+    execution_order: 1
+    dimensions:
+    - 硬装/软装/设计费的合理比例区间
+    - 不同预算级别资金分配的行业基准
+    - 关键节点投先级排序方法
+    - 应急准备金比例与动态调配机制
+  - id: task_2
+    title: 识别 3个必须重金投入的关键节点、视觉杠杆效应、品质感构建
+    description: 确定必投节点（①客厅主墙10万、②灯光系统5万、③定制储物8万），分析杠杆效应。
+    task_type: analysis
+    motivation: aesthetic
+    support_search: false
+    priority: high
+    execution_order: 2
+    dimensions:
+    - 视觉杠杆效应的量化评估方法
+    - 高ROI投入节点的识别标准
+    - 品质感构建的核心触发要素
+    - 投入产出比的非线性关系分析
+  - id: task_3
+    title: 识别 3个可极致压缩成本的环节、替代方案、品质不降策略
+    description: 确定压缩节点（①天花简化省3万、②地面通铺省2万、③卫生间标品省1.5万），提出替代方案。
+    task_type: analysis
+    motivation: commercial
+    support_search: false
+    priority: high
+    execution_order: 3
+    dimensions:
+    - 各环节成本压缩上限与风险评估
+    - 替代材料/工艺的品质等效性验证
+    - 视觉感知与实际造价脱钩策略
+    - 压缩决策对长期维护成本的影响
+  - id: task_4
+    title: 设计 客厅主墙的视觉焦点策略、材料选择、灯光配合、杂志级构图
+    description: 设计客厅主墙（10万投入：微水泥+艺术搁板+射灯+艺术品），形成视觉记忆点。
+    task_type: design
+    motivation: aesthetic
+    support_search: false
+    priority: high
+    execution_order: 4
+    dimensions:
+    - 焦点墙材料组合与造价控制
+    - 灯光与材质协同的视觉冲击力营造
+    - 杂志级构图的比例与对称法则
+    - 艺术品选配与空间叙事统一性
+  - id: task_5
+    title: 设计 灯光系统的分层策略、氛围营造、低成本高效果、智能控制
+    description: 设计三层灯光（基础吸顶灯1万、氛围灯带2万、重点射灯2万），智能控制系统提升品质感。
+    task_type: design
+    motivation: aesthetic
+    support_search: false
+    priority: high
+    execution_order: 5
+    dimensions:
+    - 基础/氛围/重点照明的三层配比
+    - 低成本高效果灯具选型策略
+    - 智能控制系统的性价比方案
+    - 灯光场景对空间品质感的提升路径
+  - id: task_6
+    title: 设计 定制储物系统、空间效率、视觉整洁、成本优化方案
+    description: 设计全屋储物（8万：玄关柜+电视柜+衣柜+书柜），选择性价比品牌（索菲亚/欧派基础款）。
+    task_type: design
+    motivation: functional
+    support_search: false
+    priority: high
+    execution_order: 6
+    dimensions:
+    - 全屋储物需求的量化分析
+    - 性价比品牌对比与定制方案选择
+    - 储物系统的视觉整洁效果设计
+    - 模块化组合与空间效率最大化
+  - id: task_7
+    title: 制定 成本压缩策略、天花简化、地面通铺、标准化洁具、品质不降方案
+    description: 实施压缩策略（天花留白、地面通铺灰色地砖、卫生间TOTO标品），保持品质感。
+    task_type: strategy
+    motivation: commercial
+    support_search: false
+    priority: medium
+    execution_order: 7
+    dimensions:
+    - 天花简化的视觉补偿手段
+    - 地面通铺方案的材质选择与美感平衡
+    - 标准化洁具的品质筛选标准
+    - 压缩区域的品质感维持技巧
+  - id: task_8
+    title: 制定 软装采购策略、品牌替换、淘宝/宜家组合、视觉一致性
+    description: 软装15万策略（主沙发3万、餐桌椅1.5万、床2万、窗帘1万、饰品1.5万、艺术品3万、其余3万）。
+    task_type: strategy
+    motivation: aesthetic
+    support_search: false
+    priority: medium
+    execution_order: 8
+    dimensions:
+    - 品牌替换的品质对等评估方法
+    - 线上线下采购渠道组合优化
+    - 视觉一致性的系统把控方法
+    - 软装搭配的杂志级效果实现策略
+  - id: task_9
+    title: 搜索 老弄堂翻新的 结构安全评估、承重墙识别、管线老化检测、防水层状况
+    description: 调研老弄堂建筑结构安全要点，包括承重墙识别方法、水电管线老化风险评估、防水层检测标准，为翻新方案提供技术依据。
+    task_type: research
+    motivation: technical
+    support_search: true
+    priority: high
+    execution_order: 9
+    dimensions:
+    - 承重墙识别与结构评估方法
+    - 水电管线老化风险等级判定
+    - 防水层完好度检测标准
+    - 翻新施工的结构安全红线
+  - id: task_10
+    title: 搜索 50万级住宅翻新的 成功案例、材料品牌替代方案、工艺简化策略
+    description: 搜集同预算级别住宅翻新案例，梳理高性价比材料品牌替代清单和可行的工艺简化方案，为成本控制提供参考。
+    task_type: research
+    motivation: commercial
+    support_search: true
+    priority: high
+    execution_order: 10
+    dimensions:
+    - 同预算级别成功案例效果对比
+    - 高性价比材料品牌替代清单
+    - 工艺简化方案的可行性验证
+    - 案例中的成本控制关键经验
+  - id: task_11
+    title: 设计 厨房空间的 功能优化、动线效率、橱柜选型、电器嵌入策略
+    description: 针对120㎡老房厨房空间，优化操作动线和功能布局，选择性价比橱柜方案，规划嵌入式电器配置以提升空间利用率。
+    task_type: design
+    motivation: functional
+    support_search: false
+    priority: high
+    execution_order: 11
+    dimensions:
+    - 操作动线三角区优化方案
+    - 橱柜选型的功能/造价/品质平衡
+    - 嵌入式电器布局与空间利用率提升
+    - 厨房通风排风与油烟处理策略
+  - id: task_12
+    title: 设计 卧室空间的 睡眠环境优化、隔音处理、衣物收纳、色彩安抚
+    description: 设计卧室睡眠环境方案，包括隔音降噪处理、衣物收纳系统规划、安抚色彩搭配，在预算内营造高品质休息空间。
+    task_type: design
+    motivation: functional
+    support_search: false
+    priority: medium
+    execution_order: 12
+    dimensions:
+    - 睡眠环境声学隔离标准与方案
+    - 衣物收纳系统容量与取用效率
+    - 安抚色彩体系的心理学依据
+    - 卧室灯光分层与睡眠节律配合
+  - id: task_13
+    title: 设计 卫生间的 干湿分离、防水工艺、洁具选型、视觉放大策略
+    description: 设计卫生间干湿分离方案，明确防水工艺标准，选择标品洁具控制成本，运用视觉放大技巧提升空间感受。
+    task_type: design
+    motivation: functional
+    support_search: false
+    priority: high
+    execution_order: 13
+    dimensions:
+    - 干湿分离方案的空间适配性
+    - 防水工艺节点与质保标准
+    - 标品洁具的品质筛选与搭配
+    - 小空间视觉放大的材质/镜面策略
+  - id: task_14
+    title: 分析 老弄堂建筑的 采光条件、通风路径、噪音源、改善优先级
+    description: 评估老弄堂建筑的自然采光、通风条件和噪音环境，确定改善优先级，为空间改造提供环境分析依据。
+    task_type: analysis
+    motivation: functional
+    support_search: false
+    priority: medium
+    execution_order: 14
+    dimensions:
+    - 老弄堂自然采光条件评估方法
+    - 通风路径优化与机械辅助方案
+    - 噪音源识别与隔声改善优先级
+    - 环境改善的投入产出排序
+  - id: task_15
+    title: 制定 施工工序优化计划、关键路径、工期压缩、质量检查节点
+    description: 编排60天工期内的施工工序，识别关键路径和可并行环节，设置质量检查节点，确保工期和品质双达标。
+    task_type: strategy
+    motivation: commercial
+    support_search: false
+    priority: medium
+    execution_order: 15
+    dimensions:
+    - 关键路径法与工序并行策略
+    - 60天工期的阶段里程碑设置
+    - 质量检查节点与验收标准
+    - 工期压缩的风险预案与应对
+  - id: task_16
+    title: 制定 竣工验收与软装入场的 时序安排、品质检查清单、入住准备
+    description: 规划竣工验收流程和软装入场时序，制定品质检查清单和入住前准备事项，确保交付质量和入住体验。
+    task_type: strategy
+    motivation: functional
+    support_search: false
+    priority: medium
+    execution_order: 16
+    dimensions:
+    - 竣工验收的分项检查清单
+    - 软装入场与硬装完工的衔接时序
+    - 入住前空气质量与安全检测
+    - 瑕疵整改与尾款结算流程
+  quality_highlights:
+  - 16任务全面覆盖：预算策略25% + 空间设计37.5% + 技术调研12.5% + 环境分析6.25% + 施工管理18.75%
+  - 杠杆效应：3个重投节点产生80%视觉价值，厨卫卧全空间覆盖
+  - 成本控制：3个压缩节点节省6.5万（13%预算），案例调研提供替代方案
+  - 技术保障：结构安全评估+采光通风分析，翻新风险前置管控
+  - 品质保障：通过光+储+主墙构建高级感，全空间功能优化
+  - 施工管理：60天工期关键路径+质量检查节点+竣工验收闭环
+metadata:
+  tags_matrix:
+    space_type:
+    - residential
+    - apartment
+    - renovation
+    scale: medium
+    design_direction:
+    - commercial
+    - aesthetic
+    - functional
+    user_profile:
+    - young_family
+    - budget_conscious
+    - aesthetic_pursuer
+    challenge_type:
+    - budget_constraint
+    - cost_optimization
+    - visual_leverage
+    - old_building_renovation
+    methodology:
+    - value_engineering
+    - cost_benefit_analysis
+    - visual_prioritization
+    phase: design_to_construction
+  discipline: interior
+  urgency: 0.65
+  innovation_quotient: 0.42
+  commercial_sensitivity: 0.78
+  cultural_depth: 0.25
+  performance:
+    specialty_score: 0.3
+    recommended_strength: strong
+  best_for:
+  - 预算有限项目（<5000元/㎡全包）
+  - 老房翻新改造
+  - 成本控制与品质平衡
+  - 资金分配策略研究
+  not_suitable_for:
+  - 豪宅设计
+  - 无预算限制项目
+  - 新房毛坯

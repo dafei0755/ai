@@ -1,0 +1,373 @@
+# 示例:中国书法大酒店
+# 来源:q.txt Q17
+# 类型:文化转译超大尺度 (Cultural Translation XLarge) / 精神地标
+# 特征:50000㎡、250间客房、书法艺术转译、会议展览融合、学术交流中心
+# 适用场景:大型文化主题酒店、艺术转译空间、学术交流中心、文化地标建筑
+
+example:
+  project_info:
+    name: 中国书法大酒店（安徽合肥）
+    description: |
+      位于安徽合肥的50000㎡大型文化主题酒店，客房约250间，
+      功能涵盖住宿、会议、展览、学术交流。业主为安徽省书法家协会主席，
+      越战老兵，企业家。项目需成为书法文化的精神地标。
+      核心挑战是将抽象的书法艺术转译为空间语言，实现文化深度与商业运营的平衡。
+
+    feature_vector:
+      cultural: 0.78
+      commercial: 0.58
+      aesthetic: 0.72
+      functional: 0.65
+      sustainable: 0.42
+      social: 0.55
+      technical: 0.48
+      historical: 0.68
+      regional: 0.58
+      material_innovation: 0.50
+      experiential: 0.68
+      symbolic: 0.82
+
+    constraints:
+      - 50000㎡超大尺度的系统性组织
+      - 书法艺术转译避免符号化浅层表达
+      - 住宿+会议+展览+学术的复合功能平衡
+      - 业主个人经历（越战老兵+企业家+书法家）的精神表达
+      - 商业可持续性与文化高度的统一
+
+    goals:
+      - 打造书法文化的精神地标
+      - 实现书法艺术的深度空间转译
+      - 建立住宿+展览+学术的融合模式
+      - 构建具有国际影响力的文化品牌
+
+  ideal_tasks:
+    # ========== 第一阶段:文化研究与转译策略(Task 1-4) ==========
+
+    - id: task_1
+      title: 搜索 中国书法艺术的 空间哲学、笔墨精神、结构美学、流派风格、当代转译方法
+      description: |
+        系统研究书法艺术的文化内核，包括"计白当黑"的空间哲学、
+        笔墨的气韵生动、结构的开合呼应、颜柳欧赵的风格差异、
+        以及当代建筑对书法的成功转译案例。
+      task_type: research
+      motivation: cultural
+      support_search: true
+      dimensions:
+        - 空间哲学(计白当黑、虚实相生、留白艺术)
+        - 笔墨精神(骨力、韵律、气息、提按顿挫)
+        - 结构美学(横平竖直、撇捺呼应、重心平衡、章法布局)
+        - 流派风格(楷书端庄、行书流畅、草书奔放、隶书古朴)
+        - 当代转译(苏州博物馆、中国美术学院、故宫文华殿)
+      priority: high
+      execution_order: 1
+
+    - id: task_2
+      title: 搜索 越战老兵+企业家+书法家三重身份的 精神结构、空间隐喻、材料象征、叙事路径
+      description: |
+        深入理解业主的生命经历：越战的坚毅与沉重、企业家的果敢与务实、
+        书法家的文人气质与修养，提炼三重身份的精神交集与空间表达策略。
+      task_type: research
+      motivation: symbolic
+      support_search: true
+      dimensions:
+        - 越战经历(坚毅、创伤、沉默、历史记忆)
+        - 企业家精神(务实、效率、决断、成果导向)
+        - 书法家修养(文人气质、笔墨功夫、传承责任)
+        - 三者交集(刚柔并济、内敛力量、文化使命)
+      priority: high
+      execution_order: 2
+
+    - id: task_3
+      title: 搜索 大型文化主题酒店的 功能整合模式、空间叙事策略、商业运营平衡、国际标杆案例
+      description: |
+        研究成功的文化主题酒店案例（如颐和安缦、21c博物馆酒店、东京虎之门之丘安达仕），
+        分析其文化表达、功能融合、商业模型、以及品牌溢价策略。
+      task_type: research
+      motivation: commercial
+      support_search: true
+      dimensions:
+        - 功能整合(客房+展览+会议+餐饮+学术的动线组织)
+        - 空间叙事(文化渐进式体验、惊喜节点设置)
+        - 商业平衡(文化投入 vs 运营收益的平衡点)
+        - 国际标杆(安缦、虹夕诺雅、21c博物馆酒店)
+      priority: high
+      execution_order: 3
+
+    - id: task_4
+      title: 搜索 徽州文化与书法艺术的 地域融合策略、徽派建筑语言、材料本土化、当代转译
+      description: |
+        研究安徽地域文化特征（徽州三雕、新安画派、徽派建筑），
+        探索书法艺术与徽州文化的融合路径，建立地域性与国际性的平衡。
+      task_type: research
+      motivation: regional
+      support_search: true
+      dimensions:
+        - 徽州文化(三雕工艺、新安画派、徽墨徽砚、程朱理学)
+        - 徽派建筑(粉墙黛瓦、马头墙、天井庭院、木雕门楼)
+        - 材料本土化(徽墨石、宣纸、徽州木材)
+        - 当代转译(避免符号化复古、提取精神内核)
+      priority: high
+      execution_order: 4
+
+    # ========== 第二阶段:空间叙事与功能规划(Task 5-9) ==========
+
+    - id: task_5
+      title: 制定 50000㎡的总体功能分区、空间层级体系、动线组织策略、公共与私密平衡
+      description: |
+        建立超大尺度空间的系统架构，定义客房区、展览区、会议区、餐饮区、
+        学术交流区的面积配比、层级关系、动线连接，以及酒店客人与展览访客的分流机制。
+      task_type: design
+      motivation: functional
+      support_search: false
+      dimensions:
+        - 功能分区(客房40%、展览15%、会议15%、餐饮10%、学术5%、后勤15%)
+        - 空间层级(前场展示区、中场服务区、后场支撑区)
+        - 动线组织(酒店客人快速动线、展览访客慢速动线、VIP独立动线)
+        - 公私平衡(公共文化空间 vs 私密客房空间的界面处理)
+      priority: high
+      execution_order: 5
+
+    - id: task_6
+      title: 设计 入口大堂的书法空间叙事、第一印象构建、精神仪式感、尺度控制策略
+      description: |
+        设计2000-3000㎡的入口大堂空间，通过书法艺术装置、
+        空间尺度控制、材料语言表达，建立强烈的文化第一印象和精神仪式感。
+      task_type: design
+      motivation: experiential
+      support_search: false
+      dimensions:
+        - 空间叙事(从喧嚣到宁静、从世俗到精神的情绪转换)
+        - 第一印象(大型书法装置、墨池水景、巨幅碑刻)
+        - 精神仪式(入口低矮压缩→大堂释放的空间节奏)
+        - 尺度控制(层高8-12米、开间30米+、人与空间的对话)
+      priority: high
+      execution_order: 6
+
+    - id: task_7
+      title: 规划 书法展览空间的 展陈路径、灯光系统、环境控制、临时展与常设展的切换机制
+      description: |
+        设计8000-10000㎡的展览空间体系，包括常设展厅（书法史）、
+        临时展厅（当代书法家作品）、互动体验区（临摹教学），建立专业级展陈标准。
+      task_type: design
+      motivation: cultural
+      support_search: true
+      dimensions:
+        - 展陈路径(线性叙事 vs 自由探索的平衡、高潮节点)
+        - 灯光系统(轨道射灯、可调色温、展品保护照度<150lux)
+        - 环境控制(温度20-22℃、湿度50-60%、恒温恒湿)
+        - 展览切换(可移动展墙、标准化挂件、快速布展系统)
+      priority: high
+      execution_order: 7
+
+    - id: task_8
+      title: 设计 250间客房的书法主题分级、空间标准、艺术品配置、客房体验叙事
+      description: |
+        建立客房产品体系（标准间/套房/主席套房），每个等级对应不同书法主题
+        （楷书/行书/草书），通过空间比例、材料语言、艺术品陈设构建差异化体验。
+      task_type: design
+      motivation: experiential
+      support_search: false
+      dimensions:
+        - 主题分级(楷书间-端庄、行书间-流畅、草书套房-奔放)
+        - 空间标准(标准间35㎡、套房60㎡、主席套房120㎡)
+        - 艺术品配置(原作/复制品/定制书法的分级标准)
+        - 体验叙事(从入口到卧室的情绪递进、视线控制)
+      priority: high
+      execution_order: 8
+
+    - id: task_9
+      title: 规划 学术交流中心的 论坛空间、研讨室、书法创作工作室、大师驻留公寓
+      description: |
+        设计3000-5000㎡的学术交流体系，包括500人大论坛、50人中研讨室、
+        20人小工作室，以及为书法家驻留提供的创作工作室和公寓。
+      task_type: design
+      motivation: social
+      support_search: false
+      dimensions:
+        - 论坛空间(500人剧场式、可分隔为200人×2的灵活布局)
+        - 研讨室(50人U型桌、20人圆桌会议、10人沙龙座谈)
+        - 创作工作室(大桌面、自然采光、笔墨纸砚收纳、作品展示墙)
+        - 驻留公寓(40-60㎡、独立卫生间、小厨房、创作空间)
+      priority: medium
+      execution_order: 9
+
+    # ========== 第三阶段:书法转译与材料语言(Task 10-13) ==========
+
+    - id: task_10
+      title: 制定 书法艺术的空间转译系统、笔墨精神材料化、结构美学空间化、避免符号堆砌
+      description: |
+        建立书法到空间的转译方法论，将"提按顿挫"转化为材料肌理、
+        将"横平竖直"转化为空间结构、将"计白当黑"转化为虚实关系，
+        避免简单复制书法字体的符号化表达。
+      task_type: design
+      motivation: aesthetic
+      support_search: false
+      dimensions:
+        - 笔墨材料化(石材的顿挫感、木材的流畅感、金属的锋利感)
+        - 结构空间化(柱网的书法结构、天花的章法布局、墙面的留白)
+        - 虚实关系(实体墙 vs 镂空屏风、光影的虚实对比)
+        - 避免符号化(不直接复制书法字、提取精神而非形式)
+      priority: high
+      execution_order: 10
+
+    - id: task_11
+      title: 制定 材料体系与色彩系统、墨色五色层次、质感对比策略、光影氛围营造
+      description: |
+        建立以"墨分五色"（焦墨、浓墨、重墨、淡墨、清墨）为核心的色彩体系，
+        以及石材、木材、金属、宣纸纹理的材料对比关系。
+      task_type: design
+      motivation: aesthetic
+      support_search: false
+      dimensions:
+        - 墨色体系(深灰石材-焦墨、黑檀木-浓墨、灰木纹-淡墨、白墙-留白)
+        - 材料对比(粗糙石材 vs 细腻木材、哑光 vs 镜面的对话)
+        - 质感层次(一层粗犷、二层精致、三层轻盈的材料递进)
+        - 光影氛围(侧光强化肌理、顶光营造宁静、洗墙光展示书法)
+      priority: high
+      execution_order: 11
+
+    - id: task_12
+      title: 设计 灯光系统的分层策略、展陈照明、氛围照明、智能控制、节律变化
+      description: |
+        建立三层灯光系统：基础环境照明（300lux）、重点展陈照明（可调100-200lux）、
+        氛围情绪照明（色温2700K-6500K可调），支持不同场景的快速切换。
+      task_type: design
+      motivation: technical
+      support_search: true
+      dimensions:
+        - 展陈照明(轨道射灯、可调角度、防紫外线、显色指数Ra>90)
+        - 氛围照明(间接照明、灯带、壁灯、色温日夜节律变化)
+        - 智能控制(场景一键切换、亮度调光、色温调节、时钟联动)
+        - 节律变化(白天6000K激活、傍晚4000K放松、夜晚2700K沉静)
+      priority: medium
+      execution_order: 12
+
+    - id: task_13
+      title: 设计 书法互动体验空间、临摹教学区、笔墨纸砚展示、文创产品销售、数字化体验
+      description: |
+        设计1000-1500㎡的互动体验区，包括书法临摹教学、笔墨纸砚工艺展示、
+        文创产品销售、以及数字化书法体验（投影临摹、AI生成书法）。
+      task_type: design
+      motivation: experiential
+      support_search: false
+      dimensions:
+        - 临摹教学(20-30个书写台、导师演示区、作品展示墙)
+        - 工艺展示(制墨过程、造纸工艺、毛笔制作的透明工坊)
+        - 文创销售(书法作品、印章、笔墨纸砚、定制服务)
+        - 数字体验(触摸屏临摹、投影书法、AI生成个人书法)
+      priority: medium
+      execution_order: 13
+
+    # ========== 第四阶段:运营与品牌战略(Task 14-16) ==========
+
+    - id: task_14
+      title: 构建 商业运营模型、收入结构分析、成本控制策略、投资回报测算
+      description: |
+        建立复合型收入模型（客房60%、会议20%、展览门票5%、餐饮8%、文创7%），
+        测算投资总额（3-5亿）、年运营成本、入住率目标、盈利平衡点。
+      task_type: strategy
+      motivation: commercial
+      support_search: false
+      dimensions:
+        - 收入结构(客房800元×250间×70%入住率、会议场地租金)
+        - 成本控制(硬装预算5000元/㎡、展陈投入2000万、年运营3000万)
+        - 投资回报(总投资4亿、5年回本计划、10年净利润预测)
+        - 政策补贴(文化产业扶持、税收优惠、政府采购会议)
+      priority: medium
+      execution_order: 14
+
+    - id: task_15
+      title: 制定 品牌传播策略、文化IP构建、学术活动运营、国际影响力打造
+      description: |
+        建立"中国书法文化交流中心"品牌定位，通过年度书法双年展、
+        国际论坛、大师讲座、出版物、纪录片等多维度传播，形成国际影响力。
+      task_type: strategy
+      motivation: symbolic
+      support_search: false
+      dimensions:
+        - 品牌定位(书法艺术殿堂、学术交流中心、文化朝圣地)
+        - 文化IP(年度书法奖、大师驻留计划、青年书法家扶持)
+        - 学术活动(双年展、国际论坛、夏令营、公开课)
+        - 传播渠道(纪录片、画册、学术期刊、社交媒体)
+      priority: medium
+      execution_order: 15
+
+    - id: task_16
+      title: 评估 项目的文化价值、社会影响、行业示范意义、长期可持续性
+      description: |
+        从战略层面评估项目对中国书法文化传承的价值、
+        对文化旅游产业的示范意义、以及30年长期运营的可持续性保障。
+      task_type: analysis
+      motivation: symbolic
+      support_search: false
+      dimensions:
+        - 文化价值(书法传承、文化自信、艺术教育普及)
+        - 社会影响(城市文化地标、旅游吸引力、就业带动)
+        - 行业示范(文化主题酒店标杆、艺术转译方法论)
+        - 可持续性(基金会管理、公益与商业平衡、品牌长青)
+      priority: medium
+      execution_order: 16
+
+  quality_highlights:
+    - 16任务全维度覆盖：文化研究25% + 空间设计45% + 艺术转译20% + 运营战略10%
+    - 深度文化转译：笔墨精神材料化 + 结构美学空间化 + 避免符号化
+    - 复合功能整合：住宿+展览+会议+学术+互动体验五位一体
+    - 三重身份表达：越战老兵+企业家+书法家的精神交集
+    - 商业文化平衡：文化高度 + 运营效率 + 投资回报的统一
+
+# 🆕 v8.0++ 多维度标签矩阵
+metadata:
+  tags_matrix:
+    space_type:
+      - hotel
+      - museum
+      - conference_center
+      - academic_center
+      - cultural_landmark
+    scale: xlarge  # 50000㎡
+    design_direction:
+      - cultural       # 文化主导
+      - aesthetic      # 艺术转译
+      - commercial     # 商业运营
+      - symbolic       # 精神地标
+    user_profile:
+      - cultural_traveler    # 文化旅行者
+      - academic_scholar     # 学术学者
+      - calligraphy_artist   # 书法家
+      - business_guest       # 商务客人
+      - veteran_entrepreneur # 越战老兵企业家视角
+    challenge_type:
+      - cultural_translation  # 文化转译（书法→空间）
+      - xlarge_scale         # 超大尺度组织
+      - function_integration # 复合功能整合
+      - brand_landmark       # 精神地标构建
+      - commercial_culture_balance # 商业文化平衡
+    methodology:
+      - cultural_research    # 文化深度研究
+      - spatial_translation  # 空间转译方法论
+      - modular_design      # 模块化设计
+      - brand_strategy      # 品牌战略
+    phase: concept_to_schematic  # 概念到方案设计
+
+  # 🆕 v8.100 Phase 3.1: 新增5维
+  discipline: architecture  # 建筑主导（50000㎡超大尺度）
+  urgency: 0.3  # 充裕工期（大型文化项目）
+  innovation_quotient: 0.75  # 高创新（书法空间转译创新）
+  commercial_sensitivity: 0.65  # 中高商业（酒店运营+文化品牌）
+  cultural_depth: 0.88  # 极高文化深度（书法艺术核心）
+
+  performance:
+    specialty_score: 0.35  # 文化深度高但非极端特殊
+    recommended_strength: strong  # 建议强示例（文化转译标准化）
+
+  best_for:
+    - "大型文化主题酒店（>30000㎡）"
+    - "艺术转译空间（书法/绘画/雕塑）"
+    - "博物馆+酒店融合项目"
+    - "学术交流中心+住宿"
+    - "文化地标建筑"
+
+  not_suitable_for:
+    - "小型精品酒店"          # 示例为超大尺度
+    - "纯商务酒店"            # 示例为文化主导
+    - "快捷经济型酒店"        # 示例为高端文化定位

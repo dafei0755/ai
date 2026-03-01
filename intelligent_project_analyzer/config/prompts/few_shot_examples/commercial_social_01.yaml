@@ -1,0 +1,300 @@
+# 示例:深圳蛇口菜市场社区化改造
+# 来源:q.txt Q9
+# 类型:商业社会主导 (Commercial Social Dominant) / 社区建模
+# 特征:菜市场改造、商户利益平衡、社区生态、商业+社会双重价值
+# 适用场景:商业空间改造、社区营造、利益相关方复杂、社会价值创造
+example:
+  project_info:
+    name: 深圳蛇口老牌菜市场社区化改造
+    description: '深圳蛇口老牌菜市场改造，需平衡50多个老摊主利益诉求、
+
+      提升年轻消费者体验、引入15%社区文化展示功能，同时保持原有社区温度。
+
+      核心挑战是商业效率与社会价值的双重优化，避免士绅化导致老摊主流失。
+
+      '
+    feature_vector:
+      cultural: 0.58
+      commercial: 0.75
+      aesthetic: 0.55
+      functional: 0.68
+      sustainable: 0.52
+      social: 0.82
+      technical: 0.48
+      historical: 0.62
+      regional: 0.58
+      material_innovation: 0.4
+      experiential: 0.7
+      symbolic: 0.55
+    constraints:
+    - 50+老摊主利益保护与安置
+    - 营业期间分阶段改造（最小化停业损失）
+    - 15%面积用于社区文化展示
+    - 保持社区温度 + 吸引年轻消费者
+    - 成本控制（摊主承受能力）
+    goals:
+    - 构建商户-顾客-社区三方平衡模型
+    - 实现商业效率提升30%
+    - 保留原有摊主≥90%
+    - 打造"有温度的现代菜市场"
+  ideal_tasks:
+  - id: task_1
+    title: 调研 50个老摊主的利益诉求、经营特点、空间需求、改造担忧
+    description: 访谈调研摊主诉求（摊位面积、动线、客流、租金承受力、改造停业损失），建立利益图谱。
+    task_type: research
+    motivation: social
+    support_search: false
+    priority: high
+    execution_order: 1
+    dimensions:
+    - 摊主摊位面积与布局偏好调研
+    - 客流量与租金承受力评估
+    - 改造停业期间的经济损失测算
+    - 摊主群体的共性诉求与差异化需求
+  - id: task_2
+    title: 研究 年轻消费者对菜市场的期待、审美偏好、消费行为、社交需求
+    description: 调研年轻客群（环境整洁度、灯光氛围、社交打卡点、线上线下融合）。
+    task_type: research
+    motivation: commercial
+    support_search: false
+    priority: high
+    execution_order: 2
+    dimensions:
+    - 年轻客群对菜市场的环境期待
+    - 社交打卡点需求与审美偏好调研
+    - 线上线下融合的消费行为分析
+    - 与传统菜市场体验的差异化需求
+  - id: task_3
+    title: 制定 摊主利益保护机制、租金过渡方案、分阶段改造计划、停业补偿
+    description: 设计保护机制（租金3年过渡期、A/B/C三区轮换改造、停业补偿方案、优先续约权）。
+    task_type: strategy
+    motivation: social
+    support_search: false
+    priority: high
+    execution_order: 3
+    dimensions:
+    - 租金三年过渡期方案的可行性
+    - A/B/C三区轮换改造的时序安排
+    - 停业补偿标准的测算与资金来源
+    - 优先续约权的法律保障机制
+  - id: task_4
+    title: 规划 摊位动线优化、客流引导、热门/冷门区域平衡、通风采光改善
+    description: 优化动线（环状+十字主轴、热门摊位分散布置、冷门区域差异化定位、天窗+侧窗通风）。
+    task_type: design
+    motivation: functional
+    support_search: false
+    priority: high
+    execution_order: 4
+    dimensions:
+    - 环状+十字主轴动线的适配性验证
+    - 热门/冷门区域的差异化定位策略
+    - 通风采光改善的天窗/侧窗方案
+    - 客流引导标识的系统规划
+  - id: task_5
+    title: 设计 15%社区文化展示区、老照片墙、摊主故事、社区记忆、避免过度装饰
+    description: 设计文化展示（入口老照片墙、摊主故事灯箱、社区大事记年表、克制不过度）。
+    task_type: design
+    motivation: cultural
+    support_search: false
+    priority: medium
+    execution_order: 5
+    dimensions:
+    - 社区文化展示的内容策划与更新机制
+    - 老照片/摊主故事的采集与呈现方式
+    - 文化展示区与商业动线的融合关系
+    - 克制表达与过度装饰的边界把控
+  - id: task_6
+    title: 设计 环境提升策略、灯光系统、地面防滑易清洁、排水除臭、视觉统一
+    description: 改善环境（LED灯带5500K、防滑地砖、明沟排水、统一摊位颜色/字体、但保留摊主个性化空间）。
+    task_type: design
+    motivation: aesthetic
+    support_search: false
+    priority: high
+    execution_order: 6
+    dimensions:
+    - LED灯光色温与菜市场氛围适配
+    - 防滑地砖选型与清洁维护便利性
+    - 排水除臭系统的隐蔽化设计
+    - 视觉统一与摊主个性化的平衡策略
+  - id: task_7
+    title: 策划 社区活动植入、节日市集、烹饪课堂、摊主分享会、社交功能激活
+    description: 设计活动（周末市集、老摊主烹饪课、社区节日庆典），增强社交属性。
+    task_type: strategy
+    motivation: social
+    support_search: false
+    priority: medium
+    execution_order: 7
+    dimensions:
+    - 社区活动的类型设计与频次规划
+    - 老摊主参与活动的激励机制
+    - 活动空间的复用与日常经营的协调
+    - 社交功能对客流与粘性的提升效果
+  - id: task_8
+    title: 制定 分阶段改造计划、工期控制、摊主轮换方案、损失最小化
+    description: 制定3阶段改造（每阶段45天、A区→B区→C区、临时摊位安置、停业补偿500元/天）。
+    task_type: strategy
+    motivation: commercial
+    support_search: false
+    priority: high
+    execution_order: 8
+    dimensions:
+    - 三阶段改造的工期与进度控制
+    - 临时摊位安置方案与过渡期管理
+    - 各阶段停业损失与补偿计划
+    - 改造期间客流维持的沟通策略
+  - id: task_9
+    title: 搜索 国内外菜市场改造的成功案例、商业模式创新、社区营造经验、失败教训
+    description: 检索国内外典型菜市场改造案例（如巴塞罗那La Boqueria、上海永年菜场），提炼商业模式创新路径与社区营造方法论，同时梳理失败案例的共性教训。
+    task_type: research
+    motivation: commercial
+    support_search: true
+    priority: high
+    execution_order: 9
+    dimensions:
+    - 国内外菜市场改造的标杆案例分析
+    - 商业模式创新路径提炼
+    - 社区营造方法论与实践经验
+    - 失败案例的共性教训与风险预警
+  - id: task_10
+    title: 调研 周边社区居民的日常购物习惯、菜市场使用频率、改善期望、社区归属感
+    description: 面向蛇口周边社区居民开展问卷与访谈，了解其日常购物渠道偏好、到店频率、对菜市场环境与服务的改善期望，以及菜市场在社区归属感中的角色。
+    task_type: research
+    motivation: social
+    support_search: false
+    priority: high
+    execution_order: 10
+    dimensions:
+    - 社区居民日常购物渠道偏好分布
+    - 到店频率与消费金额统计分析
+    - 对环境与服务的改善期望排序
+    - 菜市场在社区归属感中的情感价值
+  - id: task_11
+    title: 设计 摊位标准化模块、可拆卸展台、品牌统一与个性化平衡、材料耐久性
+    description: 开发标准化摊位模块系统（统一尺寸框架+可拆卸展台面板），在品牌视觉统一的前提下为摊主保留个性化展示空间，选用耐水耐油易清洁的持久材料。
+    task_type: design
+    motivation: functional
+    support_search: false
+    priority: high
+    execution_order: 11
+    dimensions:
+    - 标准化摊位模块的尺寸与材料选型
+    - 可拆卸展台面板的操作便利性
+    - 品牌统一框架下的个性化展示空间
+    - 耐水耐油易清洁材料的持久性验证
+  - id: task_12
+    title: 设计 冷链与生鲜保鲜系统、温控分区、排水防臭、卫生标准提升
+    description: 规划冷链物流与生鲜保鲜设施（冷藏展柜、温控分区），升级排水系统（暗沟+防臭地漏），制定高于行业标准的卫生管理规范。
+    task_type: design
+    motivation: technical
+    support_search: false
+    priority: high
+    execution_order: 12
+    dimensions:
+    - 冷藏展柜与温控分区的设备选型
+    - 暗沟排水+防臭地漏系统的设计
+    - 高于行业标准的卫生管理规范制定
+    - 生鲜损耗率控制与保鲜效果评估
+  - id: task_13
+    title: 设计 入口与外立面的形象提升、标识系统、夜间照明、街道界面融合
+    description: 重塑菜市场入口与外立面形象（材料更新、标识导视系统设计），规划夜间照明方案增强街道可见性，确保建筑界面与周边街道风貌协调融合。
+    task_type: design
+    motivation: aesthetic
+    support_search: false
+    priority: medium
+    execution_order: 13
+    dimensions:
+    - 入口外立面材料更新与形象定位
+    - 标识导视系统的信息层级设计
+    - 夜间照明对街道可见性的提升
+    - 建筑界面与周边街道风貌的协调
+  - id: task_14
+    title: 分析 菜市场的商业坪效、租金结构、业态配比、盈利模型优化空间
+    description: 对现有菜市场进行商业数据分析（各区域坪效、租金收入结构、生鲜/熟食/杂货业态配比），识别盈利模型的优化空间与业态调整方向。
+    task_type: analysis
+    motivation: commercial
+    support_search: false
+    priority: high
+    execution_order: 14
+    dimensions:
+    - 各区域坪效的现状与优化空间
+    - 租金收入结构的合理性分析
+    - 生鲜/熟食/杂货业态配比优化
+    - 盈利模型的敏感性分析与突破点
+  - id: task_15
+    title: 制定 线上线下融合策略、小程序点单、社区团购、直播带货试点
+    description: 设计线上线下融合运营方案（微信小程序在线点单与配送、社区团购拼团机制、摊主直播带货试点），拓展菜市场数字化营收渠道。
+    task_type: strategy
+    motivation: commercial
+    support_search: true
+    priority: medium
+    execution_order: 15
+    dimensions:
+    - 微信小程序点单配送的功能设计
+    - 社区团购拼团机制的运营方案
+    - 摊主直播带货试点的可行性评估
+    - 线上渠道对线下客流的引流效果
+  - id: task_16
+    title: 制定 改造后运营管理机制、物业服务标准、商户考核、社区共治模式
+    description: 建立改造后长效运营体系（物业服务标准与考核机制、商户经营评分制度、社区居民参与的共治委员会），确保改造成果可持续运转。
+    task_type: strategy
+    motivation: social
+    support_search: false
+    priority: high
+    execution_order: 16
+    dimensions:
+    - 物业服务标准与定期考核机制
+    - 商户经营评分制度的指标设计
+    - 社区居民共治委员会的组建方案
+    - 改造成果可持续运转的保障机制
+  quality_highlights:
+  - 16任务全维度覆盖：研究25%（摊主/居民/案例）+ 设计31%（功能/技术/美学/文化）+ 策略25%（运营/数字化/共治）+ 分析19%（商业模型）
+  - 三方平衡模型：老摊主（利益保护+标准化模块）+ 年轻顾客（体验提升+线上融合）+ 社区（文化记忆+共治机制）
+  - 关键机制：租金过渡期 + 轮换改造 + 停业补偿 + 商户考核 + 社区共治
+  - 温度保留：15%文化展示 + 摊主故事 + 个性化空间 + 社区归属感调研
+  - 商业闭环：坪效分析 → 业态优化 → 线上线下融合 → 盈利模型升级
+  - 技术支撑：冷链保鲜 + 温控分区 + 排水防臭 + 标准化模块 + 夜间照明
+metadata:
+  tags_matrix:
+    space_type:
+    - commercial
+    - market
+    - community_space
+    - food_retail
+    scale: medium
+    design_direction:
+    - social
+    - commercial
+    - cultural
+    - functional
+    user_profile:
+    - community_residents
+    - street_vendors
+    - young_consumers
+    - local_government
+    challenge_type:
+    - stakeholder_balance
+    - community_engagement
+    - social_sustainability
+    - business_model_innovation
+    methodology:
+    - participatory_design
+    - stakeholder_analysis
+    - phased_implementation
+    phase: schematic_to_detailed
+  discipline: multidisciplinary
+  urgency: 0.55
+  innovation_quotient: 0.58
+  commercial_sensitivity: 0.68
+  cultural_depth: 0.62
+  performance:
+    specialty_score: 0.55
+    recommended_strength: medium
+  best_for:
+  - 商业空间改造（菜市场/商场/商业街）
+  - 利益相关方复杂项目
+  - 社区营造与商业平衡
+  - 社会价值导向设计
+  not_suitable_for:
+  - 新建商业项目
+  - 纯商业逻辑项目
+  - 单一业主项目

@@ -1,0 +1,141 @@
+# 需求分析师 - 质量标准定义
+# 此文件定义输出质量的评估标准和阈值
+# 被所有需求分析师配置文件共享引用
+
+version: "7.600-shared"
+updated_at: "2026-02-11"
+
+# 分析深度质量标准
+analysis_quality:
+  min_words: 300
+  max_words: 800
+
+  must_include:
+    - "具体用户画像（非泛化描述）"
+    - "核心矛盾/张力点"
+    - "JTBD任务定义"
+    - "可操作的设计启示"
+
+  confidence_threshold: 0.7  # 低于此值需标记 challenge_flag
+
+# L5 锐度测试标准
+sharpness_standards:
+  threshold: 70  # 最低要求分数
+
+  dimensions:
+    specificity:
+      description: "专一性 - 是否只适用于此用户？"
+      weight: 0.25
+
+    actionability:
+      description: "可操作性 - 能否直接指导设计？"
+      weight: 0.30
+
+    depth:
+      description: "深度 - 是否超越表面需求？"
+      weight: 0.25
+
+    tension:
+      description: "矛盾性 - 是否揭示核心张力？"
+      weight: 0.20
+
+# L6 假设审计标准（v7.18.0新增）
+assumption_audit_standards:
+  min_assumptions: 3  # 至少识别3个核心假设
+
+  required_fields:
+    - "assumption"           # 假设陈述
+    - "evidence"             # 支持证据
+    - "counter_evidence"     # 反向证据
+    - "challenge_question"   # 挑战性问题
+    - "impact_if_wrong"      # 错误影响
+
+  quality_criteria:
+    - "假设必须是关键性的（影响设计方向）"
+    - "挑战问题必须具有建设性"
+    - "必须探索替代方案"
+
+# L7 系统性影响标准（v7.18.0新增）
+systemic_impact_standards:
+  required: true  # 强制要求
+
+  time_dimensions:
+    - "short_term"   # 短期（0-1年）
+    - "medium_term"  # 中期（1-5年）
+    - "long_term"    # 长期（5年+）
+
+  impact_dimensions:
+    - "social"       # 社会影响
+    - "environmental"  # 环境影响
+    - "economic"     # 经济影响
+    - "cultural"     # 文化影响
+
+  min_unintended_consequences: 2  # 至少识别2个非预期后果
+
+  must_include_mitigation: true  # 必须提供缓解策略
+
+# 人性维度质量标准（v7.270新增）
+human_dimensions_standards:
+  required_dimensions:
+    - "emotional_landscape"           # 情绪地图
+    - "spiritual_aspirations"         # 精神追求
+    - "psychological_safety_needs"    # 心理安全
+    - "ritual_behaviors"              # 仪式行为
+    - "memory_anchors"                # 记忆锚点
+
+  forbidden_phrases:
+    - "温馨"
+    - "舒适"
+    - "有归属感"
+    - "幸福感"
+    - "品质生活"
+    - "家庭氛围"
+
+  quality_criteria:
+    - "必须具体到用户的独特情境"
+    - "必须揭示真实情感动机"
+    - "必须可操作（能转化为设计决策）"
+    - "必须避免套路化描述"
+
+  depth_score:
+    level_1: "浅薄 - 使用通用描述，缺乏具体场景"
+    level_2: "一般 - 有具体场景，但缺乏情感动机推理"
+    level_3: "深刻 - 场景+动机+转化路径，揭示潜意识需求"
+
+  target_depth: "level_3"  # 所有维度必须达到
+
+# 交付物识别质量标准
+deliverable_standards:
+  min_must_have: 1  # 至少1个MUST_HAVE交付物
+
+  required_fields:
+    - "deliverable_id"
+    - "type"
+    - "description"
+    - "priority"
+    - "acceptance_criteria"
+
+  acceptance_criteria_format:
+    pattern: "必须..."  # 使用"必须"句式
+    min_criteria: 1
+    must_be_verifiable: true
+
+  capability_check_required: true  # 必须进行能力边界检查
+
+# 专家接口质量标准
+expert_handoff_standards:
+  min_questions_per_expert: 1  # 每个专家至少1个问题
+
+  required_elements:
+    - "critical_questions_for_experts"
+    - "design_challenge_spectrum"
+    - "permission_to_diverge"
+
+  challenge_types:
+    - "resource_conflict"
+    - "scope_ambiguity"
+    - "stakeholder_conflict"
+    - "technical_uncertainty"
+    - "timeline_pressure"
+    - "quality_tradeoff"
+    - "capability_boundary"

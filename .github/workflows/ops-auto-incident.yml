@@ -1,0 +1,104 @@
+name: Ops Auto Incident
+
+on:
+  workflow_run:
+    workflows: ["CI", "Automated Tests"]
+    types: [completed]
+
+permissions:
+  actions: read
+  contents: read
+  issues: write
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.workflow_run.id }}
+  cancel-in-progress: true
+
+jobs:
+  create-incident:
+    if: github.event.workflow_run.conclusion == 'failure'
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Create incident issue (deduplicated by run id)
+      id: issue
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const owner = context.repo.owner;
+          const repo = context.repo.repo;
+          const run = context.payload.workflow_run;
+          const runId = String(run.id);
+
+          const issues = await github.paginate(github.rest.issues.listForRepo, {
+            owner,
+            repo,
+            state: "open",
+            labels: "ci-incident,auto-created",
+            per_page: 100
+          });
+
+          const existing = issues.find(i => (i.body || "").includes(`Run ID: ${runId}`));
+          if (existing) {
+            core.info(`Incident issue already exists: #${existing.number}`);
+            core.setOutput("issue_number", String(existing.number));
+            core.setOutput("created", "false");
+            return;
+          }
+
+          const jobs = await github.paginate(github.rest.actions.listJobsForWorkflowRun, {
+            owner,
+            repo,
+            run_id: run.id,
+            per_page: 100
+          });
+          const failed = jobs.filter(j => j.conclusion === "failure").map(j => `- ${j.name}`);
+          const failedBlock = failed.length ? failed.join("\n") : "- (unable to detect failed job list)";
+
+          const title = `[CI Incident] ${run.name} failed on ${run.head_branch} (#${run.run_number})`;
+          const body = [
+            "自动创建：CI/测试工作流失败",
+            "",
+            `- Workflow: ${run.name}`,
+            `- Conclusion: ${run.conclusion}`,
+            `- Branch: ${run.head_branch}`,
+            `- Commit: ${run.head_sha}`,
+            `- Run URL: ${run.html_url}`,
+            `- Run ID: ${run.id}`,
+            "",
+            "失败作业：",
+            failedBlock,
+            "",
+            "处理建议：",
+            "1. 打开 run 链接定位第一处失败。",
+            "2. 若为安全失败，更新修复后再评估是否需要 allowlist。",
+            "3. 若为 flaky，更新 docs/testing/FLAKY_TESTS.md。"
+          ].join("\n");
+
+          const created = await github.rest.issues.create({
+            owner,
+            repo,
+            title,
+            body,
+            labels: ["ci-incident", "auto-created"]
+          });
+          core.setOutput("issue_number", String(created.data.number));
+          core.setOutput("created", "true");
+
+    - name: Optional webhook notify
+      if: always() && secrets.CI_ALERT_WEBHOOK != ''
+      env:
+        WEBHOOK: ${{ secrets.CI_ALERT_WEBHOOK }}
+        RUN_URL: ${{ github.event.workflow_run.html_url }}
+        WORKFLOW_NAME: ${{ github.event.workflow_run.name }}
+        BRANCH_NAME: ${{ github.event.workflow_run.head_branch }}
+        ISSUE_NUMBER: ${{ steps.issue.outputs.issue_number }}
+        ISSUE_CREATED: ${{ steps.issue.outputs.created }}
+      run: |
+        payload=$(cat <<EOF
+        {
+          "text": "[CI Incident] ${WORKFLOW_NAME} failed on ${BRANCH_NAME}\\nRun: ${RUN_URL}\\nIssue: #${ISSUE_NUMBER} (created=${ISSUE_CREATED})"
+        }
+        EOF
+        )
+        curl -X POST -H "Content-Type: application/json" -d "$payload" "$WEBHOOK"

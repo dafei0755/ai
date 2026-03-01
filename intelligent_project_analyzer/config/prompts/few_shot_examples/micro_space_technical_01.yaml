@@ -1,0 +1,344 @@
+# 示例:职业电竞选手15㎡顶级直播训练空间
+# 来源:q.txt Q27
+# 类型:微空间技术主导 (Micro-Space Technical) / 专业功能整合
+# 特征:极致空间利用、专业设备整合、声学隔音、人体工学、品牌表达
+# 适用场景:小空间改造、专业直播间、电竞空间、技术密集型空间
+
+example:
+  project_info:
+    name: 职业电竞选手15㎡顶级直播训练空间
+    description: |
+      职业电竞选手需要将15㎡卧室改造为顶级直播与训练空间，
+      要求绝对隔音、专业灯光、人体工学支持、设备散热、以及品牌视觉表达。
+      空间需同时支持8-12小时高强度训练、日均4小时直播、以及短暂休息恢复功能。
+
+    feature_vector:
+      cultural: 0.15
+      commercial: 0.52
+      aesthetic: 0.48
+      functional: 0.88
+      sustainable: 0.25
+      social: 0.20
+      technical: 0.92
+      historical: 0.05
+      regional: 0.10
+      material_innovation: 0.58
+      experiential: 0.68
+      symbolic: 0.45
+
+    constraints:
+      - 15㎡极小空间需整合训练+直播+休息
+      - 绝对隔音要求(不干扰家人/邻居)
+      - 专业设备散热(3台电脑+多显示器+灯光)
+      - 8-12小时连续使用的人体工学支持
+      - 直播画面背景的视觉品牌表达
+
+    goals:
+      - 构建职业级电竞训练与直播环境
+      - 实现声学隔音与设备散热的技术平衡
+      - 建立人体工学支持系统保障长期健康
+      - 打造具有个人IP辨识度的视觉品牌空间
+
+  ideal_tasks:
+    # ========== 第一阶段:专业需求与标杆研究(Task 1-3) ==========
+
+    - id: task_1
+      title: 搜索 职业电竞选手的 训练环境标准、设备配置要求、光环境需求、人体工学标准
+      description: |
+        研究顶级电竞俱乐部(如EDG、RNG、T1)的训练基地标准，
+        包括设备配置、灯光色温、显示器布局、座椅标准、以及健康管理措施。
+      task_type: research
+      motivation: functional
+      support_search: true
+      dimensions:
+        - 训练环境标准(温度18-22℃、湿度40-60%、噪音<30dB)
+        - 设备配置(主机性能、显示器刷新率240Hz+、外设响应速度)
+        - 光环境需求(色温6500K、照度500lux、防眩光、护眼模式)
+        - 人体工学(电竞椅腰托、显示器视距60cm、键鼠高度差)
+      priority: high
+      execution_order: 1
+
+    - id: task_2
+      title: 搜索 专业直播间的 声学设计标准、灯光布置方案、摄像头机位、背景构图原则
+      description: |
+        研究头部主播(如PDD、UZI、TheShy)的直播间设计，
+        包括吸音材料、补光灯布置、摄像头角度、背景层次感构建。
+      task_type: research
+      motivation: technical
+      support_search: true
+      dimensions:
+        - 声学设计(吸音板布置、混响时间<0.5s、底噪消除)
+        - 灯光布置(三点布光法、色温一致性、补光灯调光)
+        - 摄像头机位(主机位+侧机位、角度15-30°、4K分辨率)
+        - 背景构图(三分法则、层次深度、品牌露出区域)
+      priority: high
+      execution_order: 2
+
+    - id: task_3
+      title: 搜索 微空间多功能整合的 空间效率策略、可变家具系统、垂直收纳方案、模块化设计
+      description: |
+        研究15㎡空间的极致利用案例(如日本单身公寓、游戏舱酒店)，
+        提取可变家具、壁挂收纳、空间分层、快速切换的设计策略。
+      task_type: research
+      motivation: functional
+      support_search: true
+      dimensions:
+        - 空间效率(训练区60%、设备区20%、休息区15%、收纳区5%)
+        - 可变家具(升降桌、折叠床、隐藏式储物)
+        - 垂直收纳(墙挂外设、顶部储物箱、设备支架上墙)
+        - 模块化设计(训练模式→直播模式→休息模式的快速切换)
+      priority: high
+      execution_order: 3
+
+    # ========== 第二阶段:声学与环境控制(Task 4-7) ==========
+
+    - id: task_4
+      title: 设计 绝对隔音系统的 墙体构造方案、门窗隔音措施、地面减震处理、管道声桥消除
+      description: |
+        建立隔音目标NRC≥0.8、隔音量≥45dB的构造体系，
+        包括墙体双层隔音板、门窗三层玻璃、地面浮筑地板、管道隔音包裹。
+      task_type: design
+      motivation: technical
+      support_search: true
+      dimensions:
+        - 墙体构造(龙骨+隔音棉+双层石膏板+吸音板)
+        - 门窗隔音(隔音门+门缝密封条+三玻两腔窗+窗帘遮挡)
+        - 地面减震(浮筑地板+减震垫+地毯吸音)
+        - 声桥消除(管道包裹岩棉、电线孔密封、开关盒隔音)
+      priority: high
+      execution_order: 4
+
+    - id: task_5
+      title: 设计 室内声学处理方案、吸音材料布置、扩散板位置、混响时间控制
+      description: |
+        针对15㎡小空间的驻波和混响问题，设计吸音材料和扩散板布置，
+        控制混响时间在0.3-0.5s，消除回声，确保直播收音清晰。
+      task_type: design
+      motivation: technical
+      support_search: false
+      dimensions:
+        - 吸音材料(吸音棉天花板、吸音板墙面、隔音窗帘)
+        - 扩散板位置(后墙扩散板、侧墙低频陷阱)
+        - 混响控制(计算混响时间、调整吸音材料覆盖率)
+        - 收音优化(话筒指向性、降噪算法、声卡EQ调整)
+      priority: high
+      execution_order: 5
+
+    - id: task_6
+      title: 设计 设备散热系统、空调布置方案、新风循环路径、温湿度监控
+      description: |
+        解决3台高性能电脑(总功耗约2000W)+灯光设备的散热问题，
+        设计空调制冷、新风补氧、热量快速排出的综合系统。
+      task_type: design
+      motivation: technical
+      support_search: true
+      dimensions:
+        - 设备散热(主机水冷、显卡涡轮风扇、机箱背部排风)
+        - 空调布置(1.5匹变频空调、出风口避开设备、静音模式)
+        - 新风循环(新风机+管道入墙、CO2浓度<1000ppm、正压防尘)
+        - 温湿度监控(温度保持20℃、湿度45-55%、智能联动)
+      priority: high
+      execution_order: 6
+
+    - id: task_7
+      title: 设计 专业灯光系统、三点布光布置、色温控制方案、分场景照明模式
+      description: |
+        建立直播主灯(6500K)+侧补光(5500K)+背景光(RGB可调)的三点布光系统，
+        并设计训练模式(护眼暖光)、直播模式(补光开启)、休息模式(氛围灯)的场景切换。
+      task_type: design
+      motivation: technical
+      support_search: false
+      dimensions:
+        - 三点布光(主光45°前上方、补光侧面30°、背光分离人物)
+        - 色温控制(主光6500K、补光5500K统一肤色、背景RGB品牌色)
+        - 场景模式(训练:3000K暖光、直播:6000K补光、休息:2000K氛围)
+        - 调光系统(无线调光器、亮度分级、色温渐变)
+      priority: high
+      execution_order: 7
+
+    # ========== 第三阶段:人体工学与功能布局(Task 8-11) ==========
+
+    - id: task_8
+      title: 设计 人体工学训练座位系统、电竞椅选型、显示器支架、键鼠托盘、腿部空间
+      description: |
+        构建支持8-12小时连续使用的座位体系，包括电竞椅(腰托+头枕+4D扶手)、
+        显示器支架(俯仰±15°、旋转360°)、键鼠托盘(负倾角5°)、腿部伸展空间。
+      task_type: design
+      motivation: functional
+      support_search: true
+      dimensions:
+        - 电竞椅选型(腰托可调、头枕高度、4D扶手、座深调节)
+        - 显示器支架(3屏支架、视距60cm、视角水平或俯视10°)
+        - 键鼠托盘(负倾角5°、前臂支撑、高度与肘部齐平)
+        - 腿部空间(桌下净高70cm、脚踏板、伸展活动空间)
+      priority: high
+      execution_order: 8
+
+    - id: task_9
+      title: 规划 15㎡的功能分区布局、设备动线优化、电源布线方案、紧急疏散通道
+      description: |
+        在15㎡内实现训练区(主桌+3屏)、直播区(同一位置)、休息区(折叠床)、
+        设备区(主机+路由器+音频接口)的高效布局，优化电源线和网线走线。
+      task_type: design
+      motivation: functional
+      support_search: false
+      dimensions:
+        - 功能分区(训练区9㎡、设备区2㎡、休息区3㎡、走道1㎡)
+        - 设备动线(主机散热背向墙、显示器面向门、休息床侧向)
+        - 电源布线(墙面理线槽、桌面插线板、UPS不间断电源)
+        - 疏散通道(门口1米宽走道、无障碍物、应急照明)
+      priority: high
+      execution_order: 9
+
+    - id: task_10
+      title: 设计 快速场景切换机制、收纳隐藏系统、设备保护措施、线缆管理方案
+      description: |
+        建立训练→直播→休息的快速切换系统，设计外设壁挂收纳、
+        设备防尘罩、线缆理线器，保持空间整洁和直播画面干净。
+      task_type: design
+      motivation: functional
+      support_search: false
+      dimensions:
+        - 场景切换(灯光场景一键切换、摄像头升降、背景开合)
+        - 收纳系统(墙挂耳机架、键盘托盘、手柄充电站、线材盒)
+        - 设备保护(防尘罩、显示器保护膜、主机防震垫)
+        - 线缆管理(桌面理线夹、地面线槽、标签分类)
+      priority: medium
+      execution_order: 10
+
+    - id: task_11
+      title: 设计 短暂休息恢复区、折叠床系统、放松设施、健康监测设备
+      description: |
+        在3㎡休息区设计折叠床+按摩椅+颈椎牵引器+空气净化器，
+        支持短暂休息恢复，缓解长时间训练的颈椎和腰椎压力。
+      task_type: design
+      motivation: functional
+      support_search: false
+      dimensions:
+        - 折叠床系统(墙挂折叠床、记忆棉床垫、遮光帘)
+        - 放松设施(按摩椅15分钟模式、颈椎牵引器、眼部按摩仪)
+        - 健康监测(血氧仪、心率手环、久坐提醒、眼保健操提醒)
+        - 恢复氛围(暖色氛围灯、白噪音机、香薰机)
+      priority: medium
+      execution_order: 11
+
+    # ========== 第四阶段:视觉品牌与智能整合(Task 12-15) ==========
+
+    - id: task_12
+      title: 设计 直播背景墙的视觉构图、品牌元素植入、灯光氛围营造、可变展示系统
+      description: |
+        设计直播画面背景(2×2米墙面)的视觉层次，包括品牌Logo、荣誉奖杯展示、
+        RGB灯带氛围、可更换海报墙，形成个人IP辨识度。
+      task_type: design
+      motivation: aesthetic
+      support_search: false
+      dimensions:
+        - 视觉构图(三分法则、前景人物+中景Logo+背景层次)
+        - 品牌植入(个人Logo霓虹灯、战队旗帜、赞助商贴纸)
+        - 灯光氛围(背景RGB灯带、Logo射灯、轮廓光分离)
+        - 可变展示(磁吸海报墙、奖杯展示架、手办收纳柜)
+      priority: high
+      execution_order: 12
+
+    - id: task_13
+      title: 设计 色彩与材质系统、电竞风格表达、品牌色应用、科技感营造
+      description: |
+        建立空间色彩体系(黑+灰+品牌色)，材质体系(金属+碳纤维纹理+RGB光效)，
+        营造专业电竞氛围，同时避免过度花哨影响直播画面。
+      task_type: design
+      motivation: aesthetic
+      support_search: false
+      dimensions:
+        - 色彩系统(墙面深灰、天花黑色、品牌色点缀、RGB可调)
+        - 材质体系(吸音板+金属框+碳纤维贴膜+磨砂玻璃)
+        - 风格表达(赛博朋克+极简工业风+电竞元素)
+        - 科技感(LED灯带、全息投影Logo、数字时钟显示)
+      priority: medium
+      execution_order: 13
+
+    - id: task_14
+      title: 整合 智能控制系统、语音助手、场景联动、远程管理、数据监测
+      description: |
+        建立智能家居控制中枢，实现语音控制(灯光/空调/窗帘)、
+        场景一键切换(训练/直播/休息)、远程监控(温度/湿度/设备状态)。
+      task_type: design
+      motivation: technical
+      support_search: true
+      dimensions:
+        - 智能控制(智能面板+语音助手+手机APP)
+        - 场景联动(训练模式:护眼灯+空调23℃、直播模式:补光+摄像头)
+        - 远程管理(外出关闭所有设备、到家提前开空调)
+        - 数据监测(设备运行时长、温湿度历史、电费统计)
+      priority: medium
+      execution_order: 14
+
+    - id: task_15
+      title: 制定 预算分配策略、设备采购清单、施工周期规划、性能验收标准
+      description: |
+        建立精细化预算模型(设备60%、装修30%、家具10%)，
+        制定设备采购清单(电脑/显示器/外设/音频/灯光)，规划7-10天快速施工。
+      task_type: strategy
+      motivation: commercial
+      support_search: false
+      dimensions:
+        - 预算分配(总预算10-15万、设备8万、装修3万、家具1万)
+        - 采购清单(RTX4090显卡、240Hz显示器×3、电竞椅、专业麦克风)
+        - 施工周期(隔音3天、装修2天、设备安装2天、调试2天)
+        - 验收标准(隔音量≥45dB、混响<0.5s、温度稳定、设备功能)
+      priority: medium
+      execution_order: 15
+
+  quality_highlights:
+    - 15任务技术密集型覆盖：专业研究20% + 声学环境30% + 人体工学25% + 品牌视觉15% + 智能整合10%
+    - 极致空间效率：15㎡整合训练+直播+休息+设备+收纳五大功能
+    - 专业级声学设计：隔音量≥45dB + 混响时间<0.5s + 收音清晰
+    - 人体工学保障：8-12小时连续使用的健康支持系统
+    - 个人IP品牌化：直播背景+色彩系统+品牌元素的视觉辨识度
+
+# 🆕 v8.0++ 多维度标签矩阵
+metadata:
+  tags_matrix:
+    space_type:
+      - micro_space        # 微空间(15㎡)
+      - professional_studio # 专业工作室
+      - live_streaming     # 直播间
+      - gaming_room        # 电竞训练室
+    scale: micro  # 15㎡
+    design_direction:
+      - technical     # 技术主导
+      - functional   # 功能整合
+      - aesthetic     # 品牌视觉
+      - commercial   # 商业表达
+    user_profile:
+      - professional_gamer # 职业电竞选手
+      - live_streamer      # 主播
+      - young_adult        # 年轻成人
+    challenge_type:
+      - extreme_space_constraint # 极致空间限制
+      - acoustic_isolation       # 声学隔音
+      - equipment_integration    # 设备整合
+      - thermal_management       # 散热管理
+      - ergonomic_support       # 人体工学
+      - brand_expression        # 品牌表达
+    methodology:
+      - evidence_based_design   # 循证设计(电竞标准)
+      - technology_intensive    # 技术密集
+      - modular_design         # 模块化设计
+      - smart_integration      # 智能整合
+    phase: detailed_design  # 详细设计+施工图
+
+  performance:
+    specialty_score: 0.60  # 高度专业化但非极端特殊
+    recommended_strength: medium  # 建议中度示例（平衡标准与创新）
+
+  best_for:
+    - "小空间改造(10-20㎡)"
+    - "专业直播间设计"
+    - "电竞训练空间"
+    - "声学隔音要求高的空间"
+    - "设备密集型工作室"
+
+  not_suitable_for:
+    - "大空间设计"              # 示例为微空间
+    - "轻娱乐型游戏房"          # 示例为职业级标准
+    - "常规卧室改造"            # 示例为专业功能主导

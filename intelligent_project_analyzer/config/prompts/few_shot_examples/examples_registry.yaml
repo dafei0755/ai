@@ -1,0 +1,1563 @@
+# Few-shot示例注册表
+# v7.990: 多维度标签矩阵匹配系统（from v7.980）
+#
+# 设计理念：
+# - v7.980: 基于12维特征向量的余弦相似度匹配（单一主导维度）
+# - v7.990: 基于7维标签矩阵的重叠度匹配（多维度融合）
+#
+# 架构优势：
+# 1. 从"单一标签"到"标签矩阵" - 立体匹配
+# 2. 从"8个固定类别"到"7维×多标签" - 指数级覆盖
+# 3. 支持动态权重调整 - 适配不同项目类型
+# 4. 保留feature_vector作为fallback - 向后兼容
+#
+# 匹配维度（7个）：
+# 1. space_type: 空间类型（多个标签）
+# 2. scale: 项目规模（单值）
+# 3. design_direction: 设计方向主导（多个标签+可选权重）
+# 4. user_profile: 用户特征（多个标签）
+# 5. challenge_type: 项目挑战类型（多个标签）
+# 6. methodology: 方法论模式（多个标签）
+# 7. phase: 项目阶段（单值）
+
+examples:
+  # ========== 商业+公共复合类 ==========
+
+  - id: commercial_public_01
+    name: 深圳蛇口20000㎡菜市场城市更新（Q9原型）
+    file: commercial_dominant_01.yaml  # 复用v7.980文件
+
+    # 🆕 v7.990 多维度标签矩阵
+    tags_matrix:
+      space_type:
+        - market
+        - public_space
+        - commercial
+      scale: xlarge
+      design_direction:
+        - commercial
+        - cultural
+        - social
+      user_profile:
+        - community
+        - public
+      challenge_type:
+        - cultural_heritage
+        - operation_efficiency
+        - brand_innovation
+      methodology:
+        - benchmarking
+        - cultural_research
+        - operation_driven
+      phase: renovation
+
+    # v7.980 特征向量（保留作为fallback）
+    feature_vector:
+      commercial: 0.62
+      functional: 0.58
+      social: 0.55
+      cultural: 0.42
+      experiential: 0.50
+      sustainable: 0.38
+      regional: 0.48
+      technical: 0.45
+      material_innovation: 0.30
+      aesthetic: 0.35
+      historical: 0.40
+      symbolic: 0.32
+
+    # 快速检索标签
+    tags: [urban_renewal, market, public_space, multi_demographic, benchmarking]
+
+    # 适用场景
+    applicable_scenarios:
+      - 城市更新类项目（市场/商业街/老街区）
+      - 商业+文化+社区三重目标平衡
+      - 多客群复杂需求协调（本地居民+外来游客）
+      - 标杆对标+在地文化挖掘融合
+      - 需要建立商业可持续模型
+
+    source_question: Q9
+
+    highlights:
+      - 14任务精细拆解：40%调研 + 35%设计 + 25%运营
+      - 商业+文化+社区三维平衡
+      - 标杆对标（苏州黄桥）+ 在地文化（蛇口渔村）
+      - 动线/冷链/文化展示/社交空间系统性覆盖
+
+  # ========== 功能主导+特殊需求类 ==========
+
+  - id: functional_special_needs_01
+    name: 深圳前海160㎡自闭症家庭住宅（Q8原型）
+    file: functional_dominant_01.yaml  # 复用v7.980文件
+
+    # 🆕 v7.990 多维度标签矩阵
+    tags_matrix:
+      space_type:
+        - family_residence
+        - apartment
+      scale: medium
+      design_direction:
+        - functional
+        - experiential
+      user_profile:
+        - family
+        - special_needs
+      challenge_type:
+        - technical_complexity
+        - social_impact
+      methodology:
+        - user_insight
+        - technical_innovation
+      phase: design
+
+    # v7.980 特征向量（fallback）
+    feature_vector:
+      functional: 0.75
+      social: 0.55
+      technical: 0.60
+      experiential: 0.50
+      sustainable: 0.42
+      material_innovation: 0.48
+      aesthetic: 0.30
+      cultural: 0.20
+      commercial: 0.10
+      historical: 0.15
+      regional: 0.25
+      symbolic: 0.35
+
+    tags: [special_needs, family, accessibility, sensory_design, user_centered]
+
+    applicable_scenarios:
+      - 特殊需求家庭住宅（自闭症/残障/疾病）
+      - 功能导向深度定制
+      - 多代同堂复杂需求协调
+      - 感统训练/无障碍/安全系统集成
+      - 家庭互动与私密平衡
+
+    source_question: Q8
+
+    highlights:
+      - 13任务功能导向：92.3%调研类，功能优先
+      - 用户研究深度：自闭症儿童6维需求分析
+      - 技术系统整合：感统训练+声学隔音+安全防护
+      - 家庭多成员适配：4常住+2季节性需求平衡
+
+  # ========== 文化主导+乡村集群类 ==========
+
+  - id: cultural_rural_cluster_01
+    name: 四川狮岭村乡村民宿集群（Q3原型）
+    file: cultural_dominant_01.yaml  # v8.000 P3-T13 已创建
+
+    # 🆕 v7.990 多维度标签矩阵
+    tags_matrix:
+      space_type:
+        - rural_residence
+        - hotel
+        - cluster
+      scale: cluster
+      design_direction:
+        - cultural
+        - commercial
+        - aesthetic
+      user_profile:
+        - community
+        - public
+      challenge_type:
+        - cultural_heritage
+        - brand_innovation
+        - operation_efficiency
+      methodology:
+        - cultural_research
+        - benchmarking
+      phase: concept
+
+    # v7.980 特征向量（fallback）
+    feature_vector:
+      cultural: 0.53
+      commercial: 0.31
+      aesthetic: 0.45
+      functional: 0.20
+      sustainable: 0.38
+      social: 0.42
+      technical: 0.15
+      historical: 0.58
+      regional: 0.62
+      material_innovation: 0.35
+      experiential: 0.40
+      symbolic: 0.48
+
+    tags: [rural, cultural_heritage, architect_fusion, tourism, vernacular]
+
+    applicable_scenarios:
+      - 乡村振兴/民宿集群项目
+      - 在地文化深度挖掘（农耕/民俗/工艺）
+      - 多位建筑师风格融合（安藤/隈研吾/刘家琨/王澍/谢柯）
+      - 文化传承与商业平衡
+      - 分布式建筑群规划
+
+    source_question: Q3
+
+    highlights:
+      - 16任务立体研究：50%文化研究 + 30%建筑师案例 + 20%运营策略
+      - 建筑师独立性：5位大师各自独立任务，不混合
+      - 文化维度：农耕文化+宗族关系+非遗工艺系统梳理
+      - 商业可行性：运营模型+盈利路径+ROI测算
+
+  # ========== 🆕 v8.0++ 新增核心示例 ==========
+
+  # 高端酒店运营主导
+  - id: hospitality_operational_01
+    name: 福州亚升雅诗阁公寓式酒店（Q1原型）
+    file: hospitality_operational_01.yaml  # 🆕 v8.0++
+
+    tags_matrix:
+      space_type:
+        - hotel
+        - apartment_hotel
+        - public_space
+        - restaurant
+        - fitness
+        - pool
+      scale: large  # 135间客房
+      design_direction:
+        - commercial
+        - functional
+        - aesthetic
+        - experiential
+      user_profile:
+        - business_traveler
+        - family_long_stay
+        - art_enthusiast
+        - female_owner_perspective
+      challenge_type:
+        - brand_innovation
+        - cost_value_balance
+        - art_hospitality_fusion
+        - operational_efficiency
+      methodology:
+        - benchmarking
+        - standardization
+        - art_curation
+        - data_driven
+      phase: concept_to_detail
+
+    feature_vector:
+      cultural: 0.42
+      commercial: 0.68
+      aesthetic: 0.55
+      functional: 0.72
+      sustainable: 0.38
+      social: 0.35
+      technical: 0.48
+      historical: 0.15
+      regional: 0.25
+      material_innovation: 0.40
+      experiential: 0.65
+      symbolic: 0.52
+
+    tags: [luxury_hotel, apartment_hotel, brand_flagship, art_curation, operational_excellence]
+
+    applicable_scenarios:
+      - 高端公寓式酒店设计（雅诗阁/辉盛阁/盛捷等品牌）
+      - 酒店品牌旗舰店创新升级
+      - 艺术主题酒店（艺术+酒店融合）
+      - 600-800元价格带"超值感"构建
+      - 运营效率驱动的酒店设计
+
+    source_question: Q1
+
+    highlights:
+      - 16任务全流程：品牌研究30% + 空间设计40% + 运营策略30%
+      - 双重平衡：雅诗阁品牌标准 vs 旗舰店创新突破
+      - 艺术策展融合：从1楼展厅到客房艺术品系统整合
+      - 运营效率：智能化+标准化+成本精算模型
+      - 超值感构建：600元价格带下的豪宅精神表达
+
+  # 特殊需求功能主导
+  - id: special_needs_01
+    name: 深圳前海自闭症儿童家庭住宅（Q8原型）
+    file: special_needs_01.yaml  # 🆕 v8.0++
+
+    tags_matrix:
+      space_type:
+        - residential
+        - rehabilitation_space
+        - home_gym
+        - home_office
+      scale: medium  # 160㎡
+      design_direction:
+        - functional
+        - social
+        - technical
+        - experiential
+      user_profile:
+        - special_needs_child
+        - full_time_caregiver
+        - tech_worker
+        - elderly_short_stay
+      challenge_type:
+        - special_needs_adaptation
+        - multi_generation
+        - space_constraint
+        - safety_requirement
+        - emotional_support
+      methodology:
+        - evidence_based_design
+        - modular_flexibility
+        - technology_integration
+        - safety_first
+      phase: detailed_design
+
+    feature_vector:
+      cultural: 0.25
+      commercial: 0.10
+      aesthetic: 0.35
+      functional: 0.85
+      sustainable: 0.40
+      social: 0.68
+      technical: 0.62
+      historical: 0.05
+      regional: 0.20
+      material_innovation: 0.55
+      experiential: 0.72
+      symbolic: 0.30
+
+    tags: [special_needs, autism, sensory_design, rehabilitation, family_care, accessibility]
+
+    applicable_scenarios:
+      - 自闭症/残障儿童家庭住宅
+      - 特殊需求康复空间整合
+      - 多代同堂复杂家庭（5人+）
+      - 小空间多功能整合（<200㎡）
+      - 儿童友好+安全防护系统设计
+
+    source_question: Q8
+
+    highlights:
+      - 16任务全维度：特殊需求研究25% + 空间功能50% + 技术整合15% + 社会支持10%
+      - 核心关怀：自闭症儿童40% + 照护者30% + 长辈15% + 父亲工作15%
+      - 功能疗愈：感统训练 + 情绪调节 + 安全防护三位一体
+      - 多代平衡：5人居住 + 临时短住适配 + 代际隐私保护
+      - 可成长性：7岁→17岁空间转换预留
+
+  # 微空间技术主导
+  - id: micro_space_technical_01
+    name: 职业电竞选手15㎡直播训练空间（Q27原型）
+    file: micro_space_technical_01.yaml  # 🆕 v8.0++
+
+    tags_matrix:
+      space_type:
+        - micro_space
+        - professional_studio
+        - live_streaming
+        - gaming_room
+      scale: micro  # 15㎡
+      design_direction:
+        - technical
+        - functional
+        - aesthetic
+        - commercial
+      user_profile:
+        - professional_gamer
+        - live_streamer
+        - young_adult
+      challenge_type:
+        - extreme_space_constraint
+        - acoustic_isolation
+        - equipment_integration
+        - thermal_management
+        - ergonomic_support
+        - brand_expression
+      methodology:
+        - evidence_based_design
+        - technology_intensive
+        - modular_design
+        - smart_integration
+      phase: detailed_design
+
+    feature_vector:
+      cultural: 0.15
+      commercial: 0.52
+      aesthetic: 0.48
+      functional: 0.88
+      sustainable: 0.25
+      social: 0.20
+      technical: 0.92
+      historical: 0.05
+      regional: 0.10
+      material_innovation: 0.58
+      experiential: 0.68
+      symbolic: 0.45
+
+    tags: [micro_space, gaming, live_streaming, acoustic_design, ergonomic, tech_intensive]
+
+    applicable_scenarios:
+      - 小空间改造（10-20㎡卧室/工作室）
+      - 专业直播间设计
+      - 职业电竞训练空间
+      - 声学隔音要求高的空间
+      - 设备密集型工作室（多电脑/显示器/音频设备）
+
+    source_question: Q27
+
+    highlights:
+      - 15任务技术密集：专业研究20% + 声学环境30% + 人体工学25% + 品牌视觉15% + 智能整合10%
+      - 极致效率：15㎡整合训练+直播+休息+设备+收纳五功能
+      - 专业声学：隔音量≥45dB + 混响时间<0.5s + 收音清晰
+      - 人体工学：8-12小时连续使用健康支持
+      - 个人IP：直播背景+色彩系统+品牌元素辨识度
+
+  # ========== 技术主导+极端环境类 ==========
+
+  - id: technical_extreme_environment_01
+    name: 西藏林芝高海拔精品民宿（Q85原型）
+    file: technical_dominant_02.yaml
+
+    # 🆕 v7.990 多维度标签矩阵
+    tags_matrix:
+      space_type:
+        - hotel
+        - boutique
+        - resort
+      scale: small
+      design_direction:
+        - technical
+        - sustainable
+        - experiential
+      user_profile:
+        - high_net_worth
+        - travelers
+      challenge_type:
+        - technical_complexity
+        - climate_adaptation
+        - material_durability
+      methodology:
+        - technical_innovation
+        - material_research
+      phase: design
+
+    # v7.980 特征向量（fallback）
+    feature_vector:
+      technical: 0.68
+      functional: 0.70
+      sustainable: 0.62
+      regional: 0.58
+      material_innovation: 0.55
+      experiential: 0.50
+      aesthetic: 0.45
+      cultural: 0.38
+      commercial: 0.40
+      social: 0.25
+      historical: 0.20
+      symbolic: 0.35
+    tags: [extreme_climate, high_altitude, sustainable_tech, material_durability]
+
+    applicable_scenarios:
+      - 极端环境适配（高原/高寒/高湿）
+      - 高海拔建筑技术挑战
+      - 可持续技术整合（保温/能源/材料）
+      - 设备隐藏与性能平衡
+      - 区域气候响应设计
+
+    source_question: Q85
+
+    highlights:
+      - 技术复杂度：高海拔+极端温差+强紫外线三重挑战
+      - 材料耐久性：木材防腐+金属抗氧化+保温系统
+      - 设备隐藏：设备间布局+管线优化+美学与功能平衡
+      - 可持续策略：被动式设计+本土材料+能源优化
+
+  # ========== 审美主导类 (Aesthetic Dominant) ==========
+
+  - id: aesthetic_brand_identity_01
+    name: Tiffany气质别墅软装（Q5原型）
+    file: aesthetic_dominant_01.yaml
+
+    # 🆕 v7.990 多维度标签矩阵
+    tags_matrix:
+      space_type:
+        - villa
+        - residence
+      scale: large
+      design_direction:
+        - aesthetic
+        - symbolic
+        - experiential
+      user_profile:
+        - high_net_worth
+        - female
+        - individual
+      challenge_type:
+        - brand_translation
+        - identity_expression
+        - ritual_design
+      methodology:
+        - narrative_design
+        - brand_research
+        - color_psychology
+      phase: design
+
+    # v7.980 特征向量（fallback）
+    feature_vector:
+      aesthetic: 0.75
+      symbolic: 0.68
+      experiential: 0.62
+      commercial: 0.35
+      cultural: 0.30
+      material_innovation: 0.48
+      functional: 0.45
+      social: 0.28
+      sustainable: 0.25
+      technical: 0.30
+      historical: 0.32
+      regional: 0.20
+    tags: [luxury, brand_inspired, soft_furnishing, female_identity, ritual]
+
+    applicable_scenarios:
+      - 品牌精神转译（Tiffany/Hermès/Chanel等）
+      - 高端软装系统设计
+      - 女性身份空间表达
+      - 仪式感场景构建
+      - 色彩象征体系建立
+
+    source_question: Q5
+
+    highlights:
+      - 品牌研究深度：Tiffany蓝色彩系统+品牌DNA解构
+      - 女性视角：独立/优雅/仪式感三维平衡
+      - 软装系统：色彩+材质+灯光+艺术品完整配置
+      - 空间叙事：晨起+下午茶+社交+独处场景串联
+
+  - id: aesthetic_character_identity_01
+    name: 赫本精神独立女性大平层（Q6原型）
+    file: aesthetic_dominant_02.yaml
+
+    # 🆕 v7.990 多维度标签矩阵
+    tags_matrix:
+      space_type:
+        - apartment
+        - residence
+      scale: large
+      design_direction:
+        - aesthetic
+        - functional
+        - social
+      user_profile:
+        - female
+        - individual
+        - professional
+      challenge_type:
+        - character_translation
+        - identity_expression
+        - lifestyle_design
+      methodology:
+        - character_research
+        - lifestyle_analysis
+      phase: design
+
+    # v7.980 特征向量（fallback）
+    feature_vector:
+      aesthetic: 0.70
+      symbolic: 0.65
+      functional: 0.55
+      experiential: 0.60
+      social: 0.48
+      cultural: 0.42
+      material_innovation: 0.40
+      sustainable: 0.35
+      commercial: 0.25
+      technical: 0.30
+      historical: 0.38
+      regional: 0.20
+    tags: [modern_elegance, female_independence, audrey_hepburn, spaciousness]
+
+    applicable_scenarios:
+      - 人物精神转译（奥黛丽·赫本/香奈儿等）
+      - 现代优雅风格定位
+      - 独立女性生活方式空间
+      - 社交与独处空间平衡
+      - 大平层尺度控制
+
+    source_question: Q6
+
+    highlights:
+      - 人物解构：赫本3个经典电影+5个生活特质提取
+      - 空间尺度：大平层开阔感+优雅比例+自然采光
+      - 功能平衡：社交客厅+阅读角+练舞区+独处空间
+      - 风格定位：克制奢华+现代简约+法式优雅
+
+  - id: aesthetic_narrative_master_01
+    name: 季裕棠叙事手法浪子客厅（Q10原型）
+    file: aesthetic_dominant_03.yaml
+
+    # 🆕 v7.990 多维度标签矩阵
+    tags_matrix:
+      space_type:
+        - living_room
+        - residence
+      scale: medium
+      design_direction:
+        - aesthetic
+        - narrative
+        - symbolic
+      user_profile:
+        - high_net_worth
+        - individual
+        - personality_driven
+      challenge_type:
+        - master_style_study
+        - character_translation
+        - narrative_design
+      methodology:
+        - designer_research
+        - narrative_design
+        - material_curation
+      phase: design
+
+    # v7.980 特征向量（fallback）
+    feature_vector:
+      aesthetic: 0.78
+      symbolic: 0.72
+      experiential: 0.68
+      cultural: 0.45
+      material_innovation: 0.55
+      functional: 0.40
+      commercial: 0.35
+      social: 0.50
+      sustainable: 0.25
+      technical: 0.30
+      historical: 0.38
+      regional: 0.28
+    tags: [tony_chi, narrative_design, rebellious_spirit, luxury_restraint]
+
+    applicable_scenarios:
+      - 叙事性空间设计（故事线构建）
+      - 大师风格深度研究（季裕棠/Bill Bensley等）
+      - 人物性格空间化表达
+      - 奢华克制美学平衡
+      - 材料叙事与细节控制
+
+    source_question: Q10
+
+    highlights:
+      - 大师研究：季裕棠5个经典项目拆解+设计语言提取
+      - 叙事构建：浪子回头故事线+空间场景串联
+      - 材料选择：粗犷材料（混凝土/旧木）+精致细节（黄铜/丝绒）
+      - 空间层次：克制奢华+野性温柔+叛逆精致三重对比
+
+  # ========== 功能主导类 (Functional Dominant) ==========
+  - id: functional_medical_grade_01
+    name: 过敏儿童医疗级卧室（Q32原型）
+    file: functional_dominant_03.yaml
+
+    # 🆕 v7.990 多维度标签矩阵
+    tags_matrix:
+      space_type:
+        - bedroom
+        - family_residence
+      scale: small
+      design_direction:
+        - functional
+        - technical
+        - sustainable
+      user_profile:
+        - family
+        - children
+        - special_needs
+      challenge_type:
+        - technical_complexity
+        - health_safety
+        - material_specification
+      methodology:
+        - medical_research
+        - technical_innovation
+        - material_testing
+      phase: design
+
+    # v7.980 特征向量（fallback）
+    feature_vector:
+      functional: 0.85
+      technical: 0.70
+      sustainable: 0.60
+      experiential: 0.52
+      aesthetic: 0.40
+      material_innovation: 0.58
+      social: 0.35
+      symbolic: 0.30
+      commercial: 0.20
+      cultural: 0.15
+      historical: 0.10
+      regional: 0.15
+    tags: [medical_grade, allergy_safe, air_quality, child_friendly, healing]
+
+    applicable_scenarios:
+      - 医疗级住宅空间设计
+      - 过敏体质儿童适配
+      - 空气质量控制系统
+      - 材料安全标准筛选
+      - 心理舒缓与治愈环境
+
+    source_question: Q32
+
+    highlights:
+      - 医疗级标准：VOC<50μg/㎡+防螃虫+抗菌材料筛选
+      - 空气系统：新风+过滤+湿度控制+空气检测
+      - 材料清单：白名单制（CMA认证）+黑名单排除
+      - 心理设计：柔和色彩+自然元素+安全感构建
+
+  # ========== 可持续主导类 (Sustainable Dominant) ==========
+
+  - id: sustainable_zero_carbon_01
+    name: 零碳生活方式样板房（Q97原型）
+    file: sustainable_dominant_01.yaml
+
+    # 🆕 v7.990 多维度标签矩阵
+    tags_matrix:
+      space_type:
+        - residence
+        - demonstration
+      scale: medium
+      design_direction:
+        - sustainable
+        - technical
+        - symbolic
+      user_profile:
+        - public
+        - environmental_conscious
+      challenge_type:
+        - sustainability_certification
+        - technical_innovation
+        - circularity
+      methodology:
+        - sustainable_tech
+        - material_research
+        - lifecycle_analysis
+      phase: design
+
+    # v7.980 特征向量（fallback）
+    feature_vector:
+      sustainable: 0.82
+      technical: 0.68
+      functional: 0.55
+      material_innovation: 0.72
+      experiential: 0.50
+      aesthetic: 0.45
+      commercial: 0.40
+      cultural: 0.35
+      social: 0.48
+      symbolic: 0.52
+      historical: 0.20
+      regional: 0.30
+    tags: [zero_carbon, circular_economy, material_traceability, green_tech]
+
+    applicable_scenarios:
+      - 零碳/低碳项目设计
+      - 循环材料应用体系
+      - 可持续技术示范
+      - 环保品牌展示空间
+      - 生活方式引导设计
+
+    source_question: Q97
+
+    highlights:
+      - 碳排放控制：全生命周期碳足迹计算+零碳路径设计
+      - 循环系统：材料可追溯+拆解设计+再利用路径
+      - 技术集成：太阳能+雨水回收+智能管理系统
+      - 认证体系：LEED Platinum/WELL/中国绿建三星
+
+  - id: sustainable_coastal_material_01
+    name: 三亚海边木结构抗腐餐厅（Q86原型）
+    file: sustainable_dominant_02.yaml
+
+    # 🆕 v7.990 多维度标签矩阵
+    tags_matrix:
+      space_type:
+        - restaurant
+        - commercial
+      scale: medium
+      design_direction:
+        - sustainable
+        - technical
+        - regional
+      user_profile:
+        - public
+        - tourists
+      challenge_type:
+        - material_durability
+        - climate_adaptation
+        - technical_complexity
+      methodology:
+        - material_research
+        - technical_innovation
+        - regional_adaptation
+      phase: design
+
+    # v7.980 特征向量（fallback）
+    feature_vector:
+      sustainable: 0.60
+      technical: 0.65
+      material_innovation: 0.68
+      functional: 0.58
+      regional: 0.55
+      aesthetic: 0.50
+      commercial: 0.45
+      experiential: 0.52
+      cultural: 0.35
+      social: 0.30
+      historical: 0.25
+      symbolic: 0.38
+    tags: [coastal, wood_structure, corrosion_resistant, typhoon_proof, durability]
+
+    applicable_scenarios:
+      - 滨海建筑设计
+      - 木结构防腐体系
+      - 极端气候应对（台风/高湿/高盐）
+      - 自然材料耐久性优化
+      - 区域气候适应性设计
+
+    source_question: Q86
+
+    highlights:
+      - 材料选择：炭化木+防腐处理+金属防锈系统
+      - 气候应对：抗台风结构+高湿防腐+盐雾侵蚀
+      - 耐久性设计：30年使用寿命+维护策略+更换计划
+      - 成本控制：初投资vs全生命周期成本平衡
+
+  # ========== 社会性主导类 (Social Dominant) ==========
+
+  - id: social_community_multipurpose_01
+    name: 社区活动中心分时复用（Q35原型）
+    file: social_dominant_01.yaml
+
+    # 🆕 v7.990 多维度标签矩阵
+    tags_matrix:
+      space_type:
+        - community_center
+        - public_space
+      scale: medium
+      design_direction:
+        - social
+        - functional
+        - sustainable
+      user_profile:
+        - community
+        - elderly
+        - children
+        - family
+      challenge_type:
+        - multi_user_needs
+        - budget_control
+        - flexibility
+      methodology:
+        - user_insight
+        - modular_design
+      phase: renovation
+
+    # v7.980 特征向量（fallback）
+    feature_vector:
+      social: 0.75
+      functional: 0.68
+      sustainable: 0.50
+      experiential: 0.55
+      aesthetic: 0.35
+      technical: 0.42
+      material_innovation: 0.38
+      commercial: 0.30
+      cultural: 0.45
+      regional: 0.40
+      historical: 0.30
+      symbolic: 0.35
+    tags: [community, multi_purpose, elderly_friendly, child_safe, low_cost]
+
+    applicable_scenarios:
+      - 社区公共空间设计
+      - 分时复用空间系统
+      - 老人+儿童复合适配
+      - 低成本改造项目
+      - 模块化家具设计
+
+    source_question: Q35
+
+    highlights:
+      - 复合使用：早太极(老人)+午阅读(全龄)+晚课堂(儿童)
+      - 空间灵活性：移动隔断+变形家具+多场景适配
+      - 安全系统：无障碍+儿童防护+老人扶手
+      - 成本控制：10万预算+模块化+DIY可能性
+
+  - id: social_affordable_housing_01
+    name: 保障性住房高品质模型（Q69原型）
+    file: social_dominant_02.yaml
+
+    # 🆕 v7.990 多维度标签矩阵
+    tags_matrix:
+      space_type:
+        - apartment
+        - residence
+        - affordable_housing
+      scale: small
+      design_direction:
+        - social
+        - functional
+        - sustainable
+      user_profile:
+        - family
+        - low_income
+        - young
+      challenge_type:
+        - budget_control
+        - dignity_design
+        - standardization
+      methodology:
+        - modular_design
+        - cost_engineering
+        - scalable_solution
+      phase: design
+
+    # v7.980 特征向量（fallback）
+    feature_vector:
+      social: 0.70
+      functional: 0.65
+      sustainable: 0.55
+      aesthetic: 0.45
+      commercial: 0.35
+      technical: 0.40
+      material_innovation: 0.38
+      experiential: 0.48
+      cultural: 0.30
+      regional: 0.25
+      historical: 0.15
+      symbolic: 0.40
+    tags: [affordable_housing, dignity, standardization, cost_control, scalable]
+
+    applicable_scenarios:
+      - 保障性住房设计
+      - 低成本高品质平衡
+      - 标准化模块化设计
+      - 社会公平设计实践
+      - 尊严感空间表达
+
+    source_question: Q69
+
+    highlights:
+      - 成本控制：2000元/㎡+标准化模块+规模化采购
+      - 品质保障：尊严设计+功能完善+空间灵活性
+      - 模块系统：4种户型+8个功能模块+可组合性
+      - 社会价值：可复制性+政策对接+社会影响力
+
+  # ========== 混合复杂类 (Mixed Complex) ==========
+
+  - id: mixed_complex_multi_function_01
+    name: 四层复合总部建筑（Q23原型）
+    file: mixed_complex_01.yaml
+
+    # 🆕 v7.990 多维度标签矩阵
+    tags_matrix:
+      space_type:
+        - office
+        - showroom
+        - residence
+        - mixed_use
+      scale: large
+      design_direction:
+        - commercial
+        - aesthetic
+        - functional
+      user_profile:
+        - enterprise
+        - high_net_worth
+      challenge_type:
+        - multi_function_integration
+        - brand_expression
+        - spatial_hierarchy
+      methodology:
+        - narrative_design
+        - spatial_strategy
+      phase: renovation
+
+    # v7.980 特征向量（fallback）
+    feature_vector:
+      commercial: 0.55
+      functional: 0.62
+      aesthetic: 0.58
+      cultural: 0.48
+      experiential: 0.60
+      social: 0.50
+      technical: 0.48
+      material_innovation: 0.52
+      symbolic: 0.55
+      sustainable: 0.40
+      historical: 0.42
+      regional: 0.35
+    tags: [mixed_use, headquarters, residential_office, zen_aesthetics, renovation]
+
+    applicable_scenarios:
+      - 多功能复合建筑设计
+      - 展厅+办公+住宅集成
+      - 新旧对毙美学处理
+      - 公私空间分层策略
+      - 企业家精神空间化
+
+    source_question: Q23
+
+    highlights:
+      - 功能复合：L1展厅+L2办公+L3-4住宅，垂直功能分区
+      - 空间转折：老建筑保留+新增体块+对毙美学
+      - 品牌表达：禅意简约+工艺精致+企业家气质
+      - 动线组织：公共与私密、商业与生活分离
+
+  # ========== 补充示例：养老医疗空间 ==========
+
+  - id: social_elderly_community_01
+    name: 泰康人寿高端养老社区代际交流综合体（Q80原型）
+    file: new_elderly_community_01.yaml
+
+    # 🆕 v7.990 多维度标签矩阵
+    tags_matrix:
+      space_type:
+        - elderly_care
+        - community_center
+        - mixed_use
+      scale: mega
+      design_direction:
+        - social
+        - commercial
+        - functional
+      user_profile:
+        - elderly
+        - family
+        - community
+        - children
+      challenge_type:
+        - intergenerational_design
+        - operation_model
+        - accessibility
+      methodology:
+        - user_insight
+        - operation_driven
+        - behavioral_research
+      phase: concept
+
+    # v7.980 特征向量（fallback）
+    feature_vector:
+      social: 0.78
+      functional: 0.70
+      commercial: 0.65
+      experiential: 0.60
+      aesthetic: 0.45
+      sustainable: 0.50
+      cultural: 0.40
+      technical: 0.48
+      material_innovation: 0.35
+      symbolic: 0.42
+      historical: 0.30
+      regional: 0.35
+
+    tags: [elderly_care, intergenerational, community, commercial_loop, vitality]
+
+    applicable_scenarios:
+      - 高端养老社区设计
+      - 代际交流空间整合（幼儿园+养老院）
+      - 商业闭环模式嵌入
+      - 无障碍全龄化设计
+      - 运营转化与入住率优化
+
+    source_question: Q80
+
+    highlights:
+      - 代际交流：养老+幼儿园+共享书房+家庭探访区四维联动
+      - 商业闭环：餐饮+医疗+娱乐+教育完整生态链条
+      - 空间分层：公共/半公共/私密三级动线系统
+      - 活力激活：打破养老院"孤岛感"，引入社会活力元素
+
+  # ========== 补充示例：办公空间 ==========
+
+  - id: office_professional_service_01
+    name: 律师事务所开放协作办公室（Q64原型）
+    file: new_office_law_firm_01.yaml
+
+    # 🆕 v7.990 多维度标签矩阵
+    tags_matrix:
+      space_type:
+        - office
+        - professional_service
+      scale: medium
+      design_direction:
+        - functional
+        - social
+        - commercial
+      user_profile:
+        - professional
+        - enterprise
+        - clients
+      challenge_type:
+        - brand_transformation
+        - space_transparency
+        - collaboration_enhancement
+      methodology:
+        - spatial_strategy
+        - brand_design
+        - behavioral_research
+      phase: design
+
+    # v7.980 特征向量（fallback）
+    feature_vector:
+      functional: 0.70
+      social: 0.65
+      commercial: 0.60
+      aesthetic: 0.55
+      experiential: 0.58
+      technical: 0.45
+      sustainable: 0.40
+      material_innovation: 0.42
+      symbolic: 0.52
+      cultural: 0.35
+      historical: 0.30
+      regional: 0.25
+
+    tags: [office, professional_service, transparency, collaboration, brand_transformation]
+
+    applicable_scenarios:
+      - 律师/会计/咨询等专业服务办公室
+      - 打破传统严肃刻板印象
+      - 开放协作空间设计
+      - 品牌识别系统整合
+      - 会议空间层级划分
+
+    source_question: Q64
+
+    highlights:
+      - 品牌转型：从"严肃刻板"到"开放高效"的形象重构
+      - 透明度控制：玻璃隔断+可调节私密性+视觉连续性
+      - 会议层级：大型会议室+小组讨论间+非正式交流区3级划分
+      - 协作机制：共享工位+专属办公+灵活组合的空间弹性
+
+  # ========== Phase 2 战略示例：超大尺度+文化转译 ==========
+
+  - id: cultural_xlarge_01
+    name: 安徽合肥50000㎡中国书法大酒店（Q17原型）
+    file: cultural_xlarge_01.yaml
+
+    tags_matrix:
+      space_type:
+        - hotel
+        - museum
+        - conference_center
+        - academic_center
+        - cultural_landmark
+      scale: xlarge
+      design_direction:
+        - cultural
+        - aesthetic
+        - experiential
+        - commercial
+      user_profile:
+        - cultural_tourists
+        - business_travelers
+        - calligraphy_enthusiasts
+        - academic_researchers
+      challenge_type:
+        - cultural_translation
+        - brand_identity
+        - scale_complexity
+        - multifunctional_integration
+      methodology:
+        - cultural_research
+        - artistic_interpretation
+        - spatial_storytelling
+      phase: schematic_design
+
+    feature_vector:
+      cultural: 0.88
+      aesthetic: 0.75
+      experiential: 0.72
+      symbolic: 0.70
+      historical: 0.68
+      commercial: 0.58
+      functional: 0.55
+      social: 0.48
+      material_innovation: 0.45
+      regional: 0.65
+      technical: 0.42
+      sustainable: 0.40
+
+    tags: [xlarge_scale, cultural_translation, calligraphy_art, multifunctional, brand_identity]
+
+    applicable_scenarios:
+      - 超大尺度文化主题酒店（>30000㎡）
+      - 艺术/文化深度转译空间化
+      - 住宿+展览+会议+学术多功能融合
+      - 避免文化符号化过度装饰
+      - 个人精神世界物质化表达
+
+    source_question: Q17
+
+    highlights:
+      - 16任务精准分配：文化研究25% + 空间设计45% + 艺术转译20% + 运营战略10%
+      - 书法空间转译：笔墨精神材料化 + 结构美学空间化 + 避免直接符号复制
+      - 四位一体功能：250间客房 + 2000㎡展厅 + 1500㎡会议 + 800㎡学术研究
+      - specialty_score=0.35（强示例）：文化深度高但非小众
+
+  # ========== Phase 2 战略示例：资本策略+市场定位 ==========
+
+  - id: capital_strategy_01
+    name: 成都麓湖地产样板房多概念策划（Q19原型）
+    file: capital_strategy_01.yaml
+
+    tags_matrix:
+      space_type:
+        - residential
+        - showroom
+        - sales_center
+      scale: medium
+      design_direction:
+        - commercial
+        - aesthetic
+        - experiential
+      user_profile:
+        - high_net_worth
+        - segmented_demographics
+        - real_estate_developers
+      challenge_type:
+        - market_segmentation
+        - brand_differentiation
+        - sales_conversion
+        - replicability
+      methodology:
+        - market_research
+        - persona_driven
+        - brand_strategy
+        - cost_engineering
+      phase: concept_to_schematic
+
+    feature_vector:
+      commercial: 0.85
+      aesthetic: 0.72
+      experiential: 0.68
+      functional: 0.58
+      symbolic: 0.62
+      cultural: 0.55
+      social: 0.48
+      material_innovation: 0.52
+      technical: 0.45
+      sustainable: 0.40
+      regional: 0.58
+      historical: 0.30
+
+    tags: [capital_strategy, market_segmentation, replicability, multi_concept, sales_conversion]
+
+    applicable_scenarios:
+      - 地产样板房策划（多概念差异化）
+      - 资本主导的设计策略
+      - 精准客群画像与空间对应
+      - 可复制性与品牌体系
+      - 成本控制与销售转化平衡
+
+    source_question: Q19
+
+    highlights:
+      - 16任务策略聚焦：市场研究20% + 10概念策划60% + 复制性15% + 评估5%
+      - 10差异化概念：茶隐/光合/藏珍/静谧/科技巢/世家/摩登/田园诗/诗意栖居/乐活
+      - 精准人群画像：年龄/职业/收入/生活方式/审美偏好/居住诉求全覆盖
+      - 成本控制：硬装3500元/㎡+软装3000-8000元/㎡可复制标准
+      - specialty_score=0.20（强示例）：高度商业化但普适性强
+
+  # ========== Phase 2 战略示例：极端环境+技术整合 ==========
+
+  - id: extreme_environment_01
+    name: 西藏林芝3800米悬崖边精品民宿（Q85原型）
+    file: extreme_environment_01.yaml
+
+    tags_matrix:
+      space_type:
+        - boutique_hotel
+        - resort
+        - mountain_retreat
+      scale: small
+      design_direction:
+        - technical
+        - sustainable
+        - regional
+        - experiential
+      user_profile:
+        - adventure_traveler
+        - high_altitude_tourist
+        - wellness_seeker
+      challenge_type:
+        - extreme_climate
+        - high_altitude
+        - technical_integration
+        - material_durability
+        - energy_efficiency
+      methodology:
+        - evidence_based_design
+        - technology_intensive
+        - climate_responsive
+      phase: detailed_design
+
+    feature_vector:
+      technical: 0.88
+      functional: 0.72
+      regional: 0.75
+      sustainable: 0.68
+      material_innovation: 0.70
+      experiential: 0.62
+      aesthetic: 0.50
+      commercial: 0.48
+      cultural: 0.35
+      social: 0.28
+      symbolic: 0.40
+      historical: 0.25
+
+    tags: [extreme_environment, high_altitude, technical_integration, oxygen_system, energy_efficiency]
+
+    applicable_scenarios:
+      - 高海拔建筑（>3000米）
+      - 极寒环境设计（<-15℃）
+      - 技术密集型度假酒店
+      - 环境适应性建筑
+      - 生理安全保障系统
+
+    source_question: Q85
+
+    highlights:
+      - 8任务技术密集：技术研究50% + 设备整合30% + 美学平衡20%
+      - 三大核心技术：弥散式供氧系统 + 极寒低能耗供暖 + 强紫外防护
+      - 生理安全保障：氧浓度25-28% + 温度18-22℃ + UV抗性等级8+
+      - specialty_score=0.80（轻示例）：极端环境高度特殊，鼓励创新
+
+  # ========== Phase 2 战略示例：预算约束+成本控制 ==========
+
+  - id: budget_constraint_01
+    name: 上海老弄堂120㎡老房翻新（50万全包，Q77原型）
+    file: budget_constraint_01.yaml
+
+    tags_matrix:
+      space_type:
+        - residential
+        - apartment
+        - renovation
+      scale: medium
+      design_direction:
+        - commercial
+        - aesthetic
+        - functional
+      user_profile:
+        - young_family
+        - budget_conscious
+        - aesthetic_pursuer
+      challenge_type:
+        - budget_constraint
+        - cost_optimization
+        - visual_leverage
+        - old_building_renovation
+      methodology:
+        - value_engineering
+        - cost_benefit_analysis
+        - visual_prioritization
+      phase: design_to_construction
+
+    feature_vector:
+      commercial: 0.55
+      aesthetic: 0.68
+      functional: 0.58
+      experiential: 0.60
+      cultural: 0.35
+      sustainable: 0.38
+      technical: 0.45
+      historical: 0.48
+      regional: 0.55
+      material_innovation: 0.42
+      social: 0.25
+      symbolic: 0.35
+
+    tags: [budget_constraint, cost_optimization, visual_leverage, renovation, value_engineering]
+
+    applicable_scenarios:
+      - 预算有限项目（<5000元/㎡全包）
+      - 老房翻新改造
+      - 成本控制与品质平衡
+      - 资金分配策略研究
+      - 视觉杠杆效应最大化
+
+    source_question: Q77
+
+    highlights:
+      - 8任务精准聚焦：预算策略30% + 焦点设计40% + 压缩策略30%
+      - 杠杆效应：3个重投节点（客厅主墙10万+灯光5万+储物8万）产生80%视觉价值
+      - 成本压缩：3个压缩节点（天花+地面+卫浴）节省6.5万（13%预算）
+      - specialty_score=0.30（强示例）：预算约束普遍但策略明确
+
+  # ========== Phase 2 战略示例：商业社会+利益相关方 ==========
+
+  - id: commercial_social_01
+    name: 深圳蛇口菜市场社区化改造（Q9原型）
+    file: commercial_social_01.yaml
+
+    tags_matrix:
+      space_type:
+        - commercial
+        - market
+        - community_space
+        - food_retail
+      scale: medium
+      design_direction:
+        - social
+        - commercial
+        - cultural
+        - functional
+      user_profile:
+        - community_residents
+        - street_vendors
+        - young_consumers
+        - local_government
+      challenge_type:
+        - stakeholder_balance
+        - community_engagement
+        - social_sustainability
+        - business_model_innovation
+      methodology:
+        - participatory_design
+        - stakeholder_analysis
+        - phased_implementation
+      phase: schematic_to_detailed
+
+    feature_vector:
+      social: 0.82
+      commercial: 0.75
+      experiential: 0.70
+      functional: 0.68
+      cultural: 0.58
+      regional: 0.58
+      historical: 0.62
+      aesthetic: 0.55
+      sustainable: 0.52
+      symbolic: 0.55
+      technical: 0.48
+      material_innovation: 0.40
+
+    tags: [community_engagement, stakeholder_balance, market_renovation, social_value, phased_implementation]
+
+    applicable_scenarios:
+      - 商业空间改造（菜市场/商场/商业街）
+      - 利益相关方复杂项目（>30个）
+      - 社区营造与商业平衡
+      - 社会价值导向设计
+      - 分阶段改造实施
+
+    source_question: Q9
+
+    highlights:
+      - 8任务社会-商业双重价值：利益相关方30% + 功能优化30% + 文化20% + 运营20%
+      - 三方平衡模型：老摊主（利益保护）+ 年轻顾客（体验提升）+ 社区（文化记忆）
+      - 关键机制：租金3年过渡期 + 轮换改造 + 停业补偿500元/天
+      - specialty_score=0.55（中度示例）：利益相关方复杂但非极端
+
+  # ========== Phase 2 战略示例：城市更新+工业遗存 ==========
+
+  - id: urban_renewal_01
+    name: 重庆防空洞改造当代美术馆（Q68原型）
+    file: urban_renewal_01.yaml
+
+    tags_matrix:
+      space_type:
+        - museum
+        - art_gallery
+        - cultural_space
+        - underground_space
+      scale: medium
+      design_direction:
+        - historical
+        - cultural
+        - functional
+        - social
+      user_profile:
+        - art_enthusiasts
+        - cultural_tourists
+        - local_community
+        - historians
+      challenge_type:
+        - urban_renewal
+        - industrial_heritage
+        - adaptive_reuse
+        - historical_preservation
+        - spatial_transformation
+      methodology:
+        - preservation_design
+        - adaptive_reuse
+        - participatory_curation
+      phase: schematic_to_detailed
+
+    feature_vector:
+      historical: 0.85
+      experiential: 0.75
+      regional: 0.75
+      cultural: 0.72
+      social: 0.70
+      aesthetic: 0.68
+      symbolic: 0.68
+      functional: 0.62
+      sustainable: 0.58
+      technical: 0.55
+      material_innovation: 0.50
+      commercial: 0.38
+
+    tags: [urban_renewal, industrial_heritage, adaptive_reuse, historical_preservation, underground_space]
+
+    applicable_scenarios:
+      - 城市更新项目
+      - 工业遗产改造（防空洞/水塔/粮仓）
+      - 特殊空间激活
+      - 历史保护与功能植入
+      - 新旧对话设计
+
+    source_question: Q68
+
+    highlights:
+      - 8任务历史-功能双重价值：历史研究25% + 展陈功能35% + 历史保护20% + 公共策略20%
+      - 核心策略：保留历史痕迹（混凝土/标语/通风孔）+ 美术馆功能 + 天然恒温利用
+      - 新旧对话：原始混凝土 vs 当代艺术、洞穴空间 vs 白盒子展厅
+      - specialty_score=0.60（中度示例）：工业遗存特殊但方法可参考
+
+# 元数据
+metadata:
+  version: v8.100.0  # Phase 3: 补齐6大类别缺口
+  total_examples: 24  # 注册条目总数（删除3组重复后）
+  available_yaml_files: 20  # 实际磁盘文件数
+  last_updated: 2026-02-20
+
+  # v7.990 新架构
+  matching_dimensions: 7
+  selection_algorithm: multidimensional_matrix_matching
+  fallback_algorithm: cosine_similarity
+
+  # v7.980 兼容
+  feature_dimensions: 12
+  min_similarity_threshold: 0.3
+
+  # 迁移状态
+  tags_matrix_coverage: 24/24 (100%)  # 所有条目均有 tags_matrix
+  backward_compatible: true
+
+  # v8.100 补齐的6大类别缺口
+  phase3_new_files:
+    - social_dominant_01.yaml: Q35广州社区活动中心（老幼分时复用+可变家具+声学分区）
+    - sustainable_dominant_01.yaml: Q97零碳生活方式样板房（材料可追溯+碳足迹+循环经济）
+    - mixed_complex_01.yaml: Q23南昌四层复合总部（展厅+办公+住宅+会所）
+    - aesthetic_dominant_02.yaml: Q6赫本精神大平层（人物精神转译+独立女性空间）
+    - new_office_law_firm_01.yaml: Q64律师事务所（品牌转型+透明度+协作机制）
+    - new_elderly_community_01.yaml: Q80泰康养老社区（代际交流+商业闭环+活力激活）
+
+  # 仍缺失的文件（注册表有条目但YAML未创建）
+  still_missing_files:
+    - aesthetic_dominant_03.yaml: Q10季裕棠叙事客厅
+    - functional_dominant_03.yaml: Q32过敏儿童医疗级卧室
+    - social_dominant_02.yaml: Q69保障性住房
+    - sustainable_dominant_02.yaml: Q86三亚海边木结构餐厅
+
+  # 覆盖矩阵总结
+  coverage_matrix:
+    scale_range: "15㎡微空间 → 50000㎡超大尺度"
+    dominant_abilities: "文化/商业/功能/技术/资本/环境适应/社会营造/可持续/审美/混合复杂/办公/养老"
+    specialty_score_range: "0.15-0.80 (常规 → 极端特殊)"
+    project_types: "住宅/酒店/办公/商业/文化/社区/更新/特殊需求/养老/零碳/混合复合"

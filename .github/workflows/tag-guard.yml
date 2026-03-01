@@ -1,0 +1,23 @@
+name: Tag Guard
+
+on:
+  push:
+    tags:
+      - "v*"
+      - "backup/**"
+  workflow_dispatch:
+
+jobs:
+  validate-tag:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Validate tag naming and version match
+        run: python scripts/check_tag_naming.py

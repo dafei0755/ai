@@ -1,0 +1,486 @@
+# 动机类型到L2视角映射配置
+# v7.280 - 2026-01-25
+# 建立12种动机类型与L2多视角建模的协同机制
+
+version: "v7.280"
+last_updated: "2026-01-25"
+description: "动机类型作为L2视角选择的依据，实现动机识别与深度分析的协同"
+
+# ============================================================================
+# 映射机制说明
+# ============================================================================
+#
+# 1. 动机引擎识别用户的主导动机类型（12种之一）
+# 2. L2视角激活器读取此配置，根据动机类型：
+#    - 激活 mandatory_perspectives（强制视角）
+#    - 推荐 recommended_perspectives（推荐视角）
+#    - 应用 boost_keywords 增强关键词识别
+# 3. 基础视角（psychological, sociological, aesthetic, emotional, ritual）始终激活
+# 4. 扩展视角（business, technical, ecological, cultural, political）按映射激活
+
+# ============================================================================
+# P0 优先级动机类型映射
+# ============================================================================
+motivation_perspective_mapping:
+
+  # 文化认同动机
+  cultural:
+    priority: P0
+    label_zh: 文化认同
+    description: 传统文化、地域特色、民族符号、精神传承
+
+    # 强制激活的视角
+    mandatory_perspectives:
+      - cultural  # 必须从文化视角分析
+
+    # 推荐激活的视角
+    recommended_perspectives:
+      - sociological  # 社会认同维度
+      - ritual        # 文化仪式维度
+
+    # 增强关键词（额外触发扩展视角的关键词）
+    boost_keywords:
+      - 传统
+      - 历史
+      - 地域
+      - 民族
+      - 文脉
+      - 乡愁
+      - 精神传承
+
+    # 分析侧重点提示
+    analysis_focus:
+      - "分析文化元素的象征意义和当代转化"
+      - "关注地域特色与现代设计的融合策略"
+      - "识别文化传承与创新的平衡点"
+
+  # 商业价值动机
+  commercial:
+    priority: P0
+    label_zh: 商业价值
+    description: ROI、坪效、运营效率、竞争策略
+
+    mandatory_perspectives:
+      - business  # 必须从商业视角分析
+
+    recommended_perspectives:
+      - political  # 利益相关者维度
+      - technical  # 技术可行性维度
+
+    boost_keywords:
+      - ROI
+      - 坪效
+      - 盈利
+      - 竞争
+      - 市场
+      - 运营
+      - 成本控制
+
+    analysis_focus:
+      - "量化商业价值和投资回报"
+      - "分析竞争优势和市场定位"
+      - "评估运营效率和成本结构"
+
+  # 健康疗愈动机
+  wellness:
+    priority: P0
+    label_zh: 健康疗愈
+    description: 物理健康、心理疗愈、医疗标准、安全环境
+
+    mandatory_perspectives:
+      - psychological  # 心理健康维度（基础视角，强调）
+      - emotional      # 情感疗愈维度（基础视角，强调）
+
+    recommended_perspectives:
+      - ecological  # 环境健康维度
+
+    boost_keywords:
+      - 健康
+      - 疗愈
+      - 康复
+      - 心理
+      - 安全
+      - 正念
+      - 冥想
+
+    analysis_focus:
+      - "分析物理环境对健康的影响"
+      - "关注心理安全和情感疗愈需求"
+      - "评估材料和环境的健康合规性"
+
+# ============================================================================
+# P1 优先级动机类型映射
+# ============================================================================
+
+  # 技术创新动机
+  technical:
+    priority: P1
+    label_zh: 技术创新
+    description: 智能化、工程技术、未来体验、系统集成
+
+    mandatory_perspectives:
+      - technical  # 必须从技术视角分析
+
+    recommended_perspectives:
+      - business  # 技术商业化维度
+
+    boost_keywords:
+      - 智能
+      - 系统
+      - 集成
+      - AI
+      - 数字化
+      - 自动化
+      - 科技
+
+    analysis_focus:
+      - "评估技术方案的可行性和集成复杂度"
+      - "分析技术趋势和未来扩展性"
+      - "关注用户体验和技术的平衡"
+
+  # 可持续价值动机
+  sustainable:
+    priority: P1
+    label_zh: 可持续价值
+    description: 环保、社会责任、可持续发展、价值观表达
+
+    mandatory_perspectives:
+      - ecological  # 必须从生态视角分析
+
+    recommended_perspectives:
+      - political  # 社会责任维度
+      - cultural   # 价值观传达维度
+
+    boost_keywords:
+      - 环保
+      - 可持续
+      - 绿色
+      - 低碳
+      - 社会责任
+      - 有机
+      - 循环
+
+    analysis_focus:
+      - "评估环境影响和可持续性"
+      - "分析社会责任和价值观表达"
+      - "关注循环经济和资源效率"
+
+# ============================================================================
+# P2 优先级动机类型映射
+# ============================================================================
+
+  # 专业职能动机
+  professional:
+    priority: P2
+    label_zh: 专业职能
+    description: 行业标准、专业设备、职业形象、工作流程
+
+    mandatory_perspectives:
+      - technical     # 专业技术维度
+      - sociological  # 职业身份维度
+
+    recommended_perspectives: []
+
+    boost_keywords:
+      - 专业
+      - 标准
+      - 设备
+      - 工作流程
+      - 规范
+      - 职业
+
+    analysis_focus:
+      - "分析行业标准和专业要求"
+      - "关注工作流程和效率优化"
+      - "评估专业形象和职业身份表达"
+
+  # 包容性动机
+  inclusive:
+    priority: P2
+    label_zh: 包容性
+    description: 无障碍设计、特殊人群、尊严平等、人文关怀
+
+    mandatory_perspectives:
+      - psychological  # 心理安全维度
+      - sociological   # 社会公平维度
+
+    recommended_perspectives:
+      - political  # 政策法规维度
+
+    boost_keywords:
+      - 无障碍
+      - 包容
+      - 尊严
+      - 平等
+      - 特殊人群
+      - 通用设计
+
+    analysis_focus:
+      - "分析不同人群的需求差异"
+      - "关注尊严感和心理安全"
+      - "评估无障碍设计的合规性"
+
+# ============================================================================
+# BASELINE 优先级动机类型映射
+# ============================================================================
+
+  # 功能性动机
+  functional:
+    priority: BASELINE
+    label_zh: 功能性
+    description: 空间功能、实用性、基础需求满足
+
+    # 无强制扩展视角，使用基础5视角
+    mandatory_perspectives: []
+    recommended_perspectives: []
+
+    boost_keywords:
+      - 功能
+      - 实用
+      - 布局
+      - 动线
+      - 收纳
+
+    analysis_focus:
+      - "分析空间功能和动线规划"
+      - "关注实用性和基础需求满足"
+
+  # 情感性动机
+  emotional:
+    priority: BASELINE
+    label_zh: 情感性
+    description: 情感体验、氛围营造、心理感受
+
+    mandatory_perspectives: []
+
+    recommended_perspectives:
+      - ritual  # 情感仪式维度
+
+    boost_keywords:
+      - 氛围
+      - 情感
+      - 体验
+      - 温暖
+      - 浪漫
+      - 疗愈
+
+    analysis_focus:
+      - "分析期望创造的情感体验"
+      - "关注氛围营造和心理感受"
+
+  # 审美动机
+  aesthetic:
+    priority: BASELINE
+    label_zh: 审美
+    description: 视觉美感、艺术表达、风格呈现
+
+    mandatory_perspectives: []
+
+    recommended_perspectives:
+      - cultural  # 美学文化背景
+
+    boost_keywords:
+      - 审美
+      - 色彩
+      - 材质
+      - 风格
+      - 艺术
+      - 视觉
+
+    analysis_focus:
+      - "分析审美偏好和视觉语言"
+      - "关注风格一致性和艺术表达"
+
+  # 社交动机
+  social:
+    priority: BASELINE
+    label_zh: 社交
+    description: 人际互动、社群关系、交流空间
+
+    mandatory_perspectives: []
+
+    recommended_perspectives:
+      - political  # 社群关系维度
+
+    boost_keywords:
+      - 社交
+      - 互动
+      - 社区
+      - 交流
+      - 分享
+
+    analysis_focus:
+      - "分析社交需求和互动模式"
+      - "关注空间的社交功能和氛围"
+
+# ============================================================================
+# FALLBACK 动机类型映射
+# ============================================================================
+
+  # 综合动机
+  mixed:
+    priority: FALLBACK
+    label_zh: 综合
+    description: 多种动机混合，无明显主导类型
+
+    # 综合类型使用启发式规则
+    mandatory_perspectives: []
+
+    # 根据关键词频率动态选择
+    recommended_perspectives:
+      - business   # 如果检测到商业关键词
+      - technical  # 如果检测到技术关键词
+      - cultural   # 如果检测到文化关键词
+      - ecological # 如果检测到环保关键词
+
+    boost_keywords: []  # 依赖动态分析
+
+    analysis_focus:
+      - "使用关键词频率分析确定重点视角"
+      - "平衡多种动机的分析权重"
+
+# ============================================================================
+# 视角激活规则
+# ============================================================================
+activation_rules:
+  # 始终激活的基础视角
+  always_active:
+    - psychological
+    - sociological
+    - aesthetic
+    - emotional
+    - ritual
+
+  # 最大同时激活的扩展视角数
+  max_extended_perspectives: 3
+
+  # 视角优先级（当超过最大数量时的选择顺序）
+  priority_order:
+    - mandatory   # 动机映射的强制视角最优先
+    - keyword     # 关键词匹配的视角次之
+    - recommended # 推荐视角最后
+
+  # 关键词匹配阈值（匹配多少个关键词激活视角）
+  keyword_activation_threshold: 2
+
+# ============================================================================
+# 协同机制配置
+# ============================================================================
+synergy:
+  # 是否启用动机→视角协同
+  enabled: true
+
+  # 协同模式
+  mode: "enhance"  # enhance: 动机增强视角选择 | override: 动机覆盖视角选择
+
+  # 日志记录
+  log_perspective_selection: true
+
+  # 缓存配置（避免重复计算）
+  cache_ttl_seconds: 300
+
+# ============================================================================
+# B7: 视角置信度权重向量（perspective_weights）
+# 补充原有 mandatory_perspectives / recommended_perspectives 的二值结构
+# 权重含义: 1.0=核心主力视角 / 0.7-0.9=强推荐 / 0.4-0.6=辅助 / 0.2-0.3=弱背景
+# 用法: 代码读取此表后与 activation_rules 合并，实现连续置信度调度
+# ============================================================================
+perspective_weights_by_motivation:
+
+  # --- P0 优先级 ---
+
+  cultural:
+    # 文化认同：文化符号 + 仪式感 + 社会身份三轴驱动
+    cultural:     1.0   # 核心：文化符号、地域特色
+    ritual:       0.9   # 仪式感是文化认同的载体
+    sociological: 0.8   # 社会身份认同
+    political:    0.6   # 政治/制度背景（地域/民族政策）
+    aesthetic:    0.5   # 文化审美一致性
+    psychological: 0.5  # 文化归属的心理层
+
+  commercial:
+    # 商业投资：回报逻辑 + 技术可行性双轨
+    business:     1.0   # 核心：ROI / 竞争力 / 运营效率
+    technical:    0.7   # 技术可行性影响商业决策
+    political:    0.6   # 政策/法规风险
+    sociological: 0.4   # 目标用户社会画像
+
+  wellness:
+    # 健康疗愈：心理安全 + 情感修复为双核
+    psychological: 1.0  # 核心：心理健康维度
+    emotional:    0.9   # 情感疗愈体验
+    ecological:   0.6   # 环境健康（材料/空气/光）
+    ritual:       0.5   # 疗愈仪式感
+
+  # --- P1 优先级 ---
+
+  technical:
+    # 技术创新：工程可行性主导 + 商业化方向补充
+    technical:    1.0   # 核心：系统集成 / 智能化 / 可扩展性
+    business:     0.6   # 技术商业化路径
+    ecological:   0.3   # 技术环境影响（低权重）
+
+  sustainable:
+    # 可持续：生态系统思维为绝对主轴
+    ecological:   1.0   # 核心：环境影响 / 循环经济
+    political:    0.6   # 政策法规 / 社会责任监管
+    cultural:     0.5   # 可持续价值观的文化表达
+    sociological: 0.4   # 社会认知与公众接受度
+
+  # --- P2 优先级 ---
+
+  professional:
+    # 专业职能：行业标准强制 + 社会职业身份验证
+    technical:    0.9   # 行业技术标准
+    sociological: 0.8   # 职业身份 / 专业形象
+    business:     0.5   # 专业效率与成本
+
+  inclusive:
+    # 包容性：心理安全 + 社会公平双核
+    psychological: 1.0  # 尊严感 / 心理安全
+    sociological: 0.9   # 社会公平 / 特殊人群
+    political:    0.6   # 无障碍法规 / 政策合规
+    emotional:    0.5   # 情感接纳体验
+
+  # --- BASELINE ---
+
+  functional:
+    # 功能性：基础5视角均衡分布，无强主导
+    psychological: 0.35
+    sociological:  0.3
+    aesthetic:     0.3
+    emotional:     0.3
+    ritual:        0.2
+
+  emotional:
+    # 情感性：仪式与情感体验为核心
+    emotional:    0.8
+    ritual:       0.7   # 仪式感是情感记忆的锚点
+    psychological: 0.6
+
+  aesthetic:
+    # 审美：视觉美感 + 文化美学背景
+    aesthetic:    0.8
+    cultural:     0.6   # 审美偏好的文化根源
+    emotional:    0.5   # 美感引发的情感响应
+
+  social:
+    # 社交：群体关系 + 政策/社区制度支撑
+    sociological: 0.8
+    political:    0.6   # 社群规则 / 社区治理
+    emotional:    0.5   # 社交情感连接
+
+  # --- FALLBACK ---
+
+  mixed:
+    # 综合型：所有视角均衡基准，依赖关键词动态调增
+    psychological: 0.5
+    sociological:  0.5
+    aesthetic:     0.5
+    emotional:     0.5
+    ritual:        0.5
+    business:      0.4  # 按关键词命中可上调至 0.8
+    technical:     0.4
+    ecological:    0.4
+    cultural:      0.4
+    political:     0.4

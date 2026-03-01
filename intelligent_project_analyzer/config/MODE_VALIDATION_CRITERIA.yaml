@@ -1,0 +1,779 @@
+# ═══════════════════════════════════════════════════════════
+# MODE_VALIDATION_CRITERIA.yaml
+# v7.750 P1-Task2
+#
+# 目的：定义10种设计模式的验证标准
+# 使用场景：ability_validator.py Layer 4 模式特征验证
+# ═══════════════════════════════════════════════════════════
+
+# ═══════════════════════════════════════════════════════════
+# 全局配置
+# ═══════════════════════════════════════════════════════════
+global_config:
+  validation_version: "v7.750"
+
+  # 验证严格程度
+  validation_strictness:
+    low: 0.3      # 30%的特征匹配即可通过
+    medium: 0.5   # 50%的特征匹配
+    high: 0.7     # 70%的特征匹配
+
+  # 默认严格程度
+  default_strictness: "medium"
+
+  # 模式特定严格程度覆盖
+  mode_specific_strictness:
+    M4_capital_asset: "high"      # 资产型必须有明确ROI
+    M8_extreme_condition: "high"  # 极端环境必须有技术方案
+    M11_healthcare_healing: "high"  # 疗愈型必须有安全保障
+    M1_concept_driven: "medium"
+    M2_function_efficiency: "medium"
+
+  # 验证失败处理策略
+  validation_failure_strategy:
+    mode: "warning"  # "blocking" | "warning" | "silent"
+    log_level: "warning"
+
+# ═══════════════════════════════════════════════════════════
+# M1 概念驱动型设计 - 验证标准
+# ═══════════════════════════════════════════════════════════
+M1_concept_driven:
+  mode_name: "概念驱动型设计"
+  validation_priority: "medium"
+
+  # 核心特征检查点
+  core_features:
+    - feature_id: "M1_F1_spiritual_axis"
+      feature_name: "精神主轴定义"
+      description: "必须明确核心精神主线"
+      validation_keywords:
+        - "概念"
+        - "精神"
+        - "主题"
+        - "理念"
+        - "母题"
+        - "叙事"
+      validation_rule: "must_contain_at_least_2_keywords"
+      weight: 0.35
+
+    - feature_id: "M1_F2_concept_structurable"
+      feature_name: "概念可结构化"
+      description: "概念必须可转化为空间规则"
+      validation_keywords:
+        - "空间秩序"
+        - "结构"
+        - "逻辑"
+        - "规则"
+        - "转译"
+        - "具象化"
+      validation_rule: "must_contain_at_least_1_keyword"
+      weight: 0.30
+
+    - feature_id: "M1_F3_material_reinforcement"
+      feature_name: "材料与光线强化"
+      description: "材料、光线必须支持概念表达"
+      validation_keywords:
+        - "材料"
+        - "光线"
+        - "灯光"
+        - "质感"
+        - "色彩"
+        - "氛围"
+      validation_rule: "must_contain_at_least_1_keyword"
+      weight: 0.20
+
+    - feature_id: "M1_F4_narrative_path"
+      feature_name: "空间叙事路径"
+      description: "空间必须有节奏与高潮"
+      validation_keywords:
+        - "动线"
+        - "序列"
+        - "节奏"
+        - "高潮"
+        - "路径"
+        - "体验"
+      validation_rule: "recommended"
+      weight: 0.15
+
+  # 必需元素（缺失则验证失败）
+  required_elements:
+    - element_type: "concept_statement"
+      element_name: "概念陈述"
+      validation_method: "keyword_check"
+      min_chars: 20
+
+  # 质量指标
+  quality_metrics:
+    - metric_id: "concept_clarity"
+      metric_name: "概念清晰度"
+      target_value: 0.7
+      evaluation_method: "keyword_density"
+
+  # 输出验证规则
+  output_validation:
+    min_content_length: 200  # 字符数
+    required_sections:
+      - "概念定义"
+      - "空间策略"
+
+# ═══════════════════════════════════════════════════════════
+# M2 功能效率型设计 - 验证标准
+# ═══════════════════════════════════════════════════════════
+M2_function_efficiency:
+  mode_name: "功能效率型设计"
+  validation_priority: "medium"
+
+  core_features:
+    - feature_id: "M2_F1_circulation_optimization"
+      feature_name: "动线最优化"
+      description: "必须有动线优化方案"
+      validation_keywords:
+        - "动线"
+        - "流线"
+        - "路径"
+        - "优化"
+        - "效率"
+        - "交叉"
+        - "瓶颈"
+      validation_rule: "must_contain_at_least_2_keywords"
+      weight: 0.40
+
+    - feature_id: "M2_F2_function_modularity"
+      feature_name: "功能模块化"
+      description: "功能必须可模块化组织"
+      validation_keywords:
+        - "模块"
+        - "标准化"
+        - "可复制"
+        - "单元"
+      validation_rule: "must_contain_at_least_1_keyword"
+      weight: 0.25
+
+    - feature_id: "M2_F3_interference_control"
+      feature_name: "干扰控制"
+      description: "必须有干扰控制策略"
+      validation_keywords:
+        - "隔离"
+        - "分区"
+        - "声学"
+        - "视线"
+        - "干扰"
+      validation_rule: "recommended"
+      weight: 0.20
+
+    - feature_id: "M2_F4_backend_separation"
+      feature_name: "后勤分离"
+      description: "后勤系统必须与前场分离"
+      validation_keywords:
+        - "后勤"
+        - "前场"
+        - "分离"
+        - "隐藏"
+      validation_rule: "recommended"
+      weight: 0.15
+
+  required_elements:
+    - element_type: "circulation_diagram"
+      element_name: "动线图示"
+      validation_method: "keyword_check"
+
+  quality_metrics:
+    - metric_id: "efficiency_improvement"
+      metric_name: "效率提升率"
+      target_value: 0.2  # 至少20%提升
+      evaluation_method: "quantitative_mention"
+
+# ═══════════════════════════════════════════════════════════
+# M3 情绪体验型设计 - 验证标准
+# ═══════════════════════════════════════════════════════════
+M3_emotional_experience:
+  mode_name: "情绪体验型设计"
+  validation_priority: "medium"
+
+  core_features:
+    - feature_id: "M3_F1_emotional_curve"
+      feature_name: "情绪节奏曲线"
+      description: "必须有体验节奏设计"
+      validation_keywords:
+        - "节奏"
+        - "高潮"
+        - "压缩"
+        - "释放"
+        - "沉静"
+        - "曲线"
+      validation_rule: "must_contain_at_least_2_keywords"
+      weight: 0.35
+
+    - feature_id: "M3_F2_multi_sensory"
+      feature_name: "多感官调动"
+      description: "必须涉及多种感官"
+      validation_keywords:
+        - "视觉"
+        - "听觉"
+        - "嗅觉"
+        - "触觉"
+        - "温度"
+        - "感官"
+      validation_rule: "must_contain_at_least_2_keywords"
+      weight: 0.30
+
+    - feature_id: "M3_F3_memory_anchor"
+      feature_name: "记忆锚点"
+      description: "必须有记忆节点设计"
+      validation_keywords:
+        - "记忆"
+        - "锚点"
+        - "节点"
+        - "印象"
+        - "标志"
+      validation_rule: "must_contain_at_least_1_keyword"
+      weight: 0.20
+
+    - feature_id: "M3_F4_calm_balance"
+      feature_name: "高潮与沉静平衡"
+      description: "必须有沉静区设计"
+      validation_keywords:
+        - "沉静"
+        - "平衡"
+        - "缓冲"
+        - "休息"
+      validation_rule: "recommended"
+      weight: 0.15
+
+  required_elements:
+    - element_type: "experience_sequence"
+      element_name: "体验序列"
+      validation_method: "keyword_check"
+      min_chars: 50
+
+# ═══════════════════════════════════════════════════════════
+# M4 资产资本型设计 - 验证标准
+# ═══════════════════════════════════════════════════════════
+M4_capital_asset:
+  mode_name: "资产资本型设计"
+  validation_priority: "high"  # 资本型验证最严格
+
+  core_features:
+    - feature_id: "M4_F1_client_asset_model"
+      feature_name: "客群资产模型"
+      description: "必须明确目标客群资产等级"
+      validation_keywords:
+        - "客群"
+        - "资产"
+        - "消费能力"
+        - "购买力"
+        - "定位"
+      validation_rule: "must_contain_at_least_2_keywords"
+      weight: 0.25
+
+    - feature_id: "M4_F2_roi_model"
+      feature_name: "投资回报模型"
+      description: "必须有ROI或盈利模型"
+      validation_keywords:
+        - "投资"
+        - "回报"
+        - "ROI"
+        - "收益"
+        - "盈利"
+        - "成本"
+        - "造价"
+        - "预算"
+      validation_rule: "must_contain_at_least_1_keyword"
+      weight: 0.35  # 最重要
+
+    - feature_id: "M4_F3_premium_structure"
+      feature_name: "溢价结构"
+      description: "必须有溢价策略"
+      validation_keywords:
+        - "溢价"
+        - "价值"
+        - "品质"
+        - "稀缺"
+        - "高端"
+      validation_rule: "must_contain_at_least_1_keyword"
+      weight: 0.25
+
+    - feature_id: "M4_F4_lifecycle_revenue"
+      feature_name: "生命周期收益"
+      description: "必须考虑长期收益"
+      validation_keywords:
+        - "长期"
+        - "可持续"
+        - "维护"
+        - "运营"
+        - "升级"
+      validation_rule: "recommended"
+      weight: 0.15
+
+  required_elements:
+    - element_type: "cost_analysis"
+      element_name: "成本分析"
+      validation_method: "keyword_check"
+      min_chars: 30
+
+    - element_type: "revenue_projection"
+      element_name: "收益预测"
+      validation_method: "keyword_check"
+
+  quality_metrics:
+    - metric_id: "roi_clarity"
+      metric_name: "ROI清晰度"
+      target_value: 0.8  # 必须非常清晰
+      evaluation_method: "keyword_density"
+
+# ═══════════════════════════════════════════════════════════
+# M5 乡建在地型设计 - 验证标准
+# ═══════════════════════════════════════════════════════════
+M5_rural_context:
+  mode_name: "乡建在地型设计"
+  validation_priority: "medium"
+
+  core_features:
+    - feature_id: "M5_F1_regional_culture"
+      feature_name: "地域文化解码"
+      description: "必须有地域文化分析"
+      validation_keywords:
+        - "地域"
+        - "文化"
+        - "传统"
+        - "民俗"
+        - "本地"
+        - "在地"
+      validation_rule: "must_contain_at_least_2_keywords"
+      weight: 0.30
+
+    - feature_id: "M5_F2_local_materials"
+      feature_name: "本地材料系统"
+      description: "必须使用本地材料"
+      validation_keywords:
+        - "本地材料"
+        - "就地取材"
+        - "乡土"
+        - "传统工艺"
+      validation_rule: "must_contain_at_least_1_keyword"
+      weight: 0.25
+
+    - feature_id: "M5_F3_industry_integration"
+      feature_name: "产业嵌入"
+      description: "必须有产业闭环"
+      validation_keywords:
+        - "产业"
+        - "经济"
+        - "收益"
+        - "就业"
+        - "持续"
+      validation_rule: "must_contain_at_least_1_keyword"
+      weight: 0.25
+
+    - feature_id: "M5_F4_low_cost"
+      feature_name: "低成本结构"
+      description: "必须考虑成本控制"
+      validation_keywords:
+        - "成本"
+        - "低造价"
+        - "可复制"
+        - "简化"
+      validation_rule: "recommended"
+      weight: 0.20
+
+  required_elements:
+    - element_type: "cultural_analysis"
+      element_name: "文化分析"
+      validation_method: "keyword_check"
+
+# ═══════════════════════════════════════════════════════════
+# M6 城市更新型设计 - 验证标准
+# ═══════════════════════════════════════════════════════════
+M6_urban_regeneration:
+  mode_name: "城市更新型设计"
+  validation_priority: "medium"
+
+  core_features:
+    - feature_id: "M6_F1_land_value_restructure"
+      feature_name: "土地价值重构"
+      description: "必须有价值提升策略"
+      validation_keywords:
+        - "价值"
+        - "提升"
+        - "重构"
+        - "土地"
+        - "升级"
+      validation_rule: "must_contain_at_least_2_keywords"
+      weight: 0.30
+
+    - feature_id: "M6_F2_public_interface"
+      feature_name: "公共界面塑造"
+      description: "必须有公共空间设计"
+      validation_keywords:
+        - "公共"
+        - "界面"
+        - "街道"
+        - "开放"
+        - "可达"
+      validation_rule: "must_contain_at_least_1_keyword"
+      weight: 0.25
+
+    - feature_id: "M6_F3_industry_embedding"
+      feature_name: "产业逻辑嵌入"
+      description: "必须有新业态规划"
+      validation_keywords:
+        - "业态"
+        - "产业"
+        - "商业"
+        - "文创"
+        - "功能"
+      validation_rule: "must_contain_at_least_1_keyword"
+      weight: 0.25
+
+    - feature_id: "M6_F4_urban_ip"
+      feature_name: "城市IP构建"
+      description: "必须有IP或品牌策略"
+      validation_keywords:
+        - "IP"
+        - "品牌"
+        - "标志"
+        - "识别"
+        - "记忆"
+      validation_rule: "recommended"
+      weight: 0.20
+
+  required_elements:
+    - element_type: "renewal_strategy"
+      element_name: "更新策略"
+      validation_method: "keyword_check"
+
+# ═══════════════════════════════════════════════════════════
+# M7 技术整合型设计 - 验证标准
+# ═══════════════════════════════════════════════════════════
+M7_tech_integration:
+  mode_name: "技术整合型设计"
+  validation_priority: "medium"
+
+  core_features:
+    - feature_id: "M7_F1_system_invisibility"
+      feature_name: "系统隐形化"
+      description: "技术系统必须隐形"
+      validation_keywords:
+        - "隐形"
+        - "隐藏"
+        - "预埋"
+        - "集成"
+        - "无感"
+      validation_rule: "must_contain_at_least_1_keyword"
+      weight: 0.25
+
+    - feature_id: "M7_F2_data_feedback"
+      feature_name: "数据反馈驱动"
+      description: "必须有数据监测与反馈"
+      validation_keywords:
+        - "数据"
+        - "监测"
+        - "传感"
+        - "反馈"
+        - "自动"
+      validation_rule: "must_contain_at_least_1_keyword"
+      weight: 0.30
+
+    - feature_id: "M7_F3_upgradable_interface"
+      feature_name: "可迭代接口"
+      description: "必须预留升级接口"
+      validation_keywords:
+        - "升级"
+        - "接口"
+        - "模块"
+        - "迭代"
+        - "扩展"
+      validation_rule: "must_contain_at_least_1_keyword"
+      weight: 0.25
+
+    - feature_id: "M7_F4_human_machine_balance"
+      feature_name: "人机关系平衡"
+      description: "必须保留人的控制权"
+      validation_keywords:
+        - "控制"
+        - "平衡"
+        - "手动"
+        - "人性化"
+      validation_rule: "recommended"
+      weight: 0.20
+
+  required_elements:
+    - element_type: "tech_system_description"
+      element_name: "技术系统说明"
+      validation_method: "keyword_check"
+
+# ═══════════════════════════════════════════════════════════
+# M8 极端环境型设计 - 验证标准
+# ═══════════════════════════════════════════════════════════
+M8_extreme_condition:
+  mode_name: "极端环境型设计"
+  validation_priority: "high"  # 极端环境验证严格
+
+  core_features:
+    - feature_id: "M8_F1_structural_resistance"
+      feature_name: "结构抗性系统"
+      description: "必须有抗性设计"
+      validation_keywords:
+        - "抗风"
+        - "抗震"
+        - "抗雪载"
+        - "抗腐蚀"
+        - "结构"
+        - "荷载"
+      validation_rule: "must_contain_at_least_2_keywords"
+      weight: 0.35  # 最重要
+
+    - feature_id: "M8_F2_material_adaptation"
+      feature_name: "材料适应系统"
+      description: "必须有环境适配材料"
+      validation_keywords:
+        - "材料"
+        - "适应"
+        - "防腐"
+        - "防护"
+        - "耐候"
+      validation_rule: "must_contain_at_least_1_keyword"
+      weight: 0.30
+
+    - feature_id: "M8_F3_energy_survival"
+      feature_name: "能源与生存系统"
+      description: "必须有能源和生存保障"
+      validation_keywords:
+        - "能源"
+        - "供暖"
+        - "供氧"
+        - "保温"
+        - "备用"
+        - "自给"
+      validation_rule: "must_contain_at_least_1_keyword"
+      weight: 0.25
+
+    - feature_id: "M8_F4_physiological_comfort"
+      feature_name: "生理舒适保障"
+      description: "必须保证人体舒适"
+      validation_keywords:
+        - "舒适"
+        - "温度"
+        - "湿度"
+        - "氧气"
+        - "健康"
+      validation_rule: "recommended"
+      weight: 0.10
+
+  required_elements:
+    - element_type: "environmental_analysis"
+      element_name: "环境条件分析"
+      validation_method: "keyword_check"
+      min_chars: 50
+
+    - element_type: "technical_solution"
+      element_name: "技术解决方案"
+      validation_method: "keyword_check"
+      min_chars: 100
+
+  quality_metrics:
+    - metric_id: "safety_assurance"
+      metric_name: "安全保障度"
+      target_value: 0.9  # 必须非常高
+      evaluation_method: "keyword_density"
+
+# ═══════════════════════════════════════════════════════════
+# M9 社会结构型设计 - 验证标准
+# ═══════════════════════════════════════════════════════════
+M9_social_structure:
+  mode_name: "社会结构型设计"
+  validation_priority: "medium"
+
+  core_features:
+    - feature_id: "M9_F1_power_distance"
+      feature_name: "权力距离建模"
+      description: "必须考虑权力关系"
+      validation_keywords:
+        - "权力"
+        - "等级"
+        - "主导"
+        - "主次"
+        - "中心"
+      validation_rule: "must_contain_at_least_1_keyword"
+      weight: 0.25
+
+    - feature_id: "M9_F2_privacy_hierarchy"
+      feature_name: "隐私分级系统"
+      description: "必须有隐私分级"
+      validation_keywords:
+        - "隐私"
+        - "私密"
+        - "公共"
+        - "分级"
+        - "层次"
+      validation_rule: "must_contain_at_least_1_keyword"
+      weight: 0.30
+
+    - feature_id: "M9_F3_conflict_buffer"
+      feature_name: "冲突缓冲结构"
+      description: "必须有冲突缓冲设计"
+      validation_keywords:
+        - "缓冲"
+        - "独立"
+        - "灰空间"
+        - "回避"
+        - "分离"
+      validation_rule: "must_contain_at_least_1_keyword"
+      weight: 0.25
+
+    - feature_id: "M9_F4_relationship_evolution"
+      feature_name: "关系演化适配"
+      description: "必须考虑关系变化"
+      validation_keywords:
+        - "适配"
+        - "可变"
+        - "灵活"
+        - "演化"
+      validation_rule: "recommended"
+      weight: 0.20
+
+  required_elements:
+    - element_type: "social_analysis"
+      element_name: "社会关系分析"
+      validation_method: "keyword_check"
+
+# ═══════════════════════════════════════════════════════════
+# M10 未来推演型设计 - 验证标准
+# ═══════════════════════════════════════════════════════════
+M10_future_projection:
+  mode_name: "未来推演型设计"
+  validation_priority: "medium"
+
+  core_features:
+    - feature_id: "M10_F1_trend_projection"
+      feature_name: "趋势推演模型"
+      description: "必须有趋势分析"
+      validation_keywords:
+        - "趋势"
+        - "未来"
+        - "演化"
+        - "预测"
+        - "变化"
+      validation_rule: "must_contain_at_least_2_keywords"
+      weight: 0.30
+
+    - feature_id: "M10_F2_tech_interface_reserve"
+      feature_name: "技术接口预留"
+      description: "必须预留技术接口"
+      validation_keywords:
+        - "接口"
+        - "预留"
+        - "升级"
+        - "扩展"
+        - "模块"
+      validation_rule: "must_contain_at_least_1_keyword"
+      weight: 0.25
+
+    - feature_id: "M10_F3_lifestyle_reconstruction"
+      feature_name: "生活方式重构"
+      description: "必须考虑未来生活方式"
+      validation_keywords:
+        - "生活方式"
+        - "行为"
+        - "习惯"
+        - "模式"
+      validation_rule: "must_contain_at_least_1_keyword"
+      weight: 0.25
+
+    - feature_id: "M10_F4_long_term_value"
+      feature_name: "长周期价值策略"
+      description: "必须考虑长期价值"
+      validation_keywords:
+        - "长期"
+        - "耐久"
+        - "可持续"
+        - "时间"
+      validation_rule: "recommended"
+      weight: 0.20
+
+  required_elements:
+    - element_type: "future_scenario"
+      element_name: "未来场景描述"
+      validation_method: "keyword_check"
+
+# ═══════════════════════════════════════════════════════════
+# M11 健康疗愈型设计 - 验证标准
+# ═══════════════════════════════════════════════════════════
+M11_healthcare_healing:
+  mode_name: "健康疗愈型设计"
+  validation_priority: "high"  # 疗愈场景验证严格：安全感是底线
+
+  core_features:
+    - feature_id: "M11_F1_psychological_safety"
+      feature_name: "心理安全环境"
+      description: "必须有降低心理防御激活的空间策略"
+      validation_keywords:
+        - "安全"
+        - "安全感"
+        - "低刺激"
+        - "隐私"
+        - "边界"
+        - "退场"
+        - "安静"
+        - "色彩约束"
+      validation_rule: "must_contain_at_least_2_keywords"
+      weight: 0.30
+
+    - feature_id: "M11_F2_circadian_control"
+      feature_name: "生理疗愈节律"
+      description: "必须有昼夜节律调光和生理恢复支持"
+      validation_keywords:
+        - "节律"
+        - "光环境"
+        - "色温"
+        - "昼夜"
+        - "褪黑素"
+        - "调光"
+        - "温湿度"
+        - "空气质量"
+      validation_rule: "must_contain_at_least_1_keyword"
+      weight: 0.25
+
+    - feature_id: "M11_F3_accessibility_dignity"
+      feature_name: "无障碍尊严设计"
+      description: "无障碍功能必须隐形化，不暴露使用者弱势状态"
+      validation_keywords:
+        - "无障碍"
+        - "尊严"
+        - "隐形"
+        - "坡道"
+        - "扶手"
+        - "轮椅"
+        - "平等"
+      validation_rule: "must_contain_at_least_1_keyword"
+      weight: 0.25
+
+    - feature_id: "M11_F4_dual_pathway"
+      feature_name: "双视角服务动线"
+      description: "必须同时为服务提供者和被服务者设计动线"
+      validation_keywords:
+        - "双动线"
+        - "服务动线"
+        - "分离"
+        - "后勤"
+        - "缓冲"
+        - "照护者"
+        - "家属"
+      validation_rule: "recommended"
+      weight: 0.20
+
+  required_elements:
+    - element_type: "safety_assessment"
+      element_name: "安全感评估"
+      validation_method: "keyword_check"
+      min_chars: 30
+
+    - element_type: "material_safety"
+      element_name: "材料安全性说明"
+      validation_method: "keyword_check"
+
+  quality_metrics:
+    - metric_id: "safety_assurance"
+      metric_name: "心理安全保障度"
+      target_value: 0.8
+      evaluation_method: "keyword_density"

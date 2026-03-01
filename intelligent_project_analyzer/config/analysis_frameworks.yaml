@@ -1,0 +1,309 @@
+# ==================================================================================
+# 分析框架注册表 (analysis_frameworks.yaml)
+# ==================================================================================
+# 版本: v1.0
+# 创建日期: 2026-02-21
+# 用途: 声明式框架注册，避免硬编码。新增框架只需编辑此文件，代码零改动。
+#
+# 设计原则:
+#   - 框架选择由 project_director 节点的 LLM 自主推理决定
+#   - trigger_modes 和 trigger_keywords 仅作为候选建议，非强制路由
+#   - knowledge_source 指向 sf/ 目录下的知识文件
+#   - layer_model 引用 layer_models.yaml 中的层结构定义
+#   - case_examples 指向示范案例文件（few-shot注入用）
+# ==================================================================================
+
+metadata:
+  version: "1.0"
+  description: "分析框架声明式注册表 — 框架选择权交给LLM，配置定义知识边界"
+  created_at: "2026-02-21"
+
+# ==================================================================================
+# 框架定义
+# ==================================================================================
+
+frameworks:
+
+  # ==============================================================================
+  # P0: 核心框架（覆盖 ~80% 项目）
+  # ==============================================================================
+
+  ability_core:
+    name: "12 Ability Core 分析框架"
+    description: "室内/建筑/空间设计项目的全维度能力分析框架"
+    trigger_modes: [M1, M2, M3, M5, M6, M8, M9]
+    trigger_keywords:
+      - "概念驱动"
+      - "空间结构"
+      - "材料策略"
+      - "灯光系统"
+      - "功能效率"
+      - "社会关系"
+      - "环境适应"
+      - "叙事节奏"
+      - "室内设计"
+      - "建筑设计"
+    knowledge_source: "sf/12_Ability_Core"
+    essentials_config: "config/ability_core_essentials.yaml"
+    dimensions:
+      - A1_concept_architecture
+      - A2_spatial_structuring
+      - A3_narrative_orchestration
+      - A4_material_intelligence
+      - A5_lighting_architecture
+      - A6_functional_optimization
+      - A7_capital_strategy
+      - A8_technology_integration
+      - A9_social_structure_modeling
+      - A10_environmental_adaptation
+      - A11_operation_productization
+      - A12_civilizational_expression
+    layer_model: "ability_core_5layer"
+    case_examples:
+      - "sf/CASE_狮岭村_12_Ability_Core_示范.md"
+
+  multi_scale_integration:
+    name: "多尺度统筹框架"
+    description: "从城市→片区→建筑→景观→室内→家具的跨尺度协同决策"
+    trigger_modes: [M5, M6]
+    trigger_keywords:
+      - "整体规划"
+      - "城市设计"
+      - "片区"
+      - "建筑群"
+      - "景观"
+      - "多尺度"
+      - "总体规划"
+      - "社区规划"
+      - "度假聚落"
+      - "小镇"
+    knowledge_source: "sf/frameworks/multi_scale_integration"
+    dimensions:
+      - scale_definition
+      - volume_control
+      - public_private_gradient
+      - grey_space_system
+      - cross_scale_consistency
+    layer_model: "multi_scale_5layer"
+    case_examples: []
+
+  budget_constrained_strategy:
+    name: "预算约束设计策略框架"
+    description: "极限预算下的质感生成策略，非简单降配而是策略性资源调配"
+    trigger_modes: [M4]
+    trigger_keywords:
+      - "低预算"
+      - "预算有限"
+      - "成本控制"
+      - "经济适用"
+      - "保障房"
+      - "翻新"
+      - "改造"
+      - "小预算"
+    knowledge_source: "sf/frameworks/budget_constrained_strategy"
+    dimensions:
+      - budget_effect_analysis
+      - visual_leverage_model
+      - material_substitution_logic
+      - construction_simplification
+      - lifecycle_cost_prediction
+    layer_model: "strategy_5layer"
+    case_examples: []
+
+  interdisciplinary_translation:
+    name: "跨学科转译方法论引擎"
+    description: "将非设计学科（行为经济学/神经科学/社会学等）的理论体系转译为空间操作"
+    trigger_modes: []
+    trigger_keywords:
+      - "行为经济学"
+      - "神经科学"
+      - "认知心理学"
+      - "社会学"
+      - "人类学"
+      - "哲学"
+      - "伦理"
+      - "博弈论"
+      - "传播学"
+      - "跨学科"
+    knowledge_source: "sf/frameworks/interdisciplinary_translation"
+    dimensions:
+      - discipline_identification
+      - core_theory_extraction
+      - spatial_operation_mapping
+      - validation_method
+      - boundary_declaration
+    layer_model: "translation_5layer"
+    case_examples: []
+
+  # ==============================================================================
+  # P1: 专项框架（覆盖特定场景）
+  # ==============================================================================
+
+  healthcare_healing:
+    name: "医疗/治愈空间专项框架"
+    description: "医疗级空间规范与治愈性设计的交叉框架"
+    trigger_modes: [M3, M9]
+    trigger_keywords:
+      - "医疗"
+      - "治愈"
+      - "康复"
+      - "心理"
+      - "临终"
+      - "月子"
+      - "儿童心理"
+      - "无障碍"
+      - "洁净"
+    knowledge_source: "sf/frameworks/healthcare_healing"
+    dimensions:
+      - clinical_compliance
+      - healing_atmosphere
+      - psychological_pathway
+      - safety_protocol
+      - caregiver_workflow
+    layer_model: "healthcare_5layer"
+    case_examples: []
+
+  design_methodology:
+    name: "设计方法论构建元框架"
+    description: "非项目级的元认知框架——如何构建、研究和传授设计方法论"
+    trigger_modes: []
+    trigger_keywords:
+      - "方法论"
+      - "研究框架"
+      - "策略体系"
+      - "标杆研究"
+      - "流程设计"
+      - "事务所方法论"
+      - "定制方法论"
+    knowledge_source: "sf/frameworks/design_methodology"
+    dimensions:
+      - research_object_definition
+      - knowledge_extraction_structure
+      - operationalization
+      - boundary_and_limitation
+      - methodology_validation
+    layer_model: "methodology_5layer"
+    case_examples: []
+
+  behavioral_design:
+    name: "行为设计框架"
+    description: "用空间系统性影响人的决策和行为的分析框架"
+    trigger_modes: [M3, M4]
+    trigger_keywords:
+      - "行为引导"
+      - "停留时间"
+      - "消费路径"
+      - "注意力"
+      - "动线优化"
+      - "坪效"
+      - "转化率"
+    knowledge_source: "sf/frameworks/behavioral_design"
+    dimensions:
+      - behavior_target_definition
+      - spatial_nudge_mechanism
+      - attention_flow_design
+      - conversion_pathway
+      - ab_experiment_protocol
+    layer_model: "behavioral_5layer"
+    case_examples: []
+
+  ephemeral_space:
+    name: "临时/事件空间设计框架"
+    description: "生命周期3天-3个月的短周期空间设计范式"
+    trigger_modes: [M3, M8]
+    trigger_keywords:
+      - "临时"
+      - "快闪"
+      - "展览"
+      - "音乐节"
+      - "事件"
+      - "搭建"
+      - "拆卸"
+      - "全拆回收"
+    knowledge_source: "sf/frameworks/ephemeral_space"
+    dimensions:
+      - lifecycle_planning
+      - rapid_assembly_logic
+      - material_circularity
+      - brand_expression_density
+      - post_event_strategy
+    layer_model: "ephemeral_5layer"
+    case_examples: []
+
+  # ==============================================================================
+  # P2: 低频框架（完备性补充）
+  # ==============================================================================
+
+  competitive_bidding:
+    name: "竞标策略框架"
+    description: "设计竞标的竞争分析、差异化定位与提案策略"
+    trigger_modes: [M4]
+    trigger_keywords:
+      - "竞标"
+      - "投标"
+      - "比稿"
+      - "提案"
+      - "竞争"
+    knowledge_source: "sf/frameworks/competitive_bidding"
+    dimensions:
+      - competitor_analysis
+      - differentiation_strategy
+      - proposal_narrative
+      - risk_hedging
+      - client_psychology
+    layer_model: "strategy_5layer"
+    case_examples: []
+
+  construction_delivery:
+    name: "施工交付管理框架"
+    description: "从设计到施工落地的全周期管理"
+    trigger_modes: [M2]
+    trigger_keywords:
+      - "施工"
+      - "换装"
+      - "预制"
+      - "装配"
+      - "工期"
+      - "工序"
+    knowledge_source: "sf/frameworks/construction_delivery"
+    dimensions:
+      - prefab_assembly_strategy
+      - construction_sequencing
+      - quality_checkpoint
+      - risk_contingency
+      - handover_protocol
+    layer_model: "delivery_5layer"
+    case_examples: []
+
+  humanitarian_design:
+    name: "人道主义设计框架"
+    description: "极端社会/政治约束下的设计策略"
+    trigger_modes: [M8, M9]
+    trigger_keywords:
+      - "人道主义"
+      - "难民"
+      - "战后"
+      - "援助"
+      - "紧急"
+      - "灾后"
+    knowledge_source: "sf/frameworks/humanitarian_design"
+    dimensions:
+      - constraint_mapping
+      - trauma_sensitive_design
+      - logistics_chain_adaptation
+      - cultural_sensitivity
+      - replicability_model
+    layer_model: "humanitarian_5layer"
+    case_examples: []
+
+# ==================================================================================
+# 框架选择规则（供 project_director LLM 参考）
+# ==================================================================================
+
+selection_rules:
+  max_frameworks: 2
+  description: "每个项目最多选择1个主框架 + 1个补充框架"
+  primary_selection: "基于项目核心诉求选择最匹配的框架"
+  secondary_selection: "当项目有明确的第二维度需求时，可选择补充框架"
+  fallback: "ability_core"
+  fallback_reason: "当无法确定最佳框架时，默认使用 ability_core 作为兜底"

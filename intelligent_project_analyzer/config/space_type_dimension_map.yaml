@@ -1,0 +1,288 @@
+# ==================================================================================
+# 空间类型 → 信息补全维度映射（space_type_dimension_map.yaml）
+# ==================================================================================
+# 版本: v1.0
+# 创建日期: 2026-02-25
+# 用途: 定义不同空间类型在 Step 3 信息补全环节的优先追问维度
+#
+# 数据结构:
+#   space_type_id:
+#     display_name: 中文名
+#     priority_dimensions: 高优先级维度（必问）
+#     secondary_dimensions: 次优先级维度（按缺失情况补充）
+#     suppressed_dimensions: 对该类型不适用、不追问的维度
+#     keywords: 用于检测该空间类型的关键词（供 _detect_project_type 使用）
+# ==================================================================================
+
+version: "1.0"
+last_updated: "2026-02-25"
+
+space_types:
+
+  # ── 高端住宅（别墅/豪宅/私人府邸）──
+  residential_premium:
+    display_name: "高端住宅"
+    keywords:
+      - 别墅
+      - 豪宅
+      - 高端住宅
+      - 私人住宅
+      - 独栋
+      - 大宅
+      - 海景宅
+      - 海景别
+      - 豪华住宅
+    priority_dimensions:
+      - id: 家庭结构与生活方式
+        description: 家庭成员构成、日常生活动线、隐私需求
+      - id: 情感叙事与精神表达
+        description: 业主希望空间传达的文化身份、人生阶段、精神象征
+      - id: 室内外关系策略
+        description: 景观资源利用方式、室内外过渡节点、自然引入策略
+      - id: 材料与工艺取向
+        description: 对材料品质、工艺精度的期待，参照案例或偏好风格
+    secondary_dimensions:
+      - id: 预算约束
+        description: 总预算范围与分项投入优先级
+      - id: 时间节点
+        description: 入住时间要求或关键里程碑
+      - id: 功能特殊需求
+        description: 泳池/影音室/车库/智能化等特殊功能需求
+    suppressed_dimensions:
+      - 政策合规
+      - 乡村政策
+      - 运营主体
+      - 村集体
+
+  # ── 标准住宅（普通公寓/改造翻新）──
+  residential_standard:
+    display_name: "标准住宅"
+    keywords:
+      - 公寓
+      - 住宅改造
+      - 翻新
+      - 旧宅
+      - 老房子
+      - 二手房
+      - 普通住宅
+      - 套房
+      - 单间
+    priority_dimensions:
+      - id: 使用者构成与特殊需求
+        description: 家庭成员、年龄段、特殊生活习惯（如宠物/居家办公）
+      - id: 预算约束
+        description: 总预算与优先投入的功能区
+      - id: 现状条件
+        description: 建筑年代、结构限制、户型现状
+      - id: 风格偏好
+        description: 对设计风格的参照与期待
+    secondary_dimensions:
+      - id: 时间节点
+        description: 入住或完工时间要求
+      - id: 功能要求
+        description: 收纳需求、功能区调整意向
+    suppressed_dimensions:
+      - 政策合规
+      - 运营主体
+      - 乡村政策
+
+  # ── 乡村/民宿/在地项目 ──
+  rural:
+    display_name: "乡村与在地项目"
+    keywords:
+      - 乡村
+      - 村庄
+      - 村集体
+      - 农村
+      - 古村
+      - 民宿改造
+      - 乡村振兴
+      - 村落
+      - 乡土
+      - 在地建造
+      - 田园
+      - 乡建
+    priority_dimensions:
+      - id: 运营主体与治理结构
+        description: 运营主体（村集体/承包方/品牌方/个人）、利益分配机制
+      - id: 政策背景与合规要求
+        description: 乡村振兴政策、农业用地合规、审批路径
+      - id: 社区关系与在地资源
+        description: 村民参与方式、在地工匠可用性、材料就地取材可行性
+      - id: 商业模式与活化策略
+        description: 民宿/文旅/农业融合的商业逻辑、目标客群
+    secondary_dimensions:
+      - id: 预算约束
+        description: 改造预算与资金来源（政府补贴/社会资本）
+      - id: 时间节点
+        description: 改造分期节奏与首期开放时间
+    suppressed_dimensions:
+      - 品牌授权
+      - 精装品质
+
+  # ── 商业综合体/零售/餐饮 ──
+  commercial:
+    display_name: "商业空间"
+    keywords:
+      - 商业综合
+      - 商业综合体
+      - 零售
+      - 餐饮
+      - 商场
+      - 购物
+      - 店铺
+      - 品牌空间
+      - 旗舰店
+      - 体验店
+    priority_dimensions:
+      - id: 品牌定位与客群画像
+        description: 目标客群年龄/消费层级/品牌调性定位
+      - id: 客流动线与坪效策略
+        description: 人流引导逻辑、热点区域布局、坪效优化目标
+      - id: 运营模式与商业目标
+        description: 自营/联营/品牌授权模式、营业额与盈利时间线
+      - id: 品牌体验叙事
+        description: 品牌故事在空间中的呈现策略、打卡点设计意图
+    secondary_dimensions:
+      - id: 预算约束
+        description: 装修预算与工程造价控制目标
+      - id: 时间节点
+        description: 开业时间要求
+      - id: 功能特殊需求
+        description: 仓储/厨房/技术设备等后台功能配置
+    suppressed_dimensions:
+      - 乡村政策
+      - 在地工匠
+
+  # ── 办公空间 ──
+  office:
+    display_name: "办公空间"
+    keywords:
+      - 办公楼
+      - 写字楼
+      - 办公室
+      - 联合办公
+      - 企业总部
+      - SOHO
+      - 工作室
+    priority_dimensions:
+      - id: 组织文化与工作方式
+        description: 团队规模、协作模式（开放/格间/混合）、品牌文化
+      - id: 空间弹性与扩展性
+        description: 未来扩张预期、模块化布局需求
+      - id: 技术基础设施
+        description: 网络/服务器/会议系统/智能化要求
+    secondary_dimensions:
+      - id: 预算约束
+        description: 租赁/装修一体化预算
+      - id: 时间节点
+        description: 入驻时间要求
+    suppressed_dimensions:
+      - 乡村政策
+      - 景观资源利用
+
+  # ── 医疗/康复/无障碍 ──
+  healthcare:
+    display_name: "医疗与康养空间"
+    keywords:
+      - 医院
+      - 诊所
+      - 康复
+      - 疗愈中心
+      - 养老
+      - 适老化
+      - 无障碍
+      - 医疗综合体
+      - 健康中心
+    priority_dimensions:
+      - id: 使用人群的特殊身体需求
+        description: 使用者的运动能力、感知能力、认知能力边界
+      - id: 医疗流程与分区合规
+        description: 洁污分区、感染控制区域、急救动线
+      - id: 无障碍与安全标准
+        description: 轮椅通行、防滑防摔、扶手参数、应急疏散
+      - id: 心理疗愈环境策略
+        description: 自然光引入、绿植配置、降低焦虑的空间手法
+    secondary_dimensions:
+      - id: 设备与技术整合
+        description: 医疗设备安装预留、智能护理系统
+      - id: 预算约束
+        description: 政府补贴比例与自筹资金上限
+    suppressed_dimensions:
+      - 运营主体
+      - 乡村政策
+      - 景观资源商业利用
+
+  # ── 文化/展览/艺术 ──
+  cultural:
+    display_name: "文化与展览空间"
+    keywords:
+      - 博物馆
+      - 美术馆
+      - 展览馆
+      - 艺术中心
+      - 文化馆
+      - 纪念馆
+      - 展示中心
+      - 文化建筑
+    priority_dimensions:
+      - id: 叙事主题与策展逻辑
+        description: 核心展览主题、叙事序列、情感节奏曲线
+      - id: 藏品或内容特性
+        description: 展品尺寸范围、对光/温/湿的保存要求
+      - id: 受众构成与参观行为
+        description: 目标受众（本地居民/游客/研究者）、单次参观时长预期
+      - id: 文化身份与精神立场
+        description: 机构希望在文化语境中占据的立场与表达
+    secondary_dimensions:
+      - id: 预算约束
+        description: 建设与策展分项预算
+      - id: 运营模式
+        description: 门票/捐赠/政府资助的收入结构
+    suppressed_dimensions:
+      - 在地工匠
+
+  # ── 公共空间/基础设施/景观 ──
+  public:
+    display_name: "公共空间"
+    keywords:
+      - 公共空间
+      - 广场
+      - 公园
+      - 街道
+      - 城市更新
+      - 社区中心
+      - 基础设施
+      - 市政
+    priority_dimensions:
+      - id: 使用人群多样性
+        description: 覆盖的年龄段、体力层次、文化背景多样性
+      - id: 社会治理与利益相关方关系
+        description: 政府主管部门、社区居民、商业租户的诉求协调
+      - id: 气候适应性策略
+        description: 遮阳/防风/排涝/绿化的技术处理逻辑
+      - id: 活动策划与运营维护
+        description: 日常活动策划设想、清洁维护可行性
+    secondary_dimensions:
+      - id: 政策合规
+        description: 规划许可、消防审批、无障碍达标要求
+      - id: 时间节点
+        description: 竣工交付与活动开幕节点
+    suppressed_dimensions: []
+
+# ── 默认（无法识别类型时的通用维度）──
+general:
+  display_name: "通用项目"
+  priority_dimensions:
+    - id: 基本信息
+      description: 项目类型、地点、规模、面积
+    - id: 核心目标
+      description: 核心任务、期望愿景、目标定位
+    - id: 预算约束
+      description: 预算范围、资源限制、成本
+    - id: 时间节点
+      description: 交付时间、里程碑、工期
+    - id: 特殊需求
+      description: 特殊场景、约束条件、特殊要求
+  secondary_dimensions: []
+  suppressed_dimensions: []

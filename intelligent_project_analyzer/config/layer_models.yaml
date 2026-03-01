@@ -1,0 +1,373 @@
+# ==================================================================================
+# 层结构模型定义 (layer_models.yaml)
+# ==================================================================================
+# 版本: v1.0
+# 创建日期: 2026-02-21
+# 用途: 声明式定义各框架的分析层结构。
+#       每个框架的每个维度(dimension)按此处定义的层做深度递进分析。
+#
+# 设计原则:
+#   - 层结构与框架解耦: 多个框架可复用同一层结构模型
+#   - 层数量灵活: 不强制5层，允许3-7层
+#   - 每层有明确的写作指令 (instruction) 和质量标尺 (quality_floor)
+# ==================================================================================
+
+metadata:
+  version: "1.0"
+  description: "分析层结构模型 — 定义每个框架的纵深递进方式"
+  created_at: "2026-02-21"
+
+# ==================================================================================
+# 层结构模型
+# ==================================================================================
+
+layer_models:
+
+  # ==============================================================================
+  # 能力核心 5 层模型（对应 12 Ability Core）
+  # ==============================================================================
+  ability_core_5layer:
+    name: "能力核心5层递进模型"
+    description: "从表象到深层因果的5层递进分析"
+    layers:
+      - id: L1_phenomenon
+        name: "L1 表象层: 看到什么"
+        instruction: >
+          描述该能力维度在项目中的直观表现。使用具体的感官描述：
+          可见的空间特征、材料表面、光影关系、人在空间中的行为模式。
+          避免主观评价，只陈述可观察的事实。
+        quality_floor: "至少包含3个具体可观察的空间特征描述"
+        max_words: 200
+
+      - id: L2_strategy
+        name: "L2 策略层: 设计师的意图"
+        instruction: >
+          推断设计师在该能力维度上的核心策略选择。
+          回答: 为什么选择这样做而不是其他方案？面对哪些约束？做了什么权衡？
+          必须包含至少一个明确的「A而非B」的策略决策描述。
+        quality_floor: "至少包含1个明确的策略权衡(trade-off)描述"
+        max_words: 250
+
+      - id: L3_mechanism
+        name: "L3 机制层: 如何运作"
+        instruction: >
+          揭示该策略产生效果的底层机制。可以引用：
+          建筑类型学、心理学原理、人因工程数据、环境行为学、材料科学。
+          需要解释因果链: 空间操作 → 感知机制 → 用户体验/行为变化。
+        quality_floor: "至少包含1条完整的因果链说明"
+        max_words: 300
+
+      - id: L4_critique
+        name: "L4 批判层: 局限与代价"
+        instruction: >
+          诚实指出该能力维度的不足、未覆盖的场景、潜在的失败模式。
+          讨论: 这种策略在什么条件下会失效？为谁不起作用？长期维护成本如何？
+          禁止回避——没有完美的设计策略，每个选择都有代价。
+        quality_floor: "至少包含1个具体的局限性分析"
+        max_words: 250
+
+      - id: L5_evolution
+        name: "L5 演化层: 下一步可能"
+        instruction: >
+          如果有更多预算/时间/技术，这个能力维度可以如何进一步提升？
+          提供1-2个具体可操作的进化方向，而非笼统的「可以做得更好」。
+          每个方向需注明大致成本量级和时间周期。
+        quality_floor: "至少包含1个带成本/时间估算的可操作建议"
+        max_words: 200
+
+  # ==============================================================================
+  # 多尺度统筹层模型
+  # ==============================================================================
+  multi_scale_5layer:
+    name: "多尺度统筹5层模型"
+    description: "从宏观到微观的尺度递进"
+    layers:
+      - id: L1_macro_positioning
+        name: "L1 宏观定位: 城市/片区关系"
+        instruction: "分析项目在城市和片区尺度中的定位、交通可达性、周边业态关系"
+        quality_floor: "包含区位分析和周边业态关系"
+        max_words: 250
+      - id: L2_site_strategy
+        name: "L2 场地策略: 总图与场地回应"
+        instruction: "分析建筑群落布局、景观系统、公共空间层级、场地条件回应策略"
+        quality_floor: "包含总图逻辑说明"
+        max_words: 300
+      - id: L3_building_form
+        name: "L3 建筑形态: 体量与空间组织"
+        instruction: "分析建筑体量、空间序列、功能分区、垂直交通组织"
+        quality_floor: "包含体量控制逻辑"
+        max_words: 300
+      - id: L4_interior_system
+        name: "L4 室内系统: 氛围与体验"
+        instruction: "分析室内空间如何回应建筑意图，材料/灯光/家具系统的协调策略"
+        quality_floor: "包含室内与建筑的呼应关系说明"
+        max_words: 250
+      - id: L5_cross_scale_coherence
+        name: "L5 跨尺度一致性: 贯穿逻辑"
+        instruction: "检验各尺度之间的设计语言和意图是否一致，指出断裂点和强化机会"
+        quality_floor: "包含至少1个跨尺度一致性/断裂的具体分析"
+        max_words: 250
+
+  # ==============================================================================
+  # 策略型框架通用层模型
+  # ==============================================================================
+  strategy_5layer:
+    name: "策略型5层模型"
+    description: "适用于预算策略、竞标策略等决策导向的分析"
+    layers:
+      - id: L1_context
+        name: "L1 情境分析"
+        instruction: "分析当前项目面临的核心约束和竞争环境"
+        quality_floor: "包含关键约束清单"
+        max_words: 250
+      - id: L2_strategy_formulation
+        name: "L2 策略制定"
+        instruction: "基于约束条件提出核心策略，说明策略选择的理由"
+        quality_floor: "包含至少1个明确的策略选择及理由"
+        max_words: 300
+      - id: L3_implementation_plan
+        name: "L3 实施路径"
+        instruction: "将策略分解为可执行的步骤，附时间节点和责任主体"
+        quality_floor: "包含分步实施计划"
+        max_words: 300
+      - id: L4_risk_mitigation
+        name: "L4 风险预案"
+        instruction: "识别核心风险并制定应对方案"
+        quality_floor: "包含至少2条风险-应对对"
+        max_words: 250
+      - id: L5_success_metrics
+        name: "L5 成功度量"
+        instruction: "定义可量化的成功标准和验收节点"
+        quality_floor: "包含可量化指标"
+        max_words: 200
+
+  # ==============================================================================
+  # 转译型框架层模型
+  # ==============================================================================
+  translation_5layer:
+    name: "跨学科转译5层模型"
+    description: "从源学科理论到空间操作的转译路径"
+    layers:
+      - id: L1_source_theory
+        name: "L1 源学科理论提取"
+        instruction: "准确提取源学科（如行为经济学/神经科学）的核心理论和关键概念"
+        quality_floor: "准确引用至少1个理论框架"
+        max_words: 250
+      - id: L2_analogy_mapping
+        name: "L2 概念类比映射"
+        instruction: "将源学科概念映射到空间设计领域，建立概念对应关系"
+        quality_floor: "包含明确的概念映射表"
+        max_words: 300
+      - id: L3_spatial_operation
+        name: "L3 空间操作转化"
+        instruction: "将映射后的概念转化为具体的空间操作手法"
+        quality_floor: "包含可执行的空间操作建议"
+        max_words: 300
+      - id: L4_validation_protocol
+        name: "L4 验证协议"
+        instruction: "提出验证转译有效性的方法，包括用户测试、专家评审等"
+        quality_floor: "包含验证方法说明"
+        max_words: 200
+      - id: L5_boundary_declaration
+        name: "L5 转译边界声明"
+        instruction: "明确声明转译的有效范围和不可延伸的边界"
+        quality_floor: "包含明确的边界声明"
+        max_words: 200
+
+  # ==============================================================================
+  # 医疗治愈空间层模型
+  # ==============================================================================
+  healthcare_5layer:
+    name: "医疗/治愈空间5层模型"
+    description: "从临床规范到治愈氛围的递进"
+    layers:
+      - id: L1_clinical_compliance
+        name: "L1 临床合规基础"
+        instruction: "确认项目满足的医疗空间规范、洁净度、消防、无障碍要求"
+        quality_floor: "包含适用规范清单"
+        max_words: 250
+      - id: L2_functional_workflow
+        name: "L2 功能流线设计"
+        instruction: "分析医患/照护者/后勤的流线分离与效率优化"
+        quality_floor: "包含流线分析"
+        max_words: 300
+      - id: L3_healing_environment
+        name: "L3 治愈环境营造"
+        instruction: "分析如何通过光、色彩、自然元素、声学创造治愈性环境"
+        quality_floor: "包含环境治愈策略"
+        max_words: 300
+      - id: L4_psychological_pathway
+        name: "L4 心理路径设计"
+        instruction: "分析空间如何回应使用者的心理需求和情感变化"
+        quality_floor: "包含心理需求分析"
+        max_words: 250
+      - id: L5_operational_sustainability
+        name: "L5 运营可持续性"
+        instruction: "分析设计方案的长期运营维护成本和可持续性"
+        quality_floor: "包含维护成本估算"
+        max_words: 200
+
+  # ==============================================================================
+  # 方法论构建层模型
+  # ==============================================================================
+  methodology_5layer:
+    name: "方法论构建5层模型"
+    description: "元认知层面的方法论研究结构"
+    layers:
+      - id: L1_problem_definition
+        name: "L1 问题界定"
+        instruction: "明确要构建的方法论解决什么问题，适用边界是什么"
+        quality_floor: "包含问题陈述和边界定义"
+        max_words: 250
+      - id: L2_knowledge_archaeology
+        name: "L2 知识考古"
+        instruction: "梳理该领域已有的方法论体系，分析其优势和盲区"
+        quality_floor: "包含现有方法论综述"
+        max_words: 300
+      - id: L3_framework_construction
+        name: "L3 框架构建"
+        instruction: "提出新框架的核心结构、关键概念、维度划分"
+        quality_floor: "包含框架结构图"
+        max_words: 350
+      - id: L4_operationalization
+        name: "L4 操作化"
+        instruction: "将框架转化为可操作的流程、工具、模板"
+        quality_floor: "包含可操作的工具/模板"
+        max_words: 300
+      - id: L5_validation_iteration
+        name: "L5 验证与迭代"
+        instruction: "提出验证框架有效性的方法和迭代改进路径"
+        quality_floor: "包含验证计划"
+        max_words: 200
+
+  # ==============================================================================
+  # 行为设计层模型
+  # ==============================================================================
+  behavioral_5layer:
+    name: "行为设计5层模型"
+    description: "从行为目标到空间干预的递进"
+    layers:
+      - id: L1_behavior_mapping
+        name: "L1 行为观测与映射"
+        instruction: "描述目标用户的当前行为模式和期望行为变化"
+        quality_floor: "包含行为目标定义"
+        max_words: 250
+      - id: L2_nudge_mechanism
+        name: "L2 空间助推机制"
+        instruction: "设计空间层面的行为助推策略（动线、视线、声学、嗅觉等）"
+        quality_floor: "包含至少2个助推机制"
+        max_words: 300
+      - id: L3_choice_architecture
+        name: "L3 选择架构设计"
+        instruction: "如何通过空间组织影响用户的决策过程"
+        quality_floor: "包含选择架构分析"
+        max_words: 300
+      - id: L4_feedback_loop
+        name: "L4 反馈循环"
+        instruction: "设计空间中的即时反馈和长期行为强化机制"
+        quality_floor: "包含反馈机制设计"
+        max_words: 250
+      - id: L5_measurement
+        name: "L5 效果度量"
+        instruction: "定义行为改变的度量方法，支持AB测试和迭代优化"
+        quality_floor: "包含可量化指标"
+        max_words: 200
+
+  # ==============================================================================
+  # 临时空间层模型
+  # ==============================================================================
+  ephemeral_5layer:
+    name: "临时空间5层模型"
+    description: "从生命周期规划到拆卸回收的全过程"
+    layers:
+      - id: L1_lifecycle_brief
+        name: "L1 生命周期概要"
+        instruction: "定义空间的完整生命周期：搭建期/运营期/撤展期/回收处理"
+        quality_floor: "包含时间节点规划"
+        max_words: 200
+      - id: L2_rapid_assembly
+        name: "L2 快速搭建逻辑"
+        instruction: "分析快速搭建的模块化系统、连接方式、容错机制"
+        quality_floor: "包含搭建系统说明"
+        max_words: 300
+      - id: L3_experience_density
+        name: "L3 体验密度"
+        instruction: "分析如何在极短生命周期内最大化空间体验的传达密度"
+        quality_floor: "包含体验策略"
+        max_words: 300
+      - id: L4_material_circularity
+        name: "L4 材料循环"
+        instruction: "分析材料的循环体系：租赁vs购买、回收等级、碳足迹估算"
+        quality_floor: "包含材料循环方案"
+        max_words: 250
+      - id: L5_legacy_strategy
+        name: "L5 遗产策略"
+        instruction: "拆除后的品牌遗产、记忆转化、部件再利用策略"
+        quality_floor: "包含遗产处理方案"
+        max_words: 200
+
+  # ==============================================================================
+  # 施工交付层模型
+  # ==============================================================================
+  delivery_5layer:
+    name: "施工交付5层模型"
+    description: "从设计到施工落地的全过程管控"
+    layers:
+      - id: L1_constructability_review
+        name: "L1 可施工性审查"
+        instruction: "审查设计方案的可施工性，识别难点和风险点"
+        quality_floor: "包含可施工性评估"
+        max_words: 250
+      - id: L2_prefab_strategy
+        name: "L2 预制装配策略"
+        instruction: "分析适合工厂预制的部分和现场施工的部分"
+        quality_floor: "包含预制分析"
+        max_words: 300
+      - id: L3_sequencing
+        name: "L3 工序编排"
+        instruction: "制定施工工序和关键节点，识别关键路径"
+        quality_floor: "包含工序计划"
+        max_words: 300
+      - id: L4_quality_checkpoint
+        name: "L4 质量检查点"
+        instruction: "设定各阶段质量检查标准和验收流程"
+        quality_floor: "包含质量标准"
+        max_words: 250
+      - id: L5_handover
+        name: "L5 交付移交"
+        instruction: "制定竣工验收、培训、保修和运维移交方案"
+        quality_floor: "包含移交清单"
+        max_words: 200
+
+  # ==============================================================================
+  # 人道主义设计层模型
+  # ==============================================================================
+  humanitarian_5layer:
+    name: "人道主义设计5层模型"
+    description: "极端约束下以人为本的设计思路"
+    layers:
+      - id: L1_constraint_reality
+        name: "L1 约束现实"
+        instruction: "诚实描述项目面临的极端约束：预算/材料/时间/安全/文化"
+        quality_floor: "包含约束清单"
+        max_words: 250
+      - id: L2_dignity_baseline
+        name: "L2 尊严底线"
+        instruction: "在极端约束下定义不可妥协的尊严底线（隐私/安全/卫生）"
+        quality_floor: "包含尊严底线定义"
+        max_words: 250
+      - id: L3_adaptive_system
+        name: "L3 适应性系统"
+        instruction: "设计可随需求变化而扩展、收缩、改变用途的系统"
+        quality_floor: "包含适应性策略"
+        max_words: 300
+      - id: L4_community_agency
+        name: "L4 社区主体性"
+        instruction: "分析如何让使用者参与设计和建造，建立社区主体性"
+        quality_floor: "包含社区参与方案"
+        max_words: 250
+      - id: L5_replicability
+        name: "L5 可复制性"
+        instruction: "提炼可在其他类似情境中复制的设计范式"
+        quality_floor: "包含复制性评估"
+        max_words: 200

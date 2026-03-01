@@ -1,0 +1,67 @@
+name: Release Signoff
+description: 生产发布前放行签字（必须）
+title: "[Release Signoff] <version> <date>"
+labels: ["release", "signoff-required"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        发布前必须完成本签字单。任一 P0 未通过不得发布。
+
+  - type: input
+    id: version
+    attributes:
+      label: 发布版本
+      placeholder: v8.0.0
+    validations:
+      required: true
+
+  - type: input
+    id: release_window
+    attributes:
+      label: 发布窗口（北京时间）
+      placeholder: 2026-03-01 22:00-23:00
+    validations:
+      required: true
+
+  - type: textarea
+    id: ci_evidence
+    attributes:
+      label: CI 证据链接
+      description: CI=all / Tests=both / 安全报告链接
+    validations:
+      required: true
+
+  - type: textarea
+    id: rollback_plan
+    attributes:
+      label: 回滚方案
+      description: 回滚步骤、触发阈值、责任人
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: p0_gates
+    attributes:
+      label: P0 门禁确认
+      options:
+        - label: CI/测试门禁全部通过
+          required: true
+        - label: 安全基线无新增未审批风险
+          required: true
+        - label: 回滚方案已演练或验证
+          required: true
+        - label: PRE_RELEASE_CHECKLIST 已逐项完成
+          required: true
+
+  - type: checkboxes
+    id: signoff
+    attributes:
+      label: 角色签字
+      options:
+        - label: 技术负责人签字
+          required: true
+        - label: 运维负责人签字
+          required: true
+        - label: 发布经理签字
+          required: true

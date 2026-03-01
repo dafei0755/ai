@@ -1,0 +1,947 @@
+# ==================================================================================
+# 混合模式冲突解决配置 (MODE_HYBRID_PATTERNS.yaml)
+# ==================================================================================
+# 版本: v7.800
+# 创建日期: 2026-02-13
+# 用途: 定义多模式共存时的冲突解决策略和优先级规则
+# ==================================================================================
+
+# 全局配置
+global_config:
+  version: "v7.800"
+  description: "混合模式冲突解决策略配置"
+
+  # 混合模式检测阈值
+  detection_thresholds:
+    # 单模式置信度阈值（低于此值不参与混合）
+    min_confidence: 0.45
+    # 双模式最小置信度差（差值小于此值视为混合模式）
+    max_confidence_gap: 0.25
+    # 三模式及以上的置信度分布标准差阈值
+    multi_mode_std_threshold: 0.15
+
+  # 冲突解决策略
+  resolution_strategies:
+    # 优先级策略：根据预定义规则决定维度优先级
+    priority_based: "根据模式特性和项目需求决定维度优先级"
+    # 平衡策略：在冲突维度上寻找折中方案
+    balanced: "在冲突维度上采用中间路线"
+    # 分区策略：不同空间区域采用不同模式
+    zoned: "空间分区，不同区域主导不同模式"
+    # 分阶段策略：不同项目阶段采用不同模式
+    phased: "时间分阶段，不同阶段主导不同模式"
+
+# ==================================================================================
+# 常见混合模式定义
+# ==================================================================================
+
+hybrid_patterns:
+  # ================================================================================
+  # Pattern 1: M1 概念驱动 × M4 资本导向
+  # 冲突核心: 精神表达 vs 成本控制
+  # ================================================================================
+  M1_M4:
+    name: "概念驱动×资本导向"
+    description: "概念表达与资本回报的平衡"
+
+    # 冲突维度分析
+    conflict_dimensions:
+      - dimension: "成本控制"
+        m1_position: "允许成本冗余以实现概念完整性"
+        m4_position: "严格成本控制以保证ROI"
+        severity: "high"  # 冲突严重程度: low/medium/high
+
+      - dimension: "材料选择"
+        m1_position: "材料需服务概念表达，可选用稀缺材料"
+        m4_position: "材料需考虑成本效益和维护周期"
+        severity: "high"
+
+      - dimension: "空间冗余"
+        m1_position: "允许叙事空间和过渡空间"
+        m4_position: "消除无效面积，提升坪效"
+        severity: "medium"
+
+      - dimension: "品牌溢价"
+        m1_position: "通过概念创造品牌价值"
+        m4_position: "通过资产模型创造溢价"
+        severity: "low"  # 此维度冲突较小，可协同
+
+    # 解决策略
+    resolution_strategy: "priority_based"
+
+    # 维度优先级规则
+    dimension_priorities:
+      # 成本底线：M4优先（资产回报不可妥协）
+      cost_control:
+        priority_mode: "M4"
+        rule: "设定成本上限，M1在上限内实现概念"
+        constraint: "总成本不得超过资产模型预算15%"
+
+      # 精神主线：M1优先（概念主线不可妥协）
+      spiritual_expression:
+        priority_mode: "M1"
+        rule: "核心概念空间必须保留，可压缩非核心区域"
+        constraint: "概念核心区域占比不低于30%"
+
+      # 材料选择：平衡策略
+      material_selection:
+        priority_mode: "balanced"
+        rule: "核心区域高端材料（M1），过渡区域性价比材料（M4）"
+        constraint: "高端材料面积占比≤40%"
+
+      # 溢价结构：协同策略
+      premium_structure:
+        priority_mode: "synergy"
+        rule: "M1概念创造品牌溢价，M4模型量化溢价价值"
+        constraint: "溢价需可被客群资产模型验证"
+
+    # 典型应用场景
+    typical_scenarios:
+      - "高端住宅（需要概念表达但有投资回报要求）"
+      - "品牌旗舰店（品牌表达+商业坪效）"
+      - "策展型酒店（文化主题+RevPAR优化）"
+
+    # 风险提示
+    risks:
+      - "过度压缩成本导致概念失真"
+      - "过度追求概念导致投资失控"
+      - "平衡点难以把握，需要经验丰富的设计师"
+
+  # ================================================================================
+  # Pattern 2: M1 概念驱动 × M3 情绪体验
+  # 冲突核心: 理性结构 vs 感性节奏
+  # ================================================================================
+  M1_M3:
+    name: "概念驱动×情绪体验"
+    description: "精神主线与感知节奏的融合"
+
+    conflict_dimensions:
+      - dimension: "空间结构逻辑"
+        m1_position: "空间服从概念结构，理性秩序"
+        m3_position: "空间服从情绪曲线，感性节奏"
+        severity: "medium"
+
+      - dimension: "材料使用逻辑"
+        m1_position: "材料强化概念母题，符号化"
+        m3_position: "材料调动五感，体验化"
+        severity: "low"
+
+      - dimension: "叙事路径"
+        m1_position: "概念叙事，思想展开"
+        m3_position: "情绪叙事，感知变化"
+        severity: "medium"
+
+    resolution_strategy: "synergy"  # 协同策略，两者本质不冲突
+
+    dimension_priorities:
+      # 空间主线：M1优先，M3强化
+      spatial_mainline:
+        priority_mode: "M1"
+        rule: "概念提供骨架，情绪提供血肉"
+        constraint: "概念结构不可被削弱，情绪设计需服从概念"
+
+      # 感知设计：M3主导，M1约束
+      sensory_design:
+        priority_mode: "M3"
+        rule: "五感设计由M3主导，但不违背概念主题"
+        constraint: "情绪锚点需与概念母题呼应"
+
+      # 叙事节奏：融合策略
+      narrative_rhythm:
+        priority_mode: "synergy"
+        rule: "概念叙事提供结构，情绪节奏提供变化"
+        constraint: "高潮点需同时满足概念展开和情绪爆发"
+
+    typical_scenarios:
+      - "高端艺术酒店"
+      - "沉浸式展馆"
+      - "品牌体验空间"
+
+    risks:
+      - "情绪设计过度削弱概念纯度"
+      - "概念过于理性压制情绪表达"
+
+  # ================================================================================
+  # Pattern 3: M2 功能效率 × M8 极端环境
+  # 冲突核心: 效率优化 vs 生存优先
+  # ================================================================================
+  M2_M8:
+    name: "功能效率×极端环境"
+    description: "运转效率与环境适应的权衡"
+
+    conflict_dimensions:
+      - dimension: "结构优化方向"
+        m2_position: "动线最优，减少摩擦"
+        m8_position: "结构抗性，环境适应"
+        severity: "high"
+
+      - dimension: "成本分配"
+        m2_position: "投资效率提升系统"
+        m8_position: "投资生存保障系统"
+        severity: "high"
+
+      - dimension: "空间冗余"
+        m2_position: "消除无效空间"
+        m8_position: "保留应急冗余空间"
+        severity: "medium"
+
+    resolution_strategy: "priority_based"
+
+    dimension_priorities:
+      # 生存保障：M8绝对优先
+      survival_guarantee:
+        priority_mode: "M8"
+        rule: "生存系统不可妥协，效率在安全基础上优化"
+        constraint: "供暖/供氧/结构安全预算不得削减"
+
+      # 日常运行：M2主导
+      daily_operation:
+        priority_mode: "M2"
+        rule: "在满足环境适应前提下，优化动线和效率"
+        constraint: "效率优化不得影响环境系统稳定性"
+
+      # 应急系统：M8优先
+      emergency_system:
+        priority_mode: "M8"
+        rule: "保留应急通道和备用系统"
+        constraint: "应急系统独立于效率系统"
+
+    typical_scenarios:
+      - "高原酒店（需要高效运营+高原适应）"
+      - "极寒办公建筑"
+      - "海岛度假村（需要效率+盐雾防护）"
+
+    risks:
+      - "过度优化效率牺牲安全冗余"
+      - "过度强化防护增加运营复杂度"
+
+  # ================================================================================
+  # Pattern 4: M4 资本导向 × M5 乡建在地
+  # 冲突核心: 资本回报 vs 文化保留
+  # ================================================================================
+  M4_M5:
+    name: "资本导向×乡建在地"
+    description: "商业价值与乡村文化的平衡"
+
+    conflict_dimensions:
+      - dimension: "改造尺度"
+        m4_position: "大规模升级以提升溢价"
+        m5_position: "保留村落肌理和文化真实性"
+        severity: "high"
+
+      - dimension: "材料选择"
+        m4_position: "现代材料，降低维护成本"
+        m5_position: "本地材料，保持在地特征"
+        severity: "medium"
+
+      - dimension: "产业定位"
+        m4_position: "高端度假，高客单价"
+        m5_position: "村民参与，产业闭环"
+        severity: "high"
+
+    resolution_strategy: "balanced"
+
+    dimension_priorities:
+      # 文化真实性：M5底线
+      cultural_authenticity:
+        priority_mode: "M5"
+        rule: "保留核心文化特征，不可完全商业化"
+        constraint: "原有建筑保留率≥60%，村民参与率≥40%"
+
+      # 经济可持续：M4底线
+      economic_sustainability:
+        priority_mode: "M4"
+        rule: "必须有清晰的盈利模型和现金流"
+        constraint: "投资回收期≤8年"
+
+      # 材料策略：平衡
+      material_strategy:
+        priority_mode: "balanced"
+        rule: "外观保留本地特征，内部适度现代化"
+        constraint: "本地材料占比≥50%"
+
+      # 产业模式：融合
+      industry_model:
+        priority_mode: "synergy"
+        rule: "高端度假为主，村民产业为辅，形成闭环"
+        constraint: "村民收入占比≥30%"
+
+    typical_scenarios:
+      - "美丽乡村商业化运营"
+      - "高端民宿集群"
+      - "乡村文旅综合体"
+
+    risks:
+      - "过度商业化破坏乡村原真性"
+      - "过度保护导致项目无法盈利"
+
+  # ================================================================================
+  # Pattern 5: M9 社会结构 × M2 功能效率
+  # 冲突核心: 关系平衡 vs 效率优先
+  # ================================================================================
+  M9_M2:
+    name: "社会结构×功能效率"
+    description: "人际关系与空间效率的协调"
+
+    conflict_dimensions:
+      - dimension: "私密性设计"
+        m9_position: "多层隐私分级，充分隔离"
+        m2_position: "减少隔断，提升面积利用"
+        severity: "high"
+
+      - dimension: "动线设计"
+        m9_position: "提供回避路径，减少冲突"
+        m2_position: "最短路径，减少无效移动"
+        severity: "medium"
+
+      - dimension: "空间冗余"
+        m9_position: "保留缓冲空间和灰空间"
+        m2_position: "消除冗余，标准化模块"
+        severity: "high"
+
+    resolution_strategy: "priority_based"
+
+    dimension_priorities:
+      # 关系稳定：M9优先
+      relationship_stability:
+        priority_mode: "M9"
+        rule: "优先保证社会关系平衡，再谈效率"
+        constraint: "隐私分级系统必须完整"
+
+      # 日常效率：M2优化
+      daily_efficiency:
+        priority_mode: "M2"
+        rule: "在满足隐私需求前提下优化动线"
+        constraint: "主动线无交叉冲突"
+
+      # 公共空间：平衡
+      public_space:
+        priority_mode: "balanced"
+        rule: "公共区高效率，私密区重隔离"
+        constraint: "公共区M2主导，私密区M9主导"
+
+    typical_scenarios:
+      - "多代同堂别墅"
+      - "再婚家庭住宅"
+      - "合租大平层"
+
+    risks:
+      - "过度效率化导致家庭冲突"
+      - "过度隔离导致空间浪费"
+
+  # ================================================================================
+  # Pattern 6: M6 城市更新 × M4 资本导向
+  # 冲突核心: 公共价值 vs 商业回报
+  # ================================================================================
+  M6_M4:
+    name: "城市更新×资本导向"
+    description: "城市公共性与资本回报的权衡"
+
+    conflict_dimensions:
+      - dimension: "公共空间比例"
+        m6_position: "强化公共界面，提升城市价值"
+        m4_position: "压缩公共空间，提升商业面积"
+        severity: "high"
+
+      - dimension: "业态选择"
+        m6_position: "文化、艺术、公益业态"
+        m4_position: "高坪效商业业态"
+        severity: "medium"
+
+      - dimension: "服务对象"
+        m6_position: "服务城市居民和原住民"
+        m4_position: "服务高消费客群"
+        severity: "high"
+
+    resolution_strategy: "phased"  # 分阶段策略
+
+    dimension_priorities:
+      # 公共界面：M6优先
+      public_interface:
+        priority_mode: "M6"
+        rule: "一层界面强制公共化"
+        constraint: "一层公共界面长度≥总长度70%"
+
+      # 商业回报：M4保障
+      commercial_return:
+        priority_mode: "M4"
+        rule: "二层及以上可商业化"
+        constraint: "整体项目IRR≥8%"
+
+      # 业态组合：分阶段
+      tenant_mix:
+        priority_mode: "phased"
+        rule: "初期公益文化引流，中期渐进商业化"
+        constraint: "3年内完成从公益主导到商业平衡"
+
+    typical_scenarios:
+      - "老街区改造"
+      - "工业厂区更新"
+      - "历史片区重塑"
+
+    risks:
+      - "过度商业化破坏城市记忆"
+      - "过度公益化无法收回投资"
+
+  # ================================================================================
+  # Pattern 7: M7 技术整合 × M3 情绪体验
+  # 冲突核心: 系统理性 vs 情绪温度
+  # ================================================================================
+  M7_M3:
+    name: "技术整合×情绪体验"
+    description: "智能系统与情绪感知的融合"
+
+    conflict_dimensions:
+      - dimension: "技术可见性"
+        m7_position: "隐形化技术，消除设备感"
+        m3_position: "部分技术可作为体验元素"
+        severity: "low"
+
+      - dimension: "控制方式"
+        m7_position: "自动化系统控制"
+        m3_position: "保留人工干预以制造惊喜"
+        severity: "medium"
+
+      - dimension: "空间温度"
+        m7_position: "理性、精确、高效"
+        m3_position: "感性、温暖、有机"
+        severity: "medium"
+
+    resolution_strategy: "synergy"
+
+    dimension_priorities:
+      # 基础系统：M7隐形化
+      base_system:
+        priority_mode: "M7"
+        rule: "技术系统完全隐形，不干扰体验"
+        constraint: "设备外露率≤5%"
+
+      # 情绪调度：M3主导
+      emotional_control:
+        priority_mode: "M3"
+        rule: "技术服务情绪设计，而非主导"
+        constraint: "自动化系统需保留手动情景模式"
+
+      # 互动体验：协同
+      interactive_experience:
+        priority_mode: "synergy"
+        rule: "技术创造情绪可能性"
+        constraint: "技术增强情绪，不替代情绪"
+
+    typical_scenarios:
+      - "智能艺术酒店"
+      - "科技展馆"
+      - "未来住宅"
+
+    risks:
+      - "技术过度曝光破坏情绪"
+      - "情绪过度随机影响系统稳定"
+
+  # ================================================================================
+  # Pattern 8: M10 未来推演 × M4 资本导向
+  # 冲突核心: 长期预判 vs 短期回报
+  # ================================================================================
+  M10_M4:
+    name: "未来推演×资本导向"
+    description: "未来适配与当前回报的平衡"
+
+    conflict_dimensions:
+      - dimension: "投资周期"
+        m10_position: "为5-10年后的需求投资"
+        m4_position: "优先当前可变现的价值"
+        severity: "high"
+
+      - dimension: "技术选择"
+        m10_position: "前沿技术，预留接口"
+        m4_position: "成熟技术，成本可控"
+        severity: "medium"
+
+      - dimension: "空间设计"
+        m10_position: "可变、可迭代"
+        m4_position: "标准化、可复制"
+        severity: "medium"
+
+    resolution_strategy: "balanced"
+
+    dimension_priorities:
+      # 投资回报：M4底线
+      investment_return:
+        priority_mode: "M4"
+        rule: "当前必须盈利，未来作为溢价"
+        constraint: "当前阶段ROI≥目标值"
+
+      # 未来接口：M10保障
+      future_interface:
+        priority_mode: "M10"
+        rule: "预留升级接口，但不增加过多成本"
+        constraint: "接口预留成本≤总成本5%"
+
+      # 技术选择：平衡
+      technology_choice:
+        priority_mode: "balanced"
+        rule: "成熟技术为主，前沿技术小范围试点"
+        constraint: "前沿技术投资≤总投资15%"
+
+    typical_scenarios:
+      - "AI企业总部"
+      - "长周期地产项目"
+      - "科技产业园"
+
+    risks:
+      - "过度前瞻导致当前无法交付"
+      - "过度保守丧失未来竞争力"
+
+  # ================================================================================
+  # Pattern 9: M1 概念驱动 × M2 功能效率
+  # 冲突核心: 概念完整性 vs 功能优先
+  # ================================================================================
+  M1_M2:
+    name: "概念驱动×功能效率"
+    description: "概念表达与功能效率的协调"
+
+    conflict_dimensions:
+      - dimension: "空间分配"
+        m1_position: "保留概念叙事空间"
+        m2_position: "消除无效空间，优化动线"
+        severity: "high"
+
+      - dimension: "结构逻辑"
+        m1_position: "服从概念结构"
+        m2_position: "服从功能效率"
+        severity: "high"
+
+    resolution_strategy: "zoned"  # 分区策略
+
+    dimension_priorities:
+      # 核心区域：M1主导
+      core_zone:
+        priority_mode: "M1"
+        rule: "概念核心区域优先表达，允许功能冗余"
+        constraint: "核心区占比≤40%"
+
+      # 功能区域：M2主导
+      functional_zone:
+        priority_mode: "M2"
+        rule: "功能区优先效率，压缩概念表达"
+        constraint: "功能区动线效率≥85%"
+
+    typical_scenarios:
+      - "办公楼（接待区M1，工作区M2）"
+      - "商业空间（入口区M1，后场M2）"
+
+    risks:
+      - "分区过于明显导致空间割裂"
+
+  # ================================================================================
+  # Pattern 10: M5 乡建在地 × M8 极端环境
+  # 冲突核心: 文化保留 vs 环境适应
+  # ================================================================================
+  M5_M8:
+    name: "乡建在地×极端环境"
+    description: "乡土文化与极端气候的融合"
+
+    conflict_dimensions:
+      - dimension: "建造方式"
+        m5_position: "传统工艺，文化传承"
+        m8_position: "现代技术，性能保障"
+        severity: "high"
+
+      - dimension: "材料选择"
+        m5_position: "本地材料"
+        m8_position: "高性能材料"
+        severity: "high"
+
+    resolution_strategy: "synergy"
+
+    dimension_priorities:
+      # 性能底线：M8优先
+      performance_baseline:
+        priority_mode: "M8"
+        rule: "安全和舒适不可妥协"
+        constraint: "保温、防水性能达标"
+
+      # 外观表达：M5优先
+      appearance_expression:
+        priority_mode: "M5"
+        rule: "外观保留乡土特征"
+        constraint: "传统材料占比≥60%"
+
+      # 技术融合：协同
+      technology_integration:
+        priority_mode: "synergy"
+        rule: "传统外观+现代性能"
+        constraint: "传统材料+现代工艺改良"
+
+    typical_scenarios:
+      - "高原藏族民居改造"
+      - "极寒地区传统村落"
+
+    risks:
+      - "传统工艺无法满足性能要求"
+
+# ==================================================================================
+# 冲突解决流程
+# ==================================================================================
+
+resolution_workflow:
+  # 步骤1: 识别混合模式
+  step1_identification:
+    description: "检测多个高置信度模式"
+    threshold: "置信度差≤0.25，且min_confidence≥0.45"
+
+  # 步骤2: 匹配冲突模式
+  step2_pattern_matching:
+    description: "在hybrid_patterns中查找对应组合"
+    fallback: "如无预定义，使用通用平衡策略"
+
+  # 步骤3: 应用解决策略
+  step3_apply_strategy:
+    description: "根据resolution_strategy应用规则"
+    validation: "检查是否满足所有constraints"
+
+  # 步骤4: 生成调整建议
+  step4_generate_recommendations:
+    description: "生成具体的设计指导和警告"
+    output_format: "维度优先级列表 + 约束条件 + 风险提示"
+
+# ==================================================================================
+# 通用冲突解决原则
+# ==================================================================================
+
+general_principles:
+  # 原则1: 安全第一
+  safety_first:
+    rule: "生存、结构安全相关的需求永远优先"
+    examples: ["M8的结构安全", "M8的生存系统"]
+
+  # 原则2: 经济底线
+  economic_baseline:
+    rule: "资本回报有明确底线的项目，底线不可突破"
+    examples: ["M4的投资回收期", "M4的ROI要求"]
+
+  # 原则3: 文化尊重
+  cultural_respect:
+    rule: "涉及文化和社会结构的项目，需尊重现有秩序"
+    examples: ["M5的文化真实性", "M9的权力平衡"]
+
+  # 原则4: 用户体验
+  user_experience:
+    rule: "不可因冲突解决牺牲基本用户体验"
+    examples: ["M3的情绪高潮", "M2的基本效率"]
+
+  # 原则5: 可实施性
+  implementability:
+    rule: "冲突解决方案必须可实施，不能过于理想化"
+    validation: "技术可行+成本可控+时间可行"
+
+# ==================================================================================
+# 补充高频混合模式 (v9.0 — 基于 q.txt 190题频率审计)
+# ==================================================================================
+
+supplementary_patterns:
+
+  # M1×M9: 概念驱动 × 社会关系（9题）
+  # 典型: 共享公寓、代际住宅、社区中心
+  M1_M9_concept_social:
+    name: "概念驱动 × 社会关系"
+    frequency: "9题/190题"
+    core_tension: "概念的空间秩序可能与人际关系的流动性冲突——概念要求一致性，关系要求弹性"
+    resolution_strategy: "nested_concept"
+    resolution_logic: |
+      概念提供宏观结构框架，社会关系建模在框架内创建微观弹性空间。
+      概念秩序 = 骨架（不可变），关系空间 = 填充（可调整）。
+    dimension_adjustments:
+      concept_integrity: 0.30
+      social_impact: 0.25
+      spatial_logic: 0.20
+      narrative_coherence: 0.15
+      functional_efficiency: 0.10
+    constraints:
+      - "概念边界必须留出至少20%灰空间供关系流动使用"
+      - "社会关系需求不得突破概念的核心规则体系"
+    warning: "如果概念过于封闭（如纯形式主义），社会关系将被压制，空间沦为雕塑"
+
+  # M7×M10: 技术整合 × 未来推演（6题）
+  # 典型: 智能办公、未来城市、科技展厅
+  M7_M10_tech_future:
+    name: "技术整合 × 未来推演"
+    frequency: "6题/190题"
+    core_tension: "现有技术的可靠性 vs 未来技术的推测性——过度未来化导致不可落地，过度保守失去前瞻价值"
+    resolution_strategy: "phased"
+    resolution_logic: |
+      近期（0-3年）：基于成熟技术落地，预留升级接口
+      中期（3-7年）：布局准成熟技术的试点区域
+      远期（7+年）：概念预留空间，不做实施承诺
+    dimension_adjustments:
+      technical_feasibility: 0.30
+      concept_integrity: 0.20
+      functional_efficiency: 0.20
+      material_fitness: 0.15
+      commercial_closure: 0.15
+    constraints:
+      - "任何推演性技术必须标注成熟度等级（TRL 1-9）"
+      - "近期方案必须100%可落地，不允许依赖未商用技术"
+    warning: "避免'科幻感'替代'技术深度'——炫酷的形式不等于技术整合"
+
+  # M8×M10: 极端条件 × 未来推演（6题）
+  # 典型: 火星基地、深海站、气候变化适应建筑
+  M8_M10_extreme_future:
+    name: "极端条件 × 未来推演"
+    frequency: "6题/190题"
+    core_tension: "极端条件要求冗余和生存保障，未来推演要求灵活和开放——安全兜底与开放探索的矛盾"
+    resolution_strategy: "priority_based"
+    resolution_logic: |
+      M8 的生存系统和结构安全拥有绝对优先权。
+      未来推演仅在安全冗余满足后作为附加层叠加。
+      核心原则：先活下来，再想未来。
+    dimension_adjustments:
+      technical_feasibility: 0.35
+      functional_efficiency: 0.25
+      concept_integrity: 0.15
+      material_fitness: 0.15
+      spatial_logic: 0.10
+    constraints:
+      - "生命维持系统必须有三重冗余，不受推演性设计影响"
+      - "未来推演方案必须有降级路径（如技术失效时的手动替代）"
+    warning: "切忌用科幻叙事替代工程严谨性——极端环境下每个细节都关乎生存"
+
+  # M1×M5: 概念驱动 × 乡村在地（5题）
+  # 典型: 概念民宿集群、乡村文化中心、艺术驻留
+  M1_M5_concept_rural:
+    name: "概念驱动 × 乡村在地"
+    frequency: "5题/190题"
+    core_tension: "设计概念的抽象性 vs 乡村文化的具体性——过度概念化导致'外来物种'，过度在地化导致仿古"
+    resolution_strategy: "balanced"
+    resolution_logic: |
+      概念必须从在地基因中提取（抽象源 = 地方性），而非外部植入。
+      在地文化提供材料、工艺和空间原型，概念提供结构和秩序。
+      判断标准：村民能理解（在地），专业人士能欣赏（概念）。
+    dimension_adjustments:
+      cultural_authenticity: 0.25
+      concept_integrity: 0.25
+      material_fitness: 0.20
+      social_impact: 0.15
+      commercial_closure: 0.15
+    constraints:
+      - "概念的抽象源必须可追溯到至少一个在地文化元素"
+      - "建筑体量、屋顶形式、材料色调必须与现有聚落协调"
+      - "村民参与建造的比例不低于30%"
+    warning: "最大风险是'设计师的乡愁投射'——把自己的审美以'在地'之名强加给村庄"
+
+  # M3×M9: 情绪体验 × 社会关系（4题）
+  # 典型: 家庭疗愈空间、社区心理康复、亲子互动中心
+  M3_M9_emotion_social:
+    name: "情绪体验 × 社会关系"
+    frequency: "4题/190题"
+    core_tension: "情绪体验追求个体感受强度，社会关系要求群体平衡——个体沉浸与群体协调的矛盾"
+    resolution_strategy: "zoned"
+    resolution_logic: |
+      空间分区：独处区（高情绪密度）→ 过渡区（缓冲）→ 共处区（关系互动）
+      情绪设计控制个体空间的氛围强度，社会建模控制公共空间的关系平衡。
+    dimension_adjustments:
+      narrative_coherence: 0.25
+      social_impact: 0.25
+      spatial_logic: 0.20
+      concept_integrity: 0.15
+      functional_efficiency: 0.15
+    constraints:
+      - "独处空间必须有独立出入口（退场路径）"
+      - "共处空间的情绪基调不得超过60%强度（避免集体情绪失控）"
+    warning: "关注弱势群体——情绪设计不应成为压迫工具（如强制社交的'开放空间'）"
+
+  # M6×M5: 城市更新 × 乡村在地（2题）
+  # 典型: 城乡结合部改造、小镇振兴
+  M6_M5_urban_rural:
+    name: "城市更新 × 乡村在地"
+    frequency: "2题/190题"
+    core_tension: "城市更新的效率逻辑 vs 乡村在地的生活节奏——现代化进程与传统保存的矛盾"
+    resolution_strategy: "phased"
+    resolution_logic: |
+      第一阶段：保护核心文化资产（传统建筑/景观/社区网络）
+      第二阶段：引入基础设施升级（不改变空间肌理）
+      第三阶段：催化新功能（文创/旅游/教育）有机生长
+      核心原则：更新速度不超过社区适应速度。
+    dimension_adjustments:
+      cultural_authenticity: 0.25
+      social_impact: 0.25
+      functional_efficiency: 0.20
+      commercial_closure: 0.15
+      concept_integrity: 0.15
+    constraints:
+      - "现有社区网络不得被打断——更新后原住民留存率不低于70%"
+      - "新建体量不超过原有建筑总面积的30%"
+    warning: "城市更新的最大陷阱：士绅化——原住民被高租金/高房价逼走"
+
+  # ================================================================================
+  # Pattern M4×M11: 资本导向 × 健康疗愈
+  # 冲突核心: 溢价刺激 vs 降低激活
+  # 典型场景: 高端康养地产、精神科私立医院、冥想会员中心
+  # ================================================================================
+  M4_M11_capital_healing:
+    name: "资本导向 × 健康疗愈"
+    frequency: "新增模式，预估5–8题/190题"
+    core_tension: "资本逻辑追求溢价体验（高刺激感=高价值感），疗愈逻辑要求降低激活（应激降低=修复加速）——两者直接冲突"
+    resolution_strategy: "zoned"
+    resolution_logic: |
+      分区策略：空间内部构建清晰的「激活区」与「静息区」
+      激活区（入口/接待/品牌展示）：允许M4溢价语言，高品质材料/仪式感动线
+      静息区（疗愈核心/休息/康复）：严格遵守M11降激活原则，牺牲视觉展示换取神经安全感
+      核心原则：溢价表达止步于疗愈空间的边界。品牌感不能进入修复区。
+    dimension_adjustments:
+      healing_safety: 0.35
+      commercial_value: 0.25
+      spatial_dignity: 0.20
+      brand_expression: 0.10
+      functional_efficiency: 0.10
+    constraints:
+      - "疗愈核心区禁止强反光材料/高对比色彩/镜面——即使溢价需要"
+      - "声学指标优先于视觉豪华：静息区背景噪音上限45dB"
+      - "私密控制权不可被服务流程剥夺（使用者可关灯/拉帘而无需呼叫服务人员）"
+    warning: "康养地产最大陷阱：'奢华感'与'疗愈感'的语言体系相反。堆砌材料会破坏神经安全感。"
+
+  # ================================================================================
+  # Pattern M11×M9: 健康疗愈 × 社会建模
+  # 冲突核心: 个体修复的私密需求 vs 家庭/社群的关系结构
+  # 典型场景: 家庭疗愈空间、多代同堂照护、社区精神健康中心
+  # ================================================================================
+  M11_M9_healing_social:
+    name: "健康疗愈 × 社会建模"
+    frequency: "新增模式，预估4–6题/190题"
+    core_tension: "疗愈需要私密退场空间，社会结构需要共处连接——无法让所有人同时满足"
+    resolution_strategy: "zoned"
+    resolution_logic: |
+      独处与共处必须各有完整的空间系统，不可合并
+      个体疗愈节点：可独立锁闭的私密空间（哭泣/休息/情绪排解）
+      家庭/社群连接节点：温和激活的半公共空间（非强制社交）
+      过渡缓冲带：两者之间必须有灰色空间（走廊/小院/阅读角）——不被强制选择
+      核心原则：离开公共区不需要解释，不需要申请，不需要路过他人视线。
+    dimension_adjustments:
+      healing_safety: 0.30
+      social_dignity: 0.25
+      privacy_hierarchy: 0.25
+      family_connection: 0.15
+      spatial_logic: 0.05
+    constraints:
+      - "疗愈私密空间必须有独立出入口，不经过共享生活区"
+      - "照护者（家属/护工）的视线路径不应全程覆盖被照护者活动区"
+      - "公共区情绪密度不得超过60%强度——避免集体情绪失控"
+    warning: "照护空间最常见错误：为了'照护方便'取消隐私——这会加速被照护者的尊严崩溃"
+
+  # ================================================================================
+  # Pattern M12×M5: 生态再生 × 乡建在地
+  # 冲突核心: 全球生态标准 vs 本地文化保护
+  # 典型场景: 乡村零碳社区、农业碳汇建筑、生态修复民宿
+  # ================================================================================
+  M12_M5_ecological_rural:
+    name: "生态再生 × 乡建在地"
+    frequency: "新增模式，预估3–5题/190题"
+    core_tension: "生态再生追求全球标准（LEED/碳中和），乡建在地强调本地优先（传统材料/社区结构）——有时相互强化，有时相互排斥"
+    resolution_strategy: "balanced"
+    resolution_logic: |
+      相互强化路径（优先探索）：
+        本地材料往往是低碳材料（竹/土/石/木——本地采购无运输碳）
+        传统建造方式往往是低能耗方式（被动式、厚重围护）
+        社区经济闭环 = 循环经济的微观体现
+      相互排斥时（需决策）：
+        传统材料若性能不足（如渗水/不隔热），优先性能改良而非全盘替换
+        全球认证（LEED等）的技术要求若破坏传统建造知识体系，降优先于认证
+        核心原则：在地文化是生态系统的一部分，破坏文化连续性也是一种生态破坏。
+    dimension_adjustments:
+      ecological_regeneration: 0.30
+      cultural_authenticity: 0.25
+      community_economy: 0.20
+      material_circularity: 0.15
+      carbon_performance: 0.10
+    constraints:
+      - "本地材料使用率不低于60%（减少外输材料碳足迹）"
+      - "外来生态技术须与本地建造知识进行适配，不可直接移植城市方案"
+    warning: "最大陷阱：'绿色认证'代替了真正的在地生态实践——拿到LEED证书但用了大量进口材料"
+
+  # ================================================================================
+  # Pattern M12×M8: 生态再生 × 极端环境
+  # 冲突核心: 主动修复生态 vs 极端条件下的生存优先
+  # 典型场景: 高海拔生态建筑、荒漠化地区生态修复站、极地可持续科考设施
+  # ================================================================================
+  M12_M8_ecological_extreme:
+    name: "生态再生 × 极端环境"
+    frequency: "新增模式，预估2–4题/190题"
+    core_tension: "M12要求主动修复生态（主动策略），M8要求在极端条件下首先生存（防御策略）——修复与防御的资源竞争"
+    resolution_strategy: "phased"
+    resolution_logic: |
+      阶段优先模型：
+        阶段一（建立期）：M8主导——确保设施在极端环境下稳定存活
+          结构抗性/保温/能源自持/应急系统 > 生态修复目标
+        阶段二（稳定期）：M12介入——在生存保障基础上，开始生态修复
+          水文修复/本地物种引入/碳汇建设
+        阶段三（成熟期）：M12主导——设施成为生态修复节点运转
+      核心原则：绝不为生态指标牺牲结构安全；绿色认证目标服从于生存可靠性。
+    dimension_adjustments:
+      structural_resilience: 0.30
+      energy_autonomy: 0.25
+      ecological_regeneration: 0.25
+      climate_adaptation: 0.15
+      operational_safety: 0.05
+    constraints:
+      - "极端环境项目禁止为达到生态指标而削减结构预算"
+      - "生态修复措施必须在极端条件下验证可存活性（不能在第一个冬季死亡）"
+    warning: "常见失误：将温带地区的生态修复技术直接移植到极端环境——草坪绿化在冻土上全部死亡"
+
+  # ================================================================================
+  # Pattern M11×M12: 健康疗愈 × 生态再生
+  # 冲突核心: 人的修复需求 vs 生态系统优先
+  # 典型场景: 疗愈花园、自然疗愈中心、生态养老社区
+  # ================================================================================
+  M11_M12_healing_ecological:
+    name: "健康疗愈 × 生态再生"
+    frequency: "新增模式，预估3–5题/190题"
+    core_tension: "极少真正冲突——这是12个模式中最天然协同的组合。唯一张力：生态优先（减少人工干预）vs 疗愈需要精确控制感官参数"
+    resolution_strategy: "balanced"
+    resolution_logic: |
+      协同逻辑（绝大多数情况）：
+        自然生物亲近性是循证疗愈效果最强的干预手段之一
+        本土植物 = 低维护 + 生态修复 + 疗愈视觉
+        被动式气候控制 = 舒适温度 + 零碳运营
+        水景 = 声音疗愈 + 灰水循环
+      唯一真实张力：
+        生态优先：不修剪/不人工造景/接受自然演替状态
+        疗愈需要：可预测的环境（混乱的生态会增加部分用户焦虑）
+        解决：分区——核心疗愈区保持可控自然（人为维护），外围区允许自然生长
+    dimension_adjustments:
+      healing_safety: 0.30
+      biophilic_quality: 0.25
+      ecological_regeneration: 0.25
+      sensory_regulation: 0.15
+      carbon_performance: 0.05
+    constraints:
+      - "疗愈核心区（使用者直接停留处）保持可预测的自然状态，避免感官混乱"
+      - "农药/除草剂禁止使用（同时违反疗愈安全与生态原则）"
+    warning: "这个组合是战略加分项——M11+M12协同比任一单独模式提供更高综合价值，建议在提案中主动展示"
+
+# ==================================================================================
+# 版本历史
+# ==================================================================================
+
+version_history:
+  v7.800:
+    date: "2026-02-13"
+    changes:
+      - "初始版本"
+      - "定义10个常见混合模式"
+      - "建立4种冲突解决策略"
+      - "定义5条通用原则"
+  v9.000:
+    date: "2026-02-21"
+    changes:
+      - "补充6个高频混合模式（基于q.txt 190题频率审计）"
+      - "M1×M9 概念×社会（9题）、M7×M10 技术×未来（6题）"
+      - "M8×M10 极端×未来（6题）、M1×M5 概念×乡村（5题）"
+      - "M3×M9 情绪×社会（4题）、M6×M5 城市×乡村（2题）"
+  v9.100:
+    date: "2026-02-21"
+    changes:
+      - "P1实施：补充5个 M11/M12 相关混合模式"
+      - "M4×M11 资本×疗愈（溢价激活 vs 神经安全感冲突）"
+      - "M11×M9 疗愈×社会建模（私密修复 vs 关系共处）"
+      - "M12×M5 生态再生×乡建在地（全球标准 vs 本地文化）"
+      - "M12×M8 生态再生×极端环境（主动修复 vs 生存优先）"
+      - "M11×M12 疗愈×生态再生（天然协同，分区管理唯一张力）"

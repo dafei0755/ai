@@ -1,0 +1,16290 @@
+﻿"""
+ucppt 深度迭代搜索引擎 (v7.270)
+
+实现 ucppt 范式的"目标导向探索引擎"：
+
+v7.270 更新（切换到 OpenAI GPT-4o）：
+- 模型切换：使用 OpenAI GPT-4o（通过 OpenRouter）
+- 思考流限制：OpenAI 不支持 reasoning_content 字段，思考流功能不可用
+- 统一 API：使用 OPENROUTER_API_KEYS 进行所有 LLM 调用
+- 可配置模型：通过 UCPPT_THINKING_MODEL 和 UCPPT_EVAL_MODEL 环境变量自定义
+
+v7.207 更新（L0+L1-L5 统一分析）：
+- 合并分析：将 L0 对话分析和 L1-L5 深度分析合并为单次 LLM 调用
+- 统一模型：使用 thinking_model (gpt-4o) 同时输出对话内容和结构化分析
+- 响应加速：从 2 次 LLM 调用减少到 1 次，预计节省 3-5 秒
+- 输出分流：thinking 内容作为对话输出，content 包含 JSON 框架
+- 事件简化：unified_analysis_chunk (对话), question_analyzed (框架)
+
+v7.206 更新（L0 对话式任务理解 - 已合并到 v7.207）：
+- 对话式输出：L0 结构化信息提取改为对话式自然语言输出
+- JSON 内部化：结构化 JSON 仅供系统内部使用，不展示给用户
+
+v7.204 更新（统一思考流 - 消除轮次间停顿）：
+- 融合思考+反思：将原来每轮2次LLM调用（思考+反思）合并为1次
+- 消除停顿：反思在下一轮思考中完成，不再有独立的等待期
+- 首轮优化：首轮无上轮结果，prompt 跳过"回顾"部分
+- 减少Token：避免重复传递上下文，预计减少30-40%消耗
+- 新数据结构：UnifiedThinkingResult 统一输出回顾+规划+校准
+
+v7.199 更新（搜索质量全面增强）：
+- 查询分类器：识别学术/新闻/案例等8种查询类型
+- OpenAlex 学术搜索：学术类查询时自动调用 2.5亿+ 学术论文库
+- 语义去重：使用 embedding 向量去除语义相似的结果
+- 动态权重：根据查询类型调整时效性/可信度权重
+
+核心理念：
+- 用户问题导向：所有过程都指向最后的结果
+- 层层递进：每一步都在向"完美回答"靠近
+- 完成度追踪：不是"发现了多少"，而是"还差多少能回答完整"
+- 动态停止：当能够完整回答用户问题时自动结束
+
+关键机制：
+1. 问题分析 - 理解用户真正想要的答案是什么
+2. 关键面追踪 - 识别回答问题需要的关键信息面
+3. 目标导向搜索 - 每轮搜索都为填补回答的空白
+4. 完成度评估 - "能否完整回答？还缺什么？"
+5. 答案聚焦 - 所有信息最终服务于生成最佳答案
+
+v7.195 更新（网页内容深度提取）：
+- 混合提取方案：Trafilatura(静态) + Playwright(动态)
+- 智能策略：已知动态站点直接用 Playwright，其他先 Trafilatura 再降级
+- Top-5 深度提取：每轮搜索对前5条结果进行内容深度获取
+- 低质量站点过滤：百家号等低质量来源跳过深度提取
+- 配置开关：DEEP_CONTENT_EXTRACTION_ENABLED 控制是否启用
+
+v7.194 更新（答案生成优化）：
+- 来源去重：按URL去重避免重复引用
+- 400字内容摘要：每条来源包含400字正文摘要，让LLM能真正利用来源内容
+- 相关性排序：来源按与问题框架的相关性排序，Top-25进入Prompt
+- 累积反思：所有轮次的反思洞察都加入Prompt，充分利用研究过程
+- 答案扩容：max_tokens从2000提升到3000，字数要求1000-2000字
+
+v7.192 更新：
+- 提高深度标准：最少3轮，最大30轮
+- 完成度阈值提升至 0.88
+- alignment 阈值提升至 0.92
+- 饱和检测需连续3轮无进展且完成度>=0.75
+- 必须满足最小轮数才能触发停止
+
+v7.190 更新：
+- 答案生成 Prompt 改进：来源列表带编号 [1]、[2]...
+- 要求 LLM 使用 [编号] 格式引用来源，便于用户追溯
+- round_sources 事件发送全部来源（而非前5条），确保编号一致性
+
+作者: AI Assistant
+日期: 2026-01-11
+"""
+
+import asyncio
+import json
+import os
+import re
+import time
+import uuid
+from dataclasses import dataclass, field
+from enum import Enum
+from typing import Any, AsyncGenerator, Dict, List, Optional, Tuple, Union
+
+import httpx
+from loguru import logger
+
+# 导入现有搜索服务
+try:
+    from intelligent_project_analyzer.services.bocha_ai_search import (
+        AISearchResult,
+        BochaAISearchService,
+        SourceCard,
+        get_ai_search_service,
+    )
+except ImportError:
+    BochaAISearchService = None
+    AISearchResult = None
+    SourceCard = None
+    get_ai_search_service = None
+
+# v7.280: 导入分析维度配置加载器
+try:
+    from intelligent_project_analyzer.services.analysis_dimensions_loader import (
+        AnalysisDimensionsConfig,
+        get_dimensions_config,
+    )
+
+    DIMENSIONS_CONFIG_AVAILABLE = True
+except ImportError:
+    get_dimensions_config = None
+    AnalysisDimensionsConfig = None
+    DIMENSIONS_CONFIG_AVAILABLE = False
+    logger.warning("️ 分析维度配置加载器未可用，使用硬编码配置")
+
+# v7.195: 导入混合网页内容提取器
+try:
+    from intelligent_project_analyzer.services.web_content_extractor import (
+        ExtractionMethod,
+        ExtractionResult,
+        get_web_content_extractor,
+    )
+
+    WEB_EXTRACTOR_AVAILABLE = True
+except ImportError:
+    get_web_content_extractor = None
+    ExtractionResult = None
+    ExtractionMethod = None
+    WEB_EXTRACTOR_AVAILABLE = False
+    logger.warning("️ WebContentExtractor 未可用，使用 snippet 模式")
+
+# v7.199: 导入查询分类器
+try:
+    from intelligent_project_analyzer.tools.query_classifier import QueryClassification, QueryType, classify_query
+
+    QUERY_CLASSIFIER_AVAILABLE = True
+except ImportError:
+    classify_query = None
+    QueryType = None
+    QueryClassification = None
+    QUERY_CLASSIFIER_AVAILABLE = False
+    logger.warning("️ 查询分类器未可用")
+
+# v7.199: 导入 OpenAlex 学术搜索
+try:
+    from intelligent_project_analyzer.tools.openalex_search import OpenAlexSearchTool
+
+    OPENALEX_AVAILABLE = True
+except ImportError:
+    OpenAlexSearchTool = None
+    OPENALEX_AVAILABLE = False
+    logger.warning("️ OpenAlex 学术搜索未可用")
+
+# v7.199: 导入语义去重
+try:
+    from intelligent_project_analyzer.tools.semantic_dedup import semantic_deduplicate
+
+    SEMANTIC_DEDUP_AVAILABLE = True
+except ImportError:
+    semantic_deduplicate = None
+    SEMANTIC_DEDUP_AVAILABLE = False
+    logger.warning("️ 语义去重模块未可用")
+
+# v7.333: 导入 Step 2 搜索任务分解执行器
+try:
+    from intelligent_project_analyzer.core.four_step_flow_types import OutputBlock as Step2OutputBlock
+    from intelligent_project_analyzer.core.four_step_flow_types import OutputBlockSubItem as Step2OutputBlockSubItem
+    from intelligent_project_analyzer.core.four_step_flow_types import OutputFramework as Step2OutputFramework
+    from intelligent_project_analyzer.core.four_step_flow_types import SearchQuery as Step2SearchQuery
+    from intelligent_project_analyzer.services.four_step_flow_orchestrator import Step2SearchTaskDecompositionExecutor
+    from intelligent_project_analyzer.services.llm_factory import LLMFactory
+
+    STEP2_EXECUTOR_AVAILABLE = True
+except ImportError as e:
+    Step2SearchTaskDecompositionExecutor = None
+    Step2OutputFramework = None
+    Step2OutputBlock = None
+    Step2OutputBlockSubItem = None
+    Step2SearchQuery = None
+    LLMFactory = None
+    STEP2_EXECUTOR_AVAILABLE = False
+    logger.warning(f"️ Step2 搜索任务分解执行器未可用: {e}")
+
+# v7.510: 导入 Step 1.5 搜索方向生成器
+try:
+    from intelligent_project_analyzer.services.search_direction_generator import SearchDirectionGenerator
+    from intelligent_project_analyzer.core.four_step_flow_types import SearchDirection, Understanding, OutputBlock
+    SEARCH_DIRECTION_GENERATOR_AVAILABLE = True
+except ImportError as e:
+    SearchDirectionGenerator = None
+    SearchDirection = None
+    Understanding = None
+    OutputBlock = None
+    SEARCH_DIRECTION_GENERATOR_AVAILABLE = False
+    logger.warning(f"️ Step 1.5 搜索方向生成器未可用: {e}")
+
+
+# ==================== 常量配置 ====================
+
+# v7.200: 搜索质量优化
+MAX_SEARCH_ROUNDS = 30  # 最大搜索轮数（深度探索）
+MIN_SEARCH_ROUNDS = 4  # 最小搜索轮数（6→4，简单问题允许提前终止）
+COMPLETENESS_THRESHOLD = 0.88  # 回答完整度阈值（0.92→0.88，避免过度搜索）
+
+# v7.246: 动态延展与并行搜索配置
+MAX_EXTENSION_ROUNDS = 3  # 最大延展轮次（控制延展深度）
+MAX_PARALLEL_MAINLINES = 4  # 最大并行主线数（避免 API 限流）
+EXTENSION_COVERAGE_THRESHOLD = 0.80  # 触发延展的覆盖度阈值
+
+# 模型配置 - v7.270 切换到 OpenAI GPT-4o（通过 OpenRouter）
+# 注意: OpenAI 不支持 reasoning_content，思考流功能不可用
+THINKING_MODEL = os.getenv("UCPPT_THINKING_MODEL", "openai/gpt-4o")  # OpenAI GPT-4o：思考模式（无 reasoning_content）
+EVAL_MODEL = os.getenv("UCPPT_EVAL_MODEL", "openai/gpt-4o")  # OpenAI GPT-4o：评估模式
+SYNTHESIS_MODEL = "openai/gpt-4o"  # OpenAI GPT-4o：答案生成
+
+# v7.195: 网页内容深度提取配置
+DEEP_CONTENT_EXTRACTION_ENABLED = os.getenv("DEEP_CONTENT_EXTRACTION_ENABLED", "true").lower() == "true"
+DEEP_CONTENT_TOP_N = int(os.getenv("DEEP_CONTENT_TOP_N", "5"))  # 每轮最多深度提取的来源数
+
+# v7.199: 搜索质量增强配置
+OPENALEX_SEARCH_ENABLED = os.getenv("OPENALEX_SEARCH_ENABLED", "true").lower() == "true"
+SEMANTIC_DEDUP_ENABLED = os.getenv("SEMANTIC_DEDUP_ENABLED", "true").lower() == "true"
+SEMANTIC_DEDUP_THRESHOLD = float(os.getenv("SEMANTIC_DEDUP_THRESHOLD", "0.85"))
+
+# v7.212: 搜索结果质量筛选配置
+SEARCH_QUALITY_THRESHOLD = float(os.getenv("SEARCH_QUALITY_THRESHOLD", "0.2"))  # v7.471: 0.3→0.2 放宽质量阈值
+SEARCH_QUALITY_LLM_FILTER = os.getenv("SEARCH_QUALITY_LLM_FILTER", "true").lower() == "true"
+SEARCH_MIN_QUALITY_SOURCES = int(os.getenv("SEARCH_MIN_QUALITY_SOURCES", "3"))
+SEARCH_SUPPLEMENT_MAX_RETRIES = int(os.getenv("SEARCH_SUPPLEMENT_MAX_RETRIES", "3"))
+
+# OpenRouter API 配置（v7.270 OpenAI GPT-4o）
+OPENROUTER_API_BASE_URL = os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
+
+
+class SearchPhase(Enum):
+    """搜索阶段"""
+
+    QUESTION_ANALYSIS = "question_analysis"  # 问题分析
+    GOAL_DIRECTED_SEARCH = "goal_directed_search"  # 目标导向搜索
+    ANSWER_SYNTHESIS = "answer_synthesis"  # 答案整合
+
+
+class AnalysisPhase(Enum):
+    """分析阶段枚举 - v7.214"""
+
+    L0_DIALOGUE = "l0_dialogue"  # L0: 对话式理解
+    L1_L5_FRAMEWORK = "l1_l5_framework"  # L1-L5: 深度框架分析
+    SYNTHESIS = "synthesis"  # 综合: 搜索任务生成
+
+
+class AnswerReadiness(Enum):
+    """回答就绪状态"""
+
+    NOT_READY = "not_ready"  # 信息不足，无法回答
+    PARTIAL = "partial"  # 可以部分回答
+    READY = "ready"  # 可以完整回答
+    EXCELLENT = "excellent"  # 可以深度回答
+
+
+# ==================== 数据结构 ====================
+
+
+@dataclass
+class PhaseResult:
+    """分析阶段结果基类 - v7.214"""
+
+    phase: AnalysisPhase
+    content: Dict[str, Any]
+    quality_score: float
+    execution_time: float = 0.0
+    next_phase: Optional[AnalysisPhase] = None
+    retry_count: int = 0
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "phase": self.phase.value,
+            "content": self.content,
+            "quality_score": self.quality_score,
+            "execution_time": self.execution_time,
+            "retry_count": self.retry_count,
+        }
+
+
+@dataclass
+class L0DialogueResult(PhaseResult):
+    """L0 对话分析结果 - v7.214"""
+
+    user_profile: "StructuredUserInfo" = None
+    context_understanding: str = ""
+    implicit_needs: List[str] = None
+    dialogue_content: str = ""
+
+    def __post_init__(self):
+        self.phase = AnalysisPhase.L0_DIALOGUE
+        if self.implicit_needs is None:
+            self.implicit_needs = []
+        if self.user_profile is None:
+            # 需要导入 StructuredUserInfo，这里先用 None 处理
+            pass
+
+
+@dataclass
+class L1L5FrameworkResult(PhaseResult):
+    """L1-L5 框架分析结果 - v7.214"""
+
+    l1_facts: List[str] = None
+    l2_models: Dict[str, str] = None
+    l3_tensions: str = ""
+    l4_jtbd: str = ""
+    l5_sharpness: Dict[str, Any] = None
+    framework_coherence: float = 0.0
+
+    def __post_init__(self):
+        self.phase = AnalysisPhase.L1_L5_FRAMEWORK
+        if self.l1_facts is None:
+            self.l1_facts = []
+        if self.l2_models is None:
+            self.l2_models = {}
+        if self.l5_sharpness is None:
+            self.l5_sharpness = {}
+
+
+@dataclass
+class SynthesisResult(PhaseResult):
+    """综合分析结果 - v7.214"""
+
+    search_master_line: "SearchMasterLine" = None
+    answer_framework: "AnswerFramework" = None
+    execution_plan: Dict[str, Any] = None
+
+    def __post_init__(self):
+        self.phase = AnalysisPhase.SYNTHESIS
+        if self.execution_plan is None:
+            self.execution_plan = {}
+
+
+@dataclass
+class QualityGate:
+    """质量门控 - v7.214"""
+
+    threshold: float = 0.75
+    retry_limit: int = 2
+    fallback_strategy: str = "continue_with_warning"
+
+    criteria: Dict[str, Dict[str, float]] = field(
+        default_factory=lambda: {
+            "L0_DIALOGUE": {"profile_completeness": 0.80, "implicit_need_depth": 0.75, "dialogue_naturalness": 0.70},
+            "L1_L5_FRAMEWORK": {
+                "fact_atomization": 0.85,
+                "model_integration": 0.80,
+                "tension_precision": 0.85,
+                "actionability": 0.75,
+            },
+            "SYNTHESIS": {"task_completeness": 0.90, "logical_progression": 0.85, "executability": 0.80},
+        }
+    )
+
+    def check_phase_quality(self, phase: AnalysisPhase, result: PhaseResult) -> bool:
+        """检查阶段质量是否达标"""
+        phase_criteria = self.criteria.get(phase.value, {})
+        if not phase_criteria:
+            return result.quality_score >= self.threshold
+
+        # 检查各维度是否都达标
+        for criterion, min_score in phase_criteria.items():
+            actual_score = result.content.get(f"{criterion}_score", result.quality_score)
+            if actual_score < min_score:
+                return False
+        return True
+
+
+@dataclass
+class AnalysisSession:
+    """分析会话管理 - v7.214"""
+
+    session_id: str
+    query: str
+    context: Dict[str, Any] = None
+    current_phase: AnalysisPhase = AnalysisPhase.L0_DIALOGUE
+    phase_results: Dict[AnalysisPhase, PhaseResult] = field(default_factory=dict)
+    quality_gate: QualityGate = field(default_factory=QualityGate)
+    start_time: float = field(default_factory=time.time)
+
+    # v7.214 新增字段用于存储各阶段结果
+    l0_result: Optional[L0DialogueResult] = None
+    framework_result: Optional[L1L5FrameworkResult] = None
+    synthesis_result: Optional[SynthesisResult] = None
+    overall_quality: float = 0.0
+    total_execution_time: float = 0.0
+
+    def __post_init__(self):
+        if self.context is None:
+            self.context = {}
+
+    def can_proceed_to_next_phase(self) -> bool:
+        """检查是否可以进入下一阶段"""
+        current_result = self.phase_results.get(self.current_phase)
+        if not current_result:
+            return False
+        return self.quality_gate.check_phase_quality(self.current_phase, current_result)
+
+    def get_analysis_trace(self) -> Dict[str, Any]:
+        """获取完整分析轨迹"""
+        return {
+            "session_id": self.session_id,
+            "query": self.query,
+            "phases": {phase.value: result.to_dict() for phase, result in self.phase_results.items()},
+            "total_time": time.time() - self.start_time,
+        }
+
+    def get_next_phase(self) -> Optional[AnalysisPhase]:
+        """获取下一个分析阶段"""
+        phase_order = [AnalysisPhase.L0_DIALOGUE, AnalysisPhase.L1_L5_FRAMEWORK, AnalysisPhase.SYNTHESIS]
+        try:
+            current_index = phase_order.index(self.current_phase)
+            if current_index < len(phase_order) - 1:
+                return phase_order[current_index + 1]
+        except ValueError:
+            pass
+        return None
+
+
+@dataclass
+class StructuredUserInfo:
+    """
+    L0 结构化用户信息 - v7.205
+
+    增强版数据结构，支持：
+    1. 语境分析（每个字段都有对应的 _context 字段）
+    2. 隐性需求推断
+    3. 地点特殊考量
+    4. 信息完整度评估
+    """
+
+    # 用户基础画像
+    demographics: Dict[str, str] = field(
+        default_factory=lambda: {
+            "location": "",
+            "location_context": "",
+            "age": "",
+            "age_context": "",
+            "gender": "",
+            "occupation": "",
+            "occupation_context": "",
+            "education": "",
+            "education_context": "",
+        }
+    )
+
+    # 身份标签
+    identity_tags: List[str] = field(default_factory=list)
+
+    # 生活方式
+    lifestyle: Dict[str, Any] = field(
+        default_factory=lambda: {
+            "living_situation": "",
+            "family_status": "",
+            "hobbies": [],
+            "pets": [],
+        }
+    )
+
+    # 项目/场景信息
+    project_context: Dict[str, Any] = field(
+        default_factory=lambda: {
+            "type": "",
+            "scale": "",
+            "scale_context": "",
+            "constraints": [],
+            "budget_range": "",
+            "timeline": "",
+        }
+    )
+
+    # 偏好与参照
+    preferences: Dict[str, List[str]] = field(
+        default_factory=lambda: {
+            "style_references": [],
+            "style_keywords": [],
+            "color_palette": [],
+            "material_preferences": [],
+            "cultural_influences": [],
+        }
+    )
+
+    # 核心诉求
+    core_request: Dict[str, Any] = field(
+        default_factory=lambda: {
+            "explicit_need": "",
+            "implicit_needs": [],
+        }
+    )
+
+    # 地点特殊考量
+    location_considerations: Dict[str, str] = field(
+        default_factory=lambda: {
+            "climate": "",
+            "architecture": "",
+            "lifestyle": "",
+        }
+    )
+
+    # 信息完整度评估
+    completeness: Dict[str, Any] = field(
+        default_factory=lambda: {
+            "provided_dimensions": [],
+            "missing_dimensions": [],
+            "confidence_score": 0.0,
+        }
+    )
+
+    # 原始提取文本（用于调试）
+    raw_extraction: str = ""
+
+    def to_dict(self) -> Dict[str, Any]:
+        """转换为字典用于前端展示和 JSON 序列化"""
+        return {
+            "demographics": self.demographics,
+            "identity_tags": self.identity_tags,
+            "lifestyle": self.lifestyle,
+            "project_context": self.project_context,
+            "preferences": self.preferences,
+            "core_request": self.core_request,
+            "location_considerations": self.location_considerations,
+            "completeness": self.completeness,
+        }
+
+    def has_user_profile(self) -> bool:
+        """是否包含用户画像信息"""
+        has_demographics = any(
+            self.demographics.get(k) for k in ["location", "age", "gender", "occupation", "education"]
+        )
+        has_tags = len(self.identity_tags) > 0
+        return has_demographics or has_tags
+
+    def has_preferences(self) -> bool:
+        """是否包含偏好信息"""
+        return (
+            len(self.preferences.get("style_references", [])) > 0 or len(self.preferences.get("style_keywords", [])) > 0
+        )
+
+    def has_implicit_needs(self) -> bool:
+        """是否有推断的隐性需求"""
+        return len(self.core_request.get("implicit_needs", [])) > 0
+
+    def get_summary(self) -> str:
+        """获取简短摘要（用于日志）"""
+        parts = []
+        if self.demographics.get("location"):
+            parts.append(f"地点:{self.demographics['location']}")
+        if self.demographics.get("age"):
+            parts.append(f"年龄:{self.demographics['age']}")
+        if self.identity_tags:
+            parts.append(f"标签:{','.join(self.identity_tags[:3])}")
+        if self.preferences.get("style_references"):
+            parts.append(f"风格:{','.join(self.preferences['style_references'][:2])}")
+        return " | ".join(parts) if parts else "无用户画像"
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "StructuredUserInfo":
+        """从字典创建实例"""
+        return cls(
+            demographics=data.get("demographics", {}),
+            identity_tags=data.get("identity_tags", []),
+            lifestyle=data.get("lifestyle", {}),
+            project_context=data.get("project_context", {}),
+            preferences=data.get("preferences", {}),
+            core_request=data.get("core_request", {}),
+            location_considerations=data.get("location_considerations", {}),
+            completeness=data.get("completeness", {}),
+            raw_extraction=data.get("raw_extraction", ""),
+        )
+
+
+# ==================== v7.220: 统一搜索框架 ====================
+
+
+@dataclass
+class SearchTarget:
+    """
+    统一的搜索目标 - v7.236
+
+    合并原来的 SearchTask 和 KeyAspect，成为唯一的搜索单元。
+    从第一阶段分析生成，贯穿整个搜索流程。
+
+    v7.236 更新（字段语义明确化）：
+    - 新增 question: 用问句描述任务目标（替代模糊的 name）
+    - 新增 search_for: 具体搜索内容（替代模糊的 description）
+    - 新增 why_need: 说明对回答的贡献（替代抽象的 purpose）
+    - 新增 success_when: 完成标准（替代 quality_criteria）
+    - 保留旧字段 name/description/purpose 用于向后兼容
+
+    v7.232 更新：
+    - 添加 preset_keywords: 预设搜索关键词列表（在分析阶段生成）
+    - 搜索时优先使用 preset_keywords，而非临时生成
+    """
+
+    # === 基础信息 ===
+    id: str  # 目标ID (T1, T2, ...)
+
+    # === v7.236: 新字段（语义明确） ===
+    question: str = ""  # 这个任务要回答什么问题？（问句形式，15字内）
+    search_for: str = ""  # 具体搜索什么内容（列出实体名称）
+    why_need: str = ""  # 找到后对回答有什么帮助
+    success_when: List[str] = field(default_factory=list)  # 什么情况算搜索成功
+
+    # === 旧字段（向后兼容） ===
+    name: str = ""  # 搜索目标名称（简短）- 兼容旧代码
+    description: str = ""  # 详细描述 - 兼容旧代码
+    purpose: str = ""  # 为什么要搜这个 - 兼容旧代码
+    answer_goal: str = ""  # 回答目标
+
+    # === 分类与优先级 ===
+    priority: int = 1  # 优先级 1(高) / 2(中) / 3(低)
+    category: str = "品牌调研"  # 类别: 品牌调研 / 案例参考 / 方案验证 / 背景知识
+
+    # === 状态追踪 ===
+    status: str = "pending"  # pending / searching / complete
+
+    # === v7.232: 预设搜索关键词（核心改进）===
+    preset_keywords: List[str] = field(default_factory=list)  # 预设的精准搜索关键词（分析阶段生成）
+    current_keyword_index: int = 0  # 当前使用的关键词索引
+    quality_criteria: List[str] = field(default_factory=list)  # 质量达标标准（旧字段，兼容）
+
+    # === 搜索执行 ===
+    search_queries: List[str] = field(default_factory=list)  # 已执行的搜索词
+    expected_info: List[str] = field(default_factory=list)  # 期望获取的信息类型
+
+    # === 结果追踪 ===
+    sources: List[Dict[str, Any]] = field(default_factory=list)  # 收集到的来源
+    collected_info: List[str] = field(default_factory=list)  # 已收集的信息摘要
+    sources_count: int = 0  # 来源数量
+    completion_score: float = 0.0  # 完成度 0-1
+    rounds_spent: int = 0  # 花费的搜索轮数
+
+    # === 质量评估 ===
+    quality_score: float = 0.0  # 信息质量评分
+    coverage_score: float = 0.0  # 信息覆盖度评分
+
+    # === v7.260: 全局并行支持 ===
+    dependencies: List[str] = field(default_factory=list)  # 依赖的任务ID（空=可立即并行）
+    execution_order: int = 1  # 执行顺序（仅用于无依赖时的优先级排序）
+    group_id: str = ""  # 所属任务组ID（用于UI分组展示）
+    can_parallel: bool = True  # 是否可并行（默认True，全局并行策略）
+    search_action: str = ""  # 搜索引导词：搜索/查找/调研/收集/对比/验证
+
+    # === v7.260: 子任务支持 ===
+    sub_tasks: List[Dict[str, Any]] = field(default_factory=list)  # 子任务列表（LLM动态生成）
+
+    # === v7.500: 逐目标自主搜索状态 ===
+    target_rounds: int = 0  # 该目标已执行的搜索轮次
+    max_target_rounds: int = 8  # 该目标最大搜索轮次
+    valuable_findings: List[str] = field(default_factory=list)  # 沉淀的有价值发现
+    valuable_sources: List[Dict[str, Any]] = field(default_factory=list)  # 沉淀的有价值来源
+    tried_strategies: List[str] = field(default_factory=list)  # 已尝试的搜索策略
+    tried_queries: List[str] = field(default_factory=list)  # 已尝试的搜索词
+    quality_history: List[float] = field(default_factory=list)  # 每轮质量分数历史
+
+    def __post_init__(self):
+        """v7.236: 自动填充兼容字段"""
+        # 如果新字段有值，同步到旧字段（向后兼容）
+        if self.question and not self.name:
+            self.name = self.question
+        if self.search_for and not self.description:
+            self.description = self.search_for
+        if self.why_need and not self.purpose:
+            self.purpose = self.why_need
+        if self.success_when and not self.quality_criteria:
+            self.quality_criteria = self.success_when
+
+        # 反向：如果旧字段有值但新字段为空，同步到新字段
+        if self.name and not self.question:
+            self.question = self.name
+        if self.description and not self.search_for:
+            self.search_for = self.description
+        if self.purpose and not self.why_need:
+            self.why_need = self.purpose
+        if self.quality_criteria and not self.success_when:
+            self.success_when = self.quality_criteria
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "id": self.id,
+            # v7.236: 新字段
+            "question": self.question,
+            "search_for": self.search_for,
+            "why_need": self.why_need,
+            "success_when": self.success_when,
+            # 旧字段（兼容）
+            "name": self.name or self.question,
+            "description": self.description or self.search_for,
+            "purpose": self.purpose or self.why_need,
+            "priority": self.priority,
+            "category": self.category,
+            "status": self.status,
+            "completion_score": self.completion_score,
+            "sources_count": self.sources_count,
+            "preset_keywords": self.preset_keywords,
+            "quality_criteria": self.quality_criteria or self.success_when,
+            "search_queries": self.search_queries,
+            "expected_info": self.expected_info,
+            # v7.260: 全局并行支持
+            "dependencies": self.dependencies,
+            "execution_order": self.execution_order,
+            "group_id": self.group_id,
+            "can_parallel": self.can_parallel,
+            "search_action": self.search_action,
+            "sub_tasks": self.sub_tasks,
+        }
+
+    def is_complete(self) -> bool:
+        """判断是否完成"""
+        return self.status == "complete" or self.completion_score >= 0.8
+
+    def mark_searching(self):
+        """标记为搜索中"""
+        self.status = "searching"
+
+    def mark_complete(self, score: float = 1.0):
+        """标记为完成"""
+        self.status = "complete"
+        self.completion_score = score
+
+    def get_next_preset_keyword(self) -> Optional[str]:
+        """
+        获取下一个预设关键词 - v7.232
+
+        返回下一个未使用的预设关键词，如果都用完了返回 None
+        """
+        if not self.preset_keywords:
+            return None
+        if self.current_keyword_index >= len(self.preset_keywords):
+            return None
+        return self.preset_keywords[self.current_keyword_index]
+
+    def has_more_keywords(self) -> bool:
+        """是否还有未使用的预设关键词"""
+        return self.current_keyword_index < len(self.preset_keywords)
+
+
+@dataclass
+class SearchFramework:
+    """
+    搜索框架 - v7.220
+
+    替代原来的 SearchMasterLine + AnswerFramework 双系统。
+    统一管理搜索目标、分析结果和进度追踪。
+    """
+
+    # === 问题锚点 ===
+    original_query: str = ""  # 原始用户问题
+    core_question: str = ""  # 问题一句话本质
+    answer_goal: str = ""  # 回答目标
+    boundary: str = ""  # 搜索边界（不搜什么）
+
+    # === 搜索目标列表 ===
+    targets: List[SearchTarget] = field(default_factory=list)
+
+    # === 深度分析结果 ===
+    l1_facts: List[str] = field(default_factory=list)  # L1 事实解构
+    l2_models: Dict[str, str] = field(default_factory=dict)  # L2 多视角建模
+    l3_tension: str = ""  # L3 核心张力
+    l4_jtbd: str = ""  # L4 用户任务
+    l5_sharpness: Dict[str, Any] = field(default_factory=dict)  # L5 锐度评估
+
+    # === 用户画像 ===
+    user_profile: Dict[str, Any] = field(default_factory=dict)
+
+    # === 进度追踪 ===
+    current_target_id: str = ""  # 当前搜索目标ID
+    completed_count: int = 0  # 已完成目标数
+    overall_completeness: float = 0.0  # 整体完成度
+
+    # === 收集的证据 ===
+    all_sources: List[Dict[str, Any]] = field(default_factory=list)
+    collected_evidence: Dict[str, Any] = field(default_factory=dict)  # v7.229: 兼容旧代码
+
+    # === v7.229: 轮次洞察累积 ===
+    round_insights: List["RoundInsights"] = field(default_factory=list)
+
+    # === v7.240: 框架清单 ===
+    framework_checklist: Optional["FrameworkChecklist"] = None
+
+    # === v7.300: 交付物和输出格式 ===
+    deliverables: List[str] = field(default_factory=list)  # 交付物清单（10-15项）
+    final_output_format: str = ""  # 最终输出格式说明
+
+    def get_next_target(self) -> Optional[SearchTarget]:
+        """获取下一个待搜索的目标"""
+        # 按优先级排序，返回第一个未完成的
+        pending = [t for t in self.targets if not t.is_complete()]
+        if not pending:
+            return None
+        pending.sort(key=lambda t: t.priority)
+        return pending[0]
+
+    def get_parallel_targets(self, max_parallel: int = 4) -> List[SearchTarget]:
+        """
+        获取所有可并行执行的目标 - v7.260 全局并行策略
+
+        返回所有满足以下条件的目标：
+        1. 未完成（status != complete）
+        2. 依赖已满足（dependencies中的所有任务都已完成）
+        3. can_parallel = True
+
+        Args:
+            max_parallel: 最大并行数量（默认4）
+
+        Returns:
+            可并行执行的目标列表，按优先级排序
+        """
+        if not self.targets:
+            return []
+
+        # 获取已完成的目标ID集合
+        completed_ids = {t.id for t in self.targets if t.is_complete()}
+
+        # 筛选可并行执行的目标
+        parallel_targets = []
+        for t in self.targets:
+            if t.is_complete():
+                continue
+            if not t.can_parallel:
+                continue
+            # 检查依赖是否满足
+            if t.dependencies:
+                deps_satisfied = all(dep_id in completed_ids for dep_id in t.dependencies)
+                if not deps_satisfied:
+                    continue
+            parallel_targets.append(t)
+
+        # 按优先级和执行顺序排序
+        parallel_targets.sort(key=lambda t: (t.priority, t.execution_order))
+
+        # 限制最大并行数量
+        return parallel_targets[:max_parallel]
+
+    def get_ready_targets(self) -> List[SearchTarget]:
+        """
+        获取所有依赖已满足的待执行目标 - v7.260
+
+        与 get_parallel_targets 的区别：
+        - get_parallel_targets: 只返回 can_parallel=True 的目标
+        - get_ready_targets: 返回所有依赖已满足的目标（包括串行任务）
+
+        Returns:
+            依赖已满足的目标列表，按优先级排序
+        """
+        if not self.targets:
+            return []
+
+        completed_ids = {t.id for t in self.targets if t.is_complete()}
+
+        ready_targets = []
+        for t in self.targets:
+            if t.is_complete():
+                continue
+            # 检查依赖是否满足
+            if t.dependencies:
+                deps_satisfied = all(dep_id in completed_ids for dep_id in t.dependencies)
+                if not deps_satisfied:
+                    continue
+            ready_targets.append(t)
+
+        ready_targets.sort(key=lambda t: (t.priority, t.execution_order))
+        return ready_targets
+
+    def get_target_for_round(self, round_number: int) -> Optional[SearchTarget]:
+        """
+        按轮次轮换获取搜索目标 - v7.245
+
+        策略：每轮搜索不同的主线，确保覆盖所有搜索方向
+        - 第1轮选第1个目标
+        - 第2轮选第2个目标
+        - ...
+        - 超过目标数量后循环
+
+        Args:
+            round_number: 当前轮次（从1开始）
+
+        Returns:
+            当前轮次应该搜索的目标
+        """
+        if not self.targets:
+            return None
+        # 按优先级排序
+        sorted_targets = sorted(self.targets, key=lambda t: t.priority)
+        # 轮换选择：第1轮选第1个，第2轮选第2个...
+        index = (round_number - 1) % len(sorted_targets)
+        return sorted_targets[index]
+
+    def get_target_by_id(self, target_id: str) -> Optional[SearchTarget]:
+        """根据ID获取目标"""
+        for t in self.targets:
+            if t.id == target_id:
+                return t
+        return None
+
+    def update_completeness(self):
+        """更新整体完成度"""
+        if not self.targets:
+            self.overall_completeness = 0.0
+            return
+
+        total_score = sum(t.completion_score for t in self.targets)
+        self.overall_completeness = total_score / len(self.targets)
+        self.completed_count = sum(1 for t in self.targets if t.is_complete())
+
+    def can_answer_completely(self) -> bool:
+        """
+        是否能够完整回答用户问题 - v7.233 新增
+
+        判断标准：所有高优先级(priority=1)的目标都至少是partial状态
+        """
+        if not self.targets:
+            return False
+        # 所有高优先级(priority=1)的目标都至少不是pending
+        high_priority = [t for t in self.targets if t.priority == 1]
+        if not high_priority:
+            # 没有高优先级目标，检查所有目标
+            high_priority = self.targets
+        return all(t.status != "pending" for t in high_priority)
+
+    def calculate_completeness(self) -> float:
+        """
+        计算回答完成度 - v7.233 新增
+
+        基于目标的优先级加权计算完成度
+        """
+        if not self.targets:
+            return 0.0
+        # 优先级越高(数值越小)权重越大
+        total_weight = 0.0
+        achieved = 0.0
+        for t in self.targets:
+            weight = 1.0 / max(t.priority, 1)  # priority=1 -> weight=1.0, priority=2 -> weight=0.5
+            total_weight += weight
+            achieved += weight * t.completion_score
+        return achieved / total_weight if total_weight > 0 else 0.0
+
+    def get_mainline_targets(self) -> List[SearchTarget]:
+        """
+        v7.246: 获取所有未完成的主线目标（非延展任务）
+
+        用于并行主线搜索，排除延展任务
+
+        Returns:
+            未完成的主线目标列表，按优先级排序
+        """
+        mainline_targets = [t for t in self.targets if not t.is_complete() and t.category != "延展"]
+        return sorted(mainline_targets, key=lambda t: t.priority)
+
+    def get_extension_targets(self) -> List[SearchTarget]:
+        """
+        v7.246: 获取所有未完成的延展目标
+
+        用于串行延展搜索
+
+        Returns:
+            未完成的延展目标列表，按优先级排序
+        """
+        extension_targets = [t for t in self.targets if not t.is_complete() and t.category == "延展"]
+        return sorted(extension_targets, key=lambda t: t.priority)
+
+    def get_extension_count(self) -> int:
+        """
+        v7.246: 获取当前延展任务数量
+
+        用于控制延展轮次不超过 MAX_EXTENSION_ROUNDS
+        """
+        return len([t for t in self.targets if t.category == "延展"])
+
+    def to_master_line(self) -> "SearchMasterLine":
+        """
+        v7.282: 转换为 SearchMasterLine 格式
+
+        用于前端展示层兼容，将 SearchFramework 转换为废弃的 SearchMasterLine 格式。
+        前端 SearchTaskListCard 组件仍使用 SearchMasterLine 接口。
+
+        Returns:
+            SearchMasterLine: 兼容的搜索主线对象
+        """
+        # 将 SearchTarget 转换为 SearchTask
+        search_tasks = []
+        for target in self.targets:
+            task = SearchTask(
+                id=target.id,
+                task=target.question,  # SearchTarget.question → SearchTask.task
+                purpose=target.why_need,  # SearchTarget.why_need → SearchTask.purpose
+                priority=target.priority,
+                status=target.status,
+                expected_info=target.success_when,  # SearchTarget.success_when → SearchTask.expected_info
+                completion_score=target.completion_score,
+                phase=target.category,  # SearchTarget.category → SearchTask.phase
+                depends_on=target.dependencies,
+            )
+            search_tasks.append(task)
+
+        # 构建 SearchMasterLine
+        master_line = SearchMasterLine(
+            core_question=self.core_question,
+            boundary=self.boundary,
+            framework_summary=self.framework_checklist.core_summary if self.framework_checklist else "",
+            search_tasks=search_tasks,
+        )
+
+        return master_line
+
+    def to_master_line_dict(self) -> Dict[str, Any]:
+        """
+        v7.282: 转换为 SearchMasterLine 字典格式
+
+        直接生成前端期望的 JSON 格式，避免类型转换开销。
+
+        Returns:
+            dict: 兼容前端的 searchMasterLine 字典
+        """
+        tasks = []
+        for target in self.targets:
+            tasks.append(
+                {
+                    "id": target.id,
+                    "task": target.question,
+                    "purpose": target.why_need,
+                    "priority": target.priority,
+                    "status": target.status,
+                    "expected_info": target.success_when,
+                    "completion_score": target.completion_score,
+                }
+            )
+
+        return {
+            "core_question": self.core_question,
+            "boundary": self.boundary,
+            "tasks": tasks,
+            "task_count": len(tasks),
+            "exploration_triggers": [],
+            "forbidden_zones": [],
+        }
+
+
+# ==================== 4-Step Flow Data Structures ====================
+
+
+@dataclass
+class OutputBlock:
+    """输出板块（灵活结构）- Step 1生成"""
+
+    name: str  # 板块名称（由LLM动态生成）
+    description: str  # 板块描述
+    sub_items: List[str]  # 子项列表（数量不固定，2-8个）
+    estimated_length: str  # 预计内容量（如"2000-3000字"）
+    priority: str  # 优先级（high/medium/low）
+    metadata: Dict[str, Any] = field(default_factory=dict)  # 其他元数据
+
+
+@dataclass
+class OutputFramework:
+    """输出框架（完全动态）- Step 1生成"""
+
+    core_objective: str  # 核心目标（一句话）
+    deliverable_type: str  # 交付物类型（具体说明）
+    blocks: List[OutputBlock]  # 板块列表（数量不固定，2-7个）
+    quality_standards: List[str]  # 质量标准（5-8项）
+    structure_type: str = "linear"  # 结构类型（linear/hierarchical/matrix/hybrid）
+    search_hints: str = ""  # 搜索方向提示（2-3句话）
+    metadata: Dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass
+class SearchQuery:
+    """搜索查询（Step 2生成）"""
+
+    id: str  # 查询ID（如"q1", "q2"）
+    query: str  # 查询内容（具体的搜索查询）
+    serves_blocks: List[str]  # 服务的输出板块名称列表
+    expected_output: str  # 预期输出（说明预期找到什么）
+    priority: str  # 优先级（high/medium/low）
+    can_parallel: bool  # 是否可以并行执行
+    dependencies: List[str]  # 依赖的查询ID列表
+    status: str = "pending"  # 状态（pending/executing/completed/failed）
+    results: List[Dict[str, Any]] = field(default_factory=list)  # 搜索结果
+    supplementary_queries: List["SupplementaryQuery"] = field(default_factory=list)  # 补充查询
+
+
+@dataclass
+class SupplementaryQuery:
+    """补充搜索查询（Step 3动态生成）"""
+
+    query: str  # 查询内容
+    reason: str  # 生成原因（为什么需要这个补充查询）
+    priority: str  # 优先级（high/medium/low）
+    serves_blocks: List[str]  # 服务的输出板块
+    trigger_type: str  # 触发类型（new_direction/insufficient_info/contradiction/related_topic/user_characteristic）
+    expected_output: str  # 预期输出
+    framework_addition: Optional["FrameworkAddition"] = None  # 框架增补建议
+    parent_query_id: Optional[str] = None  # 父查询ID
+    id: str = field(default_factory=lambda: f"supp_{uuid.uuid4().hex[:8]}")
+    status: str = "pending"  # 状态（pending/executing/completed/failed）
+    results: List[Dict[str, Any]] = field(default_factory=list)  # 搜索结果
+
+
+@dataclass
+class FrameworkAddition:
+    """输出框架增补建议（Step 3发现）"""
+
+    block_name: str  # 新板块名称
+    reason: str  # 增补原因（为什么需要这个新板块）
+    sub_items: List[str]  # 子项列表
+    priority: str  # 重要性（high/medium/low）
+    id: str = field(default_factory=lambda: f"add_{uuid.uuid4().hex[:8]}")
+    accepted: bool = False  # 用户是否接受
+
+
+@dataclass
+class SearchExecutionConfig:
+    """搜索执行配置（控制动态增补）"""
+
+    max_supplementary_per_query: int = 3  # 每个查询最多生成3个补充查询
+    max_total_queries_multiplier: float = 2.0  # 总查询数不超过原始数量的2倍
+    auto_execute_priority: List[str] = field(default_factory=lambda: ["high", "medium"])  # 自动执行的优先级
+    similarity_threshold: float = 0.8  # 相似度阈值（避免生成重复查询）
+    max_search_duration_seconds: int = 300  # 最大搜索时长（5分钟）
+    enable_dynamic_augmentation: bool = True  # 是否启用动态增补
+
+
+@dataclass
+class Step2SearchPlanLegacy:
+    """Step 2搜索计划（完整）"""
+
+    queries: List[SearchQuery]  # 所有搜索查询
+    execution_strategy: Dict[str, Any]  # 执行策略（优先级分组、并行组）
+    total_queries: int  # 总查询数
+    output_framework: OutputFramework  # 关联的输出框架
+    config: SearchExecutionConfig  # 执行配置
+    metadata: Dict[str, Any] = field(default_factory=dict)
+
+
+# ==================== v7.240: 框架清单 ====================
+
+
+@dataclass
+class FrameworkChecklist:
+    """
+    框架清单 - v7.261
+
+    纯文字结构化的搜索框架清单，用于：
+    1. 前端展示给用户，明确搜索主线
+    2. 每轮搜索时作为上下文，指导搜索方向
+    3. 防止搜索跑题，确保框架一致性
+
+    v7.261 更新（动机类型系统化）：
+    - main_directions 按动机类型分组聚合
+    - 新增 motivation_distribution: 动机分布统计
+    - 每个方向包含 motivation_id, motivation_priority, motivation_color
+
+    v7.260 更新（全局并行 + LLM动态生成）：
+    - 新增 complexity_score: 任务复杂度评估
+    - 新增 recommended_task_count: 推荐任务数量
+    - main_directions 增强：每个方向包含 sub_tasks 子任务列表
+
+    v7.250 更新：
+    - 新增深度分析摘要字段（user_context, key_entities, core_tension等）
+    - 保留L0-L5分析结果，用于前端展示和后续搜索参考
+    """
+
+    # === 核心问题 ===
+    core_summary: str = ""  # 核心问题一句话总结（20字内）
+
+    # === 搜索主线（v7.261 增强：按动机类型分组） ===
+    main_directions: List[Dict[str, Any]] = field(default_factory=list)
+    # 每个方向包含:
+    # - direction: 动机类型中文名（如"文化认同"）
+    # - motivation_id: 动机类型ID（如"cultural"）
+    # - motivation_priority: 优先级（P0/P1/P2/BASELINE）
+    # - motivation_color: 展示颜色
+    # - purpose: 动机类型描述
+    # - targets: 该动机下的搜索目标列表
+    # - sub_tasks: 扁平化的子任务列表
+    # - target_count: 目标数量
+
+    # === 搜索边界 ===
+    boundaries: List[str] = field(default_factory=list)  # 不搜什么
+
+    # === 回答目标 ===
+    answer_goal: str = ""  # 最终要给用户什么样的答案
+
+    # === 生成时间戳 ===
+    generated_at: str = ""
+
+    # === v7.260 新增：复杂度评估 ===
+    complexity_score: float = 0.0  # 任务复杂度评分 (0-1)
+    recommended_task_count: int = 5  # 推荐任务数量
+
+    # === v7.261 新增：动机分布统计 ===
+    motivation_distribution: Dict[str, int] = field(default_factory=dict)  # {motivation_id: count}
+
+    # === v7.250 新增：深度分析摘要 ===
+    user_context: Dict[str, Any] = field(default_factory=dict)  # 用户画像摘要
+    key_entities: List[Dict[str, str]] = field(default_factory=list)  # L1关键实体
+    analysis_perspectives: List[str] = field(default_factory=list)  # L2视角列表
+    core_tension: str = ""  # L3核心张力
+    user_task: str = ""  # L4 JTBD
+    sharpness_check: Dict[str, str] = field(default_factory=dict)  # L5锐度自检
+
+    # === v7.300 新增：创作指令和交付物 ===
+    creation_command: str = ""  # 创作指令
+    deliverables: List[str] = field(default_factory=list)  # 交付物清单
+    final_output_format: str = ""  # 输出格式说明
+
+    def to_plain_text(self) -> str:
+        """
+        生成纯文字格式的框架清单 - v7.250
+
+        用于后续搜索轮次的prompt注入，包含深度分析摘要
+        """
+        lines = []
+
+        # 核心问题
+        lines.append("## 核心问题")
+        lines.append(self.core_summary)
+        lines.append("")
+
+        # v7.250 新增：用户画像摘要
+        if self.user_context:
+            lines.append("## 用户画像")
+            if self.user_context.get("identity"):
+                lines.append(f"- 身份特征: {self.user_context['identity']}")
+            if self.user_context.get("implicit_needs"):
+                needs = self.user_context["implicit_needs"]
+                if isinstance(needs, list) and needs:
+                    lines.append(f"- 隐性需求: {', '.join(str(n) for n in needs[:2])}")
+            lines.append("")
+
+        # v7.250 新增：关键实体
+        if self.key_entities:
+            lines.append("## 关键实体")
+            for e in self.key_entities[:5]:
+                detail = f" ({e['detail']})" if e.get("detail") else ""
+                lines.append(f"- [{e.get('type', '')}] {e.get('name', '')}{detail}")
+            lines.append("")
+
+        # v7.250 新增：核心张力
+        if self.core_tension:
+            lines.append("## 核心张力")
+            lines.append(self.core_tension)
+            lines.append("")
+
+        # v7.250 新增：用户任务
+        if self.user_task:
+            lines.append("## 用户任务(JTBD)")
+            lines.append(self.user_task)
+            lines.append("")
+
+        # 搜索主线（v7.261 增强：按动机类型分组展示）
+        lines.append(f"## 搜索主线（{len(self.main_directions)}个方向）")
+        for i, d in enumerate(self.main_directions, 1):
+            # v7.261: 展示动机类型信息
+            motivation_id = d.get("motivation_id")
+            motivation_priority = d.get("motivation_priority", "")
+            direction_name = d.get("direction", "")
+
+            if motivation_id:
+                # 有动机信息时，展示动机类型和优先级
+                priority_badge = f"({motivation_priority})" if motivation_priority else ""
+                lines.append(f"{i}. **{direction_name}** {priority_badge}")
+            else:
+                # 降级模式，无动机信息
+                lines.append(f"{i}. **{direction_name}**")
+
+            if d.get("purpose"):
+                lines.append(f"   - 目的：{d.get('purpose', '')}")
+
+            # v7.261: 展示该动机下的目标列表
+            targets = d.get("targets", [])
+            if targets:
+                lines.append(f"   - 搜索目标（{len(targets)}个）：")
+                for t in targets[:5]:  # 最多显示5个
+                    t_name = t.get("name", "") if isinstance(t, dict) else str(t)
+                    lines.append(f"     • {t_name}")
+
+            # v7.260: 展示子任务
+            sub_tasks = d.get("sub_tasks", [])
+            if sub_tasks:
+                lines.append(f"   - 子任务（{len(sub_tasks)}个）：")
+                for st in sub_tasks[:5]:  # 最多显示5个
+                    action = st.get("search_action", "搜索")
+                    question = st.get("question", "")
+                    can_parallel = "并行" if st.get("can_parallel", True) else "→串行"
+                    lines.append(f"     • [{action}] {question} ({can_parallel})")
+        lines.append("")
+
+        # 搜索边界
+        if self.boundaries:
+            lines.append("## 搜索边界（不涉及）")
+            for b in self.boundaries:
+                lines.append(f"- {b}")
+            lines.append("")
+
+        # 回答目标
+        lines.append("## 回答目标")
+        lines.append(self.answer_goal)
+        lines.append("")
+
+        # v7.300 新增：创作指令
+        if self.creation_command:
+            lines.append("## 创作指令")
+            lines.append(self.creation_command)
+            lines.append("")
+
+        # v7.300 新增：交付物清单
+        if self.deliverables:
+            lines.append(f"## 交付物清单（{len(self.deliverables)}项）")
+            for i, deliverable in enumerate(self.deliverables, 1):
+                lines.append(f"{i}. {deliverable}")
+            lines.append("")
+
+        # v7.300 新增：最终输出格式
+        if self.final_output_format:
+            lines.append("## 最终输出格式")
+            lines.append(self.final_output_format)
+            lines.append("")
+
+        return "\n".join(lines)
+
+    def to_dict(self) -> Dict[str, Any]:
+        """转换为字典 - v7.300 增强"""
+        return {
+            "core_summary": self.core_summary,
+            "main_directions": self.main_directions,
+            "boundaries": self.boundaries,
+            "answer_goal": self.answer_goal,
+            "generated_at": self.generated_at,
+            "plain_text": self.to_plain_text(),
+            # v7.260 新增
+            "complexity_score": self.complexity_score,
+            "recommended_task_count": self.recommended_task_count,
+            # v7.261 新增
+            "motivation_distribution": self.motivation_distribution,
+            # v7.250 新增
+            "user_context": self.user_context,
+            "key_entities": self.key_entities,
+            "analysis_perspectives": self.analysis_perspectives,
+            "core_tension": self.core_tension,
+            "user_task": self.user_task,
+            "sharpness_check": self.sharpness_check,
+            # v7.300 新增
+            "creation_command": self.creation_command,
+            "deliverables": self.deliverables,
+            "final_output_format": self.final_output_format,
+        }
+
+
+# ==================== v7.270: 解题思路模块 ====================
+
+
+@dataclass
+class ProblemSolvingApproach:
+    """
+    解题思路模块 - v7.290 增强为可执行搜索清单
+
+    第一步"需求理解与深度分析"的核心输出，位于L1-L5分析和搜索任务规划之间。
+    提供战术性思考指导，接近可执行级别（5-8步详细路径）。
+
+    v7.290 增强：
+    1. solution_steps 新增搜索执行字段（search_keywords, expected_sources, success_criteria, priority, task_type）
+    2. 新增 coverage_check 字段，确保 MECE 覆盖
+    3. 每个 solution_step 都是一个可独立执行的搜索任务
+
+    设计原则：
+    1. 每个 solution_step 包含搜索关键词、期望来源、成功标准
+    2. 战术级粒度：每步action具体到可执行级别
+    3. 通过 coverage_check 确保 MECE 覆盖
+    """
+
+    # === 任务本质识别 ===
+    task_type: str = ""  # 任务类型: research/design/decision/exploration/verification
+    task_type_description: str = ""  # 任务类型详细描述
+    complexity_level: str = "moderate"  # 复杂度: simple/moderate/complex/highly_complex
+    required_expertise: List[str] = field(default_factory=list)  # 所需领域专业知识（3-5个）
+
+    # === 解题路径规划/搜索清单（v7.290 增强） ===
+    solution_steps: List[Dict[str, Any]] = field(default_factory=list)
+    # 每步结构（v7.290 增强）: {
+    #   "step_id": "S1",
+    #   "action": "具体行动（如：搜索HAY品牌设计语言）",
+    #   "purpose": "为什么需要这一步",
+    #   "expected_output": "这一步的预期产出",
+    #   # === v7.290 新增搜索执行字段 ===
+    #   "search_keywords": ["HAY design", "HAY 色彩系统"],  # 搜索关键词（2-5个）
+    #   "expected_sources": ["官网", "设计媒体"],           # 期望信息来源
+    #   "success_criteria": "找到3个案例",                 # 成功标准
+    #   "priority": "high",                                # 优先级: high/medium/low
+    #   "task_type": "research"                            # 任务类型: research/analysis/design/output
+    # }
+
+    # === 关键突破口（1-3个） ===
+    breakthrough_points: List[Dict[str, str]] = field(default_factory=list)
+    # 每点结构: {"point": "...", "why_key": "...", "how_to_leverage": "..."}
+
+    # === 预期产出形态 ===
+    expected_deliverable: Dict[str, Any] = field(
+        default_factory=lambda: {
+            "format": "",  # 格式: report/list/comparison/recommendation/plan
+            "sections": [],  # 必须包含的章节（5-8个）
+            "key_elements": [],  # 关键交付物
+            "quality_criteria": [],  # 质量标准
+        }
+    )
+
+    # === 任务描述（保留原始） ===
+    original_requirement: str = ""  # 用户原始需求（原文）
+    refined_requirement: str = ""  # 结构化后的需求描述
+
+    # === 元数据 ===
+    confidence_score: float = 0.0  # 对此解题思路的置信度 (0-1)
+    alternative_approaches: List[str] = field(default_factory=list)  # 备选解题路径
+
+    # === v7.290 新增：MECE 覆盖校验 ===
+    coverage_check: Dict[str, Any] = field(
+        default_factory=lambda: {
+            "covered_points": [],  # 已覆盖的信息点
+            "potentially_missing": [],  # 可能遗漏的信息点
+            "user_entities": [],  # 用户提到的实体（品牌、地点、人物等）
+            "entity_coverage": {},  # 每个实体是否被某个step覆盖 {entity: step_id}
+        }
+    )
+
+    # === v7.300 新增：创作指令和交付物 ===
+    creation_command: str = ""  # 一句话创作指令
+    target_user: str = ""  # 目标用户
+    project_context: str = ""  # 项目背景
+    deliverables: List[str] = field(default_factory=list)  # 交付物清单（10-15项）
+    design_requirements: List[str] = field(default_factory=list)  # 设计要求（5-8项）
+    final_output_format: str = ""  # 最终输出格式说明
+
+    def to_dict(self) -> Dict[str, Any]:
+        """转换为字典"""
+        return {
+            "task_type": self.task_type,
+            "task_type_description": self.task_type_description,
+            "complexity_level": self.complexity_level,
+            "required_expertise": self.required_expertise,
+            "solution_steps": self.solution_steps,
+            "breakthrough_points": self.breakthrough_points,
+            "expected_deliverable": self.expected_deliverable,
+            "original_requirement": self.original_requirement,
+            "refined_requirement": self.refined_requirement,
+            "confidence_score": self.confidence_score,
+            "alternative_approaches": self.alternative_approaches,
+            "coverage_check": self.coverage_check,  # v7.290 新增
+            # v7.300 新增
+            "creation_command": self.creation_command,
+            "target_user": self.target_user,
+            "project_context": self.project_context,
+            "deliverables": self.deliverables,
+            "design_requirements": self.design_requirements,
+            "final_output_format": self.final_output_format,
+        }
+
+    def to_plain_text(self) -> str:
+        """生成纯文字格式的解题思路（用于前端展示和后续prompt注入）"""
+        lines = []
+
+        # 任务本质
+        lines.append("## 任务本质")
+        lines.append(f"- 类型：{self.task_type_description}")
+        lines.append(f"- 复杂度：{self.complexity_level}")
+        if self.required_expertise:
+            lines.append(f"- 所需专业知识：{', '.join(self.required_expertise)}")
+        lines.append("")
+
+        # 解题路径/搜索清单（v7.290 增强展示）
+        lines.append(f"## 搜索清单（{len(self.solution_steps)}个任务）")
+        for step in self.solution_steps:
+            # v7.271: 兼容字符串和字典两种格式
+            if isinstance(step, str):
+                lines.append(f"- {step}")
+            else:
+                step_id = step.get("step_id", "")
+                action = step.get("action", "")
+                purpose = step.get("purpose", "")
+                expected = step.get("expected_output", "")
+                priority = step.get("priority", "medium")
+
+                # v7.290: 展示优先级标签
+                priority_badge = f"[{priority}]" if priority else ""
+                lines.append(f"**{step_id}**: {action} {priority_badge}")
+                lines.append(f"   - 目的：{purpose}")
+                lines.append(f"   - 预期产出：{expected}")
+
+                # v7.290: 展示搜索关键词
+                keywords = step.get("search_keywords", [])
+                if keywords:
+                    lines.append(f"   - 关键词：{', '.join(keywords)}")
+
+                # v7.290: 展示成功标准
+                success = step.get("success_criteria", "")
+                if success:
+                    lines.append(f"   - 成功标准：{success}")
+        lines.append("")
+
+        # 关键突破口
+        if self.breakthrough_points:
+            lines.append("## 关键突破口")
+            for bp in self.breakthrough_points:
+                # v7.271: 兼容字符串和字典两种格式
+                if isinstance(bp, str):
+                    lines.append(f"- {bp}")
+                else:
+                    lines.append(f"- **{bp.get('point', '')}**")
+                    lines.append(f"  - 为什么关键：{bp.get('why_key', '')}")
+                    lines.append(f"  - 如何利用：{bp.get('how_to_leverage', '')}")
+            lines.append("")
+
+        # 预期产出
+        if self.expected_deliverable:
+            lines.append("## 预期产出")
+            lines.append(f"- 格式：{self.expected_deliverable.get('format', '')}")
+            sections = self.expected_deliverable.get("sections", [])
+            if sections:
+                lines.append(f"- 章节：{', '.join(sections)}")
+            criteria = self.expected_deliverable.get("quality_criteria", [])
+            if criteria:
+                lines.append(f"- 质量标准：{', '.join(criteria)}")
+            lines.append("")
+
+        # v7.290 新增：覆盖校验
+        if self.coverage_check:
+            covered = self.coverage_check.get("covered_points", [])
+            missing = self.coverage_check.get("potentially_missing", [])
+            if covered or missing:
+                lines.append("## 覆盖校验")
+                if covered:
+                    lines.append(f" 已覆盖：{', '.join(covered)}")
+                if missing:
+                    lines.append(f" 可能遗漏：{', '.join(missing)}")
+                lines.append("")
+
+        # 任务描述
+        lines.append("## 任务描述")
+        lines.append(f"- 原始需求：{self.original_requirement}")
+        lines.append(f"- 结构化需求：{self.refined_requirement}")
+
+        return "\n".join(lines)
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "ProblemSolvingApproach":
+        """从字典创建实例"""
+        return cls(
+            task_type=data.get("task_type", ""),
+            task_type_description=data.get("task_type_description", ""),
+            complexity_level=data.get("complexity_level", "moderate"),
+            required_expertise=data.get("required_expertise", []),
+            solution_steps=data.get("solution_steps", []),
+            breakthrough_points=data.get("breakthrough_points", []),
+            expected_deliverable=data.get("expected_deliverable", {}),
+            original_requirement=data.get("original_requirement", ""),
+            refined_requirement=data.get("refined_requirement", ""),
+            confidence_score=data.get("confidence_score", 0.0),
+            alternative_approaches=data.get("alternative_approaches", []),
+            coverage_check=data.get(
+                "coverage_check",
+                {  # v7.290 新增
+                    "covered_points": [],
+                    "potentially_missing": [],
+                    "user_entities": [],
+                    "entity_coverage": {},
+                },
+            ),
+        )
+
+
+# ==================== v7.300: 4步工作流数据模型 ====================
+
+
+@dataclass
+class Step1AnalysisOutput:
+    """
+    v7.300: 第1步分析输出 - 复用 L0-L5 框架 + 增强输出导向
+
+    整合现有 L0-L5 分析结果，新增「搜索方向规划」和「回答框架预设」两个输出模块，
+    确保每个 L 层分析都指向可执行的搜索任务。
+
+    结构：
+    - L0: 用户画像与隐性需求（复用 StructuredUserInfo）
+    - L1: 事实层 - 关键实体识别（品牌、地点、人物、物品、事件、概念）
+    - L2: 多视角分析（心理学、社会学、美学等）
+    - L3: 核心张力识别
+    - L4: 用户任务 JTBD（功能/情感/社会任务）
+    - L5: 锐度评估（具体性、可操作性、深度）
+    - 新增: 搜索方向规划（从 L1-L5 推导）
+    - 新增: 回答框架预设（最终输出结构）
+    """
+
+    # === L0: 用户画像（复用现有结构） ===
+    l0_user_profile: Dict[str, Any] = field(
+        default_factory=lambda: {
+            "identity": "",  # 身份特征
+            "occupation": "",  # 职业背景
+            "implicit_needs": [],  # 隐性需求列表
+            "decision_stage": "",  # 决策阶段
+        }
+    )
+
+    # === L1: 事实层 - 关键实体 ===
+    l1_facts: Dict[str, Any] = field(
+        default_factory=lambda: {
+            "brands": [],  # 品牌实体 [{name, positioning, relevance}]
+            "locations": [],  # 地点实体 [{name, type, characteristics}]
+            "persons": [],  # 人物实体
+            "items": [],  # 物品实体
+            "events": [],  # 事件实体
+            "concepts": [],  # 概念实体
+        }
+    )
+
+    # === L2: 多视角分析 ===
+    l2_perspectives: List[Dict[str, Any]] = field(default_factory=list)
+    # 每个视角: {perspective_name, weight, analysis, key_considerations}
+
+    # === L3: 核心张力 ===
+    l3_core_tension: Dict[str, Any] = field(
+        default_factory=lambda: {
+            "tension_statement": "",  # 张力陈述
+            "conflicting_goals": [],  # 冲突目标
+            "resolution_strategy": "",  # 解决策略
+        }
+    )
+
+    # === L4: 用户任务 JTBD ===
+    l4_user_task: Dict[str, Any] = field(
+        default_factory=lambda: {
+            "jtbd_statement": "",  # JTBD 陈述
+            "functional_job": "",  # 功能任务
+            "emotional_job": "",  # 情感任务
+            "social_job": "",  # 社会任务
+        }
+    )
+
+    # === L5: 锐度评估 ===
+    l5_sharpness: Dict[str, Any] = field(
+        default_factory=lambda: {
+            "score": 0.0,  # 锐度评分 0-10
+            "specificity": "",  # 具体性评估
+            "actionability": "",  # 可操作性评估
+            "depth": "",  # 深度评估
+            "improvement_suggestions": [],  # 改进建议
+        }
+    )
+
+    # === 新增: 搜索方向规划（从 L1-L5 推导） ===
+    search_directions: List[Dict[str, Any]] = field(default_factory=list)
+    # 每个方向结构: {
+    #   "direction_id": "D1",
+    #   "direction": "搜索方向名称",
+    #   "derived_from": "L1/L2/L3/L4",  # 来源层级
+    #   "what_to_search": "具体搜什么",
+    #   "why_search": "为什么要搜这个（与L层分析的关联）",
+    #   "expected_insights": "期望获得什么",
+    #   "search_keywords": [],  # 预设搜索关键词
+    #   "can_parallel": True/False,
+    #   "priority": "P0/P1/P2"
+    # }
+
+    # === 新增: 回答框架预设 ===
+    answer_framework: Dict[str, Any] = field(
+        default_factory=lambda: {
+            "core_question": "",  # 核心问题一句话
+            "answer_goal": "",  # 回答目标
+            "sections": [],  # 最终回答应包含的部分
+            "focus_points": [],  # 重点展开内容
+            "completeness_criteria": [],  # 完整回答的标准
+        }
+    )
+
+    # === 元数据 ===
+    dialogue_content: str = ""  # 流式输出的对话内容
+    confidence_score: float = 0.0  # 分析置信度
+    analysis_depth: str = "standard"  # 分析深度
+
+    def to_dict(self) -> Dict[str, Any]:
+        """转换为字典"""
+        return {
+            "l0_user_profile": self.l0_user_profile,
+            "l1_facts": self.l1_facts,
+            "l2_perspectives": self.l2_perspectives,
+            "l3_core_tension": self.l3_core_tension,
+            "l4_user_task": self.l4_user_task,
+            "l5_sharpness": self.l5_sharpness,
+            "search_directions": self.search_directions,
+            "answer_framework": self.answer_framework,
+            "dialogue_content": self.dialogue_content,
+            "confidence_score": self.confidence_score,
+            "analysis_depth": self.analysis_depth,
+        }
+
+    def get_search_directions_by_priority(self) -> Dict[str, List[Dict]]:
+        """按优先级分组获取搜索方向"""
+        result = {"P0": [], "P1": [], "P2": []}
+        for d in self.search_directions:
+            priority = d.get("priority", "P1")
+            if priority in result:
+                result[priority].append(d)
+        return result
+
+    def derive_search_tasks(self) -> List["EditableSearchStep"]:
+        """从搜索方向推导可编辑的搜索任务"""
+        tasks = []
+        for i, direction in enumerate(self.search_directions, 1):
+            task = EditableSearchStep(
+                id=f"S{i}",
+                step_number=i,
+                task_description=direction.get("what_to_search", direction.get("direction", "")),
+                expected_outcome=direction.get("expected_insights", ""),
+                search_keywords=direction.get("search_keywords", []),
+                priority="high"
+                if direction.get("priority") == "P0"
+                else ("medium" if direction.get("priority") == "P1" else "low"),
+                can_parallel=direction.get("can_parallel", True),
+            )
+            tasks.append(task)
+        return tasks
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "Step1AnalysisOutput":
+        """从字典创建实例"""
+        return cls(
+            l0_user_profile=data.get("l0_user_profile", {}),
+            l1_facts=data.get("l1_facts", {}),
+            l2_perspectives=data.get("l2_perspectives", []),
+            l3_core_tension=data.get("l3_core_tension", {}),
+            l4_user_task=data.get("l4_user_task", {}),
+            l5_sharpness=data.get("l5_sharpness", {}),
+            search_directions=data.get("search_directions", []),
+            answer_framework=data.get("answer_framework", {}),
+            dialogue_content=data.get("dialogue_content", ""),
+            confidence_score=data.get("confidence_score", 0.0),
+            analysis_depth=data.get("analysis_depth", "standard"),
+        )
+
+
+@dataclass
+class EditableSearchStep:
+    """
+    v7.300: 可编辑的搜索步骤
+
+    用于第2步搜索任务分解，用户可以编辑、删除、添加步骤。
+    """
+
+    id: str  # 步骤ID (S1, S2, ...)
+    step_number: int  # 显示顺序
+    task_description: str  # 任务描述
+    expected_outcome: str  # 期望结果
+    search_keywords: List[str] = field(default_factory=list)  # 搜索关键词
+    priority: str = "medium"  # 优先级: high/medium/low
+    can_parallel: bool = True  # 是否可并行
+    status: str = "pending"  # 状态: pending/searching/complete
+    completion_score: float = 0.0  # 完成度
+
+    # 执行追踪
+    executed_queries: List[str] = field(default_factory=list)
+    found_sources: List[Dict[str, Any]] = field(default_factory=list)
+    round_count: int = 0  # 已执行轮数
+
+    # 用户编辑标记
+    is_user_added: bool = False  # 是否为用户添加
+    is_user_modified: bool = False  # 是否被用户修改
+
+    def to_dict(self) -> Dict[str, Any]:
+        """转换为字典"""
+        return {
+            "id": self.id,
+            "step_number": self.step_number,
+            "task_description": self.task_description,
+            "expected_outcome": self.expected_outcome,
+            "search_keywords": self.search_keywords,
+            "priority": self.priority,
+            "can_parallel": self.can_parallel,
+            "status": self.status,
+            "completion_score": self.completion_score,
+            "executed_queries": self.executed_queries,
+            "round_count": self.round_count,
+            "is_user_added": self.is_user_added,
+            "is_user_modified": self.is_user_modified,
+        }
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "EditableSearchStep":
+        """从字典创建实例"""
+        return cls(
+            id=data.get("id", ""),
+            step_number=data.get("step_number", 0),
+            task_description=data.get("task_description", ""),
+            expected_outcome=data.get("expected_outcome", ""),
+            search_keywords=data.get("search_keywords", []),
+            priority=data.get("priority", "medium"),
+            can_parallel=data.get("can_parallel", True),
+            status=data.get("status", "pending"),
+            completion_score=data.get("completion_score", 0.0),
+            executed_queries=data.get("executed_queries", []),
+            round_count=data.get("round_count", 0),
+            is_user_added=data.get("is_user_added", False),
+            is_user_modified=data.get("is_user_modified", False),
+        )
+
+
+@dataclass
+class Step2SearchPlan:
+    """
+    v7.300: 第2步可编辑搜索计划
+
+    从第1步输出生成，用户可编辑后确认执行。
+    """
+
+    session_id: str = ""
+    query: str = ""
+
+    # 从第1步继承
+    core_question: str = ""
+    answer_goal: str = ""
+
+    # 可编辑的搜索步骤
+    search_steps: List[EditableSearchStep] = field(default_factory=list)
+
+    # 执行配置
+    max_rounds_per_step: int = 3
+    quality_threshold: float = 0.8
+
+    # 用户修改追踪
+    user_added_steps: List[str] = field(default_factory=list)
+    user_deleted_steps: List[str] = field(default_factory=list)
+    user_modified_steps: List[str] = field(default_factory=list)
+
+    # 分页支持
+    current_page: int = 1
+    steps_per_page: int = 5
+
+    # 状态
+    is_confirmed: bool = False
+    confirmed_at: str = ""
+
+    def get_parallel_groups(self) -> List[List[EditableSearchStep]]:
+        """获取可并行执行的步骤组"""
+        pending_steps = [s for s in self.search_steps if s.status == "pending"]
+        parallel = [s for s in pending_steps if s.can_parallel]
+        sequential = [s for s in pending_steps if not s.can_parallel]
+
+        groups = []
+        if parallel:
+            # 最多4个并行
+            groups.append(parallel[:4])
+        for s in sequential:
+            groups.append([s])
+        return groups
+
+    def get_total_pages(self) -> int:
+        """获取总页数"""
+        return max(1, (len(self.search_steps) + self.steps_per_page - 1) // self.steps_per_page)
+
+    def get_current_page_steps(self) -> List[EditableSearchStep]:
+        """获取当前页的步骤"""
+        start = (self.current_page - 1) * self.steps_per_page
+        end = start + self.steps_per_page
+        return self.search_steps[start:end]
+
+    def add_step(
+        self, task_description: str, expected_outcome: str, search_keywords: List[str] = None, priority: str = "medium"
+    ) -> EditableSearchStep:
+        """添加新步骤"""
+        new_id = f"S{len(self.search_steps) + 1}"
+        new_step = EditableSearchStep(
+            id=new_id,
+            step_number=len(self.search_steps) + 1,
+            task_description=task_description,
+            expected_outcome=expected_outcome,
+            search_keywords=search_keywords or [],
+            priority=priority,
+            is_user_added=True,
+        )
+        self.search_steps.append(new_step)
+        self.user_added_steps.append(new_id)
+        return new_step
+
+    def delete_step(self, step_id: str) -> bool:
+        """删除步骤"""
+        for i, step in enumerate(self.search_steps):
+            if step.id == step_id:
+                self.search_steps.pop(i)
+                self.user_deleted_steps.append(step_id)
+                # 重新编号
+                for j, s in enumerate(self.search_steps):
+                    s.step_number = j + 1
+                return True
+        return False
+
+    def update_step(self, step_id: str, updates: Dict[str, Any]) -> bool:
+        """更新步骤"""
+        for step in self.search_steps:
+            if step.id == step_id:
+                for key, value in updates.items():
+                    if hasattr(step, key):
+                        setattr(step, key, value)
+                step.is_user_modified = True
+                if step_id not in self.user_modified_steps:
+                    self.user_modified_steps.append(step_id)
+                return True
+        return False
+
+    def to_dict(self) -> Dict[str, Any]:
+        """转换为字典"""
+        return {
+            "session_id": self.session_id,
+            "query": self.query,
+            "core_question": self.core_question,
+            "answer_goal": self.answer_goal,
+            "search_steps": [s.to_dict() for s in self.search_steps],
+            "max_rounds_per_step": self.max_rounds_per_step,
+            "quality_threshold": self.quality_threshold,
+            "user_added_steps": self.user_added_steps,
+            "user_deleted_steps": self.user_deleted_steps,
+            "user_modified_steps": self.user_modified_steps,
+            "current_page": self.current_page,
+            "total_pages": self.get_total_pages(),
+            "is_confirmed": self.is_confirmed,
+        }
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "Step2SearchPlan":
+        """从字典创建实例"""
+        plan = cls(
+            session_id=data.get("session_id", ""),
+            query=data.get("query", ""),
+            core_question=data.get("core_question", ""),
+            answer_goal=data.get("answer_goal", ""),
+            max_rounds_per_step=data.get("max_rounds_per_step", 3),
+            quality_threshold=data.get("quality_threshold", 0.8),
+            user_added_steps=data.get("user_added_steps", []),
+            user_deleted_steps=data.get("user_deleted_steps", []),
+            user_modified_steps=data.get("user_modified_steps", []),
+            current_page=data.get("current_page", 1),
+            is_confirmed=data.get("is_confirmed", False),
+        )
+        # 解析搜索步骤
+        for step_data in data.get("search_steps", []):
+            plan.search_steps.append(EditableSearchStep.from_dict(step_data))
+        return plan
+
+
+# ==================== v7.213: 框架性搜索任务主线（保留兼容） ====================
+# ️ DEPRECATED (v7.282): SearchTask 和 SearchMasterLine 已被 SearchTarget 和 SearchFramework 替代
+# 保留这些类仅用于：
+# 1. 前端展示层兼容（SearchTaskListCard 组件）
+# 2. 数据库存储兼容（session_archive_manager.search_master_line 列）
+# 3. API 传输兼容（searchMasterLine 字段）
+# 新代码请使用 SearchFramework + SearchTarget
+
+
+@dataclass
+class SearchTask:
+    """
+    明确的搜索任务 - v7.213 增强
+
+    ️ DEPRECATED (v7.282): 已被 SearchTarget 替代
+    保留此类仅用于前端展示层和数据库兼容
+
+    迁移指南：
+    - SearchTask.id → SearchTarget.id
+    - SearchTask.task → SearchTarget.question
+    - SearchTask.purpose → SearchTarget.why_need
+    - SearchTask.expected_info → SearchTarget.success_when
+    - SearchTask.priority → SearchTarget.priority
+    - SearchTask.status → SearchTarget.status
+
+    与 KeyAspect 的区别：
+    - KeyAspect: "需要收集什么信息" (信息面)
+    - SearchTask: "具体要搜什么" (执行任务)
+
+    SearchTask 更明确、更可执行、更可追踪
+
+    v7.213 新增：
+    - 阶段化组织（phase）：基础信息→深度案例→对比验证
+    - 任务依赖（depends_on）：明确前置条件
+    - 验证标准（validation_criteria）：完成度判断依据
+    - 延展追踪（is_extension, extended_from）：动态补充任务溯源
+    """
+
+    id: str  # 任务ID (T1, T2, ...)
+    task: str  # 具体搜索任务描述
+    purpose: str  # 为什么要搜这个（与回答的关联）
+    priority: int = 1  # 优先级 P1(必须)/P2(重要)/P3(补充)
+    status: str = "pending"  # 状态: pending/searching/complete
+    expected_info: List[str] = field(default_factory=list)  # 期望获取的信息
+    actual_findings: List[str] = field(default_factory=list)  # 实际发现
+    search_queries: List[str] = field(default_factory=list)  # 已执行的搜索查询
+    rounds_spent: int = 0  # 花费轮次
+    completion_score: float = 0.0  # 完成度 0-1
+    source_urls: List[str] = field(default_factory=list)  # 信息来源
+    # v7.213 新增字段
+    phase: str = ""  # 所属阶段（基础信息/深度案例/对比验证）
+    depends_on: List[str] = field(default_factory=list)  # 依赖的任务ID列表
+    validation_criteria: List[str] = field(default_factory=list)  # 验证标准
+    is_extension: bool = False  # 是否为延展任务（动态补充的）
+    extended_from: str = ""  # 延展来源（触发该任务的原任务ID或触发条件）
+    extension_reason: str = ""  # 延展原因
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "id": self.id,
+            "task": self.task,
+            "purpose": self.purpose,
+            "priority": self.priority,
+            "status": self.status,
+            "expected_info": self.expected_info,
+            "actual_findings": self.actual_findings,
+            "completion_score": self.completion_score,
+            "rounds_spent": self.rounds_spent,
+            # v7.213 新增
+            "phase": self.phase,
+            "depends_on": self.depends_on,
+            "validation_criteria": self.validation_criteria,
+            "is_extension": self.is_extension,
+            "extended_from": self.extended_from,
+            "extension_reason": self.extension_reason,
+        }
+
+
+@dataclass
+class SearchMasterLine:
+    """
+    搜索主线 - v7.213 框架性增强
+
+    ️ DEPRECATED (v7.282): 已被 SearchFramework 替代
+    保留此类仅用于前端展示层和数据库兼容
+
+    迁移指南：
+    - SearchMasterLine.core_question → SearchFramework.core_question
+    - SearchMasterLine.boundary → SearchFramework.boundary
+    - SearchMasterLine.search_tasks → SearchFramework.targets (类型变更: SearchTask → SearchTarget)
+    - SearchMasterLine.framework_summary → SearchFramework.framework_checklist.core_summary
+
+    转换方法：使用 SearchFramework.to_master_line() 生成兼容的 SearchMasterLine
+
+    在分析阶段生成的宏观搜索清单，作为后续多轮搜索的锚点：
+    1. 确保搜索不跑题（boundary 边界约束）
+    2. 明确搜索任务（search_tasks 任务清单）
+    3. 允许延展探索（exploration_triggers 探索触发）
+
+    v7.213 新增：
+    - 框架概要（framework_summary）：搜索路线图概览
+    - 阶段检查点（checkpoint_rounds）：复盘时机控制
+    - 延展日志（extension_log）：记录动态补充轨迹
+    - 阶段完成追踪：分阶段管理进度
+    """
+
+    # === 问题锚点 ===
+    core_question: str = ""  # 用户问题一句话本质
+    boundary: str = ""  # 边界定义（防止跑题）
+
+    # === v7.213: 框架概要 ===
+    framework_summary: str = ""  # 搜索路线图概览（如：分3阶段搜索...）
+    search_phases: List[str] = field(default_factory=list)  # 阶段列表（基础信息/深度案例/对比验证）
+
+    # === 搜索任务清单 ===
+    search_tasks: List[SearchTask] = field(default_factory=list)
+
+    # === 探索触发条件 ===
+    exploration_triggers: List[str] = field(default_factory=list)  # 触发延展探索的条件
+
+    # === 禁区 ===
+    forbidden_zones: List[str] = field(default_factory=list)  # 明确排除的方向
+
+    # === v7.213: 检查点与复盘 ===
+    checkpoint_rounds: List[int] = field(default_factory=list)  # 复盘检查点（轮次号列表）
+    phase_checkpoints: Dict[str, int] = field(default_factory=dict)  # 阶段完成后的检查点轮次
+
+    # === v7.213: 延展日志 ===
+    extension_log: List[Dict[str, Any]] = field(default_factory=list)  # 延展记录
+
+    # === 进度追踪 ===
+    current_task_id: str = ""  # 当前执行的任务ID
+    completed_tasks: int = 0  # 已完成任务数
+    exploration_rounds: int = 0  # 已使用的探索轮次
+    max_exploration_rounds: int = 3  # 最大探索轮次
+
+    def get_next_task(self) -> Optional["SearchTask"]:
+        """
+        获取下一个待执行的搜索任务 - v7.213 增强
+
+        调度逻辑：
+        1. 检查依赖是否满足
+        2. 按优先级排序（P1→P2→P3）
+        3. 继续上次未完成的任务
+        """
+        pending = [t for t in self.search_tasks if t.status in ("pending", "searching")]
+        if not pending:
+            return None
+
+        # v7.213: 过滤掉依赖未完成的任务
+        ready_tasks = []
+        for t in pending:
+            if not t.depends_on:
+                ready_tasks.append(t)
+            else:
+                # 检查所有依赖是否已完成
+                deps_satisfied = all(
+                    self.get_task_by_id(dep_id) and self.get_task_by_id(dep_id).status == "complete"
+                    for dep_id in t.depends_on
+                )
+                if deps_satisfied:
+                    ready_tasks.append(t)
+
+        if not ready_tasks:
+            # 如果没有就绪任务但有待处理任务，可能存在循环依赖，降级为按优先级选择
+            ready_tasks = pending
+
+        # 优先级高 + 状态为searching（继续上次未完成的）
+        return min(ready_tasks, key=lambda t: (t.priority, 0 if t.status == "searching" else 1))
+
+    def get_task_by_id(self, task_id: str) -> Optional["SearchTask"]:
+        """根据ID获取任务"""
+        for t in self.search_tasks:
+            if t.id == task_id:
+                return t
+        return None
+
+    def update_task_status(self, task_id: str, status: str, findings: List[str] = None, completion_score: float = None):
+        """更新任务状态"""
+        task = self.get_task_by_id(task_id)
+        if task:
+            task.status = status
+            if findings:
+                task.actual_findings.extend(findings)
+            if completion_score is not None:
+                task.completion_score = completion_score
+            if status == "complete":
+                self.completed_tasks += 1
+
+    def get_progress_summary(self) -> str:
+        """获取进度摘要 - v7.213 增强"""
+        total = len(self.search_tasks)
+        completed = sum(1 for t in self.search_tasks if t.status == "complete")
+        p1_done = sum(1 for t in self.search_tasks if t.priority == 1 and t.status == "complete")
+        p1_total = sum(1 for t in self.search_tasks if t.priority == 1)
+        # v7.213: 添加阶段进度
+        if self.search_phases:
+            current_phase = self._get_current_phase()
+            return f"总进度: {completed}/{total} | P1: {p1_done}/{p1_total} | 阶段: {current_phase}"
+        return f"总进度: {completed}/{total} | P1任务: {p1_done}/{p1_total}"
+
+    def _get_current_phase(self) -> str:
+        """v7.213: 获取当前所处阶段"""
+        if not self.search_phases:
+            return "未定义"
+        for phase in self.search_phases:
+            phase_tasks = [t for t in self.search_tasks if t.phase == phase]
+            if phase_tasks and any(t.status != "complete" for t in phase_tasks):
+                return phase
+        return self.search_phases[-1] if self.search_phases else "完成"
+
+    def get_phase_progress(self) -> Dict[str, Dict[str, Any]]:
+        """v7.213: 获取各阶段进度详情"""
+        result = {}
+        for phase in self.search_phases:
+            phase_tasks = [t for t in self.search_tasks if t.phase == phase]
+            if phase_tasks:
+                completed = sum(1 for t in phase_tasks if t.status == "complete")
+                result[phase] = {
+                    "total": len(phase_tasks),
+                    "completed": completed,
+                    "percentage": round(completed / len(phase_tasks) * 100, 1) if phase_tasks else 0,
+                    "status": "complete"
+                    if completed == len(phase_tasks)
+                    else "in_progress"
+                    if completed > 0
+                    else "pending",
+                }
+        return result
+
+    def should_checkpoint(self, current_round: int) -> bool:
+        """v7.213: 检查是否应该进行阶段复盘"""
+        return current_round in self.checkpoint_rounds
+
+    def add_extension_task(self, task: "SearchTask", trigger: str, reason: str) -> None:
+        """v7.213: 添加延展任务并记录日志"""
+        task.is_extension = True
+        task.extended_from = trigger
+        task.extension_reason = reason
+        self.search_tasks.append(task)
+
+        # 记录延展日志
+        self.extension_log.append(
+            {
+                "task_id": task.id,
+                "trigger": trigger,
+                "reason": reason,
+                "timestamp": time.time(),
+                "priority": task.priority,
+            }
+        )
+
+    def to_dict(self) -> Dict[str, Any]:
+        """转换为字典 - v7.213 增强"""
+        return {
+            "core_question": self.core_question,
+            "boundary": self.boundary,
+            # v7.213 新增
+            "framework_summary": self.framework_summary,
+            "search_phases": self.search_phases,
+            "checkpoint_rounds": self.checkpoint_rounds,
+            "extension_log": self.extension_log,
+            # 原有字段
+            "search_tasks": [t.to_dict() for t in self.search_tasks],
+            "exploration_triggers": self.exploration_triggers,
+            "forbidden_zones": self.forbidden_zones,
+            "completed_tasks": self.completed_tasks,
+            "total_tasks": len(self.search_tasks),
+            # v7.213: 阶段进度
+            "phase_progress": self.get_phase_progress() if self.search_phases else {},
+        }
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "SearchMasterLine":
+        """从字典创建实例 - v7.213 增强"""
+        tasks = []
+        for t_data in data.get("search_tasks", []):
+            tasks.append(
+                SearchTask(
+                    id=t_data.get("id", ""),
+                    task=t_data.get("task", ""),
+                    purpose=t_data.get("purpose", ""),
+                    priority=t_data.get("priority", 2),
+                    status=t_data.get("status", "pending"),
+                    expected_info=t_data.get("expected_info", []),
+                    # v7.213 新增字段
+                    phase=t_data.get("phase", ""),
+                    depends_on=t_data.get("depends_on", []),
+                    validation_criteria=t_data.get("validation_criteria", []),
+                    is_extension=t_data.get("is_extension", False),
+                    extended_from=t_data.get("extended_from", ""),
+                    extension_reason=t_data.get("extension_reason", ""),
+                )
+            )
+        return cls(
+            core_question=data.get("core_question", ""),
+            boundary=data.get("boundary", ""),
+            # v7.213 新增
+            framework_summary=data.get("framework_summary", ""),
+            search_phases=data.get("search_phases", []),
+            checkpoint_rounds=data.get("checkpoint_rounds", []),
+            extension_log=data.get("extension_log", []),
+            # 原有字段
+            search_tasks=tasks,
+            exploration_triggers=data.get("exploration_triggers", []),
+            forbidden_zones=data.get("forbidden_zones", []),
+        )
+
+
+@dataclass
+class KeyAspect:
+    """
+    关键信息面 - v7.183 核心创新
+
+    ️ DEPRECATED (v7.220): 此类已被 SearchTarget 替代
+    保留此类仅用于向后兼容，新代码请使用 SearchTarget
+
+    每个 KeyAspect 代表"完整回答用户问题"需要的一个信息面
+    与 InformationGap 的区别：
+    - InformationGap: "我们不知道什么" (探索导向)
+    - KeyAspect: "回答问题需要什么" (目标导向)
+    """
+
+    id: str  # 唯一标识
+    aspect_name: str  # 信息面名称（如"核心原因"、"具体案例"）
+    answer_goal: str  # 这个信息面要回答什么（如"要说明为什么会发生"）
+    importance: int = 5  # 重要性 1-5，5为必需
+    status: str = "missing"  # 状态: missing/partial/complete
+    collected_info: List[str] = field(default_factory=list)  # 已收集的信息
+    source_urls: List[str] = field(default_factory=list)  # 信息来源
+    completion_score: float = 0.0  # 完成度 0-1
+    search_query: str = ""  # 用于搜索此信息面的查询
+    last_searched_round: int = 0  # 上次搜索轮次
+
+
+@dataclass
+class ReflectionResult:
+    """
+    增强反思结果 - v7.186 核心结构
+
+    反思的双重角色：既是上一轮的总结，又是下一轮的开始
+    始终围绕用户问题和第一轮的宏观统筹（隐形的指导线）
+    """
+
+    # === 回顾部分（上一轮总结） ===
+    goal_achieved: bool = False  # 本轮目标是否达成
+    goal_achievement_reason: str = ""  # 达成/未达成的原因
+    info_sufficiency: float = 0.0  # 信息充分度 0-1
+    info_quality: float = 0.0  # 信息质量 0-1
+    quality_issues: List[str] = field(default_factory=list)  # 质量问题
+
+    # === 收获提取 ===
+    key_findings: List[str] = field(default_factory=list)  # 直接发现
+    inferred_insights: List[str] = field(default_factory=list)  # 推断洞察
+
+    # === 下一轮规划（承上启下） ===
+    needs_deeper_search: bool = False  # 是否需要深入搜索
+    deeper_search_points: List[str] = field(default_factory=list)  # 深入点
+    suggested_next_query: str = ""  # 建议的下一轮查询
+    next_round_purpose: str = ""  # 下一轮的目的
+
+    # === 全局校准（回到原点） ===
+    alignment_with_goal: float = 0.0  # 与用户目标对齐度 0-1
+    alignment_note: str = ""  # 对齐说明
+    remaining_gaps: List[str] = field(default_factory=list)  # 剩余缺口
+    estimated_rounds_remaining: int = 0  # 预估剩余轮次
+
+    # === 叙事输出 ===
+    reflection_narrative: str = ""  # 完整反思叙述（自然语言）
+    cumulative_progress: str = ""  # 累积进展描述
+
+
+@dataclass
+class UnifiedThinkingResult:
+    """
+    统一思考结果 - v7.204 核心结构
+
+    将"思考"和"反思"融合为一次 LLM 调用：
+    - 首轮：仅做初始规划（无回顾）
+    - 后续轮：回顾上轮 + 规划本轮 + 全局校准
+
+    优势：
+    - 减少一次 LLM 调用（从每轮2次降为1次）
+    - 消除轮次间停顿
+    - 反思和规划在同一上下文中，更连贯
+    """
+
+    # === 回顾上轮（仅 round > 1 时有值） ===
+    key_findings: List[str] = field(default_factory=list)  # 上轮直接发现
+    inferred_insights: List[str] = field(default_factory=list)  # 上轮推断洞察
+    info_sufficiency: float = 0.0  # 上轮信息充分度 0-1
+    info_quality: float = 0.0  # 上轮信息质量 0-1
+    goal_achieved: bool = False  # 上轮目标是否达成
+    quality_issues: List[str] = field(default_factory=list)  # 上轮质量问题
+
+    # === 本轮规划 ===
+    thinking_narrative: str = ""  # 思考叙事（自然语言）
+    search_strategy: str = ""  # 搜索策略
+    search_query: str = ""  # 搜索查询
+    reasoning_content: str = ""  # 推理内容（保留字段兼容）
+
+    # === 全局校准 ===
+    alignment_score: float = 0.0  # 与用户目标对齐度 0-1
+    alignment_note: str = ""  # 对齐说明
+    remaining_gaps: List[str] = field(default_factory=list)  # 剩余缺口
+    estimated_rounds_remaining: int = 0  # 预估剩余轮次
+
+    # === 累积描述 ===
+    cumulative_progress: str = ""  # 累积进展描述
+    reflection_narrative: str = ""  # 反思叙述（兼容旧字段）
+
+    def to_reflection_result(self) -> "ReflectionResult":
+        """转换为 ReflectionResult 以兼容现有代码"""
+        return ReflectionResult(
+            goal_achieved=self.goal_achieved,
+            goal_achievement_reason="",
+            info_sufficiency=self.info_sufficiency,
+            info_quality=self.info_quality,
+            quality_issues=self.quality_issues,
+            key_findings=self.key_findings,
+            inferred_insights=self.inferred_insights,
+            needs_deeper_search=len(self.remaining_gaps) > 0,
+            deeper_search_points=self.remaining_gaps[:2] if self.remaining_gaps else [],
+            suggested_next_query=self.search_query,
+            next_round_purpose=self.search_strategy,
+            alignment_with_goal=self.alignment_score,
+            alignment_note=self.alignment_note,
+            remaining_gaps=self.remaining_gaps,
+            estimated_rounds_remaining=self.estimated_rounds_remaining,
+            reflection_narrative=self.reflection_narrative,
+            cumulative_progress=self.cumulative_progress,
+        )
+
+
+@dataclass
+class AnswerFramework:
+    """
+    答案框架 - 目标导向的核心结构
+
+    ️ DEPRECATED (v7.220): 此类已被 SearchFramework 替代
+    保留此类仅用于向后兼容，新代码请使用 SearchFramework
+
+    追踪"回答用户问题"的完成度，而非"探索信息"的覆盖度
+    """
+
+    original_query: str  # 用户原始问题
+    answer_goal: str = ""  # 回答目标：用户期望得到什么样的答案
+    key_aspects: List[KeyAspect] = field(default_factory=list)  # 关键信息面
+    collected_evidence: Dict[str, List[str]] = field(default_factory=dict)  # url -> 证据列表
+    overall_completeness: float = 0.0  # 整体完成度
+    readiness: AnswerReadiness = AnswerReadiness.NOT_READY  # 回答就绪状态
+    created_at: float = 0.0
+    updated_at: float = 0.0
+    # v7.186: 累积进展追踪
+    cumulative_progress: str = ""  # 累积进展描述（每轮更新）
+    last_reflection: Optional["ReflectionResult"] = None  # 上一轮反思（驱动下一轮）
+    # v7.230: 轮次洞察累积存储（不再覆盖）
+    round_insights: List["RoundInsights"] = field(default_factory=list)  # 所有轮次的结构化洞察
+
+    def get_missing_aspects(self) -> List[KeyAspect]:
+        """获取缺失的关键信息面"""
+        return [a for a in self.key_aspects if a.status == "missing"]
+
+    def get_incomplete_aspects(self) -> List[KeyAspect]:
+        """获取不完整的信息面"""
+        return [a for a in self.key_aspects if a.status in ("missing", "partial")]
+
+    def get_next_search_target(self) -> Optional[KeyAspect]:
+        """获取下一个需要搜索的信息面（按重要性排序）"""
+        incomplete = self.get_incomplete_aspects()
+        if not incomplete:
+            return None
+        # 优先搜索重要性高且未被搜索过的
+        return min(incomplete, key=lambda a: (-a.importance, a.last_searched_round))
+
+    def can_answer_completely(self) -> bool:
+        """是否能够完整回答用户问题"""
+        if not self.key_aspects:
+            return False
+        # 所有高重要性(>=4)的信息面都至少是partial
+        high_importance = [a for a in self.key_aspects if a.importance >= 4]
+        return all(a.status != "missing" for a in high_importance)
+
+    def calculate_completeness(self) -> float:
+        """计算回答完成度"""
+        if not self.key_aspects:
+            return 0.0
+        total_weight = sum(a.importance for a in self.key_aspects)
+        achieved = sum(a.importance * a.completion_score for a in self.key_aspects)
+        return achieved / total_weight if total_weight > 0 else 0.0
+
+
+@dataclass
+class RoundInsights:
+    """
+    轮次洞察累积器 - v7.230 新增
+
+    每轮搜索后的结构化洞察，累积存储而非覆盖
+    用于最终答案生成时充分利用所有轮次的发现
+    """
+
+    round_number: int  # 轮次编号
+    target_aspect: str = ""  # 搜索目标
+    search_query: str = ""  # 搜索查询
+
+    # === 核心发现（保留结构） ===
+    key_findings: List[str] = field(default_factory=list)  # 直接发现
+    inferred_insights: List[str] = field(default_factory=list)  # 推断洞察
+
+    # === 质量评价（不再丢弃） ===
+    info_sufficiency: float = 0.0  # 信息充分度 0-1
+    info_quality: float = 0.0  # 信息质量 0-1
+    quality_issues: List[str] = field(default_factory=list)  # 质量问题
+
+    # === 对齐评估 ===
+    alignment_score: float = 0.0  # 与用户目标对齐度 0-1
+    alignment_note: str = ""  # 对齐说明
+    remaining_gaps: List[str] = field(default_factory=list)  # 剩余缺口
+
+    # === 本轮最佳来源 ===
+    best_source_urls: List[str] = field(default_factory=list)  # 本轮最佳来源URLs（Top-3）
+    sources_count: int = 0  # 本轮来源总数
+
+    # === 累积进展 ===
+    progress_description: str = ""  # 本轮进展描述（不截断）
+
+
+@dataclass
+class SearchRoundState:
+    """单轮搜索状态 - v7.186 增强反思驱动"""
+
+    round_number: int
+    phase: SearchPhase
+    target_aspect: str  # 本轮搜索的目标信息面
+    search_query: str  # 搜索查询
+    status: str = "pending"
+    sources_found: int = 0
+    info_collected: List[str] = field(default_factory=list)
+    completeness_delta: float = 0.0
+    execution_time: float = 0.0
+    # v7.186: 专家叙事内容持久化
+    thinking_narrative: str = ""  # 搜索前的思考叙事（自然语言）
+    reflection: str = ""  # 搜索后的反思复盘（含推断）
+    search_strategy: str = ""  # 搜索策略说明
+
+
+@dataclass
+class UcpptSearchResult:
+    """ucppt搜索结果"""
+
+    original_query: str
+    framework: AnswerFramework
+    rounds: List[SearchRoundState] = field(default_factory=list)
+    all_sources: List[Dict[str, Any]] = field(default_factory=list)
+    final_answer: str = ""
+    total_rounds: int = 0
+    final_completeness: float = 0.0
+    total_execution_time: float = 0.0
+
+
+# ==================== v7.270: LLM 分析引擎（使用 OpenAI GPT-4o）====================
+
+
+class LLMAnalysisEngine:
+    """LLM 分析引擎 - v7.270 使用 OpenAI GPT-4o（通过 OpenRouter）
+
+    注意: OpenAI 不支持 reasoning_content，思考流功能不可用
+    """
+
+    def __init__(self):
+        self.thinking_model = THINKING_MODEL  # openai/gpt-4o
+        self.eval_model = EVAL_MODEL  # openai/gpt-4o
+        self.quality_threshold = 0.75
+        self.openrouter_api_key = os.getenv("OPENROUTER_API_KEY", "")
+        self.openrouter_base_url = OPENROUTER_API_BASE_URL
+
+        if not self.openrouter_api_key:
+            logger.warning("️ [LLM Analysis] OPENROUTER_API_KEY 未配置")
+
+    async def _llm_call(
+        self, prompt: str, model: str = None, max_tokens: int = 4000, temperature: float = 0.7
+    ) -> Optional[str]:
+        """LLM API 调用（通过 OpenRouter）- v7.270 使用 OpenAI GPT-4o"""
+        if not self.openrouter_api_key:
+            logger.error(" [LLM Analysis] OPENROUTER_API_KEY 未配置")
+            return None
+
+        model = model or self.thinking_model
+
+        try:
+            import httpx
+
+            logger.debug(f" [LLM Analysis] 开始API调用 | model={model} | max_tokens={max_tokens}")
+            start_time = time.time()
+
+            # 缩短超时到120秒（OpenAI GPT-4o 需要更长时间思考）
+            async with httpx.AsyncClient(timeout=120.0) as client:
+                response = await client.post(
+                    f"{self.openrouter_base_url}/chat/completions",
+                    headers={
+                        "Authorization": f"Bearer {self.openrouter_api_key}",
+                        "Content-Type": "application/json",
+                        "HTTP-Referer": os.getenv("OPENROUTER_SITE_URL", "https://github.com/dafei0755/ai"),
+                        "X-Title": os.getenv("OPENROUTER_APP_NAME", "Intelligent Project Analyzer"),
+                    },
+                    json={
+                        "model": model,
+                        "messages": [{"role": "user", "content": prompt}],
+                        "max_tokens": max_tokens,
+                        "temperature": temperature,
+                        "stream": False,
+                    },
+                )
+
+                call_time = time.time() - start_time
+                logger.debug(f"️ [LLM Analysis] API调用完成 | 耗时={call_time:.2f}秒")
+
+                if response.status_code == 200:
+                    result = response.json()
+                    message = result["choices"][0]["message"]
+
+                    # OpenAI GPT-4o 返回 reasoning_content + content
+                    reasoning_content = message.get("reasoning_content", "")
+                    content = message.get("content", "")
+
+                    if reasoning_content:
+                        logger.debug(f" [LLM Analysis] 获得思考过程 | 长度={len(reasoning_content)}字符")
+
+                    # 优先返回 content，reasoning_content 在流式调用中处理
+                    final_content = content if content else reasoning_content
+
+                    # 验证内容非空
+                    if not final_content or not final_content.strip():
+                        logger.error(f" [LLM Analysis] API返回空内容 | model={model} | response={result}")
+                        return None
+
+                    logger.debug(f" [LLM Analysis] 获得响应 | 长度={len(final_content)}字符")
+                    return final_content
+                else:
+                    logger.error(f" [LLM Analysis] API调用失败: {response.status_code} | 响应: {response.text}")
+                    return None
+
+        except asyncio.TimeoutError:
+            logger.error(" [LLM Analysis] API调用超时（120秒） - 启用快速备份策略")
+            return {"status": "timeout", "error": "API调用超时，已启用备份搜索模式", "content": "由于网络延迟，已切换到快速搜索模式"}
+        except Exception as e:
+            import traceback
+
+            logger.error(f" [LLM Analysis] API调用异常: {e}")
+            logger.error(f" [LLM Analysis] 异常堆栈:\n{traceback.format_exc()}")
+            return None
+
+    async def execute_l0_dialogue(self, query: str, context: Dict[str, Any] = None) -> Optional[L0DialogueResult]:
+        """L0 对话式分析 - 专注用户理解"""
+
+        logger.debug(" [L0 Debug] 开始execute_l0_dialogue方法")
+        prompt = self._build_l0_prompt(query, context or {})
+        logger.debug(f" [L0 Debug] 构建prompt完成 | 长度={len(prompt)}字符")
+
+        start_time = time.time()
+        logger.debug(f" [L0 Debug] 准备调用_llm_call | model={self.thinking_model}")
+        raw_result = await self._llm_call(prompt, self.thinking_model)
+        execution_time = time.time() - start_time
+        logger.debug(f"️ [L0 Debug] _llm_call完成 | 耗时={execution_time:.2f}秒 | 有结果={raw_result is not None}")
+
+        if not raw_result:
+            logger.error(" [L0 Debug] LLM API调用失败，无结果")
+            return None
+
+        #  v7.215: 检测空响应
+        if isinstance(raw_result, str) and not raw_result.strip():
+            logger.error(" [L0 Debug] LLM API返回空字符串")
+            return None
+
+        logger.debug(" [L0 Debug] 开始解析L0结果")
+        result = self._parse_l0_result(raw_result, execution_time)
+        logger.debug(f" [L0 Debug] L0结果解析完成 | 成功={result is not None}")
+        return result
+
+    async def execute_l1_l5_framework(self, query: str, l0_result: L0DialogueResult) -> Optional[L1L5FrameworkResult]:
+        """L1-L5 深度框架分析 - 专注理论建模"""
+
+        prompt = self._build_framework_prompt(query, l0_result)
+
+        start_time = time.time()
+        raw_result = await self._llm_call(prompt, self.thinking_model)
+        execution_time = time.time() - start_time
+
+        if not raw_result:
+            return None
+
+        return self._parse_framework_result(raw_result, execution_time, l0_result)
+
+    async def execute_synthesis(
+        self, query: str, l0_result: L0DialogueResult, framework_result: L1L5FrameworkResult
+    ) -> Optional[SynthesisResult]:
+        """综合分析 - 生成搜索任务"""
+
+        prompt = self._build_synthesis_prompt(query, l0_result, framework_result)
+
+        start_time = time.time()
+        raw_result = await self._llm_call(prompt, self.eval_model)  # 使用eval模型
+        execution_time = time.time() - start_time
+
+        if not raw_result:
+            return None
+
+        return self._parse_synthesis_result(raw_result, execution_time)
+
+    def _build_l0_prompt(self, query: str, context: Dict[str, Any]) -> str:
+        """L0 专用 Prompt - 专注对话式用户理解"""
+        return f"""你是一位资深的用户研究专家。请用温暖、专业的对话方式分析用户。
+
+## 用户问题
+{query}
+
+## 上下文
+{json.dumps(context, ensure_ascii=False, indent=2)}
+
+## 你的分析任务
+
+### 对话输出（thinking 部分 - 展示给用户）
+请像与用户面对面交谈一样，自然地分析以下内容：
+
+1. **用户画像识别**
+   - 从地理位置推断：气候特点、文化背景、生活节奏
+   - 从表达方式推断：年龄段、教育背景、职业倾向
+   - 从关注点推断：身份标签、价值观、生活态度
+
+2. **项目背景理解**
+   - 项目的真实规模和约束条件
+   - 该背景下的可能性边界
+
+3. **隐性需求挖掘**（重点）
+   基于用户画像，推断未明说但重要的需求：
+   - 功能性隐需：空间、设施、系统
+   - 情感性隐需：氛围、体验、归属感
+   - 社会性隐需：身份认同、社交关系
+
+请保持**亲切专业**的语气，用**自然段落**组织，重要信息用**加粗**标注。
+
+### 结构化输出（content 部分 - 系统使用）
+```json
+{{
+    "user_profile": {{
+        "demographics": {{"location": "", "age_range": "", "occupation": "", "education": ""}},
+        "identity_tags": ["标签1", "标签2"],
+        "lifestyle_indicators": ["指标1", "指标2"],
+        "value_system": "价值体系描述"
+    }},
+    "project_context": {{
+        "scale": "项目规模",
+        "constraints": ["约束1", "约束2"],
+        "opportunities": ["机会1", "机会2"]
+    }},
+    "implicit_needs": {{
+        "functional": ["功能需求1", "功能需求2"],
+        "emotional": ["情感需求1", "情感需求2"],
+        "social": ["社会需求1", "社会需求2"]
+    }},
+    "confidence_assessment": {{
+        "profile_confidence": 0.85,
+        "need_identification_confidence": 0.80,
+        "missing_info": ["缺失信息1", "缺失信息2"]
+    }}
+}}
+```
+
+**质量标准**：
+- 用户画像完整性 ≥ 80%
+- 隐性需求识别 ≥ 3 项
+- 对话自然度主观评分 ≥ 4/5"""
+
+    def _build_framework_prompt(self, query: str, l0_result: L0DialogueResult) -> str:
+        """L1-L5 专用 Prompt - 专注深度理论分析"""
+        return f"""你是一位跨学科分析专家。基于 L0 用户理解，进行深度理论建模。
+
+## 用户问题
+{query}
+
+## L0 分析结果
+- **用户画像**：{l0_result.user_profile.to_dict()}
+- **隐性需求**：{l0_result.implicit_needs}
+- **对话理解**：{l0_result.context_understanding[:200]}...
+
+## 分层分析框架
+
+### L1：第一性原理分解（Facts Atomization）
+将问题分解为不可再分的事实原子，每个原子必须：
+- 可独立验证
+- 无主观判断
+- 可量化或可观测
+
+**输出格式**：["事实原子1", "事实原子2", ...]
+
+### L2：跨学科建模（Multi-Disciplinary Modeling）
+从至少 3 个学科视角建模，要求：
+- **心理学视角**：用户的认知模式、情感需求、行为模式
+- **社会学视角**：社会角色、权力关系、文化符号
+- **美学视角**：审美偏好、风格语言、感知体验
+- **（可选）经济学/人类学/现象学视角**
+
+### L3：核心张力识别（Core Tension Analysis）
+识别最关键的对立面，形成 "A vs B" 的张力公式：
+- 必须是真正的两难选择
+- 必须影响设计的根本方向
+- 必须有具体的实现路径差异
+
+### L4：JTBD任务识别（Jobs-to-be-Done）
+用户雇佣这个项目要完成什么"进步"：
+- 从什么状态 → 到什么状态
+- 解决什么具体问题
+- 实现什么具体价值
+
+### L5：锐度评估（Sharpness Assessment）
+评估分析的专业深度：
+- **专一性**（Specificity）：是否针对特定情况，避免泛泛而谈
+- **可操作性**（Actionability）：是否提供具体可执行的方向
+- **深度**（Depth）：是否触及问题的本质层面
+
+输出 JSON 格式，包含所有 L1-L5 的分析结果。
+
+**质量标准**：
+- 事实原子化 ≥ 5 个独立事实
+- 跨学科整合度 ≥ 80%
+- 张力识别精度 ≥ 85%
+- 总体锐度评分 ≥ 80"""
+
+    def _build_synthesis_prompt(
+        self, query: str, l0_result: L0DialogueResult, framework_result: L1L5FrameworkResult
+    ) -> str:
+        """综合分析 Prompt - 生成搜索任务"""
+        return f"""基于前面的分析，现在生成结构化的搜索执行计划。
+
+## 用户问题
+{query}
+
+## L0 用户理解
+{l0_result.context_understanding}
+
+## L1-L5 框架分析
+- **L1 事实原子**：{framework_result.l1_facts}
+- **L3 核心张力**：{framework_result.l3_tensions}
+- **L4 JTBD**：{framework_result.l4_jtbd}
+
+## 生成搜索主线和任务
+
+请输出 JSON 格式的搜索执行计划：
+
+```json
+{{
+    "search_master_line": {{
+        "core_question": "一句话概括核心问题",
+        "boundary": "搜索边界定义",
+        "framework_summary": "搜索路线图概览",
+        "search_phases": ["基础信息", "深度案例", "对比验证"]
+    }},
+    "search_tasks": [
+        {{
+            "id": "task_1",
+            "task": "具体搜索任务描述",
+            "purpose": "任务目的",
+            "phase": "基础信息",
+            "priority": 1,
+            "depends_on": [],
+            "expected_info": ["期望获得的信息1", "期望获得的信息2"],
+            "validation_criteria": ["验证标准1", "验证标准2"]
+        }}
+    ],
+    "execution_plan": {{
+        "total_estimated_rounds": 6,
+        "critical_path": ["task_1", "task_3", "task_5"],
+        "quality_checkpoints": [2, 4, 6]
+    }}
+}}
+```
+
+确保：
+1. 任务之间有逻辑依赖关系
+2. 每个阶段至少2个任务
+3. 搜索范围聚焦且可执行
+"""
+
+    def _parse_l0_result(self, raw_result: str, execution_time: float) -> L0DialogueResult:
+        """解析 L0 分析结果"""
+        try:
+            # 分离 thinking 和 content 部分
+            if "```json" in raw_result:
+                # thinking 部分是 json 之前的内容
+                dialogue_content = raw_result.split("```json")[0].strip()
+                # content 部分是 json 内容
+                json_part = raw_result.split("```json")[1].split("```")[0]
+                content = json.loads(json_part)
+            else:
+                # 降级处理：整个结果作为对话内容
+                dialogue_content = raw_result
+                content = {
+                    "user_profile": {},
+                    "implicit_needs": {"functional": [], "emotional": [], "social": []},
+                    "confidence_assessment": {"profile_confidence": 0.5},
+                }
+
+            # 构建用户画像
+            user_profile_data = content.get("user_profile", {})
+            user_profile = StructuredUserInfo()
+            if "demographics" in user_profile_data:
+                user_profile.demographics.update(user_profile_data["demographics"])
+            if "identity_tags" in user_profile_data:
+                user_profile.identity_tags = user_profile_data["identity_tags"]
+
+            # 提取隐性需求
+            implicit_needs_data = content.get("implicit_needs", {})
+            implicit_needs = []
+            for category, needs in implicit_needs_data.items():
+                implicit_needs.extend(needs)
+
+            # 计算质量评分
+            confidence = content.get("confidence_assessment", {})
+            quality_score = (
+                confidence.get("profile_confidence", 0.5) * 0.4
+                + confidence.get("need_identification_confidence", 0.5) * 0.4
+                + (len(implicit_needs) / 6) * 0.2  # 隐性需求数量贡献
+            )
+
+            return L0DialogueResult(
+                phase=AnalysisPhase.L0_DIALOGUE,
+                content=content,
+                quality_score=min(quality_score, 1.0),
+                execution_time=execution_time,
+                user_profile=user_profile,
+                context_understanding=dialogue_content,
+                implicit_needs=implicit_needs,
+                dialogue_content=dialogue_content,
+            )
+
+        except Exception as e:
+            logger.error(f" [LLM Analysis] L0结果解析失败: {e}")
+            # 降级处理
+            return L0DialogueResult(
+                phase=AnalysisPhase.L0_DIALOGUE,
+                content={"error": str(e)},
+                quality_score=0.3,
+                execution_time=execution_time,
+                user_profile=StructuredUserInfo(),
+                context_understanding=raw_result[:200],
+                implicit_needs=[],
+                dialogue_content=raw_result[:500],
+            )
+
+    def _parse_framework_result(
+        self, raw_result: str, execution_time: float, l0_result: L0DialogueResult
+    ) -> L1L5FrameworkResult:
+        """解析 L1-L5 框架分析结果"""
+        try:
+            # 尝试提取JSON
+            if "```json" in raw_result:
+                json_part = raw_result.split("```json")[1].split("```")[0]
+                content = json.loads(json_part)
+            else:
+                # 简单JSON解析尝试
+                import re
+
+                json_match = re.search(r"\{.*\}", raw_result, re.DOTALL)
+                if json_match:
+                    content = json.loads(json_match.group())
+                else:
+                    raise ValueError("未找到JSON内容")
+
+            # 提取各层分析结果
+            l1_facts = content.get("l1_facts", [])
+            l2_models = content.get("l2_models", {})
+            l3_tensions = content.get("l3_tensions", "")
+            l4_jtbd = content.get("l4_jtbd", "")
+            l5_sharpness = content.get("l5_sharpness", {})
+
+            # 计算框架一致性
+            framework_coherence = min(
+                len(l1_facts) / 5,  # 事实原子数量
+                len(l2_models) / 3,  # 跨学科模型数量
+                1.0 if l3_tensions else 0.0,  # 张力识别
+                1.0 if l4_jtbd else 0.0,  # JTBD识别
+                l5_sharpness.get("overall_sharpness", 0) / 100,  # 锐度评分
+            )
+
+            # 计算质量评分
+            quality_score = (
+                (len(l1_facts) / 6) * 0.25
+                + (len(l2_models) / 4) * 0.25
+                + (1.0 if l3_tensions else 0.0) * 0.25
+                + framework_coherence * 0.25
+            )
+
+            return L1L5FrameworkResult(
+                phase=AnalysisPhase.L1_L5_FRAMEWORK,
+                content=content,
+                quality_score=min(quality_score, 1.0),
+                execution_time=execution_time,
+                l1_facts=l1_facts,
+                l2_models=l2_models,
+                l3_tensions=l3_tensions,
+                l4_jtbd=l4_jtbd,
+                l5_sharpness=l5_sharpness,
+                framework_coherence=framework_coherence,
+            )
+
+        except Exception as e:
+            logger.error(f" [LLM Analysis] L1-L5结果解析失败: {e}")
+            # 降级处理
+            return L1L5FrameworkResult(
+                phase=AnalysisPhase.L1_L5_FRAMEWORK,
+                content={"error": str(e)},
+                quality_score=0.3,
+                execution_time=execution_time,
+                l1_facts=[],
+                l2_models={},
+                l3_tensions="",
+                l4_jtbd="",
+                l5_sharpness={},
+                framework_coherence=0.0,
+            )
+
+    def _parse_synthesis_result(self, raw_result: str, execution_time: float) -> SynthesisResult:
+        """解析综合分析结果"""
+        try:
+            # 提取JSON
+            if "```json" in raw_result:
+                json_part = raw_result.split("```json")[1].split("```")[0]
+                content = json.loads(json_part)
+            else:
+                import re
+
+                json_match = re.search(r"\{.*\}", raw_result, re.DOTALL)
+                if json_match:
+                    content = json.loads(json_match.group())
+                else:
+                    raise ValueError("未找到JSON内容")
+
+            # 构建搜索主线
+            search_master_data = content.get("search_master_line", {})
+            search_master_line = SearchMasterLine(
+                core_question=search_master_data.get("core_question", ""),
+                boundary=search_master_data.get("boundary", ""),
+                framework_summary=search_master_data.get("framework_summary", ""),
+                search_phases=search_master_data.get("search_phases", []),
+            )
+
+            # 构建搜索任务
+            tasks_data = content.get("search_tasks", [])
+            for task_data in tasks_data:
+                task = SearchTask(
+                    id=task_data.get("id", ""),
+                    task=task_data.get("task", ""),
+                    purpose=task_data.get("purpose", ""),
+                    priority=task_data.get("priority", 1),
+                    phase=task_data.get("phase", "基础信息"),
+                    depends_on=task_data.get("depends_on", []),
+                    expected_info=task_data.get("expected_info", []),
+                    validation_criteria=task_data.get("validation_criteria", []),
+                )
+                search_master_line.search_tasks.append(task)
+
+            # 构建答案框架（简化版）
+            answer_framework = AnswerFramework(
+                user_info=StructuredUserInfo(), core_aspects=[], overall_completeness=0.0  # 会在后续填入
+            )
+
+            # 执行计划
+            execution_plan = content.get("execution_plan", {})
+
+            quality_score = min(
+                len(search_master_line.search_tasks) / 6,  # 任务数量
+                1.0 if search_master_line.core_question else 0.0,  # 核心问题
+                len(search_master_line.search_phases) / 3,  # 阶段数量
+            )
+
+            return SynthesisResult(
+                phase=AnalysisPhase.SYNTHESIS,
+                content=content,
+                quality_score=min(quality_score, 1.0),
+                execution_time=execution_time,
+                search_master_line=search_master_line,
+                answer_framework=answer_framework,
+                execution_plan=execution_plan,
+            )
+
+        except Exception as e:
+            logger.error(f" [LLM Analysis] 综合结果解析失败: {e}")
+            # 降级处理
+            return SynthesisResult(
+                phase=AnalysisPhase.SYNTHESIS,
+                content={"error": str(e)},
+                quality_score=0.3,
+                execution_time=execution_time,
+                search_master_line=SearchMasterLine(),
+                answer_framework=AnswerFramework(StructuredUserInfo(), [], 0.0),
+                execution_plan={},
+            )
+
+
+# ==================== 主引擎类 ====================
+
+
+class UcpptSearchEngine:
+    """
+    ucppt 深度迭代搜索引擎 (v7.187) - 流式思考+搜索查询修复
+
+    核心理念：像资深专家一样思考和表达
+
+    核心创新：
+    1. 专家叙事：用自然语言讲述思考过程（"让我先了解..."）
+    2. 思考-搜索-反思：每轮三步走，思考在前
+    3. 推断能力：从间接信息中提取洞察
+    4. 语义完成度："能否回答问题"而非数值评分
+    5. 动态策略：根据知识状态决定下一步
+    """
+
+    def __init__(
+        self,
+        max_rounds: int = MAX_SEARCH_ROUNDS,
+        completeness_threshold: float = COMPLETENESS_THRESHOLD,
+        thinking_model: str = THINKING_MODEL,
+        eval_model: str = EVAL_MODEL,
+    ):
+        """
+        初始化搜索引擎
+
+        Args:
+            max_rounds: 最大搜索轮数（默认15）
+            completeness_threshold: 回答完整度阈值（默认0.8）
+            thinking_model: 思考模式模型（问题分析、搜索策略）
+            eval_model: 评估模型（完成度评估）
+        """
+        self.max_rounds = max_rounds
+        self.completeness_threshold = completeness_threshold
+        self.thinking_model = thinking_model
+        self.eval_model = eval_model
+
+        # OpenRouter API 配置（v7.270 OpenAI GPT-4o）
+        openrouter_keys = os.getenv("OPENROUTER_API_KEYS", "")
+        if openrouter_keys:
+            self.openrouter_api_key = openrouter_keys.split(",")[0].strip()
+            self.openrouter_base_url = OPENROUTER_API_BASE_URL
+            logger.info(f" [Ucppt v7.276] OpenRouter API 已配置 | thinking_model={thinking_model}")
+        else:
+            logger.warning("️ [Ucppt v7.276] OPENROUTER_API_KEYS 未配置，思考功能可能受限")
+            self.openrouter_api_key = ""
+            self.openrouter_base_url = OPENROUTER_API_BASE_URL
+
+        # 初始化搜索服务
+        self.bocha_service = get_ai_search_service() if get_ai_search_service else None
+
+        # v7.199: 初始化 OpenAlex 学术搜索
+        self.openalex_tool = None
+        if OPENALEX_AVAILABLE and OPENALEX_SEARCH_ENABLED:
+            try:
+                self.openalex_tool = OpenAlexSearchTool()
+                logger.info(" [Ucppt v7.199] OpenAlex 学术搜索已初始化")
+            except Exception as e:
+                logger.warning(f"️ [Ucppt v7.199] OpenAlex 初始化失败: {e}")
+
+        # v7.199: 查询分类结果缓存
+        self._query_classification = None  # Optional[QueryClassification]
+
+        # v7.199: 查询去重 - 记录已使用的查询
+        self._used_queries: List[str] = []
+        self._query_similarity_threshold = 0.8  # 相似度阈值
+
+        #  v7.237: 搜索质量配置集成（方案C）
+        from intelligent_project_analyzer.settings import settings
+
+        self.search_quality_config = settings.search_quality
+
+        # 应用质量优化配置
+        if self.search_quality_config.design_professional_mode:
+            self.completeness_threshold = max(completeness_threshold, 0.75)  # 提升完成度要求
+            logger.info(f" [v7.237] 专业设计搜索模式已启用 | threshold={self.completeness_threshold}")
+
+        # v7.238: 内心独白过滤模式列表（中度过滤）
+        self._verbose_patterns = [
+            r"^好的[，,].*?(?:用户|需求|问题)",
+            r"^让我(?:想想|思考|分析)",
+            r"^首先[，,]?我需要",
+            r"^接下来[，,]?我(?:需要|要|将)",
+            r"^我(?:理解|明白)了",
+            r"^现在[，,]?我(?:来|开始)",
+            r"^嗯[，,]",
+            r"^这个问题(?:涉及|需要)",
+            r"^OK[，,]",
+            r"^Alright[，,]",
+        ]
+        self._verbose_regex = re.compile("|".join(self._verbose_patterns), re.IGNORECASE)
+
+        # v7.214: 结构化分析引擎和质量控制
+        self.llm_analysis_engine = LLMAnalysisEngine()
+        self.quality_gates = {}  # 质量门控管理
+        self.analysis_session = None  # 当前分析会话
+
+        logger.info(f" [Ucppt v7.200] 引擎初始化 | max_rounds={max_rounds} | threshold={completeness_threshold}")
+        logger.info(" [Ucppt v7.214] 结构化分析引擎已初始化")
+
+        # v7.333: Step 2 搜索任务分解执行器
+        self.step2_executor = None
+        if STEP2_EXECUTOR_AVAILABLE and LLMFactory:
+            try:
+                llm_factory = LLMFactory()
+                self.step2_executor = Step2SearchTaskDecompositionExecutor(llm_factory)
+                logger.info(" [Ucppt v7.333] Step 2 搜索任务分解执行器已初始化")
+            except Exception as e:
+                logger.warning(f"️ [Ucppt v7.333] Step 2 执行器初始化失败: {e}")
+
+        # v7.510: Step 1.5 搜索方向生成器
+        self.search_direction_generator = None
+        if SEARCH_DIRECTION_GENERATOR_AVAILABLE and LLMFactory:
+            try:
+                step15_prompt_config = {
+                    "system_prompt": "",
+                    "direction_generation_template": "",
+                }
+                self.search_direction_generator = SearchDirectionGenerator(
+                    llm_factory=LLMFactory(),
+                    prompt_config=step15_prompt_config,
+                )
+                logger.info(" [Ucppt v7.510] Step 1.5 搜索方向生成器已初始化")
+            except Exception as e:
+                logger.warning(f"️ [Ucppt v7.510] Step 1.5 初始化失败: {e}")
+
+        # v7.400: 4-Step Flow Feature Flag
+        self.enable_4step_flow = os.getenv("ENABLE_4STEP_FLOW", "false").lower() == "true"
+        if self.enable_4step_flow:
+            logger.info(" [Ucppt v7.400] 4-Step Flow 已启用")
+
+    # ==================== v7.300: 4步工作流方法 ====================
+
+    def convert_to_step2_plan(
+        self,
+        query: str,
+        session_id: str,
+        problem_solving_approach: "ProblemSolvingApproach",
+        analysis_data: Dict[str, Any],
+    ) -> "Step2SearchPlan":
+        """
+        v7.300: 将 ProblemSolvingApproach 转换为可编辑的 Step2SearchPlan
+
+        充分挖掘 L0-L5 分析结果，生成搜索方向规划。
+
+        Args:
+            query: 用户原始问题
+            session_id: 会话ID
+            problem_solving_approach: 解题思路（包含 solution_steps）
+            analysis_data: L0-L5 分析数据
+
+        Returns:
+            Step2SearchPlan: 可编辑的搜索计划
+        """
+        # 从 analysis_data 提取 L0-L5 信息
+        analysis_data.get("user_profile", {})
+        analysis = analysis_data.get("analysis", {})
+        step2_context = analysis_data.get("step2_context", {})
+
+        # 提取核心问题和回答目标
+        core_question = step2_context.get("core_question", "")
+        answer_goal = step2_context.get("answer_goal", "")
+
+        # 如果没有从 step2_context 获取到，尝试从 analysis 推导
+        if not core_question:
+            l4_jtbd = analysis.get("l4_jtbd", "")
+            if l4_jtbd:
+                core_question = l4_jtbd[:50] + "..." if len(l4_jtbd) > 50 else l4_jtbd
+
+        # 创建搜索计划
+        plan = Step2SearchPlan(
+            session_id=session_id,
+            query=query,
+            core_question=core_question,
+            answer_goal=answer_goal,
+        )
+
+        # 从 solution_steps 转换为 EditableSearchStep
+        for i, step in enumerate(problem_solving_approach.solution_steps, 1):
+            if isinstance(step, dict):
+                editable_step = EditableSearchStep(
+                    id=step.get("step_id", f"S{i}"),
+                    step_number=i,
+                    task_description=step.get("action", ""),
+                    expected_outcome=step.get("expected_output", ""),
+                    search_keywords=step.get("search_keywords", []),
+                    priority=step.get("priority", "medium"),
+                    can_parallel=step.get("task_type", "research") == "research",  # research 类型可并行
+                )
+                plan.search_steps.append(editable_step)
+            elif isinstance(step, str):
+                # 兼容字符串格式
+                editable_step = EditableSearchStep(
+                    id=f"S{i}",
+                    step_number=i,
+                    task_description=step,
+                    expected_outcome="",
+                    priority="medium",
+                )
+                plan.search_steps.append(editable_step)
+
+        logger.info(f" [v7.300] Step2SearchPlan 生成完成 | 步骤数={len(plan.search_steps)}")
+        return plan
+
+    def derive_search_directions_from_l0_l5(
+        self,
+        analysis_data: Dict[str, Any],
+    ) -> List[Dict[str, Any]]:
+        """
+        v7.300: 从 L0-L5 分析结果推导搜索方向
+
+        充分挖掘每个层级的分析，生成有针对性的搜索方向。
+
+        Args:
+            analysis_data: 包含 user_profile 和 analysis 的数据
+
+        Returns:
+            搜索方向列表，每个方向标注来源层级
+        """
+        directions = []
+        analysis = analysis_data.get("analysis", {})
+        user_profile = analysis_data.get("user_profile", {})
+
+        # === 从 L1 事实层推导搜索方向 ===
+        l1_facts = analysis.get("l1_facts", {})
+
+        # 品牌实体 -> 品牌研究方向
+        brand_entities = l1_facts.get("brand_entities", [])
+        for brand in brand_entities:
+            if isinstance(brand, dict) and brand.get("name"):
+                directions.append(
+                    {
+                        "direction_id": f"D{len(directions)+1}",
+                        "direction": f"{brand['name']}品牌设计语言研究",
+                        "derived_from": "L1",
+                        "what_to_search": f"{brand['name']}的设计哲学、产品线、色彩系统、材质特征",
+                        "why_search": f"用户明确提及{brand['name']}作为参照，需要深入理解其设计语言",
+                        "expected_insights": "品牌核心设计理念、代表性产品、视觉元素",
+                        "search_keywords": [
+                            f"{brand['name']} design philosophy",
+                            f"{brand['name']} 设计语言",
+                            f"{brand['name']} color palette",
+                        ],
+                        "can_parallel": True,
+                        "priority": "P0",
+                    }
+                )
+
+        # 地点实体 -> 地域研究方向
+        location_entities = l1_facts.get("location_entities", [])
+        for location in location_entities:
+            if isinstance(location, dict) and location.get("name"):
+                directions.append(
+                    {
+                        "direction_id": f"D{len(directions)+1}",
+                        "direction": f"{location['name']}地域特色研究",
+                        "derived_from": "L1",
+                        "what_to_search": f"{location['name']}的气候、环境、在地材料、建筑风格、文化特色",
+                        "why_search": f"项目位于{location['name']}，需要理解在地约束和融合机会",
+                        "expected_insights": "气候特征、本地材料、建筑传统、文化符号",
+                        "search_keywords": [
+                            f"{location['name']} 气候特征",
+                            f"{location['name']} 本地材料",
+                            f"{location['name']} 建筑风格",
+                        ],
+                        "can_parallel": True,
+                        "priority": "P0",
+                    }
+                )
+
+        # === 从 L2 多视角分析推导搜索方向 ===
+        l2_models = analysis.get("l2_models", {})
+        selected_perspectives = l2_models.get("selected_perspectives", [])
+
+        for perspective in selected_perspectives:
+            if perspective and perspective not in ["心理学", "社会学", "美学"]:
+                # 非基础视角，可能需要专门搜索
+                directions.append(
+                    {
+                        "direction_id": f"D{len(directions)+1}",
+                        "direction": f"{perspective}视角深度研究",
+                        "derived_from": "L2",
+                        "what_to_search": f"从{perspective}角度分析问题的专业资料",
+                        "why_search": f"L2分析识别出{perspective}是重要视角",
+                        "expected_insights": f"{perspective}领域的专业洞察和方法论",
+                        "search_keywords": [f"{perspective} 设计", f"{perspective} 方法论"],
+                        "can_parallel": True,
+                        "priority": "P1",
+                    }
+                )
+
+        # === 从 L3 核心张力推导搜索方向 ===
+        l3_tension = analysis.get("l3_tension", {})
+        tension_formula = l3_tension.get("formula", "")
+
+        if tension_formula and " vs " in tension_formula:
+            parts = tension_formula.split(" vs ")
+            if len(parts) == 2:
+                directions.append(
+                    {
+                        "direction_id": f"D{len(directions)+1}",
+                        "direction": f"「{parts[0].strip()}」与「{parts[1].strip()}」融合案例",
+                        "derived_from": "L3",
+                        "what_to_search": f"成功融合{parts[0].strip()}和{parts[1].strip()}的设计案例",
+                        "why_search": "L3识别出核心张力，需要找到解决方案参考",
+                        "expected_insights": "融合策略、成功案例、设计手法",
+                        "search_keywords": [
+                            f"{parts[0].strip()} {parts[1].strip()} 融合",
+                            f"{parts[0].strip()} {parts[1].strip()} 案例",
+                        ],
+                        "can_parallel": True,
+                        "priority": "P0",
+                    }
+                )
+
+        # === 从 L4 JTBD 推导搜索方向 ===
+        l4_jtbd = analysis.get("l4_jtbd", "")
+        if l4_jtbd and "以便" in l4_jtbd:
+            # 提取用户想要达成的目标
+            goal_part = l4_jtbd.split("以便")[-1].strip()
+            if goal_part:
+                directions.append(
+                    {
+                        "direction_id": f"D{len(directions)+1}",
+                        "direction": f"实现「{goal_part[:20]}」的方案研究",
+                        "derived_from": "L4",
+                        "what_to_search": f"如何实现{goal_part}的具体方案和案例",
+                        "why_search": "L4识别出用户的核心任务目标",
+                        "expected_insights": "实现路径、成功案例、关键要素",
+                        "search_keywords": [goal_part[:15]],
+                        "can_parallel": True,
+                        "priority": "P1",
+                    }
+                )
+
+        # === 从 L0 隐性需求推导搜索方向 ===
+        implicit_needs = user_profile.get("implicit_needs", [])
+        for need in implicit_needs[:2]:  # 最多取2个隐性需求
+            if need:
+                directions.append(
+                    {
+                        "direction_id": f"D{len(directions)+1}",
+                        "direction": f"满足「{need[:15]}」的设计策略",
+                        "derived_from": "L0",
+                        "what_to_search": f"如何在设计中满足{need}",
+                        "why_search": "L0识别出的隐性需求，用户未明说但重要",
+                        "expected_insights": "设计策略、实现方法",
+                        "search_keywords": [need[:10]],
+                        "can_parallel": True,
+                        "priority": "P2",
+                    }
+                )
+
+        logger.info(f" [v7.300] 从 L0-L5 推导搜索方向 | 方向数={len(directions)}")
+        return directions
+
+    def build_step1_analysis_output(
+        self,
+        analysis_data: Dict[str, Any],
+        dialogue_content: str,
+    ) -> "Step1AnalysisOutput":
+        """
+        v7.300: 构建 Step1AnalysisOutput
+
+        整合 L0-L5 分析结果，生成结构化的第1步输出。
+
+        Args:
+            analysis_data: 包含 user_profile 和 analysis 的数据
+            dialogue_content: 流式输出的对话内容
+
+        Returns:
+            Step1AnalysisOutput: 结构化的第1步输出
+        """
+        user_profile = analysis_data.get("user_profile", {})
+        analysis = analysis_data.get("analysis", {})
+        step2_context = analysis_data.get("step2_context", {})
+
+        # 构建 L0 用户画像
+        l0_user_profile = {
+            "identity": ", ".join(user_profile.get("identity_tags", [])),
+            "occupation": user_profile.get("occupation", ""),
+            "implicit_needs": user_profile.get("implicit_needs", []),
+            "decision_stage": "exploration",  # 默认探索阶段
+        }
+
+        # 构建 L1 事实层
+        l1_facts = analysis.get("l1_facts", {})
+
+        # 构建 L2 多视角分析
+        l2_models = analysis.get("l2_models", {})
+        l2_perspectives = []
+        for perspective in l2_models.get("selected_perspectives", []):
+            perspective_analysis = l2_models.get(perspective.lower(), "")
+            if perspective_analysis:
+                l2_perspectives.append(
+                    {
+                        "perspective_name": perspective,
+                        "weight": 0.33,
+                        "analysis": perspective_analysis,
+                        "key_considerations": [],
+                    }
+                )
+
+        # 构建 L3 核心张力
+        l3_tension = analysis.get("l3_tension", {})
+        l3_core_tension = {
+            "tension_statement": l3_tension.get("formula", ""),
+            "conflicting_goals": [],
+            "resolution_strategy": l3_tension.get("resolution_strategy", ""),
+        }
+
+        # 构建 L4 用户任务
+        l4_jtbd = analysis.get("l4_jtbd", "")
+        l4_user_task = {
+            "jtbd_statement": l4_jtbd,
+            "functional_job": "",
+            "emotional_job": "",
+            "social_job": "",
+        }
+
+        # 构建 L5 锐度评估
+        l5_sharpness_data = analysis.get("l5_sharpness", {})
+        l5_sharpness = {
+            "score": l5_sharpness_data.get("score", 0.0),
+            "specificity": l5_sharpness_data.get("specificity", ""),
+            "actionability": l5_sharpness_data.get("actionability", ""),
+            "depth": l5_sharpness_data.get("depth", ""),
+            "improvement_suggestions": [],
+        }
+
+        # 从 L0-L5 推导搜索方向
+        search_directions = self.derive_search_directions_from_l0_l5(analysis_data)
+
+        # 构建回答框架
+        answer_framework = {
+            "core_question": step2_context.get("core_question", ""),
+            "answer_goal": step2_context.get("answer_goal", ""),
+            "sections": step2_context.get("solution_steps_summary", []),
+            "focus_points": step2_context.get("breakthrough_tensions", []),
+            "completeness_criteria": [],
+        }
+
+        # 创建 Step1AnalysisOutput
+        output = Step1AnalysisOutput(
+            l0_user_profile=l0_user_profile,
+            l1_facts=l1_facts,
+            l2_perspectives=l2_perspectives,
+            l3_core_tension=l3_core_tension,
+            l4_user_task=l4_user_task,
+            l5_sharpness=l5_sharpness,
+            search_directions=search_directions,
+            answer_framework=answer_framework,
+            dialogue_content=dialogue_content,
+            confidence_score=l5_sharpness.get("score", 0.0) / 10.0,
+        )
+
+        logger.info(f" [v7.300] Step1AnalysisOutput 构建完成 | 搜索方向数={len(search_directions)}")
+        return output
+
+    # ==================== v7.238: 思考内容过滤 ====================
+
+    def _filter_verbose_monologue(self, text: str) -> str:
+        """
+        过滤冗余内心独白 - v7.238
+
+        中度过滤策略：
+        - 去除开场白（"好的，用户要求..."）
+        - 去除自言自语（"让我想想..."）
+        - 保留实质性分析内容
+        """
+        if not text:
+            return text
+
+        # 按行处理，过滤匹配的行首模式
+        lines = text.split("\n")
+        filtered_lines = []
+
+        for line in lines:
+            stripped = line.strip()
+            # 检查是否匹配冗余模式
+            if stripped and self._verbose_regex.match(stripped):
+                # 跳过匹配的开头，但保留后续内容
+                # 尝试提取冒号或逗号后的实质内容
+                for sep in ["：", ":", "，", ","]:
+                    if sep in stripped:
+                        parts = stripped.split(sep, 1)
+                        if len(parts) > 1 and len(parts[1].strip()) > 10:
+                            filtered_lines.append(parts[1].strip())
+                            break
+                # 如果没有实质内容，跳过整行
+                continue
+            else:
+                filtered_lines.append(line)
+
+        return "\n".join(filtered_lines)
+
+    # ==================== v7.214: 结构化问题分析方法 ====================
+
+    async def structured_problem_analysis(
+        self, query: str, context: Dict[str, Any] = None
+    ) -> Optional[AnalysisSession]:
+        """
+        结构化问题分析 - v7.214 新架构
+
+        分为三个独立阶段：
+        1. L0 对话式分析：用户理解和需求挖掘
+        2. L1-L5 深度分析：理论建模和框架构建
+        3. 综合分析：生成搜索任务和执行计划
+        """
+        logger.info(" [结构化分析 v7.214] 开始三阶段分析流程")
+        logger.debug(f" [v7.214 Debug] 输入参数 | query长度={len(query)} | context={bool(context)}")
+
+        start_time = time.time()
+        session_id = f"analysis_{int(time.time())}"
+        context = context or {}
+
+        # 创建分析会话
+        analysis_session = AnalysisSession(session_id=session_id, query=query, context=context, start_time=start_time)
+        logger.debug(f" [v7.214 Debug] 创建分析会话成功 | session_id={session_id}")
+
+        try:
+            # === 阶段 1: L0 对话式分析 ===
+            logger.info(" [L0 阶段] 执行对话式用户分析")
+            logger.debug(" [v7.214 Debug] 准备调用llm_analysis_engine.execute_l0_dialogue")
+            l0_result = await self.llm_analysis_engine.execute_l0_dialogue(query, context)
+            logger.debug(f" [v7.214 Debug] L0阶段返回结果: {l0_result is not None}")
+
+            if not l0_result:
+                logger.error(" [L0 阶段] 用户分析失败")
+                return None
+
+            analysis_session.l0_result = l0_result
+            logger.debug(" [v7.214 Debug] L0结果已保存到analysis_session")
+
+            # 质量门控检查
+            l0_quality_gate = QualityGate(threshold=0.7)
+
+            if not l0_quality_gate.check_phase_quality(AnalysisPhase.L0_DIALOGUE, l0_result):
+                logger.warning("️ [L0 质量门控] 用户分析质量不足，但继续执行")
+            else:
+                logger.info(" [L0 质量门控] 用户分析质量合格")
+
+            # === 阶段 2: L1-L5 深度框架分析 ===
+            logger.info(" [L1-L5 阶段] 执行深度理论分析")
+            framework_result = await self.llm_analysis_engine.execute_l1_l5_framework(query, l0_result)
+
+            if not framework_result:
+                logger.error(" [L1-L5 阶段] 深度分析失败")
+                return None
+
+            analysis_session.framework_result = framework_result
+
+            # L1-L5 质量门控
+            framework_quality_gate = QualityGate(threshold=0.8)
+
+            if not framework_quality_gate.check_phase_quality(AnalysisPhase.L1_L5_FRAMEWORK, framework_result):
+                logger.warning("️ [L1-L5 质量门控] 理论分析深度不足")
+            else:
+                logger.info(" [L1-L5 质量门控] 理论分析质量优秀")
+
+            # === 阶段 3: 综合分析和搜索规划 ===
+            logger.info(" [综合阶段] 生成搜索执行计划")
+            synthesis_result = await self.llm_analysis_engine.execute_synthesis(query, l0_result, framework_result)
+
+            if not synthesis_result:
+                logger.error(" [综合阶段] 搜索规划失败")
+                return None
+
+            analysis_session.synthesis_result = synthesis_result
+
+            # 综合质量门控
+            synthesis_quality_gate = QualityGate(threshold=0.75)
+
+            if not synthesis_quality_gate.check_phase_quality(AnalysisPhase.SYNTHESIS, synthesis_result):
+                logger.warning("️ [综合质量门控] 搜索计划完整性不足")
+            else:
+                logger.info(" [综合质量门控] 搜索计划质量优秀")
+
+            # 计算总体分析质量
+            total_time = time.time() - start_time
+            analysis_session.total_execution_time = total_time
+            analysis_session.overall_quality = (
+                l0_result.quality_score * 0.3
+                + framework_result.quality_score * 0.4
+                + synthesis_result.quality_score * 0.3
+            )
+
+            logger.info(
+                f" [结构化分析完成] "
+                f"总耗时: {total_time:.1f}s | "
+                f"总体质量: {analysis_session.overall_quality:.1%} | "
+                f"生成任务: {len(synthesis_result.search_master_line.search_tasks) if synthesis_result.search_master_line else 0}个"
+            )
+
+            # 保存分析会话
+            self.analysis_session = analysis_session
+            return analysis_session
+
+        except Exception as e:
+            logger.error(f" [结构化分析] 执行失败: {e}")
+            return None
+
+    async def enhanced_quality_assessment(
+        self, search_results: List[Dict[str, Any]], query_context: str, phase: str = "search"
+    ) -> Dict[str, Any]:
+        """
+        增强的多层次质量评估 - v7.214
+
+        评估层次：
+        1. 规则基础：基本筛选（重复、长度、格式）
+        2. 语义相关性：内容与查询的相关度
+        3. 上下文一致性：与已有信息的整合度
+        4. LLM 深度评估：专业性和可信度
+        """
+        logger.info(f" [质量评估 v7.214] 开始 {len(search_results)} 条结果的多层评估")
+
+        if not search_results:
+            return {
+                "filtered_results": [],
+                "quality_metrics": {"total_score": 0.0, "layer_scores": {}},
+                "assessment_summary": "无搜索结果",
+            }
+
+        assessment_start = time.time()
+
+        # === 第一层：规则基础筛选 ===
+        rule_filtered = []
+        for result in search_results:
+            content = result.get("content", "")
+            title = result.get("title", "")
+
+            # 基本质量检查
+            if (
+                len(content.strip()) >= 50
+                and len(title.strip()) >= 5  # 最小内容长度
+                and not self._is_duplicate_content(content, [r["content"] for r in rule_filtered])  # 最小标题长度
+            ):
+                result["rule_score"] = self._calculate_rule_score(result)
+                rule_filtered.append(result)
+
+        logger.info(f" [规则筛选] {len(search_results)} → {len(rule_filtered)} 条")
+
+        if not rule_filtered:
+            return {
+                "filtered_results": [],
+                "quality_metrics": {"total_score": 0.0, "layer_scores": {"rule": 0.0}},
+                "assessment_summary": "规则筛选后无结果",
+            }
+
+        # === 第二层：语义相关性评估 ===
+        semantic_scores = []
+        for result in rule_filtered:
+            semantic_score = await self._assess_semantic_relevance(result["content"], query_context)
+            result["semantic_score"] = semantic_score
+            semantic_scores.append(semantic_score)
+
+        # v7.235: 降低阈值并添加保底逻辑
+        SEMANTIC_THRESHOLD = 0.3  # 从 0.5 降低到 0.3
+        semantic_filtered = [r for r in rule_filtered if r.get("semantic_score", 0) > SEMANTIC_THRESHOLD]
+
+        # 保底逻辑：如果过滤后为空但规则筛选有结果，保留前5条
+        if len(semantic_filtered) == 0 and len(rule_filtered) > 0:
+            logger.warning("️ [v7.235] 语义筛选过于严格，保留规则筛选前5条")
+            semantic_filtered = rule_filtered[:5]
+
+        logger.info(f" [语义筛选] {len(rule_filtered)} → {len(semantic_filtered)} 条")
+
+        # === 第三层：上下文一致性评估 ===
+        if self.analysis_session and semantic_filtered:
+            context_scores = []
+            session_context = {
+                "user_profile": self.analysis_session.l0_result.user_profile.to_dict()
+                if self.analysis_session.l0_result
+                else {},
+                "implicit_needs": self.analysis_session.l0_result.implicit_needs
+                if self.analysis_session.l0_result
+                else [],
+                "core_tensions": self.analysis_session.framework_result.l3_tensions
+                if self.analysis_session.framework_result
+                else "",
+            }
+
+            for result in semantic_filtered:
+                context_score = await self._assess_context_consistency(result["content"], session_context)
+                result["context_score"] = context_score
+                context_scores.append(context_score)
+
+            # 保留上下文一致性 > 0.4 的结果
+            context_filtered = [r for r in semantic_filtered if r.get("context_score", 0) > 0.4]
+            logger.info(f" [上下文筛选] {len(semantic_filtered)} → {len(context_filtered)} 条")
+        else:
+            context_filtered = semantic_filtered
+            logger.info("ℹ️ [上下文筛选] 无分析会话，跳过上下文评估")
+
+        # === 第四层：LLM 深度质量评估 ===
+        if context_filtered:
+            llm_assessments = await self._llm_quality_assessment(context_filtered, query_context, phase)
+
+            # 整合 LLM 评估结果
+            for i, result in enumerate(context_filtered):
+                if i < len(llm_assessments):
+                    result.update(llm_assessments[i])
+
+            # 按综合质量评分排序
+            final_filtered = sorted(context_filtered, key=lambda x: x.get("total_quality_score", 0), reverse=True)
+        else:
+            final_filtered = context_filtered
+
+        # 计算质量指标
+        assessment_time = time.time() - assessment_start
+        quality_metrics = {
+            "total_score": sum(r.get("total_quality_score", 0) for r in final_filtered) / max(len(final_filtered), 1),
+            "layer_scores": {
+                "rule": sum(r.get("rule_score", 0) for r in rule_filtered) / max(len(rule_filtered), 1),
+                "semantic": sum(r.get("semantic_score", 0) for r in semantic_filtered) / max(len(semantic_filtered), 1),
+                "context": sum(r.get("context_score", 0) for r in context_filtered) / max(len(context_filtered), 1),
+                "llm": sum(r.get("llm_quality_score", 0) for r in final_filtered) / max(len(final_filtered), 1),
+            },
+            "assessment_time": assessment_time,
+            "filtering_ratio": len(final_filtered) / len(search_results),
+        }
+
+        assessment_summary = (
+            f"四层筛选: {len(search_results)}→{len(rule_filtered)}→"
+            f"{len(semantic_filtered)}→{len(context_filtered)}→{len(final_filtered)} | "
+            f"总质量: {quality_metrics['total_score']:.1%} | "
+            f"耗时: {assessment_time:.1f}s"
+        )
+
+        logger.info(f" [质量评估完成] {assessment_summary}")
+
+        return {
+            "filtered_results": final_filtered[:10],  # 限制返回数量
+            "quality_metrics": quality_metrics,
+            "assessment_summary": assessment_summary,
+        }
+
+    def _is_duplicate_content(self, content: str, existing_contents: List[str]) -> bool:
+        """检查内容重复性"""
+        if not existing_contents:
+            return False
+
+        content_words = set(content.lower().split())
+        for existing in existing_contents:
+            existing_words = set(existing.lower().split())
+            if content_words and existing_words:
+                similarity = len(content_words & existing_words) / len(content_words | existing_words)
+                if similarity > 0.8:  # 80% 相似度阈值
+                    return True
+        return False
+
+    def _calculate_rule_score(self, result: Dict[str, Any]) -> float:
+        """计算规则基础评分"""
+        score = 0.0
+
+        content = result.get("content", "")
+        title = result.get("title", "")
+
+        # 内容长度评分 (0-0.3)
+        content_length = len(content)
+        if content_length > 1000:
+            score += 0.3
+        elif content_length > 500:
+            score += 0.2
+        elif content_length > 200:
+            score += 0.1
+
+        # 标题质量评分 (0-0.2)
+        if len(title) > 20:
+            score += 0.2
+        elif len(title) > 10:
+            score += 0.1
+
+        # 来源可信度 (0-0.3)
+        url = result.get("url", "")
+        if any(domain in url for domain in [".edu", ".gov", ".org"]):
+            score += 0.3
+        elif any(domain in url for domain in ["wikipedia", "arxiv", "scholar"]):
+            score += 0.25
+        else:
+            score += 0.1
+
+        # 时效性 (0-0.2)
+        publish_time = result.get("publish_time", "")
+        if publish_time and "2024" in publish_time or "2025" in publish_time:
+            score += 0.2
+        elif publish_time and any(year in publish_time for year in ["2022", "2023"]):
+            score += 0.1
+
+        return min(score, 1.0)
+
+    async def _assess_semantic_relevance(self, content: str, query_context: str) -> float:
+        """语义相关性评估 - v7.235 增强版"""
+        try:
+            # v7.235: 验证查询有效性
+            if not query_context or len(query_context.strip()) < 2:
+                logger.debug("️ [语义评估] 查询无效，返回默认分数 0.5")
+                return 0.5  # 提高默认分数，避免过滤有效内容
+
+            content_lower = content.lower()
+            query_lower = query_context.lower().strip()
+
+            # 移除纯空格和标点
+            query_keywords = set(w for w in query_lower.split() if len(w) > 1)
+            content_keywords = set(w for w in content_lower.split() if len(w) > 1)
+
+            if not query_keywords:
+                logger.debug("️ [语义评估] 无有效关键词，返回默认分数 0.5")
+                return 0.5
+
+            # 关键词重叠度
+            if query_keywords and content_keywords:
+                keyword_overlap = len(query_keywords & content_keywords) / len(query_keywords | content_keywords)
+                return min(keyword_overlap * 2, 1.0)  # 放大相关性
+
+            return 0.3  # 默认基础相关性
+        except Exception as e:
+            logger.warning(f"️ [语义评估] 异常: {e}")
+            return 0.3
+
+    async def _assess_context_consistency(self, content: str, session_context: Dict[str, Any]) -> float:
+        """上下文一致性评估"""
+        try:
+            score = 0.0
+            content_lower = content.lower()
+
+            # 与用户画像的一致性
+            user_profile = session_context.get("user_profile", {})
+            demographics = user_profile.get("demographics", {})
+
+            if demographics.get("location"):
+                location = demographics["location"].lower()
+                if location in content_lower:
+                    score += 0.3
+
+            # 与隐性需求的匹配度
+            implicit_needs = session_context.get("implicit_needs", [])
+            for need in implicit_needs:
+                if need.lower() in content_lower:
+                    score += 0.1
+
+            # 与核心张力的相关性
+            tensions = session_context.get("core_tensions", "")
+            if tensions and any(word.lower() in content_lower for word in tensions.split()):
+                score += 0.2
+
+            return min(score, 1.0)
+        except Exception:
+            return 0.5  # 默认中等一致性
+
+    async def _llm_quality_assessment(
+        self, results: List[Dict[str, Any]], query_context: str, phase: str
+    ) -> List[Dict[str, Any]]:
+        """LLM 深度质量评估"""
+        try:
+            # 构建评估 prompt
+            results_summary = []
+            for i, result in enumerate(results[:5]):  # 限制评估数量
+                results_summary.append(
+                    {
+                        "index": i,
+                        "title": result.get("title", "")[:100],
+                        "content": result.get("content", "")[:300],
+                        "url": result.get("url", ""),
+                    }
+                )
+
+            prompt = f"""作为信息质量评估专家，请评估以下搜索结果的质量。
+
+查询上下文：{query_context}
+搜索阶段：{phase}
+
+搜索结果：
+{json.dumps(results_summary, ensure_ascii=False, indent=2)}
+
+请对每个结果评估以下维度（0-1分）：
+1. 专业性：内容的专业程度和权威性
+2. 可信度：信息来源的可靠性
+3. 实用性：对回答查询的帮助程度
+4. 完整性：信息的全面性
+
+输出 JSON 格式：
+```json
+[
+    {{
+        "index": 0,
+        "professional_score": 0.8,
+        "credibility_score": 0.9,
+        "utility_score": 0.7,
+        "completeness_score": 0.8,
+        "llm_quality_score": 0.8,
+        "quality_explanation": "评估理由"
+    }}
+]
+```"""
+
+            # 调用 LLM 评估模型
+            response = await self.llm_analysis_engine._llm_call(
+                prompt, self.llm_analysis_engine.eval_model, max_tokens=2000
+            )
+
+            if response:
+                # 解析评估结果
+                assessments = self._safe_parse_json(response, "LLM质量评估")
+                if assessments and isinstance(assessments, list):
+                    # 计算总体质量评分
+                    for assessment in assessments:
+                        if isinstance(assessment, dict):
+                            professional = assessment.get("professional_score", 0.5)
+                            credibility = assessment.get("credibility_score", 0.5)
+                            utility = assessment.get("utility_score", 0.5)
+                            completeness = assessment.get("completeness_score", 0.5)
+
+                            total_quality = professional * 0.3 + credibility * 0.3 + utility * 0.3 + completeness * 0.1
+                            assessment["total_quality_score"] = total_quality
+
+                    return assessments
+
+            # 降级处理：返回默认评分
+            return [
+                {
+                    "index": i,
+                    "llm_quality_score": 0.6,
+                    "total_quality_score": 0.6,
+                    "quality_explanation": "LLM评估失败，使用默认评分",
+                }
+                for i in range(len(results))
+            ]
+
+        except Exception as e:
+            logger.error(f" [LLM质量评估] 执行失败: {e}")
+            # 返回默认评分
+            return [
+                {
+                    "index": i,
+                    "llm_quality_score": 0.5,
+                    "total_quality_score": 0.5,
+                    "quality_explanation": f"评估异常: {str(e)}",
+                }
+                for i in range(len(results))
+            ]
+
+    def _try_extract_mission_from_partial_json(self, partial_json: str, mission_key: str) -> Optional[Any]:
+        """
+        v7.302.8: 从部分JSON中尝试提取指定使命的数据
+
+        用于流式解析：在LLM生成JSON的过程中，尝试提取已完成的部分
+
+        Args:
+            partial_json: 部分生成的JSON字符串
+            mission_key: 要提取的使命键名 (如 "mission_1_user_problem_analysis")
+
+        Returns:
+            提取到的使命数据，失败返回 None
+        """
+        import re
+
+        # 特殊处理 creation_command（简单字符串值）
+        if mission_key == "creation_command":
+            # 匹配 "creation_command": "..." 格式
+            pattern = r'"creation_command"\s*:\s*"([^"]*)"'
+            match = re.search(pattern, partial_json)
+            if match:
+                return match.group(1)
+            return None
+
+        # 对于使命对象，检查是否包含完整的使命数据
+        # 使命格式: "mission_x_xxx": { "title": "...", "description": "...", "content": {...} }
+
+        # 首先检查是否存在该键
+        if f'"{mission_key}"' not in partial_json:
+            return None
+
+        # 尝试提取完整的使命对象
+        # 使用计数器匹配嵌套的花括号
+        try:
+            # 找到使命键的位置
+            key_pattern = f'"{mission_key}"\\s*:\\s*\\{{'
+            match = re.search(key_pattern, partial_json)
+            if not match:
+                return None
+
+            start_pos = match.end() - 1  # 定位到 { 的位置
+
+            # 计数花括号来找到完整对象
+            brace_count = 0
+            end_pos = start_pos
+            in_string = False
+            escape_next = False
+
+            for i, char in enumerate(partial_json[start_pos:], start_pos):
+                if escape_next:
+                    escape_next = False
+                    continue
+                if char == "\\":
+                    escape_next = True
+                    continue
+                if char == '"' and not escape_next:
+                    in_string = not in_string
+                    continue
+                if in_string:
+                    continue
+                if char == "{":
+                    brace_count += 1
+                elif char == "}":
+                    brace_count -= 1
+                    if brace_count == 0:
+                        end_pos = i + 1
+                        break
+
+            if brace_count != 0:
+                # 对象不完整
+                return None
+
+            # 提取并解析对象
+            mission_str = partial_json[start_pos:end_pos]
+            mission_data = json.loads(mission_str)
+
+            # 验证使命数据结构是否完整
+            if isinstance(mission_data, dict) and "content" in mission_data:
+                return mission_data
+
+            return None
+
+        except (json.JSONDecodeError, Exception):
+            return None
+
+    def _safe_parse_json(self, text: str, context: str = "", expect_dict: bool = True) -> Optional[Dict[str, Any]]:
+        """
+        安全的 JSON 解析，支持多种格式 (v7.214 增强)
+
+        解析策略（按优先级）：
+        1. 直接解析：尝试将整个文本作为 JSON 解析
+        2. ```json``` 块：提取 Markdown JSON 代码块
+        3. ``` 块：提取通用代码块
+        4. 正则提取：提取最外层的 {} 或 []
+        5. 清理后重试：移除注释、Unicode 转义等
+
+        v7.214 增强：
+        - 新增 expect_dict 参数，当期望字典时不返回数组
+        - 如果返回数组但期望字典，尝试提取数组中的第一个字典元素
+
+        Args:
+            text: 待解析的文本
+            context: 上下文描述（用于日志）
+            expect_dict: 是否期望返回字典类型（默认 True）
+
+        Returns:
+            解析后的字典，失败返回 None
+        """
+        if not text or not text.strip():
+            logger.warning(f"️ [JSON解析] 空文本 | context={context}")
+            return None
+
+        text = text.strip()
+
+        def _ensure_dict(result: Any) -> Optional[Dict[str, Any]]:
+            """确保返回字典类型 (v7.214)"""
+            if result is None:
+                return None
+            if isinstance(result, dict):
+                return result
+            if expect_dict and isinstance(result, list):
+                # 如果期望字典但得到数组，尝试提取第一个字典元素
+                logger.warning(f"️ [JSON解析] 期望字典但得到数组 | context={context} | len={len(result)}")
+                for item in result:
+                    if isinstance(item, dict):
+                        logger.info(" [JSON解析] 从数组中提取第一个字典元素")
+                        return item
+                return None
+            return None
+
+        # 策略1: 直接解析
+        try:
+            result = json.loads(text)
+            final = _ensure_dict(result)
+            if final is not None:
+                return final
+        except json.JSONDecodeError:
+            pass
+
+        # 策略2: 提取 ```json``` 块
+        if "```json" in text:
+            try:
+                json_block = text.split("```json")[1].split("```")[0].strip()
+                result = json.loads(json_block)
+                final = _ensure_dict(result)
+                if final is not None:
+                    return final
+            except (IndexError, json.JSONDecodeError):
+                pass
+
+        # 策略3: 提取 ``` 块
+        if "```" in text:
+            try:
+                json_block = text.split("```")[1].split("```")[0].strip()
+                # 检查是否以 json 开头（去掉语言标记）
+                if json_block.startswith("json"):
+                    json_block = json_block[4:].strip()
+                result = json.loads(json_block)
+                final = _ensure_dict(result)
+                if final is not None:
+                    return final
+            except (IndexError, json.JSONDecodeError):
+                pass
+
+        # 策略4: 正则提取最外层 {} 或 []
+        try:
+            # 优先匹配最外层的 JSON 对象（字典）
+            obj_match = re.search(r"\{(?:[^{}]|(?:\{[^{}]*\}))*\}", text, re.DOTALL)
+            if obj_match:
+                result = json.loads(obj_match.group())
+                if isinstance(result, dict):
+                    return result
+
+            # 如果没有字典或不期望字典，尝试匹配数组
+            if not expect_dict:
+                arr_match = re.search(r"\[(?:[^\[\]]|(?:\[[^\[\]]*\]))*\]", text, re.DOTALL)
+                if arr_match:
+                    return json.loads(arr_match.group())
+        except json.JSONDecodeError:
+            pass
+
+        # 策略5: 清理后重试
+        try:
+            # 移除可能的 BOM 和控制字符
+            cleaned = text.encode("utf-8", errors="ignore").decode("utf-8")
+            # 移除单行注释
+            cleaned = re.sub(r"//.*?$", "", cleaned, flags=re.MULTILINE)
+            # 移除多行注释
+            cleaned = re.sub(r"/\*.*?\*/", "", cleaned, flags=re.DOTALL)
+            # 提取 JSON
+            obj_match = re.search(r"\{(?:[^{}]|(?:\{[^{}]*\}))*\}", cleaned, re.DOTALL)
+            if obj_match:
+                result = json.loads(obj_match.group())
+                if isinstance(result, dict):
+                    return result
+        except (json.JSONDecodeError, Exception):
+            pass
+
+        #  [Bug修复] 所有策略失败时，针对不同上下文使用合适的日志级别
+        # 查询扩展等有降级机制的场景使用debug级别，避免误报警告
+        if context in ["查询扩展", "统一思考流", "语义变体生成", "查询增强"]:
+            logger.debug(f"ℹ️ [JSON解析] 解析失败但有降级策略 | context={context} | text[:200]={text[:200]}...")
+        else:
+            logger.warning(f"️ [JSON解析] 所有策略失败 | context={context} | text[:200]={text[:200]}...")
+
+        # v7.233: 针对特定上下文提供降级默认值，避免下游代码崩溃
+        if context == "查询扩展":
+            # 查询扩展失败时，返回空扩展列表（让下游使用原始查询）
+            logger.info("ℹ️ [JSON解析] 查询扩展降级：返回空 expansions")
+            return {"expansions": []}
+        elif context == "统一思考流":
+            # 统一思考流失败时，返回最小必要结构
+            logger.info("ℹ️ [JSON解析] 统一思考流降级：返回最小结构")
+            return {
+                "current_round_planning": {"thinking": "解析失败，使用默认策略", "strategy": "继续搜索相关信息", "search_query": ""},
+                "global_alignment": {"alignment_score": 0.5, "remaining_gaps": []},
+            }
+
+        return None
+
+    # ==================== v7.199: 查询去重 ====================
+
+    def _calculate_query_similarity(self, query1: str, query2: str) -> float:
+        """
+        计算两个查询的相似度（简单的字符级Jaccard相似度）
+
+        Args:
+            query1: 查询1
+            query2: 查询2
+
+        Returns:
+            相似度 0-1
+        """
+        # 分词（简单按空格和标点分割）
+        import re
+
+        def tokenize(text: str) -> set:
+            # 移除标点，按空格分词
+            text = re.sub(r"[^\w\s]", " ", text)
+            return set(text.lower().split())
+
+        tokens1 = tokenize(query1)
+        tokens2 = tokenize(query2)
+
+        if not tokens1 or not tokens2:
+            return 0.0
+
+        intersection = tokens1 & tokens2
+        union = tokens1 | tokens2
+
+        return len(intersection) / len(union) if union else 0.0
+
+    def _is_duplicate_query(self, query: str) -> Tuple[bool, Optional[str]]:
+        """
+        检查查询是否与已使用的查询重复
+
+        Args:
+            query: 待检查的查询
+
+        Returns:
+            (is_duplicate, similar_query) - 是否重复及相似的查询
+        """
+        for used_query in self._used_queries:
+            similarity = self._calculate_query_similarity(query, used_query)
+            if similarity >= self._query_similarity_threshold:
+                return True, used_query
+        return False, None
+
+    def _diversify_query(self, query: str, target_aspect: str, round_number: int) -> str:
+        """
+        多样化查询 - 当检测到重复时生成不同的查询
+
+        Args:
+            query: 原始查询
+            target_aspect: 目标信息面
+            round_number: 当前轮次
+
+        Returns:
+            多样化后的查询
+        """
+        # 策略1: 添加不同的修饰词
+        modifiers = ["最新", "详细", "专业", "深度", "案例", "分析", "研究", "报告", "趋势", "实践"]
+        modifier = modifiers[round_number % len(modifiers)]
+
+        # 策略2: 重组查询结构
+        # 提取核心关键词（前20字）
+        core = query[:20].strip() if len(query) > 20 else query
+
+        diversified = f"{modifier} {target_aspect} {core}"
+        logger.info(f" [Ucppt v7.199] 查询多样化: {query[:30]}... → {diversified[:30]}...")
+
+        return diversified
+
+    def _record_query(self, query: str) -> None:
+        """记录已使用的查询"""
+        self._used_queries.append(query)
+        # 保留最近20个查询
+        if len(self._used_queries) > 20:
+            self._used_queries = self._used_queries[-20:]
+
+    def _validate_search_query(self, query: str, context: str = "") -> bool:
+        """
+        验证搜索查询是否有效 - v7.235
+
+        Args:
+            query: 待验证的查询
+            context: 上下文信息（用于日志）
+
+        Returns:
+            True if valid, False otherwise
+        """
+        if not query:
+            logger.warning(f"️ [Query Validation] 空查询被拒绝 | context={context}")
+            return False
+
+        query_stripped = query.strip()
+
+        if not query_stripped:
+            logger.warning(f"️ [Query Validation] 纯空格查询被拒绝 | context={context}")
+            return False
+
+        if len(query_stripped) < 2:
+            logger.warning(f"️ [Query Validation] 查询过短: '{query_stripped}' | context={context}")
+            return False
+
+        # 检查是否只包含标点符号
+        import re
+
+        if re.match(r"^[\s\W]+$", query_stripped):
+            logger.warning(f"️ [Query Validation] 查询仅包含标点: '{query_stripped}' | context={context}")
+            return False
+
+        return True
+
+    def _get_search_query_with_preset(self, target: SearchTarget, llm_query: str) -> str:
+        """
+        获取搜索查询，优先使用预设关键词 - v7.232
+
+        策略：
+        1. 如果有未使用的预设关键词，优先使用
+        2. 如果 LLM 生成的查询与预设关键词相似度高，使用预设关键词
+        3. 如果 LLM 生成的查询足够具体（包含具体名词），可以使用
+        4. 否则回退到预设关键词
+
+        Args:
+            target: 搜索目标
+            llm_query: LLM 生成的查询
+
+        Returns:
+            最终使用的搜索查询
+        """
+        # 获取下一个预设关键词
+        preset_keyword = target.get_next_preset_keyword()
+
+        if not preset_keyword:
+            # v7.235: 没有预设关键词，验证 LLM 生成的查询
+            if not llm_query or len(llm_query.strip()) < 5:
+                # LLM 查询也无效，使用目标名称或默认查询
+                if target and hasattr(target, "name"):
+                    fallback = target.question or target.name or target.search_for or f"目标{target.id}"
+                else:
+                    fallback = "设计研究案例"
+                logger.warning(f"️ [v7.235] 无预设关键词且LLM失败，使用降级查询: {fallback}")
+                return fallback
+            logger.info(f" [v7.232] 无预设关键词，使用 LLM 生成: {llm_query[:40]}...")
+            return llm_query
+
+        if not llm_query or len(llm_query.strip()) < 5:
+            # LLM 没有生成有效查询，使用预设
+            logger.info(f" [v7.232] LLM 查询无效，使用预设关键词: {preset_keyword[:40]}...")
+            return preset_keyword
+
+        # 检查 LLM 查询的质量
+        # 质量标准：长度 >= 15，包含具体名词（非泛化词）
+        vague_words = ["设计理念", "美学特点", "风格特点", "设计风格", "核心理念", "设计思想", "基本概念"]
+        is_vague = any(vw in llm_query for vw in vague_words) and len(llm_query) < 25
+
+        if is_vague:
+            logger.info(f" [v7.232] LLM 查询过于宏观，使用预设关键词: {preset_keyword[:40]}...")
+            return preset_keyword
+
+        # LLM 查询看起来足够具体，但仍然优先使用预设关键词（除非 LLM 查询明显更好）
+        # 判断标准：LLM 查询长度 > 预设关键词长度 * 1.2，且包含预设关键词的核心词
+        preset_core_words = set(preset_keyword.split()[:3])  # 取前3个词作为核心词
+        llm_has_core = any(word in llm_query for word in preset_core_words if len(word) > 2)
+
+        if len(llm_query) > len(preset_keyword) * 1.2 and llm_has_core:
+            logger.info(f" [v7.232] LLM 查询更具体，使用: {llm_query[:40]}...")
+            return llm_query
+
+        # 默认使用预设关键词
+        logger.info(f" [v7.232] 使用预设关键词: {preset_keyword[:40]}...")
+        return preset_keyword
+
+    # ==================== v7.500: 逐目标自主搜索系统 ====================
+
+    # 搜索策略列表（按优先级排序）
+    SEARCH_STRATEGIES = [
+        "preset_keyword",    # 使用预设关键词（复用已有 get_next_preset_keyword）
+        "original_direct",   # 直接用目标问题搜索
+        "broaden_scope",     # 扩大范围：加行业/领域上下文词
+        "synonym_rephrase",  # LLM改写：同义词、不同表述
+        "angle_change",      # 换视角：用户角度→专家角度→对比角度
+        "source_type",       # 限定来源：加"论文"/"案例"/"报告"/"数据"
+        "decompose",         # 分解子问题：拆成2-3个小问题分别搜
+    ]
+
+    # 已知低质量域名
+    LOW_QUALITY_DOMAINS = [
+        "baike.baidu.com", "zhidao.baidu.com", "wenku.baidu.com",
+        "so.com", "sogou.com", "baijiahao.baidu.com",
+    ]
+
+    # 已知高质量域名
+    HIGH_QUALITY_DOMAINS = [
+        ".gov.cn", ".edu.cn", ".ac.cn", ".org",
+        "arxiv.org", "scholar.google", "nature.com", "science.org",
+        "ieee.org", "acm.org", "springer.com",
+        "mckinsey.com", "bcg.com", "bain.com", "deloitte.com",
+        "statista.com", "idc.com", "gartner.com",
+    ]
+
+    async def _generate_strategy_query(
+        self,
+        target: SearchTarget,
+        strategy: str,
+        framework: SearchFramework,
+    ) -> str:
+        """
+        根据策略生成搜索词 - v7.500
+
+        规则策略（preset_keyword/original_direct/source_type）不调LLM。
+        LLM策略（broaden_scope/synonym_rephrase/angle_change/decompose）调LLM生成。
+
+        Args:
+            target: 搜索目标
+            strategy: 当前策略名称
+            framework: 搜索框架（提供上下文）
+
+        Returns:
+            生成的搜索词
+        """
+        target_desc = target.question or target.name or target.search_for or f"目标{target.id}"
+
+        if strategy == "preset_keyword":
+            # 使用预设关键词
+            keyword = target.get_next_preset_keyword()
+            if keyword:
+                target.current_keyword_index += 1
+                logger.info(f" [v7.500] 策略preset_keyword: {keyword[:40]}...")
+                return keyword
+            # 预设关键词用完，降级到 original_direct
+            strategy = "original_direct"
+
+        if strategy == "original_direct":
+            query = target_desc
+            logger.info(f" [v7.500] 策略original_direct: {query[:40]}...")
+            return query
+
+        if strategy == "source_type":
+            # 在目标描述后加来源类型限定
+            source_types = ["研究报告", "案例分析", "学术论文", "行业数据", "专家观点", "白皮书"]
+            # 根据已尝试次数选择不同来源类型
+            type_idx = len([s for s in target.tried_strategies if s == "source_type"]) % len(source_types)
+            query = f"{target_desc} {source_types[type_idx]}"
+            logger.info(f" [v7.500] 策略source_type: {query[:40]}...")
+            return query
+
+        # LLM策略：broaden_scope / synonym_rephrase / angle_change / decompose
+        tried_queries_str = "\n".join(f"- {q}" for q in target.tried_queries[-5:]) if target.tried_queries else "（无）"
+        existing_findings_str = "\n".join(f"- {f}" for f in target.valuable_findings[-5:]) if target.valuable_findings else "（无）"
+
+        strategy_instructions = {
+            "broaden_scope": "请扩大搜索范围，加入相关的行业背景、上下游领域、或更宏观的视角。生成一个更宽泛但仍相关的搜索词。",
+            "synonym_rephrase": "请用完全不同的表述方式重新描述搜索需求，使用同义词、近义词或不同的专业术语。",
+            "angle_change": "请从完全不同的角度来搜索这个问题。比如：从用户角度换到供应商角度，从技术角度换到商业角度，从国内换到国际视角。",
+            "decompose": "请把这个搜索目标分解成一个更具体、更小的子问题来搜索。聚焦于目前最缺乏信息的某个具体方面。",
+        }
+
+        prompt = f"""你是搜索策略专家。请根据以下信息生成一个新的搜索词。
+
+搜索目标：{target_desc}
+搜索目的：{target.why_need or target.purpose or "获取相关信息"}
+原始问题：{framework.original_query[:100]}
+
+已尝试过的搜索词（避免重复）：
+{tried_queries_str}
+
+已有的发现（避免重复搜索已知信息）：
+{existing_findings_str}
+
+策略要求：{strategy_instructions.get(strategy, "生成一个有效的搜索词")}
+
+请直接输出一个搜索词（15-40字），不要解释。"""
+
+        try:
+            query = await self._call_llm(prompt, model=self.eval_model, max_tokens=100)
+            query = query.strip().strip('"').strip("'").strip()
+            # 验证生成的查询
+            if not self._validate_search_query(query, context=f"strategy_{strategy}"):
+                query = target_desc  # 降级
+            logger.info(f" [v7.500] 策略{strategy}(LLM): {query[:40]}...")
+            return query
+        except Exception as e:
+            logger.warning(f"️ [v7.500] LLM策略生成失败({strategy}): {e}，降级到目标描述")
+            return target_desc
+
+    def _rule_based_quality_check(
+        self,
+        target: SearchTarget,
+        sources: List[Dict[str, Any]],
+    ) -> Tuple[str, float]:
+        """
+        规则快筛：判断搜索结果质量 - v7.500
+
+        Returns:
+            ("pass"/"fail"/"borderline", rough_score)
+            - pass: 直接保留，跳过LLM
+            - fail: 直接丢弃
+            - borderline: 交给LLM精评
+        """
+        if not sources:
+            return ("fail", 0.0)
+
+        target_keywords = set()
+        for text in [target.question, target.name, target.search_for, target.description]:
+            if text:
+                # 简单分词：按空格和标点分割，过滤短词
+                import re
+                words = re.split(r"[\s,，。、；;：:！!？?\-/\\]+", text)
+                target_keywords.update(w for w in words if len(w) >= 2)
+
+        if not target_keywords:
+            return ("borderline", 0.5)
+
+        # 统计各维度
+        title_match_count = 0
+        high_quality_count = 0
+        low_quality_count = 0
+        has_data = False
+
+        for source in sources:
+            title = source.get("title", "") or ""
+            url = source.get("url", "") or ""
+            snippet = source.get("snippet", "") or source.get("summary", "") or ""
+
+            # 标题关键词匹配
+            matched = sum(1 for kw in target_keywords if kw in title)
+            if matched >= 1:
+                title_match_count += 1
+
+            # 域名质量
+            url_lower = url.lower()
+            if any(d in url_lower for d in self.LOW_QUALITY_DOMAINS):
+                low_quality_count += 1
+            if any(d in url_lower for d in self.HIGH_QUALITY_DOMAINS):
+                high_quality_count += 1
+
+            # 是否包含具体数据（数字+单位）
+            import re
+            if re.search(r"\d+[\.\d]*\s*[%万亿美元人民币元份个条项]", snippet):
+                has_data = True
+
+        total = len(sources)
+
+        # fail 条件
+        if title_match_count == 0 and not has_data:
+            return ("fail", 0.1)
+        if low_quality_count == total:
+            return ("fail", 0.15)
+
+        # pass 条件
+        if title_match_count >= 3 and (high_quality_count >= 1 or has_data):
+            return ("pass", 0.85)
+        if high_quality_count >= 2:
+            return ("pass", 0.8)
+
+        # borderline
+        rough_score = min(0.7, 0.3 + (title_match_count / max(total, 1)) * 0.3 + (0.1 if has_data else 0))
+        return ("borderline", rough_score)
+
+    async def _llm_quality_evaluate(
+        self,
+        target: SearchTarget,
+        query: str,
+        sources: List[Dict[str, Any]],
+    ) -> Dict[str, Any]:
+        """
+        LLM精评：评估搜索结果的质量和价值 - v7.500
+
+        仅对规则快筛为 borderline 的结果调用。
+
+        Returns:
+            {
+                "score": float (0-1),
+                "is_valuable": bool,
+                "key_findings": List[str],
+                "discard_reason": str,
+            }
+        """
+        target_desc = target.question or target.name or target.search_for or f"目标{target.id}"
+        existing_findings = target.valuable_findings[-5:] if target.valuable_findings else []
+
+        # 构建来源摘要
+        sources_summary = []
+        for i, s in enumerate(sources[:8]):
+            title = s.get("title", "无标题")
+            snippet = (s.get("snippet", "") or s.get("summary", ""))[:200]
+            sources_summary.append(f"{i+1}. [{title}] {snippet}")
+        sources_text = "\n".join(sources_summary)
+
+        existing_text = "\n".join(f"- {f}" for f in existing_findings) if existing_findings else "（暂无）"
+
+        prompt = f"""请评估以下搜索结果对回答目标问题的价值。
+
+搜索目标：{target_desc}
+搜索词：{query}
+已有发现：
+{existing_text}
+
+本轮搜索结果：
+{sources_text}
+
+请用JSON格式回答（不要其他内容）：
+{{
+    "relevance": 0.0-1.0,  // 与目标问题的相关性
+    "novelty": 0.0-1.0,    // 相比已有发现的新增价值
+    "reliability": 0.0-1.0, // 信息可靠性
+    "key_findings": ["发现1", "发现2"],  // 提取的关键发现（如果有价值）
+    "reason": "简要说明"
+}}"""
+
+        try:
+            response = await self._call_llm(prompt, model=self.eval_model, max_tokens=500)
+            # 解析JSON
+            import json
+            # 尝试提取JSON
+            response = response.strip()
+            if response.startswith("```"):
+                response = response.split("```")[1]
+                if response.startswith("json"):
+                    response = response[4:]
+                response = response.strip()
+
+            result = json.loads(response)
+            relevance = float(result.get("relevance", 0.5))
+            novelty = float(result.get("novelty", 0.5))
+            reliability = float(result.get("reliability", 0.5))
+            score = relevance * 0.4 + novelty * 0.35 + reliability * 0.25
+            key_findings = result.get("key_findings", [])
+
+            return {
+                "score": score,
+                "is_valuable": score >= 0.5,
+                "key_findings": key_findings if score >= 0.5 else [],
+                "discard_reason": result.get("reason", "") if score < 0.5 else "",
+            }
+        except Exception as e:
+            logger.warning(f"️ [v7.500] LLM质量评估失败: {e}，默认保留")
+            return {
+                "score": 0.5,
+                "is_valuable": True,
+                "key_findings": [],
+                "discard_reason": "",
+            }
+
+    async def _evaluate_round_quality_hybrid(
+        self,
+        target: SearchTarget,
+        query: str,
+        sources: List[Dict[str, Any]],
+        strategy: str,
+    ) -> Dict[str, Any]:
+        """
+        混合质量评估：规则快筛 + LLM精评 - v7.500
+
+        第一层：规则快筛（毫秒级，不调LLM）
+        第二层：LLM精评（仅对borderline调用）
+
+        Returns:
+            {
+                "score": float (0-1),
+                "is_valuable": bool,
+                "key_findings": List[str],
+                "discard_reason": str,
+                "evaluation_method": str,  # "rule_pass"/"rule_fail"/"llm"
+            }
+        """
+        # 第一层：规则快筛
+        rule_result, rough_score = self._rule_based_quality_check(target, sources)
+
+        if rule_result == "fail":
+            logger.debug(f" [v7.500] 规则快筛: FAIL (score={rough_score:.2f}) | query={query[:30]}...")
+            return {
+                "score": rough_score,
+                "is_valuable": False,
+                "key_findings": [],
+                "discard_reason": "规则快筛判定为低质量（无相关标题匹配或全部低质量来源）",
+                "evaluation_method": "rule_fail",
+            }
+
+        if rule_result == "pass":
+            # 直接保留，但仍需提取key_findings
+            # 简单提取：从source标题和摘要中提取
+            key_findings = []
+            for s in sources[:5]:
+                snippet = (s.get("snippet", "") or s.get("summary", ""))[:100]
+                if snippet and len(snippet) > 10:
+                    key_findings.append(snippet)
+            logger.debug(f" [v7.500] 规则快筛: PASS (score={rough_score:.2f}) | findings={len(key_findings)} | query={query[:30]}...")
+            return {
+                "score": rough_score,
+                "is_valuable": True,
+                "key_findings": key_findings[:3],
+                "discard_reason": "",
+                "evaluation_method": "rule_pass",
+            }
+
+        # 第二层：LLM精评（borderline）
+        logger.debug(f" [v7.500] 规则快筛: BORDERLINE (score={rough_score:.2f})，进入LLM精评 | query={query[:30]}...")
+        llm_result = await self._llm_quality_evaluate(target, query, sources)
+        llm_result["evaluation_method"] = "llm"
+        return llm_result
+
+    async def _search_single_target_autonomously(
+        self,
+        target: SearchTarget,
+        framework: SearchFramework,
+        all_sources: List[Dict[str, Any]],
+        seen_urls: set,
+    ) -> AsyncGenerator[Dict[str, Any], None]:
+        """
+        对单个目标进行自主多轮搜索 - v7.500
+
+        每个目标独立运行搜索循环，自主决定：
+        - 搜索几轮（1-8轮）
+        - 用什么策略
+        - 何时停止
+
+        只保留有价值的发现（质量门控），丢弃低质量轮次。
+
+        Yields:
+            target_search_progress: 轻量进度事件
+            target_search_complete: 沉淀结果事件
+        """
+        strategy_index = 0
+        consecutive_low_quality = 0
+        target_desc = target.question or target.name or target.search_for or f"目标{target.id}"
+
+        logger.info(f" [v7.500] 开始自主搜索目标: {target_desc[:40]}... (max_rounds={target.max_target_rounds})")
+
+        while target.target_rounds < target.max_target_rounds:
+            target.target_rounds += 1
+            strategy = self.SEARCH_STRATEGIES[min(strategy_index, len(self.SEARCH_STRATEGIES) - 1)]
+            target.tried_strategies.append(strategy)
+
+            round_start = time.time()
+
+            # 1. 生成搜索词
+            query = await self._generate_strategy_query(target, strategy, framework)
+            target.tried_queries.append(query)
+
+            # 检查重复
+            is_dup, similar = self._is_duplicate_query(query)
+            if is_dup:
+                logger.debug(f" [v7.500] 查询重复，跳过: {query[:30]}... ≈ {similar[:30] if similar else ''}...")
+                strategy_index += 1
+                target.quality_history.append(0.0)
+                continue
+
+            self._record_query(query)
+
+            # 2. 执行搜索（复用已有方法）
+            try:
+                round_sources = await self._execute_search_with_quality_filter(query, target)
+            except Exception as e:
+                logger.warning(f"️ [v7.500] 搜索执行失败: {e}")
+                round_sources = []
+
+            # 过滤已见URL
+            new_sources = []
+            for s in round_sources:
+                url = s.get("url", "")
+                if url and url not in seen_urls:
+                    seen_urls.add(url)
+                    new_sources.append(s)
+            round_sources = new_sources if new_sources else round_sources[:3]  # 至少保留一些用于评估
+
+            # 3. 混合质量评估
+            quality_result = await self._evaluate_round_quality_hybrid(
+                target, query, round_sources, strategy
+            )
+
+            # 4. 质量门控
+            if quality_result["is_valuable"]:
+                target.valuable_findings.extend(quality_result["key_findings"])
+                # 去重 findings
+                target.valuable_findings = list(dict.fromkeys(target.valuable_findings))
+                target.valuable_sources.extend(round_sources[:5])
+                all_sources.extend(round_sources)
+                consecutive_low_quality = 0
+                # 有价值的发现贡献完成度
+                delta = min(0.25, quality_result["score"] * 0.15)
+                target.completion_score = min(1.0, target.completion_score + delta)
+                target.status = "partial" if target.completion_score < 0.8 else "complete"
+                logger.debug(
+                    f" [v7.500] 轮{target.target_rounds} 有价值 | score={quality_result['score']:.2f} "
+                    f"| findings={len(quality_result['key_findings'])} | completion={target.completion_score:.2f} "
+                    f"| method={quality_result['evaluation_method']}"
+                )
+            else:
+                consecutive_low_quality += 1
+                strategy_index += 1
+                logger.debug(
+                    f" [v7.500] 轮{target.target_rounds} 低质量丢弃 | score={quality_result['score']:.2f} "
+                    f"| reason={quality_result['discard_reason'][:40]}... | 换策略→{self.SEARCH_STRATEGIES[min(strategy_index, len(self.SEARCH_STRATEGIES)-1)]}"
+                )
+
+            target.quality_history.append(quality_result["score"])
+
+            execution_time = time.time() - round_start
+
+            # 5. 发送轻量进度事件
+            next_strategy_name = self.SEARCH_STRATEGIES[min(strategy_index, len(self.SEARCH_STRATEGIES) - 1)]
+            yield {
+                "type": "target_search_progress",
+                "data": {
+                    "target_id": target.id,
+                    "target_name": target_desc,
+                    "attempt": target.target_rounds,
+                    "max_attempts": target.max_target_rounds,
+                    "strategy": strategy,
+                    "query": query,
+                    "is_valuable": quality_result["is_valuable"],
+                    "quality_score": quality_result["score"],
+                    "findings_count": len(target.valuable_findings),
+                    "completion_score": target.completion_score,
+                    "execution_time": execution_time,
+                    "message": (
+                        f"发现{len(quality_result.get('key_findings', []))}条有价值信息"
+                        if quality_result["is_valuable"]
+                        else f"结果不够理想，尝试{next_strategy_name}策略"
+                    ),
+                },
+            }
+
+            # 6. 停止条件
+            if target.completion_score >= 0.8 and len(target.valuable_findings) >= 3:
+                target.status = "complete"
+                logger.info(f" [v7.500] 目标完成: completion={target.completion_score:.2f}, findings={len(target.valuable_findings)}")
+                break
+            if consecutive_low_quality >= 2 and strategy_index >= 3:
+                target.status = "partial"
+                logger.info(f" [v7.500] 连续低质量+策略用尽，停止: consecutive={consecutive_low_quality}, strategies_tried={strategy_index}")
+                break
+            if strategy_index >= len(self.SEARCH_STRATEGIES):
+                target.status = "partial"
+                logger.info(" [v7.500] 所有策略已尝试，停止")
+                break
+
+        # 如果循环结束但状态仍为pending/searching
+        if target.status in ("pending", "searching"):
+            target.status = "partial" if target.valuable_findings else "missing"
+
+        # 7. 产出沉淀结果
+        yield {
+            "type": "target_search_complete",
+            "data": {
+                "target_id": target.id,
+                "target_name": target_desc,
+                "total_attempts": target.target_rounds,
+                "valuable_rounds": len([q for q in target.quality_history if q >= 0.5]),
+                "valuable_findings": target.valuable_findings,
+                "valuable_sources_count": len(target.valuable_sources),
+                "valuable_sources": [
+                    {
+                        "title": s.get("title", ""),
+                        "url": s.get("url", ""),
+                        "snippet": (s.get("snippet", "") or s.get("summary", ""))[:200],
+                    }
+                    for s in target.valuable_sources[:10]
+                ],
+                "strategies_tried": list(dict.fromkeys(target.tried_strategies)),
+                "completion_score": target.completion_score,
+                "status": target.status,
+            },
+        }
+
+        logger.info(
+            f" [v7.500] 目标搜索完成: {target_desc[:30]}... | "
+            f"轮次={target.target_rounds} | 有价值轮={len([q for q in target.quality_history if q >= 0.5])} | "
+            f"发现={len(target.valuable_findings)} | 来源={len(target.valuable_sources)} | "
+            f"完成度={target.completion_score:.2f} | 状态={target.status}"
+        )
+
+    # ==================== v7.510: Step 1.5 辅助方法 ====================
+
+    def _rebuild_understanding(self, data: Dict[str, Any]):
+        """从序列化数据重建 Understanding 对象"""
+        from intelligent_project_analyzer.core.four_step_flow_types import (
+            Understanding, L2MotivationDimension, L3CoreTension,
+        )
+        l2_motivations = []
+        for m in data.get("l2_motivations", []):
+            if isinstance(m, dict):
+                l2_motivations.append(L2MotivationDimension(
+                    name=m.get("name", ""),
+                    type=m.get("type", "功能型"),
+                    score=m.get("score", 3),
+                    scenario_expression=m.get("scenario_expression", ""),
+                ))
+
+        l3_data = data.get("l3_tension", {})
+        l3_tension = L3CoreTension(
+            primary_motivation=l3_data.get("primary_motivation", ""),
+            secondary_motivation=l3_data.get("secondary_motivation", ""),
+            tension_formula=l3_data.get("tension_formula", ""),
+            resolution_strategy=l3_data.get("resolution_strategy", ""),
+            hidden_insights=l3_data.get("hidden_insights", []),
+        )
+
+        return Understanding(l2_motivations=l2_motivations, l3_tension=l3_tension)
+
+    def _rebuild_output_block(self, block_data):
+        """从序列化数据重建 OutputBlock 对象"""
+        from intelligent_project_analyzer.core.four_step_flow_types import OutputBlock, OutputBlockSubItem
+        try:
+            if isinstance(block_data, dict):
+                sub_items = []
+                for si in block_data.get("sub_items", []):
+                    if isinstance(si, dict):
+                        sub_items.append(OutputBlockSubItem(
+                            id=si.get("id", ""),
+                            name=si.get("name", ""),
+                            description=si.get("description", ""),
+                        ))
+                return OutputBlock(
+                    id=block_data.get("id", ""),
+                    name=block_data.get("name", ""),
+                    estimated_length=block_data.get("estimated_length", ""),
+                    sub_items=sub_items,
+                    user_characteristics=block_data.get("user_characteristics", ["用户"]),
+                )
+            else:
+                return block_data  # 已经是 OutputBlock 对象
+        except Exception as e:
+            logger.warning(f"️ 重建 OutputBlock 失败: {e}")
+            return None
+
+    # ====================  v7.280: 分阶段执行方法 ====================
+
+    async def execute_step1_only(
+        self,
+        query: str,
+        session_id: str = "",
+    ) -> AsyncGenerator[Dict[str, Any], None]:
+        """
+        仅执行 Step 1: 需求理解与深度分析
+
+        生成 SearchFramework 和 FrameworkChecklist 后停止，
+        等待用户确认/编辑后再继续 Step 2
+
+        v7.280 新增
+        v7.302.12: 添加去重逻辑，防止 four_missions_ready 事件重复发送
+        v7.320: 切换到新的 Step1DeepAnalysisExecutor (v3.0 三阶段架构)
+        """
+        logger.info(f" [v7.320] Step1 Only 模式 (使用 v3.0 Executor) | query={query[:50]}...")
+
+
+        try:
+            # v7.320: 导入并使用新的 Step1DeepAnalysisExecutor
+            from intelligent_project_analyzer.services.four_step_flow_orchestrator import Step1DeepAnalysisExecutor
+            from intelligent_project_analyzer.services.llm_factory import LLMFactory
+
+            # 创建 Step1 执行器
+            step1_executor = Step1DeepAnalysisExecutor(LLMFactory())
+
+            # 发送阶段开始
+            yield {
+                "type": "phase",
+                "data": {
+                    "phase": "step1_analysis",
+                    "phase_name": "需求理解与深度分析 (v3.0)",
+                    "message": "正在进行深度分析...",
+                },
+            }
+
+            # v7.320: 执行新的 Step1 分析，并适配事件格式
+            step1_completed_data = None
+            async for event in step1_executor.execute(query, stream=True):
+                event_name = event.get("event")
+                event_data = event.get("data", {})
+
+                # v7.332: Stage 1 开始事件（让用户知道系统在工作）
+                if event_name == "step1_stage1_start":
+                    yield {
+                        "type": "step1_stage1_start",
+                        "data": event_data,
+                    }
+
+                # v7.520: step1_dialogue_reset 不再由后端生成（重试在缓冲阶段完成）
+                # 保留兼容处理，但日志提示已废弃
+                elif event_name == "step1_dialogue_reset":
+                    logger.info("[v7.520] step1_dialogue_reset 已废弃（后端缓冲模式），忽略")
+
+                # v7.320: 适配 Step1 v3.0 事件到 ucppt 格式
+                elif event_name == "step1_dialogue_chunk":
+                    # 流式对话内容 → two_sections_stream
+                    chunk = event_data.get("chunk", "")
+                    yield {
+                        "type": "two_sections_stream",
+                        "data": {
+                            "content": chunk,
+                            "current_section": 1,  # v3.0 只有一个对话输出
+                        },
+                    }
+
+                elif event_name == "step1_extracting_structure":
+                    # 提取结构化数据
+                    yield {
+                        "type": "two_sections_stream_complete",
+                        "data": {"message": "对话内容生成完成，正在提取结构化数据..."},
+                    }
+
+                elif event_name == "step1_completed":
+                    # Step 1 完成，保存数据
+                    step1_completed_data = event_data
+                    logger.info(f" [v7.320] Step1 v3.0 完成 | 数据键: {list(event_data.keys())}")
+
+                    # 转换 v3.0 的 understanding 和 output_framework 为旧格式
+                    understanding = event_data.get("understanding", {})
+                    output_framework = event_data.get("output_framework", {})
+                    validation_report = event_data.get("validation_report", {})
+
+                    # 发送分析数据就绪事件（兼容旧格式）
+                    yield {
+                        "type": "analysis_data_ready",
+                        "_internal_data": {
+                            "understanding": understanding,
+                            "output_framework": output_framework,
+                            "validation_report": validation_report,
+                            "dialogue_content": event_data.get("dialogue_content", ""),
+                        },
+                    }
+
+                elif event_name == "step1_validation_warnings":
+                    # 验证警告
+                    warnings = event_data.get("warnings", [])
+                    logger.warning(f"️ [v7.320] Step1 验证警告: {warnings}")
+                    yield {
+                        "type": "validation_warnings",
+                        "data": {"warnings": warnings},
+                    }
+
+                elif event_name == "step1_error":
+                    # 错误
+                    error_msg = event_data.get("error", "未知错误")
+                    logger.error(f" [v7.320] Step1 执行错误: {error_msg}")
+                    yield {
+                        "type": "error",
+                        "data": {"message": f"分析失败: {error_msg}"},
+                    }
+                    return
+
+            # v7.320: 使用 v3.0 的数据构建等待确认事件
+            if step1_completed_data:
+                output_framework = step1_completed_data.get("output_framework", {})
+                understanding = step1_completed_data.get("understanding", {})
+
+                #  v7.351: 添加详细日志追踪 Step 1 输出
+                blocks_data = output_framework.get("blocks", [])
+                logger.info(f" [v7.351] Step 1 完成 | blocks数量: {len(blocks_data)}")
+                if blocks_data:
+                    for idx, block in enumerate(blocks_data[:3]):  # 只显示前3个
+                        block_name = (
+                            block.get("name", "未命名") if isinstance(block, dict) else getattr(block, "name", "未命名")
+                        )
+                        logger.info(f"  - 板块{idx+1}: {block_name[:50]}")
+                else:
+                    logger.warning("️ [v7.351] Step 1 未生成任何 blocks，Step 2 可能失败")
+
+                # ==================== v7.510: Step 1.5 搜索方向生成 ====================
+                search_directions_dict = {}  # block_id -> List[SearchDirection]
+
+                if self.search_direction_generator and SEARCH_DIRECTION_GENERATOR_AVAILABLE and blocks_data:
+                    try:
+                        logger.info(" [v7.510] 开始执行 Step 1.5 搜索方向生成...")
+                        yield {
+                            "type": "phase",
+                            "data": {
+                                "phase": "search_direction_generation",
+                                "phase_name": "搜索方向生成",
+                                "message": "正在为每个板块生成搜索方向...",
+                            },
+                        }
+
+                        # 从 step1_completed_data 重建 Understanding 对象
+                        understanding_data = step1_completed_data.get("understanding", {})
+                        understanding_obj = self._rebuild_understanding(understanding_data)
+
+                        for idx, block_data in enumerate(blocks_data):
+                            block_obj = self._rebuild_output_block(block_data)
+                            if block_obj:
+                                yield {
+                                    "type": "search_direction_progress",
+                                    "data": {
+                                        "block_index": idx + 1,
+                                        "total_blocks": len(blocks_data),
+                                        "block_name": block_obj.name[:50],
+                                    },
+                                }
+                                directions = await self.search_direction_generator.generate_directions(
+                                    block=block_obj,
+                                    understanding=understanding_obj,
+                                    block_index=idx,
+                                )
+                                search_directions_dict[block_obj.id] = directions
+                                logger.info(f"   板块 {idx+1}: {len(directions)} 个搜索方向")
+
+                        yield {
+                            "type": "search_direction_complete",
+                            "data": {
+                                "total_directions": sum(len(d) for d in search_directions_dict.values()),
+                                "blocks_with_directions": len(search_directions_dict),
+                            },
+                        }
+                        logger.info(f" [v7.510] Step 1.5 完成 | {len(search_directions_dict)} 个板块生成了搜索方向")
+
+                    except Exception as e:
+                        logger.warning(f"️ [v7.510] Step 1.5 执行失败，降级继续: {e}")
+                        search_directions_dict = {}
+
+                # v7.333: 执行 Step 2 搜索任务分解
+                search_queries = []
+                if self.step2_executor and STEP2_EXECUTOR_AVAILABLE:
+                    try:
+                        logger.info(" [v7.333] 开始执行 Step 2 搜索任务分解...")
+                        yield {
+                            "type": "phase",
+                            "data": {
+                                "phase": "task_decomposition",
+                                "phase_name": "搜索任务分解",
+                                "message": "正在将分析结果转化为具体搜索任务...",
+                            },
+                        }
+
+                        # 转换为 Step2 的 OutputFramework 格式
+                        step2_framework = self._convert_to_step2_output_framework(output_framework)
+
+                        #  v7.351: 记录转换结果
+                        if step2_framework:
+                            logger.info(" [v7.351] Step 1 → Step 2 转换成功")
+                        else:
+                            logger.error(f" [v7.351] Step 1 → Step 2 转换失败 | blocks数量: {len(blocks_data)}")
+
+                        if step2_framework:
+                            # 执行 Step 2
+                            # v7.510: 传递 search_directions 给 Step 2
+                            async for step2_event in self.step2_executor.execute(
+                                user_input=query,
+                                output_framework=step2_framework,
+                                search_directions=search_directions_dict if search_directions_dict else None,
+                                stream=True,
+                            ):
+                                event_name = step2_event.get("event", "")
+                                event_data = step2_event.get("data", {})
+
+                                if event_name == "step2_task_list_chunk":
+                                    # 流式输出任务分解内容
+                                    chunk = event_data.get("chunk", "")
+                                    yield {
+                                        "type": "task_decomposition_chunk",
+                                        "data": {"chunk": chunk},
+                                    }
+
+                                elif event_name == "step2_completed":
+                                    search_queries = event_data.get("search_queries", [])
+                                    #  v7.351: 记录板块与任务的对应关系
+                                    logger.info(
+                                        f" [v7.351] Step 2 完成 | {len(blocks_data)} 个板块 → {len(search_queries)} 个搜索任务"
+                                    )
+                                    if len(search_queries) == 0 and len(blocks_data) > 0:
+                                        logger.warning(f"️ [v7.351] 有 {len(blocks_data)} 个板块但未生成任何搜索任务，请检查 Step 2 逻辑")
+
+                                    #  v7.360: 构建板块信息列表，用于前端按板块分页
+                                    blocks_info = []
+                                    for idx, block in enumerate(blocks_data):
+                                        if isinstance(block, dict):
+                                            block_id = block.get("id", f"block_{idx + 1}")
+                                            block_name = block.get("name", f"板块{idx + 1}")
+                                        else:
+                                            block_id = getattr(block, "id", f"block_{idx + 1}")
+                                            block_name = getattr(block, "name", f"板块{idx + 1}")
+                                        blocks_info.append({
+                                            "id": block_id,
+                                            "name": block_name,
+                                        })
+                                    logger.info(f" [v7.360] 板块信息: {[b['name'] for b in blocks_info]}")
+
+                                    yield {
+                                        "type": "task_decomposition_complete",
+                                        "data": {
+                                            "search_queries": search_queries,
+                                            "execution_strategy": event_data.get("execution_strategy"),
+                                            "execution_advice": event_data.get("execution_advice"),
+                                            #  v7.351: 传递 blocks 数量到前端，用于显示对应关系
+                                            "source_blocks_count": len(blocks_data),
+                                            #  v7.360: 传递板块详细信息，用于按板块分页
+                                            "blocks_info": blocks_info,
+                                        },
+                                    }
+
+                                elif event_name == "step2_error":
+                                    logger.warning(f"️ [v7.333] Step 2 执行出错: {event_data.get('error')}")
+                        else:
+                            logger.warning("️ [v7.333] 无法转换 output_framework 格式，跳过 Step 2")
+
+                    except Exception as e:
+                        logger.warning(f"️ [v7.333] Step 2 搜索任务分解失败，使用简化模式: {e}")
+
+                # 发送等待确认事件（包含搜索任务）
+                yield {
+                    "type": "awaiting_confirmation",
+                    "data": {
+                        "message": "分析完成（v3.0），请确认或编辑搜索方向",
+                        "session_id": session_id,
+                        "can_edit": True,
+                        "framework_data": {
+                            "original_query": query,
+                            "understanding": understanding,
+                            "output_framework": output_framework,
+                            "dialogue_content": step1_completed_data.get("dialogue_content", ""),
+                            "search_queries": search_queries,  # v7.333: 包含搜索任务
+                        },
+                    },
+                }
+
+                # 发送 Step 1 完成信号
+                yield {
+                    "type": "step1_complete",
+                    "data": {
+                        "message": "Step 1 v3.0 分析完成，等待确认",
+                        "can_edit": True,
+                        "understanding": understanding,
+                        "output_framework": output_framework,
+                        "search_queries": search_queries,  # v7.333: 包含搜索任务
+                    },
+                }
+            else:
+                # 如果没有完成数据，发送错误
+                logger.error(" [v7.320] Step1 未返回完成数据")
+                yield {
+                    "type": "error",
+                    "data": {"message": "Step 1 分析未完成"},
+                }
+
+        except Exception as e:
+            logger.error(f" [v7.280] Step1 执行失败: {e}", exc_info=True)
+            yield {"type": "error", "data": {"message": f"分析失败: {str(e)}"}}
+
+    async def execute_step2_only(
+        self,
+        query: str,
+        session_id: str,
+        framework_data: Dict[str, Any],
+        max_rounds: int = 10,
+    ) -> AsyncGenerator[Dict[str, Any], None]:
+        """
+        仅执行 Step 2: 渐进式搜索
+
+        使用用户编辑后的框架数据执行搜索
+
+        v7.280 新增
+        v7.333 增强：支持使用 Step 2 生成的 search_queries
+        v7.470 增强：并行搜索 + 质量过滤 + 智能拓展 + 时序保障
+        """
+        logger.info(f" [v7.280] Step2 Only 模式 | query={query[:50]}...")
+
+        # v7.333: 检查是否有预生成的搜索查询
+        search_queries = framework_data.get("search_queries", [])
+        has_search_queries = bool(search_queries)
+
+        if has_search_queries:
+            logger.info(f" [v7.333] 使用 Step 2 预生成的 {len(search_queries)} 个搜索查询")
+        else:
+            logger.info(" [v7.333] 无预生成搜索查询，使用动态查询生成模式")
+
+        # 从用户编辑的数据重建 SearchFramework
+        framework = self._rebuild_framework_from_user_edit(query, framework_data)
+
+        if not framework or not framework.targets:
+            yield {"type": "error", "data": {"message": "无法从用户编辑数据重建搜索框架"}}
+            return
+
+        # 发送搜索开始事件
+        yield {
+            "type": "step2_start",
+            "data": {
+                "message": "开始执行搜索",
+                "target_count": len(framework.targets),
+            },
+        }
+
+        # 执行搜索轮次
+        all_sources: List[Dict[str, Any]] = []
+        seen_urls: set = set()
+        current_round = 0
+        start_time = time.time()
+
+        # v7.470: 并行搜索配置
+        MAX_CONCURRENT = 3  # 最大并发数（避免 API 限流）
+
+        # v7.470: 记录每个查询的结果数（用于拓展搜索判断）
+        query_result_counts: Dict[str, int] = {}
+        # v7.500: 记录每个查询的实际来源列表（用于反思和板块化回答）
+        query_sources_map: Dict[str, List[Dict[str, Any]]] = {}
+
+        try:
+            if has_search_queries:
+                # ==================== v7.471: 混合模式搜索 ====================
+                # 阶段 1: 分批并行执行（变体搜索）— 保持性能
+                # 阶段 2: 对结果不足的查询串行补充 — 暴露多轮
+                # 阶段 3: 基于内容发现的动态延展 — LLM 分析新方向
+                effective_queries = search_queries[:max_rounds]
+                total_queries = len(effective_queries)
+                logger.info(f" [v7.471] 开始混合模式搜索 | 总查询={total_queries} | 并发={MAX_CONCURRENT}")
+
+                # ---- 阶段 1: 分批并行执行首轮搜索 ----
+                for batch_start in range(0, total_queries, MAX_CONCURRENT):
+                    batch = effective_queries[batch_start:batch_start + MAX_CONCURRENT]
+                    logger.debug(f" [v7.471] 执行批次 {batch_start // MAX_CONCURRENT + 1} | 查询数={len(batch)}")
+
+                    # 1a. 为本批次每个查询发送 round_start 事件
+                    batch_meta = []
+                    for i, query_data in enumerate(batch):
+                        round_num = batch_start + i + 1
+                        current_round = round_num
+                        search_query = query_data.get("query", "") if isinstance(query_data, dict) else str(query_data)
+                        target_desc = (
+                            query_data.get("expected_output", search_query[:40])
+                            if isinstance(query_data, dict)
+                            else search_query[:40]
+                        )
+                        serves_blocks = query_data.get("serves_blocks", []) if isinstance(query_data, dict) else []
+                        actual_query_id = query_data.get("id", f"query_{round_num}") if isinstance(query_data, dict) else f"query_{round_num}"
+
+                        batch_meta.append({
+                            "round_num": round_num,
+                            "search_query": search_query,
+                            "target_desc": target_desc,
+                            "serves_blocks": serves_blocks,
+                            "actual_query_id": actual_query_id,
+                            "query_data": query_data,
+                            "search_keywords": query_data.get("search_keywords", []) if isinstance(query_data, dict) else [],
+                        })
+
+                        yield {
+                            "type": "round_start",
+                            "data": {
+                                "round": round_num,
+                                "target_aspect": target_desc,
+                                "target_id": actual_query_id,
+                                "search_query": search_query,
+                                "serves_blocks": serves_blocks,
+                            },
+                        }
+
+                    # 1b. 并行执行本批次搜索（使用质量过滤版本）
+                    tasks = [
+                        self._execute_search_with_quality_filter(
+                            meta["search_query"],
+                            target_aspect=meta["target_desc"],
+                            search_keywords=meta.get("search_keywords", []),
+                        )
+                        for meta in batch_meta
+                    ]
+                    results = await asyncio.gather(*tasks, return_exceptions=True)
+
+                    # 1c. 逐个处理结果并发送 round_sources 事件（第 1 轮：变体搜索）
+                    for meta, result in zip(batch_meta, results):
+                        if isinstance(result, Exception):
+                            logger.error(f" [v7.471] 搜索失败 (ID={meta['actual_query_id']}): {result}")
+                            sources = []
+                        else:
+                            sources = result
+
+                        new_sources = []
+                        for s in sources:
+                            url = s.get("url", "")
+                            if url and url not in seen_urls:
+                                seen_urls.add(url)
+                                new_sources.append(s)
+
+                        all_sources.extend(new_sources)
+                        query_result_counts[meta["actual_query_id"]] = len(new_sources)
+                        query_sources_map[meta["actual_query_id"]] = new_sources.copy()  # v7.500
+
+                        logger.debug(
+                            f" [v7.471] 查询 {meta['actual_query_id']} 首轮结果: {len(new_sources)} 条"
+                        )
+
+                        yield {
+                            "type": "round_sources",
+                            "data": {
+                                "round": meta["round_num"],
+                                "sources_count": len(new_sources),
+                                "sources": new_sources[:5],
+                                "search_query": meta["search_query"],
+                                "target_id": meta["actual_query_id"],
+                                "sub_round_label": "变体搜索",
+                            },
+                        }
+
+                # ---- 阶段 2: 对结果不足的查询串行补充搜索（暴露多轮） ----
+                weak_query_metas = [
+                    (qid, effective_queries[i])
+                    for i, (qid, count) in enumerate(query_result_counts.items())
+                    if count < SEARCH_MIN_QUALITY_SOURCES and i < len(effective_queries)
+                ]
+
+                if weak_query_metas:
+                    logger.info(f" [v7.471] 阶段2: {len(weak_query_metas)} 个查询结果不足，执行补充搜索")
+
+                    for qid, query_data in weak_query_metas:
+                        original_query = query_data.get("query", "") if isinstance(query_data, dict) else str(query_data)
+                        current_count = query_result_counts.get(qid, 0)
+
+                        # 2a. 空结果重试（简化查询）
+                        if current_count == 0:
+                            for retry_num in range(1, 4):  # 最多 3 次
+                                simplified = self._generate_supplement_query(
+                                    original_query, retry_num - 1, None, is_empty_retry=True
+                                )
+                                if not self._validate_search_query(simplified, f"空结果重试#{retry_num}"):
+                                    break
+
+                                retry_sources = await self._execute_basic_search(simplified, retry_count=1)
+                                quality_retry, _ = self._filter_sources_by_quality(retry_sources, simplified)
+
+                                new_retry = []
+                                for s in quality_retry:
+                                    url = s.get("url", "")
+                                    if url and url not in seen_urls:
+                                        seen_urls.add(url)
+                                        new_retry.append(s)
+
+                                all_sources.extend(new_retry)
+                                query_result_counts[qid] = query_result_counts.get(qid, 0) + len(new_retry)
+                                # v7.500: 追踪每查询来源
+                                if qid in query_sources_map:
+                                    query_sources_map[qid].extend(new_retry)
+                                else:
+                                    query_sources_map[qid] = new_retry.copy()
+
+                                current_round += 1
+                                yield {
+                                    "type": "round_sources",
+                                    "data": {
+                                        "round": current_round,
+                                        "sources_count": len(new_retry),
+                                        "sources": new_retry[:5],
+                                        "search_query": simplified,
+                                        "target_id": qid,
+                                        "sub_round_label": f"简化重试#{retry_num}",
+                                    },
+                                }
+
+                                if new_retry:
+                                    logger.debug(f" [v7.471] 空结果重试成功 | ID={qid} | 新增={len(new_retry)} 条")
+                                    break
+
+                        # 2b. 补充搜索（结果不足但非空）
+                        if query_result_counts.get(qid, 0) < SEARCH_MIN_QUALITY_SOURCES:
+                            for supp_num in range(1, 3):  # 最多 2 次
+                                supp_query = self._generate_supplement_query(
+                                    original_query, supp_num - 1, None, is_empty_retry=False
+                                )
+
+                                supp_sources = await self._execute_basic_search(supp_query, retry_count=1)
+                                quality_supp, _ = self._filter_sources_by_quality(supp_sources, original_query)
+
+                                new_supp = []
+                                for s in quality_supp:
+                                    url = s.get("url", "")
+                                    if url and url not in seen_urls:
+                                        seen_urls.add(url)
+                                        new_supp.append(s)
+
+                                if new_supp:
+                                    all_sources.extend(new_supp)
+                                    query_result_counts[qid] = query_result_counts.get(qid, 0) + len(new_supp)
+                                    # v7.500: 追踪每查询来源
+                                    if qid in query_sources_map:
+                                        query_sources_map[qid].extend(new_supp)
+                                    else:
+                                        query_sources_map[qid] = new_supp.copy()
+
+                                    current_round += 1
+                                    yield {
+                                        "type": "round_sources",
+                                        "data": {
+                                            "round": current_round,
+                                            "sources_count": len(new_supp),
+                                            "sources": new_supp[:5],
+                                            "search_query": supp_query,
+                                            "target_id": qid,
+                                            "sub_round_label": f"补充搜索#{supp_num}",
+                                        },
+                                    }
+
+                                    if query_result_counts.get(qid, 0) >= SEARCH_MIN_QUALITY_SOURCES:
+                                        break
+
+                # ---- 阶段 3: 基于内容发现的动态延展 ----
+                if all_sources:
+                    needs_ext, ext_queries = await self._evaluate_content_extension_need(
+                        query, effective_queries, all_sources, query_result_counts
+                    )
+
+                    if needs_ext and ext_queries:
+                        logger.info(f" [v7.471] 发现 {len(ext_queries)} 个新内容方向，执行延展搜索")
+
+                        for ext in ext_queries:
+                            current_round += 1
+                            ext_query = ext["query"]
+                            ext_target_id = ext["target_id"]
+
+                            yield {
+                                "type": "round_start",
+                                "data": {
+                                    "round": current_round,
+                                    "target_aspect": ext.get("reason", ext_query),
+                                    "target_id": ext_target_id,
+                                    "search_query": ext_query,
+                                    "is_expansion": True,
+                                },
+                            }
+
+                            ext_sources = await self._execute_search_with_quality_filter(
+                                ext_query, target_aspect=ext.get("reason", "")
+                            )
+                            new_ext = []
+                            for s in ext_sources:
+                                url = s.get("url", "")
+                                if url and url not in seen_urls:
+                                    seen_urls.add(url)
+                                    new_ext.append(s)
+                            all_sources.extend(new_ext)
+                            query_sources_map[ext_target_id] = new_ext.copy()  # v7.500
+
+                            yield {
+                                "type": "round_sources",
+                                "data": {
+                                    "round": current_round,
+                                    "sources_count": len(new_ext),
+                                    "sources": new_ext[:5],
+                                    "search_query": ext_query,
+                                    "target_id": ext_target_id,
+                                    "is_expansion": True,
+                                },
+                            }
+
+            else:
+                # ==================== 非预生成模式：保持原有串行逻辑 ====================
+                effective_max_rounds = max_rounds
+                while current_round < effective_max_rounds:
+                    current_round += 1
+
+                    target = framework.get_target_for_round(current_round)
+                    if not target:
+                        logger.info(" [v7.280] 所有目标已完成，结束搜索")
+                        break
+
+                    target_desc = target.question or target.name or f"目标{target.id}"
+                    logger.info(f" [v7.280] 第{current_round}轮搜索: {target_desc[:40]}...")
+
+                    yield {
+                        "type": "round_start",
+                        "data": {
+                            "round": current_round,
+                            "target_aspect": target_desc,
+                            "target_id": target.id,
+                        },
+                    }
+
+                    search_query = await self._generate_search_query_smart(
+                        target, framework, all_sources, current_round
+                    )
+
+                    # v7.470: 使用质量过滤版本替代简单搜索
+                    sources = await self._execute_search_with_quality_filter(search_query, target_aspect=target_desc)
+
+                    new_sources = []
+                    for s in sources:
+                        url = s.get("url", "")
+                        if url and url not in seen_urls:
+                            seen_urls.add(url)
+                            new_sources.append(s)
+
+                    all_sources.extend(new_sources)
+
+                    if new_sources:
+                        target.collected_info.append(f"第{current_round}轮找到{len(new_sources)}条结果")
+                        target.completion_score = min(1.0, target.completion_score + 0.3)
+
+                    yield {
+                        "type": "round_sources",
+                        "data": {
+                            "round": current_round,
+                            "sources_count": len(new_sources),
+                            "sources": new_sources[:5],
+                            "search_query": search_query,
+                            "target_id": target.id,
+                        },
+                    }
+
+                    framework.update_completeness()
+                    if framework.overall_completeness >= 0.8 and current_round >= 4:
+                        logger.info(f" [v7.280] 完成度达到 {framework.overall_completeness:.0%}，结束搜索")
+                        break
+
+            # ==================== v7.470: 搜索完成信号（时序保障） ====================
+            search_execution_time = time.time() - start_time
+            yield {
+                "type": "all_searches_complete",
+                "data": {
+                    "total_queries": len(search_queries) if has_search_queries else current_round,
+                    "total_sources": len(all_sources),
+                    "execution_time": search_execution_time,
+                },
+            }
+
+            # ==================== v7.500: 批量搜索质量反思 ====================
+            if has_search_queries and all_sources:
+                yield {
+                    "type": "phase",
+                    "data": {
+                        "phase": "reflecting",
+                        "phase_name": "搜索质量反思",
+                        "message": "正在评估搜索结果质量...",
+                    },
+                }
+                async for event in self._batch_reflect_on_searches(
+                    query, framework, search_queries, all_sources,
+                    query_result_counts, query_sources_map,
+                ):
+                    yield event
+
+            # ==================== v7.500: 板块化回答生成 ====================
+            output_framework = framework_data.get("output_framework", {})
+            blocks = output_framework.get("blocks", [])
+
+            yield {
+                "type": "phase",
+                "data": {
+                    "phase": "answering",
+                    "phase_name": "生成答案",
+                    "message": "正在整合信息生成最终答案...",
+                },
+            }
+
+            if blocks and has_search_queries:
+                # v7.500: 板块化回答生成
+                async for event in self._generate_block_based_answer(
+                    query, framework, all_sources, output_framework,
+                    search_queries, query_sources_map,
+                ):
+                    yield event
+            else:
+                # 降级：无板块信息时使用原有单体回答
+                async for event in self._generate_final_answer(query, framework, all_sources):
+                    yield event
+
+            # 完成
+            execution_time = time.time() - start_time
+            yield {
+                "type": "done",
+                "data": {
+                    "total_rounds": current_round,
+                    "total_sources": len(all_sources),
+                    "final_confidence": framework.overall_completeness,
+                    "execution_time": execution_time,
+                },
+            }
+
+        except Exception as e:
+            logger.error(f" [v7.280] Step2 执行失败: {e}", exc_info=True)
+            yield {"type": "error", "data": {"message": f"搜索失败: {str(e)}"}}
+
+    async def _evaluate_content_extension_need(
+        self,
+        original_query: str,
+        search_queries: List[Dict[str, Any]],
+        all_sources: List[Dict[str, Any]],
+        query_result_counts: Dict[str, int],
+    ) -> Tuple[bool, List[Dict[str, Any]]]:
+        """
+        v7.471: 基于内容发现的延展评估
+
+        分析已有搜索结果，发现原始查询未覆盖的新内容方向。
+        不是因为"数量不足"触发，而是因为"发现新方向"触发。
+
+        Returns:
+            (needs_extension, extension_queries)
+            extension_queries: [{"query": "...", "reason": "...", "target_id": "ext_1"}]
+        """
+        if not all_sources or len(all_sources) < 3:
+            return False, []
+
+        # 构建已搜索内容摘要
+        searched_summary = []
+        for qd in search_queries:
+            if isinstance(qd, dict):
+                qid = qd.get("id", "")
+                q = qd.get("query", "")
+            else:
+                qid = ""
+                q = str(qd)
+            count = query_result_counts.get(qid, 0)
+            searched_summary.append(f"- {qid}: {q} → {count} 条结果")
+
+        # 构建已收集来源摘要（取前 15 条的标题）
+        source_titles = [
+            f"  - {s.get('title', '无标题')[:60]}"
+            for s in all_sources[:15]
+        ]
+
+        prompt = f"""你是一个搜索策略专家。用户的原始需求是：
+"{original_query}"
+
+已执行的搜索查询和结果：
+{chr(10).join(searched_summary)}
+
+已收集的信息来源（标题）：
+{chr(10).join(source_titles)}
+
+请分析：
+1. 已有搜索结果中是否出现了原始查询未覆盖的新概念、新角度、新趋势？
+2. 这些新发现是否值得进一步搜索探索？
+
+如果发现值得探索的新方向，返回 JSON：
+{{"needs_extension": true, "extensions": [
+  {{"query": "具体搜索查询", "reason": "为什么值得探索（15字内）"}}
+]}}
+
+如果已有结果已经足够全面，返回：
+{{"needs_extension": false, "reason": "已有结果已覆盖主要方面"}}
+
+规则：
+- 最多 2 个延展查询
+- 延展查询必须是从已有结果中发现的新方向，不是简单重复已有查询
+- 查询长度 8-15 字，适合搜索引擎
+- 只返回 JSON，不要其他内容"""
+
+        try:
+            llm = self._create_llm(model=EVAL_MODEL, temperature=0.3, max_tokens=500)
+            response = await llm.ainvoke(prompt)
+            content = response.content.strip()
+
+            # 尝试提取 JSON（可能被 markdown 包裹）
+            import re as _re
+            json_match = _re.search(r'\{[\s\S]*\}', content)
+            if json_match:
+                result = json.loads(json_match.group())
+            else:
+                logger.warning(f"️ [v7.471] 延展评估返回非 JSON: {content[:100]}")
+                return False, []
+
+            if result.get("needs_extension") and result.get("extensions"):
+                extensions = []
+                for i, ext in enumerate(result["extensions"][:2]):
+                    extensions.append({
+                        "query": ext.get("query", ""),
+                        "reason": ext.get("reason", ""),
+                        "target_id": f"ext_{i+1}",
+                    })
+                logger.debug(f" [v7.471] 延展评估: 发现 {len(extensions)} 个新方向")
+                for ext in extensions:
+                    logger.debug(f"  → {ext['query']} ({ext['reason']})")
+                return True, extensions
+
+            logger.info(f"ℹ️ [v7.471] 延展评估: 无需延展 - {result.get('reason', '未知原因')}")
+            return False, []
+
+        except Exception as e:
+            logger.warning(f"️ [v7.471] 延展评估失败: {e}")
+            return False, []
+
+    # ==================== v7.500: 批量搜索质量反思 ====================
+
+    async def _batch_reflect_on_searches(
+        self,
+        query: str,
+        framework: "SearchFramework",
+        search_queries: List[Dict[str, Any]],
+        all_sources: List[Dict[str, Any]],
+        query_result_counts: Dict[str, int],
+        query_sources_map: Dict[str, List[Dict[str, Any]]],
+    ) -> AsyncGenerator[Dict[str, Any], None]:
+        """
+        v7.500: 搜索完成后批量反思，为每个查询生成 RoundInsights。
+
+        填充 framework.round_insights，使后续的板块化回答生成、
+        跨轮冲突检测、置信度评估等功能正常工作。
+
+        Yields:
+            reflection_start, reflection_progress, reflection_complete 事件
+        """
+        total_queries = len(search_queries)
+        logger.info(f" [v7.500] 开始批量搜索质量反思 | 查询数={total_queries}")
+
+        yield {
+            "type": "reflection_start",
+            "data": {"total_queries": total_queries},
+        }
+
+        REFLECT_CONCURRENT = 3  # 并行反思数
+
+        async def _reflect_single_query(sq: Dict[str, Any], round_num: int) -> Optional["RoundInsights"]:
+            """对单个查询执行 LLM 反思，返回 RoundInsights"""
+            query_id = sq.get("id", f"query_{round_num}")
+            search_query_text = sq.get("query", "")
+            serves_blocks = sq.get("serves_blocks", [])
+            expected_output = sq.get("expected_output", "")
+            sources = query_sources_map.get(query_id, [])
+            sources_count = len(sources)
+
+            # 构建来源摘要（最多 5 条，每条 200 字）
+            sources_summary_parts = []
+            for i, src in enumerate(sources[:5], 1):
+                title = src.get("title", "无标题")[:60]
+                content = src.get("content", src.get("snippet", ""))[:200]
+                sources_summary_parts.append(f"[{i}] {title}\n{content}")
+            sources_summary = "\n\n".join(sources_summary_parts) if sources_summary_parts else "（无搜索结果）"
+
+            prompt = f"""你是搜索质量评估专家。请评估以下搜索结果的质量。
+
+用户问题: {query}
+搜索查询: {search_query_text}
+服务板块: {', '.join(serves_blocks) if serves_blocks else '通用'}
+预期输出: {expected_output}
+搜索结果数量: {sources_count}
+
+搜索结果摘要:
+{sources_summary}
+
+请用JSON格式返回（不要包含其他内容）:
+{{
+  "key_findings": ["发现1", "发现2"],
+  "inferred_insights": ["洞察1"],
+  "info_sufficiency": 0.7,
+  "info_quality": 0.8,
+  "alignment_score": 0.9,
+  "quality_issues": [],
+  "remaining_gaps": [],
+  "progress_description": "简要描述本查询的搜索收获（50字内）"
+}}"""
+
+            try:
+                llm = self._create_llm(model=EVAL_MODEL, temperature=0.3, max_tokens=500)
+                response = await llm.ainvoke(prompt)
+                content_text = response.content.strip()
+
+                # JSON 解析（含 markdown code block fallback）
+                import re as _re
+                json_match = _re.search(r'\{[\s\S]*\}', content_text)
+                if json_match:
+                    result = json.loads(json_match.group())
+                else:
+                    logger.warning(f"️ [v7.500] 反思返回非 JSON (ID={query_id}): {content_text[:80]}")
+                    result = {}
+
+                # 构建 RoundInsights
+                insight = RoundInsights(
+                    round_number=round_num,
+                    target_aspect=expected_output or search_query_text[:40],
+                    search_query=search_query_text,
+                    key_findings=result.get("key_findings", [])[:5],
+                    inferred_insights=result.get("inferred_insights", [])[:3],
+                    info_sufficiency=float(result.get("info_sufficiency", 0.5)),
+                    info_quality=float(result.get("info_quality", 0.5)),
+                    quality_issues=result.get("quality_issues", [])[:3],
+                    alignment_score=float(result.get("alignment_score", 0.7)),
+                    alignment_note=result.get("progress_description", ""),
+                    remaining_gaps=result.get("remaining_gaps", [])[:3],
+                    best_source_urls=[s.get("url", "") for s in sources[:3]],
+                    sources_count=sources_count,
+                    progress_description=result.get("progress_description", ""),
+                )
+                return insight
+
+            except Exception as e:
+                logger.warning(f"️ [v7.500] 反思失败 (ID={query_id}): {e}")
+                # 降级：返回基本 RoundInsights
+                return RoundInsights(
+                    round_number=round_num,
+                    target_aspect=expected_output or search_query_text[:40],
+                    search_query=search_query_text,
+                    key_findings=[f"搜索到 {sources_count} 条结果"] if sources_count > 0 else ["未找到相关结果"],
+                    inferred_insights=[],
+                    info_sufficiency=min(1.0, sources_count / 3.0),
+                    info_quality=0.5,
+                    quality_issues=["反思评估失败，使用默认值"],
+                    alignment_score=0.7,
+                    alignment_note="自动评估",
+                    remaining_gaps=[],
+                    best_source_urls=[s.get("url", "") for s in sources[:3]],
+                    sources_count=sources_count,
+                    progress_description=f"搜索到 {sources_count} 条结果",
+                )
+
+        # 分批并行执行反思
+        all_insights: List[Optional["RoundInsights"]] = []
+        completed = 0
+
+        for batch_start in range(0, total_queries, REFLECT_CONCURRENT):
+            batch = search_queries[batch_start:batch_start + REFLECT_CONCURRENT]
+            tasks = [
+                _reflect_single_query(sq, batch_start + i + 1)
+                for i, sq in enumerate(batch)
+            ]
+            results = await asyncio.gather(*tasks, return_exceptions=True)
+
+            for i, result in enumerate(results):
+                round_num = batch_start + i + 1
+                sq = batch[i]
+
+                if isinstance(result, Exception):
+                    logger.warning(f"️ [v7.500] 反思异常 (round={round_num}): {result}")
+                    insight = None
+                else:
+                    insight = result
+
+                if insight:
+                    framework.round_insights.append(insight)
+                    all_insights.append(insight)
+
+                completed += 1
+                yield {
+                    "type": "reflection_progress",
+                    "data": {
+                        "round": round_num,
+                        "query": sq.get("query", "")[:40],
+                        "key_findings_count": len(insight.key_findings) if insight else 0,
+                        "quality": insight.info_quality if insight else 0,
+                        "completed": completed,
+                        "total": total_queries,
+                    },
+                }
+
+        # 计算平均质量
+        valid_insights = [ins for ins in all_insights if ins is not None]
+        avg_quality = (
+            sum(ins.info_quality for ins in valid_insights) / len(valid_insights)
+            if valid_insights else 0.0
+        )
+
+        logger.info(
+            f" [v7.500] 批量反思完成 | 成功={len(valid_insights)}/{total_queries} | 平均质量={avg_quality:.0%}"
+        )
+
+        yield {
+            "type": "reflection_complete",
+            "data": {
+                "total_insights": len(valid_insights),
+                "avg_quality": round(avg_quality, 2),
+            },
+        }
+
+    def _convert_to_step2_output_framework(
+        self,
+        output_framework_dict: Dict[str, Any],
+    ) -> Optional["Step2OutputFramework"]:
+        """
+        v7.333: 将 ucppt 的 output_framework dict 转换为 Step 2 需要的 OutputFramework 对象
+
+        Args:
+            output_framework_dict: Step 1 返回的 output_framework 字典
+
+        Returns:
+            Step2OutputFramework 对象，或 None（如果转换失败）
+        """
+        if not STEP2_EXECUTOR_AVAILABLE or not Step2OutputFramework:
+            logger.warning("️ [v7.333] Step2 类型未可用")
+            return None
+
+        try:
+            # 提取核心字段
+            core_objective = output_framework_dict.get("core_objective", "")
+            deliverable_type = output_framework_dict.get("deliverable_type", "")
+            blocks_data = output_framework_dict.get("blocks", [])
+            quality_standards = output_framework_dict.get("quality_standards", [])
+
+            if not core_objective or not blocks_data:
+                logger.warning("️ [v7.333] output_framework 缺少必要字段")
+                return None
+
+            # 转换 blocks
+            blocks = []
+            for idx, block_data in enumerate(blocks_data):
+                # block_data 可能是 dict 或已解析的对象
+                if isinstance(block_data, dict):
+                    block_name = block_data.get("name", f"板块{idx + 1}")
+                    block_desc = block_data.get("description", "")
+                    sub_items_data = block_data.get("sub_items", [])
+                    estimated_length = block_data.get("estimated_length", "")
+                else:
+                    # 已经是对象
+                    block_name = getattr(block_data, "name", f"板块{idx + 1}")
+                    block_desc = getattr(block_data, "description", "")
+                    sub_items_data = getattr(block_data, "sub_items", [])
+                    estimated_length = getattr(block_data, "estimated_length", "")
+
+                # v7.333.2: 移除关键词替换逻辑
+                # 如果用户明确问到施工、预算等问题，应该正面回应，不需要替换
+
+                # 转换 sub_items
+                sub_items = []
+                for sub_idx, sub_item in enumerate(sub_items_data):
+                    if isinstance(sub_item, str):
+                        # 简单字符串格式
+                        sub_items.append(
+                            Step2OutputBlockSubItem(
+                                id=f"{idx + 1}.{sub_idx + 1}",
+                                name=sub_item,
+                                description=sub_item,
+                            )
+                        )
+                    elif isinstance(sub_item, dict):
+                        sub_items.append(
+                            Step2OutputBlockSubItem(
+                                id=sub_item.get("id", f"{idx + 1}.{sub_idx + 1}"),
+                                name=sub_item.get("name", f"子项{sub_idx + 1}"),
+                                description=sub_item.get("description", ""),
+                            )
+                        )
+                    else:
+                        # 对象格式
+                        sub_items.append(
+                            Step2OutputBlockSubItem(
+                                id=getattr(sub_item, "id", f"{idx + 1}.{sub_idx + 1}"),
+                                name=getattr(sub_item, "name", f"子项{sub_idx + 1}"),
+                                description=getattr(sub_item, "description", ""),
+                            )
+                        )
+
+                # 确保板块名称满足15字符最小要求
+                if len(block_name) < 15:
+                    # 如果名称太短，添加描述信息
+                    if block_desc:
+                        block_name = f"{block_name}: {block_desc}"[:50]
+                    else:
+                        block_name = f"{block_name} - 深度分析与研究"
+                    if len(block_name) < 15:
+                        block_name = block_name + " " * (15 - len(block_name))
+
+                # 提取用户特征关键词
+                user_characteristics = []
+                if isinstance(block_data, dict):
+                    user_characteristics = block_data.get("user_characteristics", [])
+                else:
+                    user_characteristics = getattr(block_data, "user_characteristics", [])
+
+                # 确保至少有一个用户特征
+                if not user_characteristics:
+                    user_characteristics = [block_name[:10]]  # 使用板块名称的一部分作为默认特征
+
+                try:
+                    blocks.append(
+                        Step2OutputBlock(
+                            id=f"block_{idx + 1}",
+                            name=block_name,
+                            estimated_length=estimated_length,
+                            sub_items=sub_items,
+                            user_characteristics=user_characteristics,
+                        )
+                    )
+                except ValueError as ve:
+                    # 如果验证失败，跳过验证创建一个简化版本
+                    logger.warning(f"️ [v7.333] 板块验证失败（{ve}），尝试简化处理")
+                    # 尝试使用不带验证的方式
+                    block = Step2OutputBlock.__new__(Step2OutputBlock)
+                    block.id = f"block_{idx + 1}"
+                    block.name = block_name
+                    block.estimated_length = estimated_length
+                    block.sub_items = sub_items
+                    block.user_characteristics = user_characteristics
+                    block.search_focus = None
+                    block.indicative_queries = []
+                    blocks.append(block)
+
+            # 构建 OutputFramework
+            result = Step2OutputFramework(
+                core_objective=core_objective,
+                deliverable_type=deliverable_type,
+                blocks=blocks,
+                quality_standards=quality_standards,
+            )
+
+            logger.info(f" [v7.333] 成功转换 OutputFramework: {len(blocks)} 个板块")
+            return result
+
+        except Exception as e:
+            logger.error(f" [v7.333] 转换 OutputFramework 失败: {e}", exc_info=True)
+            return None
+
+    def _rebuild_framework_from_user_edit(
+        self,
+        query: str,
+        framework_data: Dict[str, Any],
+    ) -> Optional[SearchFramework]:
+        """
+        从用户编辑的数据重建 SearchFramework
+
+        v7.280 新增
+        v7.333 支持 Step 1 v3.0 的 output_framework.blocks 格式
+        """
+        try:
+            # v7.333: 从 output_framework 提取核心信息
+            output_framework = framework_data.get("output_framework", {})
+            understanding = framework_data.get("understanding", {})
+
+            # 提取核心问题和目标
+            l4_jtbd = understanding.get("l4_jtbd", {})
+            core_question = (
+                output_framework.get("core_objective")
+                or l4_jtbd.get("full_statement", "")
+                or framework_data.get("core_question", query[:50])
+            )
+            answer_goal = output_framework.get("deliverable_type") or framework_data.get("answer_goal", "为用户提供完整解答")
+
+            # 创建框架对象
+            framework = SearchFramework(
+                original_query=query,
+                core_question=core_question,
+                answer_goal=answer_goal,
+                boundary=framework_data.get("boundary", ""),
+            )
+
+            # v7.450 Tier 0: 直接从 search_steps 重建 targets
+            # 当前端发送 Step2TaskListEditor 编辑后的 search_steps 时使用
+            search_steps = framework_data.get("search_steps", [])
+            if search_steps:
+                logger.info(f" [v7.450] Tier 0: 从 search_steps 直接重建 targets ({len(search_steps)}个)")
+                for i, step in enumerate(search_steps, 1):
+                    priority_val = step.get("priority", "medium")
+                    target = SearchTarget(
+                        id=step.get("id", f"S{i}"),
+                        question=step.get("task_description", ""),
+                        search_for=step.get("task_description", ""),
+                        why_need=step.get("expected_outcome", ""),
+                        name=step.get("task_description", ""),
+                        priority=self._priority_to_int(priority_val) if isinstance(priority_val, str) else priority_val,
+                        category="搜索任务",
+                        preset_keywords=step.get("search_keywords", []),
+                        group_id=step.get("serves_blocks", [""])[0] if step.get("serves_blocks") else "",
+                    )
+                    framework.targets.append(target)
+                logger.info(f"   [v7.450] Tier 0 成功: {len(framework.targets)} 个搜索目标")
+                return framework
+
+            # v7.340: 优先从 output_framework.blocks 重建 targets（智能分解为5-10个任务）
+            blocks = output_framework.get("blocks", [])
+            if blocks:
+                logger.info(f" [v7.340] 从 output_framework.blocks 智能分解 targets ({len(blocks)}个版块)")
+
+                # 收集所有分解后的任务
+                all_tasks = []
+                for i, block in enumerate(blocks, 1):
+                    # 将字典转换为OutputBlock对象（兼容异步调用）
+                    block_obj = OutputBlock(
+                        name=block.get("name", ""),
+                        description=block.get("description", ""),
+                        sub_items=block.get("sub_items", []),
+                        estimated_length=block.get("estimated_length", ""),
+                        priority=block.get("priority", "medium"),
+                    )
+
+                    # 智能分解（异步调用需要在同步上下文中处理）
+                    try:
+                        import asyncio
+
+                        loop = asyncio.get_event_loop()
+                        if loop.is_running():
+                            # 如果事件循环已运行，使用固定规则
+                            tasks = self._decompose_block_to_tasks_fixed(block_obj, i)
+                        else:
+                            # 否则运行异步分解
+                            tasks = loop.run_until_complete(
+                                self._decompose_block_to_tasks(block_obj, i, query)
+                            )
+                    except Exception as e:
+                        logger.warning(f"异步分解失败: {e}，使用固定规则")
+                        tasks = self._decompose_block_to_tasks_fixed(block_obj, i)
+
+                    all_tasks.extend(tasks)
+
+                # 将任务转换为SearchTarget
+                for task in all_tasks:
+                    target = SearchTarget(
+                        id=task.get("id", ""),
+                        question=task.get("task_description", ""),
+                        search_for=task.get("task_description", ""),
+                        why_need=task.get("expected_outcome", ""),
+                        name=task.get("task_description", ""),
+                        priority=self._priority_to_int(task.get("priority", "medium")),
+                        category="搜索任务",
+                        preset_keywords=task.get("search_keywords", []),
+                        group_id=task.get("block_id", ""),  # 保存版块关联
+                    )
+                    framework.targets.append(target)
+
+                logger.info(f"   总计生成 {len(framework.targets)} 个搜索任务")
+                return framework
+
+            # 其次从用户编辑的 checklist.main_directions 重建 targets
+            checklist_data = framework_data.get("framework_checklist", {})
+            main_directions = checklist_data.get("main_directions", []) if checklist_data else []
+
+            if main_directions:
+                # 用户编辑了 checklist，从中重建 targets
+                logger.info(f" [v7.280] 从编辑后的 main_directions 重建 targets ({len(main_directions)}个)")
+                for i, direction in enumerate(main_directions, 1):
+                    target = SearchTarget(
+                        id=direction.get("id", f"T{i}"),
+                        question=direction.get("direction", ""),
+                        search_for=direction.get("direction", ""),
+                        why_need=direction.get("purpose", ""),
+                        name=direction.get("direction", ""),
+                        priority=direction.get("priority", 2),
+                        category=direction.get("category", "用户指定"),
+                    )
+                    framework.targets.append(target)
+                    logger.info(f"  - T{i}: {target.question[:30]}...")
+            else:
+                # 使用原始 targets
+                targets_data = framework_data.get("targets", [])
+                logger.info(f" [v7.280] 从原始 targets 重建 ({len(targets_data)}个)")
+                for t_data in targets_data:
+                    target = SearchTarget(
+                        id=t_data.get("id", f"T{len(framework.targets)+1}"),
+                        question=t_data.get("question", t_data.get("name", "")),
+                        search_for=t_data.get("search_for", t_data.get("description", "")),
+                        why_need=t_data.get("why_need", t_data.get("purpose", "")),
+                        name=t_data.get("name", t_data.get("question", "")),
+                        priority=t_data.get("priority", 2),
+                        category=t_data.get("category", ""),
+                        preset_keywords=t_data.get("preset_keywords", []),
+                    )
+                    framework.targets.append(target)
+
+            # 重建 checklist
+            if checklist_data:
+                from datetime import datetime
+
+                framework.framework_checklist = FrameworkChecklist(
+                    core_summary=checklist_data.get("core_summary", framework.core_question),
+                    main_directions=main_directions,
+                    boundaries=checklist_data.get("boundaries", []),
+                    answer_goal=checklist_data.get("answer_goal", framework.answer_goal),
+                    generated_at=datetime.now().isoformat(),
+                )
+
+            # v7.333: 如果仍然没有 targets，从 L4 JTBD 生成回退 targets
+            if not framework.targets and l4_jtbd:
+                logger.warning("️ [v7.333] 无法从 blocks/directions/targets 提取，使用 L4 JTBD 回退")
+                task_1 = l4_jtbd.get("task_1", "")
+                task_2 = l4_jtbd.get("task_2", "")
+                user_role = l4_jtbd.get("user_role", "")
+                info_type = l4_jtbd.get("information_type", "")
+
+                if task_1:
+                    framework.targets.append(
+                        SearchTarget(
+                            id="T1",
+                            question=f"{user_role}如何{task_1}",
+                            search_for=f"{info_type} - {task_1}",
+                            why_need=f"帮助用户完成{task_1}",
+                            name=task_1,
+                            priority=1,
+                            category="核心任务",
+                        )
+                    )
+                if task_2:
+                    framework.targets.append(
+                        SearchTarget(
+                            id="T2",
+                            question=f"{user_role}如何{task_2}",
+                            search_for=f"{info_type} - {task_2}",
+                            why_need=f"帮助用户完成{task_2}",
+                            name=task_2,
+                            priority=2,
+                            category="核心任务",
+                        )
+                    )
+
+                logger.info(f" [v7.333] 从 L4 JTBD 生成回退 targets ({len(framework.targets)}个)")
+
+            logger.info(f" [v7.333] 框架重建完成 | targets={len(framework.targets)}")
+            return framework
+
+        except Exception as e:
+            logger.error(f" [v7.280] 框架重建失败: {e}", exc_info=True)
+            return None
+
+    # ==================== 主入口 ====================
+
+    async def search_deep(
+        self,
+        query: str,
+        context: Optional[Dict[str, Any]] = None,
+        max_rounds: Optional[int] = None,
+    ) -> AsyncGenerator[Dict[str, Any], None]:
+        """
+        深度迭代搜索（流式输出）- 目标导向版本
+
+        核心流程：
+        1. 分析问题 → 确定回答目标和关键信息面
+        2. 目标导向搜索 → 每轮填补一个信息面
+        3. 评估完成度 → 能完整回答时停止
+        4. 生成答案 → 整合所有信息给出最佳回答
+        """
+        start_time = time.time()
+        max_rounds = max_rounds or self.max_rounds
+
+        # v7.199: 重置查询历史
+        self._used_queries = []
+
+        logger.info(f" [Ucppt v7.199] 开始目标导向搜索 | query={query[:50]}...")
+
+        # v7.199: 查询分类
+        if QUERY_CLASSIFIER_AVAILABLE and classify_query:
+            self._query_classification = classify_query(query)
+            logger.info(
+                f"️ [Ucppt v7.199] 查询分类: {self._query_classification.query_type.value} | confidence={self._query_classification.confidence:.2f}"
+            )
+        else:
+            self._query_classification = None
+
+        all_sources: List[Dict[str, Any]] = []
+        rounds: List[SearchRoundState] = []
+        seen_urls: set = set()  #  [Bug修复] 初始化seen_urls集合，避免延展搜索时变量未定义错误
+
+        try:
+            # ==================== Phase 0: v7.214 结构化问题分析检查 ====================
+            # 检查是否启用v7.214引擎
+            enable_v7214 = os.getenv("ENABLE_STRUCTURED_ANALYSIS_V7214", "true").lower() == "true"
+            logger.info(
+                f" [v7.214 Debug] 配置检查 | ENABLE_STRUCTURED_ANALYSIS_V7214={os.getenv('ENABLE_STRUCTURED_ANALYSIS_V7214')} | enable_v7214={enable_v7214}"
+            )
+
+            if not enable_v7214:
+                logger.info(" [Ucppt] v7.214结构化分析引擎已禁用，跳过到标准搜索流程")
+                analysis_session = None
+            else:
+                logger.info(" [v7.214 Debug] v7.214结构化分析引擎已启用，开始执行")
+                # ==================== Phase 0: v7.214 结构化问题分析 ====================
+                yield {
+                    "type": "phase",
+                    "data": {
+                        "phase": "structured_analysis",
+                        "phase_name": "结构化问题分析 v7.214",
+                        "message": "正在进行三阶段结构化分析：L0对话理解 → L1-L5深度建模 → 综合搜索规划",
+                    },
+                }
+
+                # v7.218: 立即推送分析进度提示，避免用户看到页面"冻住"
+                yield {
+                    "type": "analysis_progress",
+                    "data": {
+                        "stage": "starting",
+                        "stage_name": "深度分析启动",
+                        "message": "正在启动 LLM 深度推理引擎...",
+                        "estimated_time": 180,
+                        "current_step": 0,
+                        "total_steps": 3,
+                    },
+                }
+
+                logger.info(" [v7.219] 开始调用流式统一分析方法")
+
+                #  v7.270: 两步流程 - 第一步分析+解题思路，第二步搜索框架生成
+                try:
+                    analysis_session = None
+                    framework = None
+                    search_master_line = None
+                    problem_solving_approach = None
+                    step2_context = None
+                    analysis_data = None
+
+                    async with asyncio.timeout(180):
+                        # === 第一步：统一分析（用户画像 + L1-L5 + 解题思路） ===
+                        async for event in self._unified_analysis_stream(query, context):
+                            event_type = event.get("type")
+
+                            # v7.302.9: 旧版事件已废弃，不再发送
+                            # unified_dialogue_chunk 和 unified_dialogue_complete 不再使用
+                            # 用户只看到 four_missions_stream 流式输出
+                            if event_type in ("unified_dialogue_chunk", "unified_dialogue_complete"):
+                                pass  # 已废弃，不转发
+
+                            # v7.302.9: 转发4条使命流式事件
+                            elif event_type == "four_missions_stream":
+                                yield event
+
+                            # v7.302.9: 转发分析进度
+                            elif event_type == "analysis_progress":
+                                yield event
+
+                            # 结构化信息就绪
+                            elif event_type == "structured_info_ready":
+                                event.get("_internal_data")
+                                yield {
+                                    "type": "structured_info_ready",
+                                    "data": event.get("data"),
+                                }
+
+                            # v7.270: 解题思路就绪
+                            elif event_type == "problem_solving_approach_ready":
+                                problem_solving_approach = event.get("_internal_approach")
+                                yield event  # 转发给前端
+
+                            # v7.270: 第一步完成
+                            elif event_type == "step1_complete":
+                                step2_context = event.get("data", {}).get("step2_context", {})
+                                analysis_data = event.get("_internal_data", {})
+                                yield event  # 转发给前端
+                                logger.info(f" [v7.270] 第一步完成 | step2_context={'有' if step2_context else '无'}")
+
+                            # v7.302.9: 旧版搜索主线已废弃
+                            elif event_type == "search_master_line_ready":
+                                search_master_line = event.get("_internal_master_line")
+                                # 不再发送给前端，仅内部使用
+
+                            # v7.302.9: 旧版搜索框架已废弃，使用 four_missions_ready 替代
+                            elif event_type == "search_framework_ready":
+                                framework = event.get("_internal_framework")
+                                # 不再发送给前端，仅内部使用
+
+                            # v7.302.9: 4条使命就绪（新版）
+                            elif event_type == "four_missions_ready":
+                                yield event
+
+                            # 分析完成
+                            elif event_type == "analysis_complete":
+                                # v7.270: 检查是否是新流程（有 problem_solving_approach 但无 framework）
+                                if event.get("problem_solving_approach") and not event.get("framework"):
+                                    logger.info(" [v7.270] 检测到新流程，准备执行第二步")
+                                    # 新流程：需要执行第二步
+                                    pass
+                                else:
+                                    # 旧流程：直接使用返回的 framework
+                                    framework = event.get("framework")
+                                    if not search_master_line:
+                                        search_master_line = event.get("_search_master_line")
+
+                                # 标记第一步成功
+                                analysis_session = True
+
+                        # === 第二步：生成搜索框架（仅在新流程中执行） ===
+                        # v7.271: 增强条件判断，即使 step2_context 为空也尝试执行第二步
+                        if analysis_session and problem_solving_approach and not framework:
+                            # v7.271: 如果 step2_context 为空或缺少关键字段，从 problem_solving_approach 构建默认值
+                            if not step2_context or not step2_context.get("core_question"):
+                                step2_context = {
+                                    "core_question": (problem_solving_approach.refined_requirement or query)[:50],
+                                    "answer_goal": f"为用户提供{problem_solving_approach.expected_deliverable.get('format', '报告') if problem_solving_approach.expected_deliverable else '报告'}形式的完整解答",
+                                    "solution_steps_summary": [
+                                        s.get("action", "") for s in (problem_solving_approach.solution_steps or [])[:5]
+                                    ],
+                                    "breakthrough_tensions": [
+                                        p.get("point", "")
+                                        for p in (problem_solving_approach.breakthrough_points or [])[:3]
+                                    ],
+                                }
+                                logger.info(" [v7.271] step2_context 为空，从 problem_solving_approach 构建默认值")
+
+                            logger.info(" [v7.270] 开始第二步：生成搜索框架")
+
+                            # 发送第二步开始事件
+                            yield {
+                                "type": "step2_start",
+                                "data": {
+                                    "message": "基于解题思路生成搜索任务清单...",
+                                },
+                            }
+
+                            # 调用第二步方法生成搜索框架
+                            framework = await self._step2_generate_search_framework(
+                                query, step2_context, problem_solving_approach, analysis_data
+                            )
+
+                            if framework:
+                                logger.info(f" [v7.270] 第二步完成 | targets={len(framework.targets)}")
+
+                                # 生成框架清单
+                                framework_checklist = None
+                                try:
+                                    framework_checklist = self._generate_framework_checklist(framework, analysis_data)
+                                    framework.framework_checklist = framework_checklist
+                                except Exception as checklist_error:
+                                    logger.error(f" [v7.270] 框架清单生成失败: {checklist_error}", exc_info=True)
+                                    from datetime import datetime
+
+                                    framework_checklist = FrameworkChecklist(
+                                        core_summary=framework.core_question[:30]
+                                        if framework.core_question
+                                        else framework.original_query[:30],
+                                        main_directions=[],
+                                        boundaries=[],
+                                        answer_goal=framework.answer_goal or "为用户提供完整解答",
+                                        generated_at=datetime.now().isoformat(),
+                                    )
+
+                                # 发送搜索框架就绪事件
+                                targets_text_list = []
+                                if framework.targets:
+                                    for i, t in enumerate(framework.targets, 1):
+                                        name = getattr(t, "name", "") or getattr(t, "question", "") or f"目标{i}"
+                                        desc = getattr(t, "search_for", "") or getattr(t, "description", "") or ""
+                                        if desc:
+                                            targets_text_list.append(f"{i}. {name} — {desc}")
+                                        else:
+                                            targets_text_list.append(f"{i}. {name}")
+
+                                framework_summary = (
+                                    " 搜索主线：\n" + "\n".join(targets_text_list) if targets_text_list else " 搜索主线：待规划"
+                                )
+
+                                yield {
+                                    "type": "search_framework_ready",
+                                    "data": {
+                                        "core_question": framework.core_question,
+                                        "answer_goal": framework.answer_goal,
+                                        "boundary": framework.boundary,
+                                        "target_count": len(framework.targets) if framework.targets else 0,
+                                        "targets": [t.to_dict() for t in framework.targets]
+                                        if framework.targets
+                                        else [],
+                                        "targets_summary": framework_summary,
+                                        "framework_checklist": framework_checklist.to_dict()
+                                        if framework_checklist
+                                        else None,
+                                        # v7.282: 添加已转换的 master_line 格式，简化前端转换逻辑
+                                        "master_line": framework.to_master_line_dict(),
+                                    },
+                                    "_internal_framework": framework,
+                                }
+
+                                # 发送第二步完成事件
+                                yield {
+                                    "type": "step2_complete",
+                                    "data": {
+                                        "message": "搜索任务清单已生成",
+                                        "target_count": len(framework.targets),
+                                    },
+                                }
+                            else:
+                                logger.warning("️ [v7.270] 第二步失败，使用简单搜索框架")
+                                framework = self._build_simple_search_framework(query)
+
+                        # 发送分析完成事件
+                        yield {
+                            "type": "analysis_progress",
+                            "data": {
+                                "stage": "complete",
+                                "stage_name": "深度分析完成",
+                                "message": "结构化分析完成，准备开始搜索...",
+                                "estimated_time": 0,
+                                "current_step": 3,
+                                "total_steps": 3,
+                            },
+                        }
+
+                    logger.info(
+                        f" [v7.270] 两步流程完成 | framework={framework is not None} | targets={len(framework.targets) if framework else 0}"
+                    )
+                except asyncio.TimeoutError:
+                    logger.error(" [v7.214 Debug] v7.214引擎整体超时(180s)，立即回退到传统搜索")
+                    analysis_session = None
+                    yield {
+                        "type": "warning",
+                        "data": {"message": "深度分析超时，正在切换到快速搜索模式...", "error_type": "v7214_timeout"},
+                    }
+                except Exception as e:
+                    logger.error(f" [v7.214 Debug] structured_problem_analysis执行异常: {e}")
+                    import traceback
+
+                    logger.error(f" [v7.214 Debug] 异常堆栈: {traceback.format_exc()}")
+                    analysis_session = None
+                    yield {"type": "warning", "data": {"message": "分析引擎异常，已切换到快速搜索模式", "error_type": "v7214_exception"}}
+
+                if not analysis_session:
+                    logger.warning("️ [v7.214] 结构化分析失败，回退到快速搜索模式")
+                    yield {
+                        "type": "phase",
+                        "data": {"phase": "fallback", "phase_name": "快速搜索模式", "message": "正在使用快速搜索模式..."},
+                    }
+
+                    #  v7.220: 直接使用简单搜索框架，跳过统一分析（避免再次调用 LLM）
+                    logger.info(" [v7.220] 使用简单搜索框架，跳过 LLM 分析")
+                    framework = self._build_simple_search_framework(query)
+                    search_master_line = None
+                # v7.219: 新流程中 analysis_session 是布尔标记，结果已在流式处理中提取
+                # 不再需要额外的处理
+
+            # v7.220: 确保 framework 不为空（流式分析中已设置）
+            if framework is None:
+                framework = self._build_simple_search_framework(query)
+
+            # v7.220: 使用新的 SearchFramework 结构
+            # 推送分析结果（包含搜索目标清单）
+            # v7.232: 添加预设关键词信息
+            question_analyzed_data = {
+                "answer_goal": framework.answer_goal,
+                "core_question": framework.core_question,
+                "boundary": framework.boundary,
+                # v7.232: 使用 targets 替代 key_aspects，包含预设关键词
+                "search_targets": [
+                    {
+                        "id": t.id,
+                        "name": t.name,
+                        "goal": t.purpose,
+                        "priority": t.priority,
+                        "status": "complete" if t.is_complete() else "pending",
+                        "completion_score": t.completion_score,
+                        "preset_keywords": t.preset_keywords,  # v7.232: 预设搜索关键词
+                        "quality_criteria": t.quality_criteria,  # v7.232: 质量达标标准
+                    }
+                    for t in framework.targets
+                ],
+                "total_targets": len(framework.targets),
+                "message": f"识别到 {len(framework.targets)} 个搜索目标需要完成",
+            }
+
+            # v7.208: 添加搜索任务清单
+            if search_master_line:
+                question_analyzed_data["search_master_line"] = {
+                    "core_question": search_master_line.core_question,
+                    "boundary": search_master_line.boundary,
+                    "task_count": len(search_master_line.search_tasks),
+                    "tasks": [
+                        {
+                            "id": t.id,
+                            "task": t.task,
+                            "purpose": t.purpose,
+                            "priority": t.priority,
+                            "status": t.status,
+                            "expected_info": t.expected_info,
+                        }
+                        for t in search_master_line.search_tasks
+                    ],
+                    "exploration_triggers": search_master_line.exploration_triggers,
+                    "forbidden_zones": search_master_line.forbidden_zones,
+                }
+                question_analyzed_data[
+                    "message"
+                ] = f"识别到 {len(search_master_line.search_tasks)} 个搜索任务（P1={sum(1 for t in search_master_line.search_tasks if t.priority==1)}个）"
+
+            yield {
+                "type": "question_analyzed",
+                "data": question_analyzed_data,
+            }
+
+            # ==================== Phase 2: 专家叙事搜索 v7.220 ====================
+            phase_2_data = {
+                "phase": "expert_narrative_search",
+                "phase_name": "专家叙事搜索",
+                "message": "像资深专家一样，思考、搜索、反思...",
+                "total_targets": len(framework.targets),
+            }
+            # v7.220: 使用 targets 数量
+            if framework.targets:
+                phase_2_data["message"] = f"执行 {len(framework.targets)} 个搜索目标，深度探索..."
+
+            yield {
+                "type": "phase",
+                "data": phase_2_data,
+            }
+
+            # ==================== v7.500: 逐目标自主搜索 ====================
+            # 替代旧的全局轮转调度（v7.245），每个目标独立运行搜索循环
+            # 串行执行，前一个目标的发现可辅助后续目标
+
+            # v7.208: 兼容旧的搜索任务清单 - 将 search_master_line 任务转为 targets
+            if search_master_line and not framework.targets:
+                for task in search_master_line.search_tasks:
+                    temp_target = SearchTarget(
+                        id=f"task_{task.id}",
+                        name=task.task[:50],
+                        description=task.task,
+                        purpose=task.purpose,
+                        priority=task.priority,
+                    )
+                    framework.targets.append(temp_target)
+                    logger.info(f" [v7.500] 从搜索任务清单创建目标: {temp_target.name[:40]}...")
+
+            sorted_targets = sorted(
+                [t for t in framework.targets if not t.is_complete()],
+                key=lambda t: (t.priority, t.execution_order),
+            )
+            total_targets = len(sorted_targets)
+            global_round = 0
+
+            logger.info(f" [v7.500] 开始逐目标自主搜索: {total_targets} 个目标")
+
+            for idx, target in enumerate(sorted_targets):
+                target_desc = target.question or target.name or target.search_for or f"目标{target.id}"
+
+                # 推送目标开始事件
+                yield {
+                    "type": "target_search_start",
+                    "data": {
+                        "target_id": target.id,
+                        "target_name": target_desc,
+                        "target_index": idx + 1,
+                        "total_targets": total_targets,
+                    },
+                }
+
+                # 该目标自主搜索
+                async for event in self._search_single_target_autonomously(
+                    target, framework, all_sources, seen_urls
+                ):
+                    # 转发内部事件，附加全局轮次号（兼容前端）
+                    if event.get("type") == "target_search_progress":
+                        global_round += 1
+                        event["data"]["global_round"] = global_round
+                    yield event
+
+                # 更新框架完成度
+                framework.update_completeness()
+
+                # 全局提前终止：如果整体完成度已经很高
+                if framework.overall_completeness >= 0.92:
+                    logger.info(f" [v7.500] 整体完成度 {framework.overall_completeness:.2f} >= 0.92，提前终止")
+                    break
+
+            # 搜索完成
+            yield {
+                "type": "search_complete",
+                "data": {
+                    "reason": f"逐目标自主搜索完成（{total_targets}个目标）",
+                    "totalRounds": global_round,
+                    "completeness": framework.overall_completeness,
+                    "targets_summary": [
+                        {
+                            "id": t.id,
+                            "name": t.question or t.name or t.search_for or f"目标{t.id}",
+                            "status": t.status,
+                            "completion_score": t.completion_score,
+                            "rounds": t.target_rounds,
+                            "valuable_findings": len(t.valuable_findings),
+                        }
+                        for t in sorted_targets
+                    ],
+                },
+            }
+
+            # ==================== v7.213: 搜索历程最终回顾 ====================
+            if search_master_line:
+                retrospective_event = await self._generate_search_retrospective(
+                    search_master_line, framework, global_round, all_sources, rounds
+                )
+                if retrospective_event:
+                    yield retrospective_event
+
+            # ==================== Phase 3: 答案整合 ====================
+            yield {
+                "type": "phase",
+                "data": {
+                    "phase": "answer_synthesis",
+                    "phase_name": "生成答案",
+                    "message": "正在整合所有信息，生成完整答案...",
+                },
+            }
+
+            # v7.194: 传递 rounds 参数，用于累积反思摘要
+            async for chunk in self._generate_final_answer(query, framework, all_sources, rounds):
+                yield chunk
+
+            # 完成
+            total_time = time.time() - start_time
+            yield {
+                "type": "done",
+                "data": {
+                    "totalRounds": global_round,
+                    "total_sources": len(all_sources),
+                    "final_completeness": framework.overall_completeness,
+                    "execution_time": total_time,
+                    "answer_goal": framework.answer_goal,
+                    "aspects_completed": sum(1 for a in framework.targets if a.status == "complete"),
+                    "aspects_total": len(framework.targets),
+                },
+            }
+
+        except Exception as e:
+            logger.error(f" [Ucppt] 搜索失败: {e}", exc_info=True)
+            yield {"type": "error", "data": {"message": str(e)}}
+
+    # ==================== 统一分析 (v7.207 合并 L0 + L1-L5) ====================
+
+    def _build_dialogue_analysis_prompt(self, query: str, context: Optional[Dict[str, Any]] = None) -> str:
+        """
+        构建对话式分析 Prompt - v7.302.1 修复
+        第一次调用：生成自然语言分析（流式输出给用户）
+
+        v7.302.1 修复：
+        - 使用 dialogue_prompt_template 而不是 task_description_template
+        - 第一次调用只生成自然语言，不输出JSON
+        - 降级处理：如果YAML加载失败，使用fallback prompt
+        """
+        from datetime import datetime
+        from pathlib import Path
+
+        import yaml
+
+        # 尝试加载YAML配置
+        try:
+            config_path = Path(__file__).parent.parent / "config" / "prompts" / "search_question_analysis.yaml"
+
+            if not config_path.exists():
+                logger.warning(f"️ [v7.302.1] YAML配置文件不存在: {config_path}")
+                return self._build_dialogue_analysis_prompt_fallback(query, context)
+
+            with open(config_path, "r", encoding="utf-8") as f:
+                config = yaml.safe_load(f)
+
+            #  使用 dialogue_prompt_template 而不是 task_description_template
+            dialogue_template = config.get("dialogue_prompt_template", "")
+
+            if not dialogue_template:
+                logger.warning("️ [v7.302.1] dialogue_prompt_template 不存在，使用降级方案")
+                return self._build_dialogue_analysis_prompt_fallback(query, context)
+
+            # 构建datetime_info
+            datetime_info = f"当前时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+
+            # 替换模板变量
+            dialogue_prompt = dialogue_template.replace("{datetime_info}", datetime_info)
+            dialogue_prompt = dialogue_prompt.replace("{user_input}", query)
+
+            logger.info(f" [v7.302.1] 已加载对话式prompt | 长度={len(dialogue_prompt)}")
+
+            return dialogue_prompt
+
+        except Exception as e:
+            logger.error(f" [v7.302.1] 加载YAML配置失败: {e}", exc_info=True)
+            return self._build_dialogue_analysis_prompt_fallback(query, context)
+
+    def _build_dialogue_analysis_prompt_fallback(self, query: str, context: Optional[Dict[str, Any]] = None) -> str:
+        """
+        降级版本的对话式分析 Prompt - v7.300
+        当YAML配置加载失败时使用
+        """
+        context_str = json.dumps(context or {}, ensure_ascii=False, indent=2)
+
+        return f"""你是一位资深战略顾问，正在与客户进行深度对话。请用自然、专业、有洞察力的方式分析用户的问题。
+
+## 用户问题
+{query}
+
+## 上下文
+{context_str}
+
+## 输出风格要求
+
+**核心原则**：像资深顾问与客户面对面交谈，展示你的专业洞察，而非机械地填写分析模板。
+
+**绝对禁止**：
+-  不要说"首先分析用户画像"、"接下来看L2多视角"、"现在进行L3张力分析"
+-  不要按固定顺序逐条列出分析维度
+-  不要使用"L0"、"L1"、"L2"、"L3"、"L4"、"L5"等术语
+-  不要说"好的"、"让我分析"、"首先"、"接下来"等过渡词
+-  不要解释你为什么要分析某个方面
+
+**正确做法**：
+-  直接切入问题的核心矛盾或关键洞察
+-  根据问题的特点，灵活组织分析顺序
+-  用自然段落展开，像讲故事一样有节奏
+-  重要洞察用**加粗**标注
+-  实体信息可以用简洁的表格呈现
+
+**示例对比**：
+
+ 机械式输出：
+"**L0 用户画像分析**
+从问题中可以推断用户是...
+**L1 实体提取**
+品牌实体：HAY...
+**L2 多视角分析**
+从心理学视角看..."
+
+ 自然流畅输出：
+"这是一个有趣的设计融合挑战——**HAY的几何工业美学**与**峨眉山的有机自然气质**，看似对立，实则蕴含独特的融合可能。
+
+提出这个问题的人，很可能是一位**设计敏感型民宿主**，对北欧设计有深入了解，同时希望在地化表达。
+
+| 关键实体 | 核心特征 |
+|---------|---------|
+| HAY | Palissade系列、粉末涂层钢、柔和灰调 |
+| 峨眉山七里坪 | 海拔1300m、湿润多雾、冷杉木/竹材 |
+
+核心张力在于：**几何秩序 vs 自然生长**。解决这个张力的关键是..."
+
+## 分析内容指引（灵活运用，不必全部涵盖）
+
+根据问题特点，选择性地、自然地融入以下洞察：
+
+1. **用户是谁**：从问题推断身份、背景、真实诉求
+2. **关键实体**：品牌、地点、人物、风格等核心要素的深度解读
+3. **核心矛盾**：问题中的张力点、对立面、需要平衡的要素
+4. **隐性需求**：用户没说但很重要的需求
+5. **解题关键**：突破口在哪里、什么是成功的关键
+6. **预期产出**：最终应该交付什么样的答案
+
+## 特别提醒
+
+- 如果用户提到品牌（如HAY），要展示你对该品牌的专业理解（产品线、设计师、色彩系统）
+- 如果用户提到地点，要分析其气候、材料、文化特色
+- 分析要有深度，不是泛泛而谈，而是针对这个具体问题的独特洞察
+- 最后要自然地引出"接下来需要搜索什么"的方向感
+
+请直接开始你的分析，不要有任何开场白。"""
+
+    def _build_unified_analysis_prompt(self, query: str, context: Optional[Dict[str, Any]] = None) -> str:
+        """
+        构建统一分析 Prompt - v7.270 重构版
+
+        v7.270 重构（第一步与第二步分离）：
+        1. 第一步：需求理解 + 深度分析 + 解题思路（本方法）
+        2. 第二步：搜索框架生成（移至 _build_step2_search_framework_prompt）
+        3. 新增 problem_solving_approach 模块（战术级5-8步详细路径）
+        4. 严格分离：第一步不涉及任何搜索词或搜索任务规划
+
+        v7.234 保留：
+        - 强化实体提取（6类实体动态识别）
+        - L1-L5分析输出结构化实体清单
+        - 锐度三问自检机制
+        """
+        context_str = json.dumps(context or {}, ensure_ascii=False, indent=2)
+
+        return f"""你是顶级战略顾问。用**庖丁解牛**的方式分析问题——精准、高效、直击要害。
+
+## 用户问题
+{query}
+
+## 上下文
+{context_str}
+
+## 输出规范（强制）
+
+ **绝对禁止**（违反则输出无效）：
+1. 元认知叙述：不描述你要怎么思考、要遵守什么规则
+   -  "用户要我分析..."、"我得用庖丁解牛的方式..."
+   -  "用户希望我扮演..."、"这个身份意味着..."
+   -  "首先看用户问题..."、"我得从理解用户开始..."
+2. 过程解释：不解释为什么要分析某个维度
+   -  "这是一个设计融合问题，核心是..."
+   -  "现在提取实体，这是分析的关键..."
+3. 口语化词汇："好的"、"嗯"、"我想"、"我记得"
+
+ **正确做法**：直接输出分析结果，像填表一样
+
+**示例**：
+
+ 错误（元认知叙述）：
+"好的，用户要我分析这个民宿设计问题。首先看用户问题，这是一个设计融合问题，核心是要把北欧的HAY风格和四川峨眉山的山地环境结合起来。我得从理解用户开始，用户能提出这么具体的设计概念，应该是个专业人士..."
+
+ 正确（直接输出结果）：
+"**核心矛盾**：HAY几何工业感 × 峨眉山有机自然感
+
+**用户画像**
+- 身份：民宿主/设计师
+- 定位：中高端，设计驱动
+- 标签：文化融合探索者、设计敏感型业主
+
+**实体清单**
+| 类型 | 名称 | 关键属性 |
+|-----|-----|---------|
+| 品牌 | HAY | Palissade系列、Mags沙发、粉末涂层钢 |
+| 地点 | 峨眉山七里坪 | 海拔1300m、湿润多雾、冷杉木/竹材 |"
+
+## 分析要求
+
+### 第一部分：理解用户（动态实体提取）
+
+1. **用户画像**
+   - 从表达推断：地理位置、职业、年龄段、消费能力
+   - 身份标签：3-5个具体标签
+
+2. **实体提取**（v7.234 核心改进）
+   必须识别并分类以下6类实体：
+
+   | 类型 | 定义 | 提取要求 |
+   |------|------|----------|
+   | 品牌实体 | 用户提及或暗示的品牌 | 品牌名 + 已知产品线/系列 + 核心设计师（如有） |
+   | 地点实体 | 项目所在地 | 地名 + 气候/海拔/在地材料/建筑风格 |
+   | 风格实体 | 设计风格关键词 | 具体风格名 + 代表性特征 |
+   | 场景实体 | 应用场景 | 场景类型 + 目标用户群 + 商业模式特征 |
+   | 竞品实体 | 类似定位的成功案例 | 案例名 + 差异化特点 |
+   | 人物实体 | 相关设计师/创始人 | 姓名 + 代表作品 |
+
+   ️ 你需要基于问题内容**自行推断**具体实体，而非等待用户提供
+   ️ 如果用户提到品牌，必须推断其具体产品线、设计师、色彩系统等
+
+3. **隐性需求**
+   基于提取的实体进行关联推断：
+   - 品牌→用户审美偏好→可能的价格敏感度
+   - 地点→环境约束→在地化融合需求
+   - 场景→商业逻辑→成功标准
+
+4. **动机类型识别**（从12种类型中选择1-3个主导类型）
+
+   | 类型ID | 中文名 | 典型特征 |
+   |--------|--------|----------|
+   | cultural | 文化认同 | 传统文化、地域特色、民族符号、精神传承 |
+   | commercial | 商业价值 | ROI、坪效、运营效率、竞争策略 |
+   | wellness | 健康疗愈 | 物理健康、心理疗愈、医疗标准 |
+   | technical | 技术创新 | 智能化、工程技术、系统集成 |
+   | sustainable | 可持续价值 | 环保、社会责任、绿色低碳 |
+   | professional | 专业职能 | 行业标准、专业设备、工作流程 |
+   | inclusive | 包容性 | 无障碍设计、特殊人群、尊严平等 |
+   | functional | 功能性 | 空间功能、实用性、动线布局 |
+   | emotional | 情感性 | 情感体验、氛围营造、心理感受 |
+   | aesthetic | 审美 | 视觉美感、艺术表达、风格呈现 |
+   | social | 社交 | 人际互动、社群关系、交流空间 |
+   | mixed | 综合 | 多种动机混合，无明显主导 |
+
+   输出格式：
+   - 主导动机：[类型ID] + 判断依据（一句话）
+   - 次要动机：[类型ID]（如有）
+
+### 第二部分：深度分析（可操作化）
+
+5. **L1 事实解构**
+   输出结构化实体清单，必须具体到名称而非泛化描述：
+   - 品牌实体：品牌名 + 产品线列表 + 核心设计师
+   - 地点实体：地名 + 气候特征 + 在地材料 + 建筑风格
+   - 竞品案例：案例名 + 定位特点
+
+6. **L2 多视角建模**（动态选择3-5个视角）
+   视角池：心理学/社会学/美学/经济学/技术可行性/生态/人类学/符号学
+
+   选择原则：
+   - 创造型问题：优先 美学+心理学+符号学
+   - 决策型问题：优先 经济学+技术可行性+风险评估
+   - 探索型问题：优先 人类学+社会学+趋势分析
+
+   每个视角必须有具体支撑，避免泛化描述。
+
+7. **L3 核心张力**
+   必须输出：
+   - 张力公式："[具体元素A] vs [具体元素B]"（不是泛化的"现代vs传统"）
+   - 解决策略：至少1条可操作的融合手法
+
+8. **L4 用户任务（JTBD）**
+   用户真正想要完成的任务是什么？
+   用"当...时，我想要...，以便..."的格式描述。
+
+9. **L5 锐度自检**（三问测试）
+   回答以下三个问题：
+   ① 此分析只适用于本问题吗？（专一性）
+   ② 能直接指导下一步行动吗？（可操作性）
+   ③ 触及了用户未明说的深层诉求吗？（深度）
+
+### 第三部分：解题思路/搜索清单（v7.290 增强）
+
+基于以上L1-L5分析，现在思考**如何解决**这个问题，并生成**可执行的搜索清单**。
+
+**1. 任务本质识别**
+- 这是什么类型的任务？
+  - research（研究型）：需要收集和整理信息
+  - design（设计型）：需要创造性输出
+  - decision（决策型）：需要对比和选择
+  - exploration（探索型）：需要发现和理解
+  - verification（验证型）：需要确认和证实
+- 复杂度评估：simple / moderate / complex / highly_complex
+- 所需专业知识领域（列出3-5个）
+
+**2. 搜索清单规划（v7.290 增强：每步包含搜索执行字段）**
+
+按步骤思考：什么样的搜索序列能够完整回答这个问题？
+
+要求：
+- 生成5-8个具体搜索任务（不是3-4个宏观步骤）
+- 每步的action要具体到可执行级别，必须包含搜索引导词（搜索/查找/调研/收集）
+- 每步都要有明确的expected_output
+- **v7.290 新增**：每步必须包含以下搜索执行字段：
+  - search_keywords: 搜索关键词列表（2-5个，中英文混合）
+  - expected_sources: 期望的信息来源类型（官网/媒体/论文/案例库等）
+  - success_criteria: 成功标准（一句话描述什么算"搜到了"）
+  - priority: 优先级（high/medium/low）
+  - task_type: 任务类型（research/analysis/design/output）
+
+格式：
+- 步骤1: [具体行动] - [目的] - [预期产出] - [关键词] - [成功标准]
+- 步骤2: ...
+
+示例（HAY民宿案例）：
+- S1: 搜索HAY品牌核心设计语言 - 建立源美学参照系 - HAY设计哲学、核心设计师 - 关键词["HAY design philosophy", "HAY 设计语言"] - 成功标准"找到HAY官方设计理念描述和3个代表作品"
+- S2: 查找HAY色彩系统与材质特征 - 获取可应用的视觉元素 - 标志性色彩、材质偏好 - 关键词["HAY color palette", "HAY 材质"] - 成功标准"提取出HAY的5种标志性色彩和3种核心材质"
+
+**3. 关键突破口（1-3个）**
+
+什么是解锁这个问题的关键洞察或切入点？
+- 突破口: [要点] - [为什么关键] - [如何利用]
+
+**4. 预期产出形态**
+
+最终答案应该是什么样的？
+- 格式：（report/list/comparison/recommendation/plan）
+- 必须包含的章节/元素（列出5-8个）
+- 关键交付物（视觉参考、产品推荐、实施指南等）
+- 质量标准（可执行性、协调性、文化融合度等）
+
+**5. 任务描述保留**
+- 原始需求（原文）：用户的原始问题
+- 结构化需求（精炼后）：经过分析后的结构化描述
+
+**6. 备选路径（可选）**
+- 如果主路径遇阻，有哪些替代方案？
+
+**7. MECE 覆盖校验（v7.290 新增）**
+
+检查搜索清单是否完整覆盖用户需求：
+- 列出用户提到的所有实体（品牌、地点、人物、概念等）
+- 检查每个实体是否被某个搜索步骤覆盖
+- 列出已覆盖的信息点
+- 列出可能遗漏的信息点（如有）
+
+---
+
+分析完成后，输出以下 JSON（v7.270 重构版：不包含搜索框架，搜索框架在第二步生成）：
+
+```json
+{{
+    "user_profile": {{
+        "location": "",
+        "occupation": "",
+        "identity_tags": [],
+        "explicit_need": "",
+        "implicit_needs": [],
+        "motivation_types": {{
+            "primary": "类型ID（如aesthetic/cultural/commercial等）",
+            "primary_reason": "判断依据（一句话）",
+            "secondary": ["次要类型ID"],
+            "secondary_reason": "次要类型判断依据"
+        }}
+    }},
+    "analysis": {{
+        "l1_facts": {{
+            "brand_entities": [
+                {{"name": "品牌名", "product_lines": ["产品线1", "产品线2"], "designers": ["设计师1"], "color_system": ["色彩1"], "materials": ["材质1"]}}
+            ],
+            "location_entities": [
+                {{"name": "地名", "climate": "气候特征", "altitude": "海拔", "local_materials": ["材料1"], "architecture_style": "建筑风格"}}
+            ],
+            "competitor_entities": [
+                {{"name": "案例名", "positioning": "定位", "differentiator": "差异化特点"}}
+            ],
+            "style_entities": ["风格1"],
+            "person_entities": [{{"name": "人名", "role": "角色", "works": ["作品1"]}}]
+        }},
+        "l2_models": {{
+            "selected_perspectives": ["视角1", "视角2", "视角3"],
+            "psychological": "心理学分析（具体描述）",
+            "sociological": "社会学分析（具体描述）",
+            "aesthetic": "美学分析（具体描述）"
+        }},
+        "l3_tension": {{
+            "formula": "[具体元素A] vs [具体元素B]",
+            "description": "张力详细描述",
+            "resolution_strategy": "解决策略"
+        }},
+        "l4_jtbd": "当...时，我想要...，以便...",
+        "l5_sharpness": {{
+            "score": 0,
+            "specificity": "此分析只适用于本问题吗？回答",
+            "actionability": "能直接指导下一步行动吗？回答",
+            "depth": "触及了用户未明说的深层诉求吗？回答"
+        }}
+    }},
+    "problem_solving_approach": {{
+        "task_type": "design",
+        "task_type_description": "这是一个复杂的设计任务，需要品牌语言理解、地域特色整合和完整概念设计输出",
+        "complexity_level": "complex",
+        "required_expertise": ["室内设计", "品牌美学", "地域文化", "材料学"],
+        "solution_steps": [
+            {{
+                "step_id": "S1",
+                "action": "搜索HAY品牌核心设计语言",
+                "purpose": "建立'源'美学参照系的基础认知",
+                "expected_output": "HAY设计哲学（民主设计、功能美学）、核心设计师（Bouroullec兄弟等）",
+                "search_keywords": ["HAY design philosophy", "HAY 设计语言", "HAY brand identity"],
+                "expected_sources": ["HAY官网", "Dezeen", "设计媒体"],
+                "success_criteria": "找到HAY官方设计理念描述和3个代表作品",
+                "priority": "high",
+                "task_type": "research"
+            }},
+            {{
+                "step_id": "S2",
+                "action": "查找HAY色彩系统与材质特征",
+                "purpose": "获取可直接应用的视觉元素",
+                "expected_output": "HAY标志性色彩（柔和灰、暖黄、雾蓝）、材质偏好（粉末涂层钢、实木、织物）",
+                "search_keywords": ["HAY color palette", "HAY 色彩系统", "HAY materials"],
+                "expected_sources": ["HAY官网", "Pinterest", "设计案例库"],
+                "success_criteria": "提取出HAY的5种标志性色彩和3种核心材质",
+                "priority": "high",
+                "task_type": "research"
+            }},
+            {{
+                "step_id": "S3",
+                "action": "调研峨眉山七里坪气候与环境特征",
+                "purpose": "理解设计的物理约束条件",
+                "expected_output": "海拔1300m、湿润多雾气候、温差大、自然光线特点",
+                "search_keywords": ["峨眉山七里坪气候", "峨眉山海拔", "四川山地气候"],
+                "expected_sources": ["气象网站", "旅游攻略", "地理资料"],
+                "success_criteria": "获取七里坪的年均温度、湿度、光照时长数据",
+                "priority": "high",
+                "task_type": "research"
+            }},
+            {{
+                "step_id": "S4",
+                "action": "收集峨眉山在地材料与工艺资源",
+                "purpose": "识别可用于融合的本地元素",
+                "expected_output": "冷杉木、竹材、青石、传统榫卯工艺、蜀绣元素",
+                "search_keywords": ["峨眉山本地材料", "四川传统工艺", "川西建筑材料"],
+                "expected_sources": ["建材网站", "文化遗产资料", "当地工艺介绍"],
+                "success_criteria": "列出5种以上可用的本地材料及其特性",
+                "priority": "medium",
+                "task_type": "research"
+            }},
+            {{
+                "step_id": "S5",
+                "action": "搜索北欧极简与川西山地美学的融合案例",
+                "purpose": "解决核心张力，找到设计语言的交汇点",
+                "expected_output": "融合原则（几何框架+有机填充）、冲突解决方案、成功案例参考",
+                "search_keywords": ["北欧风格民宿", "山地民宿设计", "中西融合室内设计"],
+                "expected_sources": ["Archdaily", "设计案例库", "民宿平台"],
+                "success_criteria": "找到3个以上北欧风格与自然环境融合的成功案例",
+                "priority": "high",
+                "task_type": "research"
+            }},
+            {{
+                "step_id": "S6",
+                "action": "规划空间功能分区与动线",
+                "purpose": "将美学融合落地到具体空间",
+                "expected_output": "公区/客房功能划分、动线设计、重点空间（大堂、客房、餐厅）处理方式",
+                "search_keywords": [],
+                "expected_sources": [],
+                "success_criteria": "完成空间功能分区草案",
+                "priority": "medium",
+                "task_type": "design"
+            }},
+            {{
+                "step_id": "S7",
+                "action": "生成完整概念设计方案",
+                "purpose": "交付可执行的设计指导文档",
+                "expected_output": "色彩搭配方案、材质选择清单、家具建议（含HAY具体产品）、软装配饰、照明设计",
+                "search_keywords": [],
+                "expected_sources": [],
+                "success_criteria": "输出完整的设计方案文档",
+                "priority": "high",
+                "task_type": "output"
+            }}
+        ],
+        "breakthrough_points": [
+            {{
+                "point": "HAY几何工业感 vs 峨眉山有机自然感",
+                "why_key": "这是定义设计挑战的核心张力，决定了整个方案的调性",
+                "how_to_leverage": "用HAY的几何框架作为'骨架'，用峨眉山的自然材料作为'肌肤'"
+            }}
+        ],
+        "expected_deliverable": {{
+            "format": "report",
+            "sections": ["设计理念与品牌气质定位", "色彩搭配方案", "材质选择与应用", "家具布置建议", "空间布局规划", "艺术装饰与软装搭配", "照明设计建议"],
+            "key_elements": ["视觉参考图", "具体产品推荐", "材料样板建议", "实施优先级"],
+            "quality_criteria": ["可执行性强", "视觉协调统一", "文化融合自然", "成本可控"]
+        }},
+        "original_requirement": "用户的原始问题（原文）",
+        "refined_requirement": "经过分析后的结构化需求描述",
+        "confidence_score": 0.85,
+        "alternative_approaches": ["备选路径1", "备选路径2"],
+        "coverage_check": {{
+            "covered_points": ["HAY品牌研究", "色彩材质提取", "峨眉山环境", "在地材料", "融合策略", "空间规划", "设计方案"],
+            "potentially_missing": ["预算约束", "施工可行性", "当地供应商"],
+            "user_entities": ["HAY", "峨眉山", "七里坪", "民宿"],
+            "entity_coverage": {{
+                "HAY": "S1,S2",
+                "峨眉山": "S3,S4",
+                "七里坪": "S3",
+                "民宿": "S5,S6,S7"
+            }}
+        }}
+    }},
+    "step2_context": {{
+        "core_question": "问题一句话本质（20字内）",
+        "answer_goal": "用户期望得到的答案是...",
+        "solution_steps_summary": ["S1:HAY设计语言", "S2:HAY色彩材质", "S3:峨眉山环境", "S4:在地材料", "S5:融合策略", "S6:空间规划", "S7:完整方案"],
+        "breakthrough_tensions": ["几何工业感 vs 有机自然感"]
+    }}
+}}
+```
+
+请只输出JSON，不要有其他内容。"""
+
+    async def _unified_analysis_stream(
+        self,
+        query: str,
+        context: Optional[Dict[str, Any]] = None,
+    ) -> AsyncGenerator[Dict[str, Any], None]:
+        """
+        统一分析流式处理 - v7.270 两次调用版本
+
+        v7.270 重构（两次 LLM 调用）：
+        - 第一次调用：生成对话式分析内容（流式输出给用户看）
+        - 第二次调用：生成结构化 JSON 数据（系统内部使用）
+        - 参考 L0 的成功实现（_extract_structured_info_stream）
+
+        优势：
+        - 用户可以看到完整的对话式分析过程
+        - 系统可以获得结构化数据
+        - 分离关注点，更清晰
+        """
+        logger.info(f" [统一分析 v7.302.11] 开始第一步分析 | query={query[:50]}...")
+
+        dialogue_content = ""
+
+        # v7.310: 2板块流式解析状态
+        current_section = 0  # 0=未开始, 1=问题分析, 2=解题思路
+        section_contents = ["", ""]  # 2个板块的内容缓冲
+        section_markers = [
+            "## 问题分析",
+            "## 解题思路",
+        ]
+
+        try:
+            # ==================== 第一次调用：按4使命格式流式输出 ====================
+            dialogue_prompt = self._build_dialogue_analysis_prompt(query, context)
+
+            logger.info(" [v7.310] 第一次调用：生成2板块格式内容（流式输出）...")
+
+            # v7.310: 流式输出2板块内容，增加max_tokens到12000确保输出完整的分析
+            async for chunk in self._call_llm_stream_with_reasoning(
+                dialogue_prompt, model=self.thinking_model, max_tokens=12000
+            ):
+                chunk_text = ""
+                if chunk.get("type") == "reasoning":
+                    chunk_text = chunk.get("content", "")
+                elif chunk.get("type") == "content":
+                    chunk_text = chunk.get("content", "")
+
+                if not chunk_text:
+                    continue
+
+                dialogue_content += chunk_text
+
+                # v7.310: 检测板块标记并切换当前板块
+                for i, marker in enumerate(section_markers):
+                    if marker in chunk_text:
+                        # 切换到新板块
+                        new_section = i + 1
+                        if new_section != current_section:
+                            logger.info(f" [v7.310] 检测到板块{new_section}开始")
+                            current_section = new_section
+
+                # 发送2板块流式事件（统一发送，前端根据内容解析板块）
+                yield {
+                    "type": "two_sections_stream",
+                    "data": {
+                        "content": chunk_text,
+                        "current_section": current_section,
+                    },
+                }
+
+                # 累积当前板块内容
+                if current_section > 0:
+                    section_contents[current_section - 1] += chunk_text
+
+            # v7.310: 流式输出完成
+            yield {
+                "type": "two_sections_stream_complete",
+                "data": {
+                    "message": "2板块流式输出完成",
+                    "total_length": len(dialogue_content),
+                },
+            }
+
+            logger.info(f" [v7.310] 第一次调用完成 | dialogue_len={len(dialogue_content)}")
+
+            # ==================== v7.310: 直接解析对话内容，无需第二次LLM调用 ====================
+            logger.info(" [v7.310] 开始解析对话内容...")
+
+            # 解析对话内容为结构化数据
+            data = self._parse_two_sections_from_dialogue(dialogue_content, query)
+
+            logger.info(" [v7.310] 对话内容解析完成 | 包含2个板块数据")
+
+            # v7.303: 跳过质量评估，直接使用解析结果
+            quality = {"pass": True, "grade": "A", "score": 85, "suggestions": []}
+
+            # 发送用户画像就绪信号
+            user_profile = data.get("user_profile", {})
+            yield {
+                "type": "structured_info_ready",
+                "data": {
+                    "has_profile": bool(user_profile.get("identity_tags") or user_profile.get("occupation")),
+                    "has_preferences": bool(user_profile.get("implicit_needs")),
+                },
+                "_internal_data": user_profile,
+            }
+
+            # v7.303: 从解析的数据中提取 problem_solving_approach
+            problem_solving_data = data.get("problem_solving_approach", {})
+            step2_context = data.get("step2_context", {})
+
+            # v7.270: 构建并发送解题思路
+            problem_solving_approach = None
+            if problem_solving_data:
+                problem_solving_approach = ProblemSolvingApproach.from_dict(problem_solving_data)
+                logger.info(
+                    f" [v7.290] 解题思路解析完成 | 步骤数={len(problem_solving_approach.solution_steps)}, 突破口数={len(problem_solving_approach.breakthrough_points)}, 覆盖校验={bool(problem_solving_approach.coverage_check.get('covered_points'))}"
+                )
+
+                yield {
+                    "type": "problem_solving_approach_ready",
+                    "data": {
+                        "task_type": problem_solving_approach.task_type,
+                        "task_type_description": problem_solving_approach.task_type_description,
+                        "complexity_level": problem_solving_approach.complexity_level,
+                        "required_expertise": problem_solving_approach.required_expertise,
+                        "solution_steps": problem_solving_approach.solution_steps,
+                        "breakthrough_points": problem_solving_approach.breakthrough_points,
+                        "expected_deliverable": problem_solving_approach.expected_deliverable,
+                        "original_requirement": problem_solving_approach.original_requirement,
+                        "refined_requirement": problem_solving_approach.refined_requirement,
+                        "confidence_score": problem_solving_approach.confidence_score,
+                        "alternative_approaches": problem_solving_approach.alternative_approaches,
+                        "coverage_check": problem_solving_approach.coverage_check,  # v7.290 新增
+                        "plain_text": problem_solving_approach.to_plain_text(),
+                    },
+                    "_internal_approach": problem_solving_approach,
+                }
+            else:
+                logger.warning("️ [v7.270] 未解析到 problem_solving_approach，使用默认值")
+                # 创建默认的解题思路
+                problem_solving_approach = self._build_default_problem_solving_approach(query)
+                yield {
+                    "type": "problem_solving_approach_ready",
+                    "data": problem_solving_approach.to_dict(),
+                    "_internal_approach": problem_solving_approach,
+                }
+
+            # v7.270: 发送分析数据就绪信号（内部使用）
+            # v7.290: 改为 analysis_data_ready，避免与 execute_step1_only 的 step1_complete 冲突
+            yield {
+                "type": "analysis_data_ready",
+                "data": {
+                    "user_profile": user_profile,
+                    "analysis": data.get("analysis", {}),
+                    "problem_solving_approach": problem_solving_approach.to_dict() if problem_solving_approach else {},
+                    "step2_context": step2_context,
+                    "quality_grade": quality["grade"],
+                },
+                "_internal_data": data,
+                "_internal_approach": problem_solving_approach,
+            }
+
+            # v7.270: 兼容旧流程 - 如果数据中包含 search_framework，仍然构建并发送
+            # 这是为了向后兼容，后续版本可以移除
+            search_framework_data = data.get("search_framework", {})
+            if search_framework_data and search_framework_data.get("targets"):
+                logger.info(" [v7.270] 检测到旧格式 search_framework，进行兼容处理")
+                framework = self._build_search_framework_from_json(query, data)
+
+                if framework:
+                    framework_checklist = None
+                    try:
+                        framework_checklist = self._generate_framework_checklist(framework, data)
+                        framework.framework_checklist = framework_checklist
+                    except Exception as checklist_error:
+                        logger.error(f" [v7.270] 框架清单生成失败: {checklist_error}", exc_info=True)
+                        from datetime import datetime
+
+                        framework_checklist = FrameworkChecklist(
+                            core_summary=framework.core_question[:30]
+                            if framework.core_question
+                            else framework.original_query[:30],
+                            main_directions=[],
+                            boundaries=[],
+                            answer_goal=framework.answer_goal or "为用户提供完整解答",
+                            generated_at=datetime.now().isoformat(),
+                        )
+
+                    targets_text_list = []
+                    if framework.targets:
+                        for i, t in enumerate(framework.targets, 1):
+                            name = getattr(t, "name", "") or getattr(t, "question", "") or f"目标{i}"
+                            desc = getattr(t, "search_for", "") or getattr(t, "description", "") or ""
+                            if desc:
+                                targets_text_list.append(f"{i}. {name} — {desc}")
+                            else:
+                                targets_text_list.append(f"{i}. {name}")
+
+                    framework_summary = " 搜索主线：\n" + "\n".join(targets_text_list) if targets_text_list else " 搜索主线：待规划"
+
+                    yield {
+                        "type": "search_framework_ready",
+                        "data": {
+                            "core_question": framework.core_question,
+                            "answer_goal": framework.answer_goal,
+                            "boundary": framework.boundary,
+                            "target_count": len(framework.targets) if framework.targets else 0,
+                            "targets": [t.to_dict() for t in framework.targets] if framework.targets else [],
+                            "targets_summary": framework_summary,
+                            "quality_grade": quality["grade"],
+                            "framework_checklist": framework_checklist.to_dict() if framework_checklist else None,
+                            # v7.282: 添加已转换的 master_line 格式，简化前端转换逻辑
+                            "master_line": framework.to_master_line_dict(),
+                        },
+                        "_internal_framework": framework,
+                    }
+
+                    yield {
+                        "type": "analysis_complete",
+                        "framework": framework.to_master_line_dict() if framework else None,
+                        "quality": quality,
+                        "problem_solving_approach": problem_solving_approach.to_dict()
+                        if problem_solving_approach
+                        else None,
+                    }
+            else:
+                # v7.270: 新流程 - 不包含 search_framework，只发送 analysis_complete
+                yield {
+                    "type": "analysis_complete",
+                    "framework": None,  # 第一步不生成 framework
+                    "quality": quality,
+                    "problem_solving_approach": problem_solving_approach.to_dict()
+                    if problem_solving_approach
+                    else None,
+                    "step2_context": step2_context,
+                }
+
+        except Exception as e:
+            logger.warning(f"️ [统一分析 v7.302.9] 分析失败: {e}")
+            # v7.302.9: 不再发送 unified_dialogue_complete，已废弃
+            # 发送默认的解题思路
+            default_approach = self._build_default_problem_solving_approach(query)
+            yield {
+                "type": "problem_solving_approach_ready",
+                "data": default_approach.to_dict(),
+                "_internal_approach": default_approach,
+            }
+            # v7.290: 改为 analysis_data_ready，避免与 execute_step1_only 的 step1_complete 冲突
+            yield {
+                "type": "analysis_data_ready",
+                "data": {
+                    "user_profile": {},
+                    "analysis": {},
+                    "problem_solving_approach": default_approach.to_dict(),
+                    "step2_context": {"core_question": query[:50], "answer_goal": "为用户提供完整解答"},
+                    "quality_grade": "C",
+                },
+                "_internal_data": {},
+                "_internal_approach": default_approach,
+            }
+            simple_framework = self._build_simple_search_framework(query)
+            yield {
+                "type": "analysis_complete",
+                "framework": simple_framework.to_master_line_dict() if simple_framework else None,
+                "problem_solving_approach": default_approach.to_dict() if default_approach else None,
+            }
+
+    def _parse_two_sections_from_dialogue(self, dialogue_content: str, query: str) -> Dict[str, Any]:
+        """
+        v7.310: 从对话内容中解析2个板块的结构化数据
+
+        替代原来的4条使命解析，改为：
+        1. 问题分析
+        2. 解题思路
+
+        Args:
+            dialogue_content: 流式输出的对话内容（包含2个板块）
+            query: 用户原始查询
+
+        Returns:
+            包含2个板块结构化数据的字典
+        """
+        import re
+
+        logger.info(f" [v7.310] 开始解析对话内容 | 长度={len(dialogue_content)}")
+
+        # 初始化结果结构
+        result = {
+            "creation_command": query[:50] + "..." if len(query) > 50 else query,
+            "section_1_problem_analysis": {"title": "问题分析", "description": "深度理解用户需求", "content": {}},
+            "section_2_solution_approach": {"title": "解题思路", "description": "专业设计建议", "content": {}},
+            "metadata": {
+                "analysis_quality": {
+                    "overall_confidence": 0.90,
+                }
+            },
+            "user_profile": {},
+            "problem_solving_approach": {},
+            "step2_context": {},
+        }
+
+        try:
+            # 提取两个板块的内容
+            section_patterns = [
+                (r"## 问题分析(.*?)(?=## 解题思路|$)", "section_1_problem_analysis"),
+                (r"## 解题思路(.*?)$", "section_2_solution_approach"),
+            ]
+
+            for pattern, section_key in section_patterns:
+                match = re.search(pattern, dialogue_content, re.DOTALL)
+                if match:
+                    section_content = match.group(1).strip()
+                    result[section_key]["content"] = self._parse_section_content(section_content, section_key, query)
+                    logger.info(f" [v7.310] 解析 {section_key} 完成")
+
+            # 从问题分析提取用户画像
+            if result["section_1_problem_analysis"]["content"]:
+                result["user_profile"] = self._extract_user_profile_from_analysis(
+                    result["section_1_problem_analysis"]["content"]
+                )
+
+            # 从解题思路提取问题解决方法
+            if result["section_2_solution_approach"]["content"]:
+                result["problem_solving_approach"] = self._extract_approach_from_solution(
+                    result["section_2_solution_approach"]["content"], query
+                )
+
+            logger.info(" [v7.310] 对话内容解析完成 | 包含 2 个板块")
+
+        except Exception as e:
+            logger.error(f" [v7.310] 解析对话内容失败: {e}", exc_info=True)
+
+        return result
+
+    def _parse_section_content(self, content: str, section_key: str, query: str) -> Dict[str, Any]:
+        """解析板块内容"""
+        import re
+
+        parsed = {"raw_content": content, "parsed": True}
+
+        # 提取关键信息
+        if section_key == "section_1_problem_analysis":
+            # 提取项目信息
+            project_info = {}
+            if "项目地点" in content:
+                match = re.search(r"项目地点[：:]\s*([^\n]+)", content)
+                if match:
+                    project_info["location"] = match.group(1).strip()
+            if "空间类型" in content:
+                match = re.search(r"空间类型[：:]\s*([^\n]+)", content)
+                if match:
+                    project_info["space_type"] = match.group(1).strip()
+            parsed["project_info"] = project_info
+
+        elif section_key == "section_2_solution_approach":
+            # 提取维度信息
+            dimensions = []
+            dimension_matches = re.findall(r"\*\*维度\d+[：:](.*?)\*\*", content)
+            for dim in dimension_matches:
+                dimensions.append(dim.strip())
+            parsed["dimensions"] = dimensions
+
+        return parsed
+
+    def _extract_user_profile_from_analysis(self, analysis_content: Dict[str, Any]) -> Dict[str, Any]:
+        """从问题分析中提取用户画像"""
+        project_info = analysis_content.get("project_info", {})
+        return {
+            "location": project_info.get("location", ""),
+            "occupation": "",
+            "identity_tags": [],
+            "explicit_need": "",
+            "implicit_needs": [],
+        }
+
+    def _extract_approach_from_solution(self, solution_content: Dict[str, Any], query: str) -> Dict[str, Any]:
+        """从解题思路中提取问题解决方法"""
+        dimensions = solution_content.get("dimensions", [])
+
+        # 将维度转换为解题步骤
+        solution_steps = []
+        for i, dim in enumerate(dimensions[:5]):
+            solution_steps.append({"step_id": f"S{i+1}", "action": dim, "purpose": "实现目标", "expected_output": "阶段成果"})
+
+        return {
+            "task_type": "design",
+            "task_type_description": "基于用户需求的设计任务",
+            "complexity_level": "moderate",
+            "required_expertise": ["设计", "规划"],
+            "solution_steps": solution_steps,
+            "breakthrough_points": [],
+            "expected_deliverable": {"format": "设计方案", "sections": ["需求分析", "设计方案", "实施建议"], "quality_bar": "专业级"},
+            "original_requirement": query,
+            "refined_requirement": query,
+            "confidence_score": 0.85,
+            "alternative_approaches": [],
+            "coverage_check": {"covered_points": ["需求理解", "方案设计"], "missing_points": []},
+        }
+
+    def _parse_mission1_content(self, content: str, query: str) -> Dict[str, Any]:
+        """解析使命1：用户问题分析"""
+        import re
+
+        parsed = {
+            "user_identity": "",
+            "project_type": "",
+            "project_location": "",
+            "project_scale": "",
+            "core_theme": "",
+            "key_insights": [],
+        }
+
+        # 提取关键信息（简化版）
+        # 查找加粗的关键词
+        bold_items = re.findall(r"\*\*(.*?)\*\*", content)
+        if bold_items:
+            parsed["key_insights"] = bold_items[:5]
+
+        # 从query中提取基本信息
+        parsed["user_identity"] = query[:100]
+
+        return parsed
+
+    def _parse_mission2_content(self, content: str) -> Dict[str, Any]:
+        """解析使命2：明确目标"""
+        import re
+
+        parsed = {"primary_goal": "", "deliverables": [], "success_criteria": []}
+
+        # 提取交付物（查找编号列表）
+        deliverable_matches = re.findall(r"[D\d]+[\.、：:]\s*(.*?)(?=\n|$)", content)
+        if deliverable_matches:
+            parsed["deliverables"] = [
+                {"id": f"D{i+1}", "name": item.strip(), "description": item.strip(), "priority": "MUST_HAVE"}
+                for i, item in enumerate(deliverable_matches[:5])
+            ]
+
+        return parsed
+
+    def _parse_mission3_content(self, content: str) -> Dict[str, Any]:
+        """解析使命3：任务维度"""
+        import re
+
+        parsed = {
+            "task_type": "design",
+            "complexity_level": "moderate",
+            "solution_approach": "",
+            "required_expertise": [],
+            "key_steps": [],
+            "breakthrough_points": [],
+        }
+
+        # 提取步骤（查找编号列表）
+        step_matches = re.findall(r"[S步骤\d]+[\.、：:]\s*(.*?)(?=\n|$)", content)
+        if step_matches:
+            parsed["key_steps"] = [
+                {"step_id": f"S{i+1}", "action": step.strip(), "purpose": "实现目标", "expected_output": "阶段成果"}
+                for i, step in enumerate(step_matches[:5])
+            ]
+
+        return parsed
+
+    def _parse_mission4_content(self, content: str) -> Dict[str, Any]:
+        """解析使命4：执行要求"""
+        import re
+
+        parsed = {
+            "quality_standards": [],
+            "constraints_to_respect": [],
+            "anti_patterns": [],
+            "risk_alerts": [],
+            "recommended_tools": [],
+        }
+
+        # 提取要点（查找列表项）
+        items = re.findall(r"[•\-\*]\s*(.*?)(?=\n|$)", content)
+        if items:
+            parsed["quality_standards"] = [item.strip() for item in items[:3]]
+            parsed["constraints_to_respect"] = [item.strip() for item in items[3:6]]
+
+        return parsed
+
+    def _extract_user_profile_from_mission1(self, mission1_content: Dict[str, Any]) -> Dict[str, Any]:
+        """从使命1内容中提取用户画像"""
+        return {
+            "location": mission1_content.get("project_location", ""),
+            "occupation": "",
+            "identity_tags": mission1_content.get("key_insights", [])[:3],
+            "explicit_need": mission1_content.get("core_theme", ""),
+            "implicit_needs": mission1_content.get("key_insights", []),
+        }
+
+    def _extract_problem_solving_from_mission3(self, mission3_content: Dict[str, Any], query: str) -> Dict[str, Any]:
+        """从使命3内容中提取解题思路"""
+        return {
+            "task_type": mission3_content.get("task_type", "design"),
+            "task_type_description": "基于用户需求的设计任务",
+            "complexity_level": mission3_content.get("complexity_level", "moderate"),
+            "required_expertise": mission3_content.get("required_expertise", ["设计", "规划"]),
+            "solution_steps": mission3_content.get("key_steps", []),
+            "breakthrough_points": mission3_content.get("breakthrough_points", []),
+            "expected_deliverable": {"format": "设计方案", "sections": ["需求分析", "设计方案", "实施建议"], "quality_bar": "专业级"},
+            "original_requirement": query,
+            "refined_requirement": query,
+            "confidence_score": 0.85,
+            "alternative_approaches": [],
+            "coverage_check": {"covered_points": ["需求理解", "方案设计"], "missing_points": []},
+        }
+
+    def _extract_search_framework_from_mission2(self, mission2_content: Dict[str, Any], query: str) -> Dict[str, Any]:
+        """从使命2内容中提取搜索框架"""
+        deliverables = mission2_content.get("deliverables", [])
+
+        targets = []
+        for i, deliverable in enumerate(deliverables[:3]):
+            targets.append({"id": f"T{i+1}", "preset_keywords": [deliverable.get("name", f"目标{i+1}")]})
+
+        return {"targets": targets}
+
+    def _build_json_extraction_prompt(
+        self, query: str, dialogue_content: str, context: Optional[Dict[str, Any]] = None
+    ) -> str:
+        """
+        构建 JSON 提取 Prompt - v7.302.1 修复
+        第二次调用：基于对话内容生成结构化 JSON（系统内部使用）
+
+        v7.302.1 修复：
+        - 尝试从YAML加载 json_extraction_prompt_template
+        - 如果不存在，使用 task_description_template
+        - 降级处理：如果YAML加载失败，使用内置prompt
+
+        v7.303: 此方法已废弃，保留仅用于向后兼容
+        """
+        from datetime import datetime
+        from pathlib import Path
+
+        import yaml
+
+        try:
+            config_path = Path(__file__).parent.parent / "config" / "prompts" / "search_question_analysis.yaml"
+
+            if not config_path.exists():
+                logger.warning("️ [v7.302.1] YAML配置文件不存在，使用内置prompt")
+                return self._build_json_extraction_prompt_fallback(query, dialogue_content, context)
+
+            with open(config_path, "r", encoding="utf-8") as f:
+                config = yaml.safe_load(f)
+
+            #  优先使用 json_extraction_prompt_template
+            json_template = config.get("json_extraction_prompt_template", "")
+
+            if not json_template:
+                # 如果没有专门的JSON提取模板，使用原有的 task_description_template
+                logger.info("ℹ️ [v7.302.1] json_extraction_prompt_template 不存在，使用 task_description_template")
+                json_template = config.get("task_description_template", "")
+
+            if not json_template:
+                logger.warning("️ [v7.302.1] 所有模板都不存在，使用内置prompt")
+                return self._build_json_extraction_prompt_fallback(query, dialogue_content, context)
+
+            # 构建datetime_info
+            datetime_info = f"当前时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+
+            # 替换模板变量
+            json_prompt = json_template.replace("{datetime_info}", datetime_info)
+            json_prompt = json_prompt.replace("{user_input}", query)
+            json_prompt = json_prompt.replace("{dialogue_content}", dialogue_content)
+
+            logger.info(f" [v7.302.1] 已加载JSON提取prompt | 长度={len(json_prompt)}")
+
+            return json_prompt
+
+        except Exception as e:
+            logger.error(f" [v7.302.1] 加载JSON提取prompt失败: {e}", exc_info=True)
+            return self._build_json_extraction_prompt_fallback(query, dialogue_content, context)
+
+    def _build_json_extraction_prompt_fallback(
+        self, query: str, dialogue_content: str, context: Optional[Dict[str, Any]] = None
+    ) -> str:
+        """
+        降级版本的JSON提取prompt - v7.302.1
+        当YAML加载失败时使用
+        """
+        return f"""基于以下用户问题和分析内容，提取结构化的JSON数据。
+
+## 用户原始问题
+{query}
+
+## 分析内容参考
+{dialogue_content}
+
+## 输出要求
+请将分析内容转换为以下4条使命的JSON格式：
+
+```json
+{{
+  "creation_command": "一句话总结用户的核心需求（20字内）",
+  "mission_1_user_problem_analysis": {{
+    "title": "用户问题分析",
+    "description": "结构化梳理用户信息",
+    "content": {{
+      "user_identity": "用户身份/角色",
+      "project_type": "项目类型",
+      "project_location": "项目地点",
+      "project_scale": "项目规模",
+      "core_theme": "核心主题",
+      "key_constraints": ["约束1", "约束2"],
+      "user_motivation": "用户深层动机（基于心理/社会/美学分析）",
+      "core_tension": "核心矛盾（最尖锐的对立面）"
+    }}
+  }},
+  "mission_2_clear_objectives": {{
+    "title": "明确目标",
+    "description": "用户最后要的是什么",
+    "content": {{
+      "final_deliverable_type": "最终交付物类型",
+      "output_format": "输出格式",
+      "target_audience": "目标受众",
+      "key_deliverables": [
+        {{
+          "id": "D1",
+          "name": "交付物名称",
+          "description": "具体描述（动词+对象+成果）",
+          "priority": "MUST_HAVE"
+        }},
+        {{
+          "id": "D2",
+          "name": "交付物名称",
+          "description": "具体描述",
+          "priority": "MUST_HAVE"
+        }}
+      ],
+      "success_criteria": ["成功标准1", "成功标准2"]
+    }}
+  }},
+  "mission_3_task_dimensions": {{
+    "title": "任务维度",
+    "description": "解题思路",
+    "content": {{
+      "task_type": "design/research/analysis/planning",
+      "complexity_level": "simple/moderate/complex/highly_complex",
+      "solution_approach": "解题方法论",
+      "required_expertise": ["专业领域1", "专业领域2"],
+      "key_steps": [
+        {{
+          "step_id": "S1",
+          "action": "具体行动",
+          "purpose": "目的",
+          "expected_output": "预期输出"
+        }},
+        {{
+          "step_id": "S2",
+          "action": "具体行动",
+          "purpose": "目的",
+          "expected_output": "预期输出"
+        }}
+      ],
+      "breakthrough_points": [
+        {{
+          "point": "突破点描述",
+          "why_key": "为什么关键",
+          "how_to_leverage": "如何利用"
+        }}
+      ]
+    }}
+  }},
+  "mission_4_execution_requirements": {{
+    "title": "执行要求",
+    "description": "注意事项",
+    "content": {{
+      "quality_standards": ["质量标准1", "质量标准2"],
+      "constraints_to_respect": ["必须遵守的约束1"],
+      "anti_patterns": ["应避免的做法1"],
+      "risk_alerts": ["潜在风险1"],
+      "recommended_tools": ["推荐工具1"]
+    }}
+  }},
+  "metadata": {{
+    "analysis_quality": {{
+      "l5_sharpness_score": 75,
+      "deliverables_validation_score": 80,
+      "overall_confidence": 0.85
+    }},
+    "analysis_layers": {{
+      "L1_facts": {{}},
+      "L2_user_model": {{}},
+      "L3_core_tension": "",
+      "L4_user_task": "",
+      "L5_sharpness": {{}}
+    }}
+  }},
+  "user_profile": {{
+        "location": "地理位置",
+        "occupation": "职业推断",
+        "identity_tags": ["标签1", "标签2"],
+        "explicit_need": "用户明确表达的需求",
+        "implicit_needs": ["隐性需求1", "隐性需求2"]
+    }},
+    "problem_solving_approach": {{
+        "task_type": "任务类型（research/design/decision/exploration/verification）",
+        "task_type_description": "任务类型描述",
+        "complexity_level": "复杂度（simple/moderate/complex/highly_complex）",
+        "required_expertise": ["专业领域1", "专业领域2"],
+        "solution_steps": [
+            {{
+                "step_id": "S1",
+                "action": "具体行动",
+                "purpose": "目的",
+                "expected_output": "预期产出"
+            }}
+        ],
+        "breakthrough_points": [
+            {{
+                "point": "突破要点",
+                "why_key": "为什么关键",
+                "how_to_leverage": "如何利用"
+            }}
+        ],
+        "expected_deliverable": {{
+            "format": "输出格式",
+            "sections": ["章节1", "章节2"],
+            "key_elements": ["关键元素1"],
+            "quality_criteria": ["质量标准1"]
+        }},
+        "original_requirement": "{query}",
+        "refined_requirement": "结构化需求描述",
+        "confidence_score": 0.85,
+        "alternative_approaches": []
+    }},
+    "step2_context": {{
+        "core_question": "问题一句话本质（20字内）",
+        "answer_goal": "用户期望得到的答案",
+        "solution_steps_summary": ["S1:步骤摘要"],
+        "breakthrough_tensions": []
+    }}
+}}
+```
+
+**重要提示**：
+1. 从分析内容中提取信息，填充到4条使命结构中
+2. 如果某些信息未明确，标注"未明确"或"待确认"
+3. key_deliverables必须有10-15项，每项包含动词+对象+成果
+4. key_steps必须有5-8个具体步骤
+5. 所有字段必须基于分析内容动态生成
+6. 同时保留 user_profile、problem_solving_approach、step2_context 用于向后兼容
+
+请只输出JSON，不要有其他内容。"""
+
+    def _build_default_problem_solving_approach(self, query: str) -> ProblemSolvingApproach:
+        """
+        构建默认的解题思路 - v7.290 增强
+
+        当LLM未能生成有效的解题思路时，使用此方法创建默认值
+        v7.290: 添加搜索执行字段和覆盖校验的默认值
+        """
+        return ProblemSolvingApproach(
+            task_type="exploration",
+            task_type_description="这是一个需要探索和理解的任务",
+            complexity_level="moderate",
+            required_expertise=["领域知识", "信息检索", "分析能力"],
+            solution_steps=[
+                {
+                    "step_id": "S1",
+                    "action": "搜索问题的核心概念和背景",
+                    "purpose": "明确用户真正想要解决的问题",
+                    "expected_output": "问题的本质描述和关键要素",
+                    "search_keywords": [],  # v7.290 新增
+                    "expected_sources": ["搜索引擎", "百科"],  # v7.290 新增
+                    "success_criteria": "理解问题的核心诉求",  # v7.290 新增
+                    "priority": "high",  # v7.290 新增
+                    "task_type": "research",  # v7.290 新增
+                },
+                {
+                    "step_id": "S2",
+                    "action": "收集相关背景信息",
+                    "purpose": "建立对问题领域的基础认知",
+                    "expected_output": "领域概念、关键术语、基本框架",
+                    "search_keywords": [],
+                    "expected_sources": ["专业网站", "文档"],
+                    "success_criteria": "获取领域基础知识",
+                    "priority": "high",
+                    "task_type": "research",
+                },
+                {
+                    "step_id": "S3",
+                    "action": "识别关键信息缺口",
+                    "purpose": "确定需要补充的信息",
+                    "expected_output": "需要搜索的具体方向",
+                    "search_keywords": [],
+                    "expected_sources": [],
+                    "success_criteria": "明确信息缺口",
+                    "priority": "medium",
+                    "task_type": "analysis",
+                },
+                {
+                    "step_id": "S4",
+                    "action": "搜索并整合信息",
+                    "purpose": "获取回答问题所需的素材",
+                    "expected_output": "相关案例、数据、观点",
+                    "search_keywords": [],
+                    "expected_sources": ["案例库", "数据源"],
+                    "success_criteria": "收集足够的支撑材料",
+                    "priority": "high",
+                    "task_type": "research",
+                },
+                {
+                    "step_id": "S5",
+                    "action": "生成完整答案",
+                    "purpose": "为用户提供有价值的回答",
+                    "expected_output": "结构化的完整回答",
+                    "search_keywords": [],
+                    "expected_sources": [],
+                    "success_criteria": "输出完整答案",
+                    "priority": "high",
+                    "task_type": "output",
+                },
+            ],
+            breakthrough_points=[
+                {"point": "问题的核心诉求", "why_key": "理解用户真正想要什么是解决问题的关键", "how_to_leverage": "从用户的表达中提取隐含需求"}
+            ],
+            expected_deliverable={
+                "format": "report",
+                "sections": ["问题理解", "背景分析", "核心内容", "建议方案"],
+                "key_elements": ["清晰的结构", "有价值的信息", "可操作的建议"],
+                "quality_criteria": ["准确性", "完整性", "实用性"],
+            },
+            original_requirement=query,
+            refined_requirement=f"为用户提供关于「{query[:50]}」的完整解答",
+            confidence_score=0.5,
+            alternative_approaches=["从不同角度切入问题", "寻找类似案例参考"],
+            coverage_check={  # v7.290 新增
+                "covered_points": ["问题理解", "背景信息", "信息整合", "答案生成"],
+                "potentially_missing": ["具体领域知识", "用户特定需求"],
+                "user_entities": [],
+                "entity_coverage": {},
+            },
+        )
+
+    def _build_step2_search_framework_prompt(
+        self,
+        query: str,
+        step2_context: Dict[str, Any],
+        problem_solving_approach: ProblemSolvingApproach,
+        analysis_data: Dict[str, Any],
+    ) -> str:
+        """
+        构建第二步搜索框架生成 Prompt - v7.270 新增
+
+        第二步：基于第一步的解题思路，生成具体的搜索任务规划（P1/P2/P3, T1/T2/T3）
+
+        输入：
+        - query: 用户原始问题
+        - step2_context: 第一步传递的上下文（核心问题、回答目标、解题步骤摘要等）
+        - problem_solving_approach: 第一步生成的解题思路
+        - analysis_data: 第一步的完整分析数据（L1-L5）
+
+        输出：
+        - search_framework: 包含 targets 的搜索框架（每个 target 包含预设关键词）
+        """
+        # 提取解题步骤摘要
+        solution_steps_text = "\n".join(
+            [
+                f"- {step.get('step_id', '')}: {step.get('action', '')} → {step.get('expected_output', '')}"
+                for step in problem_solving_approach.solution_steps
+            ]
+        )
+
+        # 提取关键突破口
+        breakthrough_text = "\n".join(
+            [f"- {bp.get('point', '')}: {bp.get('why_key', '')}" for bp in problem_solving_approach.breakthrough_points]
+        )
+
+        # 提取L1实体信息（用于生成精准搜索词）
+        l1_facts = analysis_data.get("analysis", {}).get("l1_facts", {})
+        brand_entities = l1_facts.get("brand_entities", [])
+        location_entities = l1_facts.get("location_entities", [])
+
+        entities_text = ""
+        if brand_entities:
+            entities_text += "**品牌实体**:\n"
+            for brand in brand_entities[:3]:
+                entities_text += f"- {brand.get('name', '')}: {', '.join(brand.get('product_lines', [])[:3])}\n"
+        if location_entities:
+            entities_text += "**地点实体**:\n"
+            for loc in location_entities[:2]:
+                entities_text += f"- {loc.get('name', '')}: {loc.get('climate', '')}, {', '.join(loc.get('local_materials', [])[:3])}\n"
+
+        json.dumps(step2_context, ensure_ascii=False, indent=2)
+
+        return f"""你是搜索策略专家。基于第一步的深度分析和解题思路，现在生成具体的搜索任务规划。
+
+## 用户问题
+{query}
+
+## 第一步分析结果
+
+### 核心问题
+{step2_context.get('core_question', query[:50])}
+
+### 回答目标
+{step2_context.get('answer_goal', '为用户提供完整解答')}
+
+### 解题路径（{len(problem_solving_approach.solution_steps)}步）
+{solution_steps_text}
+
+### 关键突破口
+{breakthrough_text}
+
+### 提取的实体
+{entities_text if entities_text else "（无明确实体）"}
+
+## 任务要求
+
+现在，基于以上解题思路，生成**可执行的搜索任务清单**。
+
+### 搜索任务设计原则（v7.300 增强）
+
+1. **任务粒度**：每个搜索任务对应解题路径中的1-2个步骤
+   - 目标：生成 10-13 个详细的搜索步骤
+   - 每个步骤都应该是独立可执行的
+   - 步骤之间应该有清晰的逻辑顺序
+
+2. **优先级分层**：
+   - P1（高优先级）：回答问题的必需信息（品牌核心、地点特征、核心概念）
+   - P2（中优先级）：深化理解的补充信息（案例参考、融合策略）
+   - P3（低优先级）：锦上添花的延展信息（趋势、专家观点）
+
+3. **预设关键词**：每个任务必须包含3-5个精准搜索关键词
+
+4. **质量标准**：明确每个任务的完成标准（找到什么算成功）
+
+5. **任务数量要求**：
+   - 简单问题：8-10个步骤
+   - 中等复杂度：10-12个步骤
+   - 复杂问题：12-15个步骤
+   - 确保覆盖所有关键信息面
+
+### 搜索任务模板
+
+每个搜索任务包含：
+- **id**: T1, T2, T3...（按优先级排序）
+- **question**: 这个任务要回答什么问题？（问句形式，15字内）
+- **search_for**: 具体搜索什么内容（列出实体名称）
+- **why_need**: 找到后对回答有什么帮助
+- **success_when**: 什么情况算搜索成功（1-2条标准）
+- **priority**: 1(高) / 2(中) / 3(低)
+- **category**: 品牌调研 / 案例参考 / 方案验证 / 背景知识
+- **preset_keywords**: 预设的3-5个精准搜索关键词（核心改进）
+
+### 关键词生成要求
+
+️ **预设关键词是搜索质量的关键**，必须：
+1. **具体化**：使用实体名称，而非泛化描述
+   -  "HAY Palissade系列 户外家具"
+   -  "北欧家具品牌"
+2. **场景化**：结合用户的具体场景
+   -  "峨眉山七里坪 民宿设计 在地材料"
+   -  "民宿设计"
+3. **多样化**：覆盖不同搜索角度
+   - 品牌+产品线
+   - 地点+特征
+   - 风格+案例
+4. **可搜索性**：确保关键词能在搜索引擎中找到结果
+
+### 示例（HAY民宿案例）
+
+```json
+{{
+  "targets": [
+    {{
+      "id": "T1",
+      "question": "HAY品牌的设计语言是什么？",
+      "search_for": "HAY品牌设计哲学、核心产品系列、设计师团队",
+      "why_need": "建立'源'美学参照系，理解HAY的设计DNA",
+      "success_when": ["找到HAY的设计理念描述", "识别出3个以上代表性产品系列"],
+      "priority": 1,
+      "category": "品牌调研",
+      "preset_keywords": [
+        "HAY丹麦家居 设计理念",
+        "HAY Palissade系列 Mags沙发",
+        "Ronan Bouroullec HAY设计",
+        "HAY About A Chair 民主设计",
+        "HAY色彩系统 粉末涂层钢"
+      ]
+    }},
+    {{
+      "id": "T2",
+      "question": "峨眉山七里坪的环境特征？",
+      "search_for": "七里坪气候、海拔、在地材料、建筑风格",
+      "why_need": "理解设计的物理约束和在地化融合基础",
+      "success_when": ["获得气候和海拔数据", "识别出3种以上在地材料"],
+      "priority": 1,
+      "category": "背景知识",
+      "preset_keywords": [
+        "峨眉山七里坪 海拔气候",
+        "七里坪 冷杉木 竹材",
+        "峨眉山民宿 建筑风格",
+        "四川山地 在地材料",
+        "七里坪度假区 环境特征"
+      ]
+    }},
+    {{
+      "id": "T3",
+      "question": "北欧风格与川西美学如何融合？",
+      "search_for": "北欧极简与中国传统融合案例、设计策略",
+      "why_need": "解决核心张力，找到可操作的融合手法",
+      "success_when": ["找到2个以上成功融合案例", "提炼出具体融合策略"],
+      "priority": 2,
+      "category": "案例参考",
+      "preset_keywords": [
+        "北欧风格 中式元素 融合设计",
+        "极简主义 东方美学 民宿",
+        "HAY家具 中国传统材料",
+        "几何框架 有机填充 设计案例",
+        "现代北欧 川西建筑 融合"
+      ]
+    }}
+  ]
+}}
+```
+
+## 输出要求（v7.300 增强）
+
+请生成完整的搜索框架JSON，包含：
+1. **core_question**: 问题一句话本质（20字内）
+2. **answer_goal**: 用户期望得到的答案是...
+3. **boundary**: 搜索边界（不搜什么）
+4. **targets**: 搜索任务清单（10-13个详细任务，按优先级排序）
+5. **deliverables**: 最终交付物清单（从第一步分析中提取）
+6. **final_output_format**: 最终输出格式说明（从第一步分析中提取）
+
+每个 target 必须包含：
+- id, question, search_for, why_need, success_when
+- priority, category
+- **preset_keywords**（3-5个精准关键词）
+- **step_number**: 步骤序号（1-13）
+- **depends_on**: 依赖的前置步骤ID列表（如果有）
+
+```json
+{{
+  "core_question": "...",
+  "answer_goal": "...",
+  "boundary": "不搜索：价格信息、施工细节、供应商联系方式",
+  "targets": [
+    {{
+      "id": "T1",
+      "step_number": 1,
+      "question": "...",
+      "search_for": "...",
+      "why_need": "...",
+      "success_when": ["标准1", "标准2"],
+      "priority": 1,
+      "category": "品牌调研",
+      "preset_keywords": ["关键词1", "关键词2", "关键词3"],
+      "depends_on": []
+    }},
+    // ... 10-13个详细任务
+  ],
+  "deliverables": [
+    "交付物1",
+    "交付物2",
+    // ... 10-15项
+  ],
+  "final_output_format": "最终输出格式说明"
+}}
+```
+
+️ **重要提示**：
+- 必须生成 10-13 个详细的搜索任务
+- 每个任务都应该是独立可执行的
+- 任务之间应该有清晰的逻辑顺序
+- 确保覆盖所有关键信息面
+- deliverables 和 final_output_format 应该从第一步分析中提取
+
+请只输出JSON，不要有其他内容。"""
+
+    # ==================== 4-Step Flow: Step 1 Methods ====================
+
+    async def _step1_deep_analysis_stream(
+        self, user_input: str, session_id: str
+    ) -> AsyncGenerator[Dict[str, Any], None]:
+        """
+        步骤1：深度分析（新4步骤流程）
+
+        生成：
+        1. 我的理解（L1-L5分析，自然语言表达）
+        2. 输出结果框架（动态生成，不硬编码）
+        3. 搜索方向提示（为步骤2做准备）
+
+        Args:
+            user_input: 用户输入
+            session_id: 会话ID
+
+        Yields:
+            事件流：
+            - step1_start: 步骤1开始
+            - analysis_chunk: 分析内容流式输出
+            - analysis_complete: 分析内容完成
+            - output_framework_ready: 输出框架生成完成
+            - step1_complete: 步骤1完成
+        """
+        try:
+            # 加载深度分析prompt
+            prompt_template = self.config.get("deep_analysis_prompt_template")
+            if not prompt_template:
+                raise ValueError("deep_analysis_prompt_template not found in config")
+
+            # 构建prompt
+            prompt = prompt_template.format(user_input=user_input)
+
+            # 开始步骤1
+            yield {"event": "step1_start", "phase": "deep_analysis", "message": "开始深度分析..."}
+
+            # 调用LLM生成深度分析
+            full_response = ""
+            model = os.getenv("UCPPT_THINKING_MODEL", "openai/gpt-4o")
+
+            async for chunk in self._call_thinking_model_stream(prompt, model):
+                full_response += chunk
+                yield {"event": "analysis_chunk", "content": chunk}
+
+            yield {"event": "analysis_complete", "content": full_response}
+
+            # 解析输出框架
+            logger.info("Parsing output framework from LLM response...")
+            output_framework = self._parse_output_framework(full_response)
+
+            yield {"event": "output_framework_ready", "framework": self._framework_to_dict(output_framework)}
+
+            yield {"event": "step1_complete", "message": "深度分析完成", "output_framework": output_framework}
+
+        except Exception as e:
+            logger.error(f"Step 1 deep analysis failed: {e}", exc_info=True)
+            yield {"event": "error", "message": f"深度分析失败: {str(e)}"}
+
+    def _parse_output_framework(self, llm_response: str) -> OutputFramework:
+        """
+        动态解析LLM生成的输出框架
+        不假设任何固定结构，完全由LLM的输出决定
+
+        Args:
+            llm_response: LLM的完整响应
+
+        Returns:
+            OutputFramework: 解析后的输出框架
+        """
+        import re
+
+        try:
+            # 提取核心目标
+            core_match = re.search(r"\*\*核心目标\*\*[：:]\s*(.*?)(?:\n|$)", llm_response)
+            core_objective = core_match.group(1).strip() if core_match else "未指定"
+
+            # 提取交付物类型
+            deliverable_match = re.search(r"\*\*最终交付物类型\*\*[：:]\s*(.*?)(?:\n|$)", llm_response)
+            deliverable_type = deliverable_match.group(1).strip() if deliverable_match else "未指定"
+
+            # 提取搜索方向提示
+            hints_match = re.search(r"\*\*搜索方向提示\*\*[：:]?\s*(.*?)(?:\n\n|\n\*\*|$)", llm_response, re.DOTALL)
+            search_hints = hints_match.group(1).strip() if hints_match else ""
+
+            # 提取所有板块（数量不固定）
+            blocks = []
+            block_pattern = r"\*\*板块(\d+)[：:](.*?)\*\*"
+            block_matches = list(re.finditer(block_pattern, llm_response))
+
+            for i, match in enumerate(block_matches):
+                block_name = match.group(2).strip()
+
+                # 提取该板块的内容（从当前板块到下一个板块之间）
+                start_pos = match.end()
+                if i + 1 < len(block_matches):
+                    end_pos = block_matches[i + 1].start()
+                else:
+                    # 最后一个板块，找到输出质量标准或文档结尾
+                    quality_match = re.search(r"\*\*输出质量标准\*\*", llm_response[start_pos:])
+                    end_pos = start_pos + quality_match.start() if quality_match else len(llm_response)
+
+                block_content = llm_response[start_pos:end_pos]
+
+                # 提取子项（支持多种格式）
+                sub_items = []
+                # 格式1: "- 1.1 子项名称：内容"
+                sub_item_pattern1 = r"[-•]\s*(\d+\.\d+\s+[^：:]+[：:][^\n]+)"
+                # 格式2: "- 子项名称"
+                sub_item_pattern2 = r"[-•]\s*([^\n]+)"
+
+                for sub_match in re.finditer(sub_item_pattern1, block_content):
+                    sub_items.append(sub_match.group(1).strip())
+
+                # 如果没有找到格式1，尝试格式2
+                if not sub_items:
+                    for sub_match in re.finditer(sub_item_pattern2, block_content):
+                        item = sub_match.group(1).strip()
+                        if item and not item.startswith("预计"):
+                            sub_items.append(item)
+
+                # 提取预计内容量
+                length_match = re.search(r"预计[：:]?\s*(\d+[-~]\d+字|\d+字|\d+[-~]\d+页)", block_content)
+                estimated_length = length_match.group(1) if length_match else "未指定"
+
+                blocks.append(
+                    OutputBlock(
+                        name=block_name,
+                        description="",
+                        sub_items=sub_items,
+                        estimated_length=estimated_length,
+                        priority="high",
+                    )
+                )
+
+            # 提取质量标准
+            quality_standards = []
+            quality_section_match = re.search(r"\*\*输出质量标准\*\*[：:]?\s*(.*?)(?:\n\n|\n\*\*|$)", llm_response, re.DOTALL)
+            if quality_section_match:
+                quality_content = quality_section_match.group(1)
+                for line in quality_content.split("\n"):
+                    line = line.strip()
+                    if line and (line.startswith("-") or line.startswith("•") or re.match(r"^\d+\.", line)):
+                        # 移除列表标记
+                        clean_line = re.sub(r"^[-•\d.]\s*", "", line)
+                        if clean_line:
+                            quality_standards.append(clean_line)
+
+            logger.info(f"Parsed output framework: {len(blocks)} blocks, {len(quality_standards)} quality standards")
+
+            return OutputFramework(
+                core_objective=core_objective,
+                deliverable_type=deliverable_type,
+                blocks=blocks,
+                quality_standards=quality_standards,
+                search_hints=search_hints,
+            )
+
+        except Exception as e:
+            logger.error(f"Failed to parse output framework: {e}", exc_info=True)
+            # 返回默认框架
+            return OutputFramework(
+                core_objective="解析失败", deliverable_type="未知", blocks=[], quality_standards=[], search_hints=""
+            )
+
+    def _framework_to_dict(self, framework: OutputFramework) -> Dict[str, Any]:
+        """
+        Convert OutputFramework to dictionary for JSON serialization
+
+        Args:
+            framework: OutputFramework instance
+
+        Returns:
+            Dict: JSON-serializable dictionary
+        """
+        return {
+            "core_objective": framework.core_objective,
+            "deliverable_type": framework.deliverable_type,
+            "blocks": [
+                {
+                    "name": block.name,
+                    "sub_items": block.sub_items,
+                    "estimated_length": block.estimated_length,
+                    "priority": block.priority,
+                }
+                for block in framework.blocks
+            ],
+            "quality_standards": framework.quality_standards,
+            "search_hints": framework.search_hints,
+        }
+
+    # ==================== 4-Step Flow: Orchestration ====================
+
+    async def execute_4step_search_flow(
+        self, user_input: str, session_id: str, enable_step2_editing: bool = True
+    ) -> AsyncGenerator[Dict[str, Any], None]:
+        """
+        执行完整的4步骤搜索流程（基础版本 - 仅Step 1）
+
+        步骤1：深度分析 → 生成输出框架
+        步骤2：搜索任务分解 → 生成搜索查询列表（待实现）
+        步骤3：智能搜索执行 → 动态增补查询（待实现）
+        步骤4：总结生成 → 生成最终输出（待实现）
+
+        Args:
+            user_input: 用户输入
+            session_id: 会话ID
+            enable_step2_editing: 是否启用步骤2的用户编辑（默认True）
+
+        Yields:
+            事件流：所有4个步骤的事件
+        """
+        try:
+            logger.info(f" [4-Step Flow] Starting for session {session_id}")
+
+            yield {"event": "flow_start", "message": "开始4步骤搜索流程", "steps": ["深度分析", "搜索任务分解", "智能搜索执行", "总结生成"]}
+
+            # ============================================================
+            # 步骤1：深度分析
+            # ============================================================
+            output_framework = None
+            async for event in self._step1_deep_analysis_stream(user_input, session_id):
+                yield event
+                if event["event"] == "step1_complete":
+                    output_framework = event["output_framework"]
+
+            if not output_framework:
+                raise ValueError("Step 1 failed: output_framework not generated")
+
+            # TODO: 步骤2-4 待实现
+            logger.info("️ [4-Step Flow] Steps 2-4 not yet implemented")
+
+            # 流程完成
+            yield {
+                "event": "flow_complete",
+                "message": "4步骤搜索流程完成（当前仅Step 1）",
+                "statistics": {
+                    "blocks": len(output_framework.blocks),
+                    "quality_standards": len(output_framework.quality_standards),
+                },
+            }
+
+            logger.info(f" [4-Step Flow] Completed for session {session_id}")
+
+        except Exception as e:
+            logger.error(f" [4-Step Flow] Failed: {e}", exc_info=True)
+            yield {"event": "error", "message": f"搜索流程失败: {str(e)}"}
+
+    # ==================== End of 4-Step Flow ====================
+
+    async def _step2_generate_search_framework(
+        self,
+        query: str,
+        step2_context: Dict[str, Any],
+        problem_solving_approach: ProblemSolvingApproach,
+        analysis_data: Dict[str, Any],
+    ) -> Optional[SearchFramework]:
+        """
+        第二步：生成搜索框架 - v7.270 新增
+
+        基于第一步的解题思路，调用LLM生成具体的搜索任务规划
+
+        Returns:
+            SearchFramework 或 None（失败时）
+        """
+        logger.info(" [v7.270 Step2] 开始生成搜索框架")
+
+        try:
+            prompt = self._build_step2_search_framework_prompt(
+                query, step2_context, problem_solving_approach, analysis_data
+            )
+
+            # 调用 LLM 生成搜索框架
+            response = await self._call_llm_json(prompt, model=self.eval_model, max_tokens=2000)  # 使用评估模型（更快）
+
+            if not response:
+                logger.error(" [v7.270 Step2] LLM返回空结果")
+                return None
+
+            # 解析 JSON
+            data = self._safe_parse_json(response, context="Step2搜索框架生成")
+            if not data:
+                logger.error(" [v7.270 Step2] JSON解析失败")
+                return None
+
+            # 构建 SearchFramework
+            framework = SearchFramework(
+                original_query=query,
+                core_question=data.get("core_question", step2_context.get("core_question", query[:50])),
+                answer_goal=data.get("answer_goal", step2_context.get("answer_goal", "为用户提供完整解答")),
+                boundary=data.get("boundary", ""),
+                targets=[],
+                l1_facts=analysis_data.get("analysis", {}).get("l1_facts", {}),
+                l2_models=analysis_data.get("analysis", {}).get("l2_models", {}),
+                l3_tension=analysis_data.get("analysis", {}).get("l3_tension", ""),
+                l4_jtbd=analysis_data.get("analysis", {}).get("l4_jtbd", ""),
+                l5_sharpness=analysis_data.get("analysis", {}).get("l5_sharpness", {}),
+                user_profile=analysis_data.get("user_profile", {}),
+            )
+
+            # 解析 targets
+            for t in data.get("targets", []):
+                target = SearchTarget(
+                    id=t.get("id", f"T{len(framework.targets)+1}"),
+                    question=t.get("question", ""),
+                    search_for=t.get("search_for", ""),
+                    why_need=t.get("why_need", ""),
+                    success_when=t.get("success_when", []),
+                    priority=t.get("priority", 2),
+                    category=t.get("category", "品牌调研"),
+                    preset_keywords=t.get("preset_keywords", []),
+                    quality_criteria=t.get("success_when", []),
+                    expected_info=t.get("expected_info", []),
+                    # v7.300: 新增字段
+                    execution_order=t.get("step_number", len(framework.targets) + 1),
+                    dependencies=t.get("depends_on", []),
+                )
+                framework.targets.append(target)
+
+            # v7.300: 提取交付物和输出格式
+            framework.deliverables = data.get("deliverables", [])
+            framework.final_output_format = data.get("final_output_format", "")
+
+            logger.info(
+                f" [v7.270 Step2] 搜索框架生成完成 | targets={len(framework.targets)}, deliverables={len(framework.deliverables)}"
+            )
+            return framework
+
+        except Exception as e:
+            logger.error(f" [v7.270 Step2] 搜索框架生成失败: {e}", exc_info=True)
+            return None
+
+    def _build_search_framework_from_json(self, query: str, data: Dict[str, Any]) -> SearchFramework:
+        """
+        从 JSON 数据构建 SearchFramework - v7.236
+
+        v7.236 更新：
+        - 解析新字段 question/search_for/why_need/success_when
+        - 兼容旧字段 name/description/purpose/quality_criteria
+
+        v7.232 更新：
+        - 解析 preset_keywords（预设搜索关键词）
+        - 解析 quality_criteria（质量达标标准）
+
+        v7.234 更新：
+        - 如果 targets 为空，使用默认目标兜底
+        """
+        user_profile = data.get("user_profile", {})
+        analysis = data.get("analysis", {})
+        search_data = data.get("search_framework", {})
+
+        #  v7.242 诊断日志：检查 LLM 返回的 JSON 结构
+        logger.info(f" [诊断] data keys = {list(data.keys())}")
+        logger.info(
+            f" [诊断] search_framework = {json.dumps(search_data, ensure_ascii=False)[:500] if search_data else 'None'}"
+        )
+        logger.info(f" [诊断] targets 原始数据 = {search_data.get('targets', [])[:2] if search_data.get('targets') else '空'}")
+
+        # 构建搜索目标列表
+        targets = []
+        for t in search_data.get("targets", []):
+            # v7.244: 增强兜底逻辑 - 从多个字段推断有意义的名称
+            if not any([t.get("question"), t.get("name"), t.get("search_for"), t.get("description")]):
+                logger.warning(f"️ [v7.244] LLM 返回的 target 缺少描述字段: {t}")
+                # 按优先级尝试从其他字段推断
+                inferred_name = None
+                if t.get("purpose"):
+                    inferred_name = t["purpose"][:50]
+                elif t.get("why_need"):
+                    inferred_name = t["why_need"][:50]
+                elif t.get("expected_info") and len(t.get("expected_info", [])) > 0:
+                    inferred_name = f"搜索: {', '.join(t['expected_info'][:2])}"
+                elif t.get("preset_keywords") and len(t.get("preset_keywords", [])) > 0:
+                    # 从预设关键词提取核心内容
+                    first_keyword = t["preset_keywords"][0]
+                    inferred_name = first_keyword[:40] if first_keyword else None
+                elif t.get("success_when") and len(t.get("success_when", [])) > 0:
+                    inferred_name = t["success_when"][0][:40]
+                elif t.get("category"):
+                    # 使用 category + 序号，添加更多上下文
+                    inferred_name = f"{t['category']}方向_{t.get('id', 'X')}"
+                else:
+                    inferred_name = f"搜索方向_{t.get('id', len(targets)+1)}"
+
+                t["name"] = inferred_name
+                t["question"] = inferred_name
+                logger.info(f" [v7.244] 推断名称: {inferred_name}")
+
+            # v7.232: 解析预设关键词
+            preset_keywords = t.get("preset_keywords", [])
+
+            # v7.236: 优先使用新字段，回退到旧字段
+            question = t.get("question", "") or t.get("name", "")
+            search_for = t.get("search_for", "") or t.get("description", "")
+            why_need = t.get("why_need", "") or t.get("purpose", "")
+            success_when = t.get("success_when", []) or t.get("quality_criteria", [])
+
+            #  v7.243 诊断日志：检查每个 target 的字段值
+            logger.info(
+                f" [诊断] target[{t.get('id', '?')}] question='{question}', search_for='{search_for[:30] if search_for else ''}'..."
+            )
+
+            # v7.237: 增强场景化关键词生成（方案B）
+            if not preset_keywords:
+                preset_keywords = self._generate_enhanced_keywords(query, question, search_for, why_need, targets)
+
+            target = SearchTarget(
+                id=t.get("id", f"T{len(targets)+1}"),
+                # v7.236: 新字段
+                question=question,
+                search_for=search_for,
+                why_need=why_need,
+                success_when=success_when,
+                # 旧字段（通过 __post_init__ 自动同步）
+                name=t.get("name", ""),
+                description=t.get("description", ""),
+                purpose=t.get("purpose", ""),
+                priority=t.get("priority", 2),
+                category=t.get("category", "品牌调研"),
+                preset_keywords=preset_keywords,
+                quality_criteria=t.get("quality_criteria", []),
+                expected_info=t.get("expected_info", []),
+                # v7.260: 全局并行支持
+                dependencies=t.get("dependencies", []),
+                execution_order=t.get("execution_order", 1),
+                group_id=t.get("group_id", ""),
+                can_parallel=t.get("can_parallel", True),
+                search_action=t.get("search_action", ""),
+                sub_tasks=t.get("sub_tasks", []),
+            )
+            targets.append(target)
+
+            # v7.244: 验证关键字段不为空
+            if (
+                not (target.question and target.question.strip())
+                and not (target.name and target.name.strip())
+                and not (target.search_for and target.search_for.strip())
+            ):
+                logger.warning(f"️ [v7.244] target[{target.id}] 关键字段全为空，使用 category 作为名称")
+                # 如果所有描述字段都为空，至少用 category + id 区分
+                if not target.name or not target.name.strip():
+                    target.name = f"{target.category}_{target.id}"
+                if not target.question or not target.question.strip():
+                    target.question = target.name
+
+        #  v7.242 诊断日志：检查构建后的 targets 数量
+        logger.info(f" [诊断] 构建后 targets 数量 = {len(targets)}")
+
+        # v7.234: 如果 targets 为空，使用默认目标兜底
+        if not targets:
+            logger.warning(f"️ [v7.234] targets 为空，创建默认目标 | query={query[:30]}...")
+            default_framework = self._build_simple_search_framework(query)
+            targets = default_framework.targets
+
+        # v7.234: 处理 l1_facts 类型（可能是 list 或 dict）
+        raw_l1_facts = analysis.get("l1_facts", [])
+        if isinstance(raw_l1_facts, dict):
+            # v7.234 新格式：从 dict 提取关键实体作为事实列表
+            l1_facts_list = []
+            for entity_type, entities in raw_l1_facts.items():
+                if isinstance(entities, list):
+                    for entity in entities[:2]:  # 每类取前2个
+                        if isinstance(entity, dict):
+                            name = entity.get("name", "")
+                            if name:
+                                l1_facts_list.append(f"{name}({entity_type[:2]})")
+                        elif isinstance(entity, str):
+                            l1_facts_list.append(entity)
+        elif isinstance(raw_l1_facts, list):
+            l1_facts_list = raw_l1_facts
+        else:
+            l1_facts_list = []
+
+        # v7.234: 处理 l3_tension 类型（可能是 str 或 dict）
+        raw_l3_tension = analysis.get("l3_tension", "")
+        if isinstance(raw_l3_tension, dict):
+            l3_tension_str = raw_l3_tension.get("formula", "") or raw_l3_tension.get("description", "")
+        else:
+            l3_tension_str = str(raw_l3_tension) if raw_l3_tension else ""
+
+        # v7.251: 确保L1实体和L3张力都有对应的搜索任务（兜底逻辑）
+        targets = self._ensure_entity_coverage(targets, data, query)
+
+        return SearchFramework(
+            original_query=query,
+            core_question=search_data.get("core_question", ""),
+            answer_goal=search_data.get("answer_goal", ""),
+            boundary=search_data.get("boundary", ""),
+            targets=targets,
+            l1_facts=l1_facts_list,
+            l2_models=analysis.get("l2_models", {}),
+            l3_tension=l3_tension_str,
+            l4_jtbd=analysis.get("l4_jtbd", ""),
+            l5_sharpness=analysis.get("l5_sharpness", {}),
+            user_profile=user_profile,
+        )
+
+    def _ensure_entity_coverage(
+        self, targets: List[SearchTarget], analysis_data: Dict[str, Any], query: str
+    ) -> List[SearchTarget]:
+        """
+        确保L1实体和L3张力都有对应的搜索任务 - v7.251
+
+        作为prompt优化的兜底，检查并补充缺失的搜索任务
+        """
+        analysis = analysis_data.get("analysis", {})
+        l1_facts = analysis.get("l1_facts", {})
+        l3_tension = analysis.get("l3_tension", {})
+
+        # 收集现有targets中已覆盖的实体名称
+        covered_text = ""
+        for t in targets:
+            # 从search_for和preset_keywords中提取已覆盖的实体
+            covered_text += (t.search_for or "").lower() + " "
+            covered_text += " ".join(t.preset_keywords or []).lower() + " "
+            covered_text += (t.question or "").lower() + " "
+
+        new_targets = []
+        next_id = len(targets) + 1
+
+        # 1. 检查品牌实体覆盖
+        if isinstance(l1_facts, dict):
+            for brand in l1_facts.get("brand_entities", []):
+                if isinstance(brand, dict):
+                    brand_name = brand.get("name", "")
+                    if brand_name and brand_name.lower() not in covered_text:
+                        product_lines = brand.get("product_lines", [])
+                        search_for_text = (
+                            f"{brand_name} " + ", ".join(product_lines[:3]) if product_lines else brand_name
+                        )
+                        new_targets.append(
+                            SearchTarget(
+                                id=f"T{next_id}",
+                                question=f"{brand_name}品牌的核心产品线有哪些？",
+                                search_for=search_for_text,
+                                why_need=f"了解{brand_name}的设计语言和产品特点",
+                                priority=2,
+                                category="品牌调研",
+                                preset_keywords=[f"{brand_name} 品牌设计理念", f"{brand_name} 产品系列 代表作品"],
+                                expected_info=["产品线", "设计特点", "色彩系统"],
+                            )
+                        )
+                        next_id += 1
+                        logger.info(f" [v7.251] 补充品牌实体搜索任务: {brand_name}")
+
+            # 2. 检查地点实体覆盖
+            for location in l1_facts.get("location_entities", []):
+                if isinstance(location, dict):
+                    loc_name = location.get("name", "")
+                    if loc_name and loc_name.lower() not in covered_text:
+                        new_targets.append(
+                            SearchTarget(
+                                id=f"T{next_id}",
+                                question=f"{loc_name}的建筑风格和在地材料有哪些？",
+                                search_for=f"{loc_name} 建筑风格 在地材料 气候特点",
+                                why_need=f"了解{loc_name}的环境约束和本土设计元素",
+                                priority=2,
+                                category="背景知识",
+                                preset_keywords=[f"{loc_name} 传统建筑 设计特点", f"{loc_name} 民宿设计 在地化"],
+                                expected_info=["建筑风格", "在地材料", "气候适应"],
+                            )
+                        )
+                        next_id += 1
+                        logger.info(f" [v7.251] 补充地点实体搜索任务: {loc_name}")
+
+            # 3. 检查竞品实体覆盖
+            for competitor in l1_facts.get("competitor_entities", []):
+                if isinstance(competitor, dict):
+                    comp_name = competitor.get("name", "")
+                    if comp_name and comp_name.lower() not in covered_text:
+                        new_targets.append(
+                            SearchTarget(
+                                id=f"T{next_id}",
+                                question=f"{comp_name}的设计特点和成功经验？",
+                                search_for=f"{comp_name} 设计案例 成功经验",
+                                why_need=f"从{comp_name}案例中提取可借鉴的设计策略",
+                                priority=2,
+                                category="案例参考",
+                                preset_keywords=[f"{comp_name} 室内设计 案例分析", f"{comp_name} 设计理念 特色"],
+                                expected_info=["设计特点", "成功经验", "差异化"],
+                            )
+                        )
+                        next_id += 1
+                        logger.info(f" [v7.251] 补充竞品实体搜索任务: {comp_name}")
+
+        # 4. 检查L3张力覆盖
+        tension_formula = ""
+        if isinstance(l3_tension, dict):
+            tension_formula = l3_tension.get("formula", "")
+        elif isinstance(l3_tension, str):
+            tension_formula = l3_tension
+
+        if tension_formula and "vs" in tension_formula.lower():
+            # 检查是否有对应的验证任务
+            has_tension_task = any(
+                "融合" in (t.search_for or "") or "对比" in (t.search_for or "") or "验证" in (t.category or "")
+                for t in targets
+            )
+            if not has_tension_task:
+                # 安全分割张力公式
+                parts = tension_formula.lower().split(" vs ")
+                if len(parts) >= 2:
+                    keyword1 = parts[0].strip()
+                    keyword2 = parts[-1].strip()
+                    preset_kw1 = f"{keyword1} {keyword2} 融合设计案例"
+                    preset_kw2 = f"{keyword1} {keyword2} 结合"
+                else:
+                    preset_kw1 = tension_formula.replace(" vs ", " ") + " 融合设计案例"
+                    preset_kw2 = tension_formula + " 解决方案"
+
+                new_targets.append(
+                    SearchTarget(
+                        id=f"T{next_id}",
+                        question="如何解决核心设计张力？",
+                        search_for=f"{tension_formula} 融合案例 解决方案",
+                        why_need="找到解决核心张力的成功案例和策略",
+                        priority=1,  # 张力验证是高优先级
+                        category="方案验证",
+                        preset_keywords=[preset_kw1, preset_kw2],
+                        expected_info=["融合案例", "解决策略", "注意事项"],
+                    )
+                )
+                next_id += 1
+                logger.info(f" [v7.251] 补充张力验证搜索任务: {tension_formula}")
+
+        if new_targets:
+            logger.info(f" [v7.251] 共补充 {len(new_targets)} 个搜索任务")
+
+        return targets + new_targets
+
+    def _generate_framework_checklist(
+        self, framework: SearchFramework, analysis_data: Dict[str, Any]
+    ) -> FrameworkChecklist:
+        """
+        生成框架清单 - v7.261 增强版（动机类型系统化）
+
+        从 SearchFramework 和分析数据中提取结构化的框架清单，
+        用于前端展示和指导后续搜索。
+
+        v7.261 更新：
+        - 集成 MotivationEngine 进行动机类型识别
+        - 按动机类型对 targets 进行分组聚合
+        - main_directions 按动机优先级排序
+
+        v7.260 更新：
+        - 集成 TaskComplexityAnalyzer 进行复杂度评估
+        - 从 SearchTarget.sub_tasks 提取子任务列表
+        - 支持全局并行调度
+
+        v7.250 更新：
+        - 从 analysis_data 中提取深度分析摘要（用户画像、关键实体、核心张力等）
+        - 保留L0-L5分析结果，用于前端展示和后续搜索参考
+        """
+        from datetime import datetime
+
+        # v7.260: 复杂度评估
+        complexity_score = 0.0
+        recommended_task_count = 5
+        try:
+            from intelligent_project_analyzer.services.core_task_decomposer import TaskComplexityAnalyzer
+
+            complexity_result = TaskComplexityAnalyzer.analyze(framework.original_query, analysis_data)
+            complexity_score = complexity_result.get("complexity_score", 0.0)
+            recommended_task_count = complexity_result.get("recommended_max", 5)
+            logger.info(f" [v7.260] 复杂度评估: score={complexity_score:.2f}, recommended_tasks={recommended_task_count}")
+        except Exception as e:
+            logger.warning(f"️ [v7.260] 复杂度评估失败: {e}，使用默认值")
+
+        # 提取核心问题（限制长度）
+        core_summary = framework.core_question or framework.original_query[:50]
+        if len(core_summary) > 30:
+            core_summary = core_summary[:27] + "..."
+
+        # v7.263: 修复框架清单显示 - 直接展示具体搜索任务，动机作为辅助标签
+        # 问题：v7.261按动机分组导致前端显示动机类型名称而非具体任务
+        # 修复：改为逐任务展示，动机类型作为标签
+        main_directions = []
+        motivation_distribution = {}
+
+        try:
+            from intelligent_project_analyzer.services.motivation_engine import (
+                MotivationInferenceEngine,
+                MotivationTypeRegistry,
+            )
+
+            registry = MotivationTypeRegistry()
+            engine = MotivationInferenceEngine()
+
+            # v7.263: 逐任务生成 main_directions，动机作为标签
+            for target in framework.targets:
+                # 提取任务名称
+                direction_name = None
+                for field in [target.question, target.name, target.search_for, target.description]:
+                    if field and field.strip():
+                        direction_name = field.strip()[:50]
+                        break
+                if not direction_name:
+                    direction_name = f"{target.category}_{target.id}"
+
+                # 提取期望结果
+                expected_outcome = ""
+                if target.success_when:
+                    expected_outcome = ", ".join(target.success_when[:2])
+                elif target.expected_info:
+                    expected_outcome = ", ".join(target.expected_info[:2])
+
+                # 识别动机类型（作为标签）
+                task_dict = {
+                    "title": target.question or target.name or "",
+                    "description": target.search_for or target.description or "",
+                    "source_keywords": target.preset_keywords or [],
+                }
+                result = engine._keyword_matching(task_dict, framework.original_query, None)
+                motivation_id = result.primary
+                motivation_type = registry.get_type(motivation_id)
+                if not motivation_type:
+                    motivation_type = registry.get_type("mixed")
+
+                # 统计分布
+                motivation_distribution[motivation_id] = motivation_distribution.get(motivation_id, 0) + 1
+
+                # 收集子任务
+                sub_tasks_list = []
+                if hasattr(target, "sub_tasks") and target.sub_tasks:
+                    sub_tasks_list = target.sub_tasks
+
+                # v7.340: 提取block_id（版块关联）
+                block_id = (
+                    target.metadata.get("block_id", "") if hasattr(target, "metadata") and target.metadata else ""
+                )
+
+                # v7.340: 每个任务作为独立的 direction，带版块关联
+                direction = {
+                    "direction": direction_name,  #  显示具体任务名称
+                    "purpose": target.why_need or target.purpose or "",  #  显示任务目的
+                    "expected_outcome": expected_outcome,  #  显示期望结果
+                    "sub_tasks": sub_tasks_list,
+                    # 动机作为辅助标签
+                    "motivation_tag": motivation_type.label_zh if motivation_type else "",
+                    "motivation_id": motivation_id,
+                    "motivation_color": motivation_type.color if motivation_type else "#808080",
+                    "priority": target.priority,
+                    "target_id": target.id,
+                    "block_id": block_id,  # v7.340: 版块关联
+                }
+                main_directions.append(direction)
+
+            # 按优先级排序
+            main_directions.sort(key=lambda x: x.get("priority", 99))
+
+            logger.info(f" [v7.263] 框架清单生成完成 | 任务数={len(main_directions)}, 动机分布={motivation_distribution}")
+
+        except Exception as e:
+            logger.warning(f"️ [v7.263] 框架清单生成失败: {e}，使用降级逻辑")
+            # 降级：使用原有的逐个target提取逻辑
+            main_directions = self._generate_main_directions_fallback(framework)
+            motivation_distribution = {}
+
+        # 提取搜索边界
+        boundaries = []
+        if framework.boundary:
+            # 解析边界字符串（格式可能是："不搜索：1.xxx 2.xxx" 或 "不涉及xxx、xxx"）
+            import re
+
+            boundary_text = framework.boundary
+            # 移除前缀
+            boundary_text = re.sub(r"^(不搜索|不涉及|边界)[：:]\s*", "", boundary_text)
+            # 按数字分割
+            parts = re.split(r"\d+[\.、]", boundary_text)
+            for p in parts:
+                p = p.strip()
+                if p:
+                    # 按顿号或逗号分割
+                    sub_parts = re.split(r"[、，,]", p)
+                    for sp in sub_parts:
+                        sp = sp.strip()
+                        if sp and len(sp) > 1:
+                            boundaries.append(sp)
+
+        # 回答目标
+        answer_goal = framework.answer_goal or f"为用户提供关于「{core_summary}」的完整解答"
+
+        # === v7.250 新增：提取深度分析摘要 ===
+
+        # 1. 提取用户画像摘要
+        user_profile = analysis_data.get("user_profile", {})
+        user_context = {}
+        if user_profile:
+            identity_tags = user_profile.get("identity_tags", [])
+            user_context = {
+                "identity": ", ".join(identity_tags[:3]) if identity_tags else "",
+                "occupation": user_profile.get("occupation", ""),
+                "implicit_needs": user_profile.get("implicit_needs", [])[:3],
+            }
+
+        # 2. 提取L1关键实体（从6类实体中提取核心信息）
+        analysis = analysis_data.get("analysis", {})
+        l1_facts = analysis.get("l1_facts", {})
+        key_entities = []
+
+        # 处理 l1_facts 可能是 dict 或 list 的情况
+        if isinstance(l1_facts, dict):
+            # 品牌实体
+            for e in l1_facts.get("brand_entities", [])[:2]:
+                if isinstance(e, dict) and e.get("name"):
+                    product_lines = e.get("product_lines", [])
+                    detail = ", ".join(product_lines[:2]) if product_lines else ""
+                    key_entities.append({"type": "brand", "name": e.get("name", ""), "detail": detail})
+
+            # 地点实体
+            for e in l1_facts.get("location_entities", [])[:2]:
+                if isinstance(e, dict) and e.get("name"):
+                    key_entities.append(
+                        {
+                            "type": "location",
+                            "name": e.get("name", ""),
+                            "detail": e.get("climate", "") or e.get("architecture_style", ""),
+                        }
+                    )
+
+            # 竞品实体
+            for e in l1_facts.get("competitor_entities", [])[:2]:
+                if isinstance(e, dict) and e.get("name"):
+                    key_entities.append(
+                        {"type": "competitor", "name": e.get("name", ""), "detail": e.get("positioning", "")}
+                    )
+
+            # 风格实体
+            style_entities = l1_facts.get("style_entities", [])
+            for style in style_entities[:2]:
+                if isinstance(style, str) and style:
+                    key_entities.append({"type": "style", "name": style, "detail": ""})
+
+            # 人物实体
+            for e in l1_facts.get("person_entities", [])[:2]:
+                if isinstance(e, dict) and e.get("name"):
+                    works = e.get("works", [])
+                    detail = ", ".join(works[:2]) if works else e.get("role", "")
+                    key_entities.append({"type": "person", "name": e.get("name", ""), "detail": detail})
+
+        # 3. 提取L2分析视角
+        l2_models = analysis.get("l2_models", {})
+        analysis_perspectives = []
+        if isinstance(l2_models, dict):
+            analysis_perspectives = l2_models.get("selected_perspectives", [])[:4]
+
+        # 4. 提取L3核心张力
+        l3_tension = analysis.get("l3_tension", {})
+        core_tension = ""
+        if isinstance(l3_tension, dict):
+            core_tension = l3_tension.get("formula", "") or l3_tension.get("description", "")
+        elif l3_tension:
+            core_tension = str(l3_tension)
+
+        # 5. 提取L4 JTBD
+        user_task = analysis.get("l4_jtbd", "")
+
+        # 6. 提取L5锐度自检
+        l5_sharpness = analysis.get("l5_sharpness", {})
+        sharpness_check = {}
+        if isinstance(l5_sharpness, dict):
+            sharpness_check = {
+                "specificity": l5_sharpness.get("specificity", ""),
+                "actionability": l5_sharpness.get("actionability", ""),
+                "depth": l5_sharpness.get("depth", ""),
+            }
+
+        logger.debug(
+            f" [v7.260] 框架清单深度分析摘要 | 实体数={len(key_entities)}, 视角数={len(analysis_perspectives)}, 张力={bool(core_tension)}, JTBD={bool(user_task)}, 复杂度={complexity_score:.2f}"
+        )
+
+        # === v7.300 新增：提取创作指令和交付物 ===
+        creation_command = ""
+        deliverables = []
+        final_output_format = ""
+
+        # 从 analysis_data 中提取（如果存在）
+        if "creation_command" in analysis_data:
+            creation_command = analysis_data.get("creation_command", "")
+        if "deliverables" in analysis_data:
+            deliverables = analysis_data.get("deliverables", [])
+        if "final_output_format" in analysis_data:
+            final_output_format = analysis_data.get("final_output_format", "")
+
+        return FrameworkChecklist(
+            core_summary=core_summary,
+            main_directions=main_directions,
+            boundaries=boundaries[:5],  # 最多5个边界
+            answer_goal=answer_goal,
+            generated_at=datetime.now().isoformat(),
+            # v7.260 新增字段
+            complexity_score=complexity_score,
+            recommended_task_count=recommended_task_count,
+            # v7.261 新增字段
+            motivation_distribution=motivation_distribution,
+            # v7.250 新增字段
+            user_context=user_context,
+            key_entities=key_entities,
+            analysis_perspectives=analysis_perspectives,
+            core_tension=core_tension,
+            user_task=user_task,
+            sharpness_check=sharpness_check,
+            # v7.300 新增字段
+            creation_command=creation_command,
+            deliverables=deliverables,
+            final_output_format=final_output_format,
+        )
+
+    def _priority_to_int(self, priority: str) -> int:
+        """将优先级字符串转换为整数（用于排序）"""
+        priority_map = {"high": 1, "medium": 5, "low": 9}
+        return priority_map.get(priority.lower(), 5)
+
+    async def _reallocate_edited_tasks(
+        self, main_directions: List[Dict[str, Any]], blocks: List[Dict[str, Any]], original_query: str
+    ) -> List[Dict[str, Any]]:
+        """
+        智能任务重分配：将用户编辑的任务重新分配到最合适的版块
+
+        Args:
+            main_directions: 用户编辑后的任务列表（包含 is_user_modified 和 is_user_added 标记）
+            blocks: 原始版块列表（保持步骤1的版块结构）
+            original_query: 原始用户问题
+
+        Returns:
+            重新分配后的任务列表（每个任务带有更新的 block_id）
+
+        v7.340 新增：智能任务重分配
+        - 严格保持原始版块结构
+        - 使用LLM判断任务归属
+        - 无法归属的任务归入"其他任务"版块（block_id="B_other"）
+        - LLM失败时降级：所有无明确block_id的任务归入B_other
+        """
+        try:
+            # 找出需要重分配的任务（用户修改或新增的）
+            tasks_to_reallocate = [
+                task for task in main_directions if task.get("is_user_modified") or task.get("is_user_added")
+            ]
+
+            if not tasks_to_reallocate:
+                logger.info(" [v7.340] 无需重分配任务")
+                return main_directions
+
+            logger.info(f" [v7.340] 开始重分配 {len(tasks_to_reallocate)} 个任务")
+
+            # 构建版块信息
+            blocks_info = []
+            for i, block in enumerate(blocks, 1):
+                blocks_info.append(f"版块{i} (B{i}): {block.get('name', '')}")
+
+            # 构建任务信息
+            tasks_info = []
+            for i, task in enumerate(tasks_to_reallocate, 1):
+                task_desc = task.get("direction") or task.get("task_description", "")
+                tasks_info.append(f"任务{i}: {task_desc}")
+
+            # 调用LLM进行重分配
+            prompt = f"""你是一个任务分配专家。用户问题是：
+
+"{original_query}"
+
+原始版块结构：
+{chr(10).join(blocks_info)}
+
+用户编辑/新增的任务：
+{chr(10).join(tasks_info)}
+
+请将每个任务分配到最合适的版块。要求：
+1. 严格保持原始版块结构（只能分配到B1, B2, ...）
+2. 根据任务内容的语义相似度判断归属
+3. 如果任务无法明确归属到任何版块，分配到 "B_other" （其他任务）
+
+返回JSON数组格式：
+[
+  {{
+    "task_index": 1,
+    "block_id": "B1",
+    "reason": "任务内容与版块1高度相关"
+  }},
+  ...
+]"""
+
+            # 调用LLM
+            llm = self._get_llm()
+            response = await llm.ainvoke(prompt)
+
+            # 解析JSON
+            json_match = re.search(r"\[[\s\S]*\]", response.content, re.DOTALL)
+            if json_match:
+                allocations = json.loads(json_match.group(0))
+
+                # 应用重分配结果
+                for alloc in allocations:
+                    task_idx = alloc["task_index"] - 1  # 转为0-based索引
+                    if 0 <= task_idx < len(tasks_to_reallocate):
+                        tasks_to_reallocate[task_idx]["block_id"] = alloc["block_id"]
+                        logger.info(f"  - 任务{task_idx+1} → {alloc['block_id']}: {alloc.get('reason', '')}")
+
+                logger.info(" [v7.340] 任务重分配完成")
+                return main_directions
+            else:
+                raise ValueError("无法从LLM响应中提取JSON")
+
+        except Exception as e:
+            logger.warning(f"️ [v7.340] 任务重分配失败: {e}，使用降级策略")
+            # 降级策略：所有无block_id的任务归入B_other
+            for task in main_directions:
+                if not task.get("block_id"):
+                    task["block_id"] = "B_other"
+                    logger.info(f"  - {task.get('direction', 'Unknown')} → B_other")
+            return main_directions
+
+    async def _decompose_block_to_tasks(
+        self, block: OutputBlock, block_index: int, original_query: str
+    ) -> List[Dict[str, Any]]:
+        """
+        智能分解：将版块（方向）分解为5-10个具体搜索任务
+
+        Args:
+            block: 输出版块（包含name, sub_items, priority等）
+            block_index: 版块序号（从1开始）
+            original_query: 原始用户问题
+
+        Returns:
+            任务列表，每个任务包含：task_description, search_keywords, expected_outcome, priority, block_id
+
+        v7.340 新增：智能任务分解
+        - 根据版块复杂度动态生成5-10个任务
+        - LLM失败时降级到固定规则（每版块8个任务）
+        - 每个任务包含block_id关联原始版块
+        """
+        try:
+            # 调用LLM进行智能分解
+            block_complexity_score = len(block.sub_items)  # 简单评估：子项数量
+            target_task_count = min(10, max(5, block_complexity_score + 3))  # 5-10个任务
+
+            prompt = f"""你是一个搜索任务分解专家。用户问题是：
+
+"{original_query}"
+
+现在需要你为以下搜索版块设计 {target_task_count} 个具体的搜索任务：
+
+**版块{block_index}：{block.name}**
+子项：
+{chr(10).join(f"- {item}" for item in block.sub_items)}
+
+要求：
+1. 生成 {target_task_count} 个可执行的搜索任务
+2. 每个任务要具体、可搜索，避免泛泛而谈
+3. 任务应覆盖该版块的所有子项
+4. 为每个任务提供：
+   - task_description: 任务描述（15-30字）
+   - search_keywords: 搜索关键词列表（3-5个）
+   - expected_outcome: 期望获得的信息（15-30字）
+   - priority: 优先级（high/medium/low）
+
+返回JSON数组格式：
+[
+  {{
+    "task_description": "研究Tiffany蓝色的品牌历史与文化内涵",
+    "search_keywords": ["Tiffany蓝", "品牌历史", "文化象征"],
+    "expected_outcome": "了解Tiffany蓝的起源、演变和文化意义",
+    "priority": "high"
+  }},
+  ...
+]"""
+
+            # 调用LLM
+            llm = self._get_llm()
+            response = await llm.ainvoke(prompt)
+
+            # 解析JSON
+            json_match = re.search(r"\[[\s\S]*\]", response.content, re.DOTALL)
+            if json_match:
+                tasks_data = json.loads(json_match.group(0))
+
+                # 为每个任务添加block_id
+                for i, task in enumerate(tasks_data, 1):
+                    task["block_id"] = f"B{block_index}"
+                    task["id"] = f"T{block_index}_{i}"
+
+                logger.info(f" [v7.340] 版块{block_index}智能分解成功: {len(tasks_data)}个任务")
+                return tasks_data
+            else:
+                raise ValueError("无法从LLM响应中提取JSON")
+
+        except Exception as e:
+            logger.warning(f"️ [v7.340] 版块{block_index}智能分解失败: {e}，使用固定规则降级")
+            # 降级到固定规则：每个版块固定8个任务
+            return self._decompose_block_to_tasks_fixed(block, block_index)
+
+    def _decompose_block_to_tasks_fixed(self, block: OutputBlock, block_index: int) -> List[Dict[str, Any]]:
+        """
+        固定规则：将版块分解为8个任务（LLM失败时的降级方案）
+
+        v7.340 新增：固定分解规则
+        - 每个版块固定生成8个任务
+        - 基于sub_items均匀分配
+        - 任务数量不足时重复使用sub_items
+        """
+        tasks = []
+        target_count = 8
+        sub_items = block.sub_items
+
+        # 如果子项不足8个，循环复用
+        extended_items = []
+        while len(extended_items) < target_count:
+            extended_items.extend(sub_items)
+        extended_items = extended_items[:target_count]
+
+        for i, item in enumerate(extended_items, 1):
+            task = {
+                "id": f"T{block_index}_{i}",
+                "block_id": f"B{block_index}",
+                "task_description": f"搜索{block.name}相关的{item}信息",
+                "search_keywords": [block.name, item],
+                "expected_outcome": f"获取关于{item}的详细资料和案例",
+                "priority": "medium" if i <= 4 else "low",
+            }
+            tasks.append(task)
+
+        logger.info(f" [v7.340] 版块{block_index}固定规则分解: {len(tasks)}个任务")
+        return tasks
+
+    def _generate_main_directions_fallback(self, framework: SearchFramework) -> List[Dict[str, Any]]:
+        """
+        降级方法：生成 main_directions（不使用动机引擎）- v7.261
+
+        当动机引擎不可用时，使用原有的逐个target提取逻辑
+        """
+        main_directions = []
+        for target in framework.targets:
+            # 提取方向名称
+            direction_name = None
+            for candidate in [target.question, target.name, target.search_for, target.description]:
+                if candidate and candidate.strip():
+                    direction_name = candidate.strip()[:50]
+                    break
+
+            if not direction_name and target.preset_keywords and len(target.preset_keywords) > 0:
+                first_kw = target.preset_keywords[0]
+                if first_kw and first_kw.strip():
+                    direction_name = first_kw.strip()[:40]
+
+            if not direction_name and target.expected_info and len(target.expected_info) > 0:
+                direction_name = f"搜索: {', '.join(target.expected_info[:2])}"
+
+            if not direction_name:
+                if target.why_need and target.why_need.strip():
+                    direction_name = target.why_need.strip()[:40]
+                elif target.purpose and target.purpose.strip():
+                    direction_name = target.purpose.strip()[:40]
+
+            if not direction_name:
+                direction_name = f"{target.category}_{target.id}"
+
+            if direction_name and len(direction_name) > 50:
+                direction_name = direction_name[:47] + "..."
+
+            purpose = target.why_need or target.purpose or ""
+            expected_outcome = ""
+            if target.success_when:
+                expected_outcome = ", ".join(target.success_when[:2])
+            elif target.expected_info:
+                expected_outcome = ", ".join(target.expected_info[:2])
+
+            sub_tasks_list = []
+            if hasattr(target, "sub_tasks") and target.sub_tasks:
+                sub_tasks_list = target.sub_tasks
+
+            if direction_name:
+                direction = {
+                    "direction": direction_name,
+                    "purpose": purpose,
+                    "expected_outcome": expected_outcome,
+                    "sub_tasks": sub_tasks_list,
+                    # 降级模式不包含动机信息
+                    "motivation_id": None,
+                    "motivation_priority": None,
+                    "motivation_color": None,
+                }
+                main_directions.append(direction)
+
+        return main_directions
+
+    def _generate_enhanced_keywords(
+        self, query: str, question: str, search_for: str, why_need: str, all_targets: list
+    ) -> List[str]:
+        """
+        生成增强场景化关键词 - v7.237 (方案B)
+
+        基于具体需求生成更精准、场景化的搜索关键词，
+        优先关注实际应用案例和融合策略
+        """
+        keywords = []
+
+        # 提取查询中的核心实体
+        query_lower = query.lower()
+
+        # 品牌+场景组合关键词
+        if any(brand in query_lower for brand in ["hay", "丹麦", "北欧"]):
+            if "民宿" in query_lower or "酒店" in query_lower:
+                keywords.extend(["HAY家具 中式空间 搭配案例", "北欧极简风格 民宿设计 实际案例", "现代丹麦家具 传统建筑 融合设计"])
+
+        # 地点+风格融合关键词
+        if any(loc in query_lower for loc in ["峨眉山", "四川", "山地"]):
+            keywords.extend(["四川山地建筑 现代家具 适应性设计", "中国山区民宿 国际品牌家具 实用案例", "松赞林卡 现代设计 本土材料 融合策略"])
+
+        # 成功案例关键词（优先级最高）
+        if search_for and "案例" not in search_for:
+            # 为非案例搜索添加案例导向
+            enhanced_search = f"{search_for} 成功案例 项目实践"
+            keywords.append(enhanced_search)
+
+        # 基于问题类型优化
+        if question:
+            if "如何" in question or "how" in question.lower():
+                keywords.append(f"{question.replace('如何', '')} 实施方法 具体步骤")
+            elif "什么" in question or "what" in question.lower():
+                keywords.append(f"{question.replace('什么', '')} 专业解读 深度分析")
+
+        # 回退到基础关键词
+        if not keywords:
+            if search_for:
+                keywords = [f"{query[:20]} {search_for[:40]}"]
+            elif question:
+                keywords = [f"{query[:20]} {question[:30]}"]
+            else:
+                keywords = [f"{query[:30]} 专业分析"]
+
+        return keywords[:3]  # 限制关键词数量，保证质量
+
+    def _should_include_source(self, source: Dict[str, Any], query: str) -> bool:
+        """
+        判断是否应该包含此搜索结果 - v7.237 (方案B+C)
+
+        基于质量配置应用不同的过滤策略
+        """
+        if not self.search_quality_config.design_professional_mode:
+            return True  # 非专业模式，不过滤
+
+        title = source.get("title", "").lower()
+        content = source.get("content", "").lower()
+        site_name = source.get("siteName", "").lower()
+
+        # 1. 商业内容过滤
+        if self.search_quality_config.filter_commercial_content:
+            commercial_keywords = [
+                "价格",
+                "购买",
+                "优惠",
+                "促销",
+                "订购",
+                "商品",
+                "price",
+                "buy",
+                "sale",
+                "discount",
+                "shop",
+                "store",
+            ]
+            if any(kw in title or kw in content for kw in commercial_keywords):
+                if not any(kw in title or kw in content for kw in ["案例", "项目", "设计", "应用"]):
+                    return False
+
+        # 2. 案例研究优先
+        if self.search_quality_config.prioritize_case_studies:
+            case_study_keywords = [
+                "案例",
+                "项目",
+                "实践",
+                "应用",
+                "设计",
+                "方案",
+                "case",
+                "project",
+                "practice",
+                "application",
+                "design",
+            ]
+            has_case_keywords = any(kw in title or kw in content for kw in case_study_keywords)
+
+            # 非案例内容的相关性要求更高
+            if not has_case_keywords:
+                query_words = set(query.lower().split())
+                title_words = set(title.split())
+                if len(query_words.intersection(title_words)) < 2:
+                    return False
+
+        # 3. 专业域名优先
+        professional_domains = [
+            "archdaily",
+            "dezeen",
+            "designboom",
+            "interiordesign",
+            "tuozhe8",
+            "jianshu",
+            "zhihu",
+            "douban",
+        ]
+        is_professional = any(domain in site_name for domain in professional_domains)
+
+        # 非专业域名的内容质量要求更高
+        if not is_professional:
+            min_content_length = 100
+            if len(content) < min_content_length:
+                return False
+
+        return True
+
+    def _build_simple_search_framework(self, query: str) -> SearchFramework:
+        """
+        构建简单的搜索框架（降级方案）- v7.220
+        """
+        # 创建默认的搜索目标 - v7.232: 添加预设关键词
+        default_targets = [
+            SearchTarget(
+                id="T1",
+                name="基础信息",
+                description=f"搜索关于 {query[:30]} 的基础信息",
+                purpose="建立基础认知",
+                priority=1,
+                category="基础",
+                preset_keywords=[
+                    f"{query[:40]} 核心概念 定义 背景知识",
+                    f"{query[:40]} 基础介绍 入门指南",
+                ],
+                expected_info=["核心概念", "基本定义"],
+            ),
+            SearchTarget(
+                id="T2",
+                name="案例参考",
+                description=f"搜索 {query[:30]} 相关案例",
+                purpose="获取实际案例参考",
+                priority=2,
+                category="案例",
+                preset_keywords=[
+                    f"{query[:40]} 案例分析 实际应用",
+                    f"{query[:40]} 最佳实践 成功经验",
+                ],
+                expected_info=["成功案例", "最佳实践"],
+            ),
+        ]
+
+        return SearchFramework(
+            original_query=query,
+            core_question=query[:50],
+            answer_goal=f"为用户提供关于 {query[:30]} 的完整答案",
+            boundary="",
+            targets=default_targets,
+        )
+
+    # ==================== v7.234 质量评估与优化 ====================
+
+    def _calculate_proper_noun_ratio(self, text: str) -> float:
+        """
+        计算专有名词占比 - v7.234
+
+        通过以下特征识别专有名词：
+        1. 英文大写字母开头的词
+        2. 中文品牌/地名/人名模式（2-4字连续）
+        3. 已知的专有名词列表匹配
+        """
+        import re
+
+        if not text:
+            return 0.0
+
+        # 移除标点和空格计算总长度
+        clean_text = re.sub(r"[^\w\u4e00-\u9fff]", "", text)
+        total_chars = len(clean_text)
+        if total_chars == 0:
+            return 0.0
+
+        proper_noun_chars = 0
+
+        # 1. 英文专有名词（大写开头的词）
+        english_proper = re.findall(r"\b[A-Z][a-zA-Z]{2,}\b", text)
+        for word in english_proper:
+            proper_noun_chars += len(word)
+
+        # 2. 常见品牌/设计相关专有名词
+        known_proper_nouns = [
+            # 品牌
+            "HAY",
+            "MUJI",
+            "IKEA",
+            "Vitra",
+            "Fritz Hansen",
+            "Knoll",
+            "Herman Miller",
+            "Flos",
+            "Artemide",
+            "B&B Italia",
+            "Cassina",
+            "Zanotta",
+            "Moroso",
+            "无印良品",
+            "宜家",
+            "造作",
+            "吱音",
+            "梵几",
+            # 设计师
+            "Bouroullec",
+            "Diez",
+            "Bentzen",
+            "Jasper Morrison",
+            "Naoto Fukasawa",
+            "原研哉",
+            "深�的良品",
+            "安藤忠雄",
+            "隈研吾",
+            # 酒店/民宿品牌
+            "松赞",
+            "既下山",
+            "安缦",
+            "虹夕诺雅",
+            "青普",
+            "大乐之野",
+            "过云山居",
+            # 地名
+            "峨眉山",
+            "七里坪",
+            "莫干山",
+            "千岛湖",
+            "大理",
+            "丽江",
+            "阳朔",
+        ]
+
+        for noun in known_proper_nouns:
+            if noun.lower() in text.lower():
+                proper_noun_chars += len(noun)
+
+        # 3. 产品线模式（英文+数字/系列名）
+        product_patterns = re.findall(r"[A-Z][a-zA-Z]+\s*(?:系列|Series|Collection|Chair|Sofa|Table|Lamp)", text)
+        for pattern in product_patterns:
+            proper_noun_chars += len(re.sub(r"\s", "", pattern))
+
+        # 防止重复计算，取最小值
+        ratio = min(1.0, proper_noun_chars / total_chars)
+        return ratio
+
+    def _evaluate_analysis_quality_v234(self, analysis_data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        通用化质量评估 - v7.265
+
+        评分维度（100分制）：
+        1. 实体类型覆盖度 (20分) - 是否覆盖品牌/地点/竞品/人物至少3类
+        2. 实体具体度 (20分) - 专有名词密度而非特定词检测
+        3. 搜索查询质量 (20分) - 自然语言短语，包含具体实体（v7.237 软约束）
+        4. 任务相关性 (20分) - v7.265 新增：任务是否与用户问题直接相关
+        5. 张力可操作性 (10分) - 是否有vs结构+解决策略
+        6. 锐度三问 (10分) - 是否通过专一性/可操作性/深度测试
+        """
+        score = 0
+        issues = []
+        suggestions = []
+
+        analysis = analysis_data.get("analysis", {})
+        l1_facts = analysis.get("l1_facts", {})
+
+        # 将l1_facts转为文本用于分析
+        if isinstance(l1_facts, dict):
+            l1_text = json.dumps(l1_facts, ensure_ascii=False)
+        elif isinstance(l1_facts, list):
+            l1_text = json.dumps(l1_facts, ensure_ascii=False)
+        else:
+            l1_text = str(l1_facts)
+
+        # 1. 实体类型覆盖度 (25分)
+        entity_types_found = 0
+        entity_checks = {
+            "brand": ["brand_entities", "品牌", "产品线", "product_lines"],
+            "location": ["location_entities", "地点", "地名", "气候", "climate"],
+            "competitor": ["competitor_entities", "竞品", "案例", "松赞", "既下山", "安缦"],
+            "style": ["style_entities", "风格", "北欧", "极简", "现代"],
+            "person": ["person_entities", "设计师", "创始人", "designers"],
+            "scene": ["场景", "民宿", "酒店", "空间", "室内"],
+        }
+
+        for entity_type, keywords in entity_checks.items():
+            if any(kw in l1_text for kw in keywords):
+                entity_types_found += 1
+
+        entity_coverage_score = min(20, entity_types_found * 4)
+        score += entity_coverage_score
+
+        if entity_types_found < 3:
+            issues.append(f"实体类型覆盖不足：仅覆盖{entity_types_found}/6类")
+            suggestions.append("补充品牌产品线、地点特征、竞品案例等实体")
+
+        # 2. 实体具体度 (20分) - 基于专有名词密度
+        proper_noun_ratio = self._calculate_proper_noun_ratio(l1_text)
+        specificity_score = min(20, int(proper_noun_ratio * 50))
+        score += specificity_score
+
+        if proper_noun_ratio < 0.3:
+            issues.append(f"实体具体度不足：专有名词占比{proper_noun_ratio:.1%}")
+            suggestions.append("补充具体品牌名、产品名、设计师名、地名等专有名词")
+
+        # 3. 搜索查询质量 (20分) - v7.265 调整权重
+        search_framework = analysis_data.get("search_framework", {})
+        targets = search_framework.get("targets", [])
+        keyword_scores = []
+
+        for t in targets:
+            for kw in t.get("preset_keywords", []):
+                kw_len = len(kw)
+                # v7.265: 调整长度范围为15-35字（更精确）
+                length_ok = 15 <= kw_len <= 35
+
+                # v7.237: 专有名词占比作为参考，不再硬性要求≥40%
+                kw_ratio = self._calculate_proper_noun_ratio(kw)
+
+                if length_ok and kw_ratio >= 0.3:
+                    keyword_scores.append(1.0)
+                elif length_ok:
+                    keyword_scores.append(0.7)  # 长度合适但专有名词少，仍给分
+                elif kw_len < 15:
+                    keyword_scores.append(0.3)
+                    issues.append(f"搜索查询较短：'{kw[:20]}...'（{kw_len}字），建议补充更多上下文")
+                elif kw_len > 35:
+                    keyword_scores.append(0.5)  # 过长但仍可用
+                else:
+                    keyword_scores.append(0.6)
+
+        if keyword_scores:
+            avg_kw_score = sum(keyword_scores) / len(keyword_scores)
+            keyword_density_score = min(20, int(avg_kw_score * 20))
+        else:
+            keyword_density_score = 0
+            issues.append("缺少搜索查询")
+
+        score += keyword_density_score
+
+        if keyword_density_score < 12:
+            suggestions.append("建议优化搜索查询：使用自然语言短语，包含具体实体名称")
+
+        # 4. 任务相关性检查 (20分) - v7.265 新增
+        # 检查搜索任务是否与用户问题中的关键实体相关
+        user_profile = analysis_data.get("user_profile", {})
+        original_query = user_profile.get("explicit_need", "") or analysis_data.get("original_query", "")
+        core_question = search_framework.get("core_question", "")
+
+        relevance_score = 0
+        irrelevant_tasks = []
+
+        # 从用户问题和核心问题中提取关键实体
+        query_text = (original_query + " " + core_question).lower()
+
+        # 检查每个任务的相关性
+        for t in targets:
+            task_text = (
+                (t.get("question", "") or "")
+                + " "
+                + (t.get("search_for", "") or "")
+                + " "
+                + " ".join(t.get("preset_keywords", []))
+            ).lower()
+
+            # 计算与用户问题的关键词重叠度
+            query_words = set(re.findall(r"[\u4e00-\u9fa5]{2,}|[a-zA-Z]{3,}", query_text))
+            task_words = set(re.findall(r"[\u4e00-\u9fa5]{2,}|[a-zA-Z]{3,}", task_text))
+
+            if query_words:
+                overlap = len(query_words & task_words)
+                overlap_ratio = overlap / len(query_words)
+
+                if overlap_ratio >= 0.2:  # 至少20%的关键词重叠
+                    relevance_score += 5
+                elif overlap == 0:  # 完全不相关
+                    task_name = t.get("question", "") or t.get("search_for", "")[:30]
+                    irrelevant_tasks.append(task_name[:30])
+
+        relevance_score = min(20, relevance_score)
+        score += relevance_score
+
+        if irrelevant_tasks:
+            issues.append(f"部分任务与用户问题弱相关：{', '.join(irrelevant_tasks[:2])}")
+            suggestions.append("确保每个搜索任务都包含用户问题中的关键实体")
+
+        if relevance_score < 10:
+            issues.append("任务与用户问题相关性不足")
+            suggestions.append("重新审视搜索任务是否直接服务于回答用户问题")
+
+        # 5. 张力可操作性 (10分) - v7.265 调整权重
+        l3_tension = analysis.get("l3_tension", {})
+        if isinstance(l3_tension, dict):
+            tension_formula = l3_tension.get("formula", "")
+            tension_strategy = l3_tension.get("resolution_strategy", "")
+        else:
+            tension_formula = str(l3_tension)
+            tension_strategy = ""
+
+        has_vs = "vs" in tension_formula.lower() or "与" in tension_formula
+        has_strategy = bool(tension_strategy) or any(
+            w in str(analysis_data) for w in ["策略", "手法", "融合", "建议", "resolution"]
+        )
+
+        tension_score = (5 if has_vs else 0) + (5 if has_strategy else 0)
+        score += tension_score
+
+        if not has_vs:
+            issues.append("L3张力未明确对立面结构（缺少 'A vs B' 格式）")
+            suggestions.append("明确核心张力公式，如 '[品牌现代感] vs [在地传统感]'")
+        if not has_strategy:
+            issues.append("缺少张力解决策略")
+            suggestions.append("补充具体的设计融合策略")
+
+        # 6. 锐度三问 (10分) - 基于L5输出检测
+        l5 = analysis.get("l5_sharpness", {})
+        sharpness_score = 0
+
+        if isinstance(l5, dict):
+            if l5.get("specificity") and len(str(l5.get("specificity"))) > 10:
+                sharpness_score += 4
+            if l5.get("actionability") and len(str(l5.get("actionability"))) > 10:
+                sharpness_score += 3
+            if l5.get("depth") and len(str(l5.get("depth"))) > 10:
+                sharpness_score += 3
+
+        score += sharpness_score
+
+        if sharpness_score < 7:
+            issues.append("L5锐度自检不完整")
+
+        # 确定等级和是否通过
+        grade = "A" if score >= 75 else "B" if score >= 55 else "C"
+        passed = score >= 55
+
+        logger.info(f" [v7.234] 质量评估完成 | score={score}/100 | grade={grade} | issues={len(issues)}")
+
+        return {
+            "score": score,
+            "max_score": 100,
+            "pass": passed,
+            "grade": grade,
+            "issues": issues,
+            "suggestions": suggestions,
+            "breakdown": {
+                "entity_coverage": entity_coverage_score,
+                "entity_specificity": specificity_score,
+                "keyword_density": keyword_density_score,
+                "task_relevance": relevance_score,  # v7.265 新增
+                "tension_actionability": tension_score,
+                "sharpness": sharpness_score,
+            },
+        }
+
+    def _validate_dimension_completeness(self, analysis_data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+         v7.280: 维度完整性校验
+
+        使用配置加载器验证分析结果是否包含所有必需维度。
+        这是质量保证的最后一道防线，确保不丢失任何分析维度。
+
+        返回:
+            {
+                "complete": bool,
+                "missing_dimensions": List[str],
+                "completeness_score": float,
+                "details": Dict[str, bool]
+            }
+        """
+        try:
+            # 使用配置加载器进行验证
+            validation_result = self.dimensions_config.validate_analysis_result(analysis_data)
+
+            # 如果配置加载器验证失败，进行备用检查
+            if not validation_result.get("is_valid"):
+                missing = validation_result.get("missing_fields", [])
+                warnings = validation_result.get("warnings", [])
+
+                logger.warning(f"️ [v7.280] 维度完整性检查发现问题 | missing={missing}, warnings={warnings}")
+
+                return {
+                    "complete": False,
+                    "missing_dimensions": missing,
+                    "completeness_score": validation_result.get("completeness_score", 0.5),
+                    "details": validation_result.get("details", {}),
+                    "warnings": warnings,
+                }
+
+            # 计算完整性分数
+            details = validation_result.get("details", {})
+            total_checks = len(details)
+            passed_checks = sum(1 for v in details.values() if v)
+            completeness_score = passed_checks / total_checks if total_checks > 0 else 1.0
+
+            logger.info(
+                f" [v7.280] 维度完整性校验通过 | score={completeness_score:.2f} | checks={passed_checks}/{total_checks}"
+            )
+
+            return {
+                "complete": True,
+                "missing_dimensions": [],
+                "completeness_score": completeness_score,
+                "details": details,
+                "warnings": validation_result.get("warnings", []),
+            }
+
+        except Exception as e:
+            logger.error(f" [v7.280] 维度完整性校验异常: {e}", exc_info=True)
+
+            # 异常时进行基础检查
+            basic_checks = self._basic_dimension_check(analysis_data)
+            return {
+                "complete": basic_checks["all_present"],
+                "missing_dimensions": basic_checks["missing"],
+                "completeness_score": basic_checks["score"],
+                "details": basic_checks["details"],
+                "warnings": [f"配置校验异常，使用基础检查: {str(e)}"],
+            }
+
+    def _basic_dimension_check(self, analysis_data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        基础维度检查（备用方案）
+
+        当配置加载器不可用时，使用硬编码的基础检查
+        """
+        analysis = analysis_data.get("analysis", {})
+
+        # 基础维度列表
+        required_dimensions = [
+            ("l1_facts", analysis.get("l1_facts")),
+            ("l2_perspectives", analysis.get("l2_perspectives")),
+            ("l3_core_tension", analysis.get("l3_core_tension") or analysis.get("l3_tension")),
+            ("l4_user_task", analysis.get("l4_user_task")),
+            ("l5_sharpness", analysis.get("l5_sharpness")),
+        ]
+
+        # 可选维度
+        optional_dimensions = [
+            ("human_dimensions", analysis.get("human_dimensions")),
+            ("problem_solving_approach", analysis_data.get("problem_solving_approach")),
+        ]
+
+        missing = []
+        details = {}
+
+        for name, value in required_dimensions:
+            has_value = bool(value) and (
+                (isinstance(value, dict) and len(value) > 0)
+                or (isinstance(value, list) and len(value) > 0)
+                or (isinstance(value, str) and len(value) > 10)
+            )
+            details[name] = has_value
+            if not has_value:
+                missing.append(name)
+
+        for name, value in optional_dimensions:
+            has_value = bool(value)
+            details[name] = has_value
+            # 可选维度不计入 missing
+
+        required_count = len(required_dimensions)
+        present_count = required_count - len(missing)
+        score = present_count / required_count if required_count > 0 else 1.0
+
+        return {
+            "all_present": len(missing) == 0,
+            "missing": missing,
+            "score": score,
+            "details": details,
+        }
+
+    def _merge_analysis_data(self, original: Dict[str, Any], supplement: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        合并优化后的分析数据 - v7.234
+
+        将补充内容合并到原始数据中
+        """
+        import copy
+
+        merged = copy.deepcopy(original)
+
+        # 合并 analysis 部分
+        if "analysis" in supplement:
+            if "analysis" not in merged:
+                merged["analysis"] = {}
+
+            supp_analysis = supplement["analysis"]
+
+            # 合并 l1_facts
+            if "l1_facts" in supp_analysis:
+                if isinstance(supp_analysis["l1_facts"], dict) and isinstance(merged["analysis"].get("l1_facts"), dict):
+                    for key, value in supp_analysis["l1_facts"].items():
+                        if key not in merged["analysis"]["l1_facts"] or not merged["analysis"]["l1_facts"][key]:
+                            merged["analysis"]["l1_facts"][key] = value
+                        elif isinstance(value, list) and isinstance(merged["analysis"]["l1_facts"][key], list):
+                            merged["analysis"]["l1_facts"][key].extend(value)
+                else:
+                    merged["analysis"]["l1_facts"] = supp_analysis["l1_facts"]
+
+            # 合并 l3_tension
+            if "l3_tension" in supp_analysis:
+                if isinstance(supp_analysis["l3_tension"], dict):
+                    if not isinstance(merged["analysis"].get("l3_tension"), dict):
+                        merged["analysis"]["l3_tension"] = {}
+                    merged["analysis"]["l3_tension"].update(supp_analysis["l3_tension"])
+                else:
+                    merged["analysis"]["l3_tension"] = supp_analysis["l3_tension"]
+
+        # 合并 search_framework 部分
+        if "search_framework" in supplement:
+            if "search_framework" not in merged:
+                merged["search_framework"] = {}
+
+            supp_framework = supplement["search_framework"]
+
+            # 合并 targets 的 preset_keywords
+            if "targets" in supp_framework:
+                orig_targets = {t["id"]: t for t in merged["search_framework"].get("targets", [])}
+                for supp_target in supp_framework["targets"]:
+                    target_id = supp_target.get("id")
+                    if target_id in orig_targets:
+                        # 合并关键词
+                        if "preset_keywords" in supp_target:
+                            existing_kws = orig_targets[target_id].get("preset_keywords", [])
+                            new_kws = supp_target["preset_keywords"]
+                            orig_targets[target_id]["preset_keywords"] = existing_kws + [
+                                kw for kw in new_kws if kw not in existing_kws
+                            ]
+                    else:
+                        # v7.234: 如果原始数据中没有这个target，直接添加
+                        orig_targets[target_id] = supp_target
+
+                merged["search_framework"]["targets"] = list(orig_targets.values())
+
+                # v7.234: 如果合并后targets仍为空，保留原始targets
+                if not merged["search_framework"]["targets"] and merged["search_framework"].get("targets"):
+                    pass  # 保持原样
+
+        return merged
+
+    async def _refine_analysis_v234(
+        self, query: str, original_data: Dict[str, Any], quality_result: Dict[str, Any]
+    ) -> Tuple[Dict[str, Any], Dict[str, Any]]:
+        """
+        轻量级优化 - v7.234
+
+        设计原则：
+        1. 最多1次迭代（成本控制）
+        2. 使用chat模型而非reasoning模型
+        3. 只针对top3问题进行优化
+        4. 失败不阻塞，记录警告继续执行
+        """
+        if quality_result["pass"]:
+            return original_data, quality_result
+
+        logger.info(f" [v7.234] 开始分析优化 | 当前分数={quality_result['score']} | 问题数={len(quality_result['issues'])}")
+
+        # 只取top3问题
+        top_issues = quality_result["issues"][:3]
+        top_suggestions = quality_result["suggestions"][:3]
+
+        # 提取原始分析的关键部分
+        analysis_excerpt = {
+            "l1_facts": original_data.get("analysis", {}).get("l1_facts", {}),
+            "l3_tension": original_data.get("analysis", {}).get("l3_tension", {}),
+        }
+
+        # 提取原始搜索目标
+        original_targets = original_data.get("search_framework", {}).get("targets", [])
+        targets_excerpt = [
+            {"id": t.get("id"), "name": t.get("name"), "preset_keywords": t.get("preset_keywords", [])}
+            for t in original_targets[:3]
+        ]
+
+        refinement_prompt = f"""请针对以下问题优化分析结果。
+
+## 原始问题
+{query}
+
+## 发现的问题
+{chr(10).join(f"- {issue}" for issue in top_issues)}
+
+## 优化建议
+{chr(10).join(f"- {s}" for s in top_suggestions)}
+
+## 原始分析（节选）
+L1实体: {json.dumps(analysis_excerpt["l1_facts"], ensure_ascii=False)[:800]}
+L3张力: {json.dumps(analysis_excerpt["l3_tension"], ensure_ascii=False)[:300]}
+搜索目标: {json.dumps(targets_excerpt, ensure_ascii=False)[:500]}
+
+## 优化要求
+
+请只输出需要**补充**的内容（JSON格式），格式如下：
+
+```json
+{{
+    "analysis": {{
+        "l1_facts": {{
+            "brand_entities": [...],
+            "location_entities": [...],
+            "competitor_entities": [...]
+        }},
+        "l3_tension": {{
+            "formula": "[A] vs [B]",
+            "resolution_strategy": "..."
+        }}
+    }},
+    "search_framework": {{
+        "targets": [
+            {{
+                "id": "T1",
+                "preset_keywords": ["优化后的搜索查询（自然语言短语）"]
+            }}
+        ]
+    }}
+}}
+```
+
+重点：
+1. 补充具体实体名称（品牌产品线、设计师、竞品案例）
+2. 优化搜索查询：使用自然语言短语，包含具体实体名称
+3. 明确张力公式和解决策略
+
+请只输出JSON，不要其他内容。"""
+
+        try:
+            # 使用chat模型而非reasoning模型，成本更低
+            result = await self._call_llm(refinement_prompt, model="openai/gpt-4o", max_tokens=1500)  # 非reasoning模型
+
+            supplement = self._safe_parse_json(result, context="优化补充(v7.234)")
+
+            if supplement:
+                # 合并补充内容到原始数据
+                merged = self._merge_analysis_data(original_data, supplement)
+                new_quality = self._evaluate_analysis_quality_v234(merged)
+
+                logger.info(
+                    f" [v7.234] 优化完成 | {quality_result['score']}→{new_quality['score']} | 等级={new_quality['grade']}"
+                )
+                return merged, new_quality
+            else:
+                logger.warning("️ [v7.234] 优化结果解析失败，使用原始分析")
+
+        except Exception as e:
+            logger.warning(f"️ [v7.234] 优化失败，继续使用原始分析 | error={e}")
+
+        return original_data, quality_result
+
+    # ==================== v7.234 质量评估与优化 结束 ====================
+
+    def _parse_search_master_line(self, data: Dict[str, Any]) -> Optional[SearchMasterLine]:
+        """
+        解析搜索主线数据 - v7.213 增强
+
+        将 LLM 输出的 search_master_line JSON 转换为 SearchMasterLine 对象
+        v7.213: 支持阶段、依赖、验证标准、检查点等新字段
+        """
+        if not data:
+            return None
+
+        try:
+            tasks = []
+            for task_data in data.get("search_tasks", []):
+                task = SearchTask(
+                    id=task_data.get("id", f"T{len(tasks)+1}"),
+                    task=task_data.get("task", ""),
+                    purpose=task_data.get("purpose", ""),
+                    priority=task_data.get("priority", 2),
+                    expected_info=task_data.get("expected_info", []),
+                    # v7.213 新增字段
+                    phase=task_data.get("phase", ""),
+                    depends_on=task_data.get("depends_on", []),
+                    validation_criteria=task_data.get("validation_criteria", []),
+                )
+                tasks.append(task)
+
+            # v7.213: 解析检查点，默认为 [2, 4, 6]
+            checkpoint_rounds = data.get("checkpoint_rounds", [2, 4, 6])
+
+            return SearchMasterLine(
+                core_question=data.get("core_question", ""),
+                boundary=data.get("boundary", ""),
+                # v7.213 新增
+                framework_summary=data.get("framework_summary", ""),
+                search_phases=data.get("search_phases", ["基础信息", "深度案例", "对比验证"]),
+                checkpoint_rounds=checkpoint_rounds,
+                # 原有字段
+                search_tasks=tasks,
+                exploration_triggers=data.get("exploration_triggers", []),
+                forbidden_zones=data.get("forbidden_zones", []),
+            )
+        except Exception as e:
+            logger.warning(f"️ [v7.213] 解析搜索主线失败: {e}")
+            return None
+
+    # ==================== L0 结构化信息提取 (v7.206 - 保留用于兼容) ====================
+
+    def _build_l0_dialogue_prompt(self, query: str) -> str:
+        """
+        构建 L0 对话式分析 Prompt - v7.206
+        像专家与用户交流一样，分析用户输入并以自然语言输出
+        """
+        return f"""你是一位专业的需求分析师，正在与用户进行友好的对话。请仔细分析用户的输入，像和用户聊天一样，分享你从输入中发现的信息和洞察。
+
+## 用户输入
+{query}
+
+## 你的任务
+用自然、友好、专业的语言，向用户展示你对他们需求的理解。按以下结构组织你的分析：
+
+### 分析要点（请全部覆盖，但语言要自然连贯）
+
+1. **用户画像识别**
+   - 识别地理位置，分析该地点的气候、文化、生活方式特点
+   - 识别年龄、性别、职业、教育背景等
+   - 提取身份标签（如独立女性、海归、不婚主义等）
+
+2. **项目/场景理解**
+   - 识别项目类型和规模
+   - 分析该规模带来的设计可能性
+
+3. **偏好与风格分析**
+   - 识别用户提到的风格参照（人物、作品、品牌等）
+   - 从参照中推导风格关键词、色彩偏好、材质偏好
+   - 例如：Audrey Hepburn → 经典优雅、简约、黑白灰、法式细节
+
+4. **隐性需求推断**（重要！）
+   基于用户的身份标签和背景，推断他们可能需要但没有明说的需求：
+   - 英国海归 → 可能偏好：英式收纳、书房、茶室、高品质音响
+   - 不婚主义 → 可能需要：个人衣帽间/SPA室、开放式社交空间、工作与生活分区
+   - 深圳南山 → 需要考虑：遮阳隔热、通风设计、现代都市氛围
+
+5. **地点特殊考量**
+   如果有地点信息，分析该地点对项目的具体影响
+
+## 输出格式要求
+- 使用自然的段落形式，不要用列表符号
+- 语气亲切专业，像在和用户交谈
+- 重点信息可以用**加粗**标注
+- 每个分析要点之间空一行
+- 结尾用一句话总结你对用户核心需求的理解
+
+## 示例风格
+"我注意到您是位于**深圳南山**的用户。这是一个现代化的都市区域，夏季炎热潮湿，在设计上需要特别关注通风和遮阳..."
+
+请直接开始你的分析，不要有任何前缀或标题。"""
+
+    def _build_l0_json_extraction_prompt(self, query: str, dialogue_content: str) -> str:
+        """
+        构建 L0 JSON提取 Prompt - v7.206
+        基于对话内容提取结构化JSON（内部使用，不展示给用户）
+        """
+        return f"""基于以下用户输入和分析内容，提取结构化的JSON数据。
+
+## 用户原始输入
+{query}
+
+## 分析内容参考
+{dialogue_content}
+
+## 输出要求
+请提取以下结构的JSON，确保与分析内容一致：
+
+```json
+{{
+  "demographics": {{
+    "location": "",
+    "location_context": "",
+    "age": "",
+    "age_context": "",
+    "gender": "",
+    "occupation": "",
+    "occupation_context": "",
+    "education": "",
+    "education_context": ""
+  }},
+  "identity_tags": [],
+  "lifestyle": {{
+    "living_situation": "",
+    "family_status": "",
+    "hobbies": [],
+    "pets": []
+  }},
+  "project_context": {{
+    "type": "",
+    "scale": "",
+    "scale_context": "",
+    "constraints": [],
+    "budget_range": "",
+    "timeline": ""
+  }},
+  "preferences": {{
+    "style_references": [],
+    "style_keywords": [],
+    "color_palette": [],
+    "material_preferences": [],
+    "cultural_influences": []
+  }},
+  "core_request": {{
+    "explicit_need": "",
+    "implicit_needs": []
+  }},
+  "location_considerations": {{
+    "climate": "",
+    "architecture": "",
+    "lifestyle": ""
+  }},
+  "completeness": {{
+    "provided_dimensions": [],
+    "missing_dimensions": [],
+    "confidence_score": 0.0
+  }}
+}}
+```
+
+请只输出JSON，不要有其他内容。"""
+
+    def _build_l0_extraction_prompt(self, query: str) -> str:
+        """
+        构建 L0 结构化信息提取 Prompt - v7.205 (保留用于兼容)
+        """
+        return f"""你是一位信息提取专家。请从用户输入中提取结构化信息，并进行深度推断。
+
+## 用户输入
+{query}
+
+## 提取要求
+
+### 1. 用户基础画像 (demographics)
+不仅提取字面信息，还要补充语境分析：
+- location: 地理位置
+- location_context: 该地点的特点（气候、文化、生活方式）
+- age: 年龄
+- age_context: 年龄阶段特点
+- gender: 性别
+- occupation: 职业
+- occupation_context: 职业特点和需求
+- education: 教育背景
+- education_context: 该背景可能带来的审美/生活偏好
+
+### 2. 身份标签 (identity_tags)
+提取所有身份描述词，如：独立女性、不婚主义、创业者等
+
+### 3. 生活方式 (lifestyle)
+- living_situation: 居住情况
+- family_status: 家庭状态
+- hobbies: 爱好
+- pets: 宠物
+
+### 4. 项目/场景信息 (project_context)
+- type: 项目类型（室内设计、产品咨询等）
+- scale: 规模/面积
+- scale_context: 该规模的设计可能性
+- constraints: 约束条件
+- budget_range: 预算范围（如有）
+- timeline: 时间线（如有）
+
+### 5. 偏好与参照 (preferences)
+- style_references: 风格参照人物/作品
+- style_keywords: 从参照中推断的风格关键词
+- color_palette: 推断的色彩偏好
+- material_preferences: 推断的材质偏好
+- cultural_influences: 文化影响
+
+### 6. 核心诉求 (core_request)
+- explicit_need: 用户明确要求的是什么
+- implicit_needs: 从身份标签、背景、偏好中推断的隐含需求（重要！）
+
+### 7. 地点特殊考量 (location_considerations)
+如果有地点信息，分析该地点对项目的影响：
+- climate: 气候因素
+- architecture: 建筑特点
+- lifestyle: 生活方式
+
+## 推断规则示例
+- "英国海归" → 可能偏好：英式管家式收纳、书房、茶室、高品质音响
+- "不婚主义" → 可能需要：个人衣帽间/SPA室、大型开放式公共空间、工作与生活平衡
+- "深圳南山" → 需要考虑：遮阳隔热、高层观景、现代都市氛围
+- "Audrey Hepburn" → 风格关键词：经典优雅、简约、黑白灰、法式/英式、复古细节
+- "程序员" → 可能需要：人体工学办公区、多屏幕支架、良好的网络布线
+- "有宠物" → 可能需要：耐磨地板、宠物活动区、易清洁材质
+- "30-40岁" → 事业上升期，注重品质和效率
+
+## 输出格式（JSON）
+```json
+{{
+  "demographics": {{
+    "location": "",
+    "location_context": "",
+    "age": "",
+    "age_context": "",
+    "gender": "",
+    "occupation": "",
+    "occupation_context": "",
+    "education": "",
+    "education_context": ""
+  }},
+  "identity_tags": [],
+  "lifestyle": {{
+    "living_situation": "",
+    "family_status": "",
+    "hobbies": [],
+    "pets": []
+  }},
+  "project_context": {{
+    "type": "",
+    "scale": "",
+    "scale_context": "",
+    "constraints": [],
+    "budget_range": "",
+    "timeline": ""
+  }},
+  "preferences": {{
+    "style_references": [],
+    "style_keywords": [],
+    "color_palette": [],
+    "material_preferences": [],
+    "cultural_influences": []
+  }},
+  "core_request": {{
+    "explicit_need": "",
+    "implicit_needs": []
+  }},
+  "location_considerations": {{
+    "climate": "",
+    "architecture": "",
+    "lifestyle": ""
+  }},
+  "completeness": {{
+    "provided_dimensions": [],
+    "missing_dimensions": [],
+    "confidence_score": 0.0
+  }}
+}}
+```
+
+请只输出JSON，不要有其他内容。"""
+
+    async def _extract_structured_info_stream(
+        self,
+        query: str,
+    ) -> AsyncGenerator[Dict[str, Any], None]:
+        """
+        L0: 对话式结构化信息提取 - v7.206
+
+        双输出模式：
+        - Step A: 对话式分析（流式输出给用户看）
+        - Step B: JSON提取（静默执行，系统内部使用）
+        """
+        logger.info(f" [L0 v7.206] 开始对话式信息提取 | query={query[:50]}...")
+
+        dialogue_content = ""
+
+        try:
+            # ==================== Step A: 对话式分析（流式，给用户看）====================
+            dialogue_prompt = self._build_l0_dialogue_prompt(query)
+
+            async for chunk in self._call_openrouter_stream(
+                dialogue_prompt, model="openai/gpt-4o-mini", max_tokens=1500
+            ):
+                content = chunk.get("content", "")
+                dialogue_content += content
+                # 流式推送对话内容给前端
+                yield {
+                    "type": "l0_dialogue_chunk",
+                    "content": content,
+                }
+
+            # 对话完成
+            yield {
+                "type": "l0_dialogue_complete",
+                "content": dialogue_content,
+            }
+
+            logger.info(f" [L0 v7.206] 对话式分析完成 | length={len(dialogue_content)}")
+
+            # ==================== Step B: JSON提取（静默，系统内部用）====================
+            json_prompt = self._build_l0_json_extraction_prompt(query, dialogue_content)
+            json_content = ""
+
+            # 非流式调用，不输出给前端
+            async for chunk in self._call_openrouter_stream(json_prompt, model="openai/gpt-4o-mini", max_tokens=1000):
+                json_content += chunk.get("content", "")
+
+            # 解析 JSON 结果
+            data = self._safe_parse_json(json_content, context="L0结构化提取(JSON)")
+            if data:
+                structured_info = StructuredUserInfo(
+                    demographics=data.get("demographics", {}),
+                    identity_tags=data.get("identity_tags", []),
+                    lifestyle=data.get("lifestyle", {}),
+                    project_context=data.get("project_context", {}),
+                    preferences=data.get("preferences", {}),
+                    core_request=data.get("core_request", {}),
+                    location_considerations=data.get("location_considerations", {}),
+                    completeness=data.get("completeness", {}),
+                    raw_extraction=dialogue_content,  # 保存对话内容用于调试
+                )
+                logger.info(f" [L0 v7.206] JSON结构化完成 | {structured_info.get_summary()}")
+                # 只发送完成信号，不发送JSON内容给前端
+                yield {
+                    "type": "l0_extraction_complete",
+                    "data": structured_info.to_dict(),
+                }
+            else:
+                # 解析失败，返回空结构
+                logger.warning("️ [L0 v7.206] JSON 解析失败，返回空结构")
+                yield {
+                    "type": "l0_extraction_complete",
+                    "data": StructuredUserInfo().to_dict(),
+                }
+
+        except Exception as e:
+            logger.warning(f"️ [L0 v7.206] 结构化提取失败: {e}")
+            # 如果已有对话内容，先发送对话完成
+            if dialogue_content:
+                yield {
+                    "type": "l0_dialogue_complete",
+                    "content": dialogue_content,
+                }
+            yield {
+                "type": "l0_extraction_complete",
+                "data": StructuredUserInfo().to_dict(),
+            }
+
+    async def _call_openrouter_stream(
+        self,
+        prompt: str,
+        model: str = "openai/gpt-4o-mini",
+        max_tokens: int = 1000,
+    ) -> AsyncGenerator[Dict[str, Any], None]:
+        """
+        调用 OpenRouter API（流式）- v7.270 OpenAI
+        """
+        if not self.openrouter_api_key:
+            logger.warning("️ OpenRouter API Key 未配置")
+            return
+
+        headers = {
+            "Authorization": f"Bearer {self.openrouter_api_key}",
+            "Content-Type": "application/json",
+            "HTTP-Referer": os.getenv("OPENROUTER_SITE_URL", "https://github.com/dafei0755/ai"),
+            "X-Title": os.getenv("OPENROUTER_APP_NAME", "Intelligent Project Analyzer"),
+        }
+
+        payload = {
+            "model": model,
+            "messages": [{"role": "user", "content": prompt}],
+            "max_tokens": max_tokens,
+            "stream": True,
+        }
+
+        try:
+            async with httpx.AsyncClient(timeout=60.0) as client:
+                async with client.stream(
+                    "POST",
+                    f"{self.openrouter_base_url}/chat/completions",
+                    headers=headers,
+                    json=payload,
+                ) as response:
+                    async for line in response.aiter_lines():
+                        if line.startswith("data: "):
+                            data_str = line[6:]
+                            if data_str.strip() == "[DONE]":
+                                break
+                            try:
+                                data = json.loads(data_str)
+                                delta = data.get("choices", [{}])[0].get("delta", {})
+                                content = delta.get("content", "")
+                                if content:
+                                    yield {"content": content}
+                            except json.JSONDecodeError:
+                                continue
+        except Exception as e:
+            logger.error(f" OpenRouter API 调用失败: {e}")
+
+    # ==================== 问题分析 ====================
+
+    async def _stream_analyze_question(
+        self,
+        query: str,
+        context: Optional[Dict[str, Any]] = None,
+    ) -> AsyncGenerator[Dict[str, Any], None]:
+        """
+        流式分析用户问题 - v7.188
+        让用户在问题分析阶段也能看到实时进度
+        """
+        prompt = self._build_analysis_prompt(query, context)
+        full_reasoning = ""
+        full_content = ""
+
+        try:
+            async for chunk in self._call_llm_stream_with_reasoning(prompt, model=self.thinking_model, max_tokens=1500):
+                if chunk.get("type") == "reasoning":
+                    reasoning_text = chunk.get("content", "")
+                    full_reasoning += reasoning_text
+                    yield {
+                        "type": "analysis_chunk",
+                        "content": reasoning_text,
+                        "is_reasoning": True,
+                    }
+                elif chunk.get("type") == "content":
+                    full_content += chunk.get("content", "")
+
+            # v7.200: 使用统一 JSON 解析器
+            data = self._safe_parse_json(full_content, context="流式问题分析")
+            if data is None:
+                raise ValueError("无法解析问题分析结果")
+
+            framework = self._parse_analysis_result(data, query)
+
+            yield {
+                "type": "analysis_complete",
+                "framework": framework.to_master_line_dict() if framework else None,
+            }
+
+        except Exception as e:
+            logger.warning(f"️ 流式问题分析失败: {e}")
+            simple_framework = self._build_simple_framework(query)
+            yield {
+                "type": "analysis_complete",
+                "framework": simple_framework.to_master_line_dict() if simple_framework else None,
+            }
+
+    async def _stream_analyze_question_with_l0(
+        self,
+        query: str,
+        structured_info: Optional[Dict[str, Any]] = None,
+        context: Optional[Dict[str, Any]] = None,
+    ) -> AsyncGenerator[Dict[str, Any], None]:
+        """
+        流式分析用户问题（注入 L0 结果）- v7.205
+        在 L1-L5 分析中利用 L0 提取的结构化信息
+        """
+        prompt = self._build_analysis_prompt_with_l0(query, structured_info, context)
+        full_reasoning = ""
+        full_content = ""
+
+        try:
+            async for chunk in self._call_llm_stream_with_reasoning(prompt, model=self.thinking_model, max_tokens=1500):
+                if chunk.get("type") == "reasoning":
+                    reasoning_text = chunk.get("content", "")
+                    full_reasoning += reasoning_text
+                    yield {
+                        "type": "analysis_chunk",
+                        "content": reasoning_text,
+                        "is_reasoning": True,
+                    }
+                elif chunk.get("type") == "content":
+                    full_content += chunk.get("content", "")
+
+            # v7.200: 使用统一 JSON 解析器
+            data = self._safe_parse_json(full_content, context="流式问题分析(L0增强)")
+            if data is None:
+                raise ValueError("无法解析问题分析结果")
+
+            framework = self._parse_analysis_result(data, query)
+
+            yield {
+                "type": "analysis_complete",
+                "framework": framework.to_master_line_dict() if framework else None,
+            }
+
+        except Exception as e:
+            logger.warning(f"️ 流式问题分析(L0增强)失败: {e}")
+            simple_framework = self._build_simple_framework(query)
+            yield {
+                "type": "analysis_complete",
+                "framework": simple_framework.to_master_line_dict() if simple_framework else None,
+            }
+
+    def _build_analysis_prompt_with_l0(
+        self,
+        query: str,
+        structured_info: Optional[Dict[str, Any]] = None,
+        context: Optional[Dict[str, Any]] = None,
+    ) -> str:
+        """
+        构建包含 L0 结构化信息的分析 prompt - v7.205
+        """
+        # 构建 L0 摘要
+        l0_summary = ""
+        if structured_info:
+            demographics = structured_info.get("demographics", {})
+            identity_tags = structured_info.get("identity_tags", [])
+            preferences = structured_info.get("preferences", {})
+            core_request = structured_info.get("core_request", {})
+            location_considerations = structured_info.get("location_considerations", {})
+            completeness = structured_info.get("completeness", {})
+
+            l0_parts = []
+
+            # 用户画像
+            profile_parts = []
+            if demographics.get("location"):
+                loc_ctx = f"（{demographics.get('location_context')}）" if demographics.get("location_context") else ""
+                profile_parts.append(f"- 地点: {demographics['location']}{loc_ctx}")
+            if demographics.get("age"):
+                age_ctx = f"（{demographics.get('age_context')}）" if demographics.get("age_context") else ""
+                profile_parts.append(f"- 年龄: {demographics['age']}{age_ctx}")
+            if demographics.get("gender"):
+                profile_parts.append(f"- 性别: {demographics['gender']}")
+            if demographics.get("education"):
+                edu_ctx = f"（{demographics.get('education_context')}）" if demographics.get("education_context") else ""
+                profile_parts.append(f"- 教育背景: {demographics['education']}{edu_ctx}")
+            if demographics.get("occupation"):
+                occ_ctx = (
+                    f"（{demographics.get('occupation_context')}）" if demographics.get("occupation_context") else ""
+                )
+                profile_parts.append(f"- 职业: {demographics['occupation']}{occ_ctx}")
+            if identity_tags:
+                profile_parts.append(f"- 身份标签: {', '.join(identity_tags)}")
+
+            if profile_parts:
+                l0_parts.append("### 用户画像\n" + "\n".join(profile_parts))
+
+            # 项目信息
+            project_context = structured_info.get("project_context", {})
+            project_parts = []
+            if project_context.get("type"):
+                project_parts.append(f"- 类型: {project_context['type']}")
+            if project_context.get("scale"):
+                scale_ctx = f"（{project_context.get('scale_context')}）" if project_context.get("scale_context") else ""
+                project_parts.append(f"- 规模: {project_context['scale']}{scale_ctx}")
+
+            if project_parts:
+                l0_parts.append("### 项目信息\n" + "\n".join(project_parts))
+
+            # 偏好参照
+            pref_parts = []
+            if preferences.get("style_references"):
+                pref_parts.append(f"- 风格参照: {', '.join(preferences['style_references'])}")
+            if preferences.get("style_keywords"):
+                pref_parts.append(f"- 风格关键词: {', '.join(preferences['style_keywords'])}")
+            if preferences.get("color_palette"):
+                pref_parts.append(f"- 色彩偏好: {', '.join(preferences['color_palette'][:6])}")
+            if preferences.get("material_preferences"):
+                pref_parts.append(f"- 材质偏好: {', '.join(preferences['material_preferences'][:5])}")
+
+            if pref_parts:
+                l0_parts.append("### 偏好参照\n" + "\n".join(pref_parts))
+
+            # 核心诉求
+            request_parts = []
+            if core_request.get("explicit_need"):
+                request_parts.append(f"- 显性需求: {core_request['explicit_need']}")
+            if core_request.get("implicit_needs"):
+                request_parts.append(f"- 隐性需求（推断）: {', '.join(core_request['implicit_needs'])}")
+
+            if request_parts:
+                l0_parts.append("### 核心诉求\n" + "\n".join(request_parts))
+
+            # 地点考量
+            loc_parts = []
+            if location_considerations.get("climate"):
+                loc_parts.append(f"- 气候: {location_considerations['climate']}")
+            if location_considerations.get("architecture"):
+                loc_parts.append(f"- 建筑: {location_considerations['architecture']}")
+            if location_considerations.get("lifestyle"):
+                loc_parts.append(f"- 生活方式: {location_considerations['lifestyle']}")
+
+            if loc_parts:
+                l0_parts.append("### 地点考量\n" + "\n".join(loc_parts))
+
+            # 信息完整度
+            if completeness:
+                conf_score = completeness.get("confidence_score", 0)
+                missing = completeness.get("missing_dimensions", [])
+                l0_parts.append(f"### 信息完整度\n- 置信度: {conf_score:.0%}\n- 缺失维度: {', '.join(missing) if missing else '无'}")
+
+            if l0_parts:
+                l0_summary = "## L0 结构化信息提取结果（已完成）\n\n" + "\n\n".join(l0_parts) + "\n\n---\n\n"
+
+        # 获取原始 prompt 并注入 L0 结果
+        original_prompt = self._build_analysis_prompt(query, context)
+
+        if l0_summary:
+            # 在原始 prompt 的开头注入 L0 结果
+            return f"""{l0_summary}基于以上 L0 结构化信息，请进行 L1-L5 深度分析。注意：
+1. L0 已经提取了用户画像和隐性需求，请在 L1 解构时直接利用这些信息
+2. L0 推断的隐性需求应该被纳入关键信息面的设计中
+3. 地点考量应该影响搜索策略和建议方向
+
+{original_prompt}"""
+        else:
+            return original_prompt
+
+    def _build_analysis_prompt(self, query: str, context: Optional[Dict[str, Any]] = None) -> str:
+        """
+        构建问题分析prompt - v7.196 融合需求分析方法论
+
+        升级内容：
+        - 从三步分析法升级为 L1-L5 五层分析框架
+        - 新增人性维度分析（条件触发）
+        - 新增专家接口构建
+        """
+        # 检测是否需要启用人性维度分析
+        human_dimension_triggers = [
+            "设计",
+            "装修",
+            "空间",
+            "生活",
+            "家",
+            "居住",
+            "体验",
+            "感受",
+            "氛围",
+            "风格",
+            "冥想",
+            "休息",
+            "舒适",
+            "温馨",
+            "私密",
+            "放松",
+            "卧室",
+            "客厅",
+        ]
+        enable_human_dimensions = any(trigger in query for trigger in human_dimension_triggers)
+
+        human_dimensions_section = ""
+        human_dimensions_output = ""
+        if enable_human_dimensions:
+            human_dimensions_section = """
+## 人性维度分析（本问题涉及设计/生活/体验，请启用）
+
+请分析以下5个人性维度：
+1. **emotional_landscape（情绪地图）**: 用户当前情绪状态和期望的情绪转化
+   - 示例："从进门时的都市压力 → 玄关放下包袱的仪式感 → 客厅的社交安全感"
+2. **spiritual_aspirations（精神追求）**: 穿透功能需求的精神层面渴望
+   - 示例："通过空间建立'慢生活'的仪式感"
+3. **psychological_safety_needs（心理安全需求）**: 用户在对抗什么恐惧或不确定性
+   - 示例："需要一个绝对不被打扰的角落（对抗职场失控感）"
+4. **ritual_behaviors（仪式行为）**: 问题背后涉及的日常仪式或习惯
+   - 示例："每天晨间的手冲咖啡（需要专属吧台+自然光）"
+5. **memory_anchors（记忆锚点）**: 影响用户期望的情感记忆或过往经验
+   - 示例："祖母的瓷器收藏（需要展示空间）"
+
+️ 禁止使用空洞词汇（"温馨"、"舒适"等），必须具体到用户的独特情境。
+"""
+            human_dimensions_output = """
+    "human_dimensions": {{{{
+        "enabled": true,
+        "emotional_landscape": "具体的情绪转化路径",
+        "spiritual_aspirations": "具体的精神追求",
+        "psychological_safety_needs": "具体的心理安全需求",
+        "ritual_behaviors": "具体的仪式行为",
+        "memory_anchors": "具体的记忆锚点"
+    }}}},"""
+        else:
+            human_dimensions_output = """
+    "human_dimensions": {{{{
+        "enabled": false
+    }}}},"""
+
+        context_str = json.dumps(context or {}, ensure_ascii=False, indent=2)
+
+        return f"""你是一位资深的问题分析专家。请对用户问题进行深度分析。
+
+## 用户问题
+{query}
+
+## 上下文
+{context_str}
+
+## L1-L5 分析流程
+
+### L1: 解构 - 将问题分解为第一性原理事实原子 (MECE原则)
+- 用户是谁？（身份、角色、背景）
+- 要什么？（显性需求）
+- 为什么？（隐性动机）
+- 约束是什么？（时间、资源、能力）
+
+### L2: 建模 - 构建用户系统模型（v7.265 增强：12维动机分析）
+
+请从以下12个动机维度逐一分析用户需求的相关性（0-5分，0=完全不相关，5=核心相关）：
+
+**P0 核心维度（必须分析）**：
+1. **文化认同(cultural)**: 是否涉及传统文化、地域特色、民族符号、精神传承？
+2. **商业价值(commercial)**: 是否涉及ROI、坪效、运营效率、竞争策略？
+3. **健康疗愈(wellness)**: 是否涉及物理健康、心理疗愈、医疗标准、安全环境？
+
+**P1 趋势维度（按需分析）**：
+4. **技术创新(technical)**: 是否涉及智能化、工程技术、未来体验、系统集成？
+5. **可持续价值(sustainable)**: 是否涉及环保、社会责任、可持续发展？
+
+**P2 专业维度（按需分析）**：
+6. **专业职能(professional)**: 是否涉及行业标准、专业设备、职业形象？
+7. **包容性(inclusive)**: 是否涉及无障碍设计、特殊人群、尊严平等？
+
+**BASELINE 基础维度（必须分析）**：
+8. **功能性(functional)**: 空间功能、实用性、基础需求满足
+9. **情感性(emotional)**: 情感体验、氛围营造、心理感受
+10. **审美(aesthetic)**: 视觉美感、艺术表达、风格呈现
+11. **社交(social)**: 人际互动、社群关系、交流空间
+
+**输出要求**：
+- 主导动机（1-2个，得分≥4）：这是搜索的核心方向
+- 次要动机（2-3个，得分2-3）：需要兼顾的维度
+- 核心张力：主导动机之间的对立或融合关系
+
+### L3: 识别杠杆点 - 寻找最尖锐对立面
+- 基于L2识别的主导动机，找出它们之间的核心张力
+- 输出：核心张力公式（使用动机类型表达）
+- 示例："北欧极简美学(aesthetic) vs 峨眉山在地文化(cultural)"
+
+### L4: JTBD定义 - "用户雇佣搜索完成什么任务？"
+- 公式：为[用户身份]提供[信息类型]，帮助完成[任务1]与[任务2]
+
+### L5: 锐度测试 - 验证分析质量
+- 专一性：这个分析是否只适用于此用户/此问题？
+- 可操作性：能否直接指导搜索策略？
+- 深度：是否超越了表面需求？
+{human_dimensions_section}
+## 关键信息面识别（v7.265 增强：基于动机类型的覆盖检查）
+
+要完整回答这个问题，需要收集哪些信息？
+
+### 数量要求（v7.264 强制）
+- **信息面数量：5-8个**（要充分覆盖问题的各个维度）
+- 每个信息面必须分解为2-4个具体的子任务
+- 按重要性排序（5=必需，4=重要，3=有帮助）
+
+### 覆盖维度检查清单（v7.265 基于动机类型）
+
+请确保搜索任务覆盖L2分析中识别的动机维度：
+
+**主导动机（必须有专门的搜索任务）**：
+- 每个主导动机至少对应1-2个搜索任务
+- 示例：如果aesthetic是主导动机，需要有"HAY品牌设计语言研究"
+
+**次要动机（建议有相关搜索任务）**：
+- 每个次要动机至少对应1个搜索任务
+
+**交叉融合（核心张力解决）**：
+- 必须有1-2个搜索任务专门研究主导动机之间的融合案例
+- 示例："北欧极简与在地文化融合的民宿案例"
+
+### 搜索任务命名规范（v7.264 强制）
+
+ **禁止以下格式**：
+- 关键词堆砌："HAY Mags沙发 About A Chair 民宿室内设计案例"
+- 抽象问题："如何解决核心设计张力？"
+- 模糊描述："相关案例研究"
+
+ **要求**：
+- **name 字段**：必须是可理解的自然语言短语（5-15字）
+  - 格式：[研究对象] + [研究目的/角度]
+  - 示例："HAY品牌设计语言研究"、"峨眉山气候与建筑特点"、"北欧民宿案例分析"
+- **question 字段**：必须是问句形式，以"？"结尾
+  - 示例："HAY品牌的核心设计理念是什么？"
+- **search_for 字段**：具体的搜索关键词（可以是关键词组合）
+  - 示例："HAY design philosophy minimalist Scandinavian"
+- **why_need 字段**：说明这个搜索对回答问题的贡献
+  - 示例："为民宿设计提供风格参照基础"
+- **motivation_tag 字段**：标注该任务对应的动机类型
+  - 示例："aesthetic" 或 "cultural"
+
+### 子任务要求（v7.260 全局并行策略）
+1. **搜索引导词**（强制）：每个子任务必须以搜索行为动词开头
+   - 搜索/查找/调研/检索/收集（研究类）
+   - 对比/分析/评估/整理（分析类）
+   - 验证/查证/确认（验证类）
+2. **具体化**：包含具体的搜索目标（品牌名、案例名、数据类型）
+3. **依赖关系**：默认所有子任务可并行执行（dependencies为空），仅当存在明确的信息依赖时才标记
+
+## 专家接口构建
+
+为后续处理提供：
+1. **critical_questions** - 需要深入探索的关键问题
+2. **challenge_points** - 可能存在的挑战或矛盾点
+3. **divergence_permission** - 授权后续处理挑战分析结论
+
+## 输出格式（JSON）
+```json
+{{{{
+    "analysis_layers": {{{{
+        "L1_facts": ["事实1: 用户是...", "事实2: 要...", "事实3: 因为..."],
+        "L2_motivation_analysis": {{{{
+            "primary": [
+                {{{{"id": "aesthetic", "score": 5, "reason": "HAY品牌气质是核心设计参照"}}}},
+                {{{{"id": "cultural", "score": 4, "reason": "峨眉山地域文化需要融入"}}}}
+            ],
+            "secondary": [
+                {{{{"id": "functional", "score": 3, "reason": "民宿基础功能需求"}}}},
+                {{{{"id": "emotional", "score": 3, "reason": "度假放松的情感体验"}}}}
+            ],
+            "all_scores": {{{{
+                "cultural": 4, "commercial": 2, "wellness": 1, "technical": 1,
+                "sustainable": 2, "professional": 1, "inclusive": 1,
+                "functional": 3, "emotional": 3, "aesthetic": 5, "social": 2
+            }}}}
+        }}}},
+        "L3_core_tension": "北欧极简美学(aesthetic) vs 峨眉山在地文化(cultural)",
+        "L4_search_task": "为[用户身份]提供[信息类型]，帮助完成[任务]",
+        "L5_sharpness": {{{{
+            "score": 75,
+            "specificity": "高/中/低",
+            "actionability": "高/中/低",
+            "depth": "高/中/低"
+        }}}}
+    }}}},{human_dimensions_output}
+    "macro_overview": {{{{
+        "domains": ["涉及的领域1", "领域2"],
+        "essence": "问题的本质诉求（一句话）",
+        "hidden_needs": ["隐含需求1", "隐含需求2"]
+    }}}},
+    "entry_point": {{{{
+        "core_insight": "核心切入点洞察",
+        "approach_angle": "建议的切入角度",
+        "key_concepts": ["关键概念1", "关键概念2"]
+    }}}},
+    "answer_goal": "用户期望的答案是...",
+    "key_aspects": [
+        {{{{
+            "name": "HAY品牌设计语言研究",
+            "goal": "理解HAY的核心设计哲学和标志性元素",
+            "importance": 5,
+            "search_hint": "HAY官网、设计媒体、设计师访谈",
+            "sub_tasks": [
+                {{{{
+                    "task_id": "T1.1",
+                    "search_action": "搜索",
+                    "question": "HAY品牌的核心设计理念是什么？",
+                    "search_for": "HAY design philosophy brand identity minimalist",
+                    "why_need": "为民宿设计提供风格参照基础",
+                    "dependencies": [],
+                    "can_parallel": true
+                }}}}
+            ]
+        }}}}
+    ],
+    "expert_handoff": {{{{
+        "critical_questions": ["关键问题1", "关键问题2"],
+        "challenge_points": ["挑战点1"],
+        "divergence_permission": "授权后续处理挑战分析结论"
+    }}}}
+}}}}
+```
+
+请只输出JSON。"""
+
+    def _parse_analysis_result(self, data: Dict[str, Any], query: str) -> AnswerFramework:
+        """
+        解析分析结果为 AnswerFramework - v7.196 支持 L1-L5 和人性维度
+        v7.300 新增：支持创作指令和交付物字段
+        v7.302 新增：支持4条使命框架
+
+        升级内容：
+        - 解析 L1-L5 分析层结果
+        - 解析人性维度分析（如果启用）
+        - 解析专家接口
+        - v7.300: 解析创作指令和交付物
+        - v7.302: 解析4条使命结构
+        - 保持向后兼容（macro_overview, entry_point）
+        """
+        # v7.302: 检测是否为新的4条使命格式
+        has_4_missions = all(
+            key in data
+            for key in [
+                "mission_1_user_problem_analysis",
+                "mission_2_clear_objectives",
+                "mission_3_task_dimensions",
+                "mission_4_execution_requirements",
+            ]
+        )
+
+        if has_4_missions:
+            # 使用新的4条使命解析逻辑
+            return self._parse_4_missions_result(data, query)
+
+        # 提取 L1-L5 分析层（旧格式）
+        analysis_layers = data.get("analysis_layers", {})
+        human_dims = data.get("human_dimensions", {})
+        expert_handoff = data.get("expert_handoff", {})
+
+        # v7.300: 提取创作指令和交付物（旧格式）
+        creation_command = data.get("creation_command", "")
+        target_user = data.get("target_user", "")
+        project_context = data.get("project_context", "")
+        deliverables = data.get("deliverables", [])
+        design_requirements = data.get("design_requirements", [])
+        final_output_format = data.get("final_output_format", "")
+
+        # 保持向后兼容
+        macro = data.get("macro_overview", {})
+        entry = data.get("entry_point", {})
+
+        framework = AnswerFramework(
+            original_query=query,
+            answer_goal=data.get("answer_goal", ""),
+            created_at=time.time(),
+        )
+
+        # ==================== v7.300: 存储创作指令和交付物 ====================
+        if creation_command:
+            framework.collected_evidence["_creation_command"] = [creation_command]
+        if target_user:
+            framework.collected_evidence["_target_user"] = [target_user]
+        if project_context:
+            framework.collected_evidence["_project_context"] = [project_context]
+        if deliverables and isinstance(deliverables, list):
+            # v7.301: 验证交付物质量
+            validation_result = self._validate_deliverables(deliverables)
+            if not validation_result["is_valid"]:
+                logger.warning(
+                    f"️ [v7.301] 交付物质量不达标 | 评分={validation_result['score']:.1f} | 问题数={len(validation_result['issues'])}"
+                )
+                for issue in validation_result["issues"]:
+                    logger.warning(f"  - {issue}")
+            else:
+                logger.info(
+                    f" [v7.301] 交付物质量合格 | 评分={validation_result['score']:.1f} | 数量={validation_result['deliverable_count']}"
+                )
+
+            framework.collected_evidence["_deliverables"] = deliverables
+            framework.collected_evidence["_deliverables_validation"] = [
+                f"质量评分: {validation_result['score']:.1f}",
+                f"数量: {validation_result['deliverable_count']}",
+                f"问题数: {len(validation_result['issues'])}",
+            ]
+        if design_requirements and isinstance(design_requirements, list):
+            framework.collected_evidence["_design_requirements"] = design_requirements
+        if final_output_format:
+            framework.collected_evidence["_final_output_format"] = [final_output_format]
+
+        # ==================== 存储 L1-L5 分析结果 ====================
+        if analysis_layers:
+            framework.collected_evidence["_L1_facts"] = analysis_layers.get("L1_facts", [])
+
+            l2_model = analysis_layers.get("L2_user_model", {})
+            framework.collected_evidence["_L2_user_model"] = [
+                f"心理: {l2_model.get('psychological', '')}",
+                f"社会: {l2_model.get('sociological', '')}",
+                f"美学: {l2_model.get('aesthetic', '')}",
+            ]
+
+            framework.collected_evidence["_L3_core_tension"] = [analysis_layers.get("L3_core_tension", "")]
+
+            framework.collected_evidence["_L4_search_task"] = [analysis_layers.get("L4_search_task", "")]
+
+            l5_sharpness = analysis_layers.get("L5_sharpness", {})
+            framework.collected_evidence["_L5_sharpness"] = [
+                f"锐度评分: {l5_sharpness.get('score', 0)}",
+                f"专一性: {l5_sharpness.get('specificity', '中')}",
+                f"可操作性: {l5_sharpness.get('actionability', '中')}",
+                f"深度: {l5_sharpness.get('depth', '中')}",
+            ]
+
+        # ==================== 存储人性维度（如果启用）====================
+        if human_dims.get("enabled"):
+            framework.collected_evidence["_human_dimensions"] = [
+                f"情绪地图: {human_dims.get('emotional_landscape', '')}",
+                f"精神追求: {human_dims.get('spiritual_aspirations', '')}",
+                f"心理安全: {human_dims.get('psychological_safety_needs', '')}",
+                f"仪式行为: {human_dims.get('ritual_behaviors', '')}",
+                f"记忆锚点: {human_dims.get('memory_anchors', '')}",
+            ]
+
+        # ==================== 存储专家接口 ====================
+        if expert_handoff and isinstance(expert_handoff, dict):
+            framework.collected_evidence["_expert_handoff"] = [
+                f"关键问题: {'; '.join(expert_handoff.get('critical_questions', []) if isinstance(expert_handoff.get('critical_questions'), list) else [])}",
+                f"挑战点: {'; '.join(expert_handoff.get('challenge_points', []) if isinstance(expert_handoff.get('challenge_points'), list) else [])}",
+                f"发散授权: {str(expert_handoff.get('divergence_permission', ''))}",
+            ]
+
+        # ==================== 保持向后兼容：宏观统筹和切入点 ====================
+        if isinstance(macro, dict):
+            framework.collected_evidence["_macro_overview"] = [
+                f"涉及领域: {', '.join(macro.get('domains', []) if isinstance(macro.get('domains'), list) else [])}",
+                f"本质诉求: {str(macro.get('essence', ''))}",
+                f"隐含需求: {', '.join(macro.get('hidden_needs', []) if isinstance(macro.get('hidden_needs'), list) else [])}",
+            ]
+        if isinstance(entry, dict):
+            framework.collected_evidence["_entry_point"] = [
+                f"核心切入点: {str(entry.get('core_insight', ''))}",
+                f"切入角度: {str(entry.get('approach_angle', ''))}",
+                f"关键概念: {', '.join(entry.get('key_concepts', []) if isinstance(entry.get('key_concepts'), list) else [])}",
+            ]
+
+        # ==================== v7.215: 增强 key_aspects 解析鲁棒性 ====================
+        raw_aspects = data.get("key_aspects", [])
+
+        # v7.215: 添加诊断日志
+        logger.debug(f" [Ucppt v7.215] key_aspects 原始数据类型: {type(raw_aspects)}, 内容预览: {str(raw_aspects)[:200]}")
+
+        if not isinstance(raw_aspects, list):
+            logger.warning(f"️ [Ucppt v7.215] key_aspects 不是列表类型: {type(raw_aspects)}, 尝试转换")
+            # 尝试从字典中提取
+            if isinstance(raw_aspects, dict):
+                # 可能是 {"items": [...]} 或 {"aspects": [...]} 格式
+                for key in ["items", "aspects", "list", "data"]:
+                    if key in raw_aspects and isinstance(raw_aspects[key], list):
+                        raw_aspects = raw_aspects[key]
+                        logger.info(f" [Ucppt v7.215] 从 key_aspects.{key} 提取到列表")
+                        break
+                else:
+                    raw_aspects = []
+            elif isinstance(raw_aspects, str):
+                # 尝试解析字符串为 JSON
+                try:
+                    parsed = json.loads(raw_aspects)
+                    if isinstance(parsed, list):
+                        raw_aspects = parsed
+                        logger.info(" [Ucppt v7.215] 从字符串解析出列表")
+                except Exception:
+                    raw_aspects = []
+            else:
+                raw_aspects = []
+
+        # v7.215: 如果列表为空，记录完整的 data 结构
+        if not raw_aspects:
+            logger.warning(
+                f"️ [Ucppt v7.215] key_aspects 为空，data 结构预览: {list(data.keys()) if isinstance(data, dict) else type(data)}"
+            )
+
+        for i, aspect_data in enumerate(raw_aspects):
+            # 确保每个 aspect_data 是字典
+            if not isinstance(aspect_data, dict):
+                logger.warning(f"️ [Ucppt v7.214] key_aspects[{i}] 不是字典类型，跳过")
+                continue
+
+            # 提取字段时进行类型检查
+            name = str(aspect_data.get("name", "")) if aspect_data.get("name") else ""
+            goal = str(aspect_data.get("goal", "")) if aspect_data.get("goal") else ""
+            importance_raw = aspect_data.get("importance", 3)
+            importance = int(importance_raw) if isinstance(importance_raw, (int, float)) else 3
+            search_hint = str(aspect_data.get("search_hint", "")) if aspect_data.get("search_hint") else ""
+
+            # v7.260: 提取子任务列表
+            sub_tasks = aspect_data.get("sub_tasks", [])
+            if not isinstance(sub_tasks, list):
+                sub_tasks = []
+
+            # 跳过名称为空的信息面
+            if not name:
+                logger.warning(f"️ [Ucppt v7.214] key_aspects[{i}] 名称为空，跳过")
+                continue
+
+            aspect = KeyAspect(
+                id=f"aspect_{i+1}",
+                aspect_name=name,
+                answer_goal=goal,
+                importance=importance,
+                search_query=search_hint,
+            )
+            # v7.260: 将子任务存储到 collected_info 中（临时方案，后续会转换为 SearchTarget）
+            if sub_tasks:
+                aspect.collected_info = [json.dumps(sub_tasks, ensure_ascii=False)]
+            framework.key_aspects.append(aspect)
+
+        # ==================== 日志输出 ====================
+        logger.info(" [Ucppt v7.215] 深度问题分析完成")
+
+        # L1-L5 日志
+        if analysis_layers and isinstance(analysis_layers, dict):
+            l1_facts = analysis_layers.get("L1_facts", [])
+            logger.info(f"    L1 事实: {len(l1_facts) if isinstance(l1_facts, list) else 0}个")
+            l3_tension = str(analysis_layers.get("L3_core_tension", ""))
+            if l3_tension:
+                logger.info(f"    L3 核心张力: {l3_tension[:60]}...")
+            l5_score = analysis_layers.get("L5_sharpness", {}).get("score", 0)
+            logger.info(f"    L5 锐度: {l5_score}")
+
+        # 人性维度日志
+        if human_dims.get("enabled"):
+            logger.info("    人性维度: 已启用")
+
+        # 基础日志
+        logger.info(f"    宏观统筹: {macro.get('essence', '')[:50]}...")
+        logger.info(f"    切入点: {entry.get('core_insight', '')[:50]}...")
+        logger.info(f"    信息面: {len(framework.key_aspects)}个")
+
+        # v7.215 修复：如果没有解析出任何信息面，使用默认值
+        if not framework.key_aspects:
+            logger.warning("️ [Ucppt v7.215] 未解析出任何信息面，使用默认值")
+            default_aspects = [
+                ("核心概念", "解释基本定义和核心内容", 5),
+                ("原因分析", "说明背后的原因和逻辑", 4),
+                ("具体案例", "提供实际例子或数据支撑", 4),
+                ("最新动态", "介绍最新的发展和变化", 3),
+                ("专业观点", "引用专家或权威的看法", 3),
+            ]
+            for i, (name, goal, importance) in enumerate(default_aspects):
+                framework.key_aspects.append(
+                    KeyAspect(
+                        id=f"aspect_{i+1}",
+                        aspect_name=name,
+                        answer_goal=goal,
+                        importance=importance,
+                    )
+                )
+            logger.info(f"    使用默认信息面: {len(framework.key_aspects)}个")
+
+        return framework
+
+    def _parse_4_missions_result(self, data: Dict[str, Any], query: str) -> AnswerFramework:
+        """
+        解析4条使命格式的分析结果 - v7.302 新增
+
+        将新的4条使命结构转换为 AnswerFramework 格式，保持向后兼容
+        """
+        framework = AnswerFramework(
+            original_query=query,
+            answer_goal="",  # 将从使命2中提取
+            created_at=time.time(),
+        )
+
+        # ==================== 提取4条使命 ====================
+        mission_1 = data.get("mission_1_user_problem_analysis", {})
+        mission_2 = data.get("mission_2_clear_objectives", {})
+        mission_3 = data.get("mission_3_task_dimensions", {})
+        mission_4 = data.get("mission_4_execution_requirements", {})
+        metadata = data.get("metadata", {})
+
+        # ==================== 存储使命1：用户问题分析 ====================
+        if mission_1 and isinstance(mission_1, dict):
+            content_1 = mission_1.get("content", {})
+            framework.collected_evidence["_mission_1_user_problem_analysis"] = [
+                f"用户身份: {content_1.get('user_identity', '')}",
+                f"项目类型: {content_1.get('project_type', '')}",
+                f"项目地点: {content_1.get('project_location', '')}",
+                f"项目规模: {content_1.get('project_scale', '')}",
+                f"核心主题: {content_1.get('core_theme', '')}",
+                f"关键约束: {', '.join(content_1.get('key_constraints', []))}",
+                f"用户动机: {content_1.get('user_motivation', '')}",
+                f"核心矛盾: {content_1.get('core_tension', '')}",
+            ]
+
+        # ==================== 存储使命2：明确目标 ====================
+        if mission_2 and isinstance(mission_2, dict):
+            content_2 = mission_2.get("content", {})
+
+            # 设置 answer_goal
+            framework.answer_goal = content_2.get("final_deliverable_type", "")
+
+            # 存储交付物清单
+            key_deliverables = content_2.get("key_deliverables", [])
+            if key_deliverables and isinstance(key_deliverables, list):
+                deliverable_strs = []
+                for d in key_deliverables:
+                    if isinstance(d, dict):
+                        deliverable_strs.append(
+                            f"[{d.get('id', '')}] {d.get('name', '')}: {d.get('description', '')} ({d.get('priority', 'MUST_HAVE')})"
+                        )
+                    elif isinstance(d, str):
+                        deliverable_strs.append(d)
+
+                framework.collected_evidence["_mission_2_key_deliverables"] = deliverable_strs
+
+                # v7.302: 验证交付物质量（转换为字符串列表）
+                deliverable_descriptions = [
+                    d.get("description", "") if isinstance(d, dict) else d for d in key_deliverables
+                ]
+                validation_result = self._validate_deliverables(deliverable_descriptions)
+                if not validation_result["is_valid"]:
+                    logger.warning(
+                        f"️ [v7.302] 交付物质量不达标 | 评分={validation_result['score']:.1f} | 问题数={len(validation_result['issues'])}"
+                    )
+                    for issue in validation_result["issues"]:
+                        logger.warning(f"  - {issue}")
+                else:
+                    logger.info(
+                        f" [v7.302] 交付物质量合格 | 评分={validation_result['score']:.1f} | 数量={validation_result['deliverable_count']}"
+                    )
+
+            # 存储其他目标信息
+            framework.collected_evidence["_mission_2_clear_objectives"] = [
+                f"交付物类型: {content_2.get('final_deliverable_type', '')}",
+                f"输出格式: {content_2.get('output_format', '')}",
+                f"目标受众: {content_2.get('target_audience', '')}",
+            ]
+
+            # 存储成功标准
+            success_criteria = content_2.get("success_criteria", [])
+            if success_criteria:
+                framework.collected_evidence["_mission_2_success_criteria"] = success_criteria
+
+        # ==================== 存储使命3：任务维度 ====================
+        if mission_3 and isinstance(mission_3, dict):
+            content_3 = mission_3.get("content", {})
+
+            # 存储基本信息
+            framework.collected_evidence["_mission_3_task_dimensions"] = [
+                f"任务类型: {content_3.get('task_type', '')}",
+                f"复杂度: {content_3.get('complexity_level', '')}",
+                f"解题方法论: {content_3.get('solution_approach', '')}",
+                f"所需专业: {', '.join(content_3.get('required_expertise', []))}",
+            ]
+
+            # 存储关键步骤
+            key_steps = content_3.get("key_steps", [])
+            if key_steps and isinstance(key_steps, list):
+                step_strs = []
+                for step in key_steps:
+                    if isinstance(step, dict):
+                        step_strs.append(
+                            f"[{step.get('step_id', '')}] {step.get('action', '')} - 目的: {step.get('purpose', '')} - 输出: {step.get('expected_output', '')}"
+                        )
+                framework.collected_evidence["_mission_3_key_steps"] = step_strs
+
+            # 存储突破点
+            breakthrough_points = content_3.get("breakthrough_points", [])
+            if breakthrough_points and isinstance(breakthrough_points, list):
+                bp_strs = []
+                for bp in breakthrough_points:
+                    if isinstance(bp, dict):
+                        bp_strs.append(
+                            f"{bp.get('point', '')} - 关键原因: {bp.get('why_key', '')} - 利用方式: {bp.get('how_to_leverage', '')}"
+                        )
+                framework.collected_evidence["_mission_3_breakthrough_points"] = bp_strs
+
+        # ==================== 存储使命4：执行要求 ====================
+        if mission_4 and isinstance(mission_4, dict):
+            content_4 = mission_4.get("content", {})
+
+            # 存储质量标准
+            quality_standards = content_4.get("quality_standards", [])
+            if quality_standards:
+                framework.collected_evidence["_mission_4_quality_standards"] = quality_standards
+
+            # 存储约束条件
+            constraints = content_4.get("constraints_to_respect", [])
+            if constraints:
+                framework.collected_evidence["_mission_4_constraints"] = constraints
+
+            # 存储反模式
+            anti_patterns = content_4.get("anti_patterns", [])
+            if anti_patterns:
+                framework.collected_evidence["_mission_4_anti_patterns"] = anti_patterns
+
+            # 存储风险提示
+            risk_alerts = content_4.get("risk_alerts", [])
+            if risk_alerts:
+                framework.collected_evidence["_mission_4_risk_alerts"] = risk_alerts
+
+            # 存储推荐工具
+            recommended_tools = content_4.get("recommended_tools", [])
+            if recommended_tools:
+                framework.collected_evidence["_mission_4_recommended_tools"] = recommended_tools
+
+        # ==================== 存储创作指令 ====================
+        creation_command = data.get("creation_command", "")
+        if creation_command:
+            framework.collected_evidence["_creation_command"] = [creation_command]
+
+        # ==================== 存储metadata（L1-L5分析和人性维度）====================
+        if metadata and isinstance(metadata, dict):
+            analysis_quality = metadata.get("analysis_quality", {})
+            analysis_layers = metadata.get("analysis_layers", {})
+            human_dimensions = metadata.get("human_dimensions", {})
+
+            # 存储分析质量
+            if analysis_quality:
+                framework.collected_evidence["_analysis_quality"] = [
+                    f"L5锐度评分: {analysis_quality.get('l5_sharpness_score', 0)}",
+                    f"交付物验证评分: {analysis_quality.get('deliverables_validation_score', 0)}",
+                    f"整体置信度: {analysis_quality.get('overall_confidence', 0)}",
+                ]
+
+            # 存储L1-L5分析层
+            if analysis_layers:
+                framework.collected_evidence["_L1_facts"] = analysis_layers.get("L1_facts", [])
+
+                l2_model = analysis_layers.get("L2_user_model", {})
+                framework.collected_evidence["_L2_user_model"] = [
+                    f"心理: {l2_model.get('psychological', '')}",
+                    f"社会: {l2_model.get('sociological', '')}",
+                    f"美学: {l2_model.get('aesthetic', '')}",
+                ]
+
+                framework.collected_evidence["_L3_core_tension"] = [analysis_layers.get("L3_core_tension", "")]
+
+                framework.collected_evidence["_L4_search_task"] = [analysis_layers.get("L4_search_task", "")]
+
+                l5_sharpness = analysis_layers.get("L5_sharpness", {})
+                framework.collected_evidence["_L5_sharpness"] = [
+                    f"锐度评分: {l5_sharpness.get('score', 0)}",
+                    f"专一性: {l5_sharpness.get('specificity', '中')}",
+                    f"可操作性: {l5_sharpness.get('actionability', '中')}",
+                    f"深度: {l5_sharpness.get('depth', '中')}",
+                ]
+
+            # 存储人性维度
+            if human_dimensions and human_dimensions.get("enabled"):
+                framework.collected_evidence["_human_dimensions"] = [
+                    f"情绪地图: {human_dimensions.get('emotional_landscape', '')}",
+                    f"精神追求: {human_dimensions.get('spiritual_aspirations', '')}",
+                    f"心理安全: {human_dimensions.get('psychological_safety_needs', '')}",
+                    f"仪式行为: {human_dimensions.get('ritual_behaviors', '')}",
+                    f"记忆锚点: {human_dimensions.get('memory_anchors', '')}",
+                ]
+
+        # ==================== 日志输出 ====================
+        logger.info(" [v7.302] 4条使命分析完成")
+        logger.info(
+            f"    使命1: 用户问题分析 - {len(framework.collected_evidence.get('_mission_1_user_problem_analysis', []))}项"
+        )
+        logger.info(f"    使命2: 明确目标 - {len(framework.collected_evidence.get('_mission_2_key_deliverables', []))}个交付物")
+        logger.info(f"    使命3: 任务维度 - {len(framework.collected_evidence.get('_mission_3_key_steps', []))}个步骤")
+        logger.info(f"    使命4: 执行要求 - {len(framework.collected_evidence.get('_mission_4_quality_standards', []))}项质量标准")
+
+        if metadata:
+            l5_score = metadata.get("analysis_layers", {}).get("L5_sharpness", {}).get("score", 0)
+            logger.info(f"    L5 锐度: {l5_score}")
+
+        # v7.302: 创建默认的key_aspects（用于向后兼容）
+        # 从使命2的交付物中提取关键信息面
+        if mission_2 and isinstance(mission_2, dict):
+            content_2 = mission_2.get("content", {})
+            key_deliverables = content_2.get("key_deliverables", [])
+
+            # 将前5个交付物转换为key_aspects
+            for i, deliverable in enumerate(key_deliverables[:5]):
+                if isinstance(deliverable, dict):
+                    aspect = KeyAspect(
+                        id=f"aspect_{i+1}",
+                        aspect_name=deliverable.get("name", ""),
+                        answer_goal=deliverable.get("description", ""),
+                        importance=5 if deliverable.get("priority") == "MUST_HAVE" else 3,
+                        search_query="",
+                    )
+                    framework.key_aspects.append(aspect)
+
+        # 如果没有生成任何key_aspects，使用默认值
+        if not framework.key_aspects:
+            logger.warning("️ [v7.302] 未生成任何信息面，使用默认值")
+            default_aspects = [
+                ("核心概念", "解释基本定义和核心内容", 5),
+                ("原因分析", "说明背后的原因和逻辑", 4),
+                ("具体案例", "提供实际例子或数据支撑", 4),
+            ]
+            for i, (name, goal, importance) in enumerate(default_aspects):
+                framework.key_aspects.append(
+                    KeyAspect(
+                        id=f"aspect_{i+1}",
+                        aspect_name=name,
+                        answer_goal=goal,
+                        importance=importance,
+                    )
+                )
+
+        return framework
+
+    def _validate_deliverables(self, deliverables: List[str]) -> Dict[str, Any]:
+        """
+        验证交付物质量 - v7.301 新增
+
+        检查交付物是否符合质量标准：
+        1. 数量：10-15 项
+        2. 具体性：包含动词 + 具体对象
+        3. 长度：每项至少 8 个字符
+
+        Returns:
+            Dict with 'is_valid', 'issues', 'score'
+        """
+        issues = []
+        score = 100.0
+
+        # 检查数量
+        if len(deliverables) < 10:
+            issues.append(f"交付物数量不足：{len(deliverables)}/10（最少）")
+            score -= 20
+        elif len(deliverables) > 15:
+            issues.append(f"交付物数量过多：{len(deliverables)}/15（最多）")
+            score -= 10
+
+        # 检查每个交付物的质量
+        action_verbs = ["解析", "设计", "规划", "选择", "制定", "分析", "研究", "提取", "创作", "构建", "评估", "优化"]
+        generic_count = 0
+
+        for i, deliverable in enumerate(deliverables, 1):
+            # 检查长度
+            if len(deliverable) < 8:
+                issues.append(f"交付物{i}过于简短：'{deliverable}'")
+                score -= 3
+                generic_count += 1
+                continue
+
+            # 检查是否包含动词
+            has_verb = any(verb in deliverable for verb in action_verbs)
+            if not has_verb:
+                issues.append(f"交付物{i}缺少动词：'{deliverable}'")
+                score -= 2
+                generic_count += 1
+
+        # 如果超过 30% 的交付物有问题，标记为不合格
+        if generic_count > len(deliverables) * 0.3:
+            issues.append(f"过多泛化交付物：{generic_count}/{len(deliverables)}")
+            score -= 15
+
+        is_valid = score >= 70  # 70分及格
+
+        return {
+            "is_valid": is_valid,
+            "score": max(0, score),
+            "issues": issues,
+            "deliverable_count": len(deliverables),
+            "generic_count": generic_count,
+        }
+
+    async def _analyze_question(
+        self,
+        query: str,
+        context: Optional[Dict[str, Any]] = None,
+    ) -> AnswerFramework:
+        """
+        分析用户问题 - v7.183 核心机制（非流式版本，保留作为降级）
+
+        三步分析法：
+        1. 宏观统筹 - 理解问题全貌，识别涉及的领域和维度
+        2. 切入点洞察 - 找到问题的核心切入点，什么是关键突破口
+        3. 关键信息面 - 完整回答需要收集哪些信息
+        """
+        prompt = f"""你是一个资深的问题分析专家。请对用户问题进行深度分析。
+
+## 用户问题
+{query}
+
+## 上下文
+{json.dumps(context or {}, ensure_ascii=False, indent=2)}
+
+## 分析任务
+
+### 第一步：宏观统筹
+从全局视角理解这个问题：
+- 这个问题涉及哪些领域/维度？
+- 问题的本质诉求是什么？
+- 有哪些隐含的需求或假设？
+
+### 第二步：切入点洞察
+找到解决问题的关键突破口：
+- 什么是回答这个问题的核心切入点？
+- 应该从哪个角度入手最有效？
+- 有哪些关键概念/人物/方法需要深入理解？
+
+### 第三步：关键信息面
+要完整回答这个问题，需要收集哪些信息？
+- 每个信息面是具体的、可搜索的
+- 按重要性排序（5=必需，4=重要，3=有帮助）
+- 3-6个信息面为宜
+
+## 输出格式（JSON）
+```json
+{{
+    "macro_overview": {{
+        "domains": ["涉及的领域1", "领域2"],
+        "essence": "问题的本质诉求（一句话）",
+        "hidden_needs": ["隐含需求1", "隐含需求2"]
+    }},
+    "entry_point": {{
+        "core_insight": "核心切入点洞察（这是最关键的突破口）",
+        "approach_angle": "建议的切入角度",
+        "key_concepts": ["需要深入理解的关键概念/人物/方法"]
+    }},
+    "answer_goal": "用户期望的答案是...",
+    "key_aspects": [
+        {{
+            "name": "信息面名称",
+            "goal": "这个信息面要回答什么",
+            "importance": 5,
+            "search_hint": "建议的搜索方向"
+        }}
+    ]
+}}
+```
+
+## 示例
+用户问题："用季裕棠（Tony Chi）的手法，帮00后富二代设计一个400平米的大平层"
+
+分析：
+1. 宏观统筹：
+   - 涉及领域：室内设计、设计师风格、目标人群画像、空间设计
+   - 本质诉求：用特定设计师的风格为特定人群创造匹配的居住空间
+   - 隐含需求：理解设计师手法、理解业主审美、空间功能规划
+
+2. 切入点洞察：
+   - 核心切入点：季裕棠的设计语言如何与00后富二代的审美碰撞融合
+   - 切入角度：先深入理解季裕棠的设计哲学，再分析如何转化为年轻化表达
+   - 关键概念：季裕棠、东方美学、潮玩文化、大平层空间规划
+
+3. 关键信息面：
+   - 季裕棠设计手法（importance=5）：核心设计语言和标志性元素
+   - 业主画像分析（importance=5）：00后富二代的审美偏好
+   - 风格融合策略（importance=4）：如何将经典手法年轻化
+   - 客厅空间设计（importance=4）：重点空间的处理方式
+
+请只输出JSON。"""
+
+        try:
+            # v7.187: 使用 OpenAI API (via OpenRouter)
+            result = await self._call_llm(prompt, model=self.thinking_model, max_tokens=1500)
+
+            # v7.200: 使用统一 JSON 解析器
+            data = self._safe_parse_json(result, context="非流式问题分析")
+            if data is None:
+                raise ValueError("无法解析问题分析结果")
+
+            # 提取宏观统筹和切入点
+            macro = data.get("macro_overview", {})
+            entry = data.get("entry_point", {})
+
+            framework = AnswerFramework(
+                original_query=query,
+                answer_goal=data.get("answer_goal", ""),
+                created_at=time.time(),
+            )
+
+            # 存储宏观统筹和切入点信息（用于后续搜索和答案生成）
+            framework.collected_evidence["_macro_overview"] = [
+                f"涉及领域: {', '.join(macro.get('domains', []))}",
+                f"本质诉求: {macro.get('essence', '')}",
+                f"隐含需求: {', '.join(macro.get('hidden_needs', []))}",
+            ]
+            framework.collected_evidence["_entry_point"] = [
+                f"核心切入点: {entry.get('core_insight', '')}",
+                f"切入角度: {entry.get('approach_angle', '')}",
+                f"关键概念: {', '.join(entry.get('key_concepts', []))}",
+            ]
+
+            # 构建关键信息面
+            for i, aspect_data in enumerate(data.get("key_aspects", [])):
+                aspect = KeyAspect(
+                    id=f"aspect_{i+1}",
+                    aspect_name=aspect_data.get("name", ""),
+                    answer_goal=aspect_data.get("goal", ""),
+                    importance=aspect_data.get("importance", 3),
+                    search_query=aspect_data.get("search_hint", ""),
+                )
+                framework.key_aspects.append(aspect)
+
+            # 日志输出分析结果
+            logger.info(" [Ucppt] 问题分析完成")
+            logger.info(f"    宏观统筹: {macro.get('essence', '')[:50]}...")
+            logger.info(f"    切入点: {entry.get('core_insight', '')[:50]}...")
+            logger.info(f"    信息面: {len(framework.key_aspects)}个")
+
+            return framework
+
+        except Exception as e:
+            logger.warning(f"️ [Ucppt] 问题分析失败，使用简单框架: {e}")
+            return self._build_simple_framework(query)
+
+    def _build_simple_framework(self, query: str) -> AnswerFramework:
+        """简单框架（LLM失败时使用）"""
+        framework = AnswerFramework(
+            original_query=query,
+            answer_goal=f"全面解答关于「{query}」的问题",
+            created_at=time.time(),
+        )
+
+        # 通用信息面
+        default_aspects = [
+            ("核心概念", "解释基本定义和核心内容", 5),
+            ("原因分析", "说明背后的原因和逻辑", 4),
+            ("具体案例", "提供实际例子或数据支撑", 4),
+            ("最新动态", "介绍最新的发展和变化", 3),
+            ("专业观点", "引用专家或权威的看法", 3),
+        ]
+
+        for i, (name, goal, importance) in enumerate(default_aspects):
+            framework.key_aspects.append(
+                KeyAspect(
+                    id=f"aspect_{i+1}",
+                    aspect_name=name,
+                    answer_goal=goal,
+                    importance=importance,
+                )
+            )
+
+        return framework
+
+    # ==================== v7.186: 专家叙事思考（反思驱动） ====================
+
+    async def _generate_narrative_thinking(
+        self,
+        framework: AnswerFramework,
+        target_aspect: KeyAspect,
+        current_round: int,
+        all_sources: List[Dict[str, Any]],
+    ) -> Tuple[str, str, str]:
+        """
+        生成专家叙事思考 - v7.186 增强版
+
+        关键改进：利用上一轮反思驱动本轮思考
+        - 如果有上一轮反思，优先使用其建议的搜索方向
+        - 保持与宏观统筹和用户问题的对齐
+
+        返回: (thinking_narrative, search_strategy, search_query)
+        """
+        # 构建当前知识状态描述
+        collected_summary = []
+        for aspect in framework.key_aspects:
+            if aspect.collected_info:
+                info_preview = aspect.collected_info[0][:80] if aspect.collected_info else ""
+                collected_summary.append(f"• {aspect.aspect_name}: {info_preview}...")
+
+        knowledge_state = "\n".join(collected_summary) if collected_summary else "（这是首次搜索，暂无已知信息）"
+
+        # 获取宏观统筹和切入点
+        macro_info = framework.collected_evidence.get("_macro_overview", [])
+        entry_info = framework.collected_evidence.get("_entry_point", [])
+
+        # v7.186: 获取上一轮反思的建议（反思驱动下一轮）
+        last_reflection = framework.last_reflection
+        reflection_guidance = ""
+        if last_reflection and current_round > 1:
+            reflection_guidance = f"""
+##  上一轮反思的建议（承上启下）
+- 上轮发现：{'; '.join(last_reflection.key_findings[:2]) if last_reflection.key_findings else '无'}
+- 需要深入的点：{'; '.join(last_reflection.deeper_search_points[:2]) if last_reflection.deeper_search_points else '无'}
+- 上轮建议的查询：{last_reflection.suggested_next_query}
+- 上轮建议的目的：{last_reflection.next_round_purpose}
+- 剩余缺口：{'; '.join(last_reflection.remaining_gaps[:2]) if last_reflection.remaining_gaps else '无'}
+"""
+
+        prompt = f"""你是一位资深设计顾问，正在帮客户做项目研究。请用自然、专业的语言描述你的思考过程。
+
+## 客户问题（始终回归的锚点）
+{framework.original_query}
+
+## 我的回答目标
+{framework.answer_goal}
+
+## 宏观统筹（第一轮建立的整体框架）
+{chr(10).join(macro_info) if macro_info else "正在建立整体理解..."}
+
+## 核心切入点
+{chr(10).join(entry_info) if entry_info else "正在寻找突破口..."}
+{reflection_guidance}
+## 当前已知信息
+{knowledge_state}
+
+## 当前是第 {current_round} 轮搜索
+目标信息面：{target_aspect.aspect_name}
+需要回答：{target_aspect.answer_goal}
+重要程度：{target_aspect.importance}/5
+
+## 任务
+请用第一人称描述你的思考过程，要求：
+1. {"参考上一轮反思的建议，但保持独立判断" if last_reflection else "自然流畅，像在向客户讲解研究思路"}
+2. 解释"为什么"要搜索这个（不只是"搜索A"）
+3. 确保与用户问题和宏观统筹保持对齐
+4. 最后给出精准的搜索查询（15-35字中文，包含：核心概念+修饰词+领域词+类型词）
+
+## 搜索查询示例（v7.198 优化）
+- 好的查询："Tony Chi 季裕棠 设计手法 设计风格 酒店设计 室内设计 特点"
+- 好的查询："00后富二代 居家设计 潮玩 室内设计 趋势"
+- 差的查询："季裕棠设计"（太短，缺少修饰词和领域词）
+
+## 输出格式（JSON）
+```json
+{{
+    "thinking": "你的思考叙事（100-200字，第一人称，自然语言，承上启下）",
+    "strategy": "搜索策略（一句话说明你的搜索意图）",
+    "search_query": "精准的搜索查询（多关键词组合）"
+}}
+```
+
+只输出JSON。"""
+
+        try:
+            # v7.187: 使用 OpenAI API (via OpenRouter)
+            result = await self._call_llm(prompt, model=self.thinking_model, max_tokens=600)
+
+            # v7.200: 使用统一 JSON 解析器
+            data = self._safe_parse_json(result, context="叙事思考")
+            if data is None:
+                raise ValueError("无法解析叙事思考结果")
+
+            thinking = data.get("thinking", "")
+            strategy = data.get("strategy", "")
+            search_query = data.get("search_query", "")
+
+            # 确保查询不为空
+            if not search_query or len(search_query.strip()) < 3:
+                search_query = (
+                    f"{framework.original_query} {target_aspect.aspect_name} {target_aspect.answer_goal[:15]}"
+                )
+                logger.warning(f"️ [Ucppt] LLM返回空查询，使用降级: {search_query}")
+
+            logger.debug(f" [Ucppt] 第{current_round}轮思考完成")
+            logger.debug(f"    {thinking[:60]}...")
+            logger.debug(f"    查询: {search_query}")
+
+            return thinking, strategy, search_query.strip()
+
+        except Exception as e:
+            logger.warning(f"️ [Ucppt] 叙事思考失败: {e}")
+            # 降级
+            default_query = f"{framework.original_query} {target_aspect.aspect_name}"
+            default_thinking = f"让我来搜索关于「{target_aspect.aspect_name}」的信息，这对于回答用户的问题很重要..."
+            default_strategy = f"搜索{target_aspect.aspect_name}相关信息"
+            return default_thinking, default_strategy, default_query
+
+    # ==================== v7.187: 流式思考生成 ====================
+
+    async def _generate_narrative_thinking_stream(
+        self,
+        framework: AnswerFramework,
+        target_aspect: KeyAspect,
+        current_round: int,
+        all_sources: List[Dict[str, Any]],
+    ) -> AsyncGenerator[Dict[str, Any], None]:
+        """
+        流式生成专家叙事思考 - v7.187 核心创新
+
+        流式输出 LLM 的推理过程（reasoning_content），
+        让用户实时看到 AI 的思考过程。
+
+        Yields:
+        - {"type": "thinking_chunk", "content": "...", "is_reasoning": True/False}
+        - {"type": "thinking_complete", "thinking": "...", "strategy": "...", "query": "..."}
+        """
+        # 构建当前知识状态描述
+        collected_summary = []
+        for aspect in framework.key_aspects:
+            if aspect.collected_info:
+                info_preview = aspect.collected_info[0][:80] if aspect.collected_info else ""
+                collected_summary.append(f"• {aspect.aspect_name}: {info_preview}...")
+
+        knowledge_state = "\n".join(collected_summary) if collected_summary else "（这是首次搜索，暂无已知信息）"
+
+        # 获取宏观统筹和切入点
+        macro_info = framework.collected_evidence.get("_macro_overview", [])
+        framework.collected_evidence.get("_entry_point", [])
+
+        # v7.186: 获取上一轮反思的建议
+        last_reflection = framework.last_reflection
+        reflection_guidance = ""
+        if last_reflection and current_round > 1:
+            reflection_guidance = f"""
+##  上一轮反思的建议（承上启下）
+- 上轮发现：{'; '.join(last_reflection.key_findings[:2]) if last_reflection.key_findings else '无'}
+- 需要深入的点：{'; '.join(last_reflection.deeper_search_points[:2]) if last_reflection.deeper_search_points else '无'}
+- 上轮建议的查询：{last_reflection.suggested_next_query}
+- 剩余缺口：{'; '.join(last_reflection.remaining_gaps[:2]) if last_reflection.remaining_gaps else '无'}
+"""
+
+        prompt = f"""你是一位资深设计顾问，正在帮客户做项目研究。请用自然、专业的语言描述你的思考过程。
+
+## 客户问题（始终回归的锚点）
+{framework.original_query}
+
+## 我的回答目标
+{framework.answer_goal}
+
+## 宏观统筹（第一轮建立的整体框架）
+{chr(10).join(macro_info) if macro_info else "正在建立整体理解..."}
+{reflection_guidance}
+## 当前已知信息
+{knowledge_state}
+
+## 当前是第 {current_round} 轮搜索
+目标信息面：{target_aspect.aspect_name}
+需要回答：{target_aspect.answer_goal}
+
+## 任务
+请用第一人称描述你的思考过程，要求：
+1. {"参考上一轮反思的建议，但保持独立判断" if last_reflection else "自然流畅，像在向客户讲解研究思路"}
+2. 解释"为什么"要搜索这个
+3. 确保与用户问题保持对齐
+4. 最后给出精准的搜索查询（15-35字中文，包含：核心概念+修饰词+领域词+类型词）
+
+## 搜索查询示例（v7.198 优化）
+- 好的查询："Tony Chi 季裕棠 设计手法 设计风格 酒店设计 室内设计 特点"
+- 好的查询："00后富二代 居家设计 潮玩 室内设计 趋势"
+- 差的查询："季裕棠设计"（太短，缺少修饰词和领域词）
+
+## 输出格式（JSON）
+```json
+{{
+    "thinking": "你的思考叙事（100-200字，第一人称，自然语言）",
+    "strategy": "搜索策略（一句话）",
+    "search_query": "精准的搜索查询"
+}}
+```
+
+只输出JSON。"""
+
+        full_reasoning = ""
+        full_content = ""
+
+        try:
+            # v7.187: 使用 OpenAI API (via OpenRouter)，支持 reasoning_content
+            async for chunk in self._call_llm_stream_with_reasoning(prompt, model=self.thinking_model, max_tokens=800):
+                if chunk.get("type") == "reasoning":
+                    reasoning_text = chunk.get("content", "")
+                    full_reasoning += reasoning_text
+                    # 流式输出推理过程
+                    yield {
+                        "type": "thinking_chunk",
+                        "content": reasoning_text,
+                        "is_reasoning": True,
+                        "round": current_round,
+                    }
+                elif chunk.get("type") == "content":
+                    content_text = chunk.get("content", "")
+                    full_content += content_text
+                elif chunk.get("type") == "error":
+                    logger.error(f"流式思考出错: {chunk.get('content')}")
+
+            # v7.200: 使用统一 JSON 解析器
+            data = self._safe_parse_json(full_content, context="流式叙事思考")
+
+            if data:
+                thinking = data.get("thinking", "")
+                strategy = data.get("strategy", "")
+                search_query = data.get("search_query", "")
+            else:
+                # v7.200: 降级处理 - 使用简短查询而非完整原始需求
+                thinking = full_reasoning[:200] if full_reasoning else f"正在分析「{target_aspect.aspect_name}」..."
+                strategy = f"搜索{target_aspect.aspect_name}相关信息"
+                # 提取原始查询的核心关键词（前30字）+ 目标面
+                core_query = (
+                    framework.original_query[:30].strip()
+                    if len(framework.original_query) > 30
+                    else framework.original_query
+                )
+                search_query = f"{core_query} {target_aspect.aspect_name}"
+
+            # v7.188: 确保查询不为空且不过长
+            if not search_query or len(search_query.strip()) < 3:
+                search_query = (
+                    f"{target_aspect.aspect_name} {target_aspect.answer_goal[:20] if target_aspect.answer_goal else ''}"
+                )
+
+            logger.info(f" [Ucppt v7.187] 第{current_round}轮流式思考完成")
+            logger.info(f"    推理长度: {len(full_reasoning)} 字符")
+            logger.info(f"    查询: {search_query}")
+
+            # 发送完成事件
+            yield {
+                "type": "thinking_complete",
+                "thinking": thinking,
+                "strategy": strategy,
+                "query": search_query.strip(),
+                "reasoning": full_reasoning if full_reasoning else "",  # v7.188: 保留完整推理内容
+                "round": current_round,
+            }
+
+        except Exception as e:
+            logger.warning(f"️ [Ucppt] 流式思考失败: {e}")
+            # 降级
+            default_query = f"{framework.original_query} {target_aspect.aspect_name}"
+            default_thinking = f"让我来搜索关于「{target_aspect.aspect_name}」的信息..."
+            default_strategy = f"搜索{target_aspect.aspect_name}相关信息"
+            yield {
+                "type": "thinking_complete",
+                "thinking": default_thinking,
+                "strategy": default_strategy,
+                "query": default_query,
+                "reasoning": "",
+                "round": current_round,
+            }
+
+    async def _generate_unified_thinking_stream(
+        self,
+        framework: SearchFramework,  # v7.220: 使用 SearchFramework
+        target: SearchTarget,  # v7.220: 使用 SearchTarget
+        current_round: int,
+        all_sources: List[Dict[str, Any]],
+        last_round_sources: List[Dict[str, Any]],
+        last_search_query: str = "",
+    ) -> AsyncGenerator[Dict[str, Any], None]:
+        """
+        统一思考流 - v7.220 更新
+
+        将"思考"和"反思"融合为一次 LLM 调用：
+        - 首轮（round=1）：仅做初始规划，无回顾
+        - 后续轮（round>1）：回顾上轮搜索结果 + 规划本轮 + 全局校准
+
+        v7.220 更新：
+        - 使用 SearchFramework 替代 AnswerFramework
+        - 使用 SearchTarget 替代 KeyAspect
+
+        Yields:
+        - {"type": "thinking_chunk", "content": "...", "is_reasoning": True/False}
+        - {"type": "unified_thinking_complete", ...}
+        """
+        # v7.220: 构建当前知识状态描述（使用 targets）
+        collected_summary = []
+        for t in framework.targets:
+            if t.collected_info:
+                info_preview = t.collected_info[0][:80] if t.collected_info else ""
+                # v7.243: 使用更多备选字段
+                target_desc = t.question or t.name or t.search_for or f"目标{t.id}"
+                collected_summary.append(f"• {target_desc}: {info_preview}...")
+
+        "\n".join(collected_summary) if collected_summary else "（这是首次搜索，暂无已知信息）"
+
+        # v7.220: 移除宏观统筹（SearchFramework 不再使用 collected_evidence）
+        # 直接使用 L1-L5 分析结果
+
+        # 构建上轮搜索结果摘要（仅 round > 1 时）
+        last_round_section = ""
+        if current_round > 1 and last_round_sources:
+            source_summaries = []
+            for s in last_round_sources[:5]:
+                title = s.get("title", "")[:50]
+                content = s.get("content", "")[:150]
+                source_summaries.append(f"【{title}】\n{content}")
+            sources_text = "\n\n".join(source_summaries) if source_summaries else "无结果"
+
+            last_round_section = f"""
+##  上一轮搜索结果（需要回顾评估）
+上轮查询：{last_search_query}
+结果：
+{sources_text}
+"""
+
+        # v7.220: 构建 targets 状态
+        targets_status = []
+        for t in framework.targets:
+            status_emoji = "" if t.is_complete() else ("" if t.status == "partial" else "")
+            info_preview = t.collected_info[0][:50] if t.collected_info else "待收集"
+            # v7.243: 使用更多备选字段
+            target_desc = t.question or t.name or t.search_for or f"目标{t.id}"
+            targets_status.append(f"{status_emoji} {target_desc}({t.completion_score:.0%}): {info_preview}")
+        cumulative_state = "\n".join(targets_status)
+
+        # 构建回顾部分的指令（仅 round > 1）
+        retrospective_instruction = ""
+        if current_round > 1:
+            retrospective_instruction = """
+### 一、回顾上轮（必填，评估上轮搜索结果）
+1. 上轮目标是否达成？信息充分吗？质量如何？
+2. 直接获得了什么关键发现？可以推断出什么洞察？
+3. 有什么质量问题？"""
+        else:
+            retrospective_instruction = """
+### 一、初始评估（首轮无需回顾）
+- 这是首轮搜索，暂无上轮结果需要评估"""
+
+        # v7.220: 构建深度分析背景（如果有）
+        deep_analysis_section = ""
+        if framework.l1_facts or framework.l3_tension:
+            deep_analysis_section = """
+##  深度分析背景
+"""
+            if framework.l1_facts:
+                # v7.234: 安全处理 l1_facts（确保是 list）
+                facts_list = framework.l1_facts if isinstance(framework.l1_facts, list) else []
+                if facts_list:
+                    deep_analysis_section += f"**事实解构**: {'; '.join(str(f) for f in facts_list[:3])}\n"
+            if framework.l3_tension:
+                deep_analysis_section += f"**核心张力**: {framework.l3_tension}\n"
+            if framework.l4_jtbd:
+                deep_analysis_section += f"**用户任务**: {framework.l4_jtbd}\n"
+
+        # v7.232: 获取预设关键词
+        preset_keywords = target.preset_keywords if target.preset_keywords else []
+        preset_keyword_section = ""
+        if preset_keywords:
+            # 获取下一个未使用的预设关键词
+            next_keyword_idx = target.current_keyword_index
+            if next_keyword_idx < len(preset_keywords):
+                suggested_keyword = preset_keywords[next_keyword_idx]
+                preset_keyword_section = f"""
+##  预设搜索关键词（优先使用）
+建议使用: **{suggested_keyword}**
+备选关键词: {', '.join(preset_keywords[next_keyword_idx+1:next_keyword_idx+3]) if len(preset_keywords) > next_keyword_idx+1 else '无'}
+
+️ 重要：优先使用预设关键词，除非有充分理由需要调整。
+如需调整，必须保持相同的具体程度（包含具体品牌名/人名/地点名）。
+"""
+
+        # v7.240: 构建框架清单上下文（指导搜索方向）
+        framework_checklist_section = ""
+        if framework.framework_checklist:
+            checklist = framework.framework_checklist
+            framework_checklist_section = f"""
+##  搜索框架清单（始终遵循）
+
+**核心问题**: {checklist.core_summary}
+
+**搜索主线**:
+"""
+            for i, d in enumerate(checklist.main_directions, 1):
+                framework_checklist_section += f"{i}. {d.get('direction', '')}: {d.get('purpose', '')}\n"
+
+            if checklist.boundaries:
+                framework_checklist_section += f"\n**不涉及**: {', '.join(checklist.boundaries)}\n"
+
+            framework_checklist_section += f"\n**回答目标**: {checklist.answer_goal}\n"
+
+        prompt = f"""你是一位资深设计顾问，正在帮客户做项目研究。请用自然、专业的语言描述你的思考过程。
+
+##  客户问题（始终回归的锚点）
+{framework.original_query}
+
+##  问题本质
+{framework.core_question}
+{framework_checklist_section}
+{deep_analysis_section}
+{last_round_section}
+##  截至目前的累积进展
+{cumulative_state}
+整体完成度：{framework.overall_completeness:.0%}
+
+##  本轮目标（第 {current_round} 轮）
+目标：{target.question or target.name or target.search_for or target.description or f'搜索目标{target.id}'}
+搜索内容：{target.search_for or target.description or ''}
+目的：{target.why_need or target.purpose or target.answer_goal or ''}
+{preset_keyword_section}
+---
+
+## 请完成以下任务（一次性输出）
+{retrospective_instruction}
+
+### 二、本轮规划
+1. 基于{"上轮结果分析" if current_round > 1 else "当前状态"}，本轮应该搜索什么？
+2. 搜索策略是什么？
+3. {"使用预设关键词，或在保持具体程度的前提下微调" if preset_keywords else "给出精准的搜索查询（15-35字，包含核心概念+修饰词+领域词）"}
+
+### 三、全局校准
+1. 我们走在正确方向上吗？（0-1 打分）
+2. 还有哪些信息缺口？
+3. 预计还需几轮？
+
+## 输出格式（JSON）
+```json
+{{
+    {"\"retrospective\": {" if current_round > 1 else "\"initial_assessment\": {"}
+        {"\"goal_achieved\": true," if current_round > 1 else ""}
+        "key_findings": ["发现1", "发现2"],
+        "inferred_insights": ["推断洞察1"],
+        "info_sufficiency": 0.7,
+        "info_quality": 0.8,
+        "quality_issues": ["问题1"]
+    }},
+    "current_round_planning": {{
+        "thinking": "思考叙事（100-200字，第一人称，自然语言）",
+        "strategy": "搜索策略（一句话）",
+        "search_query": "{"使用预设关键词或微调后的关键词" if preset_keywords else "精准搜索查询"}"
+    }},
+    "global_alignment": {{
+        "alignment_score": 0.8,
+        "alignment_note": "方向正确/需要调整...",
+        "remaining_gaps": ["缺口1", "缺口2"],
+        "estimated_rounds_remaining": 2
+    }},
+    "cumulative_progress": "综合前{current_round}轮搜索的累积进展描述（50-100字）"
+}}
+```
+
+只输出JSON。"""
+
+        full_reasoning = ""
+        full_content = ""
+
+        try:
+            # 使用 OpenAI API (via OpenRouter)，支持 reasoning_content
+            async for chunk in self._call_llm_stream_with_reasoning(prompt, model=self.thinking_model, max_tokens=1200):
+                if chunk.get("type") == "reasoning":
+                    reasoning_text = chunk.get("content", "")
+                    full_reasoning += reasoning_text
+                    # v7.238: 过滤冗余内心独白
+                    filtered_text = self._filter_verbose_monologue(reasoning_text)
+                    if filtered_text.strip():
+                        yield {
+                            "type": "thinking_chunk",
+                            "content": filtered_text,
+                            "is_reasoning": True,
+                            "round": current_round,
+                        }
+                elif chunk.get("type") == "content":
+                    content_text = chunk.get("content", "")
+                    full_content += content_text
+                elif chunk.get("type") == "error":
+                    logger.error(f"统一思考流出错: {chunk.get('content')}")
+
+            # v7.214: 解析 JSON，强制期望字典类型
+            data = self._safe_parse_json(full_content, context="统一思考流", expect_dict=True)
+
+            # v7.214: 额外类型检查，确保 data 是字典
+            if data and isinstance(data, dict):
+                # 提取回顾部分
+                retro_key = "retrospective" if current_round > 1 else "initial_assessment"
+                retro = data.get(retro_key, {})
+                # v7.214: 确保 retro 是字典
+                if not isinstance(retro, dict):
+                    logger.warning(f"️ [Ucppt v7.214] {retro_key} 不是字典类型，使用默认值")
+                    retro = {}
+
+                planning = data.get("current_round_planning", {})
+                if not isinstance(planning, dict):
+                    logger.warning("️ [Ucppt v7.214] current_round_planning 不是字典类型，使用默认值")
+                    planning = {}
+
+                alignment = data.get("global_alignment", {})
+                if not isinstance(alignment, dict):
+                    logger.warning("️ [Ucppt v7.214] global_alignment 不是字典类型，使用默认值")
+                    alignment = {}
+
+                result = UnifiedThinkingResult(
+                    # 回顾
+                    key_findings=retro.get("key_findings", []) if isinstance(retro.get("key_findings"), list) else [],
+                    inferred_insights=retro.get("inferred_insights", [])
+                    if isinstance(retro.get("inferred_insights"), list)
+                    else [],
+                    info_sufficiency=float(retro.get("info_sufficiency", 0.5))
+                    if isinstance(retro.get("info_sufficiency"), (int, float))
+                    else 0.5,
+                    info_quality=float(retro.get("info_quality", 0.5))
+                    if isinstance(retro.get("info_quality"), (int, float))
+                    else 0.5,
+                    goal_achieved=bool(retro.get("goal_achieved", False)),
+                    quality_issues=retro.get("quality_issues", [])
+                    if isinstance(retro.get("quality_issues"), list)
+                    else [],
+                    # 规划
+                    thinking_narrative=str(planning.get("thinking", "")),
+                    search_strategy=str(planning.get("strategy", "")),
+                    # v7.232: 优先使用预设关键词
+                    search_query=self._get_search_query_with_preset(target, str(planning.get("search_query", ""))),
+                    reasoning_content=full_reasoning,
+                    # 全局校准
+                    alignment_score=float(alignment.get("alignment_score", 0.7))
+                    if isinstance(alignment.get("alignment_score"), (int, float))
+                    else 0.7,
+                    alignment_note=str(alignment.get("alignment_note", "")),
+                    remaining_gaps=alignment.get("remaining_gaps", [])
+                    if isinstance(alignment.get("remaining_gaps"), list)
+                    else [],
+                    estimated_rounds_remaining=int(alignment.get("estimated_rounds_remaining", 2))
+                    if isinstance(alignment.get("estimated_rounds_remaining"), (int, float))
+                    else 2,
+                    # 累积
+                    cumulative_progress=str(data.get("cumulative_progress", "")),
+                    reflection_narrative=str(planning.get("thinking", "")),  # 兼容
+                )
+            else:
+                # 降级处理 - v7.232: 优先使用预设关键词
+                preset_keyword = target.get_next_preset_keyword()
+                if preset_keyword:
+                    fallback_query = preset_keyword
+                    logger.info(f" [v7.232] 降级处理使用预设关键词: {preset_keyword[:40]}...")
+                else:
+                    core_query = (
+                        framework.original_query[:30].strip()
+                        if len(framework.original_query) > 30
+                        else framework.original_query
+                    )
+                    # v7.243: 使用更多备选字段，确保 target 信息不为空
+                    target_info = target.question or target.name or target.search_for or target.description or ""
+                    fallback_query = f"{core_query} {target_info}".strip()
+
+                # v7.243: 获取目标描述，优先使用有值的字段
+                target_desc = target.question or target.name or target.search_for or f"目标{target.id}"
+                result = UnifiedThinkingResult(
+                    thinking_narrative=full_reasoning[:200] if full_reasoning else f"正在分析「{target_desc}」...",
+                    search_strategy=f"搜索{target_desc}相关信息",
+                    search_query=fallback_query,
+                    reasoning_content=full_reasoning,
+                    info_sufficiency=0.3,
+                    estimated_rounds_remaining=3,
+                )
+
+            # 确保查询不为空 - v7.232: 优先使用预设关键词
+            if not result.search_query or len(result.search_query.strip()) < 3:
+                preset_keyword = target.get_next_preset_keyword()
+                if preset_keyword:
+                    result.search_query = preset_keyword
+                else:
+                    result.search_query = f"{target.question or target.name or target.search_for or f'目标{target.id}'} {target.answer_goal[:20] if target.answer_goal else ''}"
+
+            logger.info(f" [Ucppt v7.204] 第{current_round}轮统一思考完成")
+            logger.info(f"    推理长度: {len(full_reasoning)} 字符")
+            logger.info(f"    查询: {result.search_query}")
+            if current_round > 1:
+                logger.info(f"    上轮信息充分度: {result.info_sufficiency:.0%}")
+            logger.info(f"    方向对齐: {result.alignment_score:.0%}")
+
+            # 发送完成事件
+            yield {
+                "type": "unified_thinking_complete",
+                "result": result,
+                "round": current_round,
+            }
+
+        except Exception as e:
+            logger.warning(f"️ [Ucppt v7.204] 统一思考失败: {e}")
+            # 降级 - v7.232: 优先使用预设关键词
+            preset_keyword = target.get_next_preset_keyword()
+            # v7.243: 获取目标描述，优先使用有值的字段
+            target_desc = target.question or target.name or target.search_for or f"目标{target.id}"
+            if preset_keyword:
+                default_query = preset_keyword
+                logger.info(f" [v7.232] 异常降级使用预设关键词: {preset_keyword[:40]}...")
+            else:
+                target_info = target.question or target.name or target.search_for or ""
+                default_query = f"{framework.original_query[:30]} {target_info}".strip()
+
+            result = UnifiedThinkingResult(
+                thinking_narrative=f"让我来搜索关于「{target_desc}」的信息...",
+                search_strategy=f"搜索{target_desc}相关信息",
+                search_query=default_query,
+                reasoning_content="",
+                info_sufficiency=0.3,
+                estimated_rounds_remaining=3,
+            )
+            yield {
+                "type": "unified_thinking_complete",
+                "result": result,
+                "round": current_round,
+            }
+
+    async def _enhanced_reflection(
+        self,
+        framework: AnswerFramework,
+        target_aspect: KeyAspect,
+        current_round: int,
+        round_sources: List[Dict[str, Any]],
+        search_query: str,
+        search_strategy: str,
+    ) -> ReflectionResult:
+        """
+        增强反思 - v7.186 核心机制
+
+        反思的双重角色：
+        1. 回顾：评估本轮达成度、信息质量
+        2. 规划：识别深入点、规划下一轮
+        3. 校准：回到用户问题和宏观统筹
+
+        关键：反思既是上一轮的总结，又是下一轮的开始
+        """
+        # 获取宏观统筹和切入点（始终回归的锚点）
+        macro_overview = framework.collected_evidence.get("_macro_overview", [])
+        entry_point = framework.collected_evidence.get("_entry_point", [])
+
+        # 提取搜索结果摘要
+        source_summaries = []
+        for s in round_sources[:5]:
+            title = s.get("title", "")[:50]
+            content = s.get("content", "")[:150]
+            source_summaries.append(f"【{title}】\n{content}")
+        sources_text = "\n\n".join(source_summaries) if source_summaries else "未找到相关结果"
+
+        # 构建累积进展描述
+        aspects_status = []
+        for a in framework.key_aspects:
+            status_emoji = {"complete": "", "partial": "", "missing": ""}.get(a.status, "")
+            info_preview = a.collected_info[0][:50] if a.collected_info else "待收集"
+            aspects_status.append(f"{status_emoji} {a.aspect_name}({a.completion_score:.0%}): {info_preview}")
+        cumulative_state = "\n".join(aspects_status)
+
+        prompt = f"""你是资深设计顾问，正在进行第{current_round}轮搜索后的反思。
+
+##  用户的原始问题（始终回归的锚点）
+{framework.original_query}
+
+##  第一轮的宏观统筹
+{chr(10).join(macro_overview) if macro_overview else "正在建立整体理解..."}
+
+##  第一轮的核心切入点
+{chr(10).join(entry_point) if entry_point else "正在寻找突破口..."}
+
+##  本轮搜索目标
+目标信息面：{target_aspect.aspect_name}
+期望获得：{target_aspect.answer_goal}
+搜索策略：{search_strategy}
+
+##  本轮搜索
+查询词：{search_query}
+
+##  搜索结果
+{sources_text}
+
+##  截至目前的累积进展
+{cumulative_state}
+整体完成度：{framework.overall_completeness:.0%}
+
+---
+
+## 请进行深度反思（三段式）
+
+### 一、回顾本轮（上一轮总结）
+1. 本轮目标是否达成？为什么？
+2. 信息充分吗？质量如何？有什么问题？
+3. 直接获得了什么？可以推断出什么？
+
+### 二、规划下一轮（下一轮思考）
+4. 哪些点值得深入挖掘？发现了新的关键概念吗？
+5. 下一轮应该搜索什么？为什么？
+
+### 三、全局校准（回到原点）
+6. 回到用户问题和宏观统筹，我们走在正确方向上吗？
+7. 还需要补充什么才能完整回答？预计还需几轮？
+
+## 输出格式（JSON）
+```json
+{{
+    "retrospective": {{
+        "goal_achieved": true,
+        "goal_achievement_reason": "达成/未达成的具体原因",
+        "info_sufficiency": 0.7,
+        "info_quality": 0.8,
+        "quality_issues": ["问题1", "问题2"],
+        "key_findings": ["关键发现1", "关键发现2"],
+        "inferred_insights": ["推断洞察1", "推断洞察2"]
+    }},
+    "next_round_planning": {{
+        "needs_deeper_search": true,
+        "deeper_search_points": ["需要深入的点1", "点2"],
+        "suggested_next_query": "建议的下一轮搜索查询",
+        "next_round_purpose": "下一轮的目的"
+    }},
+    "global_alignment": {{
+        "alignment_score": 0.8,
+        "alignment_note": "方向正确/需要调整...",
+        "remaining_gaps": ["剩余缺口1", "缺口2"],
+        "estimated_rounds_remaining": 2
+    }},
+    "reflection_narrative": "完整的反思叙述（150-250字，第一人称，自然语言，承上启下）",
+    "cumulative_progress": "综合前{current_round}轮搜索的累积进展描述（50-100字）"
+}}
+```
+
+只输出JSON。"""
+
+        try:
+            # v7.187: 使用 OpenAI API (via OpenRouter)
+            result = await self._call_llm(prompt, model=self.eval_model, max_tokens=1000)
+
+            # v7.200: 使用统一 JSON 解析器
+            data = self._safe_parse_json(result, context="增强反思")
+            if data is None:
+                raise ValueError("无法解析增强反思结果")
+
+            retro = data.get("retrospective", {})
+            planning = data.get("next_round_planning", {})
+            alignment = data.get("global_alignment", {})
+
+            reflection_result = ReflectionResult(
+                # 回顾
+                goal_achieved=retro.get("goal_achieved", False),
+                goal_achievement_reason=retro.get("goal_achievement_reason", ""),
+                info_sufficiency=retro.get("info_sufficiency", 0.5),
+                info_quality=retro.get("info_quality", 0.5),
+                quality_issues=retro.get("quality_issues", []),
+                key_findings=retro.get("key_findings", []),
+                inferred_insights=retro.get("inferred_insights", []),
+                # 规划
+                needs_deeper_search=planning.get("needs_deeper_search", True),
+                deeper_search_points=planning.get("deeper_search_points", []),
+                suggested_next_query=planning.get("suggested_next_query", ""),
+                next_round_purpose=planning.get("next_round_purpose", ""),
+                # 全局校准
+                alignment_with_goal=alignment.get("alignment_score", 0.7),
+                alignment_note=alignment.get("alignment_note", ""),
+                remaining_gaps=alignment.get("remaining_gaps", []),
+                estimated_rounds_remaining=alignment.get("estimated_rounds_remaining", 2),
+                # 叙事
+                reflection_narrative=data.get("reflection_narrative", ""),
+                cumulative_progress=data.get("cumulative_progress", ""),
+            )
+
+            logger.info(f" [Ucppt v7.186] 第{current_round}轮增强反思完成")
+            logger.info(f"    目标达成: {reflection_result.goal_achieved}")
+            logger.info(f"    信息充分度: {reflection_result.info_sufficiency:.0%}")
+            logger.info(f"    方向对齐: {reflection_result.alignment_with_goal:.0%}")
+            logger.info(f"    预估剩余: {reflection_result.estimated_rounds_remaining}轮")
+
+            return reflection_result
+
+        except Exception as e:
+            logger.warning(f"️ [Ucppt] 增强反思失败，使用简化版: {e}")
+            return ReflectionResult(
+                goal_achieved=len(round_sources) > 0,
+                goal_achievement_reason="基于搜索结果数量的简单判断",
+                info_sufficiency=0.3 if round_sources else 0.0,
+                info_quality=0.5 if round_sources else 0.0,
+                key_findings=[f"搜索到{len(round_sources)}条结果"],
+                reflection_narrative=f"本轮搜索到{len(round_sources)}条结果，正在分析中...",
+                cumulative_progress=f"已完成{current_round}轮搜索",
+                needs_deeper_search=True,
+                estimated_rounds_remaining=3,
+            )
+
+    async def _reflect_with_inference(
+        self,
+        framework: AnswerFramework,
+        target_aspect: KeyAspect,
+        current_round: int,
+        round_sources: List[Dict[str, Any]],
+        search_query: str,
+    ) -> Tuple[str, List[str], float, str]:
+        """
+        推断式反思 - v7.185/v7.186 保留
+
+        不只是评估结果，而是：
+        1. 批判性分析搜索结果
+        2. 从间接信息中推断洞察
+        3. 判断下一步方向
+
+        返回: (reflection, useful_info, completion_delta, new_status)
+        """
+        # 提取搜索结果摘要
+        source_summaries = []
+        for s in round_sources[:5]:
+            title = s.get("title", "")[:50]
+            content = s.get("content", "")[:150]
+            source_summaries.append(f"【{title}】\n{content}")
+
+        sources_text = "\n\n".join(source_summaries) if source_summaries else "未找到相关结果"
+
+        prompt = f"""作为资深设计顾问，请对本轮搜索进行反思复盘。
+
+## 用户问题
+{framework.original_query}
+
+## 本轮搜索目标
+{target_aspect.aspect_name}: {target_aspect.answer_goal}
+
+## 搜索查询
+{search_query}
+
+## 搜索结果
+{sources_text}
+
+## 任务
+请进行深度反思，包括：
+
+1. **直接收获**：搜索结果直接回答了什么？
+2. **间接推断**：虽然没有直接结果，但可以从这些信息推断出什么？
+   （重要！即使结果不完全匹配，也要尝试从中提取有价值的洞察）
+3. **信息缺口**：还缺什么关键信息？
+4. **下一步建议**：接下来应该关注什么？
+
+## 输出格式（JSON）
+```json
+{{
+    "reflection": "你的反思复盘（100-150字，第一人称，包含推断）",
+    "useful_info": ["提取的关键信息点1", "关键信息点2", "推断的洞察3"],
+    "completion_score": 0.6,
+    "status": "partial",
+    "next_suggestion": "下一步建议"
+}}
+```
+
+## 示例（展示推断能力）
+如果搜索"王思聪居家风格"没有直接结果：
+{{
+    "reflection": "搜索结果似乎没有直接展示王思聪的居家设计风格，但我可以从这些片段中推断：他偏好科技产品（可能喜欢智能家居）、有养狗习惯（需要宠物友好设计）、电竞爱好明显（可能需要专业娱乐空间）。这些间接线索对设计方向仍有参考价值...",
+    "useful_info": ["推断：偏好科技产品，智能家居需求高", "推断：有宠物，需要宠物友好设计", "推断：电竞爱好，需要专业娱乐空间"],
+    "completion_score": 0.4,
+    "status": "partial",
+    "next_suggestion": "继续搜索00后富二代的生活方式趋势"
+}}
+
+status可选值：missing（无有用信息）、partial（有部分信息）、complete（信息充分）
+
+只输出JSON。"""
+
+        try:
+            # v7.187: 使用 OpenAI API (via OpenRouter)
+            result = await self._call_llm(prompt, model=self.eval_model, max_tokens=600)
+
+            # v7.200: 使用统一 JSON 解析器
+            data = self._safe_parse_json(result, context="推断式反思")
+            if data is None:
+                raise ValueError("无法解析推断式反思结果")
+
+            reflection = data.get("reflection", "")
+            useful_info = data.get("useful_info", [])
+            completion_score = data.get("completion_score", 0.3)
+            status = data.get("status", "partial")
+
+            logger.info(f" [Ucppt] 第{current_round}轮反思完成")
+            logger.info(f"    {reflection[:60]}...")
+            logger.info(f"    完成度贡献: {completion_score:.0%}")
+
+            return reflection, useful_info, completion_score, status
+
+        except Exception as e:
+            logger.warning(f"️ [Ucppt] 反思失败: {e}")
+            return (
+                f"搜索到{len(round_sources)}条结果，正在分析中...",
+                [],
+                0.2 if round_sources else 0.0,
+                "partial" if round_sources else "missing",
+            )
+
+    async def _generate_phase_checkpoint(
+        self,
+        master_line: SearchMasterLine,
+        framework: SearchFramework,  # v7.235: 修复类型标注，与实际使用一致
+        current_round: int,
+        all_sources: List[Dict[str, Any]],
+    ) -> Optional[Dict[str, Any]]:
+        """
+        生成阶段复盘检查点 - v7.213 新增
+
+        在指定轮次进行阶段性复盘：
+        1. 评估当前阶段完成度
+        2. 检查是否需要触发延展任务
+        3. 生成复盘报告和下一步建议
+
+        返回: checkpoint 事件或 None
+        """
+        logger.info(f" [v7.213] 触发阶段复盘检查点 | round={current_round}")
+
+        # 整理当前任务状态
+        task_summary = []
+        for task in master_line.search_tasks:
+            status_emoji = {"complete": "", "searching": "", "pending": ""}.get(task.status, "")
+            findings_preview = "; ".join(task.actual_findings[:2]) if task.actual_findings else "暂无"
+            task_summary.append(
+                f"{status_emoji} [{task.id}|P{task.priority}|{task.phase}] {task.task[:40]}... → {findings_preview[:60]}"
+            )
+
+        # 整理阶段进度
+        phase_progress = master_line.get_phase_progress()
+        phase_summary = []
+        for phase, progress in phase_progress.items():
+            status_emoji = {"complete": "", "in_progress": "", "pending": ""}.get(progress["status"], "")
+            phase_summary.append(
+                f"{status_emoji} {phase}: {progress['completed']}/{progress['total']} ({progress['percentage']}%)"
+            )
+
+        # 整理探索触发条件
+        triggers_text = "\n".join([f"- {t}" for t in master_line.exploration_triggers])
+
+        prompt = f"""作为搜索协调专家，请对当前搜索进度进行阶段性复盘。
+
+## 用户问题
+{framework.original_query}
+
+## 搜索主线
+- 核心问题：{master_line.core_question}
+- 边界约束：{master_line.boundary}
+- 框架概要：{master_line.framework_summary}
+
+## 当前任务状态（已完成第{current_round}轮搜索）
+{chr(10).join(task_summary)}
+
+## 阶段进度
+{chr(10).join(phase_summary)}
+
+## 探索触发条件
+{triggers_text}
+
+## 已收集信息源数量: {len(all_sources)}
+
+## 复盘任务
+1. 评估当前阶段是否已充分完成
+2. 检查是否有探索触发条件被满足
+3. 决定是否需要补充延展任务
+4. 生成下一步搜索建议
+
+## 输出格式（JSON）
+```json
+{{
+    "checkpoint_summary": "当前进度的一句话总结",
+    "current_phase": "当前所处阶段",
+    "phase_completion": 0.75,
+    "key_findings_so_far": ["已发现的关键信息1", "已发现的关键信息2"],
+    "gaps_identified": ["发现的信息缺口1"],
+    "triggered_conditions": ["被触发的探索条件"],
+    "extension_tasks": [
+        {{
+            "id": "T_EXT1",
+            "task": "延展搜索任务描述",
+            "purpose": "为什么需要这个延展",
+            "priority": 3,
+            "phase": "对比验证",
+            "expected_info": ["期望获取的信息"],
+            "trigger": "触发原因",
+            "reason": "详细理由"
+        }}
+    ],
+    "next_steps_suggestion": "下一步搜索建议",
+    "should_continue": true,
+    "estimated_remaining_rounds": 2
+}}
+```
+
+只输出JSON，不要有其他内容。"""
+
+        try:
+            result = await self._call_llm(prompt, model=self.eval_model, max_tokens=800)
+            data = self._safe_parse_json(result, context="阶段复盘检查点(v7.213)")
+
+            if data is None:
+                logger.warning("️ [v7.213] 解析阶段复盘结果失败")
+                return None
+
+            logger.info(
+                f" [v7.213] 阶段复盘完成 | phase={data.get('current_phase')}, completion={data.get('phase_completion')}, extensions={len(data.get('extension_tasks', []))}"
+            )
+
+            return {
+                "type": "phase_checkpoint",
+                "data": {
+                    "round": current_round,
+                    "checkpoint_summary": data.get("checkpoint_summary", ""),
+                    "current_phase": data.get("current_phase", ""),
+                    "phase_completion": data.get("phase_completion", 0.0),
+                    "key_findings": data.get("key_findings_so_far", []),
+                    "gaps_identified": data.get("gaps_identified", []),
+                    "triggered_conditions": data.get("triggered_conditions", []),
+                    "extension_tasks": data.get("extension_tasks", []),
+                    "next_steps": data.get("next_steps_suggestion", ""),
+                    "should_continue": data.get("should_continue", True),
+                    "estimated_remaining": data.get("estimated_remaining_rounds", 2),
+                    "phase_progress": phase_progress,
+                    "message": f"第{current_round}轮：阶段复盘检查点",
+                },
+            }
+
+        except Exception as e:
+            logger.error(f" [v7.213] 阶段复盘检查点生成失败: {e}")
+            return None
+
+    async def _generate_search_retrospective(
+        self,
+        master_line: SearchMasterLine,
+        framework: AnswerFramework,
+        total_rounds: int,
+        all_sources: List[Dict[str, Any]],
+        rounds: List[SearchRoundState],
+    ) -> Optional[Dict[str, Any]]:
+        """
+        生成搜索历程最终回顾 - v7.213 新增
+
+        在所有搜索完成后，生成一个完整的搜索回顾报告：
+        1. 回顾整个搜索路径
+        2. 总结主线任务完成情况
+        3. 评估延展任务贡献
+        4. 为最终答案生成提供上下文
+
+        返回: retrospective 事件或 None
+        """
+        logger.info(f" [v7.213] 生成搜索历程最终回顾 | rounds={total_rounds}, tasks={len(master_line.search_tasks)}")
+
+        # 整理任务完成情况
+        task_results = []
+        for task in master_line.search_tasks:
+            status_emoji = {"complete": "", "searching": "", "pending": ""}.get(task.status, "")
+            ext_marker = "[延展]" if task.is_extension else ""
+            findings_count = len(task.actual_findings)
+            task_results.append(
+                f"{status_emoji} {ext_marker}[{task.id}|P{task.priority}] {task.task[:50]}... → 发现{findings_count}条信息 (完成度:{task.completion_score:.0%})"
+            )
+
+        # 整理轮次摘要
+        round_summary = []
+        for r in rounds[-6:]:  # 最近6轮
+            round_summary.append(
+                f"R{r.round_number}: {r.target_aspect} | query={r.search_query[:30] if r.search_query else ''}... | Δ={r.completeness_delta:.2%}"
+            )
+
+        # 整理延展日志
+        extension_summary = []
+        for ext in master_line.extension_log:
+            extension_summary.append(f"- {ext.get('task_id')}: {ext.get('reason', '')} (触发:{ext.get('trigger', '')})")
+
+        prompt = f"""作为搜索历程分析专家，请对整个搜索过程进行最终回顾。
+
+## 用户问题
+{framework.original_query}
+
+## 搜索主线信息
+- 核心问题：{master_line.core_question}
+- 边界约束：{master_line.boundary}
+- 框架概要：{master_line.framework_summary}
+
+## 任务完成情况（共{len(master_line.search_tasks)}个任务）
+{chr(10).join(task_results)}
+
+## 搜索轮次摘要（最近{min(6, len(rounds))}轮）
+{chr(10).join(round_summary)}
+
+## 延展任务日志
+{chr(10).join(extension_summary) if extension_summary else "无延展任务"}
+
+## 总体数据
+- 总轮数：{total_rounds}
+- 总信息源：{len(all_sources)}
+- 最终完成度：{framework.overall_completeness:.1%}
+
+## 回顾任务
+1. 回顾搜索路径是否符合预设框架
+2. 评估主线任务和延展任务的贡献
+3. 识别搜索中的关键转折点
+4. 总结对最终答案最有价值的发现
+5. 指出仍存在的知识盲区
+
+## 输出格式（JSON）
+```json
+{{
+    "retrospective_narrative": "一段自然语言的搜索历程回顾（150字内）",
+    "framework_adherence": 0.85,
+    "key_discoveries": ["最重要的发现1", "最重要的发现2", "最重要的发现3"],
+    "turning_points": ["关键转折点1"],
+    "mainline_contribution": "主线任务贡献总结",
+    "extension_contribution": "延展任务贡献总结",
+    "knowledge_gaps": ["仍存在的知识盲区"],
+    "answer_preparation_notes": "为生成最终答案的准备说明",
+    "search_efficiency_score": 0.8,
+    "overall_assessment": "整体评价（一句话）"
+}}
+```
+
+只输出JSON，不要有其他内容。"""
+
+        try:
+            result = await self._call_llm(prompt, model=self.eval_model, max_tokens=800)
+            data = self._safe_parse_json(result, context="搜索历程回顾(v7.213)")
+
+            if data is None:
+                logger.warning("️ [v7.213] 解析搜索历程回顾结果失败")
+                return None
+
+            logger.info(
+                f" [v7.213] 搜索历程回顾完成 | adherence={data.get('framework_adherence')}, efficiency={data.get('search_efficiency_score')}"
+            )
+
+            return {
+                "type": "search_retrospective",
+                "data": {
+                    "total_rounds": total_rounds,
+                    "total_sources": len(all_sources),
+                    "total_tasks": len(master_line.search_tasks),
+                    "completed_tasks": sum(1 for t in master_line.search_tasks if t.status == "complete"),
+                    "extension_tasks_count": sum(1 for t in master_line.search_tasks if t.is_extension),
+                    "retrospective_narrative": data.get("retrospective_narrative", ""),
+                    "framework_adherence": data.get("framework_adherence", 0.0),
+                    "key_discoveries": data.get("key_discoveries", []),
+                    "turning_points": data.get("turning_points", []),
+                    "mainline_contribution": data.get("mainline_contribution", ""),
+                    "extension_contribution": data.get("extension_contribution", ""),
+                    "knowledge_gaps": data.get("knowledge_gaps", []),
+                    "answer_preparation_notes": data.get("answer_preparation_notes", ""),
+                    "search_efficiency_score": data.get("search_efficiency_score", 0.0),
+                    "overall_assessment": data.get("overall_assessment", ""),
+                    "extension_log": master_line.extension_log,
+                    "final_completeness": framework.overall_completeness,
+                    "message": "搜索历程最终回顾",
+                },
+            }
+
+        except Exception as e:
+            logger.error(f" [v7.213] 搜索历程回顾生成失败: {e}")
+            return None
+
+    async def _can_answer_semantically(
+        self,
+        framework: Union[AnswerFramework, SearchFramework],
+        current_round: int,
+    ) -> Tuple[bool, str]:
+        """
+        语义完成度判断 - v7.186 增强版
+
+        不是看数值，而是问LLM："基于当前信息，能否完整回答用户问题？"
+
+        返回: (can_answer, reason)
+        """
+        # 整理当前知识状态 - v7.229: 兼容 SearchFramework 和 AnswerFramework
+        knowledge_summary = []
+        aspects = getattr(framework, "targets", None) or getattr(framework, "key_aspects", [])
+        for aspect in aspects:
+            status_emoji = {"complete": "", "partial": "", "missing": ""}.get(aspect.status, "")
+            info_preview = "; ".join(aspect.collected_info[:2]) if aspect.collected_info else "暂无"
+            aspect_name = getattr(aspect, "name", None) or getattr(aspect, "aspect_name", "")
+            knowledge_summary.append(f"{status_emoji} {aspect_name}: {info_preview[:100]}")
+
+        prompt = f"""作为资深顾问，请判断是否有足够信息回答用户问题。
+
+## 用户问题
+{framework.original_query}
+
+## 回答目标
+{framework.answer_goal}
+
+## 当前已收集的信息
+{chr(10).join(knowledge_summary)}
+
+## 已搜索 {current_round} 轮
+
+## 判断标准
+1. 能否给出一个让用户满意的、有实质内容的回答？
+2. 核心问题是否已经有足够的信息支撑？
+3. 缺失的信息是"必须有"还是"有了更好"？
+
+## 输出格式（JSON）
+```json
+{{
+    "can_answer": true,
+    "confidence": 0.8,
+    "reason": "综合判断理由（一句话）",
+    "critical_missing": ["必须补充的关键信息"],
+    "nice_to_have": ["可选补充的信息"]
+}}
+```
+
+只输出JSON。"""
+
+        try:
+            # v7.187: 使用 OpenAI API (via OpenRouter)
+            result = await self._call_llm(prompt, model=self.eval_model, max_tokens=300)
+
+            # v7.200: 使用统一 JSON 解析器
+            data = self._safe_parse_json(result, context="语义完成度判断")
+            if data is None:
+                raise ValueError("无法解析语义完成度判断结果")
+
+            can_answer = data.get("can_answer", False)
+            confidence = data.get("confidence", 0.5)
+            reason = data.get("reason", "")
+            critical_missing = data.get("critical_missing", [])
+
+            # 如果置信度较高且无关键缺失，认为可以回答
+            if can_answer and confidence >= 0.7 and len(critical_missing) == 0:
+                logger.info(f" [Ucppt] 语义判断：可以回答 | {reason}")
+                return True, reason
+            else:
+                logger.info(f" [Ucppt] 语义判断：继续搜索 | 缺失: {critical_missing}")
+                return False, f"还缺: {', '.join(critical_missing)}" if critical_missing else reason
+
+        except Exception as e:
+            logger.warning(f"️ [Ucppt] 语义判断失败: {e}")
+            # 降级到数值判断
+            return framework.overall_completeness >= self.completeness_threshold, "基于数值评估"
+
+    # ==================== 搜索查询生成 ====================
+
+    async def _generate_search_query(
+        self,
+        framework: AnswerFramework,
+        target_aspect: KeyAspect,
+        existing_sources: List[Dict[str, Any]],
+    ) -> str:
+        """
+        生成搜索查询 - v7.214 智能关键词扩展
+
+        新增功能：
+        1. 基于用户画像的个性化关键词
+        2. 上下文相关的语义扩展
+        3. 动态查询多样化策略
+        4. 质量驱动的查询优化
+        """
+        # 如果有预设的搜索提示，第一次使用它
+        if target_aspect.search_query and target_aspect.last_searched_round == 0:
+            base_query = f"{framework.original_query} {target_aspect.search_query}"
+        else:
+            base_query = framework.original_query
+
+        # v7.214: 智能关键词扩展
+        enhanced_query = await self._enhance_query_with_context(base_query, target_aspect, existing_sources, framework)
+
+        return enhanced_query
+
+    async def _enhance_query_with_context(
+        self,
+        base_query: str,
+        target_aspect: KeyAspect,
+        existing_sources: List[Dict[str, Any]],
+        framework: AnswerFramework,
+    ) -> str:
+        """
+        基于上下文智能增强查询 - v7.214
+
+        策略：
+        1. 用户画像增强：基于地理位置、身份特征添加相关关键词
+        2. 语义扩展：基于目标信息面进行专业术语扩展
+        3. 多样化策略：避免重复搜索相同关键词
+        4. 质量优化：基于之前搜索结果的质量调整策略
+        """
+        try:
+            # 构建上下文信息
+            context_info = self._build_query_context(target_aspect, existing_sources, framework)
+
+            # 构建智能扩展提示
+            prompt = f"""作为搜索专家，请对查询进行智能优化和关键词扩展。
+
+## 基础查询
+{base_query}
+
+## 搜索目标
+- 信息面：{target_aspect.aspect_name}
+- 目标：{target_aspect.answer_goal}
+- 已搜索轮次：{target_aspect.last_searched_round}
+
+## 上下文信息
+{context_info}
+
+## 优化策略
+1. **用户个性化**：根据用户特征添加相关限定词
+2. **专业术语扩展**：添加领域相关的专业关键词
+3. **地理本土化**：结合地理位置添加本地化关键词
+4. **多样化策略**：{self._get_diversification_strategy(target_aspect.last_searched_round)}
+
+## 输出要求
+生成 1-2 个优化后的中文搜索查询（每个15-40字）：
+
+```json
+{{
+    "primary_query": "主要优化查询",
+    "alternative_query": "备选查询（可选）",
+    "enhancement_strategy": "使用的优化策略说明",
+    "expected_improvements": ["预期改进点1", "预期改进点2"]
+}}
+```"""
+
+            # 调用 LLM 进行智能扩展
+            result = await self.llm_analysis_engine._llm_call(
+                prompt, self.llm_analysis_engine.thinking_model, max_tokens=500
+            )
+
+            if result:
+                # 解析结果
+                enhanced_data = self._safe_parse_json(result, "查询增强")
+                if enhanced_data:
+                    primary_query = enhanced_data.get("primary_query", base_query)
+                    alternative_query = enhanced_data.get("alternative_query", "")
+                    strategy = enhanced_data.get("enhancement_strategy", "")
+
+                    logger.info(f" [查询增强 v7.214] 策略: {strategy}")
+
+                    # 根据搜索轮次选择查询
+                    if target_aspect.last_searched_round % 2 == 0:
+                        selected_query = primary_query
+                    else:
+                        selected_query = alternative_query or primary_query
+
+                    # 记录查询历史避免重复
+                    self._used_queries.append(selected_query)
+                    return selected_query
+
+            # 降级处理：使用基础多样化策略
+            return self._apply_basic_diversification(base_query, target_aspect)
+
+        except Exception as e:
+            logger.warning(f"️ [查询增强] 执行失败: {e}")
+            return self._apply_basic_diversification(base_query, target_aspect)
+
+    def _build_query_context(
+        self, target_aspect: KeyAspect, existing_sources: List[Dict[str, Any]], framework: AnswerFramework
+    ) -> str:
+        """构建查询增强的上下文信息"""
+        context_parts = []
+
+        # 用户画像信息（如果有结构化分析结果）
+        if self.analysis_session and self.analysis_session.l0_result:
+            user_profile = self.analysis_session.l0_result.user_profile
+            context_parts.append(f"**用户特征**: {user_profile.demographics}")
+
+            implicit_needs = self.analysis_session.l0_result.implicit_needs
+            if implicit_needs:
+                context_parts.append(f"**隐性需求**: {', '.join(implicit_needs[:3])}")
+
+        # 已收集信息质量
+        if target_aspect.collected_info:
+            context_parts.append(f"**已有信息**: {len(target_aspect.collected_info)} 条")
+            context_parts.append(f"**信息预览**: {target_aspect.collected_info[-1][:100]}...")
+
+        # 搜索历史反馈
+        search_quality = self._assess_previous_search_quality(existing_sources)
+        context_parts.append(f"**前轮质量**: {search_quality}")
+
+        return "\n".join(context_parts) if context_parts else "无特殊上下文"
+
+    def _get_diversification_strategy(self, round_number: int) -> str:
+        """获取多样化策略说明"""
+        strategies = ["使用同义词和相关概念替换", "添加具体的案例或实例关键词", "使用更专业或更通俗的表达方式", "从不同角度重新组织关键词", "添加时间、地点等限定词"]
+        return strategies[round_number % len(strategies)]
+
+    def _assess_previous_search_quality(self, sources: List[Dict[str, Any]]) -> str:
+        """评估之前搜索结果的质量"""
+        if not sources:
+            return "首次搜索"
+
+        # 简单的质量评估
+        avg_content_length = sum(len(s.get("content", "")) for s in sources) / len(sources)
+        unique_domains = len(set(s.get("siteName", "") for s in sources))
+
+        if avg_content_length > 500 and unique_domains >= 3:
+            return "高质量，需更精准"
+        elif avg_content_length > 200:
+            return "中等质量，可扩展"
+        else:
+            return "质量较低，需换角度"
+
+    def _apply_basic_diversification(self, base_query: str, target_aspect: KeyAspect) -> str:
+        """应用基础多样化策略"""
+        round_number = target_aspect.last_searched_round
+
+        # 策略1: 添加不同的修饰词
+        modifiers = ["最新", "详细", "专业", "深度", "案例", "分析", "研究", "报告", "趋势", "实践"]
+        modifier = modifiers[round_number % len(modifiers)]
+
+        # 策略2: 重组查询结构
+        # 提取核心关键词（前20字）
+        core_keywords = base_query[:20]
+        aspect_keywords = target_aspect.aspect_name
+
+        if round_number % 3 == 0:
+            return f"{modifier} {core_keywords} {aspect_keywords}"
+        elif round_number % 3 == 1:
+            return f"{aspect_keywords} {core_keywords} {modifier}"
+        else:
+            return f"{core_keywords} {modifier} {aspect_keywords}"
+
+    # ==================== 搜索执行 ====================
+
+    async def _execute_search(self, query: str, retry_count: int = 2) -> List[Dict[str, Any]]:
+        """
+        执行搜索 - v7.214 自适应扩展版
+
+        新增功能：
+        1. 智能查询扩展：根据初始结果质量动态调整
+        2. 多源并行搜索：根据查询类型选择合适的搜索源
+        3. 质量驱动的递增搜索：结果不足时自动扩展
+        4. 实时结果评估：边搜索边评估，达标即停
+        """
+        logger.info(f" [自适应搜索 v7.214] 开始执行: {query[:50]}...")
+
+        all_sources: List[Dict[str, Any]] = []
+        search_session = {"original_query": query, "attempts": 0, "quality_progression": [], "expansion_strategies": []}
+
+        # 第一阶段：基础搜索
+        initial_sources = await self._execute_basic_search(query, retry_count)
+        all_sources.extend(initial_sources)
+        search_session["attempts"] += 1
+
+        if not initial_sources:
+            logger.warning("️ [自适应搜索] 基础搜索无结果，尝试查询扩展")
+            expanded_queries = await self._generate_expanded_queries(query)
+
+            for expanded_query in expanded_queries[:2]:  # 限制扩展次数
+                expanded_sources = await self._execute_basic_search(expanded_query, 1)
+                all_sources.extend(expanded_sources)
+                search_session["attempts"] += 1
+                search_session["expansion_strategies"].append(f"查询扩展: {expanded_query}")
+
+                if expanded_sources:
+                    break
+
+        if not all_sources:
+            logger.error(" [自适应搜索] 所有搜索策略均无结果")
+            return []
+
+        # 第二阶段：质量评估和自适应扩展
+        current_quality = await self._assess_search_quality(all_sources, query)
+        search_session["quality_progression"].append(current_quality)
+
+        logger.info(f" [质量评估] 初始质量: {current_quality['overall_score']:.1%}")
+
+        # 如果质量不足，进行自适应扩展
+        if current_quality["overall_score"] < 0.6 and search_session["attempts"] < 3:
+            expansion_sources = await self._adaptive_search_expansion(
+                query, all_sources, current_quality, search_session
+            )
+            all_sources.extend(expansion_sources)
+
+        # 第三阶段：最终质量控制和结果优化
+        final_results = await self.enhanced_quality_assessment(all_sources, query, "adaptive_search")
+
+        optimized_sources = final_results.get("filtered_results", all_sources)
+
+        logger.info(
+            f" [自适应搜索完成] "
+            f"原始: {len(all_sources)} → 优化: {len(optimized_sources)} | "
+            f"尝试次数: {search_session['attempts']} | "
+            f"最终质量: {final_results.get('quality_metrics', {}).get('total_score', 0):.1%}"
+        )
+
+        return optimized_sources[:8]  # 限制返回数量
+
+    async def _execute_basic_search(self, query: str, retry_count: int = 2) -> List[Dict[str, Any]]:
+        """执行基础搜索（原有逻辑）"""
+        all_sources: List[Dict[str, Any]] = []
+
+        for attempt in range(retry_count + 1):
+            try:
+                if not self.bocha_service:
+                    logger.warning("️ [Ucppt] Bocha服务未初始化")
+                    break
+
+                logger.debug(f" [Ucppt] Bocha搜索 | query={query[:50]}...")
+
+                # v7.233: Ucppt模式禁用图片搜索，避免不必要的API调用
+                result = await self.bocha_service.search(
+                    query=query,
+                    count=10,
+                    freshness="oneYear",
+                    include_images=False,  # 禁用图片搜索
+                )
+
+                #  v7.237: 应用搜索质量过滤（方案B+C）
+                sources = []
+                for s in result.sources:
+                    source = {
+                        "title": s.title,
+                        "url": s.url,
+                        "content": s.snippet,  # 初始为 snippet
+                        "siteName": s.site_name,
+                        "_source_type": "bocha",
+                    }
+
+                    # 质量过滤
+                    if self._should_include_source(source, query):
+                        sources.append(source)
+
+                logger.info(f" [Ucppt] Bocha搜索成功 | 原始结果={len(result.sources)} | 过滤后={len(sources)}")
+                all_sources.extend(sources)
+                break
+
+            except Exception as e:
+                logger.warning(f"️ [Ucppt] Bocha搜索失败 (attempt {attempt+1}): {e}")
+                if attempt < retry_count:
+                    await asyncio.sleep(1)
+                continue
+
+        # v7.199: 学术类查询自动调用 OpenAlex
+        if self._is_academic_query(query):
+            openalex_sources = await self._search_openalex(query)
+            all_sources.extend(openalex_sources)
+
+        return all_sources
+
+    async def _generate_expanded_queries(self, original_query: str) -> List[str]:
+        """生成扩展查询 - v7.214"""
+        try:
+            prompt = f"""为搜索查询生成3个有效的扩展版本：
+
+原始查询：{original_query}
+
+扩展策略：
+1. 同义词替换：使用相关概念替换关键词
+2. 具体化：添加更具体的限定词
+3. 角度转换：从不同角度重新组织查询
+
+输出JSON格式：
+```json
+{{
+    "expansions": [
+        "扩展查询1",
+        "扩展查询2",
+        "扩展查询3"
+    ]
+}}
+```"""
+
+            result = await self.llm_analysis_engine._llm_call(
+                prompt, self.llm_analysis_engine.thinking_model, max_tokens=300
+            )
+
+            if result:
+                data = self._safe_parse_json(result, "查询扩展")
+                if data and "expansions" in data:
+                    return data["expansions"]
+
+        except Exception as e:
+            logger.warning(f"️ [查询扩展] 生成失败: {e}")
+
+        # 降级处理：简单的关键词变换
+        return [f"详细 {original_query}", f"{original_query} 案例", f"{original_query} 方法"]
+
+    async def _assess_search_quality(self, sources: List[Dict[str, Any]], query: str) -> Dict[str, Any]:
+        """评估搜索结果质量 - v7.214"""
+        if not sources:
+            return {
+                "overall_score": 0.0,
+                "relevance_score": 0.0,
+                "diversity_score": 0.0,
+                "completeness_score": 0.0,
+                "issues": ["无搜索结果"],
+            }
+
+        # 1. 相关性评估
+        relevance_scores = []
+        for source in sources:
+            content = source.get("content", "")
+            title = source.get("title", "")
+            combined_text = f"{title} {content}".lower()
+            query_lower = query.lower()
+
+            # 改进的关键词匹配评分
+            # 方法1: 直接子串匹配（适用于中文短语）
+            substring_match = 0
+            if query_lower in combined_text:
+                substring_match = 1.0
+            elif len(query_lower) > 3:
+                # 查找查询词的部分匹配
+                partial_matches = sum(1 for i in range(len(query_lower) - 2) if query_lower[i : i + 3] in combined_text)
+                substring_match = min(partial_matches / max(1, len(query_lower) - 2), 1.0)
+
+            # 方法2: 词汇重叠评分
+            query_words = set(query_lower.split())
+            text_words = set(combined_text.split())
+            word_overlap = 0
+            if query_words:
+                word_overlap = len(query_words & text_words) / len(query_words)
+
+            # 综合相关性分数
+            relevance_score = max(substring_match, word_overlap)
+            relevance_scores.append(relevance_score)
+
+        avg_relevance = sum(relevance_scores) / len(relevance_scores) if relevance_scores else 0
+
+        # 2. 多样性评估
+        unique_domains = len(set(s.get("siteName", "") for s in sources))
+        diversity_score = min(unique_domains / 5, 1.0)  # 理想情况5个不同域名
+
+        # 3. 完整性评估
+        avg_content_length = sum(len(s.get("content", "")) for s in sources) / len(sources)
+        completeness_score = min(avg_content_length / 200, 1.0)  # 理想情况200字以上
+
+        # 综合评分
+        overall_score = avg_relevance * 0.5 + diversity_score * 0.3 + completeness_score * 0.2
+
+        # 识别问题
+        issues = []
+        if avg_relevance < 0.3:
+            issues.append("相关性不足")
+        if unique_domains < 3:
+            issues.append("来源单一")
+        if avg_content_length < 100:
+            issues.append("内容过短")
+
+        return {
+            "overall_score": overall_score,
+            "relevance_score": avg_relevance,
+            "diversity_score": diversity_score,
+            "completeness_score": completeness_score,
+            "issues": issues,
+        }
+
+    async def _adaptive_search_expansion(
+        self,
+        original_query: str,
+        existing_sources: List[Dict[str, Any]],
+        quality_assessment: Dict[str, Any],
+        search_session: Dict[str, Any],
+    ) -> List[Dict[str, Any]]:
+        """自适应搜索扩展 - v7.214"""
+        logger.info(" [自适应扩展] 基于质量评估进行搜索扩展")
+
+        expansion_sources = []
+        issues = quality_assessment.get("issues", [])
+
+        # 根据具体问题选择扩展策略
+        if "相关性不足" in issues:
+            # 策略1：语义相关扩展
+            semantic_queries = await self._generate_semantic_variants(original_query)
+            for query_variant in semantic_queries[:2]:
+                sources = await self._execute_basic_search(query_variant, 1)
+                expansion_sources.extend(sources)
+                search_session["expansion_strategies"].append(f"语义扩展: {query_variant}")
+
+        if "来源单一" in issues:
+            # 策略2：多源搜索
+            if self._is_academic_query(original_query):
+                academic_sources = await self._search_openalex(original_query)
+                expansion_sources.extend(academic_sources)
+                search_session["expansion_strategies"].append("学术源扩展")
+
+        if "内容过短" in issues:
+            # 策略3：深度内容获取（对现有结果进行内容提取）
+            enhanced_sources = await self._enhance_content_extraction(existing_sources)
+            expansion_sources.extend(enhanced_sources)
+            search_session["expansion_strategies"].append("内容深度提取")
+
+        logger.info(f" [自适应扩展] 新增 {len(expansion_sources)} 条结果")
+        return expansion_sources
+
+    async def _generate_semantic_variants(self, query: str) -> List[str]:
+        """生成语义变体查询"""
+        try:
+            # 基于用户画像和上下文生成语义相关的查询变体
+            if self.analysis_session and self.analysis_session.framework_result:
+                l3_tensions = self.analysis_session.framework_result.l3_tensions
+                l4_jtbd = self.analysis_session.framework_result.l4_jtbd
+
+                context_prompt = f"""
+基于以下上下文为查询生成语义相关的变体：
+
+原查询：{query}
+核心张力：{l3_tensions}
+任务目标：{l4_jtbd}
+
+生成3个从不同语义角度的查询变体：
+1. 基于核心张力的查询
+2. 基于任务目标的查询
+3. 基于相关概念的查询
+
+JSON格式输出：
+```json
+{{
+    "variants": ["变体1", "变体2", "变体3"]
+}}
+```"""
+
+                result = await self.llm_analysis_engine._llm_call(
+                    context_prompt, self.llm_analysis_engine.thinking_model, max_tokens=200
+                )
+
+                if result:
+                    data = self._safe_parse_json(result, "语义变体生成")
+                    if data and "variants" in data:
+                        return data["variants"]
+
+        except Exception as e:
+            logger.warning(f"️ [语义变体] 生成失败: {e}")
+
+        # 降级处理
+        return [f"如何 {query}", f"{query} 解决方案", f"{query} 最佳实践"]
+
+    async def _enhance_content_extraction(self, sources: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """增强内容提取 - 对现有源进行深度内容获取"""
+        enhanced_sources = []
+
+        for source in sources[:3]:  # 限制处理数量
+            if len(source.get("content", "")) > 300:
+                continue  # 已经有足够内容
+
+            try:
+                # 这里可以集成 Playwright 或其他工具进行深度内容提取
+                # 暂时用模拟的方式
+                enhanced_content = await self._extract_detailed_content(source.get("url", ""))
+                if enhanced_content:
+                    enhanced_source = source.copy()
+                    enhanced_source["content"] = enhanced_content
+                    enhanced_source["_enhanced"] = True
+                    enhanced_sources.append(enhanced_source)
+
+            except Exception as e:
+                logger.debug(f"️ [内容提取] URL {source.get('url', '')} 提取失败: {e}")
+                continue
+
+        return enhanced_sources
+
+    async def _extract_detailed_content(self, url: str) -> Optional[str]:
+        """详细内容提取（模拟实现）"""
+        # 这里应该集成实际的内容提取工具
+        # 暂时返回 None，表示功能占位
+        return None
+
+    def _is_academic_query(self, query: str = None) -> bool:
+        """判断是否为学术查询 - v7.214 增强"""
+        if query is None and hasattr(self, "_query_classification"):
+            return self._query_classification and self._query_classification.query_type.value == "academic"
+
+        if query:
+            academic_keywords = ["研究", "论文", "学术", "理论", "模型", "算法", "实验", "数据", "分析", "方法论", "文献"]
+            return any(keyword in query for keyword in academic_keywords)
+
+        return False
+
+    async def _search_openalex(self, query: str) -> List[Dict[str, Any]]:
+        """v7.199: 调用 OpenAlex 学术搜索"""
+        if not self.openalex_tool:
+            return []
+
+        try:
+            logger.info(f" [Ucppt v7.199] OpenAlex 学术搜索 | query={query[:50]}...")
+
+            result = self.openalex_tool.search(
+                query=query,
+                max_results=5,
+                from_year=2020,  # 近5年
+            )
+
+            # OpenAlex 返回格式: {"status": "success", "results": [...]}
+            papers = result.get("results", [])
+            sources = []
+
+            for paper in papers:
+                sources.append(
+                    {
+                        "title": paper.get("title", ""),
+                        "url": paper.get("url", ""),
+                        "content": paper.get("abstract", ""),
+                        "siteName": paper.get("venue", "OpenAlex"),
+                        "_source_type": "openalex",
+                        "_cited_by": paper.get("cited_by_count", 0),
+                        "_year": paper.get("publication_year"),
+                    }
+                )
+
+            logger.info(f" [Ucppt v7.199] OpenAlex 搜索成功 | 结果数={len(sources)}")
+            return sources
+
+        except Exception as e:
+            logger.warning(f"️ [Ucppt v7.199] OpenAlex 搜索失败: {e}")
+            return []
+
+    async def _enhance_sources_with_deep_content(
+        self,
+        sources: List[Dict[str, Any]],
+    ) -> List[Dict[str, Any]]:
+        """
+        v7.195: 对搜索结果进行深度内容提取
+
+        策略：
+        - 只对 Top-N 个来源进行深度提取（避免延迟过长）
+        - 使用混合方案：Trafilatura(静态) + Playwright(动态)
+        - 提取失败则保留原 snippet
+        """
+        if not get_web_content_extractor:
+            return sources
+
+        extractor = get_web_content_extractor()
+
+        # 只提取前 N 个
+        urls_to_extract = [s.get("url") for s in sources[:DEEP_CONTENT_TOP_N] if s.get("url")]
+
+        if not urls_to_extract:
+            return sources
+
+        logger.info(f" [Ucppt v7.195] 深度内容提取 | URLs={len(urls_to_extract)}")
+
+        try:
+            # 批量提取
+            extraction_results = await extractor.extract_batch(
+                urls=urls_to_extract,
+                max_concurrent=3,
+                max_urls=DEEP_CONTENT_TOP_N,
+            )
+
+            # 更新来源内容
+            enhanced_count = 0
+            for source in sources:
+                url = source.get("url")
+                if url and url in extraction_results:
+                    result = extraction_results[url]
+                    if result.content and len(result.content) > len(source.get("content", "")):
+                        source["content"] = result.content
+                        source["_extraction_method"] = result.method.value if result.method else "unknown"
+                        enhanced_count += 1
+
+            logger.info(f" [Ucppt v7.195] 深度提取完成 | 增强={enhanced_count}/{len(urls_to_extract)}")
+
+        except Exception as e:
+            logger.warning(f"️ [Ucppt v7.195] 深度提取异常: {e}")
+
+        return sources
+
+    # ==================== v7.212: 搜索结果质量筛选 ====================
+
+    def _calculate_source_quality_score(
+        self,
+        source: Dict[str, Any],
+        query: str,
+        whitelist_domains: set = None,
+        graylist_domains: set = None,
+    ) -> float:
+        """
+        v7.227: 计算单条搜索结果的质量评分 (0-1)
+
+        评分维度：
+        - 内容长度权重 (0.15)：内容 >50 字得分高（降低要求）
+        - 关键词匹配 (0.35)：与查询关键词的重叠度（支持中文）
+        - 来源可信度 (0.3)：白名单站点加分，灰名单减分
+        - 内容完整性 (0.2)：是否有标题、摘要、正文
+        """
+        score = 0.0
+
+        content = source.get("content", "") or ""
+        title = source.get("title", "") or ""
+        url = source.get("url", "") or ""
+        site_name = source.get("siteName", "") or ""
+
+        # 1. 内容长度权重 (0.15) - v7.227: 降低阈值以适应 snippet
+        content_len = len(content)
+        if content_len >= 200:
+            score += 0.15
+        elif content_len >= 100:
+            score += 0.12
+        elif content_len >= 50:
+            score += 0.1
+        elif content_len >= 20:
+            score += 0.08
+        elif content_len > 0:
+            score += 0.05  # 只要有内容就给基础分
+
+        # 2. 关键词匹配 (0.35) - v7.227: 支持中文字符匹配
+        # 提取查询中的中文词汇和英文单词
+        import re
+
+        # 中文词（2-4字）和英文单词
+        query_words = re.findall(r"[\u4e00-\u9fff]{2,4}|[a-zA-Z]+", query.lower())
+        content_lower = (content + " " + title).lower()
+
+        if query_words:
+            matched = sum(1 for word in query_words if word in content_lower)
+            # v7.471: 长查询（>5词）只需匹配 40% 即可得满分，避免过度过滤
+            if len(query_words) > 5:
+                keyword_ratio = min(1.0, matched / (len(query_words) * 0.4))
+            else:
+                keyword_ratio = matched / len(query_words)
+            score += keyword_ratio * 0.35
+        else:
+            # 如果没有提取到词汇，检查整个查询字符串的子串匹配
+            if any(c in content_lower for c in query[:10]):
+                score += 0.15
+
+        # 3. 来源可信度 (0.3)
+        try:
+            from urllib.parse import urlparse
+
+            domain = urlparse(url).netloc.lower()
+        except Exception:
+            domain = ""
+
+        # 白名单域名加分
+        if whitelist_domains and any(wd in domain for wd in whitelist_domains):
+            score += 0.3
+        # 灰名单域名减分
+        elif graylist_domains and any(gd in domain for gd in graylist_domains):
+            score += 0.1  # 降低分数但不完全排除
+        # 学术来源加分
+        elif source.get("_source_type") == "openalex":
+            score += 0.28
+        # 普通来源
+        else:
+            # 有明确站点名称
+            if site_name and len(site_name) > 2:
+                score += 0.2
+            else:
+                score += 0.15
+
+        # 4. 内容完整性 (0.2)
+        completeness = 0.0
+        if title and len(title) > 5:
+            completeness += 0.07
+        if content and len(content) > 50:
+            completeness += 0.08
+        if url and url.startswith("http"):
+            completeness += 0.05
+        score += completeness
+
+        return min(score, 1.0)
+
+    def _filter_sources_by_quality(
+        self,
+        sources: List[Dict[str, Any]],
+        query: str,
+        threshold: float = None,
+    ) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+        """
+        v7.212: 根据质量评分筛选搜索结果
+
+        Args:
+            sources: 原始搜索结果
+            query: 搜索查询
+            threshold: 质量阈值（默认使用配置）
+
+        Returns:
+            (通过筛选的结果, 被过滤的结果)
+        """
+        if threshold is None:
+            threshold = SEARCH_QUALITY_THRESHOLD
+
+        # 获取白/灰名单域名
+        whitelist_domains = self._get_whitelist_domains()
+        graylist_domains = self._get_graylist_domains()
+
+        passed = []
+        filtered = []
+
+        for source in sources:
+            score = self._calculate_source_quality_score(source, query, whitelist_domains, graylist_domains)
+            source["_quality_score"] = score  # 添加评分字段
+
+            if score >= threshold:
+                passed.append(source)
+            else:
+                filtered.append(source)
+                # v7.227: 诊断日志 - 显示被过滤的原因
+                logger.debug(f" [v7.227] 过滤: score={score:.2f} < {threshold} | {source.get('title', '无标题')[:30]}")
+
+        # 按评分排序
+        passed.sort(key=lambda x: x.get("_quality_score", 0), reverse=True)
+
+        # v7.227: 增强日志，显示通过和过滤的详情
+        if sources:
+            scores = [s.get("_quality_score", 0) for s in sources]
+            logger.info(
+                f" [v7.227] 质量筛选: {len(sources)} → {len(passed)} | 阈值={threshold} | 评分范围=[{min(scores):.2f}, {max(scores):.2f}]"
+            )
+
+        return passed, filtered
+
+    def _get_whitelist_domains(self) -> set:
+        """获取白名单域名集合"""
+        try:
+            from intelligent_project_analyzer.services.search_filter_manager import get_filter_manager
+
+            manager = get_filter_manager()
+            if manager:
+                whitelist = manager.get_whitelist()
+                return {item.get("domain", "") for item in whitelist if item.get("domain")}
+        except Exception:
+            pass
+        return set()
+
+    def _get_graylist_domains(self) -> set:
+        """获取灰名单域名集合"""
+        try:
+            from intelligent_project_analyzer.services.search_filter_manager import get_filter_manager
+
+            manager = get_filter_manager()
+            if manager:
+                graylist = manager.get_graylist()
+                return {item.get("domain", "") for item in graylist if item.get("domain")}
+        except Exception:
+            pass
+        return set()
+
+    def _generate_supplement_query(
+        self,
+        original_query: str,
+        attempt: int,
+        target_aspect: Optional[Any] = None,
+        is_empty_retry: bool = False,
+    ) -> str:
+        """
+        v7.227: 增强版补充搜索查询生成
+
+        策略：
+        - 普通补充：添加限定词
+        - 空结果重试：简化查询、提取核心关键词、尝试不同表述
+        """
+        import re
+
+        if is_empty_retry:
+            # v7.227: 空结果时的激进简化策略
+            simplify_strategies = [
+                # 策略1: 提取前2-3个中文词组
+                lambda q: " ".join(re.findall(r"[\u4e00-\u9fff]{2,4}", q)[:3]),
+                # 策略2: 只保留核心名词
+                lambda q: " ".join(re.findall(r"[\u4e00-\u9fff]{2,4}", q)[:2]) + " 是什么",
+                # 策略3: 添加通用后缀
+                lambda q: " ".join(re.findall(r"[\u4e00-\u9fff]{2,4}", q)[:2]) + " 介绍",
+                # 策略4: 使用信息面名称
+                lambda q: getattr(target_aspect, "aspect_name", "") if target_aspect else q[:10],
+                # 策略5: 极简核心词
+                lambda q: re.findall(r"[\u4e00-\u9fff]{2,4}", q)[0]
+                if re.findall(r"[\u4e00-\u9fff]{2,4}", q)
+                else q[:8],
+            ]
+
+            if attempt < len(simplify_strategies):
+                try:
+                    simplified = simplify_strategies[attempt](original_query)
+                    if simplified and len(simplified) >= 2:
+                        logger.info(f" [v7.227] 空结果重试策略 #{attempt+1}: '{original_query[:20]}' → '{simplified}'")
+                        return simplified
+                except Exception:
+                    pass
+
+            # 降级：使用信息面名称
+            if target_aspect and hasattr(target_aspect, "aspect_name"):
+                return target_aspect.aspect_name
+            return original_query[:15]
+
+        # 普通补充搜索
+        suffixes = [
+            "案例分析 专业解读",
+            "深度研究 专家观点",
+            "最新资讯 权威媒体",
+            "定义 概念 解释",
+            "教程 指南 入门",
+        ]
+
+        if attempt < len(suffixes):
+            supplement = f"{original_query} {suffixes[attempt]}"
+        else:
+            supplement = f"{original_query} 详细解析"
+
+        # 如果有目标信息面，加入更具体的上下文
+        if target_aspect and hasattr(target_aspect, "aspect_name"):
+            supplement = f"{supplement} {target_aspect.aspect_name}"
+
+        return supplement
+
+    def _generate_query_variants(
+        self,
+        query: str,
+        target_aspect: Optional[Any] = None,
+        search_keywords: List[str] = None,
+    ) -> List[str]:
+        """
+        v7.228: 生成查询变体用于并行搜索
+
+        策略：
+        1. 原始查询
+        2. search_keywords 组合版（v7.521 新增）
+        3. 核心词提取版
+        4. 信息面聚焦版
+
+        v7.233: 增强空查询保护
+        v7.521: 利用 search_keywords 生成高质量变体
+        """
+        import re
+
+        # v7.233: 空查询保护 - 如果原始查询为空或过短，尝试从 target_aspect 获取
+        if not query or len(query.strip()) < 3:
+            if target_aspect:
+                # 尝试从 target_aspect 获取名称作为查询
+                if hasattr(target_aspect, "name") and target_aspect.name:
+                    query = f"{target_aspect.name} 详细介绍"
+                    logger.warning(f"️ [v7.233] 原始查询为空，使用目标名称: {query}")
+                elif hasattr(target_aspect, "aspect_name") and target_aspect.aspect_name:
+                    query = f"{target_aspect.aspect_name} 详细介绍"
+                    logger.warning(f"️ [v7.233] 原始查询为空，使用信息面名称: {query}")
+
+            # 仍然为空则使用通用查询
+            if not query or len(query.strip()) < 3:
+                query = "设计趋势 2024"
+                logger.warning(f"️ [v7.233] 无法获取有效查询，使用通用查询: {query}")
+
+        variants = [query]  # 原始查询
+
+        # v7.521: search_keywords 组合变体（优先级高于核心词提取）
+        if search_keywords and len(search_keywords) >= 2:
+            keywords_query = " ".join(search_keywords)
+            if keywords_query != query and keywords_query not in variants and len(keywords_query) >= 4:
+                variants.append(keywords_query)
+
+        # 提取中文关键词（2-4字词组）
+        chinese_words = re.findall(r"[\u4e00-\u9fff]{2,4}", query)
+
+        # 变体: 核心词版本（前3个关键词）
+        if len(chinese_words) >= 2:
+            core_query = " ".join(chinese_words[:3])
+            if core_query != query and len(core_query) >= 4 and core_query not in variants:
+                variants.append(core_query)
+
+        # 变体: 信息面聚焦版本
+        if target_aspect and hasattr(target_aspect, "aspect_name"):
+            aspect_name = target_aspect.aspect_name
+            if chinese_words:
+                aspect_query = f"{chinese_words[0]} {aspect_name}"
+                if aspect_query not in variants:
+                    variants.append(aspect_query)
+
+        # 变体: 添加通用限定词
+        if len(variants) < 3 and chinese_words:
+            general_query = f"{chinese_words[0] if chinese_words else query[:8]} 是什么 定义"
+            if general_query not in variants:
+                variants.append(general_query)
+
+        logger.info(f" [v7.228] 生成 {len(variants)} 个查询变体: {[q[:20] for q in variants]}")
+        return variants[:4]  # v7.521: 最多4个变体（增加1个 keywords 变体）
+
+    async def _execute_parallel_search(
+        self,
+        queries: List[str],
+    ) -> List[Dict[str, Any]]:
+        """
+        v7.228: 并行执行多个搜索查询
+
+        同时发起多个搜索请求，合并去重结果
+
+        v7.233: 增强空查询过滤，避免 API 400 错误
+        """
+        if not queries:
+            return []
+
+        # v7.233: 过滤掉空查询或过短的查询
+        valid_queries = [q for q in queries if q and len(q.strip()) >= 2]
+        if not valid_queries:
+            logger.warning("️ [v7.233] 所有查询都无效（空或过短），跳过搜索")
+            return []
+
+        if len(valid_queries) < len(queries):
+            logger.warning(f"️ [v7.233] 过滤掉 {len(queries) - len(valid_queries)} 个无效查询")
+
+        logger.info(f" [v7.228] 并行搜索 {len(valid_queries)} 个查询...")
+
+        # 并行执行所有搜索 - v7.233: 使用过滤后的有效查询
+        tasks = [self._execute_basic_search(q, retry_count=1) for q in valid_queries]
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+
+        # 合并去重
+        all_sources: List[Dict[str, Any]] = []
+        seen_urls: set = set()
+
+        for i, result in enumerate(results):
+            if isinstance(result, Exception):
+                logger.warning(f"️ [v7.228] 查询 {i+1} 失败: {result}")
+                continue
+
+            for src in result:
+                url = src.get("url", "")
+                if url and url not in seen_urls:
+                    all_sources.append(src)
+                    seen_urls.add(url)
+
+        logger.info(f" [v7.228] 并行搜索完成 | 合并后来源={len(all_sources)}")
+        return all_sources
+
+    async def _execute_search_with_quality_filter(
+        self,
+        query: str,
+        target_aspect: Optional[Any] = None,
+        search_keywords: List[str] = None,
+    ) -> List[Dict[str, Any]]:
+        """
+        v7.228: 多查询并行搜索 + 质量筛选 + 空结果重试
+
+        1. 生成多个查询变体
+        2. 并行执行搜索
+        3. 合并去重结果
+        4. 规则评分筛选
+        5. 如果结果不足，补充搜索
+        6. 如果结果为空，激进简化重试
+        """
+        all_quality_sources: List[Dict[str, Any]] = []
+        seen_urls: set = set()
+
+        # v7.228: 生成查询变体并并行搜索
+        query_variants = self._generate_query_variants(query, target_aspect, search_keywords=search_keywords)
+        raw_sources = await self._execute_parallel_search(query_variants)
+
+        logger.info(f" [v7.228 诊断] 并行搜索原始结果: {len(raw_sources)}条 | 查询数={len(query_variants)}")
+
+        # 质量筛选（使用原始查询匹配）
+        quality_sources, _ = self._filter_sources_by_quality(raw_sources, query)
+        logger.info(f" [v7.228 诊断] 质量筛选后: {len(quality_sources)}条 (原始{len(raw_sources)}条)")
+
+        # v7.212: LLM 二次过滤（在规则筛选后进行）
+        # v7.471: 长查询（>15字）跳过 LLM 过滤，避免过度过滤
+        query_len = len(query.strip())
+        if SEARCH_QUALITY_LLM_FILTER and quality_sources and query_len <= 15:
+            quality_sources = await self._llm_filter_sources(quality_sources, query, target_aspect)
+        elif SEARCH_QUALITY_LLM_FILTER and quality_sources and query_len > 15:
+            logger.info(f" [v7.471] 长查询({query_len}字)跳过 LLM 过滤，保留 {len(quality_sources)} 条结果")
+
+        # 去重并收集
+        for src in quality_sources:
+            url = src.get("url", "")
+            if url and url not in seen_urls:
+                all_quality_sources.append(src)
+                seen_urls.add(url)
+
+        # v7.227: 如果结果完全为空，使用激进的简化策略重试
+        empty_retry_attempt = 0
+        MAX_EMPTY_RETRIES = 5
+        while len(all_quality_sources) == 0 and empty_retry_attempt < MAX_EMPTY_RETRIES:
+            empty_retry_attempt += 1
+            simplified_query = self._generate_supplement_query(
+                query, empty_retry_attempt - 1, target_aspect, is_empty_retry=True
+            )
+
+            # v7.235: 验证查询有效性
+            if not self._validate_search_query(simplified_query, f"空结果重试#{empty_retry_attempt}"):
+                logger.error(f" [v7.235] 重试查询无效，停止重试: '{simplified_query}'")
+                break  # 退出重试循环
+
+            logger.warning(
+                f" [v7.227] 空结果激进重试 #{empty_retry_attempt}/{MAX_EMPTY_RETRIES} | " f"简化查询: '{simplified_query}'"
+            )
+
+            retry_sources = await self._execute_search(simplified_query)
+            # 对简化查询使用更宽松的筛选（使用简化后的查询匹配）
+            quality_retry, _ = self._filter_sources_by_quality(retry_sources, simplified_query)
+
+            for src in quality_retry:
+                url = src.get("url", "")
+                if url and url not in seen_urls:
+                    all_quality_sources.append(src)
+                    seen_urls.add(url)
+
+            if all_quality_sources:
+                logger.info(f" [v7.227] 空结果重试成功！找到 {len(all_quality_sources)} 条来源")
+                break
+
+        # 常规补充搜索（结果不足时）
+        supplement_attempt = 0
+        while (
+            len(all_quality_sources) < SEARCH_MIN_QUALITY_SOURCES and supplement_attempt < SEARCH_SUPPLEMENT_MAX_RETRIES
+        ):
+            supplement_attempt += 1
+            supplement_query = self._generate_supplement_query(
+                query, supplement_attempt - 1, target_aspect, is_empty_retry=False
+            )
+
+            logger.info(
+                f" [Ucppt v7.212] 补充搜索 #{supplement_attempt} | "
+                f"当前高质量来源={len(all_quality_sources)}, 目标={SEARCH_MIN_QUALITY_SOURCES}"
+            )
+
+            supplement_sources = await self._execute_search(supplement_query)
+            quality_supplement, _ = self._filter_sources_by_quality(supplement_sources, query)
+
+            # v7.212: 补充结果也进行 LLM 过滤
+            if SEARCH_QUALITY_LLM_FILTER and quality_supplement:
+                quality_supplement = await self._llm_filter_sources(quality_supplement, query, target_aspect)
+
+            # 去重并收集
+            added_count = 0
+            for src in quality_supplement:
+                url = src.get("url", "")
+                if url and url not in seen_urls:
+                    all_quality_sources.append(src)
+                    seen_urls.add(url)
+                    added_count += 1
+
+            logger.debug(f" [Ucppt v7.212] 补充搜索新增 {added_count} 条高质量来源")
+
+            # 如果补充搜索没有新增任何内容，提前退出
+            if added_count == 0:
+                logger.info("️ [Ucppt v7.212] 补充搜索无新增结果，停止补充")
+                break
+
+        # 最终按质量评分排序
+        all_quality_sources.sort(key=lambda x: x.get("_quality_score", 0), reverse=True)
+
+        logger.info(
+            f" [Ucppt v7.228] 质量筛选完成 | "
+            f"最终高质量来源={len(all_quality_sources)}, 并行查询={len(query_variants)}, 空结果重试={empty_retry_attempt}, 补充轮次={supplement_attempt}"
+        )
+
+        return all_quality_sources
+
+    # ==================== v7.246: 并行主线搜索 ====================
+
+    async def _search_single_mainline(
+        self,
+        target: SearchTarget,
+        all_sources: List[Dict[str, Any]],
+        seen_urls: set,
+    ) -> Dict[str, Any]:
+        """
+        v7.246: 搜索单条主线
+
+        为并行主线搜索提供的单主线搜索方法
+
+        Args:
+            target: 搜索目标
+            all_sources: 全局来源列表（用于去重）
+            seen_urls: 已见URL集合（用于去重）
+
+        Returns:
+            搜索结果字典，包含来源和状态
+        """
+        query = target.question or target.name or target.search_for or target.description
+        if not query:
+            logger.warning(f"️ [v7.246] 主线 {target.id} 无有效查询，跳过")
+            return {"target_id": target.id, "sources": [], "status": "skipped"}
+
+        target_desc = query[:40]
+        logger.info(f" [v7.246] 搜索主线: {target_desc}...")
+
+        try:
+            # 执行搜索
+            round_sources = await self._execute_search_with_quality_filter(query, target)
+
+            # 去重
+            new_sources = []
+            for src in round_sources:
+                url = src.get("url", "")
+                if url and url not in seen_urls:
+                    new_sources.append(src)
+                    seen_urls.add(url)
+
+            # 更新目标状态
+            if len(new_sources) >= 3:
+                target.status = "complete"
+                target.completion_score = min(1.0, target.completion_score + 0.3)
+            elif len(new_sources) > 0:
+                target.status = "partial"
+                target.completion_score = min(1.0, target.completion_score + 0.15)
+            else:
+                target.status = "missing"
+
+            logger.info(f" [v7.246] 主线 {target_desc[:20]} 完成 | 新增来源={len(new_sources)}, 状态={target.status}")
+
+            return {
+                "target_id": target.id,
+                "target_name": target_desc,
+                "sources": new_sources,
+                "status": target.status,
+                "completion_score": target.completion_score,
+            }
+
+        except Exception as e:
+            logger.error(f" [v7.246] 主线 {target_desc[:20]} 搜索失败: {e}")
+            return {"target_id": target.id, "sources": [], "status": "error", "error": str(e)}
+
+    async def _execute_parallel_mainlines(
+        self,
+        framework: SearchFramework,
+        all_sources: List[Dict[str, Any]],
+        seen_urls: set,
+    ) -> List[Dict[str, Any]]:
+        """
+        v7.246: 并行执行所有主线搜索
+
+        策略：
+        1. 获取所有未完成的主线目标（非延展任务）
+        2. 限制并行数量（MAX_PARALLEL_MAINLINES）
+        3. 使用 asyncio.gather 并行执行
+        4. 合并去重结果
+
+        Args:
+            framework: 搜索框架
+            all_sources: 全局来源列表
+            seen_urls: 已见URL集合
+
+        Returns:
+            所有主线的搜索结果列表
+        """
+        # 获取未完成的主线目标
+        mainline_targets = framework.get_mainline_targets()
+
+        if not mainline_targets:
+            logger.info(" [v7.246] 无未完成的主线目标")
+            return []
+
+        # 限制并行数量
+        targets_to_search = mainline_targets[:MAX_PARALLEL_MAINLINES]
+
+        logger.info(f" [v7.246] 并行搜索 {len(targets_to_search)} 条主线（共 {len(mainline_targets)} 条未完成）...")
+
+        # 创建并行任务
+        tasks = [self._search_single_mainline(target, all_sources, seen_urls) for target in targets_to_search]
+
+        # 并行执行
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+
+        # 处理结果
+        all_results = []
+        total_new_sources = 0
+
+        for i, result in enumerate(results):
+            if isinstance(result, Exception):
+                logger.warning(f"️ [v7.246] 主线 {i+1} 执行异常: {result}")
+                continue
+
+            all_results.append(result)
+            new_sources = result.get("sources", [])
+            total_new_sources += len(new_sources)
+
+            # 将新来源添加到全局列表
+            all_sources.extend(new_sources)
+
+        logger.info(f" [v7.246] 并行主线搜索完成 | 主线数={len(all_results)}, 新增来源={total_new_sources}")
+
+        # 更新框架完成度
+        framework.update_completeness()
+
+        return all_results
+
+    # ==================== v7.246: 动态延展评估 ====================
+
+    async def _evaluate_extension_need(
+        self,
+        framework: SearchFramework,
+        all_sources: List[Dict[str, Any]],
+        current_round: int,
+    ) -> Tuple[bool, List[Dict[str, Any]]]:
+        """
+        v7.246: 评估是否需要延展搜索
+
+        评估标准：
+        1. 信息覆盖度 < EXTENSION_COVERAGE_THRESHOLD
+        2. 发现新的信息缺口
+        3. 搜索结果中出现新的关键词/概念
+
+        Args:
+            framework: 搜索框架
+            all_sources: 已收集的所有来源
+            current_round: 当前轮次
+
+        Returns:
+            (是否需要延展, 延展点列表)
+        """
+        # 检查延展次数限制
+        extension_count = framework.get_extension_count()
+        if extension_count >= MAX_EXTENSION_ROUNDS:
+            logger.info(f" [v7.246] 已达最大延展次数 {MAX_EXTENSION_ROUNDS}，不再延展")
+            return False, []
+
+        # 计算当前信息覆盖度
+        coverage = framework.overall_completeness
+
+        # 覆盖度足够，不需要延展
+        if coverage >= 0.85:
+            logger.info(f" [v7.246] 覆盖度 {coverage:.2%} >= 85%，不需要延展")
+            return False, []
+
+        # 覆盖度较高但未达标，检查是否有明显缺口
+        if coverage >= EXTENSION_COVERAGE_THRESHOLD:
+            logger.info(f" [v7.246] 覆盖度 {coverage:.2%} >= {EXTENSION_COVERAGE_THRESHOLD:.0%}，使用 LLM 评估是否需要延展")
+
+        # 整理已搜索主线
+        mainlines_summary = []
+        for t in framework.targets:
+            if t.category != "延展":
+                status_emoji = {"complete": "", "partial": "", "pending": "", "missing": ""}.get(t.status, "")
+                mainlines_summary.append(
+                    f"{status_emoji} {t.name or t.question or t.search_for}: {t.status} ({t.completion_score:.0%})"
+                )
+
+        # 整理已收集信息摘要
+        sources_summary = []
+        for src in all_sources[:10]:
+            sources_summary.append(f"- {src.get('title', '无标题')[:50]}")
+
+        prompt = f"""评估当前搜索是否需要延展。
+
+## 用户问题
+{framework.original_query}
+
+## 已搜索主线
+{chr(10).join(mainlines_summary)}
+
+## 当前覆盖度
+{coverage:.2%}
+
+## 已收集信息源（前10条）
+{chr(10).join(sources_summary) if sources_summary else "暂无"}
+
+## 当前轮次
+第 {current_round} 轮
+
+## 已延展次数
+{extension_count} / {MAX_EXTENSION_ROUNDS}
+
+## 任务
+1. 判断是否存在明显的信息缺口
+2. 如果需要延展，给出具体的延展方向（最多2个）
+3. 延展方向应该是主线未覆盖的、对回答问题有价值的新角度
+
+## 输出格式（JSON）
+```json
+{{
+    "needs_extension": true,
+    "reason": "判断理由（简洁）",
+    "extension_points": [
+        {{
+            "name": "延展方向名称（10字内）",
+            "description": "具体描述（30字内）",
+            "purpose": "为什么需要这个延展（20字内）"
+        }}
+    ]
+}}
+```
+
+只输出JSON。"""
+
+        try:
+            result = await self._call_llm(prompt, model=self.eval_model, max_tokens=500)
+            data = self._safe_parse_json(result, context="延展评估(v7.246)")
+
+            if data is None:
+                logger.warning("️ [v7.246] 延展评估 JSON 解析失败")
+                return False, []
+
+            needs_extension = data.get("needs_extension", False)
+            extension_points = data.get("extension_points", [])
+            reason = data.get("reason", "")
+
+            if needs_extension and extension_points:
+                logger.info(f" [v7.246] 需要延展 | 原因: {reason[:50]} | 延展点数: {len(extension_points)}")
+                return True, extension_points[:2]  # 最多2个延展点
+            else:
+                logger.info(f" [v7.246] 不需要延展 | 原因: {reason[:50]}")
+                return False, []
+
+        except Exception as e:
+            logger.error(f" [v7.246] 延展评估失败: {e}")
+            return False, []
+
+    async def _add_extension_targets(
+        self,
+        framework: SearchFramework,
+        extension_points: List[Dict[str, Any]],
+        current_round: int,
+    ) -> List[SearchTarget]:
+        """
+        v7.246: 添加延展目标到框架
+
+        Args:
+            framework: 搜索框架
+            extension_points: 延展点列表
+            current_round: 当前轮次
+
+        Returns:
+            新添加的延展目标列表
+        """
+        new_targets = []
+
+        for i, ext_point in enumerate(extension_points):
+            ext_target = SearchTarget(
+                id=f"ext_{current_round}_{i+1}",
+                name=ext_point.get("name", f"延展{i+1}"),
+                description=ext_point.get("description", ""),
+                purpose=ext_point.get("purpose", ""),
+                priority=3,  # 延展任务优先级较低
+                category="延展",
+            )
+            framework.targets.append(ext_target)
+            new_targets.append(ext_target)
+            logger.info(f" [v7.246] 添加延展目标: {ext_target.name}")
+
+        return new_targets
+
+    async def _execute_serial_extensions(
+        self,
+        framework: SearchFramework,
+        all_sources: List[Dict[str, Any]],
+        seen_urls: set,
+    ) -> AsyncGenerator[Dict[str, Any], None]:
+        """
+        v7.246: 串行执行延展任务
+
+        主线并行完成后，串行执行延展任务
+
+        Args:
+            framework: 搜索框架
+            all_sources: 全局来源列表
+            seen_urls: 已见URL集合
+
+        Yields:
+            延展搜索事件
+        """
+        extension_targets = framework.get_extension_targets()
+
+        if not extension_targets:
+            return
+
+        logger.info(f" [v7.246] 开始串行执行 {len(extension_targets)} 个延展任务...")
+
+        for ext_target in extension_targets:
+            ext_name = ext_target.name or ext_target.description or f"延展{ext_target.id}"
+            logger.info(f" [v7.246] 串行执行延展: {ext_name[:30]}...")
+
+            # 发送延展开始事件
+            yield {
+                "type": "extension_start",
+                "data": {
+                    "target_id": ext_target.id,
+                    "target_name": ext_name,
+                    "message": f"开始延展搜索: {ext_name[:30]}",
+                },
+            }
+
+            # 执行搜索
+            result = await self._search_single_mainline(ext_target, all_sources, seen_urls)
+
+            # 将新来源添加到全局列表
+            new_sources = result.get("sources", [])
+            all_sources.extend(new_sources)
+
+            # 发送延展完成事件
+            yield {
+                "type": "extension_complete",
+                "data": {
+                    "target_id": ext_target.id,
+                    "target_name": ext_name,
+                    "new_sources_count": len(new_sources),
+                    "status": result.get("status", "unknown"),
+                    "message": f"延展搜索完成: {ext_name[:30]} | 新增 {len(new_sources)} 条来源",
+                },
+            }
+
+            # 更新框架完成度
+            framework.update_completeness()
+
+            # 检查是否可以提前结束
+            if framework.overall_completeness >= 0.9:
+                logger.info(f" [v7.246] 覆盖度达到 {framework.overall_completeness:.2%}，停止延展")
+                break
+
+        logger.info(" [v7.246] 串行延展执行完成")
+
+    # ==================== 评估与更新 ====================
+
+    async def _llm_filter_sources(
+        self,
+        sources: List[Dict[str, Any]],
+        query: str,
+        target_aspect: Optional[Any] = None,
+    ) -> List[Dict[str, Any]]:
+        """
+        v7.212: LLM 二次过滤 - 判断搜索结果与查询的相关性
+
+        只保留与查询高度相关的来源
+        """
+        if not SEARCH_QUALITY_LLM_FILTER:
+            return sources
+
+        if not sources:
+            return sources
+
+        # 构建来源摘要
+        sources_list = []
+        for i, src in enumerate(sources[:10]):  # 最多评估10条
+            sources_list.append(f"{i+1}. [{src.get('title', '无标题')}] {src.get('content', '')[:150]}")
+
+        sources_text = "\n".join(sources_list)
+
+        aspect_info = ""
+        if target_aspect and hasattr(target_aspect, "aspect_name"):
+            aspect_info = f"\n## 信息面目标\n{target_aspect.aspect_name}: {getattr(target_aspect, 'answer_goal', '')}"
+
+        prompt = f"""判断以下搜索结果与用户查询的相关性。
+
+## 用户查询
+{query}
+{aspect_info}
+
+## 搜索结果
+{sources_text}
+
+## 任务
+判断每条结果是否与查询高度相关。只返回相关的结果编号。
+
+## 输出格式（JSON）
+```json
+{{
+    "relevant_ids": [1, 3, 5],
+    "reasoning": "简要说明筛选理由"
+}}
+```
+
+只输出JSON。"""
+
+        try:
+            result = await self._call_llm(prompt, model=self.eval_model, max_tokens=300)
+            data = self._safe_parse_json(result, context="LLM来源过滤")
+
+            if data is None:
+                return sources
+
+            relevant_ids = data.get("relevant_ids", [])
+            if not relevant_ids:
+                return sources
+
+            # 筛选相关来源
+            filtered = []
+            for i, src in enumerate(sources[:10]):
+                if (i + 1) in relevant_ids:
+                    filtered.append(src)
+
+            # 保留未评估的来源（第10条之后）
+            if len(sources) > 10:
+                filtered.extend(sources[10:])
+
+            if len(filtered) < len(sources):
+                logger.info(
+                    f" [Ucppt v7.212] LLM二次过滤: {len(sources)} → {len(filtered)} "
+                    f"(理由: {data.get('reasoning', 'N/A')[:50]})"
+                )
+
+            return filtered
+
+        except Exception as e:
+            logger.warning(f"️ [Ucppt v7.212] LLM过滤失败: {e}")
+            return sources
+
+    async def _evaluate_and_update(
+        self,
+        framework: AnswerFramework,
+        target_aspect: KeyAspect,
+        new_sources: List[Dict[str, Any]],
+    ) -> None:
+        """
+        评估搜索结果并更新框架 - 目标导向评估
+
+        不是问"发现了什么"，而是问"这对回答问题有多大帮助"
+        """
+        if not new_sources:
+            return
+
+        # 提取搜索结果的关键信息
+        sources_summary = "\n".join([f"- {s.get('title', '')}: {s.get('content', '')[:100]}" for s in new_sources[:5]])
+
+        prompt = f"""评估搜索结果对回答问题的贡献。
+
+## 用户问题
+{framework.original_query}
+
+## 回答目标
+{framework.answer_goal}
+
+## 当前搜索的信息面
+- 名称：{target_aspect.aspect_name}
+- 目标：{target_aspect.answer_goal}
+
+## 搜索结果
+{sources_summary}
+
+## 任务
+1. 从搜索结果中提取对回答有用的信息（2-3条关键点）
+2. 评估这些信息对该信息面的完成度贡献（0-1，1表示完全满足）
+3. 判断该信息面的状态
+
+## 输出格式（JSON）
+```json
+{{
+    "useful_info": ["关键信息点1", "关键信息点2"],
+    "completion_contribution": 0.6,
+    "status": "partial",
+    "reasoning": "为什么这样评估"
+}}
+```
+
+status可选值：missing（没有有用信息）、partial（有部分有用信息）、complete（信息充分）
+
+只输出JSON。"""
+
+        try:
+            # v7.187: 使用 OpenAI API (via OpenRouter)
+            result = await self._call_llm(prompt, model=self.eval_model, max_tokens=500)
+
+            # v7.200: 使用统一 JSON 解析器
+            data = self._safe_parse_json(result, context="信息面更新")
+            if data is None:
+                raise ValueError("无法解析信息面更新结果")
+
+            # 更新信息面
+            useful_info = data.get("useful_info", [])
+            target_aspect.collected_info.extend(useful_info)
+            target_aspect.source_urls.extend([s.get("url", "") for s in new_sources[:3]])
+
+            contribution = data.get("completion_contribution", 0.3)
+            target_aspect.completion_score = min(1.0, target_aspect.completion_score + contribution)
+            target_aspect.status = data.get("status", "partial")
+
+            # 更新框架
+            framework.overall_completeness = framework.calculate_completeness()
+            framework.updated_at = time.time()
+
+            # 更新就绪状态
+            if framework.can_answer_completely():
+                if framework.overall_completeness >= 0.9:
+                    framework.readiness = AnswerReadiness.EXCELLENT
+                elif framework.overall_completeness >= 0.7:
+                    framework.readiness = AnswerReadiness.READY
+                else:
+                    framework.readiness = AnswerReadiness.PARTIAL
+            else:
+                framework.readiness = AnswerReadiness.NOT_READY
+
+            logger.info(
+                f" [Ucppt] 评估 | {target_aspect.aspect_name} | 完成度={target_aspect.completion_score:.0%} | 整体={framework.overall_completeness:.0%}"
+            )
+
+        except Exception as e:
+            logger.warning(f"️ [Ucppt] 评估失败: {e}")
+            # 降级：简单更新
+            target_aspect.completion_score = min(1.0, target_aspect.completion_score + 0.3)
+            if target_aspect.completion_score >= 0.7:
+                target_aspect.status = "complete"
+            elif target_aspect.completion_score >= 0.3:
+                target_aspect.status = "partial"
+            framework.overall_completeness = framework.calculate_completeness()
+
+    # ==================== 答案生成 ====================
+
+    def _detect_cross_round_conflicts(
+        self,
+        round_insights: List["RoundInsights"],
+    ) -> Dict[str, Any]:
+        """
+        跨轮信息冲突检测 - v7.281 新增
+
+        检测各轮发现之间是否存在矛盾或冲突，帮助LLM在生成答案时妥善处理
+
+        返回:
+            {
+                "has_conflicts": bool,
+                "conflicts": [{"topic": str, "findings": [str], "rounds": [int]}],
+                "consensus": [str],  # 多轮一致的结论
+                "conflict_summary": str  # 冲突摘要（供Prompt使用）
+            }
+        """
+        if not round_insights or len(round_insights) < 2:
+            return {"has_conflicts": False, "conflicts": [], "consensus": [], "conflict_summary": ""}
+
+        # 提取所有关键发现，按关键词聚类
+        all_findings = []
+        for insight in round_insights:
+            for finding in insight.key_findings:
+                all_findings.append(
+                    {
+                        "text": finding,
+                        "round": insight.round_number,
+                        "aspect": insight.target_aspect,
+                    }
+                )
+            for inference in insight.inferred_insights:
+                all_findings.append(
+                    {
+                        "text": inference,
+                        "round": insight.round_number,
+                        "aspect": insight.target_aspect,
+                        "is_inference": True,
+                    }
+                )
+
+        # 简单冲突检测：检查否定词模式
+        conflict_patterns = [
+            ("不是", "是"),
+            ("不能", "能"),
+            ("不应", "应"),
+            ("没有", "有"),
+            ("不需要", "需要"),
+            ("不推荐", "推荐"),
+            ("反对", "支持"),
+            ("禁止", "允许"),
+            ("避免", "使用"),
+        ]
+
+        conflicts = []
+        consensus = []
+
+        # 按主题词聚类检测冲突
+        topic_findings = {}
+        for f in all_findings:
+            # 提取关键词（简单分词）
+            words = [w for w in f["text"].split() if len(w) >= 2][:5]
+            for word in words:
+                if word not in topic_findings:
+                    topic_findings[word] = []
+                topic_findings[word].append(f)
+
+        # 检查同一主题下的矛盾
+        for topic, findings in topic_findings.items():
+            if len(findings) < 2:
+                continue
+
+            # 检查是否有否定模式冲突
+            for neg, pos in conflict_patterns:
+                has_neg = any(neg in f["text"] for f in findings)
+                has_pos = any(pos in f["text"] and neg not in f["text"] for f in findings)
+                if has_neg and has_pos:
+                    conflicts.append(
+                        {
+                            "topic": topic,
+                            "findings": [f["text"][:100] for f in findings[:3]],
+                            "rounds": list(set(f["round"] for f in findings)),
+                        }
+                    )
+                    break
+            else:
+                # 无冲突，检查是否为多轮共识
+                if len(set(f["round"] for f in findings)) >= 2:
+                    consensus.append(findings[0]["text"][:100])
+
+        # 生成冲突摘要
+        conflict_summary = ""
+        if conflicts:
+            conflict_summary = f"检测到 {len(conflicts)} 处潜在信息冲突:\n"
+            for c in conflicts[:3]:
+                conflict_summary += f"- 关于「{c['topic']}」(轮次 {c['rounds']}): {c['findings'][0][:50]}...\n"
+            conflict_summary += "\n请在答案中妥善处理这些冲突，说明不同观点或选择最可靠的结论。"
+
+        logger.info(f" [v7.281] 跨轮冲突检测 | 发现数={len(all_findings)}, 冲突={len(conflicts)}, 共识={len(consensus)}")
+
+        return {
+            "has_conflicts": len(conflicts) > 0,
+            "conflicts": conflicts[:5],  # 最多5个冲突
+            "consensus": consensus[:10],  # 最多10个共识
+            "conflict_summary": conflict_summary,
+        }
+
+    def _validate_citation_references(
+        self,
+        answer_text: str,
+        sources_count: int,
+    ) -> Dict[str, Any]:
+        """
+        来源引用有效性校验 - v7.281 新增
+
+        检查答案中的[编号]引用是否有效（编号是否在来源范围内）
+
+        返回:
+            {
+                "valid": bool,
+                "total_citations": int,
+                "valid_citations": [int],
+                "invalid_citations": [int],
+                "citation_coverage": float,  # 引用覆盖度（引用了多少比例的来源）
+                "warning": str  # 警告信息
+            }
+        """
+        import re
+
+        # 提取所有 [数字] 格式的引用
+        citation_pattern = r"\[(\d+)\]"
+        citations = re.findall(citation_pattern, answer_text)
+        cited_numbers = [int(c) for c in citations]
+
+        valid_citations = [c for c in cited_numbers if 1 <= c <= sources_count]
+        invalid_citations = [c for c in cited_numbers if c < 1 or c > sources_count]
+
+        unique_valid = list(set(valid_citations))
+        citation_coverage = len(unique_valid) / sources_count if sources_count > 0 else 0
+
+        warning = ""
+        if invalid_citations:
+            warning = f"发现 {len(set(invalid_citations))} 个无效引用: {list(set(invalid_citations))[:5]}"
+        elif len(unique_valid) < 3 and sources_count >= 5:
+            warning = f"引用数量较少 ({len(unique_valid)}条)，建议增加引用以提高可信度"
+
+        logger.info(
+            f" [v7.281] 引用校验 | 总引用={len(citations)}, 有效={len(valid_citations)}, 无效={len(invalid_citations)}, 覆盖度={citation_coverage:.1%}"
+        )
+
+        return {
+            "valid": len(invalid_citations) == 0,
+            "total_citations": len(citations),
+            "valid_citations": unique_valid,
+            "invalid_citations": list(set(invalid_citations)),
+            "citation_coverage": citation_coverage,
+            "warning": warning,
+        }
+
+    def _calculate_answer_confidence(
+        self,
+        framework: Union["AnswerFramework", "SearchFramework"],
+        round_insights: List["RoundInsights"],
+        sources_count: int,
+        conflict_result: Dict[str, Any],
+        citation_result: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        """
+        答案置信度评估 - v7.281 新增
+
+        基于多维度因素计算答案的整体置信度
+
+        维度权重:
+        - 信息充分度 (30%): 基于搜索轮次的平均充分度
+        - 信息质量 (25%): 基于搜索轮次的平均质量评分
+        - 来源覆盖 (20%): 引用了多少比例的高质量来源
+        - 一致性 (15%): 是否存在信息冲突
+        - 目标对齐 (10%): 与用户问题的对齐程度
+
+        返回:
+            {
+                "overall_confidence": float,  # 0-1 总置信度
+                "confidence_level": str,  # "高"/"中"/"低"
+                "dimension_scores": {...},  # 各维度得分
+                "confidence_note": str,  # 置信度说明
+            }
+        """
+        scores = {}
+
+        # 1. 信息充分度 (30%)
+        if round_insights:
+            avg_sufficiency = sum(r.info_sufficiency for r in round_insights) / len(round_insights)
+        else:
+            avg_sufficiency = 0.5
+        scores["info_sufficiency"] = {"score": avg_sufficiency, "weight": 0.30}
+
+        # 2. 信息质量 (25%)
+        if round_insights:
+            avg_quality = sum(r.info_quality for r in round_insights) / len(round_insights)
+        else:
+            avg_quality = 0.5
+        scores["info_quality"] = {"score": avg_quality, "weight": 0.25}
+
+        # 3. 来源覆盖 (20%)
+        citation_coverage = citation_result.get("citation_coverage", 0)
+        # 覆盖30%以上视为满分，低于10%扣分
+        coverage_score = min(1.0, citation_coverage / 0.30)
+        scores["source_coverage"] = {"score": coverage_score, "weight": 0.20}
+
+        # 4. 一致性 (15%)
+        has_conflicts = conflict_result.get("has_conflicts", False)
+        conflict_count = len(conflict_result.get("conflicts", []))
+        consistency_score = 1.0 if not has_conflicts else max(0.3, 1.0 - conflict_count * 0.15)
+        scores["consistency"] = {"score": consistency_score, "weight": 0.15}
+
+        # 5. 目标对齐 (10%)
+        if round_insights:
+            avg_alignment = sum(r.alignment_score for r in round_insights) / len(round_insights)
+        else:
+            avg_alignment = 0.7
+        scores["goal_alignment"] = {"score": avg_alignment, "weight": 0.10}
+
+        # 计算加权总分
+        overall = sum(s["score"] * s["weight"] for s in scores.values())
+
+        # 确定置信度等级
+        if overall >= 0.75:
+            level = "高"
+            note = "基于充分的信息收集和高质量来源，答案可信度较高"
+        elif overall >= 0.55:
+            level = "中"
+            note = "信息收集较为充分，但部分方面可能需要进一步验证"
+        else:
+            level = "低"
+            note = "信息收集不够充分或存在较多冲突，建议谨慎参考并补充调研"
+
+        if has_conflicts:
+            note += f"。存在{conflict_count}处信息冲突，已在答案中标注"
+
+        logger.info(f" [v7.281] 置信度评估 | overall={overall:.2f}, level={level}")
+
+        return {
+            "overall_confidence": round(overall, 2),
+            "confidence_level": level,
+            "dimension_scores": {k: round(v["score"], 2) for k, v in scores.items()},
+            "confidence_note": note,
+        }
+
+    def _calculate_source_relevance(
+        self,
+        source: Dict[str, Any],
+        framework: AnswerFramework,
+    ) -> float:
+        """
+        计算来源与问题框架的相关性分数 - v7.230 增强版
+
+        基于标题和内容与关键信息面的匹配程度
+        v7.230: 增加轮次权重（后期搜索更精准，给予更高权重）
+        """
+        title = source.get("title", "").lower()
+        content = source.get("content", "").lower()
+        combined = title + " " + content
+
+        score = 0.0
+
+        # 与原始问题的匹配
+        query_words = framework.original_query.lower().split()
+        for word in query_words:
+            if len(word) >= 2 and word in combined:
+                score += 0.1
+
+        # 与关键信息面的匹配 - v7.232: 兼容 SearchFramework (targets) 和 AnswerFramework (key_aspects)
+        aspects = getattr(framework, "key_aspects", None) or getattr(framework, "targets", [])
+        for aspect in aspects:
+            aspect_name = (getattr(aspect, "aspect_name", None) or getattr(aspect, "name", "")).lower()
+            if aspect_name in combined:
+                score += 0.3
+            # 检查目标中的关键词
+            answer_goal = getattr(aspect, "answer_goal", "") or ""
+            goal_words = answer_goal.lower().split()
+            for word in goal_words:
+                if len(word) >= 2 and word in combined:
+                    score += 0.05
+
+        # 与回答目标的匹配
+        if framework.answer_goal:
+            goal_words = framework.answer_goal.lower().split()
+            for word in goal_words:
+                if len(word) >= 2 and word in combined:
+                    score += 0.1
+
+        # v7.230: 轮次权重加成（后期轮次搜索更精准，每轮 +5%）
+        round_num = source.get("_round", 1)
+        round_weight = 1 + (round_num - 1) * 0.05
+        score = score * round_weight
+
+        # v7.230: 质量分加成（来源自带的质量评分）
+        quality_score = source.get("quality_score", 0)
+        if quality_score > 0:
+            score += quality_score * 0.2
+
+        return min(score, 5.0)  # 最高5分
+
+    async def _generate_final_answer(
+        self,
+        query: str,
+        framework: Union[AnswerFramework, SearchFramework],
+        all_sources: List[Dict[str, Any]],
+        rounds: Optional[List["SearchRoundState"]] = None,
+    ) -> AsyncGenerator[Dict[str, Any], None]:
+        """
+        生成最终答案（流式）- v7.196 优化版
+
+        优化内容：
+        1. 来源去重（按URL）
+        2. 每条来源包含400字内容摘要
+        3. 相关性排序
+        4. 累积所有轮次的反思内容
+        5. v7.196: 加入 L1-L5 分析结果和人性维度洞察
+        """
+
+        # ==================== v7.231: 兼容 SearchFramework ====================
+        # 获取 collected_evidence，兼容两种框架类型
+        collected_evidence = getattr(framework, "collected_evidence", {}) or {}
+
+        # ==================== v7.196: 提取 L1-L5 分析结果 ====================
+        l1_facts = collected_evidence.get("_L1_facts", [])
+        l2_model = collected_evidence.get("_L2_user_model", [])
+        l3_tension = (
+            collected_evidence.get("_L3_core_tension", [""])[0] if collected_evidence.get("_L3_core_tension") else ""
+        )
+        l4_task = (
+            collected_evidence.get("_L4_search_task", [""])[0] if collected_evidence.get("_L4_search_task") else ""
+        )
+        collected_evidence.get("_L5_sharpness", [])
+        human_dims = collected_evidence.get("_human_dimensions", [])
+        collected_evidence.get("_expert_handoff", [])
+
+        # 构建深度分析部分
+        deep_analysis_section = ""
+        if l1_facts or l2_model or l3_tension:
+            deep_analysis_section = f"""
+## 深度分析结果（L1-L5）
+
+### L1 事实解构
+{chr(10).join(f"- {f}" for f in l1_facts) if l1_facts else "无"}
+
+### L2 用户模型
+{chr(10).join(l2_model) if l2_model else "无"}
+
+### L3 核心张力
+{l3_tension if l3_tension else "无"}
+
+### L4 搜索任务
+{l4_task if l4_task else "无"}
+"""
+
+        # 构建人性维度部分
+        human_dims_section = ""
+        if human_dims:
+            human_dims_section = f"""
+## 人性维度洞察
+{chr(10).join(human_dims)}
+"""
+
+        # 提取宏观统筹和切入点（保持向后兼容）
+        macro_info = collected_evidence.get("_macro_overview", [])
+        entry_info = collected_evidence.get("_entry_point", [])
+
+        # 整理收集的信息 - v7.231: 兼容 SearchFramework (targets) 和 AnswerFramework (key_aspects)
+        aspects_info = []
+        aspects = getattr(framework, "key_aspects", None) or getattr(framework, "targets", [])
+        for aspect in aspects:
+            collected_info = getattr(aspect, "collected_info", [])
+            aspect_name = getattr(aspect, "aspect_name", None) or getattr(aspect, "name", "")
+            if collected_info:
+                aspects_info.append(f"### {aspect_name}\n" + "\n".join(f"- {info}" for info in collected_info))
+
+        # ==================== v7.230: 智能来源选择优化 ====================
+
+        # 1. URL 去重
+        seen_urls = set()
+        unique_sources = []
+        for source in all_sources:
+            url = source.get("url", source.get("link", ""))
+            if url:
+                if url not in seen_urls:
+                    seen_urls.add(url)
+                    unique_sources.append(source)
+            else:
+                # 无 URL 的来源也保留（基于标题去重）
+                title = source.get("title", "")
+                if title and title not in seen_urls:
+                    seen_urls.add(title)
+                    unique_sources.append(source)
+
+        logger.info(f" [v7.230] 来源去重: {len(all_sources)} → {len(unique_sources)}")
+
+        # 2. v7.230: 智能来源选择 - 每轮保证Top-3入选 + 相关性排序
+        # 基于 round_insights 确保每轮最佳来源入选
+        guaranteed_urls = set()
+        top_sources = []
+
+        # 2a. 从 round_insights 中获取每轮最佳来源（保证入选）
+        if framework.round_insights:
+            for insight in framework.round_insights:
+                for url in insight.best_source_urls[:3]:  # 每轮Top-3
+                    if url and url not in guaranteed_urls:
+                        guaranteed_urls.add(url)
+                        # 从 unique_sources 中找到对应来源
+                        for source in unique_sources:
+                            if source.get("url", source.get("link", "")) == url:
+                                top_sources.append(source)
+                                break
+            logger.info(f" [v7.230] 轮次保证来源: {len(top_sources)}条 (from {len(framework.round_insights)} rounds)")
+
+        # 2b. 相关性排序剩余来源
+        remaining_sources = [s for s in unique_sources if s.get("url", s.get("link", "")) not in guaranteed_urls]
+        scored_sources = [(source, self._calculate_source_relevance(source, framework)) for source in remaining_sources]
+        scored_sources.sort(key=lambda x: x[1], reverse=True)
+
+        # 2c. 补足到 30 条（v7.230: 从25增加到30，充分利用搜索结果）
+        slots_remaining = 30 - len(top_sources)
+        for source, score in scored_sources[:slots_remaining]:
+            top_sources.append(source)
+
+        logger.info(
+            f" [v7.230] 最终来源选择: {len(top_sources)}条 (保证:{len(guaranteed_urls)}, 补充:{len(top_sources)-len(guaranteed_urls)})"
+        )
+
+        # 3. 构建带内容摘要的来源列表（每条400字）
+        numbered_sources = []
+        for idx, source in enumerate(top_sources, start=1):
+            title = source.get("title", "未知标题")[:80]
+            url = source.get("url", source.get("link", ""))
+            content = source.get("content", source.get("snippet", ""))[:400]  # 400字摘要
+
+            source_text = f"[{idx}] 《{title}》"
+            if url:
+                source_text += f"\n    链接: {url}"
+            if content:
+                source_text += f"\n    内容: {content}"
+            numbered_sources.append(source_text)
+
+        sources_text = chr(10).join(numbered_sources) if numbered_sources else "无可用来源"
+
+        # ==================== v7.230: 结构化研究过程洞察（基于 round_insights）====================
+        # v7.220: 智能压缩，避免上下文过载
+        research_insights_text = ""
+        if framework.round_insights:
+            insights_parts = []
+
+            # 质量阈值：只有高质量轮次才完整展示
+            QUALITY_THRESHOLD = 0.6  # info_quality >= 0.6 才完整展示
+
+            high_quality_rounds = []
+            low_quality_rounds = []
+
+            for insight in framework.round_insights:
+                if insight.info_quality >= QUALITY_THRESHOLD:
+                    high_quality_rounds.append(insight)
+                else:
+                    low_quality_rounds.append(insight)
+
+            # 1. 完整展示高质量轮次
+            for insight in high_quality_rounds:
+                round_text = f"""### 第{insight.round_number}轮：{insight.target_aspect} ⭐
+**搜索查询**: {insight.search_query}
+**质量评价**: 充分度 {insight.info_sufficiency:.0%} | 质量 {insight.info_quality:.0%} | 对齐度 {insight.alignment_score:.0%}
+
+**关键发现**:
+{chr(10).join(f"- {f}" for f in insight.key_findings[:5]) if insight.key_findings else "- 无"}
+
+**推断洞察**:
+{chr(10).join(f"- {i}" for i in insight.inferred_insights[:4]) if insight.inferred_insights else "- 无"}
+
+**进展描述**: {insight.progress_description[:200]}{"..." if len(insight.progress_description) > 200 else ""}
+"""
+                if insight.quality_issues:
+                    round_text += f"""
+**质量问题**: {', '.join(insight.quality_issues[:2])}
+"""
+                if insight.remaining_gaps:
+                    round_text += f"""
+**剩余缺口**: {', '.join(insight.remaining_gaps[:3])}
+"""
+                insights_parts.append(round_text)
+
+            # 2. 精简展示低质量轮次（只保留核心发现）
+            if low_quality_rounds:
+                low_quality_summary = "### 其他轮次（精简）\n"
+                for insight in low_quality_rounds:
+                    # 只保留最重要的 1-2 条发现
+                    top_findings = insight.key_findings[:2] if insight.key_findings else []
+                    if top_findings:
+                        low_quality_summary += (
+                            f"- **第{insight.round_number}轮**（{insight.target_aspect}）: {'; '.join(top_findings)}\n"
+                        )
+                insights_parts.append(low_quality_summary)
+
+            research_insights_text = chr(10).join(insights_parts)
+            logger.info(
+                f" [v7.220] 构建研究洞察: 高质量{len(high_quality_rounds)}轮(完整), 低质量{len(low_quality_rounds)}轮(精简), 总findings={sum(len(i.key_findings) for i in framework.round_insights)}, 总insights={sum(len(i.inferred_insights) for i in framework.round_insights)}"
+            )
+
+        # 兼容旧版：同时保留 rounds 的反思（不截断）
+        reflection_summary = []
+        if rounds:
+            for r in rounds:
+                if hasattr(r, "reflection") and r.reflection:
+                    round_num = getattr(r, "round_number", "?")
+                    target = getattr(r, "target_aspect", "")
+                    # v7.230: 不再截断，完整保留
+                    reflection_summary.append(f"• 第{round_num}轮（{target}）: {r.reflection}")
+
+        chr(10).join(reflection_summary) if reflection_summary else "无"
+
+        # ==================== v7.281: 跨轮冲突检测 ====================
+        conflict_result = self._detect_cross_round_conflicts(framework.round_insights)
+        conflict_section = ""
+        if conflict_result.get("has_conflicts"):
+            conflict_section = f"""
+## ️ 信息冲突提醒
+{conflict_result.get('conflict_summary', '')}
+"""
+
+        # ==================== v7.230: 重构后的 Prompt ====================
+        # 新增「研究过程洞察」章节，展示每轮结构化发现
+        research_section = ""
+        if research_insights_text:
+            research_section = f"""
+## 研究过程洞察（按轮次结构化展示，请重点参考）
+
+{research_insights_text}
+"""
+
+        prompt = f"""基于深度分析和多轮搜索的结构化洞察，为用户问题生成完整、专业的答案。
+
+## 用户问题
+{query}
+
+## 回答目标
+{framework.answer_goal}
+{deep_analysis_section}{human_dims_section}
+## 宏观统筹（问题全貌）
+{chr(10).join(macro_info) if macro_info else "无"}
+
+## 切入点洞察（核心突破口）
+{chr(10).join(entry_info) if entry_info else "无"}
+{conflict_section}{research_section}
+## 收集的信息（按信息面组织）
+{chr(10).join(aspects_info) if aspects_info else "（信息较少，请基于常识回答）"}
+
+## 参考来源（共{len(top_sources)}条，每轮Top-3保证入选 + 相关性排序补充）
+{sources_text}
+
+## 回答要求
+1. **开头先点明核心洞察**（L3核心张力或切入点），让用户立刻抓住要点
+2. **充分利用研究过程洞察**：每轮的关键发现和推断洞察是经过深度思考的结论，务必融入答案
+3. **围绕用户模型展开**：基于L2用户模型（心理/社会/美学）组织内容
+4. {"**融入人性维度洞察**：在适当位置体现情绪地图、精神追求等人性维度分析" if human_dims else "结构清晰，分点阐述"}
+5. **重要：引用信息时使用 [编号] 格式标注来源**，例如"根据研究[1]..."、"专家指出[3][5]..."
+6. **充分利用每条来源的内容摘要**，确保引用有据可查
+7. 涵盖各个关键信息面，综合每轮的质量评价（高质量轮次重点引用）
+8. 结尾给出可行的建议或结论
+9. 字数：1500-2500字（v7.230: 鼓励更详尽的回答）
+
+请生成专业、有深度、引用充分的答案。"""
+
+        try:
+            # v7.232: 兼容 SearchFramework (targets) 和 AnswerFramework (key_aspects)
+            aspects = getattr(framework, "key_aspects", None) or getattr(framework, "targets", [])
+            aspects_with_info = [a for a in aspects if getattr(a, "collected_info", [])]
+            aspect_names = [getattr(a, "aspect_name", None) or getattr(a, "name", "") for a in aspects[:3]]
+
+            #  先流式输出答案生成的思考过程
+            thinking_prompt = f"""作为专家，我现在要基于搜索结果生成最终答案。让我先梳理一下思路：
+
+## 用户问题
+{query}
+
+## 收集到的信息概况
+- 总共 {len(top_sources)} 条高质量来源
+- 涵盖 {len(aspects_with_info)} 个关键信息面
+- 反思洞察轮数：{len([r for r in (rounds or [])])} 轮
+
+## 我的答案构思
+1. 核心洞察切入：{l3_tension or '从整体框架入手'}
+2. 关键信息面覆盖：需要回答用户关于{', '.join(aspect_names)}等方面的问题
+3. 可行建议导向：最终要给用户实用的指导
+
+现在开始生成详细答案..."""
+
+            #  修复：使用OpenAI GPT-4o进行总结性思考流式输出
+            async for chunk in self._call_llm_stream_with_reasoning(
+                thinking_prompt, model=THINKING_MODEL, max_tokens=1000
+            ):
+                if chunk.get("type") == "reasoning":
+                    yield {"type": "answer_chunk", "data": {"content": chunk.get("content", ""), "is_thinking": True}}
+
+            # 标记思考完成
+            yield {"type": "answer_thinking_complete", "data": {"message": "思考完成，开始生成答案..."}}
+
+            # ==================== v7.281: 收集完整答案用于后处理 ====================
+            full_answer_text = ""
+
+            # 然后生成实际答案
+            async for chunk in self._call_llm_stream(prompt, model=SYNTHESIS_MODEL, max_tokens=3000):
+                if chunk and isinstance(chunk, str):
+                    full_answer_text += chunk  # v7.281: 累积答案文本
+                    yield {"type": "answer_chunk", "data": {"content": chunk, "is_thinking": False}}
+
+            # ==================== v7.281: 答案后处理 - 引用校验 + 置信度评估 ====================
+            citation_result = self._validate_citation_references(full_answer_text, len(top_sources))
+            confidence_result = self._calculate_answer_confidence(
+                framework=framework,
+                round_insights=framework.round_insights,
+                sources_count=len(top_sources),
+                conflict_result=conflict_result,
+                citation_result=citation_result,
+            )
+
+            # 发送质量评估事件
+            yield {
+                "type": "answer_quality_assessment",
+                "data": {
+                    "confidence": confidence_result,
+                    "citation": citation_result,
+                    "conflicts": {
+                        "has_conflicts": conflict_result.get("has_conflicts", False),
+                        "count": len(conflict_result.get("conflicts", [])),
+                    },
+                    "message": f"答案置信度: {confidence_result['confidence_level']} ({confidence_result['overall_confidence']:.0%})",
+                },
+            }
+        except Exception as e:
+            error_msg = str(e).encode("utf-8", errors="replace").decode("utf-8")
+            logger.error(f" [Ucppt] 答案生成失败: {error_msg}")
+            yield {"type": "answer_chunk", "data": {"content": f"答案生成失败: {error_msg}"}}
+
+    # ==================== v7.500: 板块化回答生成 ====================
+
+    async def _generate_block_based_answer(
+        self,
+        query: str,
+        framework: "SearchFramework",
+        all_sources: List[Dict[str, Any]],
+        output_framework: Dict[str, Any],
+        search_queries: List[Dict[str, Any]],
+        query_sources_map: Dict[str, List[Dict[str, Any]]],
+    ) -> AsyncGenerator[Dict[str, Any], None]:
+        """
+        v7.500: 以 Step1 板块为基准的结构化回答生成。
+
+        策略：
+        1. 全局来源编号（去重 + 相关性排序，最多 30 条）
+        2. 按板块分组来源和 round_insights
+        3. 逐板块生成草稿（流式输出）
+        4. 整合润色（添加开头/结尾/过渡）
+        5. 后处理（引用校验 + 置信度评估）
+        """
+        try:
+            blocks = output_framework.get("blocks", [])
+            if not blocks:
+                logger.warning("️ [v7.500] 无板块信息，降级到单体回答")
+                async for event in self._generate_final_answer(query, framework, all_sources):
+                    yield event
+                return
+
+            logger.info(f" [v7.500] 开始板块化回答生成 | 板块数={len(blocks)} | 来源数={len(all_sources)}")
+
+            # ---- Phase A: 全局来源编号 ----
+            seen_urls: set = set()
+            unique_sources: List[Dict[str, Any]] = []
+            for source in all_sources:
+                url = source.get("url", source.get("link", ""))
+                if url and url not in seen_urls:
+                    seen_urls.add(url)
+                    unique_sources.append(source)
+                elif not url:
+                    title = source.get("title", "")
+                    if title and title not in seen_urls:
+                        seen_urls.add(title)
+                        unique_sources.append(source)
+
+            # 保证每轮 Top-3 入选
+            guaranteed_urls: set = set()
+            top_sources: List[Dict[str, Any]] = []
+            if framework.round_insights:
+                for insight in framework.round_insights:
+                    for url in insight.best_source_urls[:3]:
+                        if url and url not in guaranteed_urls:
+                            guaranteed_urls.add(url)
+                            for src in unique_sources:
+                                if src.get("url", src.get("link", "")) == url:
+                                    top_sources.append(src)
+                                    break
+
+            # 相关性排序补充
+            remaining = [s for s in unique_sources if s.get("url", s.get("link", "")) not in guaranteed_urls]
+            scored = [(s, self._calculate_source_relevance(s, framework)) for s in remaining]
+            scored.sort(key=lambda x: x[1], reverse=True)
+            slots = 30 - len(top_sources)
+            for s, _ in scored[:max(0, slots)]:
+                top_sources.append(s)
+
+            # 分配全局编号
+            global_sources = top_sources[:30]
+            for idx, src in enumerate(global_sources, 1):
+                src["_global_ref_number"] = idx
+
+            logger.info(f" [v7.500] 全局来源: {len(global_sources)} 条（保证入选={len(guaranteed_urls)}）")
+
+            # ---- Phase B: 按板块分组来源和洞察 ----
+            block_sources_map: Dict[str, List[Dict[str, Any]]] = {}
+            block_insights_map: Dict[str, List["RoundInsights"]] = {}
+
+            # 建立 query_id → serves_blocks 映射
+            query_blocks_map: Dict[str, List[str]] = {}
+            for sq in search_queries:
+                qid = sq.get("id", "")
+                query_blocks_map[qid] = sq.get("serves_blocks", [])
+
+            # 建立 query_id → search_query 映射
+            query_text_map: Dict[str, str] = {}
+            for sq in search_queries:
+                query_text_map[sq.get("id", "")] = sq.get("query", "")
+
+            for sq in search_queries:
+                qid = sq.get("id", "")
+                serves_blocks = sq.get("serves_blocks", [])
+                sources = query_sources_map.get(qid, [])
+
+                for block_id in serves_blocks:
+                    block_sources_map.setdefault(block_id, []).extend(sources)
+
+                    # 映射 round_insights
+                    sq_text = sq.get("query", "")
+                    for insight in framework.round_insights:
+                        if insight.search_query == sq_text:
+                            block_insights_map.setdefault(block_id, []).append(insight)
+
+            # ---- 提取 L1-L5 摘要（紧凑版） ----
+            collected_evidence = getattr(framework, "collected_evidence", {}) or {}
+            l3_tension = ""
+            l3_data = collected_evidence.get("_L3_core_tension", [])
+            if l3_data and isinstance(l3_data, list) and l3_data[0]:
+                l3_tension = l3_data[0]
+            l4_task = ""
+            l4_data = collected_evidence.get("_L4_search_task", [])
+            if l4_data and isinstance(l4_data, list) and l4_data[0]:
+                l4_task = l4_data[0]
+            answer_goal = getattr(framework, "answer_goal", "") or ""
+
+            # ---- Phase C: 逐板块生成草稿 ----
+            block_drafts: List[Dict[str, str]] = []  # [{block_id, block_name, draft}]
+            total_blocks = len(blocks)
+
+            for block_idx, block in enumerate(blocks):
+                block_id = block.get("id", f"block_{block_idx + 1}")
+                block_name = block.get("name", f"板块{block_idx + 1}")
+                sub_items = block.get("sub_items", [])
+
+                yield {
+                    "type": "answer_block_start",
+                    "data": {
+                        "block_id": block_id,
+                        "block_name": block_name,
+                        "block_index": block_idx + 1,
+                        "total_blocks": total_blocks,
+                    },
+                }
+
+                # 构建子项列表
+                sub_items_text = ""
+                if sub_items:
+                    for si in sub_items:
+                        si_name = si.get("name", "") if isinstance(si, dict) else str(si)
+                        si_desc = si.get("description", "") if isinstance(si, dict) else ""
+                        sub_items_text += f"- {si_name}"
+                        if si_desc:
+                            sub_items_text += f": {si_desc}"
+                        sub_items_text += "\n"
+
+                # 板块对应来源（去重，最多 10 条，使用全局编号）
+                block_sources = block_sources_map.get(block_id, [])
+                # 去重并匹配全局编号
+                block_source_refs: List[Dict[str, Any]] = []
+                block_seen_urls: set = set()
+                for src in block_sources:
+                    url = src.get("url", "")
+                    ref_num = src.get("_global_ref_number")
+                    if not ref_num:
+                        # 从 global_sources 中查找
+                        for gs in global_sources:
+                            if gs.get("url", "") == url:
+                                ref_num = gs.get("_global_ref_number")
+                                break
+                    if url and url not in block_seen_urls and ref_num:
+                        block_seen_urls.add(url)
+                        block_source_refs.append({"ref": ref_num, "source": src})
+
+                block_source_refs = block_source_refs[:10]
+
+                # 构建来源文本
+                block_sources_text = ""
+                for ref_item in block_source_refs:
+                    ref_num = ref_item["ref"]
+                    src = ref_item["source"]
+                    title = src.get("title", "无标题")[:60]
+                    content = src.get("content", src.get("snippet", ""))[:300]
+                    block_sources_text += f"[{ref_num}] {title}\n{content}\n\n"
+
+                if not block_sources_text:
+                    block_sources_text = "（本板块暂无直接搜索结果）"
+
+                # 板块对应 round_insights
+                block_insights = block_insights_map.get(block_id, [])
+                block_insights_text = ""
+                for ins in block_insights:
+                    findings = "; ".join(ins.key_findings[:3]) if ins.key_findings else "无"
+                    block_insights_text += f"- 查询「{ins.search_query[:30]}」: {findings} (质量={ins.info_quality:.0%})\n"
+
+                if not block_insights_text:
+                    block_insights_text = "（无搜索发现摘要）"
+
+                # 构建板块 prompt
+                block_prompt = f"""为以下板块生成专业内容。
+
+## 用户问题
+{query}
+
+## 回答目标
+{answer_goal}
+
+## 深度分析摘要
+L3核心张力: {l3_tension if l3_tension else '无'}
+L4搜索任务: {l4_task if l4_task else '无'}
+
+## 当前板块
+名称: {block_name}
+子项:
+{sub_items_text if sub_items_text else '（无子项）'}
+
+## 本板块搜索发现
+{block_insights_text}
+
+## 本板块参考来源（共{len(block_source_refs)}条）
+{block_sources_text}
+
+## 要求
+1. 围绕板块主题和子项展开，300-600字
+2. 引用来源时使用全局编号 [N] 格式（如 [1]、[3]）
+3. 融入搜索发现中的关键洞察
+4. 结构清晰，每个子项都要覆盖
+5. 不要重复其他板块的内容
+6. 如果无搜索结果，基于深度分析和专业知识提供框架性内容，并标注需要进一步调研"""
+
+                # 流式生成板块草稿
+                block_text = ""
+                try:
+                    async for chunk in self._call_llm_stream(
+                        block_prompt,
+                        model=SYNTHESIS_MODEL,
+                        max_tokens=1500,
+                        temperature=0.7,
+                    ):
+                        if chunk:
+                            block_text += chunk
+                            yield {
+                                "type": "answer_block_chunk",
+                                "data": {
+                                    "block_id": block_id,
+                                    "content": chunk,
+                                },
+                            }
+                except Exception as e:
+                    logger.error(f" [v7.500] 板块生成失败 (block={block_id}): {e}")
+                    block_text = f"（板块 {block_name} 生成失败: {str(e)[:50]}）"
+                    yield {
+                        "type": "answer_block_chunk",
+                        "data": {
+                            "block_id": block_id,
+                            "content": block_text,
+                        },
+                    }
+
+                word_count = len(block_text)
+                block_drafts.append({
+                    "block_id": block_id,
+                    "block_name": block_name,
+                    "draft": block_text,
+                })
+
+                yield {
+                    "type": "answer_block_complete",
+                    "data": {
+                        "block_id": block_id,
+                        "word_count": word_count,
+                    },
+                }
+
+                logger.info(f" [v7.500] 板块 {block_idx + 1}/{total_blocks} 完成: {block_name} ({word_count}字)")
+
+            # ---- Phase D: 整合润色 ----
+            yield {
+                "type": "answer_integration_start",
+                "data": {"total_blocks": total_blocks},
+            }
+
+            # 拼接所有板块草稿
+            all_drafts_text = ""
+            for bd in block_drafts:
+                all_drafts_text += f"\n## {bd['block_name']}\n\n{bd['draft']}\n"
+
+            integration_prompt = f"""你是专业的内容整合编辑。请将以下分板块草稿整合为一篇连贯的完整答案。
+
+## 用户问题
+{query}
+
+## 核心张力（用于开头）
+{l3_tension if l3_tension else '从整体框架入手'}
+
+## 分板块草稿
+{all_drafts_text}
+
+## 整合要求
+1. 添加开头段落：点明核心洞察（基于核心张力），让用户立刻抓住要点
+2. 添加结尾段落：可行的建议或结论总结
+3. 确保板块间过渡自然流畅
+4. 保留所有 [N] 引用编号，确保编号一致性
+5. 不要删减板块内容，只做润色和衔接
+6. 保留板块标题作为二级标题（## 格式）
+7. 总字数控制在1500-2500字"""
+
+            full_answer_text = ""
+            try:
+                async for chunk in self._call_llm_stream(
+                    integration_prompt,
+                    model=SYNTHESIS_MODEL,
+                    max_tokens=2500,
+                    temperature=0.5,
+                ):
+                    if chunk:
+                        full_answer_text += chunk
+                        yield {
+                            "type": "answer_chunk",
+                            "data": {
+                                "content": chunk,
+                                "is_thinking": False,
+                            },
+                        }
+            except Exception as e:
+                logger.error(f" [v7.500] 整合润色失败: {e}")
+                # 降级：直接拼接板块草稿作为最终答案
+                full_answer_text = all_drafts_text
+                yield {
+                    "type": "answer_chunk",
+                    "data": {
+                        "content": full_answer_text,
+                        "is_thinking": False,
+                    },
+                }
+
+            logger.info(f" [v7.500] 整合润色完成 | 总字数={len(full_answer_text)}")
+
+            # ---- Phase E: 后处理 ----
+            conflict_result = self._detect_cross_round_conflicts(framework.round_insights)
+            citation_result = self._validate_citation_references(full_answer_text, len(global_sources))
+            confidence_result = self._calculate_answer_confidence(
+                framework=framework,
+                round_insights=framework.round_insights,
+                sources_count=len(global_sources),
+                conflict_result=conflict_result,
+                citation_result=citation_result,
+            )
+
+            yield {
+                "type": "answer_quality_assessment",
+                "data": {
+                    "confidence": confidence_result,
+                    "citation": citation_result,
+                    "conflicts": {
+                        "has_conflicts": conflict_result.get("has_conflicts", False),
+                        "count": len(conflict_result.get("conflicts", [])),
+                    },
+                    "message": f"答案置信度: {confidence_result['confidence_level']} ({confidence_result['overall_confidence']:.0%})",
+                },
+            }
+
+        except Exception as e:
+            error_msg = str(e).encode("utf-8", errors="replace").decode("utf-8")
+            logger.error(f" [v7.500] 板块化回答生成失败: {error_msg}", exc_info=True)
+            yield {"type": "answer_chunk", "data": {"content": f"答案生成失败: {error_msg}"}}
+
+    # ==================== LLM调用 ====================
+
+    # ==================== OpenAI API (via OpenRouter) 调用 ====================
+
+    async def _call_llm_json(
+        self,
+        prompt: str,
+        model: str = "openai/gpt-4o",
+        max_tokens: int = 2000,
+    ) -> str:
+        """
+        调用 LLM 生成 JSON 响应 - v7.270 新增
+
+        用于第二步搜索框架生成等需要结构化输出的场景
+        """
+        return await self._call_llm(prompt, model, max_tokens)
+
+    def _generate_framework_checklist(
+        self, framework: SearchFramework, analysis_data: Dict[str, Any]
+    ) -> "FrameworkChecklist":
+        """
+        生成框架清单 - v7.270 兼容方法
+
+        从 SearchFramework 提取关键信息生成清单
+        """
+        from datetime import datetime
+
+        # 提取主要搜索方向
+        # v7.270.1: 修复数据结构，使用 direction/purpose/expected_outcome 字段以匹配前端期望
+        main_directions = []
+        for t in framework.targets[:5]:  # 最多5个
+            # 提取任务名称
+            direction_name = t.name or t.question or t.search_for or "未命名任务"
+
+            # 提取任务目的
+            purpose = ""
+            if hasattr(t, "why_need") and t.why_need:
+                purpose = t.why_need
+            elif hasattr(t, "purpose") and t.purpose:
+                purpose = t.purpose
+            elif t.description:
+                purpose = t.description
+
+            # 提取期望结果
+            expected_outcome = ""
+            if hasattr(t, "success_when") and t.success_when:
+                expected_outcome = ", ".join(t.success_when[:2])
+            elif hasattr(t, "expected_info") and t.expected_info:
+                expected_outcome = ", ".join(t.expected_info[:2])
+
+            direction = {
+                "direction": direction_name,
+                "purpose": purpose,
+                "expected_outcome": expected_outcome,
+                "sub_tasks": [],
+                "motivation_tag": "",
+                "motivation_id": None,
+                "motivation_color": "#808080",
+                "priority": t.priority,
+                "target_id": t.id,
+            }
+            main_directions.append(direction)
+
+        # 提取边界
+        boundaries = []
+        if framework.boundary:
+            boundaries = [framework.boundary]
+
+        return FrameworkChecklist(
+            core_summary=framework.core_question[:50] if framework.core_question else framework.original_query[:50],
+            main_directions=main_directions,
+            boundaries=boundaries,
+            answer_goal=framework.answer_goal or "为用户提供完整解答",
+            generated_at=datetime.now().isoformat(),
+        )
+
+    async def _call_llm(
+        self,
+        prompt: str,
+        model: str = None,
+        max_tokens: int = 1024,
+    ) -> str:
+        """调用 LLM API（非流式）- v7.270"""
+        if not self.openrouter_api_key:
+            raise ValueError("OPENROUTER_API_KEY 未配置")
+
+        model = model or self.thinking_model
+
+        headers = {
+            "Authorization": f"Bearer {self.openrouter_api_key}",
+            "Content-Type": "application/json; charset=utf-8",
+            "HTTP-Referer": os.getenv("OPENROUTER_SITE_URL", "https://github.com/dafei0755/ai"),
+            "X-Title": os.getenv("OPENROUTER_APP_NAME", "Intelligent Project Analyzer"),
+        }
+
+        payload = {
+            "model": model,
+            "messages": [{"role": "user", "content": prompt}],
+            "max_tokens": max_tokens,
+            "temperature": 0.3,
+        }
+
+        async with httpx.AsyncClient(timeout=120) as client:
+            response = await client.post(
+                f"{self.openrouter_base_url}/chat/completions",
+                headers=headers,
+                json=payload,
+            )
+            response.raise_for_status()
+            data = response.json()
+            # OpenAI GPT-4o 可能返回 reasoning_content + content
+            message = data.get("choices", [{}])[0].get("message", {})
+            content = message.get("content", "")
+            return content if content else message.get("reasoning_content", "")
+
+    async def _call_llm_stream(
+        self,
+        prompt: str,
+        model: str = None,
+        max_tokens: int = 2000,
+    ) -> AsyncGenerator[str, None]:
+        """调用 LLM API（流式）- v7.270"""
+        if not self.openrouter_api_key:
+            yield "OPENROUTER_API_KEY 未配置"
+            return
+
+        model = model or self.thinking_model
+
+        headers = {
+            "Authorization": f"Bearer {self.openrouter_api_key}",
+            "Content-Type": "application/json; charset=utf-8",
+            "HTTP-Referer": os.getenv("OPENROUTER_SITE_URL", "https://github.com/dafei0755/ai"),
+            "X-Title": os.getenv("OPENROUTER_APP_NAME", "Intelligent Project Analyzer"),
+        }
+
+        payload = {
+            "model": model,
+            "messages": [{"role": "user", "content": prompt}],
+            "max_tokens": max_tokens,
+            "temperature": 0.3,
+            "stream": True,
+        }
+
+        try:
+            async with httpx.AsyncClient(timeout=180) as client:
+                async with client.stream(
+                    "POST",
+                    f"{self.openrouter_base_url}/chat/completions",
+                    headers=headers,
+                    json=payload,
+                ) as response:
+                    response.raise_for_status()
+                    buffer = ""
+                    async for chunk in response.aiter_bytes():
+                        buffer += chunk.decode("utf-8", errors="replace")
+                        while "\n" in buffer:
+                            line, buffer = buffer.split("\n", 1)
+                            line = line.strip()
+                            if line.startswith("data: "):
+                                data_str = line[6:]
+                                if data_str == "[DONE]":
+                                    return
+                                try:
+                                    parsed = json.loads(data_str)
+                                    delta = parsed.get("choices", [{}])[0].get("delta", {})
+                                    # 优先输出 reasoning_content（思考过程），然后是 content
+                                    reasoning = delta.get("reasoning_content", "")
+                                    content = delta.get("content", "")
+                                    if reasoning:
+                                        yield reasoning
+                                    if content:
+                                        yield content
+                                except json.JSONDecodeError:
+                                    continue
+        except Exception as e:
+            logger.error(f"LLM流式调用失败: {e}")
+            yield f"[错误: {e}]"
+
+    async def _call_llm_stream_with_reasoning(
+        self,
+        prompt: str,
+        model: str = None,
+        max_tokens: int = 2000,
+    ) -> AsyncGenerator[Dict[str, Any], None]:
+        """
+        调用 LLM API（流式）- v7.270 (OpenAI 不支持 reasoning_content)
+
+        OpenAI GPT-4o 返回两种内容：
+        - reasoning_content: 思考过程（作为 "type": "reasoning" 返回）
+        - content: 最终内容（作为 "type": "content" 返回）
+
+        返回格式:
+        - {"type": "reasoning", "content": "..."}  # 思考过程
+        - {"type": "content", "content": "..."}    # 输出内容
+        """
+        if not self.openrouter_api_key:
+            yield {"type": "error", "content": "OPENROUTER_API_KEY 未配置"}
+            return
+
+        model = model or self.thinking_model
+
+        headers = {
+            "Authorization": f"Bearer {self.openrouter_api_key}",
+            "Content-Type": "application/json; charset=utf-8",
+            "HTTP-Referer": os.getenv("OPENROUTER_SITE_URL", "https://github.com/dafei0755/ai"),
+            "X-Title": os.getenv("OPENROUTER_APP_NAME", "Intelligent Project Analyzer"),
+        }
+
+        payload = {
+            "model": model,
+            "messages": [{"role": "user", "content": prompt}],
+            "max_tokens": max_tokens,
+            "stream": True,
+        }
+
+        try:
+            async with httpx.AsyncClient(timeout=300) as client:
+                async with client.stream(
+                    "POST",
+                    f"{self.openrouter_base_url}/chat/completions",
+                    headers=headers,
+                    json=payload,
+                ) as response:
+                    response.raise_for_status()
+                    buffer = ""
+                    async for chunk in response.aiter_bytes():
+                        buffer += chunk.decode("utf-8", errors="replace")
+                        while "\n" in buffer:
+                            line, buffer = buffer.split("\n", 1)
+                            line = line.strip()
+                            if line.startswith("data: "):
+                                data_str = line[6:]
+                                if data_str == "[DONE]":
+                                    return
+                                try:
+                                    parsed = json.loads(data_str)
+                                    delta = parsed.get("choices", [{}])[0].get("delta", {})
+
+                                    # OpenAI GPT-4o 返回 reasoning_content（思考过程）
+                                    reasoning = delta.get("reasoning_content", "")
+                                    if reasoning:
+                                        yield {"type": "reasoning", "content": reasoning}
+
+                                    # 以及 content（最终内容）
+                                    content = delta.get("content", "")
+                                    if content:
+                                        yield {"type": "content", "content": content}
+
+                                except json.JSONDecodeError:
+                                    continue
+        except Exception as e:
+            logger.error(f"LLM 流式调用失败: {e}")
+            yield {"type": "error", "content": str(e)}
+
+    # ==================== OpenRouter API 调用 ====================
+
+    def _get_llm_headers(self) -> Dict[str, str]:
+        """获取LLM API请求头"""
+        headers = {
+            "Authorization": f"Bearer {self.openrouter_api_key}",
+            "Content-Type": "application/json; charset=utf-8",
+        }
+        if "openrouter" in self.openrouter_base_url.lower():
+            headers["HTTP-Referer"] = os.getenv("OPENROUTER_SITE_URL", "https://github.com/dafei0755/ai")
+            headers["X-Title"] = os.getenv("OPENROUTER_APP_NAME", "Intelligent Project Analyzer")
+        return headers
+
+    def _get_model_name(self, model: str) -> str:
+        """获取正确的模型名称"""
+        if "openrouter" in self.openrouter_base_url.lower():
+            # LLM 模型已经是正确格式
+            if "/" in model:
+                return model
+            # OpenAI 模型需要添加前缀
+            return f"openai/{model}"
+        return model
+
+    async def _call_llm(
+        self,
+        prompt: str,
+        model: str = "openai/gpt-4o",
+        max_tokens: int = 1024,
+    ) -> str:
+        """调用LLM（非流式）"""
+        if not self.openrouter_api_key:
+            raise ValueError("API_KEY 未配置")
+
+        headers = self._get_llm_headers()
+        model_name = self._get_model_name(model)
+
+        payload = {
+            "model": model_name,
+            "messages": [{"role": "user", "content": prompt}],
+            "max_tokens": max_tokens,
+            "temperature": 0.3,
+        }
+
+        async with httpx.AsyncClient(timeout=60) as client:
+            response = await client.post(
+                f"{self.openrouter_base_url}/chat/completions",
+                headers=headers,
+                json=payload,
+            )
+            response.raise_for_status()
+            data = response.json()
+            return data.get("choices", [{}])[0].get("message", {}).get("content", "")
+
+    async def _call_llm_stream(
+        self,
+        prompt: str,
+        model: str = "openai/gpt-4o",
+        max_tokens: int = 2000,
+    ) -> AsyncGenerator[str, None]:
+        """调用LLM（流式）"""
+        if not self.openrouter_api_key:
+            yield "API_KEY 未配置"
+            return
+
+        headers = self._get_llm_headers()
+        model_name = self._get_model_name(model)
+
+        payload = {
+            "model": model_name,
+            "messages": [{"role": "user", "content": prompt}],
+            "max_tokens": max_tokens,
+            "temperature": 0.7,
+            "stream": True,
+        }
+
+        async with httpx.AsyncClient(timeout=120) as client:
+            async with client.stream(
+                "POST",
+                f"{self.openrouter_base_url}/chat/completions",
+                headers=headers,
+                json=payload,
+            ) as response:
+                response.raise_for_status()
+                buffer = ""
+                async for chunk in response.aiter_bytes():
+                    buffer += chunk.decode("utf-8", errors="replace")
+                    while "\n" in buffer:
+                        line, buffer = buffer.split("\n", 1)
+                        line = line.strip()
+                        if line.startswith("data: "):
+                            data = line[6:]
+                            if data == "[DONE]":
+                                return
+                            try:
+                                parsed = json.loads(data)
+                                content = parsed.get("choices", [{}])[0].get("delta", {}).get("content", "")
+                                if content:
+                                    yield content
+                            except json.JSONDecodeError:
+                                continue
+
+    # ==================== v7.214: 分析会话辅助方法 ====================
+
+    def _build_framework_summary(self, framework_result: L1L5FrameworkResult) -> str:
+        """构建框架分析摘要"""
+        summary_parts = []
+
+        # L1 事实原子
+        if framework_result.l1_facts:
+            summary_parts.append(f"**L1 核心事实**: {', '.join(framework_result.l1_facts[:3])}")
+
+        # L3 核心张力
+        if framework_result.l3_tensions:
+            summary_parts.append(f"**L3 核心张力**: {framework_result.l3_tensions}")
+
+        # L4 任务目标
+        if framework_result.l4_jtbd:
+            summary_parts.append(f"**L4 任务目标**: {framework_result.l4_jtbd}")
+
+        # 质量评估
+        summary_parts.append(f"**框架一致性**: {framework_result.framework_coherence:.1%}")
+
+        return "\n\n".join(summary_parts)
+
+    def _build_search_plan_summary(self, synthesis_result: SynthesisResult) -> str:
+        """构建搜索计划摘要"""
+        master_line = synthesis_result.search_master_line
+        execution_plan = synthesis_result.execution_plan
+
+        summary_parts = []
+
+        # 核心问题
+        if master_line.core_question:
+            summary_parts.append(f"**核心问题**: {master_line.core_question}")
+
+        # 搜索边界
+        if master_line.boundary:
+            summary_parts.append(f"**搜索边界**: {master_line.boundary}")
+
+        # 搜索阶段
+        if master_line.search_phases:
+            summary_parts.append(f"**搜索阶段**: {' → '.join(master_line.search_phases)}")
+
+        # 任务统计
+        task_count = len(master_line.search_tasks)
+        summary_parts.append(f"**搜索任务**: {task_count} 个任务")
+
+        # 预估轮次
+        if execution_plan and "total_estimated_rounds" in execution_plan:
+            summary_parts.append(f"**预估轮次**: {execution_plan['total_estimated_rounds']} 轮")
+
+        return "\n\n".join(summary_parts)
+
+    def _extract_structured_info_from_session(self, session: AnalysisSession) -> Dict[str, Any]:
+        """从分析会话中提取结构化信息"""
+        if not session.l0_result:
+            return {}
+
+        l0 = session.l0_result
+        return {
+            "user_profile": l0.user_profile.to_dict(),
+            "implicit_needs": l0.implicit_needs,
+            "context_understanding": l0.context_understanding,
+            "dialogue_content": l0.dialogue_content,
+        }
+
+    def _extract_framework_from_session(self, session: AnalysisSession) -> Optional[Any]:
+        """从分析会话中提取框架信息"""
+        if not session.synthesis_result:
+            return None
+
+        # 构建与原有系统兼容的框架对象
+        synthesis = session.synthesis_result
+        framework = session.framework_result
+
+        # 这里需要构建一个与原有 framework 兼容的对象
+        # 暂时返回简化的框架信息
+        class CompatibleFramework:
+            def __init__(self):
+                self.answer_goal = synthesis.search_master_line.core_question
+                self.collected_evidence = {
+                    "_macro_overview": [framework.l4_jtbd] if framework else [],
+                    "_entry_point": [framework.l3_tensions] if framework else [],
+                }
+                self.key_aspects = [
+                    {
+                        "aspect": task.task,
+                        "purpose": task.purpose,
+                        "priority": task.priority,
+                        "information_needed": task.expected_info,
+                    }
+                    for task in synthesis.search_master_line.search_tasks[:5]  # 限制数量
+                ]
+
+        return CompatibleFramework()
+
+
+# ==================== 全局单例 ====================
+
+_ucppt_engine: Optional[UcpptSearchEngine] = None
+
+
+def get_ucppt_engine() -> UcpptSearchEngine:
+    """获取ucppt引擎单例"""
+    global _ucppt_engine
+    if _ucppt_engine is None:
+        _ucppt_engine = UcpptSearchEngine()
+    return _ucppt_engine

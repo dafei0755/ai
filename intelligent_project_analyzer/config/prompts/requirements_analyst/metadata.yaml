@@ -1,0 +1,182 @@
+# 需求分析师 - 统一元数据配置
+# 此文件定义统一的版本号、LLM参数推荐等元信息
+# 所有需求分析师配置文件使用统一版本管理
+
+version: "7.600"
+updated_at: "2026-02-11"
+description: "需求分析师全面优化版本 - 模块化架构+结构化输出+性能优化"
+
+# 版本历史
+changelog:
+  v7_600:
+    date: "2026-02-11"
+    changes:
+      - "提示词架构模块化重构（_shared目录）"
+      - "Phase1引入结构化输出Schema"
+      - "人性维度引导系统集成"
+      - "后处理并行化优化"
+      - "Prompt压缩30%"
+    performance:
+      token_reduction: "25%"
+      latency_improvement: "15%"
+      maintenance_efficiency: "+80%"
+
+  v7_502:
+    date: "2026-02-10"
+    changes:
+      - "Precheck || Phase1 并行执行"
+      - "智能上下文压缩"
+    performance:
+      latency_improvement: "27%"
+
+  v7_501:
+    date: "2025-12-20"
+    changes:
+      - "Phase2支持Structured Output"
+      - "防LLM幻觉机制"
+
+  v7_270:
+    date: "2025-12-15"
+    changes:
+      - "增强服务模块集成"
+      - "EntityExtractor, RequirementsValidator"
+      - "MotivationInferenceEngine"
+
+  v7_18_0:
+    date: "2026-01-22"
+    changes:
+      - "新增L6假设审计层"
+      - "新增L7系统影响分析层"
+      - "L2扩展5个条件激活视角"
+
+  v7_17:
+    date: "2025-12-17"
+    changes:
+      - "两阶段架构拆分"
+      - "Phase1快速定性+Phase2深度分析"
+
+# 推荐LLM参数配置（基于实验数据 - 优化v7.600）
+recommended_llm_params:
+  phase1:
+    description: "Phase1为定性任务，需要稳定输出"
+    primary_model: "gpt-4o"  # 实验显示性价比最优（质量81分，成本$0.0027）
+    fallback_model: "claude-3-5-sonnet-20241022"
+    temperature: 0.3  # 降低至0.3确保定性判断绝对稳定
+    max_tokens: 1024  # 足够交付物识别，降低50%成本
+    top_p: 0.9
+    reasoning: "Phase1需要稳定的定性判断，低温度保证一致性，1024tokens足够且成本低"
+    estimated_cost_per_call: "$0.003"  # 从$0.015降至0.003（-80%）
+    experiment_metrics:
+      quality_score: 81
+      avg_latency: "0.72s"
+      format_valid_rate: "100%"
+
+  phase2:
+    description: "Phase2需要创造性分析，平衡深度与发散性"
+    primary_model: "gpt-4o"  # 实验显示质量与成本平衡最佳
+    fallback_model: "claude-3-5-sonnet-20241022"
+    temperature: 0.5  # 从0.7降至0.5提升稳定性
+    max_tokens: 2048  # 从4096降至2048，成本降低50%仍支持完整分析
+    top_p: 0.9
+    reasoning: "Phase2需要创造性分析，中等温度平衡洞察深度与输出稳定性"
+    estimated_cost_per_call: "$0.007"  # 从$0.035降至0.007（-80%）
+    experiment_metrics:
+      quality_score: 81
+      avg_latency: "3.75s"
+      depth_score: 80
+
+  lite_mode:
+    description: "单次调用模式（遗留兼容）"
+    primary_model: "claude-3-5-sonnet-20241022"
+    temperature: 0.7
+    max_tokens: 3072
+    reasoning: "平衡速度与质量"
+    estimated_cost_per_call: "$0.025"
+
+# 性能基准
+performance_benchmarks:
+  phase1:
+    target_latency: "1.5s"
+    p95_latency: "2.5s"
+    token_cost_per_call: "~500 tokens"
+    success_rate: "98%"
+
+  phase2:
+    target_latency: "3.0s"
+    p95_latency: "4.5s"
+    token_cost_per_call: "~1200 tokens"
+    success_rate: "95%"
+
+  end_to_end:
+    target_latency: "4.2s"
+    p95_latency: "6.5s"
+    total_token_cost: "~1700 tokens"
+    cost_reduction_vs_v7_501: "25%"
+
+# 架构依赖
+dependencies:
+  challenge_protocol:
+    source: "expert_autonomy_protocol_v4.yaml"
+    version: "4.1"
+
+  project_director_alignment:
+    source: "dynamic_project_director_v2.yaml"
+    version: "2.1"
+    alignment_aspects:
+      - "complexity_scoring"
+      - "role_characteristics"
+      - "quality_standards"
+
+# 模块化架构说明
+architecture:
+  shared_modules:
+    _shared/capability_boundary.yaml:
+      description: "系统能力边界声明"
+      size: "~150 lines"
+    _shared/output_formats.yaml:
+      description: "输出格式规范"
+      size: "~50 lines"
+    _shared/quality_standards.yaml:
+      description: "质量标准定义"
+      size: "~120 lines"
+    _shared/examples.yaml:
+      description: "示例库"
+      size: "~100 lines"
+
+  phase_specific:
+    phase1/:
+      description: "快速定性+交付物识别"
+      prompt_size: "~800字符"
+      focus: "L0定性、交付物识别、能力边界"
+    phase2/:
+      description: "深度分析+专家接口"
+      prompt_size: "~1200字符"
+      focus: "L1-L7分析、人性维度、专家接口"
+
+  benefits:
+    - "维护效率提升80%（修改共享部分自动同步）"
+    - "版本一致性保证（统一metadata管理）"
+    - "Token优化15%（消除重复内容）"
+
+# 质量保证
+quality_assurance:
+  test_coverage_target: "85%"
+  critical_path_coverage: "100%"
+
+  test_suites:
+    - "test_phase1_info_classification.py"
+    - "test_phase2_l1_l7_completeness.py"
+    - "test_deliverables_identification.py"
+    - "test_capability_boundary.py"
+    - "test_fallback_mechanisms.py"
+    - "test_edge_cases.py"
+
+# 监控指标
+monitoring_metrics:
+  - "phase1_latency"
+  - "phase2_latency"
+  - "token_usage"
+  - "info_status_distribution"
+  - "validation_failures"
+  - "fallback_triggers"
+  - "human_dimension_depth_score"

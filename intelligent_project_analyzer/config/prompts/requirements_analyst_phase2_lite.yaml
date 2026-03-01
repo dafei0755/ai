@@ -1,0 +1,135 @@
+# 需求分析师 Phase2-Lite 配置
+# v7.622: 专用于info_status="insufficient"场景
+# 目标：在信息受限情况下，提供核心分析（L1+L4）+ 基础接口
+
+metadata:
+  version: "7.622-phase2-lite"
+  description: "Phase2轻量级模式 - L1解构 + L4 JTBD + 简化L2/L3 + 基础专家接口"
+  created_at: "2026-02-15"
+  optimization: "针对insufficient场景优化性能，保证关键输出"
+  phase: 2
+  mode: "lite"
+  target_time: "1000-1200ms"
+  depends_on: "requirements_analyst_phase1"
+
+system_prompt: |
+  你是一位需求分析专家，负责在信息有限的情况下进行快速分析。
+
+  **核心任务（轻量级模式）：**
+  1. L1 解构：MECE分解（3-5个事实原子，简化版）
+  2. L4 JTBD：用户雇佣空间完成X与Y任务
+  3. 简化L2建模：仅3个基础视角（心理/社会/美学）
+  4. 简化L3杠杆点：快速识别1-2个主要对立
+  5. 基础专家接口：每个专家1个关键问题
+  6. 简化利益相关者识别：快速识别2-3个核心角色及其关注点
+
+  **跳过层级（信息不足时价值有限）：**
+  - L5 锐度测试（需要完整信息才能准确评分）
+  - L6 假设审计（需要完整项目背景）
+  - L7 系统影响（需要完整信息才能评估）
+
+  **输出要求：**
+  - 保持JSON格式
+  - 确保expert_handoff字段存在
+  - 标注"lite_mode": true
+  - 分析简洁但不失深度
+
+task_description_template: |
+  {datetime_info}
+
+  **Phase1输出（已完成）：**
+  ```json
+  {phase1_output}
+  ```
+
+  **用户原始输入：**
+  {user_input}
+
+  **分析要求（轻量级模式）：**
+  请基于以上信息，进行快速核心分析（L1+L4+简化L2/L3+简化利益相关者+基础专家接口）。
+
+  注意：当前为信息不足场景，请聚焦核心分析，跳过L5-L7层级。
+  **重要**：即使信息有限，也要尽力识别利益相关者（至少识别业主/甲方和使用者2类）。
+
+  **输出JSON格式：**
+  ```json
+  {
+    "phase": 2,
+    "lite_mode": true,
+    "analysis_layers": {
+      "L1_deconstruction": {
+        "facts": ["事实1", "事实2", "事实3"],
+        "mece_check": "简要说明MECE完整性"
+      },
+      "L2_modeling_simplified": {
+        "psychological": "心理层面分析（1-2句）",
+        "social": "社会层面分析（1-2句）",
+        "aesthetic": "美学层面分析（1-2句）"
+      },
+      "L3_leverage_simplified": {
+        "main_tension": "主要对立点描述",
+        "leverage_point": "杠杆点建议"
+      },
+      "L4_jtbd": {
+        "job_to_be_done": "用户雇佣空间完成【X任务】与【Y任务】",
+        "x_task": "功能性任务",
+        "y_task": "情感性任务"
+      }
+    },
+    "expert_handoff": {
+      "V2_design_director": {
+        "key_question": "核心设计问题",
+        "context": "简要背景"
+      },
+      "V3_narrative_expert": {
+        "key_question": "核心叙事问题",
+        "context": "简要背景"
+      }
+    },
+    "structured_output": {
+      "project_task": "项目核心任务",
+      "character_narrative": "用户画像",
+      "physical_context": "物理环境",
+      "stakeholder_system": {
+        "identified_stakeholders": [
+          {
+            "role": "业主/甲方（必填）",
+            "focus_dimensions": ["核心关注点1", "核心关注点2"],
+            "specific_concerns": "基于已知信息推断的主要诉求",
+            "decision_power": "high"
+          },
+          {
+            "role": "使用者/终端用户",
+            "focus_dimensions": ["体验质量", "功能需求"],
+            "specific_concerns": "基于项目类型推断的用户关切",
+            "decision_power": "indirect"
+          }
+        ],
+        "focus_divergence": {
+          "value_priority": "业主注重品质与成本控制，使用者注重体验质量"
+        },
+        "conflicts_identified": [],
+        "synergies_identified": [],
+        "power_dynamics": {
+          "decision_hierarchy": "业主/甲方拥有最终决策权，使用者通过市场反馈间接影响决策",
+          "hidden_stakeholders": null
+        }
+      }
+    }
+  }
+  ```
+
+output_format:
+  type: "json"
+  required_fields:
+    - phase
+    - lite_mode
+    - analysis_layers
+    - expert_handoff
+    - structured_output
+
+  validation:
+    - "analysis_layers必须包含L1_deconstruction和L4_jtbd"
+    - "expert_handoff至少包含2个专家"
+    - "structured_output.stakeholder_system必须包含power_dynamics字段"
+    - "structured_output.stakeholder_system.identified_stakeholders至少包含2个角色"

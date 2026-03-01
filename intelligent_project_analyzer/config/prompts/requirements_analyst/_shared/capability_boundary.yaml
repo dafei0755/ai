@@ -1,0 +1,123 @@
+# 需求分析师 - 系统能力边界声明
+# 此文件定义系统的核心能力范围和转化规则
+# 被所有需求分析师配置文件共享引用
+
+version: "7.600-shared"
+updated_at: "2026-02-11"
+
+capability_declaration: |
+  ### **⚠️ 系统能力边界声明**
+
+  本系统是**战略/策略/概念层的智力输出系统**，专注于：
+
+  **✅ 系统核心能力**：
+  - 设计策略、理念、空间规划思路
+  - 用户洞察、需求分析、场景研究
+  - 品牌叙事、文案创作、命名策划
+  - 案例研究、方法论、决策框架
+  - 评估维度、选型指导、比较分析
+
+  **❌ 超出能力范围** → 需转化为策略/指导类：
+  - CAD图纸/施工图 → 转化为 design_strategy
+  - 精确材料清单 → 转化为 material_guidance
+  - 精确成本估算 → 转化为 budget_framework
+  - 可执行采购单 → 转化为 procurement_guidance
+  - 技术规范文档 → 转化为 selection_framework
+
+# 交付物类型定义（开放列表）
+deliverable_types:
+  # 文案/创意类
+  naming_list:
+    description: "命名/取名/标题方案"
+    capability: "core"
+    typical_quantity: "3-20"
+
+  brand_narrative:
+    description: "品牌故事/叙事策略"
+    capability: "core"
+
+  copywriting_plan:
+    description: "文案策划方案"
+    capability: "core"
+
+  # 策略/指导类
+  design_strategy:
+    description: "设计策略文档（空间规划思路/功能分区建议）"
+    capability: "core"
+    transforms_from: ["design_plan", "technical_drawing"]
+
+  material_guidance:
+    description: "材料选择指导原则"
+    capability: "core"
+    transforms_from: ["material_list", "precise_material_spec"]
+
+  selection_framework:
+    description: "选型决策框架"
+    capability: "core"
+    transforms_from: ["technical_spec", "equipment_list"]
+
+  procurement_guidance:
+    description: "采购决策指南"
+    capability: "core"
+    transforms_from: ["procurement_list", "shopping_list"]
+
+  budget_framework:
+    description: "预算分配框架"
+    capability: "core"
+    transforms_from: ["cost_estimate", "precise_budget"]
+
+  # 分析/研究类
+  analysis_report:
+    description: "分析报告（市场/竞品/用户等）"
+    capability: "core"
+
+  research_summary:
+    description: "研究综述/文献回顾"
+    capability: "core"
+
+  evaluation_report:
+    description: "评估报告"
+    capability: "core"
+
+  case_study:
+    description: "案例研究"
+    capability: "core"
+
+  # 方法论/流程类
+  strategy_plan:
+    description: "战略规划/策略方案"
+    capability: "core"
+
+  implementation_guide:
+    description: "实施指南/方法论"
+    capability: "core"
+
+  decision_framework:
+    description: "决策框架"
+    capability: "core"
+
+# 能力转化规则
+transformation_rules:
+  - from: "design_plan"
+    to: "design_strategy"
+    reason: "系统输出策略思路而非执行图纸"
+
+  - from: "technical_spec"
+    to: "selection_framework"
+    reason: "系统提供选型指导而非技术规范"
+
+  - from: "procurement_list"
+    to: "procurement_guidance"
+    reason: "系统提供采购原则而非具体清单"
+
+  - from: "cost_estimate"
+    to: "budget_framework"
+    reason: "系统提供预算框架而非精确估算"
+
+  - from: "CAD_drawing"
+    to: "design_strategy"
+    reason: "系统不生成图纸，提供设计思路"
+
+  - from: "construction_plan"
+    to: "implementation_guide"
+    reason: "系统提供实施指导而非施工图"

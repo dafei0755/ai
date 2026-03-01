@@ -1,0 +1,389 @@
+# 12 Ability Core 能力验证规则配置
+#
+# 本文件定义了每个核心能力的验证规则，用于检查专家输出是否真正体现了宣称的能力
+# 验证维度包括：必需字段、关键词密度、质量检查等
+#
+# 创建日期: 2026-02-12
+# 版本: v1.0
+
+# A1 - Concept Architecture (概念架构能力)
+A1_concept_architecture:
+  description: "概念提炼与空间哲学转译能力"
+
+  required_fields:
+    conceptual_foundation:
+      - core_concept
+      - philosophical_framework
+      - spatial_interpretation
+      - concept_structure
+
+  required_keywords:
+    - "概念"
+    - "哲学"
+    - "精神主轴"
+    - "思想"
+    - "理念"
+
+  quality_checks:
+    - check: "field_completeness"
+      threshold: 0.75
+      description: "至少75%必需字段完整"
+
+    - check: "keyword_density"
+      threshold: 0.015
+      description: "关键词密度≥1.5%"
+
+    - check: "depth_score"
+      min_length: 500
+      description: "概念分析深度≥500字符"
+
+# A2 - Spatial Structuring (空间结构能力)
+A2_spatial_structuring:
+  description: "空间组织与尺度控制能力"
+
+  required_fields:
+    spatial_analysis:
+      - spatial_hierarchy
+      - dimensional_control
+      - circulation_logic
+      - zoning_strategy
+
+  required_keywords:
+    - "空间"
+    - "尺度"
+    - "层级"
+    - "结构"
+    - "动线"
+
+  quality_checks:
+    - check: "field_completeness"
+      threshold: 0.80
+      description: "至少80%必需字段完整"
+
+    - check: "keyword_density"
+      threshold: 0.02
+      description: "关键词密度≥2%"
+
+# A3 - Narrative Orchestration (叙事编排能力)
+A3_narrative_orchestration:
+  description: "空间叙事与体验节奏控制能力"
+
+  required_fields:
+    narrative_design:
+      - narrative_structure
+      - experience_rhythm
+      - emotional_curve
+      - memory_anchors
+
+  required_keywords:
+    - "叙事"
+    - "节奏"
+    - "体验"
+    - "情绪曲线"
+    - "记忆点"
+
+  quality_checks:
+    - check: "field_completeness"
+      threshold: 0.75
+      description: "至少75%必需字段完整"
+
+    - check: "keyword_density"
+      threshold: 0.015
+      description: "关键词密度≥1.5%"
+
+    - check: "rhythm_analysis"
+      required_phases: ["压缩", "释放", "高潮"]
+      description: "必须包含节奏控制阶段"
+
+# A4 - Material Intelligence (材料智慧能力)
+A4_material_intelligence:
+  description: "材料选择、性能分析与系统构建能力"
+
+  required_fields:
+    material_system:
+      - material_selection
+      - performance_analysis
+      - material_logic
+      - construction_feasibility
+
+  required_keywords:
+    - "材料"
+    - "质感"
+    - "性能"
+    - "构造"
+    - "工艺"
+
+  quality_checks:
+    - check: "field_completeness"
+      threshold: 0.80
+      description: "至少80%必需字段完整"
+
+    - check: "keyword_density"
+      threshold: 0.02
+      description: "关键词密度≥2%"
+
+    - check: "material_count"
+      min_materials: 3
+      description: "至少分析3种材料系统"
+
+# A5 - Lighting Architecture (光线建筑能力)
+A5_lighting_architecture:
+  description: "自然光与人工光系统设计能力"
+
+  required_fields:
+    lighting_design:
+      - natural_light_strategy
+      - artificial_light_system
+      - light_quality_control
+      - temporal_variation
+
+  required_keywords:
+    - "光线"
+    - "采光"
+    - "照明"
+    - "光质"
+    - "明暗"
+
+  quality_checks:
+    - check: "field_completeness"
+      threshold: 0.75
+      description: "至少75%必需字段完整"
+
+    - check: "keyword_density"
+      threshold: 0.015
+      description: "关键词密度≥1.5%"
+
+# A6 - Functional Optimization (功能优化能力)
+A6_functional_optimization:
+  description: "功能效率与动线优化能力"
+
+  required_fields:
+    functional_analysis:
+      - efficiency_optimization
+      - circulation_design
+      - modular_system
+      - interference_control
+
+  required_keywords:
+    - "效率"
+    - "功能"
+    - "动线"
+    - "优化"
+    - "流转"
+
+  quality_checks:
+    - check: "field_completeness"
+      threshold: 0.80
+      description: "至少80%必需字段完整"
+
+    - check: "keyword_density"
+      threshold: 0.02
+      description: "关键词密度≥2%"
+
+# A7 - Capital Strategy Intelligence (资本策略智慧能力)
+A7_capital_strategy_intelligence:
+  description: "资产回报模型与商业逻辑构建能力"
+
+  required_fields:
+    capital_analysis:
+      - client_asset_model
+      - efficiency_metrics
+      - premium_strategy
+      - lifecycle_value
+
+  required_keywords:
+    - "资本"
+    - "回报"
+    - "坪效"
+    - "溢价"
+    - "收益"
+
+  quality_checks:
+    - check: "field_completeness"
+      threshold: 0.80
+      description: "至少80%必需字段完整"
+
+    - check: "keyword_density"
+      threshold: 0.015
+      description: "关键词密度≥1.5%"
+
+    - check: "financial_metrics"
+      required_metrics: ["成本", "收益"]
+      description: "必须包含财务指标分析"
+
+# A8 - Technology Integration (技术整合能力)
+A8_technology_integration:
+  description: "智能系统与技术融合能力"
+
+  required_fields:
+    tech_integration:
+      - system_invisibility
+      - data_feedback
+      - iterative_interface
+      - human_machine_balance
+
+  required_keywords:
+    - "技术"
+    - "智能"
+    - "系统"
+    - "数据"
+    - "集成"
+
+  quality_checks:
+    - check: "field_completeness"
+      threshold: 0.75
+      description: "至少75%必需字段完整"
+
+    - check: "keyword_density"
+      threshold: 0.015
+      description: "关键词密度≥1.5%"
+
+# A9 - Social Structure Modeling (社会结构建模能力)
+A9_social_structure_modeling:
+  description: "社会关系分析与空间组织能力"
+
+  required_fields:
+    social_structure_analysis:
+      - power_distance_model
+      - privacy_hierarchy
+      - conflict_buffer_design
+      - evolution_adaptability
+      - intergenerational_balance
+
+  required_keywords:
+    - "权力距离"
+    - "隐私"
+    - "冲突缓冲"
+    - "代际"
+    - "社会关系"
+
+  quality_checks:
+    - check: "field_completeness"
+      threshold: 0.80
+      description: "至少80%必需字段完整"
+
+    - check: "keyword_density"
+      threshold: 0.02
+      description: "关键词密度≥2%"
+
+    - check: "theoretical_framework"
+      required_theories: ["Hofstede", "Altman", "隐私调节"]
+      description: "必须引用社会学理论框架"
+
+# A10 - Environmental Adaptation (环境适应能力)
+A10_environmental_adaptation:
+  description: "极端环境与气候响应能力"
+
+  required_fields:
+    environmental_adaptation_analysis:
+      - climate_analysis
+      - structural_resistance
+      - material_adaptation
+      - energy_system
+      - comfort_assurance
+
+  required_keywords:
+    - "气候"
+    - "环境"
+    - "适应"
+    - "抗性"
+    - "能源"
+
+  quality_checks:
+    - check: "field_completeness"
+      threshold: 0.80
+      description: "至少80%必需字段完整"
+
+    - check: "keyword_density"
+      threshold: 0.02
+      description: "关键词密度≥2%"
+
+    - check: "dimension_completeness"
+      required_dimensions: ["气候数据", "结构", "材料", "能源"]
+      threshold: 1.0
+      description: "四个维度必须全部覆盖"
+
+# A11 - Operation & Productization (运营与产品化能力)
+A11_operation_productization:
+  description: "运营场景与产品化能力"
+
+  required_fields:
+    operation_analysis:
+      - operational_scenario
+      - service_flow
+      - staff_efficiency
+      - standardization
+
+  required_keywords:
+    - "运营"
+    - "场景"
+    - "服务流程"
+    - "效率"
+    - "产品化"
+
+  quality_checks:
+    - check: "field_completeness"
+      threshold: 0.75
+      description: "至少75%必需字段完整"
+
+    - check: "keyword_density"
+      threshold: 0.015
+      description: "关键词密度≥1.5%"
+
+# A12 - Civilizational Expression (文明表达能力)
+A12_civilizational_expression:
+  description: "文化深度与文明级表达能力"
+
+  required_fields:
+    civilizational_analysis:
+      - cultural_depth
+      - historical_context
+      - symbolic_system
+      - continuity_strategy
+
+  required_keywords:
+    - "文化"
+    - "文明"
+    - "历史"
+    - "传承"
+    - "象征"
+
+  quality_checks:
+    - check: "field_completeness"
+      threshold: 0.75
+      description: "至少75%必需字段完整"
+
+    - check: "keyword_density"
+      threshold: 0.015
+      description: "关键词密度≥1.5%"
+
+    - check: "depth_score"
+      min_length: 600
+      description: "文化分析深度≥600字符"
+
+# 全局验证配置
+global_settings:
+  # 成熟度等级对应的阈值调整
+  maturity_thresholds:
+    L5:
+      field_completeness: 0.90
+      keyword_density: 1.5
+    L4:
+      field_completeness: 0.80
+      keyword_density: 1.3
+    L3:
+      field_completeness: 0.70
+      keyword_density: 1.2
+    L2:
+      field_completeness: 0.60
+      keyword_density: 1.0
+    L1:
+      field_completeness: 0.50
+      keyword_density: 0.8
+
+  # 验证失败时的动作
+  validation_actions:
+    fail_threshold: 0.60  # 低于60%判定为失败
+    warning_threshold: 0.75  # 低于75%给出警告
+    retry_on_fail: true  # 失败时是否触发重试
+    max_retries: 2  # 最大重试次数
