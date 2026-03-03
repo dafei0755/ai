@@ -1461,7 +1461,7 @@ def output_intent_detection_node(state: dict, store=None) -> Command:
     _deliverables_raw = structured_requirements.get("primary_deliverables") or []
     _design_modes_raw = detected_modes or []
     requirements_judgement = {
-        "breakthrough_insight": structured_requirements.get("breakthrough_insight", ""),
+        "summary": structured_requirements.get("breakthrough_insight", ""),  # 前端字段名: summary
         "core_tensions": [
             {"name": t.get("name", ""), "implication": t.get("design_implication", t.get("implication", ""))}
             for t in _core_tensions_raw[:3]
@@ -1486,7 +1486,7 @@ def output_intent_detection_node(state: dict, store=None) -> Command:
         else None,
     }
     logger.info(
-        f"  📋 [v13.1] requirements_judgement: insight={bool(requirements_judgement['breakthrough_insight'])}, tensions={len(requirements_judgement['core_tensions'])}, quality_score={requirements_judgement['info_quality']['score']}"
+        f"  📋 [v13.1] requirements_judgement: summary={bool(requirements_judgement['summary'])}, tensions={len(requirements_judgement['core_tensions'])}, quality_score={requirements_judgement['info_quality']['score']}"
     )
 
     output_intent_payload = {
