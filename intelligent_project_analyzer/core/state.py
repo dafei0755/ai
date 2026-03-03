@@ -302,6 +302,22 @@ class ProjectAnalysisState(TypedDict):
     completed_batches: Annotated[List[int], merge_lists]  # 已完成的批次编号列表
     """使用 reducer 支持并发更新"""
 
+    # ─────────────────────────────────────────────────────────────────────────
+    #  v8.2: 批次执行详情（前端动态步骤条）
+    # ─────────────────────────────────────────────────────────────────────────
+    batch_execution_detail: Optional[Dict[str, Any]]
+    """批次执行详情（前端展开用）
+    结构：
+    {
+        "current_batch": 2,
+        "total_batches": 5,
+        "batch_agents": ["V5_场景专家_5-1", "V4_设计研究员_4-1"],
+        "completed_agents": ["V5_场景专家_5-1"],
+        "active_agent": "V4_设计研究员_4-1",
+        "batch_progress": 0.5  # 0.0-1.0
+    }
+    """
+
     # 第二批策略审核 - 新增字段
     second_batch_approved: Optional[bool]  # 第二批策略是否被批准
     second_batch_strategies: Optional[Dict[str, Any]]  # 第二批专家的工作策略
@@ -355,8 +371,8 @@ class ProjectAnalysisState(TypedDict):
     retry_count: int
 
     #  需求分析显式失败状态（消除静默降级到 Step 1 的问题）
-    requirements_analysis_status: Optional[str]   # "failed" | None
-    requirements_analysis_error: Optional[str]    # 异常摘要，前端可通过状态接口读取
+    requirements_analysis_status: Optional[str]  # "failed" | None
+    requirements_analysis_error: Optional[str]  # 异常摘要，前端可通过状态接口读取
 
     #  输入拒绝字段（内容安全与领域过滤）
     rejection_reason: Optional[str]  # 拒绝原因代码
@@ -502,6 +518,19 @@ class ProjectAnalysisState(TypedDict):
     motivation_routing_profile: Optional[Dict[str, Any]]
     """动机聚合画像，供路由与内容偏置统一消费。"""
 
+    # ── v8.0 投射调度字段 ──────────────────────────────────────────────────────
+    active_projections: Optional[List[str]]
+    """激活的投射视角 ID 列表，由 output_intent_detection 写入，最多3个。"""
+
+    meta_axis_scores: Optional[Dict[str, float]]
+    """五轴坐标评分 {identity, power, operation, emotion, civilization}，由 projection_dispatcher 计算。"""
+
+    perspective_outputs: Optional[Dict[str, Any]]
+    """各视角投射版本原始输出，格式 {proj_id: {status, content, sections, ...}}。"""
+
+    projection_reports: Optional[Dict[str, Any]]
+    """最终已完成的投射报告字典，由 result_aggregator 组装写入。"""
+
     output_intent_confirmed: Optional[bool]
     """输出意图是否已确认。"""
 
@@ -607,6 +636,11 @@ class StateManager:
             active_steps=["step1_core_task", "step2_info_gap", "step3_radar", "requirements_insight"],
             motivation_routing_profile=None,
             output_intent_confirmed=False,
+            # v8.0 投射调度字段初始化
+            active_projections=None,
+            meta_axis_scores=None,
+            perspective_outputs=None,
+            projection_reports=None,
             # 流程控制
             current_stage=AnalysisStage.INIT.value,
             active_agents=[],
@@ -617,6 +651,7 @@ class StateManager:
             current_batch=0,
             total_batches=0,
             completed_batches=[],
+            batch_execution_detail=None,  #  v8.2: 批次执行详情
             #  多轮审核控制 - 初始化
             review_round=0,
             review_history=[],

@@ -1097,6 +1097,24 @@ class ResultAggregatorAgent(LLMAgent):
             else:
                 logger.debug("ℹ️ [v7.122] 无搜索引用数据")
 
+            # ── v8.0: 投射调度与多视角生成 ─────────────────────────────────
+            self._update_progress(state, "启动多视角投射调度", 0.94)
+            try:
+                from ..services.projection_dispatcher import dispatch_projections_sync
+
+                proj_result = dispatch_projections_sync(state=state, llm_model=self.llm_model)
+                final_report["meta_axis_scores"] = proj_result.get("meta_axis_scores", {})
+                final_report["active_projections"] = proj_result.get("active_projections", [])
+                final_report["perspective_outputs"] = proj_result.get("perspective_outputs", {})
+                final_report["projection_reports"] = {
+                    k: v
+                    for k, v in proj_result.get("perspective_outputs", {}).items()
+                    if isinstance(v, dict) and v.get("status") == "completed"
+                }
+                logger.info(f"[投射调度] 生成 {len(final_report['projection_reports'])} 个视角报告")
+            except Exception as _proj_err:
+                logger.error(f"[投射调度] 失败，使用基础报告: {_proj_err}")
+
             # 创建分析结果
             self._update_progress(state, "构建最终分析结果", 0.95)
             result = self.create_analysis_result(

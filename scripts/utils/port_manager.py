@@ -9,16 +9,16 @@
 
 使用示例:
     from scripts.utils.port_manager import PortManager
-    
+
     # 检测端口是否可用
     pm = PortManager()
     if pm.is_port_available(8000):
         print("Port 8000 is available")
-    
+
     # 为测试环境分配端口
     ports = pm.allocate_ports(env="test")
     print(f"Backend: {ports['backend']}, Frontend: {ports['frontend']}")
-    
+
     # 释放端口
     pm.release_port(8000, process_names=["python.exe", "uvicorn.exe"])
 """

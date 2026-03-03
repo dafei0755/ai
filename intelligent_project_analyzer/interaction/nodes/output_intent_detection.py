@@ -32,6 +32,9 @@ from typing import Any, Dict, List, Literal, Optional, Tuple
 import yaml
 from langgraph.types import Command, interrupt
 
+# v8.2: 动态步骤追踪装饰器
+from ...utils.node_tracker import track_active_step
+
 logger = logging.getLogger(__name__)
 
 
@@ -1286,6 +1289,7 @@ def _extract_framework_signals(
 # ==================================================================================
 
 
+@track_active_step("output_intent_detection")
 def output_intent_detection_node(state: dict, store=None) -> Command:
     """
     输出意图检测节点
@@ -1320,14 +1324,10 @@ def output_intent_detection_node(state: dict, store=None) -> Command:
     logger.info(f"  结构化数据字段: {list(structured_requirements.keys())[:10]}")
 
     # -------------------------------------------------------
-    # 0.5 幂等保护：若 active_projections 已存在且用户未修改意图，直接跳过 interrupt
-    # v9.3: 防止 questionnaire_summary 重路由时二次打断用户
+    # 🗑️ v8.3: 移除旧的幂等保护逻辑
+    # 原因：v8.3流程中output_intent作为统一问卷Step 1，不需要幂等保护
+    # 工作流路由已确保不会重复进入此节点（output_intent_confirmed后直接到Step 2）
     # -------------------------------------------------------
-    existing_projections = state.get("active_projections")
-    if existing_projections and not state.get("intent_changed", False):
-        logger.info(f"  ⚡ [幂等] active_projections 已存在且 intent_changed=False，跳过重新检测")
-        logger.info(f"  ⚡ [幂等] 现有 projections: {existing_projections}")
-        return Command(goto="feasibility_analyst")
 
     # -------------------------------------------------------
     # 1. 四源交叉检测交付类型
@@ -1617,7 +1617,10 @@ def output_intent_detection_node(state: dict, store=None) -> Command:
             "extracted_spatial_zones": extracted_spatial_zones,
             # 🆕 v12.1: 用户确认的约束（替代旧 user_intent_constraints）
             "user_intent_constraints": confirmed_constraints if confirmed_constraints else None,
+            # 🆕 v8.3: 标记输出意图已确认
+            "output_intent_confirmed": True,
             "detail": f"输出意图检测完成(v12.0): {len(active_projections)}种交付类型, {len(serializable_modes)}种身份模式",
         },
-        goto="feasibility_analyst",
+        # 🔧 v8.3: 输出意图确认后直接进入渐进式问卷Step 1（任务梳理）
+        goto="progressive_step1_core_task",
     )

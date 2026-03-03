@@ -23,7 +23,8 @@ from loguru import logger
 from pydantic import BaseModel
 
 from intelligent_project_analyzer.settings import settings  # 直接导入
-from .deps import sessions_cache, DEV_MODE
+
+from .deps import DEV_MODE, sessions_cache
 from .models import ConversationResponse
 
 router = APIRouter(tags=["Sessions & Conversation"])

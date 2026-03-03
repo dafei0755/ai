@@ -34,7 +34,7 @@ git add .
 git cz
 
 # 交互式选择：
-# ? Select the type of change: 
+# ? Select the type of change:
 #   ❯ feat:     新功能（A new feature）
 #     fix:      修复Bug（A bug fix）
 #     docs:     文档更新（Documentation only changes）

@@ -37,14 +37,16 @@
 # 🔧 Emoji Encoding 深度修复（必须在最前面）
 # ============================================================
 try:
-    import sys
     import os
+    import sys
+
     # 添加项目根目录到path
     project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     if project_root not in sys.path:
         sys.path.insert(0, project_root)
-    
+
     from fix_emoji_encoding import apply_all_patches
+
     apply_all_patches()
     print("[RequirementsAnalystAgent] ✅ Emoji编码修复已应用")
 except Exception as e:
@@ -207,13 +209,17 @@ def phase1_node(state: RequirementsAnalystState, llm_model, prompt_manager) -> D
     # 调用 LLM
     try:
         messages = [{"role": "system", "content": system_prompt}, {"role": "user", "content": task_description}]
-        
+
         #  强制清理emoji (防止Windows GBK编码错误)
         import re
-        emoji_pattern = re.compile(r'[\U0001F000-\U0001F9FF\U00002300-\U000023FF\U00002600-\U000027BF\U00002700-\U000027BF\U0001F900-\U0001F9FF]+', flags=re.UNICODE)
+
+        emoji_pattern = re.compile(
+            r"[\U0001F000-\U0001F9FF\U00002300-\U000023FF\U00002600-\U000027BF\U00002700-\U000027BF\U0001F900-\U0001F9FF]+",
+            flags=re.UNICODE,
+        )
         for msg in messages:
-            msg['content'] = emoji_pattern.sub('', msg['content'])
-        
+            msg["content"] = emoji_pattern.sub("", msg["content"])
+
         response = llm_model.invoke(messages)
         response_content = response.content if hasattr(response, "content") else str(response)
 
@@ -335,13 +341,17 @@ def phase2_node(state: RequirementsAnalystState, llm_model, prompt_manager) -> D
     # 调用 LLM
     try:
         messages = [{"role": "system", "content": system_prompt}, {"role": "user", "content": task_description}]
-        
+
         #  强制清理emoji (防止Windows GBK编码错误)
         import re
-        emoji_pattern = re.compile(r'[\U0001F000-\U0001F9FF\U00002300-\U000023FF\U00002600-\U000027BF\U00002700-\U000027BF\U0001F900-\U0001F9FF]+', flags=re.UNICODE)
+
+        emoji_pattern = re.compile(
+            r"[\U0001F000-\U0001F9FF\U00002300-\U000023FF\U00002600-\U000027BF\U00002700-\U000027BF\U0001F900-\U0001F9FF]+",
+            flags=re.UNICODE,
+        )
         for msg in messages:
-            msg['content'] = emoji_pattern.sub('', msg['content'])
-        
+            msg["content"] = emoji_pattern.sub("", msg["content"])
+
         response = llm_model.invoke(messages)
         response_content = response.content if hasattr(response, "content") else str(response)
 
@@ -598,9 +608,7 @@ def _phase2_fallback(state: RequirementsAnalystState, start_time: float) -> Dict
     }
 
 
-def _build_problem_solving_approach(
-    phase1: Dict[str, Any], phase2: Dict[str, Any]
-) -> Optional[Dict[str, Any]]:
+def _build_problem_solving_approach(phase1: Dict[str, Any], phase2: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     """
     从 Phase2 结果中构建 problem_solving_approach 结构（A-01 止血修复）
 
@@ -638,9 +646,7 @@ def _build_problem_solving_approach(
     complexity_level = "high" if sharpness_score >= 70 else "medium"
 
     # 判断分析深度
-    has_five_whys = bool(
-        layers.get("L5_1_five_whys") or phase2.get("L5_1_five_whys")
-    )
+    has_five_whys = bool(layers.get("L5_1_five_whys") or phase2.get("L5_1_five_whys"))
     depth_reached = "L5" if has_five_whys else "L4"
 
     # 截断 core_challenge 至 200 字符
@@ -735,9 +741,7 @@ def _weighted_info_status_vote(
     # consensus：三方一致时为 True
     consensus = len({precheck_status_str, phase1_status_str, mode_status_str}) == 1
 
-    decision_reason = _build_decision_reason(
-        is_sufficient, precheck_status_str, phase1_status_str, mode_status_str
-    )
+    decision_reason = _build_decision_reason(is_sufficient, precheck_status_str, phase1_status_str, mode_status_str)
 
     details = {
         "final_score": final_score,
@@ -908,6 +912,7 @@ def build_requirements_analyst_graph(llm_model, prompt_manager) -> StateGraph:
                                     ↓
                                   output → END
     """
+
     # 闭包: 将非序列化对象注入节点，而非存入 state
     def _phase1(state: RequirementsAnalystState) -> Dict[str, Any]:
         return phase1_node(state, llm_model, prompt_manager)
@@ -960,12 +965,13 @@ class RequirementsAnalystAgentV2:
         self.config = config or {}
         self.prompt_manager = PromptManager()
 
-        # 构建并编译图
-        self._graph = build_requirements_analyst_graph(self.llm_model, self.prompt_manager).compile()
+        # 构建并编译图（不使用 checkpointer，避免 AsyncSqliteSaver 同步调用冲突）
+        self._graph = build_requirements_analyst_graph(self.llm_model, self.prompt_manager).compile(checkpointer=None)
 
         # runtime source fingerprint — 诊断用：确认运行时加载的是当前工作树源码
         import inspect as _inspect
         import sys as _sys
+
         logger.info(
             "[RequirementsAnalystAgentV2] runtime source fingerprint | "
             f"module_file={__file__} | "

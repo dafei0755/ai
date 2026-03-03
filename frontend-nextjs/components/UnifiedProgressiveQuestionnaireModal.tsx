@@ -32,12 +32,16 @@ import {
 
 ChartJS.register(RadialLinearScale, PointElement, LineElement, Filler, Tooltip, Legend);
 
-// 🆕 v7.130: 简化 Props 接口，使用统一的 stepData 和 onConfirm
-// 🆕 v7.147: 支持 Step 4 (问卷汇总)
+// 🆕 v8.3: 统一5步渐进式问卷（Step 1: 输出意图确认）
+// Step 1: 输出意图确认 + 需求分析判断 + 双动机展示
+// Step 2: 任务梳理
+// Step 3: 信息补全
+// Step 4: 雷达图配置
+// Step 5: 方案洞察（问卷汇总）
 interface UnifiedProgressiveQuestionnaireModalProps {
   isOpen: boolean;
-  currentStep: number; // 0=关闭, 1=任务梳理, 2=信息补全, 3=雷达图, 4=问卷汇总
-  stepData?: any;      // 🆕 v7.130: 统一数据对象
+  currentStep: number; // 0=关闭, 1=输出意图, 2=任务梳理, 3=信息补全, 4=雷达图, 5=方案洞察
+  stepData?: any;      // 🆕 v8.3: 统一数据对象（包含Step 1的requirements_judgement等）
   onConfirm: (data?: any) => void;  // 🆕 v7.130: 统一确认回调
   onSkip: () => void;   // 🆕 v7.130: 统一跳过回调
   sessionId?: string;
@@ -81,11 +85,11 @@ const FRONTCHAIN_STEPS = [
   { number: 1, label: '意图确认', icon: '1' },
   { number: 2, label: '任务梳理', icon: '2' },
   { number: 3, label: '信息补全', icon: '3' },
-  { number: 4, label: '偏好雷达图', icon: '4' },
-  { number: 5, label: '需求洞察', icon: '5' },
+  { number: 4, label: '雷达图配置', icon: '4' },
+  { number: 5, label: '方案洞察', icon: '5' },
 ];
 
-// 🆕 v7.130: 简化组件参数
+// 🎯 v8.3: 简化组件参数
 export function UnifiedProgressiveQuestionnaireModal({
   isOpen,
   currentStep,
@@ -100,6 +104,10 @@ export function UnifiedProgressiveQuestionnaireModal({
   const [isLoading, setIsLoading] = useState(false); // 骨架屏加载状态
   const [loadingMessage, setLoadingMessage] = useState('AI 正在智能分析...');
 
+  // Step 1: 输出意图确认状态
+  const [selectedDeliveries, setSelectedDeliveries] = useState<string[]>([]);
+  const [selectedModes, setSelectedModes] = useState<string[]>([]);
+
   // 任务编辑状态
   const [editedTasks, setEditedTasks] = useState<EditableTask[]>([]);
   const [originalTasksCount, setOriginalTasksCount] = useState(0);
@@ -111,27 +119,41 @@ export function UnifiedProgressiveQuestionnaireModal({
   // Ref for content container to control scroll position
   const contentRef = useRef<HTMLDivElement>(null);
 
-  // 🆕 v7.130: 当步骤数据更新时，停止加载状态
-  // 🆕 v7.147: 添加 Step 4 支持
+  // 🆕 v8.3: 当步骤数据更新时，停止加载状态
   useEffect(() => {
-    if (currentStep === 1 && stepData?.extracted_tasks) {
+    if (currentStep === 1 && (stepData?.delivery_types || stepData?.requirements_judgement)) {
       setIsLoading(false);
       NProgress.done();
-    } else if (currentStep === 2 && stepData?.questionnaire) {
+    } else if (currentStep === 2 && stepData?.extracted_tasks) {
       setIsLoading(false);
       NProgress.done();
-    } else if (currentStep === 3 && stepData?.dimensions) {
+    } else if (currentStep === 3 && stepData?.questionnaire) {
       setIsLoading(false);
       NProgress.done();
-    } else if (currentStep === 4 && stepData?.restructured_requirements) {
+    } else if (currentStep === 4 && stepData?.dimensions) {
+      setIsLoading(false);
+      NProgress.done();
+    } else if (currentStep === 5 && stepData?.restructured_requirements) {
       setIsLoading(false);
       NProgress.done();
     }
   }, [currentStep, stepData]);
 
+  // 🆕 v8.3: 初始化Step 1的选项（推荐选项默认选中）
+  useEffect(() => {
+    if (currentStep === 1 && stepData?.delivery_types) {
+      const recommended = stepData.delivery_types.options.filter((o: any) => o.recommended).map((o: any) => o.id);
+      setSelectedDeliveries(recommended);
+    }
+    if (currentStep === 1 && stepData?.identity_modes) {
+      const recommended = stepData.identity_modes.options.filter((o: any) => o.recommended).map((o: any) => o.id);
+      setSelectedModes(recommended);
+    }
+  }, [currentStep, stepData]);
+
   // 初始化任务列表
   useEffect(() => {
-    if (stepData?.extracted_tasks && isOpen && currentStep === 1) {
+    if (stepData?.extracted_tasks && isOpen && currentStep === 2) {
       // 尝试从localStorage恢复草稿
       try {
         const draftKey = `questionnaire-tasks-draft-${sessionId}`;
@@ -353,19 +375,29 @@ export function UnifiedProgressiveQuestionnaireModal({
     setIsLoading(true);
     NProgress.start();
 
-    // 设置加载提示文案
+    // 🔧 v8.3: 更新加载提示文案（Step 1=输出意图）
     if (currentStep === 1) {
-      setLoadingMessage('AI 正在智能拆解任务...');
+      setLoadingMessage('正在确认输出意图...');
     } else if (currentStep === 2) {
-      setLoadingMessage('正在分析信息完整性...');
+      setLoadingMessage('AI 正在智能拆解任务...');
     } else if (currentStep === 3) {
-      setLoadingMessage('正在生成需求洞察...');
+      setLoadingMessage('正在分析信息完整性...');
     } else if (currentStep === 4) {
-      setLoadingMessage('正在进入需求确认...');
+      setLoadingMessage('正在生成雷达图维度...');
+    } else if (currentStep === 5) {
+      setLoadingMessage('正在生成需求洞察...');
     }
 
-    // 根据步骤构建数据并调用统一的 onConfirm
+    // 🔧 v8.3: 根据步骤构建数据并调用统一的 onConfirm
     if (currentStep === 1) {
+      // Step 1: 输出意图确认（交付类型 + 身份模式）
+      console.log('🎯 Step 1: 输出意图确认', { selectedDeliveries, selectedModes });
+      onConfirm({ 
+        selected_deliveries: selectedDeliveries, 
+        selected_modes: selectedModes 
+      });
+    } else if (currentStep === 2) {
+      // Step 2: 任务梳理（原Step 1）
       // 检查是否有任务正在编辑
       const hasEditing = editedTasks.some(t => t.isEditing);
       if (hasEditing) {
@@ -395,16 +427,18 @@ export function UnifiedProgressiveQuestionnaireModal({
       } else {
         onConfirm();
       }
-    } else if (currentStep === 2) {
+    } else if (currentStep === 3) {
+      // Step 3: 信息补全（原Step 2）
       clearQuestionnaireCache(sessionId);
       onConfirm({ answers });
-    } else if (currentStep === 3) {
-      onConfirm({ dimension_values: dimensionValues });
     } else if (currentStep === 4) {
-      // 🆕 v7.154: Step 4 需求洞察确认，检查是否有编辑修改
+      // Step 4: 雷达图配置（原Step 3）
+      onConfirm({ dimension_values: dimensionValues });
+    } else if (currentStep === 5) {
+      // Step 5: 方案洞察（原Step 4）
       const modifications = summaryDisplayRef.current?.getModifications();
       if (modifications && Object.keys(modifications).length > 0) {
-        console.log('📝 [Step4] 用户修改:', modifications);
+        console.log('📝 [Step5] 用户修改:', modifications);
         onConfirm({
           intent: 'confirm',
           modifications: modifications
@@ -416,9 +450,13 @@ export function UnifiedProgressiveQuestionnaireModal({
   };
 
   // 获取确认按钮文本
-  // 🆕 v7.147: 添加 Step 4 支持
+  // 🔧 v8.3: 更新按钮文案以匹配新步骤映射
   const getConfirmButtonText = () => {
     if (currentStep === 1) {
+      // Step 1: 输出意图确认
+      return '确认开始问卷';
+    } else if (currentStep === 2) {
+      // Step 2: 任务梳理（原Step 1）
       const validTasks = editedTasks.filter(t => !t.isEditing);
       const addedCount = validTasks.filter(t => t.isNew).length;
       const deletedCount = originalTasksCount - (validTasks.length - addedCount);
@@ -431,9 +469,9 @@ export function UnifiedProgressiveQuestionnaireModal({
     }
 
     switch (currentStep) {
-      case 2: return '确认偏好设置';
-      case 3: return '提交问卷';
-      case 4: return '确认无误，继续';
+      case 3: return '确认偏好设置'; // 信息补全（原Step 2）
+      case 4: return '提交问卷'; // 雷达图（原Step 3）
+      case 5: return '确认无误，继续'; // 方案洞察（原Step 4）
       default: return '确认';
     }
   };
@@ -521,213 +559,183 @@ export function UnifiedProgressiveQuestionnaireModal({
     ));
   };
 
-  // 渲染 Step 1
+  // 🆕 v8.3: Step 1 - 输出意图确认（含需求分析判断+双动机）
   const renderStep1Content = () => {
-    const { user_input_summary } = stepData || {};
+    const {
+      delivery_types,
+      identity_modes,
+      requirements_judgement,
+      motivation_routing_profile,
+    } = stepData || {};
 
-    // 计算修改统计
-    const validTasks = editedTasks.filter(t => !t.isEditing);
-    const addedCount = validTasks.filter(t => t.isNew).length;
-    const deletedCount = originalTasksCount - (validTasks.length - addedCount);
-
-    const summaryPreview = user_input_summary?.length > 50
-      ? user_input_summary.substring(0, 50) + '...'
-      : user_input_summary;
+    const deliveryOptions = delivery_types?.options || [];
+    const identityOptions = identity_modes?.options || [];
 
     return (
-      <div className="space-y-4">
-        {/* 任务列表 */}
-        <div className="task-list-container space-y-6">
-          {editedTasks.map((task, index) => {
-            const isEditing = task.isEditing;
-            const isNew = task.isNew;
-
-            return (
-              <div
-                key={index}
-                className={`relative group bg-white rounded-xl p-4 transition-all duration-200 ${
-                  isNew ? 'border-l-4 border-l-green-500' : ''
-                } ${isEditing ? 'ring-2 ring-gray-300 shadow-lg' : 'hover:shadow-md'}`}
-              >
-                {/* 新增任务标记 */}
-                {isNew && !isEditing && (
-                  <div className="absolute top-2 right-2 px-2 py-0.5 bg-green-100 text-green-700 text-xs font-medium rounded-full">
-                    新增
-                  </div>
-                )}
-
-                {isEditing ? (
-                  // 编辑模式
-                  <div className="space-y-4">
-                    <div className="flex items-start gap-3">
-                      <div className="flex-shrink-0 w-8 h-8 bg-gray-100 text-gray-600 rounded-lg flex items-center justify-center text-sm font-medium">
-                        {index + 1}
-                      </div>
-                      <div className="flex-1 space-y-3">
-                        {/* 标题输入 */}
-                        <div>
-                          <label className="block text-xs font-medium text-gray-700 mb-1">
-                            任务标题 <span className="text-red-500">*</span>
-                            <span className="ml-2 text-gray-500">（至少5个字符）</span>
-                          </label>
-                          <input
-                            type="text"
-                            value={task.title}
-                            onChange={(e) => updateTaskField(index, 'title', e.target.value)}
-                            placeholder="输入任务标题..."
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-transparent text-sm text-gray-900 placeholder:text-gray-400"
-                          />
-                          <div className="mt-1 text-xs text-gray-500">
-                            {task.title.length}/5
-                          </div>
-                        </div>
-
-                        {/* 描述输入 */}
-                        <div>
-                          <label className="block text-xs font-medium text-gray-700 mb-1">
-                            任务描述 <span className="text-red-500">*</span>
-                            <span className="ml-2 text-gray-500">（至少20个字符）</span>
-                          </label>
-                          <textarea
-                            value={task.description}
-                            onChange={(e) => updateTaskField(index, 'description', e.target.value)}
-                            placeholder="详细描述任务内容..."
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-transparent text-sm text-gray-900 placeholder:text-gray-400 resize-none"
-                            rows={3}
-                          />
-                          <div className="mt-1 text-xs text-gray-500">
-                            {task.description.length}/20
-                          </div>
-                        </div>
-
-                        {/* 操作按钮 */}
-                        <div className="flex items-center gap-2 pt-2">
-                          <button
-                            onClick={() => handleSaveTask(index)}
-                            disabled={task.title.trim().length < 5 || task.description.trim().length < 20}
-                            className="btn-primary-sm"
-                          >
-                            保存
-                          </button>
-                          <button
-                            onClick={() => handleCancelEdit(index)}
-                            className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm rounded-lg transition-colors"
-                          >
-                            取消
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  // 查看模式
-                  <div className="flex items-start gap-3">
-                    <div className="flex-shrink-0 w-8 h-8 bg-gray-100 text-gray-600 rounded-lg flex items-center justify-center text-sm font-medium">
-                      {index + 1}
-                    </div>
-                    <div className="flex-1 min-w-0 space-y-2">
-                      {/* 标题行：标题 + 需求分类 */}
-                      <div className="flex items-center gap-2 flex-wrap">
-                        {/* 任务标题 */}
-                        <h4 className="font-medium text-gray-900">
-                          {task.title}
-                        </h4>
-
-                        {/* 动机类型标签 */}
-                        {task.motivation_label && (
-                          <span className="badge-gray flex-shrink-0">
-                            {task.motivation_label}
-                          </span>
-                        )}
-
-                        {/* 置信度提示（低于0.7时显示） */}
-                        {task.confidence_score && task.confidence_score < 0.7 && (
-                          <div className="flex items-center gap-1 text-xs text-amber-600 flex-shrink-0">
-                            <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                              <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                            </svg>
-                            <span>待确认</span>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* 任务描述 */}
-                      <p className="text-sm text-gray-600 leading-relaxed">
-                        {task.description}
-                      </p>
-
-                      {/* 🆕 v7.105: AI推理说明 + 关键词（扁平化样式，无背景色）*/}
-                      {(task.ai_reasoning || (task.source_keywords && task.source_keywords.length > 0)) && (
-                        <div className="space-y-1.5">
-                          {task.ai_reasoning && (
-                            <p className="text-xs text-gray-600 leading-relaxed italic">{task.ai_reasoning}</p>
-                          )}
-                          {task.source_keywords && task.source_keywords.length > 0 && (
-                            <div className="flex flex-wrap gap-1.5">
-                              {task.source_keywords.map((keyword: string, idx: number) => (
-                                <span
-                                  key={idx}
-                                  className="badge-gray text-xs"
-                                >
-                                  {keyword}
-                                </span>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      )}
-
-                      {/* 🆕 v7.105: 依赖关系 */}
-                      {task.dependencies && task.dependencies.length > 0 && (
-                        <div className="text-xs text-gray-600">
-                          <span className="font-medium">依赖任务：</span>
-                          <div className="flex flex-wrap gap-1 mt-1">
-                            {task.dependencies.map((depId: string, idx: number) => {
-                              const depTask = editedTasks.find(t => t.id === depId);
-                              return depTask ? (
-                                <span key={idx} className="px-2 py-0.5 bg-gray-100 text-gray-700 rounded-full">
-                                  #{depTask.execution_order || '?'} {depTask.title}
-                                </span>
-                              ) : null;
-                            })}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* 🆕 v7.105: 预期产出 */}
-                      {task.expected_output && (
-                        <div className="flex items-center gap-2 text-xs text-gray-600">
-                          <svg className="w-4 h-4 text-green-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M6 2a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2V7.414A2 2 0 0015.414 6L12 2.586A2 2 0 0010.586 2H6zm5 6a1 1 0 10-2 0v3.586l-1.293-1.293a1 1 0 10-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 11.586V8z" clipRule="evenodd" />
-                          </svg>
-                          <span className="font-medium">预期产出：</span>
-                          <span className="text-gray-700">{task.expected_output}</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-
-        {/* 添加任务按钮 */}
-        <div className="flex items-center gap-4 my-8">
-          <div className="flex-1 border-t border-dashed border-gray-300"></div>
-          <button
-            onClick={handleAddTask}
-            disabled={editedTasks.length >= 15}
-            className="transition-all disabled:opacity-50 disabled:cursor-not-allowed group"
-          >
-            <div className="w-10 h-10 rounded-full bg-gray-100 group-hover:bg-gray-200 flex items-center justify-center transition-colors">
-              <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+      <div className="space-y-6">
+        {/* 需求分析师判断卡片 */}
+        {requirements_judgement && (
+          <div className="rounded-xl border border-amber-200 bg-amber-50 px-5 py-4 space-y-3">
+            <div className="flex items-center gap-2">
+              <svg className="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
+              <div className="text-sm font-semibold text-amber-800">需求分析师判断</div>
             </div>
-          </button>
-          <div className="flex-1 border-t border-dashed border-gray-300"></div>
-        </div>
+            {requirements_judgement.summary && (
+              <p className="text-sm text-amber-900 leading-relaxed">{requirements_judgement.summary}</p>
+            )}
+            {requirements_judgement.info_quality && (
+              <div className="flex items-center gap-4 text-xs">
+                <span className="text-amber-700">
+                  信息完整度: <strong className="text-amber-900">{requirements_judgement.info_quality.score ?? 0}</strong>
+                </span>
+                <span className="px-2 py-0.5 bg-amber-200 text-amber-800 rounded">
+                  {requirements_judgement.info_quality.confidence_level ?? 'medium'}
+                </span>
+              </div>
+            )}
+            {requirements_judgement.core_tensions && requirements_judgement.core_tensions.length > 0 && (
+              <ul className="text-xs text-amber-800 space-y-1.5 pl-1">
+                {requirements_judgement.core_tensions.slice(0, 3).map((t: any, idx: number) => (
+                  <li key={idx} className="flex items-start gap-2">
+                    <span className="text-amber-600 mt-0.5">•</span>
+                    <div>
+                      <span className="font-medium">{t.name || '关键张力'}：</span>
+                      <span className="text-amber-700">{t.implication || '待进一步补充'}</span>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
+
+        {/* 双动机展示 */}
+        {motivation_routing_profile && (
+          <div className="rounded-xl border border-blue-200 bg-blue-50 px-5 py-4 space-y-3">
+            <div className="flex items-center gap-2">
+              <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+              <div className="text-sm font-semibold text-blue-800">双动机分析</div>
+            </div>
+            {motivation_routing_profile.primary_motivation && (
+              <div className="space-y-1">
+                <div className="text-xs text-blue-700">主要动机</div>
+                <div className="text-sm text-blue-900">{motivation_routing_profile.primary_motivation}</div>
+              </div>
+            )}
+            {motivation_routing_profile.secondary_motivation && (
+              <div className="space-y-1">
+                <div className="text-xs text-blue-700">次要动机</div>
+                <div className="text-sm text-blue-900">{motivation_routing_profile.secondary_motivation}</div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* 交付类型选择 */}
+        {delivery_types && (
+          <div className="space-y-3">
+            <div className="text-sm font-medium text-gray-700">{delivery_types.message || '交付类型：'}</div>
+            <div className="space-y-2">
+              {deliveryOptions.map((option: any) => {
+                const isSelected = selectedDeliveries.includes(option.id);
+                return (
+                  <button
+                    key={option.id}
+                    onClick={() => {
+                      setSelectedDeliveries(prev =>
+                        prev.includes(option.id)
+                          ? prev.filter(x => x !== option.id)
+                          : [...prev, option.id]
+                      );
+                    }}
+                    className={`w-full text-left px-4 py-3 rounded-lg border-2 transition-all ${
+                      isSelected
+                        ? 'border-blue-500 bg-blue-50'
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium text-gray-800">{option.label}</span>
+                          {option.recommended && (
+                            <span className="px-2 py-0.5 text-xs bg-blue-100 text-blue-700 rounded">推荐</span>
+                          )}
+                        </div>
+                        {option.desc && <p className="text-sm text-gray-600 mt-1">{option.desc}</p>}
+                      </div>
+                      <div className={`w-5 h-5 rounded border-2 flex items-center justify-center ${
+                        isSelected ? 'bg-blue-500 border-blue-500' : 'border-gray-300'
+                      }`}>
+                        {isSelected && (
+                          <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                          </svg>
+                        )}
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* 身份模式选择 */}
+        {identity_modes && identityOptions.length > 0 && (
+          <div className="space-y-3">
+            <div className="text-sm font-medium text-gray-700">{identity_modes.message || '身份视角：'}</div>
+            <div className="space-y-2">
+              {identityOptions.map((option: any) => {
+                const isSelected = selectedModes.includes(option.id);
+                return (
+                  <button
+                    key={option.id}
+                    onClick={() => {
+                      setSelectedModes(prev =>
+                        prev.includes(option.id)
+                          ? prev.filter(x => x !== option.id)
+                          : [...prev, option.id]
+                      );
+                    }}
+                    className={`w-full text-left px-4 py-3 rounded-lg border-2 transition-all ${
+                      isSelected
+                        ? 'border-blue-500 bg-blue-50'
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium text-gray-800">{option.label}</span>
+                          {option.recommended && (
+                            <span className="px-2 py-0.5 text-xs bg-blue-100 text-blue-700 rounded">推荐</span>
+                          )}
+                        </div>
+                        {option.spatial_need && (
+                          <p className="text-sm text-gray-600 mt-1">{option.spatial_need}</p>
+                        )}
+                      </div>
+                      <div className={`w-5 h-5 rounded border-2 flex items-center justify-center ${
+                        isSelected ? 'bg-blue-500 border-blue-500' : 'border-gray-300'
+                      }`}>
+                        {isSelected && (
+                          <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                          </svg>
+                        )}
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
     );
   };
@@ -1071,13 +1079,13 @@ export function UnifiedProgressiveQuestionnaireModal({
       return <QuestionnaireSkeletonLoader type={skeletonType} message={loadingMessage} />;
     }
 
-    // 🆕 v7.130: 直接映射步骤到渲染函数
-    // 🆕 v7.147: 添加 Step 4
+    // 🆕 v8.3: 步骤映射调整（Step 1=输出意图，Step 2-5=原Step 1-4）
     switch (currentStep) {
-      case 1: return renderStep1Content();
-      case 2: return renderStep2Content();
-      case 3: return renderStep3Content();
-      case 4: return renderStep4Content();
+      case 1: return renderStep1Content(); // 输出意图确认
+      case 2: return renderStep1Content(); // 任务梳理（原Step 1）
+      case 3: return renderStep2Content(); // 信息补全（原Step 2）
+      case 4: return renderStep3Content(); // 雷达图（原Step 3）
+      case 5: return renderStep4Content(); // 方案洞察（原Step 4）
       default: return null;
     }
   };

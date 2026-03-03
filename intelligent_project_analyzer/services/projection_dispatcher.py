@@ -214,21 +214,21 @@ def calculate_axis_scores(state: Dict[str, Any]) -> Dict[str, float]:
         _pri = _dbm_ax.get("primary", "")
         _orig = scores.copy()
         if _pri == "D1_survival_securing":
-            scores["operation"]     = min(1.0, scores.get("operation", 0.5)     + 0.10)
-            scores["civilization"]  = max(0.1, scores.get("civilization", 0.3)  - 0.10)
+            scores["operation"] = min(1.0, scores.get("operation", 0.5) + 0.10)
+            scores["civilization"] = max(0.1, scores.get("civilization", 0.3) - 0.10)
         elif _pri == "D2_competitive_winning":
-            scores["power"]         = min(1.0, scores.get("power", 0.3)         + 0.12)
+            scores["power"] = min(1.0, scores.get("power", 0.3) + 0.12)
         elif _pri == "D3_breakthrough_innovation":
-            scores["identity"]      = min(1.0, scores.get("identity", 0.5)      + 0.10)
-            scores["emotion"]       = min(1.0, scores.get("emotion", 0.4)       + 0.08)
+            scores["identity"] = min(1.0, scores.get("identity", 0.5) + 0.10)
+            scores["emotion"] = min(1.0, scores.get("emotion", 0.4) + 0.08)
         elif _pri == "D4_capability_learning":
-            scores["operation"]     = min(1.0, scores.get("operation", 0.5)     + 0.12)
-            scores["civilization"]  = max(0.1, scores.get("civilization", 0.3)  - 0.08)
+            scores["operation"] = min(1.0, scores.get("operation", 0.5) + 0.12)
+            scores["civilization"] = max(0.1, scores.get("civilization", 0.3) - 0.08)
         elif _pri == "D5_structural_clarification":
-            scores["operation"]     = min(1.0, scores.get("operation", 0.5)     + 0.08)
-            scores["emotion"]       = max(0.1, scores.get("emotion", 0.4)       - 0.06)
+            scores["operation"] = min(1.0, scores.get("operation", 0.5) + 0.08)
+            scores["emotion"] = max(0.1, scores.get("emotion", 0.4) - 0.06)
         elif _pri == "D6_strategic_construction":
-            scores["civilization"]  = min(1.0, scores.get("civilization", 0.3)  + 0.12)
+            scores["civilization"] = min(1.0, scores.get("civilization", 0.3) + 0.12)
         if scores != _orig:
             logger.info(f"[projection_dispatcher] v8.0动机轴修正 {_pri}: {_orig} → {scores}")
 
@@ -363,12 +363,12 @@ def determine_active_projections(
     _dbm_conf = _dbm.get("confidence", 0) if isinstance(_dbm, dict) else 0
     # D-type → 优先激活的投射ID
     _D_PROJ_BOOST: Dict[str, str] = {
-        "D1_survival_securing":       "construction_execution",
-        "D2_competitive_winning":      "investor_operator",
-        "D3_breakthrough_innovation":  "aesthetic_critique",
-        "D4_capability_learning":      "design_professional",
+        "D1_survival_securing": "construction_execution",
+        "D2_competitive_winning": "investor_operator",
+        "D3_breakthrough_innovation": "aesthetic_critique",
+        "D4_capability_learning": "design_professional",
         "D5_structural_clarification": "design_professional",
-        "D6_strategic_construction":   "government_policy",
+        "D6_strategic_construction": "government_policy",
     }
 
     for proj_id, proj_config in projections.items():

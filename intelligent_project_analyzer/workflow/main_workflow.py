@@ -23,16 +23,28 @@ from loguru import logger
 # 显式导入智能体类以触发 AgentFactory 注册
 from ..agents import AgentFactory, ProjectDirectorAgent, RequirementsAnalystAgent
 from ..agents.base import NullLLM
-from ..agents.dynamic_project_director import detect_and_handle_challenges_node  #  v3.5
-from ..agents.feasibility_analyst import FeasibilityAnalystAgent  #  V1.5可行性分析师
-from ..agents.quality_monitor import QualityMonitor  #
+from ..agents.dynamic_project_director import detect_and_handle_challenges_node  # v3.5
+from ..agents.feasibility_analyst import FeasibilityAnalystAgent  # V1.5可行性分析师
+from ..agents.quality_monitor import QualityMonitor
+
+#  统一从 feature_flags 读取，消除跨模块默认值分裂
+#  原来此处 USE_V717_REQUIREMENTS_ANALYST 默认 "false"，requirements_nodes.py 默认 "true" → 已统一为 "true"
+from ..config.feature_flags import (
+    USE_MULTI_ROUND_QUESTIONNAIRE,
+    USE_PROGRESSIVE_QUESTIONNAIRE,
+    USE_V716_AGENTS,
+    USE_V717_REQUIREMENTS_ANALYST,
+    USE_V718_QUESTIONNAIRE_AGENT,
+    log_feature_flags_snapshot,
+)
 from ..core.state import AnalysisStage, ProjectAnalysisState, StateManager
 from ..core.types import AgentType, format_role_display_name
 from ..interaction.interaction_nodes import (  # FinalReviewNode,  # 已移除：客户需求中没有最终审核阶段; AnalysisReviewNode,  # ️ v2.2: 已废弃，质量审核已前置化
     CalibrationQuestionnaireNode,
     UserQuestionNode,
 )
-from ..interaction.nodes.manual_review import ManualReviewNode  #  人工审核节点
+from ..interaction.nodes.manual_review import ManualReviewNode  # 人工审核节点
+from ..interaction.nodes.output_intent_detection import output_intent_detection_node
 
 #  v7.87: 三步递进式问卷节点
 from ..interaction.nodes.progressive_questionnaire import (
@@ -41,35 +53,24 @@ from ..interaction.nodes.progressive_questionnaire import (
     progressive_step2_radar_node,
     progressive_step3_gap_filling_node,
 )
-from ..interaction.nodes.quality_preflight import QualityPreflightNode  #
+from ..interaction.nodes.quality_preflight import QualityPreflightNode
 
 #  v7.135: 问卷汇总节点（需求重构）
 from ..interaction.nodes.questionnaire_summary import questionnaire_summary_node
-from ..interaction.nodes.output_intent_detection import output_intent_detection_node
 
 #  统一审核节点（合并角色选择和任务分派审核）
 from ..interaction.role_task_unified_review import role_task_unified_review_node
-
-#  v7.502 P1优化: 智能上下文压缩器
-from .context_compressor import create_context_compressor
 
 # from ..interaction.role_selection_review import role_selection_review_node  # 已废弃
 # from ..interaction.task_assignment_review import task_assignment_review_node  # 已废弃
 from ..interaction.second_batch_strategy_review import SecondBatchStrategyReviewNode
 from ..report.pdf_generator import PDFGeneratorAgent
 from ..report.result_aggregator import ResultAggregatorAgent
-from ..workflow.nodes.search_query_generator_node import search_query_generator_node  #  v7.109
+from ..workflow.nodes.search_query_generator_node import search_query_generator_node  # v7.109
 
-#  统一从 feature_flags 读取，消除跨模块默认值分裂
-#  原来此处 USE_V717_REQUIREMENTS_ANALYST 默认 "false"，requirements_nodes.py 默认 "true" → 已统一为 "true"
-from ..config.feature_flags import (
-    USE_V716_AGENTS,
-    USE_V717_REQUIREMENTS_ANALYST,
-    USE_V718_QUESTIONNAIRE_AGENT,
-    USE_PROGRESSIVE_QUESTIONNAIRE,
-    USE_MULTI_ROUND_QUESTIONNAIRE,
-    log_feature_flags_snapshot,
-)
+#  v7.502 P1优化: 智能上下文压缩器
+from .context_compressor import create_context_compressor
+
 if USE_V716_AGENTS:
     # from ..agents.analysis_review_agent import AnalysisReviewAgent, AnalysisReviewNodeCompat  # ️ v2.2: 已废弃
     from ..agents.challenge_detection_agent import ChallengeDetectionAgent, detect_and_handle_challenges_v2
@@ -86,20 +87,20 @@ if USE_V718_QUESTIONNAIRE_AGENT:
     from ..agents.questionnaire_agent import QuestionnaireAgent
 
     logger.info(" [v7.18] 启用问卷生成 StateGraph Agent")
-from ..security import ReportGuardNode  #  内容安全与领域过滤
+from ..security import ReportGuardNode  # 内容安全与领域过滤
 
 #  v7.3 统一输入验证节点（合并 input_guard 和 domain_validator）
 from ..security.unified_input_validator_node import InputRejectedNode, UnifiedInputValidatorNode
 
 # 动态本体论注入工具
 from ..utils.ontology_loader import OntologyLoader
+from .nodes.aggregation_nodes import AggregationNodesMixin
+from .nodes.execution_nodes import ExecutionNodesMixin
+from .nodes.planning_nodes import PlanningNodesMixin
+from .nodes.requirements_nodes import RequirementsNodesMixin
 
 # LT-1: Mixin classes split from this file
 from .nodes.security_nodes import SecurityNodesMixin
-from .nodes.requirements_nodes import RequirementsNodesMixin
-from .nodes.planning_nodes import PlanningNodesMixin
-from .nodes.execution_nodes import ExecutionNodesMixin
-from .nodes.aggregation_nodes import AggregationNodesMixin
 
 
 class MainWorkflow(
@@ -261,7 +262,7 @@ class MainWorkflow(
         # unified_input_validator_initial 使用 Command 路由到 requirements_analyst 或 input_rejected
         workflow.add_edge("input_rejected", END)  # 拒绝后终止
 
-#  显式路由：需求分析失败时终止主链路，阻止静默降级到 Step 1
+        #  显式路由：需求分析失败时终止主链路，阻止静默降级到 Step 1
         workflow.add_conditional_edges(
             "requirements_analyst",
             self._route_after_requirements_analyst,
@@ -378,9 +379,7 @@ class MainWorkflow(
         workflow.add_conditional_edges("pdf_generator", self._route_after_pdf_generator, [END])
 
         # 修复 P0：函数返回 Literal["project_director", END]，END 必须在声明列表；移除永远不可达的 result_aggregator
-        workflow.add_conditional_edges(
-            "user_question", self._route_after_user_question, ["project_director", END]
-        )
+        workflow.add_conditional_edges("user_question", self._route_after_user_question, ["project_director", END])
 
         # ============================================================================
         # 编译图

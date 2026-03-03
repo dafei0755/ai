@@ -28,6 +28,9 @@ from ...services.capability_boundary_service import CapabilityBoundaryService, C
 from ...services.core_task_decomposer import _simple_fallback_decompose, decompose_core_tasks
 from ...services.dimension_selector import DimensionSelector, RadarGapAnalyzer, select_dimensions_for_state
 
+# v8.2: 动态步骤追踪装饰器
+from ...utils.node_tracker import track_active_step
+
 
 class ProgressiveQuestionnaireNode:
     """三步递进式问卷节点"""
@@ -1287,16 +1290,19 @@ async def _llm_interpret_poetry(text: str) -> Dict[str, Any]:
 # ==========================================================================
 
 
+@track_active_step("progressive_step1_core_task")
 def progressive_step1_core_task_node(state: ProjectAnalysisState, store: Optional[BaseStore] = None) -> Command:
     """Step 1 节点函数"""
     return ProgressiveQuestionnaireNode.step1_core_task(state, store)
 
 
+@track_active_step("progressive_step2_radar")
 def progressive_step2_radar_node(state: ProjectAnalysisState, store: Optional[BaseStore] = None) -> Command:
     """Step 2 节点函数"""
     return ProgressiveQuestionnaireNode.step2_radar(state, store)
 
 
+@track_active_step("progressive_step3_gap_filling")
 def progressive_step3_gap_filling_node(state: ProjectAnalysisState, store: Optional[BaseStore] = None) -> Command:
     """Step 3 节点函数"""
     return ProgressiveQuestionnaireNode.step3_gap_filling(state, store)

@@ -12,13 +12,13 @@
 使用示例:
     # 启动开发环境后端
     python scripts/start_service.py --env development --service backend
-    
+
     # 启动测试环境前端
     python scripts/start_service.py --env test --service frontend
-    
+
     # 启动测试环境全套服务
     python scripts/start_service.py --env test --service all
-    
+
     # 启动生产环境（固定端口）
     python scripts/start_service.py --env production --service all
 """
@@ -319,21 +319,27 @@ def main():
 Examples:
   # 启动开发环境后端
   python scripts/start_service.py --env development --service backend
-  
+
   # 启动测试环境全套服务
   python scripts/start_service.py --env test --service all
-  
+
   # 启动生产环境（手动端口管理）
   python scripts/start_service.py --env production --service all --no-auto-release
         """,
     )
 
     parser.add_argument(
-        "--env", default="development", help="Environment (development/test/production)", choices=["development", "dev", "test", "staging", "production", "prod"]
+        "--env",
+        default="development",
+        help="Environment (development/test/production)",
+        choices=["development", "dev", "test", "staging", "production", "prod"],
     )
 
     parser.add_argument(
-        "--service", default="all", help="Service to start (backend/frontend/all)", choices=["backend", "frontend", "all"]
+        "--service",
+        default="all",
+        help="Service to start (backend/frontend/all)",
+        choices=["backend", "frontend", "all"],
     )
 
     parser.add_argument("--no-auto-release", action="store_true", help="Do not automatically release ports")

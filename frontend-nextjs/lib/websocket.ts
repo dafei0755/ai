@@ -16,6 +16,8 @@ export type WebSocketMessage =
   | { type: 'step1_complete'; data: any }  // 🆕 v7.270: 第一步完成
   | { type: 'step2_start'; data: any }  // 🆕 v7.270: 第二步开始
   | { type: 'step2_complete'; data: any }  // 🆕 v7.270: 第二步完成
+  | { type: 'batch_started'; batch_detail: any; timestamp: string }  // 🆕 v8.2: 批次开始
+  | { type: 'batch_progress'; batch_detail: any; timestamp: string }  // 🆕 v8.2: 批次进度
   | { type: 'ping' }
   | { type: 'pong' };
 

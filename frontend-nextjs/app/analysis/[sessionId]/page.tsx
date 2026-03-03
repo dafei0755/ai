@@ -30,8 +30,10 @@ import { UserQuestionModal } from '@/components/UserQuestionModal';
 import { UnifiedProgressiveQuestionnaireModal } from '@/components/UnifiedProgressiveQuestionnaireModal';
 import { QualityPreflightModal } from '@/components/QualityPreflightModal';
 import { UserQuestionCard } from '@/components/UserQuestionCard';
+import DynamicStepBar from '@/components/DynamicStepBar';
 import type { AnalysisStatus, SessionStatus } from '@/types';
 import type { NodeStatus } from '@/types/workflow';
+import type { BatchDetail } from '@/lib/workflow-steps-config';
 // v7.290: 分析页面改为独立体验，移除侧边栏组件
 
 // 节点名称中文映射
@@ -202,6 +204,10 @@ export default function AnalysisPage() {
 	const [qualityPreflightData, setQualityPreflightData] = useState<any>(null);
 	const [showQualityPreflight, setShowQualityPreflight] = useState(false);
 
+	// 🆕 v8.2: 动态步骤条状态
+	const [activeSteps, setActiveSteps] = useState<string[]>([]);
+	const [batchDetail, setBatchDetail] = useState<BatchDetail | undefined>(undefined);
+
 	// 节点详情面板状态
 	const [selectedNode, setSelectedNode] = useState<string | null>(null);
 
@@ -274,37 +280,50 @@ export default function AnalysisPage() {
 			api.resumeAnalysis(sessionId, 'approve').catch((err: any) => {
 				console.error('❌ 自动批准批次失败:', err);
 			});
+		} else if (interactionType === 'output_intent_confirmation') {
+			// 🆕 v8.3: 输出意图确认作为统一渐进式问卷的 Step 1
+			console.log('🎯 检测到输出意图确认 - 作为问卷Step 1');
+			setProgressiveStepData(interruptData);
+			setCurrentProgressiveStep(1); // Step 1: 输出意图确认
+			// 旧版独立Modal已废弃
+			// setOutputIntentData(interruptData);
+			// setShowOutputIntentModal(true);
 		} else if (interactionType === 'progressive_questionnaire_step1') {
+			// Step 1现在是output_intent，任务梳理变为Step 2
 			setProgressiveStepData(interruptData);
-			setCurrentProgressiveStep(dynamicStepNumber || 1);
-			console.log('📋 检测到待处理的第1步 - 任务梳理');
+			setCurrentProgressiveStep(2); // Step 2: 任务梳理（原Step 1）
+			console.log('📋 检测到待处理的任务梳理 - 作为问卷Step 2');
 		} else if (interactionType === 'progressive_questionnaire_step2') {
+			// 信息补全变为Step 3
 			setProgressiveStepData(interruptData);
-			setCurrentProgressiveStep(dynamicStepNumber || 2);
-			console.log('📋 检测到待处理的第2步 - 信息补全');
+			setCurrentProgressiveStep(3); // Step 3: 信息补全（原Step 2）
+			console.log('📋 检测到待处理的信息补全 - 作为问卷Step 3');
 		} else if (interactionType === 'progressive_questionnaire_step3') {
-			console.log('📋 检测到待处理的第3步 - 雷达图维度选择');
-			console.log('🔍 [Step3] dimensions 类型:', typeof interruptData.dimensions);
-			console.log('🔍 [Step3] dimensions 是否为数组:', Array.isArray(interruptData.dimensions));
+			// 雷达图变为Step 4
+			console.log('📋 检测到待处理的雷达图维度选择 - 作为问卷Step 4');
+			console.log('🔍 [Step4] dimensions 类型:', typeof interruptData.dimensions);
+			console.log('🔍 [Step4] dimensions 是否为数组:', Array.isArray(interruptData.dimensions));
 			if (interruptData.dimensions) {
-				console.log('🔍 [Step3] dimensions 数量:', Array.isArray(interruptData.dimensions) ? interruptData.dimensions.length : 'N/A');
+				console.log('🔍 [Step4] dimensions 数量:', Array.isArray(interruptData.dimensions) ? interruptData.dimensions.length : 'N/A');
 			}
 			setProgressiveStepData(interruptData);
-			setCurrentProgressiveStep(dynamicStepNumber || 3);
+			setCurrentProgressiveStep(4); // Step 4: 雷达图（原Step 3）
 		} else if (interactionType === 'progressive_questionnaire_step4' || interactionType === 'requirements_insight') {
-			console.log('📋 检测到待处理的第4步 - 需求洞察');
-			console.log('🔍 [Step4] restructured_requirements:', interruptData.restructured_requirements ? '已包含' : '缺失');
-			console.log('🔍 [Step4] project_essence:', interruptData.project_essence ? '已包含' : '缺失');
+			// 需求洞察变为Step 5
+			console.log('📋 检测到待处理的需求洞察 - 作为问卷Step 5');
+			console.log('🔍 [Step5] restructured_requirements:', interruptData.restructured_requirements ? '已包含' : '缺失');
+			console.log('🔍 [Step5] project_essence:', interruptData.project_essence ? '已包含' : '缺失');
 			setProgressiveStepData(interruptData);
-			setCurrentProgressiveStep(dynamicStepNumber || 4);
+			setCurrentProgressiveStep(5); // Step 5: 方案洞察（原Step 4）
 		} else if (interactionType === 'quality_preflight_warning') {
 			setQualityPreflightData(interruptData);
 			setShowQualityPreflight(true);
 			console.log('⚠️ 检测到质量预检警告');
-		} else if (interactionType === 'output_intent_confirmation') {
-			setOutputIntentData(interruptData);
-			setShowOutputIntentModal(true);
-			console.log('🎯 检测到输出意图确认');
+		// 🗑️ v8.3: 移除独立的output_intent_confirmation Modal，已集成到unified questionnaire
+		// } else if (interactionType === 'output_intent_confirmation') {
+		// 	setOutputIntentData(interruptData);
+		// 	setShowOutputIntentModal(true);
+		// 	console.log('🎯 检测到输出意图确认');
 		} else {
 			setConfirmationData(interruptData);
 			setShowConfirmation(true);
@@ -474,6 +493,12 @@ export default function AnalysisPage() {
 							};
 						});
 
+						// 🆕 v8.2: 更新激活步骤列表
+						if ((message as any).active_steps) {
+							setActiveSteps((message as any).active_steps);
+							console.log('✨ [v8.2] 更新 activeSteps:', (message as any).active_steps);
+						}
+
 						if (message.current_node) {
 							const currentNode = message.current_node;
 							setNodeDetails((prev) => {
@@ -618,6 +643,17 @@ export default function AnalysisPage() {
 						}));
 
 						applyInterruptDispatch(message.interrupt_data);
+						break;
+
+					// 🆕 v8.2: 批次执行详情消息处理
+					case 'batch_started':
+						console.log('🎬 [v8.2] 批次开始:', (message as any).batch_detail);
+						setBatchDetail((message as any).batch_detail);
+						break;
+
+					case 'batch_progress':
+						console.log('📊 [v8.2] 批次进度:', (message as any).batch_detail);
+						setBatchDetail((message as any).batch_detail);
 						break;
 
 					case 'tool_permissions_initialized':
@@ -929,23 +965,48 @@ export default function AnalysisPage() {
 			console.log(`✅ 第${step}步 - 用户确认:`, stepData);
 
 			let payload: any = { action: 'confirm' };
-			if (step === 1 && stepData?.extracted_tasks) {
+			// 🆕 v8.3: Step 1是output_intent确认，Step 2-5依次后移
+			if (step === 1) {
+				// Step 1: 输出意图确认（交付类型 + 身份模式）
+				if (stepData?.selected_deliveries || stepData?.selected_modes) {
+					payload = {
+						selected_deliveries: stepData.selected_deliveries || [],
+						selected_modes: stepData.selected_modes || []
+					};
+					console.log('🎯 Step 1: 输出意图确认', payload);
+				}
+			} else if (step === 2 && stepData?.extracted_tasks) {
+				// Step 2: 任务梳理（原Step 1）
 				payload.confirmed_tasks = stepData.extracted_tasks;
-			} else if (step === 2 && stepData?.answers) {
+			} else if (step === 3 && stepData?.answers) {
+				// Step 3: 信息补全（原Step 2）
 				payload.answers = stepData.answers;
-			} else if (step === 3 && stepData?.dimension_values) {
+			} else if (step === 4 && stepData?.dimension_values) {
+				// Step 4: 雷达图配置（原Step 3）
 				payload.selected_dimensions = stepData.dimension_values;
 			}
 
-			// 🆕 v7.400: Step 1确认后立即显示Step 2加载状态（极致用户体验优化）
+			// 🆕 v7.400: Step 1确认后立即显示Step 2加载状态
 			if (step === 1) {
 				console.log('🚀 [UX优化] Step 1确认，立即显示Step 2加载状态');
 				setCurrentProgressiveStep(2);
 				setProgressiveStepData({
 					isLoading: true,
-					interaction_type: 'progressive_questionnaire_step2',
+					interaction_type: 'progressive_questionnaire_step1', // 原Step 1（任务梳理）
 					step: 2,
-					total_steps: 3,
+					total_steps: 5,
+					title: '任务梳理',
+					message: '正在提取核心任务...'
+				});
+			// 🔧 v8.3: Step 2确认后显示Step 3加载状态
+			} else if (step === 2) {
+				console.log('🚀 [UX优化] Step 2确认，立即显示Step 3加载状态');
+				setCurrentProgressiveStep(3);
+				setProgressiveStepData({
+					isLoading: true,
+					interaction_type: 'progressive_questionnaire_step2',
+					step: 3,
+					total_steps: 5,
 					title: '信息补全',
 					message: '正在理解您的需求并进行深度分析...'
 				});
@@ -957,11 +1018,11 @@ export default function AnalysisPage() {
 			setStatus((prev) => ({
 				...prev!,
 				status: 'running' as SessionStatus,
-				detail: step === 3 ? '正在生成分析报告...' : '正在处理您的输入...'
+				detail: step === 4 ? '正在生成雷达图...' : step === 5 ? '正在生成分析报告...' : '正在处理您的输入...'
 			}));
 
-			// 🔧 v7.153: Step 3（雷达图）或 Step 4（需求洞察）完成后，关闭问卷
-			if (step === 3 || step === 4) {
+			// 🔧 v8.3: Step 4（雷达图）或 Step 5（需求洞察）完成后，关闭问卷
+			if (step === 4 || step === 5) {
 				setCurrentProgressiveStep(0);
 				setProgressiveStepData(null);
 			}
@@ -971,8 +1032,8 @@ export default function AnalysisPage() {
 			console.error(`❌ 第${step}步确认失败:`, err);
 			alert('确认失败,请重试');
 			// 🆕 v7.400: 如果API调用失败，清除loading状态
-			if (step === 1) {
-				setCurrentProgressiveStep(1);
+			if (step === 1 || step === 2) {
+				setCurrentProgressiveStep(step);
 				setProgressiveStepData((prev: any) => ({ ...prev, isLoading: false }));
 			}
 		}
@@ -1034,6 +1095,17 @@ export default function AnalysisPage() {
 					<div className={`max-w-6xl mx-auto ${status?.status === 'completed' ? 'h-full flex items-center justify-center' : 'space-y-6'}`}>
 						{/* 🆕 v7.290: 用户问题卡片 - 使用公共组件 */}
 						{(error || status) && <UserQuestionCard question={userInput} className="mb-6" />}
+
+						{/* 🆕 v8.2: 动态步骤条 */}
+						{status && !error && activeSteps.length > 0 && status.status !== 'completed' && status.status !== 'rejected' && (
+							<div className="mb-6">
+								<DynamicStepBar
+									activeSteps={activeSteps}
+									agentResults={nodeDetails}
+									batchDetail={batchDetail}
+								/>
+							</div>
+						)}
 
 						{error ? (
 							<div className="max-w-2xl mx-auto">

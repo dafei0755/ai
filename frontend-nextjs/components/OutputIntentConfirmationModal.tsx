@@ -90,6 +90,7 @@ export interface OutputIntentConfirmationData {
 export interface OutputIntentConfirmPayload {
 	selected_deliveries: string[];
 	selected_modes: string[];
+	[key: string]: unknown; // Index signature to allow Record<string, unknown>
 }
 
 interface OutputIntentConfirmationModalProps {

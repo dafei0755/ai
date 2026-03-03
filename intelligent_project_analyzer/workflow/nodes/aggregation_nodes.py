@@ -14,6 +14,7 @@ import uuid
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Literal, Optional, Union
+
 import yaml
 from langgraph.checkpoint.base import BaseCheckpointSaver
 from langgraph.checkpoint.sqlite import SqliteSaver
@@ -25,16 +26,17 @@ from loguru import logger
 # 显式导入智能体类以触发 AgentFactory 注册
 from ...agents import AgentFactory, ProjectDirectorAgent, RequirementsAnalystAgent
 from ...agents.base import NullLLM
-from ...agents.dynamic_project_director import detect_and_handle_challenges_node  #  v3.5
-from ...agents.feasibility_analyst import FeasibilityAnalystAgent  #  V1.5可行性分析师
-from ...agents.quality_monitor import QualityMonitor  #
+from ...agents.dynamic_project_director import detect_and_handle_challenges_node  # v3.5
+from ...agents.feasibility_analyst import FeasibilityAnalystAgent  # V1.5可行性分析师
+from ...agents.quality_monitor import QualityMonitor
+from ...config.feature_flags import USE_V716_AGENTS, USE_V717_REQUIREMENTS_ANALYST
 from ...core.state import AnalysisStage, ProjectAnalysisState, StateManager
 from ...core.types import AgentType, format_role_display_name
 from ...interaction.interaction_nodes import (  # FinalReviewNode,  # 已移除：客户需求中没有最终审核阶段; AnalysisReviewNode,  # ️ v2.2: 已废弃，质量审核已前置化
     CalibrationQuestionnaireNode,
     UserQuestionNode,
 )
-from ...interaction.nodes.manual_review import ManualReviewNode  #  人工审核节点
+from ...interaction.nodes.manual_review import ManualReviewNode  # 人工审核节点
 
 #  v7.87: 三步递进式问卷节点
 from ...interaction.nodes.progressive_questionnaire import (
@@ -43,7 +45,7 @@ from ...interaction.nodes.progressive_questionnaire import (
     progressive_step2_radar_node,
     progressive_step3_gap_filling_node,
 )
-from ...interaction.nodes.quality_preflight import QualityPreflightNode  #
+from ...interaction.nodes.quality_preflight import QualityPreflightNode
 
 #  v7.135: 问卷汇总节点（需求重构）
 from ...interaction.nodes.questionnaire_summary import questionnaire_summary_node
@@ -51,24 +53,27 @@ from ...interaction.nodes.questionnaire_summary import questionnaire_summary_nod
 #  统一审核节点（合并角色选择和任务分派审核）
 from ...interaction.role_task_unified_review import role_task_unified_review_node
 
-#  v7.502 P1优化: 智能上下文压缩器
-from ..context_compressor import create_context_compressor
-
 # from ..interaction.role_selection_review import role_selection_review_node  # 已废弃
 # from ..interaction.task_assignment_review import task_assignment_review_node  # 已废弃
 from ...interaction.second_batch_strategy_review import SecondBatchStrategyReviewNode
 from ...report.pdf_generator import PDFGeneratorAgent
 from ...report.result_aggregator import ResultAggregatorAgent
-from ...workflow.nodes.search_query_generator_node import search_query_generator_node  #  v7.109
 
 #  v7.87: 三步递进式问卷（默认启用）
-from ...security import ReportGuardNode  #  内容安全与领域过滤
+from ...security import ReportGuardNode  # 内容安全与领域过滤
 
 #  v7.3 统一输入验证节点（合并 input_guard 和 domain_validator）
 from ...security.unified_input_validator_node import InputRejectedNode, UnifiedInputValidatorNode
 
+# v8.2: 动态步骤追踪装饰器
+from ...utils.node_tracker import track_active_step
+
 # 动态本体论注入工具
 from ...utils.ontology_loader import OntologyLoader
+from ...workflow.nodes.search_query_generator_node import search_query_generator_node  # v7.109
+
+#  v7.502 P1优化: 智能上下文压缩器
+from ..context_compressor import create_context_compressor
 
 
 class AggregationNodesMixin:
@@ -702,6 +707,7 @@ class AggregationNodesMixin:
         logger.info(" Executing manual review node for critical quality issues")
         return ManualReviewNode.execute(state=state, store=self.store)
 
+    @track_active_step("result_aggregator")
     def _result_aggregator_node(self, state: ProjectAnalysisState) -> Dict[str, Any]:
         """
         结果聚合节点
@@ -727,11 +733,17 @@ class AggregationNodesMixin:
             result = agent.execute(state, {}, self.store)
 
             # 只返回需要更新的字段 (不更新current_stage)
+            sd = result.structured_data or {}
             return {
-                "final_report": result.structured_data,
+                "final_report": sd,
                 "agent_results": {"RESULT_AGGREGATOR": result.to_dict()},
+                # ── v8.0: 透传投射调度结果到 state ──────────────────────────
+                "meta_axis_scores": sd.get("meta_axis_scores"),
+                "active_projections": sd.get("active_projections"),
+                "perspective_outputs": sd.get("perspective_outputs"),
+                "projection_reports": sd.get("projection_reports"),
                 "updated_at": datetime.now().isoformat(),
-                "detail": "整合专家成果，生成最终报告草稿",
+                "detail": "整合专家成果，生成最终报告（含多视角投射）",
             }
 
         except Exception as e:
@@ -763,7 +775,7 @@ class AggregationNodesMixin:
             logger.info("Executing report generator node (text mode for testing)")
 
             # 使用纯文本生成器进行测试
-            from ..report.text_generator import TextGeneratorAgent
+            from ...report.text_generator import TextGeneratorAgent
 
             agent = TextGeneratorAgent(config=self.config)
 

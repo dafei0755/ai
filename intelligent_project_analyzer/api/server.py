@@ -8,7 +8,7 @@ FastAPI 后端服务器
 import asyncio
 import io
 import json
-import math  #  v7.109: 用于分页诊断日志
+import math  # v7.109: 用于分页诊断日志
 import os
 import re
 import sys
@@ -700,9 +700,7 @@ try:
     # 挂载静态文件服务
     app.mount("/archived_images", StaticFiles(directory=str(archived_images_dir)), name="archived_images")
     app.mount("/uploads", StaticFiles(directory=str(uploads_dir)), name="uploads")
-    app.mount(
-        "/generated_images", StaticFiles(directory=str(generated_images_dir)), name="generated_images"
-    )  #  v7.108
+    app.mount("/generated_images", StaticFiles(directory=str(generated_images_dir)), name="generated_images")  #  v7.108
     app.mount("/followup_images", StaticFiles(directory=str(followup_images_dir)), name="followup_images")  #  v7.108.2
 
     logger.info(f" 静态文件服务已挂载: /archived_images -> {archived_images_dir}")
@@ -797,9 +795,7 @@ try:
     from intelligent_project_analyzer.api.routes.admin_dashboard_routes import router as admin_dashboard_router
 
     app.include_router(
-        admin_dashboard_router,
-        prefix="/api/admin/dimension-learning",
-        tags=["Admin - Dimension Learning"]
+        admin_dashboard_router, prefix="/api/admin/dimension-learning", tags=["Admin - Dimension Learning"]
     )
     logger.info(" 维度学习系统路由已注册")
 except Exception as e:
@@ -2702,9 +2698,7 @@ async def check_redis_status():
                 "aof_enabled": redis_info.get("aof_enabled", "unknown"),
                 "last_save_time": redis_info.get("rdb_last_save_time", "unknown"),
             },
-            "recommendation": " Redis已连接，会话数据持久化存储"
-            if redis_info.get("aof_enabled") == "1"
-            else "️ 建议启用AOF持久化以防止数据丢失",
+            "recommendation": " Redis已连接，会话数据持久化存储" if redis_info.get("aof_enabled") == "1" else "️ 建议启用AOF持久化以防止数据丢失",
         }
     except Exception as e:
         return {"mode": "error", "status": "failed", "error": str(e), "recommendation": " Redis连接失败，请检查Redis服务是否运行"}
@@ -3530,9 +3524,7 @@ async def resume_analysis(request: ResumeRequest, background_tasks: BackgroundTa
                     current_state = await workflow.graph.aget_state(config)
                     state_values = getattr(current_state, "values", {}) or {}
                 except Exception as state_read_error:
-                    logger.warning(
-                        f"️ Resume结束后读取graph state失败: {type(state_read_error).__name__}: {state_read_error}"
-                    )
+                    logger.warning(f"️ Resume结束后读取graph state失败: {type(state_read_error).__name__}: {state_read_error}")
                     state_values = {}
 
                 total_batches = state_values.get("total_batches", 0) or 0
@@ -5919,7 +5911,7 @@ def _translate_content(text: str) -> str:
 
 
 def _clean_markdown_inline(text: str) -> str:
-    """ v7.26.3: 清理行内Markdown格式（用于短文本）
+    """v7.26.3: 清理行内Markdown格式（用于短文本）
 
     去除 **加粗** 和 *斜体* 标记，保留文本内容
     """
@@ -6288,7 +6280,7 @@ class RegenerateImageRequest(BaseModel):
 
 
 class AddImageRequest(BaseModel):
-    """ v7.41: 新增概念图请求"""
+    """v7.41: 新增概念图请求"""
 
     expert_name: str
     prompt: str
@@ -6297,7 +6289,7 @@ class AddImageRequest(BaseModel):
 
 
 class DeleteImageRequest(BaseModel):
-    """ v7.41: 删除概念图请求"""
+    """v7.41: 删除概念图请求"""
 
     expert_name: str
     image_id: Optional[str] = None  # 如果为空，删除该专家的所有图像
@@ -7025,7 +7017,7 @@ async def regenerate_image_with_context(session_id: str, request: RegenerateImag
             return text
 
         def _get_expert_context(session_data: Dict[str, Any], expert_name: str) -> str:
-            """ v7.50: 获取专家报告上下文用于 LLM 增强"""
+            """v7.50: 获取专家报告上下文用于 LLM 增强"""
             final_report = session_data.get("final_report", {}) if isinstance(session_data, dict) else {}
             expert_reports = final_report.get("expert_reports", {}) if isinstance(final_report, dict) else {}
 

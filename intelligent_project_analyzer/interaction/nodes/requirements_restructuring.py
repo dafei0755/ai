@@ -41,6 +41,7 @@ class RequirementsRestructuringEngine:
         analysis_layers: "Dict[str, Any]",
         user_input: str,
         use_llm: bool = True,
+        weight_interpretations: "Optional[Dict[str, Any]]" = None,
     ) -> "Dict[str, Any]":
         """
         主重构流程 - v3.0 两阶段架构
@@ -84,7 +85,7 @@ class RequirementsRestructuringEngine:
         # Fallback: 规则降级（复用现有逻辑）
         logger.info("🔄 [Fallback] 使用规则降级方案")
         return RequirementsRestructuringEngine._rule_based_fallback(
-            questionnaire_data, ai_analysis, analysis_layers, user_input
+            questionnaire_data, ai_analysis, analysis_layers, user_input, weight_interpretations
         )
 
     # ==================== v3.0: Phase A - 数据准备 ====================
@@ -507,6 +508,7 @@ class RequirementsRestructuringEngine:
         ai_analysis: "Dict[str, Any]",
         analysis_layers: "Dict[str, Any]",
         user_input: str,
+        weight_interpretations: "Optional[Dict[str, Any]]" = None,
     ) -> "Dict[str, Any]":
         """Fallback: 规则降级方案（复用现有 Step 1-8 逻辑，不使用LLM）"""
         logger.info("🔄 [Fallback] 执行规则降级重构")
@@ -537,8 +539,7 @@ class RequirementsRestructuringEngine:
         deep_insights = E._fallback_deep_insights(user_input, questionnaire_data, objectives, constraints)
 
         # 🆕 v13.0: 规则降级的任务校正生成
-        # 🆕 v14.0: 传入 weight_interpretations 以生成设计驱动信号
-        weight_interpretations = context.get("weight_interpretations") if isinstance(context, dict) else None
+        # 🆕 v14.0: 直接使用方法参数 weight_interpretations
         task_corrections = E._rule_based_task_corrections(
             questionnaire_data.get("core_tasks", []),
             questionnaire_data.get("gap_filling", {}),

@@ -13,7 +13,7 @@
 使用示例:
     # 验证测试环境
     python scripts/verify_env_config.py --env test
-    
+
     # 验证所有环境
     python scripts/verify_env_config.py --all
     # 快速检查（跳过耗时测试）

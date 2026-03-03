@@ -30,6 +30,7 @@ elif sys.platform == "win32":
 
 if __name__ == "__main__":
     import os
+
     import uvicorn
 
     # 标记生产环境，logging_config.py 读取 ENVIRONMENT 变量

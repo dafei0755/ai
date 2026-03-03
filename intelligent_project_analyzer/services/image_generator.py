@@ -36,7 +36,7 @@ from loguru import logger
 from pydantic import BaseModel, Field
 
 #  v7.153: 导入配置加载器
-from ..utils.visual_config_loader import get_role_visual_type_for_project  #  v7.154: 项目类型感知的视觉类型选择
+from ..utils.visual_config_loader import get_role_visual_type_for_project  # v7.154: 项目类型感知的视觉类型选择
 from ..utils.visual_config_loader import (
     build_role_visual_context,
     get_global_config,
@@ -126,9 +126,8 @@ class ImageGeneratorService:
         #  v7.200: 接入负载均衡器，图像生成消费均摊到多个账号
         try:
             from .openrouter_load_balancer import OpenRouterLoadBalancer
-            self._load_balancer = OpenRouterLoadBalancer(
-                api_keys=[api_key] if api_key else None
-            )
+
+            self._load_balancer = OpenRouterLoadBalancer(api_keys=[api_key] if api_key else None)
             logger.info(f" ImageGeneratorService: 负载均衡已启用 ({len(self._load_balancer.api_keys)} 个 Key)")
         except ValueError as e:
             raise ValueError(f" Missing OPENROUTER_API_KEY(S) for image generation: {e}")

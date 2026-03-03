@@ -68,4 +68,3 @@
 - `result_aggregator`
 - `projection_dispatcher`
 - `pdf_generator`
-

@@ -9,6 +9,7 @@ main_workflow.py 和 requirements_nodes.py 统一从这里导入，
 启动时调用 log_feature_flags_snapshot() 输出完整快照。
 """
 import os
+
 from loguru import logger
 
 # ─── v7.16 LangGraph Agent 升级版（默认关闭，旧版测试用）────────────────────────
@@ -38,9 +39,7 @@ USE_MULTI_ROUND_QUESTIONNAIRE: bool = os.getenv("USE_MULTI_ROUND_QUESTIONNAIRE",
 ENABLE_SMART_NODE_SELF_SKIP: bool = os.getenv("ENABLE_SMART_NODE_SELF_SKIP", "false").lower() == "true"
 
 # Shadow 模式：只产生日志与路由画像，不实际跳步。
-ENABLE_SMART_NODE_SELF_SKIP_SHADOW: bool = (
-    os.getenv("ENABLE_SMART_NODE_SELF_SKIP_SHADOW", "true").lower() == "true"
-)
+ENABLE_SMART_NODE_SELF_SKIP_SHADOW: bool = os.getenv("ENABLE_SMART_NODE_SELF_SKIP_SHADOW", "true").lower() == "true"
 
 
 def log_feature_flags_snapshot() -> None:

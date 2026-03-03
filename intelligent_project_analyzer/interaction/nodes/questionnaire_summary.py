@@ -30,6 +30,9 @@ from langgraph.types import Command, interrupt
 from loguru import logger
 
 from ...core.state import ProjectAnalysisState
+
+# v8.2: 动态步骤追踪装饰器
+from ...utils.node_tracker import track_active_step
 from .requirements_restructuring import RequirementsRestructuringEngine
 
 
@@ -930,6 +933,7 @@ class QuestionnaireSummaryNode:
 
 
 # 便捷函数（用于工作流节点调用）
+@track_active_step("questionnaire_summary")
 def questionnaire_summary_node(
     state: ProjectAnalysisState, store: Optional[BaseStore] = None
 ) -> Command[Literal["project_director", "requirements_analyst"]]:

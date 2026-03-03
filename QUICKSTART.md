@@ -440,7 +440,7 @@ module.exports = {
   extends: ['@commitlint/config-conventional'],
   rules: {
     'type-enum': [2, 'always', [
-      'feat', 'fix', 'docs', 'style', 'refactor', 
+      'feat', 'fix', 'docs', 'style', 'refactor',
       'test', 'chore', 'perf', 'ci', 'build', 'revert'
     ]],
     'subject-max-length': [2, 'always', 100],
@@ -612,13 +612,13 @@ python scripts/analysis/analyze_smart_skip_logs.py --file logs/server.log --last
 
 1. 打开 http://localhost:3001
 2. 输入设计项目需求（如：150平米现代简约住宅设计）
-   
+
    💡 **输入质量提示**（提高分析准确度）：
    - ✅ 项目类型和面积（如：350㎡别墅、25㎡单间）
    - ✅ 用户身份和特殊需求（如：企业家、自闭症家庭、电竞选手）
    - ✅ 预算范围和时间约束（如：50万预算、3个月完成）
    - ✅ 设计偏好或参考案例（如：北欧风格、对标XX项目）
-   
+
    详细输入可跳过问卷环节，直达深度分析（当前系统34%场景可实现）
 
 3. 回答校准问卷（可跳过）
@@ -650,7 +650,7 @@ python scripts/analysis/analyze_smart_skip_logs.py --file logs/server.log --last
    ```
 
 3. **修改批处理文件**
-   
+
    编辑 [start_backend_main.bat](start_backend_main.bat)，将第6行改为：
    ```bat
    call python scripts\run_server_production.py
@@ -660,9 +660,63 @@ python scripts/analysis/analyze_smart_skip_logs.py --file logs/server.log --last
 
 ### Q: 端口被占用？
 
-```bash
-# Windows
-# 仅释放后端端口（推荐，避免误杀其它任务）
+> ⚠️ **注意**: 下面的命令请在 **PowerShell** 中运行（不是CMD）
+
+**按环境清除端口**（推荐）：
+
+```powershell
+# 清除开发环境端口（8000后端 + 3001前端）
+Get-NetTCPConnection -LocalPort 8000,3001 -State Listen -ErrorAction SilentlyContinue |
+   Select-Object -ExpandProperty OwningProcess -Unique |
+   ForEach-Object {
+      $p = Get-Process -Id $_ -ErrorAction SilentlyContinue
+      if ($p -and ($p.ProcessName -match 'python|uvicorn|node')) { 
+         Write-Host "Killing $($p.ProcessName) (PID: $_) on port 8000/3001"
+         taskkill /F /PID $_ 
+      }
+   }
+
+# 清除测试环境端口（8100后端 + 3101前端）
+Get-NetTCPConnection -LocalPort 8100,3101 -State Listen -ErrorAction SilentlyContinue |
+   Select-Object -ExpandProperty OwningProcess -Unique |
+   ForEach-Object {
+      $p = Get-Process -Id $_ -ErrorAction SilentlyContinue
+      if ($p -and ($p.ProcessName -match 'python|uvicorn|node')) { 
+         Write-Host "Killing $($p.ProcessName) (PID: $_) on port 8100/3101"
+         taskkill /F /PID $_ 
+      }
+   }
+
+# 清除暂存环境端口（8200后端 + 3201前端）
+Get-NetTCPConnection -LocalPort 8200,3201 -State Listen -ErrorAction SilentlyContinue |
+   Select-Object -ExpandProperty OwningProcess -Unique |
+   ForEach-Object {
+      $p = Get-Process -Id $_ -ErrorAction SilentlyContinue
+      if ($p -and ($p.ProcessName -match 'python|uvicorn|node')) { 
+         Write-Host "Killing $($p.ProcessName) (PID: $_) on port 8200/3201"
+         taskkill /F /PID $_ 
+      }
+   }
+
+# 清除所有环境端口（一键清理）
+@(8000,3001,8100,3101,8200,3201) | ForEach-Object {
+   $port = $_
+   Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue |
+      Select-Object -ExpandProperty OwningProcess -Unique |
+      ForEach-Object {
+         $p = Get-Process -Id $_ -ErrorAction SilentlyContinue
+         if ($p -and ($p.ProcessName -match 'python|uvicorn|node')) { 
+            Write-Host "Killing $($p.ProcessName) (PID: $_) on port $port"
+            taskkill /F /PID $_ 
+         }
+      }
+}
+```
+
+**单独清除某个端口**（精确控制）：
+
+```powershell
+# 只清除后端端口（避免误杀前端）
 Get-NetTCPConnection -LocalPort 8000 -State Listen -ErrorAction SilentlyContinue |
    Select-Object -ExpandProperty OwningProcess -Unique |
    ForEach-Object {
@@ -670,13 +724,54 @@ Get-NetTCPConnection -LocalPort 8000 -State Listen -ErrorAction SilentlyContinue
       if ($p -and ($p.ProcessName -in @('python', 'uvicorn'))) { taskkill /F /PID $_ }
    }
 
-# 如需释放前端端口（默认 3001）
+# 只清除前端端口
 Get-NetTCPConnection -LocalPort 3001 -State Listen -ErrorAction SilentlyContinue |
    Select-Object -ExpandProperty OwningProcess -Unique |
-   ForEach-Object { taskkill /F /PID $_ }
+   ForEach-Object { 
+      $p = Get-Process -Id $_ -ErrorAction SilentlyContinue
+      if ($p -and $p.ProcessName -eq 'node') { taskkill /F /PID $_ }
+   }
+```
 
-# 或修改端口
+**使用端口管理工具**（v8.1+）：
+
+```bash
+# 检查端口占用
+python scripts/utils/port_manager.py check 8100
+
+# 查看环境端口冲突
+python scripts/utils/port_manager.py conflicts --env test
+
+# 安全释放端口（只释放Python进程）
+python scripts/utils/port_manager.py release 8100
+```
+
+**或修改启动端口**：
+
+```bash
+# 修改前端端口
 npm run dev -- -p 4000
+```
+
+**如果你在 CMD 环境（不是 PowerShell）**：
+
+```cmd
+REM 查找占用端口的进程（手动记录 PID）
+netstat -ano | findstr :8000
+netstat -ano | findstr :3001
+
+REM 根据上面显示的 PID 杀掉进程（替换 <PID> 为实际数字）
+taskkill /F /PID <PID>
+
+REM 或者直接杀掉所有 Python 和 Node.js 进程（谨慎使用）
+taskkill /F /IM python.exe
+taskkill /F /IM node.exe
+```
+
+**推荐做法**：切换到 PowerShell 使用上面的智能命令
+```cmd
+REM 在 CMD 中输入以下命令切换到 PowerShell
+powershell
 ```
 
 ### Q: Python 3.13 Windows 用户
