@@ -167,12 +167,12 @@ class SecurityNodesMixin:
             #  保留 skip_unified_review 标志
             if state.get("skip_unified_review"):
                 result["skip_unified_review"] = True
-                logger.info(" [DEBUG] secondary_validation 保留 skip_unified_review=True")
+                logger.debug(" [DEBUG] secondary_validation 保留 skip_unified_review=True")
 
             # 添加 detail 字段
             result["detail"] = "二次验证领域适配性"
 
-            logger.info(" [DEBUG] Secondary validation completed, proceeding to calibration_questionnaire")
+            logger.debug(" [DEBUG] Secondary validation completed, proceeding via workflow routing")
             return result
 
         except Interrupt:

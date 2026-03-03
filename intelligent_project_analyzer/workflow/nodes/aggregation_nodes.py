@@ -400,17 +400,19 @@ class AggregationNodesMixin:
 
         根据挑战检测结果决定下一步:
         - 如果requires_manual_review=True → "manual_review" (>3个must_fix问题)
-        - 如果requires_client_review=True → "analysis_review" (交甲方裁决)
+        - 如果requires_client_review=True → "manual_review" (甲方裁决，改由人工审核节点处理）
         - 如果requires_feedback_loop=True → "revisit_requirements" (回访需求分析师)
         - 否则 → "continue_workflow" (继续正常流程)
 
         优先级: manual_review > escalate > revisit_ra > continue
 
+        修复 QW-1 (v3.5+): analysis_review 节点已在 v2.2 废弃，requires_client_review 改路由到 manual_review
+
         Args:
             state: 当前工作流状态
 
         Returns:
-            路由目标: "manual_review" | "analysis_review" | "revisit_requirements" | "continue_workflow"
+            路由目标: "manual_review" | "revisit_requirements" | "continue_workflow"
         """
         #  最高优先级：检查是否需要人工审核（>3个must_fix）
         requires_manual_review = state.get("requires_manual_review", False)
@@ -420,11 +422,12 @@ class AggregationNodesMixin:
             return "manual_review"
 
         #  优先检查是否需要甲方裁决（escalate闭环）
+        # 修复 QW-1：analysis_review 节点已在 v2.2 废弃，改路由到 manual_review（人工裁决）
         requires_client_review = state.get("requires_client_review", False)
         if requires_client_review:
             escalated_count = len(state.get("escalated_challenges", []))
-            logger.warning(f" [v3.5 Escalate] {escalated_count}个挑战需要甲方裁决，路由到审核节点")
-            return "analysis_review"
+            logger.warning(f" [v3.5 Escalate] {escalated_count}个挑战需要甲方裁决，路由到 manual_review")
+            return "manual_review"
 
         # 检查是否需要回访需求分析师（revisit_ra闭环）
         requires_feedback = state.get("requires_feedback_loop", False)

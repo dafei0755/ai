@@ -366,8 +366,9 @@ class QuestionnaireSummaryNode:
 
             # 触发分类学习收集（fire-and-forget，不阻塞主流程）
             try:
-                from ...services.taxonomy_learning_collector import get_learning_collector
                 import asyncio
+
+                from ...services.taxonomy_learning_collector import get_learning_collector
 
                 session_id = state.get("session_id", "unknown")
                 user_input = state.get("user_input", "")

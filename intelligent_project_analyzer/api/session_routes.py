@@ -596,18 +596,9 @@ async def end_conversation(session_id: str):
         _server.websocket_connections[session_id].clear()
         del _server.websocket_connections[session_id]
 
-    #  v7.131: 尝试清理 Playwright 浏览器池（如果没有其他活跃会话）
-    try:
-        active_sessions = len(_server.websocket_connections)
-        if active_sessions == 0:
-            from intelligent_project_analyzer.api.html_pdf_generator import PlaywrightBrowserPool
-
-            await asyncio.wait_for(PlaywrightBrowserPool.cleanup(), timeout=10.0)
-            logger.debug(" Playwright 浏览器池已清理（无活跃会话）")
-    except asyncio.TimeoutError:
-        logger.warning("️ Playwright 浏览器池清理超时")
-    except Exception as e:
-        logger.debug(f" Playwright 浏览器池清理失败（可能未初始化）: {e}")
+    # v7.131 BUG FIX: 不在此处清理 Playwright 浏览器池
+    # WebSocket 连接数为 0 不等于后台工作流已完成，清理会导致 PDF 生成失败。
+    # Playwright 仅在服务器关闭时（lifespan handler）才应清理。
 
     logger.info(f" Conversation ended for session {session_id}")
 

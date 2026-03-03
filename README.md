@@ -87,6 +87,9 @@ cd frontend-nextjs && npm run dev
 # API: http://localhost:8000/docs
 ```
 
+> 如果需要和 `D:\11-20\langgraph-v8.0.0-runtime` 同时运行，当前主线目录保持 `8000/3001`。
+> 也可以直接使用 `start_backend_main.bat` 和 `start_frontend_main.bat`。
+
 ### Docker 部署
 
 ```bash

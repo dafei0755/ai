@@ -77,6 +77,14 @@ interface EditableQuestion {
   userAnswer?: string | string[];
 }
 
+const FRONTCHAIN_STEPS = [
+  { number: 1, label: '意图确认', icon: '1' },
+  { number: 2, label: '任务梳理', icon: '2' },
+  { number: 3, label: '信息补全', icon: '3' },
+  { number: 4, label: '偏好雷达图', icon: '4' },
+  { number: 5, label: '需求洞察', icon: '5' },
+];
+
 // 🆕 v7.130: 简化组件参数
 export function UnifiedProgressiveQuestionnaireModal({
   isOpen,
@@ -307,15 +315,8 @@ export function UnifiedProgressiveQuestionnaireModal({
 
   const { title, message } = stepData;
 
-  // 步骤配置
-  // 🔄 v7.128: 调整步骤顺序为 Step 1 → Step 3 → Step 2
-  // 🆕 v7.147: 添加 Step 4 问卷汇总
-  const steps = [
-    { number: 1, label: '任务梳理', icon: '1' },
-    { number: 2, label: '信息补全', icon: '2' },  // Step 3 现在显示为第2步
-    { number: 3, label: '偏好雷达图', icon: '3' },  // Step 2 现在显示为第3步
-    { number: 4, label: '需求洞察', icon: '4' }  // 🆕 v7.147: Step 4 需求洞察
-  ];
+  // 当前 modal 内部步骤 1-4，对应前端完整 5 节点中的 2-5。
+  const displayStep = currentStep > 0 ? currentStep + 1 : 0;
 
   // 🆕 v7.130: 验证信息补全步骤的必填字段（使用统一的 stepData）
   const validateStep3Required = (): boolean => {
@@ -1137,17 +1138,17 @@ export function UnifiedProgressiveQuestionnaireModal({
           {/* 步骤指示器 */}
           <div className="border-b border-gray-200 bg-white px-10 py-4">
             <div className="flex items-center justify-between mb-4">
-              {steps.map((step, index) => (
+              {FRONTCHAIN_STEPS.map((step, index) => (
                 <div key={step.number} className="flex items-center flex-1">
                   <div className="flex flex-col items-center flex-1">
                     <div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-medium transition-all duration-300 ${
-                      currentStep === step.number
+                      displayStep === step.number
                         ? 'bg-blue-600 text-white shadow-md'
-                        : currentStep > step.number
+                        : displayStep > step.number
                         ? 'bg-gray-500 text-white'
                         : 'bg-gray-100 text-gray-400'
                     }`}>
-                      {currentStep > step.number ? (
+                      {displayStep > step.number ? (
                         <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                           <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                         </svg>
@@ -1156,15 +1157,15 @@ export function UnifiedProgressiveQuestionnaireModal({
                       )}
                     </div>
                     <span className={`mt-2 text-sm font-medium ${
-                      currentStep === step.number ? 'text-gray-800' : 'text-gray-500'
+                      displayStep === step.number ? 'text-gray-800' : 'text-gray-500'
                     }`}>
                       {step.label}
                     </span>
                   </div>
 
-                  {index < steps.length - 1 && (
+                  {index < FRONTCHAIN_STEPS.length - 1 && (
                     <div className={`h-px flex-1 mx-4 rounded-full transition-all duration-500 ${
-                      currentStep > step.number ? 'bg-green-500' : 'bg-gray-300'
+                      displayStep > step.number ? 'bg-green-500' : 'bg-gray-300'
                     }`} />
                   )}
                 </div>
@@ -1229,31 +1230,31 @@ export function UnifiedProgressiveQuestionnaireModal({
         {/* 步骤指示器 */}
         <div className="border-b border-gray-200 bg-white px-10 py-4">
           <div className="flex items-center justify-between mb-4">
-            {steps.map((step, index) => (
+            {FRONTCHAIN_STEPS.map((step, index) => (
               <div key={step.number} className="flex items-center flex-1">
                 <div className="flex flex-col items-center flex-1">
                   <div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-medium transition-all duration-300 ${
-                    currentStep === step.number
+                    displayStep === step.number
                       ? 'bg-blue-600 text-white shadow-md'
-                      : currentStep > step.number
+                      : displayStep > step.number
                       ? 'bg-gray-500 text-white'
                       : 'bg-gray-100 text-gray-400'
                   }`}>
-                    {currentStep > step.number ? '✓' : step.icon}
+                    {displayStep > step.number ? '✓' : step.icon}
                   </div>
                   <div className={`mt-2 text-xs font-medium text-center transition-colors ${
-                    currentStep === step.number
+                    displayStep === step.number
                       ? 'text-gray-800'
-                      : currentStep > step.number
+                      : displayStep > step.number
                       ? 'text-gray-700'
                       : 'text-gray-500'
                   }`}>
                     {step.label}
                   </div>
                 </div>
-                {index < steps.length - 1 && (
+                {index < FRONTCHAIN_STEPS.length - 1 && (
                   <div className={`h-px flex-1 mx-2 rounded-full transition-all duration-500 ${
-                    currentStep > step.number
+                    displayStep > step.number
                       ? 'bg-green-500'
                       : 'bg-gray-300'
                   }`} />

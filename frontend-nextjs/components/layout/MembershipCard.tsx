@@ -69,7 +69,8 @@ export function MembershipCard() {
       const token = localStorage.getItem('wp_jwt_token');
 
       if (!token || !user) {
-        throw new Error('未登录');
+        setLoading(false);
+        return;  // 未登录时静默返回，不当作错误
       }
 
       const response = await fetch(`${API_URL}/api/member/my-membership`, {
@@ -93,9 +94,10 @@ export function MembershipCard() {
         userId: user.user_id
       };
       console.log('[MembershipCard] 会员数据已缓存');
-    } catch (err) {
-      console.error('获取会员信息失败:', err);
-      setError(err instanceof Error ? err.message : '获取会员信息失败');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : '获取会员信息失败';
+      console.warn('获取会员信息失败:', message);
+      setError(message);
     } finally {
       setLoading(false);
     }

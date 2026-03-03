@@ -41,7 +41,6 @@ logger = logging.getLogger(__name__)
 # 🆕 v12.0: 空间区域提取 + 约束信封组装
 # ==================================================================================
 
-
 def _extract_spatial_zones(structured_requirements: Dict, user_input: str) -> List[Dict[str, Any]]:
     """
     🆕 v12.0: 从结构化需求和用户输入中提取空间区域列表。
@@ -146,17 +145,15 @@ def _build_recommended_constraints(
             continue
         seen_ids.add(dim_id)
         info = display_map.get(dim_id, {})
-        result.append(
-            {
-                "id": dim_id,
-                "label": info.get("label", dim_id),
-                "desc": info.get("desc", ""),
-                "category": info.get("category", "domain_capability"),
-                "recommended": True,
-                "source": "mandatory_dimensions",
-                "evidence": [f"从项目需求中检测到 {info.get('label', dim_id)} 相关信号"],
-            }
-        )
+        result.append({
+            "id": dim_id,
+            "label": info.get("label", dim_id),
+            "desc": info.get("desc", ""),
+            "category": info.get("category", "domain_capability"),
+            "recommended": True,
+            "source": "mandatory_dimensions",
+            "evidence": [f"从项目需求中检测到 {info.get('label', dim_id)} 相关信号"],
+        })
 
     # B. constraints → 项目约束推荐
     for c in constraints:
@@ -165,33 +162,29 @@ def _build_recommended_constraints(
             continue
         seen_ids.add(c_type)
         info = display_map.get(c_type, {})
-        result.append(
-            {
-                "id": c_type,
-                "label": info.get("label", c_type),
-                "desc": info.get("desc", ""),
-                "category": info.get("category", "project_constraint"),
-                "recommended": True,
-                "source": "constraints",
-                "evidence": [f"检测到 {info.get('label', c_type)} 约束信号"],
-            }
-        )
+        result.append({
+            "id": c_type,
+            "label": info.get("label", c_type),
+            "desc": info.get("desc", ""),
+            "category": info.get("category", "project_constraint"),
+            "recommended": True,
+            "source": "constraints",
+            "evidence": [f"检测到 {info.get('label', c_type)} 约束信号"],
+        })
 
     # C. 如果有视觉约束中的额外信号，也包含
     if visual_constraints:
         existing_conditions = visual_constraints.get("existing_conditions", [])
         if existing_conditions and "visual_evidence" not in seen_ids:
-            result.append(
-                {
-                    "id": "visual_evidence",
-                    "label": "现场实况",
-                    "desc": f"从上传图片中检测到 {len(existing_conditions)} 项现场条件",
-                    "category": "project_constraint",
-                    "recommended": True,
-                    "source": "visual_analysis",
-                    "evidence": [str(ec)[:80] for ec in existing_conditions[:3]],
-                }
-            )
+            result.append({
+                "id": "visual_evidence",
+                "label": "现场实况",
+                "desc": f"从上传图片中检测到 {len(existing_conditions)} 项现场条件",
+                "category": "project_constraint",
+                "recommended": True,
+                "source": "visual_analysis",
+                "evidence": [str(ec)[:80] for ec in existing_conditions[:3]],
+            })
 
     logger.info(f"🎯 [v12.1] 构建推荐约束: {len(result)} 项 ({[r['id'] for r in result]})")
     return result
@@ -310,8 +303,8 @@ async def _run_constraint_pipeline(state: dict) -> Dict[str, Any]:
 
     # 构建提取器（复用现有 file_processor 的 vision_llm）
     extractor = ConstraintSourceExtractor(
-        vision_llm=_fp.vision_llm if hasattr(_fp, "vision_llm") else None,
-        enable_vision_api=_fp.enable_vision_api if hasattr(_fp, "enable_vision_api") else False,
+        vision_llm=_fp.vision_llm if hasattr(_fp, 'vision_llm') else None,
+        enable_vision_api=_fp.enable_vision_api if hasattr(_fp, 'enable_vision_api') else False,
     )
 
     # 并行提取约束源图片（上限 MAX_CONSTRAINT_EXTRACTIONS）
@@ -329,13 +322,11 @@ async def _run_constraint_pipeline(state: dict) -> Dict[str, Any]:
             user_zone = ref.get("spatial_zone")
             effective_zone = user_zone if user_zone else zone
 
-            tasks.append(
-                extractor.extract_constraint_source_details(
-                    file_path=Path(ref["file_path"]),
-                    image_subtype=subtype,
-                    spatial_zone=effective_zone,
-                )
-            )
+            tasks.append(extractor.extract_constraint_source_details(
+                file_path=Path(ref["file_path"]),
+                image_subtype=subtype,
+                spatial_zone=effective_zone,
+            ))
 
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
@@ -396,7 +387,6 @@ async def _run_constraint_pipeline(state: dict) -> Dict[str, Any]:
     )
 
     return visual_constraints
-
 
 # ==================================================================================
 # 配置加载
@@ -544,7 +534,7 @@ def _detect_spatial_attribute_signals(
     rules = config.get("spatial_attribute_rules", {})
 
     mode_ids = set()
-    for m in detected_modes or []:
+    for m in (detected_modes or []):
         mid = m.get("mode", "") if isinstance(m, dict) else str(m)
         mode_ids.add(mid)
 
@@ -602,12 +592,7 @@ def _detect_motivation_signals(structured_requirements: Dict, user_input: str) -
             secondaries = [secondaries]
 
         for mot_key, mot_rule in mot_mapping.items():
-            if not isinstance(mot_rule, dict) or mot_key in (
-                "five_whys_signals",
-                "brand_dna_signals",
-                "competitor_signals",
-                "symbolic_identity_signals",
-            ):
+            if not isinstance(mot_rule, dict) or mot_key in ("five_whys_signals", "brand_dna_signals", "competitor_signals", "symbolic_identity_signals"):
                 continue
             if primary == mot_key:
                 pid = mot_rule.get("primary_projection")
@@ -743,16 +728,14 @@ def _score_delivery_types(
         else:
             status = "excluded"
 
-        results.append(
-            {
-                "id": pid,
-                "label": PROJECTION_DISPLAY.get(pid, {}).get("label", pid),
-                "desc": PROJECTION_DISPLAY.get(pid, {}).get("desc", ""),
-                "score": round(score, 2),
-                "status": status,
-                "evidence": evidence,
-            }
-        )
+        results.append({
+            "id": pid,
+            "label": PROJECTION_DISPLAY.get(pid, {}).get("label", pid),
+            "desc": PROJECTION_DISPLAY.get(pid, {}).get("desc", ""),
+            "score": round(score, 2),
+            "status": status,
+            "evidence": evidence,
+        })
 
     return results
 
@@ -763,48 +746,13 @@ def _score_delivery_types(
 
 # 通用身份模式（跨项目类型）
 UNIVERSAL_IDENTITY_MODES = [
-    {
-        "id": "as_family_intimate",
-        "label": "作为家人（亲密关系）",
-        "spatial_need": "放松、无防御、情感连接",
-        "trigger_scenes": ["起居", "餐厅", "亲子", "家庭聚会"],
-    },
-    {
-        "id": "as_professional",
-        "label": "作为职业人（工作身份）",
-        "spatial_need": "效率、专注、权威感、信息密度",
-        "trigger_scenes": ["书房", "会议", "远程办公", "接待"],
-    },
-    {
-        "id": "as_social_host",
-        "label": "作为社交主人（待客身份）",
-        "spatial_need": "展示、控场、慷慨表达、得体退场",
-        "trigger_scenes": ["客厅", "餐厅", "酒吧", "花园"],
-    },
-    {
-        "id": "as_business_partner",
-        "label": "作为生意人（商务身份）",
-        "spatial_need": "信任构建、权力暗示、谈判氛围、隐私",
-        "trigger_scenes": ["茶室", "私宴", "雪茄间", "会客"],
-    },
-    {
-        "id": "as_solitary_self",
-        "label": "作为独处者（自我身份）",
-        "spatial_need": "屏蔽干扰、内省、仪式感、自我犒赏",
-        "trigger_scenes": ["浴室", "阅读角", "冥想", "阳台"],
-    },
-    {
-        "id": "as_caregiver",
-        "label": "作为照护者（责任身份）",
-        "spatial_need": "监护视线、应急可达、安全冗余",
-        "trigger_scenes": ["老人房", "儿童区", "无障碍"],
-    },
-    {
-        "id": "as_learner_creator",
-        "label": "作为学习者/创造者",
-        "spatial_need": "灵感刺激、工具可达、专注-发散切换",
-        "trigger_scenes": ["工作室", "画室", "手作间"],
-    },
+    {"id": "as_family_intimate", "label": "作为家人（亲密关系）", "spatial_need": "放松、无防御、情感连接", "trigger_scenes": ["起居", "餐厅", "亲子", "家庭聚会"]},
+    {"id": "as_professional", "label": "作为职业人（工作身份）", "spatial_need": "效率、专注、权威感、信息密度", "trigger_scenes": ["书房", "会议", "远程办公", "接待"]},
+    {"id": "as_social_host", "label": "作为社交主人（待客身份）", "spatial_need": "展示、控场、慷慨表达、得体退场", "trigger_scenes": ["客厅", "餐厅", "酒吧", "花园"]},
+    {"id": "as_business_partner", "label": "作为生意人（商务身份）", "spatial_need": "信任构建、权力暗示、谈判氛围、隐私", "trigger_scenes": ["茶室", "私宴", "雪茄间", "会客"]},
+    {"id": "as_solitary_self", "label": "作为独处者（自我身份）", "spatial_need": "屏蔽干扰、内省、仪式感、自我犒赏", "trigger_scenes": ["浴室", "阅读角", "冥想", "阳台"]},
+    {"id": "as_caregiver", "label": "作为照护者（责任身份）", "spatial_need": "监护视线、应急可达、安全冗余", "trigger_scenes": ["老人房", "儿童区", "无障碍"]},
+    {"id": "as_learner_creator", "label": "作为学习者/创造者", "spatial_need": "灵感刺激、工具可达、专注-发散切换", "trigger_scenes": ["工作室", "画室", "手作间"]},
 ]
 
 # 项目类型专属身份模式
@@ -813,132 +761,47 @@ PROJECT_SPECIFIC_IDENTITY_MODES = {
         "trigger_modes": ["M5", "M5_rural_context"],
         "trigger_type_keywords": ["rural", "village", "乡村", "农村", "民宿", "乡建"],
         "modes": [
-            {
-                "id": "as_rooted_villager",
-                "label": "作为在地村民（日常身份）",
-                "spatial_need": "生计不受干扰、公共空间可达、被尊重",
-                "trigger_scenes": ["晒场", "集市", "祠堂", "村口"],
-            },
-            {
-                "id": "as_returning_child",
-                "label": "作为归乡游子（记忆身份）",
-                "spatial_need": "乡愁锚点、现代生活标准、身份弥合",
-                "trigger_scenes": ["老宅", "村口", "记忆场所"],
-            },
-            {
-                "id": "as_cultural_witness",
-                "label": "作为文化见证者（游客身份）",
-                "spatial_need": "真实性体验、非冒犯地参与、带走记忆",
-                "trigger_scenes": ["展览", "工坊体验", "民宿"],
-            },
-            {
-                "id": "as_elder_guardian",
-                "label": "作为留守老人（守望身份）",
-                "spatial_need": "尊严、不被边缘化、医疗可达、习惯保留",
-                "trigger_scenes": ["日常起居", "公共活动", "医疗点"],
-            },
-            {
-                "id": "as_young_pioneer",
-                "label": "作为驻村创业者（开拓身份）",
-                "spatial_need": "工作空间、网络基建、属于感、展示机会",
-                "trigger_scenes": ["共享办公", "市集", "社交"],
-            },
+            {"id": "as_rooted_villager", "label": "作为在地村民（日常身份）", "spatial_need": "生计不受干扰、公共空间可达、被尊重", "trigger_scenes": ["晒场", "集市", "祠堂", "村口"]},
+            {"id": "as_returning_child", "label": "作为归乡游子（记忆身份）", "spatial_need": "乡愁锚点、现代生活标准、身份弥合", "trigger_scenes": ["老宅", "村口", "记忆场所"]},
+            {"id": "as_cultural_witness", "label": "作为文化见证者（游客身份）", "spatial_need": "真实性体验、非冒犯地参与、带走记忆", "trigger_scenes": ["展览", "工坊体验", "民宿"]},
+            {"id": "as_elder_guardian", "label": "作为留守老人（守望身份）", "spatial_need": "尊严、不被边缘化、医疗可达、习惯保留", "trigger_scenes": ["日常起居", "公共活动", "医疗点"]},
+            {"id": "as_young_pioneer", "label": "作为驻村创业者（开拓身份）", "spatial_need": "工作空间、网络基建、属于感、展示机会", "trigger_scenes": ["共享办公", "市集", "社交"]},
         ],
     },
     "commercial_hospitality": {
         "trigger_modes": ["M4", "M4_capital_asset"],
         "trigger_type_keywords": ["commercial", "hospitality", "酒店", "民宿", "商业", "度假"],
         "modes": [
-            {
-                "id": "as_escapist",
-                "label": "作为逃离者（度假身份）",
-                "spatial_need": "日常断裂感、节奏放慢、感官放大",
-                "trigger_scenes": ["入住仪式", "SPA", "景观"],
-            },
-            {
-                "id": "as_explorer",
-                "label": "作为探索者（发现身份）",
-                "spatial_need": "惊喜、隐藏动线、可讲述的发现",
-                "trigger_scenes": ["公共区域", "在地体验", "隐秘角落"],
-            },
-            {
-                "id": "as_status_performer",
-                "label": "作为身份展演者（阶层身份）",
-                "spatial_need": "可拍摄、品味暗示、排他性空间",
-                "trigger_scenes": ["大堂", "餐厅", "顶层"],
-            },
-            {
-                "id": "as_service_provider",
-                "label": "作为服务者（职业身份）",
-                "spatial_need": "后勤效率、职业尊严、疲劳管理",
-                "trigger_scenes": ["后厨", "员工通道", "休息区"],
-            },
+            {"id": "as_escapist", "label": "作为逃离者（度假身份）", "spatial_need": "日常断裂感、节奏放慢、感官放大", "trigger_scenes": ["入住仪式", "SPA", "景观"]},
+            {"id": "as_explorer", "label": "作为探索者（发现身份）", "spatial_need": "惊喜、隐藏动线、可讲述的发现", "trigger_scenes": ["公共区域", "在地体验", "隐秘角落"]},
+            {"id": "as_status_performer", "label": "作为身份展演者（阶层身份）", "spatial_need": "可拍摄、品味暗示、排他性空间", "trigger_scenes": ["大堂", "餐厅", "顶层"]},
+            {"id": "as_service_provider", "label": "作为服务者（职业身份）", "spatial_need": "后勤效率、职业尊严、疲劳管理", "trigger_scenes": ["后厨", "员工通道", "休息区"]},
         ],
     },
     "urban_renewal": {
         "trigger_modes": ["M6", "M6_urban_regeneration"],
         "trigger_type_keywords": ["urban", "城市更新", "旧改", "改造"],
         "modes": [
-            {
-                "id": "as_original_inhabitant",
-                "label": "作为原住民（归属身份）",
-                "spatial_need": "不被驱逐、社区网络保留、参与权",
-                "trigger_scenes": ["历史街区", "菜场", "邻里空间"],
-            },
-            {
-                "id": "as_newcomer",
-                "label": "作为新来者（融入身份）",
-                "spatial_need": "接纳感、配套便利、文化入口",
-                "trigger_scenes": ["共享空间", "社区活动", "商业配套"],
-            },
-            {
-                "id": "as_passerby",
-                "label": "作为城市过客（公共身份）",
-                "spatial_need": "可达性、安全感、短暂停留的品质",
-                "trigger_scenes": ["街道", "广场", "临街商铺"],
-            },
+            {"id": "as_original_inhabitant", "label": "作为原住民（归属身份）", "spatial_need": "不被驱逐、社区网络保留、参与权", "trigger_scenes": ["历史街区", "菜场", "邻里空间"]},
+            {"id": "as_newcomer", "label": "作为新来者（融入身份）", "spatial_need": "接纳感、配套便利、文化入口", "trigger_scenes": ["共享空间", "社区活动", "商业配套"]},
+            {"id": "as_passerby", "label": "作为城市过客（公共身份）", "spatial_need": "可达性、安全感、短暂停留的品质", "trigger_scenes": ["街道", "广场", "临街商铺"]},
         ],
     },
     "healthcare": {
         "trigger_modes": ["M11", "M11_healthcare_healing"],
         "trigger_type_keywords": ["healthcare", "医疗", "疗愈", "康复", "养老"],
         "modes": [
-            {
-                "id": "as_vulnerable_patient",
-                "label": "作为脆弱者（患者身份）",
-                "spatial_need": "心理安全、控制感、尊严、隐私",
-                "trigger_scenes": ["病房", "诊疗室", "等候区"],
-            },
-            {
-                "id": "as_anxious_companion",
-                "label": "作为焦虑陪伴者（家属身份）",
-                "spatial_need": "信息可获取、等候不崩溃、与患者连接",
-                "trigger_scenes": ["等候区", "探视通道", "家属休息"],
-            },
+            {"id": "as_vulnerable_patient", "label": "作为脆弱者（患者身份）", "spatial_need": "心理安全、控制感、尊严、隐私", "trigger_scenes": ["病房", "诊疗室", "等候区"]},
+            {"id": "as_anxious_companion", "label": "作为焦虑陪伴者（家属身份）", "spatial_need": "信息可获取、等候不崩溃、与患者连接", "trigger_scenes": ["等候区", "探视通道", "家属休息"]},
         ],
     },
     "public_cultural": {
         "trigger_modes": ["M1", "M9", "M1_concept_driven", "M9_social_structure"],
         "trigger_type_keywords": ["public", "cultural", "展览", "博物馆", "文化", "公共"],
         "modes": [
-            {
-                "id": "as_casual_visitor",
-                "label": "作为普通访客",
-                "spatial_need": "可理解性、停留舒适度、社交可能",
-                "trigger_scenes": ["展厅", "大厅", "休息区"],
-            },
-            {
-                "id": "as_professional_user",
-                "label": "作为专业使用者",
-                "spatial_need": "功能满足、设备品质、声学光学温控",
-                "trigger_scenes": ["工作室", "排练厅", "实验室"],
-            },
-            {
-                "id": "as_event_organizer",
-                "label": "作为活动组织方",
-                "spatial_need": "灵活性、容量、后勤支持",
-                "trigger_scenes": ["多功能厅", "户外广场", "后台"],
-            },
+            {"id": "as_casual_visitor", "label": "作为普通访客", "spatial_need": "可理解性、停留舒适度、社交可能", "trigger_scenes": ["展厅", "大厅", "休息区"]},
+            {"id": "as_professional_user", "label": "作为专业使用者", "spatial_need": "功能满足、设备品质、声学光学温控", "trigger_scenes": ["工作室", "排练厅", "实验室"]},
+            {"id": "as_event_organizer", "label": "作为活动组织方", "spatial_need": "灵活性、容量、后勤支持", "trigger_scenes": ["多功能厅", "户外广场", "后台"]},
         ],
     },
 }
@@ -957,7 +820,7 @@ def _detect_identity_modes(
 
     # 获取 mode_ids 和 project_type
     mode_ids = set()
-    for m in detected_modes or []:
+    for m in (detected_modes or []):
         mid = m.get("mode", "") if isinstance(m, dict) else str(m)
         mode_ids.add(mid)
 
@@ -999,7 +862,6 @@ def _detect_identity_modes(
         label_kw = mode.get("label", "")
         # 提取括号中的关键词
         import re as _re
-
         paren_match = _re.search(r"[（(](.+?)[）)]", label_kw)
         if paren_match:
             kw_in_label = paren_match.group(1)
@@ -1054,14 +916,12 @@ def _detect_identity_modes(
             status = "excluded"
 
         if status != "excluded":
-            results.append(
-                {
-                    **mode,
-                    "evidence_count": evidence_count,
-                    "evidence_sources": evidence_sources,
-                    "status": status,
-                }
-            )
+            results.append({
+                **mode,
+                "evidence_count": evidence_count,
+                "evidence_sources": evidence_sources,
+                "status": status,
+            })
 
     return results
 
@@ -1069,7 +929,6 @@ def _detect_identity_modes(
 # ==================================================================================
 # v10.1: 通用输出框架信号提取（不硬编码任何项目类型）
 # ==================================================================================
-
 
 def _extract_framework_signals(
     user_input: str,
@@ -1095,9 +954,9 @@ def _extract_framework_signals(
 
     # ─── A. 范围信号 ───
     scope = {
-        "scale_markers": [],  # 面积/体量/预算等量化标记
+        "scale_markers": [],       # 面积/体量/预算等量化标记
         "object_count": "unknown",  # 单一空间 / 单体建筑 / 建筑群 / 片区
-        "temporal_hint": None,  # 永久 / 临时 / 可迭代
+        "temporal_hint": None,      # 永久 / 临时 / 可迭代
     }
 
     # A1: 面积/体量提取
@@ -1224,8 +1083,8 @@ def _extract_framework_signals(
 
     # ─── D. 输出校准信号 ───
     calibration = {
-        "depth_hint": "standard",  # exhaustive / strategic / executive / compressed
-        "visual_expectation": False,  # 是否期待图片/参考图/效果图
+        "depth_hint": "standard",     # exhaustive / strategic / executive / compressed
+        "visual_expectation": False,   # 是否期待图片/参考图/效果图
         "quantitative_expectation": False,  # 是否期待数据/测算/表格
     }
 
@@ -1251,13 +1110,11 @@ def _extract_framework_signals(
     audience_needs = []
     for proj_id in active_projections:
         display = PROJECTION_DISPLAY.get(proj_id, {})
-        audience_needs.append(
-            {
-                "projection_id": proj_id,
-                "audience_label": display.get("label", proj_id),
-                "audience_desc": display.get("desc", ""),
-            }
-        )
+        audience_needs.append({
+            "projection_id": proj_id,
+            "audience_label": display.get("label", proj_id),
+            "audience_desc": display.get("desc", ""),
+        })
     signals["audience_needs"] = audience_needs
 
     # ─── F. 推理依据 ───
@@ -1271,9 +1128,7 @@ def _extract_framework_signals(
         c_types = [c["type"] for c in constraints]
         reasoning_parts.append(f"约束=[{', '.join(c_types)}]")
     if mandatory_dimensions:
-        reasoning_parts.append(
-            f"特殊领域=[{', '.join(mandatory_dimensions[:5])}{'...' if len(mandatory_dimensions) > 5 else ''}]"
-        )
+        reasoning_parts.append(f"特殊领域=[{', '.join(mandatory_dimensions[:5])}{'...' if len(mandatory_dimensions) > 5 else ''}]")
     reasoning_parts.append(f"交付类型={active_projections}")
     reasoning_parts.append(f"身份模式={len(identity_modes)}种")
     signals["reasoning"] = " | ".join(reasoning_parts)
@@ -1284,7 +1139,6 @@ def _extract_framework_signals(
 # ==================================================================================
 # 节点主函数
 # ==================================================================================
-
 
 def output_intent_detection_node(state: dict, store=None) -> Command:
     """
@@ -1372,7 +1226,6 @@ def output_intent_detection_node(state: dict, store=None) -> Command:
 
     try:
         import asyncio
-
         # 先将 extracted_spatial_zones 注入 state 以便管线读取
         _state_with_zones = {**state, "extracted_spatial_zones": extracted_spatial_zones}
         # 🔑 sync 节点中运行 async 管线：使用 asyncio.run()
@@ -1381,7 +1234,6 @@ def output_intent_detection_node(state: dict, store=None) -> Command:
             loop = asyncio.get_running_loop()
             # 如果已有 event loop（如被 async 调用方调用），使用 nest_asyncio 或创建 task
             import nest_asyncio
-
             nest_asyncio.apply()
             visual_constraints = loop.run_until_complete(_run_constraint_pipeline(_state_with_zones))
         except RuntimeError:
@@ -1415,30 +1267,26 @@ def output_intent_detection_node(state: dict, store=None) -> Command:
     for r in delivery_results:
         if r["status"] == "excluded":
             continue
-        delivery_options.append(
-            {
-                "id": r["id"],
-                "label": r["label"],
-                "desc": r["desc"],
-                "recommended": r["status"] == "confirmed",
-                "evidence": r["evidence"],
-            }
-        )
+        delivery_options.append({
+            "id": r["id"],
+            "label": r["label"],
+            "desc": r["desc"],
+            "recommended": r["status"] == "confirmed",
+            "evidence": r["evidence"],
+        })
 
     # 构建身份模式选项
     mode_options = []
     for m in identity_results:
         if m["status"] == "excluded":
             continue
-        mode_options.append(
-            {
-                "id": m["id"],
-                "label": m["label"],
-                "spatial_need": m.get("spatial_need", ""),
-                "recommended": m["status"] == "confirmed",
-                "evidence_sources": m.get("evidence_sources", []),
-            }
-        )
+        mode_options.append({
+            "id": m["id"],
+            "label": m["label"],
+            "spatial_need": m.get("spatial_need", ""),
+            "recommended": m["status"] == "confirmed",
+            "evidence_sources": m.get("evidence_sources", []),
+        })
 
     # 🆕 v12.1: 构建推荐约束列表（从 framework_signals 预提取）
     _pre_signals = _extract_framework_signals(
@@ -1477,17 +1325,11 @@ def output_intent_detection_node(state: dict, store=None) -> Command:
             for d in _deliverables_raw[:5]
         ],
         "design_mode": {
-            "mode": _design_modes_raw[0].get("mode", "")
-            if isinstance(_design_modes_raw[0], dict)
-            else str(_design_modes_raw[0]),
+            "mode": _design_modes_raw[0].get("mode", "") if isinstance(_design_modes_raw[0], dict) else str(_design_modes_raw[0]),
             "confidence": _design_modes_raw[0].get("confidence", 0) if isinstance(_design_modes_raw[0], dict) else 0,
-        }
-        if _design_modes_raw
-        else None,
+        } if _design_modes_raw else None,
     }
-    logger.info(
-        f"  📋 [v13.1] requirements_review: insight={bool(requirements_review['breakthrough_insight'])}, tensions={len(requirements_review['core_tensions'])}, quality_score={requirements_review['info_quality']['score']}"
-    )
+    logger.info(f"  📋 [v13.1] requirements_review: insight={bool(requirements_review['breakthrough_insight'])}, tensions={len(requirements_review['core_tensions'])}, quality_score={requirements_review['info_quality']['score']}")
 
     output_intent_payload = {
         "interaction_type": "output_intent_confirmation",
@@ -1550,14 +1392,12 @@ def output_intent_detection_node(state: dict, store=None) -> Command:
     # 清理 final_modes 以便序列化
     serializable_modes = []
     for m in final_modes:
-        serializable_modes.append(
-            {
-                "id": m["id"],
-                "label": m["label"],
-                "spatial_need": m.get("spatial_need", ""),
-                "trigger_scenes": m.get("trigger_scenes", []),
-            }
-        )
+        serializable_modes.append({
+            "id": m["id"],
+            "label": m["label"],
+            "spatial_need": m.get("spatial_need", ""),
+            "trigger_scenes": m.get("trigger_scenes", []),
+        })
 
     # -------------------------------------------------------
     # 4. v10.1 通用框架信号提取
@@ -1580,16 +1420,12 @@ def output_intent_detection_node(state: dict, store=None) -> Command:
             framework_signals["mandatory_dimensions"] = confirmed_dim_ids
         # 将用户手动添加的约束注入 constraints 列表
         for c in user_added:
-            framework_signals.setdefault("constraints", []).append(
-                {
-                    "type": "user_declared",
-                    "label": c.get("label", ""),
-                    "desc": c.get("desc", ""),
-                }
-            )
-        logger.info(
-            f"  🎯 [v12.1] 用户确认约束: {len(confirmed_constraints)}项 (AI推荐{len(confirmed_dim_ids)}, 手动{len(user_added)})"
-        )
+            framework_signals.setdefault("constraints", []).append({
+                "type": "user_declared",
+                "label": c.get("label", ""),
+                "desc": c.get("desc", ""),
+            })
+        logger.info(f"  🎯 [v12.1] 用户确认约束: {len(confirmed_constraints)}项 (AI推荐{len(confirmed_dim_ids)}, 手动{len(user_added)})")
 
     logger.info(f"  📐 框架信号: scope={framework_signals.get('scope', {}).get('object_count', '?')}")
     logger.info(f"  📐 约束数: {len(framework_signals.get('constraints', []))}")

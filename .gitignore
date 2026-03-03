@@ -43,6 +43,11 @@ nul
 .env
 .env.local
 .env.*.local
+# 环境特定配置（保留 .env.*.example）
+.env.development
+.env.test
+.env.staging
+.env.production
 *.log
 logs/
 data/

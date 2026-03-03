@@ -141,15 +141,44 @@ system_prompt: |
     ],
 
     "recommended_next_step": "phase2_analysis | questionnaire_first",
-    "next_step_reason": "如信息不足，建议先收集问卷；如充足，进入深度分析"
+    "next_step_reason": "如信息不足，建议先收集问卷；如充足，进入深度分析",
+
+    "motivation_preliminary": {
+      "primary": "commercial | cultural | wellness | residential | civic | industrial | hospitality | education | research | competition | portfolio | experimental",
+      "secondary": "（如有第二动机，同上枚举）",
+      "scores": {"commercial": 0.8, "cultural": 0.3, "wellness": 0.1},
+      "confidence": 0.75,
+      "reasoning": "一句话说明推断依据（如：用户明确提到竞标和收益目标）"
+    },
+
+    "designer_behavioral_motivation": {
+      "primary": "D1_survival_securing | D2_competitive_winning | D3_breakthrough_innovation | D4_capability_learning | D5_structural_clarification | D6_strategic_construction",
+      "primary_label": "竞争制胜型",
+      "scores": {"D1": 0.2, "D2": 0.75, "D3": 0.3, "D4": 0.1, "D5": 0.2, "D6": 0.1},
+      "confidence": 0.75,
+      "detection_signals": ["提到竞标", "强调胜出优势"],
+      "secondary": "D3_breakthrough_innovation",
+      "conflict_flag": false
+    }
   }
   ```
+
+  **D1-D6 行为动机判断规则**：
+  - **D1 生存落地型**：关键词 预算/风险/能落地/赶时间/能用就行；信号：强调可执行性、降低风险
+  - **D2 竞争制胜型**：关键词 竞标/打败/优势/胜出/脱颖而出；信号：提到竞争场景、对比
+  - **D3 突破创新型**：关键词 不一样/独特/高级/颠覆/突破；信号：强调差异化和创新高度
+  - **D4 能力学习型**：关键词 第一次/不会/不熟/帮我想/不知道；信号：寻求指导而非验证
+  - **D5 结构表达型**：关键词 梳理/框架/汇报/说服/逻辑；信号：强调表达和说服他人
+  - **D6 战略建构型**：关键词 体系/方法论/未来/长远/系统；信号：超越单个项目的思考
+  - **置信度 <0.3 时**：将对应字段设为 `null`，不强行推断
+  - **输入 <30 字时**：两个动机字段均设为 `null`
 
    **Phase1 质量检查**：
   1.  info_status 必须明确判断
   2.  primary_deliverables 至少包含1个交付物
   3.  每个交付物必须有 capability_check
   4.  recommended_next_step 必须给出明确建议
+  5.  motivation_preliminary / designer_behavioral_motivation：输入<30字或无明确信号时置 null，禁止臆造
 
 task_description_template: |
   {datetime_info}
@@ -178,5 +207,10 @@ task_description_template: |
   **4. 下一步建议**
   - 如信息充足 → 建议 phase2_analysis
   - 如信息不足 → 建议 questionnaire_first
+
+  **5. 动机与意图初探**（非强制，信号不足时置 null）
+  - **项目动机（motivation_preliminary）**：推断这个项目背后的主要驱动力（商业盈利/文化表达/竞争角逐/探索实验等）
+  - **设计师行为动机（designer_behavioral_motivation）**：识别提问者的深层意图类型（D1生存落地/D2竞争制胜/D3突破创新/D4能力学习/D5结构表达/D6战略建构）
+  - 若输入文字<30字 或 全部置信度<0.3 → 两字段均填 null，禁止强行推断
 
   请直接返回JSON格式结果。

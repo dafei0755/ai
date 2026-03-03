@@ -462,6 +462,14 @@ async def run_workflow_async(session_id: str, user_input: str):
                             "requirements_confirmed",
                             "restructured_requirements",
                             "requirements_summary_text",
+                            "flow_route_name",
+                            "flow_route_decision",
+                            "flow_route_reason_codes",
+                            "routing_scores",
+                            "active_steps",
+                            "motivation_routing_profile",
+                            "task_intent_profile",
+                            "output_intent_confirmed",
                         ]
                         if isinstance(node_output, dict):
                             for field in questionnaire_fields:

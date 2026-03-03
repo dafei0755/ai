@@ -72,6 +72,11 @@ class AnalysisStatus(BaseModel):
     traceback: Optional[str] = None  # 添加traceback字段用于调试
     rejection_message: Optional[str] = None  #  拒绝原因提示
     user_input: Optional[str] = None  #  v7.37.7: 用户原始输入
+    flow_route_name: Optional[str] = None
+    flow_route_decision: Optional[Dict[str, Any]] = None
+    flow_route_reason_codes: Optional[List[str]] = None
+    routing_scores: Optional[Dict[str, float]] = None
+    active_steps: Optional[List[str]] = None
 
 
 class AnalysisResult(BaseModel):

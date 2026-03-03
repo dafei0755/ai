@@ -2,6 +2,11 @@
 统一配置管理 - 基于Pydantic Settings 2.x (2025年标准)
 
 使用Pydantic Settings自动加载环境变量,无需手动调用load_dotenv()
+
+多环境配置支持 (v8.1+):
+    - 通过 APP_ENV 环境变量指定环境 (development/test/production)
+    - 优先级: 环境变量 > .env.{APP_ENV} > .env > 默认值
+    - 示例: APP_ENV=test python run.py
 """
 
 import os
@@ -13,10 +18,21 @@ from dotenv import load_dotenv
 from pydantic import BaseModel, Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-# 确保.env文件被加载到环境变量中
-env_path = Path(__file__).parent.parent / ".env"
-if env_path.exists():
-    load_dotenv(env_path)
+# 多环境配置加载 (v8.1+)
+# 1. 首先加载 .env（基础配置）
+# 2. 然后根据 APP_ENV 加载环境特定配置（会覆盖同名变量）
+# 3. 最后环境变量拥有最高优先级
+root_path = Path(__file__).parent.parent
+base_env_path = root_path / ".env"
+if base_env_path.exists():
+    load_dotenv(base_env_path)
+
+# 根据 APP_ENV 加载环境特定配置
+app_env = os.getenv("APP_ENV", "development").lower()
+env_specific_path = root_path / f".env.{app_env}"
+if env_specific_path.exists():
+    # override=True: 环境特定配置覆盖基础配置
+    load_dotenv(env_specific_path, override=True)
 
 
 class Environment(str, Enum):
@@ -286,12 +302,24 @@ class Settings(BaseSettings):
 
     使用Pydantic Settings自动从环境变量加载配置
     支持嵌套配置: LLM__MAX_TOKENS=8000
+    多环境配置: 通过 APP_ENV 环境变量指定环境
     """
 
     # 环境配置
-    environment: Environment = Field(default=Environment.DEV, description="运行环境")
+    app_env: str = Field(default="development", description="应用环境 (development/test/production)", alias="APP_ENV")
+    environment: Environment = Field(default=Environment.DEV, description="运行环境 (向后兼容)")
     debug: bool = Field(default=False, description="调试模式", alias="DEBUG")
     log_level: str = Field(default="INFO", description="日志级别", alias="LOG_LEVEL")
+
+    # 端口配置 (v8.1+): 支持多环境并行运行
+    api_port: int = Field(default=8000, description="后端API端口", alias="API_PORT")
+    frontend_port: int = Field(default=3001, description="前端端口", alias="FRONTEND_PORT")
+
+    # 日志配置 (v8.1+): 支持环境隔离
+    structured_logging: bool = Field(default=False, description="是否使用结构化日志(JSON)", alias="STRUCTURED_LOGGING")
+    enable_detailed_logging: bool = Field(default=False, description="是否启用详细日志", alias="ENABLE_DETAILED_LOGGING")
+    log_sample_rate: float = Field(default=1.0, description="日志采样率(0.0-1.0)", alias="LOG_SAMPLE_RATE")
+    log_file_path: str = Field(default="logs/server.log", description="日志文件路径", alias="LOG_FILE_PATH")
 
     # 应用配置
     app_name: str = Field(default="Intelligent Project Analyzer", description="应用名称", alias="APP_NAME")

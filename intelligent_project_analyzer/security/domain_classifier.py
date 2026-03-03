@@ -72,13 +72,8 @@ class DomainClassifier:
         non_design_strength = non_design_stats["strength"]
 
         logger.info(
-            " 关键词命中: 设计=%s (hits=%s, categories=%s), 非设计=%s (hits=%s, categories=%s)",
-            design_strength,
-            design_stats["hits"],
-            design_stats["categories"],
-            non_design_strength,
-            non_design_stats["hits"],
-            non_design_stats["categories"]
+            f" 关键词命中: 设计={design_strength} (hits={design_stats['hits']}, categories={design_stats['categories']}), "
+            f"非设计={non_design_strength} (hits={non_design_stats['hits']}, categories={non_design_stats['categories']})"
         )
         
         # 2. LLM辅助判断

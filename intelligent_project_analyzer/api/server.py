@@ -673,10 +673,12 @@ from intelligent_project_analyzer.api.performance_monitor import performance_mon
 app.middleware("http")(performance_monitoring_middleware)
 
 # 配置 CORS
+# 注意：allow_origins=["*"] 与 allow_credentials=True 同时设置违反浏览器 CORS 规范
+# JWT Bearer Token 不需要 credentials 模式（credentials=True 仅用于 Cookie 认证）
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # 生产环境应该限制具体域名
-    allow_credentials=True,
+    allow_origins=["*"],
+    allow_credentials=False,  # JWT Bearer Token 不需要 credentials 模式
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -7798,18 +7800,9 @@ async def end_conversation(session_id: str):
         websocket_connections[session_id].clear()
         del websocket_connections[session_id]
 
-    #  v7.131: 尝试清理 Playwright 浏览器池（如果没有其他活跃会话）
-    try:
-        active_sessions = len(websocket_connections)
-        if active_sessions == 0:
-            from intelligent_project_analyzer.api.html_pdf_generator import PlaywrightBrowserPool
-
-            await asyncio.wait_for(PlaywrightBrowserPool.cleanup(), timeout=10.0)
-            logger.debug(" Playwright 浏览器池已清理（无活跃会话）")
-    except asyncio.TimeoutError:
-        logger.warning("️ Playwright 浏览器池清理超时")
-    except Exception as e:
-        logger.debug(f" Playwright 浏览器池清理失败（可能未初始化）: {e}")
+    # v7.131 BUG FIX: 不在此处清理 Playwright 浏览器池
+    # WebSocket 连接数为 0 不等于后台工作流已完成，清理会导致 PDF 生成失败。
+    # Playwright 仅在服务器关闭时（lifespan handler）才应清理。
 
     logger.info(f" Conversation ended for session {session_id}")
 
@@ -8488,19 +8481,9 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
             # 如果没有连接了，清理字典
             if not websocket_connections[session_id]:
                 del websocket_connections[session_id]
-
-                #  v7.131: 当会话的所有 WebSocket 连接都断开时，清理浏览器池资源
-                try:
-                    total_active = sum(len(conns) for conns in websocket_connections.values())
-                    if total_active == 0:
-                        from intelligent_project_analyzer.api.html_pdf_generator import PlaywrightBrowserPool
-
-                        await asyncio.wait_for(PlaywrightBrowserPool.cleanup(), timeout=10.0)
-                        logger.debug(" Playwright 浏览器池已清理（所有 WebSocket 已断开）")
-                except asyncio.TimeoutError:
-                    logger.warning(f"️ WebSocket断开后清理浏览器池超时: {session_id}")
-                except Exception as e:
-                    logger.debug(f" WebSocket断开后清理浏览器池失败: {session_id}, {e}")
+                # v7.131 BUG FIX: 不在 WebSocket 断开时清理 Playwright 浏览器池
+                # 竞态条件：旧连接断开与新连接注册之间有 ~10ms 窗隙，导致
+                # total_active==0 误判，工作流仍运行时浏览器池被提前销毁。
 
 
 if __name__ == "__main__":

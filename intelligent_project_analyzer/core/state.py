@@ -354,6 +354,10 @@ class ProjectAnalysisState(TypedDict):
     errors: List[Dict[str, Any]]
     retry_count: int
 
+    #  需求分析显式失败状态（消除静默降级到 Step 1 的问题）
+    requirements_analysis_status: Optional[str]   # "failed" | None
+    requirements_analysis_error: Optional[str]    # 异常摘要，前端可通过状态接口读取
+
     #  输入拒绝字段（内容安全与领域过滤）
     rejection_reason: Optional[str]  # 拒绝原因代码
     rejection_message: Optional[str]  # 用户友好的拒绝提示消息
@@ -427,6 +431,79 @@ class ProjectAnalysisState(TypedDict):
     用于确保全流程输出风格一致性
     格式: "Scandinavian minimalist, warm wood tones, natural lighting"
     """
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # v8.1: 动机信号链（Step 0 修复 design_modes 死路 + Step 1 新增动机字段）
+    # ─────────────────────────────────────────────────────────────────────────
+
+    detected_design_modes: Optional[List[Dict[str, Any]]]
+    """
+    设计模式检测结果（Step 0 修复：原字段从未写入，projection_dispatcher 的 when_modes 永远空转）
+    由 requirements_nodes._requirements_analyst_node() 调用 detect_design_modes() 写入
+    格式: [{"mode": "M1_concept_driven", "confidence": 0.7, "reason": "..."}, ...]
+    """
+
+    project_motivation: Optional[Dict[str, Any]]
+    """
+    项目级动机识别结果（12 类：cultural/commercial/wellness 等）
+    由 Phase1 LLM 推断，经 requirements_nodes 写入主 state
+    格式: {
+        "primary": "commercial",
+        "secondary": "cultural",
+        "scores": {"commercial": 0.75, "cultural": 0.50, ...},
+        "confidence": 0.75,
+        "reasoning": "用户提到竞标和坪效"
+    }
+    """
+
+    designer_behavioral_motivation: Optional[Dict[str, Any]]
+    """
+    设计师行为动机识别结果（D1-D6）
+    回答"设计师为什么这样发问"，而非"项目要什么"
+    由 Phase1 LLM 推断，经 requirements_nodes 写入主 state
+    格式: {
+        "primary": "D2_competitive_winning",
+        "primary_label": "竞争制胜型",
+        "confidence": 0.75,
+        "scores": {"D1": 0.3, "D2": 0.75, "D3": 0.5, "D4": 0.2, "D5": 0.3, "D6": 0.4},
+        "detection_signals": ["用户提到竞标", "对比性语气"],
+        "secondary": "D3_breakthrough_innovation",
+        "conflict_flag": false
+    }
+    """
+
+    motivation_trace: Annotated[Optional[List[str]], merge_lists]
+    """
+    动机识别与传导追踪日志（调试用，支持并发 merge）
+    例: ["[Phase1] D=D2_competitive_winning conf=0.75", "[ProjectDirector] 动机注入", "[Dispatcher] power+0.12"]
+    """
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # 半动态路由画像（Smart Nodes Self-Skip）
+    # ─────────────────────────────────────────────────────────────────────────
+    task_intent_profile: Optional[Dict[str, Any]]
+    """任务意图画像（如 project_design_task/strategy_thinking/mixed_project_strategy）。"""
+
+    flow_route_name: Optional[str]
+    """命中的流程名，如 project_full_progressive_flow / strategy_light_flow。"""
+
+    flow_route_decision: Optional[Dict[str, Any]]
+    """节点自跳步决策快照（布尔开关 + 命中原因）。"""
+
+    flow_route_reason_codes: Annotated[Optional[List[str]], merge_lists]
+    """路由原因码（可并发合并），用于可解释性和回放。"""
+
+    routing_scores: Optional[Dict[str, float]]
+    """统一路由评分，如 info_completeness/ambiguity/risk/symbolic_density。"""
+
+    active_steps: Annotated[Optional[List[str]], merge_lists]
+    """当前会话激活步骤列表（前端动态步骤条来源）。"""
+
+    motivation_routing_profile: Optional[Dict[str, Any]]
+    """动机聚合画像，供路由与内容偏置统一消费。"""
+
+    output_intent_confirmed: Optional[bool]
+    """输出意图是否已确认。"""
 
     # 元数据
     metadata: Dict[str, Any]
@@ -521,6 +598,15 @@ class StateManager:
             #  v7.155→v7.156: 多模态视觉参考（从会话数据传入，不再硬编码为 None）
             uploaded_visual_references=uploaded_visual_references,
             visual_style_anchor=visual_style_anchor,
+            # 半动态路由画像初始化
+            task_intent_profile=None,
+            flow_route_name="project_full_progressive_flow",
+            flow_route_decision=None,
+            flow_route_reason_codes=[],
+            routing_scores=None,
+            active_steps=["step1_core_task", "step2_info_gap", "step3_radar", "requirements_insight"],
+            motivation_routing_profile=None,
+            output_intent_confirmed=False,
             # 流程控制
             current_stage=AnalysisStage.INIT.value,
             active_agents=[],

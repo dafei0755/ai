@@ -706,6 +706,11 @@ async def get_analysis_status(
         traceback=session.get("traceback"),  # 返回traceback用于调试
         rejection_message=session.get("rejection_message"),  #  返回拒绝提示
         user_input=session.get("user_input"),  #  v7.37.7: 返回用户原始输入
+        flow_route_name=session.get("flow_route_name"),
+        flow_route_decision=session.get("flow_route_decision"),
+        flow_route_reason_codes=session.get("flow_route_reason_codes"),
+        routing_scores=session.get("routing_scores"),
+        active_steps=session.get("active_steps"),
     )
 
 

@@ -21,6 +21,10 @@ import { api } from '@/lib/api';
 import { WebSocketClient, type WebSocketMessage } from '@/lib/websocket';
 import { QuestionnaireModal } from '@/components/QuestionnaireModal';
 import { ConfirmationModal } from '@/components/ConfirmationModal';
+import {
+	OutputIntentConfirmationModal,
+	type OutputIntentConfirmPayload
+} from '@/components/OutputIntentConfirmationModal';
 import { RoleTaskReviewModal } from '@/components/RoleTaskReviewModal';
 import { UserQuestionModal } from '@/components/UserQuestionModal';
 import { UnifiedProgressiveQuestionnaireModal } from '@/components/UnifiedProgressiveQuestionnaireModal';
@@ -140,6 +144,24 @@ const formatNodeName = (nodeName: string | undefined): string => {
 	return NODE_NAME_MAP[nodeName] || nodeName;
 };
 
+const STEP_LABEL_MAP: Record<string, string> = {
+	step1_core_task: '任务梳理',
+	step2_info_gap: '信息补全',
+	step3_radar: '偏好雷达图',
+	requirements_insight: '需求洞察',
+	output_intent_confirmation: '输出意图确认'
+};
+
+const INTERACTION_STEP_ID_MAP: Record<string, string> = {
+	progressive_questionnaire_step1: 'step1_core_task',
+	progressive_questionnaire_step2: 'step2_info_gap',
+	progressive_questionnaire_step3: 'step3_radar',
+	progressive_questionnaire_step4: 'requirements_insight',
+	requirements_insight: 'requirements_insight'
+};
+
+const formatActiveStep = (stepId: string): string => STEP_LABEL_MAP[stepId] || stepId;
+
 export default function AnalysisPage() {
 	const params = useParams();
 	const router = useRouter();
@@ -159,6 +181,8 @@ export default function AnalysisPage() {
 	// 需求确认状态
 	const [showConfirmation, setShowConfirmation] = useState<boolean>(false);
 	const [confirmationData, setConfirmationData] = useState<any>(null);
+	const [showOutputIntentModal, setShowOutputIntentModal] = useState<boolean>(false);
+	const [outputIntentData, setOutputIntentData] = useState<any>(null);
 
 	// 用户追问状态
 	const [showUserQuestion, setShowUserQuestion] = useState<boolean>(false);
@@ -186,6 +210,31 @@ export default function AnalysisPage() {
 	const wsClientRef = useRef<WebSocketClient | null>(null);
 	const hasRedirectedRef = useRef<boolean>(false);
 
+	const activeProgressiveSteps = useMemo(() => {
+		const fromStatus = status?.active_steps;
+		if (!fromStatus || fromStatus.length === 0) {
+			return ['step1_core_task', 'step2_info_gap', 'step3_radar', 'requirements_insight'];
+		}
+		return fromStatus;
+	}, [status?.active_steps]);
+
+	const resolveProgressiveStepNumber = useCallback((interactionType: string): number => {
+		const stepId = INTERACTION_STEP_ID_MAP[interactionType];
+		if (stepId) {
+			const idx = activeProgressiveSteps.indexOf(stepId);
+			if (idx >= 0) {
+				return idx + 1;
+			}
+		}
+
+		if (interactionType === 'progressive_questionnaire_step1') return 1;
+		if (interactionType === 'progressive_questionnaire_step2') return 2;
+		if (interactionType === 'progressive_questionnaire_step3') return 3;
+		if (interactionType === 'progressive_questionnaire_step4' || interactionType === 'requirements_insight') return 4;
+
+		return 0;
+	}, [activeProgressiveSteps]);
+
 	const navigateToReport = useCallback(() => {
 		if (hasRedirectedRef.current) {
 			return;
@@ -193,6 +242,74 @@ export default function AnalysisPage() {
 		hasRedirectedRef.current = true;
 		router.push(`/report/${sessionId}`);
 	}, [router, sessionId]);
+
+	const applyInterruptDispatch = useCallback((interruptData: any) => {
+		if (!interruptData) {
+			return;
+		}
+
+		const interactionType = interruptData.interaction_type;
+		const dynamicStepNumber = resolveProgressiveStepNumber(interactionType);
+
+		if (interactionType === 'calibration_questionnaire') {
+			setQuestionnaireData(interruptData.questionnaire);
+			setShowQuestionnaire(true);
+			console.log('📋 检测到待处理的问卷');
+		} else if (interactionType === 'role_and_task_unified_review') {
+			if (interruptData.close_previous_modal) {
+				console.log('🔧 [v7.153] 收到 close_previous_modal 指令，关闭 progressive questionnaire');
+				setCurrentProgressiveStep(0);
+				setProgressiveStepData(null);
+			}
+			setRoleTaskReviewData(interruptData);
+			setShowRoleTaskReview(true);
+			console.log('📋 检测到待审核的角色任务');
+		} else if (interactionType === 'user_question') {
+			setUserQuestionData(interruptData);
+			setShowUserQuestion(true);
+			console.log('📋 检测到待处理的用户追问');
+		} else if (interactionType === 'batch_confirmation') {
+			console.log('📦 收到批次确认请求，自动批准执行');
+			console.log(`  批次 ${interruptData.current_batch}/${interruptData.total_batches}: ${interruptData.agents_in_batch?.join(', ')}`);
+			api.resumeAnalysis(sessionId, 'approve').catch((err: any) => {
+				console.error('❌ 自动批准批次失败:', err);
+			});
+		} else if (interactionType === 'progressive_questionnaire_step1') {
+			setProgressiveStepData(interruptData);
+			setCurrentProgressiveStep(dynamicStepNumber || 1);
+			console.log('📋 检测到待处理的第1步 - 任务梳理');
+		} else if (interactionType === 'progressive_questionnaire_step2') {
+			setProgressiveStepData(interruptData);
+			setCurrentProgressiveStep(dynamicStepNumber || 2);
+			console.log('📋 检测到待处理的第2步 - 信息补全');
+		} else if (interactionType === 'progressive_questionnaire_step3') {
+			console.log('📋 检测到待处理的第3步 - 雷达图维度选择');
+			console.log('🔍 [Step3] dimensions 类型:', typeof interruptData.dimensions);
+			console.log('🔍 [Step3] dimensions 是否为数组:', Array.isArray(interruptData.dimensions));
+			if (interruptData.dimensions) {
+				console.log('🔍 [Step3] dimensions 数量:', Array.isArray(interruptData.dimensions) ? interruptData.dimensions.length : 'N/A');
+			}
+			setProgressiveStepData(interruptData);
+			setCurrentProgressiveStep(dynamicStepNumber || 3);
+		} else if (interactionType === 'progressive_questionnaire_step4' || interactionType === 'requirements_insight') {
+			console.log('📋 检测到待处理的第4步 - 需求洞察');
+			console.log('🔍 [Step4] restructured_requirements:', interruptData.restructured_requirements ? '已包含' : '缺失');
+			console.log('🔍 [Step4] project_essence:', interruptData.project_essence ? '已包含' : '缺失');
+			setProgressiveStepData(interruptData);
+			setCurrentProgressiveStep(dynamicStepNumber || 4);
+		} else if (interactionType === 'quality_preflight_warning') {
+			setQualityPreflightData(interruptData);
+			setShowQualityPreflight(true);
+			console.log('⚠️ 检测到质量预检警告');
+		} else if (interactionType === 'output_intent_confirmation') {
+			setOutputIntentData(interruptData);
+			setShowOutputIntentModal(true);
+			console.log('🎯 检测到输出意图确认');
+		} else {
+			setConfirmationData(interruptData);
+			setShowConfirmation(true);
+		}
+	}, [resolveProgressiveStepNumber, sessionId]);
 
 	// 使用 WebSocket 实时更新状态
 	useEffect(() => {
@@ -254,52 +371,7 @@ export default function AnalysisPage() {
 				}
 
 				if (data.status === 'waiting_for_input' && data.interrupt_data) {
-					if (data.interrupt_data.interaction_type === 'calibration_questionnaire') {
-						setQuestionnaireData(data.interrupt_data.questionnaire);
-						setShowQuestionnaire(true);
-						console.log('📋 检测到待处理的问卷');
-					} else if (data.interrupt_data.interaction_type === 'role_and_task_unified_review') {
-						setRoleTaskReviewData(data.interrupt_data);
-						setShowRoleTaskReview(true);
-						console.log('📋 检测到待审核的角色任务');
-					} else if (data.interrupt_data.interaction_type === 'user_question') {
-						setUserQuestionData(data.interrupt_data);
-						setShowUserQuestion(true);
-						console.log('📋 检测到待处理的用户追问');
-					} else if (data.interrupt_data.interaction_type === 'progressive_questionnaire_step1') {
-						// 🆕 v7.130: 统一状态管理
-						setProgressiveStepData(data.interrupt_data);
-						setCurrentProgressiveStep(1);
-						console.log('📋 检测到待处理的第1步 - 任务梳理');
-					} else if (data.interrupt_data.interaction_type === 'progressive_questionnaire_step2') {
-						// 🆕 v7.130: 统一状态管理，step2 = 信息补全
-						setProgressiveStepData(data.interrupt_data);
-						setCurrentProgressiveStep(2);
-						console.log('📋 检测到待处理的第2步 - 信息补全');
-					} else if (data.interrupt_data.interaction_type === 'progressive_questionnaire_step3') {
-						// 🆕 v7.130: 统一状态管理，step3 = 雷达图
-						// 🔧 v7.146: 添加调试日志检查 dimensions 数据类型
-						console.log('📋 检测到待处理的第3步 - 雷达图维度选择');
-						console.log('🔍 [Step3] dimensions 类型:', typeof data.interrupt_data.dimensions);
-						console.log('🔍 [Step3] dimensions 是否为数组:', Array.isArray(data.interrupt_data.dimensions));
-						if (data.interrupt_data.dimensions) {
-							console.log('🔍 [Step3] dimensions 数量:', Array.isArray(data.interrupt_data.dimensions) ? data.interrupt_data.dimensions.length : 'N/A');
-						}
-						setProgressiveStepData(data.interrupt_data);
-						setCurrentProgressiveStep(3);
-					} else if (data.interrupt_data.interaction_type === 'progressive_questionnaire_step4' || data.interrupt_data.interaction_type === 'requirements_insight') {
-						// 🆕 v7.151: 第4步 - 需求洞察（原问卷汇总+需求确认合并）
-						console.log('📋 检测到待处理的第4步 - 需求洞察');
-						console.log('🔍 [Step4] restructured_requirements:', data.interrupt_data.restructured_requirements ? '已包含' : '缺失');
-						console.log('🔍 [Step4] project_essence:', data.interrupt_data.project_essence ? '已包含' : '缺失');
-						setProgressiveStepData(data.interrupt_data);
-						setCurrentProgressiveStep(4);
-					} else if (data.interrupt_data.interaction_type === 'quality_preflight_warning') {
-						// 🆕 v7.119: 质量预检警告
-						setQualityPreflightData(data.interrupt_data);
-						setShowQualityPreflight(true);
-						console.log('⚠️ 检测到质量预检警告');
-					}
+					applyInterruptDispatch(data.interrupt_data);
 				}
 
 					if (data.status === 'completed') {
@@ -545,57 +617,7 @@ export default function AnalysisPage() {
 							interrupt_data: message.interrupt_data
 						}));
 
-						if (message.interrupt_data?.interaction_type === 'calibration_questionnaire') {
-							setQuestionnaireData(message.interrupt_data.questionnaire);
-							setShowQuestionnaire(true);
-						} else if (message.interrupt_data?.interaction_type === 'role_and_task_unified_review') {
-							// 🔧 v7.153: 如果后端指示关闭之前的模态框，先关闭 progressive questionnaire
-							if (message.interrupt_data?.close_previous_modal) {
-								console.log('🔧 [v7.153] 收到 close_previous_modal 指令，关闭 progressive questionnaire');
-								setCurrentProgressiveStep(0);
-								setProgressiveStepData(null);
-							}
-							setRoleTaskReviewData(message.interrupt_data);
-							setShowRoleTaskReview(true);
-						} else if (message.interrupt_data?.interaction_type === 'user_question') {
-							setUserQuestionData(message.interrupt_data);
-							setShowUserQuestion(true);
-						} else if (message.interrupt_data?.interaction_type === 'batch_confirmation') {
-							// 🔥 批次确认：自动批准继续执行
-							console.log('📦 收到批次确认请求，自动批准执行');
-							const batchInfo = message.interrupt_data;
-							console.log(`  批次 ${batchInfo.current_batch}/${batchInfo.total_batches}: ${batchInfo.agents_in_batch?.join(', ')}`);
-
-							// 自动批准批次执行
-							api.resumeAnalysis(sessionId, 'approve').catch((err: any) => {
-								console.error('❌ 自动批准批次失败:', err);
-							});
-						} else if (message.interrupt_data?.interaction_type === 'progressive_questionnaire_step1') {
-							// 🆕 v7.130: 第1步 - 任务梳理
-							console.log('📋 收到第1步 - 任务梳理问卷');
-							setProgressiveStepData(message.interrupt_data);
-							setCurrentProgressiveStep(1);
-						} else if (message.interrupt_data?.interaction_type === 'progressive_questionnaire_step2') {
-							// 🆕 v7.130: 第2步 - 信息补全（后端 interaction_type 已统一）
-							console.log('📋 收到第2步 - 信息补全问卷');
-							setProgressiveStepData(message.interrupt_data);
-							setCurrentProgressiveStep(2);
-						} else if (message.interrupt_data?.interaction_type === 'progressive_questionnaire_step3') {
-							// 🆕 v7.130: 第3步 - 雷达图（后端 interaction_type 已统一）
-							console.log('📋 收到第3步 - 雷达图维度选择问卷');
-							setProgressiveStepData(message.interrupt_data);
-							setCurrentProgressiveStep(3);
-						} else if (message.interrupt_data?.interaction_type === 'progressive_questionnaire_step4' || message.interrupt_data?.interaction_type === 'requirements_insight') {
-							// 🆕 v7.151: 第4步 - 需求洞察（原问卷汇总+需求确认合并）
-							console.log('📋 收到第4步 - 需求洞察');
-							setProgressiveStepData(message.interrupt_data);
-							setCurrentProgressiveStep(4);
-						} else if (message.interrupt_data?.interaction_type === 'quality_preflight_warning') {
-							// 🆕 v7.119: 质量预检警告
-							console.log('⚠️ 收到质量预检警告');
-							setQualityPreflightData(message.interrupt_data);
-							setShowQualityPreflight(true);
-						}
+						applyInterruptDispatch(message.interrupt_data);
 						break;
 
 					case 'tool_permissions_initialized':
@@ -644,7 +666,7 @@ export default function AnalysisPage() {
 		return () => {
 			wsClientRef.current?.close();
 		};
-	}, [navigateToReport, sessionId]);
+	}, [applyInterruptDispatch, navigateToReport, sessionId]);
 
 	const handleNodeClick = (nodeId: string) => {
 		setSelectedNode(nodeId);
@@ -744,6 +766,19 @@ export default function AnalysisPage() {
 		} catch (err) {
 			console.error('❌ 确认失败:', err);
 			alert('确认失败,请重试');
+		}
+	};
+
+	const handleOutputIntentConfirm = async (payload: OutputIntentConfirmPayload) => {
+		try {
+			await api.resumeAnalysis(sessionId, payload);
+			setShowOutputIntentModal(false);
+			setOutputIntentData(null);
+			setStatus((prev) => (prev ? { ...prev, status: 'running' as SessionStatus, detail: '正在继续分析...' } : prev));
+			console.log('✅ 输出意图确认已提交');
+		} catch (err) {
+			console.error('❌ 输出意图确认提交失败:', err);
+			alert('提交失败，请重试');
 		}
 	};
 
@@ -1172,6 +1207,22 @@ export default function AnalysisPage() {
 											</div>
 										</div>
 									)}
+
+									{status.active_steps && status.active_steps.length > 0 && (
+										<div className="mt-4 pt-4 border-t border-[var(--border-color)]">
+											<div className="text-xs text-gray-400 mb-2">当前激活步骤（后端驱动）</div>
+											<div className="flex flex-wrap gap-2">
+												{status.active_steps.map((step, idx) => (
+													<span
+														key={`${step}-${idx}`}
+														className="px-2 py-1 rounded-md text-xs bg-[var(--sidebar-bg)] border border-[var(--border-color)] text-[var(--foreground-secondary)]"
+													>
+														{formatActiveStep(step)}
+													</span>
+												))}
+											</div>
+										</div>
+									)}
 								</div>
 
 								{nodeHistory.length > 0 && (
@@ -1288,11 +1339,22 @@ export default function AnalysisPage() {
 
 			{/* 🆕 v7.151: ConfirmationModal 不再用于 requirements_confirmation（已合并到 questionnaire_summary） */}
 			<ConfirmationModal
-				isOpen={showConfirmation && confirmationData?.interaction_type !== 'role_and_task_unified_review'}
+				isOpen={
+					showConfirmation &&
+					confirmationData?.interaction_type !== 'role_and_task_unified_review' &&
+					confirmationData?.interaction_type !== 'output_intent_confirmation'
+				}
 				title={'确认'}
 				message={confirmationData?.message || '请确认以下信息'}
 				summary={confirmationData?.requirements_summary || confirmationData}
 				onConfirm={handleConfirmation}
+			/>
+
+			<OutputIntentConfirmationModal
+				isOpen={showOutputIntentModal}
+				data={outputIntentData}
+				onConfirm={handleOutputIntentConfirm}
+				allowSkip={false}
 			/>
 
 			<RoleTaskReviewModal isOpen={showRoleTaskReview} data={roleTaskReviewData} onConfirm={handleRoleTaskReview} />

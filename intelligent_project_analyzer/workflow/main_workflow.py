@@ -45,6 +45,7 @@ from ..interaction.nodes.quality_preflight import QualityPreflightNode  #
 
 #  v7.135: 问卷汇总节点（需求重构）
 from ..interaction.nodes.questionnaire_summary import questionnaire_summary_node
+from ..interaction.nodes.output_intent_detection import output_intent_detection_node
 
 #  统一审核节点（合并角色选择和任务分派审核）
 from ..interaction.role_task_unified_review import role_task_unified_review_node
@@ -59,12 +60,16 @@ from ..report.pdf_generator import PDFGeneratorAgent
 from ..report.result_aggregator import ResultAggregatorAgent
 from ..workflow.nodes.search_query_generator_node import search_query_generator_node  #  v7.109
 
-USE_V716_AGENTS = os.getenv("USE_V716_AGENTS", "false").lower() == "true"
-USE_V717_REQUIREMENTS_ANALYST = os.getenv("USE_V717_REQUIREMENTS_ANALYST", "false").lower() == "true"
-USE_V718_QUESTIONNAIRE_AGENT = os.getenv("USE_V718_QUESTIONNAIRE_AGENT", "false").lower() == "true"
-#  v7.87: 三步递进式问卷（默认启用）
-USE_PROGRESSIVE_QUESTIONNAIRE = os.getenv("USE_PROGRESSIVE_QUESTIONNAIRE", "true").lower() == "true"
-USE_MULTI_ROUND_QUESTIONNAIRE = os.getenv("USE_MULTI_ROUND_QUESTIONNAIRE", "false").lower() == "true"
+#  统一从 feature_flags 读取，消除跨模块默认值分裂
+#  原来此处 USE_V717_REQUIREMENTS_ANALYST 默认 "false"，requirements_nodes.py 默认 "true" → 已统一为 "true"
+from ..config.feature_flags import (
+    USE_V716_AGENTS,
+    USE_V717_REQUIREMENTS_ANALYST,
+    USE_V718_QUESTIONNAIRE_AGENT,
+    USE_PROGRESSIVE_QUESTIONNAIRE,
+    USE_MULTI_ROUND_QUESTIONNAIRE,
+    log_feature_flags_snapshot,
+)
 if USE_V716_AGENTS:
     # from ..agents.analysis_review_agent import AnalysisReviewAgent, AnalysisReviewNodeCompat  # ️ v2.2: 已废弃
     from ..agents.challenge_detection_agent import ChallengeDetectionAgent, detect_and_handle_challenges_v2
@@ -167,6 +172,7 @@ class MainWorkflow(
         else:
             logger.warning("  ️ 图像生成已禁用，概念图不会生成（检查 .env 中的 IMAGE_GENERATION_ENABLED）")
 
+        log_feature_flags_snapshot()  #  启动时打印完整特性开关快照
         logger.info("Main workflow initialized successfully")
 
     def _build_workflow_graph(self) -> StateGraph:
@@ -195,6 +201,7 @@ class MainWorkflow(
         # 1. 前置流程节点（需求收集与确认）
         # ============================================================================
         workflow.add_node("requirements_analyst", self._requirements_analyst_node)
+        workflow.add_node("output_intent_detection", self._output_intent_detection_node)  #  Step 0 输出意图确认
         workflow.add_node("feasibility_analyst", self._feasibility_analyst_node)  #  V1.5可行性分析师
 
         #  v7.87: 根据环境变量选择问卷类型
@@ -254,7 +261,12 @@ class MainWorkflow(
         # unified_input_validator_initial 使用 Command 路由到 requirements_analyst 或 input_rejected
         workflow.add_edge("input_rejected", END)  # 拒绝后终止
 
-        workflow.add_edge("requirements_analyst", "feasibility_analyst")  #  V1.5可行性分析
+#  显式路由：需求分析失败时终止主链路，阻止静默降级到 Step 1
+        workflow.add_conditional_edges(
+            "requirements_analyst",
+            self._route_after_requirements_analyst,
+            {"output_intent_detection": "output_intent_detection", END: END},
+        )
         workflow.add_edge("feasibility_analyst", "unified_input_validator_secondary")  # 第二道防线：二次验证
 
         #  v7.87: 根据环境变量配置问卷流程
@@ -362,10 +374,12 @@ class MainWorkflow(
         workflow.add_edge("result_aggregator", "report_guard")  #  报告审核
         workflow.add_edge("report_guard", "pdf_generator")  #  审核后生成PDF
 
-        workflow.add_conditional_edges("pdf_generator", self._route_after_pdf_generator, ["user_question", END])
+        # 修复 P1：_route_after_pdf_generator 始终返回 END，user_question 不可达，移除死路声明
+        workflow.add_conditional_edges("pdf_generator", self._route_after_pdf_generator, [END])
 
+        # 修复 P0：函数返回 Literal["project_director", END]，END 必须在声明列表；移除永远不可达的 result_aggregator
         workflow.add_conditional_edges(
-            "user_question", self._route_after_user_question, ["project_director", "result_aggregator"]
+            "user_question", self._route_after_user_question, ["project_director", END]
         )
 
         # ============================================================================

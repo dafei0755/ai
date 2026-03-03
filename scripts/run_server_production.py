@@ -29,12 +29,19 @@ elif sys.platform == "win32":
     print("✅ [生产启动器] Python < 3.13，使用默认事件循环策略")
 
 if __name__ == "__main__":
+    import os
     import uvicorn
+
+    # 标记生产环境，logging_config.py 读取 ENVIRONMENT 变量
+    os.environ.setdefault("ENVIRONMENT", "production")
+
+    # v8.1: 支持多环境端口配置
+    port = int(os.getenv("API_PORT", "8000"))
 
     uvicorn.run(
         "intelligent_project_analyzer.api.server:app",
         host="0.0.0.0",
-        port=8000,
+        port=port,
         reload=False,  # 禁用热重载，确保策略生效
         log_level="info",
         workers=1,  # 单worker模式
