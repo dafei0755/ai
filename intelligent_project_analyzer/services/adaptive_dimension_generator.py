@@ -9,11 +9,12 @@
 
 import logging
 import os
-from pathlib import Path
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any, Dict, List, Tuple
 
 from intelligent_project_analyzer.services.dimension_evaluator import DimensionEvaluator
-from intelligent_project_analyzer.services.dimension_selector import SCENARIO_DIMENSION_MAPPING, DimensionSelector
+from intelligent_project_analyzer.services.dimension_selector import (
+    DimensionSelector,
+)
 from intelligent_project_analyzer.services.dimension_usage_tracker import DimensionUsageTracker
 
 logger = logging.getLogger(__name__)
@@ -66,8 +67,8 @@ class AdaptiveDimensionGenerator:
         user_input: str,
         min_dimensions: int = 9,
         max_dimensions: int = 12,
-        special_scenes: Optional[List[str]] = None,
-        historical_data: Optional[List[Dict[str, Any]]] = None,
+        special_scenes: List[str] | None = None,
+        historical_data: List[Dict[str, Any]] | None = None,
     ) -> List[Dict[str, Any]]:
         """
         为项目选择维度（混合策略）
@@ -109,7 +110,7 @@ class AdaptiveDimensionGenerator:
             base_dimensions = result
             conflicts = []
             adjustment_suggestions = []
-            self.logger.info(f"[AdaptiveDimGen] 使用旧版本列表格式（向后兼容）")
+            self.logger.info("[AdaptiveDimGen] 使用旧版本列表格式（向后兼容）")
 
         # 标记来源
         for dim in base_dimensions:
@@ -130,7 +131,7 @@ class AdaptiveDimensionGenerator:
 
             return optimized_dimensions
         else:
-            self.logger.info(f"[AdaptiveDimGen] 学习未启用或无历史数据，使用规则引擎结果")
+            self.logger.info("[AdaptiveDimGen] 学习未启用或无历史数据，使用规则引擎结果")
             return base_dimensions
 
     def _apply_learning_optimization(
@@ -183,7 +184,7 @@ class AdaptiveDimensionGenerator:
                 low_score_dimensions.append((dim, score))
 
         if not low_score_dimensions:
-            self.logger.info(f"[AdaptiveDimGen] 当前选择无低效维度，无需优化")
+            self.logger.info("[AdaptiveDimGen] 当前选择无低效维度，无需优化")
             return base_dimensions
 
         low_score_dimensions.sort(key=lambda x: x[1])  # 按得分升序
@@ -204,7 +205,7 @@ class AdaptiveDimensionGenerator:
         high_value_candidates.sort(key=lambda x: x[1], reverse=True)  # 按得分降序
 
         if not high_value_candidates:
-            self.logger.warning(f"[AdaptiveDimGen] 无可用的高价值候选维度，保持原选择")
+            self.logger.warning("[AdaptiveDimGen] 无可用的高价值候选维度，保持原选择")
             return base_dimensions
 
         # 5. 执行替换（混合策略）

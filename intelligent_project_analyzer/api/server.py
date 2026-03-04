@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 FastAPI 后端服务器
 
@@ -139,11 +138,11 @@ from intelligent_project_analyzer.workflow.main_workflow import MainWorkflow
 workflows: Dict[str, MainWorkflow] = {}
 
 # LangGraph 检查点存储（异步版，全局复用）
-async_checkpointer: Optional[BaseCheckpointSaver[str]] = None
-async_checkpointer_lock: Optional[asyncio.Lock] = None
+async_checkpointer: BaseCheckpointSaver[str] | None = None
+async_checkpointer_lock: asyncio.Lock | None = None
 
 #  Redis 会话管理器实例（替代内存字典）
-session_manager: Optional[RedisSessionManager] = None
+session_manager: RedisSessionManager | None = None
 
 
 async def _get_session_manager() -> RedisSessionManager:
@@ -164,10 +163,10 @@ async def _get_session_manager() -> RedisSessionManager:
 
 
 #  v3.6新增: 会话归档管理器实例
-archive_manager: Optional[SessionArchiveManager] = None
+archive_manager: SessionArchiveManager | None = None
 
 #  v3.11新增: 追问历史管理器实例
-followup_history_manager: Optional[FollowupHistoryManager] = None
+followup_history_manager: FollowupHistoryManager | None = None
 
 # WebSocket 连接管理
 websocket_connections: Dict[str, List[WebSocket]] = {}  # session_id -> [websocket1, websocket2, ...]
@@ -175,8 +174,8 @@ websocket_connections: Dict[str, List[WebSocket]] = {}  # session_id -> [websock
 # Redis Pub/Sub 支持
 import redis.asyncio as aioredis
 
-redis_pubsub_client: Optional[aioredis.Redis] = None
-redis_pubsub_task: Optional[asyncio.Task] = None
+redis_pubsub_client: aioredis.Redis | None = None
+redis_pubsub_task: asyncio.Task | None = None
 
 #  v7.1.2新增: PDF 缓存（性能优化）
 from cachetools import TTLCache
@@ -426,7 +425,9 @@ except Exception as e:
 #  v7.160: 搜索模式路由（博查AI Search + DeepSeek-R1）
 # ⚠️ 深度搜索功能暂停开放 — 由 feature_flags.DEEP_SEARCH_ENABLED 控制，恢复时设置环境变量 DEEP_SEARCH_ENABLED=true
 try:
-    from intelligent_project_analyzer.config.feature_flags import DEEP_SEARCH_ENABLED as _DEEP_SEARCH_ENABLED
+    from intelligent_project_analyzer.config.feature_flags import (
+        DEEP_SEARCH_ENABLED as _DEEP_SEARCH_ENABLED,
+    )
 
     if _DEEP_SEARCH_ENABLED:
         from intelligent_project_analyzer.api.search_routes import router as search_router
@@ -440,7 +441,9 @@ except Exception as e:
 
 #  v7.216: 搜索质量监控路由
 try:
-    from intelligent_project_analyzer.api.search_quality_routes import router as search_quality_router
+    from intelligent_project_analyzer.api.search_quality_routes import (
+        router as search_quality_router,
+    )
 
     app.include_router(search_quality_router, prefix="/api/admin")
     logger.info(" 搜索质量监控路由已注册")
@@ -457,7 +460,9 @@ except ImportError as e:
 
 #  v7.500: 注册维度学习系统路由
 try:
-    from intelligent_project_analyzer.api.routes.admin_dashboard_routes import router as admin_dashboard_router
+    from intelligent_project_analyzer.api.routes.admin_dashboard_routes import (
+        router as admin_dashboard_router,
+    )
 
     app.include_router(
         admin_dashboard_router, prefix="/api/admin/dimension-learning", tags=["Admin - Dimension Learning"]
@@ -504,12 +509,16 @@ for _mod_path2, _label2 in [
 # ── MT-1: 数据模型及报告辅助函数已迁移至 api/models.py 和 api/helpers.py ──────
 
 
-from intelligent_project_analyzer.api._broadcast_registry import register_broadcast as _register_broadcast  # noqa: E402
+from intelligent_project_analyzer.api._broadcast_registry import (
+    register_broadcast as _register_broadcast,  # noqa: E402
+)
 
 # MT-1 迁移：broadcast_to_websockets 已迁移至 api/workflow_runner.py（含 EventStore 增强）
 # MT-1 迁移：subscribe_to_redis_pubsub 已迁移至 api/workflow_runner.py
-from .workflow_runner import broadcast_to_websockets  # noqa: E402  (registry + workflow 直接调用)
-from .workflow_runner import subscribe_to_redis_pubsub  # noqa: E402  (lifespan 依赖)
+from .workflow_runner import (
+    broadcast_to_websockets,  # noqa: E402  (registry + workflow 直接调用)
+    subscribe_to_redis_pubsub,  # noqa: E402  (lifespan 依赖)
+)
 
 # MT-1 迁移：_ensure_aiosqlite_is_alive / get_or_create_async_checkpointer / create_workflow 已迁移至 api/workflow_runner.py
 

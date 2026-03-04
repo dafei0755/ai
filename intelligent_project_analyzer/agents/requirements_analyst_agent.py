@@ -56,17 +56,16 @@ except Exception as e:
 import json
 import time
 from datetime import datetime
-from typing import Any, Dict, List, Literal, Optional, Tuple, TypedDict
+from typing import Any, Dict, List, Literal, TypedDict
 
-from langchain_core.messages import AIMessage, HumanMessage
 from langgraph.graph import END, START, StateGraph
 from loguru import logger
 
 from ..core.prompt_manager import PromptManager
 from ..core.state import AgentType
 from ..core.types import AnalysisResult
-from ..services.capability_boundary_service import CapabilityBoundaryService, CheckType
-from ..utils.capability_detector import CapabilityDetector, check_capability
+from ..services.capability_boundary_service import CapabilityBoundaryService
+from ..utils.capability_detector import check_capability
 from ..utils.jtbd_parser import transform_jtbd_to_natural_language
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -119,7 +118,7 @@ class RequirementsAnalystState(TypedDict):
     structured_data: Dict[str, Any]  # 结构化输出
     confidence: float  # 置信度
     analysis_mode: str  # "phase1_only" | "two_phase"
-    project_type: Optional[str]  # 项目类型
+    project_type: str | None  # 项目类型
 
     # ─────────────────────────────────────────────────────────────────────────
     # 元数据
@@ -255,13 +254,13 @@ def phase1_node(state: RequirementsAnalystState, llm_model, prompt_manager) -> D
             },
         )
 
-        logger.info(f"[Data] 交付物能力边界检查结果:")
+        logger.info("[Data] 交付物能力边界检查结果:")
         logger.info(f"   在能力范围内: {boundary_check.within_capability}")
         logger.info(f"   能力匹配度: {boundary_check.capability_score:.2f}")
 
         # 如果有超出能力的交付物，应用转化
         if not boundary_check.within_capability:
-            logger.warning(f"[Warning] Phase1输出包含超出能力的交付物")
+            logger.warning("[Warning] Phase1输出包含超出能力的交付物")
             logger.info(f"   转化建议: {len(boundary_check.transformations_needed)} 项")
 
             # 更新交付物清单（应用转化）
@@ -608,7 +607,7 @@ def _phase2_fallback(state: RequirementsAnalystState, start_time: float) -> Dict
     }
 
 
-def _build_problem_solving_approach(phase1: Dict[str, Any], phase2: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+def _build_problem_solving_approach(phase1: Dict[str, Any], phase2: Dict[str, Any]) -> Dict[str, Any] | None:
     """
     从 Phase2 结果中构建 problem_solving_approach 结构（A-01 止血修复）
 
@@ -961,7 +960,7 @@ class RequirementsAnalystAgentV2:
     封装 StateGraph，提供统一的执行接口
     """
 
-    def __init__(self, llm_model, config: Optional[Dict[str, Any]] = None):
+    def __init__(self, llm_model, config: Dict[str, Any] | None = None):
         """
         初始化 Agent
 
@@ -1050,7 +1049,7 @@ class RequirementsAnalystCompat:
     内部使用 StateGraph Agent 执行
     """
 
-    def __init__(self, llm_model, config: Optional[Dict[str, Any]] = None):
+    def __init__(self, llm_model, config: Dict[str, Any] | None = None):
         self._agent = RequirementsAnalystAgentV2(llm_model, config)
         self.llm_model = llm_model
         self.config = config

@@ -2,9 +2,10 @@
 报告审核节点 - 最终输出内容安全检查
 """
 
-from typing import Dict, Any, Optional
-from loguru import logger
+from typing import Any, Dict
+
 from langgraph.store.base import BaseStore
+from loguru import logger
 
 from intelligent_project_analyzer.core.state import ProjectAnalysisState
 from intelligent_project_analyzer.security.content_safety_guard import ContentSafetyGuard
@@ -17,7 +18,7 @@ class ReportGuardNode:
     @staticmethod
     def execute(
         state: ProjectAnalysisState,
-        store: Optional[BaseStore] = None,
+        store: BaseStore | None = None,
         llm_model = None
     ) -> Dict[str, Any]:
         """

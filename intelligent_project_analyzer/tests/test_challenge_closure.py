@@ -7,7 +7,6 @@
 3. Escalate决策: 提交甲方裁决
 """
 
-import json
 import sys
 from datetime import datetime
 
@@ -78,7 +77,9 @@ def test_accept_closure():
     mock_state = {}
     
     # 导入实际的闭环函数
-    from intelligent_project_analyzer.agents.dynamic_project_director import _apply_accepted_reinterpretation
+    from intelligent_project_analyzer.agents.dynamic_project_director import (
+        _apply_accepted_reinterpretation,
+    )
     
     # 执行闭环逻辑
     _apply_accepted_reinterpretation(mock_state, challenge)
@@ -133,7 +134,9 @@ def test_synthesize_closure():
     mock_state = {}
     
     # 导入实际的闭环函数
-    from intelligent_project_analyzer.agents.dynamic_project_director import _synthesize_competing_frames
+    from intelligent_project_analyzer.agents.dynamic_project_director import (
+        _synthesize_competing_frames,
+    )
     
     # 执行闭环逻辑
     _synthesize_competing_frames(mock_state, challenges)
@@ -167,7 +170,9 @@ def test_escalate_closure():
     print("="*80)
     
     # 模拟需要甲方裁决的挑战
-    from intelligent_project_analyzer.agents.dynamic_project_director import detect_and_handle_challenges_node
+    from intelligent_project_analyzer.agents.dynamic_project_director import (
+        detect_and_handle_challenges_node,
+    )
     
     mock_state = {
         "batch_results": {
@@ -307,7 +312,7 @@ def test_report_integration():
     # 验证结果
     print("\n 验证1: 基本结构")
     assert challenge_resolutions["has_challenges"] == True, " has_challenges应为True"
-    print(f"    has_challenges: True")
+    print("    has_challenges: True")
     
     print("\n 验证2: Accept结果")
     assert len(challenge_resolutions["accepted_reinterpretations"]) == 1, " Accept结果数量错误"

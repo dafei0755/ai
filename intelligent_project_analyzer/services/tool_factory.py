@@ -8,7 +8,13 @@ from typing import Optional
 
 from loguru import logger
 
-from intelligent_project_analyzer.settings import BochaConfig, MilvusConfig, SerperConfig, TavilyConfig, settings
+from intelligent_project_analyzer.settings import (
+    BochaConfig,
+    MilvusConfig,
+    SerperConfig,
+    TavilyConfig,
+    settings,
+)
 
 # Note: RagflowConfig 已废弃 (v7.141)
 
@@ -25,7 +31,7 @@ class ToolFactory:
     """
 
     @staticmethod
-    def create_tavily_tool(config: Optional[TavilyConfig] = None):
+    def create_tavily_tool(config: TavilyConfig | None = None):
         """
         创建Tavily搜索工具
 
@@ -53,7 +59,7 @@ class ToolFactory:
         return langchain_tool
 
     @staticmethod
-    def create_serper_tool(config: Optional[SerperConfig] = None):
+    def create_serper_tool(config: SerperConfig | None = None):
         """
         创建Serper搜索工具 (v7.130+)
 
@@ -133,7 +139,7 @@ class ToolFactory:
         return langchain_tool
 
     @staticmethod
-    def create_bocha_tool(config: Optional[BochaConfig] = None):
+    def create_bocha_tool(config: BochaConfig | None = None):
         """
         创建博查搜索工具
 
@@ -143,7 +149,9 @@ class ToolFactory:
         Returns:
             LangChain StructuredTool实例（而非原始BochaSearchTool）
         """
-        from intelligent_project_analyzer.agents.bocha_search_tool import create_bocha_search_tool_from_settings
+        from intelligent_project_analyzer.agents.bocha_search_tool import (
+            create_bocha_search_tool_from_settings,
+        )
 
         cfg = config or settings.bocha
 

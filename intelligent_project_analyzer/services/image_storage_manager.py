@@ -10,10 +10,9 @@ Version: v1.0
 
 import base64
 import json
-import os
 from datetime import datetime
 from pathlib import Path
-from typing import List, Optional
+from typing import List
 
 from loguru import logger
 
@@ -107,7 +106,7 @@ class ImageStorageManager:
 
         # 加载现有索引
         if index_path.exists():
-            with open(index_path, "r", encoding="utf-8") as f:
+            with open(index_path, encoding="utf-8") as f:
                 index_data = json.load(f)
         else:
             index_data = {"session_id": session_id, "created_at": datetime.now().isoformat(), "images": []}
@@ -128,7 +127,7 @@ class ImageStorageManager:
         if not index_path.exists():
             return []
 
-        with open(index_path, "r", encoding="utf-8") as f:
+        with open(index_path, encoding="utf-8") as f:
             index_data = json.load(f)
 
         return index_data.get("images", [])
@@ -152,7 +151,7 @@ class ImageStorageManager:
 
             # 更新索引
             index_path = cls.BASE_DIR / session_id / "metadata.json"
-            with open(index_path, "r", encoding="utf-8") as f:
+            with open(index_path, encoding="utf-8") as f:
                 index_data = json.load(f)
 
             index_data["images"] = [img for img in index_data["images"] if img["deliverable_id"] != deliverable_id]

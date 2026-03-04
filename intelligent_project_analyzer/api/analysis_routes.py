@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 分析路由模块 (MT-1 提取自 api/server.py)
 
@@ -16,22 +15,17 @@ Routes:
 """
 from __future__ import annotations
 
-import asyncio
-import io
 import json
 import os
-import re
 import time
 import uuid
 from collections import OrderedDict, defaultdict
 from datetime import datetime
-from pathlib import Path
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any, Dict, List
 
 from fastapi import (
     APIRouter,
     BackgroundTasks,
-    Body,
     Depends,
     File,
     Form,
@@ -41,11 +35,16 @@ from fastapi import (
     Response,
     UploadFile,
 )
-from fastapi.responses import StreamingResponse
+from langgraph.types import Command
 from loguru import logger
 from pydantic import BaseModel, Field
 
-from intelligent_project_analyzer.services.file_processor import build_combined_input, file_processor
+from intelligent_project_analyzer.agents.followup_agent import FollowupAgent
+from intelligent_project_analyzer.api._server_proxy import server_proxy as _server
+from intelligent_project_analyzer.services.file_processor import (
+    build_combined_input,
+    file_processor,
+)
 from intelligent_project_analyzer.services.geoip_service import get_geoip_service
 
 from .deps import DEV_MODE, sessions_cache
@@ -53,9 +52,6 @@ from .helpers import (
     _derive_section_identity,
     _enrich_sections_with_agent_results,
     _format_agent_payload,
-    _is_blank_section,
-    _normalize_section_id,
-    _sanitize_custom_analysis,
     _sanitize_structured_data,
 )
 from .models import (
@@ -66,13 +62,8 @@ from .models import (
     ChallengeItemResponse,
     ComprehensiveAnalysisResponse,
     ConclusionsResponse,
-    CoreAnswerResponse,
-    CoreAnswerV7Response,
     DeliberationProcessResponse,
-    DeliverableAnswerResponse,
     ExecutiveSummaryResponse,
-    ExpertSupportChainResponse,
-    InsightsSectionResponse,
     QuestionnaireResponseData,
     QuestionnaireResponseItem,
     RecommendationsSectionResponse,
@@ -88,17 +79,10 @@ from .models import (
     StructuredReportResponse,
 )
 from .pdf_generator import (
-    PDFGenerator,
-    generate_all_experts_pdf,
-    generate_all_experts_pdf_async,
     generate_all_experts_pdf_fast,
     generate_report_pdf,
 )
-from langgraph.types import Command
-
-from intelligent_project_analyzer.agents.followup_agent import FollowupAgent
 from .workflow_runner import run_workflow_async
-from intelligent_project_analyzer.api._server_proxy import server_proxy as _server
 
 
 async def _get_session_manager():
@@ -128,7 +112,7 @@ async def start_analysis(
      v7.130: 支持JWT认证获取真实WordPress用户信息
      v7.158: 强制登录才能使用分析功能
     """
-    print(f"\n 收到分析请求")
+    print("\n 收到分析请求")
     print(f"用户输入: {analysis_request.user_input[:100]}...")
     print(f"分析模式: {analysis_request.analysis_mode}")  #  v7.39
 
@@ -153,7 +137,7 @@ async def start_analysis(
     #  v7.110: 添加模式使用统计日志
     logger.info(f" [模式统计] 用户 {actual_user_id} " f"选择 {analysis_request.analysis_mode} 模式")
 
-    print(f"运行模式: Dynamic Mode")
+    print("运行模式: Dynamic Mode")
 
     # 输入守卫：空字符串直接拒绝（避免创建无意义会话）
     if not analysis_request.user_input or not analysis_request.user_input.strip():
@@ -205,7 +189,6 @@ async def start_analysis(
     logger.info(f" 会话状态已初始化（Redis）| Trace: {trace_id}")
 
     #  v7.129 Week2 P1: 初始化工具权限设置并推送到前端
-    from ..services.tool_factory import ToolFactory
 
     # 定义默认工具权限配置
     #  v7.154: ragflow_kb 已废弃，全部替换为 milvus_kb
@@ -255,10 +238,10 @@ async def start_analysis(
     logger.info(f" [v7.129] 已广播工具权限配置到前端 | Trace: {trace_id}")
 
     # 在后台执行工作流
-    print(f" 添加后台任务...")
+    print(" 添加后台任务...")
     background_tasks.add_task(run_workflow_async, session_id, analysis_request.user_input)
 
-    print(f" 后台任务已添加，返回响应\n")
+    print(" 后台任务已添加，返回响应\n")
 
     return SessionResponse(session_id=session_id, status="pending", message="分析已开始，请使用 session_id 查询状态")
 
@@ -364,7 +347,7 @@ async def start_analysis_with_files(
     Returns:
         会话响应
     """
-    logger.info(f"\n 收到多模态分析请求")
+    logger.info("\n 收到多模态分析请求")
     logger.info(f"用户输入: {user_input[:100] if user_input else '(无文本)'}...")
     logger.info(f"分析模式: {analysis_mode}")  #  v7.39
     logger.info(f"文件数量: {len(files)}")
@@ -544,12 +527,12 @@ async def start_analysis_with_files(
 
     await sm.create(session_id, session_data)
 
-    logger.info(f" 会话状态已初始化（Redis + 文件）")
+    logger.info(" 会话状态已初始化（Redis + 文件）")
 
     # 6. 启动工作流（传入 combined_input）
     background_tasks.add_task(run_workflow_async, session_id, combined_input)  #  使用增强后的输入
 
-    logger.info(f" 后台任务已添加\n")
+    logger.info(" 后台任务已添加\n")
 
     return SessionResponse(session_id=session_id, status="pending", message=f"分析已开始，已接收 {len(files)} 个文件")
 
@@ -638,7 +621,6 @@ async def get_analysis_status(
      v7.120 P1优化: 默认不返回history字段，预期性能提升: 2.03s→0.5s
      性能优化: 添加Redis缓存机制（30秒TTL），预期响应时间: <500ms
     """
-    import time
 
     start_time = time.time()
 
@@ -740,8 +722,8 @@ async def resume_analysis(request: ResumeRequest, background_tasks: BackgroundTa
     workflow = _server.workflows.get(session_id)
     if not workflow:
         logger.error(f" 工作流实例不存在: {session_id}")
-        logger.error(f"   这通常发生在服务器重启后，工作流无法继续")
-        logger.error(f"   建议：使用持久化的检查点存储（如SqliteSaver）而非MemorySaver")
+        logger.error("   这通常发生在服务器重启后，工作流无法继续")
+        logger.error("   建议：使用持久化的检查点存储（如SqliteSaver）而非MemorySaver")
 
         #  DEV_MODE：测试/本地调试时，不用 410 直接阻塞（单测只关注 API 是否可用）
         if DEV_MODE:
@@ -1022,9 +1004,9 @@ async def resume_analysis(request: ResumeRequest, background_tasks: BackgroundTa
                 try:
                     sync_success = await _server.sync_checkpoint_to_redis(session_id)
                     if sync_success:
-                        logger.info(f" [v7.153] checkpoint 数据已同步到 Redis（resume流程完成）")
+                        logger.info(" [v7.153] checkpoint 数据已同步到 Redis（resume流程完成）")
                     else:
-                        logger.warning(f"️ [v7.153] checkpoint 同步未成功，使用 state_values 中的 final_report")
+                        logger.warning("️ [v7.153] checkpoint 同步未成功，使用 state_values 中的 final_report")
                         # 同步失败时，至少确保 final_report 被保存（从 state_values 获取）
                         if state_final_report and isinstance(state_final_report, dict):
                             await _server.session_manager.update(session_id, {"final_report": state_final_report})
@@ -1040,7 +1022,7 @@ async def resume_analysis(request: ResumeRequest, background_tasks: BackgroundTa
                         #  v7.145: 归档前同步 checkpoint 数据到 Redis
                         sync_success = await _server.sync_checkpoint_to_redis(session_id)
                         if sync_success:
-                            logger.info(f" [v7.145] checkpoint 数据已同步（resume流程），准备归档")
+                            logger.info(" [v7.145] checkpoint 数据已同步（resume流程），准备归档")
 
                         # 获取完整会话数据
                         final_session = await _server.session_manager.get(session_id)
@@ -1106,7 +1088,7 @@ async def submit_followup_question(
     session_id: str = Form(...),
     question: str = Form(...),
     requires_analysis: bool = Form(True),
-    image: Optional[UploadFile] = File(None),
+    image: UploadFile | None = File(None),
     background_tasks: BackgroundTasks = BackgroundTasks(),
 ):
     """
@@ -1143,7 +1125,7 @@ async def submit_followup_question(
         raise HTTPException(status_code=400, detail=f"无法追问，会话状态: {session['status']}（只能对已完成或等待输入的会话追问）")
 
     #  关键改变：不创建新会话，直接在原会话上追问
-    logger.info(f" 在原会话上追问（不创建新会话）")
+    logger.info(" 在原会话上追问（不创建新会话）")
 
     #  使用后台任务处理追问
     async def handle_followup():
@@ -1243,7 +1225,10 @@ AI分析: {image_metadata['vision_analysis']}
             answer = result.get("answer", "抱歉，我无法回答这个问题。")
 
             #  v7.60.5: 累加追问Token到会话metadata
-            from intelligent_project_analyzer.utils.token_utils import extract_tokens_from_result, update_session_tokens
+            from intelligent_project_analyzer.utils.token_utils import (
+                extract_tokens_from_result,
+                update_session_tokens,
+            )
 
             token_data = extract_tokens_from_result(result)
             if token_data:
@@ -1339,7 +1324,7 @@ async def get_analysis_result(session_id: str):
     )
 
 
-def _normalize_image_urls(generated_images_by_expert: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+def _normalize_image_urls(generated_images_by_expert: Dict[str, Any] | None) -> Dict[str, Any] | None:
     """
      v7.123: 规范化图片URL字段，确保兼容性
 
@@ -1428,7 +1413,7 @@ async def get_analysis_report(session_id: str):
                 txt_path = pdf_path.replace(".pdf", ".txt")
 
             if os.path.exists(txt_path):
-                with open(txt_path, "r", encoding="utf-8") as f:
+                with open(txt_path, encoding="utf-8") as f:
                     report_text = f.read()
                 logger.info(f" [v7.144] 成功读取报告文本文件: {txt_path}")
             else:

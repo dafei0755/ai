@@ -19,13 +19,17 @@ from fastapi import APIRouter, Body, Depends, HTTPException, Query
 from loguru import logger
 
 from intelligent_project_analyzer.api.auth_middleware import require_admin
-from intelligent_project_analyzer.services.adaptive_quality_controller import adaptive_quality_controller
+from intelligent_project_analyzer.services.adaptive_quality_controller import (
+    adaptive_quality_controller,
+)
 from intelligent_project_analyzer.services.redis_session_manager import get_session_manager
 from intelligent_project_analyzer.services.session_quality_baseline import (
     SessionQualityBaseline,
     session_quality_analyzer,
 )
-from intelligent_project_analyzer.services.user_experience_optimizer import user_experience_optimizer
+from intelligent_project_analyzer.services.user_experience_optimizer import (
+    user_experience_optimizer,
+)
 from intelligent_project_analyzer.utils.monitoring import global_metrics_collector
 
 router = APIRouter()

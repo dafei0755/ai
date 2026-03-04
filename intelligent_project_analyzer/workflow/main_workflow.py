@@ -5,74 +5,37 @@
 """
 
 #  v7.16: LangGraph Agent 升级版本（通过环境变量控制）
-import os
 import sqlite3
-import uuid
-from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Literal, Optional, Union
+from typing import Any, Dict
 
-import yaml
 from langgraph.checkpoint.base import BaseCheckpointSaver
 from langgraph.checkpoint.sqlite import SqliteSaver
 from langgraph.graph import END, START, StateGraph
 from langgraph.store.memory import InMemoryStore
-from langgraph.types import Command, Send
 from loguru import logger
 
 # 显式导入智能体类以触发 AgentFactory 注册
-from ..agents import AgentFactory, ProjectDirectorAgent, RequirementsAnalystAgent
 from ..agents.base import NullLLM
-from ..agents.dynamic_project_director import detect_and_handle_challenges_node  # v3.5
-from ..agents.feasibility_analyst import FeasibilityAnalystAgent  # V1.5可行性分析师
-from ..agents.quality_monitor import QualityMonitor
 
 #  v7.17: 需求分析师 StateGraph Agent（永久启用，v8.4 内联）
-from ..agents.requirements_analyst_agent import RequirementsAnalystAgentV2
-
 #  统一从 feature_flags 读取，消除跨模块默认值分裂
 #  v8.4: 清理已冻结的 flag，仅保留活跃开关
 from ..config.feature_flags import log_feature_flags_snapshot
-from ..core.state import AnalysisStage, ProjectAnalysisState, StateManager
-from ..core.types import AgentType, format_role_display_name
-from ..interaction.interaction_nodes import (  # FinalReviewNode,  # 已移除：客户需求中没有最终审核阶段; AnalysisReviewNode,  # ️ v2.2: 已废弃，质量审核已前置化
-    CalibrationQuestionnaireNode,
-    UserQuestionNode,
-)
-from ..interaction.nodes.manual_review import ManualReviewNode  # 人工审核节点
-from ..interaction.nodes.output_intent_detection import output_intent_detection_node
+from ..core.state import ProjectAnalysisState
 
 #  v7.87: 三步递进式问卷节点
-from ..interaction.nodes.progressive_questionnaire import (
-    ProgressiveQuestionnaireNode,
-    progressive_step1_core_task_node,
-    progressive_step2_radar_node,
-    progressive_step3_gap_filling_node,
-)
-from ..interaction.nodes.quality_preflight import QualityPreflightNode
-
 #  v7.135: 问卷汇总节点（需求重构）
-from ..interaction.nodes.questionnaire_summary import questionnaire_summary_node
-
 #  统一审核节点（合并角色选择和任务分派审核）
-from ..interaction.role_task_unified_review import role_task_unified_review_node
-
 # from ..interaction.role_selection_review import role_selection_review_node  # 已废弃
 # from ..interaction.task_assignment_review import task_assignment_review_node  # 已废弃
-from ..interaction.second_batch_strategy_review import SecondBatchStrategyReviewNode
-from ..report.pdf_generator import PDFGeneratorAgent
-from ..report.result_aggregator import ResultAggregatorAgent
-from ..workflow.nodes.search_query_generator_node import search_query_generator_node  # v7.109
 
 #  v7.502 P1优化: 智能上下文压缩器
-from .context_compressor import create_context_compressor
 
 logger.info(" [v7.17] 需求分析师 StateGraph Agent（永久启用）")
 # ST-2: USE_V718_QUESTIONNAIRE_AGENT 已删除，QuestionnaireAgent 直接不导入
-from ..security import ReportGuardNode  # 内容安全与领域过滤
 
 #  v7.3 统一输入验证节点（合并 input_guard 和 domain_validator）
-from ..security.unified_input_validator_node import InputRejectedNode, UnifiedInputValidatorNode
 
 # 动态本体论注入工具
 from ..utils.ontology_loader import OntologyLoader
@@ -96,9 +59,9 @@ class MainWorkflow(
 
     def __init__(
         self,
-        llm_model: Optional[Any] = None,
-        config: Optional[Dict[str, Any]] = None,
-        checkpointer: Optional[BaseCheckpointSaver[str]] = None,
+        llm_model: Any | None = None,
+        config: Dict[str, Any] | None = None,
+        checkpointer: BaseCheckpointSaver[str] | None = None,
     ):
         """
         初始化主工作流
@@ -120,7 +83,7 @@ class MainWorkflow(
         self.store = InMemoryStore()
 
         #  支持外部传入 AsyncSqliteSaver（默认回退到同步版）
-        self._sqlite_conn: Optional[sqlite3.Connection] = None
+        self._sqlite_conn: sqlite3.Connection | None = None
         if checkpointer is not None:
             self.checkpointer = checkpointer
             logger.info(" 使用外部提供的检查点存储 (AsyncSqliteSaver/自定义)")

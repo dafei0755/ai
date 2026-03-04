@@ -11,9 +11,7 @@ Features:
 
 import os
 import threading
-import time
 from pathlib import Path
-from typing import Optional
 
 from dotenv import load_dotenv
 from loguru import logger
@@ -38,11 +36,11 @@ class HotReloadConfigManager:
         """
         self.check_interval = check_interval
         self.env_path = Path(__file__).parent.parent.parent / ".env"
-        self._settings: Optional[Settings] = None
+        self._settings: Settings | None = None
         self._last_modified = 0.0
         self._lock = threading.Lock()
         self._stop_event = threading.Event()
-        self._polling_thread: Optional[threading.Thread] = None
+        self._polling_thread: threading.Thread | None = None
 
         # 初始加载配置
         self._reload_settings()
@@ -188,7 +186,7 @@ class HotReloadConfigManager:
 
 
 # 全局配置管理器实例
-_config_manager: Optional[HotReloadConfigManager] = None
+_config_manager: HotReloadConfigManager | None = None
 
 
 def get_config_manager() -> HotReloadConfigManager:

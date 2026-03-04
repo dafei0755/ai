@@ -5,7 +5,6 @@
 
 from pathlib import Path
 
-
 _DEFAULT_VERSION = "0.0.0"
 
 

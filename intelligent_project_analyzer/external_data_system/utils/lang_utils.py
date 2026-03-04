@@ -5,7 +5,7 @@
 """
 
 import re
-from typing import Tuple, Dict
+from typing import Dict
 
 
 def detect_lang(text: str) -> str:

@@ -4,7 +4,7 @@
 协调红蓝对抗、评委、甲方等多个审核专家进行碰撞和决策
 """
 
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List
 
 from loguru import logger
 
@@ -14,7 +14,7 @@ from .review_agents import BlueTeamReviewer, ClientReviewer, JudgeReviewer, RedT
 class MultiPerspectiveReviewCoordinator:
     """多视角审核协调器"""
 
-    def __init__(self, llm_model, config: Optional[Dict[str, Any]] = None):
+    def __init__(self, llm_model, config: Dict[str, Any] | None = None):
         """
         初始化多视角审核协调器
 
@@ -42,8 +42,8 @@ class MultiPerspectiveReviewCoordinator:
         agent_results: Dict[str, Any],
         requirements: Dict[str, Any],
         current_round: int = 1,
-        previous_score: Optional[float] = None,
-        review_history: Optional[List[Dict[str, Any]]] = None,
+        previous_score: float | None = None,
+        review_history: List[Dict[str, Any]] | None = None,
     ) -> Dict[str, Any]:
         """
         执行两阶段审核（P1-3简化版）
@@ -62,9 +62,9 @@ class MultiPerspectiveReviewCoordinator:
         Returns:
             审核结果，包含最终裁定和改进建议
         """
-        logger.info(f"=" * 80)
-        logger.info(f"开始两阶段审核（红蓝对抗 → 甲方决策）")
-        logger.info(f"=" * 80)
+        logger.info("=" * 80)
+        logger.info("开始两阶段审核（红蓝对抗 → 甲方决策）")
+        logger.info("=" * 80)
 
         # 阶段1: 红蓝对抗（合并为一个环节）
         logger.info("\n️ 阶段1: 红蓝对抗 - 发现问题并辩护")
@@ -90,11 +90,11 @@ class MultiPerspectiveReviewCoordinator:
             "timestamp": self._get_timestamp(),
         }
 
-        logger.info(f"\n" + "=" * 80)
-        logger.info(f"两阶段审核完成")
+        logger.info("\n" + "=" * 80)
+        logger.info("两阶段审核完成")
         logger.info(f"最终决策: {client_review.get('final_decision', 'N/A')}")
         logger.info(f"改进项: {len(client_review.get('accepted_improvements', []))} 项")
-        logger.info(f"=" * 80 + "\n")
+        logger.info("=" * 80 + "\n")
 
         return review_result
 
@@ -281,8 +281,8 @@ class MultiPerspectiveReviewCoordinator:
         judge_review: Dict[str, Any],
         client_review: Dict[str, Any],
         current_round: int,
-        previous_score: Optional[float] = None,
-        agent_results: Optional[Dict[str, Any]] = None,
+        previous_score: float | None = None,
+        agent_results: Dict[str, Any] | None = None,
     ) -> Dict[str, Any]:
         """
         综合所有审核意见，做出最终决策
@@ -363,8 +363,8 @@ class MultiPerspectiveReviewCoordinator:
         client_acceptance: str,
         current_round: int,
         has_agents_to_rerun: bool,
-        previous_score: Optional[float] = None,
-        review_history: Optional[List[Dict[str, Any]]] = None,
+        previous_score: float | None = None,
+        review_history: List[Dict[str, Any]] | None = None,
     ) -> str:
         """
         确定最终决策 -  问题导向，最多两轮
@@ -385,7 +385,7 @@ class MultiPerspectiveReviewCoordinator:
 
         # === 规则2: 第1轮无问题 → 直接通过 ===
         if current_round == 1 and not has_agents_to_rerun:
-            logger.info(f" 规则2触发: 第1轮未发现需要改进的问题，直接通过")
+            logger.info(" 规则2触发: 第1轮未发现需要改进的问题，直接通过")
             return "approve"
 
         # === 规则3: 第1轮有问题 → 允许一次改进 ===
@@ -395,7 +395,7 @@ class MultiPerspectiveReviewCoordinator:
             return "rerun_specific"
 
         # === 兜底 ===
-        logger.info(f" 兜底逻辑: 停止迭代")
+        logger.info(" 兜底逻辑: 停止迭代")
         return "approve"
 
     def _generate_decision_reasoning(
@@ -524,7 +524,7 @@ class MultiPerspectiveReviewCoordinator:
                 return analysis[:300] + "..." if len(analysis) > 300 else analysis
         return "（无输出摘要）"
 
-    def _convert_fixed_to_dynamic_ids(self, fixed_ids: set, agent_results: Optional[Dict[str, Any]]) -> set:
+    def _convert_fixed_to_dynamic_ids(self, fixed_ids: set, agent_results: Dict[str, Any] | None) -> set:
         """
         将 Fixed Mode 键名或前缀转换为动态角色 ID
 
@@ -633,7 +633,7 @@ class MultiPerspectiveReviewCoordinator:
                 # 蓝队未回应，默认保留
                 validated_issues.append(improvement)
 
-        logger.info(f" 红蓝对抗结果：")
+        logger.info(" 红蓝对抗结果：")
         logger.info(f"   红队原始问题: {len(improvements)} 个")
         logger.info(f"   蓝队过滤误判: {len(filtered_issues)} 个")
         logger.info(f"   最终有效问题: {len(validated_issues)} 个")
@@ -793,9 +793,9 @@ class MultiPerspectiveReviewCoordinator:
                 "overall_assessment": "..."  # 总体评估
             }
         """
-        logger.info(f"=" * 80)
-        logger.info(f"开始角色选择质量审核（红蓝对抗）")
-        logger.info(f"=" * 80)
+        logger.info("=" * 80)
+        logger.info("开始角色选择质量审核（红蓝对抗）")
+        logger.info("=" * 80)
 
         # 阶段1: 红队批判角色选择
         logger.info("\n 阶段1: 红队批判 - 发现角色选择问题")
@@ -851,7 +851,7 @@ class MultiPerspectiveReviewCoordinator:
         # 生成总体评估
         overall_assessment = self._generate_role_review_assessment(critical_issues, warnings, strengths)
 
-        logger.info(f"\n 角色选择审核结果：")
+        logger.info("\n 角色选择审核结果：")
         logger.info(f"   关键问题: {len(critical_issues)} 个")
         logger.info(f"   警告: {len(warnings)} 个")
         logger.info(f"   优势: {len(strengths)} 个")

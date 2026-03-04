@@ -3,9 +3,10 @@
 """
 
 import json
-from pathlib import Path
 from datetime import datetime
-from typing import Dict, Any
+from pathlib import Path
+from typing import Any, Dict
+
 from loguru import logger
 
 
@@ -58,7 +59,7 @@ class ViolationLogger:
                 return {"total": 0}
             
             violations = []
-            with open(self.log_file, 'r', encoding='utf-8') as f:
+            with open(self.log_file, encoding='utf-8') as f:
                 for line in f:
                     try:
                         violations.append(json.loads(line))

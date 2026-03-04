@@ -19,7 +19,7 @@ import asyncio
 import json
 import time
 from dataclasses import dataclass, field
-from typing import Any, AsyncGenerator, Dict, List, Optional
+from typing import Any, AsyncGenerator, Dict, List
 
 import httpx
 from loguru import logger
@@ -125,7 +125,7 @@ class BochaAISearchService:
 
     def __init__(
         self,
-        api_key: Optional[str] = None,
+        api_key: str | None = None,
         timeout: int = 60,
         enable_filters: bool = True,
     ):
@@ -147,7 +147,9 @@ class BochaAISearchService:
         self.filter_manager = None
         if enable_filters:
             try:
-                from intelligent_project_analyzer.services.search_filter_manager import get_filter_manager
+                from intelligent_project_analyzer.services.search_filter_manager import (
+                    get_filter_manager,
+                )
 
                 self.filter_manager = get_filter_manager()
                 logger.info(" 搜索黑白名单过滤器已加载")
@@ -1062,7 +1064,7 @@ class BochaAISearchService:
 
         return results
 
-    def _normalize_xiaohongshu_result(self, item: Dict[str, Any]) -> Optional[SourceCard]:
+    def _normalize_xiaohongshu_result(self, item: Dict[str, Any]) -> SourceCard | None:
         """标准化小红书搜索结果"""
         try:
             note = item.get("note", item)
@@ -1093,7 +1095,7 @@ class BochaAISearchService:
             logger.debug(f"Failed to normalize xiaohongshu result: {e}")
             return None
 
-    def _normalize_douyin_result(self, item: Dict[str, Any]) -> Optional[SourceCard]:
+    def _normalize_douyin_result(self, item: Dict[str, Any]) -> SourceCard | None:
         """标准化抖音搜索结果"""
         try:
             aweme_info = item.get("aweme_info", item)
@@ -1123,7 +1125,7 @@ class BochaAISearchService:
             logger.debug(f"Failed to normalize douyin result: {e}")
             return None
 
-    def _normalize_weibo_result(self, item: Dict[str, Any]) -> Optional[SourceCard]:
+    def _normalize_weibo_result(self, item: Dict[str, Any]) -> SourceCard | None:
         """标准化微博搜索结果"""
         try:
             mblog = item.get("mblog", item)
@@ -1167,7 +1169,7 @@ class BochaAISearchService:
             logger.debug(f"Failed to normalize weibo result: {e}")
             return None
 
-    def _normalize_zhihu_result(self, item: Dict[str, Any]) -> Optional[SourceCard]:
+    def _normalize_zhihu_result(self, item: Dict[str, Any]) -> SourceCard | None:
         """标准化知乎搜索结果"""
         import re
 
@@ -1242,7 +1244,7 @@ class BochaAISearchService:
 
 
 # 单例实例
-_ai_search_service: Optional[BochaAISearchService] = None
+_ai_search_service: BochaAISearchService | None = None
 
 
 def get_ai_search_service() -> BochaAISearchService:

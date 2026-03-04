@@ -5,8 +5,8 @@ Quick Validation Test for v3.5 Expert Collaboration Interface
 用于验证v3.5核心组件是否正常工作
 """
 
-import sys
 import os
+import sys
 
 # 添加项目根目录到Python路径
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
@@ -15,6 +15,7 @@ if project_root not in sys.path:
 
 # 使用标准logging替代loguru
 import logging
+
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s',
@@ -28,18 +29,12 @@ def test_imports():
     
     try:
         # 导入挑战检测器
-        from intelligent_project_analyzer.agents.dynamic_project_director import (
-            ChallengeDetector,
-            detect_and_handle_challenges_node
-        )
         logger.info(" ChallengeDetector 导入成功")
         
         # 导入工作流
-        from intelligent_project_analyzer.workflow.main_workflow import MainWorkflow
         logger.info(" MainWorkflow 导入成功")
         
         # 导入配置管理器
-        from intelligent_project_analyzer.core.prompt_manager import PromptManager
         logger.info(" PromptManager 导入成功")
         
         return True
@@ -182,8 +177,9 @@ def test_workflow_integration():
     logger.info(" 测试5: 验证工作流集成...")
     
     try:
-        from intelligent_project_analyzer.workflow.main_workflow import MainWorkflow
         import inspect
+
+        from intelligent_project_analyzer.workflow.main_workflow import MainWorkflow
         
         # 验证MainWorkflow包含新方法
         methods = [method for method in dir(MainWorkflow) if not method.startswith('_')]

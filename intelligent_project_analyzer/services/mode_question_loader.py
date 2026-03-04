@@ -10,14 +10,19 @@ v7.800 新增:
 - 添加混合模式设计建议
 """
 
-import yaml
 from pathlib import Path
-from typing import Dict, List, Any, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
+
+import yaml
 from loguru import logger
 
 # 导入混合模式解决器
 try:
-    from ..mode_engine.hybrid_mode_resolver import HybridModeResolver, HybridModeDetectionResult, ResolutionResult
+    from ..mode_engine.hybrid_mode_resolver import (
+        HybridModeDetectionResult,
+        HybridModeResolver,
+        ResolutionResult,
+    )
 
     HYBRID_RESOLVER_AVAILABLE = True
 except ImportError:
@@ -28,7 +33,7 @@ except ImportError:
 class ModeQuestionLoader:
     """模式问题加载器（v7.800 P0+P2）"""
 
-    _mode_questions_config: Optional[Dict] = None
+    _mode_questions_config: Dict | None = None
     _hybrid_resolver: Optional["HybridModeResolver"] = None
 
     @classmethod
@@ -61,7 +66,7 @@ class ModeQuestionLoader:
                 cls._mode_questions_config = {}
                 return cls._mode_questions_config
 
-            with open(config_path, "r", encoding="utf-8") as f:
+            with open(config_path, encoding="utf-8") as f:
                 cls._mode_questions_config = yaml.safe_load(f) or {}
 
             logger.info(f"✅ 成功加载 MODE_QUESTION_TEMPLATES.yaml ({len(cls._mode_questions_config)} 个模式配置)")

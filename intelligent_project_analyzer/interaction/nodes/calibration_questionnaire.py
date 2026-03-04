@@ -1,9 +1,8 @@
 """战略校准问卷节点"""
 
 import json
-import os
 from datetime import datetime
-from typing import Any, Dict, List, Literal, Optional, Tuple
+from typing import Any, Dict, List, Literal, Tuple
 
 from langgraph.store.base import BaseStore
 from langgraph.types import Command, interrupt
@@ -18,7 +17,6 @@ from ..questionnaire import (
     FallbackQuestionGenerator,
     PhilosophyQuestionGenerator,
     QuestionAdjuster,
-    QuestionContext,
 )
 
 # ST-2: USE_V718_QUESTIONNAIRE_AGENT 已删除，使用 v7.5 LLMQuestionGenerator 作为唯一生成路径
@@ -54,7 +52,7 @@ class CalibrationQuestionnaireNode:
             logger.info(f" 场景识别：设计执行场景（execution_score={execution_score}）")
             return "design_execution"
         else:
-            logger.info(f" 场景识别：未知场景")
+            logger.info(" 场景识别：未知场景")
             return "unknown"
 
     #  修复: 移除重复的 _build_conflict_questions 方法
@@ -62,13 +60,13 @@ class CalibrationQuestionnaireNode:
     # 现在统一使用 ConflictQuestionGenerator.generate()
 
     @staticmethod
-    def _extract_raw_answers(user_response: Any) -> Tuple[Optional[Any], str]:
+    def _extract_raw_answers(user_response: Any) -> Tuple[Any | None, str]:
         """从用户响应中提取问卷答案原始结构和补充说明."""
         if user_response is None:
             return None, ""
 
         additional_notes = ""
-        raw_answers: Optional[Any] = None
+        raw_answers: Any | None = None
 
         if isinstance(user_response, dict):
             additional_notes = str(user_response.get("additional_info") or user_response.get("notes") or "").strip()
@@ -93,7 +91,7 @@ class CalibrationQuestionnaireNode:
 
     @staticmethod
     def _build_answer_entries(
-        questionnaire: Dict[str, Any], raw_answers: Optional[Any]
+        questionnaire: Dict[str, Any], raw_answers: Any | None
     ) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
         """将原始答案与问卷元数据合并为结构化摘要."""
         if not raw_answers:
@@ -165,7 +163,7 @@ class CalibrationQuestionnaireNode:
         return entries, compact_answers
 
     @staticmethod
-    def _normalize_answer_value(question: Dict[str, Any], answer: Any) -> Optional[Any]:
+    def _normalize_answer_value(question: Dict[str, Any], answer: Any) -> Any | None:
         """根据题型对答案进行归一化，便于后续处理."""
         if answer is None:
             return None
@@ -206,7 +204,7 @@ class CalibrationQuestionnaireNode:
 
     @staticmethod
     def execute(
-        state: ProjectAnalysisState, store: Optional[BaseStore] = None
+        state: ProjectAnalysisState, store: BaseStore | None = None
     ) -> Command[Literal["project_director", "requirements_analyst"]]:
         """
         执行战略校准问卷交互
@@ -238,7 +236,7 @@ class CalibrationQuestionnaireNode:
             questions = questionnaire.get("questions", [])
             logger.info(f" [v7.154 问卷诊断] 问卷包含 {len(questions)} 个问题")
         else:
-            logger.info(f" [v7.154 问卷诊断] 问卷尚未生成")
+            logger.info(" [v7.154 问卷诊断] 问卷尚未生成")
 
         #  v7.4: 问卷不可跳过
         # 原 v3.7 逻辑已移除：即使是中等复杂度任务，也必须完成问卷
@@ -351,7 +349,7 @@ class CalibrationQuestionnaireNode:
                         }
                         generation_source = "llm_generated"
                     else:
-                        logger.warning(f"️ [v7.5] LLM生成返回回退方案，将使用规则生成")
+                        logger.warning("️ [v7.5] LLM生成返回回退方案，将使用规则生成")
                         raise Exception("LLM返回回退方案")
 
                 except Exception as llm_error:
@@ -361,7 +359,6 @@ class CalibrationQuestionnaireNode:
                     logger.info(" [v7.5] 回退到规则驱动的问卷生成...")
 
                     # 智能提取关键信息
-                    import sys
 
                     from ..questionnaire.context import KeywordExtractor
 
@@ -390,7 +387,7 @@ class CalibrationQuestionnaireNode:
         logger.info(f" 问卷源: {generation_source}, 问题数: {len(questionnaire.get('questions', []))}")
 
         #  V1集成：基于战略洞察注入理念探索问题（优先级更高）
-        logger.info(f" [DEBUG] Step 2: 构建理念探索问题...")
+        logger.info(" [DEBUG] Step 2: 构建理念探索问题...")
         try:
             philosophy_questions = PhilosophyQuestionGenerator.generate(structured_data)
             logger.info(f" [DEBUG] Step 2 完成: 生成 {len(philosophy_questions)} 个理念问题")
@@ -404,7 +401,7 @@ class CalibrationQuestionnaireNode:
             logger.info(f" V1战略洞察生成 {len(philosophy_questions)} 个理念探索问题")
 
         #  P0优化：识别场景类型，避免生成无关问题
-        logger.info(f" [DEBUG] Step 2.5: 识别场景类型...")
+        logger.info(" [DEBUG] Step 2.5: 识别场景类型...")
         # user_input 已在第305行定义
         scenario_type = CalibrationQuestionnaireNode._identify_scenario_type(user_input, structured_data)
         logger.info(f" [DEBUG] Step 2.5 完成: scenario_type={scenario_type}")
@@ -412,7 +409,7 @@ class CalibrationQuestionnaireNode:
         #  P1优化：竞标策略场景生成专用问题
         bidding_strategy_questions = []
         if scenario_type == "bidding_strategy":
-            logger.info(f" [DEBUG] Step 2.6: 构建竞标策略专用问题...")
+            logger.info(" [DEBUG] Step 2.6: 构建竞标策略专用问题...")
             try:
                 bidding_strategy_questions = BiddingStrategyGenerator.generate(user_input, structured_data)
                 logger.info(f" [DEBUG] Step 2.6 完成: 生成 {len(bidding_strategy_questions)} 个竞标策略问题")
@@ -427,7 +424,7 @@ class CalibrationQuestionnaireNode:
 
         #  V1.5集成：利用可行性分析结果注入资源冲突问题（价值体现点1）
         #  v7.4: 冲突问题必须由用户约束激活
-        logger.info(f" [DEBUG] Step 3: 构建资源冲突问题...")
+        logger.info(" [DEBUG] Step 3: 构建资源冲突问题...")
         feasibility = state.get("feasibility_assessment", {})
         conflict_questions = []
 
@@ -456,11 +453,11 @@ class CalibrationQuestionnaireNode:
             elif user_mentioned_constraints:
                 logger.info(f" [v7.4] 用户提及约束 {user_mentioned_constraints}，但无对应冲突检测")
         else:
-            logger.info(f" [DEBUG] Step 3 跳过: feasibility 为空")
+            logger.info(" [DEBUG] Step 3 跳过: feasibility 为空")
 
         #  P2功能：动态调整问题数量
         # 根据问卷长度、冲突严重性、V1输出丰富度智能裁剪
-        logger.info(f" [DEBUG] Step 4: 动态调整问题数量...")
+        logger.info(" [DEBUG] Step 4: 动态调整问题数量...")
         original_questions = questionnaire.get("questions", [])
         try:
             adjusted_philosophy_questions, adjusted_conflict_questions = QuestionAdjuster.adjust(
@@ -532,7 +529,7 @@ class CalibrationQuestionnaireNode:
         fixed_order = [q.get("type", "") for q in fixed_questions]
 
         if original_order != fixed_order:
-            logger.warning(f"️ 问卷题型顺序不正确，已自动修复：")
+            logger.warning("️ 问卷题型顺序不正确，已自动修复：")
             logger.warning(f"   原始: {original_order}")
             logger.warning(f"   修复: {fixed_order}")
             logger.info(f"    统计: {len(single_choice)}个单选 + {len(multiple_choice)}个多选 + {len(open_ended)}个文字输入")
@@ -571,7 +568,7 @@ class CalibrationQuestionnaireNode:
                 "options": {"submit": "提交问卷答案"},
             }
 
-            logger.info(f" [QUESTIONNAIRE] 即将调用 interrupt()，等待用户输入...")
+            logger.info(" [QUESTIONNAIRE] 即将调用 interrupt()，等待用户输入...")
             logger.info(f" [QUESTIONNAIRE] payload keys: {list(questionnaire_payload.keys())}")
             logger.info(
                 f" [QUESTIONNAIRE] questions count: {len(questionnaire_payload['questionnaire']['questions'])}"

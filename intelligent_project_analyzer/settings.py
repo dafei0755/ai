@@ -12,7 +12,6 @@
 import os
 from enum import Enum
 from pathlib import Path
-from typing import Optional
 
 from dotenv import load_dotenv
 from pydantic import BaseModel, Field, field_validator, model_validator
@@ -65,7 +64,7 @@ class LLMConfig(BaseModel):
     timeout: int = Field(default=60, description="请求超时时间(秒)", alias="LLM_TIMEOUT")
     temperature: float = Field(default=0.7, description="温度参数", alias="TEMPERATURE")
     api_key: str = Field(default="", description="LLM API密钥", alias="OPENAI_API_KEY")
-    api_base: Optional[str] = Field(default=None, description="自定义API Base URL")
+    api_base: str | None = Field(default=None, description="自定义API Base URL")
     # 重试配置
     max_retries: int = Field(default=3, description="LLM调用失败重试次数", alias="MAX_RETRIES")
     retry_delay: int = Field(default=5, description="重试间隔(秒)", alias="RETRY_DELAY")

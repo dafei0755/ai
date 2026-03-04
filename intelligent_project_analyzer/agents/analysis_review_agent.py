@@ -13,21 +13,16 @@
     red_blue_debate → client_review → generate_ruling → END
 """
 
-from typing import TypedDict, Dict, Any, List, Optional, Literal
-from loguru import logger
-from datetime import datetime
 import time
+from datetime import datetime
+from typing import Any, Dict, List, TypedDict
 
-from langgraph.graph import StateGraph, START, END
+from langgraph.graph import END, START, StateGraph
 from langgraph.types import Command
+from loguru import logger
 
+from ..review.review_agents import BlueTeamReviewer, ClientReviewer, RedTeamReviewer
 from ..utils.shared_agent_utils import PerformanceMonitor
-from ..review.review_agents import (
-    RedTeamReviewer,
-    BlueTeamReviewer,
-    ClientReviewer
-)
-
 
 # ============================================================================
 # 状态定义
@@ -345,7 +340,7 @@ class AnalysisReviewAgent:
         result = agent.execute(agent_results, requirements)
     """
     
-    def __init__(self, llm_model, config: Optional[Dict[str, Any]] = None):
+    def __init__(self, llm_model, config: Dict[str, Any] | None = None):
         """
         初始化分析审核智能体
         
@@ -468,11 +463,11 @@ class AnalysisReviewNodeCompat:
     用于平滑迁移，不修改 main_workflow.py 的调用方式
     """
     
-    _agent: Optional[AnalysisReviewAgent] = None
+    _agent: AnalysisReviewAgent | None = None
     _llm_model = None
     
     @classmethod
-    def initialize(cls, llm_model, config: Optional[Dict[str, Any]] = None):
+    def initialize(cls, llm_model, config: Dict[str, Any] | None = None):
         """初始化兼容层"""
         if cls._agent is None or cls._llm_model != llm_model:
             cls._llm_model = llm_model
@@ -484,7 +479,7 @@ class AnalysisReviewNodeCompat:
         state: Dict[str, Any],
         store=None,
         llm_model=None,
-        config: Optional[Dict[str, Any]] = None
+        config: Dict[str, Any] | None = None
     ) -> Command:
         """
         兼容原 AnalysisReviewNode.execute() 接口

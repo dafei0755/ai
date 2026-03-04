@@ -18,14 +18,13 @@
 import json
 import re
 import time
-from datetime import datetime
-from typing import Any, Dict, List, Optional, Tuple, TypedDict
+from typing import Any, Dict, List, Tuple, TypedDict
 
 from langgraph.graph import END, START, StateGraph
 from loguru import logger
 
 # 导入共享工具函数
-from ..utils.shared_agent_utils import PerformanceMonitor, extract_questionnaire_context
+from ..utils.shared_agent_utils import PerformanceMonitor
 
 # ============================================================================
 # 状态定义
@@ -532,7 +531,7 @@ class QuestionnaireAgent:
         result = agent.generate(user_input, structured_data)
     """
 
-    def __init__(self, llm_model=None, config: Optional[Dict[str, Any]] = None):
+    def __init__(self, llm_model=None, config: Dict[str, Any] | None = None):
         """初始化问卷生成智能体"""
         self.llm_model = llm_model
         self.config = config or {}
@@ -650,7 +649,7 @@ class LLMQuestionGeneratorCompat:
 
     @classmethod
     def generate(
-        cls, user_input: str, structured_data: Dict[str, Any], llm_model: Optional[Any] = None, timeout: int = 30
+        cls, user_input: str, structured_data: Dict[str, Any], llm_model: Any | None = None, timeout: int = 30
     ) -> Tuple[List[Dict[str, Any]], str]:
         """兼容原 LLMQuestionGenerator.generate 接口"""
         agent = QuestionnaireAgent(llm_model)

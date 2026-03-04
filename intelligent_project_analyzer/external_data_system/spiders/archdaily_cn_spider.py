@@ -16,10 +16,11 @@ ArchDaily 中文站爬虫
   - 不爬取图片（脱离图说则信息缺失）
 """
 
-import re
 import random
+import re
 from datetime import datetime
-from typing import List, Optional, Dict
+from typing import Dict, List
+
 from loguru import logger
 
 from ..utils import get_rate_limiter
@@ -66,12 +67,12 @@ class ArchdailyCNSpider(BaseSpider):
         self,
         category_url: str,
         max_pages: int = 20,
-        stop_url: Optional[str] = None,
+        stop_url: str | None = None,
     ) -> List[str]:
         """爬取分类页面，获取项目 URL 列表（线程安全）"""
         return self.run_in_browser_thread(self._crawl_category_impl, category_url, max_pages, stop_url)
 
-    def parse_project_page(self, url: str) -> Optional[ProjectData]:
+    def parse_project_page(self, url: str) -> ProjectData | None:
         """解析项目页面（线程安全）"""
         return self.run_in_browser_thread(self._parse_project_impl, url)
 
@@ -90,13 +91,13 @@ class ArchdailyCNSpider(BaseSpider):
         self,
         category_url: str,
         max_pages: int,
-        stop_url: Optional[str] = None,
+        stop_url: str | None = None,
     ) -> List[str]:
         """在浏览器线程中执行分类爬取（中文站版）"""
         page = self.get_page()
         seen_urls: set = set()
         ordered_urls: List[str] = []
-        first_url: Optional[str] = None
+        first_url: str | None = None
 
         try:
             for page_num in range(1, max_pages + 1):
@@ -154,7 +155,7 @@ class ArchdailyCNSpider(BaseSpider):
         return ordered_urls
 
     # ── 项目详情解析 ─────────────────────────────────────────────────────
-    def _parse_project_impl(self, url: str) -> Optional[ProjectData]:
+    def _parse_project_impl(self, url: str) -> ProjectData | None:
         """在浏览器线程中解析项目页面（中文站版）"""
         page = self.get_page()
 

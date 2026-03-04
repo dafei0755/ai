@@ -28,7 +28,7 @@ import os
 import threading
 import time
 import uuid
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 from loguru import logger
 
@@ -64,7 +64,7 @@ class _MemoryBackend:
         with self._lock:
             self._store[key] = (value, expires_at)
 
-    def get(self, key: str) -> Optional[Any]:
+    def get(self, key: str) -> Any | None:
         with self._lock:
             entry = self._store.get(key)
         if entry is None:
@@ -119,7 +119,7 @@ class _RedisBackend:
 
         self._client.setex(key, ttl, pickle.dumps(value))
 
-    def get(self, key: str) -> Optional[Any]:
+    def get(self, key: str) -> Any | None:
         import pickle
 
         raw = self._client.get(key)
@@ -192,7 +192,7 @@ class ExternalStateStore:
         logger.debug(f"[ExternalStateStore] PUT {ref_key} (ttl={ttl}s)")
         return ref_key
 
-    def get(self, ref_key: str) -> Optional[Any]:
+    def get(self, ref_key: str) -> Any | None:
         """
         通过 ref_key 读取数据。
 
@@ -227,7 +227,7 @@ class ExternalStateStore:
 # 全局单例
 # ---------------------------------------------------------------------------
 
-_store_instance: Optional[ExternalStateStore] = None
+_store_instance: ExternalStateStore | None = None
 _store_lock = threading.Lock()
 
 

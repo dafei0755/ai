@@ -19,7 +19,7 @@ Serper搜索工具 (v7.130+)
 
 import json
 import time
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 from loguru import logger
 
@@ -61,7 +61,7 @@ except ImportError:
 class SerperSearchTool:
     """Serper搜索工具类 - 基于Google搜索"""
 
-    def __init__(self, api_key: str, config: Optional[ToolConfig] = None):
+    def __init__(self, api_key: str, config: ToolConfig | None = None):
         """
         初始化Serper搜索工具
 
@@ -92,7 +92,7 @@ class SerperSearchTool:
     def search(
         self,
         query: str,
-        num_results: Optional[int] = None,
+        num_results: int | None = None,
         gl: str = "us",
         hl: str = "en",
         search_type: str = "search",

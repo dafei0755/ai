@@ -24,23 +24,20 @@
     # result = {"image_url": "data:image/png;base64,...", "revised_prompt": "..."}
 """
 
-import base64
-import json
 import os
 import time
 from enum import Enum
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Dict, List, Tuple
 
 import httpx
 from loguru import logger
 from pydantic import BaseModel, Field
 
 #  v7.153: 导入配置加载器
-from ..utils.visual_config_loader import get_role_visual_type_for_project  # v7.154: 项目类型感知的视觉类型选择
 from ..utils.visual_config_loader import (
-    build_role_visual_context,
     get_global_config,
     get_role_visual_identity,
+    get_role_visual_type_for_project,  # v7.154: 项目类型感知的视觉类型选择
     get_visual_type_config,
 )
 
@@ -63,19 +60,19 @@ class ImageGenerationRequest(BaseModel):
 
     prompt: str = Field(..., description="图像生成提示词")
     aspect_ratio: ImageAspectRatio = Field(default=ImageAspectRatio.LANDSCAPE, description="宽高比")
-    style: Optional[str] = Field(default=None, description="风格提示，如 'architectural rendering', 'watercolor'")
-    negative_prompt: Optional[str] = Field(default=None, description="负面提示词（不希望出现的元素）")
+    style: str | None = Field(default=None, description="风格提示，如 'architectural rendering', 'watercolor'")
+    negative_prompt: str | None = Field(default=None, description="负面提示词（不希望出现的元素）")
 
 
 class ImageGenerationResult(BaseModel):
     """图像生成结果"""
 
     success: bool
-    image_url: Optional[str] = Field(default=None, description="Base64 Data URL 或远程 URL")
-    image_data: Optional[bytes] = Field(default=None, description="原始图像字节数据")
-    revised_prompt: Optional[str] = Field(default=None, description="模型修订后的提示词")
-    error: Optional[str] = Field(default=None, description="错误信息")
-    model_used: Optional[str] = Field(default=None, description="实际使用的模型")  #  v7.60.5: Token追踪字段（后置Token追踪）
+    image_url: str | None = Field(default=None, description="Base64 Data URL 或远程 URL")
+    image_data: bytes | None = Field(default=None, description="原始图像字节数据")
+    revised_prompt: str | None = Field(default=None, description="模型修订后的提示词")
+    error: str | None = Field(default=None, description="错误信息")
+    model_used: str | None = Field(default=None, description="实际使用的模型")  #  v7.60.5: Token追踪字段（后置Token追踪）
     prompt_tokens: int = Field(default=0, description="提示词Token数")
     completion_tokens: int = Field(default=0, description="生成Token数")
     total_tokens: int = Field(default=0, description="总Token数")
@@ -109,8 +106,8 @@ class ImageGeneratorService:
 
     def __init__(
         self,
-        api_key: Optional[str] = None,
-        model: Optional[str] = None,
+        api_key: str | None = None,
+        model: str | None = None,
         base_url: str = "https://openrouter.ai/api/v1",
         timeout: int = 120,
     ):
@@ -157,7 +154,7 @@ class ImageGeneratorService:
         role_id: str,
         profile_label: str = "",
         project_type: str = "",  #  v7.154: 添加项目类型参数
-        visual_references: Optional[List[Dict[str, Any]]] = None,  #  v7.155: 视觉参考
+        visual_references: List[Dict[str, Any]] | None = None,  #  v7.155: 视觉参考
     ) -> Tuple[str, str]:
         """
          v7.153: 第一阶段LLM - 从交付物content中提取视觉简报
@@ -181,7 +178,7 @@ class ImageGeneratorService:
             - visual_brief: 500-800字中文视觉简报
             - style_anchor: 3-8词英文风格锚点
         """
-        logger.info(f" [v7.153 第一阶段] 开始视觉简报提取...")
+        logger.info(" [v7.153 第一阶段] 开始视觉简报提取...")
         logger.debug(f"   角色: {role_id}, 风格标签: {profile_label}")
         logger.debug(f"   内容长度: {len(deliverable_content)} 字符")
 
@@ -296,7 +293,7 @@ Scandinavian minimalist, warm wood tones, natural lighting, soft textiles"""
                 visual_brief = content
                 style_anchor = self._extract_style_anchor_fallback(content, role_config)
 
-            logger.info(f" [v7.153 第一阶段] 视觉简报提取成功")
+            logger.info(" [v7.153 第一阶段] 视觉简报提取成功")
             logger.info(f"   简报长度: {len(visual_brief)} 字符")
             logger.info(f"   风格锚点: {style_anchor[:50]}...")
 
@@ -428,7 +425,7 @@ Scandinavian minimalist, warm wood tones, natural lighting, soft textiles"""
         Returns:
             结构化英文Prompt (150-200 words)
         """
-        logger.info(f" [v7.153 第二阶段] 开始结构化Prompt生成...")
+        logger.info(" [v7.153 第二阶段] 开始结构化Prompt生成...")
 
         # 加载配置
         role_config = get_role_visual_identity(role_id)
@@ -498,7 +495,7 @@ Generate the structured English image prompt:"""
             prompt = result.get("choices", [{}])[0].get("message", {}).get("content", "").strip()
 
             if not prompt or len(prompt) < 50:
-                logger.warning(f"️ [第二阶段] Prompt过短或为空")
+                logger.warning("️ [第二阶段] Prompt过短或为空")
                 return self._fallback_structured_prompt(visual_brief, style_anchor, role_config)
 
             # 校验必保留关键词
@@ -577,7 +574,7 @@ Generate the structured English image prompt:"""
         Returns:
             优化后的英文图像生成提示词 (100-150 words)
         """
-        logger.info(f" [LLM提示词提取] 开始处理...")
+        logger.info(" [LLM提示词提取] 开始处理...")
         logger.debug(f"   专家名称: {expert_name}")
         logger.debug(f"  ️  项目类型: {project_type}")
         logger.debug(f"   专家内容长度: {len(expert_content)} 字符")
@@ -702,7 +699,7 @@ Generate an optimized image prompt based on the above design analysis:"""
         expert_context: str = "",
         conversation_history: str = "",
         project_constraints: str = "",
-        vision_analysis: Optional[str] = None,
+        vision_analysis: str | None = None,
     ) -> str:
         """
          v7.50: 为编辑环节优化用户输入的提示词
@@ -798,7 +795,7 @@ Generate an enhanced, professional image prompt:"""
         }
 
     def _enhance_prompt(
-        self, prompt: str, style: Optional[str] = None, aspect_ratio: ImageAspectRatio = ImageAspectRatio.LANDSCAPE
+        self, prompt: str, style: str | None = None, aspect_ratio: ImageAspectRatio = ImageAspectRatio.LANDSCAPE
     ) -> str:
         """
         增强提示词，添加设计领域专业描述
@@ -828,8 +825,8 @@ Generate an enhanced, professional image prompt:"""
         self,
         prompt: str,
         aspect_ratio: ImageAspectRatio = ImageAspectRatio.LANDSCAPE,
-        style: Optional[str] = None,
-        negative_prompt: Optional[str] = None,
+        style: str | None = None,
+        negative_prompt: str | None = None,
     ) -> ImageGenerationResult:
         """
         生成图像
@@ -853,7 +850,7 @@ Generate an enhanced, professional image prompt:"""
             logger.error(f" [图像生成API] 无效的宽高比类型: {type(aspect_ratio)}")
             raise ValueError(f"aspect_ratio must be ImageAspectRatio enum, got {type(aspect_ratio).__name__}")
 
-        logger.info(f" [图像生成API] 开始生成图像...")
+        logger.info(" [图像生成API] 开始生成图像...")
         logger.info(f"   原始提示词: {prompt[:100]}...")
         logger.info(f"   宽高比: {aspect_ratio.value}")
         logger.info(f"   风格: {style or 'default'}")
@@ -861,7 +858,7 @@ Generate an enhanced, professional image prompt:"""
 
         try:
             # 增强提示词
-            logger.info(f"   增强提示词...")
+            logger.info("   增强提示词...")
             enhanced_prompt = self._enhance_prompt(prompt, style, aspect_ratio)
             logger.info(f"   增强后提示词: {enhanced_prompt[:150]}...")
 
@@ -879,7 +876,7 @@ Generate an enhanced, professional image prompt:"""
             # 添加负面提示词（如果支持）
             if negative_prompt:
                 request_body["messages"][0]["content"] += f"\n\nDo NOT include: {negative_prompt}"
-                logger.info(f"   添加负面提示词")
+                logger.info("   添加负面提示词")
 
             logger.info(f"   调用图像生成API (model={self.model})...")
             logger.debug(f"   请求体: {str(request_body)[:300]}...")
@@ -906,14 +903,14 @@ Generate an enhanced, professional image prompt:"""
                     )
 
                 result = response.json()
-                logger.info(f" [图像生成API] 收到响应，开始解析...")
+                logger.info(" [图像生成API] 收到响应，开始解析...")
                 logger.debug(f"  响应体: {str(result)[:500]}...")
 
                 # 解析响应 - Gemini 返回的图像在 content 中
                 parsed_result = self._parse_response(result, enhanced_prompt)
 
                 if parsed_result.success:
-                    logger.info(f" [图像生成API] 图像生成成功")
+                    logger.info(" [图像生成API] 图像生成成功")
                     logger.info(
                         f"   图像URL类型: {'data URI' if parsed_result.image_url and parsed_result.image_url.startswith('data:') else 'URL'}"
                     )
@@ -938,7 +935,7 @@ Generate an enhanced, professional image prompt:"""
         user_prompt: str,
         reference_image: str,
         aspect_ratio: ImageAspectRatio = ImageAspectRatio.LANDSCAPE,
-        style: Optional[str] = None,
+        style: str | None = None,
         vision_weight: float = 0.7,
     ) -> ImageGenerationResult:
         """
@@ -959,7 +956,7 @@ Generate an enhanced, professional image prompt:"""
             ImageGenerationResult 包含生成的图像
         """
         try:
-            logger.info(f" [v7.61] 开始 Vision + 生成混合流程")
+            logger.info(" [v7.61] 开始 Vision + 生成混合流程")
 
             # Stage 1: Vision 分析参考图
             from .vision_service import get_vision_service
@@ -1082,7 +1079,7 @@ Generate an enhanced, professional image prompt:"""
                         # 格式: {"type": "image_url", "image_url": {"url": "data:..."}}
                         image_url = img.get("image_url", {}).get("url")
                         if image_url:
-                            logger.info(f" Image generated successfully via message.images")
+                            logger.info(" Image generated successfully via message.images")
                             #  v7.40.1: 优先使用传入的 prompt（实际使用的提示词），而非 API 返回的 content
                             final_prompt = prompt
                             if isinstance(content, str) and content.strip() and len(content) > len(prompt):
@@ -1111,7 +1108,7 @@ Generate an enhanced, professional image prompt:"""
                             text_content = item.get("text", "")
 
                 if image_url:
-                    logger.info(f" Image generated successfully via content array")
+                    logger.info(" Image generated successfully via content array")
                     #  v7.40.1: 优先使用传入的 prompt
                     return ImageGenerationResult(
                         success=True,
@@ -1131,7 +1128,7 @@ Generate an enhanced, professional image prompt:"""
 
                     match = re.search(r"(data:image/[^;]+;base64,[A-Za-z0-9+/=]+)", content)
                     if match:
-                        logger.info(f" Image extracted from content string")
+                        logger.info(" Image extracted from content string")
                         return ImageGenerationResult(
                             success=True,
                             image_url=match.group(1),
@@ -1193,7 +1190,7 @@ Generate an enhanced, professional image prompt:"""
         Returns:
             ImageGenerationResult 列表
         """
-        logger.info(f" [概念图生成] 开始生成概念图")
+        logger.info(" [概念图生成] 开始生成概念图")
         logger.info(f"   参数: project_type={project_type}, num_images={num_images}, expert_name={expert_name}")
         logger.info(f"   专家摘要长度: {len(expert_summary)} 字符")
         logger.info(f"  ️  使用LLM提取: {use_llm_extraction}")
@@ -1202,7 +1199,7 @@ Generate an enhanced, professional image prompt:"""
 
         #  v7.50: 优先使用 LLM 语义提取
         if use_llm_extraction:
-            logger.info(f" [提示词提取] 尝试使用LLM语义提取提示词...")
+            logger.info(" [提示词提取] 尝试使用LLM语义提取提示词...")
             llm_prompt = await self._llm_extract_visual_prompt(
                 expert_content=expert_summary,
                 expert_name=expert_name,
@@ -1214,11 +1211,11 @@ Generate an enhanced, professional image prompt:"""
                 logger.info(f" [提示词提取] LLM提取成功，提示词长度: {len(llm_prompt)} 字符")
                 logger.debug(f"   提示词内容: {llm_prompt}")
             else:
-                logger.warning(f"️  [提示词提取] LLM提取失败，将使用正则提取")
+                logger.warning("️  [提示词提取] LLM提取失败，将使用正则提取")
 
         # Fallback: 正则提取（如果 LLM 失败或禁用）
         if not prompts:
-            logger.info(f" [提示词提取] 使用正则表达式提取提示词...")
+            logger.info(" [提示词提取] 使用正则表达式提取提示词...")
             prompts = self._extract_visual_concepts(expert_summary, project_type)
             logger.info(f" [提示词提取] 正则提取完成，得到 {len(prompts)} 个提示词")
 
@@ -1243,7 +1240,7 @@ Generate an enhanced, professional image prompt:"""
                 #  v7.40.1: 如果 API 没有返回 revised_prompt，使用原始 prompt
                 if result.success and not result.revised_prompt:
                     result.revised_prompt = prompt
-                    logger.debug(f"   使用原始 prompt 作为 revised_prompt")
+                    logger.debug("   使用原始 prompt 作为 revised_prompt")
 
                 if result.success:
                     logger.info(f" [图像生成 {i+1}/{len(prompts)}] 生成成功")
@@ -1363,9 +1360,9 @@ Generate an enhanced, professional image prompt:"""
         session_id: str,
         project_type: str = "interior",
         aspect_ratio: str = "16:9",
-        questionnaire_data: Optional[dict] = None,
-        visual_references: Optional[List[Dict[str, Any]]] = None,  #  v7.155: 视觉参考
-        global_style_anchor: Optional[str] = None,  #  v7.155: 全局风格锚点
+        questionnaire_data: dict | None = None,
+        visual_references: List[Dict[str, Any]] | None = None,  #  v7.155: 视觉参考
+        global_style_anchor: str | None = None,  #  v7.155: 全局风格锚点
     ) -> "List[ImageMetadata]":
         """
          v7.153: 重构为两阶段LLM精炼流程
@@ -1440,7 +1437,7 @@ Generate an enhanced, professional image prompt:"""
             # 第一阶段：从交付物content提取视觉简报 + style_anchor
             #  v7.155: 注入视觉参考
             # ================================================================
-            logger.info(f"   [第一阶段] 提取视觉简报...")
+            logger.info("   [第一阶段] 提取视觉简报...")
 
             visual_brief, style_anchor = await self._extract_visual_brief(
                 deliverable_content=expert_analysis,
@@ -1458,7 +1455,7 @@ Generate an enhanced, professional image prompt:"""
             #  v7.155: 如果有全局风格锚点，优先合并
             if global_style_anchor:
                 style_anchor = f"{global_style_anchor}, {style_anchor}"
-                logger.info(f"   [v7.155] 合并全局风格锚点")
+                logger.info("   [v7.155] 合并全局风格锚点")
 
             logger.info(f"   视觉简报: {len(visual_brief)} 字符")
             logger.info(f"   Style Anchor: {style_anchor[:60]}...")
@@ -1466,7 +1463,7 @@ Generate an enhanced, professional image prompt:"""
             # ================================================================
             # 第二阶段：生成结构化英文Prompt
             # ================================================================
-            logger.info(f"   [第二阶段] 生成结构化Prompt...")
+            logger.info("   [第二阶段] 生成结构化Prompt...")
 
             visual_prompt = await self._generate_structured_prompt(
                 visual_brief=visual_brief,
@@ -1568,8 +1565,8 @@ Generate an enhanced, professional image prompt:"""
         original_image: str,
         mask_image: str,
         prompt: str,
-        aspect_ratio: Optional[ImageAspectRatio] = None,
-        style: Optional[str] = None,
+        aspect_ratio: ImageAspectRatio | None = None,
+        style: str | None = None,
         inpainting_service=None,
     ) -> ImageGenerationResult:
         """

@@ -22,20 +22,18 @@ Date: 2026-02-17
 """
 
 # 导出核心接口
-from .spiders import get_spider_manager
+from intelligent_project_analyzer.versioning import PRODUCT_VERSION as __version__
 
+from .api import router as external_data_router
 from .models import (
     ExternalProject,
     ExternalProjectImage,
-    SyncHistory,
-    QualityIssue,
     ProjectDiscovery,
+    QualityIssue,
+    SyncHistory,
     get_external_db,
 )
-
-from .api import router as external_data_router
-
-from intelligent_project_analyzer.versioning import PRODUCT_VERSION as __version__
+from .spiders import get_spider_manager
 
 __all__ = [
     # Spider接口

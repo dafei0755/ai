@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 LT-4: Circuit Breaker for LLM providers
 
@@ -20,7 +19,7 @@ import os
 import threading
 import time
 from enum import Enum
-from typing import Callable, Dict, Optional, TypeVar
+from typing import Callable, Dict, TypeVar
 
 from loguru import logger
 
@@ -70,9 +69,9 @@ class CircuitBreaker:
     def __init__(
         self,
         provider: str,
-        failure_threshold: Optional[int] = None,
-        recovery_timeout: Optional[float] = None,
-        success_threshold: Optional[int] = None,
+        failure_threshold: int | None = None,
+        recovery_timeout: float | None = None,
+        success_threshold: int | None = None,
     ) -> None:
         self.provider = provider
 
@@ -191,7 +190,7 @@ class CircuitBreaker:
         """手动记录一次成功（当 call() 外部包装时使用）"""
         self._on_success()
 
-    def record_failure(self, exc: Optional[Exception] = None) -> None:
+    def record_failure(self, exc: Exception | None = None) -> None:
         """手动记录一次失败"""
         self._on_failure(exc or Exception("manual failure"))
 
@@ -236,9 +235,9 @@ _registry_lock = threading.Lock()
 
 def get_breaker(
     provider: str,
-    failure_threshold: Optional[int] = None,
-    recovery_timeout: Optional[float] = None,
-    success_threshold: Optional[int] = None,
+    failure_threshold: int | None = None,
+    recovery_timeout: float | None = None,
+    success_threshold: int | None = None,
 ) -> CircuitBreaker:
     """
     返回指定提供商的 CircuitBreaker 单例。

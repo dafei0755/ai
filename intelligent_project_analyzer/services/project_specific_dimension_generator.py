@@ -17,7 +17,7 @@ import json
 import os
 import re
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 import yaml
 from loguru import logger
@@ -43,7 +43,7 @@ class ProjectSpecificDimensionGenerator:
         re.IGNORECASE,
     )
 
-    def __init__(self, timeout_override: Optional[int] = None):
+    def __init__(self, timeout_override: int | None = None):
         """初始化生成器
 
         Args:
@@ -80,7 +80,7 @@ class ProjectSpecificDimensionGenerator:
         prompt_path = Path(__file__).parent.parent / "config" / "prompts" / "project_specific_dimensions_prompt.yaml"
 
         try:
-            with open(prompt_path, "r", encoding="utf-8") as f:
+            with open(prompt_path, encoding="utf-8") as f:
                 config = yaml.safe_load(f)
             logger.info(f"  ✅ Prompt 模板加载成功: {prompt_path.name}")
             return config

@@ -4,7 +4,7 @@
 对应用层完全透明，所有LLM调用自动享受语义缓存
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import AIMessage, BaseMessage
@@ -94,7 +94,7 @@ class CachedLLMWrapper(BaseChatModel):
     async def ainvoke(
         self,
         input: Any,
-        config: Optional[Any] = None,
+        config: Any | None = None,
         **kwargs: Any,
     ) -> Any:
         """
@@ -127,7 +127,7 @@ class CachedLLMWrapper(BaseChatModel):
     def invoke(
         self,
         input: Any,
-        config: Optional[Any] = None,
+        config: Any | None = None,
         **kwargs: Any,
     ) -> Any:
         """
@@ -150,8 +150,8 @@ class CachedLLMWrapper(BaseChatModel):
     async def _agenerate(
         self,
         messages: List[BaseMessage],
-        stop: Optional[List[str]] = None,
-        run_manager: Optional[Any] = None,
+        stop: List[str] | None = None,
+        run_manager: Any | None = None,
         **kwargs: Any,
     ) -> ChatResult:
         """
@@ -224,8 +224,8 @@ class CachedLLMWrapper(BaseChatModel):
     def _generate(
         self,
         messages: List[BaseMessage],
-        stop: Optional[List[str]] = None,
-        run_manager: Optional[Any] = None,
+        stop: List[str] | None = None,
+        run_manager: Any | None = None,
         **kwargs: Any,
     ) -> ChatResult:
         """
@@ -272,7 +272,7 @@ class CachedLLMWrapper(BaseChatModel):
 
 def wrap_llm_with_cache(
     llm: BaseChatModel,
-    cache: Optional[SemanticCache] = None,
+    cache: SemanticCache | None = None,
     cache_namespace: str = "default",
     enable_cache: bool = True,
 ) -> BaseChatModel:

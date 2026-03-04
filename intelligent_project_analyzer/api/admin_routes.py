@@ -7,19 +7,16 @@
 
 import json
 import re
-from collections import Counter
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Dict, List, Set
 
 import psutil
 import yaml
 from cachetools import TTLCache
 from fastapi import APIRouter, Body, Depends, HTTPException, Query
-from fastapi.responses import JSONResponse
 from loguru import logger
 
-from ..services.redis_session_manager import RedisSessionManager
 from ..utils.config_manager import config_manager
 from .auth_middleware import require_admin
 from .performance_monitor import performance_monitor
@@ -111,7 +108,6 @@ CHINESE_STOPWORDS: Set[str] = {
     "经过",
     "为了",
     "除了",
-    "关于",
     # 助词/语气词
     "啊",
     "呀",
@@ -154,7 +150,6 @@ CHINESE_STOPWORDS: Set[str] = {
     "季",
     "度",
     # 数字
-    "一",
     "二",
     "三",
     "四",
@@ -408,7 +403,7 @@ async def get_metrics_summary(admin: dict = Depends(require_admin)):
         metrics_cache[cache_key] = result
         return result
 
-    except Exception as e:
+    except Exception:
         # 极度保守的错误处理，避免 SystemError 导致 500
         logger.error("获取监控数据发生未知错误")
         return {
@@ -501,7 +496,7 @@ async def get_tools_stats(hours: int = Query(default=24, ge=1, le=168), admin: d
         tool_data = {}
         total_calls = 0
 
-        with open(log_file, "r", encoding="utf-8") as f:
+        with open(log_file, encoding="utf-8") as f:
             for line in f:
                 try:
                     entry = json.loads(line.strip())
@@ -620,7 +615,7 @@ async def get_tool_call_rate(hours: int = Query(default=24, ge=1, le=168), admin
         session_tool_usage = {}  # session_id -> { has_tool_call: bool, tool_count: int }
 
         if log_file.exists():
-            with open(log_file, "r", encoding="utf-8") as f:
+            with open(log_file, encoding="utf-8") as f:
                 for line in f:
                     try:
                         entry = json.loads(line.strip())
@@ -770,7 +765,7 @@ async def get_concept_maps_stats(days: int = Query(default=7, ge=1, le=30), admi
                 continue
 
             try:
-                with open(metadata_file, "r", encoding="utf-8") as f:
+                with open(metadata_file, encoding="utf-8") as f:
                     metadata = json.load(f)
 
                 session_id = metadata.get("session_id", session_dir.name)
@@ -929,7 +924,6 @@ async def get_conversations_analytics(
         cutoff_time = datetime.now() - timedelta(days=days)
 
         # 统计数据容器
-        import re
         from collections import Counter, defaultdict
 
         daily_counts = defaultdict(int)
@@ -1086,7 +1080,7 @@ async def get_env_content(admin: dict = Depends(require_admin)):
         if not env_path.exists():
             raise HTTPException(status_code=404, detail=".env 文件不存在")
 
-        with open(env_path, "r", encoding="utf-8") as f:
+        with open(env_path, encoding="utf-8") as f:
             content = f.read()
 
         # 脱敏处理：隐藏敏感值
@@ -1118,9 +1112,9 @@ async def get_env_content(admin: dict = Depends(require_admin)):
 async def list_all_sessions(
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=100),
-    status: Optional[str] = Query(default=None),
-    search: Optional[str] = Query(default=None),
-    source: Optional[str] = Query(default=None, description="数据源: redis/archived/all"),
+    status: str | None = Query(default=None),
+    search: str | None = Query(default=None),
+    source: str | None = Query(default=None, description="数据源: redis/archived/all"),
     admin: dict = Depends(require_admin),
 ):
     """
@@ -1362,7 +1356,7 @@ async def batch_delete_sessions(session_ids: List[str], admin: dict = Depends(re
 async def query_logs(
     log_type: str = Query(default="server", regex="^(server|auth|errors|performance|admin_operations)$"),
     lines: int = Query(default=100, ge=1, le=1000),
-    search: Optional[str] = Query(default=None),
+    search: str | None = Query(default=None),
     admin: dict = Depends(require_admin),
 ):
     """
@@ -1394,7 +1388,7 @@ async def query_logs(
             }
 
         # 读取日志文件（尾部N行）
-        with open(log_file, "r", encoding="utf-8", errors="ignore") as f:
+        with open(log_file, encoding="utf-8", errors="ignore") as f:
             all_lines = f.readlines()
 
         # 获取尾部N行
@@ -1760,7 +1754,7 @@ async def get_showcase_config(_=Depends(require_admin)):
                 "cache_ttl_seconds": 300,
             }
 
-        with open(config_path, "r", encoding="utf-8") as f:
+        with open(config_path, encoding="utf-8") as f:
             config = yaml.safe_load(f)
 
         logger.info(f" 精选展示配置读取成功: {len(config.get('session_ids', []))} sessions")
@@ -1824,7 +1818,7 @@ async def update_showcase_config(config: Dict[str, Any], _=Depends(require_admin
 
         # 验证保存是否成功
         if config_path.exists():
-            with open(config_path, "r", encoding="utf-8") as f:
+            with open(config_path, encoding="utf-8") as f:
                 saved_config = yaml.safe_load(f)
                 logger.info(f" 验证: 配置文件已保存，包含 {len(saved_config.get('session_ids', []))} 个会话")
 
@@ -1917,7 +1911,7 @@ async def reload_search_filters(_=Depends(require_admin)):
 async def add_to_blacklist(
     domain: str = Query(..., description="域名或模式"),
     match_type: str = Query("domains", description="匹配类型: domains/patterns/regex"),
-    note: Optional[str] = Query(None, description="备注说明"),
+    note: str | None = Query(None, description="备注说明"),
     _=Depends(require_admin),
 ):
     """
@@ -1989,7 +1983,7 @@ async def remove_from_blacklist(
 async def add_to_whitelist(
     domain: str = Query(..., description="域名或模式"),
     match_type: str = Query("domains", description="匹配类型: domains/patterns/regex"),
-    note: Optional[str] = Query(None, description="备注说明"),
+    note: str | None = Query(None, description="备注说明"),
     _=Depends(require_admin),
 ):
     """
@@ -2225,7 +2219,7 @@ async def get_domain_detail(domain: str, _=Depends(require_admin)):
 async def approve_domain(
     domain: str = Body(..., embed=True, description="域名"),
     add_to_whitelist: bool = Body(False, embed=True, description="是否加入白名单"),
-    admin_notes: Optional[str] = Body(None, embed=True, description="管理员备注"),
+    admin_notes: str | None = Body(None, embed=True, description="管理员备注"),
     _=Depends(require_admin),
 ):
     """
@@ -2263,7 +2257,7 @@ async def approve_domain(
 @router.post("/domain-quality/block")
 async def block_domain(
     domain: str = Body(..., embed=True, description="域名"),
-    admin_notes: Optional[str] = Body(None, embed=True, description="管理员备注"),
+    admin_notes: str | None = Body(None, embed=True, description="管理员备注"),
     _=Depends(require_admin),
 ):
     """
@@ -2300,7 +2294,7 @@ async def block_domain(
 @router.post("/domain-quality/dismiss")
 async def dismiss_domain(
     domain: str = Body(..., embed=True, description="域名"),
-    admin_notes: Optional[str] = Body(None, embed=True, description="管理员备注"),
+    admin_notes: str | None = Body(None, embed=True, description="管理员备注"),
     _=Depends(require_admin),
 ):
     """
@@ -2338,7 +2332,7 @@ async def dismiss_domain(
 async def batch_domain_action(
     domains: List[str] = Body(..., description="域名列表"),
     action: str = Body(..., description="操作类型: approve/block/dismiss"),
-    admin_notes: Optional[str] = Body(None, description="管理员备注"),
+    admin_notes: str | None = Body(None, description="管理员备注"),
     _=Depends(require_admin),
 ):
     """
@@ -2477,7 +2471,9 @@ async def get_database_stats(_admin=Depends(require_admin)):
     - health_status: 健康状态（HEALTHY/WARNING/CRITICAL）
     """
     try:
-        from intelligent_project_analyzer.services.session_archive_manager import get_archive_manager
+        from intelligent_project_analyzer.services.session_archive_manager import (
+            get_archive_manager,
+        )
 
         manager = get_archive_manager()
         stats = await manager.get_database_stats()
@@ -2504,7 +2500,9 @@ async def get_database_health(_admin=Depends(require_admin)):
     - recommendations: 维护建议
     """
     try:
-        from intelligent_project_analyzer.services.session_archive_manager import get_archive_manager
+        from intelligent_project_analyzer.services.session_archive_manager import (
+            get_archive_manager,
+        )
 
         manager = get_archive_manager()
         stats = await manager.get_database_stats()
@@ -2577,7 +2575,9 @@ async def vacuum_database(_admin=Depends(require_admin)):
     释放未使用空间，优化查询性能
     """
     try:
-        from intelligent_project_analyzer.services.session_archive_manager import get_archive_manager
+        from intelligent_project_analyzer.services.session_archive_manager import (
+            get_archive_manager,
+        )
 
         manager = get_archive_manager()
         result = await manager.vacuum_database()
@@ -2609,7 +2609,9 @@ async def archive_old_sessions(
     - dry_run: 是否模拟运行（默认true，不实际删除）
     """
     try:
-        from intelligent_project_analyzer.services.session_archive_manager import get_archive_manager
+        from intelligent_project_analyzer.services.session_archive_manager import (
+            get_archive_manager,
+        )
 
         manager = get_archive_manager()
         result = await manager.archive_old_sessions_to_cold_storage(days=days, dry_run=dry_run)
@@ -2627,7 +2629,7 @@ async def archive_old_sessions(
 
 @router.get("/capability-boundary/violations")
 async def get_capability_boundary_violations(
-    node: Optional[str] = Query(None), limit: int = Query(100, le=500), _admin=Depends(require_admin)
+    node: str | None = Query(None), limit: int = Query(100, le=500), _admin=Depends(require_admin)
 ):
     """
     获取能力边界违规详细记录
@@ -2908,9 +2910,10 @@ async def approve_dimension_candidate(
     Args:
         candidate_id: 候选维度ID
     """
+    import json
+
     from ..learning.database_manager import get_db_manager
     from ..services.ontology_editor import get_ontology_editor
-    import json
     
     try:
         db = get_db_manager()

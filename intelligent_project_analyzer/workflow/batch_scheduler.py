@@ -20,10 +20,10 @@
 最后更新: 2025-11-18
 """
 
-from typing import Dict, List, Set, Tuple, Optional
 from graphlib import TopologicalSorter
+from typing import Dict, List, Set
+
 from loguru import logger
-from collections import defaultdict
 
 from ..core.types import format_role_display_name
 
@@ -291,7 +291,7 @@ class BatchScheduler:
         self,
         role_id: str,
         batches: List[List[str]]
-    ) -> Optional[int]:
+    ) -> int | None:
         """
         获取角色所在的批次编号（从 1 开始）
 

@@ -11,10 +11,9 @@ v7.1.2 优化：
 
 import asyncio
 import re
-import tempfile
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional
 
 from jinja2 import Environment, FileSystemLoader
 from loguru import logger
@@ -43,8 +42,8 @@ class PlaywrightBrowserPool:
     _lock = asyncio.Lock()
 
     def __init__(self):
-        self._playwright: Optional[Playwright] = None
-        self._browser: Optional[Browser] = None
+        self._playwright: Playwright | None = None
+        self._browser: Browser | None = None
         self._initialized = False
 
     @classmethod
@@ -163,7 +162,7 @@ class PlaywrightBrowserPool:
 
 
 # 全局浏览器池实例
-_browser_pool: Optional[PlaywrightBrowserPool] = None
+_browser_pool: PlaywrightBrowserPool | None = None
 
 
 def get_browser_pool() -> PlaywrightBrowserPool:
@@ -768,7 +767,7 @@ class HTMLPDFGenerator:
         "solutions": "解决方案",
     }
 
-    def __init__(self, template_dir: Optional[str] = None):
+    def __init__(self, template_dir: str | None = None):
         """初始化生成器
 
         Args:
@@ -1123,7 +1122,7 @@ class HTMLPDFGenerator:
 
         return result
 
-    def _try_parse_dict_string(self, text: str) -> Optional[Dict]:
+    def _try_parse_dict_string(self, text: str) -> Dict | None:
         """尝试将字符串解析为字典
 
         支持 Python 字典格式: {'key': 'value', ...}
@@ -1411,7 +1410,7 @@ class HTMLPDFGenerator:
 
         return items if items else [text]
 
-    def _parse_deliverable_outputs(self, title: str, value: Any) -> Optional[Dict[str, Any]]:
+    def _parse_deliverable_outputs(self, title: str, value: Any) -> Dict[str, Any] | None:
         """ v7.1: 专门处理交付物输出字段
 
         交付物输出是 v7.0 任务导向架构的核心输出格式，包含：
@@ -1544,7 +1543,7 @@ class HTMLPDFGenerator:
 
         return {"name": expert_name, "role": expert_role, "sections": sections}
 
-    def _parse_field(self, key: str, value: Any) -> Optional[Dict[str, Any]]:
+    def _parse_field(self, key: str, value: Any) -> Dict[str, Any] | None:
         """解析单个字段
 
         Args:
@@ -1678,8 +1677,8 @@ class HTMLPDFGenerator:
         self,
         experts: List[Dict[str, Any]],
         title: str = "专家分析报告",
-        subtitle: Optional[str] = None,
-        session_id: Optional[str] = None,
+        subtitle: str | None = None,
+        session_id: str | None = None,
         template_name: str = "expert_report.html",
     ) -> str:
         """渲染 HTML 内容
@@ -1712,10 +1711,10 @@ class HTMLPDFGenerator:
     async def generate_pdf_async(
         self,
         experts: List[Dict[str, Any]],
-        output_path: Optional[str] = None,
+        output_path: str | None = None,
         title: str = "专家分析报告",
-        subtitle: Optional[str] = None,
-        session_id: Optional[str] = None,
+        subtitle: str | None = None,
+        session_id: str | None = None,
         **pdf_options,
     ) -> bytes:
         """异步生成 PDF
@@ -1814,10 +1813,10 @@ class HTMLPDFGenerator:
     async def generate_pdf_async_legacy(
         self,
         experts: List[Dict[str, Any]],
-        output_path: Optional[str] = None,
+        output_path: str | None = None,
         title: str = "专家分析报告",
-        subtitle: Optional[str] = None,
-        session_id: Optional[str] = None,
+        subtitle: str | None = None,
+        session_id: str | None = None,
         **pdf_options,
     ) -> bytes:
         """
@@ -1850,10 +1849,10 @@ class HTMLPDFGenerator:
     def generate_pdf(
         self,
         experts: List[Dict[str, Any]],
-        output_path: Optional[str] = None,
+        output_path: str | None = None,
         title: str = "专家分析报告",
-        subtitle: Optional[str] = None,
-        session_id: Optional[str] = None,
+        subtitle: str | None = None,
+        session_id: str | None = None,
         **pdf_options,
     ) -> bytes:
         """同步生成 PDF
@@ -1896,9 +1895,9 @@ class HTMLPDFGenerator:
 def generate_expert_report_pdf(
     experts: List[Dict[str, Any]],
     title: str = "专家分析报告",
-    subtitle: Optional[str] = None,
-    session_id: Optional[str] = None,
-    output_path: Optional[str] = None,
+    subtitle: str | None = None,
+    session_id: str | None = None,
+    output_path: str | None = None,
 ) -> bytes:
     """生成专家报告 PDF 的便捷函数
 

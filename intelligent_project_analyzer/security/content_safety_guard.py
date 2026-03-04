@@ -3,7 +3,7 @@
 """
 
 import re
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from loguru import logger
 
@@ -16,8 +16,8 @@ class ContentSafetyGuard:
         llm_model=None,
         use_external_api: bool = False,
         use_dynamic_rules: bool = True,
-        enable_evasion_check: Optional[bool] = None,
-        enable_privacy_check: Optional[bool] = None,
+        enable_evasion_check: bool | None = None,
+        enable_privacy_check: bool | None = None,
     ):
         """
         初始化内容安全守卫

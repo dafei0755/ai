@@ -1,5 +1,4 @@
-﻿# -*- coding: utf-8 -*-
-# api/_broadcast_registry.py
+﻿# api/_broadcast_registry.py
 # Broadcast function registry - decouples workflow layer from api.server.
 #
 # api.server registers broadcast_to_websockets at module load via register_broadcast().
@@ -11,7 +10,7 @@ from typing import Any, Awaitable, Callable, Optional
 
 __all__ = ['register_broadcast', 'get_broadcast']
 
-_broadcast_fn: Optional[Callable[[str, Any], Awaitable[None]]] = None
+_broadcast_fn: Callable[[str, Any], Awaitable[None]] | None = None
 
 
 def register_broadcast(fn: Callable[[str, Any], Awaitable[None]]) -> None:
@@ -20,6 +19,6 @@ def register_broadcast(fn: Callable[[str, Any], Awaitable[None]]) -> None:
     _broadcast_fn = fn
 
 
-def get_broadcast() -> Optional[Callable[[str, Any], Awaitable[None]]]:
+def get_broadcast() -> Callable[[str, Any], Awaitable[None]] | None:
     '''Return the registered broadcast function, or None if not yet registered.'''
     return _broadcast_fn

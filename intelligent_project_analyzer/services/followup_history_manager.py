@@ -6,9 +6,11 @@
 """
 
 import json
-from typing import List, Dict, Any, Optional
 from datetime import datetime
+from typing import Any, Dict, List
+
 from loguru import logger
+
 from .redis_session_manager import RedisSessionManager
 
 
@@ -48,8 +50,8 @@ class FollowupHistoryManager:
         question: str,
         answer: str,
         intent: str = "general",
-        referenced_sections: Optional[List[str]] = None,
-        attachments: Optional[List[dict]] = None
+        referenced_sections: List[str] | None = None,
+        attachments: List[dict] | None = None
     ) -> Dict[str, Any]:
         """
         添加一轮追问对话
@@ -95,7 +97,7 @@ class FollowupHistoryManager:
     async def get_history(
         self,
         session_id: str,
-        limit: Optional[int] = None
+        limit: int | None = None
     ) -> List[Dict[str, Any]]:
         """
         获取追问历史

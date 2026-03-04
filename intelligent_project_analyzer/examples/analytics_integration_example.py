@@ -5,7 +5,8 @@
 """
 
 import time
-from typing import Dict, List, Any
+from typing import Dict, List
+
 from services.role_selection_analytics import RoleSelectionAnalytics
 
 

@@ -13,20 +13,14 @@
     scan_outputs → classify_challenges → route_decision → END
 """
 
-from typing import TypedDict, Dict, Any, List, Optional, Literal
-from loguru import logger
-from datetime import datetime
 import time
+from typing import Any, Dict, List, TypedDict
 
-from langgraph.graph import StateGraph, START, END
+from langgraph.graph import END, START, StateGraph
+from loguru import logger
 
 # 导入共享工具函数
-from ..utils.shared_agent_utils import (
-    PerformanceMonitor,
-    extract_challenge_flags,
-    classify_challenges as shared_classify_challenges
-)
-
+from ..utils.shared_agent_utils import PerformanceMonitor
 
 # ============================================================================
 # 状态定义
@@ -301,7 +295,7 @@ class ChallengeDetectionAgent:
         result = agent.execute(state)
     """
     
-    def __init__(self, config: Optional[Dict[str, Any]] = None):
+    def __init__(self, config: Dict[str, Any] | None = None):
         """初始化挑战检测智能体"""
         self.config = config or {}
         

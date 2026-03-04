@@ -9,7 +9,7 @@ v7.110.0: 智能化任务数量评估，根据输入复杂度动态调整（3-12
 import json
 import re
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 import yaml
 from loguru import logger
@@ -29,7 +29,7 @@ class TaskComplexityAnalyzer:
     BASE_TASKS = 8  # 基准任务数
 
     @classmethod
-    def analyze(cls, user_input: str, structured_data: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    def analyze(cls, user_input: str, structured_data: Dict[str, Any] | None = None) -> Dict[str, Any]:
         """
         分析用户输入复杂度，返回建议的任务数量范围
 
@@ -193,7 +193,7 @@ class CoreTaskDecomposer:
         """加载配置文件"""
         config_path = Path(__file__).parent.parent / "config" / "prompts" / "core_task_decomposer.yaml"
         try:
-            with open(config_path, "r", encoding="utf-8") as f:
+            with open(config_path, encoding="utf-8") as f:
                 self._config = yaml.safe_load(f)
             logger.info(f" [CoreTaskDecomposer] 配置加载成功: {config_path}")
         except Exception as e:
@@ -208,8 +208,8 @@ class CoreTaskDecomposer:
     def build_prompt(
         self,
         user_input: str,
-        structured_data: Optional[Dict[str, Any]] = None,
-        task_count_range: Optional[tuple] = None,
+        structured_data: Dict[str, Any] | None = None,
+        task_count_range: tuple | None = None,
     ) -> str:
         """
         构建 LLM 调用的 prompt（v7.110.0 支持动态任务数量）
@@ -441,7 +441,7 @@ class CoreTaskDecomposer:
         return tasks[:7] if tasks else []
 
     async def _infer_task_metadata_async(
-        self, tasks: List[Dict[str, Any]], user_input: str = "", structured_data: Optional[Dict[str, Any]] = None
+        self, tasks: List[Dict[str, Any]], user_input: str = "", structured_data: Dict[str, Any] | None = None
     ) -> None:
         """
         异步推断任务元数据（动机类型、推理依据等）
@@ -514,7 +514,7 @@ class CoreTaskDecomposer:
 
 
 async def decompose_core_tasks(
-    user_input: str, structured_data: Optional[Dict[str, Any]] = None, llm: Optional[Any] = None
+    user_input: str, structured_data: Dict[str, Any] | None = None, llm: Any | None = None
 ) -> List[Dict[str, Any]]:
     """
     异步执行核心任务拆解（v7.110.0 智能化版本）
@@ -616,8 +616,8 @@ async def decompose_core_tasks(
 
 def _simple_fallback_decompose(
     user_input: str,
-    structured_data: Optional[Dict[str, Any]] = None,
-    complexity_analysis: Optional[Dict[str, Any]] = None,
+    structured_data: Dict[str, Any] | None = None,
+    complexity_analysis: Dict[str, Any] | None = None,
 ) -> List[Dict[str, Any]]:
     """
     增强版回退拆解策略（v7.110.0 智能化版本）
@@ -724,7 +724,7 @@ def _simple_fallback_decompose(
                 tasks.append(
                     {
                         "id": f"task_{len(tasks) + 1}",
-                        "title": f"对标案例深度研究",
+                        "title": "对标案例深度研究",
                         "description": f"重点研究{benchmark_target}，并调研其他成功案例的设计策略和创新要素",
                         "source_keywords": [keyword, benchmark_target],
                         "task_type": "research",
@@ -1014,7 +1014,7 @@ def _simple_fallback_decompose(
 
 # 同步版本（用于非异步上下文）
 def decompose_core_tasks_sync(
-    user_input: str, structured_data: Optional[Dict[str, Any]] = None, llm: Optional[Any] = None
+    user_input: str, structured_data: Dict[str, Any] | None = None, llm: Any | None = None
 ) -> List[Dict[str, Any]]:
     """
     同步执行核心任务拆解

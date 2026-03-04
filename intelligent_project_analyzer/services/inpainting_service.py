@@ -13,15 +13,15 @@ import asyncio
 import base64
 import io
 import logging
-from typing import Optional, Dict, Any
-from pydantic import BaseModel, Field
+
 from PIL import Image
+from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
 
 # 尝试导入 OpenAI SDK
 try:
-    from openai import OpenAI, AsyncOpenAI
+    from openai import AsyncOpenAI, OpenAI
     OPENAI_AVAILABLE = True
 except ImportError:
     logger.warning("️ OpenAI SDK 未安装，Inpainting 功能将不可用。请运行: pip install openai>=1.0.0")
@@ -31,11 +31,11 @@ except ImportError:
 class InpaintingResult(BaseModel):
     """图像编辑结果"""
     success: bool = Field(description="是否编辑成功")
-    edited_image_url: Optional[str] = Field(default=None, description="编辑后图像URL")
-    edited_image_data: Optional[str] = Field(default=None, description="编辑后图像Base64数据")
-    original_prompt: Optional[str] = Field(default=None, description="使用的提示词")
-    model_used: Optional[str] = Field(default=None, description="使用的模型")
-    error: Optional[str] = Field(default=None, description="错误信息")
+    edited_image_url: str | None = Field(default=None, description="编辑后图像URL")
+    edited_image_data: str | None = Field(default=None, description="编辑后图像Base64数据")
+    original_prompt: str | None = Field(default=None, description="使用的提示词")
+    model_used: str | None = Field(default=None, description="使用的模型")
+    error: str | None = Field(default=None, description="错误信息")
     fallback_used: bool = Field(default=False, description="是否使用了降级方案")
 
 
@@ -63,7 +63,7 @@ class InpaintingService:
     SUPPORTED_SIZES = ["256x256", "512x512", "1024x1024"]
     MAX_FILE_SIZE_MB = 4  # OpenAI限制
     
-    def __init__(self, api_key: Optional[str] = None, timeout: int = 120):
+    def __init__(self, api_key: str | None = None, timeout: int = 120):
         """
         初始化 Inpainting 服务
         
@@ -101,7 +101,7 @@ class InpaintingService:
         self, 
         image_data: str, 
         image_type: str = "original"
-    ) -> Optional[io.BytesIO]:
+    ) -> io.BytesIO | None:
         """
         验证并转换图像为BytesIO对象
         
@@ -337,10 +337,10 @@ class InpaintingService:
 
 
 # 全局单例（可选）
-_inpainting_service_instance: Optional[InpaintingService] = None
+_inpainting_service_instance: InpaintingService | None = None
 
 
-def get_inpainting_service(api_key: Optional[str] = None) -> InpaintingService:
+def get_inpainting_service(api_key: str | None = None) -> InpaintingService:
     """
     获取 InpaintingService 单例
     

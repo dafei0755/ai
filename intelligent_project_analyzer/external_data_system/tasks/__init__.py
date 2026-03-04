@@ -4,8 +4,12 @@
 基于Celery的分布式任务。
 """
 
-from .sync_tasks import sync_external_source, celery_app
-from .processing_tasks import generate_embeddings_task, quality_check_task, batch_generate_embeddings_task
+from .processing_tasks import (
+    batch_generate_embeddings_task,
+    generate_embeddings_task,
+    quality_check_task,
+)
+from .sync_tasks import celery_app, sync_external_source
 
 __all__ = [
     "celery_app",

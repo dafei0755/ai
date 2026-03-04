@@ -24,7 +24,7 @@
 import os
 import re
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Tuple
 from urllib.parse import urlparse
 
 from loguru import logger
@@ -40,7 +40,7 @@ class ImageQualityScore:
     domain_score: float  # 域名分数
     relevance_score: float  # 相关性分数
     should_keep: bool  # 是否保留
-    reject_reason: Optional[str] = None  # 拒绝原因
+    reject_reason: str | None = None  # 拒绝原因
 
 
 class ImageFilterService:
@@ -218,9 +218,9 @@ class ImageFilterService:
 
     def __init__(
         self,
-        min_width: Optional[int] = None,
-        min_height: Optional[int] = None,
-        pass_threshold: Optional[float] = None,
+        min_width: int | None = None,
+        min_height: int | None = None,
+        pass_threshold: float | None = None,
         enabled: bool = True,
     ):
         """
@@ -385,7 +385,7 @@ class ImageFilterService:
             reject_reason=None if should_keep else f"综合分数 {total:.1f} < {self.pass_threshold}",
         )
 
-    def _score_dimension(self, width: int, height: int) -> Tuple[float, Optional[str]]:
+    def _score_dimension(self, width: int, height: int) -> Tuple[float, str | None]:
         """尺寸评分"""
         # 无尺寸信息时给中性分，不拒绝
         if width == 0 or height == 0:
@@ -406,7 +406,7 @@ class ImageFilterService:
 
         return round(score, 2), None
 
-    def _score_url_quality(self, url: str) -> Tuple[float, Optional[str]]:
+    def _score_url_quality(self, url: str) -> Tuple[float, str | None]:
         """URL 质量评分"""
         if not url:
             return 0, "URL为空"
@@ -430,7 +430,7 @@ class ImageFilterService:
 
         return min(100, max(0, base_score)), None
 
-    def _score_domain(self, url: str) -> Tuple[float, Optional[str]]:
+    def _score_domain(self, url: str) -> Tuple[float, str | None]:
         """域名评分"""
         try:
             parsed = urlparse(url)
@@ -527,7 +527,7 @@ class ImageFilterService:
 
 # ====== 便捷函数 ======
 
-_default_filter_service: Optional[ImageFilterService] = None
+_default_filter_service: ImageFilterService | None = None
 
 
 def get_image_filter_service() -> ImageFilterService:

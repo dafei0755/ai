@@ -17,10 +17,9 @@
 
 import os
 import time
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Tuple
 
 from loguru import logger
-
 
 # ==============================================================================
 # 质量门槛常量
@@ -135,11 +134,11 @@ class RadarDimensionOrchestrator:
         # ------------------------------------------------------------------
         # 尝试 LLM 全量生成（最多 3 次，逐渐压缩输入）
         # ------------------------------------------------------------------
-        dimensions: Optional[List[Dict[str, Any]]] = None
+        dimensions: List[Dict[str, Any]] | None = None
         generation_method = "rule_engine"
         generation_summary = ""
         quality_score = 0.0
-        fallback_reason: Optional[str] = None
+        fallback_reason: str | None = None
         attempts = 0
 
         attempt_configs = [

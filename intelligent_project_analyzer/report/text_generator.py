@@ -2,25 +2,25 @@
 纯文本报告生成器 - 用于调试和查看完整数据结构
 """
 
-import os
 import json
-from pathlib import Path
-from typing import Dict, Any, Optional
+import os
 from datetime import datetime
-from loguru import logger
+from pathlib import Path
+from typing import Any, Dict
 
 from langchain_core.runnables import RunnableConfig
 from langgraph.store.base import BaseStore
+from loguru import logger
 
 from ..agents.base import BaseAgent
-from ..core.state import ProjectAnalysisState, AgentType
+from ..core.state import AgentType, ProjectAnalysisState
 from ..core.types import AnalysisResult
 
 
 class TextGeneratorAgent(BaseAgent):
     """纯文本报告生成器智能体"""
     
-    def __init__(self, config: Optional[Dict[str, Any]] = None):
+    def __init__(self, config: Dict[str, Any] | None = None):
         super().__init__(
             agent_type=AgentType.PDF_GENERATOR,  # 复用相同类型
             name="纯文本报告生成器",
@@ -36,7 +36,7 @@ class TextGeneratorAgent(BaseAgent):
         self,
         state: ProjectAnalysisState,
         config: RunnableConfig,
-        store: Optional[BaseStore] = None
+        store: BaseStore | None = None
     ) -> AnalysisResult:
         """执行纯文本报告生成"""
         try:

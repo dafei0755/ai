@@ -15,7 +15,7 @@ import logging
 import re
 from functools import lru_cache
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 import yaml
 
@@ -528,7 +528,7 @@ def load_ability_core_essentials() -> Dict[str, Any]:
         return {}
 
 
-def get_framework_config(framework_id: str) -> Optional[Dict[str, Any]]:
+def get_framework_config(framework_id: str) -> Dict[str, Any] | None:
     """
     获取指定框架的完整配置（从 analysis_frameworks.yaml）
 
@@ -543,7 +543,7 @@ def get_framework_config(framework_id: str) -> Optional[Dict[str, Any]]:
     return frameworks.get(framework_id)
 
 
-def get_layer_model(model_name: str) -> Optional[Dict[str, Any]]:
+def get_layer_model(model_name: str) -> Dict[str, Any] | None:
     """
     获取指定层结构模型的完整配置
 
@@ -701,8 +701,8 @@ def get_activated_abilities_for_mode(mode_id: str) -> List[str]:
 
 def get_framework_knowledge_injection(
     framework_id: str,
-    ability_tags: Optional[List[str]] = None,
-    detected_modes: Optional[List[Dict[str, Any]]] = None,
+    ability_tags: List[str] | None = None,
+    detected_modes: List[Dict[str, Any]] | None = None,
 ) -> str:
     """
     获取框架感知的完整知识注入文本

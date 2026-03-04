@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 MT-1 (2026-03-01): 图像生成与管理路由
 
@@ -10,7 +9,7 @@ from __future__ import annotations
 import json
 import os
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from fastapi import APIRouter, HTTPException, Query
 from loguru import logger
@@ -29,9 +28,9 @@ class RegenerateImageRequest(BaseModel):
     new_prompt: str
     #  v7.41: 新增字段
     save_as_copy: bool = False  # 是否保存为副本（默认覆盖）
-    image_id: Optional[str] = None  # 要替换的图像ID（多图模式）
-    aspect_ratio: Optional[str] = "16:9"  # 宽高比
-    style_type: Optional[str] = None  # 风格类型
+    image_id: str | None = None  # 要替换的图像ID（多图模式）
+    aspect_ratio: str | None = "16:9"  # 宽高比
+    style_type: str | None = None  # 风格类型
 
 
 class AddImageRequest(BaseModel):
@@ -39,15 +38,15 @@ class AddImageRequest(BaseModel):
 
     expert_name: str
     prompt: str
-    aspect_ratio: Optional[str] = "16:9"
-    style_type: Optional[str] = None
+    aspect_ratio: str | None = "16:9"
+    style_type: str | None = None
 
 
 class DeleteImageRequest(BaseModel):
     """v7.41: 删除概念图请求"""
 
     expert_name: str
-    image_id: Optional[str] = None  # 如果为空，删除该专家的所有图像
+    image_id: str | None = None  # 如果为空，删除该专家的所有图像
 
 
 @router.post("/api/analysis/regenerate-image/{session_id}")
@@ -175,7 +174,7 @@ async def regenerate_expert_image(session_id: str, request: RegenerateImageReque
             final_report["generated_images_by_expert"] = generated_images_by_expert
             session["final_report"] = final_report
             await _server.session_manager.update(session_id, session)
-            logger.info(f" 已更新会话中的图像数据")
+            logger.info(" 已更新会话中的图像数据")
 
         return {
             "success": True,
@@ -342,7 +341,7 @@ async def delete_expert_image(session_id: str, request: DeleteImageRequest):
         session["final_report"] = final_report
         await _server.session_manager.update(session_id, session)
 
-        logger.info(f" 删除概念图成功")
+        logger.info(" 删除概念图成功")
 
         return {"success": True}
 
@@ -407,13 +406,13 @@ async def suggest_image_prompts(session_id: str, expert_name: str):
                     },
                     {
                         "label": "空间材质可视化",
-                        "prompt": f"An architectural visualization showing spatial arrangement and material textures",
+                        "prompt": "An architectural visualization showing spatial arrangement and material textures",
                         "keywords": ["architecture", "spatial", "materials"],
                         "confidence": 0.5,
                     },
                     {
                         "label": "概念风格展板",
-                        "prompt": f"A conceptual design mood board with color palette and style references",
+                        "prompt": "A conceptual design mood board with color palette and style references",
                         "keywords": ["concept", "mood board", "style"],
                         "confidence": 0.5,
                     },
@@ -579,12 +578,12 @@ class ImageChatTurnModel(BaseModel):
     turn_id: str
     type: str  # 'user' | 'assistant'
     timestamp: str
-    prompt: Optional[str] = None
-    aspect_ratio: Optional[str] = None
-    style_type: Optional[str] = None
-    reference_image_url: Optional[str] = None
-    image: Optional[Dict[str, Any]] = None  # ExpertGeneratedImage
-    error: Optional[str] = None
+    prompt: str | None = None
+    aspect_ratio: str | None = None
+    style_type: str | None = None
+    reference_image_url: str | None = None
+    image: Dict[str, Any] | None = None  # ExpertGeneratedImage
+    error: str | None = None
 
 
 class ImageChatHistoryRequest(BaseModel):
@@ -598,16 +597,16 @@ class RegenerateImageWithContextRequest(BaseModel):
 
     expert_name: str
     prompt: str
-    aspect_ratio: Optional[str] = "16:9"
-    style_type: Optional[str] = None
-    reference_image: Optional[str] = None
-    context: Optional[str] = None  # 多轮对话上下文
+    aspect_ratio: str | None = "16:9"
+    style_type: str | None = None
+    reference_image: str | None = None
+    context: str | None = None  # 多轮对话上下文
     #  v7.61: Vision 分析参数
-    use_vision_analysis: Optional[bool] = True
-    vision_focus: Optional[str] = "comprehensive"
+    use_vision_analysis: bool | None = True
+    vision_focus: str | None = "comprehensive"
     #  v7.62: Inpainting 图像编辑参数
-    mask_image: Optional[str] = None  # Mask 图像 Base64（黑色=保留，透明=编辑）
-    edit_mode: Optional[bool] = False  # 是否为编辑模式（有mask时自动为True）
+    mask_image: str | None = None  # Mask 图像 Base64（黑色=保留，透明=编辑）
+    edit_mode: bool | None = False  # 是否为编辑模式（有mask时自动为True）
 
 
 @router.get("/api/analysis/image-chat-history/{session_id}/{expert_name}")
@@ -684,7 +683,7 @@ async def save_image_chat_history(session_id: str, expert_name: str, request: Im
 
         await _server.session_manager.update(session_id, session)
 
-        logger.info(f" 图像对话历史已保存")
+        logger.info(" 图像对话历史已保存")
 
         return {"success": True}
 
@@ -806,7 +805,7 @@ async def regenerate_image_with_context(session_id: str, request: RegenerateImag
             try:
                 from intelligent_project_analyzer.services.vision_service import get_vision_service
 
-                logger.info(f" [v7.61] 开始 Vision 分析参考图...")
+                logger.info(" [v7.61] 开始 Vision 分析参考图...")
                 vision_service = get_vision_service()
 
                 vision_result = await vision_service.analyze_design_image(
@@ -837,7 +836,9 @@ async def regenerate_image_with_context(session_id: str, request: RegenerateImag
             logger.info(" [v7.62 Dual-Mode] 检测到 Mask，路由到编辑模式")
 
             try:
-                from intelligent_project_analyzer.services.inpainting_service import get_inpainting_service
+                from intelligent_project_analyzer.services.inpainting_service import (
+                    get_inpainting_service,
+                )
 
                 # 获取 Inpainting 服务（需要 OPENAI_API_KEY）
                 openai_key = os.getenv("OPENAI_API_KEY")

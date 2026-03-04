@@ -9,7 +9,10 @@ from .calibration_questionnaire import CalibrationQuestionnaireNode
 # from .analysis_review import AnalysisReviewNode  # ️ v2.2: 已废弃，被role_selection_quality_review替代
 from .final_review import FinalReviewNode
 from .quality_preflight import QualityPreflightNode  # 
-from .role_selection_quality_review import RoleSelectionQualityReviewNode, role_selection_quality_review_node  #  v2.2
+from .role_selection_quality_review import (  #  v2.2
+    RoleSelectionQualityReviewNode,
+    role_selection_quality_review_node,
+)
 from .user_question import UserQuestionNode
 
 __all__ = [

@@ -10,9 +10,10 @@
 
 import hashlib
 import json
-from pathlib import Path
-from typing import Dict, List, Optional, Set
 from datetime import datetime, timedelta
+from pathlib import Path
+from typing import Dict, List, Set
+
 from loguru import logger
 
 # checkpoint 文件路径（项目根目录/data/crawl_checkpoints.json）
@@ -22,25 +23,24 @@ _SITE_TOTALS_FILE = Path(__file__).parents[4] / "data" / "category_site_totals.j
 # 结构化爬取错误日志（前端可通过 API 查询，自动排查问题）
 _CRAWL_ERRORS_FILE = Path(__file__).parents[4] / "data" / "crawler_errors.jsonl"
 
-from .base_spider import BaseSpider, ProjectData
-from ..models.external_projects import (
-    ExternalProject,
-    ExternalProjectImage,
-    SyncHistory,
-    QualityIssue,
-    ProjectDiscovery,
-    get_external_db,
-    ExternalProjectDatabase,
-)
-
 # PostgreSQL upsert 支持
 from sqlalchemy.dialects.postgresql import insert as pg_insert
+
+from ..models.external_projects import (
+    ExternalProject,
+    ExternalProjectDatabase,
+    ProjectDiscovery,
+    QualityIssue,
+    SyncHistory,
+    get_external_db,
+)
+from .base_spider import BaseSpider, ProjectData
 
 
 class SpiderManager:
     """爬虫管理器"""
 
-    def __init__(self, db: Optional[ExternalProjectDatabase] = None):
+    def __init__(self, db: ExternalProjectDatabase | None = None):
         """
         初始化管理器
 
@@ -52,7 +52,7 @@ class SpiderManager:
 
         logger.info("✅ SpiderManager已初始化")
 
-    def get_known_urls(self, source: str, category: Optional[str] = None) -> set:
+    def get_known_urls(self, source: str, category: str | None = None) -> set:
         """
         获取数据库中已知的URL集合（用于增量去重）
 
@@ -70,7 +70,7 @@ class SpiderManager:
             rows = query.all()
             return {row.url for row in rows}
 
-    def get_latest_publish_date(self, source: str) -> Optional[datetime]:
+    def get_latest_publish_date(self, source: str) -> datetime | None:
         """
         获取该数据源最新的发布日期（用于增量判断截止点）
 
@@ -154,7 +154,7 @@ class SpiderManager:
         self.spiders[source] = spider
         logger.info(f"✅ 已注册爬虫: {source}")
 
-    def get_spider(self, source: str) -> Optional[BaseSpider]:
+    def get_spider(self, source: str) -> BaseSpider | None:
         """
         获取爬虫实例
 
@@ -174,9 +174,9 @@ class SpiderManager:
     def sync_source(
         self,
         source: str,
-        category: Optional[str] = None,
+        category: str | None = None,
         max_pages: int = 500,
-        max_items: Optional[int] = None,
+        max_items: int | None = None,
         stop_check=None,  # callable() -> bool，返回 True 时中止爬取
     ) -> bool:
         """
@@ -684,7 +684,7 @@ class SpiderManager:
         except Exception as e:
             logger.error(f"写入告警文件失败: {e}")
 
-    def get_sync_history(self, source: Optional[str] = None, limit: int = 10) -> List[Dict]:
+    def get_sync_history(self, source: str | None = None, limit: int = 10) -> List[Dict]:
         """
         获取同步历史
 

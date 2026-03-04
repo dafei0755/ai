@@ -14,10 +14,10 @@ def get_spider_manager():
     if _spider_manager_instance is not None:
         return _spider_manager_instance
 
-    from .spider_manager import SpiderManager
     from .archdaily_cn_spider import ArchdailyCNSpider
-    from .gooood_spider import GoooodSpider
     from .dezeen_spider import DezeenSpider
+    from .gooood_spider import GoooodSpider
+    from .spider_manager import SpiderManager
 
     manager = SpiderManager()
     manager.register_spider(ArchdailyCNSpider())

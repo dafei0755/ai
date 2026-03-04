@@ -23,7 +23,7 @@ v3.0: 两阶段架构重构
 """
 
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from loguru import logger
 
@@ -41,7 +41,7 @@ class RequirementsRestructuringEngine:
         analysis_layers: "Dict[str, Any]",
         user_input: str,
         use_llm: bool = True,
-        weight_interpretations: "Optional[Dict[str, Any]]" = None,
+        weight_interpretations: "Dict[str, Any] | None" = None,
     ) -> "Dict[str, Any]":
         """
         主重构流程 - v3.0 两阶段架构
@@ -99,7 +99,7 @@ class RequirementsRestructuringEngine:
     ) -> "Dict[str, Any]":
         """Phase A: 收集整理原始数据为结构化 context"""
 
-        context: "Dict[str, Any]" = {"user_input": user_input or ""}
+        context: Dict[str, Any] = {"user_input": user_input or ""}
 
         # Step 1: 核心任务
         tasks = questionnaire_data.get("core_tasks", [])
@@ -508,7 +508,7 @@ class RequirementsRestructuringEngine:
         ai_analysis: "Dict[str, Any]",
         analysis_layers: "Dict[str, Any]",
         user_input: str,
-        weight_interpretations: "Optional[Dict[str, Any]]" = None,
+        weight_interpretations: "Dict[str, Any] | None" = None,
     ) -> "Dict[str, Any]":
         """Fallback: 规则降级方案（复用现有 Step 1-8 逻辑，不使用LLM）"""
         logger.info("🔄 [Fallback] 执行规则降级重构")
@@ -612,7 +612,7 @@ class RequirementsRestructuringEngine:
         gap_filling: Dict[str, Any],
         dimensions: Dict[str, Any],
         priorities: List[Dict],
-        weight_interpretations: Optional[Dict[str, Any]] = None,
+        weight_interpretations: Dict[str, Any] | None = None,
     ) -> List[Dict[str, Any]]:
         """
         纯规则的任务校正生成（无 LLM 调用）
@@ -1655,7 +1655,7 @@ class RequirementsRestructuringEngine:
                 conflicts = result.get("key_conflicts", [])
 
                 if essence and len(essence) > 20:
-                    logger.info(f" [v7.152] LLM深度分析成功")
+                    logger.info(" [v7.152] LLM深度分析成功")
                     logger.info(f"   - 项目本质: {essence[:60]}...")
                     logger.info(f"   - 隐性需求: {len(implicit_reqs)}项")
                     logger.info(f"   - 关键冲突: {len(conflicts)}项")

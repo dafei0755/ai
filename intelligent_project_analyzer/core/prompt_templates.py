@@ -14,8 +14,7 @@
 - 每个项目节省 1-2 秒
 """
 
-from functools import lru_cache
-from typing import Any, Dict, List
+from typing import Any, Dict
 
 from loguru import logger
 

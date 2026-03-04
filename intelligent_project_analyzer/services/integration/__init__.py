@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 services/integration — 外部集成与核心业务子包
 

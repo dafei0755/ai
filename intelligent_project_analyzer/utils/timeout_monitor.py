@@ -6,7 +6,7 @@
 
 import functools
 import time
-from typing import Any, Callable, Optional
+from typing import Any, Callable
 
 from loguru import logger
 

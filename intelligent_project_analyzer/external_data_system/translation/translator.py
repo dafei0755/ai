@@ -17,13 +17,14 @@
 ────────────────────────────────────────────────────────
 """
 
-import os
-import json
 import hashlib
-from typing import Dict, List, Optional
+import json
+import os
+from typing import Dict, List
+
 import requests
-from loguru import logger
 from dotenv import load_dotenv
+from loguru import logger
 
 from ..spiders.base_spider import ProjectData
 

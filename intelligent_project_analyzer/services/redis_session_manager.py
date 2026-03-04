@@ -8,7 +8,7 @@ Redis 会话管理器
 import asyncio
 import json
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 import redis.asyncio as aioredis
 from langgraph.types import Interrupt
@@ -87,7 +87,7 @@ class RedisSessionManager:
     SESSION_TTL = 604800  #  v3.6优化: 会话过期时间从1小时延长到7天（604800秒）
     LOCK_TIMEOUT = 60  #  Fix 1.2: 锁超时时间从30秒增加到60秒
 
-    def __init__(self, redis_url: Optional[str] = None, fallback_to_memory: bool = True):
+    def __init__(self, redis_url: str | None = None, fallback_to_memory: bool = True):
         """
         初始化 Redis 会话管理器
 
@@ -97,7 +97,7 @@ class RedisSessionManager:
         """
         self.redis_url = redis_url or settings.redis_url
         self.fallback_to_memory = fallback_to_memory
-        self.redis_client: Optional[Redis] = None
+        self.redis_client: Redis | None = None
         self.is_connected = False
 
         # 内存回退存储（仅用于开发环境）
@@ -105,8 +105,8 @@ class RedisSessionManager:
         self._memory_mode = False
 
         #  v7.105: 添加会话列表缓存（10分钟TTL）
-        self._sessions_cache: Optional[List[Dict[str, Any]]] = None
-        self._cache_timestamp: Optional[datetime] = None
+        self._sessions_cache: List[Dict[str, Any]] | None = None
+        self._cache_timestamp: datetime | None = None
         self._cache_ttl = 600  #  v7.118: 从5分钟增加到10分钟，减少Redis查询频率
 
         #  性能优化: 状态查询缓存配置
@@ -204,7 +204,7 @@ class RedisSessionManager:
             logger.error(f" 创建会话失败: {session_id}, 错误: {e}")
             return False
 
-    async def get(self, session_id: str) -> Optional[Dict[str, Any]]:
+    async def get(self, session_id: str) -> Dict[str, Any] | None:
         """
         获取会话数据
 
@@ -301,7 +301,7 @@ class RedisSessionManager:
                         logger.warning(f"️ 更新会话时锁已过期 (尝试 {attempt + 1}/{max_retries}): {session_id}")
                         # Data was likely written before lock expired
                         if attempt == 0:  # Only log info once
-                            logger.info(f"ℹ️ 会话更新可能已完成，尽管锁释放失败")
+                            logger.info("ℹ️ 会话更新可能已完成，尽管锁释放失败")
                         return True  # Treat as success since data was written
                     else:
                         # Lock acquisition failed - will retry
@@ -338,7 +338,7 @@ class RedisSessionManager:
         except Exception as e:
             logger.warning(f"️ 清除状态缓存失败: {session_id}, 错误: {e}")
 
-    async def get_status_with_cache(self, session_id: str, include_history: bool = False) -> Optional[Dict[str, Any]]:
+    async def get_status_with_cache(self, session_id: str, include_history: bool = False) -> Dict[str, Any] | None:
         """
         带缓存的状态查询
 
@@ -535,7 +535,7 @@ class RedisSessionManager:
             logger.error(f" 检查会话存在性失败: {session_id}, 错误: {e}")
             return False
 
-    async def extend_ttl(self, session_id: str, ttl: Optional[int] = None) -> bool:
+    async def extend_ttl(self, session_id: str, ttl: int | None = None) -> bool:
         """
         延长会话过期时间（用于活跃会话续期）
 
@@ -670,7 +670,7 @@ class RedisSessionManager:
                         # 获取本批次数据
                         chunk_values = await self.redis_client.mget(chunk_keys)
 
-                        for key, value in zip(chunk_keys, chunk_values):
+                        for key, value in zip(chunk_keys, chunk_values, strict=False):
                             if not value:
                                 continue
 
@@ -875,7 +875,7 @@ class RedisSessionManager:
 
 
 # 全局单例实例
-_session_manager: Optional[RedisSessionManager] = None
+_session_manager: RedisSessionManager | None = None
 
 
 async def get_session_manager() -> RedisSessionManager:

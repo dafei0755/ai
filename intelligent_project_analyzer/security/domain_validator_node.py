@@ -2,10 +2,11 @@
 领域验证节点 - 深度领域一致性检查
 """
 
-from typing import Dict, Any, Optional, Union
-from loguru import logger
-from langgraph.types import interrupt, Command
+from typing import Any, Dict, Union
+
 from langgraph.store.base import BaseStore
+from langgraph.types import Command, interrupt
+from loguru import logger
 
 from intelligent_project_analyzer.core.state import ProjectAnalysisState
 from intelligent_project_analyzer.security.domain_classifier import DomainClassifier
@@ -18,7 +19,7 @@ class DomainValidatorNode:
     @staticmethod
     def execute(
         state: ProjectAnalysisState,
-        store: Optional[BaseStore] = None,
+        store: BaseStore | None = None,
         llm_model = None
     ) -> Union[Dict[str, Any], Command]:
         """

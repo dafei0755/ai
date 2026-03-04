@@ -10,9 +10,10 @@
 """
 
 import re
-from typing import Dict, List, Tuple, Optional, Any
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
+from typing import Any, Dict, List
+
 from loguru import logger
 
 
@@ -30,7 +31,7 @@ class DeliverableCheck:
     detected_keywords: List[str]    # 检测到的关键词
     capability_level: CapabilityLevel  # 能力级别
     within_capability: bool         # 是否在能力范围内
-    transformed_type: Optional[str] = None  # 转化后的类型（如需要）
+    transformed_type: str | None = None  # 转化后的类型（如需要）
     transformation_reason: str = "" # 转化原因
     confidence: float = 1.0         # 检测置信度
 
@@ -264,7 +265,7 @@ class CapabilityDetector:
         return results
     
     @classmethod
-    def _get_transform_key(cls, category: str, keywords: List[str]) -> Optional[str]:
+    def _get_transform_key(cls, category: str, keywords: List[str]) -> str | None:
         """根据检测类别和关键词确定转化键"""
         keyword_mapping = {
             "drawing": {

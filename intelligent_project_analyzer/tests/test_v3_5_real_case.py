@@ -9,9 +9,9 @@ Real-World Case Test for v3.5 Expert Collaboration Interface
 4. 测试反馈循环触发
 """
 
-import sys
-import os
 import json
+import os
+import sys
 
 # 添加项目根目录
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))

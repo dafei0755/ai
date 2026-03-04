@@ -13,10 +13,11 @@
 创建日期: 2026-02-10
 """
 
-import re
 import json
-from typing import List, Dict, Any, Optional
-from dataclasses import dataclass, asdict
+import re
+from dataclasses import asdict, dataclass
+from typing import Any, Dict, List
+
 from loguru import logger
 
 # 暂时注释LLM调用，先实现框架
@@ -174,7 +175,7 @@ class DimensionExtractor:
 
         return candidates
 
-    def _extract_dimension_name_from_question(self, question: str) -> Optional[str]:
+    def _extract_dimension_name_from_question(self, question: str) -> str | None:
         """从问题中提取维度名称（简单启发式）"""
         # 移除"如何"、"怎样"等词
         cleaned = re.sub(r"(如何|怎样|怎么|是否|能否|会不会)", "", question)

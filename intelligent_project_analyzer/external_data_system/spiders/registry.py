@@ -16,7 +16,7 @@
 from __future__ import annotations
 
 import threading
-from typing import Any, Dict, List, Optional, Type, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Dict, List, Type
 
 if TYPE_CHECKING:
     from .base_spider import BaseSpider
@@ -28,11 +28,11 @@ class SpiderRegistry:
     存储 source_name → spider_class 的映射，提供统一的创建与查询入口。
     """
 
-    _instance: Optional["SpiderRegistry"] = None
+    _instance: SpiderRegistry | None = None
     _lock = threading.Lock()
 
     @classmethod
-    def get_instance(cls) -> "SpiderRegistry":
+    def get_instance(cls) -> SpiderRegistry:
         if cls._instance is None:
             with cls._lock:
                 if cls._instance is None:
@@ -40,11 +40,11 @@ class SpiderRegistry:
         return cls._instance
 
     def __init__(self) -> None:
-        self._registry: Dict[str, Type["BaseSpider"]] = {}
+        self._registry: Dict[str, Type[BaseSpider]] = {}
 
     # ── 注册 ─────────────────────────────────────────────────────────────────
 
-    def register(self, source_name: str, spider_class: Type["BaseSpider"]) -> None:
+    def register(self, source_name: str, spider_class: Type[BaseSpider]) -> None:
         """注册爬虫类。同名重复注册以最后一次为准（便于热重载）。"""
         self._registry[source_name] = spider_class
         from loguru import logger
@@ -53,11 +53,11 @@ class SpiderRegistry:
 
     # ── 查询 ─────────────────────────────────────────────────────────────────
 
-    def get_spider_class(self, source_name: str) -> Optional[Type["BaseSpider"]]:
+    def get_spider_class(self, source_name: str) -> Type[BaseSpider] | None:
         """返回爬虫类（不创建实例）。"""
         return self._registry.get(source_name)
 
-    def create_spider(self, source_name: str) -> Optional["BaseSpider"]:
+    def create_spider(self, source_name: str) -> BaseSpider | None:
         """按名称创建爬虫实例（无参数构造）。"""
         cls = self.get_spider_class(source_name)
         if cls is None:
@@ -131,7 +131,7 @@ def register_spider(source_name: str):
             ...
     """
 
-    def decorator(cls: Type["BaseSpider"]) -> Type["BaseSpider"]:
+    def decorator(cls: Type[BaseSpider]) -> Type[BaseSpider]:
         SpiderRegistry.get_instance().register(source_name, cls)
         return cls
 

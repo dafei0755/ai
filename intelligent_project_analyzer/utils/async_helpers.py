@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 异步辅助工具库 v7.501
 智能等待条件满足，替代固定sleep()延迟
@@ -8,9 +7,9 @@
 """
 
 import asyncio
-import time
-from typing import Callable, Optional
 import logging
+import time
+from typing import Callable
 
 logger = logging.getLogger(__name__)
 
@@ -120,7 +119,7 @@ def wait_for_condition_sync(
 
 async def wait_with_progress(
     condition_fn: Callable[[], bool],
-    progress_callback: Optional[Callable[[float], None]] = None,
+    progress_callback: Callable[[float], None] | None = None,
     timeout: float = 5.0,
     poll_interval: float = 0.1,
     error_message: str = "等待超时",

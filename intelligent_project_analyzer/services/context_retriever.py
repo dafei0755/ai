@@ -7,10 +7,10 @@
 3. 章节结构化提取
 """
 
+import re
 from typing import TYPE_CHECKING, Any, Dict, List
 
 from loguru import logger
-import re
 
 if TYPE_CHECKING:
     from intelligent_project_analyzer.agents.conversation_agent import ConversationContext

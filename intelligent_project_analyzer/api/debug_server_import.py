@@ -1,5 +1,4 @@
 import sys
-import os
 from pathlib import Path
 
 # Mimic server.py path setup

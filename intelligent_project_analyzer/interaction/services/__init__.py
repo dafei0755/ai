@@ -4,7 +4,7 @@
 提供复用的业务逻辑服务
 """
 
-from .strategy_generator import StrategyGenerator, ExpertConfig
+from .strategy_generator import ExpertConfig, StrategyGenerator
 
 __all__ = [
     "StrategyGenerator",

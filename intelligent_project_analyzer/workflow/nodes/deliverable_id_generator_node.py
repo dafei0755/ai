@@ -64,7 +64,7 @@ def deliverable_id_generator_node(state: Dict[str, Any]) -> Dict[str, Any]:
     profile_label = questionnaire_summary.get("profile_label", "") if questionnaire_summary else ""
     radar_values = questionnaire_summary.get("answers", {}).get("radar_values", {}) if questionnaire_summary else {}
 
-    logger.info(f" [v7.121] 问卷数据读取:")
+    logger.info(" [v7.121] 问卷数据读取:")
     logger.info(f"  核心任务数: {len(confirmed_core_tasks)}")
     logger.info(f"  Gap回答数: {len(gap_answers)}")
     logger.info(f"  风格标签: {profile_label}")
@@ -441,7 +441,7 @@ def _extract_keywords_from_questionnaire(
         top_dimensions = [dim for dim, _ in sorted_dims]
         keywords["priority_dimensions"] = top_dimensions
 
-    logger.info(f" [v7.121] 从问卷提取的关键词:")
+    logger.info(" [v7.121] 从问卷提取的关键词:")
     logger.info(f"  材料: {keywords['material_keywords'][:5]}")
     logger.info(f"  功能: {keywords['functional_keywords'][:5]}")
     logger.info(f"  预算: {keywords['budget_keywords']}")
@@ -483,7 +483,7 @@ def _generate_role_specific_deliverables(
         try:
             physical_context = json.loads(physical_context)
         except (json.JSONDecodeError, TypeError):
-            logger.warning(f"️ physical_context 是字符串且无法解析为 JSON，使用默认空字典")
+            logger.warning("️ physical_context 是字符串且无法解析为 JSON，使用默认空字典")
             physical_context = {}
 
     # 安全提取 design_challenge
@@ -492,7 +492,7 @@ def _generate_role_specific_deliverables(
         try:
             design_challenge = json.loads(design_challenge)
         except (json.JSONDecodeError, TypeError):
-            logger.warning(f"️ design_challenge 是字符串且无法解析为 JSON，使用默认空字典")
+            logger.warning("️ design_challenge 是字符串且无法解析为 JSON，使用默认空字典")
             design_challenge = {}
 
     # 提取项目特征

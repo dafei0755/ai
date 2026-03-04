@@ -1,7 +1,9 @@
-import yaml
 from pathlib import Path
-from typing import Dict, Any, Optional, List
+from typing import Any, Dict, List
+
+import yaml
 from loguru import logger
+
 
 class OntologyLoader:
     """
@@ -32,7 +34,7 @@ class OntologyLoader:
         """加载完整的本体论配置文件"""
         if not self.ontology_path.exists():
             raise FileNotFoundError(f"Ontology file not found: {self.ontology_path}")
-        with open(self.ontology_path, 'r', encoding='utf-8') as f:
+        with open(self.ontology_path, encoding='utf-8') as f:
             return yaml.safe_load(f) or {}
 
     def get_ontology_by_type(self, project_type: str) -> Dict[str, Any]:
@@ -54,7 +56,7 @@ class OntologyLoader:
     def get_layered_ontology(
         self, 
         project_type: str, 
-        expert_role: Optional[str] = None,
+        expert_role: str | None = None,
         include_base: bool = True
     ) -> Dict[str, Any]:
         """
@@ -89,7 +91,7 @@ class OntologyLoader:
             if base_framework:
                 self._merge_framework(merged_ontology, base_framework)
                 layers_applied.append("meta_framework")
-                logger.debug(f" 注入基础层: meta_framework")
+                logger.debug(" 注入基础层: meta_framework")
         
         # 第2层：项目类型层
         if project_type and project_type != 'meta_framework':

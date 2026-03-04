@@ -7,7 +7,7 @@ PostgreSQL + pgvector 支持向量搜索
 import os
 from contextlib import contextmanager
 from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 from loguru import logger
 from sqlalchemy import (
@@ -24,11 +24,10 @@ from sqlalchemy import (
     create_engine,
     text,
 )
-from sqlalchemy.orm import declarative_base
-from sqlalchemy.orm import Session, relationship, sessionmaker
 
 # PostgreSQL JSONB（支持 GIN 索引）
 from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.orm import Session, declarative_base, relationship, sessionmaker
 
 JSONType = JSONB
 
@@ -301,7 +300,7 @@ class ProjectDiscovery(Base):
 class ExternalProjectDatabase:
     """外部项目数据库管理器"""
 
-    def __init__(self, database_url: Optional[str] = None):
+    def __init__(self, database_url: str | None = None):
         """
         初始化数据库连接
 
@@ -382,7 +381,7 @@ class ExternalProjectDatabase:
 
 
 # 全局数据库实例
-_db_instance: Optional[ExternalProjectDatabase] = None
+_db_instance: ExternalProjectDatabase | None = None
 
 
 def get_external_db() -> ExternalProjectDatabase:

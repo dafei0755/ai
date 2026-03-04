@@ -7,16 +7,15 @@
 
 import json
 import time
-from typing import Any, Dict, List, Literal, Optional
+from typing import Any, Dict, List, Literal
 
-from langchain_core.messages import AIMessage, HumanMessage
 from langchain_core.runnables import RunnableConfig
 from langgraph.store.base import BaseStore
 from langgraph.types import Command, Send
 from loguru import logger
 
 from ..core.state import AgentType, ProjectAnalysisState
-from ..core.types import AnalysisResult, TaskAssignment, format_role_display_name
+from ..core.types import TaskAssignment, format_role_display_name
 from ..services.capability_boundary_service import CapabilityBoundaryService
 from .base import LLMAgent
 
@@ -278,7 +277,7 @@ class ProjectDirectorAgent(LLMAgent):
     - enable_role_config: 是否启用角色配置系统 (默认: True)
     """
 
-    def __init__(self, llm_model, config: Optional[Dict[str, Any]] = None):
+    def __init__(self, llm_model, config: Dict[str, Any] | None = None):
         super().__init__(
             agent_type=AgentType.PROJECT_DIRECTOR,
             name="项目总监",
@@ -520,7 +519,7 @@ class ProjectDirectorAgent(LLMAgent):
         return "\n".join(context_parts)
 
     def execute(
-        self, state: ProjectAnalysisState, config: RunnableConfig, store: Optional[BaseStore] = None
+        self, state: ProjectAnalysisState, config: RunnableConfig, store: BaseStore | None = None
     ) -> Command[Literal["v2_agent", "v3_agent", "v4_agent", "v5_agent", "v6_agent", "result_aggregator"]]:
         """
         执行战略分析和任务分派（仅 Dynamic Mode）
@@ -542,7 +541,7 @@ class ProjectDirectorAgent(LLMAgent):
             raise error
 
     def _execute_dynamic_mode(
-        self, state: ProjectAnalysisState, config: RunnableConfig, store: Optional[BaseStore], start_time: float
+        self, state: ProjectAnalysisState, config: RunnableConfig, store: BaseStore | None, start_time: float
     ) -> Command:
         """
         动态模式执行 - 使用角色配置系统动态选择角色
@@ -657,7 +656,7 @@ class ProjectDirectorAgent(LLMAgent):
                 if validation_report["status"] == "passed":
                     # 验证通过，直接退出循环
                     validation_passed = True
-                    logger.info(f" [v7.140] 任务分配验证通过！")
+                    logger.info(" [v7.140] 任务分配验证通过！")
                     break
 
                 elif validation_report["status"] == "failed" and attempt < max_validation_retries - 1:
@@ -677,9 +676,9 @@ class ProjectDirectorAgent(LLMAgent):
                     # 达到最大重试或状态为 warning
                     if validation_report["status"] == "warning":
                         validation_passed = True  # warning 状态也算通过，但有警告
-                        logger.warning(f"️  [v7.140] 任务分配存在警告，但可继续执行")
+                        logger.warning("️  [v7.140] 任务分配存在警告，但可继续执行")
                     else:
-                        logger.warning(f"️  [v7.140] 任务分配验证未完全通过，已达最大重试次数")
+                        logger.warning("️  [v7.140] 任务分配验证未完全通过，已达最大重试次数")
                     break
 
             except Exception as e:
@@ -705,13 +704,13 @@ class ProjectDirectorAgent(LLMAgent):
                 },
             )
 
-            logger.info(f" 交付物能力边界检查结果:")
+            logger.info(" 交付物能力边界检查结果:")
             logger.info(f"   在能力范围内: {boundary_check.within_capability}")
             logger.info(f"   能力匹配度: {boundary_check.capability_score:.2f}")
 
             # 如果有超出能力的交付物，标记限制说明
             if not boundary_check.within_capability:
-                logger.warning(f"️ 部分交付物超出能力范围，已标记限制说明")
+                logger.warning("️ 部分交付物超出能力范围，已标记限制说明")
 
                 for i, deliv in enumerate(primary_deliverables):
                     deliv_type = deliv.get("type", "")
@@ -910,9 +909,9 @@ class ProjectDirectorAgent(LLMAgent):
         if final_validation_report:
             logger.info(f" [v7.140] 验证报告: {final_validation_report['summary']}")
             if validation_passed:
-                logger.info(f" [v7.140] 任务分配已通过验证")
+                logger.info(" [v7.140] 任务分配已通过验证")
             else:
-                logger.warning(f"️  [v7.140] 任务分配存在警告，详情见 state.validation_report")
+                logger.warning("️  [v7.140] 任务分配存在警告，详情见 state.validation_report")
 
         # 返回Command对象
         return Command(update=state_update, goto=parallel_commands)

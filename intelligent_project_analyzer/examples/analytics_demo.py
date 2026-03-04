@@ -17,10 +17,9 @@ from pathlib import Path
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
-from intelligent_project_analyzer.services.role_selection_analytics import RoleSelectionAnalytics
-from datetime import datetime, timedelta
-import random
 import time
+
+from intelligent_project_analyzer.services.role_selection_analytics import RoleSelectionAnalytics
 
 
 def demo_basic_recording():
@@ -112,22 +111,22 @@ def demo_statistics():
     # 生成今日统计
     summary = analytics.generate_summary(period="daily")
     
-    print(f"\n 今日统计摘要:")
+    print("\n 今日统计摘要:")
     print(f"   总选择次数: {summary.total_selections}")
     print(f"   成功率: {summary.success_rate:.1%}")
     print(f"   平均置信度: {summary.avg_confidence:.2%}")
     print(f"   平均响应时间: {summary.avg_execution_time_ms:.1f}ms")
     
-    print(f"\n 协同模式分布:")
+    print("\n 协同模式分布:")
     for mode, count in summary.mode_distribution.items():
         percentage = (count / summary.total_selections * 100) if summary.total_selections > 0 else 0
         print(f"   {mode}: {count}次 ({percentage:.1f}%)")
     
-    print(f"\n⭐ 热门角色 Top 5:")
+    print("\n⭐ 热门角色 Top 5:")
     for i, (role_id, count) in enumerate(summary.top_roles[:5], 1):
         print(f"   {i}. {role_id}: {count}次")
     
-    print(f"\n 高频Keywords Top 10:")
+    print("\n 高频Keywords Top 10:")
     for i, (keyword, count) in enumerate(summary.top_keywords[:10], 1):
         print(f"   {i}. {keyword}: {count}次")
     
@@ -149,13 +148,13 @@ def demo_report_generation():
     report_path = analytics.export_report(summary, format="markdown")
     
     print(f"\n 报告已生成: {report_path}")
-    print(f"   格式: Markdown")
+    print("   格式: Markdown")
     print(f"   大小: {report_path.stat().st_size} bytes")
     
     # 显示报告预览
-    print(f"\n 报告预览 (前500字符):")
+    print("\n 报告预览 (前500字符):")
     print("-" * 80)
-    with open(report_path, 'r', encoding='utf-8') as f:
+    with open(report_path, encoding='utf-8') as f:
         preview = f.read(500)
         print(preview)
         if len(preview) >= 500:

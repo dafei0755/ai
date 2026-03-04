@@ -4,7 +4,7 @@
 包含所有智能体的实现：需求分析师、项目总监、专业分析智能体等
 """
 
-from .base import BaseAgent, LLMAgent, ToolAgent, HybridAgent, AgentFactory
+from .base import AgentFactory, BaseAgent, HybridAgent, LLMAgent, ToolAgent
 
 __all__ = [
     "BaseAgent",

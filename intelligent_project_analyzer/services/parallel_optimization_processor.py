@@ -11,7 +11,7 @@ import logging
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Callable, Dict, List, Optional
+from typing import Callable, Dict, List
 
 from ..core.config import get_config
 from ..core.llm_service import LLMService
@@ -99,7 +99,7 @@ class ParallelOptimizationProcessor:
                 logger.error(f"进度回调失败: {e}")
 
     async def optimize_hypothesis(
-        self, hypothesis: ImmediateHypothesis, user_context: Dict, optimization_preferences: Optional[Dict] = None
+        self, hypothesis: ImmediateHypothesis, user_context: Dict, optimization_preferences: Dict | None = None
     ) -> Dict:
         """
         并行优化假设 - 5-30秒处理目标

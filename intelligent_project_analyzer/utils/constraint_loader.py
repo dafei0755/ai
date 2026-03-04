@@ -5,8 +5,9 @@ Deliverable Constraints Loader
 提供统一的接口加载和验证交付物类型与角色约束规则
 """
 
-from typing import Dict, List, Optional, Tuple
 from pathlib import Path
+from typing import Dict, List, Tuple
+
 import yaml
 from loguru import logger
 
@@ -14,7 +15,7 @@ from loguru import logger
 class ConstraintLoader:
     """交付物约束加载器"""
 
-    def __init__(self, config_path: Optional[str] = None):
+    def __init__(self, config_path: str | None = None):
         """
         初始化约束加载器
 
@@ -37,7 +38,7 @@ class ConstraintLoader:
     def _load_config(self):
         """加载配置文件"""
         try:
-            with open(self.config_path, 'r', encoding='utf-8') as f:
+            with open(self.config_path, encoding='utf-8') as f:
                 config = yaml.safe_load(f)
 
             self._constraints = config.get('constraints', {})
@@ -152,7 +153,7 @@ class ConstraintLoader:
                 warning_msg = f"️ 当前激活了 {len(selected_roles)} 个角色，少于最小建议数量 {min_roles}，可能不足"
                 logger.warning(f"[约束验证] {warning_msg}")
 
-        logger.info(f"[约束验证]  所有约束验证通过")
+        logger.info("[约束验证]  所有约束验证通过")
         return True, ""
 
     def validate_anti_pattern(
@@ -208,7 +209,7 @@ class ConstraintLoader:
                     logger.error(f"[anti_pattern验证] {error_msg}")
                     return False, error_msg
 
-        logger.info(f"[anti_pattern验证]  所有anti_pattern验证通过")
+        logger.info("[anti_pattern验证]  所有anti_pattern验证通过")
         return True, ""
 
     def get_role_boundary(self, role_prefix: str) -> Dict:
@@ -249,7 +250,7 @@ class ConstraintLoader:
 _constraint_loader = None
 
 
-def get_constraint_loader(config_path: Optional[str] = None) -> ConstraintLoader:
+def get_constraint_loader(config_path: str | None = None) -> ConstraintLoader:
     """
     获取约束加载器单例
 

@@ -12,13 +12,14 @@ Version: v8.100.0
 Date: 2026-02-17
 """
 
-import yaml
 import json
 import math
-from pathlib import Path
-from typing import Dict, Any, List, Optional
-from loguru import logger
 from collections import defaultdict
+from pathlib import Path
+from typing import Any, Dict, List
+
+import yaml
+from loguru import logger
 
 
 class FewShotSelectorV2:
@@ -32,7 +33,7 @@ class FewShotSelectorV2:
     - 多样性去重
     """
 
-    def __init__(self, examples_dir: Optional[Path] = None):
+    def __init__(self, examples_dir: Path | None = None):
         """
         初始化示例选择器
 
@@ -57,7 +58,7 @@ class FewShotSelectorV2:
         """从 JSON 文件加载用户使用历史"""
         try:
             if self._history_path.exists():
-                with open(self._history_path, "r", encoding="utf-8") as f:
+                with open(self._history_path, encoding="utf-8") as f:
                     data = json.load(f)
                 # 转换为 defaultdict
                 history = defaultdict(lambda: defaultdict(int))
@@ -91,7 +92,7 @@ class FewShotSelectorV2:
             return
 
         try:
-            with open(registry_path, "r", encoding="utf-8") as f:
+            with open(registry_path, encoding="utf-8") as f:
                 self.registry = yaml.safe_load(f)
 
             example_count = len(self.registry.get("examples", []))
@@ -104,7 +105,7 @@ class FewShotSelectorV2:
     def match_examples_v2(
         self,
         project_input: Dict[str, Any],
-        user_id: Optional[str] = None,
+        user_id: str | None = None,
         top_k: int = 3,
         enable_diversity: bool = True,
     ) -> List[Dict[str, Any]]:
@@ -319,7 +320,7 @@ class FewShotSelectorV2:
         return dot_product / (norm1 * norm2)
 
     @staticmethod
-    def _calculate_scale_match(project_scale: Optional[str], example_scale: Optional[str]) -> float:
+    def _calculate_scale_match(project_scale: str | None, example_scale: str | None) -> float:
         """
         计算尺度匹配度
 
@@ -362,7 +363,7 @@ class FewShotSelectorV2:
         return intersection / union if union > 0 else 0.0
 
     @staticmethod
-    def _calculate_freshness_score(example_meta: Dict[str, Any], project_date: Optional[str] = None) -> float:
+    def _calculate_freshness_score(example_meta: Dict[str, Any], project_date: str | None = None) -> float:
         """
         计算时间新鲜度（仅Layer 2有效）
 
@@ -469,7 +470,7 @@ class FewShotSelectorV2:
 
         try:
             if file_name not in self.examples_cache:
-                with open(file_path, "r", encoding="utf-8") as f:
+                with open(file_path, encoding="utf-8") as f:
                     self.examples_cache[file_name] = yaml.safe_load(f)
 
             data = self.examples_cache[file_name]
@@ -638,7 +639,7 @@ def calculate_project_extended_features(structured_data: Dict[str, Any], user_in
 
 
 # [P0-S7] 全局单例
-_few_shot_selector_v2: Optional[FewShotSelectorV2] = None
+_few_shot_selector_v2: FewShotSelectorV2 | None = None
 
 
 def get_few_shot_selector_v2() -> FewShotSelectorV2:

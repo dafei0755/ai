@@ -14,17 +14,18 @@ Version: v8.100.0
 Date: 2026-02-17
 """
 
-import yaml
 import math
 from pathlib import Path
-from typing import Dict, Any, List, Optional, Tuple
+from typing import Any, Dict, List
+
+import yaml
 from loguru import logger
 
 
 class Layer2CandidateSelector:
     """Layer 2候选示例筛选器"""
 
-    def __init__(self, examples_dir: Optional[Path] = None, q_txt_path: Optional[Path] = None):
+    def __init__(self, examples_dir: Path | None = None, q_txt_path: Path | None = None):
         """
         初始化筛选器
 
@@ -55,7 +56,7 @@ class Layer2CandidateSelector:
             return []
 
         try:
-            with open(registry_path, "r", encoding="utf-8") as f:
+            with open(registry_path, encoding="utf-8") as f:
                 registry = yaml.safe_load(f)
 
             # 暂时假设所有示例都是Layer 1（未来需要在registry中标记layer）
@@ -79,7 +80,7 @@ class Layer2CandidateSelector:
             return []
 
         try:
-            with open(self.q_txt_path, "r", encoding="utf-8") as f:
+            with open(self.q_txt_path, encoding="utf-8") as f:
                 content = f.read()
 
             # 正则提取编号格式 "1. 项目描述"
@@ -319,7 +320,7 @@ class Layer2CandidateSelector:
         Returns:
             候选示例列表，按差异度排序
         """
-        logger.info(f"🔍 开始筛选Layer 2候选示例...")
+        logger.info("🔍 开始筛选Layer 2候选示例...")
 
         # 1. 解析q.txt
         all_projects = self.parse_q_txt()
@@ -360,7 +361,7 @@ class Layer2CandidateSelector:
 
         return layer2_candidates
 
-    def export_candidates_to_yaml(self, candidates: List[Dict[str, Any]], output_path: Optional[Path] = None):
+    def export_candidates_to_yaml(self, candidates: List[Dict[str, Any]], output_path: Path | None = None):
         """
         导出候选示例为YAML文件
 

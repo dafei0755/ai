@@ -27,7 +27,7 @@
 """
 
 import re
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Tuple
 
 from loguru import logger
 
@@ -366,7 +366,7 @@ class InsightMethodology:
     # 用户模型相关性计算
     # ============================================================================
     @classmethod
-    def calculate_human_relevance(cls, content: str, user_model: Optional[Dict[str, Any]] = None) -> float:
+    def calculate_human_relevance(cls, content: str, user_model: Dict[str, Any] | None = None) -> float:
         """
         计算内容与用户人性维度的相关性分数
 
@@ -503,7 +503,7 @@ class InsightMethodology:
         return cls.HUMAN_DIMENSIONS.get(dimension, [])
 
     @classmethod
-    def identify_dominant_dimension(cls, text: str) -> Optional[str]:
+    def identify_dominant_dimension(cls, text: str) -> str | None:
         """
         识别文本中最主导的人性维度
 
@@ -548,6 +548,6 @@ def extract_human_dimensions(text: str) -> Dict[str, List[str]]:
     return InsightMethodology.extract_human_dimensions(text)
 
 
-def calculate_human_relevance(content: str, user_model: Optional[Dict[str, Any]] = None) -> float:
+def calculate_human_relevance(content: str, user_model: Dict[str, Any] | None = None) -> float:
     """计算人性维度相关性（便捷函数）"""
     return InsightMethodology.calculate_human_relevance(content, user_model)

@@ -50,5 +50,6 @@ if sys.platform == "win32":
         pass
 
 from intelligent_project_analyzer.versioning import PRODUCT_VERSION as __version__
+
 __author__ = "AI Assistant"
 __description__ = "Intelligent Project Analysis System based on LangGraph"

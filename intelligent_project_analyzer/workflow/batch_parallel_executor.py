@@ -71,7 +71,7 @@ class BatchParallelExecutor:
         successful = 0
         failed = 0
 
-        for (role_id, _), result in zip(tasks, results):
+        for (role_id, _), result in zip(tasks, results, strict=False):
             if isinstance(result, Exception):
                 logger.error(f" [BatchParallel] {role_id} 执行失败: {result}")
                 agent_results[role_id] = {

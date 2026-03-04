@@ -19,7 +19,7 @@ import hashlib
 import json
 import time
 from dataclasses import dataclass
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 from loguru import logger
 
@@ -83,7 +83,7 @@ class SearchCache:
         enabled: bool = True,
         ttl: int = 3600,
         max_size: int = 1000,
-        redis_url: Optional[str] = None,
+        redis_url: str | None = None,
     ):
         """
         初始化搜索缓存
@@ -153,7 +153,7 @@ class SearchCache:
         hash_key = hashlib.sha256(key_str.encode()).hexdigest()[:16]
         return f"search:{tool}:{hash_key}"
 
-    def get(self, query: str, tool: str, **kwargs) -> Optional[Dict[str, Any]]:
+    def get(self, query: str, tool: str, **kwargs) -> Dict[str, Any] | None:
         """
         获取缓存结果
 
@@ -180,7 +180,7 @@ class SearchCache:
             self._stats.misses += 1
             return None
 
-    def _get_from_memory(self, key: str) -> Optional[Dict[str, Any]]:
+    def _get_from_memory(self, key: str) -> Dict[str, Any] | None:
         """从内存缓存获取"""
         entry = self._memory_cache.get(key)
 
@@ -202,7 +202,7 @@ class SearchCache:
 
         return entry.value
 
-    def _get_from_redis(self, key: str) -> Optional[Dict[str, Any]]:
+    def _get_from_redis(self, key: str) -> Dict[str, Any] | None:
         """从Redis缓存获取"""
         data = self._redis_client.get(key)
 
@@ -219,7 +219,7 @@ class SearchCache:
             self._stats.misses += 1
             return None
 
-    def set(self, query: str, tool: str, value: Dict[str, Any], ttl: Optional[int] = None, **kwargs) -> bool:
+    def set(self, query: str, tool: str, value: Dict[str, Any], ttl: int | None = None, **kwargs) -> bool:
         """
         设置缓存
 
@@ -370,7 +370,7 @@ class SearchCache:
 
 
 # 全局单例
-_search_cache: Optional[SearchCache] = None
+_search_cache: SearchCache | None = None
 
 
 def get_search_cache() -> SearchCache:
@@ -395,7 +395,7 @@ def get_search_cache() -> SearchCache:
     return _search_cache
 
 
-def cached_search(tool: str, ttl: Optional[int] = None):
+def cached_search(tool: str, ttl: int | None = None):
     """
     搜索缓存装饰器
 

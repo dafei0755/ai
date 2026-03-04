@@ -10,7 +10,7 @@
 
 import json
 import re
-from typing import Any, Dict, List, Optional, Type, TypeVar
+from typing import Any, Dict, List, Type, TypeVar
 
 from loguru import logger
 from pydantic import BaseModel, ValidationError
@@ -86,7 +86,7 @@ def fix_json_quotes(text: str) -> str:
 
 def parse_json_safe(
     text: str, *, extract_from_markdown: bool = True, fix_quotes: bool = True, default: Any = None
-) -> Optional[Dict[str, Any]]:
+) -> Dict[str, Any] | None:
     """
      P1修复: 安全解析JSON，支持多种容错策略
 
@@ -134,7 +134,7 @@ def parse_json_to_model(
     extract_from_markdown: bool = True,
     fix_quotes: bool = True,
     fill_defaults: bool = True,
-) -> Optional[T]:
+) -> T | None:
     """
      P1修复: 解析JSON并验证为Pydantic模型
 
@@ -200,7 +200,7 @@ def parse_json_to_model(
 
 
 def parse_json_list(
-    text: str, *, extract_from_markdown: bool = True, fix_quotes: bool = True, default: Optional[List] = None
+    text: str, *, extract_from_markdown: bool = True, fix_quotes: bool = True, default: List | None = None
 ) -> List[Any]:
     """
      P1修复: 解析JSON数组

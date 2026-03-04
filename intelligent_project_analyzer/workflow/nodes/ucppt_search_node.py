@@ -15,7 +15,10 @@ from typing import Any, Dict
 from loguru import logger
 
 from intelligent_project_analyzer.core.state import ProjectAnalysisState
-from intelligent_project_analyzer.services.ucppt_search_engine import UcpptSearchEngine, get_ucppt_engine
+from intelligent_project_analyzer.services.ucppt_search_engine import (
+    UcpptSearchEngine,
+    get_ucppt_engine,
+)
 
 
 async def ucppt_search_node(state: ProjectAnalysisState) -> Dict[str, Any]:

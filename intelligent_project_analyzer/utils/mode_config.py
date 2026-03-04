@@ -7,10 +7,9 @@
 """
 
 import logging
-import os
 from functools import lru_cache
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 import yaml
 
@@ -50,12 +49,12 @@ def load_mode_config() -> Dict[str, Any]:
         raise AnalysisModeConfigError(f"未找到分析模式配置文件 analysis_mode.yaml，已搜索路径: {config_paths}")
 
     try:
-        with open(config_path, "r", encoding="utf-8") as f:
+        with open(config_path, encoding="utf-8") as f:
             config = yaml.safe_load(f)
 
         # 验证配置结构
         if not isinstance(config, dict) or "modes" not in config:
-            raise AnalysisModeConfigError(f"配置文件格式错误: 必须包含 'modes' 字段")
+            raise AnalysisModeConfigError("配置文件格式错误: 必须包含 'modes' 字段")
 
         logger.info(f" 成功加载分析模式配置: {config_path}")
         return config

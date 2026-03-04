@@ -11,11 +11,12 @@
 创建日期: 2026-02-13
 """
 
-import yaml
-from pathlib import Path
-from typing import Dict, List, Optional, Tuple
-from dataclasses import dataclass
 import logging
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Dict, List, Tuple
+
+import yaml
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +29,7 @@ class HybridModeDetectionResult:
     detected_modes: List[str]  # 例如: ["M1", "M4"]
     confidence_scores: Dict[str, float]  # 例如: {"M1": 0.78, "M4": 0.65}
     confidence_gap: float  # 最高与次高置信度的差值
-    pattern_key: Optional[str]  # 例如: "M1_M4"
+    pattern_key: str | None  # 例如: "M1_M4"
 
     def __str__(self):
         if not self.is_hybrid:
@@ -45,7 +46,7 @@ class ConflictDimension:
     severity: str  # low/medium/high
     priority_mode: str  # 优先模式或策略
     rule: str  # 解决规则
-    constraint: Optional[str]  # 约束条件
+    constraint: str | None  # 约束条件
 
 
 @dataclass
@@ -82,7 +83,7 @@ class HybridModeResolver:
     4. 生成设计指导
     """
 
-    def __init__(self, config_path: Optional[str] = None):
+    def __init__(self, config_path: str | None = None):
         """
         初始化混合模式解决器
 
@@ -100,7 +101,7 @@ class HybridModeResolver:
     def _load_config(self):
         """加载配置文件"""
         try:
-            with open(self.config_path, "r", encoding="utf-8") as f:
+            with open(self.config_path, encoding="utf-8") as f:
                 self._config_cache = yaml.safe_load(f)
 
             logger.info(f"混合模式配置加载成功: {self.config_path}")
@@ -118,8 +119,8 @@ class HybridModeResolver:
     def detect_hybrid_mode(
         self,
         mode_confidences: Dict[str, float],
-        min_confidence: Optional[float] = None,
-        max_confidence_gap: Optional[float] = None,
+        min_confidence: float | None = None,
+        max_confidence_gap: float | None = None,
     ) -> HybridModeDetectionResult:
         """
         检测是否为混合模式
@@ -222,7 +223,7 @@ class HybridModeResolver:
         mode_numbers = sorted([int(m.replace("M", "")) for m in modes])
         return "_".join([f"M{n}" for n in mode_numbers])
 
-    def resolve_conflict(self, detection_result: HybridModeDetectionResult) -> Optional[ResolutionResult]:
+    def resolve_conflict(self, detection_result: HybridModeDetectionResult) -> ResolutionResult | None:
         """
         解决混合模式冲突
 
@@ -391,7 +392,7 @@ class HybridModeResolver:
                 is_hybrid=False, detected_modes=[], confidence_scores={}, confidence_gap=0.0, pattern_key=None
             )
 
-    def get_dimension_priority(self, resolution_result: ResolutionResult, dimension_name: str) -> Optional[Dict]:
+    def get_dimension_priority(self, resolution_result: ResolutionResult, dimension_name: str) -> Dict | None:
         """
         获取特定维度的优先级规则
 
@@ -440,8 +441,8 @@ class HybridModeResolver:
 
 
 def detect_and_resolve_hybrid_mode(
-    mode_confidences: Dict[str, float], config_path: Optional[str] = None
-) -> Tuple[HybridModeDetectionResult, Optional[ResolutionResult]]:
+    mode_confidences: Dict[str, float], config_path: str | None = None
+) -> Tuple[HybridModeDetectionResult, ResolutionResult | None]:
     """
     一站式检测和解决混合模式冲突
 

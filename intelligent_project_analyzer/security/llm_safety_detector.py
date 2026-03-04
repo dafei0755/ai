@@ -5,7 +5,8 @@ LLM语义安全检测器
 
 import json
 import re
-from typing import Dict, Any, Optional
+from typing import Any, Dict
+
 from loguru import logger
 
 

@@ -4,11 +4,10 @@ PDF报告生成器
 使用ReportLab生成专业的PDF分析报告
 """
 
-import json
 import os
 import time
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from loguru import logger
 
@@ -22,7 +21,14 @@ try:
     from reportlab.pdfbase.cidfonts import UnicodeCIDFont
     from reportlab.pdfbase.pdfmetrics import registerFontFamily
     from reportlab.pdfbase.ttfonts import TTFont
-    from reportlab.platypus import PageBreak, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+    from reportlab.platypus import (
+        PageBreak,
+        Paragraph,
+        SimpleDocTemplate,
+        Spacer,
+        Table,
+        TableStyle,
+    )
     from reportlab.platypus.flowables import HRFlowable
 except ImportError:
     logger.warning("ReportLab library not installed. Please install with: pip install reportlab")
@@ -32,14 +38,14 @@ from langchain_core.runnables import RunnableConfig
 from langgraph.store.base import BaseStore
 
 from ..agents.base import BaseAgent
-from ..core.state import AgentType, AnalysisStage, ProjectAnalysisState
-from ..core.types import AnalysisResult, ReportSection
+from ..core.state import AgentType, ProjectAnalysisState
+from ..core.types import AnalysisResult
 
 
 class PDFGeneratorAgent(BaseAgent):
     """PDF报告生成器智能体"""
 
-    def __init__(self, config: Optional[Dict[str, Any]] = None):
+    def __init__(self, config: Dict[str, Any] | None = None):
         super().__init__(
             agent_type=AgentType.PDF_GENERATOR, name="PDF报告生成器", description="生成专业的PDF格式项目分析报告", config=config
         )
@@ -239,7 +245,7 @@ class PDFGeneratorAgent(BaseAgent):
                 self.styles.add(ParagraphStyle(name=style_name, **style_props))
 
     def execute(
-        self, state: ProjectAnalysisState, config: RunnableConfig, store: Optional[BaseStore] = None
+        self, state: ProjectAnalysisState, config: RunnableConfig, store: BaseStore | None = None
     ) -> AnalysisResult:
         """执行PDF生成"""
         start_time = time.time()

@@ -20,7 +20,7 @@ v7.18 新增：
 import json
 import re
 import time
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Tuple
 
 from loguru import logger
 
@@ -44,7 +44,7 @@ class LLMQuestionGenerator:
 
     @classmethod
     def generate(
-        cls, user_input: str, structured_data: Dict[str, Any], llm_model: Optional[Any] = None, timeout: int = 30
+        cls, user_input: str, structured_data: Dict[str, Any], llm_model: Any | None = None, timeout: int = 30
     ) -> Tuple[List[Dict[str, Any]], str]:
         """
         使用LLM生成定制化问卷
@@ -291,9 +291,9 @@ class LLMQuestionGenerator:
                         if isinstance(q_text, str) and q_text:
                             cq_list.append(f"- {role}: {q_text[:50]}...")
                 if cq_list:
-                    handoff_summary.append(f"关键问题:\n" + "\n".join(cq_list))
+                    handoff_summary.append("关键问题:\n" + "\n".join(cq_list))
             if handoff_summary:
-                summary_parts.append(f"## 专家交接\n" + "\n".join(handoff_summary))
+                summary_parts.append("## 专家交接\n" + "\n".join(handoff_summary))
 
         #  v7.6: 如果摘要为空，返回更有用的提示而非"暂无"
         if not summary_parts:
@@ -683,7 +683,7 @@ class QuestionRelevanceValidator:
 
     @classmethod
     def validate(
-        cls, questions: List[Dict[str, Any]], user_input: str, llm_model: Optional[Any] = None, threshold: float = 6.0
+        cls, questions: List[Dict[str, Any]], user_input: str, llm_model: Any | None = None, threshold: float = 6.0
     ) -> List[Dict[str, Any]]:
         """
         验证问题相关性，过滤低相关性问题
@@ -856,7 +856,6 @@ def _extract_user_keywords_impl(user_input: str) -> List[str]:
         "项目",
         "方案",
         "建议",
-        "希望",
         "能够",
         "可以",
     }

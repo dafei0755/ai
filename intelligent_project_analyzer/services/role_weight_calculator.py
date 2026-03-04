@@ -15,7 +15,7 @@
 
 import re
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Dict, List, Set
 
 import yaml
 from loguru import logger
@@ -33,7 +33,7 @@ class RoleWeightCalculator:
     {'V4_设计研究员': 2.5, 'V3_叙事与体验专家': 2.5, ...}
     """
 
-    def __init__(self, config_path: Optional[str] = None):
+    def __init__(self, config_path: str | None = None):
         """
         初始化权重计算器
 
@@ -63,7 +63,7 @@ class RoleWeightCalculator:
     def _load_config(self) -> Dict[str, Any]:
         """加载配置文件"""
         try:
-            with open(self.config_path, "r", encoding="utf-8") as f:
+            with open(self.config_path, encoding="utf-8") as f:
                 config = yaml.safe_load(f)
             logger.info(f" 已加载权重配置: {self.config_path}")
             logger.info(f"   版本: {config.get('version')}")
@@ -74,7 +74,7 @@ class RoleWeightCalculator:
             raise
 
     def calculate_weights(
-        self, requirements: str, confirmed_core_tasks: Optional[List[Dict[str, Any]]] = None
+        self, requirements: str, confirmed_core_tasks: List[Dict[str, Any]] | None = None
     ) -> Dict[str, float]:
         """
         计算角色权重
@@ -139,7 +139,7 @@ class RoleWeightCalculator:
         # 按权重排序（方便查看）
         sorted_weights = dict(sorted(weights.items(), key=lambda x: x[1], reverse=True))
 
-        logger.info(f" 权重计算完成:")
+        logger.info(" 权重计算完成:")
         for role, weight in sorted_weights.items():
             logger.info(f"   {role}: {weight:.1f}")
 
@@ -257,7 +257,7 @@ class RoleWeightCalculator:
 
         return bonus
 
-    def get_weight_explanation(self, requirements: str, weights: Optional[Dict[str, float]] = None) -> str:
+    def get_weight_explanation(self, requirements: str, weights: Dict[str, float] | None = None) -> str:
         """
         生成权重计算的详细说明
 

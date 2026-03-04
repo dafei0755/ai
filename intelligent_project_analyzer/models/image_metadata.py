@@ -8,9 +8,9 @@ Created: 2025-12-29
 Version: v1.0
 """
 
-from pydantic import BaseModel, Field
-from typing import Optional
 from datetime import datetime
+
+from pydantic import BaseModel, Field
 
 
 class ImageMetadata(BaseModel):
@@ -50,7 +50,7 @@ class ImageMetadata(BaseModel):
         description="图片宽高比：16:9（横向）, 9:16（纵向）, 1:1（正方形）"
     )
 
-    file_size_bytes: Optional[int] = Field(
+    file_size_bytes: int | None = Field(
         default=None,
         description="文件大小（字节）"
     )
@@ -61,7 +61,7 @@ class ImageMetadata(BaseModel):
     )
 
     #  向后兼容字段（可选）
-    base64_data: Optional[str] = Field(
+    base64_data: str | None = Field(
         default=None,
         description="Base64 Data URL（已废弃，仅用于向后兼容）。新系统使用文件存储 + URL引用"
     )

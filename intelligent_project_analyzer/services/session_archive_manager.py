@@ -8,7 +8,7 @@
 import json
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from loguru import logger
 from sqlalchemy import Boolean, Column, DateTime, Index, Integer, String, Text, create_engine
@@ -473,7 +473,7 @@ class SessionArchiveManager:
                 db.close()
             return False
 
-    async def get_archived_session(self, session_id: str) -> Optional[Dict[str, Any]]:
+    async def get_archived_session(self, session_id: str) -> Dict[str, Any] | None:
         """
         获取归档会话
 
@@ -511,9 +511,9 @@ class SessionArchiveManager:
         self,
         limit: int = 50,
         offset: int = 0,
-        status: Optional[str] = None,
+        status: str | None = None,
         pinned_only: bool = False,
-        user_id: Optional[str] = None,  #  v7.178: 按用户过滤
+        user_id: str | None = None,  #  v7.178: 按用户过滤
     ) -> List[Dict[str, Any]]:
         """
         列出归档会话
@@ -589,9 +589,9 @@ class SessionArchiveManager:
     async def update_metadata(
         self,
         session_id: str,
-        display_name: Optional[str] = None,
-        pinned: Optional[bool] = None,
-        tags: Optional[List[str]] = None,
+        display_name: str | None = None,
+        pinned: bool | None = None,
+        tags: List[str] | None = None,
     ) -> bool:
         """
         更新会话元数据（重命名、置顶、标签）
@@ -670,9 +670,9 @@ class SessionArchiveManager:
 
     async def count_archived_sessions(
         self,
-        status: Optional[str] = None,
+        status: str | None = None,
         pinned_only: bool = False,
-        user_id: Optional[str] = None,  #  v7.178: 按用户过滤
+        user_id: str | None = None,  #  v7.178: 按用户过滤
     ) -> int:
         """
         统计归档会话数量
@@ -809,7 +809,7 @@ class SessionArchiveManager:
         session_id: str,
         query: str,
         search_result: Dict[str, Any],
-        user_id: Optional[str] = None,
+        user_id: str | None = None,
         force: bool = False,
     ) -> bool:
         """
@@ -971,7 +971,7 @@ class SessionArchiveManager:
             logger.error(f" 搜索会话归档失败: {e}")
             return False
 
-    async def get_search_session(self, session_id: str) -> Optional[Dict[str, Any]]:
+    async def get_search_session(self, session_id: str) -> Dict[str, Any] | None:
         """
         获取归档的搜索会话
 
@@ -1054,7 +1054,7 @@ class SessionArchiveManager:
             return None
 
     async def list_search_sessions(
-        self, user_id: Optional[str] = None, limit: int = 50, offset: int = 0
+        self, user_id: str | None = None, limit: int = 50, offset: int = 0
     ) -> List[Dict[str, Any]]:
         """
         获取搜索历史列表
@@ -1346,7 +1346,7 @@ class SessionArchiveManager:
 
 
 # 全局单例实例
-_archive_manager: Optional[SessionArchiveManager] = None
+_archive_manager: SessionArchiveManager | None = None
 
 
 def get_archive_manager() -> SessionArchiveManager:

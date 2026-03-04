@@ -6,7 +6,7 @@
 
 import json
 import re
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Tuple
 
 import httpcore
 
@@ -16,8 +16,6 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from loguru import logger
 
 from ..core.prompt_manager import PromptManager
-from ..core.state import ProjectAnalysisState
-from ..core.types import AnalysisResult
 
 
 class ReviewerRole:
@@ -136,9 +134,9 @@ class RedTeamReviewer(ReviewerRole):
         # 如果配置不存在，抛出错误（不再使用硬编码 fallback）
         if not system_prompt:
             raise ValueError(
-                f" 未找到审核提示词配置: red_team\n"
-                f"请确保配置文件存在: config/prompts/review_agents.yaml\n"
-                f"并包含 reviewers.red_team.prompt_template 字段"
+                " 未找到审核提示词配置: red_team\n"
+                "请确保配置文件存在: config/prompts/review_agents.yaml\n"
+                "并包含 reviewers.red_team.prompt_template 字段"
             )
 
         # 准备分析结果摘要
@@ -704,7 +702,7 @@ class BlueTeamReviewer(ReviewerRole):
         self,
         agent_results: Dict[str, Any],
         requirements: Dict[str, Any],
-        red_review: Optional[Dict[str, Any]] = None,  #  接收红队问题清单
+        red_review: Dict[str, Any] | None = None,  #  接收红队问题清单
     ) -> Dict[str, Any]:
         """蓝队审核 - 验证红队问题，识别分析优势"""
 
@@ -718,9 +716,9 @@ class BlueTeamReviewer(ReviewerRole):
         # 如果配置不存在，抛出错误（不再使用硬编码 fallback）
         if not system_prompt:
             raise ValueError(
-                f" 未找到审核提示词配置: blue_team\n"
-                f"请确保配置文件存在: config/prompts/review_agents.yaml\n"
-                f"并包含 reviewers.blue_team.prompt_template 字段"
+                " 未找到审核提示词配置: blue_team\n"
+                "请确保配置文件存在: config/prompts/review_agents.yaml\n"
+                "并包含 reviewers.blue_team.prompt_template 字段"
             )
 
         results_summary = self._format_results_for_review(agent_results)
@@ -784,7 +782,7 @@ class BlueTeamReviewer(ReviewerRole):
         selected_roles: List[Dict[str, Any]],
         requirements: Dict[str, Any],
         strategy: Dict[str, Any],
-        red_review: Optional[Dict[str, Any]] = None,
+        red_review: Dict[str, Any] | None = None,
     ) -> Dict[str, Any]:
         """
         审核角色选择方案（蓝队验证视角）
@@ -944,7 +942,7 @@ class BlueTeamReviewer(ReviewerRole):
 }"""
 
     def _extract_role_selection_validations(
-        self, content: str, red_review: Optional[Dict[str, Any]]
+        self, content: str, red_review: Dict[str, Any] | None
     ) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
         """从审核内容中提取角色选择验证结果"""
         validations = []
@@ -1204,7 +1202,7 @@ class BlueTeamReviewer(ReviewerRole):
         return 70  # 默认评分
 
     def _parse_blue_team_response_v2(
-        self, content: str, agent_results: Dict[str, Any], red_review: Optional[Dict[str, Any]] = None
+        self, content: str, agent_results: Dict[str, Any], red_review: Dict[str, Any] | None = None
     ) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
         """
          P1-4：解析蓝队响应 v2 - 正确提取validations和strengths
@@ -1329,8 +1327,8 @@ class JudgeReviewer(ReviewerRole):
         self,
         agent_results: Dict[str, Any],
         requirements: Dict[str, Any],
-        red_team_review: Optional[Dict[str, Any]] = None,
-        blue_team_review: Optional[Dict[str, Any]] = None,
+        red_team_review: Dict[str, Any] | None = None,
+        blue_team_review: Dict[str, Any] | None = None,
     ) -> Dict[str, Any]:
         """评委审核 - 综合红蓝双方意见进行裁决"""
 
@@ -1344,9 +1342,9 @@ class JudgeReviewer(ReviewerRole):
         # 如果配置不存在，抛出错误（不再使用硬编码 fallback）
         if not system_prompt:
             raise ValueError(
-                f" 未找到审核提示词配置: judge\n"
-                f"请确保配置文件存在: config/prompts/review_agents.yaml\n"
-                f"并包含 reviewers.judge.prompt_template 字段"
+                " 未找到审核提示词配置: judge\n"
+                "请确保配置文件存在: config/prompts/review_agents.yaml\n"
+                "并包含 reviewers.judge.prompt_template 字段"
             )
 
         results_summary = self._format_results_for_review(agent_results)
@@ -1409,8 +1407,8 @@ class JudgeReviewer(ReviewerRole):
         self,
         content: str,
         agent_results: Dict[str, Any],
-        red_review: Optional[Dict[str, Any]],
-        blue_review: Optional[Dict[str, Any]],
+        red_review: Dict[str, Any] | None,
+        blue_review: Dict[str, Any] | None,
     ) -> List[Dict[str, Any]]:
         """解析评委响应（优先JSON，回退到文本）"""
         improvements = []
@@ -1530,8 +1528,8 @@ class JudgeReviewer(ReviewerRole):
         self,
         content: str,
         agent_results: Dict[str, Any],
-        red_review: Optional[Dict[str, Any]],
-        blue_review: Optional[Dict[str, Any]],
+        red_review: Dict[str, Any] | None,
+        blue_review: Dict[str, Any] | None,
     ) -> List[Dict[str, Any]]:
         """
          新增：提取优先级排序的改进点
@@ -1623,7 +1621,7 @@ class ClientReviewer(ReviewerRole):
         self,
         agent_results: Dict[str, Any],
         requirements: Dict[str, Any],
-        judge_review: Optional[Dict[str, Any]] = None,  #  接收评委裁决
+        judge_review: Dict[str, Any] | None = None,  #  接收评委裁决
     ) -> Dict[str, Any]:
         """甲方审核 - 基于评委裁决做出业务决策"""
 
@@ -1637,9 +1635,9 @@ class ClientReviewer(ReviewerRole):
         # 如果配置不存在，抛出错误（不再使用硬编码 fallback）
         if not system_prompt:
             raise ValueError(
-                f" 未找到审核提示词配置: client\n"
-                f"请确保配置文件存在: config/prompts/review_agents.yaml\n"
-                f"并包含 reviewers.client.prompt_template 字段"
+                " 未找到审核提示词配置: client\n"
+                "请确保配置文件存在: config/prompts/review_agents.yaml\n"
+                "并包含 reviewers.client.prompt_template 字段"
             )
 
         results_summary = self._format_results_for_review(agent_results)

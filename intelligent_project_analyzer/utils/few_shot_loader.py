@@ -6,12 +6,13 @@ This module provides utilities to load, filter, and inject Few-Shot examples
 into expert prompts to improve output quality and consistency.
 """
 
-import re
-import yaml
-from pathlib import Path
-from typing import Dict, List, Any, Optional, Set
 import logging
+import re
 from dataclasses import dataclass
+from pathlib import Path
+from typing import Any, Dict, List, Set
+
+import yaml
 
 try:
     import jieba
@@ -38,7 +39,7 @@ class FewShotExample:
 class FewShotExampleLoader:
     """Few-Shot示例加载器"""
 
-    def __init__(self, examples_dir: Optional[Path] = None):
+    def __init__(self, examples_dir: Path | None = None):
         """
         初始化示例加载器
 
@@ -78,7 +79,7 @@ class FewShotExampleLoader:
 
         try:
             # 加载YAML文件
-            with open(example_file, "r", encoding="utf-8") as f:
+            with open(example_file, encoding="utf-8") as f:
                 data = yaml.safe_load(f)
 
             # 解析示例
@@ -105,7 +106,7 @@ class FewShotExampleLoader:
             return []
 
     def get_relevant_examples(
-        self, role_id: str, user_request: str, category: Optional[str] = None, max_examples: int = 2
+        self, role_id: str, user_request: str, category: str | None = None, max_examples: int = 2
     ) -> List[FewShotExample]:
         """
         获取最相关的Few-Shot示例
@@ -298,7 +299,7 @@ class FewShotExampleLoader:
 
 
 # 全局单例
-_global_loader: Optional[FewShotExampleLoader] = None
+_global_loader: FewShotExampleLoader | None = None
 
 
 def get_few_shot_loader() -> FewShotExampleLoader:

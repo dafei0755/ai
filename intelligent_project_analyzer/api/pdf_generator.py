@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 MT-1 (2026-03-01): PDF 生成工具模块
 
@@ -11,13 +10,15 @@ import json
 import os
 import re
 from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import Dict
 
 from fpdf import FPDF
 from loguru import logger
 
 from intelligent_project_analyzer.api.html_pdf_generator import (
     HTMLPDFGenerator,
+)
+from intelligent_project_analyzer.api.html_pdf_generator import (
     generate_expert_report_pdf as generate_html_pdf,
 )
 
@@ -177,7 +178,6 @@ class PDFGenerator(FPDF):
         if not clean_text:
             return
 
-        import re
 
         from fpdf.enums import WrapMode
 
@@ -993,7 +993,7 @@ FIELD_LABELS = {
 }
 
 
-def format_expert_content_for_pdf(pdf: "PDFGenerator", content: str, depth: int = 0):
+def format_expert_content_for_pdf(pdf: PDFGenerator, content: str, depth: int = 0):
     """
     格式化专家报告内容并写入 PDF
 
@@ -1025,7 +1025,6 @@ def format_expert_content_for_pdf(pdf: "PDFGenerator", content: str, depth: int 
 
 def _get_field_label(key: str) -> str:
     """获取字段的中文标签"""
-    import re
 
     lower_key = key.lower().strip()
 
@@ -1287,7 +1286,6 @@ def _clean_markdown_inline(text: str) -> str:
     if not text or not isinstance(text, str):
         return text
 
-    import re
 
     # 去除 **加粗**
     result = re.sub(r"\*\*(.+?)\*\*", r"\1", text)
@@ -1304,7 +1302,6 @@ def _format_numbered_list(text: str) -> str:
     if not text or not isinstance(text, str):
         return text
 
-    import re
 
     # 匹配 "数字. " 或 "数字、" 或 "数字）" 前面有内容的情况
     # 在编号前插入换行（但不是开头的编号）
@@ -1313,7 +1310,7 @@ def _format_numbered_list(text: str) -> str:
     return result
 
 
-def _format_dict_to_pdf(pdf: "PDFGenerator", data: dict, depth: int = 0):
+def _format_dict_to_pdf(pdf: PDFGenerator, data: dict, depth: int = 0):
     """递归格式化字典数据到 PDF
 
     增强版：

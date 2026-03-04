@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 WebSocket 路由模块 (MT-1 提取自 api/server.py)
 
@@ -8,10 +7,10 @@ Routes:
 from __future__ import annotations
 
 import asyncio
-from typing import Dict, List
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from loguru import logger
+
 from intelligent_project_analyzer.api._server_proxy import server_proxy as _server
 
 router = APIRouter(tags=["websocket"])

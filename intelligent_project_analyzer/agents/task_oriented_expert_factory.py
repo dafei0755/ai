@@ -14,14 +14,14 @@ import datetime
 import json
 from functools import lru_cache
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 import yaml
 from loguru import logger
 from pydantic import ValidationError
 
 from ..core.state import ProjectAnalysisState
-from ..core.task_oriented_models import ProtocolExecutionReport, TaskOrientedExpertOutput
+from ..core.task_oriented_models import TaskOrientedExpertOutput
 from ..services.llm_factory import LLMFactory
 
 #  v7.64: 导入工具调用记录器
@@ -77,7 +77,7 @@ def load_yaml_config_cached(config_path: str) -> Dict[str, Any]:
         return {}
 
     try:
-        with open(full_path, "r", encoding="utf-8") as f:
+        with open(full_path, encoding="utf-8") as f:
             config = yaml.safe_load(f) or {}
             logger.debug(f" [升级1] 已缓存配置文件: {config_path}")
             return config
@@ -263,7 +263,7 @@ class TaskOrientedExpertFactory:
         role_object: Dict[str, Any],
         context: str,
         state: ProjectAnalysisState,
-        tools: Optional[List[Any]] = None,  #  v7.63.1: 添加工具支持
+        tools: List[Any] | None = None,  #  v7.63.1: 添加工具支持
     ) -> Dict[str, Any]:
         """
          v7.154: 两阶段执行 - 分离搜索和报告生成
@@ -453,7 +453,7 @@ class TaskOrientedExpertFactory:
                     failed_count = sum(1 for call in tool_calls if call.get("status") == "failed")
                     logger.info(f"   成功: {success_count}, 失败: {failed_count}")
                 else:
-                    logger.warning(f"   ️ 未调用任何工具")
+                    logger.warning("   ️ 未调用任何工具")
 
             #  v7.64: 从工具调用记录器提取搜索引用并添加到state
             if recorder and add_references_to_state:
@@ -538,7 +538,7 @@ class TaskOrientedExpertFactory:
                     from ..services.image_generator import ImageGeneratorService
 
                     # 初始化图片生成器
-                    logger.debug(f"   初始化 ImageGeneratorService...")
+                    logger.debug("   初始化 ImageGeneratorService...")
                     image_generator = ImageGeneratorService()
 
                     #  v7.128: 准备专家分析内容（完整版本，不再截断至500字）
@@ -553,7 +553,7 @@ class TaskOrientedExpertFactory:
                             "profile_label": questionnaire_summary.get("profile_label", ""),
                             "answers": questionnaire_summary.get("answers", {}),
                         }
-                        logger.info(f"   [v7.122] 准备注入问卷数据到概念图生成")
+                        logger.info("   [v7.122] 准备注入问卷数据到概念图生成")
 
                     #  v7.155: 提取视觉参考用于概念图生成
                     visual_references = state.get("uploaded_visual_references", None)
@@ -573,7 +573,7 @@ class TaskOrientedExpertFactory:
 
                         metadata = deliverable_metadata.get(deliverable_id)
                         if not metadata:
-                            logger.warning(f"    ️  交付物元数据缺失，跳过")
+                            logger.warning("    ️  交付物元数据缺失，跳过")
                             continue
 
                         #  v7.110: 检查该交付物是否启用概念图
@@ -584,11 +584,11 @@ class TaskOrientedExpertFactory:
                         logger.info(f"     是否启用概念图: {should_generate}")
 
                         if not should_generate:
-                            logger.info(f"    ️  用户禁用，跳过生成")
+                            logger.info("    ️  用户禁用，跳过生成")
                             continue
 
                         try:
-                            logger.info(f"    ️  开始生成概念图...")
+                            logger.info("    ️  开始生成概念图...")
 
                             #  v7.128: 使用精准匹配的交付物专家分析内容
                             deliverable_specific_content = self._extract_deliverable_specific_content(
@@ -635,17 +635,17 @@ class TaskOrientedExpertFactory:
                         )
                     else:
                         logger.warning(f"️  [概念图流程] 角色 {role_id} 未生成任何概念图")
-                        logger.info(f"  可能原因: 所有交付物被用户禁用或元数据缺失")
+                        logger.info("  可能原因: 所有交付物被用户禁用或元数据缺失")
                 else:
                     if not deliverable_ids:
                         logger.debug(f" [概念图流程] 角色 {role_id} 无交付物归属，跳过图片生成")
                     elif not deliverable_metadata:
-                        logger.warning(f"️  [概念图流程] 缺少交付物元数据，无法生成图片")
+                        logger.warning("️  [概念图流程] 缺少交付物元数据，无法生成图片")
 
             except Exception as e:
                 logger.error(f" [概念图流程] 发生异常: {e}")
                 logger.exception(e)
-                logger.warning(f"  流程继续，专家分析结果仍然有效")
+                logger.warning("  流程继续，专家分析结果仍然有效")
                 # 不阻塞workflow，专家分析仍然有效
 
             return result
@@ -880,7 +880,7 @@ class TaskOrientedExpertFactory:
             failed_count = sum(1 for call in tool_calls if call.get("status") == "failed")
             logger.info(f"   成功: {success_count}, 失败: {failed_count}")
         else:
-            logger.warning(f"   ️ 搜索阶段未调用任何工具")
+            logger.warning("   ️ 搜索阶段未调用任何工具")
 
         # 添加到 state
         if search_references and add_references_to_state:
@@ -1085,7 +1085,7 @@ class TaskOrientedExpertFactory:
         role_object: Dict[str, Any],
         context: str,
         state: ProjectAnalysisState,
-        tools: Optional[List[Any]] = None,
+        tools: List[Any] | None = None,
         max_retries: int = 3,
     ) -> Dict[str, Any]:
         """
@@ -1180,14 +1180,14 @@ class TaskOrientedExpertFactory:
                                     if add_references_to_state and state:
                                         existing_refs = state.get("search_references", [])
                                         state["search_references"] = existing_refs + fallback_refs
-                                        logger.info(f" [v7.129 Fallback] 已将降级搜索结果添加到state")
+                                        logger.info(" [v7.129 Fallback] 已将降级搜索结果添加到state")
 
                                     # 添加降级标记到警告
                                     result["warnings"] = result.get("warnings", [])
                                     result["warnings"].append(
                                         {
                                             "type": "fallback_search_executed",
-                                            "message": f"LLM未主动调用工具，系统自动执行了降级搜索",
+                                            "message": "LLM未主动调用工具，系统自动执行了降级搜索",
                                             "fallback_references_count": len(fallback_refs),
                                         }
                                     )
@@ -1294,7 +1294,7 @@ class TaskOrientedExpertFactory:
             #  v7.10: 创意叙事模式的特殊说明
             creative_mode_note = ""
             if is_creative_narrative:
-                creative_mode_note = f"""
+                creative_mode_note = """
 #  创意叙事模式 (Creative Narrative Mode)
 
 ️ **特别说明**: 你正在创意叙事模式下工作，以下约束放宽：
@@ -1462,7 +1462,7 @@ class TaskOrientedExpertFactory:
         logger.warning(f"️ 使用降级策略为 {role_object.get('role_name', 'Unknown')} 构造默认输出")
         return self._create_fallback_output(expert_output, role_object)
 
-    def _try_parse_json_with_fixes(self, json_str: str) -> Optional[Dict[str, Any]]:
+    def _try_parse_json_with_fixes(self, json_str: str) -> Dict[str, Any] | None:
         """
         尝试多种策略修复并解析 JSON
 
@@ -1582,7 +1582,7 @@ class TaskOrientedExpertFactory:
         }
 
     def _calibrate_quality_scores(
-        self, structured_output: Dict[str, Any], recorder: Optional[Any] = None
+        self, structured_output: Dict[str, Any], recorder: Any | None = None
     ) -> Dict[str, Any]:
         """
          v7.154: 自评分校准 - 基于内容特征客观调整LLM自评分
@@ -1647,7 +1647,7 @@ class TaskOrientedExpertFactory:
                 # 2. 搜索引用惩罚 (降低惩罚)
                 if real_search_refs_count == 0:
                     penalties += 0.05  # 原 0.1
-                    logger.debug(f"   缺少搜索引用惩罚: -0.05")
+                    logger.debug("   缺少搜索引用惩罚: -0.05")
                 elif real_search_refs_count < 3:
                     penalties += 0.02  # 原 0.05
                     logger.debug(f"   搜索引用较少惩罚: -0.02 (数量: {real_search_refs_count})")
@@ -1658,14 +1658,14 @@ class TaskOrientedExpertFactory:
                 has_cases = any(kw in content_str for kw in case_keywords)
                 if not has_cases:
                     penalties += 0.03  # 原 0.05
-                    logger.debug(f"   缺少具体案例惩罚: -0.03")
+                    logger.debug("   缺少具体案例惩罚: -0.03")
 
                 # 4. 数据支撑检测 (降低惩罚)
                 data_patterns = ["数据", "统计", "调研", "研究表明", "%", "比例", "增长"]
                 has_data = any(pattern in content_str for pattern in data_patterns)
                 if not has_data:
                     penalties += 0.02  # 原 0.03
-                    logger.debug(f"   缺少数据支撑惩罚: -0.02")
+                    logger.debug("   缺少数据支撑惩罚: -0.02")
 
                 # 计算校准后的评分 ( v7.154.1: 提高最低分)
                 calibrated_score = max(0.6, original_score - penalties)  # 原 0.5
@@ -2196,7 +2196,7 @@ class TaskOrientedExpertFactory:
 
         return completed
 
-    def _parse_single_deliverable_output(self, output: str, expected_name: str) -> Optional[Dict[str, Any]]:
+    def _parse_single_deliverable_output(self, output: str, expected_name: str) -> Dict[str, Any] | None:
         """
          v7.52: 解析单个交付物的LLM输出
 
@@ -2348,7 +2348,7 @@ class TaskOrientedExpertFactory:
         role_object: Dict[str, Any],
         context: str,
         state: ProjectAnalysisState,
-        tools: Optional[List[Any]] = None,
+        tools: List[Any] | None = None,
     ) -> List[Dict[str, Any]]:
         """
          v7.129 Week2 P2: 执行降级搜索
@@ -2393,17 +2393,17 @@ class TaskOrientedExpertFactory:
 
                 try:
                     bocha_tool = ToolFactory.create_bocha_tool()
-                    logger.info(f" [v7.129 Fallback] 博查工具创建成功（优先）")
+                    logger.info(" [v7.129 Fallback] 博查工具创建成功（优先）")
                 except Exception as e:
                     logger.warning(f"️ [v7.129 Fallback] 博查工具创建失败: {e}")
                     try:
                         tavily_tool = ToolFactory.create_tavily_tool()
-                        logger.info(f" [v7.129 Fallback] Tavily工具创建成功（降级）")
+                        logger.info(" [v7.129 Fallback] Tavily工具创建成功（降级）")
                     except Exception as e2:
                         logger.warning(f"️ [v7.129 Fallback] Tavily工具也创建失败: {e2}")
                         try:
                             serper_tool = ToolFactory.create_serper_tool()
-                            logger.info(f" [v7.129 Fallback] Serper工具创建成功（二次降级）")
+                            logger.info(" [v7.129 Fallback] Serper工具创建成功（二次降级）")
                         except Exception as e3:
                             logger.error(f" [v7.129 Fallback] 所有搜索工具创建失败: {e3}")
 
@@ -2464,21 +2464,21 @@ class TaskOrientedExpertFactory:
                         if bocha_tool:
                             logger.info(f" [Fallback] 中文查询 '{query[:30]}...'，使用博查（中文专用）")
                         elif tavily_tool:
-                            logger.warning(f"️ [Fallback] 博查不可用，降级至Tavily")
+                            logger.warning("️ [Fallback] 博查不可用，降级至Tavily")
                         elif serper_tool:
-                            logger.warning(f"️ [Fallback] 博查和Tavily不可用，降级至Serper")
+                            logger.warning("️ [Fallback] 博查和Tavily不可用，降级至Serper")
                     else:
                         # 英文查询: Tavily → Bocha → Serper
                         tool_to_use = tavily_tool if tavily_tool else (bocha_tool if bocha_tool else serper_tool)
                         if tavily_tool:
-                            logger.info(f" [Fallback] 英文查询，使用Tavily（全球覆盖）")
+                            logger.info(" [Fallback] 英文查询，使用Tavily（全球覆盖）")
                         elif bocha_tool:
-                            logger.warning(f"️ [Fallback] Tavily不可用，降级至博查")
+                            logger.warning("️ [Fallback] Tavily不可用，降级至博查")
                         elif serper_tool:
-                            logger.warning(f"️ [Fallback] Tavily和博查不可用，降级至Serper")
+                            logger.warning("️ [Fallback] Tavily和博查不可用，降级至Serper")
 
                     if not tool_to_use:
-                        logger.error(f" [v7.129 Fallback] 无可用搜索工具")
+                        logger.error(" [v7.129 Fallback] 无可用搜索工具")
                         break
 
                     # 调用工具

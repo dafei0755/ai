@@ -5,12 +5,13 @@ Task Assignment Review Interaction Node
 在任务分派后,允许用户审核和调整任务分配
 """
 
-from typing import Dict, Any, List, Optional, Literal, Union
+from typing import Any, Dict, List, Literal, Union
+
+from langgraph.types import Command, interrupt
 from loguru import logger
-from langgraph.types import interrupt, Command, Send
 
 from intelligent_project_analyzer.core.strategy_manager import StrategyManager
-from intelligent_project_analyzer.core.state import AnalysisStage
+
 from .utils import SendFactory
 
 
@@ -192,7 +193,7 @@ class TaskAssignmentReviewNode:
                 goto="project_director"
             )
         elif intent == "modify":
-            logger.info(f" User requested modifications, returning to project director")
+            logger.info(" User requested modifications, returning to project director")
             return Command(
                 update={
                     "task_assignment_approved": False,
@@ -474,7 +475,7 @@ class TaskAssignmentReviewNode:
         user_response: Any,
         original_roles: List[str],
         original_tasks: Dict[str, Any],
-        intent_result: Optional[Dict[str, Any]] = None
+        intent_result: Dict[str, Any] | None = None
     ) -> Dict[str, Any]:
         """
         处理用户响应

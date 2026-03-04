@@ -5,9 +5,10 @@ Role Selection Review Interaction Node
 在项目总监选择角色后,允许用户审核和调整选择
 """
 
-from typing import Dict, Any, List, Optional, Literal
+from typing import Any, Dict, List, Literal
+
+from langgraph.types import Command, interrupt
 from loguru import logger
-from langgraph.types import interrupt, Command
 
 from intelligent_project_analyzer.core.strategy_manager import StrategyManager
 
@@ -158,7 +159,7 @@ class RoleSelectionReviewNode:
                 goto="project_director"
             )
         elif intent == "modify":
-            logger.info(f" User requested modifications, returning to project director")
+            logger.info(" User requested modifications, returning to project director")
             return Command(
                 update={
                     "role_selection_approved": False,
@@ -400,7 +401,7 @@ class RoleSelectionReviewNode:
         original_roles: List[str],
         original_tasks: Dict[str, Any],
         original_strategy: str,
-        intent_result: Optional[Dict[str, Any]] = None
+        intent_result: Dict[str, Any] | None = None
     ) -> Dict[str, Any]:
         """
         处理用户响应

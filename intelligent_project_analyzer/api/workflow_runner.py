@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 工作流引擎模块 (MT-1 提取自 api/server.py)
 
@@ -13,11 +12,10 @@
 from __future__ import annotations
 
 import asyncio
-import json
 from datetime import datetime
 from pathlib import Path
 from types import MethodType
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any, Dict
 
 from loguru import logger
 
@@ -30,12 +28,15 @@ except ImportError:
     BaseCheckpointSaver = None  # type: ignore[assignment,misc]
 
 # ── 模块级全局变量（从 server.py 移至此处）──────────────────────────────────
-workflows: Dict[str, "MainWorkflow"] = {}
-async_checkpointer: Optional[Any] = None  # AsyncSqliteSaver，惰性初始化
-async_checkpointer_lock: Optional[asyncio.Lock] = None
+workflows: Dict[str, MainWorkflow] = {}
+async_checkpointer: Any | None = None  # AsyncSqliteSaver，惰性初始化
+async_checkpointer_lock: asyncio.Lock | None = None
 
 from intelligent_project_analyzer.api._server_proxy import server_proxy as _server
-from intelligent_project_analyzer.api.deps import _serialize_for_json, sync_checkpoint_to_redis  # noqa: E402
+from intelligent_project_analyzer.api.deps import (  # noqa: E402
+    _serialize_for_json,
+    sync_checkpoint_to_redis,
+)
 from intelligent_project_analyzer.core.state import StateManager  # noqa: E402
 
 # ==================== 辅助函数 ====================
@@ -99,7 +100,7 @@ async def subscribe_to_redis_pubsub():
 def _ensure_aiosqlite_is_alive(conn: Any) -> Any:
     """为缺少 is_alive() 方法的 aiosqlite 连接打补丁。"""
 
-    if hasattr(conn, "is_alive") and callable(getattr(conn, "is_alive")):
+    if hasattr(conn, "is_alive") and callable(conn.is_alive):
         return conn
 
     def _is_alive(self: Any) -> bool:  # pragma: no cover - 简单代理
@@ -112,7 +113,7 @@ def _ensure_aiosqlite_is_alive(conn: Any) -> Any:
     return conn
 
 
-async def get_or_create_async_checkpointer() -> Optional[BaseCheckpointSaver[str]]:
+async def get_or_create_async_checkpointer() -> BaseCheckpointSaver[str] | None:
     """惰性初始化 AsyncSqliteSaver，所有会话复用同一个连接。"""
 
     global async_checkpointer, async_checkpointer_lock
@@ -144,7 +145,7 @@ async def get_or_create_async_checkpointer() -> Optional[BaseCheckpointSaver[str
         return async_checkpointer
 
 
-async def create_workflow() -> Optional[MainWorkflow]:
+async def create_workflow() -> MainWorkflow | None:
     """
     创建工作流实例 - 使用 LLMFactory（支持自动降级）
 
@@ -241,7 +242,7 @@ async def broadcast_to_websockets(session_id: str, message: Dict[str, Any]):
             success_count += 1
 
         except asyncio.TimeoutError:
-            logger.warning(f"️ [v7.133] WebSocket 发送超时(5s)，标记为断开")
+            logger.warning("️ [v7.133] WebSocket 发送超时(5s)，标记为断开")
             disconnected.append(ws)
             failed_count += 1
         except Exception as e:
@@ -280,22 +281,22 @@ async def run_workflow_async(session_id: str, user_input: str):
 
         logger.info(f" [ASYNC] 解析模式信息 | analysis_mode={analysis_mode}, user_id={user_id}")
 
-        logger.info(f" [ASYNC] 准备打印工作流启动信息...")
+        logger.info(" [ASYNC] 准备打印工作流启动信息...")
 
         print(f"\n{'='*60}")
-        print(f" 开始执行工作流")
+        print(" 开始执行工作流")
         print(f"Session ID: {session_id}")
         print(f"用户输入: {user_input[:100]}...")
-        print(f"运行模式: Dynamic Mode")
+        print("运行模式: Dynamic Mode")
         print(f"分析模式: {analysis_mode}")  #  v7.39
         print(f"{'='*60}\n")
 
-        logger.info(f" [ASYNC] 工作流启动信息已打印")
+        logger.info(" [ASYNC] 工作流启动信息已打印")
 
         #  更新会话状态
-        logger.info(f" [ASYNC] 准备更新会话状态...")
+        logger.info(" [ASYNC] 准备更新会话状态...")
         await _server.session_manager.update(session_id, {"status": "running", "progress": 0.1})
-        logger.info(f" [ASYNC] 会话状态已更新")
+        logger.info(" [ASYNC] 会话状态已更新")
 
         #  广播状态到 WebSocket
         await broadcast_to_websockets(
@@ -303,19 +304,19 @@ async def run_workflow_async(session_id: str, user_input: str):
         )
 
         # 创建工作流
-        print(f" 创建工作流 (Dynamic Mode)...")
+        print(" 创建工作流 (Dynamic Mode)...")
         workflow = await create_workflow()
         if not workflow:
-            print(f" 工作流创建失败")
+            print(" 工作流创建失败")
             await _server.session_manager.update(
                 session_id, {"status": "failed", "error": "工作流创建失败", "traceback": "工作流创建失败，请检查配置"}
             )
             return
 
-        print(f" 工作流创建成功")
+        print(" 工作流创建成功")
         workflows[session_id] = workflow
 
-        logger.info(f" [ASYNC] 准备创建初始状态...")
+        logger.info(" [ASYNC] 准备创建初始状态...")
 
         #  v7.156: 从 session_data 提取多模态视觉参考
         visual_references = session_data.get("visual_references") if session_data else None
@@ -340,7 +341,7 @@ async def run_workflow_async(session_id: str, user_input: str):
 
         config = {"configurable": {"thread_id": session_id}, "recursion_limit": 100}  # 增加递归限制，默认是25
 
-        logger.info(f" [ASYNC] 准备开始流式执行工作流...")
+        logger.info(" [ASYNC] 准备开始流式执行工作流...")
 
         # 流式执行工作流
         # 不指定 stream_mode，使用默认模式以正确接收 __interrupt__
@@ -349,8 +350,8 @@ async def run_workflow_async(session_id: str, user_input: str):
 
         events = []
         try:
-            logger.info(f" [ASYNC] 进入 astream 循环...")
-            logger.info(f" [ASYNC] 调用 workflow.graph.astream()...")
+            logger.info(" [ASYNC] 进入 astream 循环...")
+            logger.info(" [ASYNC] 调用 workflow.graph.astream()...")
 
             stream = workflow.graph.astream(initial_state, config)
             logger.info(f" [ASYNC] astream() 返回了流对象: {type(stream)}")
@@ -377,10 +378,10 @@ async def run_workflow_async(session_id: str, user_input: str):
                         interrupt_value = None
                         if hasattr(interrupt_obj, "value"):
                             interrupt_value = interrupt_obj.value
-                            logger.info(f" [INTERRUPT] Extracted value from .value attribute")
+                            logger.info(" [INTERRUPT] Extracted value from .value attribute")
                         else:
                             interrupt_value = interrupt_obj
-                            logger.info(f" [INTERRUPT] Using obj directly as value")
+                            logger.info(" [INTERRUPT] Using obj directly as value")
 
                         logger.info(f" [INTERRUPT] value type: {type(interrupt_value)}")
 
@@ -403,7 +404,7 @@ async def run_workflow_async(session_id: str, user_input: str):
                             session_id,
                             {"type": "interrupt", "status": "waiting_for_input", "interrupt_data": interrupt_value},
                         )
-                        logger.info(f" [INTERRUPT] Broadcasted to WebSocket")
+                        logger.info(" [INTERRUPT] Broadcasted to WebSocket")
                         return
 
                 #  更新当前节点和详细信息（用于前端进度展示）
@@ -654,7 +655,7 @@ async def run_workflow_async(session_id: str, user_input: str):
                 try:
                     sync_success = await sync_checkpoint_to_redis(session_id)
                     if sync_success:
-                        logger.info(f" [v7.153] checkpoint 数据已同步到 Redis（工作流完成）")
+                        logger.info(" [v7.153] checkpoint 数据已同步到 Redis（工作流完成）")
                 except Exception as sync_error:
                     logger.error(f" [v7.153] checkpoint 同步异常: {sync_error}")
 
@@ -755,7 +756,7 @@ async def run_workflow_async(session_id: str, user_input: str):
                         #  v7.145: 归档前同步 checkpoint 数据到 Redis
                         sync_success = await sync_checkpoint_to_redis(session_id)
                         if sync_success:
-                            logger.info(f" [v7.145] checkpoint 数据已同步，准备归档")
+                            logger.info(" [v7.145] checkpoint 数据已同步，准备归档")
 
                         # 获取完整会话数据
                         final_session = await _server.session_manager.get(session_id)

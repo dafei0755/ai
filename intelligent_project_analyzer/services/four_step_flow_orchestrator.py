@@ -22,13 +22,12 @@ import json
 import os
 import re
 from datetime import datetime
-from typing import Any, AsyncGenerator, Dict, List, Optional, Tuple
+from typing import Any, AsyncGenerator, Dict, List, Tuple
 
 import yaml
 from loguru import logger
 
 # 导入数据结构
-from intelligent_project_analyzer.core.four_step_flow_types import SearchDirection  # Step 1.5 新增
 from intelligent_project_analyzer.core.four_step_flow_types import (
     DeepAnalysisResult,
     Discovery,
@@ -47,6 +46,7 @@ from intelligent_project_analyzer.core.four_step_flow_types import (
     OutputFramework,
     Priority,
     QualityAssessment,
+    SearchDirection,  # Step 1.5 新增
     SearchExecutionConfig,
     SearchQuery,
     SearchResultAnalysis,
@@ -62,7 +62,9 @@ from intelligent_project_analyzer.core.four_step_flow_types import (
 from intelligent_project_analyzer.services.llm_factory import LLMFactory
 
 # 导入搜索方向生成器 (Step 1.5)
-from intelligent_project_analyzer.services.search_direction_generator import SearchDirectionGenerator
+from intelligent_project_analyzer.services.search_direction_generator import (
+    SearchDirectionGenerator,
+)
 
 # 导入搜索服务
 try:
@@ -98,7 +100,7 @@ class PromptLoader:
         config_path = os.path.join(os.path.dirname(__file__), "..", "config", "prompts", prompt_file)
 
         try:
-            with open(config_path, "r", encoding="utf-8") as f:
+            with open(config_path, encoding="utf-8") as f:
                 config = yaml.safe_load(f)
             logger.debug(f" 加载prompt配置: {prompt_file}")
             return config
@@ -1512,7 +1514,7 @@ class Step2SearchTaskDecompositionExecutor:
         self,
         user_input: str,
         output_framework: OutputFramework,
-        search_directions: Optional[Dict[str, List[SearchDirection]]] = None,  # v2.0 新增
+        search_directions: Dict[str, List[SearchDirection]] | None = None,  # v2.0 新增
         stream: bool = True,
     ) -> AsyncGenerator[Dict[str, Any], None]:
         """
@@ -1616,8 +1618,8 @@ class Step2SearchTaskDecompositionExecutor:
         self,
         user_input: str,
         output_framework: OutputFramework,
-        search_directions: Optional[Dict[str, List[SearchDirection]]] = None,
-        understanding: Optional[Understanding] = None,  # v2.0 新增
+        search_directions: Dict[str, List[SearchDirection]] | None = None,
+        understanding: Understanding | None = None,  # v2.0 新增
     ) -> str:
         """构建任务分解prompt (v2.0 - 支持搜索方向和 L2/L3 分析结果)"""
         template = self.prompt_config.get("task_decomposition_prompt_template", "")
@@ -2212,7 +2214,7 @@ class Step2SearchTaskDecompositionExecutor:
             for q in queries
         ]
 
-    def _serialize_execution_strategy(self, strategy: Optional[ExecutionStrategy]) -> Optional[Dict[str, Any]]:
+    def _serialize_execution_strategy(self, strategy: ExecutionStrategy | None) -> Dict[str, Any] | None:
         """序列化执行策略"""
         if not strategy:
             return None
@@ -2223,7 +2225,7 @@ class Step2SearchTaskDecompositionExecutor:
             "parallel_groups": strategy.parallel_groups,
         }
 
-    def _serialize_execution_advice(self, advice: Optional[ExecutionAdvice]) -> Optional[Dict[str, Any]]:
+    def _serialize_execution_advice(self, advice: ExecutionAdvice | None) -> Dict[str, Any] | None:
         """序列化执行建议"""
         if not advice:
             return None
@@ -2820,7 +2822,7 @@ class FourStepFlowOrchestrator:
             self.search_direction_generator = None
 
     async def execute_flow(
-        self, user_input: str, config: Optional[SearchExecutionConfig] = None
+        self, user_input: str, config: SearchExecutionConfig | None = None
     ) -> AsyncGenerator[Dict[str, Any], None]:
         """
         执行完整的4步骤流程

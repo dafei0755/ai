@@ -11,14 +11,19 @@ v7.800 新增:
 - 添加混合模式专家推荐
 """
 
-import yaml
 from pathlib import Path
-from typing import Dict, List, Any, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
+
+import yaml
 from loguru import logger
 
 # 导入混合模式解决器
 try:
-    from ..mode_engine.hybrid_mode_resolver import HybridModeResolver, HybridModeDetectionResult, ResolutionResult
+    from ..mode_engine.hybrid_mode_resolver import (
+        HybridModeDetectionResult,
+        HybridModeResolver,
+        ResolutionResult,
+    )
 
     HYBRID_RESOLVER_AVAILABLE = True
 except ImportError:
@@ -29,7 +34,7 @@ except ImportError:
 class ModeTaskLibrary:
     """模式任务库加载器（v7.800 P0+P2）"""
 
-    _mode_tasks_config: Optional[Dict] = None
+    _mode_tasks_config: Dict | None = None
     _hybrid_resolver: Optional["HybridModeResolver"] = None
 
     @classmethod
@@ -101,7 +106,7 @@ class ModeTaskLibrary:
                 cls._mode_tasks_config = {}
                 return cls._mode_tasks_config
 
-            with open(config_path, "r", encoding="utf-8") as f:
+            with open(config_path, encoding="utf-8") as f:
                 cls._mode_tasks_config = yaml.safe_load(f) or {}
 
             logger.info(f"✅ 成功加载 MODE_TASK_LIBRARY.yaml ({len(cls._mode_tasks_config)} 个模式配置)")
@@ -199,7 +204,7 @@ class ModeTaskLibrary:
         return mandatory_tasks, resolution_result
 
     @classmethod
-    def get_task_by_id(cls, task_id: str) -> Optional[Dict[str, Any]]:
+    def get_task_by_id(cls, task_id: str) -> Dict[str, Any] | None:
         """根据 task_id 获取任务详情"""
         config = cls._load_config()
 
@@ -217,7 +222,7 @@ class ModeTaskLibrary:
         return None
 
     @classmethod
-    def get_expert_for_task(cls, task_id: str) -> Optional[str]:
+    def get_expert_for_task(cls, task_id: str) -> str | None:
         """获取任务对应的目标专家"""
         task = cls.get_task_by_id(task_id)
         if task:
@@ -511,7 +516,7 @@ def extract_task_validation(task: Dict[str, Any]) -> Dict[str, Any]:
         return {"format": "none", "data": None}
 
 
-def get_task_quality_dimension(task: Dict[str, Any]) -> Optional[str]:
+def get_task_quality_dimension(task: Dict[str, Any]) -> str | None:
     """
     获取任务对应的质量维度（仅适用于 quality_target 格式）
 
@@ -532,7 +537,7 @@ def get_task_quality_dimension(task: Dict[str, Any]) -> Optional[str]:
     return None
 
 
-def get_task_target_level(task: Dict[str, Any]) -> Optional[str]:
+def get_task_target_level(task: Dict[str, Any]) -> str | None:
     """
     获取任务的目标质量等级（仅适用于 quality_target 格式）
 

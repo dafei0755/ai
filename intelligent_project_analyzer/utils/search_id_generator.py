@@ -15,14 +15,14 @@ ID格式: {source_tool}_{timestamp}_{hash}
 import hashlib
 import time
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 
 def generate_search_result_id(
     source_tool: str,
-    url: Optional[str] = None,
-    title: Optional[str] = None,
-    timestamp: Optional[str] = None,
+    url: str | None = None,
+    title: str | None = None,
+    timestamp: str | None = None,
 ) -> str:
     """
     为单个搜索结果生成唯一ID
@@ -58,8 +58,8 @@ def generate_search_result_id(
 
 def generate_stable_search_id(
     source_tool: str,
-    url: Optional[str] = None,
-    title: Optional[str] = None,
+    url: str | None = None,
+    title: str | None = None,
 ) -> str:
     """
     生成稳定的搜索结果ID（相同内容生成相同ID，用于去重）

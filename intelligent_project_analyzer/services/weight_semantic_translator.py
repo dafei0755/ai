@@ -13,7 +13,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Tuple
 
 import yaml
 from loguru import logger
@@ -65,7 +65,7 @@ class WeightSemanticTranslator:
     }
     """
 
-    def __init__(self, templates_path: Optional[str] = None):
+    def __init__(self, templates_path: str | None = None):
         path = Path(templates_path) if templates_path else _TEMPLATES_PATH
         self._templates = self._load_templates(path)
 
@@ -316,7 +316,7 @@ class WeightSemanticTranslator:
             return _DEFAULT_TEMPLATES
 
         try:
-            with open(path, "r", encoding="utf-8") as f:
+            with open(path, encoding="utf-8") as f:
                 data = yaml.safe_load(f) or {}
             logger.debug(f"[WeightSemanticTranslator] 加载模板: {path}")
             return data

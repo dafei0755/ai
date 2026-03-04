@@ -8,12 +8,12 @@ Project Director based on role configuration system.
 import json
 import re
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Union
 
 from langchain_core.exceptions import OutputParserException
 from langchain_core.messages import HumanMessage, SystemMessage
 from loguru import logger
-from pydantic import BaseModel, Field, ValidationError, model_validator, validator
+from pydantic import BaseModel, Field, ValidationError, model_validator
 
 from intelligent_project_analyzer.core.prompt_manager import PromptManager
 from intelligent_project_analyzer.core.role_manager import RoleManager
@@ -21,11 +21,8 @@ from intelligent_project_analyzer.core.task_oriented_models import (
     DeliverableFormat,
     DeliverableSpec,
     Priority,
-    RoleWithTaskInstruction,
     TaskInstruction,
-    TaskInstructionSet,
     generate_task_instruction_template,
-    validate_task_instruction_completeness,
 )
 
 
@@ -212,10 +209,10 @@ class RoleSelection(BaseModel):
         # 验证是否有"核心角色"（至少4个交付物）
         max_count = max(deliverable_counts)
         if max_count >= 4:
-            core_roles = [role.role_id for role, count in zip(self.selected_roles, deliverable_counts) if count >= 4]
+            core_roles = [role.role_id for role, count in zip(self.selected_roles, deliverable_counts, strict=False) if count >= 4]
             logger.info(f" 检测到核心角色: {core_roles} (交付物数量≥4)")
         else:
-            logger.warning(f"️ 所有角色的交付物数量都<4，可能缺少核心角色")
+            logger.warning("️ 所有角色的交付物数量都<4，可能缺少核心角色")
 
         return self
 
@@ -349,7 +346,6 @@ class RoleSelection(BaseModel):
             "能",
             "如",
             "或",
-            "等",
             "于",
             "由",
             "从",
@@ -392,14 +388,16 @@ class DynamicProjectDirector:
         # 【新增】初始化权重计算器
         from pathlib import Path
 
-        from intelligent_project_analyzer.services.role_weight_calculator import RoleWeightCalculator
+        from intelligent_project_analyzer.services.role_weight_calculator import (
+            RoleWeightCalculator,
+        )
 
         strategy_path = Path(__file__).parent.parent / "config" / "role_selection_strategy.yaml"
         self.weight_calculator = RoleWeightCalculator(str(strategy_path))
         logger.info(" 权重计算器已初始化")
 
     def select_roles_for_task(
-        self, requirements: str, confirmed_core_tasks: Optional[List[Dict[str, Any]]] = None, max_retries: int = 3
+        self, requirements: str, confirmed_core_tasks: List[Dict[str, Any]] | None = None, max_retries: int = 3
     ) -> RoleSelection:
         """
         根据需求选择合适的角色（带 project_scope 过滤）
@@ -686,7 +684,7 @@ class DynamicProjectDirector:
                     return self._get_default_role_selection(available_roles)
 
         # 理论上不会到达这里，但为了安全起见
-        logger.error(f" Unexpected: reached end of retry loop, using default template")
+        logger.error(" Unexpected: reached end of retry loop, using default template")
         return self._get_default_role_selection(available_roles)
 
     def _fix_task_distribution(self, response: RoleSelection) -> RoleSelection:
@@ -699,7 +697,7 @@ class DynamicProjectDirector:
         Returns:
             修复后的 RoleSelection
         """
-        logger.info(f" [DEBUG] 开始修复 task_distribution")
+        logger.info(" [DEBUG] 开始修复 task_distribution")
         logger.info(f" [DEBUG] 原始 task_distribution 类型: {type(response.task_distribution)}")
 
         #  检查 task_distribution 是否为空
@@ -943,7 +941,7 @@ class DynamicProjectDirector:
             execution_priority=1,
         )
 
-    def _convert_legacy_format_to_v2(self, raw_response: dict) -> Optional[dict]:
+    def _convert_legacy_format_to_v2(self, raw_response: dict) -> dict | None:
         """
         将LLM返回的老格式(tasks/expected_output)转换为v2格式(task_instruction)
 
@@ -1097,7 +1095,7 @@ class DynamicProjectDirector:
             logger.error(" 无法转换老格式（检测失败或数据异常）")
             raise validation_error  # 抛出原始错误，触发重试
 
-    def _extract_raw_response_from_validation_error(self, error: Exception) -> Optional[dict]:
+    def _extract_raw_response_from_validation_error(self, error: Exception) -> dict | None:
         """尝试从LangChain抛出的ValidationError或OutputParserException字符串中提取原始completion。"""
 
         # 1. 尝试从 OutputParserException 中提取 llm_output
@@ -1574,7 +1572,7 @@ class ChallengeDetector:
                                 else:
                                     # 如果解析结果不是字典，抛出异常以触发fallback
                                     raise ValueError("Parsed JSON is not a dict")
-                            except (json.JSONDecodeError, AttributeError, ValueError) as e:
+                            except (json.JSONDecodeError, AttributeError, ValueError):
                                 # Fallback: 将普通字符串视为挑战描述
                                 logger.info(f"ℹ️ 将字符串视为简单挑战描述: {challenge[:50]}...")
                                 challenge = {
@@ -1673,22 +1671,22 @@ class ChallengeDetector:
         # 根据挑战类型决定处理方式
         if challenge_type == "deeper_insight":
             # 专家发现了更深的洞察 → 接受专家的重新诠释
-            logger.info(f" 决策: 接受专家的更深洞察")
+            logger.info(" 决策: 接受专家的更深洞察")
             return "accept"
 
         elif challenge_type == "uncertainty_clarification":
             # 专家标记了不确定性需要澄清 → 回访需求分析师或用户
-            logger.info(f" 决策: 回访需求分析师或用户确认")
+            logger.info(" 决策: 回访需求分析师或用户确认")
             return "revisit_ra"
 
         elif challenge_type == "competing_frames":
             # 存在竞争性框架 → 综合多个方案
-            logger.info(f" 决策: 综合多个诠释框架")
+            logger.info(" 决策: 综合多个诠释框架")
             return "synthesize"
 
         else:
             # 其他情况 → 交甲方裁决
-            logger.info(f" 决策: 交甲方裁决")
+            logger.info(" 决策: 交甲方裁决")
             return "escalate"
 
     def handle_challenges(self, detection_result: Dict[str, Any]) -> Dict[str, Any]:

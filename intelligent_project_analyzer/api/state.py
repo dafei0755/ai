@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 MT-1 (2026-03-01): 共享服务器状态模块
 
@@ -15,25 +14,13 @@ MT-1 (2026-03-01): 共享服务器状态模块
 from __future__ import annotations
 
 import asyncio
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List
 
 from cachetools import TTLCache
 
 if TYPE_CHECKING:
-    import redis.asyncio as aioredis
-    from fastapi import WebSocket
-    from langgraph.checkpoint.base import BaseCheckpointSaver
 
-    from intelligent_project_analyzer.services.followup_history_manager import (
-        FollowupHistoryManager,
-    )
-    from intelligent_project_analyzer.services.redis_session_manager import (
-        RedisSessionManager,
-    )
-    from intelligent_project_analyzer.services.session_archive_manager import (
-        SessionArchiveManager,
-    )
-    from intelligent_project_analyzer.workflow.main_workflow import MainWorkflow
+    pass
 
 # ---------------------------------------------------------------------------
 # 工作流实例池
@@ -41,13 +28,13 @@ if TYPE_CHECKING:
 workflows: Dict[str, Any] = {}
 
 # LangGraph 检查点存储（异步版，全局复用）
-async_checkpointer: Optional[Any] = None
-async_checkpointer_lock: Optional[asyncio.Lock] = None
+async_checkpointer: Any | None = None
+async_checkpointer_lock: asyncio.Lock | None = None
 
 # ---------------------------------------------------------------------------
 # Redis 会话管理器（替代内存字典）
 # ---------------------------------------------------------------------------
-session_manager: Optional[Any] = None
+session_manager: Any | None = None
 
 
 async def _get_session_manager() -> Any:
@@ -75,12 +62,12 @@ async def _get_session_manager() -> Any:
 # ---------------------------------------------------------------------------
 # 会话归档管理器
 # ---------------------------------------------------------------------------
-archive_manager: Optional[Any] = None
+archive_manager: Any | None = None
 
 # ---------------------------------------------------------------------------
 # 追问历史管理器
 # ---------------------------------------------------------------------------
-followup_history_manager: Optional[Any] = None
+followup_history_manager: Any | None = None
 
 # ---------------------------------------------------------------------------
 # WebSocket 连接管理
@@ -90,8 +77,8 @@ websocket_connections: Dict[str, List[Any]] = {}  # session_id -> [ws, ...]
 # ---------------------------------------------------------------------------
 # Redis Pub/Sub
 # ---------------------------------------------------------------------------
-redis_pubsub_client: Optional[Any] = None
-redis_pubsub_task: Optional[asyncio.Task] = None  # type: ignore[type-arg]
+redis_pubsub_client: Any | None = None
+redis_pubsub_task: asyncio.Task | None = None  # type: ignore[type-arg]
 
 # ---------------------------------------------------------------------------
 # PDF 缓存（TTL=1h, maxsize=100）

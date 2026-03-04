@@ -6,24 +6,23 @@ V1.5 项目可行性分析师智能体
 
 import json
 import re
-import yaml
-from typing import Dict, List, Optional, Any, Tuple
 from pathlib import Path
+from typing import Any, Dict, Tuple
 
-from langchain_core.messages import HumanMessage, AIMessage
+import yaml
 from langchain_core.runnables import RunnableConfig
 from loguru import logger
 
-from .base import LLMAgent
-from ..core.state import ProjectAnalysisState, AgentType
-from ..core.types import AnalysisResult
 from ..core.prompt_manager import PromptManager
+from ..core.state import AgentType, ProjectAnalysisState
+from ..core.types import AnalysisResult
+from .base import LLMAgent
 
 
 class FeasibilityAnalystAgent(LLMAgent):
     """V1.5 项目可行性分析师智能体"""
 
-    def __init__(self, llm_model, config: Optional[Dict[str, Any]] = None):
+    def __init__(self, llm_model, config: Dict[str, Any] | None = None):
         super().__init__(
             agent_type=AgentType.REQUIREMENTS_ANALYST,  # 暂时复用，后续可扩展
             name="项目可行性分析师",
@@ -52,7 +51,7 @@ class FeasibilityAnalystAgent(LLMAgent):
                 logger.warning(f"️ 行业标准文件不存在: {standards_path}")
                 return {}
 
-            with open(standards_path, 'r', encoding='utf-8') as f:
+            with open(standards_path, encoding='utf-8') as f:
                 standards = yaml.safe_load(f)
 
             logger.info(f" 已加载行业标准知识库: {standards.get('version', 'unknown')}")
@@ -128,7 +127,7 @@ class FeasibilityAnalystAgent(LLMAgent):
         self,
         state: ProjectAnalysisState,
         config: RunnableConfig,
-        store: Optional[Any] = None
+        store: Any | None = None
     ) -> AnalysisResult:
         """
         执行V1.5可行性分析
@@ -293,7 +292,7 @@ class ConflictDetector:
 
     def detect_budget_conflict(
         self,
-        available_budget: Optional[int],
+        available_budget: int | None,
         estimated_cost: int
     ) -> Dict[str, Any]:
         """检测预算冲突"""
@@ -345,7 +344,7 @@ class ConflictDetector:
 
     def detect_timeline_conflict(
         self,
-        available_days: Optional[int],
+        available_days: int | None,
         required_days: int
     ) -> Dict[str, Any]:
         """检测工期冲突"""
@@ -390,7 +389,7 @@ class ConflictDetector:
 
     def detect_space_conflict(
         self,
-        available_area: Optional[int],
+        available_area: int | None,
         required_area: int
     ) -> Dict[str, Any]:
         """检测空间冲突"""

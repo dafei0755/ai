@@ -9,7 +9,7 @@ v3.0.24 新增
 import json
 import os
 from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 from loguru import logger
 
@@ -58,7 +58,7 @@ class DeviceSessionManager:
             return
         self._init_done = True
 
-        self.redis_client: Optional[Redis] = None
+        self.redis_client: Redis | None = None
         self.redis_url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
         self.device_ttl = int(os.getenv("JWT_EXPIRY", str(self.DEFAULT_TTL)))
         self._initialized = False
@@ -89,7 +89,7 @@ class DeviceSessionManager:
         """获取用户设备的 Redis Key"""
         return f"{self.DEVICE_PREFIX}{user_id}"
 
-    async def register_device(self, user_id: int, device_id: str, device_info: Optional[str] = None) -> Dict[str, Any]:
+    async def register_device(self, user_id: int, device_id: str, device_info: str | None = None) -> Dict[str, Any]:
         """
         注册新设备登录
 
@@ -217,7 +217,7 @@ class DeviceSessionManager:
             logger.error(f" 设备登出失败: {e}")
             return False
 
-    async def get_device_info(self, user_id: int) -> Optional[Dict[str, Any]]:
+    async def get_device_info(self, user_id: int) -> Dict[str, Any] | None:
         """
         获取用户当前登录设备信息
 
@@ -243,7 +243,7 @@ class DeviceSessionManager:
 
 
 # 全局单例
-_device_manager: Optional[DeviceSessionManager] = None
+_device_manager: DeviceSessionManager | None = None
 
 
 def get_device_manager() -> DeviceSessionManager:

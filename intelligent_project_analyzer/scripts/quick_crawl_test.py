@@ -21,12 +21,12 @@ project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
 from loguru import logger
+
 from intelligent_project_analyzer.crawlers import (
     ArchdailyCrawler,
-    GoooodCrawler,
     CrawlerConfig,
+    GoooodCrawler,
 )
-
 
 # 配置日志（DEBUG级别）
 logger.remove()

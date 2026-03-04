@@ -7,7 +7,7 @@
 
 import logging
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 logger = logging.getLogger(__name__)
 
@@ -70,8 +70,8 @@ class DimensionUsageTracker:
         self,
         session_id: str,
         dimension_ratings: Dict[str, int],
-        feedback_text: Optional[str] = None,
-        completion_time: Optional[float] = None,
+        feedback_text: str | None = None,
+        completion_time: float | None = None,
     ) -> Dict[str, Any]:
         """
         记录用户反馈
@@ -112,7 +112,7 @@ class DimensionUsageTracker:
         gap_dimensions: List[str],
         extreme_dimensions: List[str],
         user_provided_followup: bool,
-        followup_quality_score: Optional[float] = None,
+        followup_quality_score: float | None = None,
     ) -> Dict[str, Any]:
         """
         记录Gap分析效果
@@ -150,8 +150,8 @@ class DimensionUsageTracker:
     def build_session_metadata(
         self,
         selection_metadata: Dict[str, Any],
-        feedback_metadata: Optional[Dict[str, Any]] = None,
-        gap_metadata: Optional[Dict[str, Any]] = None,
+        feedback_metadata: Dict[str, Any] | None = None,
+        gap_metadata: Dict[str, Any] | None = None,
     ) -> Dict[str, Any]:
         """
         构建完整的会话维度元数据

@@ -7,9 +7,10 @@
 创建日期: 2026-02-11
 """
 
-import yaml
 from pathlib import Path
-from typing import Dict, List, Any, Optional
+from typing import Any, Dict, List
+
+import yaml
 from loguru import logger
 
 
@@ -18,13 +19,13 @@ class OntologyService:
 
     def __init__(self):
         self.ontology_path = Path(__file__).parent.parent / "knowledge_base" / "ontology.yaml"
-        self._cache: Optional[Dict[str, Any]] = None
+        self._cache: Dict[str, Any] | None = None
 
     def _load_ontology(self) -> Dict[str, Any]:
         """加载本体论文件（带缓存）"""
         if self._cache is None:
             try:
-                with open(self.ontology_path, "r", encoding="utf-8") as f:
+                with open(self.ontology_path, encoding="utf-8") as f:
                     self._cache = yaml.safe_load(f)
                 logger.info(f" 加载本体论文件: {self.ontology_path}")
             except Exception as e:
@@ -93,7 +94,7 @@ class OntologyService:
         logger.info(f" 获取框架概览: {len(result)} 个框架")
         return result
 
-    def get_framework_detail(self, project_type: str) -> Optional[Dict[str, Any]]:
+    def get_framework_detail(self, project_type: str) -> Dict[str, Any] | None:
         """
         获取单个框架的详细维度树
 
@@ -212,7 +213,7 @@ class OntologyService:
     def validate_yaml_syntax(self) -> bool:
         """验证 ontology.yaml 语法正确性"""
         try:
-            with open(self.ontology_path, "r", encoding="utf-8") as f:
+            with open(self.ontology_path, encoding="utf-8") as f:
                 yaml.safe_load(f)
             logger.info(" ontology.yaml 语法验证通过")
             return True
@@ -261,7 +262,7 @@ class OntologyService:
 
 # ============ 全局实例 ============
 
-_ontology_service: Optional[OntologyService] = None
+_ontology_service: OntologyService | None = None
 
 
 def get_ontology_service() -> OntologyService:

@@ -19,8 +19,8 @@ v7.750 P1-Task1
 - M10 未来推演：需要趋势和长期规划信息
 """
 
-from typing import Dict, List, Any
 from dataclasses import dataclass
+from typing import Any, Dict, List
 
 
 @dataclass

@@ -21,19 +21,20 @@ URL 格式:
   - year 仅含 1950~CY+2 范围，不扫描正文避免误匹
 """
 
-import re
 import random
+import re
 import time
 from datetime import datetime
-from typing import List, Dict, Optional
-from bs4 import BeautifulSoup
+from typing import Dict, List
+
 import requests
+from bs4 import BeautifulSoup
 from loguru import logger
 from playwright.sync_api import TimeoutError as PlaywrightTimeout
 
-from .base_spider import BaseSpider, ProjectData
 from ..utils import get_rate_limiter
 from ..utils.lang_utils import split_bilingual_paragraphs, split_bilingual_title
+from .base_spider import BaseSpider, ProjectData
 from .registry import register_spider
 
 
@@ -185,7 +186,7 @@ class GoooodSpider(BaseSpider):
         self.rate_limiter = get_rate_limiter("gooood")
         self.use_playwright = use_playwright
         # 最近一次列表页解析到的最大页码（page 1 解析后设置）
-        self._last_max_page: Optional[int] = None
+        self._last_max_page: int | None = None
 
     # ========================================================================
     # BaseSpider 抽象方法实现
@@ -197,7 +198,7 @@ class GoooodSpider(BaseSpider):
     def get_base_url(self) -> str:
         return "https://www.gooood.cn"
 
-    def parse_project_page(self, url: str) -> Optional[ProjectData]:
+    def parse_project_page(self, url: str) -> ProjectData | None:
         """解析项目页面（线程安全，可从任意线程调用）"""
         return self.fetch_project_detail(url)
 
@@ -211,7 +212,7 @@ class GoooodSpider(BaseSpider):
         self,
         category_url: str,
         max_pages: int = 500,
-        stop_url: Optional[str] = None,
+        stop_url: str | None = None,
     ) -> List[str]:
         """爬取分类页面，获取项目URL列表
 
@@ -237,7 +238,7 @@ class GoooodSpider(BaseSpider):
         logger.info(f"爬取分类 type_slug={type_slug or 'ALL'}, stop_url={'有' if stop_url else '无（首次全量）'}")
 
         new_urls: List[str] = []
-        first_url: Optional[str] = None  # 本次第1页第1条，用于更新 checkpoint
+        first_url: str | None = None  # 本次第1页第1条，用于更新 checkpoint
 
         for page in range(1, max_pages + 1):
             project_list = self.fetch_project_list(page=page, type_slug=type_slug)
@@ -292,7 +293,7 @@ class GoooodSpider(BaseSpider):
         # 兼容旧版 category 参数
         if not type_slug and category:
             type_slug = category
-            logger.warning(f"category 参数已废弃，请使用 type_slug")
+            logger.warning("category 参数已废弃，请使用 type_slug")
 
         # 构建正确的 filter URL
         if type_slug and type_slug != "all":
@@ -444,7 +445,7 @@ class GoooodSpider(BaseSpider):
 
         return projects
 
-    def fetch_project_detail(self, url: str, _retry: int = 0) -> Optional[ProjectData]:
+    def fetch_project_detail(self, url: str, _retry: int = 0) -> ProjectData | None:
         """获取项目详情（线程安全，失败自动重试最多2次）"""
         MAX_DETAIL_RETRIES = 2
         logger.debug(f"爬取项目详情: {url}" + (f" (重试 {_retry}/{MAX_DETAIL_RETRIES})" if _retry else ""))
@@ -793,7 +794,7 @@ class GoooodSpider(BaseSpider):
 
         return {}
 
-    def _extract_year(self, soup: BeautifulSoup, description: str = "") -> Optional[int]:
+    def _extract_year(self, soup: BeautifulSoup, description: str = "") -> int | None:
         """
         提取项目竣工/建成年份。
 
@@ -839,7 +840,7 @@ class GoooodSpider(BaseSpider):
 
         return None
 
-    def _extract_area(self, soup: BeautifulSoup, description: str) -> Optional[float]:
+    def _extract_area(self, soup: BeautifulSoup, description: str) -> float | None:
         """
         提取项目面积（统一转换为 m²）。
 
@@ -883,7 +884,7 @@ class GoooodSpider(BaseSpider):
             "亩": 666.67,
         }
 
-        def _parse_match(m: re.Match) -> Optional[float]:
+        def _parse_match(m: re.Match) -> float | None:
             raw_num = m.group(1).replace(",", "").replace(" ", "")
             unit_raw = m.group(2).strip().lower()
             try:
@@ -1002,7 +1003,7 @@ class GoooodSpider(BaseSpider):
                         break
         return extra
 
-    def _extract_publish_date(self, soup: BeautifulSoup) -> Optional[datetime]:
+    def _extract_publish_date(self, soup: BeautifulSoup) -> datetime | None:
         """
         从 gooood 详情页提取发布日期。
 

@@ -13,20 +13,21 @@
 作者: Ability Core P1 Implementation
 """
 
-from pathlib import Path
-from typing import Dict, List, Optional
 from datetime import datetime
+from pathlib import Path
+from typing import Dict, List
+
 import yaml
 
 from intelligent_project_analyzer.utils.ability_schemas import (
+    ABILITY_NAMES,
+    AbilityCoverageReport,
     AbilityID,
     AbilityMaturityLevel,
     ExpertAbilityProfile,
-    AbilityCoverageReport,
     SystemAbilityCoverageReport,
-    ABILITY_NAMES,
-    maturity_level_to_numeric,
     get_coverage_status,
+    maturity_level_to_numeric,
 )
 
 
@@ -41,7 +42,7 @@ class AbilityQueryTool:
     - 生成能力覆盖报告
     """
 
-    def __init__(self, config_dir: Optional[Path] = None):
+    def __init__(self, config_dir: Path | None = None):
         """
         初始化能力查询工具
 
@@ -66,7 +67,7 @@ class AbilityQueryTool:
 
         for yaml_file in yaml_files:
             try:
-                with open(yaml_file, "r", encoding="utf-8") as f:
+                with open(yaml_file, encoding="utf-8") as f:
                     config = yaml.safe_load(f)
 
                     # 提取专家ID（从文件名或配置中）
@@ -78,7 +79,7 @@ class AbilityQueryTool:
 
         print(f"✅ 成功加载 {len(self._expert_configs)} 个专家配置文件")
 
-    def get_expert_abilities(self, expert_id: str) -> Optional[ExpertAbilityProfile]:
+    def get_expert_abilities(self, expert_id: str) -> ExpertAbilityProfile | None:
         """
         获取专家的能力声明
 
@@ -271,7 +272,7 @@ class AbilityQueryTool:
 # ============================================================================
 
 
-def query_expert_abilities(expert_id: str) -> Optional[ExpertAbilityProfile]:
+def query_expert_abilities(expert_id: str) -> ExpertAbilityProfile | None:
     """查询专家能力（快捷函数）"""
     tool = AbilityQueryTool()
     return tool.get_expert_abilities(expert_id)

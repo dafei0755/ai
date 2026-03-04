@@ -16,7 +16,7 @@ v7.151: 流程优化，直接路由到 questionnaire_summary（需求洞察）
 import asyncio
 import json
 from datetime import datetime
-from typing import Any, Dict, List, Literal, Optional
+from typing import Any, Dict, List, Literal
 
 from langgraph.store.base import BaseStore
 from langgraph.types import Command, interrupt
@@ -26,7 +26,11 @@ from ...core.state import ProjectAnalysisState
 from ...core.workflow_flags import WorkflowFlagManager
 from ...services.capability_boundary_service import CapabilityBoundaryService, CheckType
 from ...services.core_task_decomposer import _simple_fallback_decompose, decompose_core_tasks
-from ...services.dimension_selector import DimensionSelector, RadarGapAnalyzer, select_dimensions_for_state
+from ...services.dimension_selector import (
+    DimensionSelector,
+    RadarGapAnalyzer,
+    select_dimensions_for_state,
+)
 
 # v8.2: 动态步骤追踪装饰器
 from ...utils.node_tracker import track_active_step
@@ -66,7 +70,10 @@ class ProgressiveQuestionnaireNode:
         Returns:
             下一节点名称字符串
         """
-        from ...config.feature_flags import ENABLE_SMART_NODE_SELF_SKIP, ENABLE_SMART_NODE_SELF_SKIP_SHADOW
+        from ...config.feature_flags import (
+            ENABLE_SMART_NODE_SELF_SKIP,
+            ENABLE_SMART_NODE_SELF_SKIP_SHADOW,
+        )
 
         profile = state.get("motivation_routing_profile")
 
@@ -106,7 +113,7 @@ class ProgressiveQuestionnaireNode:
 
     @staticmethod
     def step1_core_task(
-        state: ProjectAnalysisState, store: Optional[BaseStore] = None
+        state: ProjectAnalysisState, store: BaseStore | None = None
     ) -> Command[
         Literal[
             "progressive_step2_radar",
@@ -153,7 +160,6 @@ class ProgressiveQuestionnaireNode:
         if _contains_poetic_expression(user_input):
             logger.info(" [诗意解读] 检测到诗意/哲学表达，启动诗意解读子流程")
             try:
-                import functools
                 from concurrent.futures import ThreadPoolExecutor
 
                 def _run_async_poetic_interpret(user_input: str):
@@ -173,7 +179,6 @@ class ProgressiveQuestionnaireNode:
         # v7.80.1.2: 使用 ThreadPoolExecutor 在独立线程中运行 LLM 异步调用
         # 解决 LangGraph 异步上下文与 asyncio.run 不兼容的问题
         try:
-            import functools
             from concurrent.futures import ThreadPoolExecutor
 
             def _run_async_decompose(user_input: str, structured_data: dict):
@@ -288,7 +293,7 @@ class ProgressiveQuestionnaireNode:
                 "questionnaire_summary": default_questionnaire_summary,
                 "questionnaire_responses": default_questionnaire_summary,
             }
-            logger.info(f"️ [v7.87 P0] 已设置默认 questionnaire_summary（Step 1跳过）")
+            logger.info("️ [v7.87 P0] 已设置默认 questionnaire_summary（Step 1跳过）")
 
             update_dict = WorkflowFlagManager.preserve_flags(state, update_dict)
             return Command(update=update_dict, goto=_NODE_DIRECTOR)
@@ -317,13 +322,13 @@ class ProgressiveQuestionnaireNode:
                 check_type=CheckType.DELIVERABLE_ONLY,
             )
 
-            logger.info(f" 任务能力边界检查结果:")
+            logger.info(" 任务能力边界检查结果:")
             logger.info(f"   在能力范围内: {boundary_check.within_capability}")
             logger.info(f"   能力匹配度: {boundary_check.capability_score:.2f}")
 
             # 标记有风险的任务
             if not boundary_check.within_capability:
-                logger.warning(f"️ 部分任务可能超出能力范围")
+                logger.warning("️ 部分任务可能超出能力范围")
 
                 # 为每个任务检查是否包含超范围关键词
                 for i, task in enumerate(confirmed_tasks):
@@ -408,7 +413,7 @@ class ProgressiveQuestionnaireNode:
 
     @staticmethod
     def step2_radar(
-        state: ProjectAnalysisState, store: Optional[BaseStore] = None
+        state: ProjectAnalysisState, store: BaseStore | None = None
     ) -> Command[
         Literal["progressive_step2_radar", "progressive_step3_gap_filling", "questionnaire_summary", "project_director"]
     ]:
@@ -482,7 +487,9 @@ class ProgressiveQuestionnaireNode:
         if USE_PROJECT_SPECIFIC_DIMENSIONS:
             logger.info("🎯 [v8.0] USE_PROJECT_SPECIFIC_DIMENSIONS=true，尝试项目专属维度生成")
             try:
-                from ...services.project_specific_dimension_generator import ProjectSpecificDimensionGenerator
+                from ...services.project_specific_dimension_generator import (
+                    ProjectSpecificDimensionGenerator,
+                )
 
                 ps_generator = ProjectSpecificDimensionGenerator()
                 agent_results_v8 = state.get("agent_results", {})
@@ -783,7 +790,7 @@ class ProgressiveQuestionnaireNode:
 
             #  v7.146.1: 降级后再次校验，强制解包 v7.139 dict 格式
             if isinstance(dimensions, dict):
-                logger.warning(f"️ [降级后] dimensions 仍为 dict，强制提取 dimensions 字段")
+                logger.warning("️ [降级后] dimensions 仍为 dict，强制提取 dimensions 字段")
                 dimensions = dimensions.get("dimensions", [])
             if not isinstance(dimensions, list):
                 logger.error(f" [降级失败] dimensions 最终仍非列表: {type(dimensions)}，使用空列表")
@@ -869,7 +876,7 @@ class ProgressiveQuestionnaireNode:
 
     @staticmethod
     def step3_gap_filling(
-        state: ProjectAnalysisState, store: Optional[BaseStore] = None
+        state: ProjectAnalysisState, store: BaseStore | None = None
     ) -> Command[Literal["progressive_step2_radar", "questionnaire_summary", "project_director"]]:
         """
         Step 3: 核心任务信息完整性查漏补缺
@@ -1422,7 +1429,6 @@ async def _llm_interpret_poetry(text: str) -> Dict[str, Any]:
             "design_implications": ["光影设计", "镜面元素", "冷色调"]  # 设计指向
         }
     """
-    import json
 
     from langchain_core.messages import HumanMessage, SystemMessage
 
@@ -1484,18 +1490,18 @@ async def _llm_interpret_poetry(text: str) -> Dict[str, Any]:
 
 
 @track_active_step("progressive_step1_core_task")
-def progressive_step1_core_task_node(state: ProjectAnalysisState, store: Optional[BaseStore] = None) -> Command:
+def progressive_step1_core_task_node(state: ProjectAnalysisState, store: BaseStore | None = None) -> Command:
     """Step 1 节点函数"""
     return ProgressiveQuestionnaireNode.step1_core_task(state, store)
 
 
 @track_active_step("progressive_step2_radar")
-def progressive_step2_radar_node(state: ProjectAnalysisState, store: Optional[BaseStore] = None) -> Command:
+def progressive_step2_radar_node(state: ProjectAnalysisState, store: BaseStore | None = None) -> Command:
     """Step 2 节点函数"""
     return ProgressiveQuestionnaireNode.step2_radar(state, store)
 
 
 @track_active_step("progressive_step3_gap_filling")
-def progressive_step3_gap_filling_node(state: ProjectAnalysisState, store: Optional[BaseStore] = None) -> Command:
+def progressive_step3_gap_filling_node(state: ProjectAnalysisState, store: BaseStore | None = None) -> Command:
     """Step 3 节点函数"""
     return ProgressiveQuestionnaireNode.step3_gap_filling(state, store)

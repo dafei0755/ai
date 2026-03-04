@@ -4,7 +4,7 @@
 
 import json
 import re
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from loguru import logger
 
@@ -88,7 +88,7 @@ class DomainClassifier:
             except Exception as e:
                 logger.warning(f"️ LLM分类失败: {e}")
 
-        def _design_response(confidence: Optional[float] = None) -> Dict[str, Any]:
+        def _design_response(confidence: float | None = None) -> Dict[str, Any]:
             final_conf = confidence if confidence is not None else self._compute_confidence(design_stats)
             matched_categories = list({*design_stats["categories"], *llm_result.get("categories", [])})
             return {
@@ -97,7 +97,7 @@ class DomainClassifier:
                 "matched_categories": matched_categories,
             }
 
-        def _non_design_response(confidence: Optional[float] = None, reason: str = "输入内容不属于空间设计领域") -> Dict[str, Any]:
+        def _non_design_response(confidence: float | None = None, reason: str = "输入内容不属于空间设计领域") -> Dict[str, Any]:
             final_conf = confidence if confidence is not None else self._compute_confidence(non_design_stats)
             return {
                 "is_design_related": False,
@@ -242,7 +242,7 @@ class DomainClassifier:
             logger.error(f" LLM分类异常: {e}")
             return {"is_design": True, "confidence": 0.5, "categories": []}
 
-    def _check_task_type_override(self, user_input: str) -> Optional[Dict[str, Any]]:
+    def _check_task_type_override(self, user_input: str) -> Dict[str, Any] | None:
         """
         P0.2优化: 任务类型优先级判断（覆盖规则）
 

@@ -43,7 +43,7 @@ async def get_my_membership(current_user: Dict[str, Any] = Depends(auth_middlewa
         raise HTTPException(status_code=503, detail="会员API服务不可用")
 
     try:
-        print(f"[MemberRoutes]  开始获取会员信息...")
+        print("[MemberRoutes]  开始获取会员信息...")
         print(f"[MemberRoutes] 当前用户信息: {current_user}")
 
         api = WPCOMMemberAPI()

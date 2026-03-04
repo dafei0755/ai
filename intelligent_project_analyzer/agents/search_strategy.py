@@ -8,7 +8,7 @@
 """
 
 import json
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 from langchain_core.messages import HumanMessage, SystemMessage
 from loguru import logger
@@ -399,13 +399,13 @@ class SearchStrategyGenerator:
 
         if project_type == "interior_design":
             # 室内设计项目 - 关注智能家居、照明、材料等技术
-            queries["tech_trends"] = f"智能家居系统 照明控制 2024"
-            queries["academic_research"] = f"smart home automation lighting control"
-            queries["knowledge_base"] = f"智能家居技术 最佳实践"
+            queries["tech_trends"] = "智能家居系统 照明控制 2024"
+            queries["academic_research"] = "smart home automation lighting control"
+            queries["knowledge_base"] = "智能家居技术 最佳实践"
         else:
             # 软件项目
-            queries["tech_trends"] = f"software architecture patterns microservices 2024"
-            queries["academic_research"] = f"software engineering architecture scalability"
+            queries["tech_trends"] = "software architecture patterns microservices 2024"
+            queries["academic_research"] = "software engineering architecture scalability"
             queries["knowledge_base"] = f"architecture patterns best practices {assigned_task[:50]}"
 
         return queries
@@ -437,11 +437,11 @@ class SearchStrategyGenerator:
         if project_type == "interior_design":
             queries["market_trends"] = f"室内设计市场趋势 {user_str} 2024"
             queries["competitor_analysis"] = f"interior design market analysis {user_str}"
-            queries["revenue_models"] = f"室内设计商业模式 盈利模式"
+            queries["revenue_models"] = "室内设计商业模式 盈利模式"
         else:
             queries["market_trends"] = f"market trends business model 2024 {user_str}"
             queries["competitor_analysis"] = f"competitor analysis market research {user_str}"
-            queries["revenue_models"] = f"revenue model monetization strategy"
+            queries["revenue_models"] = "revenue model monetization strategy"
 
         return queries
 
@@ -450,13 +450,13 @@ class SearchStrategyGenerator:
         queries = {}
 
         if project_type == "interior_design":
-            queries["project_management"] = f"室内设计项目管理 施工流程 2024"
-            queries["methodology"] = f"interior design project planning methodology"
-            queries["risk_management"] = f"室内设计项目风险管理"
+            queries["project_management"] = "室内设计项目管理 施工流程 2024"
+            queries["methodology"] = "interior design project planning methodology"
+            queries["risk_management"] = "室内设计项目风险管理"
         else:
-            queries["project_management"] = f"project management best practices 2024"
-            queries["methodology"] = f"agile development DevOps implementation methodology"
-            queries["risk_management"] = f"project risk management mitigation strategies"
+            queries["project_management"] = "project management best practices 2024"
+            queries["methodology"] = "agile development DevOps implementation methodology"
+            queries["risk_management"] = "project risk management mitigation strategies"
 
         return queries
 

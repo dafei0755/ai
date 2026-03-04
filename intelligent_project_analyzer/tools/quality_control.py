@@ -10,8 +10,8 @@ v7.197 新增：
 """
 
 import re
-from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional, Set
+from datetime import datetime
+from typing import Any, Dict, List, Set
 from urllib.parse import urlparse
 
 from loguru import logger
@@ -211,7 +211,7 @@ class SearchQualityControl:
         min_content_length: int = 50,
         enable_deduplication: bool = True,
         enable_filters: bool = True,
-        query: Optional[str] = None,  # v7.197: 支持传入查询用于动态权重
+        query: str | None = None,  # v7.197: 支持传入查询用于动态权重
     ):
         """
         初始化质量控制器
@@ -253,7 +253,7 @@ class SearchQualityControl:
             f"filters={enable_filters}"
         )
 
-    def _init_dynamic_weights(self, query: Optional[str]) -> None:
+    def _init_dynamic_weights(self, query: str | None) -> None:
         """
         初始化动态权重 (v7.197)
 
@@ -285,7 +285,7 @@ class SearchQualityControl:
         return self._dynamic_weights or dict(self.SCORE_WEIGHTS)
 
     def process_results(
-        self, results: List[Dict[str, Any]], deliverable_context: Optional[Dict[str, Any]] = None
+        self, results: List[Dict[str, Any]], deliverable_context: Dict[str, Any] | None = None
     ) -> List[Dict[str, Any]]:
         """
         处理搜索结果（完整管道）
@@ -545,7 +545,7 @@ class SearchQualityControl:
             # 1. 检查URL是否存在
             if not url or not isinstance(url, str):
                 blocked_count += 1
-                logger.debug(f" [URL过滤] 空URL或非字符串")
+                logger.debug(" [URL过滤] 空URL或非字符串")
                 continue
 
             # 2. 检查协议
@@ -645,7 +645,7 @@ class SearchQualityControl:
             content = result.get("content", "") or result.get("snippet", "")
             content_prefix = self._normalize_text(content[:100])
             if content_prefix and content_prefix in seen_content_prefixes:
-                logger.debug(f"️ Duplicate content prefix")
+                logger.debug("️ Duplicate content prefix")
                 continue
 
             # 通过所有去重检查，添加到结果
@@ -1235,7 +1235,7 @@ class EnhancedSearchQualityControl(SearchQualityControl):
         logger.info(f" EnhancedSearchQualityControl initialized: depth_eval={enable_depth_evaluation}")
 
     def process_results(
-        self, results: List[Dict[str, Any]], deliverable_context: Optional[Dict[str, Any]] = None
+        self, results: List[Dict[str, Any]], deliverable_context: Dict[str, Any] | None = None
     ) -> List[Dict[str, Any]]:
         """
         处理搜索结果（增强版管道）
@@ -1349,7 +1349,7 @@ class HumanDimensionEvaluator:
 
         logger.info(" HumanDimensionEvaluator initialized")
 
-    def evaluate(self, result: Dict[str, Any], user_model: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    def evaluate(self, result: Dict[str, Any], user_model: Dict[str, Any] | None = None) -> Dict[str, Any]:
         """
         评估单个搜索结果的人性维度相关性
 
@@ -1434,7 +1434,7 @@ class HumanDimensionEvaluator:
         return result
 
     def evaluate_batch(
-        self, results: List[Dict[str, Any]], user_model: Optional[Dict[str, Any]] = None
+        self, results: List[Dict[str, Any]], user_model: Dict[str, Any] | None = None
     ) -> List[Dict[str, Any]]:
         """
         批量评估搜索结果
@@ -1455,7 +1455,7 @@ class HumanDimensionEvaluator:
         return results
 
     def filter_by_human_score(
-        self, results: List[Dict[str, Any]], min_score: float = 20.0, user_model: Optional[Dict[str, Any]] = None
+        self, results: List[Dict[str, Any]], min_score: float = 20.0, user_model: Dict[str, Any] | None = None
     ) -> List[Dict[str, Any]]:
         """
         按人性维度分数过滤结果
@@ -1478,7 +1478,7 @@ class HumanDimensionEvaluator:
         return filtered
 
     def sort_by_human_score(
-        self, results: List[Dict[str, Any]], descending: bool = True, user_model: Optional[Dict[str, Any]] = None
+        self, results: List[Dict[str, Any]], descending: bool = True, user_model: Dict[str, Any] | None = None
     ) -> List[Dict[str, Any]]:
         """
         按人性维度分数排序
@@ -1528,7 +1528,7 @@ class InsightAwareQualityControl(EnhancedSearchQualityControl):
         enable_depth_evaluation: bool = True,
         enable_human_evaluation: bool = True,
         min_depth_score: int = 20,
-        user_model: Optional[Dict[str, Any]] = None,
+        user_model: Dict[str, Any] | None = None,
         human_weight: float = 0.15,
     ):
         """
@@ -1565,7 +1565,7 @@ class InsightAwareQualityControl(EnhancedSearchQualityControl):
         )
 
     def process_results(
-        self, results: List[Dict[str, Any]], deliverable_context: Optional[Dict[str, Any]] = None
+        self, results: List[Dict[str, Any]], deliverable_context: Dict[str, Any] | None = None
     ) -> List[Dict[str, Any]]:
         """
         处理搜索结果（洞察感知版管道）
@@ -1616,7 +1616,7 @@ class InsightAwareQualityControl(EnhancedSearchQualityControl):
 
 # 便捷函数
 def evaluate_human_dimensions(
-    results: List[Dict[str, Any]], user_model: Optional[Dict[str, Any]] = None
+    results: List[Dict[str, Any]], user_model: Dict[str, Any] | None = None
 ) -> List[Dict[str, Any]]:
     """
     快速评估人性维度
@@ -1637,7 +1637,7 @@ def insight_aware_quality_control(
     min_relevance: float = 0.6,
     enable_depth: bool = True,
     enable_human: bool = True,
-    user_model: Optional[Dict[str, Any]] = None,
+    user_model: Dict[str, Any] | None = None,
 ) -> List[Dict[str, Any]]:
     """
     洞察感知质量控制（便捷函数）

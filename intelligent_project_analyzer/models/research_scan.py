@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from enum import Enum
-from typing import List, Optional
+from typing import List
 
 from pydantic import BaseModel, Field, HttpUrl, field_validator, model_validator
 
@@ -54,13 +54,13 @@ class ScanTask(BaseModel):
 
     @field_validator("seed_sites", mode="before")
     @classmethod
-    def default_seed_sites(cls, value: Optional[List[str]]) -> List[str]:
+    def default_seed_sites(cls, value: List[str] | None) -> List[str]:
         if value is None:
             return []
         return value
 
     @model_validator(mode="after")
-    def validate_topic_not_empty(self) -> "ScanTask":
+    def validate_topic_not_empty(self) -> ScanTask:
         if not self.topic:
             raise ValueError("topic cannot be empty after trimming")
         return self
@@ -96,7 +96,7 @@ class ClaimVerification(BaseModel):
     claim: str = Field(..., min_length=1)
     status: ClaimVerificationStatus
     supporting_urls: List[HttpUrl] = Field(default_factory=list)
-    note: Optional[str] = None
+    note: str | None = None
 
 
 class ComparisonRow(BaseModel):
@@ -119,7 +119,7 @@ class ResearchReport(BaseModel):
     open_questions: List[str] = Field(default_factory=list)
 
     @model_validator(mode="after")
-    def validate_summary(self) -> "ResearchReport":
+    def validate_summary(self) -> ResearchReport:
         self.summary = self.summary.strip()
         if not self.summary:
             raise ValueError("summary cannot be blank")

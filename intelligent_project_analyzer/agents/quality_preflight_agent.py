@@ -12,18 +12,15 @@
     analyze_risks → generate_checklists → validate_capability → END
 """
 
-from typing import TypedDict, Dict, Any, List, Optional
-from loguru import logger
-from datetime import datetime
-import asyncio
 import time
+from datetime import datetime
+from typing import Any, Dict, List, TypedDict
 
-from langgraph.graph import StateGraph, START, END
-from langgraph.types import interrupt
+from langgraph.graph import END, START, StateGraph
+from loguru import logger
 
 # 导入共享工具函数
 from ..utils.shared_agent_utils import PerformanceMonitor
-
 
 # ============================================================================
 # 状态定义
@@ -300,7 +297,7 @@ class QualityPreflightAgent:
         result = agent.execute(state)
     """
     
-    def __init__(self, llm_model=None, config: Optional[Dict[str, Any]] = None):
+    def __init__(self, llm_model=None, config: Dict[str, Any] | None = None):
         """初始化质量预检智能体"""
         self.llm_model = llm_model
         self.config = config or {}

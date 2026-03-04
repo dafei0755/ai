@@ -7,7 +7,7 @@
 import re
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any, Dict, List, Set, Tuple
 from urllib.parse import urlparse
 
 import yaml
@@ -26,7 +26,7 @@ class SearchFilterManager:
     5. v7.199: 支持灰名单（查询类型感知过滤）
     """
 
-    def __init__(self, config_path: Optional[Path] = None, register_global: bool = True):
+    def __init__(self, config_path: Path | None = None, register_global: bool = True):
         """
         初始化过滤器管理器
 
@@ -63,7 +63,7 @@ class SearchFilterManager:
                 self._config = self._get_default_config()
                 return False
 
-            with open(self.config_path, "r", encoding="utf-8") as f:
+            with open(self.config_path, encoding="utf-8") as f:
                 loaded_config = yaml.safe_load(f)
 
             # 处理空文件或None的情况
@@ -554,7 +554,7 @@ class SearchFilterManager:
         """获取白名单提升分数"""
         return self._config.get("whitelist", {}).get("boost_score", 0.3)
 
-    def _check_duplicate(self, domain: str, existing_list: List[str], list_type: str = "blacklist") -> Optional[str]:
+    def _check_duplicate(self, domain: str, existing_list: List[str], list_type: str = "blacklist") -> str | None:
         """
          v7.171: 检查是否存在重复或冗余的域名
 
@@ -593,7 +593,7 @@ class SearchFilterManager:
 
         return None
 
-    def add_to_blacklist(self, domain: str, match_type: str = "domains", note: Optional[str] = None) -> bool:
+    def add_to_blacklist(self, domain: str, match_type: str = "domains", note: str | None = None) -> bool:
         """
         添加到黑名单
 
@@ -686,7 +686,7 @@ class SearchFilterManager:
             logger.error(f" 从黑名单移除失败: {domain} - {e}")
             return False
 
-    def add_to_whitelist(self, domain: str, match_type: str = "domains", note: Optional[str] = None) -> bool:
+    def add_to_whitelist(self, domain: str, match_type: str = "domains", note: str | None = None) -> bool:
         """添加到白名单"""
         try:
             if "whitelist" not in self._config:
@@ -820,7 +820,7 @@ class SearchFilterManager:
 
 
 # 全局单例
-_filter_manager: Optional[SearchFilterManager] = None
+_filter_manager: SearchFilterManager | None = None
 
 
 def get_filter_manager() -> SearchFilterManager:

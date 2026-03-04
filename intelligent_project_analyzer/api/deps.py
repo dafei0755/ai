@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 认证依赖和通用工具函数 (MT-1 提取自 api/server.py)
 
@@ -20,17 +19,16 @@ from __future__ import annotations
 import os
 import time
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any
 
 from fastapi import HTTPException, Request
 from loguru import logger
 from pydantic import BaseModel
 
+from intelligent_project_analyzer.api._server_proxy import server_proxy as _server
 from intelligent_project_analyzer.services.image_generator import ImageAspectRatio
 from intelligent_project_analyzer.services.wordpress_jwt_service import WordPressJWTService
 from intelligent_project_analyzer.settings import settings
-from intelligent_project_analyzer.api._server_proxy import server_proxy as _server
-
 
 # ============================================================
 #  v7.60.4: 宽高比工具
@@ -221,7 +219,7 @@ def get_user_identifier(current_user: dict) -> str:
 
 
 #  v7.130: 可选认证依赖函数（Token存在则验证，不存在也允许访问）
-async def optional_auth(request: Request) -> Optional[dict]:
+async def optional_auth(request: Request) -> dict | None:
     """
     可选认证依赖函数：如果有JWT Token则验证，没有也不报错
 

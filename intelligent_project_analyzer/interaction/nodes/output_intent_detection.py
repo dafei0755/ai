@@ -27,7 +27,7 @@ import logging
 import os
 import re
 from pathlib import Path
-from typing import Any, Dict, List, Literal, Optional, Tuple
+from typing import Any, Dict, List, Tuple
 
 import yaml
 from langgraph.types import Command, interrupt
@@ -101,7 +101,7 @@ def _extract_spatial_zones(structured_requirements: Dict, user_input: str) -> Li
 
 # ─── v12.1: 约束维度映射加载 + 推荐构建 ───
 
-_constraint_display_cache: Optional[Dict[str, Any]] = None
+_constraint_display_cache: Dict[str, Any] | None = None
 
 
 def _load_constraint_display() -> Dict[str, Any]:
@@ -113,7 +113,7 @@ def _load_constraint_display() -> Dict[str, Any]:
     config_path = Path(__file__).parent.parent.parent.parent / "config" / "constraint_display.yaml"
     if config_path.exists():
         try:
-            with open(config_path, "r", encoding="utf-8") as f:
+            with open(config_path, encoding="utf-8") as f:
                 data = yaml.safe_load(f) or {}
             _constraint_display_cache = data.get("constraint_dimensions", {})
         except Exception as e:
@@ -128,7 +128,7 @@ def _load_constraint_display() -> Dict[str, Any]:
 def _build_recommended_constraints(
     mandatory_dims: List[str],
     constraints: List[Dict[str, Any]],
-    visual_constraints: Optional[Dict[str, Any]] = None,
+    visual_constraints: Dict[str, Any] | None = None,
 ) -> List[Dict[str, Any]]:
     """
     🆕 v12.1: 将后端检测到的 mandatory_dimensions 和 constraints
@@ -201,7 +201,7 @@ def _build_recommended_constraints(
 def _build_constraint_envelope(
     constraints_by_zone: Dict[str, List[Dict]],
     spatial_zones: List[Dict[str, Any]],
-    style_tendencies: Optional[Dict] = None,
+    style_tendencies: Dict | None = None,
 ) -> str:
     """
     🆕 v12.0: 组装三层约束信封文本。
@@ -405,7 +405,7 @@ async def _run_constraint_pipeline(state: dict) -> Dict[str, Any]:
 # 配置加载
 # ==================================================================================
 
-_CONFIG_CACHE: Optional[Dict] = None
+_CONFIG_CACHE: Dict | None = None
 
 
 def _load_config() -> Dict:
@@ -537,7 +537,7 @@ def _detect_stakeholder_signals(structured_requirements: Dict) -> Dict[str, floa
 
 
 def _detect_spatial_attribute_signals(
-    detected_modes: List[Dict], project_classification: Optional[Dict]
+    detected_modes: List[Dict], project_classification: Dict | None
 ) -> Tuple[List[str], List[str]]:
     """源3: 从 mode + project_type 检测空间属性必然/可能利益方"""
     mandatory: List[str] = []
@@ -580,7 +580,7 @@ def _detect_spatial_attribute_signals(
     return mandatory, likely
 
 
-def _stakeholder_to_projection(stakeholder_key: str) -> Optional[str]:
+def _stakeholder_to_projection(stakeholder_key: str) -> str | None:
     """将 stakeholder 键名映射到 projection ID"""
     config = _load_config()
     mapping = config.get("stakeholder_projection_mapping", {})
@@ -954,7 +954,7 @@ def _detect_identity_modes(
     user_input: str,
     structured_requirements: Dict,
     detected_modes: List[Dict],
-    project_classification: Optional[Dict],
+    project_classification: Dict | None,
 ) -> List[Dict[str, Any]]:
     """检测身份模式：多源交叉"""
 
@@ -1394,7 +1394,7 @@ def output_intent_detection_node(state: dict, store=None) -> Command:
     if visual_constraints:
         logger.info(f"  🎯 [v12.0] 约束信封长度: {len(visual_constraints.get('constraint_envelope', ''))}")
     else:
-        logger.info(f"  📷 [v12.0] 无视觉约束（无上传图片或提取失败）")
+        logger.info("  📷 [v12.0] 无视觉约束（无上传图片或提取失败）")
 
     # -------------------------------------------------------
     # 3. 🆕 v11.0: 构建输出意图载荷并 interrupt 等待用户确认（Step 0）
@@ -1608,7 +1608,7 @@ def output_intent_detection_node(state: dict, store=None) -> Command:
     logger.info(f"  📐 推理: {framework_signals.get('reasoning', '')}")
 
     logger.info("=" * 60)
-    logger.info(f"🎯 输出意图检测完成(v11.0):")
+    logger.info("🎯 输出意图检测完成(v11.0):")
     logger.info(f"   交付类型: {active_projections}")
     logger.info(f"   身份模式: {[m['label'] for m in serializable_modes]}")
     logger.info(f"   intent_changed: {intent_changed}")

@@ -24,7 +24,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 import yaml
 from loguru import logger
@@ -55,7 +55,7 @@ class SearchOrchestrator:
     5. 整合所有结果，结构化输出
     """
 
-    def __init__(self, config_path: Optional[Path] = None):
+    def __init__(self, config_path: Path | None = None):
         """
         初始化搜索编排器
 
@@ -85,7 +85,7 @@ class SearchOrchestrator:
         """加载配置文件"""
         try:
             if config_path.exists():
-                with open(config_path, "r", encoding="utf-8") as f:
+                with open(config_path, encoding="utf-8") as f:
                     return yaml.safe_load(f) or {}
             else:
                 logger.warning(f"️ 配置文件不存在: {config_path}")
@@ -136,9 +136,9 @@ class SearchOrchestrator:
     def orchestrate(
         self,
         query: str,
-        context: Optional[Dict[str, Any]] = None,
-        max_rounds: Optional[int] = None,
-        state: Optional[Dict[str, Any]] = None,  #  v7.180: 接受state参数
+        context: Dict[str, Any] | None = None,
+        max_rounds: int | None = None,
+        state: Dict[str, Any] | None = None,  #  v7.180: 接受state参数
     ) -> Dict[str, Any]:
         """
         执行5轮渐进式搜索
@@ -269,7 +269,7 @@ class SearchOrchestrator:
 
         return unique_concepts
 
-    def _extract_domain(self, query: str, context: Optional[Dict[str, Any]] = None) -> str:
+    def _extract_domain(self, query: str, context: Dict[str, Any] | None = None) -> str:
         """
         提取领域信息
 
@@ -328,7 +328,7 @@ class SearchOrchestrator:
         return list(found_dimensions)[:5]  # 最多5个维度
 
     def _search_round_1_concepts(
-        self, concepts: List[str], domain: str, enhanced_queries: Optional[List[str]] = None  #  v7.180
+        self, concepts: List[str], domain: str, enhanced_queries: List[str] | None = None  #  v7.180
     ) -> Dict[str, Any]:
         """
         第1轮：基础概念探索
@@ -819,7 +819,7 @@ class SearchOrchestrator:
 
 
 # 全局单例
-_orchestrator: Optional[SearchOrchestrator] = None
+_orchestrator: SearchOrchestrator | None = None
 
 
 def get_search_orchestrator() -> SearchOrchestrator:
@@ -831,7 +831,7 @@ def get_search_orchestrator() -> SearchOrchestrator:
 
 
 # 便捷函数
-def orchestrated_search(query: str, context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+def orchestrated_search(query: str, context: Dict[str, Any] | None = None) -> Dict[str, Any]:
     """
     执行编排搜索（便捷函数）
 

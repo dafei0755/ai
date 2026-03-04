@@ -5,7 +5,6 @@ FastAPI 认证路由
 """
 
 import os
-from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Request
 from loguru import logger

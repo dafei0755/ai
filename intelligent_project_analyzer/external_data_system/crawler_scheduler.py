@@ -9,24 +9,22 @@
 5. 实时监控&日志推送
 """
 
-import time
+import json
 import random
 import threading
-from typing import Optional, Dict, Any, List, Callable
-from datetime import datetime, timedelta
+import time
 from dataclasses import dataclass, field
+from datetime import datetime, timedelta
 from enum import Enum
-from loguru import logger
 from pathlib import Path
-import json
+from typing import Any, Callable, Dict, List
+
+from loguru import logger
 
 from .utils.rate_limiter import (
-    CrawlProfile,
-    CrawlProfileConfig,
     CRAWL_PROFILES,
     SOURCE_PROFILE_MAP,
-    get_profile,
-    get_profile_by_name,
+    CrawlProfile,
 )
 
 
@@ -137,12 +135,12 @@ class CrawlerProgress:
     skipped: int = 0
 
     # 时间
-    start_time: Optional[datetime] = None
-    end_time: Optional[datetime] = None
-    last_update: Optional[datetime] = None
+    start_time: datetime | None = None
+    end_time: datetime | None = None
+    last_update: datetime | None = None
 
     # 当前状态
-    current_url: Optional[str] = None
+    current_url: str | None = None
     current_batch: int = 0
     total_batches: int = 0
 
@@ -152,7 +150,7 @@ class CrawlerProgress:
     avg_response_time: float = 0.0
 
     # 错误
-    last_error: Optional[str] = None
+    last_error: str | None = None
     error_count: int = 0
 
     def to_dict(self) -> Dict[str, Any]:
@@ -181,7 +179,7 @@ class CrawlerProgress:
             "estimated_remaining_seconds": self._estimate_remaining_time(),
         }
 
-    def _estimate_remaining_time(self) -> Optional[float]:
+    def _estimate_remaining_time(self) -> float | None:
         """估算剩余时间"""
         if not self.start_time or self.completed == 0:
             return None
@@ -196,7 +194,7 @@ class CrawlerProgress:
 class IntelligentCrawlerScheduler:
     """智能爬虫调度器"""
 
-    def __init__(self, config: Optional[BatchConfig] = None):
+    def __init__(self, config: BatchConfig | None = None):
         """
         Args:
             config: 批次配置
@@ -515,7 +513,7 @@ class IntelligentCrawlerScheduler:
         with open(checkpoint_file, "w", encoding="utf-8") as f:
             json.dump(checkpoint_data, f, ensure_ascii=False, indent=2)
 
-    def load_checkpoint(self, task_id: str) -> Optional[int]:
+    def load_checkpoint(self, task_id: str) -> int | None:
         """加载断点"""
         checkpoint_file = self.state_dir / f"{task_id}.checkpoint"
 
@@ -523,7 +521,7 @@ class IntelligentCrawlerScheduler:
             return None
 
         try:
-            with open(checkpoint_file, "r", encoding="utf-8") as f:
+            with open(checkpoint_file, encoding="utf-8") as f:
                 data = json.load(f)
                 return data.get("position", 0)
         except Exception as e:
@@ -551,7 +549,7 @@ class IntelligentCrawlerScheduler:
             self._emit_log(task_id, "info", "任务已停止")
             self._emit_progress(task_id)
 
-    def get_progress(self, task_id: str) -> Optional[Dict[str, Any]]:
+    def get_progress(self, task_id: str) -> Dict[str, Any] | None:
         """获取进度"""
         if task_id in self.active_tasks:
             return self.active_tasks[task_id].to_dict()
@@ -604,8 +602,8 @@ class ParallelSiteCrawler:
         self,
         sources: List[str],
         max_pages: int = 500,
-        max_items: Optional[int] = None,
-        on_source_done: Optional[Callable] = None,
+        max_items: int | None = None,
+        on_source_done: Callable | None = None,
     ) -> Dict[str, bool]:
         """
         并行爬取多个数据源。
@@ -663,7 +661,7 @@ class ParallelSiteCrawler:
         self,
         source: str,
         max_pages: int,
-        max_items: Optional[int],
+        max_items: int | None,
     ) -> bool:
         """在线程中爬取单个源，持有全局信号量期间执行 HTTP I/O。"""
         logger.info(f"[ParallelSiteCrawler] {source}: 等待全局信号量...")
@@ -682,7 +680,7 @@ class ParallelSiteCrawler:
         cls,
         spider_manager: Any,
         max_pages: int = 500,
-        on_source_done: Optional[Callable] = None,
+        on_source_done: Callable | None = None,
     ) -> Dict[str, bool]:
         """
         便捷类方法：自动从 SpiderRegistry 读取所有 ``enabled=True`` 的源并并行爬取。
@@ -692,7 +690,7 @@ class ParallelSiteCrawler:
             ParallelSiteCrawler.run_enabled_sources(get_spider_manager())
         """
         try:
-            from .spiders.registry import _auto_import_spiders, SpiderRegistry
+            from .spiders.registry import SpiderRegistry, _auto_import_spiders
 
             _auto_import_spiders()
             schedules = SpiderRegistry.get_instance().list_enabled_sources()

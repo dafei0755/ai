@@ -73,7 +73,7 @@ def search_query_generator_node(state: Dict[str, Any]) -> Dict[str, Any]:
     questionnaire_summary = state.get("questionnaire_summary", {})
     user_input_full = state.get("user_input", "")
 
-    logger.debug(f" [搜索查询生成] 可用数据:")
+    logger.debug(" [搜索查询生成] 可用数据:")
     logger.debug(f"   - 用户输入长度: {len(user_input_full)} 字符")
     logger.debug(f"   - 问卷摘要: {bool(questionnaire_summary)}")
     if questionnaire_summary:

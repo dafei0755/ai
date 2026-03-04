@@ -14,7 +14,7 @@ Version: 1.0
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Dict, List, Literal, Optional
+from typing import Any, Dict, List, Literal
 
 # ============================================================================
 # Step 1: 深度分析相关数据结构 (v3.0 - Complete Redesign)
@@ -131,11 +131,11 @@ class HumanDimensions:
     """人性维度分析（针对设计/生活类问题）"""
 
     enabled: bool = False
-    emotional_landscape: Optional[str] = None  # 情绪地图
-    spiritual_aspirations: Optional[str] = None  # 精神追求
-    psychological_safety_needs: Optional[str] = None  # 心理安全需求
-    ritual_behaviors: Optional[str] = None  # 仪式行为
-    memory_anchors: Optional[str] = None  # 记忆锚点
+    emotional_landscape: str | None = None  # 情绪地图
+    spiritual_aspirations: str | None = None  # 精神追求
+    psychological_safety_needs: str | None = None  # 心理安全需求
+    ritual_behaviors: str | None = None  # 仪式行为
+    memory_anchors: str | None = None  # 记忆锚点
 
 
 @dataclass
@@ -147,7 +147,7 @@ class Understanding:
     l3_tension: L3CoreTension  # L3 核心张力
     l4_jtbd: L4JTBDDefinition  # L4 JTBD定义
     l5_sharpness: L5SharpnessTest  # L5 锐度测试
-    human_dimensions: Optional[HumanDimensions] = None  # 人性维度（如适用）
+    human_dimensions: HumanDimensions | None = None  # 人性维度（如适用）
     comprehensive_summary: str = ""  # 综合总结
     research_dimensions: List[Dict[str, Any]] = field(default_factory=list)  # v4.0: L2.5 研究维度
 
@@ -177,13 +177,13 @@ class OutputBlock:
     user_characteristics: List[str] = field(default_factory=list)  # 包含的用户特征关键词
 
     # v3.2 保留：核心主题定义
-    core_theme: Optional[str] = None  # 板块的单一核心主题（用于Step 1.5）
+    core_theme: str | None = None  # 板块的单一核心主题（用于Step 1.5）
     theme_validation_passed: bool = True  # 是否通过主题验证
 
     # v4.0: 由 Stage 1 research_dimensions 直接填充
-    search_focus: Optional[str] = None  # 该板块的核心搜索焦点
+    search_focus: str | None = None  # 该板块的核心搜索焦点
     indicative_queries: List[str] = field(default_factory=list)  # 示范性搜索查询
-    domain_knowledge_hints: Optional[str] = None  # v4.0: 领域知识提示
+    domain_knowledge_hints: str | None = None  # v4.0: 领域知识提示
 
     def __post_init__(self):
         """v4.0: 放宽验证 — 名称最小长度从10降为4，user_characteristics可选"""
@@ -236,7 +236,7 @@ class OutputFramework:
     deliverable_type: str  # 最终交付物类型
     blocks: List[OutputBlock] = field(default_factory=list)  # 2-7个板块
     quality_standards: List[str] = field(default_factory=list)
-    validation_report: Optional[ValidationReport] = None  # 验证报告
+    validation_report: ValidationReport | None = None  # 验证报告
 
     def __post_init__(self):
         """验证输出框架"""
@@ -323,7 +323,7 @@ class SearchQuery:
     status: str = "pending"  # pending/searching/completed/failed
 
     # v2.0 新增：方向关联
-    direction_id: Optional[str] = None  # 所属的搜索方向ID
+    direction_id: str | None = None  # 所属的搜索方向ID
 
 
 @dataclass
@@ -350,8 +350,8 @@ class SearchTaskList:
     """Step 2 搜索任务列表"""
 
     search_queries: List[SearchQuery] = field(default_factory=list)
-    execution_strategy: Optional[ExecutionStrategy] = None
-    execution_advice: Optional[ExecutionAdvice] = None
+    execution_strategy: ExecutionStrategy | None = None
+    execution_advice: ExecutionAdvice | None = None
     metadata: Dict[str, Any] = field(default_factory=dict)
 
 
@@ -413,7 +413,7 @@ class SupplementaryQuery:
     expected_output: str  # 预期输出说明
     search_keywords: List[str]  # 搜索关键词
     success_criteria: str  # 成功标准
-    parent_query_id: Optional[str] = None  # 父查询ID
+    parent_query_id: str | None = None  # 父查询ID
     status: str = "pending"  # pending/searching/completed/failed
 
 
@@ -507,10 +507,10 @@ class FinalOutputDocument:
     core_findings: str  # 核心发现与整体思路
     blocks: List[DocumentBlock] = field(default_factory=list)  # 文档板块
     key_takeaways: List[str] = field(default_factory=list)  # 核心要点总结
-    implementation_advice: Optional[ImplementationAdvice] = None  # 实施建议
+    implementation_advice: ImplementationAdvice | None = None  # 实施建议
     information_gaps: List[InformationGap] = field(default_factory=list)  # 信息补充说明
     sources: List[SourceReference] = field(default_factory=list)  # 参考来源
-    framework_adjustments: Optional[FrameworkAdjustments] = None  # 框架调整记录
+    framework_adjustments: FrameworkAdjustments | None = None  # 框架调整记录
     metadata: Dict[str, Any] = field(default_factory=dict)
 
 
@@ -542,7 +542,7 @@ class FourStepFlowState:
     """4步骤流程完整状态 (v2.0 - 增加Step 1.5)"""
 
     # Step 1: 深度分析
-    step1_deep_analysis: Optional[DeepAnalysisResult] = None
+    step1_deep_analysis: DeepAnalysisResult | None = None
     step1_completed: bool = False
 
     # Step 1.5: 搜索方向生成（新增）
@@ -550,7 +550,7 @@ class FourStepFlowState:
     step1_5_completed: bool = False
 
     # Step 2: 搜索任务分解
-    step2_task_list: Optional[SearchTaskList] = None
+    step2_task_list: SearchTaskList | None = None
     step2_user_approved: bool = False
     step2_completed: bool = False
 
@@ -562,7 +562,7 @@ class FourStepFlowState:
     step3_completed: bool = False
 
     # Step 4: 总结生成
-    step4_final_document: Optional[FinalOutputDocument] = None
+    step4_final_document: FinalOutputDocument | None = None
     step4_completed: bool = False
 
     # 配置
@@ -585,8 +585,8 @@ def create_search_query(
     search_keywords: List[str],
     success_criteria: str,
     priority: int = 1,
-    dependencies: Optional[List[str]] = None,
-    can_parallel_with: Optional[List[str]] = None,
+    dependencies: List[str] | None = None,
+    can_parallel_with: List[str] | None = None,
 ) -> SearchQuery:
     """创建搜索查询对象"""
     return SearchQuery(
@@ -613,7 +613,7 @@ def create_supplementary_query(
     expected_output: str,
     search_keywords: List[str],
     success_criteria: str,
-    parent_query_id: Optional[str] = None,
+    parent_query_id: str | None = None,
 ) -> SupplementaryQuery:
     """创建补充查询对象"""
     return SupplementaryQuery(

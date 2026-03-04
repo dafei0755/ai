@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 用户认证系统
 
@@ -12,11 +11,11 @@
 import os
 import secrets
 from datetime import datetime, timedelta
-from typing import Optional, Dict, Any
-from passlib.context import CryptContext
+
 from jose import JWTError, jwt
-from pydantic import BaseModel, EmailStr, Field
 from loguru import logger
+from passlib.context import CryptContext
+from pydantic import BaseModel, EmailStr, Field
 
 # 密码加密
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -35,7 +34,7 @@ class UserCreate(BaseModel):
     username: str = Field(..., min_length=3, max_length=50)
     email: EmailStr
     password: str = Field(..., min_length=6)
-    phone: Optional[str] = None
+    phone: str | None = None
 
 
 class UserLogin(BaseModel):
@@ -50,7 +49,7 @@ class UserInDB(BaseModel):
     username: str
     email: str
     hashed_password: str
-    phone: Optional[str] = None
+    phone: str | None = None
     is_active: bool = True
     is_verified: bool = False
     created_at: datetime
@@ -58,7 +57,7 @@ class UserInDB(BaseModel):
     
     # 会员信息
     membership_level: str = "free"  # free, basic, pro, enterprise
-    membership_expires: Optional[datetime] = None
+    membership_expires: datetime | None = None
     
     # 使用统计
     total_analyses: int = 0
@@ -70,11 +69,11 @@ class UserResponse(BaseModel):
     id: str
     username: str
     email: str
-    phone: Optional[str] = None
+    phone: str | None = None
     is_active: bool
     is_verified: bool
     membership_level: str
-    membership_expires: Optional[datetime]
+    membership_expires: datetime | None
     created_at: datetime
 
 
@@ -105,7 +104,7 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     return pwd_context.verify(plain_password, hashed_password)
 
 
-def create_access_token(user_id: str, expires_delta: Optional[timedelta] = None) -> str:
+def create_access_token(user_id: str, expires_delta: timedelta | None = None) -> str:
     """创建访问令牌"""
     if expires_delta:
         expire = datetime.utcnow() + expires_delta
@@ -136,7 +135,7 @@ def create_refresh_token(user_id: str) -> str:
     return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
 
 
-def decode_token(token: str) -> Optional[TokenPayload]:
+def decode_token(token: str) -> TokenPayload | None:
     """解码令牌"""
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])

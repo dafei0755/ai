@@ -4,11 +4,12 @@
 提供外部数据爬虫系统的监控和管理接口
 """
 
-from fastapi import APIRouter, Query, HTTPException
-from typing import Optional, Dict, Any
-from pydantic import BaseModel
 from datetime import datetime
+from typing import Any, Dict
+
+from fastapi import APIRouter, HTTPException, Query
 from loguru import logger
+from pydantic import BaseModel
 
 router = APIRouter(prefix="/api/external", tags=["外部数据"])
 
@@ -23,15 +24,15 @@ class SyncHistory(BaseModel):
 
     id: int
     source: str
-    category: Optional[str] = None
+    category: str | None = None
     started_at: datetime
-    completed_at: Optional[datetime] = None
+    completed_at: datetime | None = None
     status: str  # running/completed/failed
     projects_total: int
     projects_new: int
     projects_updated: int
     projects_failed: int
-    error_message: Optional[str] = None
+    error_message: str | None = None
 
 
 class SourceStats(BaseModel):
@@ -52,14 +53,14 @@ class QualityIssue(BaseModel):
     issue_type: str
     severity: str  # low/medium/high/critical
     detected_at: datetime
-    resolved_at: Optional[datetime] = None
+    resolved_at: datetime | None = None
 
 
 class TriggerSyncRequest(BaseModel):
     """触发同步请求"""
 
     source: str
-    category: Optional[str] = None
+    category: str | None = None
     mode: str = "incremental"  # incremental/full
 
 

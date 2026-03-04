@@ -17,7 +17,7 @@ from __future__ import annotations
 import json
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from loguru import logger
 
@@ -37,7 +37,7 @@ def load_extensions() -> Dict[str, Dict[str, Any]]:
     if not EXTENSIONS_FILE.exists():
         return {}
     try:
-        with open(EXTENSIONS_FILE, "r", encoding="utf-8") as f:
+        with open(EXTENSIONS_FILE, encoding="utf-8") as f:
             data = json.load(f)
         return data.get("types", {})
     except Exception as e:
@@ -53,7 +53,7 @@ def save_extension(type_id: str, type_config: Dict[str, Any]) -> bool:
     try:
         existing = {}
         if EXTENSIONS_FILE.exists():
-            with open(EXTENSIONS_FILE, "r", encoding="utf-8") as f:
+            with open(EXTENSIONS_FILE, encoding="utf-8") as f:
                 existing = json.load(f)
 
         if "types" not in existing:
@@ -80,7 +80,7 @@ def remove_extension(type_id: str) -> bool:
     try:
         if not EXTENSIONS_FILE.exists():
             return False
-        with open(EXTENSIONS_FILE, "r", encoding="utf-8") as f:
+        with open(EXTENSIONS_FILE, encoding="utf-8") as f:
             data = json.load(f)
         if type_id in data.get("types", {}):
             del data["types"][type_id]
@@ -125,8 +125,8 @@ class ProjectTypeCandidateCollector:
         self,
         session_id: str,
         user_text: str,
-        structured_data: Optional[Dict[str, Any]] = None,
-    ) -> Optional[int]:
+        structured_data: Dict[str, Any] | None = None,
+    ) -> int | None:
         """
         用户输入触发收集：当检测器无法匹配已有类型时，尝试归纳新类型。
 
@@ -229,7 +229,7 @@ class ProjectTypeCandidateCollector:
 
     # ── 合并候选（去重 + 频次累加）─────────────────────────────────────────────
 
-    def merge_or_save_candidate(self, candidate: Dict[str, Any]) -> Optional[int]:
+    def merge_or_save_candidate(self, candidate: Dict[str, Any]) -> int | None:
         """
         若数据库中已有相似候选（相同 type_id_suggestion），则累加次数；否则新建。
         """
@@ -292,7 +292,8 @@ class ProjectTypeCandidateCollector:
             # 兼容字符串或 BaseMessage 返回值
             raw_text: str = raw if isinstance(raw, str) else getattr(raw, "content", str(raw))
 
-            import json, re
+            import json
+            import re
 
             json_match = re.search(r"\{[^{}]+\}", raw_text, re.DOTALL)
             if not json_match:
@@ -425,7 +426,7 @@ class ProjectTypeCandidateCollector:
             return keywords[0] + "空间"
         return "待命名空间类型"
 
-    def _save_candidate(self, candidate: Dict[str, Any]) -> Optional[int]:
+    def _save_candidate(self, candidate: Dict[str, Any]) -> int | None:
         """写入数据库"""
         try:
             from ..learning.database_manager import get_db_manager
@@ -659,7 +660,7 @@ class KnowledgeCoverageAuditor:
             return set()
 
     @classmethod
-    def generate_ontology_draft(cls, type_id: str, llm_model=None) -> Optional[str]:
+    def generate_ontology_draft(cls, type_id: str, llm_model=None) -> str | None:
         """
         用 LLM 为缺失的 project_type 生成 ontology.yaml 草稿（YAML 片段）。
 
@@ -746,7 +747,7 @@ class KnowledgeCoverageAuditor:
             return None
 
     @classmethod
-    def generate_few_shot_draft(cls, type_id: str, llm_model=None) -> Optional[str]:
+    def generate_few_shot_draft(cls, type_id: str, llm_model=None) -> str | None:
         """
         用 LLM 为缺失的 project_type 生成 few-shot registry 条目草稿。
 

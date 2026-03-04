@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 MT-1 (2026-03-01): 会话管理、对话、归档路由
 
@@ -22,18 +21,17 @@ import os
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query
 from loguru import logger
 from pydantic import BaseModel
 
+from intelligent_project_analyzer.agents.followup_agent import FollowupAgent
 from intelligent_project_analyzer.settings import settings  # 直接导入
 
 from .deps import DEV_MODE, sessions_cache, sync_checkpoint_to_redis
 from .models import ConversationRequest, ConversationResponse
-
-from intelligent_project_analyzer.agents.followup_agent import FollowupAgent
 
 router = APIRouter(tags=["Sessions & Conversation"])
 from intelligent_project_analyzer.api._server_proxy import server_proxy as _server
@@ -65,7 +63,7 @@ async def generate_followup_questions(session_id: str):
 
     if pdf_path and os.path.exists(pdf_path):
         try:
-            with open(pdf_path, "r", encoding="utf-8") as f:
+            with open(pdf_path, encoding="utf-8") as f:
                 report_text = f.read()
         except Exception as e:
             logger.warning(f"️ 无法读取报告文件: {e}")
@@ -130,7 +128,7 @@ async def generate_followup_questions(session_id: str):
             try:
                 logger.info(f" 调用LLM生成推荐问题 (尝试 {attempt + 1}/{max_retries + 1})...")
                 response = await asyncio.wait_for(asyncio.to_thread(llm.invoke, messages), timeout=30)
-                logger.info(f" LLM调用成功")
+                logger.info(" LLM调用成功")
                 break
             except asyncio.TimeoutError:
                 if attempt < max_retries:
@@ -138,7 +136,7 @@ async def generate_followup_questions(session_id: str):
                     await asyncio.sleep(1)  # 等待1秒后重试
                     continue
                 else:
-                    logger.error(f" LLM调用超时，已达最大重试次数")
+                    logger.error(" LLM调用超时，已达最大重试次数")
                     raise
             except Exception as e:
                 if attempt < max_retries:
@@ -633,7 +631,7 @@ async def archive_session(session_id: str, force: bool = False):
         #  v7.145: 归档前同步 checkpoint 数据到 Redis（手动归档）
         sync_success = await sync_checkpoint_to_redis(session_id)
         if sync_success:
-            logger.info(f" [v7.145] checkpoint 数据已同步（手动归档），准备归档")
+            logger.info(" [v7.145] checkpoint 数据已同步（手动归档），准备归档")
             # 重新获取会话数据（包含同步的字段）
             session = await sm.get(session_id)
 
@@ -655,7 +653,7 @@ async def archive_session(session_id: str, force: bool = False):
 async def list_archived_sessions(
     limit: int = 50,
     offset: int = 0,
-    status: Optional[str] = None,
+    status: str | None = None,
     pinned_only: bool = False,
     current_user: dict = Depends(_server.get_current_user),  #  v7.178: 添加用户认证
 ):
@@ -770,7 +768,7 @@ async def get_featured_sessions():
 
         import yaml
 
-        with open(config_path, "r", encoding="utf-8") as f:
+        with open(config_path, encoding="utf-8") as f:
             config = yaml.safe_load(f)
 
         session_ids = config.get("session_ids", [])
@@ -798,15 +796,15 @@ async def get_featured_sessions():
 
                 # 如果Redis中没有，尝试从归档获取
                 if not session and _server.archive_manager:
-                    logger.info(f"   尝试从归档获取...")
+                    logger.info("   尝试从归档获取...")
                     archived = await _server.archive_manager.get_archived_session(session_id)
                     if archived:
-                        logger.info(f"   归档中找到会话")
+                        logger.info("   归档中找到会话")
                         session = archived.get("session_data", {})
                         if isinstance(session, str):
                             session = json.loads(session)
                     else:
-                        logger.warning(f"   归档中也未找到")
+                        logger.warning("   归档中也未找到")
 
                 # 先检查概念图是否存在
                 concept_images = []
@@ -817,7 +815,7 @@ async def get_featured_sessions():
 
                 if images_metadata_path.exists():
                     try:
-                        with open(images_metadata_path, "r", encoding="utf-8") as f:
+                        with open(images_metadata_path, encoding="utf-8") as f:
                             images_data = json.load(f)
 
                         # 提取所有概念图URL
@@ -952,15 +950,15 @@ class ArchivedSessionUpdateRequest(BaseModel):
     兼容：历史/测试使用 `title` 字段表示显示名称。
     """
 
-    title: Optional[str] = None
-    display_name: Optional[str] = None
-    pinned: Optional[bool] = None
-    tags: Optional[List[str]] = None
+    title: str | None = None
+    display_name: str | None = None
+    pinned: bool | None = None
+    tags: List[str] | None = None
 
 
 @router.patch("/api/sessions/archived/{session_id}")
 async def update_archived_session_metadata(
-    session_id: str, payload: Optional[ArchivedSessionUpdateRequest] = Body(default=None)
+    session_id: str, payload: ArchivedSessionUpdateRequest | None = Body(default=None)
 ):
     """
     更新归档会话元数据（重命名、置顶、标签）

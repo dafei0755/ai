@@ -4,10 +4,9 @@
 提供统一的错误日志格式，便于监控系统聚合和追踪
 """
 
-import json
 import traceback
 from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 from loguru import logger
 
@@ -20,10 +19,10 @@ class StructuredErrorReporter:
         error: Exception,
         *,
         context: str,
-        session_id: Optional[str] = None,
-        user_id: Optional[str] = None,
+        session_id: str | None = None,
+        user_id: str | None = None,
         severity: str = "error",
-        extra: Optional[Dict[str, Any]] = None,
+        extra: Dict[str, Any] | None = None,
     ) -> Dict[str, Any]:
         """
          P2优化: 上报结构化错误
@@ -66,9 +65,9 @@ class StructuredErrorReporter:
         duration_ms: float,
         threshold_ms: float,
         *,
-        session_id: Optional[str] = None,
-        user_id: Optional[str] = None,
-        details: Optional[Dict[str, Any]] = None,
+        session_id: str | None = None,
+        user_id: str | None = None,
+        details: Dict[str, Any] | None = None,
     ) -> Dict[str, Any]:
         """
          P2优化: 上报超时事件
@@ -108,8 +107,8 @@ class StructuredErrorReporter:
         query_type: str,
         duration_ms: float,
         *,
-        query_details: Optional[Dict[str, Any]] = None,
-        session_id: Optional[str] = None,
+        query_details: Dict[str, Any] | None = None,
+        session_id: str | None = None,
         threshold_ms: float = 1000.0,
     ) -> Dict[str, Any]:
         """

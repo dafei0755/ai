@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Celery 异步任务定义
 
@@ -6,12 +5,10 @@ Celery 异步任务定义
 """
 
 import asyncio
-import io
 import sys
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
-from celery import current_task, shared_task
 from celery.exceptions import SoftTimeLimitExceeded
 from loguru import logger
 
@@ -97,8 +94,8 @@ def analyze_project_with_files(
     combined_input: str,
     user_id: str = "celery_user",
     analysis_mode: str = "normal",
-    visual_references: Optional[List[Dict[str, Any]]] = None,
-    visual_style_anchor: Optional[str] = None,
+    visual_references: List[Dict[str, Any]] | None = None,
+    visual_style_anchor: str | None = None,
 ) -> Dict[str, Any]:
     """
     异步分析项目任务（带文件/视觉参考）
@@ -149,8 +146,8 @@ async def _run_workflow_with_files(
     combined_input: str,
     user_id: str,
     analysis_mode: str = "normal",
-    visual_references: Optional[List[Dict[str, Any]]] = None,
-    visual_style_anchor: Optional[str] = None,
+    visual_references: List[Dict[str, Any]] | None = None,
+    visual_style_anchor: str | None = None,
 ) -> Dict[str, Any]:
     """
     执行带文件的工作流

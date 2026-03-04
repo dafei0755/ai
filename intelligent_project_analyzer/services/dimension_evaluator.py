@@ -7,7 +7,7 @@
 
 import logging
 from collections import defaultdict
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +19,7 @@ class DimensionEvaluator:
         """初始化评估器"""
         self.logger = logging.getLogger(__name__)
         self._score_cache: Dict[str, float] = {}  # 维度得分缓存
-        self._last_updated: Optional[str] = None
+        self._last_updated: str | None = None
 
     def calculate_dimension_score(self, dimension_id: str, historical_data: List[Dict[str, Any]]) -> float:
         """

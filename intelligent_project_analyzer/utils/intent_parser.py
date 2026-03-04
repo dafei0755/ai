@@ -5,10 +5,10 @@
 """
 
 import json
-import re
-from typing import Dict, Any, Optional
-from loguru import logger
+from typing import Any, Dict
+
 from langchain_core.messages import HumanMessage
+from loguru import logger
 
 try:
     from intelligent_project_analyzer.core.prompt_manager import PromptManager
@@ -104,7 +104,7 @@ class UserIntentParser:
             "additional_info": user_dict.get("additional_info")
         }
     
-    def _quick_match(self, user_text: str) -> Optional[Dict]:
+    def _quick_match(self, user_text: str) -> Dict | None:
         """快速匹配简单输入"""
         text_lower = user_text.lower()
         

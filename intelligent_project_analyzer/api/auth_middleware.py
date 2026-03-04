@@ -5,9 +5,8 @@ FastAPI 认证中间件
 """
 
 import os
-from typing import Optional
 
-from fastapi import Depends, HTTPException, Request
+from fastapi import HTTPException, Request
 from loguru import logger
 
 from ..services.wordpress_jwt_service import get_jwt_service
@@ -25,7 +24,7 @@ class AuthMiddleware:
     def __init__(self):
         self.jwt_service = get_jwt_service()
 
-    def get_token_from_request(self, request: Request) -> Optional[str]:
+    def get_token_from_request(self, request: Request) -> str | None:
         """
         从请求中提取 JWT Token
 
@@ -76,7 +75,7 @@ class AuthMiddleware:
         logger.info(f" 用户认证成功: {payload.get('username')}")
         return payload
 
-    async def optional_auth(self, request: Request) -> Optional[dict]:
+    async def optional_auth(self, request: Request) -> dict | None:
         """
         可选认证（Token 存在则验证，不存在也允许访问）
         """

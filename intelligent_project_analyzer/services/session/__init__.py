@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 services/session — 会话与存储子包
 
@@ -11,17 +10,16 @@ services/session — 会话与存储子包
 """
 
 # ── MT-3: 外部状态存储 ────────────────────────────────────────────────────────
-from intelligent_project_analyzer.services.external_state_store import (
-    ExternalStateStore,
-    get_store,
-    reset_store,
-)
-
 # ── MT-4: WebSocket 事件存储 ─────────────────────────────────────────────────
 from intelligent_project_analyzer.services.event_store import (
     EventStore,
     get_event_store,
     reset_event_store,
+)
+from intelligent_project_analyzer.services.external_state_store import (
+    ExternalStateStore,
+    get_store,
+    reset_store,
 )
 
 # ── 用户会话 ──────────────────────────────────────────────────────────────────

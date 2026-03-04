@@ -6,15 +6,16 @@
 重构后: role_task_unified_review_refactored.py (约200行，减少55%)
 """
 
-from typing import Dict, Any, List, Optional, Literal
 from datetime import datetime
-from loguru import logger
-from langgraph.types import Command
-from langgraph.store.base import BaseStore
+from typing import Any, Dict, List, Literal
 
-from ..nodes.interaction_agent_base import InteractionAgent, extract_intent_from_response
+from langgraph.store.base import BaseStore
+from langgraph.types import Command
+from loguru import logger
+
+from ...core.state import AnalysisStage, ProjectAnalysisState
 from ...core.strategy_manager import StrategyManager
-from ...core.state import ProjectAnalysisState, AnalysisStage
+from ..nodes.interaction_agent_base import InteractionAgent, extract_intent_from_response
 
 
 class RoleTaskUnifiedReviewNode(InteractionAgent):
@@ -63,7 +64,7 @@ class RoleTaskUnifiedReviewNode(InteractionAgent):
     def _prepare_interaction_data(
         self,
         state: ProjectAnalysisState,
-        store: Optional[BaseStore] = None
+        store: BaseStore | None = None
     ) -> Dict[str, Any]:
         """准备角色任务审核交互数据"""
         strategic_analysis = state.get("strategic_analysis", {})
@@ -168,7 +169,7 @@ class RoleTaskUnifiedReviewNode(InteractionAgent):
         self,
         state: ProjectAnalysisState,
         user_response: Any,
-        store: Optional[BaseStore] = None
+        store: BaseStore | None = None
     ) -> Command[Literal["quality_preflight", "project_director"]]:
         """处理用户审核响应"""
         # 提取用户意图

@@ -28,17 +28,18 @@
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 """
 
-import re
 import random
+import re
 import time
-from typing import List, Dict, Optional, Any
+from typing import Any, Dict, List, Optional
+
 from bs4 import BeautifulSoup
 from loguru import logger
 from playwright.sync_api import TimeoutError as PlaywrightTimeout
 
-from .base_spider import BaseSpider, ProjectData
 from ..utils import get_rate_limiter
 from ..utils.lang_utils import split_bilingual_paragraphs, split_bilingual_title
+from .base_spider import BaseSpider, ProjectData
 from .registry import register_spider
 
 
@@ -110,7 +111,7 @@ class TemplateSpider(BaseSpider):
         self,
         category_url: str,
         max_pages: int = 200,
-        stop_url: Optional[str] = None,
+        stop_url: str | None = None,
     ) -> List[str]:
         """
         翻页爬取分类列表，返回项目 URL 列表。
@@ -125,7 +126,7 @@ class TemplateSpider(BaseSpider):
         """
         seen_urls: set = set()
         ordered_urls: List[str] = []
-        first_url: Optional[str] = None
+        first_url: str | None = None
 
         for page_num in range(1, max_pages + 1):
             # TODO: 构造翻页 URL（不同站点格式不同）
@@ -179,7 +180,7 @@ class TemplateSpider(BaseSpider):
         logger.info(f"[{self.SOURCE_NAME}] 分类爬取完成，共 {len(ordered_urls)} 个 URL")
         return ordered_urls
 
-    def parse_project_page(self, url: str) -> Optional[ProjectData]:
+    def parse_project_page(self, url: str) -> ProjectData | None:
         """
         详情页解析入口（供 SpiderManager 调用）。
 
@@ -376,7 +377,7 @@ class TemplateSpider(BaseSpider):
                         return {"city": parts[0]}
         return {}
 
-    def _extract_year(self, soup: BeautifulSoup) -> Optional[int]:
+    def _extract_year(self, soup: BeautifulSoup) -> int | None:
         """
         提取竣工/建成年份（仅从带关键词的字段行提取，不扫描自由文本）。
 
@@ -408,7 +409,7 @@ class TemplateSpider(BaseSpider):
                             return year
         return None
 
-    def _extract_area(self, soup: BeautifulSoup, description: str) -> Optional[float]:
+    def _extract_area(self, soup: BeautifulSoup, description: str) -> float | None:
         """
         提取面积并统一转换为 m²。
 
@@ -436,7 +437,7 @@ class TemplateSpider(BaseSpider):
             "亩": 666.67,
         }
 
-        def _parse(m: re.Match) -> Optional[float]:
+        def _parse(m: re.Match) -> float | None:
             try:
                 num = float(m.group(1).replace(",", "").replace(" ", ""))
             except ValueError:

@@ -12,11 +12,12 @@ Send 对象创建工厂（重构版）
 作者: LangGraph Design Team
 """
 
-from typing import List, Dict, Any, Optional
+from typing import Any, Dict, List
+
 from langgraph.types import Send
 from loguru import logger
 
-from ...core.state import AnalysisStage, ProjectAnalysisState
+from ...core.state import AnalysisStage
 
 
 class SendFactory:
@@ -27,7 +28,7 @@ class SendFactory:
         state: Dict[str, Any],
         batch_number: int,
         node_name: str = "agent_executor",
-        batches: Optional[List[List[str]]] = None
+        batches: List[List[str]] | None = None
     ) -> List[Send]:
         """
         创建指定批次的 Send 对象列表（通用方法）
@@ -241,7 +242,7 @@ class SendFactory:
 
 # === 辅助函数 ===
 
-def get_batch_for_role(state: Dict[str, Any], role_id: str) -> Optional[int]:
+def get_batch_for_role(state: Dict[str, Any], role_id: str) -> int | None:
     """
     获取指定角色所在的批次编号
 

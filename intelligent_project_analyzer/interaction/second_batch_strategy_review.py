@@ -19,11 +19,13 @@ Batch Strategy Review Interaction Node (Refactored - Dynamic Batch Support)
   - 不再更新 current_batch 到 next_batch，避免跳过批次
 """
 
-from typing import Dict, Any, Literal, Optional
+from typing import Any, Dict, Literal
+
+from langgraph.types import Command, interrupt
 from loguru import logger
-from langgraph.types import interrupt, Command
 
 from intelligent_project_analyzer.core.role_manager import RoleManager
+
 from .services import StrategyGenerator
 
 
@@ -37,7 +39,7 @@ class SecondBatchStrategyReviewNode:
     - 为任意角色生成策略预览（不再硬编码 V2/V6）
     """
 
-    def __init__(self, role_manager: Optional[RoleManager] = None, llm_model=None):
+    def __init__(self, role_manager: RoleManager | None = None, llm_model=None):
         """
         初始化审核节点
 

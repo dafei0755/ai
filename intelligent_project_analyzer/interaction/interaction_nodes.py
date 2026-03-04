@@ -22,7 +22,10 @@ from .nodes import (  # AnalysisReviewNode,  # ️ v2.2: 已废弃
 )
 
 #  v2.2: 角色选择质量审核节点
-from .nodes.role_selection_quality_review import RoleSelectionQualityReviewNode, role_selection_quality_review_node
+from .nodes.role_selection_quality_review import (
+    RoleSelectionQualityReviewNode,
+    role_selection_quality_review_node,
+)
 
 # 导出所有类（向后兼容）
 __all__ = [

@@ -7,9 +7,9 @@
 import json
 import time
 from datetime import datetime
-from typing import Any, Dict, List, Literal, Optional
+from typing import Any, Dict, List, Literal
 
-from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
+from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_core.runnables import RunnableConfig
 from langgraph.store.base import BaseStore
 from loguru import logger
@@ -17,7 +17,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from ..agents.base import LLMAgent
 from ..core.prompt_manager import PromptManager
-from ..core.state import AgentType, AnalysisStage, ProjectAnalysisState
+from ..core.state import AgentType, ProjectAnalysisState
 from ..core.types import AnalysisResult, ReportSection
 from ..utils.jtbd_parser import transform_jtbd_to_natural_language
 
@@ -72,7 +72,7 @@ class DeliverableAnswer(BaseModel):
     owner_answer: str = Field(description="责任者的核心答案（直接提取，不综合）")
     answer_summary: str = Field(default="", description="答案摘要（200字以内）")
     supporters: List[str] = Field(default_factory=list, description="支撑专家列表")
-    quality_score: Optional[float] = Field(default=None, description="质量分数（0-100）")
+    quality_score: float | None = Field(default=None, description="质量分数（0-100）")
 
     #  v7.108: 关联的概念图
     concept_images: List[Dict[str, Any]] = Field(default_factory=list, description="该交付物关联的概念图列表（ImageMetadata格式）")
@@ -160,7 +160,7 @@ class RecommendationItem(BaseModel):
 
     source_expert: str = Field(description="建议来源专家（如 V2_设计总监_2-2）")
 
-    estimated_effort: Optional[str] = Field(default=None, description="预估工作量（如'2-3天'、'1周'、'需专业团队'）")
+    estimated_effort: str | None = Field(default=None, description="预估工作量（如'2-3天'、'1周'、'需专业团队'）")
 
     dependencies: List[str] = Field(default=[], description="依赖的其他建议内容（用于排序）")
 
@@ -437,7 +437,7 @@ class FinalReport(BaseModel):
     model_config = ConfigDict(extra="ignore", populate_by_name=True)
 
     #  3. 洞察（已废弃 - 改用需求分析师的 structured_requirements）
-    insights: Optional[InsightsSection] = Field(default=None, description="[已废弃] 从所有专家分析中提炼的核心洞察（不再使用）")
+    insights: InsightsSection | None = Field(default=None, description="[已废弃] 从所有专家分析中提炼的核心洞察（不再使用）")
 
     #  4. 答案（必填）
     core_answer: CoreAnswer = Field(description="核心答案：用户最关心的TL;DR信息")
@@ -465,24 +465,24 @@ class FinalReport(BaseModel):
     recommendations: RecommendationsSection = Field(description="整合所有专家的可执行建议")
 
     #  2. 问卷（可选，仅有修改时填充）
-    questionnaire_responses: Optional[QuestionnaireResponses] = Field(
+    questionnaire_responses: QuestionnaireResponses | None = Field(
         default=None, description="用户访谈记录（校准问卷的完整回答，仅展示有修改的问题）"
     )
 
     #  审核反馈（可选）
-    review_feedback: Optional[ReviewFeedback] = Field(default=None, description="审核反馈章节（包含红队质疑、蓝队验证、评委裁决、迭代改进过程）")
+    review_feedback: ReviewFeedback | None = Field(default=None, description="审核反馈章节（包含红队质疑、蓝队验证、评委裁决、迭代改进过程）")
 
     #  审核可视化（可选）
-    review_visualization: Optional[ReviewVisualization] = Field(default=None, description="多轮审核可视化数据（红蓝对抗过程的火力图）")
+    review_visualization: ReviewVisualization | None = Field(default=None, description="多轮审核可视化数据（红蓝对抗过程的火力图）")
 
     #  v7.154: 添加 sections 字段以支持 LLM 返回的章节数据
-    sections: Optional[List[Dict[str, Any]]] = Field(default=None, description="报告章节列表（LLM 可能返回此字段）")
+    sections: List[Dict[str, Any]] | None = Field(default=None, description="报告章节列表（LLM 可能返回此字段）")
 
 
 class ResultAggregatorAgent(LLMAgent):
     """结果聚合器智能体"""
 
-    def __init__(self, llm_model, config: Optional[Dict[str, Any]] = None):
+    def __init__(self, llm_model, config: Dict[str, Any] | None = None):
         super().__init__(
             agent_type=AgentType.RESULT_AGGREGATOR,
             name="结果聚合器",
@@ -667,7 +667,7 @@ class ResultAggregatorAgent(LLMAgent):
 请立即生成JSON格式的报告。"""
 
     def execute(
-        self, state: ProjectAnalysisState, config: RunnableConfig, store: Optional[BaseStore] = None
+        self, state: ProjectAnalysisState, config: RunnableConfig, store: BaseStore | None = None
     ) -> AnalysisResult:
         """执行结果聚合 - 使用结构化输出"""
         start_time = time.time()
@@ -756,7 +756,7 @@ class ResultAggregatorAgent(LLMAgent):
                     # JSON解析错误 - 通常是响应被截断或超时
                     last_error = e
                     logger.error(f"Attempt {attempt + 1}/{max_retries} - JSON parsing failed: {e}")
-                    logger.error(f"This usually indicates a timeout or incomplete response from the API")
+                    logger.error("This usually indicates a timeout or incomplete response from the API")
 
                     if attempt < max_retries - 1:
                         logger.info(f"Retrying in {retry_delay} seconds...")
@@ -828,7 +828,7 @@ class ResultAggregatorAgent(LLMAgent):
                     structured_requirements = state.get("structured_requirements") or {}
                     if structured_requirements:
                         final_report["requirements_analysis"] = structured_requirements
-                        logger.info(f" [Fallback] 已提取 requirements_analysis")
+                        logger.info(" [Fallback] 已提取 requirements_analysis")
 
                 #  P2修复: 确保 raw_content 保存原始LLM响应
                 final_report["raw_content"] = raw_message.content
@@ -880,7 +880,7 @@ class ResultAggregatorAgent(LLMAgent):
                             structured_requirements = state.get("structured_requirements") or {}
                             if structured_requirements:
                                 final_report["requirements_analysis"] = structured_requirements
-                                logger.info(f" [Fallback-None] 已提取 requirements_analysis")
+                                logger.info(" [Fallback-None] 已提取 requirements_analysis")
 
                         #  P2修复: 确保 raw_content 保存原始LLM响应
                         final_report["raw_content"] = raw_message.content
@@ -1836,7 +1836,7 @@ class ResultAggregatorAgent(LLMAgent):
                 "content": content_str,  # 使用字符串格式
                 "confidence": requirements_result.get("confidence", 0.5),
             }
-            logger.debug(f" Manually populated section: requirements_analysis from requirements_analyst")
+            logger.debug(" Manually populated section: requirements_analysis from requirements_analyst")
 
         # 2. 处理 V2-V6 专家（Dynamic Mode 使用动态角色 ID）
         # 根据角色 ID 前缀映射到章节类型
@@ -2095,7 +2095,6 @@ class ResultAggregatorAgent(LLMAgent):
         Returns:
             格式化的审核反馈数据
         """
-        from datetime import datetime
 
         red_team_challenges = []
         blue_team_validations = []
@@ -2228,8 +2227,8 @@ class ResultAggregatorAgent(LLMAgent):
         self,
         calibration_questionnaire: Dict[str, Any],
         questionnaire_responses: Dict[str, Any],
-        questionnaire_summary: Optional[Dict[str, Any]] = None,
-    ) -> Optional[Dict[str, Any]]:
+        questionnaire_summary: Dict[str, Any] | None = None,
+    ) -> Dict[str, Any] | None:
         """
         提取问卷回答数据
 
@@ -2555,7 +2554,7 @@ class ResultAggregatorAgent(LLMAgent):
             if not valid_deliverable_pattern.match(deliverable_id):
                 logger.error(f" [v7.283] 检测到异常交付物ID格式: {deliverable_id}，已过滤")
                 logger.error(f"   交付物名称: {deliverable_metadata[deliverable_id].get('name', 'N/A')}")
-                logger.error(f"   正确格式应为: role_id_sequence_timestamp_hash (如 2-1_1_143022_abc)")
+                logger.error("   正确格式应为: role_id_sequence_timestamp_hash (如 2-1_1_143022_abc)")
                 deliverable_metadata.pop(deliverable_id)
                 invalid_count += 1
 
@@ -2701,7 +2700,7 @@ class ResultAggregatorAgent(LLMAgent):
         logger.info(f" [v7.0] 提取完成: {len(deliverable_answers)} 个交付物答案, {len(expert_support_chain)} 个支撑专家")
         return result
 
-    def _find_owner_result(self, agent_results: Dict[str, Any], owner_role: str) -> Optional[Dict[str, Any]]:
+    def _find_owner_result(self, agent_results: Dict[str, Any], owner_role: str) -> Dict[str, Any] | None:
         """
         在 agent_results 中查找匹配的专家输出
 
@@ -2948,7 +2947,7 @@ class ResultAggregatorAgent(LLMAgent):
 
         return "\n".join(lines)
 
-    def _extract_quality_score(self, owner_result: Dict[str, Any]) -> Optional[float]:
+    def _extract_quality_score(self, owner_result: Dict[str, Any]) -> float | None:
         """从专家输出中提取质量分数"""
         if not owner_result:
             return None
@@ -3023,7 +3022,7 @@ class ResultAggregatorAgent(LLMAgent):
 
     def _extract_supporter_contribution(
         self, role_id: str, agent_result: Dict[str, Any], deliverable_metadata: Dict[str, Any]
-    ) -> Optional[Dict[str, Any]]:
+    ) -> Dict[str, Any] | None:
         """提取支撑专家的贡献信息"""
         if not agent_result:
             return None

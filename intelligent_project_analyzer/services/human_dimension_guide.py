@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 人性维度引导系统
 提供结构化的引导问题，帮助LLM深度挖掘人性维度
@@ -6,8 +5,8 @@
 创建日期: 2026-02-11
 """
 
-from typing import Dict, List
 from dataclasses import dataclass
+from typing import Dict, List
 
 
 @dataclass

@@ -14,7 +14,7 @@
 
 import time
 from dataclasses import dataclass
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 from loguru import logger
 
@@ -36,7 +36,7 @@ class SearchStrategyConfig:
 class IntelligentSearchStrategy:
     """智能搜索策略算法 v7.216"""
 
-    def __init__(self, config: Optional[SearchStrategyConfig] = None):
+    def __init__(self, config: SearchStrategyConfig | None = None):
         self.config = config or SearchStrategyConfig()
         self.base_generator = SearchStrategyGenerator()
         self.metrics_collector = global_metrics_collector
@@ -58,7 +58,7 @@ class IntelligentSearchStrategy:
         project_task: str,
         character_narrative: str,
         assigned_task: str,
-        context: Optional[Dict[str, Any]] = None,
+        context: Dict[str, Any] | None = None,
     ) -> Dict[str, Any]:
         """
         生成自适应搜索策略
@@ -177,7 +177,7 @@ class IntelligentSearchStrategy:
             return fallback_strategy
 
     async def _predict_search_quality(
-        self, queries: Dict[str, str], agent_type: str, context: Optional[Dict[str, Any]]
+        self, queries: Dict[str, str], agent_type: str, context: Dict[str, Any] | None
     ) -> Dict[str, Any]:
         """预测搜索质量"""
         try:
@@ -269,7 +269,7 @@ class IntelligentSearchStrategy:
 
         return total_complexity / count if count > 0 else 0.5
 
-    def _get_agent_performance(self, agent_type: str, historical_stats: Dict) -> Optional[Dict]:
+    def _get_agent_performance(self, agent_type: str, historical_stats: Dict) -> Dict | None:
         """获取特定专家的历史表现"""
         total_calls = 0
         total_success = 0
@@ -291,7 +291,7 @@ class IntelligentSearchStrategy:
         return None
 
     async def _adjust_dynamic_weights(
-        self, agent_type: str, quality_prediction: Dict[str, Any], context: Optional[Dict[str, Any]]
+        self, agent_type: str, quality_prediction: Dict[str, Any], context: Dict[str, Any] | None
     ) -> Dict[str, float]:
         """动态调整权重"""
         weights = self.dynamic_weights.copy()
@@ -327,7 +327,7 @@ class IntelligentSearchStrategy:
         return normalized_weights
 
     async def _select_optimal_engines(
-        self, queries: Dict[str, str], quality_prediction: Dict[str, Any], context: Optional[Dict[str, Any]]
+        self, queries: Dict[str, str], quality_prediction: Dict[str, Any], context: Dict[str, Any] | None
     ) -> Dict[str, Any]:
         """选择最优搜索引擎组合"""
         # 获取引擎历史表现
@@ -370,7 +370,7 @@ class IntelligentSearchStrategy:
             "selection_reason": f"Based on {quality_prediction['risk_level']} risk level and historical performance",
         }
 
-    def _get_ssl_config(self, context: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    def _get_ssl_config(self, context: Dict[str, Any] | None) -> Dict[str, Any]:
         """获取SSL配置"""
         return {
             "retry_enabled": self.config.ssl_retry_enabled,

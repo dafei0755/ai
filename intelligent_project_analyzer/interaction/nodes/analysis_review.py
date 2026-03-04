@@ -5,9 +5,8 @@
 系统自动执行，无需用户参与
 """
 
-from typing import Any, Dict, List, Literal, Optional
+from typing import Any, Dict, List, Literal
 
-from langgraph.graph import END
 from langgraph.store.base import BaseStore
 from langgraph.types import Command
 from loguru import logger
@@ -29,7 +28,7 @@ class AnalysisReviewNode:
     _llm_model = None
 
     @classmethod
-    def initialize_coordinator(cls, llm_model, config: Optional[Dict[str, Any]] = None):
+    def initialize_coordinator(cls, llm_model, config: Dict[str, Any] | None = None):
         """初始化审核协调器"""
         if cls._review_coordinator is None or cls._llm_model != llm_model:
             cls._llm_model = llm_model
@@ -52,9 +51,9 @@ class AnalysisReviewNode:
     def execute(
         cls,
         state: ProjectAnalysisState,
-        store: Optional[BaseStore] = None,
+        store: BaseStore | None = None,
         llm_model=None,
-        config: Optional[Dict[str, Any]] = None,
+        config: Dict[str, Any] | None = None,
     ) -> Command[Literal["result_aggregator", "detect_challenges"]]:
         """
         执行递进式单轮审核 (v2.0)
@@ -94,7 +93,7 @@ class AnalysisReviewNode:
         cls._log_agent_summaries(agent_results)
 
         # 执行单轮审核（不再循环）
-        logger.info(f"\n 启动递进式三阶段审核")
+        logger.info("\n 启动递进式三阶段审核")
         review_result = cls._review_coordinator.conduct_review(
             agent_results=agent_results, requirements=requirements, current_round=1  # 固定为第1轮
         )
@@ -503,11 +502,11 @@ class AnalysisReviewNode:
             logger.info(f" 审核反馈已准备，包含{len(feedback_agents)}个专家的改进任务")
             logger.debug(f"   反馈专家列表: {feedback_agents}")
         else:
-            logger.warning(f"️ 未找到review_feedback，专家将在无反馈的情况下重新执行")
+            logger.warning("️ 未找到review_feedback，专家将在无反馈的情况下重新执行")
 
         if needs_first_batch and needs_second_batch:
             # 两批都需要，先执行第一批
-            logger.info(f" 需要重新执行两批专家")
+            logger.info(" 需要重新执行两批专家")
             logger.info(f"   第一批: {first_batch_agents}")
             logger.info(f"   第二批: {second_batch_agents}")
 
@@ -538,7 +537,7 @@ class AnalysisReviewNode:
 
             return Command(update=updated_state, goto="batch_executor")
         else:
-            logger.warning(f"️ 未找到匹配的专家批次，返回项目总监")
+            logger.warning("️ 未找到匹配的专家批次，返回项目总监")
             return Command(update=updated_state, goto="project_director")
 
     @classmethod
@@ -635,7 +634,7 @@ class AnalysisReviewNode:
         final_ruling = review_result.get("final_ruling", "")
 
         logger.info(f"\n{'='*80}")
-        logger.info(f" 递进式审核摘要")
+        logger.info(" 递进式审核摘要")
         logger.info(f"{'='*80}")
 
         # 红队发现的问题

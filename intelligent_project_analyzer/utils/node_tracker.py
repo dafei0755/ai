@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 节点追踪装饰器 - 自动更新 active_steps
 
@@ -7,7 +6,7 @@
 import asyncio
 import functools
 import inspect
-from typing import Any, Callable, Dict, Union
+from typing import Any, Callable, Dict
 
 from loguru import logger
 

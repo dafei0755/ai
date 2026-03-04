@@ -12,7 +12,7 @@ v7.280: 集成 TaskGenerationGuard 前置质量控制
 import asyncio
 import re
 from datetime import datetime
-from typing import Any, Dict, List, Literal, Optional
+from typing import Any, Dict, List, Literal
 
 from langgraph.types import Command, interrupt
 from loguru import logger
@@ -21,7 +21,9 @@ from loguru import logger
 from intelligent_project_analyzer.agents.review.task_generation_guard import TaskGenerationGuard
 from intelligent_project_analyzer.core.state import AnalysisStage
 from intelligent_project_analyzer.core.strategy_manager import StrategyManager
-from intelligent_project_analyzer.services.capability_boundary_service import CapabilityBoundaryService
+from intelligent_project_analyzer.services.capability_boundary_service import (
+    CapabilityBoundaryService,
+)
 
 
 def _normalize_role_id(role_id: Any) -> str:
@@ -217,7 +219,7 @@ class RoleTaskUnifiedReviewNode:
             },
         }
 
-        logger.info(f" Sending unified review request to user")
+        logger.info(" Sending unified review request to user")
         logger.debug(f"Review data: {len(selected_roles)} roles, {total_tasks} tasks")
 
         # 触发人机交互，等待用户响应
@@ -575,12 +577,12 @@ class RoleTaskUnifiedReviewNode:
                     context={"node": "role_task_unified_review", "session_id": state.get("session_id", "")},
                 )
 
-                logger.info(f" 任务修改能力边界检查结果:")
+                logger.info(" 任务修改能力边界检查结果:")
                 logger.info(f"   在能力范围内: {boundary_check.within_capability}")
                 if boundary_check.has_new_deliverables:
                     logger.info(f"   新增交付物: {len(boundary_check.new_deliverables)} 项")
                     if not boundary_check.within_capability:
-                        logger.warning(f"️ 任务修改包含超范围需求")
+                        logger.warning("️ 任务修改包含超范围需求")
                         for warning in boundary_check.capability_warnings:
                             logger.warning(f"     - {warning}")
 

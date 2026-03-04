@@ -4,7 +4,8 @@
 在用户完成问卷时自动收集学习数据，无需用户手动反馈。
 """
 
-from typing import Dict, Any, Optional
+from typing import Any, Dict
+
 from loguru import logger
 
 from .concept_discovery_service import ConceptDiscoveryService
@@ -75,7 +76,7 @@ class TaxonomyLearningCollector:
 
     def record_type_correction(
         self,
-        detected_type: Optional[str],
+        detected_type: str | None,
         confirmed_type: str,
         user_text: str,
     ) -> None:
@@ -94,11 +95,11 @@ class TaxonomyLearningCollector:
             return  # 无需学习
 
         try:
-            from .type_alias_normalizer import add_dynamic_alias
             from .project_type_detector import PROJECT_TYPE_REGISTRY
+            from .type_alias_normalizer import add_dynamic_alias
 
             # 找到 confirmed_type 对应的规范中文名
-            canonical_name: Optional[str] = None
+            canonical_name: str | None = None
             for entry in PROJECT_TYPE_REGISTRY:
                 if entry.get("type_id") == confirmed_type:
                     canonical_name = entry.get("name_zh") or entry.get("name")
@@ -145,7 +146,7 @@ class TaxonomyLearningCollector:
 
 
 # 全局单例
-_learning_collector: Optional[TaxonomyLearningCollector] = None
+_learning_collector: TaxonomyLearningCollector | None = None
 
 
 def get_learning_collector() -> TaxonomyLearningCollector:

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 services/llm — LLM 基础设施子包
 
@@ -14,8 +13,12 @@ from intelligent_project_analyzer.services.circuit_breaker import (
     CircuitBreaker,
     CircuitBreakerOpenError,
     CircuitState,
-    all_stats as circuit_breaker_all_stats,
     get_breaker,
+)
+from intelligent_project_analyzer.services.circuit_breaker import (
+    all_stats as circuit_breaker_all_stats,
+)
+from intelligent_project_analyzer.services.circuit_breaker import (
     reset_registry as reset_circuit_registry,
 )
 

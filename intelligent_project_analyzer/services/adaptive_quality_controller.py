@@ -18,7 +18,7 @@ from collections import deque
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from loguru import logger
 
@@ -63,7 +63,7 @@ class AdaptiveQualityController:
 
     _HISTORY_PATH = Path(__file__).parent.parent / "data" / "quality_control_history.json"
 
-    def __init__(self, config: Optional[QualityControlConfig] = None):
+    def __init__(self, config: QualityControlConfig | None = None):
         self.config = config or QualityControlConfig()
         self.metrics_collector = global_metrics_collector
 
@@ -100,7 +100,7 @@ class AdaptiveQualityController:
         """从 JSON 文件加载质量历史"""
         try:
             if self._HISTORY_PATH.exists():
-                with open(self._HISTORY_PATH, "r", encoding="utf-8") as f:
+                with open(self._HISTORY_PATH, encoding="utf-8") as f:
                     data = json.load(f)
                 for entry in data.get("quality_history", []):
                     self.quality_history.append(entry)

@@ -11,7 +11,7 @@ Milvus 知识库管理 API 路由 (v7.141+)
 import json
 import time
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from loguru import logger
@@ -32,9 +32,9 @@ class SearchTestRequest(BaseModel):
 
     query: str
     max_results: int = 10
-    similarity_threshold: Optional[float] = None
-    user_id: Optional[str] = None  #  v7.141: 用户ID（用于过滤私有知识库）
-    team_id: Optional[str] = None  #  v7.141.2: 团队ID（用于团队知识库）
+    similarity_threshold: float | None = None
+    user_id: str | None = None  #  v7.141: 用户ID（用于过滤私有知识库）
+    team_id: str | None = None  #  v7.141.2: 团队ID（用于团队知识库）
     search_scope: str = "all"  #  v7.141: "all" | "system" | "user" | "team"
 
 
@@ -58,7 +58,7 @@ class ImportProgressResponse(BaseModel):
     progress: float  # 0-100
     total_documents: int
     processed_documents: int
-    error_message: Optional[str] = None
+    error_message: str | None = None
 
 
 # ============================================================================
@@ -615,7 +615,7 @@ async def get_sample_documents(limit: int = 10):
 async def check_quota_before_upload(
     user_id: str,
     user_tier: str = "free",
-    file_size_bytes: Optional[int] = None,
+    file_size_bytes: int | None = None,
 ):
     """
     上传前配额检查（前端调用）

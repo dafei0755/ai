@@ -11,7 +11,7 @@ v7.170 新增：
 
 import re
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List
 
 from loguru import logger
 
@@ -483,7 +483,7 @@ class AdvancedQueryBuilder:
         return bool(chinese_pattern.search(text))
 
     def build_multi_mode_queries(
-        self, query: str, domain: str = "", modes: Optional[List[str]] = None
+        self, query: str, domain: str = "", modes: List[str] | None = None
     ) -> Dict[str, List[str]]:
         """
         生成多模式搜索词
@@ -977,7 +977,7 @@ class JTBDQueryBuilder:
         return [w for w in words if len(w) >= 2][:topK]
 
     def build_enhanced_queries(
-        self, query: str, structured_requirements: Optional[Dict[str, Any]] = None, domain: str = ""
+        self, query: str, structured_requirements: Dict[str, Any] | None = None, domain: str = ""
     ) -> List[str]:
         """
         构建增强查询（结合原始查询和需求分析结果）

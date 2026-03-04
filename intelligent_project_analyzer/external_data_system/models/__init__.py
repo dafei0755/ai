@@ -6,11 +6,11 @@
 
 from .external_projects import (
     ExternalProject,
-    ExternalProjectImage,
-    SyncHistory,
-    QualityIssue,
-    ProjectDiscovery,
     ExternalProjectDatabase,
+    ExternalProjectImage,
+    ProjectDiscovery,
+    QualityIssue,
+    SyncHistory,
     get_external_db,
 )
 

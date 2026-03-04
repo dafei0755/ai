@@ -8,10 +8,9 @@ v7.138 (Phase 2): LLM requirement understanding layer - use LLM to deeply unders
 v7.139 (Phase 3): Dimension correlation modeling - detect conflicts and generate adjustment suggestions
 """
 
-import os
 import random
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any, Dict, List, Set, Tuple
 
 import yaml
 from loguru import logger
@@ -37,9 +36,9 @@ class DimensionSelector:
     """
 
     _instance = None
-    _dimensions_config: Optional[Dict[str, Any]] = None
-    _task_mapping_config: Optional[Dict[str, Any]] = None  # v7.137: 任务映射配置
-    _answer_rules_config: Optional[Dict[str, Any]] = None  # v7.137: 答案推理配置
+    _dimensions_config: Dict[str, Any] | None = None
+    _task_mapping_config: Dict[str, Any] | None = None  # v7.137: 任务映射配置
+    _answer_rules_config: Dict[str, Any] | None = None  # v7.137: 答案推理配置
     _llm_recommender = None  # v7.138: LLM维度推荐器
     _correlation_detector = None  # v7.139: 维度关联检测器
 
@@ -70,7 +69,7 @@ class DimensionSelector:
             return
 
         try:
-            with open(config_path, "r", encoding="utf-8") as f:
+            with open(config_path, encoding="utf-8") as f:
                 DimensionSelector._dimensions_config = yaml.safe_load(f)
             logger.info(f"[OK] 维度配置加载成功: {len(self._dimensions_config.get('dimensions', {}))} 个维度")
         except Exception as e:
@@ -87,7 +86,7 @@ class DimensionSelector:
             return
 
         try:
-            with open(config_path, "r", encoding="utf-8") as f:
+            with open(config_path, encoding="utf-8") as f:
                 DimensionSelector._task_mapping_config = yaml.safe_load(f)
             task_count = len(self._task_mapping_config.get("task_mappings", {}))
             logger.info(f"[OK] [v7.137] 任务映射配置加载成功: {task_count} 个任务类型")
@@ -105,7 +104,7 @@ class DimensionSelector:
             return
 
         try:
-            with open(config_path, "r", encoding="utf-8") as f:
+            with open(config_path, encoding="utf-8") as f:
                 DimensionSelector._answer_rules_config = yaml.safe_load(f)
             rule_count = len(self._answer_rules_config.get("inference_rules", []))
             logger.info(f"[OK] [v7.137] 答案推理规则加载成功: {rule_count} 条规则")
@@ -150,7 +149,7 @@ class DimensionSelector:
         """获取所有维度定义"""
         return self.config.get("dimensions", {})
 
-    def get_dimension_by_id(self, dimension_id: str) -> Optional[Dict[str, Any]]:
+    def get_dimension_by_id(self, dimension_id: str) -> Dict[str, Any] | None:
         """根据ID获取单个维度"""
         return self.get_all_dimensions().get(dimension_id)
 
@@ -163,12 +162,12 @@ class DimensionSelector:
         self,
         project_type: str,
         user_input: str = "",
-        structured_data: Optional[Dict[str, Any]] = None,
+        structured_data: Dict[str, Any] | None = None,
         min_dimensions: int = 9,
         max_dimensions: int = 12,
-        special_scenes: Optional[List[str]] = None,
-        confirmed_tasks: Optional[List[Dict[str, Any]]] = None,  # v7.137: Step1任务列表
-        gap_filling_answers: Optional[Dict[str, str]] = None,  # v7.137: Step2答案
+        special_scenes: List[str] | None = None,
+        confirmed_tasks: List[Dict[str, Any]] | None = None,  # v7.137: Step1任务列表
+        gap_filling_answers: Dict[str, str] | None = None,  # v7.137: Step2答案
     ) -> Dict[str, Any]:
         """
         为项目选择合适的维度
@@ -335,7 +334,7 @@ class DimensionSelector:
             if injected_count > 0:
                 logger.info(f"   [OK] [特殊场景处理完成] 共注入 {injected_count} 个专用维度")
             else:
-                logger.info(f"   [INFO] [特殊场景处理完成] 未注入新维度（可能已存在或配置缺失）")
+                logger.info("   [INFO] [特殊场景处理完成] 未注入新维度（可能已存在或配置缺失）")
         else:
             logger.debug("[INFO] 未检测到特殊场景，跳过专用维度注入")
 
@@ -415,7 +414,7 @@ class DimensionSelector:
 
         return result_dict
 
-    def validate_dimensions(self, dimensions: List[Dict[str, Any]], mode: Optional[str] = None) -> Dict[str, Any]:
+    def validate_dimensions(self, dimensions: List[Dict[str, Any]], mode: str | None = None) -> Dict[str, Any]:
         """
         v7.139: Validate dimension configuration and detect conflicts
 
@@ -609,7 +608,7 @@ class DimensionSelector:
         user_input: str,
         confirmed_tasks: List[Dict[str, Any]],
         current_dimensions: List[Dict[str, Any]],
-        special_scene_metadata: Optional[Dict[str, Any]] = None,
+        special_scene_metadata: Dict[str, Any] | None = None,
     ) -> List[Dict[str, Any]]:
         """
         v7.80.15 (P0.3): 检测特殊场景并注入专用维度
@@ -673,7 +672,7 @@ class DimensionSelector:
         self,
         user_input: str,
         confirmed_tasks: List[Dict[str, Any]],
-        special_scene_metadata: Optional[Dict[str, Any]] = None,
+        special_scene_metadata: Dict[str, Any] | None = None,
     ) -> Dict[str, Any]:
         """
         检测特殊场景（复用 task_completeness_analyzer.py 的 SPECIAL_SCENARIO_DETECTORS）
@@ -727,7 +726,7 @@ class DimensionSelector:
             return ""
         return " ".join([task.get("title", "") + " " + task.get("description", "") for task in tasks])
 
-    def get_gap_question_template(self, dimension_id: str) -> Optional[Dict[str, Any]]:
+    def get_gap_question_template(self, dimension_id: str) -> Dict[str, Any] | None:
         """获取维度对应的Gap问题模板"""
         templates = self.config.get("gap_question_templates", {})
         return templates.get(dimension_id)
@@ -1091,7 +1090,7 @@ def select_dimensions_for_state(state: Dict[str, Any]) -> List[Dict[str, Any]]:
     #  v7.146: v7.139 起 select_for_project 返回 dict（含 conflicts/adjustment_suggestions）
     # 为保持函数签名兼容性，自动解包为 list
     if isinstance(result, dict):
-        logger.debug(f"[DEBUG] select_dimensions_for_state: 解包 v7.139 dict 返回格式")
+        logger.debug("[DEBUG] select_dimensions_for_state: 解包 v7.139 dict 返回格式")
         return result.get("dimensions", [])
 
     # 向后兼容：如果仍然返回 list，直接返回

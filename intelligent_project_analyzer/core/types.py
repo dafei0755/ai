@@ -4,16 +4,14 @@
 定义系统中使用的数据类型和接口
 """
 
-from typing import Dict, List, Optional, Any, Protocol, Union
-from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import Enum
+from typing import Any, Dict, List, Protocol
 
-from langchain_core.messages import BaseMessage
 from langchain_core.runnables import RunnableConfig
 from langgraph.store.base import BaseStore
 
-from .state import ProjectAnalysisState, AgentType
+from .state import AgentType, ProjectAnalysisState
 
 
 class AnalysisResult:
@@ -23,10 +21,10 @@ class AnalysisResult:
         self,
         agent_type: AgentType,
         content: str,
-        structured_data: Optional[Dict[str, Any]] = None,
+        structured_data: Dict[str, Any] | None = None,
         confidence: float = 1.0,
-        sources: Optional[List[str]] = None,
-        metadata: Optional[Dict[str, Any]] = None
+        sources: List[str] | None = None,
+        metadata: Dict[str, Any] | None = None
     ):
         self.agent_type = agent_type
         self.content = content
@@ -56,7 +54,7 @@ class TaskAssignment:
     task_description: str
     priority: int = 1
     dependencies: List[AgentType] = None
-    estimated_duration: Optional[int] = None  # 预估时间（秒）
+    estimated_duration: int | None = None  # 预估时间（秒）
     
     def __post_init__(self):
         if self.dependencies is None:
@@ -68,8 +66,8 @@ class ToolConfig:
     """工具配置"""
     name: str
     enabled: bool = True
-    api_key: Optional[str] = None
-    endpoint: Optional[str] = None
+    api_key: str | None = None
+    endpoint: str | None = None
     timeout: int = 30
     max_retries: int = 3
     config: Dict[str, Any] = None
@@ -86,7 +84,7 @@ class AgentInterface(Protocol):
         self,
         state: ProjectAnalysisState,
         config: RunnableConfig,
-        store: Optional[BaseStore] = None
+        store: BaseStore | None = None
     ) -> AnalysisResult:
         """执行智能体任务"""
         ...
@@ -129,7 +127,7 @@ class InteractionRequest:
     interaction_type: InteractionType
     message: str
     data: Dict[str, Any]
-    timeout: Optional[int] = None
+    timeout: int | None = None
     required: bool = True
 
 
@@ -137,9 +135,9 @@ class InteractionRequest:
 class InteractionResponse:
     """交互响应"""
     approved: bool
-    feedback: Optional[str] = None
-    modifications: Optional[Dict[str, Any]] = None
-    action: Optional[str] = None
+    feedback: str | None = None
+    modifications: Dict[str, Any] | None = None
+    action: str | None = None
 
 
 class ReportSection(Enum):
@@ -161,9 +159,9 @@ class ReportContent:
     section: ReportSection
     title: str
     content: str
-    charts: Optional[List[Dict[str, Any]]] = None
-    tables: Optional[List[Dict[str, Any]]] = None
-    images: Optional[List[str]] = None
+    charts: List[Dict[str, Any]] | None = None
+    tables: List[Dict[str, Any]] | None = None
+    images: List[str] | None = None
     
     def __post_init__(self):
         if self.charts is None:
@@ -232,8 +230,8 @@ class SystemError:
     """系统错误"""
     error_type: ErrorType
     message: str
-    details: Optional[Dict[str, Any]] = None
-    agent_type: Optional[AgentType] = None
+    details: Dict[str, Any] | None = None
+    agent_type: AgentType | None = None
     recoverable: bool = True
     
     def __post_init__(self):

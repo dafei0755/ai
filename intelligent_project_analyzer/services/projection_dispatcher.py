@@ -17,7 +17,7 @@
 import asyncio
 import logging
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 import yaml
 
@@ -28,7 +28,7 @@ CONFIG_DIR = Path(__file__).parent.parent / "config"
 PROJECTIONS_FILE = CONFIG_DIR / "output_projections.yaml"
 
 # 手动缓存（替代 @lru_cache，支持加载失败后重试）
-_projections_config_cache: Optional[Dict[str, Any]] = None
+_projections_config_cache: Dict[str, Any] | None = None
 
 
 # ==============================================================================
@@ -236,7 +236,7 @@ def calculate_axis_scores(state: Dict[str, Any]) -> Dict[str, float]:
     return scores
 
 
-def _value_to_score(value: Any, mode_mapping: Optional[Dict[str, float]] = None) -> Optional[float]:
+def _value_to_score(value: Any, mode_mapping: Dict[str, float] | None = None) -> float | None:
     """将各种类型的值映射为 0-1 分数
 
     Args:
@@ -299,7 +299,7 @@ def _value_to_score(value: Any, mode_mapping: Optional[Dict[str, float]] = None)
 def determine_active_projections(
     axis_scores: Dict[str, float],
     state: Dict[str, Any],
-    user_selected: Optional[List[str]] = None,
+    user_selected: List[str] | None = None,
 ) -> List[str]:
     """
     确定需要激活的投射视角列表。
@@ -450,7 +450,7 @@ def build_projection_context(
     projection_config: Dict[str, Any],
     analysis_pool: Dict[str, Any],
     axis_scores: Dict[str, float],
-    case_templates: Optional[Dict[str, str]] = None,
+    case_templates: Dict[str, str] | None = None,
 ) -> Dict[str, Any]:
     """
     为单个投射视角组装完整上下文包。
@@ -500,7 +500,7 @@ def build_projection_context(
 async def dispatch_projections(
     state: Dict[str, Any],
     llm_model: Any = None,
-    user_selected: Optional[List[str]] = None,
+    user_selected: List[str] | None = None,
 ) -> Dict[str, Any]:
     """
     投射调度器主入口（异步）。
@@ -579,7 +579,7 @@ async def dispatch_projections(
 
     if tasks:
         results = await asyncio.gather(*tasks, return_exceptions=True)
-        for proj_id, result in zip(active_projections, results):
+        for proj_id, result in zip(active_projections, results, strict=False):
             if isinstance(result, Exception):
                 logger.error(f"[projection_dispatcher] 投射 {proj_id} 生成失败: {result}")
                 perspective_outputs[proj_id] = {
@@ -601,7 +601,7 @@ async def dispatch_projections(
 def dispatch_projections_sync(
     state: Dict[str, Any],
     llm_model: Any = None,
-    user_selected: Optional[List[str]] = None,
+    user_selected: List[str] | None = None,
 ) -> Dict[str, Any]:
     """投射调度器同步版本（供 LangGraph 节点直接调用）"""
     try:

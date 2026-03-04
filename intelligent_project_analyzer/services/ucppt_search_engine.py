@@ -135,7 +135,11 @@ except ImportError:
 
 # v7.199: 导入查询分类器
 try:
-    from intelligent_project_analyzer.tools.query_classifier import QueryClassification, QueryType, classify_query
+    from intelligent_project_analyzer.tools.query_classifier import (
+        QueryClassification,
+        QueryType,
+        classify_query,
+    )
 
     QUERY_CLASSIFIER_AVAILABLE = True
 except ImportError:
@@ -167,11 +171,21 @@ except ImportError:
 
 # v7.333: 导入 Step 2 搜索任务分解执行器
 try:
-    from intelligent_project_analyzer.core.four_step_flow_types import OutputBlock as Step2OutputBlock
-    from intelligent_project_analyzer.core.four_step_flow_types import OutputBlockSubItem as Step2OutputBlockSubItem
-    from intelligent_project_analyzer.core.four_step_flow_types import OutputFramework as Step2OutputFramework
-    from intelligent_project_analyzer.core.four_step_flow_types import SearchQuery as Step2SearchQuery
-    from intelligent_project_analyzer.services.four_step_flow_orchestrator import Step2SearchTaskDecompositionExecutor
+    from intelligent_project_analyzer.core.four_step_flow_types import (
+        OutputBlock as Step2OutputBlock,
+    )
+    from intelligent_project_analyzer.core.four_step_flow_types import (
+        OutputBlockSubItem as Step2OutputBlockSubItem,
+    )
+    from intelligent_project_analyzer.core.four_step_flow_types import (
+        OutputFramework as Step2OutputFramework,
+    )
+    from intelligent_project_analyzer.core.four_step_flow_types import (
+        SearchQuery as Step2SearchQuery,
+    )
+    from intelligent_project_analyzer.services.four_step_flow_orchestrator import (
+        Step2SearchTaskDecompositionExecutor,
+    )
     from intelligent_project_analyzer.services.llm_factory import LLMFactory
 
     STEP2_EXECUTOR_AVAILABLE = True
@@ -187,8 +201,14 @@ except ImportError as e:
 
 # v7.510: 导入 Step 1.5 搜索方向生成器
 try:
-    from intelligent_project_analyzer.core.four_step_flow_types import OutputBlock, SearchDirection, Understanding
-    from intelligent_project_analyzer.services.search_direction_generator import SearchDirectionGenerator
+    from intelligent_project_analyzer.core.four_step_flow_types import (
+        OutputBlock,
+        SearchDirection,
+        Understanding,
+    )
+    from intelligent_project_analyzer.services.search_direction_generator import (
+        SearchDirectionGenerator,
+    )
 
     SEARCH_DIRECTION_GENERATOR_AVAILABLE = True
 except ImportError as e:
@@ -298,7 +318,7 @@ class PhaseResult:
     content: Dict[str, Any]
     quality_score: float
     execution_time: float = 0.0
-    next_phase: Optional[AnalysisPhase] = None
+    next_phase: AnalysisPhase | None = None
     retry_count: int = 0
 
     def to_dict(self) -> Dict[str, Any]:
@@ -412,9 +432,9 @@ class AnalysisSession:
     start_time: float = field(default_factory=time.time)
 
     # v7.214 新增字段用于存储各阶段结果
-    l0_result: Optional[L0DialogueResult] = None
-    framework_result: Optional[L1L5FrameworkResult] = None
-    synthesis_result: Optional[SynthesisResult] = None
+    l0_result: L0DialogueResult | None = None
+    framework_result: L1L5FrameworkResult | None = None
+    synthesis_result: SynthesisResult | None = None
     overall_quality: float = 0.0
     total_execution_time: float = 0.0
 
@@ -438,7 +458,7 @@ class AnalysisSession:
             "total_time": time.time() - self.start_time,
         }
 
-    def get_next_phase(self) -> Optional[AnalysisPhase]:
+    def get_next_phase(self) -> AnalysisPhase | None:
         """获取下一个分析阶段"""
         phase_order = [AnalysisPhase.L0_DIALOGUE, AnalysisPhase.L1_L5_FRAMEWORK, AnalysisPhase.SYNTHESIS]
         try:
@@ -751,7 +771,7 @@ class SearchTarget:
         self.status = "complete"
         self.completion_score = score
 
-    def get_next_preset_keyword(self) -> Optional[str]:
+    def get_next_preset_keyword(self) -> str | None:
         """
         获取下一个预设关键词 - v7.232
 
@@ -815,7 +835,7 @@ class SearchFramework:
     deliverables: List[str] = field(default_factory=list)  # 交付物清单（10-15项）
     final_output_format: str = ""  # 最终输出格式说明
 
-    def get_next_target(self) -> Optional[SearchTarget]:
+    def get_next_target(self) -> SearchTarget | None:
         """获取下一个待搜索的目标"""
         # 按优先级排序，返回第一个未完成的
         pending = [t for t in self.targets if not t.is_complete()]
@@ -895,7 +915,7 @@ class SearchFramework:
         ready_targets.sort(key=lambda t: (t.priority, t.execution_order))
         return ready_targets
 
-    def get_target_for_round(self, round_number: int) -> Optional[SearchTarget]:
+    def get_target_for_round(self, round_number: int) -> SearchTarget | None:
         """
         按轮次轮换获取搜索目标 - v7.245
 
@@ -919,7 +939,7 @@ class SearchFramework:
         index = (round_number - 1) % len(sorted_targets)
         return sorted_targets[index]
 
-    def get_target_by_id(self, target_id: str) -> Optional[SearchTarget]:
+    def get_target_by_id(self, target_id: str) -> SearchTarget | None:
         """根据ID获取目标"""
         for t in self.targets:
             if t.id == target_id:
@@ -1124,7 +1144,7 @@ class SupplementaryQuery:
     trigger_type: str  # 触发类型（new_direction/insufficient_info/contradiction/related_topic/user_characteristic）
     expected_output: str  # 预期输出
     framework_addition: Optional["FrameworkAddition"] = None  # 框架增补建议
-    parent_query_id: Optional[str] = None  # 父查询ID
+    parent_query_id: str | None = None  # 父查询ID
     id: str = field(default_factory=lambda: f"supp_{uuid.uuid4().hex[:8]}")
     status: str = "pending"  # 状态（pending/executing/completed/failed）
     results: List[Dict[str, Any]] = field(default_factory=list)  # 搜索结果
@@ -2444,7 +2464,7 @@ class AnswerFramework:
         """获取不完整的信息面"""
         return [a for a in self.key_aspects if a.status in ("missing", "partial")]
 
-    def get_next_search_target(self) -> Optional[KeyAspect]:
+    def get_next_search_target(self) -> KeyAspect | None:
         """获取下一个需要搜索的信息面（按重要性排序）"""
         incomplete = self.get_incomplete_aspects()
         if not incomplete:
@@ -2558,7 +2578,7 @@ class LLMAnalysisEngine:
 
     async def _llm_call(
         self, prompt: str, model: str = None, max_tokens: int = 4000, temperature: float = 0.7
-    ) -> Optional[str]:
+    ) -> str | None:
         """LLM API 调用（通过 OpenRouter）- v7.270 使用 OpenAI GPT-4o"""
         if not self.openrouter_api_key:
             logger.error(" [LLM Analysis] OPENROUTER_API_KEY 未配置")
@@ -2629,7 +2649,7 @@ class LLMAnalysisEngine:
             logger.error(f" [LLM Analysis] 异常堆栈:\n{traceback.format_exc()}")
             return None
 
-    async def execute_l0_dialogue(self, query: str, context: Dict[str, Any] = None) -> Optional[L0DialogueResult]:
+    async def execute_l0_dialogue(self, query: str, context: Dict[str, Any] = None) -> L0DialogueResult | None:
         """L0 对话式分析 - 专注用户理解"""
 
         logger.debug(" [L0 Debug] 开始execute_l0_dialogue方法")
@@ -2656,7 +2676,7 @@ class LLMAnalysisEngine:
         logger.debug(f" [L0 Debug] L0结果解析完成 | 成功={result is not None}")
         return result
 
-    async def execute_l1_l5_framework(self, query: str, l0_result: L0DialogueResult) -> Optional[L1L5FrameworkResult]:
+    async def execute_l1_l5_framework(self, query: str, l0_result: L0DialogueResult) -> L1L5FrameworkResult | None:
         """L1-L5 深度框架分析 - 专注理论建模"""
 
         prompt = self._build_framework_prompt(query, l0_result)
@@ -2672,7 +2692,7 @@ class LLMAnalysisEngine:
 
     async def execute_synthesis(
         self, query: str, l0_result: L0DialogueResult, framework_result: L1L5FrameworkResult
-    ) -> Optional[SynthesisResult]:
+    ) -> SynthesisResult | None:
         """综合分析 - 生成搜索任务"""
 
         prompt = self._build_synthesis_prompt(query, l0_result, framework_result)
@@ -3577,7 +3597,7 @@ class UcpptSearchEngine:
 
     async def structured_problem_analysis(
         self, query: str, context: Dict[str, Any] = None
-    ) -> Optional[AnalysisSession]:
+    ) -> AnalysisSession | None:
         """
         结构化问题分析 - v7.214 新架构
 
@@ -4019,7 +4039,7 @@ class UcpptSearchEngine:
                 for i in range(len(results))
             ]
 
-    def _try_extract_mission_from_partial_json(self, partial_json: str, mission_key: str) -> Optional[Any]:
+    def _try_extract_mission_from_partial_json(self, partial_json: str, mission_key: str) -> Any | None:
         """
         v7.302.8: 从部分JSON中尝试提取指定使命的数据
 
@@ -4104,7 +4124,7 @@ class UcpptSearchEngine:
         except (json.JSONDecodeError, Exception):
             return None
 
-    def _safe_parse_json(self, text: str, context: str = "", expect_dict: bool = True) -> Optional[Dict[str, Any]]:
+    def _safe_parse_json(self, text: str, context: str = "", expect_dict: bool = True) -> Dict[str, Any] | None:
         """
         安全的 JSON 解析，支持多种格式 (v7.214 增强)
 
@@ -4133,7 +4153,7 @@ class UcpptSearchEngine:
 
         text = text.strip()
 
-        def _ensure_dict(result: Any) -> Optional[Dict[str, Any]]:
+        def _ensure_dict(result: Any) -> Dict[str, Any] | None:
             """确保返回字典类型 (v7.214)"""
             if result is None:
                 return None
@@ -4271,7 +4291,7 @@ class UcpptSearchEngine:
 
         return len(intersection) / len(union) if union else 0.0
 
-    def _is_duplicate_query(self, query: str) -> Tuple[bool, Optional[str]]:
+    def _is_duplicate_query(self, query: str) -> Tuple[bool, str | None]:
         """
         检查查询是否与已使用的查询重复
 
@@ -4975,7 +4995,10 @@ class UcpptSearchEngine:
 
     def _rebuild_output_block(self, block_data):
         """从序列化数据重建 OutputBlock 对象"""
-        from intelligent_project_analyzer.core.four_step_flow_types import OutputBlock, OutputBlockSubItem
+        from intelligent_project_analyzer.core.four_step_flow_types import (
+            OutputBlock,
+            OutputBlockSubItem,
+        )
 
         try:
             if isinstance(block_data, dict):
@@ -5023,7 +5046,9 @@ class UcpptSearchEngine:
 
         try:
             # v7.320: 导入并使用新的 Step1DeepAnalysisExecutor
-            from intelligent_project_analyzer.services.four_step_flow_orchestrator import Step1DeepAnalysisExecutor
+            from intelligent_project_analyzer.services.four_step_flow_orchestrator import (
+                Step1DeepAnalysisExecutor,
+            )
             from intelligent_project_analyzer.services.llm_factory import LLMFactory
 
             # 创建 Step1 执行器
@@ -5441,7 +5466,7 @@ class UcpptSearchEngine:
                     results = await asyncio.gather(*tasks, return_exceptions=True)
 
                     # 1c. 逐个处理结果并发送 round_sources 事件（第 1 轮：变体搜索）
-                    for meta, result in zip(batch_meta, results):
+                    for meta, result in zip(batch_meta, results, strict=False):
                         if isinstance(result, Exception):
                             logger.error(f" [v7.471] 搜索失败 (ID={meta['actual_query_id']}): {result}")
                             sources = []
@@ -5983,7 +6008,7 @@ class UcpptSearchEngine:
                 )
 
         # 分批并行执行反思
-        all_insights: List[Optional["RoundInsights"]] = []
+        all_insights: List[RoundInsights | None] = []
         completed = 0
 
         for batch_start in range(0, total_queries, REFLECT_CONCURRENT):
@@ -6173,7 +6198,7 @@ class UcpptSearchEngine:
         self,
         query: str,
         framework_data: Dict[str, Any],
-    ) -> Optional[SearchFramework]:
+    ) -> SearchFramework | None:
         """
         从用户编辑的数据重建 SearchFramework
 
@@ -6371,8 +6396,8 @@ class UcpptSearchEngine:
     async def search_deep(
         self,
         query: str,
-        context: Optional[Dict[str, Any]] = None,
-        max_rounds: Optional[int] = None,
+        context: Dict[str, Any] | None = None,
+        max_rounds: int | None = None,
     ) -> AsyncGenerator[Dict[str, Any], None]:
         """
         深度迭代搜索（流式输出）- 目标导向版本
@@ -6861,7 +6886,7 @@ class UcpptSearchEngine:
 
     # ==================== 统一分析 (v7.207 合并 L0 + L1-L5) ====================
 
-    def _build_dialogue_analysis_prompt(self, query: str, context: Optional[Dict[str, Any]] = None) -> str:
+    def _build_dialogue_analysis_prompt(self, query: str, context: Dict[str, Any] | None = None) -> str:
         """
         构建对话式分析 Prompt - v7.302.1 修复
         第一次调用：生成自然语言分析（流式输出给用户）
@@ -6884,7 +6909,7 @@ class UcpptSearchEngine:
                 logger.warning(f"️ [v7.302.1] YAML配置文件不存在: {config_path}")
                 return self._build_dialogue_analysis_prompt_fallback(query, context)
 
-            with open(config_path, "r", encoding="utf-8") as f:
+            with open(config_path, encoding="utf-8") as f:
                 config = yaml.safe_load(f)
 
             #  使用 dialogue_prompt_template 而不是 task_description_template
@@ -6909,7 +6934,7 @@ class UcpptSearchEngine:
             logger.error(f" [v7.302.1] 加载YAML配置失败: {e}", exc_info=True)
             return self._build_dialogue_analysis_prompt_fallback(query, context)
 
-    def _build_dialogue_analysis_prompt_fallback(self, query: str, context: Optional[Dict[str, Any]] = None) -> str:
+    def _build_dialogue_analysis_prompt_fallback(self, query: str, context: Dict[str, Any] | None = None) -> str:
         """
         降级版本的对话式分析 Prompt - v7.300
         当YAML配置加载失败时使用
@@ -6984,7 +7009,7 @@ class UcpptSearchEngine:
 
 请直接开始你的分析，不要有任何开场白。"""
 
-    def _build_unified_analysis_prompt(self, query: str, context: Optional[Dict[str, Any]] = None) -> str:
+    def _build_unified_analysis_prompt(self, query: str, context: Dict[str, Any] | None = None) -> str:
         """
         构建统一分析 Prompt - v7.270 重构版
 
@@ -7369,7 +7394,7 @@ class UcpptSearchEngine:
     async def _unified_analysis_stream(
         self,
         query: str,
-        context: Optional[Dict[str, Any]] = None,
+        context: Dict[str, Any] | None = None,
     ) -> AsyncGenerator[Dict[str, Any], None]:
         """
         统一分析流式处理 - v7.270 两次调用版本
@@ -7886,7 +7911,7 @@ class UcpptSearchEngine:
         return {"targets": targets}
 
     def _build_json_extraction_prompt(
-        self, query: str, dialogue_content: str, context: Optional[Dict[str, Any]] = None
+        self, query: str, dialogue_content: str, context: Dict[str, Any] | None = None
     ) -> str:
         """
         构建 JSON 提取 Prompt - v7.302.1 修复
@@ -7911,7 +7936,7 @@ class UcpptSearchEngine:
                 logger.warning("️ [v7.302.1] YAML配置文件不存在，使用内置prompt")
                 return self._build_json_extraction_prompt_fallback(query, dialogue_content, context)
 
-            with open(config_path, "r", encoding="utf-8") as f:
+            with open(config_path, encoding="utf-8") as f:
                 config = yaml.safe_load(f)
 
             #  优先使用 json_extraction_prompt_template
@@ -7943,7 +7968,7 @@ class UcpptSearchEngine:
             return self._build_json_extraction_prompt_fallback(query, dialogue_content, context)
 
     def _build_json_extraction_prompt_fallback(
-        self, query: str, dialogue_content: str, context: Optional[Dict[str, Any]] = None
+        self, query: str, dialogue_content: str, context: Dict[str, Any] | None = None
     ) -> str:
         """
         降级版本的JSON提取prompt - v7.302.1
@@ -8698,7 +8723,7 @@ class UcpptSearchEngine:
         step2_context: Dict[str, Any],
         problem_solving_approach: ProblemSolvingApproach,
         analysis_data: Dict[str, Any],
-    ) -> Optional[SearchFramework]:
+    ) -> SearchFramework | None:
         """
         第二步：生成搜索框架 - v7.270 新增
 
@@ -9101,7 +9126,9 @@ class UcpptSearchEngine:
         complexity_score = 0.0
         recommended_task_count = 5
         try:
-            from intelligent_project_analyzer.services.core_task_decomposer import TaskComplexityAnalyzer
+            from intelligent_project_analyzer.services.core_task_decomposer import (
+                TaskComplexityAnalyzer,
+            )
 
             complexity_result = TaskComplexityAnalyzer.analyze(framework.original_query, analysis_data)
             complexity_score = complexity_result.get("complexity_score", 0.0)
@@ -10386,7 +10413,7 @@ L3张力: {json.dumps(analysis_excerpt["l3_tension"], ensure_ascii=False)[:300]}
 
     # ==================== v7.234 质量评估与优化 结束 ====================
 
-    def _parse_search_master_line(self, data: Dict[str, Any]) -> Optional[SearchMasterLine]:
+    def _parse_search_master_line(self, data: Dict[str, Any]) -> SearchMasterLine | None:
         """
         解析搜索主线数据 - v7.213 增强
 
@@ -10817,7 +10844,7 @@ L3张力: {json.dumps(analysis_excerpt["l3_tension"], ensure_ascii=False)[:300]}
     async def _stream_analyze_question(
         self,
         query: str,
-        context: Optional[Dict[str, Any]] = None,
+        context: Dict[str, Any] | None = None,
     ) -> AsyncGenerator[Dict[str, Any], None]:
         """
         流式分析用户问题 - v7.188
@@ -10863,8 +10890,8 @@ L3张力: {json.dumps(analysis_excerpt["l3_tension"], ensure_ascii=False)[:300]}
     async def _stream_analyze_question_with_l0(
         self,
         query: str,
-        structured_info: Optional[Dict[str, Any]] = None,
-        context: Optional[Dict[str, Any]] = None,
+        structured_info: Dict[str, Any] | None = None,
+        context: Dict[str, Any] | None = None,
     ) -> AsyncGenerator[Dict[str, Any], None]:
         """
         流式分析用户问题（注入 L0 结果）- v7.205
@@ -10910,8 +10937,8 @@ L3张力: {json.dumps(analysis_excerpt["l3_tension"], ensure_ascii=False)[:300]}
     def _build_analysis_prompt_with_l0(
         self,
         query: str,
-        structured_info: Optional[Dict[str, Any]] = None,
-        context: Optional[Dict[str, Any]] = None,
+        structured_info: Dict[str, Any] | None = None,
+        context: Dict[str, Any] | None = None,
     ) -> str:
         """
         构建包含 L0 结构化信息的分析 prompt - v7.205
@@ -11023,7 +11050,7 @@ L3张力: {json.dumps(analysis_excerpt["l3_tension"], ensure_ascii=False)[:300]}
         else:
             return original_prompt
 
-    def _build_analysis_prompt(self, query: str, context: Optional[Dict[str, Any]] = None) -> str:
+    def _build_analysis_prompt(self, query: str, context: Dict[str, Any] | None = None) -> str:
         """
         构建问题分析prompt - v7.196 融合需求分析方法论
 
@@ -11840,7 +11867,7 @@ L3张力: {json.dumps(analysis_excerpt["l3_tension"], ensure_ascii=False)[:300]}
     async def _analyze_question(
         self,
         query: str,
-        context: Optional[Dict[str, Any]] = None,
+        context: Dict[str, Any] | None = None,
     ) -> AnswerFramework:
         """
         分析用户问题 - v7.183 核心机制（非流式版本，保留作为降级）
@@ -12926,7 +12953,7 @@ status可选值：missing（无有用信息）、partial（有部分信息）、
         framework: SearchFramework,  # v7.235: 修复类型标注，与实际使用一致
         current_round: int,
         all_sources: List[Dict[str, Any]],
-    ) -> Optional[Dict[str, Any]]:
+    ) -> Dict[str, Any] | None:
         """
         生成阶段复盘检查点 - v7.213 新增
 
@@ -13058,7 +13085,7 @@ status可选值：missing（无有用信息）、partial（有部分信息）、
         total_rounds: int,
         all_sources: List[Dict[str, Any]],
         rounds: List[SearchRoundState],
-    ) -> Optional[Dict[str, Any]]:
+    ) -> Dict[str, Any] | None:
         """
         生成搜索历程最终回顾 - v7.213 新增
 
@@ -13771,7 +13798,7 @@ JSON格式输出：
 
         return enhanced_sources
 
-    async def _extract_detailed_content(self, url: str) -> Optional[str]:
+    async def _extract_detailed_content(self, url: str) -> str | None:
         """详细内容提取（模拟实现）"""
         # 这里应该集成实际的内容提取工具
         # 暂时返回 None，表示功能占位
@@ -14026,7 +14053,9 @@ JSON格式输出：
     def _get_whitelist_domains(self) -> set:
         """获取白名单域名集合"""
         try:
-            from intelligent_project_analyzer.services.search_filter_manager import get_filter_manager
+            from intelligent_project_analyzer.services.search_filter_manager import (
+                get_filter_manager,
+            )
 
             manager = get_filter_manager()
             if manager:
@@ -14039,7 +14068,9 @@ JSON格式输出：
     def _get_graylist_domains(self) -> set:
         """获取灰名单域名集合"""
         try:
-            from intelligent_project_analyzer.services.search_filter_manager import get_filter_manager
+            from intelligent_project_analyzer.services.search_filter_manager import (
+                get_filter_manager,
+            )
 
             manager = get_filter_manager()
             if manager:
@@ -14053,7 +14084,7 @@ JSON格式输出：
         self,
         original_query: str,
         attempt: int,
-        target_aspect: Optional[Any] = None,
+        target_aspect: Any | None = None,
         is_empty_retry: bool = False,
     ) -> str:
         """
@@ -14119,7 +14150,7 @@ JSON格式输出：
     def _generate_query_variants(
         self,
         query: str,
-        target_aspect: Optional[Any] = None,
+        target_aspect: Any | None = None,
         search_keywords: List[str] = None,
     ) -> List[str]:
         """
@@ -14236,7 +14267,7 @@ JSON格式输出：
     async def _execute_search_with_quality_filter(
         self,
         query: str,
-        target_aspect: Optional[Any] = None,
+        target_aspect: Any | None = None,
         search_keywords: List[str] = None,
     ) -> List[Dict[str, Any]]:
         """
@@ -14716,7 +14747,7 @@ JSON格式输出：
         self,
         sources: List[Dict[str, Any]],
         query: str,
-        target_aspect: Optional[Any] = None,
+        target_aspect: Any | None = None,
     ) -> List[Dict[str, Any]]:
         """
         v7.212: LLM 二次过滤 - 判断搜索结果与查询的相关性
@@ -15203,7 +15234,7 @@ status可选值：missing（没有有用信息）、partial（有部分有用信
         query: str,
         framework: Union[AnswerFramework, SearchFramework],
         all_sources: List[Dict[str, Any]],
-        rounds: Optional[List["SearchRoundState"]] = None,
+        rounds: List["SearchRoundState"] | None = None,
     ) -> AsyncGenerator[Dict[str, Any], None]:
         """
         生成最终答案（流式）- v7.196 优化版
@@ -15610,7 +15641,7 @@ status可选值：missing（没有有用信息）、partial（有部分有用信
 
             # ---- Phase B: 按板块分组来源和洞察 ----
             block_sources_map: Dict[str, List[Dict[str, Any]]] = {}
-            block_insights_map: Dict[str, List["RoundInsights"]] = {}
+            block_insights_map: Dict[str, List[RoundInsights]] = {}
 
             # 建立 query_id → serves_blocks 映射
             query_blocks_map: Dict[str, List[str]] = {}
@@ -16312,7 +16343,7 @@ L4搜索任务: {l4_task if l4_task else '无'}
             "dialogue_content": l0.dialogue_content,
         }
 
-    def _extract_framework_from_session(self, session: AnalysisSession) -> Optional[Any]:
+    def _extract_framework_from_session(self, session: AnalysisSession) -> Any | None:
         """从分析会话中提取框架信息"""
         if not session.synthesis_result:
             return None
@@ -16345,7 +16376,7 @@ L4搜索任务: {l4_task if l4_task else '无'}
 
 # ==================== 全局单例 ====================
 
-_ucppt_engine: Optional[UcpptSearchEngine] = None
+_ucppt_engine: UcpptSearchEngine | None = None
 
 
 def get_ucppt_engine() -> UcpptSearchEngine:

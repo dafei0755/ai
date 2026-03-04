@@ -30,7 +30,7 @@ import asyncio
 import time
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, AsyncGenerator, Dict, Optional
+from typing import Any, AsyncGenerator, Dict
 
 from loguru import logger
 
@@ -54,8 +54,8 @@ class ProgressUpdate:
     stage: ProgressStage
     progress: float  # 0.0-1.0
     message: str
-    estimated_time_remaining: Optional[int] = None  # 秒
-    details: Optional[Dict[str, Any]] = None
+    estimated_time_remaining: int | None = None  # 秒
+    details: Dict[str, Any] | None = None
 
     def to_sse_data(self) -> str:
         """转换为SSE数据格式"""
@@ -105,9 +105,9 @@ class ProgressiveInteractionService:
     async def emit_progress(
         self,
         stage: ProgressStage,
-        progress: Optional[float] = None,
-        message: Optional[str] = None,
-        details: Optional[Dict[str, Any]] = None,
+        progress: float | None = None,
+        message: str | None = None,
+        details: Dict[str, Any] | None = None,
     ) -> ProgressUpdate:
         """
         发送进度更新
@@ -289,7 +289,7 @@ class ProgressiveInteractionService:
 
 
 # 全局单例
-_progressive_service: Optional[ProgressiveInteractionService] = None
+_progressive_service: ProgressiveInteractionService | None = None
 
 
 def get_progressive_service() -> ProgressiveInteractionService:

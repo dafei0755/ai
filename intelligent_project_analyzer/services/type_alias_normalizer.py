@@ -20,7 +20,7 @@ v1.0
 from __future__ import annotations
 
 import re
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Tuple
 
 from loguru import logger
 
@@ -250,7 +250,7 @@ def extract_negated_spans(text: str) -> List[Tuple[int, int]]:
     return spans
 
 
-def is_negated(keyword: str, text: str, negated_spans: Optional[List[Tuple[int, int]]] = None) -> bool:
+def is_negated(keyword: str, text: str, negated_spans: List[Tuple[int, int]] | None = None) -> bool:
     """
     判断 keyword 在 text 中是否位于否定语境内。
 

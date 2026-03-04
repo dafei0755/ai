@@ -10,7 +10,8 @@ v7.4 更新：
 """
 
 import re
-from typing import Dict, Any, List, Optional
+from typing import Any, Dict, List
+
 from loguru import logger
 
 from .context import KeywordExtractor
@@ -32,7 +33,7 @@ class FallbackQuestionGenerator:
     """
 
     @staticmethod
-    def generate(structured_data: Dict[str, Any], user_input: str = "", extracted_info: Optional[Dict] = None) -> List[Dict[str, Any]]:
+    def generate(structured_data: Dict[str, Any], user_input: str = "", extracted_info: Dict | None = None) -> List[Dict[str, Any]]:
         """
         在缺失问卷时构建兜底问题集，确保问卷流程不会被跳过
 
@@ -46,7 +47,6 @@ class FallbackQuestionGenerator:
             user_input: 用户原始输入（用于关键词提取）
             extracted_info: 预提取的关键信息（可选，避免重复提取）
         """
-        import re
 
         #  v7.4: 智能提取关键信息
         if extracted_info is None and user_input:
@@ -231,7 +231,7 @@ class FallbackQuestionGenerator:
                 "options": [
                     f"优先保证'{tension_a}'，可以在'{tension_b}'上做出妥协",
                     f"优先保证'{tension_b}'，'{tension_a}'可以通过其他方式补偿",
-                    f"寻求平衡点，通过创新设计同时满足两者"
+                    "寻求平衡点，通过创新设计同时满足两者"
                 ]
             })
         else:
@@ -519,7 +519,6 @@ class BiddingStrategyGenerator:
         Returns:
             竞标策略专用问题列表
         """
-        import re
 
         questions = []
 
@@ -658,7 +657,6 @@ class PhilosophyQuestionGenerator:
         Returns:
             理念探索问题列表（单选题+开放题）
         """
-        import re  #  移到方法开头，确保始终可用
         
         logger.debug(" [TRACE] _build_philosophy_questions 开始执行")
         philosophy_questions = []
@@ -724,7 +722,7 @@ class PhilosophyQuestionGenerator:
 
                 philosophy_questions.append({
                     "id": "v1_approach_spectrum",
-                    "question": f" 在设计方案的光谱上，您的理想立场是？(单选)",
+                    "question": " 在设计方案的光谱上，您的理想立场是？(单选)",
                     "context": f"从'{极端A}'到'{极端B}'之间存在多种可能性，您的选择将决定方案的整体调性。",
                     "type": "single_choice",
                     "options": options,
@@ -748,7 +746,7 @@ class PhilosophyQuestionGenerator:
 
                 philosophy_questions.append({
                     "id": "v1_goal_philosophy",
-                    "question": f" 对于这个项目，您更看重哪个层面的成功？(单选)",
+                    "question": " 对于这个项目，您更看重哪个层面的成功？(单选)",
                     "context": f"V1分析显示您希望空间完成'{goal_x}'与'{goal_y}'，但在实际决策中往往需要确定主次。",
                     "type": "single_choice",
                     "options": [
@@ -793,7 +791,7 @@ class PhilosophyQuestionGenerator:
                 "dimension": "exploration"
             })
 
-            logger.info(f" 基于critical_questions生成开放探索问题")
+            logger.info(" 基于critical_questions生成开放探索问题")
 
         logger.debug(f" [TRACE] _build_philosophy_questions 完成，生成 {len(philosophy_questions)} 个问题")
         return philosophy_questions
@@ -817,7 +815,7 @@ class ConflictQuestionGenerator:
     def generate(
         feasibility: Dict[str, Any],
         scenario_type: str = "unknown",
-        user_mentioned_constraints: Optional[List[str]] = None
+        user_mentioned_constraints: List[str] | None = None
     ) -> List[Dict[str, Any]]:
         """
         基于V1.5可行性分析结果生成针对性问题（ 价值体现点1 - 资源维度）

@@ -4,7 +4,8 @@
 基于向量相似度的语义搜索功能
 """
 
-from typing import List, Dict, Any, Optional
+from typing import Any, Dict, List
+
 from loguru import logger
 from sqlalchemy import func, text
 from sqlalchemy.orm import Session
@@ -27,8 +28,8 @@ class SemanticSearchService:
         query_text: str,
         limit: int = 10,
         min_quality_score: float = 0.5,
-        source: Optional[str] = None,
-        category: Optional[str] = None,
+        source: str | None = None,
+        category: str | None = None,
     ) -> List[Dict[str, Any]]:
         """
         基于文本查询的语义搜索
@@ -235,7 +236,7 @@ class RecommendationEngine:
         self,
         preferred_categories: List[str] = None,
         preferred_styles: List[str] = None,
-        min_year: Optional[int] = None,
+        min_year: int | None = None,
         limit: int = 20,
     ) -> List[Dict[str, Any]]:
         """
@@ -278,7 +279,7 @@ class RecommendationEngine:
         ]
 
     def get_trending_projects(
-        self, days: int = 30, category: Optional[str] = None, limit: int = 20
+        self, days: int = 30, category: str | None = None, limit: int = 20
     ) -> List[Dict[str, Any]]:
         """
         获取热门/趋势项目
@@ -291,8 +292,9 @@ class RecommendationEngine:
         Returns:
             热门项目列表
         """
-        from ..models import ExternalProject
         from datetime import datetime, timedelta
+
+        from ..models import ExternalProject
 
         cutoff_date = datetime.now() - timedelta(days=days)
 

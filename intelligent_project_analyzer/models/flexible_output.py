@@ -13,9 +13,10 @@ Flexible Output Models - V6 Chief Engineer Roles
 - V6-4: 成本与价值工程师
 """
 
-from typing import List, Dict, Any, Optional, Literal
-from pydantic import BaseModel, Field, model_validator
 from enum import Enum
+from typing import Any, Dict, List, Literal
+
+from pydantic import BaseModel, Field, model_validator
 
 
 class OutputMode(str, Enum):
@@ -89,7 +90,7 @@ class V6_1_FlexibleOutput(BaseModel):
     )
 
     # ===== 第二层：标准字段（完整报告模式必需，针对性模式可选） =====
-    feasibility_assessment: Optional[str] = Field(
+    feasibility_assessment: str | None = Field(
         None,
         description="""
         【Comprehensive模式必需】对V2设计意图的综合技术可行性评估
@@ -97,7 +98,7 @@ class V6_1_FlexibleOutput(BaseModel):
         """
     )
 
-    structural_system_options: Optional[List[TechnicalOption]] = Field(
+    structural_system_options: List[TechnicalOption] | None = Field(
         None,
         description="""
         【Comprehensive模式必需】针对建筑主体，提出至少两种结构体系方案
@@ -105,7 +106,7 @@ class V6_1_FlexibleOutput(BaseModel):
         """
     )
 
-    facade_system_options: Optional[List[TechnicalOption]] = Field(
+    facade_system_options: List[TechnicalOption] | None = Field(
         None,
         description="""
         【Comprehensive模式必需】针对建筑外立面，提出至少两种幕墙/表皮系统方案
@@ -113,7 +114,7 @@ class V6_1_FlexibleOutput(BaseModel):
         """
     )
 
-    key_technical_nodes: Optional[List[KeyNodeAnalysis]] = Field(
+    key_technical_nodes: List[KeyNodeAnalysis] | None = Field(
         None,
         description="""
         【Comprehensive模式必需】识别并分析方案中最重要的2-3个关键技术节点
@@ -121,7 +122,7 @@ class V6_1_FlexibleOutput(BaseModel):
         """
     )
 
-    risk_analysis_and_recommendations: Optional[str] = Field(
+    risk_analysis_and_recommendations: str | None = Field(
         None,
         description="""
         【Comprehensive模式必需】对潜在的结构与幕墙风险进行分析
@@ -130,7 +131,7 @@ class V6_1_FlexibleOutput(BaseModel):
     )
 
     # ===== 第三层：灵活内容区（针对性模式的核心输出） =====
-    targeted_analysis: Optional[Dict[str, Any]] = Field(
+    targeted_analysis: Dict[str, Any] | None = Field(
         None,
         description="""
         【Targeted模式核心字段】根据user_question_focus动态生成的专项分析
@@ -203,7 +204,7 @@ class V6_1_FlexibleOutput(BaseModel):
     )
 
     # ===== 第四层：扩展性保障 =====
-    supplementary_insights: Optional[Dict[str, Any]] = Field(
+    supplementary_insights: Dict[str, Any] | None = Field(
         None,
         description="""
         补充性洞察或跨领域分析
@@ -212,12 +213,12 @@ class V6_1_FlexibleOutput(BaseModel):
     )
 
     # ===== v3.5 Expert Autonomy Protocol 扩展字段 =====
-    expert_handoff_response: Optional[Dict[str, Any]] = Field(
+    expert_handoff_response: Dict[str, Any] | None = Field(
         None,
         description="对expert_handoff的结构化响应（v3.5协议）"
     )
 
-    challenge_flags: Optional[List[Dict[str, str]]] = Field(
+    challenge_flags: List[Dict[str, str]] | None = Field(
         None,
         description="挑战标记列表（如有）（v3.5协议）"
     )
@@ -438,7 +439,7 @@ class V6_2_FlexibleOutput(BaseModel):
     )
 
     # ===== 第二层：标准字段（完整报告模式必需，针对性模式可选） =====
-    mep_overall_strategy: Optional[str] = Field(
+    mep_overall_strategy: str | None = Field(
         None,
         description="""
         【Comprehensive模式必需】机电总体策略
@@ -446,7 +447,7 @@ class V6_2_FlexibleOutput(BaseModel):
         """
     )
 
-    system_solutions: Optional[List[SystemSolution]] = Field(
+    system_solutions: List[SystemSolution] | None = Field(
         None,
         description="""
         【Comprehensive模式必需】核心机电系统解决方案列表
@@ -454,7 +455,7 @@ class V6_2_FlexibleOutput(BaseModel):
         """
     )
 
-    smart_building_scenarios: Optional[List[SmartScenario]] = Field(
+    smart_building_scenarios: List[SmartScenario] | None = Field(
         None,
         description="""
         【Comprehensive模式必需】智能化解决方案
@@ -462,7 +463,7 @@ class V6_2_FlexibleOutput(BaseModel):
         """
     )
 
-    coordination_and_clash_points: Optional[str] = Field(
+    coordination_and_clash_points: str | None = Field(
         None,
         description="""
         【Comprehensive模式必需】与其他专业的协同与碰撞点
@@ -470,7 +471,7 @@ class V6_2_FlexibleOutput(BaseModel):
         """
     )
 
-    sustainability_and_energy_saving: Optional[str] = Field(
+    sustainability_and_energy_saving: str | None = Field(
         None,
         description="""
         【Comprehensive模式必需】可持续与节能策略
@@ -479,7 +480,7 @@ class V6_2_FlexibleOutput(BaseModel):
     )
 
     # ===== 第三层：灵活内容区（针对性模式的核心输出） =====
-    targeted_analysis: Optional[Dict[str, Any]] = Field(
+    targeted_analysis: Dict[str, Any] | None = Field(
         None,
         description="""
         【Targeted模式核心字段】根据user_question_focus动态生成的专项分析
@@ -554,7 +555,7 @@ class V6_2_FlexibleOutput(BaseModel):
     )
 
     # ===== 第四层：扩展性保障 =====
-    supplementary_insights: Optional[Dict[str, Any]] = Field(
+    supplementary_insights: Dict[str, Any] | None = Field(
         None,
         description="""
         补充性洞察或跨领域分析
@@ -563,12 +564,12 @@ class V6_2_FlexibleOutput(BaseModel):
     )
 
     # ===== v3.5 Expert Autonomy Protocol 扩展字段 =====
-    expert_handoff_response: Optional[Dict[str, Any]] = Field(
+    expert_handoff_response: Dict[str, Any] | None = Field(
         None,
         description="对expert_handoff的结构化响应（v3.5协议）"
     )
 
-    challenge_flags: Optional[List[Dict[str, str]]] = Field(
+    challenge_flags: List[Dict[str, str]] | None = Field(
         None,
         description="挑战标记列表（如有）（v3.5协议）"
     )
@@ -660,15 +661,15 @@ class V6_3_FlexibleOutput(BaseModel):
     confidence: float = Field(ge=0, le=1)
     design_rationale: str
     
-    craftsmanship_strategy: Optional[str] = None
-    key_material_specifications: Optional[List[MaterialSpec]] = None
-    critical_node_details: Optional[List[NodeDetail]] = None
-    quality_control_and_mockup: Optional[str] = None
-    risk_analysis: Optional[str] = None
+    craftsmanship_strategy: str | None = None
+    key_material_specifications: List[MaterialSpec] | None = None
+    critical_node_details: List[NodeDetail] | None = None
+    quality_control_and_mockup: str | None = None
+    risk_analysis: str | None = None
     
-    targeted_analysis: Optional[Dict[str, Any]] = None
-    expert_handoff_response: Optional[Dict[str, Any]] = None
-    challenge_flags: Optional[List[Dict[str, str]]] = None
+    targeted_analysis: Dict[str, Any] | None = None
+    expert_handoff_response: Dict[str, Any] | None = None
+    challenge_flags: List[Dict[str, str]] | None = None
 
     @model_validator(mode="after")
     def validate_output_consistency(self):
@@ -711,15 +712,15 @@ class V6_4_FlexibleOutput(BaseModel):
     confidence: float = Field(ge=0, le=1)
     design_rationale: str
     
-    cost_estimation_summary: Optional[str] = None
-    cost_breakdown_analysis: Optional[List[CostBreakdown]] = None
-    value_engineering_options: Optional[List[VEOption]] = None
-    budget_control_strategy: Optional[str] = None
-    cost_overrun_risk_analysis: Optional[str] = None
+    cost_estimation_summary: str | None = None
+    cost_breakdown_analysis: List[CostBreakdown] | None = None
+    value_engineering_options: List[VEOption] | None = None
+    budget_control_strategy: str | None = None
+    cost_overrun_risk_analysis: str | None = None
     
-    targeted_analysis: Optional[Dict[str, Any]] = None
-    expert_handoff_response: Optional[Dict[str, Any]] = None
-    challenge_flags: Optional[List[Dict[str, str]]] = None
+    targeted_analysis: Dict[str, Any] | None = None
+    expert_handoff_response: Dict[str, Any] | None = None
+    challenge_flags: List[Dict[str, str]] | None = None
 
     @model_validator(mode="after")
     def validate_output_consistency(self):
@@ -763,17 +764,17 @@ class V5_1_FlexibleOutput(BaseModel):
     design_rationale: str
     
     # 标准字段（Comprehensive模式必需）
-    family_profile_and_needs: Optional[List[FamilyMemberProfile]] = None
-    operational_blueprint: Optional[str] = None
-    key_performance_indicators: Optional[List[str]] = None
-    design_challenges_for_v2: Optional[List[DesignChallenge]] = None
+    family_profile_and_needs: List[FamilyMemberProfile] | None = None
+    operational_blueprint: str | None = None
+    key_performance_indicators: List[str] | None = None
+    design_challenges_for_v2: List[DesignChallenge] | None = None
     
     # 灵活内容区（Targeted模式核心输出）
-    targeted_analysis: Optional[Dict[str, Any]] = None
+    targeted_analysis: Dict[str, Any] | None = None
     
     # v3.5协议字段
-    expert_handoff_response: Optional[Dict[str, Any]] = None
-    challenge_flags: Optional[List[Dict[str, str]]] = None
+    expert_handoff_response: Dict[str, Any] | None = None
+    challenge_flags: List[Dict[str, str]] | None = None
 
     @model_validator(mode="after")
     def validate_output_consistency(self):
@@ -809,17 +810,17 @@ class V5_2_FlexibleOutput(BaseModel):
     design_rationale: str
     
     # 标准字段（Comprehensive模式必需）
-    business_goal_analysis: Optional[str] = None
-    operational_blueprint: Optional[str] = None
-    key_performance_indicators: Optional[List[RetailKPI]] = None
-    design_challenges_for_v2: Optional[List[DesignChallenge]] = None
+    business_goal_analysis: str | None = None
+    operational_blueprint: str | None = None
+    key_performance_indicators: List[RetailKPI] | None = None
+    design_challenges_for_v2: List[DesignChallenge] | None = None
     
     # 灵活内容区（Targeted模式核心输出）
-    targeted_analysis: Optional[Dict[str, Any]] = None
+    targeted_analysis: Dict[str, Any] | None = None
     
     # v3.5协议字段
-    expert_handoff_response: Optional[Dict[str, Any]] = None
-    challenge_flags: Optional[List[Dict[str, str]]] = None
+    expert_handoff_response: Dict[str, Any] | None = None
+    challenge_flags: List[Dict[str, str]] | None = None
 
     @model_validator(mode="after")
     def validate_output_consistency(self):
@@ -848,20 +849,20 @@ class V2_1_FlexibleOutput(BaseModel):
     decision_rationale: str  # V2专用：设计决策权衡逻辑
     
     # 标准字段（Comprehensive模式必需）
-    project_vision_summary: Optional[str] = None
-    spatial_concept: Optional[str] = None
-    narrative_translation: Optional[str] = None
-    aesthetic_framework: Optional[str] = None
-    functional_planning: Optional[str] = None
-    material_palette: Optional[str] = None
-    implementation_guidance: Optional[str] = None
+    project_vision_summary: str | None = None
+    spatial_concept: str | None = None
+    narrative_translation: str | None = None
+    aesthetic_framework: str | None = None
+    functional_planning: str | None = None
+    material_palette: str | None = None
+    implementation_guidance: str | None = None
     
     # 灵活内容区（Targeted模式核心输出）
-    targeted_analysis: Optional[Dict[str, Any]] = None
+    targeted_analysis: Dict[str, Any] | None = None
     
     # v3.5协议字段
-    expert_handoff_response: Optional[Dict[str, Any]] = None
-    challenge_flags: Optional[List[Dict[str, str]]] = None
+    expert_handoff_response: Dict[str, Any] | None = None
+    challenge_flags: List[Dict[str, str]] | None = None
 
     @model_validator(mode="after")
     def validate_output_consistency(self):
@@ -892,20 +893,20 @@ class V2_2_FlexibleOutput(BaseModel):
     decision_rationale: str  # V2专用：设计决策权衡逻辑
     
     # 标准字段（Comprehensive模式必需）
-    project_vision_summary: Optional[str] = None
-    spatial_concept: Optional[str] = None
-    business_strategy_translation: Optional[str] = None  # V2-2专用：商业策略转译
-    aesthetic_framework: Optional[str] = None
-    functional_planning: Optional[str] = None
-    material_palette: Optional[str] = None
-    implementation_guidance: Optional[str] = None
+    project_vision_summary: str | None = None
+    spatial_concept: str | None = None
+    business_strategy_translation: str | None = None  # V2-2专用：商业策略转译
+    aesthetic_framework: str | None = None
+    functional_planning: str | None = None
+    material_palette: str | None = None
+    implementation_guidance: str | None = None
     
     # 灵活内容区（Targeted模式核心输出）
-    targeted_analysis: Optional[Dict[str, Any]] = None
+    targeted_analysis: Dict[str, Any] | None = None
     
     # v3.5协议字段
-    expert_handoff_response: Optional[Dict[str, Any]] = None
-    challenge_flags: Optional[List[Dict[str, str]]] = None
+    expert_handoff_response: Dict[str, Any] | None = None
+    challenge_flags: List[Dict[str, str]] | None = None
 
     @model_validator(mode="after")
     def validate_output_consistency(self):
@@ -943,18 +944,18 @@ class V3_2_FlexibleOutput(BaseModel):
     design_rationale: str
     
     # 标准字段（Comprehensive模式必需）
-    brand_narrative_core: Optional[str] = None
-    customer_archetype: Optional[str] = None
-    emotional_journey_map: Optional[str] = None
-    key_touchpoint_scripts: Optional[List[TouchpointScript]] = None
-    narrative_guidelines_for_v2: Optional[str] = None
+    brand_narrative_core: str | None = None
+    customer_archetype: str | None = None
+    emotional_journey_map: str | None = None
+    key_touchpoint_scripts: List[TouchpointScript] | None = None
+    narrative_guidelines_for_v2: str | None = None
     
     # 灵活内容区（Targeted模式核心输出）
-    targeted_analysis: Optional[Dict[str, Any]] = None
+    targeted_analysis: Dict[str, Any] | None = None
     
     # v3.5协议字段
-    expert_handoff_response: Optional[Dict[str, Any]] = None
-    challenge_flags: Optional[List[Dict[str, str]]] = None
+    expert_handoff_response: Dict[str, Any] | None = None
+    challenge_flags: List[Dict[str, str]] | None = None
 
     @model_validator(mode="after")
     def validate_output_consistency(self):
@@ -984,18 +985,18 @@ class V4_1_FlexibleOutput(BaseModel):
     design_rationale: str
     
     # 标准字段（Comprehensive模式必需）
-    research_focus: Optional[str] = None
-    methodology: Optional[str] = None
-    key_findings: Optional[List[str]] = None
-    design_implications: Optional[str] = None
-    evidence_base: Optional[str] = None
+    research_focus: str | None = None
+    methodology: str | None = None
+    key_findings: List[str] | None = None
+    design_implications: str | None = None
+    evidence_base: str | None = None
     
     # 灵活内容区（Targeted模式核心输出）
-    targeted_analysis: Optional[Dict[str, Any]] = None
+    targeted_analysis: Dict[str, Any] | None = None
     
     # v3.5协议字段
-    expert_handoff_response: Optional[Dict[str, Any]] = None
-    challenge_flags: Optional[List[Dict[str, str]]] = None
+    expert_handoff_response: Dict[str, Any] | None = None
+    challenge_flags: List[Dict[str, str]] | None = None
 
     @model_validator(mode="after")
     def validate_output_consistency(self):
@@ -1031,16 +1032,16 @@ class V5_0_FlexibleOutput(BaseModel):
     confidence: float = Field(ge=0, le=1)
     design_rationale: str
     
-    scenario_deconstruction: Optional[str] = None
-    operational_logic: Optional[str] = None
-    stakeholder_analysis: Optional[str] = None
-    key_performance_indicators: Optional[List[str]] = None
-    design_challenges_for_v2: Optional[List[DesignChallenge]] = None
+    scenario_deconstruction: str | None = None
+    operational_logic: str | None = None
+    stakeholder_analysis: str | None = None
+    key_performance_indicators: List[str] | None = None
+    design_challenges_for_v2: List[DesignChallenge] | None = None
     
-    targeted_analysis: Optional[Dict[str, Any]] = None
+    targeted_analysis: Dict[str, Any] | None = None
     
-    expert_handoff_response: Optional[Dict[str, Any]] = None
-    challenge_flags: Optional[List[Dict[str, str]]] = None
+    expert_handoff_response: Dict[str, Any] | None = None
+    challenge_flags: List[Dict[str, str]] | None = None
 
     @model_validator(mode="after")
     def validate_output_consistency(self):
@@ -1064,7 +1065,7 @@ class V5_0_FlexibleOutput(BaseModel):
 class SubprojectBrief(BaseModel):
     """子项目简要模型"""
     subproject_name: str
-    area_sqm: Optional[float] = None
+    area_sqm: float | None = None
     key_requirements: List[str]
     design_priority: str
 
@@ -1076,16 +1077,16 @@ class V2_0_FlexibleOutput(BaseModel):
     confidence: float = Field(ge=0, le=1)
     decision_rationale: str
     
-    master_plan_strategy: Optional[str] = None
-    spatial_zoning_concept: Optional[str] = None
-    circulation_integration: Optional[str] = None
-    subproject_coordination: Optional[List[SubprojectBrief]] = None
-    design_unity_and_variation: Optional[str] = None
+    master_plan_strategy: str | None = None
+    spatial_zoning_concept: str | None = None
+    circulation_integration: str | None = None
+    subproject_coordination: List[SubprojectBrief] | None = None
+    design_unity_and_variation: str | None = None
     
-    targeted_analysis: Optional[Dict[str, Any]] = None
+    targeted_analysis: Dict[str, Any] | None = None
     
-    expert_handoff_response: Optional[Dict[str, Any]] = None
-    challenge_flags: Optional[List[Dict[str, str]]] = None
+    expert_handoff_response: Dict[str, Any] | None = None
+    challenge_flags: List[Dict[str, str]] | None = None
 
     @model_validator(mode="after")
     def validate_output_consistency(self):
@@ -1113,16 +1114,16 @@ class V5_3_FlexibleOutput(BaseModel):
     confidence: float = Field(ge=0, le=1)
     design_rationale: str
     
-    organizational_analysis: Optional[str] = None
-    collaboration_model: Optional[str] = None
-    workspace_strategy: Optional[str] = None
-    key_performance_indicators: Optional[List[str]] = None
-    design_challenges_for_v2: Optional[List[DesignChallenge]] = None
+    organizational_analysis: str | None = None
+    collaboration_model: str | None = None
+    workspace_strategy: str | None = None
+    key_performance_indicators: List[str] | None = None
+    design_challenges_for_v2: List[DesignChallenge] | None = None
     
-    targeted_analysis: Optional[Dict[str, Any]] = None
+    targeted_analysis: Dict[str, Any] | None = None
     
-    expert_handoff_response: Optional[Dict[str, Any]] = None
-    challenge_flags: Optional[List[Dict[str, str]]] = None
+    expert_handoff_response: Dict[str, Any] | None = None
+    challenge_flags: List[Dict[str, str]] | None = None
 
     @model_validator(mode="after")
     def validate_output_consistency(self):
@@ -1150,16 +1151,16 @@ class V5_4_FlexibleOutput(BaseModel):
     confidence: float = Field(ge=0, le=1)
     design_rationale: str
     
-    service_process_analysis: Optional[str] = None
-    operational_efficiency: Optional[str] = None
-    guest_experience_blueprint: Optional[str] = None
-    key_performance_indicators: Optional[List[RetailKPI]] = None
-    design_challenges_for_v2: Optional[List[DesignChallenge]] = None
+    service_process_analysis: str | None = None
+    operational_efficiency: str | None = None
+    guest_experience_blueprint: str | None = None
+    key_performance_indicators: List[RetailKPI] | None = None
+    design_challenges_for_v2: List[DesignChallenge] | None = None
     
-    targeted_analysis: Optional[Dict[str, Any]] = None
+    targeted_analysis: Dict[str, Any] | None = None
     
-    expert_handoff_response: Optional[Dict[str, Any]] = None
-    challenge_flags: Optional[List[Dict[str, str]]] = None
+    expert_handoff_response: Dict[str, Any] | None = None
+    challenge_flags: List[Dict[str, str]] | None = None
 
     @model_validator(mode="after")
     def validate_output_consistency(self):
@@ -1187,16 +1188,16 @@ class V5_5_FlexibleOutput(BaseModel):
     confidence: float = Field(ge=0, le=1)
     design_rationale: str
     
-    visitor_journey_analysis: Optional[str] = None
-    educational_model: Optional[str] = None
-    public_service_strategy: Optional[str] = None
-    key_performance_indicators: Optional[List[str]] = None
-    design_challenges_for_v2: Optional[List[DesignChallenge]] = None
+    visitor_journey_analysis: str | None = None
+    educational_model: str | None = None
+    public_service_strategy: str | None = None
+    key_performance_indicators: List[str] | None = None
+    design_challenges_for_v2: List[DesignChallenge] | None = None
     
-    targeted_analysis: Optional[Dict[str, Any]] = None
+    targeted_analysis: Dict[str, Any] | None = None
     
-    expert_handoff_response: Optional[Dict[str, Any]] = None
-    challenge_flags: Optional[List[Dict[str, str]]] = None
+    expert_handoff_response: Dict[str, Any] | None = None
+    challenge_flags: List[Dict[str, str]] | None = None
 
     @model_validator(mode="after")
     def validate_output_consistency(self):
@@ -1224,16 +1225,16 @@ class V5_6_FlexibleOutput(BaseModel):
     confidence: float = Field(ge=0, le=1)
     design_rationale: str
     
-    healthcare_process_analysis: Optional[str] = None
-    patient_experience_blueprint: Optional[str] = None
-    wellness_strategy: Optional[str] = None
-    key_performance_indicators: Optional[List[str]] = None
-    design_challenges_for_v2: Optional[List[DesignChallenge]] = None
+    healthcare_process_analysis: str | None = None
+    patient_experience_blueprint: str | None = None
+    wellness_strategy: str | None = None
+    key_performance_indicators: List[str] | None = None
+    design_challenges_for_v2: List[DesignChallenge] | None = None
     
-    targeted_analysis: Optional[Dict[str, Any]] = None
+    targeted_analysis: Dict[str, Any] | None = None
     
-    expert_handoff_response: Optional[Dict[str, Any]] = None
-    challenge_flags: Optional[List[Dict[str, str]]] = None
+    expert_handoff_response: Dict[str, Any] | None = None
+    challenge_flags: List[Dict[str, str]] | None = None
 
     @model_validator(mode="after")
     def validate_output_consistency(self):
@@ -1261,16 +1262,16 @@ class V2_3_FlexibleOutput(BaseModel):
     confidence: float = Field(ge=0, le=1)
     decision_rationale: str
     
-    workspace_vision: Optional[str] = None
-    spatial_strategy: Optional[str] = None
-    collaboration_and_focus_balance: Optional[str] = None
-    brand_and_culture_expression: Optional[str] = None
-    implementation_guidance: Optional[str] = None
+    workspace_vision: str | None = None
+    spatial_strategy: str | None = None
+    collaboration_and_focus_balance: str | None = None
+    brand_and_culture_expression: str | None = None
+    implementation_guidance: str | None = None
     
-    targeted_analysis: Optional[Dict[str, Any]] = None
+    targeted_analysis: Dict[str, Any] | None = None
     
-    expert_handoff_response: Optional[Dict[str, Any]] = None
-    challenge_flags: Optional[List[Dict[str, str]]] = None
+    expert_handoff_response: Dict[str, Any] | None = None
+    challenge_flags: List[Dict[str, str]] | None = None
 
     @model_validator(mode="after")
     def validate_output_consistency(self):
@@ -1298,16 +1299,16 @@ class V2_4_FlexibleOutput(BaseModel):
     confidence: float = Field(ge=0, le=1)
     decision_rationale: str
     
-    experiential_vision: Optional[str] = None
-    spatial_concept: Optional[str] = None
-    sensory_design_framework: Optional[str] = None
-    guest_journey_design: Optional[str] = None
-    implementation_guidance: Optional[str] = None
+    experiential_vision: str | None = None
+    spatial_concept: str | None = None
+    sensory_design_framework: str | None = None
+    guest_journey_design: str | None = None
+    implementation_guidance: str | None = None
     
-    targeted_analysis: Optional[Dict[str, Any]] = None
+    targeted_analysis: Dict[str, Any] | None = None
     
-    expert_handoff_response: Optional[Dict[str, Any]] = None
-    challenge_flags: Optional[List[Dict[str, str]]] = None
+    expert_handoff_response: Dict[str, Any] | None = None
+    challenge_flags: List[Dict[str, str]] | None = None
 
     @model_validator(mode="after")
     def validate_output_consistency(self):
@@ -1335,16 +1336,16 @@ class V2_5_FlexibleOutput(BaseModel):
     confidence: float = Field(ge=0, le=1)
     decision_rationale: str
     
-    public_vision: Optional[str] = None
-    spatial_accessibility: Optional[str] = None
-    community_engagement: Optional[str] = None
-    cultural_expression: Optional[str] = None
-    implementation_guidance: Optional[str] = None
+    public_vision: str | None = None
+    spatial_accessibility: str | None = None
+    community_engagement: str | None = None
+    cultural_expression: str | None = None
+    implementation_guidance: str | None = None
     
-    targeted_analysis: Optional[Dict[str, Any]] = None
+    targeted_analysis: Dict[str, Any] | None = None
     
-    expert_handoff_response: Optional[Dict[str, Any]] = None
-    challenge_flags: Optional[List[Dict[str, str]]] = None
+    expert_handoff_response: Dict[str, Any] | None = None
+    challenge_flags: List[Dict[str, str]] | None = None
 
     @model_validator(mode="after")
     def validate_output_consistency(self):
@@ -1372,16 +1373,16 @@ class V2_6_FlexibleOutput(BaseModel):
     confidence: float = Field(ge=0, le=1)
     decision_rationale: str
     
-    architectural_concept: Optional[str] = None
-    facade_and_envelope: Optional[str] = None
-    landscape_integration: Optional[str] = None
-    indoor_outdoor_relationship: Optional[str] = None
-    implementation_guidance: Optional[str] = None
+    architectural_concept: str | None = None
+    facade_and_envelope: str | None = None
+    landscape_integration: str | None = None
+    indoor_outdoor_relationship: str | None = None
+    implementation_guidance: str | None = None
     
-    targeted_analysis: Optional[Dict[str, Any]] = None
+    targeted_analysis: Dict[str, Any] | None = None
     
-    expert_handoff_response: Optional[Dict[str, Any]] = None
-    challenge_flags: Optional[List[Dict[str, str]]] = None
+    expert_handoff_response: Dict[str, Any] | None = None
+    challenge_flags: List[Dict[str, str]] | None = None
 
     @model_validator(mode="after")
     def validate_output_consistency(self):
@@ -1409,16 +1410,16 @@ class V3_1_FlexibleOutput(BaseModel):
     confidence: float = Field(ge=0, le=1)
     design_rationale: str
     
-    individual_narrative_core: Optional[str] = None
-    psychological_profile: Optional[str] = None
-    lifestyle_blueprint: Optional[str] = None
-    key_spatial_moments: Optional[List[TouchpointScript]] = None
-    narrative_guidelines_for_v2: Optional[str] = None
+    individual_narrative_core: str | None = None
+    psychological_profile: str | None = None
+    lifestyle_blueprint: str | None = None
+    key_spatial_moments: List[TouchpointScript] | None = None
+    narrative_guidelines_for_v2: str | None = None
     
-    targeted_analysis: Optional[Dict[str, Any]] = None
+    targeted_analysis: Dict[str, Any] | None = None
     
-    expert_handoff_response: Optional[Dict[str, Any]] = None
-    challenge_flags: Optional[List[Dict[str, str]]] = None
+    expert_handoff_response: Dict[str, Any] | None = None
+    challenge_flags: List[Dict[str, str]] | None = None
 
     @model_validator(mode="after")
     def validate_output_consistency(self):
@@ -1446,16 +1447,16 @@ class V3_3_FlexibleOutput(BaseModel):
     confidence: float = Field(ge=0, le=1)
     design_rationale: str
     
-    spatial_narrative_concept: Optional[str] = None
-    emotional_journey_map: Optional[str] = None
-    sensory_experience_design: Optional[str] = None
-    key_spatial_moments: Optional[List[TouchpointScript]] = None
-    narrative_guidelines_for_v2: Optional[str] = None
+    spatial_narrative_concept: str | None = None
+    emotional_journey_map: str | None = None
+    sensory_experience_design: str | None = None
+    key_spatial_moments: List[TouchpointScript] | None = None
+    narrative_guidelines_for_v2: str | None = None
     
-    targeted_analysis: Optional[Dict[str, Any]] = None
+    targeted_analysis: Dict[str, Any] | None = None
     
-    expert_handoff_response: Optional[Dict[str, Any]] = None
-    challenge_flags: Optional[List[Dict[str, str]]] = None
+    expert_handoff_response: Dict[str, Any] | None = None
+    challenge_flags: List[Dict[str, str]] | None = None
 
     @model_validator(mode="after")
     def validate_output_consistency(self):
@@ -1483,16 +1484,16 @@ class V4_2_FlexibleOutput(BaseModel):
     confidence: float = Field(ge=0, le=1)
     design_rationale: str
     
-    trend_analysis: Optional[str] = None
-    future_scenarios: Optional[str] = None
-    opportunity_identification: Optional[str] = None
-    design_implications: Optional[str] = None
-    risk_assessment: Optional[str] = None
+    trend_analysis: str | None = None
+    future_scenarios: str | None = None
+    opportunity_identification: str | None = None
+    design_implications: str | None = None
+    risk_assessment: str | None = None
     
-    targeted_analysis: Optional[Dict[str, Any]] = None
+    targeted_analysis: Dict[str, Any] | None = None
     
-    expert_handoff_response: Optional[Dict[str, Any]] = None
-    challenge_flags: Optional[List[Dict[str, str]]] = None
+    expert_handoff_response: Dict[str, Any] | None = None
+    challenge_flags: List[Dict[str, str]] | None = None
 
     @model_validator(mode="after")
     def validate_output_consistency(self):

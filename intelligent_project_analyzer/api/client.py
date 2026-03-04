@@ -4,9 +4,9 @@ API 客户端
 用于前端调用后端 API
 """
 
+from typing import Any, Dict
+
 import requests
-from typing import Dict, Any, Optional
-from datetime import datetime
 
 
 class AnalysisAPIClient:
@@ -132,7 +132,7 @@ class AnalysisAPIClient:
         self,
         session_id: str,
         question: str,
-        context_hint: Optional[str] = None
+        context_hint: str | None = None
     ) -> Dict[str, Any]:
         """
         对话模式提问

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 异步后处理器 - v7.600
 将Phase2后处理改造为并行执行，提升性能
@@ -11,13 +10,14 @@
 """
 
 import asyncio
-from typing import Dict, Any
-from loguru import logger
 from datetime import datetime
+from typing import Any, Dict
+
+from loguru import logger
 
 from .entity_extractor import EntityExtractor
-from .requirements_validator import RequirementsValidator
 from .motivation_engine import MotivationInferenceEngine
+from .requirements_validator import RequirementsValidator
 
 
 class AsyncPostProcessor:

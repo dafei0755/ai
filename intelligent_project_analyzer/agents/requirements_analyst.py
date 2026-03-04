@@ -5,33 +5,33 @@
 """
 
 import json
-from typing import Dict, List, Optional, Any
 import time
+from typing import Any, Dict, List
 
-from langchain_core.messages import HumanMessage, AIMessage
+from langchain_core.messages import HumanMessage
 from langchain_core.runnables import RunnableConfig
 from langgraph.store.base import BaseStore
 from loguru import logger
 
-from .base import LLMAgent
-from ..core.state import ProjectAnalysisState, AgentType
-from ..core.types import AnalysisResult
 from ..core.prompt_manager import PromptManager
-from ..utils.jtbd_parser import transform_jtbd_to_natural_language
-from ..utils.capability_detector import CapabilityDetector, check_capability
+from ..core.state import AgentType, ProjectAnalysisState
+from ..core.types import AnalysisResult
 
 #  v7.270: Import new enhancement modules
 from ..services.entity_extractor import EntityExtractor
-from ..services.requirements_validator import RequirementsValidator
 from ..services.l2_perspective_activator import L2PerspectiveActivator
 from ..services.motivation_engine import MotivationInferenceEngine
+from ..services.requirements_validator import RequirementsValidator
 from ..services.ucppt_search_engine import ProblemSolvingApproach
+from ..utils.capability_detector import check_capability
+from ..utils.jtbd_parser import transform_jtbd_to_natural_language
+from .base import LLMAgent
 
 
 class RequirementsAnalystAgent(LLMAgent):
     """需求分析师智能体"""
     
-    def __init__(self, llm_model, config: Optional[Dict[str, Any]] = None):
+    def __init__(self, llm_model, config: Dict[str, Any] | None = None):
         super().__init__(
             agent_type=AgentType.REQUIREMENTS_ANALYST,
             name="需求分析师",
@@ -123,7 +123,7 @@ class RequirementsAnalystAgent(LLMAgent):
         self,
         state: ProjectAnalysisState,
         config: RunnableConfig,
-        store: Optional[BaseStore] = None,
+        store: BaseStore | None = None,
         use_two_phase: bool = False  #  v7.17: 支持两阶段模式
     ) -> AnalysisResult:
         """执行需求分析
@@ -710,7 +710,7 @@ class RequirementsAnalystAgent(LLMAgent):
         self,
         state: ProjectAnalysisState,
         config: RunnableConfig,
-        store: Optional[BaseStore] = None
+        store: BaseStore | None = None
     ) -> AnalysisResult:
         """ v7.17: 两阶段执行模式
          v7.502 P0优化: 改为async函数支持并行执行
@@ -769,7 +769,7 @@ class RequirementsAnalystAgent(LLMAgent):
             
             parallel_elapsed = time.time() - parallel_start
             logger.info(f" [P0优化] Precheck + Phase1 并行完成，总耗时 {parallel_elapsed:.2f}s")
-            logger.info(f"   - 预期串行耗时: ~1.5s")
+            logger.info("   - 预期串行耗时: ~1.5s")
             logger.info(f"   -  加速比: {1.5/parallel_elapsed:.1f}x")
             logger.info(f"   - Precheck结果: 信息充足={capability_precheck['info_sufficiency']['is_sufficient']}")
             logger.info(f"   - Phase1结果: info_status={phase1_result.get('info_status')}")
@@ -832,7 +832,7 @@ class RequirementsAnalystAgent(LLMAgent):
             structured_data["validation_result"] = validation_result.to_dict()
 
             if not validation_result.is_valid:
-                logger.warning(f"️ [v7.270] Phase 2 validation failed, attempting fixes...")
+                logger.warning("️ [v7.270] Phase 2 validation failed, attempting fixes...")
                 # Attempt to fix missing L6/L7
                 phase2_result = self._fix_validation_issues(phase2_result, validation_result, user_input)
                 # Re-merge after fixes
@@ -958,7 +958,7 @@ class RequirementsAnalystAgent(LLMAgent):
     async def _execute_phase1_async(
         self, 
         user_input: str, 
-        visual_references: Optional[List[Dict[str, Any]]] = None
+        visual_references: List[Dict[str, Any]] | None = None
     ) -> Dict[str, Any]:
         """
          P0优化: 异步执行Phase1快速定性
@@ -1000,8 +1000,8 @@ class RequirementsAnalystAgent(LLMAgent):
     def _execute_phase1(
         self,
         user_input: str,
-        capability_precheck: Optional[Dict[str, Any]] = None,
-        visual_references: Optional[List[Dict[str, Any]]] = None,  #  v7.155: 视觉参考
+        capability_precheck: Dict[str, Any] | None = None,
+        visual_references: List[Dict[str, Any]] | None = None,  #  v7.155: 视觉参考
     ) -> Dict[str, Any]:
         """执行 Phase1: 快速定性 + 交付物识别
 
@@ -1109,7 +1109,7 @@ class RequirementsAnalystAgent(LLMAgent):
         
         raise ValueError("无法从响应中提取 JSON")
 
-    def _fallback_phase1(self, user_input: str, capability_precheck: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    def _fallback_phase1(self, user_input: str, capability_precheck: Dict[str, Any] | None = None) -> Dict[str, Any]:
         """Phase1 降级逻辑 - 使用程序化预检测结果（v7.17 P2 增强）"""
         
         # 如果有预检测结果，优先使用
@@ -1733,7 +1733,7 @@ class RequirementsAnalystAgent(LLMAgent):
         self,
         user_input: str,
         phase2_result: Dict[str, Any]
-    ) -> Optional[ProblemSolvingApproach]:
+    ) -> ProblemSolvingApproach | None:
         """
         Generate problem-solving approach based on Phase 2 analysis
 
@@ -1853,4 +1853,5 @@ class RequirementsAnalystAgent(LLMAgent):
 
 # 注册智能体
 from .base import AgentFactory
+
 AgentFactory.register_agent(AgentType.REQUIREMENTS_ANALYST, RequirementsAnalystAgent)
