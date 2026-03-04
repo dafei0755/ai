@@ -2,6 +2,11 @@
  * WebSocket 客户端封装
  *
  * 提供自动重连、心跳检测、消息处理等功能
+ *
+ * @deprecated 实现已迁移至 lib/workflow-realtime-client.ts（WorkflowRealtimeClient）。
+ * 本文件保留为式内实现层，可继续直接导入。
+ * 新代码请使用：
+ *   import { WorkflowRealtimeClient } from '@/lib/workflow-realtime-client'
  */
 
 export type WebSocketMessage =

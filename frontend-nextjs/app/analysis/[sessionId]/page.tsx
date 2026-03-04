@@ -18,7 +18,7 @@ import {
 	ArrowLeft
 } from 'lucide-react';
 import { api } from '@/lib/api';
-import { WebSocketClient, type WebSocketMessage } from '@/lib/websocket';
+import { WorkflowRealtimeClient, type WebSocketMessage } from '@/lib/workflow-realtime-client';
 import { QuestionnaireModal } from '@/components/QuestionnaireModal';
 import { ConfirmationModal } from '@/components/ConfirmationModal';
 import {
@@ -213,7 +213,7 @@ export default function AnalysisPage() {
 
 	// v7.290: 移除侧边栏状态，独立分析体验
 
-	const wsClientRef = useRef<WebSocketClient | null>(null);
+	const wsClientRef = useRef<WorkflowRealtimeClient | null>(null);
 	const hasRedirectedRef = useRef<boolean>(false);
 
 	const activeProgressiveSteps = useMemo(() => {
@@ -431,7 +431,7 @@ export default function AnalysisPage() {
 		const wsUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
 		console.log('🔌 准备连接 WebSocket:', { wsUrl, sessionId, isFollowup: isFollowupSession });
 
-		wsClientRef.current = new WebSocketClient({
+		wsClientRef.current = new WorkflowRealtimeClient({
 			url: wsUrl,
 			sessionId,
 			onOpen: async () => {
