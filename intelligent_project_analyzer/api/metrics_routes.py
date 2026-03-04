@@ -10,6 +10,9 @@ import json
 from pathlib import Path
 from loguru import logger
 
+# QW-2: LLM 并发指标
+from intelligent_project_analyzer.services.llm_concurrency import get_llm_stats
+
 router = APIRouter(prefix="/api/metrics", tags=["metrics"])
 
 # 日志文件路径
