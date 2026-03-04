@@ -837,100 +837,7 @@ for _mod_path2, _label2 in [
         logger.warning(f"️ {_label2}路由加载失败: {e}")
 
 
-# ==================== 数据模型 ====================
-
-
-class AnalysisRequest(BaseModel):
-    """分析请求"""
-
-    # Backward compatible aliases:
-    # - legacy clients use `requirement` instead of `user_input`
-    # - some clients may send `username`/`userId` etc; we only normalize what we actually need
-    model_config = ConfigDict(populate_by_name=True, coerce_numbers_to_str=True)
-
-    user_input: str = Field(validation_alias=AliasChoices("user_input", "requirement"))
-    user_id: str = Field(default="web_user", validation_alias=AliasChoices("user_id", "username"))  # 用户ID
-    #  v7.39: 分析模式 - normal(深度思考) 或 deep_thinking(深度思考pro)
-    # 深度思考pro模式会为每个专家生成概念图像
-    analysis_mode: str = Field(default="normal", validation_alias=AliasChoices("analysis_mode", "mode"))
-
-    # Optional legacy field: accepted but currently not used by backend.
-    domain: Optional[str] = None
-
-
-class ResumeRequest(BaseModel):
-    """恢复请求"""
-
-    model_config = ConfigDict(populate_by_name=True)
-
-    session_id: str
-    # Backward compatible alias: some older clients used `user_response`
-    resume_value: Any = Field(validation_alias=AliasChoices("resume_value", "user_response"))
-
-
-class FollowupRequest(BaseModel):
-    """追问请求（用于已完成的分析报告）"""
-
-    session_id: str
-    question: str
-    requires_analysis: bool = True  # 是否需要重新分析
-
-
-class SessionResponse(BaseModel):
-    """会话响应"""
-
-    session_id: str
-    status: str
-    message: str
-
-
-class AnalysisStatus(BaseModel):
-    """分析状态"""
-
-    session_id: str
-    status: str  # running, waiting_for_input, completed, failed, rejected
-    current_stage: Optional[str] = None
-    detail: Optional[str] = None  #  新增：当前节点的详细信息
-    progress: float = 0.0
-    history: Optional[List[Dict[str, Any]]] = None  #  新增：执行历史
-    interrupt_data: Optional[Dict[str, Any]] = None
-    error: Optional[str] = None
-    traceback: Optional[str] = None  # 添加traceback字段用于调试
-    rejection_message: Optional[str] = None  #  拒绝原因提示
-    user_input: Optional[str] = None  #  v7.37.7: 用户原始输入
-
-
-class AnalysisResult(BaseModel):
-    """分析结果"""
-
-    session_id: str
-    status: str
-    # 现行字段
-    results: Optional[Any] = None
-    final_report: Optional[Any] = None
-
-    # 兼容旧字段（tests/api/test_analysis_endpoints.py 仍在使用）
-    final_result: Optional[Any] = None
-    agent_results: Optional[Any] = None
-
-
-#  对话相关数据模型
-class ConversationRequest(BaseModel):
-    """对话请求"""
-
-    session_id: str
-    question: str
-    context_hint: Optional[str] = None  # 可选：章节提示
-
-
-class ConversationResponse(BaseModel):
-    """对话响应"""
-
-    answer: str
-    intent: str
-    references: List[str]
-
-
+# ── MT-1: 数据模型及报告辅助函数已迁移至 api/models.py 和 api/helpers.py ──────
 # ==================== 结构化报告类型 ====================
 
 
@@ -1466,62 +1373,8 @@ def _enrich_sections_with_agent_results(
     return ordered_sections
 
 
-# ==================== 辅助函数 ====================
-
-
-async def subscribe_to_redis_pubsub():
-    """
-    订阅 Redis Pub/Sub 频道，用于多实例 WebSocket 消息广播
-    """
-    if not redis_pubsub_client:
-        return
-
-    try:
-        pubsub = redis_pubsub_client.pubsub()
-        await pubsub.subscribe("workflow:broadcast")
-
-        logger.info(" Redis Pub/Sub 订阅已启动")
-
-        async for message in pubsub.listen():
-            if message["type"] == "message":
-                try:
-                    import json
-
-                    data = json.loads(message["data"])
-                    session_id = data.get("session_id")
-                    payload = data.get("payload")
-
-                    # 本地广播到 WebSocket
-                    if session_id in websocket_connections:
-                        connections = websocket_connections[session_id]
-                        disconnected = []
-
-                        for ws in connections:
-                            try:
-                                #  Fix 1.1: Check WebSocket state before sending (matches local broadcast logic)
-                                if ws.client_state.name != "CONNECTED":
-                                    logger.debug(f"️ 跳过非连接状态的WebSocket (state={ws.client_state.name})")
-                                    disconnected.append(ws)
-                                    continue
-
-                                await ws.send_json(payload)
-                            except Exception as e:
-                                logger.warning(f"️ WebSocket 发送失败: {e}")
-                                disconnected.append(ws)
-
-                        # 清理断开的连接
-                        for ws in disconnected:
-                            connections.remove(ws)
-
-                except Exception as e:
-                    logger.error(f" 处理 Pub/Sub 消息失败: {e}")
-
-    except asyncio.CancelledError:
-        logger.info(" Redis Pub/Sub 订阅已停止")
-        await pubsub.unsubscribe("workflow:broadcast")
-        await pubsub.close()
-    except Exception as e:
-        logger.error(f" Redis Pub/Sub 订阅失败: {e}")
+# MT-1 迁移：subscribe_to_redis_pubsub 已迁移至 api/workflow_runner.py
+from .workflow_runner import subscribe_to_redis_pubsub  # noqa: E402  (lifespan 依赖)
 
 
 def _ensure_aiosqlite_is_alive(conn: Any) -> Any:
@@ -1607,88 +1460,9 @@ async def create_workflow() -> Optional[MainWorkflow]:
         return None
 
 
-async def broadcast_to_websockets(session_id: str, message: Dict[str, Any]):
-    """
-     v7.133: 增强的WebSocket广播 - 添加连接健康检查和自动清理
 
-    向所有连接到指定会话的 WebSocket 客户端广播消息
-     使用 Redis Pub/Sub 支持多实例部署
-
-    Args:
-        session_id: 会话 ID
-        message: 要发送的消息（字典格式，将被转换为 JSON）
-    """
-    #  Redis Pub/Sub 模式：发布到 Redis，所有实例监听
-    if redis_pubsub_client:
-        try:
-            import json
-
-            payload = {"session_id": session_id, "payload": message}
-            await redis_pubsub_client.publish("workflow:broadcast", json.dumps(payload, ensure_ascii=False))
-            logger.debug(f" [v7.133] Redis Pub/Sub 发布成功: {session_id}")
-            return
-        except Exception as e:
-            logger.warning(f"️ [v7.133] Redis Pub/Sub 发布失败，回退到本地广播: {e}")
-
-    #  本地模式：直接广播到本实例的 WebSocket 连接
-    if session_id not in websocket_connections:
-        logger.debug(f" [v7.133] 未找到会话的WebSocket连接: {session_id}")
-        return
-
-    # 获取该会话的所有连接
-    connections = websocket_connections[session_id]
-
-    # 存储断开的连接
-    disconnected = []
-    success_count = 0
-    failed_count = 0
-
-    # 广播消息到所有连接
-    for ws in connections:
-        try:
-            from starlette.websockets import WebSocketState
-
-            #  v7.133: 增强连接状态检查
-            if ws.client_state != WebSocketState.CONNECTED:
-                logger.debug(f"️ [v7.133] WebSocket未连接 (状态: {ws.client_state.name})，标记为断开")
-                disconnected.append(ws)
-                failed_count += 1
-                continue
-
-            #  v7.133: 添加发送超时保护
-            import asyncio
-
-            await asyncio.wait_for(ws.send_json(message), timeout=5.0)
-            success_count += 1
-
-        except asyncio.TimeoutError:
-            logger.warning(f"️ [v7.133] WebSocket 发送超时(5s)，标记为断开")
-            disconnected.append(ws)
-            failed_count += 1
-        except Exception as e:
-            error_str = str(e)
-            if "not connected" in error_str.lower() or "closed" in error_str.lower():
-                logger.debug(f" [v7.133] WebSocket已断开: {type(e).__name__}")
-            else:
-                logger.warning(f"️ [v7.133] WebSocket 发送失败: {type(e).__name__}: {e}")
-            disconnected.append(ws)
-            failed_count += 1
-
-    # 清理断开的连接
-    for ws in disconnected:
-        if ws in connections:
-            connections.remove(ws)
-
-    #  v7.133: 记录广播统计
-    if success_count > 0 or failed_count > 0:
-        logger.debug(
-            f" [v7.133] WebSocket广播完成: {session_id} | "
-            f"成功={success_count} 失败={failed_count} 消息类型={message.get('type', 'unknown')}"
-        )
-
-
-# Register broadcast function so workflow layer can call it without importing server.py directly.
-# This must appear after broadcast_to_websockets is defined (module-level, safe at import time).
+# MT-1 迁移：broadcast_to_websockets 已迁移至 api/workflow_runner.py（含 EventStore 增强）
+from .workflow_runner import broadcast_to_websockets  # noqa: E402  (registry + workflow 直接调用)
 from intelligent_project_analyzer.api._broadcast_registry import register_broadcast as _register_broadcast  # noqa: E402
 _register_broadcast(broadcast_to_websockets)
 
@@ -2242,35 +2016,6 @@ async def run_workflow_async(session_id: str, user_input: str):
         logger.error(f" [ASYNC] 异常堆栈:\n{error_traceback}")
 
         await session_manager.update(session_id, {"status": "failed", "error": error_msg, "traceback": error_traceback})
-
-
-async def _wait_for_connected(websocket: WebSocket, timeout: float = 2.0) -> bool:
-    """
-     Fix 1.1 + v7.118: Wait for WebSocket to reach CONNECTED state
-
-    增强版本：添加更详细的状态检查和日志
-
-    Args:
-        websocket: WebSocket connection
-        timeout: Maximum wait time in seconds
-
-    Returns:
-        True if connected, False if timeout
-    """
-    import asyncio
-
-    from starlette.websockets import WebSocketState
-
-    start = asyncio.get_event_loop().time()
-    while websocket.client_state != WebSocketState.CONNECTED:
-        elapsed = asyncio.get_event_loop().time() - start
-        if elapsed > timeout:
-            logger.error(f" WebSocket 连接超时 (state: {websocket.client_state.name}, elapsed: {elapsed:.2f}s)")
-            return False
-        await asyncio.sleep(0.05)
-
-    logger.debug(f" WebSocket已连接 (耗时: {(asyncio.get_event_loop().time() - start):.2f}s)")
-    return True
 
 
 if __name__ == "__main__":
