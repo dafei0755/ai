@@ -551,22 +551,9 @@ class TestMainWorkflowBuildContext:
         assert len(context) > 0
 
 
-class TestMainWorkflowEnvironmentFlags:
-    """测试环境标志功能"""
-
-    def test_use_progressive_questionnaire_flag(self, env_setup):
-        """测试渐进式问卷标志 - 已从 main_workflow 移到 feature_flags（v8.x 冻结 True）"""
-        from intelligent_project_analyzer.config.feature_flags import USE_PROGRESSIVE_QUESTIONNAIRE
-
-        # 已冻结为 True，不再从环境变量读取
-        assert USE_PROGRESSIVE_QUESTIONNAIRE is True
-
-    def test_use_v716_agents_flag(self, env_setup):
-        """测试v7.16 agents标志 - 已从 main_workflow 移到 feature_flags（v8.x 冻结 False）"""
-        from intelligent_project_analyzer.config.feature_flags import USE_V716_AGENTS
-
-        # 已冻结为 False，不再从环境变量读取
-        assert USE_V716_AGENTS is False
+# TestMainWorkflowEnvironmentFlags — REMOVED (F-04)
+# USE_PROGRESSIVE_QUESTIONNAIRE / USE_V716_AGENTS 已在 v8.1.1 从 feature_flags 删除。
+# 历史测试已归档至 tests/historical/test_workflow_flag_archive.py
 
 
 class TestMainWorkflowGraphProperties:
@@ -698,22 +685,9 @@ class TestMainWorkflowStateValidation:
         assert "completed" in stages
 
 
-class TestMainWorkflowModuleConstants:
-    """测试工作流模块常量"""
-
-    def test_use_progressive_questionnaire_is_boolean(self, env_setup):
-        """测试USE_PROGRESSIVE_QUESTIONNAIRE是布尔值（来自 feature_flags）"""
-        from intelligent_project_analyzer.config.feature_flags import USE_PROGRESSIVE_QUESTIONNAIRE
-
-        assert isinstance(USE_PROGRESSIVE_QUESTIONNAIRE, bool)
-        assert USE_PROGRESSIVE_QUESTIONNAIRE is True  # 冻结值
-
-    def test_use_v716_agents_is_boolean(self, env_setup):
-        """测试USE_V716_AGENTS是布尔值（来自 feature_flags）"""
-        from intelligent_project_analyzer.config.feature_flags import USE_V716_AGENTS
-
-        assert isinstance(USE_V716_AGENTS, bool)
-        assert USE_V716_AGENTS is False  # 冻结值
+# TestMainWorkflowModuleConstants — REMOVED (F-04)
+# USE_PROGRESSIVE_QUESTIONNAIRE / USE_V716_AGENTS 已在 v8.1.1 从 feature_flags 删除。
+# 历史测试已归档至 tests/historical/test_workflow_flag_archive.py
 
 
 # ========== Phase 5 Task 3.1: MainWorkflow执行功能测试 (10个) ==========
