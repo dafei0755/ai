@@ -110,7 +110,7 @@ class WeightSemanticTranslator:
 
         for dim_id, raw_value in radar_dimension_values.items():
             try:
-                value = int(raw_value) if not isinstance(raw_value, (int, float)) else int(raw_value)
+                value = int(raw_value) if not isinstance(raw_value, int | float) else int(raw_value)
             except (ValueError, TypeError):
                 continue
 

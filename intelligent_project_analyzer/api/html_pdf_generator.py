@@ -406,13 +406,11 @@ class HTMLPDFGenerator:
         # 实施指导
         "implementation_guidance": "实施指导",
         "guidance": "指导",
-        "implementation": "实施",
         "execution": "执行",
         "execution_plan": "执行计划",
         # 解释框架
         "interpretation_framework": "解释框架",
         "framework": "框架",
-        "methodology": "方法论",
         # 初始场景
         "initial_key_scenario": "初始关键场景",
         "key_scenario": "关键场景",
@@ -449,8 +447,6 @@ class HTMLPDFGenerator:
         "journey_maps": "旅程地图",
         "journeymaps": "旅程地图",
         "maps": "地图",
-        "journey": "旅程",
-        "user_journey": "用户旅程",
         # 设计模式与复用
         "reusable": "可复用",
         "reusable_design_patterns": "可复用设计模式",
@@ -501,13 +497,11 @@ class HTMLPDFGenerator:
         "furniture_layout": "家具布局",
         "cost_estimate": "成本估算",
         "timeline_estimate": "时间线估算",
-        "name": "名称",
         "type": "类型",
         "area": "区域",
         "spec": "规格",
         "specs": "规格",
         "specification": "规格",
-        "specifications": "规格",
         # ============ 任务导向模型字段 (task_oriented_models.py) ============
         # DeliverableOutput 交付物输出
         "deliverable_name": "交付物名称",
@@ -541,7 +535,6 @@ class HTMLPDFGenerator:
         "execution_notes": "执行备注",
         "dependencies_satisfied": "依赖满足",
         # TaskInstruction 任务指令
-        "objective": "核心目标",
         "success_criteria": "成功标准",
         "context_requirements": "上下文需求",
         # DeliverableSpec 交付物规格
@@ -558,8 +551,6 @@ class HTMLPDFGenerator:
         # 通用字段
         "output_mode": "输出模式",
         "user_question_focus": "问题聚焦",
-        "design_rationale": "设计依据",
-        "decision_rationale": "决策依据",
         "targeted_analysis": "针对性分析",
         "supplementary_insights": "补充洞察",
         # V6-1 结构与幕墙工程师
@@ -574,23 +565,17 @@ class HTMLPDFGenerator:
         "proposed_solution": "建议方案",
         # V6-2 机电与智能化工程师
         "mep_overall_strategy": "机电整体策略",
-        "system_solutions": "系统解决方案",
         "smart_building_scenarios": "智能建筑场景",
         "coordination_and_clash_points": "协调与冲突点",
         "sustainability_and_energy_saving": "可持续与节能",
         "system_name": "系统名称",
-        "recommended_solution": "推荐方案",
-        "reasoning": "理由",
-        "impact_on_architecture": "对建筑的影响",
         "scenario_name": "场景名称",
         "triggered_systems": "联动系统",
         # V6-3 室内工艺与材料专家
-        "craftsmanship_strategy": "工艺策略",
         "key_material_specifications": "关键材料规格",
         "critical_node_details": "关键节点详图",
         "quality_control_and_mockup": "质量控制与样板",
         "material_name": "材料名称",
-        "application_area": "应用区域",
         "key_specifications": "关键规格",
         # V6-4 成本与价值工程师
         "cost_estimation_summary": "成本估算摘要",
@@ -606,15 +591,11 @@ class HTMLPDFGenerator:
         "impact_analysis": "影响分析",
         # V5-1 居住场景与生活方式专家
         "family_profile_and_needs": "家庭成员画像与需求",
-        "operational_blueprint": "运营蓝图",
-        "design_challenges_for_v2": "给设计总监的挑战",
         "member": "成员",
         "daily_routine": "日常作息",
         "spatial_needs": "空间需求",
         "storage_needs": "收纳需求",
         # V5-2 商业零售运营专家
-        "business_goal_analysis": "商业目标分析",
-        "spatial_strategy": "空间策略",
         # V5-3 企业办公策略专家
         "organizational_analysis": "组织分析",
         "collaboration_model": "协作模式",
@@ -632,12 +613,7 @@ class HTMLPDFGenerator:
         "patient_experience_blueprint": "患者体验蓝图",
         "wellness_strategy": "康养策略",
         # V2系列 设计总监
-        "project_vision_summary": "项目愿景概述",
-        "spatial_concept": "空间概念",
-        "customer_journey_design": "客户旅程设计",
         "visual_merchandising_strategy": "视觉营销策略",
-        "brand_identity_integration": "品牌识别整合",
-        "implementation_guidance": "实施指导",
         "architectural_concept": "建筑概念",
         "facade_and_envelope": "立面与围护",
         "landscape_integration": "景观整合",
@@ -648,12 +624,8 @@ class HTMLPDFGenerator:
         "cultural_expression": "文化表达",
         # V3系列 叙事与体验专家
         "narrative_framework": "叙事框架",
-        "emotional_journey": "情感旅程",
-        "touchpoint_design": "触点设计",
         # V4系列 设计研究专员
         "case_studies_deep_dive": "深度案例研究",
-        "reusable_design_patterns": "可复用设计模式",
-        "key_success_factors": "关键成功因素",
         "application_guidelines_for_team": "团队应用指南",
         "trend_analysis": "趋势分析",
         "future_scenarios": "未来场景",
@@ -1146,7 +1118,7 @@ class HTMLPDFGenerator:
             result = ast.literal_eval(text)
             if isinstance(result, dict):
                 return result
-        except:
+        except Exception:
             pass
 
         try:
@@ -1156,7 +1128,7 @@ class HTMLPDFGenerator:
             result = json.loads(text)
             if isinstance(result, dict):
                 return result
-        except:
+        except Exception:
             pass
 
         return None
@@ -1251,7 +1223,7 @@ class HTMLPDFGenerator:
         if value is None:
             return ""
 
-        if isinstance(value, (list, tuple)):
+        if isinstance(value, list | tuple):
             # 过滤空值
             valid_items = [item for item in value if item is not None and item != "" and item != []]
             if not valid_items:
@@ -1437,13 +1409,13 @@ class HTMLPDFGenerator:
 
                 parsed = ast.literal_eval(value)
                 value = parsed
-            except:
+            except Exception:
                 try:
                     import json
 
                     parsed = json.loads(value)
                     value = parsed
-                except:
+                except Exception:
                     # 无法解析，按普通文本处理
                     return {"title": title, "type": "text", "content": self._simple_markdown(value)}
 

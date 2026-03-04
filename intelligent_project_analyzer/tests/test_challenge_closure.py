@@ -154,8 +154,8 @@ def test_synthesize_closure():
     print(f"    推荐方案: {synthesis['recommendation'][:60]}...")
     
     print("\n 验证3: 标志位正确设置")
-    assert mock_state.get("has_competing_frameworks") == True, " has_competing_frameworks未设置"
-    assert mock_state.get("synthesis_required") == True, " synthesis_required未设置"
+    assert mock_state.get("has_competing_frameworks"), " has_competing_frameworks未设置"
+    assert mock_state.get("synthesis_required"), " synthesis_required未设置"
     print("    has_competing_frameworks: True")
     print("    synthesis_required: True")
     
@@ -213,7 +213,7 @@ def test_escalate_closure():
         print(f"    需要甲方决策: {escalated['requires_client_decision']}")
     
     print("\n 验证3: requires_client_review标志位")
-    assert mock_state.get("requires_client_review") == True, " requires_client_review未设置"
+    assert mock_state.get("requires_client_review"), " requires_client_review未设置"
     print("    requires_client_review: True")
     
     print("\n 测试3通过: Escalate闭环机制正常工作")
@@ -311,7 +311,7 @@ def test_report_integration():
     
     # 验证结果
     print("\n 验证1: 基本结构")
-    assert challenge_resolutions["has_challenges"] == True, " has_challenges应为True"
+    assert challenge_resolutions["has_challenges"], " has_challenges应为True"
     print("    has_challenges: True")
     
     print("\n 验证2: Accept结果")

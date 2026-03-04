@@ -605,7 +605,7 @@ class SearchDirectionGenerator:
 
         # 检查方向是否重叠
         for i, dir1 in enumerate(directions):
-            for j, dir2 in enumerate(directions[i + 1 :], start=i + 1):
+            for _j, dir2 in enumerate(directions[i + 1 :], start=i + 1):
                 similarity = self._calculate_theme_similarity(dir1.core_theme, dir2.core_theme)
                 if similarity > 0.7:
                     logger.warning(f"️ 方向可能重叠: '{dir1.core_theme}' vs '{dir2.core_theme}' (相似度: {similarity:.2f})")

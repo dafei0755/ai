@@ -548,7 +548,7 @@ class ProgressiveQuestionnaireNode:
                         )
                         if not dimension_values_v8:
                             for k, v in user_response_v8.items():
-                                if k in [d["id"] for d in _ps_dims] and isinstance(v, (int, float)):
+                                if k in [d["id"] for d in _ps_dims] and isinstance(v, int | float):
                                     dimension_values_v8[k] = int(v)
 
                     if not dimension_values_v8:
@@ -835,7 +835,7 @@ class ProgressiveQuestionnaireNode:
             # 如果没有values字段，尝试直接从响应中提取
             if not dimension_values:
                 for key, value in user_response.items():
-                    if key in [d["id"] for d in dimensions] and isinstance(value, (int, float)):
+                    if key in [d["id"] for d in dimensions] and isinstance(value, int | float):
                         dimension_values[key] = int(value)
 
         # 如果用户没有设置任何值，使用默认值
@@ -1233,7 +1233,7 @@ class ProgressiveQuestionnaireNode:
         selector = DimensionSelector()
         questions = []
 
-        for i, dim_id in enumerate(gap_dimensions[:5]):  # 最多5个问题
+        for _i, dim_id in enumerate(gap_dimensions[:5]):  # 最多5个问题
             # 尝试获取模板
             template = selector.get_gap_question_template(dim_id)
 

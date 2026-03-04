@@ -372,7 +372,7 @@ async def _run_constraint_pipeline(state: dict) -> Dict[str, Any]:
                 style_tendencies["prefer"].append(kw)
 
     # 从 site_photo 的 style_tendency 中也汇总
-    for ref in constraint_sources:
+    for _ref in constraint_sources:
         # 如果提取结果中有 style_tendency
         pass  # 已在 constraints 中，此处后续可扩展
 
@@ -521,7 +521,7 @@ def _detect_stakeholder_signals(structured_requirements: Dict) -> Dict[str, floa
         weight = power_weights.get(power, 0.3)
 
         # 匹配角色到投射
-        for mapping_key, mapping_val in role_mapping.items():
+        for _mapping_key, mapping_val in role_mapping.items():
             if not isinstance(mapping_val, dict):
                 continue
             maps_to = mapping_val.get("maps_to")
@@ -555,7 +555,7 @@ def _detect_spatial_attribute_signals(
     if project_classification:
         project_type = project_classification.get("project_type", "")
 
-    for rule_name, rule in rules.items():
+    for _rule_name, rule in rules.items():
         if not isinstance(rule, dict):
             continue
         trigger = rule.get("trigger", {})
@@ -633,7 +633,7 @@ def _detect_motivation_signals(structured_requirements: Dict, user_input: str) -
     if isinstance(five_whys, dict) and fws_config:
         all_l4_text = ""
         all_l5_text = ""
-        for chain_key, chain_val in five_whys.items():
+        for _chain_key, chain_val in five_whys.items():
             if isinstance(chain_val, dict):
                 all_l4_text += " " + str(chain_val.get("L4_why_emotion", ""))
                 all_l5_text += " " + str(chain_val.get("L5_why_identity", ""))
@@ -972,7 +972,7 @@ def _detect_identity_modes(
     candidates = list(UNIVERSAL_IDENTITY_MODES)  # 深拷贝
     candidates = [dict(m) for m in candidates]
 
-    for cat_key, cat_val in PROJECT_SPECIFIC_IDENTITY_MODES.items():
+    for _cat_key, cat_val in PROJECT_SPECIFIC_IDENTITY_MODES.items():
         trigger_modes = set(cat_val.get("trigger_modes", []))
         trigger_kws = cat_val.get("trigger_type_keywords", [])
 

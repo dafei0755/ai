@@ -98,7 +98,7 @@ class UnifiedInputValidatorNode:
         is_naming_task = any(kw in user_input.lower() for kw in ["命名", "起名", "取名", "名字", "叫什么"])
 
         # 高置信度非设计类：直接拒绝
-        if domain_result["is_design_related"] == False:
+        if not domain_result["is_design_related"]:
             confidence = domain_result.get("confidence", 0)
 
             if confidence > 0.8 and not is_naming_task:
@@ -308,7 +308,7 @@ class UnifiedInputValidatorNode:
         # ============================================================================
         # 第4步：领域漂移检测
         # ============================================================================
-        if domain_result["is_design_related"] == False:
+        if not domain_result["is_design_related"]:
             logger.error(" 领域漂移检测：需求分析结果偏离设计领域")
 
             # 记录漂移尝试

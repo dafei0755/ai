@@ -107,7 +107,7 @@ def take_max_timestamp(left: str, right: str) -> str:
         left_dt = datetime.fromisoformat(left)
         right_dt = datetime.fromisoformat(right)
         return left if left_dt > right_dt else right
-    except:
+    except Exception:
         # 如果解析失败，默认取右侧值（最新更新）
         return right
 

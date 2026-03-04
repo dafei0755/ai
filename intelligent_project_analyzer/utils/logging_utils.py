@@ -59,7 +59,7 @@ class LogDataSanitizer:
 
             # 检查键名是否匹配敏感模式
             is_sensitive = False
-            for pattern_type, pattern in cls.SENSITIVE_PATTERNS.items():
+            for _pattern_type, pattern in cls.SENSITIVE_PATTERNS.items():
                 if re.search(pattern, key_lower, re.IGNORECASE):
                     is_sensitive = True
                     break

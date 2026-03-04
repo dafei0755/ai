@@ -159,7 +159,7 @@ async def start_celery_analysis(request: CeleryAnalysisRequest):
         # 获取队列位置
         try:
             queue_length = get_queue_length("analysis")
-        except:
+        except Exception:
             queue_length = None
 
         logger.info(f" [Celery API] 任务已提交: session={session_id}, task={task.id}")
@@ -341,7 +341,7 @@ async def start_celery_analysis_with_files(
 
         try:
             queue_length = get_queue_length("analysis")
-        except:
+        except Exception:
             queue_length = None
 
         logger.info(f" [Celery API] 带文件任务已提交: session={session_id}, task={task.id}, files={len(files)}")
@@ -513,7 +513,7 @@ async def get_queue_info():
         for queue_name in ["analysis", "report", "default"]:
             try:
                 queues[queue_name] = get_queue_length(queue_name)
-            except:
+            except Exception:
                 queues[queue_name] = 0
 
         return QueueInfoResponse(celery_available=True, queues=queues, workers=workers, active_tasks=active_tasks)

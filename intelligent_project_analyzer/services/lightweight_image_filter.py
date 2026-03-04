@@ -437,7 +437,7 @@ class ImageFilterService:
             domain = parsed.netloc.lower()
 
             # 遍历各级域名配置
-            for tier_name, tier_config in self.DOMAIN_TIERS.items():
+            for _tier_name, tier_config in self.DOMAIN_TIERS.items():
                 for tier_domain in tier_config["domains"]:
                     if tier_domain in domain:
                         score = tier_config["score"]

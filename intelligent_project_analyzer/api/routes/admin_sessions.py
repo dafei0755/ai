@@ -1,11 +1,10 @@
 """会话管理 + 日志查询 + 主动学习 API"""
 
-import json
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
 from typing import List
 
-from fastapi import APIRouter, Body, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from loguru import logger
 
 from ..auth_middleware import require_admin

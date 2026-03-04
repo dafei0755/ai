@@ -142,14 +142,14 @@ class AnswerParser:
             if isinstance(answer, str):
                 values = [item.strip() for item in answer.split(",") if item.strip()]
                 return values or None
-            if isinstance(answer, (list, tuple, set)):
+            if isinstance(answer, list | tuple | set):
                 values = [str(item).strip() for item in answer if str(item).strip()]
                 return values or None
             coerced = str(answer).strip()
             return [coerced] if coerced else None
 
         if q_type == "single_choice":
-            if isinstance(answer, (list, tuple, set)):
+            if isinstance(answer, list | tuple | set):
                 for item in answer:
                     candidate = str(item).strip()
                     if candidate:
@@ -157,7 +157,7 @@ class AnswerParser:
                 return None
             return str(answer).strip() or None
 
-        if isinstance(answer, (list, tuple, set)):
+        if isinstance(answer, list | tuple | set):
             values = [str(item).strip() for item in answer if str(item).strip()]
             return "、".join(values) if values else None
 

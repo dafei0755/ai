@@ -406,7 +406,7 @@ def _extract_keywords_from_questionnaire(
     # 2. 从 gap_answers 提取具体需求
     import re
 
-    for answer_key, answer_text in gap_answers.items():
+    for _answer_key, answer_text in gap_answers.items():
         if not isinstance(answer_text, str):
             continue
 

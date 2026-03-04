@@ -94,7 +94,7 @@ class InputGuardNode:
         domain_result = domain_classifier.classify(user_input)
 
         #  优化：如果LLM判断非常明确（置信度>0.8），直接拒绝，不问用户
-        if domain_result["is_design_related"] == False:
+        if not domain_result["is_design_related"]:
             confidence = domain_result.get("confidence", 0)
 
             # 高置信度（>0.8）：直接拒绝

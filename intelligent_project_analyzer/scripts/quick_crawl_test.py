@@ -93,7 +93,7 @@ def test_archdaily():
             try:
                 crawler.close()
                 logger.info("🛑 Archdaily爬虫已关闭")
-            except:
+            except Exception:
                 pass
 
 
@@ -150,7 +150,7 @@ def test_gooood():
             try:
                 crawler.close()
                 logger.info("🛑 Gooood爬虫已关闭")
-            except:
+            except Exception:
                 pass
 
 

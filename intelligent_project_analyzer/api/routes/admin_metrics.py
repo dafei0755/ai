@@ -1,17 +1,15 @@
 """系统监控 API — metrics, tools, concept-maps, conversations"""
 
-from collections import Counter, defaultdict
+import json
 from datetime import datetime, timedelta
 from pathlib import Path
-
-import json
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from loguru import logger
 
 from ..auth_middleware import require_admin
 from ..performance_monitor import performance_monitor
-from .admin_shared import metrics_cache, extract_meaningful_keywords
+from .admin_shared import extract_meaningful_keywords, metrics_cache
 
 router = APIRouter()
 

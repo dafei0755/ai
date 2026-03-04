@@ -290,7 +290,7 @@ class TaskCompletenessAnalyzer:
         for key in ["project_type", "physical_context", "resource_constraints", "core_objectives"]:
             value = structured_data.get(key, "")
             if value:
-                if isinstance(value, (list, tuple)):
+                if isinstance(value, list | tuple):
                     texts.extend(str(v) for v in value)
                 else:
                     texts.append(str(value))

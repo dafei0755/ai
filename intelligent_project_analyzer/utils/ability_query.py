@@ -94,7 +94,7 @@ class AbilityQueryTool:
             return None
 
         # 遍历配置文件中的所有角色定义
-        for key, value in config.items():
+        for _key, value in config.items():
             if isinstance(value, dict) and "core_abilities" in value:
                 try:
                     return ExpertAbilityProfile(**value["core_abilities"])
@@ -122,7 +122,7 @@ class AbilityQueryTool:
         primary_experts = []
         secondary_experts = []
 
-        for expert_id, config in self._expert_configs.items():
+        for expert_id, _config in self._expert_configs.items():
             abilities = self.get_expert_abilities(expert_id)
             if not abilities:
                 continue

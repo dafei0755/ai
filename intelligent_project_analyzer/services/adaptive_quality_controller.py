@@ -210,7 +210,7 @@ class AdaptiveQualityController:
                 total_errors = 0
                 total_response_time = 0
 
-                for tool_operation, stats in recent_stats.items():
+                for _tool_operation, stats in recent_stats.items():
                     calls = stats["success_count"] + stats["error_count"]
                     total_calls += calls
                     total_success += stats["success_count"]

@@ -361,7 +361,7 @@ class CapabilityBoundaryService:
 
         # 提取答案文本
         answer_texts = []
-        for key, value in answers.items():
+        for _key, value in answers.items():
             if isinstance(value, str):
                 answer_texts.append(value)
             elif isinstance(value, list):

@@ -63,7 +63,7 @@ def test_challenge_detector():
         }
         
         result = detector.detect_challenges(expert_outputs_no_challenge)
-        assert result["has_challenges"] == False
+        assert not result["has_challenges"]
         logger.info(" 无挑战检测正常")
         
         # 测试有挑战的情况
@@ -83,7 +83,7 @@ def test_challenge_detector():
         }
         
         result = detector.detect_challenges(expert_outputs_with_challenge)
-        assert result["has_challenges"] == True
+        assert result["has_challenges"]
         assert len(result["challenges"]) == 1
         logger.info(" 有挑战检测正常")
         

@@ -63,7 +63,7 @@ class ViolationLogger:
                 for line in f:
                     try:
                         violations.append(json.loads(line))
-                    except:
+                    except Exception:
                         continue
             
             # 简化统计

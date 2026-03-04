@@ -974,7 +974,7 @@ class ResultAggregatorAgent(LLMAgent):
 
                 # 计算平均置信度
                 confidence_values = []
-                for role_id, result in agent_results.items():
+                for _role_id, result in agent_results.items():
                     if isinstance(result, dict):
                         # 从任务导向专家输出中提取置信度
                         exec_meta = result.get("execution_metadata", {})
@@ -2004,7 +2004,7 @@ class ResultAggregatorAgent(LLMAgent):
         confidences = [
             result.get("confidence", 0)
             for result in agent_results.values()
-            if result and isinstance(result.get("confidence"), (int, float))
+            if result and isinstance(result.get("confidence"), int | float)
         ]
 
         if not confidences:
@@ -2328,7 +2328,7 @@ class ResultAggregatorAgent(LLMAgent):
         if value is None:
             return "未回答"
 
-        if isinstance(value, (list, tuple, set)):
+        if isinstance(value, list | tuple | set):
             cleaned = [str(item).strip() for item in value if str(item).strip()]
             return "、".join(cleaned) if cleaned else "未回答"
 
@@ -2844,7 +2844,7 @@ class ResultAggregatorAgent(LLMAgent):
             return ""
 
         # 如果是字典或列表，转换为可读格式
-        if isinstance(content, (dict, list)):
+        if isinstance(content, dict | list):
             return self._format_dict_as_readable(content)
 
         # 如果是字符串
@@ -2971,7 +2971,7 @@ class ResultAggregatorAgent(LLMAgent):
                 completeness_scores = [
                     t.get("completeness_score", 0)
                     for t in task_results
-                    if isinstance(t.get("completeness_score"), (int, float))
+                    if isinstance(t.get("completeness_score"), int | float)
                 ]
                 if completeness_scores:
                     return sum(completeness_scores) / len(completeness_scores) * 100

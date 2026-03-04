@@ -261,7 +261,7 @@ class RequirementsAnalystAgent(LLMAgent):
                         json.loads(json_candidate)
                         json_str = json_candidate
                         logger.info("[JSON解析]  使用首尾括号提取并验证成功")
-                    except:
+                    except Exception:
                         logger.warning("[JSON解析] ️ 首尾括号提取验证失败")
 
             # 如果所有方法都失败

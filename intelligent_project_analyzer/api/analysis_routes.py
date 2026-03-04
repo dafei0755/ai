@@ -979,7 +979,7 @@ async def resume_analysis(request: ResumeRequest, background_tasks: BackgroundTa
                 final_report = state_final_report
                 if not final_report:
                     for event in session["events"]:
-                        for node_name, node_output in event.items():
+                        for _node_name, node_output in event.items():
                             if isinstance(node_output, dict) and "final_report" in node_output:
                                 final_report = node_output["final_report"]
                                 break

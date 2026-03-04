@@ -542,7 +542,7 @@ async def run_workflow_async(session_id: str, user_input: str):
 
                 #  防止进度回退：只有新进度 ≥ 旧进度时才更新
                 old_progress = current_session.get("progress", 0)
-                progress = max(new_progress, old_progress if isinstance(old_progress, (int, float)) else 0)
+                progress = max(new_progress, old_progress if isinstance(old_progress, int | float) else 0)
 
                 if new_progress < old_progress:
                     logger.debug(f"️ 检测到进度回退: {old_progress:.0%} → {new_progress:.0%}，使用旧进度 {progress:.0%}")
@@ -664,7 +664,7 @@ async def run_workflow_async(session_id: str, user_input: str):
                 pdf_path = None
 
                 for event in events:
-                    for node_name, node_output in event.items():
+                    for _node_name, node_output in event.items():
                         if isinstance(node_output, dict):
                             # 提取 final_report
                             if "final_report" in node_output:
@@ -718,7 +718,7 @@ async def run_workflow_async(session_id: str, user_input: str):
                     # 最后一个事件可能包含完整状态
                     last_event = events[-1] if events else {}
                     # 尝试从各个节点提取状态
-                    for node_name, node_output in last_event.items():
+                    for _node_name, node_output in last_event.items():
                         if isinstance(node_output, dict):
                             if "agent_results" in node_output:
                                 final_state = node_output

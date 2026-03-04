@@ -136,7 +136,7 @@ class ReportGuardNode:
             for value in report.values():
                 if isinstance(value, str):
                     texts.append(value)
-                elif isinstance(value, (list, tuple)):
+                elif isinstance(value, list | tuple):
                     for item in value:
                         if isinstance(item, str):
                             texts.append(item)

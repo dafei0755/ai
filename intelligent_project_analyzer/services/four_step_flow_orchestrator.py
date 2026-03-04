@@ -563,7 +563,7 @@ class Step1DeepAnalysisExecutor:
         # v4.0 Phase 3.1: 步骤去重检查（字符集相似度）
         if len(step_names) >= 2:
             for i, name1 in enumerate(step_names):
-                for j, name2 in enumerate(step_names[i + 1 :], start=i + 1):
+                for _j, name2 in enumerate(step_names[i + 1 :], start=i + 1):
                     similarity = self._calculate_step_similarity(name1, name2)
                     if similarity >= 0.7:
                         errors.append(f"步骤重叠(相似度{similarity:.0%}): " f"'{name1[:25]}...' vs '{name2[:25]}...'")
@@ -2745,7 +2745,7 @@ class Step4SummaryGenerationExecutor:
         """格式化搜索结果"""
         lines = []
         source_num = 1
-        for query_id, results in search_results.items():
+        for _query_id, results in search_results.items():
             for result in results[:5]:  # 每个查询最多5条
                 lines.append(
                     f"[{source_num}] {result.get('title', '')}\n"

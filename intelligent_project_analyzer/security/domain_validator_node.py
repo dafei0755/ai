@@ -81,7 +81,7 @@ class DomainValidatorNode:
         domain_result = domain_classifier.classify(project_summary)
         
         # === 情况1：明确非设计类（漂移检测） ===
-        if domain_result["is_design_related"] == False:
+        if not domain_result["is_design_related"]:
             logger.error(" 领域漂移检测：需求分析结果偏离设计领域")
             
             # 记录漂移尝试

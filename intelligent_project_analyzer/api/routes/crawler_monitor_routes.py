@@ -1264,7 +1264,7 @@ async def get_source_status(source: str = "gooood"):
             }
         )
 
-    site_total_estimated = sum(v for v in site_totals.values() if isinstance(v, (int, float)))
+    site_total_estimated = sum(v for v in site_totals.values() if isinstance(v, int | float))
 
     # 读取该数据源的启用状态
     source_enabled = True

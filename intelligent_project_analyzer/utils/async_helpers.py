@@ -302,7 +302,7 @@ if __name__ == "__main__":
         print("\n示例3: 可复用轮询器")
         poller = SmartPoller(condition_check=lambda: random.random() < 0.5, timeout=1.0, name="随机检查")
 
-        for i in range(3):
+        for _i in range(3):
             try:
                 await poller.wait()
             except TimeoutError:

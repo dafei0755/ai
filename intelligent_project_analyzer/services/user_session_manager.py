@@ -185,7 +185,7 @@ class UserSessionManager:
         key = f"{self.USER_ACTIVE_PREFIX}{user_id}"
         try:
             return await self._session_manager.redis_client.get(key)
-        except:
+        except Exception:
             return None
     
     # ==================== 进度管理 ====================
@@ -215,7 +215,7 @@ class UserSessionManager:
         # 获取现有进度
         try:
             await self._session_manager.redis_client.hgetall(key)
-        except:
+        except Exception:
             pass
         
         # 更新字段
@@ -339,7 +339,7 @@ class UserSessionManager:
                 "total_tokens": int(data.get("total_tokens", 0)),
                 "last_used": data.get("last_used")
             }
-        except:
+        except Exception:
             return {"user_id": user_id, "total_requests": 0, "total_tokens": 0}
     
     # ==================== 内部方法 ====================

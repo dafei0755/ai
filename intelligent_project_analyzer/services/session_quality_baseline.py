@@ -126,7 +126,7 @@ class SessionQualityBaseline:
 
         # 计算加权总分
         total_weighted_score = 0.0
-        for dimension, data in evaluation["dimensions"].items():
+        for _dimension, data in evaluation["dimensions"].items():
             total_weighted_score += data["score"] * data["weight"]
 
         evaluation["overall_score"] = total_weighted_score

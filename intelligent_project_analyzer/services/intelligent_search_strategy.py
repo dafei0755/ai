@@ -274,7 +274,7 @@ class IntelligentSearchStrategy:
         total_calls = 0
         total_success = 0
 
-        for tool_operation, stats in historical_stats.items():
+        for _tool_operation, stats in historical_stats.items():
             # 查找包含agent_type的记录（如果有的话）
             if stats and stats.get("success_count", 0) > 0:
                 total_calls += stats["success_count"] + stats["error_count"]

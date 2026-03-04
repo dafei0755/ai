@@ -142,7 +142,7 @@ class ContextRetriever:
                     if isinstance(content, dict):
                         content_str = "\n".join([
                             f"{k}: {v}" for k, v in content.items()
-                            if isinstance(v, (str, int, float))
+                            if isinstance(v, str | int | float)
                         ])
                     else:
                         content_str = str(content)

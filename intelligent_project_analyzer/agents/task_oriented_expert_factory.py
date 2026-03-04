@@ -2496,7 +2496,7 @@ class TaskOrientedExpertFactory:
                         try:
                             parsed = json.loads(str(search_result))
                             results_list = parsed.get("results", []) if isinstance(parsed, dict) else []
-                        except:
+                        except Exception:
                             logger.warning(f"️ [v7.129 Fallback] 无法解析搜索结果: {type(search_result)}")
                             results_list = []
 

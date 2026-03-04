@@ -422,7 +422,7 @@ class BochaSearchTool:
             combined_text = f"{name} {description}"
             keywords = jieba.analyse.extract_tags(combined_text, topK=5, withWeight=False)
             query_parts = keywords
-        except:
+        except Exception:
             query_parts = [name]
 
         # 添加项目类型（中文）

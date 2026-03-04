@@ -576,7 +576,7 @@ class AdvancedQueryBuilder:
         """
         queries = []
         for concept in concepts[:2]:
-            for content_type, keywords in self.CONTENT_TYPE_WORDS.items():
+            for _content_type, keywords in self.CONTENT_TYPE_WORDS.items():
                 for keyword in keywords[:1]:  # 每种类型取1个关键词
                     query = f"{concept} {domain} {keyword}"
                     queries.append(query)
@@ -933,7 +933,7 @@ class JTBDQueryBuilder:
             # 使用方法论模块提取人性维度
             dimensions = self.methodology.extract_human_dimensions(human_text)
 
-            for dim_name, keywords in dimensions.items():
+            for _dim_name, keywords in dimensions.items():
                 if keywords:
                     # 取前2个关键词
                     for kw in keywords[:2]:

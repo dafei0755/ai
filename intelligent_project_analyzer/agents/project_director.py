@@ -161,7 +161,7 @@ def _extract_assigned_capabilities_from_distribution(task_distribution: Dict, se
     """
     capabilities = []
 
-    for role_id, task_data in task_distribution.items():
+    for _role_id, task_data in task_distribution.items():
         # 提取任务描述
         if hasattr(task_data, "tasks"):
             tasks_list = task_data.tasks

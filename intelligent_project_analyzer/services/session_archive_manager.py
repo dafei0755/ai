@@ -312,7 +312,7 @@ class SessionArchiveManager:
                             total_cleaned += original_size
                             logger.debug(f"   清理 base64: {new_path} ({original_size / 1024:.1f} KB)")
                 
-                elif isinstance(value, (dict, list)):
+                elif isinstance(value, dict | list):
                     total_cleaned += SessionArchiveManager._remove_base64_from_dict(value, new_path)
         
         elif isinstance(obj, list):
@@ -414,7 +414,7 @@ class SessionArchiveManager:
             if completed_at_str:
                 try:
                     completed_at = datetime.fromisoformat(completed_at_str)
-                except:
+                except Exception:
                     pass
 
             #  v7.402: 归档前清理 base64 图片数据，避免数据库膨胀
@@ -545,7 +545,7 @@ class SessionArchiveManager:
                 query = query.filter(ArchivedSession.status == status)
 
             if pinned_only:
-                query = query.filter(ArchivedSession.pinned == True)
+                query = query.filter(ArchivedSession.pinned)
 
             # 排序：置顶优先，然后按创建时间倒序
             query = query.order_by(ArchivedSession.pinned.desc(), ArchivedSession.created_at.desc())
@@ -697,7 +697,7 @@ class SessionArchiveManager:
                 query = query.filter(ArchivedSession.status == status)
 
             if pinned_only:
-                query = query.filter(ArchivedSession.pinned == True)
+                query = query.filter(ArchivedSession.pinned)
 
             count = query.count()
             db.close()

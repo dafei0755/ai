@@ -887,7 +887,7 @@ def _extract_explicit_keywords(user_input: str, result: MotivationResult) -> Lis
 
     # 检查哪些关键词出现在用户输入中
     explicit_keywords = []
-    for keyword, weight in motivation_type.keywords.items():
+    for keyword, _weight in motivation_type.keywords.items():
         if keyword in user_input.lower():
             explicit_keywords.append(keyword)
 

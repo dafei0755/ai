@@ -390,7 +390,7 @@ class MultiPerspectiveReviewCoordinator:
 
         # === 规则3: 第1轮有问题 → 允许一次改进 ===
         if current_round == 1 and has_agents_to_rerun:
-            problem_count = len(has_agents_to_rerun) if isinstance(has_agents_to_rerun, (list, set)) else 1
+            problem_count = len(has_agents_to_rerun) if isinstance(has_agents_to_rerun, list | set) else 1
             logger.info(f" 规则3触发: 第1轮发现 {problem_count} 个专家需改进，启动第2轮")
             return "rerun_specific"
 

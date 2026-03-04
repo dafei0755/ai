@@ -484,7 +484,7 @@ class RedTeamReviewer(ReviewerRole):
                     fixed_str = re.sub(r",\s*}", "}", json_str)
                     fixed_str = re.sub(r",\s*]", "]", fixed_str)
                     parsed_data = json.loads(fixed_str)
-                except:
+                except Exception:
                     pass
 
             # 处理红队标准格式 {"issues": [...]}
@@ -559,7 +559,7 @@ class RedTeamReviewer(ReviewerRole):
 
                             parsed = json.loads(nested_result)
                             role_name = parsed.get("role_name") or parsed.get("dynamic_role_name", "")
-                        except:
+                        except Exception:
                             pass
                     elif isinstance(nested_result, dict):
                         role_name = nested_result.get("role_name") or nested_result.get("dynamic_role_name", "")

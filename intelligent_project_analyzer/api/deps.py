@@ -376,7 +376,7 @@ def _serialize_for_json(data: Any) -> Any:
         return _serialize_for_json(data.model_dump(exclude_none=True, exclude_defaults=True))
     if isinstance(data, dict):
         return {k: _serialize_for_json(v) for k, v in data.items()}
-    if isinstance(data, (list, tuple)):
+    if isinstance(data, list | tuple):
         return [_serialize_for_json(item) for item in data]
     if isinstance(data, datetime):
         return data.isoformat()

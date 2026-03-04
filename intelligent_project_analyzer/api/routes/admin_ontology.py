@@ -1,8 +1,6 @@
 """动机类型 + 本体论管理 + 候选维度审核 API"""
 
-import json
 from datetime import datetime
-from pathlib import Path
 from typing import List
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query

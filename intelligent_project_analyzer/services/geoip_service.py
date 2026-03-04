@@ -181,7 +181,7 @@ class GeoIPService:
                 return True
 
             return False
-        except:
+        except Exception:
             return False
 
     def _lookup_local_database(self, ip: str) -> Dict[str, Any]:

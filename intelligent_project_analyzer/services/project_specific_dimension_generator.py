@@ -237,7 +237,7 @@ class ProjectSpecificDimensionGenerator:
             ontology_parameters=ontology_params or "（未定位）",
             character_narrative=character_narrative or "（未建立）",
             confidence_score=f"{confidence_score:.2f}"
-            if isinstance(confidence_score, (int, float))
+            if isinstance(confidence_score, int | float)
             else str(confidence_score),
             uncertainty_map=self._format_uncertainty_map(uncertainty_map),
             missing_dimensions=", ".join(missing_dims) if missing_dims else "（无明显缺失）",
@@ -270,7 +270,7 @@ class ProjectSpecificDimensionGenerator:
             return ""
         if isinstance(value, str):
             return value[:800]  # 截断过长文本
-        if isinstance(value, (list, dict)):
+        if isinstance(value, list | dict):
             try:
                 text = json.dumps(value, ensure_ascii=False, indent=2, default=str)
                 return text[:1500]  # 截断过长 JSON
@@ -402,7 +402,7 @@ class ProjectSpecificDimensionGenerator:
 
         # 规则 5: 默认值范围
         default_value = dim.get("default_value", 50)
-        if not isinstance(default_value, (int, float)):
+        if not isinstance(default_value, int | float):
             try:
                 default_value = int(default_value)
             except (ValueError, TypeError):

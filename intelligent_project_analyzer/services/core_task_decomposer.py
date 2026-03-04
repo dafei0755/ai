@@ -83,7 +83,7 @@ class TaskComplexityAnalyzer:
             "多阶段工程": [r"分期", r"一期", r"二期", r"首期", r"阶段"],  # 识别项目规模
         }
 
-        for dimension_name, patterns in dimensions.items():
+        for _dimension_name, patterns in dimensions.items():
             if any(re.search(pattern, user_input, re.IGNORECASE) for pattern in patterns):
                 dimension_count += 1
 
@@ -405,7 +405,7 @@ class CoreTaskDecomposer:
         lines = text.split("\n")
         tasks = []
 
-        for i, line in enumerate(lines):
+        for _i, line in enumerate(lines):
             line = line.strip()
             # 匹配 "1." "1、" "1)" "- " 等格式
             if line and (

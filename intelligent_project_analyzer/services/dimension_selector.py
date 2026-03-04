@@ -638,7 +638,7 @@ class DimensionSelector:
         # 需要注入的专用维度
         to_inject = []
 
-        for scene_id, scene_info in detected_scenes.items():
+        for scene_id, _scene_info in detected_scenes.items():
             specialized_dim_ids = SCENARIO_DIMENSION_MAPPING.get(scene_id, [])
             for dim_id in specialized_dim_ids:
                 if dim_id not in current_dim_ids and dim_id in all_dimensions:

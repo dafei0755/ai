@@ -255,7 +255,7 @@ async def _run_workflow_with_files(
 
                 current_data = await session_manager.get(session_id)
                 old_progress = current_data.get("progress", 0) if current_data else 0
-                progress = max(new_progress, old_progress if isinstance(old_progress, (int, float)) else 0)
+                progress = max(new_progress, old_progress if isinstance(old_progress, int | float) else 0)
 
                 await session_manager.update(
                     session_id, {"progress": progress, "current_node": node_name, "detail": detail}
@@ -414,7 +414,7 @@ async def _run_workflow(
                 #  防止进度回退：获取当前进度并取最大值
                 current_data = await session_manager.get(session_id)
                 old_progress = current_data.get("progress", 0) if current_data else 0
-                progress = max(new_progress, old_progress if isinstance(old_progress, (int, float)) else 0)
+                progress = max(new_progress, old_progress if isinstance(old_progress, int | float) else 0)
 
                 await session_manager.update(
                     session_id, {"progress": progress, "current_node": node_name, "detail": detail}

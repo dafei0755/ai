@@ -2910,7 +2910,7 @@ class LLMAnalysisEngine:
             # 提取隐性需求
             implicit_needs_data = content.get("implicit_needs", {})
             implicit_needs = []
-            for category, needs in implicit_needs_data.items():
+            for _category, needs in implicit_needs_data.items():
                 implicit_needs.extend(needs)
 
             # 计算质量评分
@@ -9950,7 +9950,7 @@ class UcpptSearchEngine:
             "scene": ["场景", "民宿", "酒店", "空间", "室内"],
         }
 
-        for entity_type, keywords in entity_checks.items():
+        for _entity_type, keywords in entity_checks.items():
             if any(kw in l1_text for kw in keywords):
                 entity_types_found += 1
 
@@ -11489,7 +11489,7 @@ L3张力: {json.dumps(analysis_excerpt["l3_tension"], ensure_ascii=False)[:300]}
             name = str(aspect_data.get("name", "")) if aspect_data.get("name") else ""
             goal = str(aspect_data.get("goal", "")) if aspect_data.get("goal") else ""
             importance_raw = aspect_data.get("importance", 3)
-            importance = int(importance_raw) if isinstance(importance_raw, (int, float)) else 3
+            importance = int(importance_raw) if isinstance(importance_raw, int | float) else 3
             search_hint = str(aspect_data.get("search_hint", "")) if aspect_data.get("search_hint") else ""
 
             # v7.260: 提取子任务列表
@@ -12565,10 +12565,10 @@ L3张力: {json.dumps(analysis_excerpt["l3_tension"], ensure_ascii=False)[:300]}
                     if isinstance(retro.get("inferred_insights"), list)
                     else [],
                     info_sufficiency=float(retro.get("info_sufficiency", 0.5))
-                    if isinstance(retro.get("info_sufficiency"), (int, float))
+                    if isinstance(retro.get("info_sufficiency"), int | float)
                     else 0.5,
                     info_quality=float(retro.get("info_quality", 0.5))
-                    if isinstance(retro.get("info_quality"), (int, float))
+                    if isinstance(retro.get("info_quality"), int | float)
                     else 0.5,
                     goal_achieved=bool(retro.get("goal_achieved", False)),
                     quality_issues=retro.get("quality_issues", [])
@@ -12582,14 +12582,14 @@ L3张力: {json.dumps(analysis_excerpt["l3_tension"], ensure_ascii=False)[:300]}
                     reasoning_content=full_reasoning,
                     # 全局校准
                     alignment_score=float(alignment.get("alignment_score", 0.7))
-                    if isinstance(alignment.get("alignment_score"), (int, float))
+                    if isinstance(alignment.get("alignment_score"), int | float)
                     else 0.7,
                     alignment_note=str(alignment.get("alignment_note", "")),
                     remaining_gaps=alignment.get("remaining_gaps", [])
                     if isinstance(alignment.get("remaining_gaps"), list)
                     else [],
                     estimated_rounds_remaining=int(alignment.get("estimated_rounds_remaining", 2))
-                    if isinstance(alignment.get("estimated_rounds_remaining"), (int, float))
+                    if isinstance(alignment.get("estimated_rounds_remaining"), int | float)
                     else 2,
                     # 累积
                     cumulative_progress=str(data.get("cumulative_progress", "")),
@@ -15349,7 +15349,7 @@ status可选值：missing（没有有用信息）、partial（有部分有用信
 
         # 2c. 补足到 30 条（v7.230: 从25增加到30，充分利用搜索结果）
         slots_remaining = 30 - len(top_sources)
-        for source, score in scored_sources[:slots_remaining]:
+        for source, _score in scored_sources[:slots_remaining]:
             top_sources.append(source)
 
         logger.info(

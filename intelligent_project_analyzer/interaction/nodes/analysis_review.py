@@ -643,7 +643,7 @@ class AnalysisReviewNode:
             critical = sum(1 for i in issues if i.get("severity") == "critical")
             high = sum(1 for i in issues if i.get("severity") == "high")
             logger.info(f"\n 红队: 发现 {len(issues)} 个问题 ({critical} critical, {high} high)")
-            for i, issue in enumerate(issues[:3], 1):
+            for _i, issue in enumerate(issues[:3], 1):
                 logger.info(f"   {issue.get('id', 'N/A')}: {issue.get('description', '')[:80]}")
 
         # 蓝队验证结果

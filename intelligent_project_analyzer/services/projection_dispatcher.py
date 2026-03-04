@@ -243,7 +243,7 @@ def _value_to_score(value: Any, mode_mapping: Dict[str, float] | None = None) ->
         value: 需要转化的值
         mode_mapping: 可选的字符串→分数映射表（用于模式ID等枚举值）
     """
-    if isinstance(value, (int, float)):
+    if isinstance(value, int | float):
         # 如果已经是 0-1 范围内的数
         if 0 <= value <= 1:
             return float(value)

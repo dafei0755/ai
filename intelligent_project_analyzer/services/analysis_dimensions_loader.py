@@ -389,7 +389,7 @@ class AnalysisDimensionsConfig:
         # 检查值是否有效（非空字符串、非空列表、非空字典）
         if isinstance(value, str):
             return len(value.strip()) > 0
-        if isinstance(value, (list, dict)):
+        if isinstance(value, list | dict):
             return len(value) > 0
         return value is not None
 

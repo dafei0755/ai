@@ -1,7 +1,6 @@
 """精选展示配置管理 + 搜索过滤器管理 API"""
 
 import json
-from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict
 
@@ -9,8 +8,8 @@ import yaml
 from fastapi import APIRouter, Depends, HTTPException, Query
 from loguru import logger
 
-from ..auth_middleware import require_admin
 from ...utils.config_manager import config_manager
+from ..auth_middleware import require_admin
 
 session_manager = None  # 将在请求时从 server.py 获取
 

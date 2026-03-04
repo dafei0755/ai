@@ -6,8 +6,8 @@ from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException
 from loguru import logger
 
-from ..auth_middleware import require_admin
 from ...utils.config_manager import config_manager
+from ..auth_middleware import require_admin
 
 router = APIRouter()
 

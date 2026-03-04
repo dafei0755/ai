@@ -23,7 +23,7 @@ except ImportError:
         try:
             import langgraph
             logger.error(f"langgraph path: {getattr(langgraph, '__path__', 'unknown')}")
-        except:
+        except Exception:
             pass
         raise
 

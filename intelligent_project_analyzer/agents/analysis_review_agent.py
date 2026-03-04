@@ -294,7 +294,7 @@ def _generate_ruling_document(
 ## Should-Fix 建议 ({len(should_fix)}项)
 """
     
-    for i, issue in enumerate(should_fix, 1):
+    for _i, issue in enumerate(should_fix, 1):
         ruling += f"- {issue.get('description', '未知')}\n"
     
     return ruling

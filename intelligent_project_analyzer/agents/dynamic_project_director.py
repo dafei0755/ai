@@ -36,7 +36,7 @@ def format_for_log(obj: Any) -> str:
     Returns:
         格式化后的字符串，中文不会被转义
     """
-    if isinstance(obj, (dict, list)):
+    if isinstance(obj, dict | list):
         return json.dumps(obj, ensure_ascii=False, indent=2)
     elif isinstance(obj, BaseException):
         # 对于异常对象，提取可读的错误信息

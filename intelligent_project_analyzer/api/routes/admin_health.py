@@ -84,7 +84,7 @@ async def get_users_analytics(
                     created_at = datetime.fromisoformat(created_str)
                     if created_at >= cutoff_date:
                         filtered_sessions.append(session)
-                except:
+                except Exception:
                     continue
 
         # 1. 统计在线用户数量（按日期分组）
@@ -126,7 +126,7 @@ async def get_users_analytics(
                 if year_key not in yearly_users:
                     yearly_users[year_key] = set()
                 yearly_users[year_key].add(user_id)
-            except:
+            except Exception:
                 continue
 
         # 转换为列表格式

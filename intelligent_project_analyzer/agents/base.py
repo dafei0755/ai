@@ -428,7 +428,7 @@ class LLMAgent(BaseAgent):
 
         formatted_parts = []
         for key, value in context.items():
-            if isinstance(value, (list, dict)):
+            if isinstance(value, list | dict):
                 import json
 
                 value_str = json.dumps(value, ensure_ascii=False, indent=2)

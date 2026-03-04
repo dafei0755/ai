@@ -283,7 +283,7 @@ class ProgressiveInteractionService:
 
     async def _collect_progress_stream(self, stage: ProgressStage, duration: float):
         """收集进度流（内部辅助方法）"""
-        async for update in self.stream_stage_progress(stage, duration):
+        async for _update in self.stream_stage_progress(stage, duration):
             # 这里可以添加额外的处理逻辑
             pass
 

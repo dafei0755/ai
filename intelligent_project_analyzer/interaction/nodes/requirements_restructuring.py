@@ -646,7 +646,7 @@ class RequirementsRestructuringEngine:
         # 🆕 v14.0: 优先使用 weight_interpretations 的语义翻译结果
         for dim_id, weight_val in weights.items():
             try:
-                w = float(weight_val) if not isinstance(weight_val, (int, float)) else weight_val
+                w = float(weight_val) if not isinstance(weight_val, int | float) else weight_val
             except (ValueError, TypeError):
                 continue
 
@@ -1103,7 +1103,7 @@ class RequirementsRestructuringEngine:
         requirements = []
 
         # 从gap_filling各字段中匹配关键词
-        for key, value in gap_filling.items():
+        for _key, value in gap_filling.items():
             if isinstance(value, str) and value:
                 for keyword in keywords:
                     if keyword in value:
