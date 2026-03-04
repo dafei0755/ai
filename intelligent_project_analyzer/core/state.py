@@ -454,8 +454,15 @@ class ProjectAnalysisState(TypedDict):
     detected_design_modes: List[Dict[str, Any]] | None
     """
     设计模式检测结果（Step 0 修复：原字段从未写入，projection_dispatcher 的 when_modes 永远空转）
-    由 requirements_nodes._requirements_analyst_node() 调用 detect_design_modes() 写入
+    v7.622+: 优先使用 phase1_node 内部 HybridModeDetector 结果，requirements_nodes 仅居备用
     格式: [{"mode": "M1_concept_driven", "confidence": 0.7, "reason": "..."}, ...]
+    """
+
+    project_classification: Dict[str, Any] | None
+    """
+    项目分类结果（v7.622+ 新增）
+    包含项目类型 + 分类编码 + 核心功能 + 用户特征
+    楼盘: {"project_type": "commercial_dining", "core_function": ..., "user_profile": ...}
     """
 
     project_motivation: Dict[str, Any] | None

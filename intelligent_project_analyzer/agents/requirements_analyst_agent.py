@@ -525,6 +525,17 @@ def output_node(state: RequirementsAnalystState) -> Dict[str, Any]:
     if has_phase2:
         structured_data["phase2_elapsed_ms"] = state.get("phase2_elapsed_ms", 0)
 
+    # 三源投票结果直通（供 requirements_nodes 优先使用 agent 内部结果）
+    _agent_modes = state.get("detected_design_modes")
+    if _agent_modes:
+        structured_data["detected_design_modes"] = _agent_modes
+    _vote = state.get("phase1_info_status_vote")
+    if _vote:
+        structured_data["phase1_info_status_vote"] = _vote
+    _p2mode = state.get("phase2_mode")
+    if _p2mode:
+        structured_data["phase2_mode"] = _p2mode
+
     elapsed_ms = (time.time() - start_time) * 1000
     total_elapsed = (
         state.get("precheck_elapsed_ms", 0)

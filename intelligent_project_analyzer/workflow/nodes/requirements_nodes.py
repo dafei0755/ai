@@ -250,14 +250,19 @@ class RequirementsNodesMixin:
                 "updated_at": datetime.now().isoformat(),
             }
 
-            # ── Step 0 fix: 调用 detect_design_modes，修复 projection_dispatcher.when_modes 死路 ──
+            # ── Step 0 fix: detected_design_modes 写入主 state ─────────────────────────
+            # v7.622+: 优先使用 agent 内部 HybridModeDetector 结果，避免重复调用
             user_input_str = state.get("user_input", "")
             sd = result.structured_data or {}
-            try:
-                detected_modes = detect_design_modes(user_input_str, sd)
-            except Exception as _mode_err:
-                logger.warning(f"[motivation] detect_design_modes 失败，跳过: {_mode_err}")
-                detected_modes = []
+            # 优先使用 agent 内部结果（已由 phase1_node 中 HybridModeDetector 生成）
+            detected_modes = sd.get("detected_design_modes") or []
+            if not detected_modes:
+                # 备用: agent 未提供时才调用 detect_design_modes
+                try:
+                    detected_modes = detect_design_modes(user_input_str, sd)
+                except Exception as _mode_err:
+                    logger.warning(f"[motivation] detect_design_modes 备用调用失败: {_mode_err}")
+                    detected_modes = []
             if detected_modes:
                 update_dict["detected_design_modes"] = detected_modes
 
