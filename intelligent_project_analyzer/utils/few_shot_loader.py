@@ -37,14 +37,21 @@ class FewShotExample:
 
 
 class FewShotExampleLoader:
-    """Few-Shot示例加载器"""
+    """Few-Shot示例加载器（v2 — 内置 IntelligentFewShotSelector 语义检索）"""
 
-    def __init__(self, examples_dir: Path | None = None):
+    def __init__(
+        self,
+        examples_dir: Path | None = None,
+        selector: Any | None = None,
+        usage_tracker: Any | None = None,
+    ):
         """
         初始化示例加载器
 
         Args:
             examples_dir: 示例文件目录，默认为 config/roles/examples/
+            selector: IntelligentFewShotSelector 实例（可选，优先用于语义检索）
+            usage_tracker: UsageTracker 实例（可选，注入使用数据记录）
         """
         if examples_dir is None:
             # 默认路径
@@ -54,7 +61,9 @@ class FewShotExampleLoader:
             self.examples_dir = Path(examples_dir)
 
         self._cache: Dict[str, List[FewShotExample]] = {}
-        logger.info(f" Few-Shot示例加载器初始化: {self.examples_dir}")
+        self._selector = selector        # IntelligentFewShotSelector（可选）
+        self._usage_tracker = usage_tracker  # UsageTracker（可选）
+        logger.info(f" Few-Shot示例加载器初始化: {self.examples_dir} selector={'智能' if selector else '关键词'}")
 
     def load_examples_for_role(self, role_id: str) -> List[FewShotExample]:
         """
@@ -131,8 +140,34 @@ class FewShotExampleLoader:
         else:
             filtered = all_examples
 
-        # 简单的相似度匹配（基于关键词）
-        # TODO: 未来可以使用embedding向量相似度
+        # ── 优先使用 IntelligentFewShotSelector 语义检索 ────────────────
+        if self._selector is not None:
+            try:
+                role_examples = self._selector.select_relevant_examples(
+                    role_id=role_id,
+                    user_query=user_request,
+                    top_k=max_examples,
+                    category=category,
+                )
+                # 将 intelligence.FewShotExample 转换为 utils.FewShotExample（兼容）
+                result: List[FewShotExample] = []
+                for se in role_examples:
+                    result.append(
+                        FewShotExample(
+                            example_id=getattr(se, "example_id", se.example_id),
+                            description=getattr(se, "description", ""),
+                            category=getattr(se, "category", category or ""),
+                            user_request=getattr(se, "user_request", ""),
+                            correct_output=getattr(se, "correct_output", ""),
+                            context=getattr(se, "context", {}),
+                        )
+                    )
+                logger.debug(f" [智能检索] 为请求选择了 {len(result)} 个相关示例")
+                return result
+            except Exception as e:
+                logger.warning(f"️ 智能检索失败，回退到关键词匹配: {e}")
+
+        # ── 回退：关键词相似度匹配 ────────────────────────────────────────
         scored_examples = []
         for example in filtered:
             score = self._calculate_similarity(user_request, example.user_request)
@@ -142,7 +177,18 @@ class FewShotExampleLoader:
         scored_examples.sort(key=lambda x: x[0], reverse=True)
         top_examples = [ex for _, ex in scored_examples[:max_examples]]
 
-        logger.debug(f" 为请求选择了 {len(top_examples)} 个相关示例")
+        # 记录使用数据
+        if self._usage_tracker is not None and top_examples:
+            try:
+                self._usage_tracker.log_expert_usage(
+                    role_id=role_id,
+                    user_request=user_request,
+                    selected_examples=[ex.example_id for ex in top_examples],
+                )
+            except Exception:
+                pass
+
+        logger.debug(f" [关键词匹配] 为请求选择了 {len(top_examples)} 个相关示例")
         return top_examples
 
     def _calculate_similarity(self, text1: str, text2: str) -> float:
@@ -303,8 +349,27 @@ _global_loader: FewShotExampleLoader | None = None
 
 
 def get_few_shot_loader() -> FewShotExampleLoader:
-    """获取全局Few-Shot加载器单例"""
+    """获取全局 Few-Shot 加载器单例（已注入 IntelligentFewShotSelector + UsageTracker）"""
     global _global_loader
     if _global_loader is None:
-        _global_loader = FewShotExampleLoader()
+        # 尝试注入智能组件（依赖缺失时优雅降级）
+        selector = None
+        tracker = None
+        try:
+            from intelligent_project_analyzer.intelligence.intelligent_few_shot_selector import (
+                DEPENDENCIES_AVAILABLE,
+                IntelligentFewShotSelector,
+            )
+            from intelligent_project_analyzer.intelligence.usage_tracker import UsageTracker
+
+            tracker = UsageTracker()
+            if DEPENDENCIES_AVAILABLE:
+                selector = IntelligentFewShotSelector(usage_tracker=tracker)
+                logger.info("[few_shot_loader] 已注入 IntelligentFewShotSelector + UsageTracker")
+            else:
+                logger.info("[few_shot_loader] 语义检索依赖不可用，仅注入 UsageTracker")
+        except Exception as _e:
+            logger.debug(f"[few_shot_loader] 智能组件加载失败，使用纯关键词模式: {_e}")
+
+        _global_loader = FewShotExampleLoader(selector=selector, usage_tracker=tracker)
     return _global_loader

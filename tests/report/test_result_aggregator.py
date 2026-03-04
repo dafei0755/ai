@@ -166,13 +166,81 @@ class TestReportDataModels:
         assert section.content == "市场内容..."
         assert 0 <= section.confidence <= 1
 
-    @pytest.mark.skip(reason="FinalReport requires complex nested models with many required fields")
     def test_final_report_model(self, env_setup):
-        """测试最终报告模型（跳过 - 模型过于复杂）"""
-        # FinalReport需要DeliberationProcess, CoreAnswer, RecommendationsSection等复杂嵌套模型
-        # 这些模型有许多必填字段,不适合简单的单元测试
-        # 应该在集成测试中测试完整的报告生成流程
-        pass
+        """测试最终报告模型 - 验证必填嵌套模型可正常构造"""
+        from intelligent_project_analyzer.report.result_aggregator import (
+            FinalReport,
+            CoreAnswer,
+            DeliberationProcess,
+            RecommendationItem,
+            RecommendationsSection,
+        )
+
+        core_answer = CoreAnswer(
+            question="咖啡馆设计的关键要素是什么？",
+            answer="空间规划、品牌氛围与成本控制三者并重。",
+            deliverables=["平面方案", "材料清单"],
+            timeline="3-6个月",
+            budget_range="80-120万",
+        )
+
+        deliberation = DeliberationProcess(
+            inquiry_architecture="市场+设计+财务三角分析",
+            reasoning="咖啡馆项目同时受市场定位、设计质量和预算约束，三者缺一不可。",
+            role_selection=["市场分析师", "设计专家", "财务顾问"],
+            strategic_approach="先确定品牌定位，再规划空间，最后测算成本。",
+        )
+
+        rec_item = RecommendationItem(
+            content="优先确定目标客群，避免后期返工。",
+            dimension="critical",
+            reasoning="目标客群决定装修风格与预算上限。",
+            source_expert="市场分析师",
+        )
+
+        recommendations = RecommendationsSection(
+            recommendations=[rec_item],
+            summary="核心建议：先定位后设计，控制成本节点。",
+        )
+
+        report = FinalReport(
+            core_answer=core_answer,
+            deliberation_process=deliberation,
+            recommendations=recommendations,
+        )
+
+        assert report.core_answer.question == "咖啡馆设计的关键要素是什么？"
+        assert report.deliberation_process.inquiry_architecture == "市场+设计+财务三角分析"
+        assert len(report.recommendations.recommendations) == 1
+        assert report.recommendations.recommendations[0].dimension == "critical"
+        assert report.expert_reports == {}  # default_factory 产生空字典
+        assert report.insights is None  # 可选字段默认为 None
+
+
+class TestReportWithFixture:
+    """使用全局 fixture 的报告测试"""
+
+    def test_aggregator_with_sample_result(self, sample_analysis_result, env_setup):
+        """验证 sample_analysis_result fixture 字段完整，可用于聚合器测试"""
+        # 确认 fixture 提供了所有必要字段
+        assert "session_id" in sample_analysis_result
+        assert "analysis_complete" in sample_analysis_result
+        assert "agent_results" in sample_analysis_result
+        assert "final_report" in sample_analysis_result
+
+        # 校验 agent_results 结构
+        for item in sample_analysis_result["agent_results"]:
+            assert "agent_name" in item
+            assert "result" in item
+            assert "confidence" in item
+            assert 0.0 <= item["confidence"] <= 1.0
+
+        # 校验 final_report 结构
+        final = sample_analysis_result["final_report"]
+        assert "summary" in final
+        assert "overall_score" in final
+        assert "next_steps" in final
+        assert isinstance(final["next_steps"], list)
 
 
 class TestReportHelperFunctions:
