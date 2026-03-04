@@ -518,9 +518,87 @@ except Exception as e:
 
 ---
 
-**最后更新**: 2026-01-02
+**最后更新**: 2026-03-04
 **维护者**: AI Development Team
 **状态**: ✅ 生效中
+
+
+---
+
+## 🌿 Git 分支规范（v4.0 — 2026-03）
+
+### 核心原则：任何代码改动必须在独立分支完成，绝不在 main 直接修改
+
+### 分支命名规则
+
+| 改动类型 | 前缀 | 示例 |
+|---------|------|------|
+| 缺陷修复 | `fix/` | `fix/settings-import-safety` |
+| 重构优化 | `refactor/` | `refactor/remove-server-proxy` |
+| 新功能 | `feature/` | `feature/event-bus` |
+| 清理工作 | `chore/` | `chore/cleanup-dead-code` |
+| 架构整改 | `arch/` | `arch/server-slim-p1` |
+
+### 强制分支策略
+
+1. **每个独立子系统/阶段建一个短生命周期分支**（目标：不超过 1 周）
+2. **跨子系统改动必须拆为多个分支，按依赖顺序合并**
+3. **禁止在 main 直接 commit 代码修改**（版本号 bump、纯文档除外）
+
+#### 架构稳定性收口分支顺序（2026-03 基线）
+
+```
+fix/settings-import-safety        ← 最优先合并（测试基础设施前提）
+    ↓ 合并后
+refactor/remove-server-proxy      ← 依赖 settings 修复完成
+fix/test-collection-stability     ← 可与 refactor/remove-server-proxy 并行
+    ↓ 两者合并后
+chore/cleanup-dead-code           ← 版本统一 + 死代码清理
+    ↓
+arch/server-slim-p1               ← server.py 瘦身 + 路由冲突修复
+```
+
+### 合并前验收门槛（强制执行）
+
+每个分支合并 main 前必须通过：
+
+```bash
+# 底线：收集零错误
+pytest --collect-only -q        # 期望：0 errors
+
+# 单元测试绿色
+pytest tests/unit/ -q           # 期望：无 FAILED
+
+# 分支特定验证
+# fix/settings-import-safety  →  DEBUG=release python -c "from intelligent_project_analyzer import settings"
+#                                 应输出诊断提示，而非 traceback
+# refactor/remove-server-proxy →  grep -rn "_ServerProxy" intelligent_project_analyzer/ → 0 结果
+# arch/server-slim-p1         →  wc -l intelligent_project_analyzer/api/server.py → < 500
+```
+
+### 提交信息规范（Conventional Commits）
+
+```
+<type>(<scope>): <描述（中文可）>
+
+type: fix | feat | refactor | chore | docs | test | arch
+scope: settings | api | workflow | state | tests | deps | server
+
+示例：
+fix(settings): 添加 DEBUG 字段 bool 容错 validator，防止导入期崩溃
+refactor(api): 消除 7 个文件的 _ServerProxy 反向依赖模式
+chore(dead-code): 删除 5 个冻结 feature flag 和 12 个备份文件
+arch(server): 将 31 个 Pydantic 模型迁移至 api/models.py
+```
+
+### 禁止事项
+
+- ❌ 禁止一个分支承载互不依赖的多个子系统改动
+- ❌ 禁止跳过收集验证直接合并
+- ❌ 禁止 `git commit -m "fix"` 等无信息提交
+- ❌ 禁止长生命周期大分支（>1 周未合并须拆分）
+
+版本: v4.0 | 更新时间: 2026-03-04 | 原因: 架构稳定性收口专项治理
 
 
 ---

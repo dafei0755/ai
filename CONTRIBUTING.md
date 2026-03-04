@@ -10,8 +10,9 @@
 
 在修改代码前，**必须**阅读以下文档：
 
-1. 🔥 **[核心开发规范](.github/DEVELOPMENT_RULES_CORE.md)** - v2.1 精简版，AI工具优先加载
-   - 📝 **新增 v2.1**: 任务列表化执行规则 + "继续"指令快速响应
+1. 🔥 **[核心开发规范](.github/DEVELOPMENT_RULES_CORE.md)** - v4.0，AI工具优先加载
+   - 📝 **v2.1**: 任务列表化执行规则 + "继续"指令快速响应
+   - 🌿 **v4.0 新增**: Git 分支规范 — 任何代码改动必须在独立分支完成
 2. 📚 [完整开发规范](.github/DEVELOPMENT_RULES.md) - 深度查阅特定章节
 3. ✅ [变更检查清单](.github/PRE_CHANGE_CHECKLIST.md) - 修改前强制流程
 4. 📖 [历史修复记录](.github/historical_fixes/) - 5+ 精选 bug 修复案例
@@ -32,19 +33,43 @@
 
 ## 🛠️ 贡献流程
 
-### 1. Fork 项目并创建分支
+### 1. 创建工作分支（强制）
+
+> ⚠️ **核心原则（v4.0）：任何代码改动必须在独立分支完成，绝不在 main 直接修改**
+
+#### 分支命名规则
+
+| 改动类型 | 前缀 | 示例 |
+|---------|------|------|
+| 缺陷修复 | `fix/` | `fix/settings-import-safety` |
+| 重构优化 | `refactor/` | `refactor/remove-server-proxy` |
+| 新功能 | `feature/` | `feature/event-bus` |
+| 清理工作 | `chore/` | `chore/cleanup-dead-code` |
+| 架构整改 | `arch/` | `arch/server-slim-p1` |
 
 ```bash
-# Fork 项目到你的 GitHub 账号
-# 克隆你的 Fork
-git clone https://github.com/你的用户名/ai.git
-cd ai
+# 从最新 main 切出分支（单一职责，不超过 1 周生命周期）
+git checkout main && git pull
+git checkout -b fix/your-fix-name
 
-# 添加上游仓库
-git remote add upstream https://github.com/dafei0755/ai.git
+# 多个独立子系统改动 → 拆为多个分支，按依赖顺序合并
+# 示例：fix/A（先合并）→ refactor/B（依赖 A）→ chore/C（独立）
+```
 
-# 创建功能分支
-git checkout -b feature/your-feature-name
+#### 禁止事项
+
+- ❌ 禁止一个分支承载互不依赖的多个子系统改动
+- ❌ 禁止跳过测试验证直接合并
+- ❌ 禁止长生命周期大分支（>1 周未合并须拆分）
+
+#### 合并前验收门槛（强制）
+
+```bash
+# 底线：收集零错误
+pytest --collect-only -q        # 期望：0 errors
+
+# 单元测试绿色
+pytest tests/unit/ -q           # 期望：无 FAILED
 ```
 
 ### 2. 设置开发环境
@@ -96,37 +121,42 @@ npm run lint
 npm run format
 ```
 
-#### 提交信息规范
+#### 提交信息规范（Conventional Commits）
 
 遵循 [约定式提交](https://www.conventionalcommits.org/zh-hans/)：
 
 ```
-<类型>(<范围>): <简短描述>
-
-<详细描述>（可选）
-
-<关联 Issue>（可选）
+<type>(<scope>): <描述（中文可）>
 ```
 
-**类型示例**：
-- `feat`: 新功能
-- `fix`: Bug 修复
-- `docs`: 文档更新
-- `style`: 代码格式（不影响逻辑）
-- `refactor`: 代码重构
-- `test`: 测试相关
-- `chore`: 构建/工具配置
+**type 与 scope 白名单**：
+
+| type | 含义 | 常用 scope |
+|------|------|----------|
+| `fix` | 缺陷修复 | `settings`, `api`, `workflow`, `state` |
+| `feat` | 新功能 | `search`, `questionnaire`, `image` |
+| `refactor` | 重构（不改行为） | `server`, `deps`, `api` |
+| `chore` | 清理/工具/配置 | `dead-code`, `deps`, `ci` |
+| `arch` | 架构级改动 | `server`, `workflow`, `state` |
+| `docs` | 文档 | `rules`, `api`, `readme` |
+| `test` | 测试 | `unit`, `integration`, `e2e` |
 
 **提交示例**：
 ```bash
-git commit -m "fix(questionnaire): 修复Step3用户输入显示缺失问题
+# 缺陷修复
+git commit -m "fix(settings): 添加 DEBUG 字段 bool 容错 validator，防止导入期崩溃"
 
-- 添加 user_input 和 user_input_summary 字段到后端 payload
-- 更新前端组件以显示用户原始需求摘要
-- 添加单元测试覆盖新功能
+# 重构
+git commit -m "refactor(api): 消除 7 个文件的 _ServerProxy 反向依赖模式"
 
-Fixes #123"
+# 清理
+git commit -m "chore(dead-code): 删除 5 个冻结 feature flag 和 12 个备份文件"
+
+# 架构
+git commit -m "arch(server): 将 31 个 Pydantic 模型迁移至 api/models.py"
 ```
+
+**禁止**：`git commit -m "fix"`、`git commit -m "update"` 等无信息提交
 
 ### 4. 添加测试
 
@@ -335,26 +365,28 @@ def test_rule_engine_enabled():
 ### 6. 提交 Pull Request
 
 ```bash
-# 同步上游更新
-git fetch upstream
-git rebase upstream/main
+# 合并前同步 main 的最新提交
+git fetch origin main
+git rebase origin/main
 
-# 推送到你的 Fork
-git push origin feature/your-feature-name
+# 推送分支
+git push origin fix/your-fix-name
 ```
 
 在 GitHub 上创建 Pull Request：
 
-1. **标题**: 清晰描述变更内容
+1. **标题**: 遵循 Conventional Commits 格式（`fix(scope): 描述`）
 2. **描述**: 包含以下内容：
    - 变更原因和背景
    - 实现方案
-   - 测试结果截图
-   - 关联的 Issue
-3. **检查清单**: 确保以下项目已完成
-   - [ ] 通过所有测试
+   - 测试结果（`pytest --collect-only -q` 输出截图）
+   - 分支特定验证命令的执行结果
+3. **合并前检查清单**（必须全部通过）：
+   - [ ] `pytest --collect-only -q` → **0 errors**
+   - [ ] `pytest tests/unit/ -q` → **0 failed**
+   - [ ] 分支对应的验收命令通过（见核心开发规范 v4.0）
    - [ ] 代码覆盖率 ≥ 80%
-   - [ ] 遵循代码规范
+   - [ ] 遵循代码规范（black / isort）
    - [ ] 更新相关文档
    - [ ] 通过 CI/CD 检查
 
