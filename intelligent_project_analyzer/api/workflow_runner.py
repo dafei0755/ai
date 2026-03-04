@@ -21,6 +21,7 @@ from loguru import logger
 
 from intelligent_project_analyzer.settings import settings
 from intelligent_project_analyzer.workflow.main_workflow import MainWorkflow
+from intelligent_project_analyzer.workflow.workflow_contract import NODE_PROGRESS  # F-02: 单一进度映射事实源
 
 try:
     from langgraph.checkpoint.base import BaseCheckpointSaver
@@ -505,37 +506,9 @@ async def run_workflow_async(session_id: str, user_input: str):
 
                 current_node_name = current_session.get("current_node", "")
 
-                #  v7.21: 定义节点到进度的映射（与 main_workflow.py 实际节点名称对齐）
-                #  v7.153: 添加问卷流程节点，修复进度显示异常
-                node_progress_map = {
-                    # 输入验证阶段 (0-15%)
-                    "unified_input_validator_initial": 0.05,  # 5% - 初始输入验证
-                    "unified_input_validator_secondary": 0.10,  # 10% - 二次验证
-                    # 需求分析阶段 (15-25%)
-                    "requirements_analyst": 0.15,  # 15% - 需求分析
-                    "feasibility_analyst": 0.18,  # 18% - 可行性分析
-                    #  v7.153: 问卷流程阶段 (20-35%)
-                    "progressive_step1_core_task": 0.20,  # 20% - Step 1: 核心任务
-                    "progressive_step2_info_gather": 0.25,  # 25% - Step 2: 信息补充
-                    "progressive_step3_radar": 0.30,  # 30% - Step 3: 雷达图
-                    "questionnaire_summary": 0.35,  # 35% - Step 4: 需求洞察
-                    # 项目规划阶段 (35-55%)
-                    "project_director": 0.40,  # 40% - 项目总监
-                    "role_task_unified_review": 0.45,  # 45% - 角色审核
-                    "quality_preflight": 0.50,  # 50% - 质量预检
-                    # 专家执行阶段 (55-80%)
-                    "batch_executor": 0.55,  # 55% - 批次调度
-                    "agent_executor": 0.70,  # 70% - 专家执行
-                    "batch_aggregator": 0.75,  # 75% - 批次聚合
-                    "batch_router": 0.76,  # 76% - 批次路由
-                    "batch_strategy_review": 0.78,  # 78% - 策略审核
-                    # 审核聚合阶段 (80-100%)
-                    "detect_challenges": 0.80,  # 80% - 挑战检测
-                    "analysis_review": 0.85,  # 85% - 分析审核
-                    "result_aggregator": 0.90,  # 90% - 结果聚合
-                    "report_guard": 0.95,  # 95% - 报告审核
-                    "pdf_generator": 0.98,  # 98% - PDF 生成
-                }
+                # F-02: 进度映射从 workflow_contract.NODE_PROGRESS 导入（单一事实源）
+                # 废弃节点 analysis_review / progressive_step2_info_gather / progressive_step3_radar 已从契约中移除
+                node_progress_map = NODE_PROGRESS
 
                 # 使用节点映射或回退到计数
                 new_progress = node_progress_map.get(current_node_name, min(0.9, len(events) * 0.1))
