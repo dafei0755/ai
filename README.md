@@ -3,7 +3,7 @@
 > 基于 LangGraph 的多智能体设计项目分析系统
 > 智能化设计项目需求分析 | 多专家协作 | 全流程质量保障
 
-[![Version](https://img.shields.io/badge/version-v7.122-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-v8.1.0-blue.svg)](CHANGELOG.md)
 [![Python](https://img.shields.io/badge/python-3.10+-green.svg)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-orange.svg)](LICENSE)
 [![CI/CD](https://github.com/dafei0755/ai/actions/workflows/ci.yml/badge.svg)](https://github.com/dafei0755/ai/actions/workflows/ci.yml)

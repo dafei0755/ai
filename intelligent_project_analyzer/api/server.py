@@ -282,7 +282,63 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning(f"️ 启动清理失败: {e}")
 
+    #  Phase 1: 启动定时任务调度器（每日质量分析 + 每周示例报告）
+    _scheduler = None
+    try:
+        from apscheduler.schedulers.asyncio import AsyncIOScheduler
+        from intelligent_project_analyzer.intelligence.example_quality_analyzer import ExampleQualityAnalyzer
+        from intelligent_project_analyzer.intelligence.usage_tracker import UsageTracker
+
+        _usage_tracker = UsageTracker()
+        _quality_analyzer = ExampleQualityAnalyzer(tracker=_usage_tracker)
+
+        async def _daily_quality_analysis() -> None:
+            """每日凌晨3点：分析前一天全部角色的示例质量"""
+            try:
+                logger.info("[Scheduler] 开始每日质量分析...")
+                report = await asyncio.get_event_loop().run_in_executor(
+                    None, _quality_analyzer.analyze_all_roles
+                )
+                logger.info(f"[Scheduler] 每日质量分析完成: {report}")
+            except Exception as _e:
+                logger.warning(f"[Scheduler] 每日质量分析失败: {_e}")
+
+        async def _weekly_example_report() -> None:
+            """每周一凌晨4点：生成示例质量周报并写入 data/intelligence/reports/"""
+            try:
+                logger.info("[Scheduler] 开始生成每周示例报告...")
+                from pathlib import Path
+                import json, time as _time
+
+                report_dir = Path("data/intelligence/reports")
+                report_dir.mkdir(parents=True, exist_ok=True)
+                stats = _usage_tracker.get_stats()
+                report_path = report_dir / f"weekly_{_time.strftime('%Y%m%d')}.json"
+                with open(report_path, "w", encoding="utf-8") as _f:
+                    json.dump(stats, _f, ensure_ascii=False, indent=2, default=str)
+                logger.info(f"[Scheduler] 每周示例报告已写入: {report_path}")
+            except Exception as _e:
+                logger.warning(f"[Scheduler] 每周示例报告失败: {_e}")
+
+        _scheduler = AsyncIOScheduler(timezone="Asia/Shanghai")
+        _scheduler.add_job(_daily_quality_analysis, "cron", hour=3, minute=0, id="daily_quality")
+        _scheduler.add_job(_weekly_example_report, "cron", day_of_week="mon", hour=4, minute=0, id="weekly_report")
+        _scheduler.start()
+        print("🕐 Phase 1 定时任务已启动（每日质量分析 03:00 | 每周报告 周一 04:00）")
+    except ImportError:
+        print("⏭  APScheduler 未安装，跳过定时任务（pip install APScheduler>=3.10.0）")
+    except Exception as e:
+        logger.warning(f"️ 定时任务调度器启动失败: {e}")
+
     yield
+
+    #  关闭定时任务调度器
+    if _scheduler is not None:
+        try:
+            _scheduler.shutdown(wait=False)
+            print("🕐 Phase 1 定时任务调度器已关闭")
+        except Exception:
+            pass
 
     # 关闭时
     print("\n 服务器关闭中...")
