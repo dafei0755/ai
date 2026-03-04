@@ -24,7 +24,8 @@ from langgraph.types import Command, Send
 from loguru import logger
 
 # 显式导入智能体类以触发 AgentFactory 注册
-from ...agents import AgentFactory, ProjectDirectorAgent, RequirementsAnalystAgent
+# RequirementsAnalystAgent（旧 V1）已移除：主路径只使用 RequirementsAnalystAgentV2（F-01）
+from ...agents import AgentFactory, ProjectDirectorAgent
 from ...agents.base import NullLLM
 from ...agents.dynamic_project_director import detect_and_handle_challenges_node  # v3.5
 from ...agents.feasibility_analyst import FeasibilityAnalystAgent  # V1.5可行性分析师

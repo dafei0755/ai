@@ -1,3 +1,9 @@
+# HISTORICAL — superseded by RequirementsAnalystAgentV2 in requirements_analyst_agent.py
+# 本文件中的 RequirementsAnalystAgent 是旧实现，已被工作流主路径弃用。
+# 当前主工作流路径（requirements_nodes.py）只调用 RequirementsAnalystAgentV2。
+# 保留原因：agents/__init__.py 懒加载兼容，避免外部导入立即崩溃。
+# 计划删除时间：2026-04-04（兼容窗口结束）。
+# 删除条件：确认无外部调用方依赖此类后执行 arch/delete-ra-v1-legacy。
 """
 需求分析师智能体
 
