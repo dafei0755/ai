@@ -239,10 +239,17 @@ ST-4（lint 激活）  ├→ MT-2（测试整理）
   - `services/__init__.py` 更新：保留向后兼容的 `LLMFactory`、`ToolFactory` 导出；子包采用懒加载策略（用户需主动 import）
   - 所有旧导入路径**继续有效**，93 个现有测试零回归
 
-### LT-3：State 字段精简
+### LT-3：State 字段精简 ✅ DONE
 
 - **目标**：完成 ST-1 后进一步精简，统一问卷字段命名（三字段 `calibration_answers`/`questionnaire_responses`/`gap_filling_answers` 合并）
 - **工时**：3 天；**风险**：高（破坏性变更，需全量回归）
+- **完成情况**：
+  - `calibration_answers` 完全删除（写入端始终同步写 `questionnaire_responses["answers"]`，冗余）
+  - `gap_filling_answers` 顶层字段删除，改写入 `questionnaire_responses["gap_filling_answers"]` 子键
+  - 涉及 7 文件：`core/state.py` / `calibration_questionnaire.py` / `progressive_questionnaire.py` / `requirements_nodes.py` / `aggregation_nodes.py` / `questionnaire_summary.py` / `result_aggregator.py`
+  - `questionnaire_summary.py` 读取保留 `or state.get("gap_filling_answers")` backward-compat fallback（兼容旧 checkpoint）
+  - git tag `pre-lt3-state-merge` 作为回滚点
+  - 测试结果：456 passed / 8 skipped；commit `cb76600`
 
 ### LT-4：Circuit Breaker ✅ DONE
 
