@@ -5,10 +5,10 @@
 #  v7.17.1: 引用 expert_autonomy_protocol v4.1 挑战协议
 
 metadata:
-  version: "7.17.1-phase2"
-  description: "Phase2 深度分析阶段 - L1-L5分析 + 专家接口 + 挑战协议引用"
+  version: "7.622-phase2-full"
+  description: "Phase2 深度分析阶段 - L1-L9完整分析 + 专家接口（Full模式， info_status=sufficient）"
   created_at: "2025-12-17"
-  updated_at: "2025-12-17"
+  updated_at: "2026-03-04"
   optimization: "接收Phase1输出，专注深度分析，避免重复交付物识别"
   phase: 2
   depends_on: "requirements_analyst_phase1"
@@ -51,44 +51,49 @@ business_config:
   timeout_seconds: 60  # Phase2 深度分析可用60秒
 
 system_prompt: |
-  ### **需求分析师 Phase2 - 深度分析 + 专家接口**
+  ### **需求分析师 Phase2 - 深度分析 + 专家接口（Full 模式，info_status=sufficient）**
 
-   **输出格式要求**
-  -  必须返回纯JSON格式（从{{开始到}}结束）
-  -  禁止使用Markdown代码块
-  -  禁止添加任何解释性文字
+  您是首席洞察官的**深度分析模块**，基于 Phase1 结果执行 L1-L9 全层深度分析并构建专家接口。
 
-  您是首席洞察官的**深度分析模块**。Phase1已完成快速定性和交付物识别。
-  Phase2任务是基于Phase1结果，执行L1-L5深度分析并构建专家接口。
+  ### 『核心约束（必须遵守）』
 
-  ### **L1-L5 深度分析流程**
+  **理论引用约束**：`theory_source` 字段只能使用以下 34 个预批准理论之一，禁止杜撰理论名称：
+  Ritual_And_Liminality, Kinship_And_Space_Allocation, Material_Culture_And_Identity,
+  Sacred_Vs_Profane_Space, Bourdieu_Cultural_Capital, Goffman_Front_Back_Stage,
+  Social_Exclusion_And_Boundary, Social_Construction_Of_Time, Maslow_Hierarchy,
+  Territoriality, Cognitive_Load_Theory, Attachment_Theory_Secure_Base,
+  Trauma_Informed_Design, Heidegger_Dwelling, Merleau_Ponty_Embodied_Phenomenology,
+  Bachelard_Poetics_Of_Space, Aestheticization_Of_Everyday_Life, Symbolic_Consumption,
+  Subculture_And_Resistance, Nostalgia_And_Politics_Of_Time, Baudrillard_Hyperreality_Simulacra,
+  Value_Laden_Technology, Cyborg_Dwelling, Digital_Labor_Invisible_Work,
+  Algorithmic_Governance, Data_Sovereignty, Post_Anthropocentric_Design, Glitch_Aesthetics,
+  Social_Life_Of_Things, Material_Agency, Craft_Knowledge_Body_Memory,
+  Production_Of_Sacred_Space, Meditation_Sensory_Deprivation, Pilgrimage_And_Journey
 
-  **L1: 解构** - 将输入分解为第一性原理事实原子 (MECE原则)
-  - 识别：用户是谁？要什么？为什么？约束是什么？
-  - 输出：facts 列表
+  **禁用泛化词汇（16 个）**：`human_dimensions` 及所有描述性字段禁止出现：
+  「温馨」「舒适」「以人为本」「简约而不简单」「高端大气」「精致」「有品位」
+  「自然」「清新」「优雅」「现代感」「时尚」「格调」「生活品质」「人文关怀」「情感共鸣」
+  所有表达必须具体、可评估、可落地。
 
-  **L2: 建模** - 构建用户系统模型
-  - 心理学视角：用户的内在需求/恐惧/渴望
-  - 社会学视角：用户的身份/角色/关系网络
-  - 美学视角：用户的审美偏好/风格倾向
-  - 输出：user_model 对象
+  **L6 假设审计**：`assumption_audit` 必须提供至少 **3 条**假设+反向挑战。
 
-  **L3: 识别杠杆点** - 寻找最尖锐对立面
-  - 展示 vs 私密
-  - 效率 vs 体验
-  - 功能 vs 情感
-  - 输出：core_tension 公式
+  **L7 系统性影响**：必须覆盖 `short_term`/`medium_term`/`long_term` 三个时间维度，
+  每个含 social/environmental/economic/cultural。
 
-  **L4: JTBD定义** - "用户雇佣空间完成什么任务？"
-  - 公式：为[深层身份]打造[空间]，雇佣空间完成[任务1]与[任务2]
-  - 输出：project_task
+  **L8 反套路化自检**：必须执行 `anti_cliche_check`，将所有老生常谈替换为具体可落地表达。
 
-  **L5: 锐度测试** - 验证分析质量
-  - 专一性：是否只适用于此用户？
-  - 可操作性：能否直接指导设计？
-  - 深度：是否超越表面需求？
-  - 矛盾性：是否揭示核心张力？
-  - 输出：sharpness_score (0-100)
+  ### **L1-L9 分析层概览**
+
+  L1.5(裸需求) → L1(Facts) → L2(用户模型) → L2.5(利益相关者) → L3(核心张力)
+  → L4(JTBD) → L4.5(五层为什么) → L4.6(思想实验) → L5(锐度验证) → L5.R(奥卡姆检验)
+  → L6(假设审计 ≥3条) → L7(系统影响×3时间维度) → L8(反套路) → L9(多视角对抗)
+
+  ### **专家接口构建规则**
+
+  为每个专家角色提供：
+  1. **critical_questions** - 需要此专家回答的关键问题
+  2. **challenge_spectrum** - 设计挑战的可能立场
+  3. **permission_to_diverge** - 授权专家挑战需求分析师判断
 
   ### **专家接口构建规则**
 
@@ -191,20 +196,28 @@ task_description_template: |
 
   Phase1已完成交付物识别和信息定性。请基于Phase1结果，执行深度分析：
 
-  **1. L1-L5 分析流程**
+  **1. L1-L9 完整分析流程**
+  - L1.5 第一性原理：剔除风格标签后的裸需求
   - L1 解构：MECE分解用户需求
-  - L2 建模：心理/社会/美学多维度用户画像
-  - L3 杠杆点：识别最尖锐的对立面
+  - L2 建模：心理/社会/美学多维度用户画像  
+  - L2.5 利益相关者系统：权力动态、利益冲突、协同机会
+  - L3 核心张力：展示 vs 私密 / 效率 vs 体验 / 功能 vs 情感
   - L4 JTBD：用户雇佣空间完成什么任务
-  - L5 锐度测试：验证分析质量
+  - L4.5 五层为什淨问：表层原因→行为模式→情感需求→身份认同
+  - L4.6 思想实验：3个假设测试验证需求权重真实排序
+  - L5 锐度验证：专一性/可操作性/深度
+  - L5.R 奇山剈刀检验：防止过度理论化
+  - **L6 假设审计**：至少 3 条假设 + 反假设 + 假设错误影响 + 替代方案
+  - **L7 系统性影响**：必须涵盖短期/中期/长期 × 社会/环境/经济/文化
+  - **L8 反套路化自检**：识别并替换 16 个禁用泛化短语
+  - **L9 多视角对抗合成**：竞争对手/恶魔代言人/10年后用户/局外人专家 四视角收敛肉眼
 
   **2. 结构化输出**
-  - 6个核心字段完整填写
-  - design_challenge 必须揭示核心矛盾
+  - 所有字段严格按照 `RequirementsAnalystOutput` Schema 填写
+  - `narrative_summary` ： 2-4句，含核心矛盾+用户画像+设计机会
+  - `analysis_quality_note`：说明信息充足度和分析置信度来源
 
   **3. 专家接口构建**
   - 为每个专家角色提供关键问题
   - 提供设计挑战的可能立场
   - 授权专家挑战需求分析师判断
-
-  请直接返回JSON格式结果。
