@@ -82,6 +82,9 @@ from ...workflow.nodes.search_query_generator_node import search_query_generator
 #  v7.502 P1优化: 智能上下文压缩器
 from ..context_compressor import create_context_compressor
 
+# ST-3: 节点 Fallback 守卫装饰器
+from ..node_guard import node_guard
+
 
 def _build_motivation_routing_profile(
     project_motivation: Dict[str, Any],
@@ -353,6 +356,7 @@ class RequirementsNodesMixin:
             return END
         return "output_intent_detection"
 
+    @node_guard(fallback={"errors": [], "output_intent_skipped": True})
     def _output_intent_detection_node(self, state: ProjectAnalysisState) -> Command:
         """Step 0: 输出意图确认（主闸门）。"""
         logger.info(" [v11] Executing output intent detection node")
@@ -419,6 +423,7 @@ class RequirementsNodesMixin:
             traceback.print_exc()
             return {"error": str(e), "updated_at": datetime.now().isoformat()}
 
+    @node_guard(fallback={"errors": [], "calibration_skipped": True})
     def _calibration_questionnaire_node(self, state: ProjectAnalysisState) -> Command:
         """
         战略校准问卷节点（旧版单轮问卷）
@@ -428,6 +433,7 @@ class RequirementsNodesMixin:
 
         注意: 不要捕获Interrupt异常!
         Interrupt是LangGraph的正常控制流,必须让它传播到框架层
+        @node_guard 会正确重新抛出 GraphInterrupt，保证交互中断语义不变。
         """
         logger.info("Executing calibration questionnaire node (legacy single-round)")
         return CalibrationQuestionnaireNode.execute(state, self.store)
@@ -435,21 +441,25 @@ class RequirementsNodesMixin:
     #  v7.87: 三步递进式问卷节点函数
 
     #  v7.87: 三步递进式问卷节点函数
+    @node_guard(fallback={"errors": [], "progressive_step1_skipped": True})
     def _progressive_step1_node(self, state: ProjectAnalysisState) -> Command:
         """Step 1: 核心任务拆解与确认"""
         logger.info(" [v7.87 Step 1] Executing progressive questionnaire - Core Task Decomposition")
         return progressive_step1_core_task_node(state, self.store)
 
+    @node_guard(fallback={"errors": [], "progressive_step2_skipped": True})
     def _progressive_step2_node(self, state: ProjectAnalysisState) -> Command:
         """Step 2: 雷达图维度选择"""
         logger.info(" [v7.87 Step 2] Executing progressive questionnaire - Radar Dimension Selection")
         return progressive_step2_radar_node(state, self.store)
 
+    @node_guard(fallback={"errors": [], "progressive_step3_skipped": True})
     def _progressive_step3_node(self, state: ProjectAnalysisState) -> Command:
         """Step 3: 差距填补追问"""
         logger.info(" [v7.87 Step 3] Executing progressive questionnaire - Gap Filling")
         return progressive_step3_gap_filling_node(state, self.store)
 
+    @node_guard(fallback={"errors": [], "questionnaire_summary_skipped": True})
     def _questionnaire_summary_node(self, state: ProjectAnalysisState) -> Command:
         """
          v7.135: 需求洞察节点（需求重构）
