@@ -152,6 +152,163 @@ pytest -m "not llm"
 - ✅ 集成测试 - 测试组件交互
 - ✅ 端到端测试 - 测试完整流程
 
+---
+
+### 4.1 🗂️ 测试文件生命周期管理（强制规范）
+
+> **背景教训**：v8.1.0 发布后，发现 v8.0.0 历史快照中遗留了 40 个失败测试文件（290 个失败用例），全部是针对已废弃接口 / 未实现功能的"设计愿景测试"。每次 `pytest` 都触发干扰，严重污染 CI 信噪比。
+
+#### 📐 测试文件四象限分类
+
+```
+                   |  接口存在  |  接口不存在/已废弃
+-------------------+----------+-------------------
+ 测试通过           |  ✅ 正常  |  ⚠️  立即清查原因
+ 测试失败           |  🔴 必修  |  📦  归档到 _archive
+```
+
+#### 📋 测试文件生命周期规则
+
+**规则 1：测试与实现必须同步发布**
+
+```
+✅ 正确：功能实现 → 测试通过 → 一起提交
+❌ 禁止：测试通过，功能 TODO → 长期堆积"设计愿景测试"
+```
+
+如果需要 TDD 先写测试，**必须**在文件头部加声明：
+
+```python
+"""
+⚠️  TDD ASPIRATIONAL TEST — 功能尚未实现
+实现目标：<简述功能>
+计划版本：vX.Y
+若超过 2 个迭代未实现，执行归档（移至 tests/_archive/）
+"""
+import pytest
+pytestmark = pytest.mark.skip(reason="aspirational: 功能尚未实现，待 vX.Y 落地")
+```
+
+---
+
+**规则 2：架构重构后立即审查测试文件**
+
+每次完成以下操作后，**必须**在当次 PR 中审查并处理受影响的测试：
+
+| 操作类型 | 需要审查的测试范围 |
+|---------|----------------|
+| 删除模块/函数/类 | 所有 import 该符号的测试文件 |
+| 重命名接口 | 所有调用旧接口名的测试文件 |
+| 合并/拆分 Node | 所有引用该 node 名的测试文件 |
+| 修改 State 字段 | 所有依赖该字段的集成/端到端测试 |
+| 冻结 Feature Flag | 依赖该 flag 为 False 的分支测试 |
+
+检查命令（例：删除了 `step3_radar` 方法）：
+```bash
+grep -r "step3_radar" tests/ --include="*.py" -l
+```
+
+---
+
+**规则 3：失败测试不得带入主分支**
+
+```
+PR 合并前检查：pytest tests/ --tb=no -q | tail -1
+结果必须为：X passed, Y skipped（0 failed, 0 errors）
+```
+
+对于**无法立即修复**的失败测试，必须二选一：
+
+| 选项 | 操作 | 适用场景 |
+|------|------|---------|
+| **归档** | `git mv tests/xxx.py tests/_archive/xxx.py` | 测试针对已废弃功能，永久失效 |
+| **跳过** | 在测试函数加 `@pytest.mark.skip(reason="...")` | 功能暂时不可用，后续会修复 |
+
+---
+
+**规则 4：`tests/_archive/` 目录管理**
+
+```
+tests/
+├── unit/            ← 活跃测试（必须全过）
+├── integration/     ← 活跃测试（必须全过）
+├── regression/      ← 活跃测试（必须全过）
+├── e2e/             ← 活跃测试（允许 @slow 标记）
+└── _archive/        ← 历史归档（pytest 不收集此目录）
+    ├── unit/
+    ├── integration/
+    └── regression/
+```
+
+`_archive/` 规则：
+- `pytest.ini` 中 `norecursedirs` 已排除，**不会被自动运行**
+- 文件**不得删除**，保留为历史查阅依据
+- 每个归档文件的第一行应有注释说明归档原因和日期：
+  ```python
+  # ARCHIVED: 2026-03-04 — 针对 v8.0 aspirational TDD，接口从未实现
+  ```
+
+---
+
+**规则 5：定期清理（每季度）**
+
+执行以下命令扫描潜在失效测试：
+```bash
+# 1. 收集所有测试但不运行，发现 import 错误
+pytest tests/ --collect-only -q 2>&1 | grep "ERROR"
+
+# 2. 统计按文件分组的失败数
+pytest tests/ --tb=no -q 2>&1 | grep "FAILED" | cut -d: -f1 | sort | uniq -c | sort -rn
+
+# 3. 检查测试是否引用了已不存在的符号
+grep -r "from intelligent_project_analyzer" tests/ --include="*.py" | \
+  python -c "import sys; [print(l.strip()) for l in sys.stdin if 'DEPRECATED' in l]"
+```
+
+若发现批量失败（同一文件 ≥ 3 个用例失败），**优先归档，不得在 CI 中反复触发**。
+
+---
+
+#### 🚨 典型反模式（禁止）
+
+```python
+# ❌ 反模式1：注释掉失败断言，假装通过
+def test_new_feature():
+    result = new_function()
+    # assert result["key"] == "value"  # TODO: 等功能实现再打开
+    pass  # 这个测试没有任何意义
+
+# ❌ 反模式2：用 try/except 吞掉所有失败
+def test_something():
+    try:
+        assert risky_function() == expected
+    except:
+        pass  # 永远"通过"，毫无价值
+
+# ❌ 反模式3：测试文件堆积但不清理
+# 重构后旧函数已删除，但测试文件仍保留在 tests/unit/ 中
+# 结果：每次 pytest 触发 ImportError，污染输出
+```
+
+#### ✅ 正确模式
+
+```python
+# ✅ 正模式1：功能已废弃，测试归档
+# git mv tests/unit/test_old_feature.py tests/_archive/unit/test_old_feature.py
+# 在文件头加上：# ARCHIVED: 2026-03-04 — old_feature 已被 new_feature 替代
+
+# ✅ 正模式2：功能暂未实现，明确跳过
+@pytest.mark.skip(reason="aspirational: _generate_rule_based_tasks 待 v8.2 实现")
+def test_rule_engine_enabled():
+    ...
+
+# ✅ 正模式3：接口重命名，同步更新测试
+# 重构时：step3_radar → step2_radar
+# 当次 PR 必须同步替换所有测试文件中的旧方法名
+```
+
+
+
 ### 5. 更新文档
 
 修改以下内容时，**必须**同步更新文档：

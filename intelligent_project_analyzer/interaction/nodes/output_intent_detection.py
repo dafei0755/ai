@@ -1410,6 +1410,17 @@ def output_intent_detection_node(state: dict, store=None) -> Command:
 
     ai_modes = confirmed_modes
 
+    # Bug④ fix v9.3: 幂等保护 — 如果 active_projections 已存在且 intent_changed=False，跳过 interrupt
+    existing_projections = state.get("active_projections") or []
+    if existing_projections and not state.get("intent_changed", False):
+        logger.info(f"  ⏭️ [v9.3] 幂等保护: active_projections 已存在 ({existing_projections})，跳过 interrupt")
+        return Command(
+            update={
+                "active_projections": existing_projections,
+                "intent_changed": False,
+            }
+        )
+
     # 构建交付类型选项（显示全部，recommended=confirmed）
     delivery_options = []
     for r in delivery_results:

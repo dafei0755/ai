@@ -785,8 +785,17 @@ def _merge_phase_results(phase1: Dict, phase2: Dict, user_input: str) -> Dict[st
     """合并 Phase1 和 Phase2 结果"""
     structured_output = phase2.get("structured_output", {})
 
+    # Bug① fix v9.3: project_task 可能是 dict（LLM 返回结构化对象），直接对 dict 切片会导致 KeyError
+    _pt_raw = structured_output.get("project_task")
+    if isinstance(_pt_raw, dict):
+        _pt_str = _pt_raw.get("full_statement") or _pt_raw.get("i_want_to") or str(_pt_raw)
+    elif _pt_raw:
+        _pt_str = str(_pt_raw)
+    else:
+        _pt_str = ""
+
     result = {
-        "project_task": structured_output.get("project_task", ""),
+        "project_task": _pt_str,
         "character_narrative": structured_output.get("character_narrative", ""),
         "physical_context": structured_output.get("physical_context", ""),
         "resource_constraints": structured_output.get("resource_constraints", ""),
@@ -799,11 +808,9 @@ def _merge_phase_results(phase1: Dict, phase2: Dict, user_input: str) -> Dict[st
         "project_type_preliminary": phase1.get("project_type_preliminary"),
         "analysis_layers": phase2.get("analysis_layers", {}),
         "expert_handoff": phase2.get("expert_handoff", {}),
-        "project_overview": structured_output.get("project_task", ""),
-        "core_objectives": [structured_output.get("project_task", "")[:100]]
-        if structured_output.get("project_task")
-        else [],
-        "project_tasks": [structured_output.get("project_task", "")] if structured_output.get("project_task") else [],
+        "project_overview": _pt_str,
+        "core_objectives": [_pt_str[:100]] if _pt_str else [],
+        "project_tasks": [_pt_str] if _pt_str else [],
         "motivation_preliminary": phase1.get("motivation_preliminary"),
         "designer_behavioral_motivation": phase1.get("designer_behavioral_motivation"),
         "problem_types": phase1.get("problem_types", []),

@@ -24,10 +24,10 @@ import pytest
 # ---------------------------------------------------------------------------
 # 路径常量
 # ---------------------------------------------------------------------------
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 AGENT_FILE = os.path.join(ROOT, "intelligent_project_analyzer", "agents", "requirements_analyst_agent.py")
 QS_FILE = os.path.join(ROOT, "intelligent_project_analyzer", "interaction", "nodes", "questionnaire_summary.py")
-MW_FILE = os.path.join(ROOT, "intelligent_project_analyzer", "workflow", "main_workflow.py")
+MW_FILE = os.path.join(ROOT, "intelligent_project_analyzer", "workflow", "nodes", "requirements_nodes.py")
 OID_FILE = os.path.join(ROOT, "intelligent_project_analyzer", "interaction", "nodes", "output_intent_detection.py")
 PQ_FILE = os.path.join(ROOT, "intelligent_project_analyzer", "interaction", "nodes", "progressive_questionnaire.py")
 
