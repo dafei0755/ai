@@ -22,13 +22,10 @@ ENABLE_SMART_NODE_SELF_SKIP: bool = os.getenv("ENABLE_SMART_NODE_SELF_SKIP", "fa
 # Shadow 模式：只产生日志与路由画像，不实际跳步。
 ENABLE_SMART_NODE_SELF_SKIP_SHADOW: bool = os.getenv("ENABLE_SMART_NODE_SELF_SKIP_SHADOW", "true").lower() == "true"
 
-# ─── 向后兼容别名（v8.4 过渡期，供外部 import 不立即报错）────────────────────────
-# 这些变量在 v9 中将彻底删除。如果你在代码中看到对它们的引用，请清理掉。
-USE_V716_AGENTS: bool = False  # FROZEN: 永远 false，请勿读取
-USE_V717_REQUIREMENTS_ANALYST: bool = True  # FROZEN: 永远 true，请勿分支
-USE_PROGRESSIVE_QUESTIONNAIRE: bool = True  # FROZEN: 永远 true，请勿分支
-USE_V7_FRONTCHAIN_SEMANTICS: bool = True  # FROZEN: 无代码使用
-USE_MULTI_ROUND_QUESTIONNAIRE: bool = False  # FROZEN: 已停用
+
+# v8.1.1 已删除向后兼容 flag：USE_V716_AGENTS / USE_V717_REQUIREMENTS_ANALYST /
+# USE_PROGRESSIVE_QUESTIONNAIRE / USE_V7_FRONTCHAIN_SEMANTICS / USE_MULTI_ROUND_QUESTIONNAIRE
+# 所有分支均已内联为固定路径，注释遗留引用可忽略。
 
 
 def log_feature_flags_snapshot() -> None:
