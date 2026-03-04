@@ -10,7 +10,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { WebSocketClient } from '@/lib/websocket';
+import { WorkflowRealtimeClient } from '@/lib/workflow-realtime-client';
 import { ProblemSolvingApproach } from '@/types';
 import ProblemSolvingApproachCard from '@/components/ProblemSolvingApproachCard';
 import UcpptSearchProgress, { UcpptSearchPhase } from '@/components/UcpptSearchProgress';
@@ -26,7 +26,7 @@ export default function SearchPageExample() {
 
   useEffect(() => {
     // 创建 WebSocket 连接
-    const wsClient = new WebSocketClient({
+    const wsClient = new WorkflowRealtimeClient({
       url: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000',
       sessionId: 'your-session-id', // 替换为实际的 session_id
       onMessage: (message) => {
