@@ -751,7 +751,7 @@ def output_intent_detection_node(state: dict, store=None) -> Command:
     # 3. 🆕 v11.0: 构建输出意图载荷并 interrupt 等待用户确认（Step 0）
     # -------------------------------------------------------
     confirmed_deliveries = [r for r in delivery_results if r["status"] == "confirmed"]
-    [r for r in delivery_results if r["status"] == "candidate"]
+    candidate_deliveries = [r for r in delivery_results if r["status"] == "candidate"]
 
     # AI 推荐的默认值（confirmed 项）
     ai_projections = [r["id"] for r in confirmed_deliveries]
@@ -809,7 +809,7 @@ def output_intent_detection_node(state: dict, store=None) -> Command:
         active_projections=ai_projections,
         identity_modes=[],
     )
-    _build_recommended_constraints(
+    recommended_constraints_list = _build_recommended_constraints(
         mandatory_dims=_pre_signals.get("mandatory_dimensions", []),
         constraints=_pre_signals.get("constraints", []),
         visual_constraints=visual_constraints,
@@ -859,8 +859,14 @@ def output_intent_detection_node(state: dict, store=None) -> Command:
             "options": delivery_options,
             "max_select": 3,
         },
-        "identity_modes": None,
-        "recommended_constraints": None,
+        "identity_modes": {
+            "message": "身份视角：",
+            "options": mode_options,
+        } if mode_options else None,
+        "recommended_constraints": {
+            "message": "推荐约束维度：",
+            "options": recommended_constraints_list,
+        } if recommended_constraints_list else None,
         # 🆕 v12.0: 附加空间区域和自动检测的约束
         "spatial_zones": extracted_spatial_zones,
         "auto_detected_constraints": visual_constraints if visual_constraints else None,
@@ -885,11 +891,12 @@ def output_intent_detection_node(state: dict, store=None) -> Command:
                 for i, c in enumerate(user_response["user_constraints"])
             ]
         # 🆕 v12.1: 用户保留的视觉参考索引
-        user_response.get("kept_visual_reference_indices")
+        kept_visual_reference_indices = user_response.get("kept_visual_reference_indices") or []
     else:
         selected_deliveries = []
         selected_modes_ids = []
         confirmed_constraints = []
+        kept_visual_reference_indices = []
 
     # 合并 AI 推荐 + 用户覆盖
     active_projections = selected_deliveries if selected_deliveries else ai_projections
@@ -980,6 +987,8 @@ def output_intent_detection_node(state: dict, store=None) -> Command:
             "user_intent_constraints": confirmed_constraints if confirmed_constraints else None,
             # 🆕 v8.3: 标记输出意图已确认
             "output_intent_confirmed": True,
+            # 🆕 v12.1: 用户保留的视觉参考索引
+            "kept_visual_reference_indices": kept_visual_reference_indices if kept_visual_reference_indices else None,
             "detail": f"输出意图检测完成(v12.0): {len(active_projections)}种交付类型, {len(serializable_modes)}种身份模式",
         },
         # 🔧 v8.3: 输出意图确认后直接进入渐进式问卷Step 1（任务梳理）
