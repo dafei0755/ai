@@ -128,6 +128,29 @@ THEORY_TO_LENS: dict[str, LensCategory] = {
 
 
 # ============================================================================
+# 禁用泛化短语（16 个）— Prompt 约束 + AntiClicheCheck 参考清单
+# ============================================================================
+GENERIC_PHRASES: list[str] = [
+    "温馨",  # 过度使用的室内风格词
+    "舒适",  # 缺乏具体性
+    "以人为本",  # 空洞口号
+    "简约而不简单",  # 广告套话
+    "高端大气",  # 品牌套话
+    "精致",  # 无差异表达
+    "有品位",  # 主观泛词
+    "自然",  # 过宽泛
+    "清新",  # 装饰性形容词
+    "优雅",  # 缺乏设计指向
+    "现代感",  # 无方向性
+    "时尚",  # 随时效而变
+    "格调",  # 无可量化指标
+    "生活品质",  # 空泛概念
+    "人文关怀",  # 口号化
+    "情感共鸣",  # 无操作路径
+]
+
+
+# ============================================================================
 # Phase1 结构化输出模型 (v7.600新增)
 # ============================================================================
 
@@ -670,9 +693,7 @@ class RequirementsAnalystOutput(BaseModel):
     )
 
     # L4.6: 思想实验层
-    thought_experiments: ThoughtExperimentSet | None = Field(
-        default=None, description="L4.6 思想实验层（3个如果测试验证需求权重真实排序）"
-    )
+    thought_experiments: ThoughtExperimentSet | None = Field(default=None, description="L4.6 思想实验层（3个如果测试验证需求权重真实排序）")
 
     # L5.R: 奥卡姆剃刀逆向检验
     razor_check: RazorCheck | None = Field(default=None, description="L5.R 奥卡姆剃刀逆向检验（防止过度理论化，也防止过度简化）")
@@ -689,12 +710,51 @@ class RequirementsAnalystOutput(BaseModel):
     # A4: 约束地图（新增）
     constraints_map: ConstraintsMap | None = Field(default=None, description="A4 约束地图（预算/工期/规范/物理/运营全景，v10新增）")
 
+    # ═══════════════════════════════════════════════════════════
+    # 元数据字段（v7.17 P3 规格，供下游专家和前端摘要使用）
+    # ═══════════════════════════════════════════════════════════
+
+    # 叙事摘要（一段面向后续专家的简洁描述）
+    narrative_summary: str | None = Field(
+        default=None,
+        description="叙事摘要：给后续专家看的简洁项目描述（2-4句，含核心矛盾+用户画像+设计机会）",
+        max_length=600,
+    )
+
+    # 项目概览（结构化字段，供 project_director 快速定向）
+    project_overview: dict | None = Field(
+        default=None,
+        description="项目概览：{'project_type', 'scale', 'core_challenge', 'primary_stakeholders'}",
+    )
+
+    # 分析质量自评说明
+    analysis_quality_note: str | None = Field(
+        default=None,
+        description="分析质量自评：说明输入信息充足度、分析置信度来源及主要不确定性（1-3句）",
+        max_length=400,
+    )
+
     # v10 架构语义别名（指向已有字段，供下游消费者使用新键名读取）
     # B4_first_principles  -> first_principles（已有）
     # B5_assumption_audit  -> assumption_audit（已有）
     # C3_thought_experiments -> thought_experiments（已有）
     # A2_stakeholders      -> stakeholder_system（已有）
     # 以上通过 agent _merge 的回退链支持，schema层不新增冗余字段
+
+    @model_validator(mode="after")
+    def validate_assumption_audit_min3(self) -> "RequirementsAnalystOutput":
+        """
+        L6 假设审计至少需要 3 条（cc2026-2 §3.3 规格约束）
+        仅在 assumption_audit 非 None 时执行，Lite 模式下允许为 None。
+        """
+        if self.assumption_audit is not None and len(self.assumption_audit) < 3:
+            import logging as _log
+
+            _log.getLogger(__name__).warning(
+                f"[SchemaWarn] assumption_audit 仅 {len(self.assumption_audit)} 条，"
+                " 低于规范要求的 3 条，已接受但请检查 Prompt 是否注入了最少3条约束"
+            )
+        return self
 
 
 # ============================================================================
