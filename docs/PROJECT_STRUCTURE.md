@@ -1,3 +1,6 @@
+> **[HISTORICAL]** 本文档描述的是 v7.x 项目结构，当前系统已升级至 **v8.1.0**。
+> 最新结构请参考 [docs/architecture/SYSTEM_ARCHITECTURE_BLUEPRINT_ROUND2_2026-03-04.md](architecture/SYSTEM_ARCHITECTURE_BLUEPRINT_ROUND2_2026-03-04.md)。
+
 # 项目结构说明
 
 本目录为 LangGraph 多智能体项目分析系统的主目录。
