@@ -6,19 +6,10 @@ FastAPI 后端服务器
 """
 
 import asyncio
-import io
-import json
-import math  # v7.109: 用于分页诊断日志
-import os
-import re
 import sys
-import uuid
-from collections import OrderedDict, defaultdict
 from contextlib import asynccontextmanager
-from datetime import datetime
 from pathlib import Path
-from types import MethodType
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any, Dict, List, Optional
 
 # 设置输出编码为 UTF-8
 if sys.platform == "win32":
@@ -34,37 +25,13 @@ if sys.platform == "win32":
             except Exception:
                 pass
 
-import time
-from functools import wraps
-
-from fastapi import (
-    BackgroundTasks,
-    Body,
-    Depends,
-    FastAPI,
-    File,
-    Form,
-    HTTPException,
-    Query,
-    Request,
-    UploadFile,
-    WebSocket,
-    WebSocketDisconnect,
-)
+from fastapi import FastAPI, Request, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from loguru import logger
-from pydantic import AliasChoices, BaseModel, ConfigDict, Field
 
 #  v7.120: 初始化生产级日志系统（环境感知配置）
 from intelligent_project_analyzer.config.logging_config import setup_logging
-
-#  导入GeoIP服务（IP地理位置识别）
-from intelligent_project_analyzer.services.geoip_service import get_geoip_service
-
-#  v7.60.4: 导入 ImageAspectRatio 枚举用于类型转换
-from intelligent_project_analyzer.services.image_generator import ImageAspectRatio
 
 setup_logging()
 
@@ -114,9 +81,6 @@ logger.add(
 from intelligent_project_analyzer.api.alert_monitor import alert_monitor, alert_sink
 
 logger.add(alert_sink, level="ERROR")
-from typing import List
-
-from fpdf import FPDF
 
 
 # MT-1 迁移：_parse_aspect_ratio / sync_checkpoint_to_redis / get_current_user /
@@ -135,27 +99,11 @@ from .deps import (  # noqa: E402
 )
 
 
-# HTML PDF 生成器
-from intelligent_project_analyzer.api.html_pdf_generator import HTMLPDFGenerator
-from intelligent_project_analyzer.api.html_pdf_generator import generate_expert_report_pdf as generate_html_pdf
-
 # 添加项目路径
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
 from langgraph.checkpoint.base import BaseCheckpointSaver
-from langgraph.types import Command, Interrupt
-
-#  v3.8新增: 对话智能体
-from intelligent_project_analyzer.agents.conversation_agent import ConversationAgent, ConversationContext
-
-#  v7.15新增: 追问智能体 (LangGraph)
-from intelligent_project_analyzer.agents.followup_agent import FollowupAgent
-from intelligent_project_analyzer.core.state import StateManager
-
-#  v3.7新增: 文件处理服务
-from intelligent_project_analyzer.services.file_processor import build_combined_input, file_processor
-
 #  v3.11新增: 追问历史管理器
 from intelligent_project_analyzer.services.followup_history_manager import FollowupHistoryManager
 
@@ -165,15 +113,9 @@ from intelligent_project_analyzer.services.redis_session_manager import RedisSes
 #  v3.6新增: 会话归档管理器
 from intelligent_project_analyzer.services.session_archive_manager import SessionArchiveManager
 
-#  v7.10新增: WordPress JWT 认证服务
-from intelligent_project_analyzer.services.wordpress_jwt_service import WordPressJWTService
-
 #  使用新的统一配置 - 不再需要load_dotenv()
 from intelligent_project_analyzer.settings import settings
 from intelligent_project_analyzer.workflow.main_workflow import MainWorkflow
-
-# 初始化 JWT 服务
-jwt_service = WordPressJWTService()
 
 
 # � v7.145: Checkpoint 到 Redis 数据同步函数
