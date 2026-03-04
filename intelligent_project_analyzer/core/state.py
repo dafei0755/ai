@@ -89,6 +89,15 @@ def merge_lists(left: List[Any] | None, right: List[Any] | None) -> List[Any]:
     return result
 
 
+def replace_list(left: List[Any] | None, right: List[Any] | None) -> List[Any] | None:
+    """
+    覆盖式列表 reducer：右值直接替换左值（不合并去重）
+
+    适用于每次必须整体刷新的列表字段，如任务列表、快照等。
+    """
+    return right if right is not None else left
+
+
 def take_max_timestamp(left: str, right: str) -> str:
     """
     时间戳 reducer：选择较大的时间戳
@@ -248,14 +257,18 @@ class ProjectAnalysisState(TypedDict):
     progressive_questionnaire_completed: bool | None  # 是否完成
 
     # Step 1: 任务梳理
-    extracted_core_tasks: Annotated[List[Dict[str, Any]] | None, merge_lists]
-    confirmed_core_tasks: Annotated[List[Dict[str, Any]] | None, merge_lists]
+    extracted_core_tasks: Annotated[List[Dict[str, Any]] | None, replace_list]  # v8.1: 覆盖写
+    confirmed_core_tasks: Annotated[List[Dict[str, Any]] | None, replace_list]  # v8.1: 覆盖写
     core_task_summary: str | None
     confirmed_core_task: str | None  # 兼容旧字段
     extracted_core_task: str | None  # 兼容旧字段
     poetic_metadata: Dict[str, Any] | None
     special_scene_metadata: Dict[str, Any] | None
     step1_boundary_check: Any | None
+    #  v8.1: 任务梳理快照与质量校验
+    step1_confirmed_tasks_snapshot: Annotated[List[Dict[str, Any]] | None, replace_list]  # 用户确认后的任务快照
+    step1_quality_warnings: List[str] | None  # 软质量校验警告
+    task_calibration_review: Dict[str, Any] | None  # 任务校准复盘（questionnaire_summary填充）
 
     # Step 2: 信息补全 (Gap Filling)
     # LT-3: gap_filling_answers 已合并到 questionnaire_responses["gap_filling_answers"]（删除独立字段）
@@ -263,9 +276,7 @@ class ProjectAnalysisState(TypedDict):
     task_gap_filling_questionnaire: Dict[str, Any] | None
 
     # Step 3: 雷达图 (Radar)
-    selected_dimensions: Annotated[
-        List[Dict[str, Any]] | None, merge_lists
-    ]  # 关键：questionnaire_summary 读取此字段 ( v7.151)
+    selected_dimensions: Annotated[List[Dict[str, Any]] | None, merge_lists]  # 关键：questionnaire_summary 读取此字段 ( v7.151)
     selected_radar_dimensions: List[Dict[str, Any]] | None  # Step 2 输出
     radar_dimension_values: Dict[str, Any] | None
     radar_analysis_summary: Dict[str, Any] | None
@@ -539,6 +550,31 @@ class ProjectAnalysisState(TypedDict):
 
     output_intent_confirmed: bool | None
     """输出意图是否已确认。"""
+
+    # ── v10.1/v11.0/v12.0/v12.1 output_intent_detection 写入字段 ────────────
+    detected_identity_modes: List[Dict[str, Any]] | None
+    """确认的身份模式列表，由 output_intent_detection 写入后供问卷步骤消费。"""
+
+    output_framework_signals: Dict[str, Any] | None
+    """v10.1 通用框架信号 (scope/constraints/mandatory_dimensions/output_calibration/audience_needs)。"""
+
+    output_intent_payload: Dict[str, Any] | None
+    """兼容字段 (deprecated v11.0)，interrupt 后置 None，保留字段避免反序列化报错。"""
+
+    intent_changed: bool | None
+    """用户选择是否偏离 AI 推荐，用于下游个性化提示语调整。"""
+
+    visual_constraints: Dict[str, Any] | None
+    """v12.0 视觉参考图片提取的约束信封 (constraint_envelope + 元数据)。"""
+
+    extracted_spatial_zones: List[Dict[str, Any]] | None
+    """v12.0 从需求文本/图片提取的空间区域列表 [{zone_id, zone_name, area_ratio, ...}]。"""
+
+    user_intent_constraints: List[Dict[str, Any]] | None
+    """v12.1 用户在意图确认步骤手动确认或添加的约束条目列表。"""
+
+    kept_visual_reference_indices: List[int] | None
+    """v12.1 用户保留的视觉参考图片索引列表（0-based），供后续节点裁剪图片集合。"""
 
     # 元数据
     metadata: Dict[str, Any]
