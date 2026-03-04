@@ -1402,7 +1402,7 @@ class HTMLPDFGenerator:
         # parts 格式: ['前缀', '1', '内容1', '2', '内容2', ...]
         i = 1
         while i < len(parts) - 1:
-            num = parts[i]
+            parts[i]
             content = parts[i + 1].strip() if i + 1 < len(parts) else ""
             if content:
                 items.append(content)

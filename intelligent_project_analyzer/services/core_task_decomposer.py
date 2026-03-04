@@ -539,7 +539,7 @@ async def decompose_core_tasks(
     logger.info(f"   分析依据: {complexity_analysis['reasoning']}")
 
     # 构建 prompt（传入智能计算的任务数量）
-    prompt = decomposer.build_prompt(user_input, structured_data, task_count_range=(recommended_min, recommended_max))
+    decomposer.build_prompt(user_input, structured_data, task_count_range=(recommended_min, recommended_max))
 
     # 如果没有提供 LLM，使用默认
     if llm is None:
@@ -649,11 +649,10 @@ def _simple_fallback_decompose(
 
     # 从结构化数据中提取关键信息
     design_challenge = ""
-    character_narrative = ""
     project_type = ""
     if structured_data:
         design_challenge = structured_data.get("design_challenge", "")
-        character_narrative = structured_data.get("character_narrative", "")
+        structured_data.get("character_narrative", "")
         project_type = structured_data.get("project_type", "")
         logger.info(f" [Fallback] 提取到结构化数据: design_challenge={bool(design_challenge)}, project_type={project_type}")
 

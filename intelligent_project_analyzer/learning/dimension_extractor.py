@@ -155,7 +155,7 @@ class DimensionExtractor:
 
         # 从问题中提取维度
         how_questions = pattern_matches.get("how_questions", [])
-        whether_questions = pattern_matches.get("whether_questions", [])
+        pattern_matches.get("whether_questions", [])
 
         for question in how_questions[:3]:  # 限制数量
             # 简单启发式：从问题中提取关键词作为维度名

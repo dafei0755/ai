@@ -29,7 +29,7 @@ def test_yaml_syntax():
         file_path = os.path.join(project_root, yaml_file)
         try:
             with open(file_path, encoding='utf-8') as f:
-                data = yaml.safe_load(f)
+                yaml.safe_load(f)
             print(f" {os.path.basename(yaml_file)} - 语法正确")
         except yaml.YAMLError as e:
             print(f" {os.path.basename(yaml_file)} - YAML错误: {e}")

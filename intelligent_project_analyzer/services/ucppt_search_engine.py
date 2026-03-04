@@ -12486,8 +12486,8 @@ L3张力: {json.dumps(analysis_excerpt["l3_tension"], ensure_ascii=False)[:300]}
 ## 输出格式（JSON）
 ```json
 {{
-    {"\"retrospective\": {" if current_round > 1 else "\"initial_assessment\": {"}
-        {"\"goal_achieved\": true," if current_round > 1 else ""}
+    {'"retrospective": {' if current_round > 1 else '"initial_assessment": {'}
+        {'"goal_achieved": true,' if current_round > 1 else ''}
         "key_findings": ["发现1", "发现2"],
         "inferred_insights": ["推断洞察1"],
         "info_sufficiency": 0.7,

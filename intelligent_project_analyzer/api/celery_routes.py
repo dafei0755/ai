@@ -22,7 +22,6 @@ try:
         analyze_project_with_files,
         get_queue_length,
         get_task_status,
-        resume_analysis,
     )
 
     CELERY_AVAILABLE = True

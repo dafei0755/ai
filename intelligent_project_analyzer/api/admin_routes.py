@@ -2401,11 +2401,11 @@ async def get_capability_boundary_stats(
         # 计算时间范围
         now = datetime.now()
         if time_range == "24h":
-            start_time = now - timedelta(hours=24)
+            now - timedelta(hours=24)
         elif time_range == "7d":
-            start_time = now - timedelta(days=7)
+            now - timedelta(days=7)
         else:  # 30d
-            start_time = now - timedelta(days=30)
+            now - timedelta(days=30)
 
         # 模拟数据 - 实际应从数据库查询
         violations = [

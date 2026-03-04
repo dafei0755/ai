@@ -50,7 +50,7 @@ def deliverable_id_generator_node(state: Dict[str, Any]) -> Dict[str, Any]:
     # 1. 从state中提取必要信息
     strategic_analysis = state.get("strategic_analysis", {})
     selected_roles = strategic_analysis.get("selected_roles", [])
-    session_id = state.get("session_id", "unknown")
+    state.get("session_id", "unknown")
 
     #  v7.121: 读取用户需求上下文
     user_input = state.get("user_input", "")

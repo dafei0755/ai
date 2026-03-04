@@ -380,7 +380,7 @@ class AnalysisReviewNode:
             if isinstance(affected_sections, str):
                 affected_sections = [affected_sections]
             for section in affected_sections:
-                section_lower = section.lower() if isinstance(section, str) else ""
+                section.lower() if isinstance(section, str) else ""
                 # 匹配 V2-V6 格式
                 pattern = r"(V[2-6])"
                 matches = re.findall(pattern, section, re.IGNORECASE)
@@ -583,7 +583,7 @@ class AnalysisReviewNode:
         """
         red_review = review_result.get("red_team_review", {})
         blue_review = review_result.get("blue_team_review", {})
-        judge_review = review_result.get("judge_review", {})
+        review_result.get("judge_review", {})
         client_review = review_result.get("client_review", {})
         final_decision = review_result.get("final_decision", {})
 
@@ -631,7 +631,7 @@ class AnalysisReviewNode:
         blue_review = review_result.get("blue_team_review", {})
         judge_review = review_result.get("judge_review", {})
         client_review = review_result.get("client_review", {})
-        final_ruling = review_result.get("final_ruling", "")
+        review_result.get("final_ruling", "")
 
         logger.info(f"\n{'='*80}")
         logger.info(" 递进式审核摘要")

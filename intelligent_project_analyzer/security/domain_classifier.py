@@ -318,7 +318,7 @@ class DomainClassifier:
             return override_result
 
         text = user_input.lower()
-        input_length = len(user_input)
+        len(user_input)
 
         # ==================== 简单任务特征 ====================
         simple_patterns = {

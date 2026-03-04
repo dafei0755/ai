@@ -116,7 +116,7 @@ class QuestionAdjuster:
         # 评分：理念问题
         for pq in philosophy_questions:
             dimension = pq.get("dimension", "unknown")
-            q_id = pq.get("id", "")
+            pq.get("id", "")
 
             # 根据dimension和冲突严重性动态调整分数
             if dimension == "philosophy":

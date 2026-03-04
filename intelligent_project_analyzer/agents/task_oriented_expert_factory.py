@@ -850,7 +850,7 @@ class TaskOrientedExpertFactory:
         # 执行搜索（允许 LLM 自主决定调用哪些工具）
         try:
             logger.info(f" [v7.175] {role_id} 开始执行LLM自主搜索...")
-            response = await llm_with_tools.ainvoke(messages)
+            await llm_with_tools.ainvoke(messages)
             logger.info(f" [v7.175] {role_id} 搜索执行完成")
         except Exception as e:
             logger.error(f" [v7.175] {role_id} 搜索执行失败: {e}")

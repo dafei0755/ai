@@ -24,7 +24,7 @@ def sync_archdaily_incremental(days: int = 7):
         from ..spiders import get_spider_manager
 
         manager = get_spider_manager()
-        db = get_external_db()
+        get_external_db()
 
         last_sync = _get_last_sync_time("archdaily")
         logger.info(f"上次同步: {last_sync}")
@@ -61,7 +61,7 @@ def sync_gooood_incremental(days: int = 7):
         from ..spiders import get_spider_manager
 
         manager = get_spider_manager()
-        db = get_external_db()
+        get_external_db()
 
         last_sync = _get_last_sync_time("gooood")
         logger.info(f"上次同步: {last_sync}")

@@ -496,7 +496,7 @@ class CapabilityBoundaryService:
 
         # 应用转化（简单的文本替换）
         for trans in check_result.transformations_needed:
-            original = trans.get("original", "")
+            trans.get("original", "")
             transformed = trans.get("transformed_to", "")
 
             # 查找并替换关键词

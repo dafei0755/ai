@@ -78,7 +78,7 @@ def test_cookie_injection():
 
         # 创建不启用自动登录的配置
         config = CrawlerConfig(use_login=False)
-        crawler = ArchdailyCrawler(config=config, category="residential")
+        ArchdailyCrawler(config=config, category="residential")
 
         # 模拟Cookie注入（实际使用时需要浏览器获取真实Cookie）
         logger.info("💡 Cookie注入示例（需要浏览器手动获取）:")

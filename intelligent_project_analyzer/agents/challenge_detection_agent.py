@@ -144,7 +144,7 @@ def classify_challenges_node(state: ChallengeDetectionState) -> Dict[str, Any]:
     
     for challenge in raw_challenges:
         content = str(challenge.get("content", "")).lower()
-        challenge_type = challenge.get("type", "unknown")
+        challenge.get("type", "unknown")
         
         # 分类规则
         severity = "low"

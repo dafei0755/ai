@@ -178,7 +178,7 @@ def retrieve_context_node(state: FollowupAgentState) -> Dict[str, Any]:
     从报告中提取相关章节
     """
     report_context = state.get("report_context", {})
-    question = state.get("question", "")
+    state.get("question", "")
     
     sections = []
     
@@ -226,7 +226,7 @@ def generate_answer_node(state: FollowupAgentState) -> Dict[str, Any]:
     from ..services.llm_factory import LLMFactory
     
     question = state.get("question", "")
-    intent = state.get("intent", "general")
+    state.get("intent", "general")
     intent_prompt = state.get("intent_prompt", "")
     relevant_sections = state.get("relevant_sections", [])
     conversation_history = state.get("conversation_history", [])

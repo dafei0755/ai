@@ -13,7 +13,6 @@ from loguru import logger
 
 try:
     from langchain_core.callbacks import BaseCallbackHandler
-    from langchain_core.outputs import LLMResult
 except ImportError:
     logger.warning("LangChain callbacks not available")
     BaseCallbackHandler = object

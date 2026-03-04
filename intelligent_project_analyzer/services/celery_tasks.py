@@ -517,10 +517,9 @@ async def _resume_workflow(task, session_id: str, resume_value: Any) -> Dict[str
         workflow = MainWorkflow()
         workflow.build()
 
-        config = {"configurable": {"thread_id": session_id}, "recursion_limit": 100}
 
         # 使用 Command 恢复执行
-        resume_command = Command(resume=resume_value)
+        Command(resume=resume_value)
 
         # 继续执行
         # 注意：实际实现可能需要检查点机制来完整恢复状态

@@ -16,7 +16,7 @@ except ImportError as e:
     print(f"Failed to import langgraph: {e}")
 
 try:
-    from langgraph.prebuilt import create_react_agent
+    from langgraph.prebuilt import create_react_agent  # noqa: F401
     print("Success: imported create_react_agent")
 except ImportError as e:
     print(f"Error: {e}")

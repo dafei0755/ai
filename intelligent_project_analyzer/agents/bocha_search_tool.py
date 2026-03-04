@@ -695,7 +695,7 @@ class BochaSearchTool:
         """标准化微信视频号搜索结果"""
         try:
             object_desc = item.get("objectDesc", {})
-            media = object_desc.get("media", [{}])[0] if object_desc.get("media") else {}
+            object_desc.get("media", [{}])[0] if object_desc.get("media") else {}
 
             feed_id = item.get("id", "")
             desc = object_desc.get("description", "")

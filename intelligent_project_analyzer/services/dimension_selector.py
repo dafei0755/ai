@@ -853,7 +853,7 @@ class DimensionSelector:
 
         # 遍历推理规则
         for rule in inference_rules:
-            rule_id = rule.get("rule_id", "")
+            rule.get("rule_id", "")
             question_keywords = rule.get("question_keywords", [])
             dimension_id = rule.get("dimension_id", "")
             answer_patterns = rule.get("answer_patterns", [])

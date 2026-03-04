@@ -105,7 +105,7 @@ class RoleSelectionQualityReviewNode:
         critical_issues = review_result.get("critical_issues", [])
         warnings = review_result.get("warnings", [])
         strengths = review_result.get("strengths", [])
-        overall_assessment = review_result.get("overall_assessment", "")
+        review_result.get("overall_assessment", "")
 
         # 记录审核摘要
         cls._log_review_summary(review_result)

@@ -1115,7 +1115,7 @@ class RequirementsAnalystAgent(LLMAgent):
         # 如果有预检测结果，优先使用
         if capability_precheck:
             info_suff = capability_precheck.get("info_sufficiency", {})
-            deliv_cap = capability_precheck.get("deliverable_capability", {})
+            capability_precheck.get("deliverable_capability", {})
             capable_deliverables = capability_precheck.get("capable_deliverables", [])
             transformations = capability_precheck.get("transformations", [])
             

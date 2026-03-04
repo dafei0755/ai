@@ -2636,7 +2636,7 @@ class ResultAggregatorAgent(LLMAgent):
             logger.info(f" 提取 {deliverable_id} 答案: owner={owner_role}, 长度={len(owner_answer)}")
 
         # 2. 构建专家支撑链（非owner专家的贡献）
-        active_agents = state.get("active_agents", [])
+        state.get("active_agents", [])
         for role_id in agent_results.keys():
             # 跳过需求分析师、项目总监和已作为owner的专家
             if role_id in ["requirements_analyst", "project_director"]:

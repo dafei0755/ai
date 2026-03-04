@@ -536,7 +536,7 @@ class ArxivSearchTool:
         try:
             # 简单测试搜索
             test_search = arxiv.Search(query="test", max_results=1)
-            test_results = list(self.client.results(test_search))
+            list(self.client.results(test_search))
             return True
         except Exception as e:
             logger.error(f"Arxiv tool availability check failed: {str(e)}")

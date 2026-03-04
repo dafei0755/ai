@@ -372,13 +372,11 @@ async def suggest_image_prompts(session_id: str, expert_name: str):
 
         # 查找专家报告
         expert_content = None
-        expert_dynamic_name = expert_name
 
         for key, value in expert_reports.items():
             # 匹配专家名称（支持多种格式）
             if expert_name in key or key in expert_name:
                 expert_content = value
-                expert_dynamic_name = key
                 break
 
         if not expert_content:
@@ -1029,7 +1027,7 @@ async def regenerate_concept_image(
         from intelligent_project_analyzer.services.redis_session_manager import RedisSessionManager
 
         # 获取会话状态
-        session_manager = RedisSessionManager()
+        RedisSessionManager()
         state = _server.session_manager.get_state(session_id)
 
         if not state:

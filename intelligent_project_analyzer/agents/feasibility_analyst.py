@@ -258,7 +258,7 @@ class CostCalculator:
             (min_cost, typical_cost, max_cost)
         """
         # 关键词匹配
-        keywords = self.standards.get("cost_keywords", {})
+        self.standards.get("cost_keywords", {})
 
         total_min = 0
         total_typical = 0

@@ -445,7 +445,7 @@ def _fallback_generate(user_input: str, structured_data: Dict[str, Any]) -> Dict
     logger.info(" 使用回退问卷生成方案")
 
     # 基于项目类型生成基础问题
-    project_type = structured_data.get("project_type", "personal_residential")
+    structured_data.get("project_type", "personal_residential")
 
     questions = [
         {

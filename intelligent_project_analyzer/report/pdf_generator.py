@@ -13,13 +13,12 @@ from loguru import logger
 
 try:
     from reportlab.lib import colors
-    from reportlab.lib.enums import TA_CENTER, TA_JUSTIFY, TA_LEFT, TA_RIGHT
-    from reportlab.lib.pagesizes import A4, letter
+    from reportlab.lib.enums import TA_CENTER, TA_JUSTIFY
+    from reportlab.lib.pagesizes import A4
     from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
     from reportlab.lib.units import cm, inch
     from reportlab.pdfbase import pdfmetrics
     from reportlab.pdfbase.cidfonts import UnicodeCIDFont
-    from reportlab.pdfbase.pdfmetrics import registerFontFamily
     from reportlab.pdfbase.ttfonts import TTFont
     from reportlab.platypus import (
         PageBreak,
@@ -432,7 +431,7 @@ class PDFGeneratorAgent(BaseAgent):
 
         # 遍历sections列表
         for idx, section in enumerate(sections, start=2):
-            section_id = section.get("section_id", "unknown")
+            section.get("section_id", "unknown")
             title = section.get("title", "未知章节")
             content = section.get("content", "")
             confidence = section.get("confidence", 0)

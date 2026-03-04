@@ -415,7 +415,7 @@ async def start_analysis_with_files(
             file_meta = metadata_by_filename.get(file.filename, {})
             categories = file_meta.get("categories", [])
             custom_description = file_meta.get("custom_description", "")
-            is_image = file_meta.get(
+            file_meta.get(
                 "is_image", file.content_type in ["image/png", "image/jpeg", "image/jpg", "image/webp"]
             )
 
@@ -1800,7 +1800,6 @@ async def get_analysis_report(session_id: str):
                     logger.info(f" 解析到 {len(responses_list)} 条问卷回答")
 
             #  Phase 1.4+ v4.1: 解析洞察区块 - 已废弃（改用需求分析师的原始输出）
-            insights_data = None
             # insights_raw = final_report.get("insights")
             # if insights_raw:
             #     # 支持 Pydantic 对象和 dict 两种格式

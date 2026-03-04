@@ -214,9 +214,9 @@ class UserSessionManager:
         
         # 获取现有进度
         try:
-            existing = await self._session_manager.redis_client.hgetall(key)
+            await self._session_manager.redis_client.hgetall(key)
         except:
-            existing = {}
+            pass
         
         # 更新字段
         update_data = {

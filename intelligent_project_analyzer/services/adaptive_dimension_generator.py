@@ -103,13 +103,12 @@ class AdaptiveDimensionGenerator:
         if isinstance(result, dict):
             base_dimensions = result.get("dimensions", [])
             conflicts = result.get("conflicts", [])
-            adjustment_suggestions = result.get("adjustment_suggestions", [])
+            result.get("adjustment_suggestions", [])
             self.logger.info(f"[AdaptiveDimGen] v7.139格式: 维度={len(base_dimensions)}, 冲突={len(conflicts)}")
         else:
             # 向后兼容旧版本的列表返回格式
             base_dimensions = result
             conflicts = []
-            adjustment_suggestions = []
             self.logger.info("[AdaptiveDimGen] 使用旧版本列表格式（向后兼容）")
 
         # 标记来源

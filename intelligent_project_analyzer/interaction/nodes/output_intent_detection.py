@@ -1400,7 +1400,7 @@ def output_intent_detection_node(state: dict, store=None) -> Command:
     # 3. 🆕 v11.0: 构建输出意图载荷并 interrupt 等待用户确认（Step 0）
     # -------------------------------------------------------
     confirmed_deliveries = [r for r in delivery_results if r["status"] == "confirmed"]
-    candidate_deliveries = [r for r in delivery_results if r["status"] == "candidate"]
+    [r for r in delivery_results if r["status"] == "candidate"]
 
     # AI 推荐的默认值（confirmed 项）
     ai_projections = [r["id"] for r in confirmed_deliveries]
@@ -1458,7 +1458,7 @@ def output_intent_detection_node(state: dict, store=None) -> Command:
         active_projections=ai_projections,
         identity_modes=[],
     )
-    recommended_constraints = _build_recommended_constraints(
+    _build_recommended_constraints(
         mandatory_dims=_pre_signals.get("mandatory_dimensions", []),
         constraints=_pre_signals.get("constraints", []),
         visual_constraints=visual_constraints,
@@ -1534,12 +1534,11 @@ def output_intent_detection_node(state: dict, store=None) -> Command:
                 for i, c in enumerate(user_response["user_constraints"])
             ]
         # 🆕 v12.1: 用户保留的视觉参考索引
-        kept_visual_ref_indices = user_response.get("kept_visual_reference_indices")
+        user_response.get("kept_visual_reference_indices")
     else:
         selected_deliveries = []
         selected_modes_ids = []
         confirmed_constraints = []
-        kept_visual_ref_indices = None
 
     # 合并 AI 推荐 + 用户覆盖
     active_projections = selected_deliveries if selected_deliveries else ai_projections

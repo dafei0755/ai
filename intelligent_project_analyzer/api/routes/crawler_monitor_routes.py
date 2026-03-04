@@ -1550,7 +1550,7 @@ def _build_quality_export(
 
         lines.append("=" * 100)
         lines.append(f"--- 结束 ({len(projects)} 条) ---")
-        total = len(projects)
+        len(projects)
 
     content = "\n".join(lines)
 

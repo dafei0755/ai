@@ -75,7 +75,6 @@ class BatchScheduler:
             ValueError: 如果依赖的角色未在selected_roles中找到
         """
         dependency_graph = {}
-        missing_dependencies = []
 
         for role_id in selected_roles:
             # 提取基础类型 (V3, V4, V5, V2, V6)

@@ -203,7 +203,7 @@ async def redis_health_check():
 
         # 测试 Read
         read_start = time.time()
-        data = await _server.session_manager.get(test_id)
+        await _server.session_manager.get(test_id)
         read_time = (time.time() - read_start) * 1000
 
         # 测试 Update

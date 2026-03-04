@@ -202,7 +202,7 @@ class RoleSelectionReviewNode:
                 # 新格式：RoleObject
                 if isinstance(role, dict):
                     role_id = role.get('role_id', '')
-                    role_name = role.get('role_name', '')
+                    role.get('role_name', '')
                     dynamic_role_name = role.get('dynamic_role_name', '')
                     tasks = role.get('tasks', [])
                     focus_areas = role.get('focus_areas', [])
@@ -211,7 +211,6 @@ class RoleSelectionReviewNode:
                 else:
                     # Pydantic BaseModel
                     role_id = role.role_id
-                    role_name = role.role_name
                     dynamic_role_name = role.dynamic_role_name
                     tasks = role.tasks
                     focus_areas = role.focus_areas

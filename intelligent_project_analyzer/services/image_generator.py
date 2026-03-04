@@ -521,7 +521,7 @@ Generate the structured English image prompt:"""
         # 提取英文词汇
         english_words = re.findall(r"[a-zA-Z]+", visual_brief)[:10]
         # 提取中文关键词并简化
-        chinese_keywords = re.findall(r"[\u4e00-\u9fff]{2,4}", visual_brief)[:10]
+        re.findall(r"[\u4e00-\u9fff]{2,4}", visual_brief)[:10]
 
         prompt = f"{style_anchor}, {' '.join(english_words)}, professional design visualization, {quality_suffix}"
 

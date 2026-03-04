@@ -142,7 +142,7 @@ class PerformanceMonitor:
             list: 慢请求列表
         """
         with self.lock:
-            all_metrics = [m for ms in self.metrics.values() for m in ms]
+            [m for ms in self.metrics.values() for m in ms]
 
             # 筛选慢请求并按耗时排序
             slow_requests = [

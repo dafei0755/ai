@@ -820,6 +820,7 @@ class BochaAISearchService:
             whitelist_marker = "⭐ [权威来源]" if source.is_whitelisted else ""
             date_info = f"发布时间：{source.date_published}" if source.date_published else ""
 
+            _detail_section = ("**详细内容：**\n" + source.summary) if source.summary and len(source.summary) > len(source.snippet) else ""
             part = f"""### 【来源 {source.reference_number}】{source.title} {whitelist_marker}
 - 网站：{source.site_name}
 - 链接：{source.url}
@@ -828,7 +829,7 @@ class BochaAISearchService:
 **内容摘要：**
 {source.snippet}
 
-{f"**详细内容：**\n{source.summary}" if source.summary and len(source.summary) > len(source.snippet) else ""}
+{_detail_section}
 """
             context_parts.append(part)
 

@@ -58,7 +58,7 @@ class FallbackQuestionGenerator:
         domain = extracted_info.get("domain", {})
         core_concepts = extracted_info.get("core_concepts", [])
         keywords = extracted_info.get("keywords", [])
-        question_focus = extracted_info.get("question_focus", [])
+        extracted_info.get("question_focus", [])
 
         project_task = str(structured_data.get("project_task", "")).strip()
         character_narrative = str(structured_data.get("character_narrative", "")).strip()
@@ -67,11 +67,11 @@ class FallbackQuestionGenerator:
         resource_constraints = str(structured_data.get("resource_constraints", "")).strip()
         project_type = str(structured_data.get("project_type", "")).strip()
 
-        short_task = (
+        (
             project_task[:120] + ("..." if len(project_task) > 120 else "")
             if project_task else "当前项目"
         )
-        tension_hint = (
+        (
             core_tension[:120] + ("..." if len(core_tension) > 120 else "")
             if core_tension else "展示与体验、功能与情绪之间的权衡"
         )
@@ -165,8 +165,8 @@ class FallbackQuestionGenerator:
 
         #  v7.4: 基于领域识别
         is_tech = domain.get("type") == "tech_innovation"
-        is_hospitality = domain.get("type") == "hospitality"
-        is_office = domain.get("type") == "office"
+        domain.get("type") == "hospitality"
+        domain.get("type") == "office"
 
         #  生成完整的7-10个问题（按照YAML要求）
         questions = []

@@ -41,10 +41,10 @@ def test_crawler_init():
 
     config = CrawlerConfig(max_projects=3)
 
-    archdaily = ArchdailyCrawler(config=config, category="residential")
+    ArchdailyCrawler(config=config, category="residential")
     logger.success("   ✅ Archdaily爬虫初始化成功")
 
-    gooood = GoooodCrawler(config=config, category="residential")
+    GoooodCrawler(config=config, category="residential")
     logger.success("   ✅ Gooood爬虫初始化成功")
 
 

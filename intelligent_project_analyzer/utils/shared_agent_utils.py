@@ -192,7 +192,7 @@ def classify_challenges(
     for challenge in raw_challenges:
         # 根据关键词判断严重程度
         rationale = challenge.get("rationale", "").lower()
-        challenged_item = challenge.get("challenged_item", "").lower()
+        challenge.get("challenged_item", "").lower()
         
         if any(kw in rationale for kw in ["严重", "关键", "必须", "安全"]):
             challenge["severity"] = "high"

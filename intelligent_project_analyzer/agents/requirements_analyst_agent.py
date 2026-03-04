@@ -269,7 +269,6 @@ def phase1_node(state: RequirementsAnalystState, llm_model, prompt_manager) -> D
                 deliv_type = deliv.get("type", "")
 
                 # 查找是否需要转化
-                needs_transform = False
                 for check in boundary_check.deliverable_checks:
                     if not check.within_capability and check.original_type == deliv_type:
                         # 应用转化
@@ -277,7 +276,6 @@ def phase1_node(state: RequirementsAnalystState, llm_model, prompt_manager) -> D
                         deliv["capability_transformed"] = True
                         deliv["original_type"] = check.original_type
                         deliv["transformation_reason"] = check.transformation_reason
-                        needs_transform = True
                         logger.info(f"     - D{i+1}: '{check.original_type}' → '{check.transformed_type}'")
                         break
 

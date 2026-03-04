@@ -459,7 +459,7 @@ class TavilySearchTool:
         """
         try:
             # 简单测试搜索
-            test_response = self.client.search(query="test", max_results=1, search_depth="basic")
+            self.client.search(query="test", max_results=1, search_depth="basic")
             return True
         except Exception as e:
             logger.error(f"Tavily tool availability check failed: {str(e)}")

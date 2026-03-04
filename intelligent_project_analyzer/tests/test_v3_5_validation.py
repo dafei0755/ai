@@ -182,7 +182,7 @@ def test_workflow_integration():
         from intelligent_project_analyzer.workflow.main_workflow import MainWorkflow
         
         # 验证MainWorkflow包含新方法
-        methods = [method for method in dir(MainWorkflow) if not method.startswith('_')]
+        [method for method in dir(MainWorkflow) if not method.startswith('_')]
         
         # 检查内部方法
         source = inspect.getsource(MainWorkflow)

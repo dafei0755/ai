@@ -232,7 +232,7 @@ class BaseAgent(ABC):
         logger.error(error_message)
 
         # 创建 SystemError dataclass 用于记录（但不用于 raise）
-        system_error = SystemError(
+        SystemError(
             error_type=ErrorType.AGENT_ERROR,
             message=error_message,
             details={

@@ -324,7 +324,6 @@ class QuestionnaireSummaryNode:
 
         has_major_modification = total_diff_chars >= 50
         has_minor_modification = 0 < total_diff_chars < 50
-        no_modification = total_diff_chars == 0
 
         logger.info(f" [需求洞察] 修改分析: 差异字符数={total_diff_chars}, 重大修改={has_major_modification}")
 
@@ -543,7 +542,7 @@ class QuestionnaireSummaryNode:
         baseline = snapshot or current_tasks or []
         baseline_ids = {t.get("id") for t in baseline if t.get("id")}
         baseline_titles = {t.get("title", "").strip().lower() for t in baseline}
-        current_ids = {t.get("id") for t in corrected if t.get("id")}
+        {t.get("id") for t in corrected if t.get("id")}
 
         # 增加：在 corrected 中但不在 baseline 中的任务
         added_items = []
