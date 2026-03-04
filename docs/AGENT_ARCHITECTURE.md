@@ -1,8 +1,12 @@
+> **[HISTORICAL]** 本文档描述的是 v7.117.0 架构，当前系统已升级至 **v8.1.0**。
+> 最新架构请参考 [docs/architecture/SYSTEM_ARCHITECTURE_BLUEPRINT_ROUND2_2026-03-04.md](architecture/SYSTEM_ARCHITECTURE_BLUEPRINT_ROUND2_2026-03-04.md)。
+> 此文档保留为历史参考，请勿直接用于指导开发决策。
+
 # 🏗️ Agent 架构文档
 
 **版本**: v7.117.0
 **最后更新**: 2026-01-02
-**状态**: ✅ 生产就绪 + 🆕 能力边界检查机制
+**状态**: ✅ 生产就绪 + 🆕 能力边界检查机制 — **已归档**，参考价値但请以 v8.1.0 为准
 
 ---
 
