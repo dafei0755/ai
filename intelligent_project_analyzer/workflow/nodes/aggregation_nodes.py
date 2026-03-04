@@ -29,7 +29,6 @@ from ...agents.base import NullLLM
 from ...agents.dynamic_project_director import detect_and_handle_challenges_node  # v3.5
 from ...agents.feasibility_analyst import FeasibilityAnalystAgent  # V1.5可行性分析师
 from ...agents.quality_monitor import QualityMonitor
-from ...config.feature_flags import USE_V718_QUESTIONNAIRE_AGENT
 from ...core.state import AnalysisStage, ProjectAnalysisState, StateManager
 from ...core.types import AgentType, format_role_display_name
 from ...interaction.interaction_nodes import (  # FinalReviewNode,  # 已移除：客户需求中没有最终审核阶段; AnalysisReviewNode,  # ️ v2.2: 已废弃，质量审核已前置化

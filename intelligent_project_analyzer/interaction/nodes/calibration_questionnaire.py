@@ -21,8 +21,7 @@ from ..questionnaire import (
     QuestionContext,
 )
 
-#  v7.18: 环境变量控制是否使用 QuestionnaireAgent
-USE_V718_QUESTIONNAIRE_AGENT = os.getenv("USE_V718_QUESTIONNAIRE_AGENT", "false").lower() == "true"
+# ST-2: USE_V718_QUESTIONNAIRE_AGENT 已删除，使用 v7.5 LLMQuestionGenerator 作为唯一生成路径
 
 
 class CalibrationQuestionnaireNode:
@@ -329,37 +328,7 @@ class CalibrationQuestionnaireNode:
         if not questionnaire or not questionnaire.get("questions"):
             logger.info(" v7.5新架构：LLM驱动的智能问卷生成（提升问题与用户需求的结合度）")
 
-            #  v7.18: 优先使用 QuestionnaireAgent (StateGraph) 生成问卷
-            if USE_V718_QUESTIONNAIRE_AGENT:
-                try:
-                    from ...agents.questionnaire_agent import QuestionnaireAgent
-
-                    logger.info(" [v7.18] 使用 QuestionnaireAgent (StateGraph) 生成问卷...")
-                    questionnaire_agent = QuestionnaireAgent(llm_model=None)
-                    base_questions, generation_method = questionnaire_agent.generate(
-                        user_input=user_input, structured_data=structured_data
-                    )
-
-                    if base_questions and generation_method in ("llm_generated", "regenerated"):
-                        logger.info(f" [v7.18] QuestionnaireAgent 生成成功：{len(base_questions)} 个问题")
-                        questionnaire = {
-                            "introduction": "以下问题基于您的具体需求定制，旨在深入理解您的期望和偏好",
-                            "questions": base_questions,
-                            "note": "这些问题直接针对您提到的具体内容，帮助我们提供更精准的设计建议",
-                            "source": generation_method,
-                            "generation_method": "stategraph_agent",
-                        }
-                        generation_source = generation_method
-                    else:
-                        logger.warning(f"️ [v7.18] QuestionnaireAgent 返回回退方案，将使用规则生成")
-                        raise Exception("QuestionnaireAgent 返回回退方案")
-
-                except Exception as agent_error:
-                    logger.warning(f"️ [v7.18] QuestionnaireAgent 失败: {agent_error}，回退到 LLMQuestionGenerator")
-                    # 回退到原有 v7.5 逻辑
-                    USE_V718_QUESTIONNAIRE_AGENT_FALLBACK = True
-            else:
-                USE_V718_QUESTIONNAIRE_AGENT_FALLBACK = True
+            # ST-2: v7.18 QuestionnaireAgent 已删除，直接走 v7.5 LLMQuestionGenerator 路径
 
             # v7.5 原有逻辑（作为 v7.18 的回退或独立使用）
             if not questionnaire or not questionnaire.get("questions"):

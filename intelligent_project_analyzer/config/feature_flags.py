@@ -15,8 +15,7 @@ from loguru import logger
 # ─── 深度搜索功能开关（暂停开放，设为 false；恢复时改为 true 或设置环境变量）────────────
 DEEP_SEARCH_ENABLED: bool = os.getenv("DEEP_SEARCH_ENABLED", "false").lower() == "true"
 
-# ─── v7.18 问卷生成 StateGraph Agent（默认关闭，可能未来启用）────────────────────
-USE_V718_QUESTIONNAIRE_AGENT: bool = os.getenv("USE_V718_QUESTIONNAIRE_AGENT", "false").lower() == "true"
+# ST-2: USE_V718_QUESTIONNAIRE_AGENT 已删除（默认 false，对应代码路径永不执行）
 
 # ─── Smart Nodes Self-Skip（半动态节点自跳步）────────────────────────────────────
 # 启用后由 progressive 节点内部基于统一信号执行自跳步，不改主图拓扑。
@@ -36,7 +35,6 @@ def log_feature_flags_snapshot() -> None:
     logger.info(
         "[feature_flags] snapshot | "
         f"DEEP_SEARCH_ENABLED={DEEP_SEARCH_ENABLED} | "
-        f"USE_V718_QUESTIONNAIRE_AGENT={USE_V718_QUESTIONNAIRE_AGENT} | "
         f"ENABLE_SMART_NODE_SELF_SKIP={ENABLE_SMART_NODE_SELF_SKIP} | "
         f"ENABLE_SMART_NODE_SELF_SKIP_SHADOW={ENABLE_SMART_NODE_SELF_SKIP_SHADOW}"
     )

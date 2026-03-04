@@ -32,7 +32,7 @@ from ..agents.requirements_analyst_agent import RequirementsAnalystAgentV2
 
 #  统一从 feature_flags 读取，消除跨模块默认值分裂
 #  v8.4: 清理已冻结的 flag，仅保留活跃开关
-from ..config.feature_flags import USE_V718_QUESTIONNAIRE_AGENT, log_feature_flags_snapshot
+from ..config.feature_flags import log_feature_flags_snapshot
 from ..core.state import AnalysisStage, ProjectAnalysisState, StateManager
 from ..core.types import AgentType, format_role_display_name
 from ..interaction.interaction_nodes import (  # FinalReviewNode,  # 已移除：客户需求中没有最终审核阶段; AnalysisReviewNode,  # ️ v2.2: 已废弃，质量审核已前置化
@@ -68,11 +68,7 @@ from ..workflow.nodes.search_query_generator_node import search_query_generator_
 from .context_compressor import create_context_compressor
 
 logger.info(" [v7.17] 需求分析师 StateGraph Agent（永久启用）")
-
-if USE_V718_QUESTIONNAIRE_AGENT:
-    from ..agents.questionnaire_agent import QuestionnaireAgent
-
-    logger.info(" [v7.18] 启用问卷生成 StateGraph Agent")
+# ST-2: USE_V718_QUESTIONNAIRE_AGENT 已删除，QuestionnaireAgent 直接不导入
 from ..security import ReportGuardNode  # 内容安全与领域过滤
 
 #  v7.3 统一输入验证节点（合并 input_guard 和 domain_validator）

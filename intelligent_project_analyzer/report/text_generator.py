@@ -352,24 +352,8 @@ class TextGeneratorAgent(BaseAgent):
         lines.append(f"生成时间: {timestamp}")
         lines.append("")
         
-        # 添加审核结果
-        review_result = state.get("review_result", {})
-        if review_result:
-            lines.append("## 质量审核结果")
-            lines.append("")
-            final_ruling = review_result.get("final_ruling", "N/A")
-            lines.append(final_ruling)
-            lines.append("")
-        
-        # 添加改进建议
-        improvement_suggestions = state.get("improvement_suggestions", [])
-        if improvement_suggestions:
-            lines.append("## 改进建议")
-            lines.append("")
-            for idx, imp in enumerate(improvement_suggestions, 1):
-                lines.append(f"{idx}. {imp.get('description', 'N/A')}")
-                lines.append(f"   优先级: {imp.get('priority', 'N/A')}")
-                lines.append("")
+        # ️ ST-1: review_result / improvement_suggestions 字段已在 v2.2 废弃
+        # analysis_review 节点已删除，这两个字段永远不会被 state 赋值，块已移除。
         
         lines.append("=" * 80)
         lines.append("注：由于流程异常，本报告为简化版本")
