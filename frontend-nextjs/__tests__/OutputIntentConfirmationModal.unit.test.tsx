@@ -104,6 +104,40 @@ describe('单元测试 > OutputIntentConfirmationModal', () => {
       );
       expect(screen.queryByText('体验视角（空间中的身份模式）：')).not.toBeInTheDocument();
     });
+
+    it('allowSkip=false 且 data.allow_skip=false 时不可跳过，并展示需求判断与后续路由', () => {
+      const data = makeData({
+        allow_skip: false,
+        requirements_judgement: {
+          summary: '项目已识别为多方平衡型任务',
+          core_tensions: [{ name: '预算vs品质', implication: '需要分阶段投入' }],
+          info_quality: { score: 78, confidence_level: 'high' },
+        },
+        next_route_preview: {
+          message: '确认后将进入以下流程',
+          steps: [
+            { node: 'feasibility_analyst', label: '可行性分析', reason: '验证落地可行性' },
+            { node: 'project_director', label: '项目拆分', reason: '拆分任务包' },
+          ],
+        },
+      });
+
+      render(
+        <OutputIntentConfirmationModal
+          isOpen={true}
+          data={data}
+          onConfirm={onConfirm}
+          onSkip={onSkip}
+          allowSkip={false}
+        />
+      );
+
+      expect(screen.queryByText('跳过，使用推荐配置')).not.toBeInTheDocument();
+      expect(screen.getByText('请确认后继续，当前步骤不可跳过')).toBeInTheDocument();
+      expect(screen.getByText('需求分析师判断')).toBeInTheDocument();
+      expect(screen.getByText('确认后将进入以下流程')).toBeInTheDocument();
+      expect(screen.getByText(/1\. 可行性分析/)).toBeInTheDocument();
+    });
   });
 
   // ── 默认预选 ──────────────────────────────────────────────────────────────

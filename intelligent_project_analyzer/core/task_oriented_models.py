@@ -178,7 +178,7 @@ class Priority(str, Enum):
 class DeliverableSpec(BaseModel):
     """交付物规格说明
 
-     v7.65: 增加 require_search 字段，支持强制搜索标记
+    v7.65: 增加 require_search 字段，支持强制搜索标记
     """
 
     name: str = Field(title="名称", description="交付物名称")
@@ -233,6 +233,17 @@ class TaskInstruction(BaseModel):
     context_requirements: List[str] = Field(title="上下文需求", default_factory=list, description="执行此任务需要的上下文信息")
     #  v7.10: 创意叙事模式标识
     is_creative_narrative: bool = Field(title="创意叙事模式", default=False, description="是否为创意叙事类任务（V3专家）- 此模式下放宽量化指标要求")
+
+    @validator("success_criteria", pre=True, always=True)
+    def ensure_min_success_criteria(cls, v):
+        """v8.0 修复：自动补全不足2条的 success_criteria，防止 LLM 少填导致 ValidationError"""
+        if not v:
+            return ["分析内容完整准确", "提供可执行建议"]
+        lst = list(v)
+        defaults = ["分析内容完整准确", "提供可执行建议", "符合预期输出格式", "满足项目目标要求"]
+        while len(lst) < 2:
+            lst.append(defaults[len(lst)])
+        return lst[:4]
 
 
 # ============================================================================

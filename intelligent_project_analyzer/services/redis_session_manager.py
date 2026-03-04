@@ -496,16 +496,9 @@ class RedisSessionManager:
             # 6. 清除缓存
             self._invalidate_cache()
 
-            #  v7.131: 清理 Playwright 浏览器池资源（会话删除时）
-            try:
-                from intelligent_project_analyzer.api.html_pdf_generator import PlaywrightBrowserPool
-
-                await asyncio.wait_for(PlaywrightBrowserPool.cleanup(), timeout=10.0)
-                logger.debug(f" Playwright 浏览器池已清理（会话删除）: {session_id}")
-            except asyncio.TimeoutError:
-                logger.warning(f"️ 删除会话时清理浏览器池超时: {session_id}")
-            except Exception as e:
-                logger.debug(f" 删除会话时清理浏览器池失败: {session_id}, {e}")
+            # v7.131 BUG FIX: 不在删除会话时清理 Playwright 浏览器池
+            # 浏览器池是全局单例，后台工作流任务可能仍在其他会话中使用。
+            # 正确清理时机是服务器关闭（lifespan handler）。
 
             logger.info(f" 会话及关联数据已删除: {session_id}, 用户: {user_id or 'N/A'}")
             return True

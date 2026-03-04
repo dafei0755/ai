@@ -135,8 +135,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // 🆕 v3.0.24: 检查设备是否被踢出
   // 🆕 v7.217: 收到 401 时尝试刷新 Token
   const checkDeviceKicked = useCallback(async () => {
+    // 开发模式跳过设备检查（dev-token-mock 不是真实 JWT，无需也无法验证）
+    if (DEV_MODE && DEV_SKIP_AUTH) return;
+
     let token = localStorage.getItem('wp_jwt_token');
     if (!token) return;
+    // 格式无效的 token 直接清理，不发请求
+    const parts = token.split('.');
+    if (token !== 'dev-token-mock' && (parts.length !== 3 || parts.some(p => !p))) {
+      localStorage.removeItem('wp_jwt_token');
+      return;
+    }
 
     const deviceId = getOrCreateDeviceId();
     const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';

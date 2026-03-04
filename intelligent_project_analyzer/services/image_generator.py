@@ -36,7 +36,7 @@ from loguru import logger
 from pydantic import BaseModel, Field
 
 #  v7.153: 导入配置加载器
-from ..utils.visual_config_loader import get_role_visual_type_for_project  #  v7.154: 项目类型感知的视觉类型选择
+from ..utils.visual_config_loader import get_role_visual_type_for_project  # v7.154: 项目类型感知的视觉类型选择
 from ..utils.visual_config_loader import (
     build_role_visual_context,
     get_global_config,
@@ -123,9 +123,14 @@ class ImageGeneratorService:
             base_url: OpenRouter API 地址
             timeout: 请求超时时间 (图像生成较慢，默认 120 秒)
         """
-        self.api_key = api_key or os.getenv("OPENROUTER_API_KEY")
-        if not self.api_key:
-            raise ValueError(" Missing OPENROUTER_API_KEY environment variable")
+        #  v7.200: 接入负载均衡器，图像生成消费均摊到多个账号
+        try:
+            from .openrouter_load_balancer import OpenRouterLoadBalancer
+
+            self._load_balancer = OpenRouterLoadBalancer(api_keys=[api_key] if api_key else None)
+            logger.info(f" ImageGeneratorService: 负载均衡已启用 ({len(self._load_balancer.api_keys)} 个 Key)")
+        except ValueError as e:
+            raise ValueError(f" Missing OPENROUTER_API_KEY(S) for image generation: {e}")
 
         self.model = model or os.getenv("IMAGE_GENERATION_MODEL", self.DEFAULT_MODEL)
         self.base_url = base_url
@@ -783,9 +788,10 @@ Generate an enhanced, professional image prompt:"""
             return user_prompt
 
     def _build_headers(self) -> Dict[str, str]:
-        """构建请求头"""
+        """构建请求头 - v7.200: 每次请求通过负载均衡器轮询 Key"""
+        api_key = self._load_balancer._select_key()
         return {
-            "Authorization": f"Bearer {self.api_key}",
+            "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json",
             "HTTP-Referer": self.site_url,
             "X-Title": self.app_name,

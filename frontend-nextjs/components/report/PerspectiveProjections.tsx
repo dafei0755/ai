@@ -5,7 +5,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { PerspectiveOutput } from '@/types';
+// import { PerspectiveOutput } from '@/types';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Eye, BarChart3, Users, Building2, Landmark, Palette, ChevronDown } from 'lucide-react';
@@ -153,6 +153,11 @@ function FiveAxisRadar({ scores }: { scores: Record<string, number> }) {
 // 主组件：PerspectiveProjections
 // ==============================================================================
 
+interface PerspectiveOutput {
+  result?: string;
+  [key: string]: any;
+}
+
 interface PerspectiveProjectionsProps {
   perspectiveOutputs: Record<string, PerspectiveOutput>;
   metaAxisScores?: Record<string, number> | null;
@@ -243,7 +248,7 @@ export default function PerspectiveProjections({
               {/* 受众标签栏 */}
               <div className="px-5 py-3 border-b border-[var(--border-color)] flex items-center gap-3 flex-wrap">
                 <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">目标受众</span>
-                {(activePerspective.target_audience || PERSPECTIVE_META[activeTab]?.audience?.split(' / ') || []).map((a, i) => (
+                {(activePerspective.target_audience || PERSPECTIVE_META[activeTab]?.audience?.split(' / ') || []).map((a: string, i: number) => (
                   <span key={i} className="text-xs px-2 py-0.5 bg-white/10 rounded-full text-gray-300">
                     {a}
                   </span>

@@ -208,6 +208,30 @@ def calculate_axis_scores(state: Dict[str, Any]) -> Dict[str, float]:
 
         logger.info(f"[projection_dispatcher] 动态维度贡献层: {provenance}")
 
+    # ── v8.0: 设计师行为动机轴值修正层（置信度 >= 0.5，幅度 ±0.08~0.12）──
+    _dbm_ax = state.get("designer_behavioral_motivation")
+    if isinstance(_dbm_ax, dict) and _dbm_ax.get("confidence", 0) >= 0.5:
+        _pri = _dbm_ax.get("primary", "")
+        _orig = scores.copy()
+        if _pri == "D1_survival_securing":
+            scores["operation"] = min(1.0, scores.get("operation", 0.5) + 0.10)
+            scores["civilization"] = max(0.1, scores.get("civilization", 0.3) - 0.10)
+        elif _pri == "D2_competitive_winning":
+            scores["power"] = min(1.0, scores.get("power", 0.3) + 0.12)
+        elif _pri == "D3_breakthrough_innovation":
+            scores["identity"] = min(1.0, scores.get("identity", 0.5) + 0.10)
+            scores["emotion"] = min(1.0, scores.get("emotion", 0.4) + 0.08)
+        elif _pri == "D4_capability_learning":
+            scores["operation"] = min(1.0, scores.get("operation", 0.5) + 0.12)
+            scores["civilization"] = max(0.1, scores.get("civilization", 0.3) - 0.08)
+        elif _pri == "D5_structural_clarification":
+            scores["operation"] = min(1.0, scores.get("operation", 0.5) + 0.08)
+            scores["emotion"] = max(0.1, scores.get("emotion", 0.4) - 0.06)
+        elif _pri == "D6_strategic_construction":
+            scores["civilization"] = min(1.0, scores.get("civilization", 0.3) + 0.12)
+        if scores != _orig:
+            logger.info(f"[projection_dispatcher] v8.0动机轴修正 {_pri}: {_orig} → {scores}")
+
     logger.info(f"[projection_dispatcher] 五轴评分: {scores}")
     return scores
 
@@ -328,6 +352,25 @@ def determine_active_projections(
 
     user_input = state.get("user_input", "")
 
+    # ── v8.0: 动机激活偏置前置数据 ──
+    _pm = state.get("project_motivation")
+    _pm_primary = _pm.get("primary", "") if isinstance(_pm, dict) else ""
+    _pm_conf = _pm.get("confidence", 0) if isinstance(_pm, dict) else 0
+    _mot_mapping = config.get("motivation_projection_mapping", {})
+
+    _dbm = state.get("designer_behavioral_motivation")
+    _dbm_primary = _dbm.get("primary", "") if isinstance(_dbm, dict) else ""
+    _dbm_conf = _dbm.get("confidence", 0) if isinstance(_dbm, dict) else 0
+    # D-type → 优先激活的投射ID
+    _D_PROJ_BOOST: Dict[str, str] = {
+        "D1_survival_securing": "construction_execution",
+        "D2_competitive_winning": "investor_operator",
+        "D3_breakthrough_innovation": "aesthetic_critique",
+        "D4_capability_learning": "design_professional",
+        "D5_structural_clarification": "design_professional",
+        "D6_strategic_construction": "government_policy",
+    }
+
     for proj_id, proj_config in projections.items():
         auto_rules = proj_config.get("auto_activate", {})
 
@@ -361,6 +404,20 @@ def determine_active_projections(
                 if kw in user_input:
                     score += 0.4
                     break
+
+        # ── v8.0: 项目动机激活偏置（来自 Phase1 LLM 识别的12类项目动机）──
+        if _pm_primary and _pm_conf >= 0.3:
+            _mot_entry = _mot_mapping.get(_pm_primary, {})
+            if isinstance(_mot_entry, dict):
+                if _mot_entry.get("primary_projection") == proj_id:
+                    score += _mot_entry.get("signal_weight", 0.3) * 0.5  # 最多 +0.3
+                elif _mot_entry.get("secondary_projection") == proj_id:
+                    score += _mot_entry.get("signal_weight", 0.2) * 0.25  # 最多 +0.15
+
+        # ── v8.0: D-type 行为动机激活偏置（置信度 >= 0.5 时生效）──
+        if _dbm_primary and _dbm_conf >= 0.5:
+            if _D_PROJ_BOOST.get(_dbm_primary) == proj_id:
+                score += 0.15
 
         if score >= threshold:
             activated.append(proj_id)

@@ -115,6 +115,12 @@ export interface AnalysisStatus {
   // 🆕 v7.155: 多模态视觉参考
   visual_references?: VisualReference[];
   visual_style_anchor?: string;
+  // Smart Nodes Self-Skip 路由画像（可选）
+  flow_route_name?: string;
+  flow_route_decision?: Record<string, any>;
+  flow_route_reason_codes?: string[];
+  routing_scores?: Record<string, number>;
+  active_steps?: string[];
 }
 
 // 🔥 v7.109: 会话列表项类型（增强状态枚举和错误字段）

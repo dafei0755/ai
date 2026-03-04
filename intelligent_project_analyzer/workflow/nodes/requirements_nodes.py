@@ -14,6 +14,7 @@ import uuid
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Literal, Optional, Union
+
 import yaml
 from langgraph.checkpoint.base import BaseCheckpointSaver
 from langgraph.checkpoint.sqlite import SqliteSaver
@@ -25,16 +26,21 @@ from loguru import logger
 # 显式导入智能体类以触发 AgentFactory 注册
 from ...agents import AgentFactory, ProjectDirectorAgent, RequirementsAnalystAgent
 from ...agents.base import NullLLM
-from ...agents.dynamic_project_director import detect_and_handle_challenges_node  #  v3.5
-from ...agents.feasibility_analyst import FeasibilityAnalystAgent  #  V1.5可行性分析师
-from ...agents.quality_monitor import QualityMonitor  #
+from ...agents.dynamic_project_director import detect_and_handle_challenges_node  # v3.5
+from ...agents.feasibility_analyst import FeasibilityAnalystAgent  # V1.5可行性分析师
+from ...agents.quality_monitor import QualityMonitor
+from ...agents.requirements_analyst_agent import RequirementsAnalystAgentV2  # v7.17 StateGraph Agent
+
+#  从 feature_flags 统一导入，消除与 main_workflow.py 默认值分裂
+# USE_V717_REQUIREMENTS_ANALYST 已冻结为 True，直接使用 V2 路径
 from ...core.state import AnalysisStage, ProjectAnalysisState, StateManager
 from ...core.types import AgentType, format_role_display_name
 from ...interaction.interaction_nodes import (  # FinalReviewNode,  # 已移除：客户需求中没有最终审核阶段; AnalysisReviewNode,  # ️ v2.2: 已废弃，质量审核已前置化
     CalibrationQuestionnaireNode,
     UserQuestionNode,
 )
-from ...interaction.nodes.manual_review import ManualReviewNode  #  人工审核节点
+from ...interaction.nodes.manual_review import ManualReviewNode  # 人工审核节点
+from ...interaction.nodes.output_intent_detection import output_intent_detection_node
 
 #  v7.87: 三步递进式问卷节点
 from ...interaction.nodes.progressive_questionnaire import (
@@ -43,7 +49,7 @@ from ...interaction.nodes.progressive_questionnaire import (
     progressive_step2_radar_node,
     progressive_step3_gap_filling_node,
 )
-from ...interaction.nodes.quality_preflight import QualityPreflightNode  #
+from ...interaction.nodes.quality_preflight import QualityPreflightNode
 
 #  v7.135: 问卷汇总节点（需求重构）
 from ...interaction.nodes.questionnaire_summary import questionnaire_summary_node
@@ -51,24 +57,87 @@ from ...interaction.nodes.questionnaire_summary import questionnaire_summary_nod
 #  统一审核节点（合并角色选择和任务分派审核）
 from ...interaction.role_task_unified_review import role_task_unified_review_node
 
-#  v7.502 P1优化: 智能上下文压缩器
-from ..context_compressor import create_context_compressor
-
 # from ..interaction.role_selection_review import role_selection_review_node  # 已废弃
 # from ..interaction.task_assignment_review import task_assignment_review_node  # 已废弃
 from ...interaction.second_batch_strategy_review import SecondBatchStrategyReviewNode
 from ...report.pdf_generator import PDFGeneratorAgent
 from ...report.result_aggregator import ResultAggregatorAgent
-from ...workflow.nodes.search_query_generator_node import search_query_generator_node  #  v7.109
 
 #  v7.87: 三步递进式问卷（默认启用）
-from ...security import ReportGuardNode  #  内容安全与领域过滤
+from ...security import ReportGuardNode  # 内容安全与领域过滤
 
 #  v7.3 统一输入验证节点（合并 input_guard 和 domain_validator）
 from ...security.unified_input_validator_node import InputRejectedNode, UnifiedInputValidatorNode
 
+# Step 0 fix: detect_design_modes（之前从未被调用，导致 projection_dispatcher 的 when_modes 始终为空列表）
+from ...services.mode_detector import detect_design_modes
+
+# v8.2: 动态步骤追踪装饰器
+from ...utils.node_tracker import track_active_step
+
 # 动态本体论注入工具
 from ...utils.ontology_loader import OntologyLoader
+from ...workflow.nodes.search_query_generator_node import search_query_generator_node  # v7.109
+
+#  v7.502 P1优化: 智能上下文压缩器
+from ..context_compressor import create_context_compressor
+
+
+def _build_motivation_routing_profile(
+    project_motivation: Dict[str, Any],
+    designer_behavioral_motivation: Dict[str, Any],
+    detected_modes: List[Dict[str, Any]],
+) -> Dict[str, Any]:
+    """
+    合并 project_motivation + designer_behavioral_motivation 为统一路由画像。
+
+    这是「双动机驱动」缺失的组装者 — 将两个独立动机信号合并为
+    motivation_routing_profile，供前半链路节点（progressive_questionnaire）
+    的 Self-Skip 决策和前端双动机卡片展示消费。
+
+    Returns:
+        dict with keys:
+        - primary_mode: 主要动机类型（如 "commercial", "wellness"）
+        - confidence: 综合置信度
+        - d_type: 设计师行为动机类型（D1-D6）
+        - skip_candidates: 可跳过的步骤列表
+        - routing_strategy: 路由策略（"full_flow" / "skip_gap_filling" / "skip_radar"）
+    """
+    pm = project_motivation or {}
+    dbm = designer_behavioral_motivation or {}
+    pm_primary = pm.get("primary", "unknown")
+    pm_confidence = float(pm.get("confidence", 0.0))
+    d_type = dbm.get("primary", dbm.get("type", "D1"))
+    d_confidence = float(dbm.get("confidence", 0.0))
+
+    # 综合置信度（项目动机权重 0.6，行为动机权重 0.4）
+    combined_confidence = pm_confidence * 0.6 + d_confidence * 0.4
+
+    skip_candidates: List[str] = []
+    routing_strategy = "full_flow"
+
+    HIGH_CONF = 0.75
+    # 规则1: 高置信度 + 商业/展示类 → 信息充足，可跳过 gap_filling
+    SKIP_GAP_MODES = {"commercial", "exhibition", "showcase", "portfolio", "competition"}
+    if pm_confidence >= HIGH_CONF and pm_primary in SKIP_GAP_MODES:
+        skip_candidates.append("gap_filling")
+        routing_strategy = "skip_gap_filling"
+
+    # 规则2: D3（纯展示偏好型）+ 高置信度 → 可跳过 radar
+    if d_type == "D3" and d_confidence >= HIGH_CONF:
+        skip_candidates.append("radar")
+        routing_strategy = "skip_all_optional" if routing_strategy == "skip_gap_filling" else "skip_radar"
+
+    return {
+        "primary_mode": pm_primary,
+        "confidence": round(combined_confidence, 3),
+        "d_type": d_type,
+        "d_confidence": round(d_confidence, 3),
+        "pm_confidence": round(pm_confidence, 3),
+        "detected_modes_count": len(detected_modes),
+        "skip_candidates": skip_candidates,
+        "routing_strategy": routing_strategy,
+    }
 
 
 class RequirementsNodesMixin:
@@ -80,6 +149,7 @@ class RequirementsNodesMixin:
     Do NOT instantiate this class directly.
     """
 
+    @track_active_step("requirements_analyst")
     def _requirements_analyst_node(self, state: ProjectAnalysisState) -> Dict[str, Any]:
         """
         需求分析师节点
@@ -105,26 +175,19 @@ class RequirementsNodesMixin:
             else:
                 logger.info(" [DEBUG] 'calibration_processed' 键不存在")
 
-            #  v7.17: 使用 StateGraph Agent 模式
-            if USE_V717_REQUIREMENTS_ANALYST:
-                logger.info(" [v7.17] 使用 StateGraph Agent 执行需求分析")
-                agent = RequirementsAnalystAgentV2(llm_model=self.llm_model, config=self.config)
-                result = agent.execute(
-                    user_input=state.get("user_input", ""), session_id=state.get("session_id", "unknown")
-                )
+            # v7.17: StateGraph Agent 模式（已稳定，不再需要 flag 切换）
+            logger.info(" [v7.17] 使用 StateGraph Agent 执行需求分析")
+            agent = RequirementsAnalystAgentV2(llm_model=self.llm_model, config=self.config)
+            result = agent.execute(
+                user_input=state.get("user_input", ""), session_id=state.get("session_id", "unknown")
+            )
 
-                # 记录 StateGraph 执行元数据
-                if result.metadata:
-                    logger.info(f" [v7.17] StateGraph 执行完成:")
-                    logger.info(f"   - 分析模式: {result.metadata.get('analysis_mode')}")
-                    logger.info(f"   - 节点路径: {result.metadata.get('node_path')}")
-                    logger.info(f"   - 总耗时: {result.metadata.get('total_elapsed_ms')}ms")
-            else:
-                # 原有逻辑：使用 AgentFactory 创建
-                agent = AgentFactory.create_agent(
-                    AgentType.REQUIREMENTS_ANALYST, llm_model=self.llm_model, config=self.config
-                )
-                result = agent.execute(state, {}, self.store)
+            # 记录 StateGraph 执行元数据
+            if result.metadata:
+                logger.info(f" [v7.17] StateGraph 执行完成:")
+                logger.info(f"   - 分析模式: {result.metadata.get('analysis_mode')}")
+                logger.info(f"   - 节点路径: {result.metadata.get('node_path')}")
+                logger.info(f"   - 总耗时: {result.metadata.get('total_elapsed_ms')}ms")
 
             #  提取项目类型（从 structured_data 中）
             project_type = result.structured_data.get("project_type") if result.structured_data else None
@@ -183,6 +246,57 @@ class RequirementsNodesMixin:
                 "updated_at": datetime.now().isoformat(),
             }
 
+            # ── Step 0 fix: 调用 detect_design_modes，修复 projection_dispatcher.when_modes 死路 ──
+            user_input_str = state.get("user_input", "")
+            sd = result.structured_data or {}
+            try:
+                detected_modes = detect_design_modes(user_input_str, sd)
+            except Exception as _mode_err:
+                logger.warning(f"[motivation] detect_design_modes 失败，跳过: {_mode_err}")
+                detected_modes = []
+            if detected_modes:
+                update_dict["detected_design_modes"] = detected_modes
+
+            # ── 动机字段写入（来自 Phase1 LLM 输出，置信度门控 >= 0.3）──
+            project_motivation_raw = sd.get("motivation_preliminary")
+            designer_behavioral_raw = sd.get("designer_behavioral_motivation")
+
+            if isinstance(project_motivation_raw, dict) and project_motivation_raw.get("confidence", 0) >= 0.3:
+                update_dict["project_motivation"] = project_motivation_raw
+
+            if isinstance(designer_behavioral_raw, dict) and designer_behavioral_raw.get("confidence", 0) >= 0.3:
+                update_dict["designer_behavioral_motivation"] = designer_behavioral_raw
+
+            # motivation_trace：记录本次推断摘要，便于调试
+            trace_entries: List[str] = []
+            if detected_modes:
+                top_mode = detected_modes[0].get("mode", "?")
+                trace_entries.append(f"[Phase1] modes={len(detected_modes)} top={top_mode}")
+            if update_dict.get("project_motivation"):
+                pm = update_dict["project_motivation"]
+                trace_entries.append(
+                    f"[Phase1] project_motivation={pm.get('primary','?')} conf={pm.get('confidence',0):.2f}"
+                )
+            if update_dict.get("designer_behavioral_motivation"):
+                dbm = update_dict["designer_behavioral_motivation"]
+                trace_entries.append(f"[Phase1] D={dbm.get('primary','?')} conf={dbm.get('confidence',0):.2f}")
+            if trace_entries:
+                update_dict["motivation_trace"] = trace_entries
+
+            # ── 双动机统一画像组装（motivation_routing_profile）──────────────────────
+            # 解决「中间缺少组装者」断链：合并两个动机信号为前半链路路由决策所需的统一画像
+            _pm = update_dict.get("project_motivation") or state.get("project_motivation") or {}
+            _dbm = (
+                update_dict.get("designer_behavioral_motivation") or state.get("designer_behavioral_motivation") or {}
+            )
+            if _pm or _dbm:
+                update_dict["motivation_routing_profile"] = _build_motivation_routing_profile(_pm, _dbm, detected_modes)
+                logger.info(
+                    f"[Phase1] motivation_routing_profile built: "
+                    f"strategy={update_dict['motivation_routing_profile']['routing_strategy']} "
+                    f"skip_candidates={update_dict['motivation_routing_profile']['skip_candidates']}"
+                )
+
             #  关键修复: 从完整状态中提取并保留流程控制标志
             # 注意: Command.update 的字段在目标节点执行时不可见,
             # 所以这里需要从 agent_results 中获取原始 state 的标志值
@@ -220,7 +334,29 @@ class RequirementsNodesMixin:
             import traceback
 
             traceback.print_exc()
-            return {"error": str(e), "updated_at": datetime.now().isoformat()}
+            #  显式失败状态：阻止工作流静默降级到 Step 1
+            return {
+                "requirements_analysis_status": "failed",
+                "requirements_analysis_error": f"{type(e).__name__}: {e}",
+                "current_stage": AnalysisStage.REQUIREMENT_COLLECTION.value,
+                "updated_at": datetime.now().isoformat(),
+            }
+
+    def _route_after_requirements_analyst(self, state: ProjectAnalysisState) -> str:
+        """
+        需求分析后路由判断。
+        失败时终止主链路（不降级为 Step 1 伪成功）；成功时继续可行性分析。
+        """
+        if state.get("requirements_analysis_status") == "failed":
+            error = state.get("requirements_analysis_error", "unknown")
+            logger.error(f"[route] requirements_analyst 失败，终止主链路 | error={error}")
+            return END
+        return "output_intent_detection"
+
+    def _output_intent_detection_node(self, state: ProjectAnalysisState) -> Command:
+        """Step 0: 输出意图确认（主闸门）。"""
+        logger.info(" [v11] Executing output intent detection node")
+        return output_intent_detection_node(state, self.store)
 
     def _feasibility_analyst_node(self, state: ProjectAnalysisState) -> Dict[str, Any]:
         """

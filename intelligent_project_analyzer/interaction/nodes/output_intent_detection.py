@@ -30,9 +30,10 @@ from pathlib import Path
 from typing import Any, Dict, List, Literal, Optional, Tuple
 
 import yaml
-
-import yaml
 from langgraph.types import Command, interrupt
+
+# v8.2: 动态步骤追踪装饰器
+from ...utils.node_tracker import track_active_step
 
 logger = logging.getLogger(__name__)
 
@@ -286,7 +287,9 @@ async def _run_constraint_pipeline(state: dict) -> Dict[str, Any]:
     """
     import asyncio
     from pathlib import Path
-    from ...services.file_processor import ConstraintSourceExtractor, MAX_CONSTRAINT_EXTRACTIONS, file_processor as _fp
+
+    from ...services.file_processor import MAX_CONSTRAINT_EXTRACTIONS, ConstraintSourceExtractor
+    from ...services.file_processor import file_processor as _fp
 
     uploaded_refs = state.get("uploaded_visual_references") or []
     if not uploaded_refs:
@@ -1286,6 +1289,7 @@ def _extract_framework_signals(
 # ==================================================================================
 
 
+@track_active_step("output_intent_detection")
 def output_intent_detection_node(state: dict, store=None) -> Command:
     """
     输出意图检测节点
@@ -1320,14 +1324,10 @@ def output_intent_detection_node(state: dict, store=None) -> Command:
     logger.info(f"  结构化数据字段: {list(structured_requirements.keys())[:10]}")
 
     # -------------------------------------------------------
-    # 0.5 幂等保护：若 active_projections 已存在且用户未修改意图，直接跳过 interrupt
-    # v9.3: 防止 questionnaire_summary 重路由时二次打断用户
+    # 🗑️ v8.3: 移除旧的幂等保护逻辑
+    # 原因：v8.3流程中output_intent作为统一问卷Step 1，不需要幂等保护
+    # 工作流路由已确保不会重复进入此节点（output_intent_confirmed后直接到Step 2）
     # -------------------------------------------------------
-    existing_projections = state.get("active_projections")
-    if existing_projections and not state.get("intent_changed", False):
-        logger.info(f"  ⚡ [幂等] active_projections 已存在且 intent_changed=False，跳过重新检测")
-        logger.info(f"  ⚡ [幂等] 现有 projections: {existing_projections}")
-        return Command(goto="feasibility_analyst")
 
     # -------------------------------------------------------
     # 1. 四源交叉检测交付类型
@@ -1460,8 +1460,8 @@ def output_intent_detection_node(state: dict, store=None) -> Command:
     _core_tensions_raw = structured_requirements.get("core_tensions") or []
     _deliverables_raw = structured_requirements.get("primary_deliverables") or []
     _design_modes_raw = detected_modes or []
-    requirements_review = {
-        "breakthrough_insight": structured_requirements.get("breakthrough_insight", ""),
+    requirements_judgement = {
+        "summary": structured_requirements.get("breakthrough_insight", ""),  # 前端字段名: summary
         "core_tensions": [
             {"name": t.get("name", ""), "implication": t.get("design_implication", t.get("implication", ""))}
             for t in _core_tensions_raw[:3]
@@ -1486,7 +1486,7 @@ def output_intent_detection_node(state: dict, store=None) -> Command:
         else None,
     }
     logger.info(
-        f"  📋 [v13.1] requirements_review: insight={bool(requirements_review['breakthrough_insight'])}, tensions={len(requirements_review['core_tensions'])}, quality_score={requirements_review['info_quality']['score']}"
+        f"  📋 [v13.1] requirements_judgement: summary={bool(requirements_judgement['summary'])}, tensions={len(requirements_judgement['core_tensions'])}, quality_score={requirements_judgement['info_quality']['score']}"
     )
 
     output_intent_payload = {
@@ -1503,7 +1503,7 @@ def output_intent_detection_node(state: dict, store=None) -> Command:
         "spatial_zones": extracted_spatial_zones,
         "auto_detected_constraints": visual_constraints if visual_constraints else None,
         # 🆕 v13.1: 需求分析复盘卡片数据（向上验证需求分析的落地性）
-        "requirements_review": requirements_review,
+        "requirements_judgement": requirements_judgement,
     }
 
     logger.info(f"  🛑 [v11.0] Step0 interrupt: {len(delivery_options)}个交付选项, {len(mode_options)}个身份选项")
@@ -1617,7 +1617,10 @@ def output_intent_detection_node(state: dict, store=None) -> Command:
             "extracted_spatial_zones": extracted_spatial_zones,
             # 🆕 v12.1: 用户确认的约束（替代旧 user_intent_constraints）
             "user_intent_constraints": confirmed_constraints if confirmed_constraints else None,
+            # 🆕 v8.3: 标记输出意图已确认
+            "output_intent_confirmed": True,
             "detail": f"输出意图检测完成(v12.0): {len(active_projections)}种交付类型, {len(serializable_modes)}种身份模式",
         },
-        goto="feasibility_analyst",
+        # 🔧 v8.3: 输出意图确认后直接进入渐进式问卷Step 1（任务梳理）
+        goto="progressive_step1_core_task",
     )

@@ -1014,9 +1014,10 @@ export default function CrawlerMonitorPage() {
                           const isStale = s.status === 'running' && s.started_at &&
                             (Date.now() - new Date(s.started_at).getTime()) > 30 * 60 * 1000;
                           const statusLabel = s.status === 'completed' ? '完成'
-                            : s.status === 'crashed' ? '💀 已崩溃'
                             : s.status === 'running' ? (isStale ? '⚠️ 疑似卡死' : '运行中')
-                            : s.status === 'circuit_break' ? '🚨 熔断' : '失败';
+                            : s.status === 'circuit_break' ? '🚨 熔断'
+                            : s.status === 'failed' ? '失败'
+                            : '💀 已崩溃'; // fallback for other statuses
                           const colorClass = isStale ? 'bg-yellow-100 text-yellow-800' : overviewStatusColor(s.status);
                           return (
                             <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold ${colorClass}`}
@@ -1044,11 +1045,11 @@ export default function CrawlerMonitorPage() {
                           : <span className="text-gray-400">0</span>}
                       </td>
                     </tr>
-                    {/* 熔断/崩溃时展开错误信息 */}
-                    {(s.status === 'circuit_break' || s.status === 'crashed') && s.error_message && (
-                      <tr className={s.status === 'crashed' ? 'bg-gray-50' : 'bg-orange-50'}>
-                        <td colSpan={8} className={`px-4 py-2 text-xs ${s.status === 'crashed' ? 'text-gray-700' : 'text-orange-800'}`}>
-                          {s.status === 'crashed' ? '💀' : '⚠️'} {s.error_message}
+                    {/* 熔断/错误时展开错误信息 */}
+                    {(s.status === 'circuit_break' || s.status === 'failed') && s.error_message && (
+                      <tr className={s.status === 'failed' ? 'bg-gray-50' : 'bg-orange-50'}>
+                        <td colSpan={8} className={`px-4 py-2 text-xs ${s.status === 'failed' ? 'text-gray-700' : 'text-orange-800'}`}>
+                          {s.status === 'failed' ? '💀' : '⚠️'} {s.error_message}
                         </td>
                       </tr>
                     )}

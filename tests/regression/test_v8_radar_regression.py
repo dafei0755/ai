@@ -13,10 +13,10 @@ R8: 雷达图分析 RadarGapAnalyzer 继续获得维度值
 """
 
 import os
-import pytest
-from unittest.mock import patch
 from typing import Any, Dict
+from unittest.mock import patch
 
+import pytest
 
 # ==============================================================================
 # 公共工具
@@ -70,7 +70,7 @@ class TestR1LegacyPathNotBroken:
             ProgressiveQuestionnaireNode,
         )
 
-        cmd = ProgressiveQuestionnaireNode.step3_radar(_minimal_state())
+        cmd = ProgressiveQuestionnaireNode.step2_radar(_minimal_state())
         dims = cmd.update.get("selected_radar_dimensions", [])
         assert isinstance(dims, list)
         assert len(dims) > 0, "传统路径应生成至少1个维度"
@@ -93,7 +93,7 @@ class TestR1LegacyPathNotBroken:
             ProgressiveQuestionnaireNode,
         )
 
-        cmd = ProgressiveQuestionnaireNode.step3_radar(_minimal_state())
+        cmd = ProgressiveQuestionnaireNode.step2_radar(_minimal_state())
         for dim in cmd.update.get("selected_radar_dimensions", []):
             assert "id" in dim
             assert "name" in dim
@@ -119,7 +119,7 @@ class TestR1LegacyPathNotBroken:
             ProgressiveQuestionnaireNode,
         )
 
-        cmd = ProgressiveQuestionnaireNode.step3_radar(_minimal_state())
+        cmd = ProgressiveQuestionnaireNode.step2_radar(_minimal_state())
         assert cmd.update.get("dimension_generation_method") == "static"
 
 
@@ -156,7 +156,7 @@ class TestR2SpecialSceneInjection:
             ProgressiveQuestionnaireNode,
         )
 
-        ProgressiveQuestionnaireNode.step3_radar(state)
+        ProgressiveQuestionnaireNode.step2_radar(state)
         mock_inject.assert_called_once()
 
 
@@ -207,7 +207,7 @@ class TestR3StateFieldFormat:
                 ProgressiveQuestionnaireNode,
             )
 
-            cmd = ProgressiveQuestionnaireNode.step3_radar(_minimal_state())
+            cmd = ProgressiveQuestionnaireNode.step2_radar(_minimal_state())
 
         dims_out = cmd.update.get("selected_radar_dimensions")
         assert isinstance(dims_out, list), f"ps_enabled={ps_enabled}: 应为 list，实际: {type(dims_out)}"
@@ -229,7 +229,7 @@ class TestR3StateFieldFormat:
             ProgressiveQuestionnaireNode,
         )
 
-        cmd = ProgressiveQuestionnaireNode.step3_radar(_minimal_state())
+        cmd = ProgressiveQuestionnaireNode.step2_radar(_minimal_state())
         vals = cmd.update.get("radar_dimension_values")
         assert isinstance(vals, dict)
 
@@ -313,6 +313,7 @@ class TestR6ProblemTypesPreserved:
     def test_problem_types_preserved_in_merge(self):
         """合并后 problem_types 不应被丢弃"""
         import inspect
+
         from intelligent_project_analyzer.agents import requirements_analyst_agent as module
 
         func = getattr(module, "_merge_phase_results", None)
@@ -324,9 +325,7 @@ class TestR6ProblemTypesPreserved:
 
     def test_problem_types_actually_populated(self):
         """合并结果中 problem_types 字段有值时应正确保留"""
-        from intelligent_project_analyzer.agents.requirements_analyst_agent import (
-            _merge_phase_results,
-        )
+        from intelligent_project_analyzer.agents.requirements_analyst_agent import _merge_phase_results
 
         phase1 = {"problem_types": ["空间矛盾", "预算张力"]}
         phase2 = {"structured_output": {"project_task": "test"}, "analysis_layers": {}}
@@ -352,7 +351,7 @@ class TestR7SkipLogicUnchanged:
             ProgressiveQuestionnaireNode,
         )
 
-        cmd = ProgressiveQuestionnaireNode.step3_radar(state)
+        cmd = ProgressiveQuestionnaireNode.step2_radar(state)
         assert cmd.goto == "questionnaire_summary"
 
     def test_step_zero_does_not_skip(self):
@@ -376,7 +375,7 @@ class TestR7SkipLogicUnchanged:
                     ProgressiveQuestionnaireNode,
                 )
 
-                ProgressiveQuestionnaireNode.step3_radar(state)
+                ProgressiveQuestionnaireNode.step2_radar(state)
                 assert mock_interrupt.called, "step=0 时应调用 interrupt"
 
 
@@ -405,7 +404,7 @@ class TestR8RadarGapAnalyzerFed:
             ProgressiveQuestionnaireNode,
         )
 
-        cmd = ProgressiveQuestionnaireNode.step3_radar(_minimal_state())
+        cmd = ProgressiveQuestionnaireNode.step2_radar(_minimal_state())
         summary = cmd.update.get("radar_analysis_summary")
         assert summary is not None
 

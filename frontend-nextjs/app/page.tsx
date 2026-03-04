@@ -539,7 +539,7 @@ export default function HomePage() {
                 onPinSession={handlePinSession}
                 onShareSession={handleShareSession}
                 onDeleteSession={handleDeleteSession}
-                loadMoreTriggerRef={loadMoreTriggerRef}
+                loadMoreTriggerRef={loadMoreTriggerRef as React.RefObject<HTMLDivElement>}
               />
             </div>
 
@@ -775,10 +775,10 @@ export default function HomePage() {
                         : 'bg-gray-200 text-gray-400 cursor-not-allowed'}
                     `}
                     title={
-                      isLoading 
+                      isLoading
                         ? '正在分析中... 预计12-60秒（取决于需求复杂度）'
-                        : userInput.trim() 
-                          ? '发送' 
+                        : userInput.trim()
+                          ? '发送'
                           : '请输入文字描述您的需求'
                     }
                   >

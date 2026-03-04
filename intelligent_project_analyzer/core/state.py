@@ -302,6 +302,22 @@ class ProjectAnalysisState(TypedDict):
     completed_batches: Annotated[List[int], merge_lists]  # 已完成的批次编号列表
     """使用 reducer 支持并发更新"""
 
+    # ─────────────────────────────────────────────────────────────────────────
+    #  v8.2: 批次执行详情（前端动态步骤条）
+    # ─────────────────────────────────────────────────────────────────────────
+    batch_execution_detail: Optional[Dict[str, Any]]
+    """批次执行详情（前端展开用）
+    结构：
+    {
+        "current_batch": 2,
+        "total_batches": 5,
+        "batch_agents": ["V5_场景专家_5-1", "V4_设计研究员_4-1"],
+        "completed_agents": ["V5_场景专家_5-1"],
+        "active_agent": "V4_设计研究员_4-1",
+        "batch_progress": 0.5  # 0.0-1.0
+    }
+    """
+
     # 第二批策略审核 - 新增字段
     second_batch_approved: Optional[bool]  # 第二批策略是否被批准
     second_batch_strategies: Optional[Dict[str, Any]]  # 第二批专家的工作策略
@@ -313,11 +329,35 @@ class ProjectAnalysisState(TypedDict):
     best_score: float  # 历史最佳评分
     review_feedback: Optional[Dict[str, Any]]  # 审核反馈（传递给专家用于改进）
 
-    #  v2.0 递进式审核结果字段
-    review_result: Optional[Dict[str, Any]]  # [DEPRECATED] 完整审核结果（红蓝评委甲方）- 已被role_quality_review_result替代
-    final_ruling: Optional[str]  # [DEPRECATED] 最终裁定文档（甲方输出的可执行改进路线图）- 已废弃
-    improvement_suggestions: Annotated[List[Dict[str, Any]], merge_lists]  # [DEPRECATED] 改进建议列表 - 已废弃
-    skip_second_review: Optional[bool]  # [DEPRECATED] 整改后跳过第二次审核标记 - 已废弃
+    # ─────────────────────────────────────────────────────────────────────
+    #  [DEPRECATED BLOCK] v2.0 递进式审核结果字段
+    #
+    #  !! 禁止新增对以下字段的引用 !! (DO NOT ADD NEW REFERENCES)
+    #  !! 仅保留以兼容现有引用，迁移完成后将删除 !!
+    #
+    #  当前仍被以下文件读取（迁移完成前不得删除）:
+    #    review_result        → report/text_generator.py:356
+    #                           report/result_aggregator.py:558
+    #                           interaction/nodes/manual_review.py:49
+    #    final_ruling         → report/result_aggregator.py:554
+    #                           agents/analysis_review_agent.py:412
+    #    improvement_suggestions → report/text_generator.py:365
+    #                              report/result_aggregator.py:555
+    #                              interaction/nodes/manual_review.py:48
+    #                              agents/analysis_review_agent.py:413
+    #    skip_second_review   → workflow/nodes/aggregation_nodes.py:471
+    #                           interaction/nodes/manual_review.py:155,185
+    #
+    #  迁移目标:
+    #    review_result        → role_quality_review_result (已就位，见下方)
+    #    final_ruling         → 无直接替代，废弃后从 result_aggregator 报告中移除
+    #    improvement_suggestions → 废弃后从报告中移除此字段
+    #    skip_second_review   → 废弃后删除 manual_review → aggregation_nodes 的跳过逻辑
+    # ─────────────────────────────────────────────────────────────────────
+    review_result: Optional[Dict[str, Any]]  # [DEPRECATED] 完整审核结果（红蓝评委甲方）→ 迁移目标: role_quality_review_result
+    final_ruling: Optional[str]  # [DEPRECATED] 最终裁定文档（甲方输出的可执行改进路线图）→ 废弃，无替代
+    improvement_suggestions: Annotated[List[Dict[str, Any]], merge_lists]  # [DEPRECATED] 改进建议列表 → 废弃，无替代
+    skip_second_review: Optional[bool]  # [DEPRECATED] 整改后跳过第二次审核标记 → 废弃，无替代
 
     #  v2.2 角色选择质量审核字段（2026-01-26）
     role_quality_review_result: Optional[Dict[str, Any]]  # 角色选择质量审核结果（红蓝对抗）
@@ -353,6 +393,10 @@ class ProjectAnalysisState(TypedDict):
     # 错误处理
     errors: List[Dict[str, Any]]
     retry_count: int
+
+    #  需求分析显式失败状态（消除静默降级到 Step 1 的问题）
+    requirements_analysis_status: Optional[str]  # "failed" | None
+    requirements_analysis_error: Optional[str]  # 异常摘要，前端可通过状态接口读取
 
     #  输入拒绝字段（内容安全与领域过滤）
     rejection_reason: Optional[str]  # 拒绝原因代码
@@ -427,6 +471,92 @@ class ProjectAnalysisState(TypedDict):
     用于确保全流程输出风格一致性
     格式: "Scandinavian minimalist, warm wood tones, natural lighting"
     """
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # v8.1: 动机信号链（Step 0 修复 design_modes 死路 + Step 1 新增动机字段）
+    # ─────────────────────────────────────────────────────────────────────────
+
+    detected_design_modes: Optional[List[Dict[str, Any]]]
+    """
+    设计模式检测结果（Step 0 修复：原字段从未写入，projection_dispatcher 的 when_modes 永远空转）
+    由 requirements_nodes._requirements_analyst_node() 调用 detect_design_modes() 写入
+    格式: [{"mode": "M1_concept_driven", "confidence": 0.7, "reason": "..."}, ...]
+    """
+
+    project_motivation: Optional[Dict[str, Any]]
+    """
+    项目级动机识别结果（12 类：cultural/commercial/wellness 等）
+    由 Phase1 LLM 推断，经 requirements_nodes 写入主 state
+    格式: {
+        "primary": "commercial",
+        "secondary": "cultural",
+        "scores": {"commercial": 0.75, "cultural": 0.50, ...},
+        "confidence": 0.75,
+        "reasoning": "用户提到竞标和坪效"
+    }
+    """
+
+    designer_behavioral_motivation: Optional[Dict[str, Any]]
+    """
+    设计师行为动机识别结果（D1-D6）
+    回答"设计师为什么这样发问"，而非"项目要什么"
+    由 Phase1 LLM 推断，经 requirements_nodes 写入主 state
+    格式: {
+        "primary": "D2_competitive_winning",
+        "primary_label": "竞争制胜型",
+        "confidence": 0.75,
+        "scores": {"D1": 0.3, "D2": 0.75, "D3": 0.5, "D4": 0.2, "D5": 0.3, "D6": 0.4},
+        "detection_signals": ["用户提到竞标", "对比性语气"],
+        "secondary": "D3_breakthrough_innovation",
+        "conflict_flag": false
+    }
+    """
+
+    motivation_trace: Annotated[Optional[List[str]], merge_lists]
+    """
+    动机识别与传导追踪日志（调试用，支持并发 merge）
+    例: ["[Phase1] D=D2_competitive_winning conf=0.75", "[ProjectDirector] 动机注入", "[Dispatcher] power+0.12"]
+    """
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # 半动态路由画像（Smart Nodes Self-Skip）
+    # ─────────────────────────────────────────────────────────────────────────
+    task_intent_profile: Optional[Dict[str, Any]]
+    """任务意图画像（如 project_design_task/strategy_thinking/mixed_project_strategy）。"""
+
+    flow_route_name: Optional[str]
+    """命中的流程名，如 project_full_progressive_flow / strategy_light_flow。"""
+
+    flow_route_decision: Optional[Dict[str, Any]]
+    """节点自跳步决策快照（布尔开关 + 命中原因）。"""
+
+    flow_route_reason_codes: Annotated[Optional[List[str]], merge_lists]
+    """路由原因码（可并发合并），用于可解释性和回放。"""
+
+    routing_scores: Optional[Dict[str, float]]
+    """统一路由评分，如 info_completeness/ambiguity/risk/symbolic_density。"""
+
+    active_steps: Annotated[Optional[List[str]], merge_lists]
+    """当前会话激活步骤列表（前端动态步骤条来源）。"""
+
+    motivation_routing_profile: Optional[Dict[str, Any]]
+    """动机聚合画像，供路由与内容偏置统一消费。"""
+
+    # ── v8.0 投射调度字段 ──────────────────────────────────────────────────────
+    active_projections: Optional[List[str]]
+    """激活的投射视角 ID 列表，由 output_intent_detection 写入，最多3个。"""
+
+    meta_axis_scores: Optional[Dict[str, float]]
+    """五轴坐标评分 {identity, power, operation, emotion, civilization}，由 projection_dispatcher 计算。"""
+
+    perspective_outputs: Optional[Dict[str, Any]]
+    """各视角投射版本原始输出，格式 {proj_id: {status, content, sections, ...}}。"""
+
+    projection_reports: Optional[Dict[str, Any]]
+    """最终已完成的投射报告字典，由 result_aggregator 组装写入。"""
+
+    output_intent_confirmed: Optional[bool]
+    """输出意图是否已确认。"""
 
     # 元数据
     metadata: Dict[str, Any]
@@ -521,6 +651,20 @@ class StateManager:
             #  v7.155→v7.156: 多模态视觉参考（从会话数据传入，不再硬编码为 None）
             uploaded_visual_references=uploaded_visual_references,
             visual_style_anchor=visual_style_anchor,
+            # 半动态路由画像初始化
+            task_intent_profile=None,
+            flow_route_name="project_full_progressive_flow",
+            flow_route_decision=None,
+            flow_route_reason_codes=[],
+            routing_scores=None,
+            active_steps=["step1_core_task", "step2_info_gap", "step3_radar", "requirements_insight"],
+            motivation_routing_profile=None,
+            output_intent_confirmed=False,
+            # v8.0 投射调度字段初始化
+            active_projections=None,
+            meta_axis_scores=None,
+            perspective_outputs=None,
+            projection_reports=None,
             # 流程控制
             current_stage=AnalysisStage.INIT.value,
             active_agents=[],
@@ -531,6 +675,7 @@ class StateManager:
             current_batch=0,
             total_batches=0,
             completed_batches=[],
+            batch_execution_detail=None,  #  v8.2: 批次执行详情
             #  多轮审核控制 - 初始化
             review_round=0,
             review_history=[],

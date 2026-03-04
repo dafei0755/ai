@@ -565,6 +565,38 @@ class ProjectDirectorAgent(LLMAgent):
 
         requirements_text = self._format_requirements_for_selection(requirements)
 
+        # ── v8.0: 设计师行为动机注入（置信度 >= 0.5 时追加上下文给 LLM）──
+        dbm = state.get("designer_behavioral_motivation")
+        if isinstance(dbm, dict) and dbm.get("confidence", 0) >= 0.5:
+            _primary = dbm.get("primary", "")
+            _conf = dbm.get("confidence", 0)
+            _signals = "、".join(dbm.get("detection_signals", [])) or "无"
+            _motivation_hints = {
+                "D1_survival_securing": "设计师处于生存落地状态，请强化工程可行性分析，所有方案必须含成本估算和风险评估，优先选择V6工程角色。",
+                "D2_competitive_winning": "设计师处于竞争制胜状态，请强化商业逻辑分析，必须包含竞争分析和差异化策略任务，输出需具有说服力和对比性。",
+                "D3_breakthrough_innovation": "设计师追求突破创新，请提高概念驱动任务权重，强化V3叙事专家和V2设计总监，输出需有思想高度和锋芒。",
+                "D4_capability_learning": "设计师为学习型需求，请使用教学模式，任务描述需含原理解释和分步指导，强化V4研究员角色。",
+                "D5_structural_clarification": "设计师需结构表达，请增加框架性任务，使用表格和分层结构，优化输出逻辑清晰度。",
+                "D6_strategic_construction": "设计师需战略建构，请增加方法论和趋势分析任务，有宏观视角，强化V2设计总监和V4研究员。",
+            }
+            _hint = _motivation_hints.get(_primary, "")
+            if _hint:
+                requirements_text += f"\n\n## 设计师行为动机参考（置信度{_conf:.0%}，信号：{_signals}）\n{_hint}"
+                logger.info(f" [v8.0] 动机注入: {_primary} conf={_conf:.2f}")
+
+        # ── v8.0: 投射驱动的角色强制约束（输入侧约束，优先于 LLM 自由选择）──
+        active_projections = state.get("active_projections") or []
+        PROJECTION_ROLE_FORCES = {
+            "construction_execution": "必须包含 V6（专业总工程师），所有角色需有工程实施导向任务",
+            "investor_operator": "必须包含 V5（场景与行业专家）和 V2（设计总监），强化商业逻辑",
+            "aesthetic_critique": "必须包含 V3（叙事与体验专家），强化概念驱动与美学表达",
+            "government_policy": "必须包含 V2（设计总监），输出需有政策汇报框架",
+        }
+        force_lines = [v for k, v in PROJECTION_ROLE_FORCES.items() if k in active_projections]
+        if force_lines:
+            requirements_text += "\n\n## 投射视角驱动的角色约束（必须遵守）\n" + "\n".join(f"- {l}" for l in force_lines)
+            logger.info(f" [v8.0] 投射角色约束注入: {[k for k in PROJECTION_ROLE_FORCES if k in active_projections]}")
+
         #  v7.106: 获取用户确认的核心任务
         confirmed_tasks = state.get("confirmed_core_tasks", [])
         if confirmed_tasks:

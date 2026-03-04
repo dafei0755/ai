@@ -23,19 +23,49 @@ const apiClient = axios.create({
   },
 });
 
-// 🔒 添加请求拦截器：自动添加 JWT Token
+// 校验字符串是否是合法 Token
+// 支持：标准 JWT（header.payload.signature）或开发模式专用 token
+const isValidJwt = (token: string): boolean => {
+  if (!token || token === 'undefined' || token === 'null') return false;
+  // 开发模式：后端明确支持 dev-token-mock
+  if (token === 'dev-token-mock') return true;
+  // 标准 JWT：三段 base64url 结构
+  const parts = token.split('.');
+  return parts.length === 3 && parts.every(p => p.length > 0);
+};
+
+// 🔒 添加请求拦截器：自动添加 JWT Token（增加格式校验，避免发送无效 Token）
 apiClient.interceptors.request.use(
   (config) => {
     // 从 localStorage 读取 Token
     if (typeof window !== 'undefined') {
       const token = localStorage.getItem('wp_jwt_token');
-      if (token) {
+      if (token && isValidJwt(token)) {
         config.headers.Authorization = `Bearer ${token}`;
+      } else if (token && !isValidJwt(token)) {
+        // 清理无效 Token，避免反复触发 401
+        localStorage.removeItem('wp_jwt_token');
       }
     }
     return config;
   },
   (error) => {
+    return Promise.reject(error);
+  }
+);
+
+// 🔒 添加响应拦截器：401 时清理失效 Token（避免 Network Error 循环）
+apiClient.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error?.response?.status === 401 && typeof window !== 'undefined') {
+      const token = localStorage.getItem('wp_jwt_token');
+      // 保留 dev-token-mock：开发模式下多个请求依赖这个 token
+      // 只清理真实的无效 JWT（非开发模式专用 token）
+      if (token && token !== 'dev-token-mock') {
+        localStorage.removeItem('wp_jwt_token');
+      }
+    }
     return Promise.reject(error);
   }
 );
@@ -48,8 +78,10 @@ export const api = {
       const response = await apiClient.post<StartAnalysisResponse>('/api/analysis/start', data);
       return response.data;
     } catch (error: any) {
-      // 打印详细错误信息
-      console.error('Start analysis failed:', error?.message, error?.response?.status, error?.response?.data);
+      // 401 静默（未登录属正常状态）；其他错误用 warn 避免触发 error overlay
+      if (error?.response?.status !== 401) {
+        console.warn('Start analysis failed:', error?.message, error?.response?.status, error?.response?.data);
+      }
       throw error;
     }
   },
@@ -145,9 +177,11 @@ export const api = {
         sessions: allSessions,
         has_next: hasMoreActive || hasMoreArchived
       };
-    } catch (error) {
-      console.error('获取会话列表失败:', error);
-      // 如果失败，返回空列表
+    } catch (error: any) {
+      // 401 是未登录时的预期响应，不记录为错误（避免控制台噪音）
+      if (error?.response?.status !== 401) {
+        console.warn('获取会话列表失败:', error?.message || error);
+      }
       return {
         total: 0,
         sessions: [],
@@ -252,14 +286,22 @@ export const api = {
     onProgress?: (progress: number) => void
   ): Promise<StartAnalysisResponse> {
     try {
+      // 手动添加 Token（raw axios 不经过 apiClient 拦截器）
+      const headers: Record<string, string> = {
+        'Content-Type': 'multipart/form-data',
+      };
+      if (typeof window !== 'undefined') {
+        const token = localStorage.getItem('wp_jwt_token');
+        if (token && isValidJwt(token)) {
+          headers['Authorization'] = `Bearer ${token}`;
+        }
+      }
       const response = await axios.post<StartAnalysisResponse>(
         `${API_BASE_URL}/api/analysis/start-with-files`,
         formData,
         {
           timeout: 120000,
-          headers: {
-            'Content-Type': 'multipart/form-data',
-          },
+          headers,
           // 🔥 Phase 3: 上传进度追踪
           onUploadProgress: (progressEvent) => {
             if (progressEvent.total && onProgress) {
@@ -273,7 +315,9 @@ export const api = {
       );
       return response.data;
     } catch (error: any) {
-      console.error('Start analysis with files failed:', error?.message, error?.response?.status, error?.response?.data);
+      if (error?.response?.status !== 401) {
+        console.warn('Start analysis with files failed:', error?.message, error?.response?.status, error?.response?.data);
+      }
       throw error;
     }
   },
@@ -638,8 +682,10 @@ export const api = {
         sessions: paginatedSessions,
         has_next: analysisData.has_next || searchData.count >= searchLimit
       };
-    } catch (error) {
-      console.error('获取统一会话列表失败:', error);
+    } catch (error: any) {
+      if (error?.response?.status !== 401) {
+        console.warn('获取统一会话列表失败:', error?.message || error);
+      }
       return { total: 0, sessions: [], has_next: false };
     }
   },

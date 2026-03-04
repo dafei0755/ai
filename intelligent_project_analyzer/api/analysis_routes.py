@@ -45,55 +45,56 @@ from fastapi.responses import StreamingResponse
 from loguru import logger
 from pydantic import BaseModel, Field
 
+from intelligent_project_analyzer.services.file_processor import file_processor
+from intelligent_project_analyzer.services.geoip_service import get_geoip_service
+
+from .deps import DEV_MODE, sessions_cache
+from .helpers import (
+    _derive_section_identity,
+    _enrich_sections_with_agent_results,
+    _format_agent_payload,
+    _is_blank_section,
+    _normalize_section_id,
+    _sanitize_custom_analysis,
+    _sanitize_structured_data,
+)
 from .models import (
     AnalysisRequest,
-    ResumeRequest,
-    SessionResponse,
-    AnalysisStatus,
     AnalysisResult,
-    ExecutiveSummaryResponse,
-    ReportResponse,
-    InsightsSectionResponse,
-    DeliberationProcessResponse,
-    RecommendationsSectionResponse,
-    ReportSectionResponse,
+    AnalysisStatus,
+    ChallengeDetectionResponse,
+    ChallengeItemResponse,
     ComprehensiveAnalysisResponse,
     ConclusionsResponse,
+    CoreAnswerResponse,
+    CoreAnswerV7Response,
+    DeliberationProcessResponse,
+    DeliverableAnswerResponse,
+    ExecutiveSummaryResponse,
+    ExpertSupportChainResponse,
+    InsightsSectionResponse,
+    QuestionnaireResponseData,
+    QuestionnaireResponseItem,
+    RecommendationsSectionResponse,
+    ReportResponse,
+    ReportSectionResponse,
+    RequirementsAnalysisResponse,
+    ResumeRequest,
     ReviewFeedbackItemResponse,
     ReviewFeedbackResponse,
     ReviewRoundDataResponse,
     ReviewVisualizationResponse,
-    ChallengeItemResponse,
-    ChallengeDetectionResponse,
-    QuestionnaireResponseItem,
-    QuestionnaireResponseData,
-    RequirementsAnalysisResponse,
+    SessionResponse,
     StructuredReportResponse,
-    CoreAnswerV7Response,
-    CoreAnswerResponse,
-    DeliverableAnswerResponse,
-    ExpertSupportChainResponse,
-)
-from .helpers import (
-    _is_blank_section,
-    _normalize_section_id,
-    _derive_section_identity,
-    _sanitize_structured_data,
-    _sanitize_custom_analysis,
-    _format_agent_payload,
-    _enrich_sections_with_agent_results,
 )
 from .pdf_generator import (
     PDFGenerator,
-    generate_report_pdf,
-    generate_all_experts_pdf_async,
     generate_all_experts_pdf,
+    generate_all_experts_pdf_async,
     generate_all_experts_pdf_fast,
+    generate_report_pdf,
 )
 from .workflow_runner import run_workflow_async
-from .deps import sessions_cache, DEV_MODE
-from intelligent_project_analyzer.services.geoip_service import get_geoip_service
-from intelligent_project_analyzer.services.file_processor import file_processor
 
 
 class _ServerProxy:
@@ -706,6 +707,11 @@ async def get_analysis_status(
         traceback=session.get("traceback"),  # 返回traceback用于调试
         rejection_message=session.get("rejection_message"),  #  返回拒绝提示
         user_input=session.get("user_input"),  #  v7.37.7: 返回用户原始输入
+        flow_route_name=session.get("flow_route_name"),
+        flow_route_decision=session.get("flow_route_decision"),
+        flow_route_reason_codes=session.get("flow_route_reason_codes"),
+        routing_scores=session.get("routing_scores"),
+        active_steps=session.get("active_steps"),
     )
 
 
