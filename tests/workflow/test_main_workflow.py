@@ -441,15 +441,11 @@ class TestMainWorkflowInteractionNodes:
 
     def test_requirements_confirmation_node_import(self, env_setup):
         """测试RequirementsConfirmationNode导入"""
-        from intelligent_project_analyzer.interaction.interaction_nodes import RequirementsConfirmationNode
-
-        assert RequirementsConfirmationNode is not None
+        pytest.skip("RequirementsConfirmationNode 已于 P1 架构清理中删除，流程直接路由到 questionnaire_summary")
 
     def test_analysis_review_node_import(self, env_setup):
         """测试AnalysisReviewNode导入"""
-        from intelligent_project_analyzer.interaction.interaction_nodes import AnalysisReviewNode
-
-        assert AnalysisReviewNode is not None
+        pytest.skip("AnalysisReviewNode 已于 v2.2 废弃，interaction_nodes 中已注释掉")
 
 
 class TestMainWorkflowSecurity:
