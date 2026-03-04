@@ -27,16 +27,7 @@ from pydantic import BaseModel, Field
 from intelligent_project_analyzer.settings import settings
 
 router = APIRouter(tags=["System & Monitoring"])
-
-
-class _ServerProxy:
-    def __getattr__(self, name: str):  # noqa: ANN204
-        import intelligent_project_analyzer.api.server as _srv  # noqa: PLC0415
-
-        return getattr(_srv, name)
-
-
-_server = _ServerProxy()
+from intelligent_project_analyzer.api._server_proxy import server_proxy as _server
 
 
 @router.get("/")

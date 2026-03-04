@@ -12,18 +12,7 @@ from typing import Dict, List
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from loguru import logger
-
-
-class _ServerProxy:
-    """延迟导入 server 模块中的运行时状态，避免循环导入。"""
-
-    def __getattr__(self, name: str):
-        import intelligent_project_analyzer.api.server as _srv
-
-        return getattr(_srv, name)
-
-
-_server = _ServerProxy()
+from intelligent_project_analyzer.api._server_proxy import server_proxy as _server
 
 router = APIRouter(tags=["websocket"])
 

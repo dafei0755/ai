@@ -28,18 +28,7 @@ from .deps import DEV_MODE, sessions_cache
 from .models import ConversationResponse
 
 router = APIRouter(tags=["Sessions & Conversation"])
-
-
-class _ServerProxy:
-    """惰性代理：首次调用属性时才导入 server 模块（避免循环导入）"""
-
-    def __getattr__(self, name: str):  # noqa: ANN204
-        import intelligent_project_analyzer.api.server as _srv  # noqa: PLC0415
-
-        return getattr(_srv, name)
-
-
-_server = _ServerProxy()
+from intelligent_project_analyzer.api._server_proxy import server_proxy as _server
 
 
 async def _get_session_manager():

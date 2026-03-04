@@ -1687,6 +1687,12 @@ async def broadcast_to_websockets(session_id: str, message: Dict[str, Any]):
         )
 
 
+# Register broadcast function so workflow layer can call it without importing server.py directly.
+# This must appear after broadcast_to_websockets is defined (module-level, safe at import time).
+from intelligent_project_analyzer.api._broadcast_registry import register_broadcast as _register_broadcast  # noqa: E402
+_register_broadcast(broadcast_to_websockets)
+
+
 async def run_workflow_async(session_id: str, user_input: str):
     """异步执行工作流（仅 Dynamic Mode）"""
     try:

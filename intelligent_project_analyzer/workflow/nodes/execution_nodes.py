@@ -396,11 +396,13 @@ class ExecutionNodesMixin:
             session_id = state.get("session_id")
             if session_id:
                 try:
-                    # 导入broadcast函数
-                    # 推送专家结果
+                    # 推送专家结果（通过注册表，规避 workflow→api 层级直接导入）
                     import asyncio
 
-                    from intelligent_project_analyzer.api.server import broadcast_to_websockets
+                    from intelligent_project_analyzer.api._broadcast_registry import get_broadcast
+                    broadcast_to_websockets = get_broadcast()
+                    if not broadcast_to_websockets:
+                        raise RuntimeError("broadcast_to_websockets not registered yet")
 
                     #  v7.153: 提取该专家的搜索引用用于WebSocket推送
                     expert_search_refs = expert_result.get("search_references", [])
@@ -649,7 +651,10 @@ class ExecutionNodesMixin:
             session_id = state.get("session_id")
             if session_id:
                 try:
-                    from intelligent_project_analyzer.api.server import broadcast_to_websockets
+                    from intelligent_project_analyzer.api._broadcast_registry import get_broadcast
+                    broadcast_to_websockets = get_broadcast()
+                    if not broadcast_to_websockets:
+                        raise RuntimeError("broadcast_to_websockets not registered yet")
 
                     await broadcast_to_websockets(
                         session_id,
