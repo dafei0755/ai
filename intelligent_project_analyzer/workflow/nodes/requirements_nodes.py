@@ -307,8 +307,9 @@ class RequirementsNodesMixin:
             full_state = dict(state)  # 获取完整状态副本
 
             # ️ 增强修复：检查标志 OR 检查答案是否存在
-            has_processed = ("calibration_processed" in full_state and full_state["calibration_processed"]) or (
-                "calibration_answers" in full_state and full_state["calibration_answers"]
+            # LT-3: calibration_answers 已删除，改从 questionnaire_responses["answers"] 检查
+            has_processed = ("calibration_processed" in full_state and full_state["calibration_processed"]) or bool(
+                (full_state.get("questionnaire_responses") or {}).get("answers")
             )
 
             if has_processed:

@@ -698,7 +698,7 @@ class CalibrationQuestionnaireNode:
 
             #  修复: 无论是否有补充文本，都要保存问卷答案（用于后续聚合）
             if answers_map:
-                updated_state["calibration_answers"] = answers_map
+                # LT-3: calibration_answers 已删除，答案通过 questionnaire_responses["answers"] 保存
 
                 #  新增: 构建并保存 questionnaire_summary/responses（与 approve 分支一致）
                 summary_entries = entries
@@ -748,7 +748,7 @@ class CalibrationQuestionnaireNode:
                     "source": "calibration_questionnaire",
                 }
 
-                updated_state["calibration_answers"] = answers_map
+                # LT-3: calibration_answers 已删除，答案通过 questionnaire_responses["answers"] 保存
                 updated_state["questionnaire_summary"] = summary_payload
                 updated_state["questionnaire_responses"] = summary_payload
                 updated_state["calibration_processed"] = True

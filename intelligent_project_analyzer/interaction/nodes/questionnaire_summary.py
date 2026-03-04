@@ -69,12 +69,17 @@ class QuestionnaireSummaryNode:
 
         # 诊断：检查必要的前置数据是否存在
         confirmed_tasks = state.get("confirmed_core_tasks") or []
-        gap_filling = state.get("gap_filling_answers") or {}
+        # LT-3: 优先从 questionnaire_responses["gap_filling_answers"] 读取，兼容旧 checkpoint 顶层字段
+        gap_filling = (
+            (state.get("questionnaire_responses") or {}).get("gap_filling_answers")
+            or state.get("gap_filling_answers")  # backward-compat: 旧 checkpoint 顶层字段
+            or {}
+        )
         selected_dims = state.get("selected_dimensions") or []
 
         logger.info(f" [前置数据检查]")
         logger.info(f"   - confirmed_core_tasks: {len(confirmed_tasks)}个")
-        logger.info(f"   - gap_filling_answers: {len(gap_filling)}个字段")
+        logger.info(f"   - gap_filling_answers: {len(gap_filling)}个字段(via questionnaire_responses)")
         logger.info(f"   - selected_dimensions: {len(selected_dims)}个")
 
         if not confirmed_tasks:
@@ -409,12 +414,12 @@ class QuestionnaireSummaryNode:
         # Step1: 核心任务
         confirmed_tasks = state.get("confirmed_core_tasks") or []
 
-        # Step2: 信息补全（可能在gap_filling_answers或questionnaire_responses中）
-        gap_filling = state.get("gap_filling_answers") or {}
-        if not gap_filling:
-            #  v7.143: 添加防御性代码，避免 questionnaire_responses 为 None 时崩溃
-            questionnaire_responses = state.get("questionnaire_responses") or {}
-            gap_filling = questionnaire_responses.get("gap_filling") or {}
+        # Step2: 信息补全（LT-3: 优先从 questionnaire_responses["gap_filling_answers"] 读取）
+        gap_filling = (
+            (state.get("questionnaire_responses") or {}).get("gap_filling_answers")
+            or state.get("gap_filling_answers")  # backward-compat: 旧 checkpoint 顶层字段
+            or {}
+        )
 
         # Step3: 雷达维度
         selected_dims = state.get("selected_dimensions") or []

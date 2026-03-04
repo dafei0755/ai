@@ -240,8 +240,8 @@ class ProjectAnalysisState(TypedDict):
     calibration_processed: Optional[bool]  # 是否已处理问卷（避免重复显示）
     calibration_skipped: Optional[bool]  # 是否跳过问卷（用户选择或系统判断）
     calibration_questionnaire: Optional[Dict[str, Any]]  # 生成的校准问卷
-    calibration_answers: Optional[Dict[str, Any]]  # 问卷答案（兼容旧字段）
-    questionnaire_responses: Optional[Dict[str, Any]]  # 问卷回答（包含答案和元数据）
+    # LT-3: calibration_answers 已合并到 questionnaire_responses["answers"]（删除独立字段）
+    questionnaire_responses: Optional[Dict[str, Any]]  # 问卷回答（含 answers/entries/gap_filling_answers 等子键）
     questionnaire_summary: Optional[Dict[str, Any]]  # 问卷精炼摘要（仅保留有效信息）
     interaction_history: Annotated[List[Dict[str, Any]], merge_lists]  # 交互历史记录
     post_completion_followup_completed: Optional[bool]  # 报告完成后的追问是否已结束
@@ -261,7 +261,7 @@ class ProjectAnalysisState(TypedDict):
     step1_boundary_check: Optional[Any]
 
     # Step 2: 信息补全 (Gap Filling)
-    gap_filling_answers: Optional[Dict[str, Any]]
+    # LT-3: gap_filling_answers 已合并到 questionnaire_responses["gap_filling_answers"]（删除独立字段）
     task_completeness_analysis: Optional[Dict[str, Any]]
     task_gap_filling_questionnaire: Optional[Dict[str, Any]]
 
@@ -598,7 +598,7 @@ class StateManager:
             calibration_processed=False,
             calibration_skipped=False,
             calibration_questionnaire=None,
-            calibration_answers=None,
+            # LT-3: calibration_answers 已删除，合并到 questionnaire_responses["answers"]
             questionnaire_responses=None,
             questionnaire_summary=None,
             interaction_history=[],
@@ -614,7 +614,7 @@ class StateManager:
             poetic_metadata=None,
             special_scene_metadata=None,
             step1_boundary_check=None,
-            gap_filling_answers=None,
+            # LT-3: gap_filling_answers 已删除，合并到 questionnaire_responses["gap_filling_answers"]
             task_completeness_analysis=None,
             task_gap_filling_questionnaire=None,
             selected_dimensions=None,

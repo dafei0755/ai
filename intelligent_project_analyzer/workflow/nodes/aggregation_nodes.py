@@ -988,7 +988,8 @@ class AggregationNodesMixin:
                 context_parts.append(f"- 类型: {task.get('type')}")
 
         #  v7.106: 添加用户补充的信息（Step 3 问卷答案）
-        gap_filling_answers = state.get("gap_filling_answers", {})
+        # LT-3: gap_filling_answers 已合并到 questionnaire_responses["gap_filling_answers"]
+        gap_filling_answers = (state.get("questionnaire_responses") or {}).get("gap_filling_answers", {})
         if gap_filling_answers:
             context_parts.append("\n## 用户补充的关键信息\n")
             for question_id, answer in gap_filling_answers.items():

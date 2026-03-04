@@ -924,7 +924,8 @@ class ProgressiveQuestionnaireNode:
                 "progressive_questionnaire_completed": False,  # 还未完全完成，需要进行雷达图
                 "progressive_questionnaire_step": 2,
                 "task_completeness_analysis": completeness,  # 保存分析结果
-                "gap_filling_answers": {},  # 空答案
+                # LT-3: gap_filling_answers 合并到 questionnaire_responses["gap_filling_answers"]
+                "questionnaire_responses": {**(state.get("questionnaire_responses") or {}), "gap_filling_answers": {}},
             }
             update_dict = WorkflowFlagManager.preserve_flags(state, update_dict)
             #  v7.146: 即使无需补充，也要进入雷达图环节
@@ -1074,7 +1075,8 @@ class ProgressiveQuestionnaireNode:
                 "missing_dimensions": completeness.get("missing_dimensions", []),
                 "critical_gaps": critical_gaps,
             },
-            "gap_filling_answers": answers,
+            # LT-3: gap_filling_answers 合并到 questionnaire_responses["gap_filling_answers"]
+            "questionnaire_responses": {**(state.get("questionnaire_responses") or {}), "gap_filling_answers": answers},
             "progressive_questionnaire_completed": False,  #  改为 False，因为还有雷达图步骤
             "progressive_questionnaire_step": 2,  #  这是 UI 的 Step 2
             # "questionnaire_summary": questionnaire_summary,  #  删除，改为在雷达图后生成

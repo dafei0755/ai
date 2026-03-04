@@ -558,19 +558,10 @@ class ResultAggregatorAgent(LLMAgent):
         review_result = state.get("review_result") or {}  #  修复：确保不为 None
         review_history = state.get("review_history") or []  #  修复：确保不为 None
 
-        #  获取问卷数据（ 修复: 同时获取 calibration_answers 作为备用）
+        #  获取问卷数据（LT-3: calibration_answers 已删除，统一从 questionnaire_responses 读取）
         calibration_questionnaire = state.get("calibration_questionnaire") or {}
         questionnaire_responses = state.get("questionnaire_responses") or {}
         questionnaire_summary = state.get("questionnaire_summary") or {}
-        calibration_answers = state.get("calibration_answers") or {}
-
-        #  修复: 如果 questionnaire_responses 为空，尝试从 calibration_answers 构建
-        if not questionnaire_responses.get("entries") and not questionnaire_responses.get("answers"):
-            if calibration_answers:
-                logger.info(
-                    f" [问卷数据恢复] questionnaire_responses 为空，从 calibration_answers 恢复 ({len(calibration_answers)} 个答案)"
-                )
-                questionnaire_responses = {"answers": calibration_answers, "source": "calibration_answers_fallback"}
 
         # 提取项目总监的战略分析信息
         query_type = strategic_analysis.get("query_type", "深度优先探询")
