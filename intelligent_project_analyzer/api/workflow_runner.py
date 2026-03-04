@@ -35,6 +35,7 @@ async_checkpointer: Optional[Any] = None  # AsyncSqliteSaver，惰性初始化
 async_checkpointer_lock: Optional[asyncio.Lock] = None
 
 from intelligent_project_analyzer.api._server_proxy import server_proxy as _server
+from intelligent_project_analyzer.api.deps import _serialize_for_json  # noqa: E402
 
 # ==================== 辅助函数 ====================
 
