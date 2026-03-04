@@ -67,6 +67,9 @@ from ..core.types import AnalysisResult
 from ..services.capability_boundary_service import CapabilityBoundaryService
 from ..utils.capability_detector import check_capability
 from ..utils.jtbd_parser import transform_jtbd_to_natural_language
+from ..services.mode_detector import HybridModeDetector
+from ..services.mode_info_adjuster import adjust_info_status_by_mode
+from .requirements_analyst_schema import RequirementsAnalystOutput
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # 1. 状态定义
@@ -103,6 +106,14 @@ class RequirementsAnalystState(TypedDict):
     phase1_info_status: str  # Phase1 判定的信息状态
     recommended_next_step: str  # 推荐的下一步
     primary_deliverables: List[Dict]  # 主要交付物列表
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # 中间状态 - Mode Detection & Vote
+    # ─────────────────────────────────────────────────────────────────────────
+    phase1_info_status_vote: Dict[str, Any]   # 三源投票结果详情
+    detected_design_modes: List[Dict[str, Any]]  # 检测到的设计模式列表
+    mode_detection_elapsed_ms: float           # 模式检测耗时
+    phase2_mode: str                           # "Phase2-Full" | "Phase2-Lite"
 
     # ─────────────────────────────────────────────────────────────────────────
     # 中间状态 - Phase2 阶段
@@ -285,17 +296,64 @@ def phase1_node(state: RequirementsAnalystState, llm_model, prompt_manager) -> D
         else:
             logger.info("[OK] 所有交付物在能力范围内")
 
+    # ── Step 4: Mode Engine (同步，轻量) ──────────────────────────────────────
+    _mode_t0 = time.time()
+    try:
+        detected_modes = HybridModeDetector.detect_sync(
+            user_input=user_input,
+            structured_requirements={"primary_deliverables": deliverables},
+        )
+    except Exception as _mode_err:
+        logger.warning(f"[Phase1] Mode Engine 失败，使用空列表: {_mode_err}")
+        detected_modes = []
+    mode_detection_elapsed_ms = (time.time() - _mode_t0) * 1000
+
+    # ── Step 5: Mode-aware info status adjustment ─────────────────────────────
+    if detected_modes:
+        try:
+            mode_adjustment = adjust_info_status_by_mode(
+                original_status=info_status,
+                user_input=user_input,
+                detected_modes=detected_modes,
+                phase1_result=phase1_result,
+            )
+            logger.info(f"[Phase1] ModeAdjustment: {mode_adjustment.get('adjustment_summary', '')}")
+        except Exception as _adj_err:
+            logger.warning(f"[Phase1] adjust_info_status_by_mode 失败: {_adj_err}")
+            mode_adjustment = {"adjusted_status": None}
+    else:
+        mode_adjustment = {"adjusted_status": None}
+
+    # ── Step 6: 三源加权投票 ───────────────────────────────────────────────────
+    vote_precheck = state.get("precheck_result", {})
+    final_info_status, vote_details = _weighted_info_status_vote(
+        precheck=vote_precheck,
+        phase1=phase1_result,
+        mode=mode_adjustment,
+    )
+    logger.info(
+        f"[Phase1] 三源投票 -> {final_info_status} "
+        f"(score={vote_details['final_score']:.2f}, consensus={vote_details['consensus']})"
+    )
+
     return {
         "phase1_result": phase1_result,
         "phase1_elapsed_ms": elapsed_ms,
-        "phase1_info_status": info_status,
+        "phase1_info_status": final_info_status,
         "recommended_next_step": recommended_next,
         "primary_deliverables": deliverables,
+        # 三源投票新字段
+        "phase1_info_status_vote": vote_details,
+        "detected_design_modes": detected_modes,
+        "mode_detection_elapsed_ms": mode_detection_elapsed_ms,
         # 动机字段直通（置信度不足时 LLM 会返回 null）
         "phase1_motivation_preliminary": phase1_result.get("motivation_preliminary"),
         "phase1_designer_behavioral_motivation": phase1_result.get("designer_behavioral_motivation"),
         "processing_log": state.get("processing_log", [])
-        + [f"[Phase1] 完成 ({elapsed_ms:.0f}ms) - {info_status}, {len(deliverables)}个交付物"],
+        + [
+            f"[Phase1] 完成 ({elapsed_ms:.0f}ms) - {final_info_status}, "
+            f"{len(deliverables)}个交付物, modes={len(detected_modes)}"
+        ],
         "node_path": state.get("node_path", []) + ["phase1"],
     }
 
@@ -313,13 +371,18 @@ def phase2_node(state: RequirementsAnalystState, llm_model, prompt_manager) -> D
     user_input = state.get("user_input", "")
     phase1_result = state.get("phase1_result", {})
 
-    logger.info("[Phase2] [Phase2] 开始深度分析 + 专家接口构建...")
+    # ── 双模式提示词选择 ──────────────────────────────────────────────────────
+    phase1_info_status = state.get("phase1_info_status", "insufficient")
+    is_full_mode = phase1_info_status == "sufficient"
+    phase2_mode = "Phase2-Full" if is_full_mode else "Phase2-Lite"
+    prompt_key = "requirements_analyst_phase2" if is_full_mode else "requirements_analyst_phase2_lite"
 
-    # 加载 Phase2 提示词
-    phase2_config = prompt_manager.get_prompt("requirements_analyst_phase2", return_full_config=True)
+    logger.info(f"[Phase2] [Phase2] 开始深度分析，模式={phase2_mode} (info_status={phase1_info_status})")
 
+    # 加载提示词配置
+    phase2_config = prompt_manager.get_prompt(prompt_key, return_full_config=True)
     if not phase2_config:
-        logger.warning("[Phase2] 未找到专用配置，使用 fallback")
+        logger.warning(f"[Phase2] 未找到配置 '{prompt_key}'，使用 fallback")
         return _phase2_fallback(state, start_time)
 
     system_prompt = phase2_config.get("system_prompt", "")
@@ -335,41 +398,84 @@ def phase2_node(state: RequirementsAnalystState, llm_model, prompt_manager) -> D
         .replace("{phase1_output}", phase1_output_str)
     )
 
-    # 调用 LLM
+    # emoji 清理（防 Windows GBK 编码错误）
+    import re
+    _emoji_re = re.compile(
+        r"[\U0001F000-\U0001F9FF\U00002300-\U000023FF\U00002600-\U000027BF"
+        r"\U00002700-\U000027BF\U0001F900-\U0001F9FF]+",
+        flags=re.UNICODE,
+    )
+    system_prompt = _emoji_re.sub("", system_prompt)
+    task_description = _emoji_re.sub("", task_description)
+
+    messages = [
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": task_description},
+    ]
+
+    phase2_result: Dict[str, Any] = {}
+
+    # ── 第一层: with_structured_output ────────────────────────────────────────
     try:
-        messages = [{"role": "system", "content": system_prompt}, {"role": "user", "content": task_description}]
+        _structured_llm = llm_model.with_structured_output(RequirementsAnalystOutput, method="function_calling")
+        _output_obj = _structured_llm.invoke(messages)
+        if _output_obj is not None:
+            phase2_result = _output_obj.model_dump() if hasattr(_output_obj, "model_dump") else dict(_output_obj)
+            phase2_result["phase"] = 2
+            phase2_result["_parse_method"] = "structured_output"
+            logger.info("[Phase2][T1] with_structured_output 解析成功")
+    except Exception as _e1:
+        logger.warning(f"[Phase2][T1] with_structured_output 失败: {_e1}")
 
-        #  强制清理emoji (防止Windows GBK编码错误)
-        import re
+    # ── 第二层: 加入 schema hint 重试 ─────────────────────────────────────────
+    if not phase2_result:
+        try:
+            _hint = (
+                "\n\n[系统提示] 请严格按照 RequirementsAnalystOutput JSON schema 输出，"
+                "确保所有必填字段存在，analysis_layers 包含 L1-L9。"
+            )
+            _messages_r2 = [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": task_description + _hint},
+            ]
+            _structured_llm = llm_model.with_structured_output(RequirementsAnalystOutput, method="function_calling")
+            _output_obj = _structured_llm.invoke(_messages_r2)
+            if _output_obj is not None:
+                phase2_result = _output_obj.model_dump() if hasattr(_output_obj, "model_dump") else dict(_output_obj)
+                phase2_result["phase"] = 2
+                phase2_result["_parse_method"] = "structured_output_retry"
+                logger.info("[Phase2][T2] 重试 structured_output 成功")
+        except Exception as _e2:
+            logger.warning(f"[Phase2][T2] 重试 structured_output 失败: {_e2}")
 
-        emoji_pattern = re.compile(
-            r"[\U0001F000-\U0001F9FF\U00002300-\U000023FF\U00002600-\U000027BF\U00002700-\U000027BF\U0001F900-\U0001F9FF]+",
-            flags=re.UNICODE,
-        )
-        for msg in messages:
-            msg["content"] = emoji_pattern.sub("", msg["content"])
-
-        response = llm_model.invoke(messages)
-        response_content = response.content if hasattr(response, "content") else str(response)
-
-        # 解析 JSON
-        phase2_result = _parse_json_response(response_content)
-        phase2_result["phase"] = 2
-
-    except Exception as e:
-        logger.error(f"[Phase2] LLM 调用失败: {e}")
-        return _phase2_fallback(state, start_time)
+    # ── 第三层: raw invoke + _parse_json_response ────────────────────────────
+    if not phase2_result:
+        try:
+            _response = llm_model.invoke(messages)
+            _content = _response.content if hasattr(_response, "content") else str(_response)
+            phase2_result = _parse_json_response(_content)
+            phase2_result["phase"] = 2
+            phase2_result["_parse_method"] = "raw_json_fallback"
+            # stakeholder_system None 守护
+            if "stakeholder_system" not in phase2_result:
+                phase2_result["stakeholder_system"] = None
+            logger.info("[Phase2][T3] raw invoke + JSON parse 成功")
+        except Exception as _e3:
+            logger.error(f"[Phase2][T3] 全部策略失败: {_e3}")
+            return _phase2_fallback(state, start_time)
 
     elapsed_ms = (time.time() - start_time) * 1000
-
-    logger.info(f"[OK] [Phase2] 完成，耗时 {elapsed_ms:.0f}ms")
+    _parse_method = phase2_result.get("_parse_method", "unknown")
+    logger.info(f"[OK] [Phase2] 完成，耗时 {elapsed_ms:.0f}ms, 模式={phase2_mode}, 解析={_parse_method}")
 
     return {
         "phase2_result": phase2_result,
         "phase2_elapsed_ms": elapsed_ms,
+        "phase2_mode": phase2_mode,
         "analysis_layers": phase2_result.get("analysis_layers", {}),
         "expert_handoff": phase2_result.get("expert_handoff", {}),
-        "processing_log": state.get("processing_log", []) + [f"[Phase2] 完成 ({elapsed_ms:.0f}ms)"],
+        "processing_log": state.get("processing_log", [])
+        + [f"[Phase2] 完成 ({elapsed_ms:.0f}ms) - {phase2_mode}, 解析={_parse_method}"],
         "node_path": state.get("node_path", []) + ["phase2"],
     }
 
