@@ -35,7 +35,7 @@ from .models import (
 
 from .api import router as external_data_router
 
-__version__ = "2.0.0"
+from intelligent_project_analyzer.versioning import PRODUCT_VERSION as __version__
 
 __all__ = [
     # Spider接口

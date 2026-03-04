@@ -665,7 +665,8 @@ async def lifespan(app: FastAPI):
 
 
 # 创建 FastAPI 应用
-app = FastAPI(title="智能项目分析系统 API", description="基于 LangGraph 的多智能体协作分析平台", version="2.0.0", lifespan=lifespan)
+from intelligent_project_analyzer.versioning import PRODUCT_VERSION as _api_version
+app = FastAPI(title="智能项目分析系统 API", description="基于 LangGraph 的多智能体协作分析平台", version=_api_version, lifespan=lifespan)
 
 #  添加性能监控中间件
 from intelligent_project_analyzer.api.performance_monitor import performance_monitoring_middleware
