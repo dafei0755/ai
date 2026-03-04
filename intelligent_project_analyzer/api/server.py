@@ -98,12 +98,12 @@ from .deps import (  # noqa: E402
     sync_checkpoint_to_redis,
 )
 
-
 # 添加项目路径
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
 from langgraph.checkpoint.base import BaseCheckpointSaver
+
 #  v3.11新增: 追问历史管理器
 from intelligent_project_analyzer.services.followup_history_manager import FollowupHistoryManager
 
@@ -116,7 +116,6 @@ from intelligent_project_analyzer.services.session_archive_manager import Sessio
 #  使用新的统一配置 - 不再需要load_dotenv()
 from intelligent_project_analyzer.settings import settings
 from intelligent_project_analyzer.workflow.main_workflow import MainWorkflow
-
 
 # � v7.145: Checkpoint 到 Redis 数据同步函数
 # MT-1 迁移：sync_checkpoint_to_redis 已迁移至 api/deps.py
@@ -425,11 +424,17 @@ except Exception as e:
     logger.warning(f"️ 知识库配额管理路由加载失败: {e}")
 
 #  v7.160: 搜索模式路由（博查AI Search + DeepSeek-R1）
+# ⚠️ 深度搜索功能暂停开放 — 由 feature_flags.DEEP_SEARCH_ENABLED 控制，恢复时设置环境变量 DEEP_SEARCH_ENABLED=true
 try:
-    from intelligent_project_analyzer.api.search_routes import router as search_router
+    from intelligent_project_analyzer.config.feature_flags import DEEP_SEARCH_ENABLED as _DEEP_SEARCH_ENABLED
 
-    app.include_router(search_router)
-    logger.info(" 搜索模式路由已注册")
+    if _DEEP_SEARCH_ENABLED:
+        from intelligent_project_analyzer.api.search_routes import router as search_router
+
+        app.include_router(search_router)
+        logger.info(" 搜索模式路由已注册")
+    else:
+        logger.info("⏸️ 搜索模式路由已暂停（DEEP_SEARCH_ENABLED=false）")
 except Exception as e:
     logger.warning(f"️ 搜索模式路由加载失败: {e}")
 
@@ -499,17 +504,15 @@ for _mod_path2, _label2 in [
 # ── MT-1: 数据模型及报告辅助函数已迁移至 api/models.py 和 api/helpers.py ──────
 
 
-# MT-1 迁移：subscribe_to_redis_pubsub 已迁移至 api/workflow_runner.py
-from .workflow_runner import subscribe_to_redis_pubsub  # noqa: E402  (lifespan 依赖)
-
-
-# MT-1 迁移：_ensure_aiosqlite_is_alive / get_or_create_async_checkpointer / create_workflow 已迁移至 api/workflow_runner.py
-
-
 from intelligent_project_analyzer.api._broadcast_registry import register_broadcast as _register_broadcast  # noqa: E402
 
 # MT-1 迁移：broadcast_to_websockets 已迁移至 api/workflow_runner.py（含 EventStore 增强）
+# MT-1 迁移：subscribe_to_redis_pubsub 已迁移至 api/workflow_runner.py
 from .workflow_runner import broadcast_to_websockets  # noqa: E402  (registry + workflow 直接调用)
+from .workflow_runner import subscribe_to_redis_pubsub  # noqa: E402  (lifespan 依赖)
+
+# MT-1 迁移：_ensure_aiosqlite_is_alive / get_or_create_async_checkpointer / create_workflow 已迁移至 api/workflow_runner.py
+
 
 _register_broadcast(broadcast_to_websockets)
 

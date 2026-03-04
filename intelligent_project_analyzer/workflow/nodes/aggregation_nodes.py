@@ -828,24 +828,6 @@ class AggregationNodesMixin:
         logger.info(" [pdf_generator] 报告已生成，流程结束，前端接管结果呈现")
         return END
 
-    def _route_after_analysis_review(
-        self, state: ProjectAnalysisState
-    ) -> Literal["result_aggregator", "project_director", "user_question"]:
-        """分析审核后的路由"""
-        if state.get("analysis_approved"):
-            return "result_aggregator"
-        elif state.get("additional_questions"):
-            return "user_question"
-        else:
-            return "project_director"
-
-    # def _route_after_final_review(self, state: ProjectAnalysisState) -> Literal["pdf_generator", "result_aggregator"]:
-    #     """最终审核后的路由 - 已移除，因为不再有最终审核阶段"""
-    #     if state.get("final_approved"):
-    #         return "pdf_generator"
-    #     else:
-    #         return "result_aggregator"
-
     def _route_after_user_question(self, state: ProjectAnalysisState) -> Literal["project_director", END]:
         """
         用户追问后的路由

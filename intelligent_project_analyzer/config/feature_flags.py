@@ -12,6 +12,9 @@ import os
 
 from loguru import logger
 
+# ─── 深度搜索功能开关（暂停开放，设为 false；恢复时改为 true 或设置环境变量）────────────
+DEEP_SEARCH_ENABLED: bool = os.getenv("DEEP_SEARCH_ENABLED", "false").lower() == "true"
+
 # ─── v7.18 问卷生成 StateGraph Agent（默认关闭，可能未来启用）────────────────────
 USE_V718_QUESTIONNAIRE_AGENT: bool = os.getenv("USE_V718_QUESTIONNAIRE_AGENT", "false").lower() == "true"
 
@@ -32,6 +35,7 @@ def log_feature_flags_snapshot() -> None:
     """启动时调用，打印完整特性开关快照以便诊断。"""
     logger.info(
         "[feature_flags] snapshot | "
+        f"DEEP_SEARCH_ENABLED={DEEP_SEARCH_ENABLED} | "
         f"USE_V718_QUESTIONNAIRE_AGENT={USE_V718_QUESTIONNAIRE_AGENT} | "
         f"ENABLE_SMART_NODE_SELF_SKIP={ENABLE_SMART_NODE_SELF_SKIP} | "
         f"ENABLE_SMART_NODE_SELF_SKIP_SHADOW={ENABLE_SMART_NODE_SELF_SKIP_SHADOW}"
