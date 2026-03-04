@@ -817,7 +817,7 @@ class RequirementsAnalystAgent(LLMAgent):
             # 合并 Phase1 和 Phase2 结果
             structured_data = self._merge_phase_results(phase1_result, phase2_result)
             structured_data["analysis_mode"] = "two_phase"
-            structured_data["phase1_elapsed_s"] = round(phase1_elapsed, 2)
+            structured_data["phase1_elapsed_s"] = round(parallel_elapsed, 2)  # precheck+phase1 并行耗时
             structured_data["phase2_elapsed_s"] = round(phase2_elapsed, 2)
 
             # 后处理：字段规范化、项目类型推断

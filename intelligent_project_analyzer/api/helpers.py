@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import re
+import uuid
 from collections import OrderedDict, defaultdict
 from typing import Any, Dict, List, Optional, Set, Tuple
 

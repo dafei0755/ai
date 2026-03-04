@@ -16,6 +16,12 @@ MT-1 (2026-03-01): 会话管理、对话、归档路由
 from __future__ import annotations
 
 import asyncio
+import json
+import math
+import os
+import time
+from datetime import datetime
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query
@@ -24,8 +30,10 @@ from pydantic import BaseModel
 
 from intelligent_project_analyzer.settings import settings  # 直接导入
 
-from .deps import DEV_MODE, sessions_cache
-from .models import ConversationResponse
+from .deps import DEV_MODE, sessions_cache, sync_checkpoint_to_redis
+from .models import ConversationRequest, ConversationResponse
+
+from intelligent_project_analyzer.agents.followup_agent import FollowupAgent
 
 router = APIRouter(tags=["Sessions & Conversation"])
 from intelligent_project_analyzer.api._server_proxy import server_proxy as _server
@@ -419,8 +427,8 @@ async def delete_session(session_id: str, current_user: dict = Depends(_server.g
                 raise HTTPException(status_code=500, detail="删除会话失败")
 
         # 4. 清理内存中的workflow实例（仅活跃会话需要）
-        if not is_archived and session_id in workflows:
-            del workflows[session_id]
+        if not is_archived and session_id in _server.workflows:
+            del _server.workflows[session_id]
             logger.info(f"️ 清理工作流实例: {session_id}")
 
         #  5. 删除会话相关文件

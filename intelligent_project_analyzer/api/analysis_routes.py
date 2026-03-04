@@ -45,7 +45,7 @@ from fastapi.responses import StreamingResponse
 from loguru import logger
 from pydantic import BaseModel, Field
 
-from intelligent_project_analyzer.services.file_processor import file_processor
+from intelligent_project_analyzer.services.file_processor import build_combined_input, file_processor
 from intelligent_project_analyzer.services.geoip_service import get_geoip_service
 
 from .deps import DEV_MODE, sessions_cache
@@ -94,6 +94,9 @@ from .pdf_generator import (
     generate_all_experts_pdf_fast,
     generate_report_pdf,
 )
+from langgraph.types import Command
+
+from intelligent_project_analyzer.agents.followup_agent import FollowupAgent
 from .workflow_runner import run_workflow_async
 from intelligent_project_analyzer.api._server_proxy import server_proxy as _server
 
@@ -734,7 +737,7 @@ async def resume_analysis(request: ResumeRequest, background_tasks: BackgroundTa
         raise HTTPException(status_code=400, detail=f"会话状态不正确: {session.get('status')}")
 
     # 获取工作流
-    workflow = workflows.get(session_id)
+    workflow = _server.workflows.get(session_id)
     if not workflow:
         logger.error(f" 工作流实例不存在: {session_id}")
         logger.error(f"   这通常发生在服务器重启后，工作流无法继续")

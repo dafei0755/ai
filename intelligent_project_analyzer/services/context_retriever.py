@@ -7,9 +7,13 @@
 3. 章节结构化提取
 """
 
-from typing import Dict, Any, List
+from typing import TYPE_CHECKING, Any, Dict, List
+
 from loguru import logger
 import re
+
+if TYPE_CHECKING:
+    from intelligent_project_analyzer.agents.conversation_agent import ConversationContext
 
 
 class ContextRetriever:

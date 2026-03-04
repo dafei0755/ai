@@ -7,6 +7,9 @@ MT-1 (2026-03-01): 图像生成与管理路由
 """
 from __future__ import annotations
 
+import json
+import os
+from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, HTTPException, Query
@@ -97,7 +100,7 @@ async def regenerate_expert_image(session_id: str, request: RegenerateImageReque
                 "total_tokens": result.total_tokens,
             }
             success = await update_session_tokens(
-                session_manager, session_id, token_data, agent_name="image_generation"
+                _server.session_manager, session_id, token_data, agent_name="image_generation"
             )
             if success:
                 logger.info(f" [图像Token] 已累加 {result.total_tokens} tokens 到会话 {session_id}")
@@ -250,7 +253,7 @@ async def add_expert_image(session_id: str, request: AddImageRequest):
                 "total_tokens": result.total_tokens,
             }
             success = await update_session_tokens(
-                session_manager, session_id, token_data, agent_name="image_generation"
+                _server.session_manager, session_id, token_data, agent_name="image_generation"
             )
             if success:
                 logger.info(f" [图像Token] 已累加 {result.total_tokens} tokens 到会话 {session_id}")
@@ -944,7 +947,7 @@ async def regenerate_image_with_context(session_id: str, request: RegenerateImag
                 "total_tokens": result.total_tokens,
             }
             success = await update_session_tokens(
-                session_manager, session_id, token_data, agent_name="image_generation"
+                _server.session_manager, session_id, token_data, agent_name="image_generation"
             )
             if success:
                 logger.info(f" [图像Token-带上下文] 已累加 {result.total_tokens} tokens 到会话 {session_id}")

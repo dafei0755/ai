@@ -24,6 +24,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from loguru import logger
 from pydantic import BaseModel, Field
 
+from intelligent_project_analyzer.services.file_processor import file_processor
 from intelligent_project_analyzer.settings import settings
 
 router = APIRouter(tags=["System & Monitoring"])
@@ -308,7 +309,7 @@ async def readiness_check():
 
     # 1. 检查Redis连接
     try:
-        if session_manager:
+        if _server.session_manager:
             # 尝试ping Redis
             await _server.session_manager.list_all_sessions()
             checks["redis"] = {"status": "ok", "message": "Redis连接正常"}
@@ -356,7 +357,7 @@ async def readiness_check():
 
     # 4. 检查会话管理器状态
     try:
-        if session_manager:
+        if _server.session_manager:
             checks["session_manager"] = {"status": "ok", "message": "会话管理器正常"}
         else:
             checks["session_manager"] = {"status": "error", "message": "会话管理器未初始化"}
