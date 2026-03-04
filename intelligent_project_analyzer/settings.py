@@ -308,7 +308,14 @@ class Settings(BaseSettings):
     # 环境配置
     app_env: str = Field(default="development", description="应用环境 (development/test/production)", alias="APP_ENV")
     environment: Environment = Field(default=Environment.DEV, description="运行环境 (向后兼容)")
-    debug: bool = Field(default=False, description="调试模式", alias="DEBUG")
+    debug: bool = Field(default=False, description="调试模式（只接受布尔值：true/false/1/0/yes/no）", alias="DEBUG")
+    app_mode: str = Field(
+        default="standard",
+        description="发布通道/运行模式 (standard/release/staging/canary)。"
+                    " 与 DEBUG 布尔值严格分离：DEBUG 仅控制日志/断言等调试行为，"
+                    " 发布语义（如 'release'）请使用此字段，避免 DEBUG='release' 解析失败。",
+        alias="APP_DEPLOY_MODE",
+    )
     log_level: str = Field(default="INFO", description="日志级别", alias="LOG_LEVEL")
 
     # 端口配置 (v8.1+): 支持多环境并行运行
@@ -363,6 +370,36 @@ class Settings(BaseSettings):
     api_base_url: str = Field(default="http://localhost:8000", description="API服务地址")
     streamlit_port: int = Field(default=8501, description="Streamlit端口", alias="STREAMLIT_PORT")
     streamlit_host: str = Field(default="localhost", description="Streamlit主机", alias="STREAMLIT_HOST")
+
+    # ── DEBUG 字段容错 validator（v8.1.1）────────────────────────────────
+    # 目的：防止 DEBUG='release' / DEBUG='production' 等非布尔值在导入期触发
+    # Pydantic ValidationError，导致整个模块链崩溃、pytest 收集阶段失稳。
+    @field_validator("debug", mode="before")
+    @classmethod
+    def _coerce_debug_to_bool(cls, v: object) -> bool:
+        """将非标准 bool 字符串（如 'release'）容错转为 False，保障导入期稳定。"""
+        if isinstance(v, bool):
+            return v
+        if isinstance(v, int):
+            return bool(v)
+        if isinstance(v, str):
+            lower = v.lower().strip()
+            if lower in {"true", "1", "yes", "on"}:
+                return True
+            if lower in {"false", "0", "no", "off", ""}:
+                return False
+            # 非标准值（如 'release'）：降级为 False 并发出可见警告
+            import warnings
+            warnings.warn(
+                f"[settings] DEBUG='{v}' 不是合法布尔值，已自动降级为 False。\n"
+                f"  → 若需启用调试模式，请设置 DEBUG=true\n"
+                f"  → 若需标识发布通道，请使用 APP_DEPLOY_MODE='{v}' 替代",
+                UserWarning,
+                stacklevel=4,
+            )
+            return False
+        return bool(v)
+    # ────────────────────────────────────────────────────────────────────
 
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -545,4 +582,32 @@ class Settings(BaseSettings):
 
 
 # 全局配置实例 - 单例模式
-settings = Settings()
+# 导入期容错守卫（v8.1.1）：任何配置校验失败都输出诊断信息并以默认值回退，
+# 避免一个错误的环境变量值导致整个后端/测试收集阶段崩溃。
+try:
+    settings = Settings()
+except Exception as _settings_init_error:  # pragma: no cover
+    import sys
+    import traceback
+    import warnings
+    _err_type = type(_settings_init_error).__name__
+    _err_msg = str(_settings_init_error)
+    warnings.warn(
+        f"\n{'='*60}\n"
+        f"[settings] 配置加载失败，已使用全默认值回退。\n"
+        f"  错误类型: {_err_type}\n"
+        f"  错误详情: {_err_msg}\n"
+        f"  常见原因:\n"
+        f"    - DEBUG=release  → 请改用 APP_DEPLOY_MODE=release\n"
+        f"    - 数值字段设为字符串（如 API_PORT=auto）\n"
+        f"    - .env 文件格式错误\n"
+        f"  完整堆栈请查看 stderr 输出。\n"
+        f"{'='*60}",
+        UserWarning,
+        stacklevel=1,
+    )
+    print(f"[settings] 配置初始化异常堆栈：\n{traceback.format_exc()}", file=sys.stderr)
+    # 清除可能导致失败的环境变量，以全默认值重建 Settings
+    for _bad_key in ("DEBUG",):
+        os.environ.pop(_bad_key, None)
+    settings = Settings()
