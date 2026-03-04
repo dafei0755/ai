@@ -29,7 +29,7 @@ from ...agents.base import NullLLM
 from ...agents.dynamic_project_director import detect_and_handle_challenges_node  # v3.5
 from ...agents.feasibility_analyst import FeasibilityAnalystAgent  # V1.5可行性分析师
 from ...agents.quality_monitor import QualityMonitor
-from ...config.feature_flags import USE_V716_AGENTS, USE_V717_REQUIREMENTS_ANALYST
+from ...config.feature_flags import USE_V718_QUESTIONNAIRE_AGENT
 from ...core.state import AnalysisStage, ProjectAnalysisState, StateManager
 from ...core.types import AgentType, format_role_display_name
 from ...interaction.interaction_nodes import (  # FinalReviewNode,  # 已移除：客户需求中没有最终审核阶段; AnalysisReviewNode,  # ️ v2.2: 已废弃，质量审核已前置化
@@ -359,13 +359,8 @@ class AggregationNodesMixin:
         logger.info(" [v3.5] 开始检测专家挑战...")
 
         try:
-            #  v7.16: 使用新版 LangGraph Agent（如果启用）
-            if USE_V716_AGENTS:
-                logger.info(" [v7.16] 使用 ChallengeDetectionAgent")
-                updated_state = detect_and_handle_challenges_v2(state)
-            else:
-                # 调用核心挑战检测函数（现在只返回新增字段）
-                updated_state = detect_and_handle_challenges_node(state)
+            # 调用核心挑战检测函数（现在只返回新增字段）
+            updated_state = detect_and_handle_challenges_node(state)
 
             # 记录检测结果
             if updated_state.get("has_active_challenges"):
@@ -721,13 +716,8 @@ class AggregationNodesMixin:
         try:
             logger.info("Executing result aggregator node")
 
-            #  v7.16: 使用新版 LangGraph Agent（如果启用）
-            if USE_V716_AGENTS:
-                logger.info(" [v7.16] 使用 ResultAggregatorAgentV2")
-                agent = ResultAggregatorAgentCompat(llm_model=self.llm_model, config=self.config)
-            else:
-                # 创建结果聚合器智能体
-                agent = ResultAggregatorAgent(llm_model=self.llm_model, config=self.config)
+            # 创建结果聚合器智能体
+            agent = ResultAggregatorAgent(llm_model=self.llm_model, config=self.config)
 
             # 执行聚合
             result = agent.execute(state, {}, self.store)

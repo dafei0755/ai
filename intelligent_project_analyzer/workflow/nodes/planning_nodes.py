@@ -29,7 +29,7 @@ from ...agents.base import NullLLM
 from ...agents.dynamic_project_director import detect_and_handle_challenges_node  # v3.5
 from ...agents.feasibility_analyst import FeasibilityAnalystAgent  # V1.5可行性分析师
 from ...agents.quality_monitor import QualityMonitor
-from ...config.feature_flags import USE_V716_AGENTS, USE_V717_REQUIREMENTS_ANALYST
+from ...config.feature_flags import USE_V718_QUESTIONNAIRE_AGENT
 from ...core.state import AnalysisStage, ProjectAnalysisState, StateManager
 from ...core.types import AgentType, format_role_display_name
 from ...interaction.interaction_nodes import (  # FinalReviewNode,  # 已移除：客户需求中没有最终审核阶段; AnalysisReviewNode,  # ️ v2.2: 已废弃，质量审核已前置化
@@ -372,12 +372,7 @@ class PlanningNodesMixin:
         try:
             logger.info(" Executing quality preflight node (async)")
 
-            #  v7.16: 使用新版 LangGraph Agent（如果启用）
-            if USE_V716_AGENTS:
-                logger.info(" [v7.16] 使用 QualityPreflightAgent")
-                node = QualityPreflightNodeCompat(self.llm_model)
-            else:
-                node = QualityPreflightNode(self.llm_model)
+            node = QualityPreflightNode(self.llm_model)
 
             result = await node(state)  #  P1优化：使用 await 调用异步方法
             result["detail"] = "质量预检与风险评估"

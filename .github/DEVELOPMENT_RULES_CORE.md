@@ -521,3 +521,61 @@ except Exception as e:
 **最后更新**: 2026-01-02
 **维护者**: AI Development Team
 **状态**: ✅ 生效中
+
+
+---
+
+## 架构冻结规则（v3.0 — 2026-02）
+
+背景痛点：AI 助手反复自动回到旧代码，将已清理的死分支重新引入。以下规则建立后，任何违反即视为 BUG 应立即回滚。
+
+### 已冻结的 Feature Flag（禁止条件分支）
+
+| Flag 名称 | 冻结值 | 替代做法 |
+|-----------|--------|---------|
+| USE_V716_AGENTS | False | 直接内联旧版路径 |
+| USE_V717_REQUIREMENTS_ANALYST | True | 直接使用 RequirementsAnalystAgentV2 |
+| USE_PROGRESSIVE_QUESTIONNAIRE | True | 直接使用 ProgressiveQuestionnaireNode |
+| USE_V7_FRONTCHAIN_SEMANTICS | True | 语义分析永久启用 |
+| USE_MULTI_ROUND_QUESTIONNAIRE | False | 多轮问卷路径已移除 |
+
+若源码出现 `if USE_V716_AGENTS:` 等，应立即删除并内联唯一路径。
+
+### 禁止创建临时兼容层
+
+- 禁止：写了 router 文件却不挂载
+- 禁止：在 server.py 保留与 router 文件重复的 @app.xxx 路由
+- 禁止：硬编码 goto 字符串如 `Command(goto="progressive_step2_radar")`
+- 正确：使用常量 `Command(goto=_NODE_STEP2_RADAR)`
+
+### 双动机驱动路由架构约定
+
+已实现链路（禁止回退到硬编码版本）：
+
+```
+requirements_analyst 节点
+  -> _build_motivation_routing_profile() -> state["motivation_routing_profile"]
+
+progressive_questionnaire 节点
+  -> _build_self_skip_decision() 读取 skip_candidates -> 动态跳过 gap_filling/radar
+```
+
+代码位置：
+- 组装器：`intelligent_project_analyzer/workflow/nodes/requirements_nodes.py`
+- 决策器：`intelligent_project_analyzer/interaction/nodes/progressive_questionnaire.py`
+- 路由常量：`_NODE_STEP1`, `_NODE_STEP2_RADAR`, `_NODE_STEP3_GAP`, `_NODE_SUMMARY`, `_NODE_DIRECTOR`
+
+生效需设置环境变量 `ENABLE_SMART_NODE_SELF_SKIP=true`。
+
+### 提交前快捷检测
+
+```bash
+# 检查冻结 flag 的条件分支 (期望：无输出)
+grep -rn "if USE_V716_AGENTS" intelligent_project_analyzer/ --include="*.py"
+grep -rn "if USE_V717_REQUIREMENTS_ANALYST" intelligent_project_analyzer/ --include="*.py"
+
+# 检查硬编码 goto 字符串 (期望：无输出)
+grep -rn 'Command(goto="progressive_step' intelligent_project_analyzer/ --include="*.py"
+```
+
+版本: v3.0 | 更新时间: 2026-02 | 原因: P1 架构手术后冻结稳定状态

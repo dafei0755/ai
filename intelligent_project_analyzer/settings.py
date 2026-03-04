@@ -351,6 +351,9 @@ class Settings(BaseSettings):
     concurrency: ConcurrencyConfig = Field(default_factory=ConcurrencyConfig)
 
     # 数据库配置
+    # [NOTE] 与 storage.database_url 映射同一个 env var (DATABASE_URL)
+    # 规范写法: settings.storage.database_url  (已在 config_manager.py 中使用)
+    # 遗留写法: settings.database_url           (session_archive_manager.py:1364 — 待迁移)
     database_url: str = Field(
         default="sqlite:///./data/archived_sessions.db", description="数据库URL", alias="DATABASE_URL"
     )

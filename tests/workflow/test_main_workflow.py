@@ -5,10 +5,11 @@ Workflow模块测试 - Main Workflow
 使用conftest.py提供的fixtures避免app初始化问题
 """
 
+from typing import Any, Dict
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
+
 import pytest
 import pytest_asyncio
-from unittest.mock import Mock, patch, MagicMock, AsyncMock
-from typing import Dict, Any
 
 
 @pytest.fixture
@@ -22,10 +23,7 @@ def mock_llm():
 @pytest.fixture
 def workflow_config():
     """工作流配置"""
-    return {
-        "llm_placeholder": False,
-        "use_progressive_questionnaire": True
-    }
+    return {"llm_placeholder": False, "use_progressive_questionnaire": True}
 
 
 @pytest.fixture
@@ -66,10 +64,7 @@ class TestMainWorkflowInitialization:
 
     def test_workflow_initialization_with_custom_config(self, env_setup, mock_llm):
         """测试使用自定义配置初始化"""
-        custom_config = {
-            "custom_param": "custom_value",
-            "max_retries": 3
-        }
+        custom_config = {"custom_param": "custom_value", "max_retries": 3}
 
         from intelligent_project_analyzer.workflow.main_workflow import MainWorkflow
 
@@ -93,7 +88,7 @@ class TestMainWorkflowGraphBuilding:
 
         assert graph is not None
         # LangGraph StateGraph应该有nodes
-        assert hasattr(graph, 'nodes') or hasattr(graph, '_nodes')
+        assert hasattr(graph, "nodes") or hasattr(graph, "_nodes")
 
     def test_workflow_graph_has_required_nodes(self, env_setup, mock_llm):
         """测试工作流图包含必需的节点"""
@@ -107,7 +102,7 @@ class TestMainWorkflowGraphBuilding:
         assert graph is not None
 
         # 验证有nodes属性或_nodes属性
-        has_nodes = hasattr(graph, 'nodes') or hasattr(graph, '_nodes')
+        has_nodes = hasattr(graph, "nodes") or hasattr(graph, "_nodes")
         assert has_nodes, "Graph should have nodes or _nodes attribute"
 
 
@@ -116,8 +111,9 @@ class TestMainWorkflowStateManagement:
 
     def test_workflow_state_initialization(self, env_setup):
         """测试工作流状态初始化"""
-        from intelligent_project_analyzer.core.state import ProjectAnalysisState
         from datetime import datetime
+
+        from intelligent_project_analyzer.core.state import ProjectAnalysisState
 
         # ProjectAnalysisState is a TypedDict, so create it as a dict
         state: ProjectAnalysisState = {
@@ -135,7 +131,7 @@ class TestMainWorkflowStateManagement:
             "agent_type": None,
             "deliverable_metadata": None,
             "deliverable_owner_map": None,
-            "analysis_mode": None
+            "analysis_mode": None,
         }
 
         assert state["user_input"] == "测试需求"
@@ -157,8 +153,9 @@ class TestMainWorkflowNodes:
 
     def test_requirements_analyst_node(self, env_setup, mock_llm):
         """测试需求分析师节点"""
-        from intelligent_project_analyzer.workflow.main_workflow import MainWorkflow
         from datetime import datetime
+
+        from intelligent_project_analyzer.workflow.main_workflow import MainWorkflow
 
         workflow = MainWorkflow(llm_model=mock_llm)
 
@@ -178,11 +175,11 @@ class TestMainWorkflowNodes:
             "agent_type": None,
             "deliverable_metadata": None,
             "deliverable_owner_map": None,
-            "analysis_mode": None
+            "analysis_mode": None,
         }
 
         # 测试节点方法存在
-        assert hasattr(workflow, '_requirements_analyst_node')
+        assert hasattr(workflow, "_requirements_analyst_node")
         assert callable(workflow._requirements_analyst_node)
 
     def test_project_director_node(self, env_setup, mock_llm):
@@ -192,7 +189,7 @@ class TestMainWorkflowNodes:
         workflow = MainWorkflow(llm_model=mock_llm)
 
         # 测试节点方法存在
-        assert hasattr(workflow, '_project_director_node')
+        assert hasattr(workflow, "_project_director_node")
         assert callable(workflow._project_director_node)
 
 
@@ -208,10 +205,10 @@ class TestMainWorkflowRouting:
         # 测试路由方法存在
         # 路由方法可能有不同的命名模式
         potential_route_methods = [
-            '_route_after_requirements',
-            '_route_requirements_confirmation',
-            'route_after_requirements',
-            '_route_confirmation'
+            "_route_after_requirements",
+            "_route_requirements_confirmation",
+            "route_after_requirements",
+            "_route_confirmation",
         ]
 
         # 检查至少存在一个路由方法
@@ -230,11 +227,7 @@ class TestMainWorkflowHelperMethods:
 
         workflow = MainWorkflow(llm_model=mock_llm)
 
-        active_agents = [
-            "V2_design_director",
-            "V3_narrative_expert",
-            "V4_design_researcher"
-        ]
+        active_agents = ["V2_design_director", "V3_narrative_expert", "V4_design_researcher"]
 
         # 测试精确匹配
         match = workflow._find_matching_role("V2_design_director", active_agents)
@@ -267,11 +260,11 @@ class TestMainWorkflowExecution:
         workflow = MainWorkflow(llm_model=mock_llm)
 
         # 测试run方法存在并且可调用
-        assert hasattr(workflow, 'run')
+        assert hasattr(workflow, "run")
         assert callable(workflow.run)
 
         # 测试workflow有graph属性（说明已初始化）
-        assert hasattr(workflow, 'graph')
+        assert hasattr(workflow, "graph")
 
     def test_workflow_run_with_session_id(self, env_setup, mock_llm):
         """测试带会话ID的工作流运行"""
@@ -281,6 +274,7 @@ class TestMainWorkflowExecution:
 
         # 测试workflow接受参数（run方法签名）
         import inspect
+
         run_signature = inspect.signature(workflow.run)
         params = list(run_signature.parameters.keys())
 
@@ -301,7 +295,7 @@ class TestMainWorkflowIntegration:
         assert workflow is not None
         assert workflow.llm_model is not None
         assert workflow.graph is not None
-        assert hasattr(workflow, 'run')
+        assert hasattr(workflow, "run")
 
         # 验证workflow有config
         assert isinstance(workflow.config, dict)
@@ -334,7 +328,7 @@ class TestMainWorkflowErrorHandling:
         # 测试workflow能处理各种情况
         # 即使节点失败，workflow也应该能够初始化
         assert workflow is not None
-        assert hasattr(workflow, '_requirements_analyst_node')
+        assert hasattr(workflow, "_requirements_analyst_node")
 
         # 测试方法存在（节点失败时的处理）
         # 实际的节点失败处理在运行时测试，这里只验证结构
@@ -371,8 +365,8 @@ class TestMainWorkflowTypes:
         from intelligent_project_analyzer.core.types import AgentType
 
         # 验证核心agent类型存在
-        assert hasattr(AgentType, 'REQUIREMENTS_ANALYST') or 'REQUIREMENTS_ANALYST' in [e.name for e in AgentType]
-        assert hasattr(AgentType, 'PROJECT_DIRECTOR') or 'PROJECT_DIRECTOR' in [e.name for e in AgentType]
+        assert hasattr(AgentType, "REQUIREMENTS_ANALYST") or "REQUIREMENTS_ANALYST" in [e.name for e in AgentType]
+        assert hasattr(AgentType, "PROJECT_DIRECTOR") or "PROJECT_DIRECTOR" in [e.name for e in AgentType]
 
     def test_format_role_display_name(self, env_setup):
         """测试角色显示名称格式化"""
@@ -529,8 +523,9 @@ class TestMainWorkflowBuildContext:
 
     def test_build_context_for_expert(self, env_setup, mock_llm):
         """测试为专家构建上下文"""
-        from intelligent_project_analyzer.workflow.main_workflow import MainWorkflow
         from datetime import datetime
+
+        from intelligent_project_analyzer.workflow.main_workflow import MainWorkflow
 
         workflow = MainWorkflow(llm_model=mock_llm)
 
@@ -550,7 +545,7 @@ class TestMainWorkflowBuildContext:
             "project_type": None,
             "deliverable_metadata": None,
             "deliverable_owner_map": None,
-            "analysis_mode": None
+            "analysis_mode": None,
         }
 
         # 调用_build_context_for_expert
@@ -564,18 +559,18 @@ class TestMainWorkflowEnvironmentFlags:
     """测试环境标志功能"""
 
     def test_use_progressive_questionnaire_flag(self, env_setup):
-        """测试渐进式问卷标志"""
-        from intelligent_project_analyzer.workflow.main_workflow import USE_PROGRESSIVE_QUESTIONNAIRE
+        """测试渐进式问卷标志 - 已从 main_workflow 移到 feature_flags（v8.x 冻结 True）"""
+        from intelligent_project_analyzer.config.feature_flags import USE_PROGRESSIVE_QUESTIONNAIRE
 
-        # 应该有这个标志（默认为true）
-        assert isinstance(USE_PROGRESSIVE_QUESTIONNAIRE, bool)
+        # 已冻结为 True，不再从环境变量读取
+        assert USE_PROGRESSIVE_QUESTIONNAIRE is True
 
     def test_use_v716_agents_flag(self, env_setup):
-        """测试v7.16 agents标志"""
-        from intelligent_project_analyzer.workflow.main_workflow import USE_V716_AGENTS
+        """测试v7.16 agents标志 - 已从 main_workflow 移到 feature_flags（v8.x 冻结 False）"""
+        from intelligent_project_analyzer.config.feature_flags import USE_V716_AGENTS
 
-        # 应该有这个标志
-        assert isinstance(USE_V716_AGENTS, bool)
+        # 已冻结为 False，不再从环境变量读取
+        assert USE_V716_AGENTS is False
 
 
 class TestMainWorkflowGraphProperties:
@@ -605,7 +600,7 @@ class TestMainWorkflowGraphProperties:
         # 验证graph已创建
         assert graph is not None
         # LangGraph的StateGraph应该有compile方法或已编译的属性
-        assert hasattr(graph, 'nodes') or hasattr(graph, '_nodes')
+        assert hasattr(graph, "nodes") or hasattr(graph, "_nodes")
 
 
 class TestMainWorkflowOntologyLoader:
@@ -627,7 +622,7 @@ class TestMainWorkflowUtilityFunctions:
 
         workflow = MainWorkflow(llm_model=mock_llm)
 
-        assert hasattr(workflow, 'run')
+        assert hasattr(workflow, "run")
         assert callable(workflow.run)
 
     def test_workflow_has_graph_property(self, env_setup, mock_llm):
@@ -636,7 +631,7 @@ class TestMainWorkflowUtilityFunctions:
 
         workflow = MainWorkflow(llm_model=mock_llm)
 
-        assert hasattr(workflow, 'graph')
+        assert hasattr(workflow, "graph")
         # 访问graph不应该抛出异常
         graph = workflow.graph
         assert graph is not None
@@ -647,7 +642,7 @@ class TestMainWorkflowUtilityFunctions:
 
         workflow = MainWorkflow(llm_model=mock_llm)
 
-        assert hasattr(workflow, 'llm_model')
+        assert hasattr(workflow, "llm_model")
         assert workflow.llm_model is mock_llm
 
     def test_workflow_config_attribute(self, env_setup, mock_llm):
@@ -656,7 +651,7 @@ class TestMainWorkflowUtilityFunctions:
 
         workflow = MainWorkflow(llm_model=mock_llm)
 
-        assert hasattr(workflow, 'config')
+        assert hasattr(workflow, "config")
         assert isinstance(workflow.config, dict)
 
 
@@ -665,8 +660,9 @@ class TestMainWorkflowStateValidation:
 
     def test_project_analysis_state_required_fields(self, env_setup):
         """测试ProjectAnalysisState必需字段"""
-        from intelligent_project_analyzer.core.state import ProjectAnalysisState
         from datetime import datetime
+
+        from intelligent_project_analyzer.core.state import ProjectAnalysisState
 
         # 创建包含所有必需字段的状态
         state: ProjectAnalysisState = {
@@ -684,7 +680,7 @@ class TestMainWorkflowStateValidation:
             "agent_type": None,
             "deliverable_metadata": None,
             "deliverable_owner_map": None,
-            "analysis_mode": None
+            "analysis_mode": None,
         }
 
         # 验证必需字段存在
@@ -710,19 +706,22 @@ class TestMainWorkflowModuleConstants:
     """测试工作流模块常量"""
 
     def test_use_progressive_questionnaire_is_boolean(self, env_setup):
-        """测试USE_PROGRESSIVE_QUESTIONNAIRE是布尔值"""
-        from intelligent_project_analyzer.workflow.main_workflow import USE_PROGRESSIVE_QUESTIONNAIRE
+        """测试USE_PROGRESSIVE_QUESTIONNAIRE是布尔值（来自 feature_flags）"""
+        from intelligent_project_analyzer.config.feature_flags import USE_PROGRESSIVE_QUESTIONNAIRE
 
         assert isinstance(USE_PROGRESSIVE_QUESTIONNAIRE, bool)
+        assert USE_PROGRESSIVE_QUESTIONNAIRE is True  # 冻结值
 
     def test_use_v716_agents_is_boolean(self, env_setup):
-        """测试USE_V716_AGENTS是布尔值"""
-        from intelligent_project_analyzer.workflow.main_workflow import USE_V716_AGENTS
+        """测试USE_V716_AGENTS是布尔值（来自 feature_flags）"""
+        from intelligent_project_analyzer.config.feature_flags import USE_V716_AGENTS
 
         assert isinstance(USE_V716_AGENTS, bool)
+        assert USE_V716_AGENTS is False  # 冻结值
 
 
 # ========== Phase 5 Task 3.1: MainWorkflow执行功能测试 (10个) ==========
+
 
 class TestMainWorkflowExecutionFunctionality:
     """测试MainWorkflow执行功能 - Phase 5 Task 3.1"""
@@ -737,7 +736,7 @@ class TestMainWorkflowExecutionFunctionality:
         mock_llm.invoke.return_value = Mock(content="分析结果")
 
         # 测试run方法能够被调用（不一定执行完整流程）
-        assert hasattr(workflow, 'run')
+        assert hasattr(workflow, "run")
         assert callable(workflow.run)
 
         # 验证workflow graph已创建
@@ -745,15 +744,14 @@ class TestMainWorkflowExecutionFunctionality:
 
     def test_workflow_invoke_requirements_analyst(self, env_setup, mock_llm):
         """测试workflow调用requirements analyst节点"""
-        from intelligent_project_analyzer.workflow.main_workflow import MainWorkflow
         from datetime import datetime
+
+        from intelligent_project_analyzer.workflow.main_workflow import MainWorkflow
 
         workflow = MainWorkflow(llm_model=mock_llm)
 
         # Mock LLM响应
-        mock_llm.invoke.return_value = Mock(
-            content="领域: interior_design\n项目类型: 咖啡馆设计"
-        )
+        mock_llm.invoke.return_value = Mock(content="领域: interior_design\n项目类型: 咖啡馆设计")
 
         # 创建测试状态
         state = {
@@ -771,11 +769,11 @@ class TestMainWorkflowExecutionFunctionality:
             "agent_type": None,
             "deliverable_metadata": None,
             "deliverable_owner_map": None,
-            "analysis_mode": None
+            "analysis_mode": None,
         }
 
         # 测试requirements analyst节点存在且可调用
-        assert hasattr(workflow, '_requirements_analyst_node')
+        assert hasattr(workflow, "_requirements_analyst_node")
         node_func = workflow._requirements_analyst_node
         assert callable(node_func)
 
@@ -790,15 +788,14 @@ class TestMainWorkflowExecutionFunctionality:
 
     def test_workflow_invoke_project_director(self, env_setup, mock_llm):
         """测试workflow调用project director节点"""
-        from intelligent_project_analyzer.workflow.main_workflow import MainWorkflow
         from datetime import datetime
+
+        from intelligent_project_analyzer.workflow.main_workflow import MainWorkflow
 
         workflow = MainWorkflow(llm_model=mock_llm)
 
         # Mock LLM响应
-        mock_llm.invoke.return_value = Mock(
-            content="战略分析: 项目可行\n建议专家: 室内设计师, 空间规划师"
-        )
+        mock_llm.invoke.return_value = Mock(content="战略分析: 项目可行\n建议专家: 室内设计师, 空间规划师")
 
         # 创建包含需求分析结果的状态
         state = {
@@ -816,11 +813,11 @@ class TestMainWorkflowExecutionFunctionality:
             "agent_type": None,
             "deliverable_metadata": None,
             "deliverable_owner_map": None,
-            "analysis_mode": None
+            "analysis_mode": None,
         }
 
         # 测试project director节点存在且可调用
-        assert hasattr(workflow, '_project_director_node')
+        assert hasattr(workflow, "_project_director_node")
         node_func = workflow._project_director_node
         assert callable(node_func)
 
@@ -835,9 +832,10 @@ class TestMainWorkflowExecutionFunctionality:
 
     def test_workflow_state_transitions(self, env_setup, mock_llm):
         """测试workflow状态转换"""
-        from intelligent_project_analyzer.workflow.main_workflow import MainWorkflow
-        from intelligent_project_analyzer.core.state import AnalysisStage
         from datetime import datetime
+
+        from intelligent_project_analyzer.core.state import AnalysisStage
+        from intelligent_project_analyzer.workflow.main_workflow import MainWorkflow
 
         workflow = MainWorkflow(llm_model=mock_llm)
 
@@ -857,7 +855,7 @@ class TestMainWorkflowExecutionFunctionality:
             "agent_type": None,
             "deliverable_metadata": None,
             "deliverable_owner_map": None,
-            "analysis_mode": None
+            "analysis_mode": None,
         }
 
         # 验证AnalysisStage枚举包含关键阶段
@@ -888,7 +886,7 @@ class TestMainWorkflowExecutionFunctionality:
         assert workflow.graph is not None
 
         # 测试run方法存在（错误处理在运行时）
-        assert hasattr(workflow, 'run')
+        assert hasattr(workflow, "run")
 
     def test_workflow_node_execution_order(self, env_setup, mock_llm):
         """测试workflow节点执行顺序"""
@@ -897,10 +895,7 @@ class TestMainWorkflowExecutionFunctionality:
         workflow = MainWorkflow(llm_model=mock_llm)
 
         # 验证关键节点方法存在
-        required_nodes = [
-            '_requirements_analyst_node',
-            '_project_director_node'
-        ]
+        required_nodes = ["_requirements_analyst_node", "_project_director_node"]
 
         for node_name in required_nodes:
             assert hasattr(workflow, node_name), f"缺少节点: {node_name}"
@@ -918,11 +913,11 @@ class TestMainWorkflowExecutionFunctionality:
 
         # 检查是否有路由相关方法
         potential_route_methods = [
-            '_route_after_requirements',
-            '_route_requirements_confirmation',
-            'route_after_requirements',
-            '_route_confirmation',
-            '_should_continue'
+            "_route_after_requirements",
+            "_route_requirements_confirmation",
+            "route_after_requirements",
+            "_route_confirmation",
+            "_should_continue",
         ]
 
         # 验证至少有某种路由机制（方法或graph中的条件边）
@@ -933,8 +928,9 @@ class TestMainWorkflowExecutionFunctionality:
 
     def test_workflow_context_building(self, env_setup, mock_llm):
         """测试workflow上下文构建功能"""
-        from intelligent_project_analyzer.workflow.main_workflow import MainWorkflow
         from datetime import datetime
+
+        from intelligent_project_analyzer.workflow.main_workflow import MainWorkflow
 
         workflow = MainWorkflow(llm_model=mock_llm)
 
@@ -950,18 +946,15 @@ class TestMainWorkflowExecutionFunctionality:
             "project_type": "interior_design",
             "strategic_analysis": "建议采用现代简约风格",
             "subagents": ["design_expert", "space_planner"],
-            "agent_results": {
-                "design_expert": "设计方案A",
-                "space_planner": "空间布局B"
-            },
+            "agent_results": {"design_expert": "设计方案A", "space_planner": "空间布局B"},
             "agent_type": None,
             "deliverable_metadata": None,
             "deliverable_owner_map": None,
-            "analysis_mode": None
+            "analysis_mode": None,
         }
 
         # 测试context building方法
-        if hasattr(workflow, '_build_context_for_expert'):
+        if hasattr(workflow, "_build_context_for_expert"):
             context = workflow._build_context_for_expert(state)
             assert isinstance(context, str)
             assert len(context) > 0
@@ -971,8 +964,8 @@ class TestMainWorkflowExecutionFunctionality:
 
     def test_workflow_agent_result_aggregation(self, env_setup, mock_llm):
         """测试workflow agent结果聚合"""
-        from intelligent_project_analyzer.workflow.main_workflow import MainWorkflow
         from intelligent_project_analyzer.core.state import merge_agent_results
+        from intelligent_project_analyzer.workflow.main_workflow import MainWorkflow
 
         workflow = MainWorkflow(llm_model=mock_llm)
 
@@ -993,9 +986,10 @@ class TestMainWorkflowExecutionFunctionality:
 
     def test_workflow_completion_detection(self, env_setup, mock_llm):
         """测试workflow完成状态检测"""
-        from intelligent_project_analyzer.workflow.main_workflow import MainWorkflow
-        from intelligent_project_analyzer.core.state import AnalysisStage
         from datetime import datetime
+
+        from intelligent_project_analyzer.core.state import AnalysisStage
+        from intelligent_project_analyzer.workflow.main_workflow import MainWorkflow
 
         workflow = MainWorkflow(llm_model=mock_llm)
 
@@ -1011,18 +1005,15 @@ class TestMainWorkflowExecutionFunctionality:
             "project_type": "interior_design",
             "strategic_analysis": "完整战略分析",
             "subagents": ["expert1", "expert2"],
-            "agent_results": {
-                "expert1": "完整分析1",
-                "expert2": "完整分析2"
-            },
+            "agent_results": {"expert1": "完整分析1", "expert2": "完整分析2"},
             "agent_type": None,
             "deliverable_metadata": None,
             "deliverable_owner_map": None,
-            "analysis_mode": None
+            "analysis_mode": None,
         }
 
         # 验证AnalysisStage.COMPLETED存在
-        assert hasattr(AnalysisStage, 'COMPLETED')
+        assert hasattr(AnalysisStage, "COMPLETED")
         assert AnalysisStage.COMPLETED.value == "completed"
 
         # 验证workflow能够处理完成状态
@@ -1032,20 +1023,20 @@ class TestMainWorkflowExecutionFunctionality:
 
 # ========== Phase 5 Task 3.2: Workflow节点功能测试 (10个) ==========
 
+
 class TestWorkflowNodesFunctionality:
     """测试Workflow节点功能 - Phase 5 Task 3.2"""
 
     def test_requirements_analyst_node_with_state(self, env_setup, mock_llm):
         """测试requirements analyst节点处理状态"""
-        from intelligent_project_analyzer.workflow.main_workflow import MainWorkflow
         from datetime import datetime
+
+        from intelligent_project_analyzer.workflow.main_workflow import MainWorkflow
 
         workflow = MainWorkflow(llm_model=mock_llm)
 
         # Mock LLM返回结构化需求
-        mock_llm.invoke.return_value = Mock(
-            content="领域: interior_design\n项目类型: cafe\n风格: modern"
-        )
+        mock_llm.invoke.return_value = Mock(content="领域: interior_design\n项目类型: cafe\n风格: modern")
 
         state = {
             "session_id": "test-123",
@@ -1062,7 +1053,7 @@ class TestWorkflowNodesFunctionality:
             "agent_type": None,
             "deliverable_metadata": None,
             "deliverable_owner_map": None,
-            "analysis_mode": None
+            "analysis_mode": None,
         }
 
         # 调用requirements analyst节点
@@ -1078,15 +1069,14 @@ class TestWorkflowNodesFunctionality:
 
     def test_project_director_node_with_state(self, env_setup, mock_llm):
         """测试project director节点处理状态"""
-        from intelligent_project_analyzer.workflow.main_workflow import MainWorkflow
         from datetime import datetime
+
+        from intelligent_project_analyzer.workflow.main_workflow import MainWorkflow
 
         workflow = MainWorkflow(llm_model=mock_llm)
 
         # Mock LLM返回战略分析
-        mock_llm.invoke.return_value = Mock(
-            content="可行性: 高\n建议专家: V2_design_director, V3_space_planner"
-        )
+        mock_llm.invoke.return_value = Mock(content="可行性: 高\n建议专家: V2_design_director, V3_space_planner")
 
         state = {
             "session_id": "test-123",
@@ -1103,7 +1093,7 @@ class TestWorkflowNodesFunctionality:
             "agent_type": None,
             "deliverable_metadata": None,
             "deliverable_owner_map": None,
-            "analysis_mode": None
+            "analysis_mode": None,
         }
 
         # 调用project director节点
@@ -1123,15 +1113,13 @@ class TestWorkflowNodesFunctionality:
 
         # 检查问卷相关节点方法
         questionnaire_methods = [
-            '_calibration_questionnaire_node',
-            '_progressive_questionnaire_node',
-            '_questionnaire_node'
+            "_calibration_questionnaire_node",
+            "_progressive_questionnaire_node",
+            "_questionnaire_node",
         ]
 
         # 至少应该有某种问卷节点
-        has_questionnaire = any(
-            hasattr(workflow, method) for method in questionnaire_methods
-        )
+        has_questionnaire = any(hasattr(workflow, method) for method in questionnaire_methods)
 
         # 如果有问卷节点，验证可调用
         if has_questionnaire:
@@ -1150,15 +1138,9 @@ class TestWorkflowNodesFunctionality:
         workflow = MainWorkflow(llm_model=mock_llm)
 
         # 检查确认相关节点
-        confirmation_methods = [
-            '_requirements_confirmation_node',
-            '_confirmation_node',
-            '_user_confirmation_node'
-        ]
+        confirmation_methods = ["_requirements_confirmation_node", "_confirmation_node", "_user_confirmation_node"]
 
-        has_confirmation = any(
-            hasattr(workflow, method) for method in confirmation_methods
-        )
+        has_confirmation = any(hasattr(workflow, method) for method in confirmation_methods)
 
         if has_confirmation:
             for method in confirmation_methods:
@@ -1175,15 +1157,9 @@ class TestWorkflowNodesFunctionality:
         workflow = MainWorkflow(llm_model=mock_llm)
 
         # 检查专家调用相关节点
-        expert_methods = [
-            '_invoke_expert_node',
-            '_expert_node',
-            '_specialized_agent_node'
-        ]
+        expert_methods = ["_invoke_expert_node", "_expert_node", "_specialized_agent_node"]
 
-        has_expert_node = any(
-            hasattr(workflow, method) for method in expert_methods
-        )
+        has_expert_node = any(hasattr(workflow, method) for method in expert_methods)
 
         if has_expert_node:
             for method in expert_methods:
@@ -1192,7 +1168,7 @@ class TestWorkflowNodesFunctionality:
                     break
         else:
             # 验证workflow至少有project_director（负责选择专家）
-            assert hasattr(workflow, '_project_director_node')
+            assert hasattr(workflow, "_project_director_node")
 
     def test_review_node_exists(self, env_setup, mock_llm):
         """测试审查节点存在"""
@@ -1201,15 +1177,9 @@ class TestWorkflowNodesFunctionality:
         workflow = MainWorkflow(llm_model=mock_llm)
 
         # 检查审查相关节点
-        review_methods = [
-            '_analysis_review_node',
-            '_review_node',
-            '_quality_check_node'
-        ]
+        review_methods = ["_analysis_review_node", "_review_node", "_quality_check_node"]
 
-        has_review_node = any(
-            hasattr(workflow, method) for method in review_methods
-        )
+        has_review_node = any(hasattr(workflow, method) for method in review_methods)
 
         if has_review_node:
             for method in review_methods:
@@ -1227,15 +1197,9 @@ class TestWorkflowNodesFunctionality:
         workflow = MainWorkflow(llm_model=mock_llm)
 
         # 检查报告生成相关节点
-        report_methods = [
-            '_report_generation_node',
-            '_generate_report_node',
-            '_aggregation_node'
-        ]
+        report_methods = ["_report_generation_node", "_generate_report_node", "_aggregation_node"]
 
-        has_report_node = any(
-            hasattr(workflow, method) for method in report_methods
-        )
+        has_report_node = any(hasattr(workflow, method) for method in report_methods)
 
         if has_report_node:
             for method in report_methods:
@@ -1245,6 +1209,7 @@ class TestWorkflowNodesFunctionality:
         else:
             # 验证至少导入了报告相关类
             from intelligent_project_analyzer.report.result_aggregator import ResultAggregatorAgent
+
             assert ResultAggregatorAgent is not None
 
     def test_security_validation_node_exists(self, env_setup, mock_llm):
@@ -1254,15 +1219,9 @@ class TestWorkflowNodesFunctionality:
         workflow = MainWorkflow(llm_model=mock_llm)
 
         # 检查安全验证相关节点
-        security_methods = [
-            '_input_validator_node',
-            '_security_check_node',
-            '_content_safety_node'
-        ]
+        security_methods = ["_input_validator_node", "_security_check_node", "_content_safety_node"]
 
-        has_security_node = any(
-            hasattr(workflow, method) for method in security_methods
-        )
+        has_security_node = any(hasattr(workflow, method) for method in security_methods)
 
         if has_security_node:
             for method in security_methods:
@@ -1272,12 +1231,14 @@ class TestWorkflowNodesFunctionality:
         else:
             # 验证至少导入了安全相关类
             from intelligent_project_analyzer.security import InputGuardNode
+
             assert InputGuardNode is not None
 
     def test_node_returns_updated_state(self, env_setup, mock_llm):
         """测试节点返回更新后的状态"""
-        from intelligent_project_analyzer.workflow.main_workflow import MainWorkflow
         from datetime import datetime
+
+        from intelligent_project_analyzer.workflow.main_workflow import MainWorkflow
 
         workflow = MainWorkflow(llm_model=mock_llm)
 
@@ -1299,7 +1260,7 @@ class TestWorkflowNodesFunctionality:
             "agent_type": None,
             "deliverable_metadata": None,
             "deliverable_owner_map": None,
-            "analysis_mode": None
+            "analysis_mode": None,
         }
 
         # 测试requirements analyst节点返回值
@@ -1315,8 +1276,9 @@ class TestWorkflowNodesFunctionality:
 
     def test_node_preserves_session_id(self, env_setup, mock_llm):
         """测试节点保留session_id"""
-        from intelligent_project_analyzer.workflow.main_workflow import MainWorkflow
         from datetime import datetime
+
+        from intelligent_project_analyzer.workflow.main_workflow import MainWorkflow
 
         workflow = MainWorkflow(llm_model=mock_llm)
 
@@ -1339,7 +1301,7 @@ class TestWorkflowNodesFunctionality:
             "agent_type": None,
             "deliverable_metadata": None,
             "deliverable_owner_map": None,
-            "analysis_mode": None
+            "analysis_mode": None,
         }
 
         # 测试节点是否保留session_id
@@ -1349,4 +1311,3 @@ class TestWorkflowNodesFunctionality:
         except Exception:
             # 验证至少state结构正确
             assert state["session_id"] == test_session_id
-

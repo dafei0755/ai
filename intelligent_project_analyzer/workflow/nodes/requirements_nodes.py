@@ -32,7 +32,7 @@ from ...agents.quality_monitor import QualityMonitor
 from ...agents.requirements_analyst_agent import RequirementsAnalystAgentV2  # v7.17 StateGraph Agent
 
 #  从 feature_flags 统一导入，消除与 main_workflow.py 默认值分裂
-from ...config.feature_flags import USE_V717_REQUIREMENTS_ANALYST
+# USE_V717_REQUIREMENTS_ANALYST 已冻结为 True，直接使用 V2 路径
 from ...core.state import AnalysisStage, ProjectAnalysisState, StateManager
 from ...core.types import AgentType, format_role_display_name
 from ...interaction.interaction_nodes import (  # FinalReviewNode,  # 已移除：客户需求中没有最终审核阶段; AnalysisReviewNode,  # ️ v2.2: 已废弃，质量审核已前置化
@@ -83,6 +83,63 @@ from ...workflow.nodes.search_query_generator_node import search_query_generator
 from ..context_compressor import create_context_compressor
 
 
+def _build_motivation_routing_profile(
+    project_motivation: Dict[str, Any],
+    designer_behavioral_motivation: Dict[str, Any],
+    detected_modes: List[Dict[str, Any]],
+) -> Dict[str, Any]:
+    """
+    合并 project_motivation + designer_behavioral_motivation 为统一路由画像。
+
+    这是「双动机驱动」缺失的组装者 — 将两个独立动机信号合并为
+    motivation_routing_profile，供前半链路节点（progressive_questionnaire）
+    的 Self-Skip 决策和前端双动机卡片展示消费。
+
+    Returns:
+        dict with keys:
+        - primary_mode: 主要动机类型（如 "commercial", "wellness"）
+        - confidence: 综合置信度
+        - d_type: 设计师行为动机类型（D1-D6）
+        - skip_candidates: 可跳过的步骤列表
+        - routing_strategy: 路由策略（"full_flow" / "skip_gap_filling" / "skip_radar"）
+    """
+    pm = project_motivation or {}
+    dbm = designer_behavioral_motivation or {}
+    pm_primary = pm.get("primary", "unknown")
+    pm_confidence = float(pm.get("confidence", 0.0))
+    d_type = dbm.get("primary", dbm.get("type", "D1"))
+    d_confidence = float(dbm.get("confidence", 0.0))
+
+    # 综合置信度（项目动机权重 0.6，行为动机权重 0.4）
+    combined_confidence = pm_confidence * 0.6 + d_confidence * 0.4
+
+    skip_candidates: List[str] = []
+    routing_strategy = "full_flow"
+
+    HIGH_CONF = 0.75
+    # 规则1: 高置信度 + 商业/展示类 → 信息充足，可跳过 gap_filling
+    SKIP_GAP_MODES = {"commercial", "exhibition", "showcase", "portfolio", "competition"}
+    if pm_confidence >= HIGH_CONF and pm_primary in SKIP_GAP_MODES:
+        skip_candidates.append("gap_filling")
+        routing_strategy = "skip_gap_filling"
+
+    # 规则2: D3（纯展示偏好型）+ 高置信度 → 可跳过 radar
+    if d_type == "D3" and d_confidence >= HIGH_CONF:
+        skip_candidates.append("radar")
+        routing_strategy = "skip_all_optional" if routing_strategy == "skip_gap_filling" else "skip_radar"
+
+    return {
+        "primary_mode": pm_primary,
+        "confidence": round(combined_confidence, 3),
+        "d_type": d_type,
+        "d_confidence": round(d_confidence, 3),
+        "pm_confidence": round(pm_confidence, 3),
+        "detected_modes_count": len(detected_modes),
+        "skip_candidates": skip_candidates,
+        "routing_strategy": routing_strategy,
+    }
+
+
 class RequirementsNodesMixin:
     """
     LT-1 需求节点 Mixin — 需求分析师、可行性、问卷流程
@@ -118,26 +175,19 @@ class RequirementsNodesMixin:
             else:
                 logger.info(" [DEBUG] 'calibration_processed' 键不存在")
 
-            #  v7.17: 使用 StateGraph Agent 模式
-            if USE_V717_REQUIREMENTS_ANALYST:
-                logger.info(" [v7.17] 使用 StateGraph Agent 执行需求分析")
-                agent = RequirementsAnalystAgentV2(llm_model=self.llm_model, config=self.config)
-                result = agent.execute(
-                    user_input=state.get("user_input", ""), session_id=state.get("session_id", "unknown")
-                )
+            # v7.17: StateGraph Agent 模式（已稳定，不再需要 flag 切换）
+            logger.info(" [v7.17] 使用 StateGraph Agent 执行需求分析")
+            agent = RequirementsAnalystAgentV2(llm_model=self.llm_model, config=self.config)
+            result = agent.execute(
+                user_input=state.get("user_input", ""), session_id=state.get("session_id", "unknown")
+            )
 
-                # 记录 StateGraph 执行元数据
-                if result.metadata:
-                    logger.info(f" [v7.17] StateGraph 执行完成:")
-                    logger.info(f"   - 分析模式: {result.metadata.get('analysis_mode')}")
-                    logger.info(f"   - 节点路径: {result.metadata.get('node_path')}")
-                    logger.info(f"   - 总耗时: {result.metadata.get('total_elapsed_ms')}ms")
-            else:
-                # 原有逻辑：使用 AgentFactory 创建
-                agent = AgentFactory.create_agent(
-                    AgentType.REQUIREMENTS_ANALYST, llm_model=self.llm_model, config=self.config
-                )
-                result = agent.execute(state, {}, self.store)
+            # 记录 StateGraph 执行元数据
+            if result.metadata:
+                logger.info(f" [v7.17] StateGraph 执行完成:")
+                logger.info(f"   - 分析模式: {result.metadata.get('analysis_mode')}")
+                logger.info(f"   - 节点路径: {result.metadata.get('node_path')}")
+                logger.info(f"   - 总耗时: {result.metadata.get('total_elapsed_ms')}ms")
 
             #  提取项目类型（从 structured_data 中）
             project_type = result.structured_data.get("project_type") if result.structured_data else None
@@ -232,6 +282,20 @@ class RequirementsNodesMixin:
                 trace_entries.append(f"[Phase1] D={dbm.get('primary','?')} conf={dbm.get('confidence',0):.2f}")
             if trace_entries:
                 update_dict["motivation_trace"] = trace_entries
+
+            # ── 双动机统一画像组装（motivation_routing_profile）──────────────────────
+            # 解决「中间缺少组装者」断链：合并两个动机信号为前半链路路由决策所需的统一画像
+            _pm = update_dict.get("project_motivation") or state.get("project_motivation") or {}
+            _dbm = (
+                update_dict.get("designer_behavioral_motivation") or state.get("designer_behavioral_motivation") or {}
+            )
+            if _pm or _dbm:
+                update_dict["motivation_routing_profile"] = _build_motivation_routing_profile(_pm, _dbm, detected_modes)
+                logger.info(
+                    f"[Phase1] motivation_routing_profile built: "
+                    f"strategy={update_dict['motivation_routing_profile']['routing_strategy']} "
+                    f"skip_candidates={update_dict['motivation_routing_profile']['skip_candidates']}"
+                )
 
             #  关键修复: 从完整状态中提取并保留流程控制标志
             # 注意: Command.update 的字段在目标节点执行时不可见,

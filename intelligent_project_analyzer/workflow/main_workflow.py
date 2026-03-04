@@ -27,16 +27,12 @@ from ..agents.dynamic_project_director import detect_and_handle_challenges_node 
 from ..agents.feasibility_analyst import FeasibilityAnalystAgent  # V1.5可行性分析师
 from ..agents.quality_monitor import QualityMonitor
 
+#  v7.17: 需求分析师 StateGraph Agent（永久启用，v8.4 内联）
+from ..agents.requirements_analyst_agent import RequirementsAnalystAgentV2
+
 #  统一从 feature_flags 读取，消除跨模块默认值分裂
-#  原来此处 USE_V717_REQUIREMENTS_ANALYST 默认 "false"，requirements_nodes.py 默认 "true" → 已统一为 "true"
-from ..config.feature_flags import (
-    USE_MULTI_ROUND_QUESTIONNAIRE,
-    USE_PROGRESSIVE_QUESTIONNAIRE,
-    USE_V716_AGENTS,
-    USE_V717_REQUIREMENTS_ANALYST,
-    USE_V718_QUESTIONNAIRE_AGENT,
-    log_feature_flags_snapshot,
-)
+#  v8.4: 清理已冻结的 flag，仅保留活跃开关
+from ..config.feature_flags import USE_V718_QUESTIONNAIRE_AGENT, log_feature_flags_snapshot
 from ..core.state import AnalysisStage, ProjectAnalysisState, StateManager
 from ..core.types import AgentType, format_role_display_name
 from ..interaction.interaction_nodes import (  # FinalReviewNode,  # 已移除：客户需求中没有最终审核阶段; AnalysisReviewNode,  # ️ v2.2: 已废弃，质量审核已前置化
@@ -71,18 +67,8 @@ from ..workflow.nodes.search_query_generator_node import search_query_generator_
 #  v7.502 P1优化: 智能上下文压缩器
 from .context_compressor import create_context_compressor
 
-if USE_V716_AGENTS:
-    # from ..agents.analysis_review_agent import AnalysisReviewAgent, AnalysisReviewNodeCompat  # ️ v2.2: 已废弃
-    from ..agents.challenge_detection_agent import ChallengeDetectionAgent, detect_and_handle_challenges_v2
-    from ..agents.quality_preflight_agent import QualityPreflightAgent, QualityPreflightNodeCompat
-    from ..agents.questionnaire_agent import LLMQuestionGeneratorCompat, QuestionnaireAgent
-    from ..agents.result_aggregator_agent import ResultAggregatorAgentCompat, ResultAggregatorAgentV2
+logger.info(" [v7.17] 需求分析师 StateGraph Agent（永久启用）")
 
-    logger.info(" [v7.16] 启用 LangGraph Agent 升级版本")
-if USE_V717_REQUIREMENTS_ANALYST:
-    from ..agents.requirements_analyst_agent import RequirementsAnalystAgentV2
-
-    logger.info(" [v7.17] 启用需求分析师 StateGraph Agent")
 if USE_V718_QUESTIONNAIRE_AGENT:
     from ..agents.questionnaire_agent import QuestionnaireAgent
 
@@ -205,19 +191,13 @@ class MainWorkflow(
         workflow.add_node("output_intent_detection", self._output_intent_detection_node)  #  Step 0 输出意图确认
         workflow.add_node("feasibility_analyst", self._feasibility_analyst_node)  #  V1.5可行性分析师
 
-        #  v7.87: 根据环境变量选择问卷类型
-        if USE_PROGRESSIVE_QUESTIONNAIRE:
-            # 三步递进式问卷（v7.80+）
-            workflow.add_node("progressive_step1_core_task", self._progressive_step1_node)
-            workflow.add_node("progressive_step2_radar", self._progressive_step2_node)
-            workflow.add_node("progressive_step3_gap_filling", self._progressive_step3_node)
-            #  v7.135: 需求洞察节点（需求重构）
-            workflow.add_node("questionnaire_summary", self._questionnaire_summary_node)
-            logger.info(" [v7.87] 启用三步递进式问卷（progressive_questionnaire）")
-        else:
-            # 旧版单轮问卷（向后兼容）
-            workflow.add_node("calibration_questionnaire", self._calibration_questionnaire_node)
-            logger.info("️ [v7.87] 使用旧版单轮问卷（calibration_questionnaire），建议设置 USE_PROGRESSIVE_QUESTIONNAIRE=true")
+        #  v7.87→v8.x: 三步递进式问卷（永久启用，USE_PROGRESSIVE_QUESTIONNAIRE 已冻结 True）
+        workflow.add_node("progressive_step1_core_task", self._progressive_step1_node)
+        workflow.add_node("progressive_step2_radar", self._progressive_step2_node)
+        workflow.add_node("progressive_step3_gap_filling", self._progressive_step3_node)
+        #  v7.135: 需求洞察节点（需求重构）
+        workflow.add_node("questionnaire_summary", self._questionnaire_summary_node)
+        logger.info(" [v8.x] 三步递进式问卷（固定启用）")
 
         #  v7.151: requirements_confirmation 已合并到 questionnaire_summary（需求洞察）
 
@@ -270,27 +250,16 @@ class MainWorkflow(
         )
         workflow.add_edge("feasibility_analyst", "unified_input_validator_secondary")  # 第二道防线：二次验证
 
-        #  v7.87: 根据环境变量配置问卷流程
-        if USE_PROGRESSIVE_QUESTIONNAIRE:
-            # 三步递进式问卷流程
-            workflow.add_edge("unified_input_validator_secondary", "progressive_step1_core_task")
-            # progressive_step1 使用 Command 路由到 progressive_step2_radar 或 requirements_analyst
-            # progressive_step2 使用 Command 路由到 progressive_step3_gap_filling 或 progressive_step1
-            # progressive_step3 使用 Command 路由到 questionnaire_summary（v7.135: 需求重构）
-            #  v7.151: questionnaire_summary 升级为需求洞察，使用 Command 动态路由
-            # - 确认/微调 → project_director
-            # - 重大修改 → requirements_analyst
-            #  移除静态边: workflow.add_edge("questionnaire_summary", "requirements_confirmation")
-            logger.info(" [v7.151] 配置需求洞察流程（合并需求洞察+需求确认）")
-        elif USE_MULTI_ROUND_QUESTIONNAIRE:
-            # 多轮迭代问卷已停用，回退到三步递进式
-            logger.warning("️ [v7.87] 多轮迭代问卷已停用，回退到三步递进式问卷")
-            workflow.add_edge("unified_input_validator_secondary", "progressive_step1_core_task")
-            #  v7.151: 同样使用 Command 动态路由
-        else:
-            # 旧版单轮问卷
-            workflow.add_edge("unified_input_validator_secondary", "calibration_questionnaire")
-            #  calibration_questionnaire 使用 Command 完全动态路由（无静态 edge）
+        #  v7.87: 三步递进式问卷流程（永久启用，v8.4 内联）
+        # 三步递进式问卷流程
+        workflow.add_edge("unified_input_validator_secondary", "progressive_step1_core_task")
+        # progressive_step1 使用 Command 路由到 progressive_step2_radar 或 requirements_analyst
+        # progressive_step2 使用 Command 路由到 progressive_step3_gap_filling 或 progressive_step1
+        # progressive_step3 使用 Command 路由到 questionnaire_summary（v7.135: 需求重构）
+        #  v7.151: questionnaire_summary 升级为需求洞察，使用 Command 动态路由
+        # - 确认/微调 → project_director
+        # - 重大修改 → requirements_analyst
+        logger.info(" [v7.151] 配置需求洞察流程（合并需求洞察+需求确认）")
 
         workflow.add_edge("project_director", "deliverable_id_generator")  #  v7.108 生成交付物ID
         workflow.add_edge("deliverable_id_generator", "search_query_generator")  #  v7.109 搜索查询生成

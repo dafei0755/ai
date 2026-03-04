@@ -329,11 +329,35 @@ class ProjectAnalysisState(TypedDict):
     best_score: float  # 历史最佳评分
     review_feedback: Optional[Dict[str, Any]]  # 审核反馈（传递给专家用于改进）
 
-    #  v2.0 递进式审核结果字段
-    review_result: Optional[Dict[str, Any]]  # [DEPRECATED] 完整审核结果（红蓝评委甲方）- 已被role_quality_review_result替代
-    final_ruling: Optional[str]  # [DEPRECATED] 最终裁定文档（甲方输出的可执行改进路线图）- 已废弃
-    improvement_suggestions: Annotated[List[Dict[str, Any]], merge_lists]  # [DEPRECATED] 改进建议列表 - 已废弃
-    skip_second_review: Optional[bool]  # [DEPRECATED] 整改后跳过第二次审核标记 - 已废弃
+    # ─────────────────────────────────────────────────────────────────────
+    #  [DEPRECATED BLOCK] v2.0 递进式审核结果字段
+    #
+    #  !! 禁止新增对以下字段的引用 !! (DO NOT ADD NEW REFERENCES)
+    #  !! 仅保留以兼容现有引用，迁移完成后将删除 !!
+    #
+    #  当前仍被以下文件读取（迁移完成前不得删除）:
+    #    review_result        → report/text_generator.py:356
+    #                           report/result_aggregator.py:558
+    #                           interaction/nodes/manual_review.py:49
+    #    final_ruling         → report/result_aggregator.py:554
+    #                           agents/analysis_review_agent.py:412
+    #    improvement_suggestions → report/text_generator.py:365
+    #                              report/result_aggregator.py:555
+    #                              interaction/nodes/manual_review.py:48
+    #                              agents/analysis_review_agent.py:413
+    #    skip_second_review   → workflow/nodes/aggregation_nodes.py:471
+    #                           interaction/nodes/manual_review.py:155,185
+    #
+    #  迁移目标:
+    #    review_result        → role_quality_review_result (已就位，见下方)
+    #    final_ruling         → 无直接替代，废弃后从 result_aggregator 报告中移除
+    #    improvement_suggestions → 废弃后从报告中移除此字段
+    #    skip_second_review   → 废弃后删除 manual_review → aggregation_nodes 的跳过逻辑
+    # ─────────────────────────────────────────────────────────────────────
+    review_result: Optional[Dict[str, Any]]  # [DEPRECATED] 完整审核结果（红蓝评委甲方）→ 迁移目标: role_quality_review_result
+    final_ruling: Optional[str]  # [DEPRECATED] 最终裁定文档（甲方输出的可执行改进路线图）→ 废弃，无替代
+    improvement_suggestions: Annotated[List[Dict[str, Any]], merge_lists]  # [DEPRECATED] 改进建议列表 → 废弃，无替代
+    skip_second_review: Optional[bool]  # [DEPRECATED] 整改后跳过第二次审核标记 → 废弃，无替代
 
     #  v2.2 角色选择质量审核字段（2026-01-26）
     role_quality_review_result: Optional[Dict[str, Any]]  # 角色选择质量审核结果（红蓝对抗）

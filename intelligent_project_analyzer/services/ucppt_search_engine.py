@@ -1,4 +1,4 @@
-﻿"""
+"""
 ucppt 深度迭代搜索引擎 (v7.270)
 
 实现 ucppt 范式的"目标导向探索引擎"：
@@ -187,8 +187,9 @@ except ImportError as e:
 
 # v7.510: 导入 Step 1.5 搜索方向生成器
 try:
+    from intelligent_project_analyzer.core.four_step_flow_types import OutputBlock, SearchDirection, Understanding
     from intelligent_project_analyzer.services.search_direction_generator import SearchDirectionGenerator
-    from intelligent_project_analyzer.core.four_step_flow_types import SearchDirection, Understanding, OutputBlock
+
     SEARCH_DIRECTION_GENERATOR_AVAILABLE = True
 except ImportError as e:
     SearchDirectionGenerator = None
@@ -197,6 +198,31 @@ except ImportError as e:
     OutputBlock = None
     SEARCH_DIRECTION_GENERATOR_AVAILABLE = False
     logger.warning(f"️ Step 1.5 搜索方向生成器未可用: {e}")
+
+
+# ╔══════════════════════════════════════════════════════════════════════════╗
+# ║  MODULE SECTION MAP  (本文件模块边界索引, 供未来拆包参考)                       ║
+# ║                                                                          ║
+# ║  当文件行数超过 20000 行时，建议按以下边界拆分为独立 Python 模块：              ║
+# ║                                                                          ║
+# ║  Line   Section                         未来拆分目标模块                   ║
+# ║  ─────  ──────────────────────────────  ──────────────────────────────   ║
+# ║    202  常量配置                          ucppt_constants.py               ║
+# ║    239  枚举(SearchPhase/AnalysisPhase)  ucppt_enums.py                   ║
+# ║    264  基础数据结构 (PhaseResult 等)     ucppt_models.py                  ║
+# ║    579  v7.220 统一搜索框架              search_framework.py              ║
+# ║   1046  4-Step Flow 数据结构            四步流 → 已独立到 core/            ║
+# ║   1143  v7.240 框架清单                 framework_registry.py             ║
+# ║   1358  v7.270 解题思路模块             solution_architect.py             ║
+# ║   1578  v7.300 4步工作流数据模型        workflow_models.py                ║
+# ║   1954  v7.213 兼容层（保留兼容）        _compat_layer.py                 ║
+# ║   2514  v7.270 LLM分析引擎             llm_analysis_engine.py            ║
+# ║   3053  主引擎 UcpptSearchEngine        ucppt_search_engine.py (保留)    ║
+# ║  16280  全局单例 get_ucppt_engine()     ucppt_search_engine.py (保留)    ║
+# ║                                                                          ║
+# ║  当前策略: 单文件维护，注意不要在这个文件中混入业务逻辑                         ║
+# ║  拆包前提: 需要完整的单元测试覆盖，防止循环导入                                ║
+# ╚══════════════════════════════════════════════════════════════════════════╝
 
 
 # ==================== 常量配置 ====================
@@ -4391,28 +4417,45 @@ class UcpptSearchEngine:
 
     # 搜索策略列表（按优先级排序）
     SEARCH_STRATEGIES = [
-        "preset_keyword",    # 使用预设关键词（复用已有 get_next_preset_keyword）
-        "original_direct",   # 直接用目标问题搜索
-        "broaden_scope",     # 扩大范围：加行业/领域上下文词
+        "preset_keyword",  # 使用预设关键词（复用已有 get_next_preset_keyword）
+        "original_direct",  # 直接用目标问题搜索
+        "broaden_scope",  # 扩大范围：加行业/领域上下文词
         "synonym_rephrase",  # LLM改写：同义词、不同表述
-        "angle_change",      # 换视角：用户角度→专家角度→对比角度
-        "source_type",       # 限定来源：加"论文"/"案例"/"报告"/"数据"
-        "decompose",         # 分解子问题：拆成2-3个小问题分别搜
+        "angle_change",  # 换视角：用户角度→专家角度→对比角度
+        "source_type",  # 限定来源：加"论文"/"案例"/"报告"/"数据"
+        "decompose",  # 分解子问题：拆成2-3个小问题分别搜
     ]
 
     # 已知低质量域名
     LOW_QUALITY_DOMAINS = [
-        "baike.baidu.com", "zhidao.baidu.com", "wenku.baidu.com",
-        "so.com", "sogou.com", "baijiahao.baidu.com",
+        "baike.baidu.com",
+        "zhidao.baidu.com",
+        "wenku.baidu.com",
+        "so.com",
+        "sogou.com",
+        "baijiahao.baidu.com",
     ]
 
     # 已知高质量域名
     HIGH_QUALITY_DOMAINS = [
-        ".gov.cn", ".edu.cn", ".ac.cn", ".org",
-        "arxiv.org", "scholar.google", "nature.com", "science.org",
-        "ieee.org", "acm.org", "springer.com",
-        "mckinsey.com", "bcg.com", "bain.com", "deloitte.com",
-        "statista.com", "idc.com", "gartner.com",
+        ".gov.cn",
+        ".edu.cn",
+        ".ac.cn",
+        ".org",
+        "arxiv.org",
+        "scholar.google",
+        "nature.com",
+        "science.org",
+        "ieee.org",
+        "acm.org",
+        "springer.com",
+        "mckinsey.com",
+        "bcg.com",
+        "bain.com",
+        "deloitte.com",
+        "statista.com",
+        "idc.com",
+        "gartner.com",
     ]
 
     async def _generate_strategy_query(
@@ -4463,7 +4506,9 @@ class UcpptSearchEngine:
 
         # LLM策略：broaden_scope / synonym_rephrase / angle_change / decompose
         tried_queries_str = "\n".join(f"- {q}" for q in target.tried_queries[-5:]) if target.tried_queries else "（无）"
-        existing_findings_str = "\n".join(f"- {f}" for f in target.valuable_findings[-5:]) if target.valuable_findings else "（无）"
+        existing_findings_str = (
+            "\n".join(f"- {f}" for f in target.valuable_findings[-5:]) if target.valuable_findings else "（无）"
+        )
 
         strategy_instructions = {
             "broaden_scope": "请扩大搜索范围，加入相关的行业背景、上下游领域、或更宏观的视角。生成一个更宽泛但仍相关的搜索词。",
@@ -4522,6 +4567,7 @@ class UcpptSearchEngine:
             if text:
                 # 简单分词：按空格和标点分割，过滤短词
                 import re
+
                 words = re.split(r"[\s,，。、；;：:！!？?\-/\\]+", text)
                 target_keywords.update(w for w in words if len(w) >= 2)
 
@@ -4553,6 +4599,7 @@ class UcpptSearchEngine:
 
             # 是否包含具体数据（数字+单位）
             import re
+
             if re.search(r"\d+[\.\d]*\s*[%万亿美元人民币元份个条项]", snippet):
                 has_data = True
 
@@ -4629,6 +4676,7 @@ class UcpptSearchEngine:
             response = await self._call_llm(prompt, model=self.eval_model, max_tokens=500)
             # 解析JSON
             import json
+
             # 尝试提取JSON
             response = response.strip()
             if response.startswith("```"):
@@ -4702,7 +4750,9 @@ class UcpptSearchEngine:
                 snippet = (s.get("snippet", "") or s.get("summary", ""))[:100]
                 if snippet and len(snippet) > 10:
                     key_findings.append(snippet)
-            logger.debug(f" [v7.500] 规则快筛: PASS (score={rough_score:.2f}) | findings={len(key_findings)} | query={query[:30]}...")
+            logger.debug(
+                f" [v7.500] 规则快筛: PASS (score={rough_score:.2f}) | findings={len(key_findings)} | query={query[:30]}..."
+            )
             return {
                 "score": rough_score,
                 "is_valuable": True,
@@ -4782,9 +4832,7 @@ class UcpptSearchEngine:
             round_sources = new_sources if new_sources else round_sources[:3]  # 至少保留一些用于评估
 
             # 3. 混合质量评估
-            quality_result = await self._evaluate_round_quality_hybrid(
-                target, query, round_sources, strategy
-            )
+            quality_result = await self._evaluate_round_quality_hybrid(target, query, round_sources, strategy)
 
             # 4. 质量门控
             if quality_result["is_valuable"]:
@@ -4842,11 +4890,15 @@ class UcpptSearchEngine:
             # 6. 停止条件
             if target.completion_score >= 0.8 and len(target.valuable_findings) >= 3:
                 target.status = "complete"
-                logger.info(f" [v7.500] 目标完成: completion={target.completion_score:.2f}, findings={len(target.valuable_findings)}")
+                logger.info(
+                    f" [v7.500] 目标完成: completion={target.completion_score:.2f}, findings={len(target.valuable_findings)}"
+                )
                 break
             if consecutive_low_quality >= 2 and strategy_index >= 3:
                 target.status = "partial"
-                logger.info(f" [v7.500] 连续低质量+策略用尽，停止: consecutive={consecutive_low_quality}, strategies_tried={strategy_index}")
+                logger.info(
+                    f" [v7.500] 连续低质量+策略用尽，停止: consecutive={consecutive_low_quality}, strategies_tried={strategy_index}"
+                )
                 break
             if strategy_index >= len(self.SEARCH_STRATEGIES):
                 target.status = "partial"
@@ -4893,17 +4945,22 @@ class UcpptSearchEngine:
     def _rebuild_understanding(self, data: Dict[str, Any]):
         """从序列化数据重建 Understanding 对象"""
         from intelligent_project_analyzer.core.four_step_flow_types import (
-            Understanding, L2MotivationDimension, L3CoreTension,
+            L2MotivationDimension,
+            L3CoreTension,
+            Understanding,
         )
+
         l2_motivations = []
         for m in data.get("l2_motivations", []):
             if isinstance(m, dict):
-                l2_motivations.append(L2MotivationDimension(
-                    name=m.get("name", ""),
-                    type=m.get("type", "功能型"),
-                    score=m.get("score", 3),
-                    scenario_expression=m.get("scenario_expression", ""),
-                ))
+                l2_motivations.append(
+                    L2MotivationDimension(
+                        name=m.get("name", ""),
+                        type=m.get("type", "功能型"),
+                        score=m.get("score", 3),
+                        scenario_expression=m.get("scenario_expression", ""),
+                    )
+                )
 
         l3_data = data.get("l3_tension", {})
         l3_tension = L3CoreTension(
@@ -4919,16 +4976,19 @@ class UcpptSearchEngine:
     def _rebuild_output_block(self, block_data):
         """从序列化数据重建 OutputBlock 对象"""
         from intelligent_project_analyzer.core.four_step_flow_types import OutputBlock, OutputBlockSubItem
+
         try:
             if isinstance(block_data, dict):
                 sub_items = []
                 for si in block_data.get("sub_items", []):
                     if isinstance(si, dict):
-                        sub_items.append(OutputBlockSubItem(
-                            id=si.get("id", ""),
-                            name=si.get("name", ""),
-                            description=si.get("description", ""),
-                        ))
+                        sub_items.append(
+                            OutputBlockSubItem(
+                                id=si.get("id", ""),
+                                name=si.get("name", ""),
+                                description=si.get("description", ""),
+                            )
+                        )
                 return OutputBlock(
                     id=block_data.get("id", ""),
                     name=block_data.get("name", ""),
@@ -4960,7 +5020,6 @@ class UcpptSearchEngine:
         v7.320: 切换到新的 Step1DeepAnalysisExecutor (v3.0 三阶段架构)
         """
         logger.info(f" [v7.320] Step1 Only 模式 (使用 v3.0 Executor) | query={query[:50]}...")
-
 
         try:
             # v7.320: 导入并使用新的 Step1DeepAnalysisExecutor
@@ -5186,10 +5245,12 @@ class UcpptSearchEngine:
                                         else:
                                             block_id = getattr(block, "id", f"block_{idx + 1}")
                                             block_name = getattr(block, "name", f"板块{idx + 1}")
-                                        blocks_info.append({
-                                            "id": block_id,
-                                            "name": block_name,
-                                        })
+                                        blocks_info.append(
+                                            {
+                                                "id": block_id,
+                                                "name": block_name,
+                                            }
+                                        )
                                     logger.info(f" [v7.360] 板块信息: {[b['name'] for b in blocks_info]}")
 
                                     yield {
@@ -5322,7 +5383,7 @@ class UcpptSearchEngine:
 
                 # ---- 阶段 1: 分批并行执行首轮搜索 ----
                 for batch_start in range(0, total_queries, MAX_CONCURRENT):
-                    batch = effective_queries[batch_start:batch_start + MAX_CONCURRENT]
+                    batch = effective_queries[batch_start : batch_start + MAX_CONCURRENT]
                     logger.debug(f" [v7.471] 执行批次 {batch_start // MAX_CONCURRENT + 1} | 查询数={len(batch)}")
 
                     # 1a. 为本批次每个查询发送 round_start 事件
@@ -5337,17 +5398,25 @@ class UcpptSearchEngine:
                             else search_query[:40]
                         )
                         serves_blocks = query_data.get("serves_blocks", []) if isinstance(query_data, dict) else []
-                        actual_query_id = query_data.get("id", f"query_{round_num}") if isinstance(query_data, dict) else f"query_{round_num}"
+                        actual_query_id = (
+                            query_data.get("id", f"query_{round_num}")
+                            if isinstance(query_data, dict)
+                            else f"query_{round_num}"
+                        )
 
-                        batch_meta.append({
-                            "round_num": round_num,
-                            "search_query": search_query,
-                            "target_desc": target_desc,
-                            "serves_blocks": serves_blocks,
-                            "actual_query_id": actual_query_id,
-                            "query_data": query_data,
-                            "search_keywords": query_data.get("search_keywords", []) if isinstance(query_data, dict) else [],
-                        })
+                        batch_meta.append(
+                            {
+                                "round_num": round_num,
+                                "search_query": search_query,
+                                "target_desc": target_desc,
+                                "serves_blocks": serves_blocks,
+                                "actual_query_id": actual_query_id,
+                                "query_data": query_data,
+                                "search_keywords": query_data.get("search_keywords", [])
+                                if isinstance(query_data, dict)
+                                else [],
+                            }
+                        )
 
                         yield {
                             "type": "round_start",
@@ -5390,9 +5459,7 @@ class UcpptSearchEngine:
                         query_result_counts[meta["actual_query_id"]] = len(new_sources)
                         query_sources_map[meta["actual_query_id"]] = new_sources.copy()  # v7.500
 
-                        logger.debug(
-                            f" [v7.471] 查询 {meta['actual_query_id']} 首轮结果: {len(new_sources)} 条"
-                        )
+                        logger.debug(f" [v7.471] 查询 {meta['actual_query_id']} 首轮结果: {len(new_sources)} 条")
 
                         yield {
                             "type": "round_sources",
@@ -5417,7 +5484,9 @@ class UcpptSearchEngine:
                     logger.info(f" [v7.471] 阶段2: {len(weak_query_metas)} 个查询结果不足，执行补充搜索")
 
                     for qid, query_data in weak_query_metas:
-                        original_query = query_data.get("query", "") if isinstance(query_data, dict) else str(query_data)
+                        original_query = (
+                            query_data.get("query", "") if isinstance(query_data, dict) else str(query_data)
+                        )
                         current_count = query_result_counts.get(qid, 0)
 
                         # 2a. 空结果重试（简化查询）
@@ -5636,8 +5705,12 @@ class UcpptSearchEngine:
                     },
                 }
                 async for event in self._batch_reflect_on_searches(
-                    query, framework, search_queries, all_sources,
-                    query_result_counts, query_sources_map,
+                    query,
+                    framework,
+                    search_queries,
+                    all_sources,
+                    query_result_counts,
+                    query_sources_map,
                 ):
                     yield event
 
@@ -5657,8 +5730,12 @@ class UcpptSearchEngine:
             if blocks and has_search_queries:
                 # v7.500: 板块化回答生成
                 async for event in self._generate_block_based_answer(
-                    query, framework, all_sources, output_framework,
-                    search_queries, query_sources_map,
+                    query,
+                    framework,
+                    all_sources,
+                    output_framework,
+                    search_queries,
+                    query_sources_map,
                 ):
                     yield event
             else:
@@ -5715,10 +5792,7 @@ class UcpptSearchEngine:
             searched_summary.append(f"- {qid}: {q} → {count} 条结果")
 
         # 构建已收集来源摘要（取前 15 条的标题）
-        source_titles = [
-            f"  - {s.get('title', '无标题')[:60]}"
-            for s in all_sources[:15]
-        ]
+        source_titles = [f"  - {s.get('title', '无标题')[:60]}" for s in all_sources[:15]]
 
         prompt = f"""你是一个搜索策略专家。用户的原始需求是：
 "{original_query}"
@@ -5754,7 +5828,8 @@ class UcpptSearchEngine:
 
             # 尝试提取 JSON（可能被 markdown 包裹）
             import re as _re
-            json_match = _re.search(r'\{[\s\S]*\}', content)
+
+            json_match = _re.search(r"\{[\s\S]*\}", content)
             if json_match:
                 result = json.loads(json_match.group())
             else:
@@ -5764,11 +5839,13 @@ class UcpptSearchEngine:
             if result.get("needs_extension") and result.get("extensions"):
                 extensions = []
                 for i, ext in enumerate(result["extensions"][:2]):
-                    extensions.append({
-                        "query": ext.get("query", ""),
-                        "reason": ext.get("reason", ""),
-                        "target_id": f"ext_{i+1}",
-                    })
+                    extensions.append(
+                        {
+                            "query": ext.get("query", ""),
+                            "reason": ext.get("reason", ""),
+                            "target_id": f"ext_{i+1}",
+                        }
+                    )
                 logger.debug(f" [v7.471] 延展评估: 发现 {len(extensions)} 个新方向")
                 for ext in extensions:
                     logger.debug(f"  → {ext['query']} ({ext['reason']})")
@@ -5858,7 +5935,8 @@ class UcpptSearchEngine:
 
                 # JSON 解析（含 markdown code block fallback）
                 import re as _re
-                json_match = _re.search(r'\{[\s\S]*\}', content_text)
+
+                json_match = _re.search(r"\{[\s\S]*\}", content_text)
                 if json_match:
                     result = json.loads(json_match.group())
                 else:
@@ -5909,11 +5987,8 @@ class UcpptSearchEngine:
         completed = 0
 
         for batch_start in range(0, total_queries, REFLECT_CONCURRENT):
-            batch = search_queries[batch_start:batch_start + REFLECT_CONCURRENT]
-            tasks = [
-                _reflect_single_query(sq, batch_start + i + 1)
-                for i, sq in enumerate(batch)
-            ]
+            batch = search_queries[batch_start : batch_start + REFLECT_CONCURRENT]
+            tasks = [_reflect_single_query(sq, batch_start + i + 1) for i, sq in enumerate(batch)]
             results = await asyncio.gather(*tasks, return_exceptions=True)
 
             for i, result in enumerate(results):
@@ -5945,14 +6020,9 @@ class UcpptSearchEngine:
 
         # 计算平均质量
         valid_insights = [ins for ins in all_insights if ins is not None]
-        avg_quality = (
-            sum(ins.info_quality for ins in valid_insights) / len(valid_insights)
-            if valid_insights else 0.0
-        )
+        avg_quality = sum(ins.info_quality for ins in valid_insights) / len(valid_insights) if valid_insights else 0.0
 
-        logger.info(
-            f" [v7.500] 批量反思完成 | 成功={len(valid_insights)}/{total_queries} | 平均质量={avg_quality:.0%}"
-        )
+        logger.info(f" [v7.500] 批量反思完成 | 成功={len(valid_insights)}/{total_queries} | 平均质量={avg_quality:.0%}")
 
         yield {
             "type": "reflection_complete",
@@ -6181,9 +6251,7 @@ class UcpptSearchEngine:
                             tasks = self._decompose_block_to_tasks_fixed(block_obj, i)
                         else:
                             # 否则运行异步分解
-                            tasks = loop.run_until_complete(
-                                self._decompose_block_to_tasks(block_obj, i, query)
-                            )
+                            tasks = loop.run_until_complete(self._decompose_block_to_tasks(block_obj, i, query))
                     except Exception as e:
                         logger.warning(f"异步分解失败: {e}，使用固定规则")
                         tasks = self._decompose_block_to_tasks_fixed(block_obj, i)
@@ -6714,9 +6782,7 @@ class UcpptSearchEngine:
                 }
 
                 # 该目标自主搜索
-                async for event in self._search_single_target_autonomously(
-                    target, framework, all_sources, seen_urls
-                ):
+                async for event in self._search_single_target_autonomously(target, framework, all_sources, seen_urls):
                     # 转发内部事件，附加全局轮次号（兼容前端）
                     if event.get("type") == "target_search_progress":
                         global_round += 1
@@ -10066,9 +10132,7 @@ class UcpptSearchEngine:
             passed_checks = sum(1 for v in details.values() if v)
             completeness_score = passed_checks / total_checks if total_checks > 0 else 1.0
 
-            logger.info(
-                f" [v7.280] 维度完整性校验通过 | score={completeness_score:.2f} | checks={passed_checks}/{total_checks}"
-            )
+            logger.info(f" [v7.280] 维度完整性校验通过 | score={completeness_score:.2f} | checks={passed_checks}/{total_checks}")
 
             return {
                 "complete": True,
@@ -15534,7 +15598,7 @@ status可选值：missing（没有有用信息）、partial（有部分有用信
             scored = [(s, self._calculate_source_relevance(s, framework)) for s in remaining]
             scored.sort(key=lambda x: x[1], reverse=True)
             slots = 30 - len(top_sources)
-            for s, _ in scored[:max(0, slots)]:
+            for s, _ in scored[: max(0, slots)]:
                 top_sources.append(s)
 
             # 分配全局编号
@@ -15719,11 +15783,13 @@ L4搜索任务: {l4_task if l4_task else '无'}
                     }
 
                 word_count = len(block_text)
-                block_drafts.append({
-                    "block_id": block_id,
-                    "block_name": block_name,
-                    "draft": block_text,
-                })
+                block_drafts.append(
+                    {
+                        "block_id": block_id,
+                        "block_name": block_name,
+                        "draft": block_text,
+                    }
+                )
 
                 yield {
                     "type": "answer_block_complete",

@@ -12,10 +12,10 @@ v8.0 雷达图维度生成 - 集成测试
 
 import json
 import os
-import pytest
-from unittest.mock import patch
 from typing import Any, Dict, List
+from unittest.mock import patch
 
+import pytest
 
 # ==============================================================================
 # 公共工具
@@ -104,7 +104,7 @@ class TestV8PathSuccess:
         )
 
         state = _make_state()
-        cmd = ProgressiveQuestionnaireNode.step3_radar(state)
+        cmd = ProgressiveQuestionnaireNode.step2_radar(state)
 
         # 验证 v8.0 路径成功执行
         assert mock_interrupt.called
@@ -132,7 +132,7 @@ class TestV8PathSuccess:
             ProgressiveQuestionnaireNode,
         )
 
-        ProgressiveQuestionnaireNode.step3_radar(_make_state())
+        ProgressiveQuestionnaireNode.step2_radar(_make_state())
 
         payload = mock_interrupt.call_args[0][0]
         assert "dimension_generation_method" in payload
@@ -157,7 +157,7 @@ class TestV8PathSuccess:
             ProgressiveQuestionnaireNode,
         )
 
-        cmd = ProgressiveQuestionnaireNode.step3_radar(_make_state())
+        cmd = ProgressiveQuestionnaireNode.step2_radar(_make_state())
 
         update = cmd.update
         assert "dimension_generation_method" in update
@@ -181,7 +181,7 @@ class TestV8PathSuccess:
             ProgressiveQuestionnaireNode,
         )
 
-        ProgressiveQuestionnaireNode.step3_radar(_make_state())
+        ProgressiveQuestionnaireNode.step2_radar(_make_state())
 
         payload = mock_interrupt.call_args[0][0]
         layers = payload["dimension_layers"]
@@ -223,7 +223,7 @@ class TestV8FallbackPath:
         )
 
         # 不应抛出异常
-        cmd = ProgressiveQuestionnaireNode.step3_radar(_make_state())
+        cmd = ProgressiveQuestionnaireNode.step2_radar(_make_state())
         assert cmd is not None
         assert mock_interrupt.called
 
@@ -251,7 +251,7 @@ class TestV8FallbackPath:
             ProgressiveQuestionnaireNode,
         )
 
-        cmd = ProgressiveQuestionnaireNode.step3_radar(_make_state())
+        cmd = ProgressiveQuestionnaireNode.step2_radar(_make_state())
         update = cmd.update
         assert update.get("dimension_generation_method") == "static"
 
@@ -286,7 +286,7 @@ class TestEnvVarSwitch:
             ProgressiveQuestionnaireNode,
         )
 
-        ProgressiveQuestionnaireNode.step3_radar(_make_state())
+        ProgressiveQuestionnaireNode.step2_radar(_make_state())
         mock_ps_gen.assert_not_called()
 
     @patch.dict(
@@ -307,7 +307,7 @@ class TestEnvVarSwitch:
             ProgressiveQuestionnaireNode,
         )
 
-        cmd = ProgressiveQuestionnaireNode.step3_radar(_make_state())
+        cmd = ProgressiveQuestionnaireNode.step2_radar(_make_state())
         assert cmd.update.get("dimension_generation_method") == "static"
 
 
@@ -337,7 +337,7 @@ class TestRouting:
             ProgressiveQuestionnaireNode,
         )
 
-        cmd = ProgressiveQuestionnaireNode.step3_radar(_make_state())
+        cmd = ProgressiveQuestionnaireNode.step2_radar(_make_state())
         assert cmd.goto == "questionnaire_summary"
 
     @patch.dict(
@@ -363,7 +363,7 @@ class TestRouting:
             ProgressiveQuestionnaireNode,
         )
 
-        cmd = ProgressiveQuestionnaireNode.step3_radar(_make_state())
+        cmd = ProgressiveQuestionnaireNode.step2_radar(_make_state())
         assert cmd.goto == "questionnaire_summary"
 
     @patch.dict(os.environ, {"USE_PROJECT_SPECIFIC_DIMENSIONS": "false"})
@@ -375,7 +375,7 @@ class TestRouting:
             ProgressiveQuestionnaireNode,
         )
 
-        cmd = ProgressiveQuestionnaireNode.step3_radar(state)
+        cmd = ProgressiveQuestionnaireNode.step2_radar(state)
         assert cmd.goto == "questionnaire_summary"
 
 
@@ -410,7 +410,7 @@ class TestStatePersistence:
             ProgressiveQuestionnaireNode,
         )
 
-        cmd = ProgressiveQuestionnaireNode.step3_radar(_make_state())
+        cmd = ProgressiveQuestionnaireNode.step2_radar(_make_state())
         update = cmd.update
 
         required_fields = [

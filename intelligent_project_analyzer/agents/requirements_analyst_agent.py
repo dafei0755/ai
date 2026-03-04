@@ -806,6 +806,7 @@ def _merge_phase_results(phase1: Dict, phase2: Dict, user_input: str) -> Dict[st
         "project_tasks": [structured_output.get("project_task", "")] if structured_output.get("project_task") else [],
         "motivation_preliminary": phase1.get("motivation_preliminary"),
         "designer_behavioral_motivation": phase1.get("designer_behavioral_motivation"),
+        "problem_types": phase1.get("problem_types", []),
     }
 
     # v10.0.0 三阶段键名支持：phase_a_reality / phase_b_excavation

@@ -86,6 +86,7 @@ copy .env.example .env
 
 ```bash
 # 终端1: 启动后端
+taskkill /F /IM python.exe
 python scripts\run_server_production.py
 
 # 终端2: 启动前端
@@ -670,9 +671,9 @@ Get-NetTCPConnection -LocalPort 8000,3001 -State Listen -ErrorAction SilentlyCon
    Select-Object -ExpandProperty OwningProcess -Unique |
    ForEach-Object {
       $p = Get-Process -Id $_ -ErrorAction SilentlyContinue
-      if ($p -and ($p.ProcessName -match 'python|uvicorn|node')) { 
+      if ($p -and ($p.ProcessName -match 'python|uvicorn|node')) {
          Write-Host "Killing $($p.ProcessName) (PID: $_) on port 8000/3001"
-         taskkill /F /PID $_ 
+         taskkill /F /PID $_
       }
    }
 
@@ -681,9 +682,9 @@ Get-NetTCPConnection -LocalPort 8100,3101 -State Listen -ErrorAction SilentlyCon
    Select-Object -ExpandProperty OwningProcess -Unique |
    ForEach-Object {
       $p = Get-Process -Id $_ -ErrorAction SilentlyContinue
-      if ($p -and ($p.ProcessName -match 'python|uvicorn|node')) { 
+      if ($p -and ($p.ProcessName -match 'python|uvicorn|node')) {
          Write-Host "Killing $($p.ProcessName) (PID: $_) on port 8100/3101"
-         taskkill /F /PID $_ 
+         taskkill /F /PID $_
       }
    }
 
@@ -692,9 +693,9 @@ Get-NetTCPConnection -LocalPort 8200,3201 -State Listen -ErrorAction SilentlyCon
    Select-Object -ExpandProperty OwningProcess -Unique |
    ForEach-Object {
       $p = Get-Process -Id $_ -ErrorAction SilentlyContinue
-      if ($p -and ($p.ProcessName -match 'python|uvicorn|node')) { 
+      if ($p -and ($p.ProcessName -match 'python|uvicorn|node')) {
          Write-Host "Killing $($p.ProcessName) (PID: $_) on port 8200/3201"
-         taskkill /F /PID $_ 
+         taskkill /F /PID $_
       }
    }
 
@@ -705,9 +706,9 @@ Get-NetTCPConnection -LocalPort 8200,3201 -State Listen -ErrorAction SilentlyCon
       Select-Object -ExpandProperty OwningProcess -Unique |
       ForEach-Object {
          $p = Get-Process -Id $_ -ErrorAction SilentlyContinue
-         if ($p -and ($p.ProcessName -match 'python|uvicorn|node')) { 
+         if ($p -and ($p.ProcessName -match 'python|uvicorn|node')) {
             Write-Host "Killing $($p.ProcessName) (PID: $_) on port $port"
-            taskkill /F /PID $_ 
+            taskkill /F /PID $_
          }
       }
 }
@@ -727,7 +728,7 @@ Get-NetTCPConnection -LocalPort 8000 -State Listen -ErrorAction SilentlyContinue
 # 只清除前端端口
 Get-NetTCPConnection -LocalPort 3001 -State Listen -ErrorAction SilentlyContinue |
    Select-Object -ExpandProperty OwningProcess -Unique |
-   ForEach-Object { 
+   ForEach-Object {
       $p = Get-Process -Id $_ -ErrorAction SilentlyContinue
       if ($p -and $p.ProcessName -eq 'node') { taskkill /F /PID $_ }
    }
