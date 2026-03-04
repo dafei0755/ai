@@ -82,8 +82,9 @@ coverage.xml
 # Temporary diagnostic / output text files (underscore prefix convention)
 _*.txt
 
-# Scratch / one-off scripts and archives
-_archive/
+# Scratch / one-off scripts and archives (root-level only)
+/_archive/
+# tests/_archive/ is intentionally tracked — contains historical test files for reference
 
 # Database files
 *.db
