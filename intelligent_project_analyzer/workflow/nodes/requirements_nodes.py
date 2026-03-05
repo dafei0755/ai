@@ -369,6 +369,7 @@ class RequirementsNodesMixin:
         logger.info(" [v11] Executing output intent detection node")
         return output_intent_detection_node(state, self.store)
 
+    @node_guard(fallback={"errors": [], "feasibility_assessment": None, "feasibility_skipped": True})
     def _feasibility_analyst_node(self, state: ProjectAnalysisState) -> Dict[str, Any]:
         """
         V1.5 可行性分析师节点（后台决策支持）

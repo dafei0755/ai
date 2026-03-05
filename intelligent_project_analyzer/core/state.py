@@ -159,6 +159,7 @@ class ProjectAnalysisState(TypedDict):
     user_input: str
     structured_requirements: Dict[str, Any] | None
     feasibility_assessment: Dict[str, Any] | None  #  V1.5可行性分析结果（后台决策支持）
+    feasibility_skipped: bool | None  # 🆕 v9.0: @node_guard 降级时标记（LLM超时/异常）
     project_type: str | None  #  项目类型（用于本体论注入）: "personal_residential" | "hybrid_residential_commercial" | "commercial_enterprise"
 
     # 分析策略和任务分派
@@ -622,6 +623,7 @@ class StateManager:
             user_input=user_input,
             structured_requirements=None,
             feasibility_assessment=None,  #  V1.5可行性分析结果初始化,
+            feasibility_skipped=None,
             # 分析策略
             strategic_analysis=None,
             subagents=None,

@@ -596,6 +596,15 @@ class ProjectDirectorAgent(LLMAgent):
             requirements_text += "\n\n## 投射视角驱动的角色约束（必须遵守）\n" + "\n".join(f"- {l}" for l in force_lines)
             logger.info(f" [v8.0] 投射角色约束注入: {[k for k in PROJECTION_ROLE_FORCES if k in active_projections]}")
 
+        # 🔧 v9.0: 注入可行性分析上下文（feasibility_assessment 非空时生效）
+        feasibility_assessment = state.get("feasibility_assessment")
+        if feasibility_assessment:
+            feasibility_ctx = self._build_feasibility_context(feasibility_assessment)
+            if feasibility_ctx:
+                requirements_text += f"\n\n{feasibility_ctx}"
+                overall_fa = feasibility_assessment.get("feasibility_assessment", {}).get("overall_feasibility", "unknown")
+                logger.info(f" [v9.0] 可行性上下文注入完成: overall_feasibility={overall_fa}")
+
         #  v7.106: 获取用户确认的核心任务
         confirmed_tasks = state.get("confirmed_core_tasks", [])
         if confirmed_tasks:

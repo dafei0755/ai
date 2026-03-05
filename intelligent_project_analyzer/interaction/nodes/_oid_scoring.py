@@ -991,6 +991,6 @@ def output_intent_detection_node(state: dict, store=None) -> Command:
             "kept_visual_reference_indices": kept_visual_reference_indices if kept_visual_reference_indices else None,
             "detail": f"输出意图检测完成(v12.0): {len(active_projections)}种交付类型, {len(serializable_modes)}种身份模式",
         },
-        # 🔧 v8.3: 输出意图确认后直接进入渐进式问卷Step 1（任务梳理）
-        goto="progressive_step1_core_task",
+        # 🔧 v9.0: OID 确认后先经可行性分析（v8.3 断链已恢复），再进入渐进式问卷 Step 1
+        goto="feasibility_analyst",
     )
