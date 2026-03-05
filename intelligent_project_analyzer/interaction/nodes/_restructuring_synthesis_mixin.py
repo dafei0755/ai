@@ -261,7 +261,8 @@ class RestructuringSynthesisMixin:
 - 禁止使用"满足用户需求""提升空间品质""打造理想家居"等空洞表述
 - 禁止编造用户未提及的约束条件（设为null）
 - 禁止使用通用风险模板，每条风险必须与本项目具体情况相关
-- design_priorities的维度ID必须从{dim_ids}中选择"""
+- design_priorities的维度ID必须从{dim_ids}中选择
+- 🚫 v8.1: 禁止对未知信息使用"待进一步明确""有待确认""需进一步了解""暂不明确"等占位词；对用户未提及的维度，应基于已知信息作出语义化推断，用具体的设计假设替代占位符"""
 
     @staticmethod
     def _llm_synthesize_insight(context: "Dict[str, Any]") -> "Dict[str, Any]":

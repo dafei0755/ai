@@ -540,6 +540,8 @@ class QuestionnaireSummaryNode:
 
         # --- 3. 与 snapshot 对比，构建复盘对象 ---
         baseline = snapshot or current_tasks or []
+        if not snapshot:
+            logger.info("[G3] step1_confirmed_tasks_snapshot 为空，使用 confirmed_core_tasks 作为复盘基线")
         baseline_ids = {t.get("id") for t in baseline if t.get("id")}
         baseline_titles = {t.get("title", "").strip().lower() for t in baseline}
         {t.get("id") for t in corrected if t.get("id")}
