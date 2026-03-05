@@ -1084,6 +1084,10 @@ class ProgressiveQuestionnaireNode:
                     covered_dimensions=completeness.get("covered_dimensions", []),
                     existing_info_summary=existing_info_summary,
                     completeness_score=completeness.get("completeness_score", 0),
+                    # v7.900 G5: 输出意图上下文透传
+                    active_projections=_active_projections or None,
+                    detected_identity_modes=state.get("detected_identity_modes") or None,
+                    output_framework_signals=state.get("output_framework_signals") or None,
                 )
 
                 logger.info(f" [LLM智能生成] 成功生成 {len(questions)} 个针对性问题")

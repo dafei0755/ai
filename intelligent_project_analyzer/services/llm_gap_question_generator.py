@@ -86,6 +86,10 @@ class LLMGapQuestionGenerator:
         existing_info_summary: str,
         completeness_score: float,
         llm: Any | None = None,
+        # v7.900 G5: 输出意图上下文（可选，供未来 YAML 模板注入）
+        active_projections: List[str] | None = None,
+        detected_identity_modes: List[str] | None = None,
+        output_framework_signals: Dict[str, Any] | None = None,
     ) -> List[Dict[str, Any]]:
         """
         生成任务信息补充问题
@@ -348,6 +352,10 @@ class LLMGapQuestionGenerator:
         existing_info_summary: str,
         completeness_score: float,
         llm: Any | None = None,
+        # v7.900 G5: 输出意图上下文（可选知道）
+        active_projections: List[str] | None = None,
+        detected_identity_modes: List[str] | None = None,
+        output_framework_signals: Dict[str, Any] | None = None,
     ) -> List[Dict[str, Any]]:
         """
         同步版本的 generate 方法（供非异步环境调用）
@@ -372,6 +380,9 @@ class LLMGapQuestionGenerator:
                     existing_info_summary=existing_info_summary,
                     completeness_score=completeness_score,
                     llm=llm,
+                    active_projections=active_projections,
+                    detected_identity_modes=detected_identity_modes,
+                    output_framework_signals=output_framework_signals,
                 )
             )
         except Exception as e:
