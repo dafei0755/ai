@@ -1063,6 +1063,20 @@ class ProgressiveQuestionnaireNode:
             existing_info_summary = _intent_prefix + (existing_info_summary or "")
             logger.info(f" [G2] 注入意图约束前缀，projections={_active_projections}")
 
+        # B8 G3: 命题语义约束注入 — confirmed_proposition 存在时聚焦追问范围
+        _confirmed_proposition = state.get("confirmed_proposition")
+        _confirmed_exclusions = state.get("confirmed_exclusions") or []
+        if _confirmed_proposition:
+            _prop_prefix = (
+                "【🎯 命题语义约束 - 追问必须聚焦于此命题范围内】\n"
+                f"• 已确认设计命题：{_confirmed_proposition}\n"
+            )
+            if _confirmed_exclusions:
+                _prop_prefix += f"• 已排除的方向：{', '.join(str(e) for e in _confirmed_exclusions)}\n"
+            _prop_prefix += "\n"
+            existing_info_summary = _prop_prefix + (existing_info_summary or "")
+            logger.info(f" [G3] 注入命题语义约束，proposition={str(_confirmed_proposition)[:50]}")
+
         # 环境变量开关控制LLM生成（默认启用）
         enable_llm_generation = os.getenv("USE_LLM_GAP_QUESTIONS", "true").lower() == "true"
 
@@ -1208,6 +1222,12 @@ class ProgressiveQuestionnaireNode:
         else:
             _merged_constraints = _existing_constraints
 
+        # G7 增强 v9.1: Gap 回流 → 补充任务生成（关键词→confirmed_core_tasks）
+        _backflow_tasks = ProgressiveQuestionnaireNode._extract_gap_backflow_tasks(answers, confirmed_tasks)
+        if _backflow_tasks:
+            confirmed_tasks = list(confirmed_tasks) + _backflow_tasks
+            logger.info(f" [G7/v9.1] Gap 回流: 新增 {len(_backflow_tasks)} 个补充任务")
+
         #  v7.147: 移除此处的汇总调用，改为在雷达图完成后统一处理
         # 原因：此时 radar_dimension_values 尚未生成，会导致 NoneType 错误
         # questionnaire_summary = ProgressiveQuestionnaireNode._build_questionnaire_summary(state, answers)  #  删除
@@ -1230,6 +1250,9 @@ class ProgressiveQuestionnaireNode:
             "user_intent_constraints": _merged_constraints,
         }
         update_dict = WorkflowFlagManager.preserve_flags(state, update_dict)
+        # G7 v9.1: 如有补充任务则写回 confirmed_core_tasks
+        if _backflow_tasks:
+            update_dict["confirmed_core_tasks"] = confirmed_tasks
 
         #  v7.146: 修正路由 - Step2(信息补全)完成后进入Step3(雷达图)
         #  v8.4: 双动机驱动 — 根据 motivation_routing_profile 决定是否跳过 radar
@@ -1463,6 +1486,78 @@ class ProgressiveQuestionnaireNode:
             "source": "progressive_questionnaire_v780",
             "notes": f"三步递进式问卷，风格标签：{radar_summary.get('profile_label', '未定义')}",
         }
+
+    @staticmethod
+    def _extract_gap_backflow_tasks(answers: Dict[str, Any], confirmed_tasks: list) -> list:
+        """
+        v9.1 G5: Gap 回流 — 从用户答案中提取高价值关键词，生成补充任务
+
+        扫描答案文本中的高价值关键词:
+        - 预算数字 (万、元、RMB 等)
+        - 时间节点 (月、周、季度 等)
+        - 特殊需求关键词 (防火、节能、无障碍 等)
+
+        如果关键词未被现有任务覆盖，生成 source='gap_filling_supplement' 的补充任务。
+        最多返回 3 个补充任务，避免过度扩展。
+        """
+        import re
+
+        if not answers:
+            return []
+
+        # 现有任务文本（用于去重判断）
+        existing_task_text = " ".join(
+            str(t.get("task_name", "")) + " " + str(t.get("description", ""))
+            for t in (confirmed_tasks or [])
+            if isinstance(t, dict)
+        ).lower()
+
+        backflow_tasks: list = []
+        _BUDGET_PAT = re.compile(r"\d[\d,.]*\s*(万|千万|亿|元|RMB|USD)")
+        _TIME_PAT = re.compile(r"\d+\s*(个月|月|周|天|季度|年)")
+        _SPECIAL_KEYS = ["防火", "节能", "无障碍", "绿建", "LEED", "装配式", "智慧", "BIM"]
+
+        all_ans_text = " ".join(
+            ans if isinstance(ans, str) else (", ".join(ans) if isinstance(ans, list) else str(ans))
+            for ans in answers.values()
+            if ans
+        )
+
+        # 预算约束
+        m = _BUDGET_PAT.search(all_ans_text)
+        if m and "预算" not in existing_task_text and "造价" not in existing_task_text:
+            backflow_tasks.append({
+                "task_id": "BT-budget-gf",
+                "task_name": f"预算控制：{m.group(0)}",
+                "description": f"来自信息补全阶段的预算约束：{all_ans_text[:120].strip()}",
+                "source": "gap_filling_supplement",
+                "priority": "medium",
+            })
+
+        # 时间约束
+        m = _TIME_PAT.search(all_ans_text)
+        if m and "工期" not in existing_task_text and "时间" not in existing_task_text:
+            backflow_tasks.append({
+                "task_id": "BT-timeline-gf",
+                "task_name": f"时间节点管控：{m.group(0)}",
+                "description": f"来自信息补全阶段的工期约束：{all_ans_text[:120].strip()}",
+                "source": "gap_filling_supplement",
+                "priority": "medium",
+            })
+
+        # 特殊需求关键词（只取首个匹配）
+        for kw in _SPECIAL_KEYS:
+            if kw in all_ans_text and kw.lower() not in existing_task_text:
+                backflow_tasks.append({
+                    "task_id": f"BT-special-{kw}",
+                    "task_name": f"专项需求：{kw}",
+                    "description": f"来自信息补全阶段的{kw}专项需求识别",
+                    "source": "gap_filling_supplement",
+                    "priority": "low",
+                })
+                break
+
+        return backflow_tasks[:3]
 
 
 # ==========================================================================
