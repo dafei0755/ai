@@ -85,11 +85,6 @@ from .pdf_generator import (
 from .workflow_runner import run_workflow_async
 
 
-async def _get_session_manager():
-    """向后兼容：代理到 server._get_session_manager()"""
-    return await _server._get_session_manager()
-
-
 router = APIRouter(tags=["analysis"])
 
 
@@ -116,7 +111,7 @@ async def get_analysis_status(
     start_time = time.time()
 
     #  使用 Redis 读取会话（带缓存）
-    sm = await _get_session_manager()
+    sm = await get_session_manager()
     session = await sm.get_status_with_cache(session_id, include_history=include_history)
 
     if not session:
@@ -189,7 +184,7 @@ async def resume_analysis(request: ResumeRequest, background_tasks: BackgroundTa
     """
     session_id = request.session_id
 
-    sm = await _get_session_manager()
+    sm = await get_session_manager()
 
     #  获取活跃会话列表
     active_sessions = await sm.list_all_sessions()

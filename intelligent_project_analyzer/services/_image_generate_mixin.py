@@ -12,10 +12,10 @@ class ImageGenerateMixin:
     async def generate_image(
         self,
         prompt: str,
-        aspect_ratio: ImageAspectRatio = ImageAspectRatio.LANDSCAPE,
+        aspect_ratio: "ImageAspectRatio | None" = None,
         style: str | None = None,
         negative_prompt: str | None = None,
-    ) -> ImageGenerationResult:
+    ) -> "ImageGenerationResult":
         """
         生成图像
 
@@ -28,6 +28,10 @@ class ImageGenerateMixin:
         Returns:
             ImageGenerationResult 包含图像 URL 或错误信息
         """
+        # P1-B: 延迟导入，避免 Mixin 文件在类定义时求值未导入的 ImageAspectRatio
+        from intelligent_project_analyzer.services.image_generator import ImageAspectRatio, ImageGenerationResult  # noqa: F401
+        if aspect_ratio is None:
+            aspect_ratio = ImageAspectRatio.LANDSCAPE
         # 验证prompt不为空
         if not prompt or not prompt.strip():
             logger.error(" [图像生成API] prompt不能为空")
@@ -122,10 +126,10 @@ class ImageGenerateMixin:
         self,
         user_prompt: str,
         reference_image: str,
-        aspect_ratio: ImageAspectRatio = ImageAspectRatio.LANDSCAPE,
+        aspect_ratio: "ImageAspectRatio | None" = None,
         style: str | None = None,
         vision_weight: float = 0.7,
-    ) -> ImageGenerationResult:
+    ) -> "ImageGenerationResult":
         """
          v7.61: 使用 Vision 分析参考图后生成新图像
 
@@ -144,6 +148,10 @@ class ImageGenerateMixin:
             ImageGenerationResult 包含生成的图像
         """
         try:
+            # P1-B: 延迟导入，aspect_ratio 默认值不能在类定义时引用未导入的枚举
+            from intelligent_project_analyzer.services.image_generator import ImageAspectRatio, ImageGenerationResult  # noqa: F401
+            if aspect_ratio is None:
+                aspect_ratio = ImageAspectRatio.LANDSCAPE
             logger.info(" [v7.61] 开始 Vision + 生成混合流程")
 
             # Stage 1: Vision 分析参考图

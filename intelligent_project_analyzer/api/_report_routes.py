@@ -85,11 +85,6 @@ from .pdf_generator import (
 from .workflow_runner import run_workflow_async
 
 
-async def _get_session_manager():
-    """向后兼容：代理到 server._get_session_manager()"""
-    return await _server._get_session_manager()
-
-
 router = APIRouter(tags=["analysis"])
 
 
@@ -101,7 +96,7 @@ async def get_analysis_result(session_id: str):
     获取已完成分析的完整结果
     """
     #  使用 Redis 获取会话
-    sm = await _get_session_manager()
+    sm = await get_session_manager()
     session = await sm.get(session_id)
     if not session:
         raise HTTPException(status_code=404, detail="会话不存在")
@@ -180,7 +175,7 @@ async def get_analysis_report(session_id: str):
     返回格式化的报告内容，适配前端 AnalysisReport 类型
     """
     #  使用 Redis 获取会话
-    sm = await _get_session_manager()
+    sm = await get_session_manager()
     session = await sm.get(session_id)
 
     #  v7.144: 如果 Redis 中没有会话，尝试从归档中获取

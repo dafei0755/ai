@@ -37,12 +37,6 @@ router = APIRouter(tags=["Sessions & Conversation"])
 from intelligent_project_analyzer.api._server_proxy import server_proxy as _server
 
 
-async def _get_session_manager():
-    """向后兼容：代理到 server._get_session_manager()"""
-    return await _server._get_session_manager()
-
-
-@router.post("/api/analysis/report/{session_id}/suggest-questions")
 async def generate_followup_questions(session_id: str):
     """
     基于分析报告生成智能推荐问题
@@ -319,7 +313,7 @@ async def list_sessions(
 async def update_session(session_id: str, updates: Dict[str, Any]):
     """更新会话信息（重命名、置顶等）"""
     try:
-        sm = await _server._get_session_manager()
+        sm = await _server.get_session_manager()
         # 验证会话是否存在
         session = await sm.get(session_id)
         if not session:
@@ -352,7 +346,7 @@ async def delete_session(session_id: str, current_user: dict = Depends(_server.g
     try:
         #  v7.120 P1: 使所有用户缓存失效（因为不知道会话属于谁）
         sessions_cache.invalidate()
-        sm = await _server._get_session_manager()
+        sm = await _server.get_session_manager()
         # 1. 验证会话是否存在（优先检查Redis）
         session = await sm.get(session_id)
         is_archived = False
@@ -621,7 +615,7 @@ async def archive_session(session_id: str, force: bool = False):
         raise HTTPException(status_code=404, detail="会话归档功能未启用")
 
     # 获取会话数据
-    sm = await _server._get_session_manager()
+    sm = await _server.get_session_manager()
     session = await sm.get(session_id)
     if not session:
         raise HTTPException(status_code=404, detail="会话不存在")
@@ -1062,7 +1056,7 @@ async def get_session_by_id(session_id: str):
 
     注意：必须在 /api/sessions/archived* 路由之后注册，避免与 archived 子路由冲突。
     """
-    sm = await _server._get_session_manager()
+    sm = await _server.get_session_manager()
     session = await sm.get(session_id)
     if not session:
         raise HTTPException(status_code=404, detail="会话不存在")

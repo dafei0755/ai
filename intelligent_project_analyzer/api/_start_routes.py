@@ -85,11 +85,6 @@ from .pdf_generator import (
 from .workflow_runner import run_workflow_async
 
 
-async def _get_session_manager():
-    """向后兼容：代理到 server._get_session_manager()"""
-    return await _server._get_session_manager()
-
-
 router = APIRouter(tags=["analysis"])
 
 
@@ -143,7 +138,7 @@ async def start_analysis(
     if not analysis_request.user_input or not analysis_request.user_input.strip():
         raise HTTPException(status_code=400, detail="requirement/user_input 不能为空")
 
-    sm = await _get_session_manager()
+    sm = await get_session_manager()
 
     #  v7.189: 生成纯随机session_id（analysis前缀，不包含用户ID）
     session_id = f"analysis-{datetime.now().strftime('%Y%m%d%H%M%S')}-{uuid.uuid4().hex[:12]}"
@@ -498,7 +493,7 @@ async def start_analysis_with_files(
     logger.info(f" 内容合并完成: 最终输入长度 {len(combined_input)} 字符")
 
     # 5. 创建会话（增强状态）
-    sm = await _get_session_manager()
+    sm = await get_session_manager()
     session_data = {
         "session_id": session_id,
         "user_id": actual_user_id,  #  v7.130: 真实用户ID
@@ -570,7 +565,7 @@ async def add_visual_reference_description(
     """
     logger.info(f"️ [v7.155] 添加视觉参考描述: session={session_id}, index={request.reference_index}")
 
-    sm = await _get_session_manager()
+    sm = await get_session_manager()
     session = await sm.get(session_id)
 
     if not session:

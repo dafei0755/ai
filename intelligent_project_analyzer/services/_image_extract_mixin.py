@@ -656,7 +656,7 @@ Generate an enhanced, professional image prompt:"""
         }
 
     def _enhance_prompt(
-        self, prompt: str, style: str | None = None, aspect_ratio: ImageAspectRatio = ImageAspectRatio.LANDSCAPE
+        self, prompt: str, style: str | None = None, aspect_ratio: "ImageAspectRatio | None" = None
     ) -> str:
         """
         增强提示词，添加设计领域专业描述
@@ -669,6 +669,10 @@ Generate an enhanced, professional image prompt:"""
         Returns:
             增强后的提示词
         """
+        # P1-B: 延迟导入避免循环依赖（ImageAspectRatio 不可作为类定义时求值的默认参数）
+        if aspect_ratio is None:
+            from intelligent_project_analyzer.services.image_generator import ImageAspectRatio
+            aspect_ratio = ImageAspectRatio.LANDSCAPE
         # 选择风格增强器
         style_key = style.lower() if style else "default"
         enhancer = self.DESIGN_STYLE_ENHANCERS.get(style_key, self.DESIGN_STYLE_ENHANCERS["default"])
