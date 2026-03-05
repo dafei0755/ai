@@ -7,6 +7,7 @@ v7.110.0: 智能化任务数量评估，根据输入复杂度动态调整（3-12
 """
 
 import json
+import os
 import re
 from pathlib import Path
 from typing import Any, Dict, List
@@ -606,12 +607,26 @@ async def decompose_core_tasks(
             await decomposer._infer_task_metadata_async(tasks, user_input, structured_data)
 
         logger.info(f" [任务拆解完成] 最终生成{len(tasks)}个任务")
+        _inject_stable_ids(tasks)
         return tasks
 
     except Exception as e:
         logger.error(f" [decompose_core_tasks] LLM 调用失败: {e}")
         # 回退到简单拆解
         return _simple_fallback_decompose(user_input, structured_data, complexity_analysis)
+
+
+def _inject_stable_ids(tasks: List[Dict[str, Any]]) -> None:
+    """为任务列表中每个任务注入稳定 ID（CT-hash8）。原地修改。"""
+    try:
+        from ..core.task_oriented_models import generate_stable_task_id
+        for task in tasks:
+            if not task.get("task_id"):
+                task["task_id"] = generate_stable_task_id(
+                    task.get("title", ""), task.get("description", "")
+                )
+    except Exception as e:
+        logger.warning(f"⚠️ [_inject_stable_ids] 注入失败: {e}")
 
 
 def _simple_fallback_decompose(
@@ -1008,6 +1023,174 @@ def _simple_fallback_decompose(
         f" [Fallback] 生成 {len(tasks)} 个任务（推荐范围{recommended_min}-{recommended_max}，包含 {sum(1 for t in tasks if t['priority'] == 'high')} 个高优先级任务）"
     )
 
+    _inject_stable_ids(tasks)
+    return tasks
+
+
+def _track_b_rule_generate(
+    structured_data: Dict[str, Any] | None,
+    user_input: str,
+) -> List[Dict[str, Any]]:
+    """
+    Track B 规则引擎：基于结构化数据生成备选任务列表。
+
+    使用 primary_deliverables / design_challenge / resource_constraints 作为输入，
+    生接 5-8 个焥与 LLM 网络调用的确定性任务。
+    """
+    tasks: List[Dict[str, Any]] = []
+    sd = structured_data or {}
+
+    def _make(title: str, desc: str, task_type: str, priority: str, category: str, keywords: List[str]) -> Dict[str, Any]:
+        return {
+            "id": f"task_b_{len(tasks) + 1}",
+            "title": title,
+            "description": desc,
+            "category": category,
+            "expected_output": f"完成{title}相关研究与分析",
+            "source_keywords": keywords,
+            "task_type": task_type,
+            "priority": priority,
+            "dependencies": [],
+            "execution_order": len(tasks) + 1,
+            "support_search": task_type in ("research", "analysis"),
+            "needs_concept_image": task_type == "design",
+            "concept_image_count": 1 if task_type == "design" else 0,
+            "source": "track_b",
+        }
+
+    # 1. 交付物驱动任务
+    for deliverable in sd.get("primary_deliverables", [])[:3]:
+        name = deliverable.get("name", "") if isinstance(deliverable, dict) else str(deliverable)
+        if name:
+            tasks.append(_make(
+                title=f"{name}设计方案",
+                desc=f"基于项目需求，制定{name}的具体设计方案",
+                task_type="design", priority="high", category="概念设计",
+                keywords=[name],
+            ))
+
+    # 2. 设计张力任务
+    design_challenge = sd.get("design_challenge", "")
+    if design_challenge and len(design_challenge) > 10:
+        tasks.append(_make(
+            title="核心设计张力研究",
+            desc=f"针对核心设计张力：{str(design_challenge)[:60]}，制定平衡策略",
+            task_type="analysis", priority="high", category="调研分析",
+            keywords=[str(design_challenge)[:30]],
+        ))
+
+    # 3. 资源约束应对任务
+    resource_constraints = sd.get("resource_constraints", "")
+    if resource_constraints and len(str(resource_constraints)) > 5:
+        tasks.append(_make(
+            title="资源约束应对策略",
+            desc=f"分析资源约束条件（{str(resource_constraints)[:40]}），制定应对方案",
+            task_type="analysis", priority="medium", category="调研分析",
+            keywords=[str(resource_constraints)[:20]],
+        ))
+
+    # 4. 项目类型通用调研任务
+    project_type = sd.get("project_type", "")
+    if project_type and len(tasks) < 3:
+        tasks.append(_make(
+            title=f"{project_type}标杆案例调研",
+            desc=f"搜索{project_type}领域标杆案例，提炼可借鉴的设计策略",
+            task_type="research", priority="medium", category="调研分析",
+            keywords=[project_type],
+        ))
+
+    logger.info(f" [Track B] 规则引擎生成 {len(tasks)} 个备选任务")
+    return tasks
+
+
+def _smart_merge(
+    track_a: List[Dict[str, Any]],
+    track_b: List[Dict[str, Any]],
+    min_tasks: int,
+    max_tasks: int,
+) -> List[Dict[str, Any]]:
+    """
+    智能合并 Track A 和 Track B 任务：
+    - 标题相似度 > 0.8 的任务讪重（保留 Track A）
+    - 合并结果将挡制到 [min_tasks, max_tasks] 范围
+    """
+    from difflib import SequenceMatcher
+
+    merged = list(track_a)
+    added = 0
+    for tb in track_b:
+        tb_title = tb.get("title", "")
+        is_dup = any(
+            SequenceMatcher(None, tb_title, ta.get("title", "")).ratio() > 0.8
+            for ta in track_a
+        )
+        if not is_dup:
+            merged.append(tb)
+            added += 1
+
+    logger.info(f" [Smart Merge] Track A={len(track_a)}, Track B 新增={added}, 合并={len(merged)}")
+
+    # 校正范围
+    if len(merged) > max_tasks:
+        high = [t for t in merged if t.get("priority") == "high"]
+        others = [t for t in merged if t.get("priority") != "high"]
+        merged = (high + others)[:max_tasks]
+    elif len(merged) < min_tasks:
+        logger.info(f"ℹ️ [Smart Merge] 任务数 {len(merged)} < {min_tasks}，保持现有")
+
+    # 重新编号
+    for idx, task in enumerate(merged, 1):
+        task["id"] = f"task_{idx}"
+        task["execution_order"] = idx
+
+    return merged
+
+
+async def decompose_core_tasks_hybrid(
+    user_input: str,
+    structured_data: Dict[str, Any] | None = None,
+    llm: Any | None = None,
+) -> List[Dict[str, Any]]:
+    """
+    混合模式任务拆解（v8.1）
+
+    Track A（LLM，主导）+ Track B（规则引擎，补充）经 smart_merge 得到更小遗漏的任务列表。
+    通过环境变量 USE_HYBRID_TASK_GENERATION 控制开关（默认开启）。
+
+    Args:
+        user_input: 用户原始输入
+        structured_data: 需求分析阶段产出的结构化数据（可选）
+        llm: LLM 实例（可选）
+
+    Returns:
+        任务列表
+    """
+    use_hybrid = os.getenv("USE_HYBRID_TASK_GENERATION", "true").lower() == "true"
+
+    if not use_hybrid:
+        logger.info(" [Hybrid] 已禁用 hybrid 模式，使用纯 LLM")
+        return await decompose_core_tasks(user_input, structured_data, llm)
+
+    logger.info(" [Hybrid v8.1] 开始混合任务拆解")
+    complexity_analysis = TaskComplexityAnalyzer.analyze(user_input, structured_data)
+    recommended_min = complexity_analysis["recommended_min"]
+    recommended_max = complexity_analysis["recommended_max"]
+
+    # Track A: LLM 拆解
+    try:
+        track_a = await decompose_core_tasks(user_input, structured_data, llm)
+    except Exception as e:
+        logger.warning(f"⚠️ [Hybrid] Track A 失败: {e}，使用 fallback")
+        track_a = _simple_fallback_decompose(user_input, structured_data, complexity_analysis)
+
+    # Track B: 规则引擎
+    track_b = _track_b_rule_generate(structured_data, user_input)
+
+    # Smart Merge
+    tasks = _smart_merge(track_a, track_b, recommended_min, recommended_max)
+    _inject_stable_ids(tasks)
+
+    logger.info(f" [Hybrid v8.1] 完成，最终 {len(tasks)} 个任务")
     return tasks
 
 

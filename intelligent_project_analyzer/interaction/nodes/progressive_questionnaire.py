@@ -14,6 +14,7 @@ v7.151: 流程优化，直接路由到 questionnaire_summary（需求洞察）
 """
 
 import asyncio
+import copy
 import json
 from datetime import datetime
 from typing import Any, Dict, List, Literal
@@ -25,12 +26,18 @@ from loguru import logger
 from ...core.state import ProjectAnalysisState
 from ...core.workflow_flags import WorkflowFlagManager
 from ...services.capability_boundary_service import CapabilityBoundaryService, CheckType
-from ...services.core_task_decomposer import _simple_fallback_decompose, decompose_core_tasks
+from ...services.core_task_decomposer import (
+    _simple_fallback_decompose,
+    decompose_core_tasks,
+    decompose_core_tasks_hybrid,
+)
 from ...services.dimension_selector import (
     DimensionSelector,
     RadarGapAnalyzer,
     select_dimensions_for_state,
 )
+from ...services.mode_question_loader import enrich_step1_payload_with_mode_questions
+from ._oid_signal import PROJECTION_DISPLAY
 
 # v8.2: 动态步骤追踪装饰器
 from ...utils.node_tracker import track_active_step
@@ -42,6 +49,22 @@ _NODE_STEP3_GAP = "progressive_step3_gap_filling"
 _NODE_SUMMARY = "questionnaire_summary"
 _NODE_DIRECTOR = "project_director"
 _NODE_REQUIREMENTS = "requirements_analyst"
+
+
+def _check_step1_quality(tasks: List[Dict[str, Any]]) -> List[str]:
+    """
+    Step 1 软质量校验（v8.1）
+
+    返回警告信息列表（空列表 = 无问题）。警告仅供参考，不阻断流程。
+    """
+    warnings: List[str] = []
+    if len(tasks) < 3:
+        warnings.append("任务数量偏少（<3），建议补充细化")
+    if tasks and not any(t.get("priority") == "high" for t in tasks):
+        warnings.append("无高优先级任务，请确认是否遗漏核心任务")
+    if any(not t.get("description") for t in tasks):
+        warnings.append("部分任务缺少描述，可能影响后续搜索质量")
+    return warnings
 
 
 class ProgressiveQuestionnaireNode:
@@ -183,12 +206,12 @@ class ProgressiveQuestionnaireNode:
 
             def _run_async_decompose(user_input: str, structured_data: dict):
                 """在独立线程中运行异步任务拆解"""
-                return asyncio.run(decompose_core_tasks(user_input, structured_data))
+                return asyncio.run(decompose_core_tasks_hybrid(user_input, structured_data))
 
-            logger.info(" [v7.80.1.2] 使用 ThreadPoolExecutor 执行 LLM 任务拆解")
+            logger.info(" [v8.1] 使用 ThreadPoolExecutor 执行 hybrid 任务拆解")
             with ThreadPoolExecutor(max_workers=1) as executor:
                 future = executor.submit(_run_async_decompose, user_input, structured_data)
-                extracted_tasks = future.result(timeout=60)  # 60秒超时
+                extracted_tasks = future.result(timeout=300)  # v8.1: 300秒超时
 
             if not extracted_tasks:
                 logger.warning("️ LLM 任务拆解返回空列表，使用回退策略")
@@ -209,21 +232,52 @@ class ProgressiveQuestionnaireNode:
         # 生成用户输入摘要
         user_input_summary = user_input[:100] + ("..." if len(user_input) > 100 else "")
 
-        #  v7.80.1: 构建新的 interrupt payload
+        #  v8.1: 构建任务分组（按 category 聚合，供前端分组展示）
+        task_groups: Dict[str, List[Dict[str, Any]]] = {}
+        for task in extracted_tasks:
+            cat = task.get("category", "调研分析")
+            task_groups.setdefault(cat, []).append(task)
+
+        #  v8.1: 构建意图识别展示（基于 active_projections + PROJECTION_DISPLAY）
+        intent_review: Dict[str, Any] = {}
+        active_projections = state.get("active_projections") or []
+        if active_projections:
+            projection_labels = [
+                PROJECTION_DISPLAY.get(p, {}).get("label", p)
+                for p in active_projections
+                if p in PROJECTION_DISPLAY
+            ]
+            detected_modes = state.get("detected_identity_modes") or []
+            framework_signals = state.get("output_framework_signals") or []
+            intent_review = {
+                "projections": projection_labels,
+                "identity_modes": detected_modes[:3],
+                "framework_signals": framework_signals[:3],
+            }
+
+        #  v8.1: 构建 interrupt payload
         payload = {
             "interaction_type": "progressive_questionnaire_step1",
             "step": 1,
             "total_steps": 3,
             "title": "任务梳理",
             "message": "系统已从您的描述中识别以下核心任务，请确认、调整或补充",
-            #  新字段：任务列表
+            #  v8.1 新字段
             "extracted_tasks": extracted_tasks,
+            "task_groups": task_groups,
+            "intent_review": intent_review,
             "user_input_summary": user_input_summary,
             # 旧字段：保留兼容
             "extracted_task": old_format_task,
             "editable": True,
             "options": {"confirm": "确认任务列表", "skip": "跳过问卷"},
         }
+
+        #  v8.1: 注入模式问题滚内容
+        try:
+            payload = enrich_step1_payload_with_mode_questions(state, payload)
+        except Exception as _eq:
+            logger.warning(f"️ [v8.1] enrich_step1_payload 失败，跳过: {_eq}")
 
         logger.info(" [Step 1] 即将调用 interrupt()，等待用户输入...")
         user_response = interrupt(payload)
@@ -399,6 +453,9 @@ class ProgressiveQuestionnaireNode:
             "special_scene_metadata": special_scene_metadata,
             #  能力边界检查记录（ v7.147: 转换为dict避免序列化错误）
             "step1_boundary_check": boundary_check.to_dict() if (combined_text and boundary_check) else None,
+            #  v8.1: 快照 + 软质量校验
+            "step1_confirmed_tasks_snapshot": copy.deepcopy(confirmed_tasks),
+            "step1_quality_warnings": _check_step1_quality(confirmed_tasks),
         }
         update_dict = WorkflowFlagManager.preserve_flags(state, update_dict)
 

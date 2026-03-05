@@ -10,6 +10,7 @@
 3. 输出完全围绕任务，消除不可预计输出
 """
 
+import hashlib
 from enum import Enum
 from typing import Any, Dict, List, Literal
 
@@ -467,6 +468,24 @@ def validate_task_instruction_completeness(instruction: TaskInstruction) -> List
         issues.append("success_criteria成功标准不足（至少需要2条）")
 
     return issues
+
+
+def generate_stable_task_id(title: str, description: str = "") -> str:
+    """
+    生成稳定的任务 ID：CT-{hash8}
+
+    相同标题+描述必然生成相同 ID，支持幂等性检查和重复消除。
+
+    Args:
+        title: 任务标题
+        description: 任务描述（取前 64 字符参与 hash）
+
+    Returns:
+        CT-{8位 hex} 格式，如 "CT-a3f8c12e"
+    """
+    raw = f"{title.strip()}:{description.strip()[:64]}"
+    h = hashlib.sha256(raw.encode("utf-8")).hexdigest()[:8]
+    return f"CT-{h}"
 
 
 def generate_task_instruction_template(role_type: str) -> TaskInstruction:
