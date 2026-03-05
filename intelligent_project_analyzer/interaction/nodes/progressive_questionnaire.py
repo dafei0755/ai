@@ -982,6 +982,47 @@ class ProgressiveQuestionnaireNode:
 
         # 判断是否需要补充问题
         critical_gaps = completeness.get("critical_gaps", [])
+
+        # v7.900 G1: 合并 uncertainty_map 到 critical_gaps
+        _uncertainty_map = (structured_data or {}).get("uncertainty_map", {})
+        if isinstance(_uncertainty_map, dict) and _uncertainty_map:
+            _existing_dims = {g.get("dimension") for g in critical_gaps}
+            for _dim, _level in _uncertainty_map.items():
+                if _level in ("high", "medium") and _dim not in _existing_dims:
+                    critical_gaps.append({
+                        "dimension": _dim,
+                        "reason": f"需求分析阶段识别为{_level}不确定性维度",
+                        "priority": _level,
+                        "source": "uncertainty_map",
+                    })
+                    _existing_dims.add(_dim)
+            logger.info(f" [G1] uncertainty_map 补充 {len(_uncertainty_map)} 条，critical_gaps 现有 {len(critical_gaps)} 条")
+
+        # v7.900 G8: active_projections 已确认时自动覆盖"交付要求"维度，避免重复追问
+        _active_projections = state.get("active_projections") or []
+        if _active_projections:
+            critical_gaps = [g for g in critical_gaps if g.get("dimension") != "交付要求"]
+            _covered = completeness.get("covered_dimensions") or []
+            if "交付要求" not in _covered:
+                completeness.setdefault("covered_dimensions", []).append("交付要求")
+            _missing = completeness.get("missing_dimensions") or []
+            completeness["missing_dimensions"] = [d for d in _missing if d != "交付要求"]
+            logger.info(f" [G8] active_projections 已设{_active_projections}，'交付要求' 维度已自动覆盖")
+
+        if not critical_gaps:
+            # v8.3 G4: 当 completeness_score 低或 missing_dims 多时，生成兜底追问
+            _score = completeness.get("completeness_score", 0)
+            _missing_dims = completeness.get("missing_dimensions", [])
+            if _score < 0.7 or len(_missing_dims) > 2:
+                for _dim in _missing_dims[:5]:
+                    critical_gaps.append({
+                        "dimension": _dim,
+                        "reason": f"完整度不足({int(_score * 100)}%)，需补充{_dim}信息",
+                        "priority": "medium",
+                        "source": "fallback_v8.3",
+                    })
+                logger.info(f" [G4] v8.3 兜底注入 {len(critical_gaps)} 条，score={_score:.2f}")
+
         if not critical_gaps:
             logger.info(" 任务信息完整，无需补充，跳过问题生成，直接进入雷达图")
             update_dict = {
@@ -1003,6 +1044,24 @@ class ProgressiveQuestionnaireNode:
         import os
 
         existing_info_summary = ProgressiveQuestionnaireNode._build_existing_info_summary(structured_data)
+
+        # v8.0 G2: 输出意图已确认时，注入禁止追问交付物的 prefix（防止 LLM 重复追问）
+        if _active_projections:
+            _PROJ_LABEL_MAP = {
+                "design_professional": "空间策略报告",
+                "investor_operator": "商业运营分析",
+                "government_policy": "在地文化研究",
+                "construction_execution": "落地实施指南",
+                "aesthetic_critique": "叙事创意方案",
+            }
+            _proj_names = [_PROJ_LABEL_MAP.get(p, p) for p in _active_projections]
+            _intent_prefix = (
+                "【✅ 输出意向已确认 - 交付形式无需再追问】\n"
+                f"• 已确认输出意向：{', '.join(_proj_names)}\n"
+                "  → 禁止生成交付物类型相关追问\n\n"
+            )
+            existing_info_summary = _intent_prefix + (existing_info_summary or "")
+            logger.info(f" [G2] 注入意图约束前缀，projections={_active_projections}")
 
         # 环境变量开关控制LLM生成（默认启用）
         enable_llm_generation = os.getenv("USE_LLM_GAP_QUESTIONS", "true").lower() == "true"

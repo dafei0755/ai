@@ -1266,3 +1266,37 @@ export interface SearchPlanSuggestion {
   priority: 'P0' | 'P1' | 'P2';
   derived_from: string;
 }
+
+// ── v8.1: 偏好雷达图增强类型定义 ──────────────────────────────────────────────
+
+/** 雷达图单维度响应账本条目 (v14.0) */
+export interface RadarResponseLedgerItem {
+  dimension_id: string;
+  dimension_name: string;
+  user_value: number;
+  default_value: number;
+  adjusted: boolean;
+  adjustment_magnitude: number;
+}
+
+/** 雷达图响应证据对象 (v14.0) */
+export interface RadarEvidence {
+  adjusted_dimensions: RadarResponseLedgerItem[];
+  responded_dimensions: string[];
+  coverage_rate: number;
+}
+
+/** 维度分层结构 (v8.0 三层架构) */
+export interface DimensionLayers {
+  calibration?: string[];  // 从已知信息推断：AI有明确倾向，default_value !== 50
+  decision?: string[];     // 用户核心决策点：真正两难，default_value = 50
+  insight?: string[];      // LLM主动发现的隐性需求维度
+}
+
+/** 维度生成可观测性元数据 (v9.0) */
+export interface DimensionMeta {
+  degraded: boolean;       // 是否降级生成（未达最优策略）
+  quality_score: number;   // 质量评分 0-1，低于 0.55 触发下一层重试
+  attempts: number;        // 实际尝试次数
+  generation_method?: 'project_specific' | 'semi_dynamic' | 'rule_engine';
+}
