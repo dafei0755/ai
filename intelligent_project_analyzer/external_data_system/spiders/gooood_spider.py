@@ -32,7 +32,6 @@ from bs4 import BeautifulSoup
 from loguru import logger
 from playwright.sync_api import TimeoutError as PlaywrightTimeout
 
-from ..utils import get_rate_limiter
 from ..utils.lang_utils import split_bilingual_paragraphs, split_bilingual_title
 from .base_spider import BaseSpider, ProjectData
 from .registry import register_spider
@@ -183,7 +182,6 @@ class GoooodSpider(BaseSpider):
         super().__init__()
         self.source = "gooood"
         self.base_url = "https://www.gooood.cn"
-        self.rate_limiter = get_rate_limiter("gooood")
         self.use_playwright = use_playwright
         # 最近一次列表页解析到的最大页码（page 1 解析后设置）
         self._last_max_page: int | None = None

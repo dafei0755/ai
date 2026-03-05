@@ -286,6 +286,7 @@ async def lifespan(app: FastAPI):
     _scheduler = None
     try:
         from apscheduler.schedulers.asyncio import AsyncIOScheduler
+
         from intelligent_project_analyzer.intelligence.example_quality_analyzer import ExampleQualityAnalyzer
         from intelligent_project_analyzer.intelligence.usage_tracker import UsageTracker
 
@@ -296,9 +297,7 @@ async def lifespan(app: FastAPI):
             """每日凌晨3点：分析前一天全部角色的示例质量"""
             try:
                 logger.info("[Scheduler] 开始每日质量分析...")
-                report = await asyncio.get_event_loop().run_in_executor(
-                    None, _quality_analyzer.analyze_all_roles
-                )
+                report = await asyncio.get_event_loop().run_in_executor(None, _quality_analyzer.analyze_all_roles)
                 logger.info(f"[Scheduler] 每日质量分析完成: {report}")
             except Exception as _e:
                 logger.warning(f"[Scheduler] 每日质量分析失败: {_e}")
@@ -307,8 +306,9 @@ async def lifespan(app: FastAPI):
             """每周一凌晨4点：生成示例质量周报并写入 data/intelligence/reports/"""
             try:
                 logger.info("[Scheduler] 开始生成每周示例报告...")
+                import json
+                import time as _time
                 from pathlib import Path
-                import json, time as _time
 
                 report_dir = Path("data/intelligence/reports")
                 report_dir.mkdir(parents=True, exist_ok=True)
@@ -481,9 +481,7 @@ except Exception as e:
 #  v7.160: 搜索模式路由（博查AI Search + DeepSeek-R1）
 # ⚠️ 深度搜索功能暂停开放 — 由 feature_flags.DEEP_SEARCH_ENABLED 控制，恢复时设置环境变量 DEEP_SEARCH_ENABLED=true
 try:
-    from intelligent_project_analyzer.config.feature_flags import (
-        DEEP_SEARCH_ENABLED as _DEEP_SEARCH_ENABLED,
-    )
+    from intelligent_project_analyzer.config.feature_flags import DEEP_SEARCH_ENABLED as _DEEP_SEARCH_ENABLED
 
     if _DEEP_SEARCH_ENABLED:
         from intelligent_project_analyzer.api.search_routes import router as search_router
@@ -497,9 +495,7 @@ except Exception as e:
 
 #  v7.216: 搜索质量监控路由
 try:
-    from intelligent_project_analyzer.api.search_quality_routes import (
-        router as search_quality_router,
-    )
+    from intelligent_project_analyzer.api.search_quality_routes import router as search_quality_router
 
     app.include_router(search_quality_router, prefix="/api/admin")
     logger.info(" 搜索质量监控路由已注册")
@@ -516,9 +512,7 @@ except ImportError as e:
 
 #  v7.500: 注册维度学习系统路由
 try:
-    from intelligent_project_analyzer.api.routes.admin_dashboard_routes import (
-        router as admin_dashboard_router,
-    )
+    from intelligent_project_analyzer.api.routes.admin_dashboard_routes import router as admin_dashboard_router
 
     app.include_router(
         admin_dashboard_router, prefix="/api/admin/dimension-learning", tags=["Admin - Dimension Learning"]
@@ -526,6 +520,15 @@ try:
     logger.info(" 维度学习系统路由已注册")
 except Exception as e:
     logger.warning(f"️ 维度学习系统路由加载失败: {e}")
+
+#  爬虫监控&管理路由（/api/crawler/*）
+try:
+    from intelligent_project_analyzer.api.routes.crawler_monitor_routes import router as crawler_monitor_router
+
+    app.include_router(crawler_monitor_router, prefix="/api/crawler", tags=["Crawler Monitor"])
+    logger.info(" 爬虫监控路由已注册（/api/crawler/*）")
+except Exception as e:
+    logger.warning(f"️ 爬虫监控路由加载失败: {e}")
 
 #  v8.4: 注册半迁移路由 — 完成 server.py 收口
 #  下列路由此前已拆分到独立文件，但未 include_router 注册，
@@ -565,16 +568,12 @@ for _mod_path2, _label2 in [
 # ── MT-1: 数据模型及报告辅助函数已迁移至 api/models.py 和 api/helpers.py ──────
 
 
-from intelligent_project_analyzer.api._broadcast_registry import (
-    register_broadcast as _register_broadcast,  # noqa: E402
-)
+from intelligent_project_analyzer.api._broadcast_registry import register_broadcast as _register_broadcast  # noqa: E402
 
 # MT-1 迁移：broadcast_to_websockets 已迁移至 api/workflow_runner.py（含 EventStore 增强）
 # MT-1 迁移：subscribe_to_redis_pubsub 已迁移至 api/workflow_runner.py
-from .workflow_runner import (
-    broadcast_to_websockets,  # noqa: E402  (registry + workflow 直接调用)
-    subscribe_to_redis_pubsub,  # noqa: E402  (lifespan 依赖)
-)
+from .workflow_runner import broadcast_to_websockets  # noqa: E402  (registry + workflow 直接调用)
+from .workflow_runner import subscribe_to_redis_pubsub  # noqa: E402  (lifespan 依赖)
 
 # MT-1 迁移：_ensure_aiosqlite_is_alive / get_or_create_async_checkpointer / create_workflow 已迁移至 api/workflow_runner.py
 

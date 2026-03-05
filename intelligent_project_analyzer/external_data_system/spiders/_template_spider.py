@@ -37,7 +37,6 @@ from bs4 import BeautifulSoup
 from loguru import logger
 from playwright.sync_api import TimeoutError as PlaywrightTimeout
 
-from ..utils import get_rate_limiter
 from ..utils.lang_utils import split_bilingual_paragraphs, split_bilingual_title
 from .base_spider import BaseSpider, ProjectData
 from .registry import register_spider
@@ -90,7 +89,6 @@ class TemplateSpider(BaseSpider):
 
     def __init__(self) -> None:
         super().__init__()
-        self.rate_limiter = get_rate_limiter(self.SOURCE_NAME)
 
     # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     # BaseSpider 抽象方法实现（Step 3 + 5 + 6）

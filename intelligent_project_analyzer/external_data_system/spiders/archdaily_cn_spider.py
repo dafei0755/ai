@@ -23,7 +23,6 @@ from typing import Dict, List
 
 from loguru import logger
 
-from ..utils import get_rate_limiter
 from .base_spider import BaseSpider, ProjectData
 from .registry import register_spider
 
@@ -54,7 +53,6 @@ class ArchdailyCNSpider(BaseSpider):
 
     def __init__(self) -> None:
         super().__init__()
-        self.rate_limiter = get_rate_limiter("archdaily_cn")
 
     # ── BaseSpider 抽象方法 ─────────────────────────────────────────────
     def get_name(self) -> str:

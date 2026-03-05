@@ -28,7 +28,6 @@ from bs4 import BeautifulSoup
 from loguru import logger
 from playwright.sync_api import TimeoutError as PlaywrightTimeout
 
-from ..utils import get_rate_limiter
 from .base_spider import BaseSpider, ProjectData
 from .registry import register_spider
 
@@ -58,7 +57,6 @@ class DezeenSpider(BaseSpider):
         super().__init__(timeout=60000)  # Dezeen需要更长超时
         self.source = "dezeen"
         self.base_url = "https://www.dezeen.com"
-        self.rate_limiter = get_rate_limiter("dezeen")
         self.use_playwright = use_playwright
 
     # ========================================================================

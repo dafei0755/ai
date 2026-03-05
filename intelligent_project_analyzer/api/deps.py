@@ -19,7 +19,10 @@ from __future__ import annotations
 import os
 import time
 from datetime import datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from intelligent_project_analyzer.core.protocols import SessionManagerProtocol
 
 from fastapi import HTTPException, Request
 from loguru import logger
@@ -381,3 +384,24 @@ def _serialize_for_json(data: Any) -> Any:
     if isinstance(data, datetime):
         return data.isoformat()
     return data
+
+
+# ============================================================
+#  服务层依赖注入 (P2 MT-DI)
+# ============================================================
+
+
+async def get_session_manager() -> "SessionManagerProtocol":
+    """FastAPI 依赖：获取会话管理器单例（SessionManagerProtocol）。
+
+    使用惰性代理避免循环导入——与各路由文件保持相同模式。
+
+    用法（路由函数）::
+
+        @router.get("/api/sessions")
+        async def list_sessions(sm=Depends(get_session_manager)):
+            return await sm.list_all_sessions()
+    """
+    from ._server_proxy import server_proxy as _proxy  # noqa: E402
+
+    return await _proxy._get_session_manager()
