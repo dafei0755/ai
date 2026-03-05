@@ -112,6 +112,7 @@ export function UnifiedProgressiveQuestionnaireModal({
   const [editedTasks, setEditedTasks] = useState<EditableTask[]>([]);
   const [originalTasksCount, setOriginalTasksCount] = useState(0);
   const [isSummaryExpanded, setIsSummaryExpanded] = useState(false); // 需求摘要折叠状态
+  const [isInsightsExpanded, setIsInsightsExpanded] = useState(false); // 深度洞察折叠状态
 
   // 🆕 v7.154: QuestionnaireSummaryDisplay ref，用于获取编辑内容
   const summaryDisplayRef = useRef<QuestionnaireSummaryDisplayRef>(null);
@@ -1288,8 +1289,19 @@ export function UnifiedProgressiveQuestionnaireModal({
     }
   };
 
-  // 🆕 v7.151: 渲染 Step 4 - 需求洞察（原问卷汇总+需求确认合并）
-  // 🔧 v7.153: 增强状态检测
+  // 🆕 v13.0: 任务校正 badge 辅助函数
+  const correctionBadge = (action: string | undefined) => {
+    switch (action) {
+      case 'added':        return <span className="ml-1 px-1.5 py-0.5 text-xs bg-green-100 text-green-700 rounded">+ 新增</span>;
+      case 'enhanced':     return <span className="ml-1 px-1.5 py-0.5 text-xs bg-blue-100 text-blue-700 rounded">↑ 强化</span>;
+      case 'reprioritized':return <span className="ml-1 px-1.5 py-0.5 text-xs bg-amber-100 text-amber-700 rounded">⇄ 调序</span>;
+      case 'invalidated':  return <span className="ml-1 px-1.5 py-0.5 text-xs bg-gray-200 text-gray-500 rounded line-through">⚠ 无效</span>;
+      default: return null;
+    }
+  };
+
+  // 🆕 v7.151 / v13.0: 渲染 Step 4 - 需求洞察（原问卷汇总+需求确认合并）
+  // 🔧 v13.0: 完整复盘面板 + 任务清单 + 折叠深度洞察区
   const renderStep4Content = () => {
     // 检查数据是否存在
     if (!stepData?.restructured_requirements) {
@@ -1302,36 +1314,192 @@ export function UnifiedProgressiveQuestionnaireModal({
       );
     }
 
-    // 🔧 v7.153: 检测洞察状态，处理 pending/degraded
+    // 检测洞察状态
     const insightStatus = stepData.restructured_requirements?.insight_summary?._status;
-    const isPending = insightStatus === 'pending';
-
-    // 如果状态是 pending，显示加载中（这种情况在 v7.153 后应该不会出现了）
-    if (isPending) {
+    if (insightStatus === 'pending') {
       return (
         <div className="text-center py-12">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-600 mx-auto mb-4"></div>
           <p className="text-gray-600 font-medium">洞察正在生成中，请稍候...</p>
-          <p className="text-sm text-gray-400 mt-2">系统正在分析您的需求，这可能需要几秒钟</p>
-          <button
-            onClick={() => window.location.reload()}
-            className="mt-4 px-4 py-2 text-sm text-gray-600 hover:text-gray-800 underline"
-          >
-            刷新页面
-          </button>
+          <button onClick={() => window.location.reload()} className="mt-4 px-4 py-2 text-sm text-gray-600 hover:text-gray-800 underline">刷新页面</button>
         </div>
       );
     }
 
-    // 🆕 v7.154: 确认逻辑已移至底部统一按钮，此处仅渲染展示组件
+    // ─── 数据提取 ───────────────────────────────────────────────────
+    const projectEssence: string = stepData.project_essence || stepData.restructured_requirements?.project_essence || '';
+    const calibration = stepData.task_calibration_review as Record<string, any> | undefined;
+    const confirmedTasks: any[] = stepData.confirmed_core_tasks || [];
+    const taskGroups: { category: string; task_ids: string[] }[] = stepData.task_groups || [];
+    const taskById = Object.fromEntries(confirmedTasks.map((t: any) => [t.id, t]));
+
+    // 按 task_groups 分组；无 task_groups 时平铺
+    const groupedTasks: { category: string; tasks: any[] }[] =
+      taskGroups.length > 0
+        ? taskGroups.map((g) => ({
+            category: g.category,
+            tasks: g.task_ids.map((id) => taskById[id]).filter(Boolean),
+          })).filter((g) => g.tasks.length > 0)
+        : [{ category: '全部任务', tasks: confirmedTasks }];
+
+    // ─── ① 项目本质横幅 ─────────────────────────────────────────────
+    const essenceBanner = projectEssence ? (
+      <div className="bg-blue-50 border border-blue-200 rounded-xl p-5">
+        <p className="text-xs font-semibold text-blue-500 uppercase tracking-wider mb-1">项目本质</p>
+        <p className="text-base font-medium text-blue-900 leading-relaxed">
+          &ldquo;{projectEssence}&rdquo;
+        </p>
+      </div>
+    ) : null;
+
+    // ─── ② 复盘面板（4 卡片 + 效果检验行）──────────────────────────
+    const reviewPanel = calibration ? (() => {
+      const counts = (calibration.counts as Record<string, number>) || {};
+      const summaryLine: string = calibration.summary_line || '';
+      const addedItems: any[] = calibration.added_items || [];
+      const invalidatedItems: any[] = calibration.invalidated_items || [];
+      const optimizedItems: any[] = calibration.optimized_items || [];
+      const strengthenedItems: any[] = calibration.strengthened_items || [];
+      const gapEffective: boolean = calibration.gap_effective ?? false;
+      const radarDimCount: number = calibration.radar_dim_count ?? 0;
+
+      return (
+        <div className="bg-white border border-gray-200 rounded-xl p-5">
+          {summaryLine && <p className="text-sm text-gray-600 mb-4">{summaryLine}</p>}
+          {/* 4-col stat cards */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+            <div className="bg-green-50 rounded-lg p-3 text-center">
+              <div className="flex items-center gap-1 justify-center mb-0.5">
+                <span className="w-2 h-2 rounded-full bg-green-500 inline-block" />
+                <span className="text-xs text-gray-500">增加</span>
+              </div>
+              <div className="text-2xl font-bold text-green-700">{counts.added ?? addedItems.length}</div>
+              {addedItems[0] && <div className="text-xs text-gray-500 truncate mt-0.5">{addedItems[0].title}</div>}
+            </div>
+            <div className="bg-gray-50 rounded-lg p-3 text-center">
+              <div className="flex items-center gap-1 justify-center mb-0.5">
+                <span className="w-2 h-2 rounded-full bg-gray-400 inline-block" />
+                <span className="text-xs text-gray-500">无效动作</span>
+              </div>
+              <div className="text-2xl font-bold text-gray-500">{counts.invalidated ?? invalidatedItems.length}</div>
+              {invalidatedItems[0] && <div className="text-xs text-gray-400 truncate mt-0.5">{invalidatedItems[0].title}</div>}
+            </div>
+            <div className="bg-amber-50 rounded-lg p-3 text-center">
+              <div className="flex items-center gap-1 justify-center mb-0.5">
+                <span className="w-2 h-2 rounded-full bg-amber-500 inline-block" />
+                <span className="text-xs text-gray-500">约束优化</span>
+              </div>
+              <div className="text-2xl font-bold text-amber-700">{counts.optimized ?? optimizedItems.length}</div>
+              {optimizedItems[0] && <div className="text-xs text-gray-500 truncate mt-0.5">{optimizedItems[0].label}</div>}
+            </div>
+            <div className="bg-purple-50 rounded-lg p-3 text-center">
+              <div className="flex items-center gap-1 justify-center mb-0.5">
+                <span className="w-2 h-2 rounded-full bg-purple-500 inline-block" />
+                <span className="text-xs text-gray-500">设计驱动力</span>
+              </div>
+              <div className="text-2xl font-bold text-purple-700">{counts.strengthened ?? strengthenedItems.length}</div>
+              {strengthenedItems[0] && (
+                <div className="text-xs text-gray-500 truncate mt-0.5">
+                  {strengthenedItems[0].label}・{strengthenedItems[1]?.label ? `[低] 与 [${strengthenedItems[1].tendency_label || '…'}` : ''}
+                </div>
+              )}
+            </div>
+          </div>
+          {/* 效果检验行 */}
+          <div className="flex items-center gap-3 text-xs text-gray-500 pt-2 border-t border-gray-100">
+            <span className="font-medium text-gray-600">效果检验</span>
+            <span className={`px-2 py-0.5 rounded ${gapEffective ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+              {gapEffective ? '✓ 信息补全有效' : '- 信息补全无明显增益'}
+            </span>
+            <span className="bg-gray-50 px-2 py-0.5 rounded">- 维度响应 {radarDimCount}</span>
+          </div>
+          {/* 雷达维度响应 badge 行 */}
+          {strengthenedItems.length > 0 && (
+            <div className="mt-2 pt-2 border-t border-gray-50">
+              <span className="text-xs text-gray-400 mr-2">维度响应对策</span>
+              {strengthenedItems.map((item: any, i: number) => (
+                <span key={i} className="inline-block mr-2 mb-1 px-2 py-0.5 text-xs border border-gray-200 rounded-full text-gray-600">
+                  ◦ {item.label}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+      );
+    })() : null;
+
+    // ─── ③ 校正后任务清单 ───────────────────────────────────────────
+    const taskList = confirmedTasks.length > 0 ? (
+      <div className="space-y-2">
+        {groupedTasks.map((group, gi) => (
+          <div key={gi} className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+            {groupedTasks.length > 1 && (
+              <div className="px-4 py-2 bg-gray-50 border-b border-gray-100">
+                <span className="text-xs font-semibold text-gray-600">{group.category}</span>
+              </div>
+            )}
+            <div className="divide-y divide-gray-50">
+              {group.tasks.map((task: any, ti: number) => (
+                <div key={task.id || ti} className="flex items-start gap-3 px-4 py-3">
+                  <span className="flex-shrink-0 w-5 h-5 mt-0.5 bg-gray-100 text-gray-600 rounded-full flex items-center justify-center text-xs font-medium">
+                    {task.execution_order || ti + 1}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center flex-wrap gap-1">
+                      <span className={`text-sm font-medium ${task._correction_action === 'invalidated' ? 'text-gray-400 line-through' : 'text-gray-900'}`}>
+                        {task.title}
+                      </span>
+                      {correctionBadge(task._correction_action)}
+                      {task.priority === 'high' && (
+                        <span className="px-1.5 py-0.5 text-xs bg-red-50 text-red-600 rounded">高</span>
+                      )}
+                    </div>
+                    {task.description && (
+                      <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{task.description}</p>
+                    )}
+                    {task._correction_reason && task._correction_action !== 'unchanged' && (
+                      <p className="text-xs text-blue-500 mt-0.5">{task._correction_reason}</p>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    ) : null;
+
+    // ─── ④ 可折叠深度洞察区 ─────────────────────────────────────────
+    const insightsSection = (
+      <div className="border border-gray-200 rounded-xl overflow-hidden">
+        <button
+          className="w-full flex items-center justify-between px-4 py-3 bg-gray-50 hover:bg-gray-100 transition-colors text-left"
+          onClick={() => setIsInsightsExpanded(!isInsightsExpanded)}
+        >
+          <span className="text-sm font-medium text-gray-700">深度洞察（关键冲突 / 隐性需求）</span>
+          <span className="text-xs text-gray-400">{isInsightsExpanded ? '▲ 收起' : '▼ 展开'}</span>
+        </button>
+        {isInsightsExpanded && (
+          <div className="p-4">
+            <QuestionnaireSummaryDisplay
+              ref={summaryDisplayRef}
+              data={stepData.restructured_requirements as RestructuredRequirements}
+              summaryText={stepData.requirements_summary_text}
+              onConfirm={() => {}}
+              onBack={undefined}
+            />
+          </div>
+        )}
+      </div>
+    );
+
     return (
-      <QuestionnaireSummaryDisplay
-        ref={summaryDisplayRef}
-        data={stepData.restructured_requirements as RestructuredRequirements}
-        summaryText={stepData.requirements_summary_text}
-        onConfirm={() => {}}  // 保留接口兼容，实际确认由底部按钮处理
-        onBack={undefined}
-      />
+      <div className="space-y-4">
+        {essenceBanner}
+        {reviewPanel}
+        {taskList}
+        {insightsSection}
+      </div>
     );
   };
 
