@@ -668,6 +668,24 @@ export interface RestructuredRequirements {
     recommended_approach: string;
     trade_off: string;
   }>;
+  // 🆕 v13.0: 任务校正 + 雷达响应映射
+  task_corrections?: Array<{
+    task_id: string | null;
+    action: 'enhance' | 'reprioritize' | 'invalidate' | 'add';
+    title?: string;
+    description?: string;
+    new_priority?: 'high' | 'medium' | 'low';
+    enhance_note?: string;
+    reason: string;
+    source?: string;
+  }>;
+  radar_response_map?: Array<{
+    dimension_id: string;
+    dimension_label: string;
+    design_driver: string;
+    responses: Array<{ action_type: string; action_detail: string }>;
+    coverage_reason?: string;
+  }>;
 }
 
 /** 结构化报告 */
@@ -1299,4 +1317,44 @@ export interface DimensionMeta {
   quality_score: number;   // 质量评分 0-1，低于 0.55 触发下一层重试
   attempts: number;        // 实际尝试次数
   generation_method?: 'project_specific' | 'semi_dynamic' | 'rule_engine';
+}
+
+/** 任务校准复盘对象 (v13.0) */
+export interface TaskCalibrationReview {
+  summary_line?: string;
+  counts: {
+    added: number;
+    invalidated: number;
+    optimized: number;
+    strengthened: number;
+  };
+  added_items: Array<{ title: string; source: string; reason: string }>;
+  invalidated_items: Array<{ title: string; reason: string }>;
+  optimized_items: Array<{ label: string; evidence: string; source: string }>;
+  strengthened_items: Array<{
+    label: string;
+    design_driver?: string;
+    tendency_label?: string;
+    tier_label?: string;
+    source: string;
+  }>;
+  gap_effective: boolean;
+  radar_dim_count: number;
+}
+
+/** 权重语义翻译层 (v14.0) */
+export interface WeightInterpretations {
+  _summary?: {
+    core_drivers: string[];
+    important: string[];
+    background: string[];
+    de_emphasized: string[];
+  };
+  [dimension_id: string]: {
+    dimension_label: string;
+    design_intent: string;
+    tendency_label: string;
+    tier: 'core_driver' | 'important' | 'background' | 'de_emphasized';
+    weight_value: number;
+  } | undefined;
 }
