@@ -290,7 +290,7 @@ export function UnifiedProgressiveQuestionnaireModal({
 
   // 🆕 v7.130: 调试打印第2步（信息补全）问题数据 & 标准化类型
   useEffect(() => {
-    if (currentStep === 2 && stepData?.questionnaire?.questions) {
+    if (currentStep === 3 && stepData?.questionnaire?.questions) {
       console.log('🔍 Step2 Questions Debug:', stepData.questionnaire.questions);
 
       // 🔧 标准化问题类型（修复 multi_choice -> multiple_choice）
@@ -343,7 +343,7 @@ export function UnifiedProgressiveQuestionnaireModal({
   // 🆕 v7.130: 验证信息补全步骤的必填字段（使用统一的 stepData）
   const validateStep3Required = (): boolean => {
     // 🆕 v7.130: 验证第2步（信息补全）必填字段
-    if (currentStep !== 2 || !stepData?.questionnaire?.questions) return true;
+    if (currentStep !== 3 || !stepData?.questionnaire?.questions) return true;
 
     const requiredQuestions = stepData.questionnaire.questions.filter((q: any) => q.is_required);
     for (const q of requiredQuestions) {
@@ -366,7 +366,7 @@ export function UnifiedProgressiveQuestionnaireModal({
     }
 
     // 第2步（信息补全）需要验证必填字段
-    if (currentStep === 2 && !validateStep3Required()) {
+    if (currentStep === 3 && !validateStep3Required()) {
       alert('请完成所有必填项（标记 * 的问题）');
       return;
     }
@@ -893,6 +893,14 @@ export function UnifiedProgressiveQuestionnaireModal({
       return null;
     }
 
+    // 🆕 v8.1: 雷达图增强信息
+    const dimensionLayers = stepData?.dimension_layers as
+      { calibration?: string[]; decision?: string[]; insight?: string[] } | undefined;
+    const generationMethod = stepData?.dimension_generation_method as string | undefined;
+    const dimensionMeta = stepData?.dimension_meta as
+      { degraded?: boolean; quality_score?: number; attempts?: number } | undefined;
+    const isProjectSpecific = generationMethod === 'project_specific';
+
     const chartData = {
       labels: dimensions.map((d: any) => d.name || d.dimension_name),
       datasets: [
@@ -940,9 +948,32 @@ export function UnifiedProgressiveQuestionnaireModal({
           {/* 左侧：固定雷达图 */}
           <div className="md:sticky md:top-0 md:self-start">
             <div className="bg-white rounded-xl p-6 shadow-sm">
-              <h3 className="text-base font-medium text-gray-900 mb-4 text-center">
-                偏好雷达图
-              </h3>
+              {/* 🆕 v8.1 Fix3: generation_method 徽章 */}
+              <div className="flex flex-col items-center gap-1 mb-4">
+                <div className="flex items-center gap-2">
+                  <h3 className="text-base font-medium text-gray-900">偏好雷达图</h3>
+                  {generationMethod === 'project_specific' && (
+                    <span className="px-2 py-0.5 bg-green-100 text-green-700 text-xs rounded-full">✨ AI专属生成</span>
+                  )}
+                  {generationMethod === 'rule_engine' && (
+                    <span className="px-2 py-0.5 bg-amber-100 text-amber-700 text-xs rounded-full">📋 通用模板</span>
+                  )}
+                </div>
+                {/* 🆕 v8.1 Fix2: dimension_meta 可观测性 */}
+                {dimensionMeta && (
+                  <div className="flex items-center gap-2 text-xs text-gray-500">
+                    {dimensionMeta.degraded && (
+                      <span className="px-2 py-0.5 bg-amber-100 text-amber-700 rounded">⚠️ 降级生成</span>
+                    )}
+                    {dimensionMeta.quality_score != null && (
+                      <span>质量: {Math.round(dimensionMeta.quality_score * 100)}%</span>
+                    )}
+                    {dimensionMeta.attempts != null && (
+                      <span>尝试: {dimensionMeta.attempts}次</span>
+                    )}
+                  </div>
+                )}
+              </div>
               <div className="h-80">
                 <Radar data={chartData} options={chartOptions} />
               </div>
@@ -950,53 +981,90 @@ export function UnifiedProgressiveQuestionnaireModal({
           </div>
 
       {/* 右侧：滑块列表 */}
+      {/* 🆕 v8.1 Fix1: dimension_layers 分层渲染 / 原有平铺回退 */}
       <div className="space-y-4">
-        {dimensions.map((dim: any, index: number) => {
-          const dimId = dim.id || dim.dimension_id;
-          const value = dimensionValues[dimId] || 50;
-
-          return (
-                <div key={dimId} className="bg-white rounded-xl p-4 hover:shadow-md transition-shadow">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      <span className="flex-shrink-0 w-6 h-6 bg-gray-600 dark:bg-gray-400 text-white rounded-lg flex items-center justify-center text-xs font-medium">
-                        {index + 1}
-                      </span>
-                      <span className="text-sm font-medium text-gray-900">
-                        {dim.name || dim.dimension_name}
-                      </span>
-                    </div>
-                    <span className="badge-gray font-medium">
-                      {value}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center gap-3 text-xs text-gray-500 mb-2">
-                    <span>{dim.left_label}</span>
-                    <div className="flex-1 h-px bg-gray-300"></div>
-                    <span>{dim.right_label}</span>
-                  </div>
-
-                  <input
-                    type="range"
-                    min="0"
-                    max="100"
-                    value={value}
-                    onChange={(e) => setDimensionValues(prev => ({ ...prev, [dimId]: parseInt(e.target.value) }))}
-                    className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-gray-600"
-                  />
-
-                  {/* 阶段说明 */}
-                  {dim.description && (
-                    <p className="text-xs text-gray-500 mt-3">
-                      {dim.description}
-                    </p>
-                  )}
-                </div>
-              );
-            })}
-          </div>
+        {isProjectSpecific && dimensionLayers ? (
+          <>
+            {dimensionLayers.calibration && dimensionLayers.calibration.length > 0 && (
+              <div className="bg-blue-50 rounded-xl p-4">
+                <h4 className="text-xs font-semibold text-blue-900 mb-3">📊 校准层（已知偏好）</h4>
+                {dimensions
+                  .filter((d: any) => dimensionLayers!.calibration!.includes(d.id || d.dimension_id))
+                  .map((dim: any, idx: number) => renderDimSlider(dim, idx))}
+              </div>
+            )}
+            {dimensionLayers.decision && dimensionLayers.decision.length > 0 && (
+              <div className="bg-amber-50 rounded-xl p-4">
+                <h4 className="text-xs font-semibold text-amber-900 mb-3">🎯 决策层（核心权衡）</h4>
+                {dimensions
+                  .filter((d: any) => dimensionLayers!.decision!.includes(d.id || d.dimension_id))
+                  .map((dim: any, idx: number) => renderDimSlider(dim, idx))}
+              </div>
+            )}
+            {dimensionLayers.insight && dimensionLayers.insight.length > 0 && (
+              <div className="bg-purple-50 rounded-xl p-4">
+                <h4 className="text-xs font-semibold text-purple-900 mb-3">💡 洞察层（隐性需求）</h4>
+                {dimensions
+                  .filter((d: any) => dimensionLayers!.insight!.includes(d.id || d.dimension_id))
+                  .map((dim: any, idx: number) => renderDimSlider(dim, idx))}
+              </div>
+            )}
+            {/* 未归入任何层的维度平铺兜底 */}
+            {dimensions
+              .filter((d: any) => {
+                const id = d.id || d.dimension_id;
+                return ![
+                  ...(dimensionLayers.calibration || []),
+                  ...(dimensionLayers.decision || []),
+                  ...(dimensionLayers.insight || []),
+                ].includes(id);
+              })
+              .map((dim: any, idx: number) => renderDimSlider(dim, idx))}
+          </>
+        ) : (
+          dimensions.map((dim: any, idx: number) => renderDimSlider(dim, idx))
+        )}
+      </div>
         </div>
+      </div>
+    );
+  };
+
+  /** 🆕 v8.1: 单个维度滑块渲染 helper（Fix1 分层渲染的原子单元）*/
+  const renderDimSlider = (dim: any, index: number) => {
+    const dimId = dim.id || dim.dimension_id;
+    const value = dimensionValues[dimId] || 50;
+    return (
+      <div key={dimId} className="bg-white rounded-xl p-4 hover:shadow-md transition-shadow">
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-2">
+            <span className="flex-shrink-0 w-6 h-6 bg-gray-600 dark:bg-gray-400 text-white rounded-lg flex items-center justify-center text-xs font-medium">
+              {index + 1}
+            </span>
+            <span className="text-sm font-medium text-gray-900">
+              {dim.name || dim.dimension_name}
+            </span>
+          </div>
+          <span className="badge-gray font-medium">
+            {value}
+          </span>
+        </div>
+        <div className="flex items-center gap-3 text-xs text-gray-500 mb-2">
+          <span>{dim.left_label}</span>
+          <div className="flex-1 h-px bg-gray-300"></div>
+          <span>{dim.right_label}</span>
+        </div>
+        <input
+          type="range"
+          min="0"
+          max="100"
+          value={value}
+          onChange={(e) => setDimensionValues(prev => ({ ...prev, [dimId]: parseInt(e.target.value) }))}
+          className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-gray-600"
+        />
+        {dim.description && (
+          <p className="text-xs text-gray-500 mt-3">{dim.description}</p>
+        )}
       </div>
     );
   };
@@ -1430,7 +1498,7 @@ export function UnifiedProgressiveQuestionnaireModal({
         <div className="px-10 py-4 bg-white flex items-center justify-end gap-3">
           <button
             onClick={handleConfirmClick}
-            disabled={currentStep === 2 && !validateStep3Required()}
+            disabled={currentStep === 3 && !validateStep3Required()}
             className="btn-primary-lg flex items-center gap-2"
           >
             <CheckCircle2 className="w-4 h-4" />
