@@ -1190,6 +1190,24 @@ class ProgressiveQuestionnaireNode:
 
         logger.info(f" [Step 3] 收集到 {len(answers)} 个补充答案")
 
+        # v7.900 G7: Gap 回流 — 将用户回答的关键信息注入 user_intent_constraints，供后续节点使用
+        _gap_backflow: dict = {}
+        _existing_constraints: dict = state.get("user_intent_constraints") or {}
+        if answers and questions:
+            _q_map = {q.get("id", ""): q for q in questions}
+            for _qid, _ans in answers.items():
+                _q = _q_map.get(_qid, {})
+                _dim = _q.get("dimension") or _q.get("category") or ""
+                if _dim and _ans:
+                    _val = _ans if isinstance(_ans, str) else (", ".join(_ans) if isinstance(_ans, list) else str(_ans))
+                    if _val.strip():
+                        _gap_backflow[_dim] = _val.strip()
+        if _gap_backflow:
+            _merged_constraints = {**_existing_constraints, **_gap_backflow}
+            logger.info(f" [G7] Gap 回流 {len(_gap_backflow)} 条约束到 user_intent_constraints: {list(_gap_backflow.keys())}")
+        else:
+            _merged_constraints = _existing_constraints
+
         #  v7.147: 移除此处的汇总调用，改为在雷达图完成后统一处理
         # 原因：此时 radar_dimension_values 尚未生成，会导致 NoneType 错误
         # questionnaire_summary = ProgressiveQuestionnaireNode._build_questionnaire_summary(state, answers)  #  删除
@@ -1208,6 +1226,8 @@ class ProgressiveQuestionnaireNode:
             "progressive_questionnaire_step": 2,  #  这是 UI 的 Step 2
             # "questionnaire_summary": questionnaire_summary,  #  删除，改为在雷达图后生成
             "calibration_processed": False,  #  改为 False，雷达图完成后才算完成
+            # v7.900 G7: Gap 回流约束
+            "user_intent_constraints": _merged_constraints,
         }
         update_dict = WorkflowFlagManager.preserve_flags(state, update_dict)
 
