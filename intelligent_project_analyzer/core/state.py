@@ -390,6 +390,12 @@ class ProjectAnalysisState(TypedDict):
     domain_risk_flag: bool | None  # 领域风险标记
     domain_risk_details: Dict[str, Any] | None  # 领域风险详情
 
+    # P2-A: role_task_unified_review 写入字段（补全声明，避免 state 污染）
+    retry_reason: str | None  # 审核节点重试原因（用户修改/拒绝时写入）
+    role_modification_request: Dict[str, Any] | None  # 用户请求的角色修改内容
+    task_modification_request: Dict[str, Any] | None  # 用户请求的任务修改内容
+    requested_strategy: str | None  # 用户请求更换的策略名称
+
     # 统一输入验证字段（v7.3 - 合并 input_guard 和 domain_validator）
     initial_validation_passed: bool | None  # 初始验证是否通过
     domain_classification: Dict[str, Any] | None  # 领域分类结果

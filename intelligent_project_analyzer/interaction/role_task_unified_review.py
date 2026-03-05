@@ -86,6 +86,14 @@ class RoleTaskUnifiedReviewNode:
         """
         logger.info(" Starting unified role & task review interaction")
 
+        # P2-B: 恢复 skip_unified_review 跳过逻辑（state 字段 L239 已声明，但节点从未读取）
+        if state.get("skip_unified_review"):
+            logger.info("[skip] skip_unified_review=True，跳过统一审核，直接进入 quality_preflight")
+            return Command(
+                update={"role_selection_approved": True, "task_assignment_approved": True},
+                goto="quality_preflight",
+            )
+
         #  强制执行人工审核 - 不再跳过角色任务审核
         logger.info(" 角色任务审核：需要人工确认")
 
