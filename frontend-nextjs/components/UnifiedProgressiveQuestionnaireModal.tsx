@@ -32,12 +32,16 @@ import {
 
 ChartJS.register(RadialLinearScale, PointElement, LineElement, Filler, Tooltip, Legend);
 
-// 🆕 v7.130: 简化 Props 接口，使用统一的 stepData 和 onConfirm
-// 🆕 v7.147: 支持 Step 4 (问卷汇总)
+// 🆕 v8.3: 统一5步渐进式问卷（Step 1: 输出意图确认）
+// Step 1: 输出意图确认 + 需求分析判断 + 双动机展示
+// Step 2: 任务梳理
+// Step 3: 信息补全
+// Step 4: 雷达图配置
+// Step 5: 方案洞察（问卷汇总）
 interface UnifiedProgressiveQuestionnaireModalProps {
   isOpen: boolean;
-  currentStep: number; // 0=关闭, 1=任务梳理, 2=信息补全, 3=雷达图, 4=问卷汇总
-  stepData?: any;      // 🆕 v7.130: 统一数据对象
+  currentStep: number; // 0=关闭, 1=输出意图, 2=任务梳理, 3=信息补全, 4=雷达图, 5=方案洞察
+  stepData?: any;      // 🆕 v8.3: 统一数据对象（包含Step 1的requirements_judgement等）
   onConfirm: (data?: any) => void;  // 🆕 v7.130: 统一确认回调
   onSkip: () => void;   // 🆕 v7.130: 统一跳过回调
   sessionId?: string;
@@ -77,7 +81,15 @@ interface EditableQuestion {
   userAnswer?: string | string[];
 }
 
-// 🆕 v7.130: 简化组件参数
+const FRONTCHAIN_STEPS = [
+  { number: 1, label: '意图确认', icon: '1' },
+  { number: 2, label: '任务梳理', icon: '2' },
+  { number: 3, label: '信息补全', icon: '3' },
+  { number: 4, label: '雷达图配置', icon: '4' },
+  { number: 5, label: '方案洞察', icon: '5' },
+];
+
+// 🎯 v8.3: 简化组件参数
 export function UnifiedProgressiveQuestionnaireModal({
   isOpen,
   currentStep,
@@ -92,10 +104,15 @@ export function UnifiedProgressiveQuestionnaireModal({
   const [isLoading, setIsLoading] = useState(false); // 骨架屏加载状态
   const [loadingMessage, setLoadingMessage] = useState('AI 正在智能分析...');
 
+  // Step 1: 输出意图确认状态
+  const [selectedDeliveries, setSelectedDeliveries] = useState<string[]>([]);
+  const [selectedModes, setSelectedModes] = useState<string[]>([]);
+
   // 任务编辑状态
   const [editedTasks, setEditedTasks] = useState<EditableTask[]>([]);
   const [originalTasksCount, setOriginalTasksCount] = useState(0);
   const [isSummaryExpanded, setIsSummaryExpanded] = useState(false); // 需求摘要折叠状态
+  const [isInsightsExpanded, setIsInsightsExpanded] = useState(false); // 深度洞察折叠状态
 
   // 🆕 v7.154: QuestionnaireSummaryDisplay ref，用于获取编辑内容
   const summaryDisplayRef = useRef<QuestionnaireSummaryDisplayRef>(null);
@@ -103,27 +120,41 @@ export function UnifiedProgressiveQuestionnaireModal({
   // Ref for content container to control scroll position
   const contentRef = useRef<HTMLDivElement>(null);
 
-  // 🆕 v7.130: 当步骤数据更新时，停止加载状态
-  // 🆕 v7.147: 添加 Step 4 支持
+  // 🆕 v8.3: 当步骤数据更新时，停止加载状态
   useEffect(() => {
-    if (currentStep === 1 && stepData?.extracted_tasks) {
+    if (currentStep === 1 && (stepData?.delivery_types || stepData?.requirements_judgement)) {
       setIsLoading(false);
       NProgress.done();
-    } else if (currentStep === 2 && stepData?.questionnaire) {
+    } else if (currentStep === 2 && stepData?.extracted_tasks) {
       setIsLoading(false);
       NProgress.done();
-    } else if (currentStep === 3 && stepData?.dimensions) {
+    } else if (currentStep === 3 && stepData?.questionnaire) {
       setIsLoading(false);
       NProgress.done();
-    } else if (currentStep === 4 && stepData?.restructured_requirements) {
+    } else if (currentStep === 4 && stepData?.dimensions) {
+      setIsLoading(false);
+      NProgress.done();
+    } else if (currentStep === 5 && stepData?.restructured_requirements) {
       setIsLoading(false);
       NProgress.done();
     }
   }, [currentStep, stepData]);
 
+  // 🆕 v8.3: 初始化Step 1的选项（推荐选项默认选中）
+  useEffect(() => {
+    if (currentStep === 1 && stepData?.delivery_types) {
+      const recommended = stepData.delivery_types.options.filter((o: any) => o.recommended).map((o: any) => o.id);
+      setSelectedDeliveries(recommended);
+    }
+    if (currentStep === 1 && stepData?.identity_modes) {
+      const recommended = stepData.identity_modes.options.filter((o: any) => o.recommended).map((o: any) => o.id);
+      setSelectedModes(recommended);
+    }
+  }, [currentStep, stepData]);
+
   // 初始化任务列表
   useEffect(() => {
-    if (stepData?.extracted_tasks && isOpen && currentStep === 1) {
+    if (stepData?.extracted_tasks && isOpen && currentStep === 2) {
       // 尝试从localStorage恢复草稿
       try {
         const draftKey = `questionnaire-tasks-draft-${sessionId}`;
@@ -260,7 +291,7 @@ export function UnifiedProgressiveQuestionnaireModal({
 
   // 🆕 v7.130: 调试打印第2步（信息补全）问题数据 & 标准化类型
   useEffect(() => {
-    if (currentStep === 2 && stepData?.questionnaire?.questions) {
+    if (currentStep === 3 && stepData?.questionnaire?.questions) {
       console.log('🔍 Step2 Questions Debug:', stepData.questionnaire.questions);
 
       // 🔧 标准化问题类型（修复 multi_choice -> multiple_choice）
@@ -307,20 +338,13 @@ export function UnifiedProgressiveQuestionnaireModal({
 
   const { title, message } = stepData;
 
-  // 步骤配置
-  // 🔄 v7.128: 调整步骤顺序为 Step 1 → Step 3 → Step 2
-  // 🆕 v7.147: 添加 Step 4 问卷汇总
-  const steps = [
-    { number: 1, label: '任务梳理', icon: '1' },
-    { number: 2, label: '信息补全', icon: '2' },  // Step 3 现在显示为第2步
-    { number: 3, label: '偏好雷达图', icon: '3' },  // Step 2 现在显示为第3步
-    { number: 4, label: '需求洞察', icon: '4' }  // 🆕 v7.147: Step 4 需求洞察
-  ];
+  // 当前 modal 内部步骤 1-4，对应前端完整 5 节点中的 2-5。
+  const displayStep = currentStep > 0 ? currentStep + 1 : 0;
 
   // 🆕 v7.130: 验证信息补全步骤的必填字段（使用统一的 stepData）
   const validateStep3Required = (): boolean => {
     // 🆕 v7.130: 验证第2步（信息补全）必填字段
-    if (currentStep !== 2 || !stepData?.questionnaire?.questions) return true;
+    if (currentStep !== 3 || !stepData?.questionnaire?.questions) return true;
 
     const requiredQuestions = stepData.questionnaire.questions.filter((q: any) => q.is_required);
     for (const q of requiredQuestions) {
@@ -343,7 +367,7 @@ export function UnifiedProgressiveQuestionnaireModal({
     }
 
     // 第2步（信息补全）需要验证必填字段
-    if (currentStep === 2 && !validateStep3Required()) {
+    if (currentStep === 3 && !validateStep3Required()) {
       alert('请完成所有必填项（标记 * 的问题）');
       return;
     }
@@ -352,19 +376,29 @@ export function UnifiedProgressiveQuestionnaireModal({
     setIsLoading(true);
     NProgress.start();
 
-    // 设置加载提示文案
+    // 🔧 v8.3: 更新加载提示文案（Step 1=输出意图）
     if (currentStep === 1) {
-      setLoadingMessage('AI 正在智能拆解任务...');
+      setLoadingMessage('正在确认输出意图...');
     } else if (currentStep === 2) {
-      setLoadingMessage('正在分析信息完整性...');
+      setLoadingMessage('AI 正在智能拆解任务...');
     } else if (currentStep === 3) {
-      setLoadingMessage('正在生成需求洞察...');
+      setLoadingMessage('正在分析信息完整性...');
     } else if (currentStep === 4) {
-      setLoadingMessage('正在进入需求确认...');
+      setLoadingMessage('正在生成雷达图维度...');
+    } else if (currentStep === 5) {
+      setLoadingMessage('正在生成需求洞察...');
     }
 
-    // 根据步骤构建数据并调用统一的 onConfirm
+    // 🔧 v8.3: 根据步骤构建数据并调用统一的 onConfirm
     if (currentStep === 1) {
+      // Step 1: 输出意图确认（交付类型 + 身份模式）
+      console.log('🎯 Step 1: 输出意图确认', { selectedDeliveries, selectedModes });
+      onConfirm({
+        selected_deliveries: selectedDeliveries,
+        selected_modes: selectedModes
+      });
+    } else if (currentStep === 2) {
+      // Step 2: 任务梳理（原Step 1）
       // 检查是否有任务正在编辑
       const hasEditing = editedTasks.some(t => t.isEditing);
       if (hasEditing) {
@@ -394,16 +428,18 @@ export function UnifiedProgressiveQuestionnaireModal({
       } else {
         onConfirm();
       }
-    } else if (currentStep === 2) {
+    } else if (currentStep === 3) {
+      // Step 3: 信息补全（原Step 2）
       clearQuestionnaireCache(sessionId);
       onConfirm({ answers });
-    } else if (currentStep === 3) {
-      onConfirm({ dimension_values: dimensionValues });
     } else if (currentStep === 4) {
-      // 🆕 v7.154: Step 4 需求洞察确认，检查是否有编辑修改
+      // Step 4: 雷达图配置（原Step 3）
+      onConfirm({ dimension_values: dimensionValues });
+    } else if (currentStep === 5) {
+      // Step 5: 方案洞察（原Step 4）
       const modifications = summaryDisplayRef.current?.getModifications();
       if (modifications && Object.keys(modifications).length > 0) {
-        console.log('📝 [Step4] 用户修改:', modifications);
+        console.log('📝 [Step5] 用户修改:', modifications);
         onConfirm({
           intent: 'confirm',
           modifications: modifications
@@ -415,9 +451,13 @@ export function UnifiedProgressiveQuestionnaireModal({
   };
 
   // 获取确认按钮文本
-  // 🆕 v7.147: 添加 Step 4 支持
+  // 🔧 v8.3: 更新按钮文案以匹配新步骤映射
   const getConfirmButtonText = () => {
     if (currentStep === 1) {
+      // Step 1: 输出意图确认
+      return '确认开始问卷';
+    } else if (currentStep === 2) {
+      // Step 2: 任务梳理（原Step 1）
       const validTasks = editedTasks.filter(t => !t.isEditing);
       const addedCount = validTasks.filter(t => t.isNew).length;
       const deletedCount = originalTasksCount - (validTasks.length - addedCount);
@@ -430,9 +470,9 @@ export function UnifiedProgressiveQuestionnaireModal({
     }
 
     switch (currentStep) {
-      case 2: return '确认偏好设置';
-      case 3: return '提交问卷';
-      case 4: return '确认无误，继续';
+      case 3: return '确认偏好设置'; // 信息补全（原Step 2）
+      case 4: return '提交问卷'; // 雷达图（原Step 3）
+      case 5: return '确认无误，继续'; // 方案洞察（原Step 4）
       default: return '确认';
     }
   };
@@ -520,213 +560,313 @@ export function UnifiedProgressiveQuestionnaireModal({
     ));
   };
 
-  // 渲染 Step 1
-  const renderStep1Content = () => {
-    const { user_input_summary } = stepData || {};
-
-    // 计算修改统计
-    const validTasks = editedTasks.filter(t => !t.isEditing);
-    const addedCount = validTasks.filter(t => t.isNew).length;
-    const deletedCount = originalTasksCount - (validTasks.length - addedCount);
-
-    const summaryPreview = user_input_summary?.length > 50
-      ? user_input_summary.substring(0, 50) + '...'
-      : user_input_summary;
-
+  // 🆕 v8.3: Step 1 - 输出意图确认（含需求分析判断+双动机）
+  // 🆕 v8.3: 任务梳理UI（原Step 1，现为Step 2）
+  const renderTaskExtractionContent = () => {
     return (
       <div className="space-y-4">
-        {/* 任务列表 */}
-        <div className="task-list-container space-y-6">
-          {editedTasks.map((task, index) => {
-            const isEditing = task.isEditing;
-            const isNew = task.isNew;
+        {/* 任务列表标题 */}
+        <div className="flex items-center justify-between">
+          <h3 className="text-lg font-semibold text-gray-800">任务列表</h3>
+          <div className="text-sm text-gray-500">
+            共 {editedTasks.length} 个任务 {originalTasksCount > 0 && `（原始 ${originalTasksCount} 个）`}
+          </div>
+        </div>
 
-            return (
-              <div
-                key={index}
-                className={`relative group bg-white rounded-xl p-4 transition-all duration-200 ${
-                  isNew ? 'border-l-4 border-l-green-500' : ''
-                } ${isEditing ? 'ring-2 ring-gray-300 shadow-lg' : 'hover:shadow-md'}`}
-              >
-                {/* 新增任务标记 */}
-                {isNew && !isEditing && (
-                  <div className="absolute top-2 right-2 px-2 py-0.5 bg-green-100 text-green-700 text-xs font-medium rounded-full">
-                    新增
+        {/* 任务卡片列表 */}
+        <div className="task-list-container space-y-3 max-h-96 overflow-y-auto">
+          {editedTasks.map((task, index) => (
+            <div
+              key={index}
+              className={`border rounded-lg p-4 transition-all ${
+                task.isEditing ? 'border-blue-400 bg-blue-50' : 'border-gray-200 bg-white hover:shadow-md'
+              }`}
+            >
+              {task.isEditing ? (
+                // 编辑模式
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      任务标题 <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={task.title}
+                      onChange={(e) => updateTaskField(index, 'title', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="至少5个字符"
+                    />
                   </div>
-                )}
-
-                {isEditing ? (
-                  // 编辑模式
-                  <div className="space-y-4">
-                    <div className="flex items-start gap-3">
-                      <div className="flex-shrink-0 w-8 h-8 bg-gray-100 text-gray-600 rounded-lg flex items-center justify-center text-sm font-medium">
-                        {index + 1}
-                      </div>
-                      <div className="flex-1 space-y-3">
-                        {/* 标题输入 */}
-                        <div>
-                          <label className="block text-xs font-medium text-gray-700 mb-1">
-                            任务标题 <span className="text-red-500">*</span>
-                            <span className="ml-2 text-gray-500">（至少5个字符）</span>
-                          </label>
-                          <input
-                            type="text"
-                            value={task.title}
-                            onChange={(e) => updateTaskField(index, 'title', e.target.value)}
-                            placeholder="输入任务标题..."
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-transparent text-sm text-gray-900 placeholder:text-gray-400"
-                          />
-                          <div className="mt-1 text-xs text-gray-500">
-                            {task.title.length}/5
-                          </div>
-                        </div>
-
-                        {/* 描述输入 */}
-                        <div>
-                          <label className="block text-xs font-medium text-gray-700 mb-1">
-                            任务描述 <span className="text-red-500">*</span>
-                            <span className="ml-2 text-gray-500">（至少20个字符）</span>
-                          </label>
-                          <textarea
-                            value={task.description}
-                            onChange={(e) => updateTaskField(index, 'description', e.target.value)}
-                            placeholder="详细描述任务内容..."
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-transparent text-sm text-gray-900 placeholder:text-gray-400 resize-none"
-                            rows={3}
-                          />
-                          <div className="mt-1 text-xs text-gray-500">
-                            {task.description.length}/20
-                          </div>
-                        </div>
-
-                        {/* 操作按钮 */}
-                        <div className="flex items-center gap-2 pt-2">
-                          <button
-                            onClick={() => handleSaveTask(index)}
-                            disabled={task.title.trim().length < 5 || task.description.trim().length < 20}
-                            className="btn-primary-sm"
-                          >
-                            保存
-                          </button>
-                          <button
-                            onClick={() => handleCancelEdit(index)}
-                            className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm rounded-lg transition-colors"
-                          >
-                            取消
-                          </button>
-                        </div>
-                      </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      任务描述 <span className="text-red-500">*</span>
+                    </label>
+                    <textarea
+                      value={task.description}
+                      onChange={(e) => updateTaskField(index, 'description', e.target.value)}
+                      rows={3}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="至少20个字符"
+                    />
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleSaveTask(index)}
+                      className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
+                    >
+                      保存
+                    </button>
+                    <button
+                      onClick={() => handleCancelEdit(index)}
+                      className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors"
+                    >
+                      取消
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                // 显示模式
+                <div className="space-y-2">
+                  <div className="flex items-start justify-between">
+                    <h4 className="text-base font-semibold text-gray-800 flex-1">{task.title}</h4>
+                    <div className="flex gap-2 ml-3">
+                      <button
+                        onClick={() => handleEditTask(index)}
+                        className="text-blue-600 hover:text-blue-800 text-sm"
+                        title="编辑"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                        </svg>
+                      </button>
+                      <button
+                        onClick={() => handleDeleteTask(index)}
+                        className="text-red-600 hover:text-red-800 text-sm"
+                        title="删除"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </button>
                     </div>
                   </div>
-                ) : (
-                  // 查看模式
-                  <div className="flex items-start gap-3">
-                    <div className="flex-shrink-0 w-8 h-8 bg-gray-100 text-gray-600 rounded-lg flex items-center justify-center text-sm font-medium">
-                      {index + 1}
+                  <p className="text-sm text-gray-600 leading-relaxed">{task.description}</p>
+                  {task.source_keywords && task.source_keywords.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 mt-2">
+                      {task.source_keywords.map((keyword, idx) => (
+                        <span
+                          key={idx}
+                          className="px-2 py-0.5 text-xs bg-gray-100 text-gray-700 rounded"
+                        >
+                          {keyword}
+                        </span>
+                      ))}
                     </div>
-                    <div className="flex-1 min-w-0 space-y-2">
-                      {/* 标题行：标题 + 需求分类 */}
-                      <div className="flex items-center gap-2 flex-wrap">
-                        {/* 任务标题 */}
-                        <h4 className="font-medium text-gray-900">
-                          {task.title}
-                        </h4>
-
-                        {/* 动机类型标签 */}
-                        {task.motivation_label && (
-                          <span className="badge-gray flex-shrink-0">
-                            {task.motivation_label}
-                          </span>
-                        )}
-
-                        {/* 置信度提示（低于0.7时显示） */}
-                        {task.confidence_score && task.confidence_score < 0.7 && (
-                          <div className="flex items-center gap-1 text-xs text-amber-600 flex-shrink-0">
-                            <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                              <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                            </svg>
-                            <span>待确认</span>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* 任务描述 */}
-                      <p className="text-sm text-gray-600 leading-relaxed">
-                        {task.description}
-                      </p>
-
-                      {/* 🆕 v7.105: AI推理说明 + 关键词（扁平化样式，无背景色）*/}
-                      {(task.ai_reasoning || (task.source_keywords && task.source_keywords.length > 0)) && (
-                        <div className="space-y-1.5">
-                          {task.ai_reasoning && (
-                            <p className="text-xs text-gray-600 leading-relaxed italic">{task.ai_reasoning}</p>
-                          )}
-                          {task.source_keywords && task.source_keywords.length > 0 && (
-                            <div className="flex flex-wrap gap-1.5">
-                              {task.source_keywords.map((keyword: string, idx: number) => (
-                                <span
-                                  key={idx}
-                                  className="badge-gray text-xs"
-                                >
-                                  {keyword}
-                                </span>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      )}
-
-                      {/* 🆕 v7.105: 依赖关系 */}
-                      {task.dependencies && task.dependencies.length > 0 && (
-                        <div className="text-xs text-gray-600">
-                          <span className="font-medium">依赖任务：</span>
-                          <div className="flex flex-wrap gap-1 mt-1">
-                            {task.dependencies.map((depId: string, idx: number) => {
-                              const depTask = editedTasks.find(t => t.id === depId);
-                              return depTask ? (
-                                <span key={idx} className="px-2 py-0.5 bg-gray-100 text-gray-700 rounded-full">
-                                  #{depTask.execution_order || '?'} {depTask.title}
-                                </span>
-                              ) : null;
-                            })}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* 🆕 v7.105: 预期产出 */}
-                      {task.expected_output && (
-                        <div className="flex items-center gap-2 text-xs text-gray-600">
-                          <svg className="w-4 h-4 text-green-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M6 2a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2V7.414A2 2 0 0015.414 6L12 2.586A2 2 0 0010.586 2H6zm5 6a1 1 0 10-2 0v3.586l-1.293-1.293a1 1 0 10-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 11.586V8z" clipRule="evenodd" />
-                          </svg>
-                          <span className="font-medium">预期产出：</span>
-                          <span className="text-gray-700">{task.expected_output}</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
-            );
-          })}
+                  )}
+                </div>
+              )}
+            </div>
+          ))}
         </div>
 
         {/* 添加任务按钮 */}
-        <div className="flex items-center gap-4 my-8">
-          <div className="flex-1 border-t border-dashed border-gray-300"></div>
-          <button
-            onClick={handleAddTask}
-            disabled={editedTasks.length >= 15}
-            className="transition-all disabled:opacity-50 disabled:cursor-not-allowed group"
-          >
-            <div className="w-10 h-10 rounded-full bg-gray-100 group-hover:bg-gray-200 flex items-center justify-center transition-colors">
-              <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+        <button
+          onClick={handleAddTask}
+          disabled={editedTasks.length >= 15}
+          className={`w-full py-3 border-2 border-dashed rounded-lg transition-all ${
+            editedTasks.length >= 15
+              ? 'border-gray-200 text-gray-400 cursor-not-allowed'
+              : 'border-blue-300 text-blue-600 hover:bg-blue-50 hover:border-blue-400'
+          }`}
+        >
+          <div className="flex items-center justify-center gap-2">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            <span>{editedTasks.length >= 15 ? '已达到最大任务数' : '添加新任务'}</span>
+          </div>
+        </button>
+      </div>
+    );
+  };
+
+  // 🆕 v8.3: Step 1 - 输出意图确认UI
+  const renderStep1Content = () => {
+    const {
+      delivery_types,
+      identity_modes,
+      requirements_judgement,
+      motivation_routing_profile,
+    } = stepData || {};
+
+    const deliveryOptions = delivery_types?.options || [];
+    const identityOptions = identity_modes?.options || [];
+
+    return (
+      <div className="space-y-6">
+        {/* 需求分析师判断卡片 */}
+        {requirements_judgement && (
+          <div className="rounded-xl border border-amber-200 bg-amber-50 px-5 py-4 space-y-3">
+            <div className="flex items-center gap-2">
+              <svg className="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
+              <div className="text-sm font-semibold text-amber-800">需求分析师判断</div>
             </div>
-          </button>
-          <div className="flex-1 border-t border-dashed border-gray-300"></div>
-        </div>
+            {requirements_judgement.summary && (
+              <p className="text-sm text-amber-900 leading-relaxed">{requirements_judgement.summary}</p>
+            )}
+            {requirements_judgement.info_quality && (
+              <div className="flex items-center gap-4 text-xs">
+                <span className="text-amber-700">
+                  信息完整度: <strong className="text-amber-900">{requirements_judgement.info_quality.score ?? 0}</strong>
+                </span>
+                <span className="px-2 py-0.5 bg-amber-200 text-amber-800 rounded">
+                  {requirements_judgement.info_quality.confidence_level ?? 'medium'}
+                </span>
+              </div>
+            )}
+            {requirements_judgement.core_tensions && requirements_judgement.core_tensions.length > 0 && (
+              <ul className="text-xs text-amber-800 space-y-1.5 pl-1">
+                {requirements_judgement.core_tensions.slice(0, 3).map((t: any, idx: number) => (
+                  <li key={idx} className="flex items-start gap-2">
+                    <span className="text-amber-600 mt-0.5">•</span>
+                    <div>
+                      <span className="font-medium">{t.name || '关键张力'}：</span>
+                      <span className="text-amber-700">{t.implication || '待进一步补充'}</span>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
+
+        {/* 双动机展示 */}
+        {motivation_routing_profile && (
+          <div className="rounded-xl border border-blue-200 bg-blue-50 px-5 py-4 space-y-3">
+            <div className="flex items-center gap-2">
+              <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+              <div className="text-sm font-semibold text-blue-800">双动机分析</div>
+            </div>
+            {motivation_routing_profile.primary_motivation && (
+              <div className="space-y-1">
+                <div className="text-xs text-blue-700">主要动机</div>
+                <div className="text-sm text-blue-900">{motivation_routing_profile.primary_motivation}</div>
+              </div>
+            )}
+            {motivation_routing_profile.secondary_motivation && (
+              <div className="space-y-1">
+                <div className="text-xs text-blue-700">次要动机</div>
+                <div className="text-sm text-blue-900">{motivation_routing_profile.secondary_motivation}</div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* 交付类型选择 */}
+        {delivery_types && (
+          <div className="space-y-3">
+            <div className="text-sm font-medium text-gray-700">{delivery_types.message || '交付类型：'}</div>
+            <div className="space-y-2">
+              {deliveryOptions.map((option: any) => {
+                const isSelected = selectedDeliveries.includes(option.id);
+                return (
+                  <button
+                    key={option.id}
+                    onClick={() => {
+                      setSelectedDeliveries(prev =>
+                        prev.includes(option.id)
+                          ? prev.filter(x => x !== option.id)
+                          : [...prev, option.id]
+                      );
+                    }}
+                    className={`w-full text-left px-4 py-3 rounded-lg border-2 transition-all ${
+                      isSelected
+                        ? 'border-blue-500 bg-blue-50'
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium text-gray-800">{option.label}</span>
+                          {option.recommended && (
+                            <span className="px-2 py-0.5 text-xs bg-blue-100 text-blue-700 rounded">推荐</span>
+                          )}
+                        </div>
+                        {option.desc && <p className="text-sm text-gray-600 mt-1">{option.desc}</p>}
+                      </div>
+                      <div className={`w-5 h-5 rounded border-2 flex items-center justify-center ${
+                        isSelected ? 'bg-blue-500 border-blue-500' : 'border-gray-300'
+                      }`}>
+                        {isSelected && (
+                          <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                          </svg>
+                        )}
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* 身份模式选择 */}
+        {identity_modes && identityOptions.length > 0 && (
+          <div className="space-y-3">
+            <div className="text-sm font-medium text-gray-700">{identity_modes.message || '身份视角：'}</div>
+            <div className="space-y-2">
+              {identityOptions.map((option: any) => {
+                const isSelected = selectedModes.includes(option.id);
+                return (
+                  <button
+                    key={option.id}
+                    onClick={() => {
+                      setSelectedModes(prev =>
+                        prev.includes(option.id)
+                          ? prev.filter(x => x !== option.id)
+                          : [...prev, option.id]
+                      );
+                    }}
+                    className={`w-full text-left px-4 py-3 rounded-lg border-2 transition-all ${
+                      isSelected
+                        ? 'border-blue-500 bg-blue-50'
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium text-gray-800">{option.label}</span>
+                          {option.recommended && (
+                            <span className="px-2 py-0.5 text-xs bg-blue-100 text-blue-700 rounded">推荐</span>
+                          )}
+                        </div>
+                        {option.spatial_need && (
+                          <p className="text-sm text-gray-600 mt-1">{option.spatial_need}</p>
+                        )}
+                      </div>
+                      <div className={`w-5 h-5 rounded border-2 flex items-center justify-center ${
+                        isSelected ? 'bg-blue-500 border-blue-500' : 'border-gray-300'
+                      }`}>
+                        {isSelected && (
+                          <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                          </svg>
+                        )}
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
     );
   };
@@ -753,6 +893,14 @@ export function UnifiedProgressiveQuestionnaireModal({
       console.warn('⚠️ Step3: dimensions 数组为空');
       return null;
     }
+
+    // 🆕 v8.1: 雷达图增强信息
+    const dimensionLayers = stepData?.dimension_layers as
+      { calibration?: string[]; decision?: string[]; insight?: string[] } | undefined;
+    const generationMethod = stepData?.dimension_generation_method as string | undefined;
+    const dimensionMeta = stepData?.dimension_meta as
+      { degraded?: boolean; quality_score?: number; attempts?: number } | undefined;
+    const isProjectSpecific = generationMethod === 'project_specific';
 
     const chartData = {
       labels: dimensions.map((d: any) => d.name || d.dimension_name),
@@ -801,9 +949,32 @@ export function UnifiedProgressiveQuestionnaireModal({
           {/* 左侧：固定雷达图 */}
           <div className="md:sticky md:top-0 md:self-start">
             <div className="bg-white rounded-xl p-6 shadow-sm">
-              <h3 className="text-base font-medium text-gray-900 mb-4 text-center">
-                偏好雷达图
-              </h3>
+              {/* 🆕 v8.1 Fix3: generation_method 徽章 */}
+              <div className="flex flex-col items-center gap-1 mb-4">
+                <div className="flex items-center gap-2">
+                  <h3 className="text-base font-medium text-gray-900">偏好雷达图</h3>
+                  {generationMethod === 'project_specific' && (
+                    <span className="px-2 py-0.5 bg-green-100 text-green-700 text-xs rounded-full">✨ AI专属生成</span>
+                  )}
+                  {generationMethod === 'rule_engine' && (
+                    <span className="px-2 py-0.5 bg-amber-100 text-amber-700 text-xs rounded-full">📋 通用模板</span>
+                  )}
+                </div>
+                {/* 🆕 v8.1 Fix2: dimension_meta 可观测性 */}
+                {dimensionMeta && (
+                  <div className="flex items-center gap-2 text-xs text-gray-500">
+                    {dimensionMeta.degraded && (
+                      <span className="px-2 py-0.5 bg-amber-100 text-amber-700 rounded">⚠️ 降级生成</span>
+                    )}
+                    {dimensionMeta.quality_score != null && (
+                      <span>质量: {Math.round(dimensionMeta.quality_score * 100)}%</span>
+                    )}
+                    {dimensionMeta.attempts != null && (
+                      <span>尝试: {dimensionMeta.attempts}次</span>
+                    )}
+                  </div>
+                )}
+              </div>
               <div className="h-80">
                 <Radar data={chartData} options={chartOptions} />
               </div>
@@ -811,53 +982,90 @@ export function UnifiedProgressiveQuestionnaireModal({
           </div>
 
       {/* 右侧：滑块列表 */}
+      {/* 🆕 v8.1 Fix1: dimension_layers 分层渲染 / 原有平铺回退 */}
       <div className="space-y-4">
-        {dimensions.map((dim: any, index: number) => {
-          const dimId = dim.id || dim.dimension_id;
-          const value = dimensionValues[dimId] || 50;
-
-          return (
-                <div key={dimId} className="bg-white rounded-xl p-4 hover:shadow-md transition-shadow">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      <span className="flex-shrink-0 w-6 h-6 bg-gray-600 dark:bg-gray-400 text-white rounded-lg flex items-center justify-center text-xs font-medium">
-                        {index + 1}
-                      </span>
-                      <span className="text-sm font-medium text-gray-900">
-                        {dim.name || dim.dimension_name}
-                      </span>
-                    </div>
-                    <span className="badge-gray font-medium">
-                      {value}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center gap-3 text-xs text-gray-500 mb-2">
-                    <span>{dim.left_label}</span>
-                    <div className="flex-1 h-px bg-gray-300"></div>
-                    <span>{dim.right_label}</span>
-                  </div>
-
-                  <input
-                    type="range"
-                    min="0"
-                    max="100"
-                    value={value}
-                    onChange={(e) => setDimensionValues(prev => ({ ...prev, [dimId]: parseInt(e.target.value) }))}
-                    className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-gray-600"
-                  />
-
-                  {/* 阶段说明 */}
-                  {dim.description && (
-                    <p className="text-xs text-gray-500 mt-3">
-                      {dim.description}
-                    </p>
-                  )}
-                </div>
-              );
-            })}
-          </div>
+        {isProjectSpecific && dimensionLayers ? (
+          <>
+            {dimensionLayers.calibration && dimensionLayers.calibration.length > 0 && (
+              <div className="bg-blue-50 rounded-xl p-4">
+                <h4 className="text-xs font-semibold text-blue-900 mb-3">📊 校准层（已知偏好）</h4>
+                {dimensions
+                  .filter((d: any) => dimensionLayers!.calibration!.includes(d.id || d.dimension_id))
+                  .map((dim: any, idx: number) => renderDimSlider(dim, idx))}
+              </div>
+            )}
+            {dimensionLayers.decision && dimensionLayers.decision.length > 0 && (
+              <div className="bg-amber-50 rounded-xl p-4">
+                <h4 className="text-xs font-semibold text-amber-900 mb-3">🎯 决策层（核心权衡）</h4>
+                {dimensions
+                  .filter((d: any) => dimensionLayers!.decision!.includes(d.id || d.dimension_id))
+                  .map((dim: any, idx: number) => renderDimSlider(dim, idx))}
+              </div>
+            )}
+            {dimensionLayers.insight && dimensionLayers.insight.length > 0 && (
+              <div className="bg-purple-50 rounded-xl p-4">
+                <h4 className="text-xs font-semibold text-purple-900 mb-3">💡 洞察层（隐性需求）</h4>
+                {dimensions
+                  .filter((d: any) => dimensionLayers!.insight!.includes(d.id || d.dimension_id))
+                  .map((dim: any, idx: number) => renderDimSlider(dim, idx))}
+              </div>
+            )}
+            {/* 未归入任何层的维度平铺兜底 */}
+            {dimensions
+              .filter((d: any) => {
+                const id = d.id || d.dimension_id;
+                return ![
+                  ...(dimensionLayers.calibration || []),
+                  ...(dimensionLayers.decision || []),
+                  ...(dimensionLayers.insight || []),
+                ].includes(id);
+              })
+              .map((dim: any, idx: number) => renderDimSlider(dim, idx))}
+          </>
+        ) : (
+          dimensions.map((dim: any, idx: number) => renderDimSlider(dim, idx))
+        )}
+      </div>
         </div>
+      </div>
+    );
+  };
+
+  /** 🆕 v8.1: 单个维度滑块渲染 helper（Fix1 分层渲染的原子单元）*/
+  const renderDimSlider = (dim: any, index: number) => {
+    const dimId = dim.id || dim.dimension_id;
+    const value = dimensionValues[dimId] || 50;
+    return (
+      <div key={dimId} className="bg-white rounded-xl p-4 hover:shadow-md transition-shadow">
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-2">
+            <span className="flex-shrink-0 w-6 h-6 bg-gray-600 dark:bg-gray-400 text-white rounded-lg flex items-center justify-center text-xs font-medium">
+              {index + 1}
+            </span>
+            <span className="text-sm font-medium text-gray-900">
+              {dim.name || dim.dimension_name}
+            </span>
+          </div>
+          <span className="badge-gray font-medium">
+            {value}
+          </span>
+        </div>
+        <div className="flex items-center gap-3 text-xs text-gray-500 mb-2">
+          <span>{dim.left_label}</span>
+          <div className="flex-1 h-px bg-gray-300"></div>
+          <span>{dim.right_label}</span>
+        </div>
+        <input
+          type="range"
+          min="0"
+          max="100"
+          value={value}
+          onChange={(e) => setDimensionValues(prev => ({ ...prev, [dimId]: parseInt(e.target.value) }))}
+          className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-gray-600"
+        />
+        {dim.description && (
+          <p className="text-xs text-gray-500 mt-3">{dim.description}</p>
+        )}
       </div>
     );
   };
@@ -1070,19 +1278,30 @@ export function UnifiedProgressiveQuestionnaireModal({
       return <QuestionnaireSkeletonLoader type={skeletonType} message={loadingMessage} />;
     }
 
-    // 🆕 v7.130: 直接映射步骤到渲染函数
-    // 🆕 v7.147: 添加 Step 4
+    // 🆕 v8.3: 步骤映射调整（Step 1=输出意图，Step 2-5=原Step 1-4）
     switch (currentStep) {
-      case 1: return renderStep1Content();
-      case 2: return renderStep2Content();
-      case 3: return renderStep3Content();
-      case 4: return renderStep4Content();
+      case 1: return renderStep1Content(); // 输出意图确认
+      case 2: return renderTaskExtractionContent(); // 任务梳理（原Step 1）✅ 已修复
+      case 3: return renderStep2Content(); // 信息补全（原Step 2）
+      case 4: return renderStep3Content(); // 雷达图（原Step 3）
+      case 5: return renderStep4Content(); // 方案洞察（原Step 4）
       default: return null;
     }
   };
 
-  // 🆕 v7.151: 渲染 Step 4 - 需求洞察（原问卷汇总+需求确认合并）
-  // 🔧 v7.153: 增强状态检测
+  // 🆕 v13.0: 任务校正 badge 辅助函数
+  const correctionBadge = (action: string | undefined) => {
+    switch (action) {
+      case 'added':        return <span className="ml-1 px-1.5 py-0.5 text-xs bg-green-100 text-green-700 rounded">+ 新增</span>;
+      case 'enhanced':     return <span className="ml-1 px-1.5 py-0.5 text-xs bg-blue-100 text-blue-700 rounded">↑ 强化</span>;
+      case 'reprioritized':return <span className="ml-1 px-1.5 py-0.5 text-xs bg-amber-100 text-amber-700 rounded">⇄ 调序</span>;
+      case 'invalidated':  return <span className="ml-1 px-1.5 py-0.5 text-xs bg-gray-200 text-gray-500 rounded line-through">⚠ 无效</span>;
+      default: return null;
+    }
+  };
+
+  // 🆕 v7.151 / v13.0: 渲染 Step 4 - 需求洞察（原问卷汇总+需求确认合并）
+  // 🔧 v13.0: 完整复盘面板 + 任务清单 + 折叠深度洞察区
   const renderStep4Content = () => {
     // 检查数据是否存在
     if (!stepData?.restructured_requirements) {
@@ -1095,36 +1314,192 @@ export function UnifiedProgressiveQuestionnaireModal({
       );
     }
 
-    // 🔧 v7.153: 检测洞察状态，处理 pending/degraded
+    // 检测洞察状态
     const insightStatus = stepData.restructured_requirements?.insight_summary?._status;
-    const isPending = insightStatus === 'pending';
-
-    // 如果状态是 pending，显示加载中（这种情况在 v7.153 后应该不会出现了）
-    if (isPending) {
+    if (insightStatus === 'pending') {
       return (
         <div className="text-center py-12">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-600 mx-auto mb-4"></div>
           <p className="text-gray-600 font-medium">洞察正在生成中，请稍候...</p>
-          <p className="text-sm text-gray-400 mt-2">系统正在分析您的需求，这可能需要几秒钟</p>
-          <button
-            onClick={() => window.location.reload()}
-            className="mt-4 px-4 py-2 text-sm text-gray-600 hover:text-gray-800 underline"
-          >
-            刷新页面
-          </button>
+          <button onClick={() => window.location.reload()} className="mt-4 px-4 py-2 text-sm text-gray-600 hover:text-gray-800 underline">刷新页面</button>
         </div>
       );
     }
 
-    // 🆕 v7.154: 确认逻辑已移至底部统一按钮，此处仅渲染展示组件
+    // ─── 数据提取 ───────────────────────────────────────────────────
+    const projectEssence: string = stepData.project_essence || stepData.restructured_requirements?.project_essence || '';
+    const calibration = stepData.task_calibration_review as Record<string, any> | undefined;
+    const confirmedTasks: any[] = stepData.confirmed_core_tasks || [];
+    const taskGroups: { category: string; task_ids: string[] }[] = stepData.task_groups || [];
+    const taskById = Object.fromEntries(confirmedTasks.map((t: any) => [t.id, t]));
+
+    // 按 task_groups 分组；无 task_groups 时平铺
+    const groupedTasks: { category: string; tasks: any[] }[] =
+      taskGroups.length > 0
+        ? taskGroups.map((g) => ({
+            category: g.category,
+            tasks: g.task_ids.map((id) => taskById[id]).filter(Boolean),
+          })).filter((g) => g.tasks.length > 0)
+        : [{ category: '全部任务', tasks: confirmedTasks }];
+
+    // ─── ① 项目本质横幅 ─────────────────────────────────────────────
+    const essenceBanner = projectEssence ? (
+      <div className="bg-blue-50 border border-blue-200 rounded-xl p-5">
+        <p className="text-xs font-semibold text-blue-500 uppercase tracking-wider mb-1">项目本质</p>
+        <p className="text-base font-medium text-blue-900 leading-relaxed">
+          &ldquo;{projectEssence}&rdquo;
+        </p>
+      </div>
+    ) : null;
+
+    // ─── ② 复盘面板（4 卡片 + 效果检验行）──────────────────────────
+    const reviewPanel = calibration ? (() => {
+      const counts = (calibration.counts as Record<string, number>) || {};
+      const summaryLine: string = calibration.summary_line || '';
+      const addedItems: any[] = calibration.added_items || [];
+      const invalidatedItems: any[] = calibration.invalidated_items || [];
+      const optimizedItems: any[] = calibration.optimized_items || [];
+      const strengthenedItems: any[] = calibration.strengthened_items || [];
+      const gapEffective: boolean = calibration.gap_effective ?? false;
+      const radarDimCount: number = calibration.radar_dim_count ?? 0;
+
+      return (
+        <div className="bg-white border border-gray-200 rounded-xl p-5">
+          {summaryLine && <p className="text-sm text-gray-600 mb-4">{summaryLine}</p>}
+          {/* 4-col stat cards */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+            <div className="bg-green-50 rounded-lg p-3 text-center">
+              <div className="flex items-center gap-1 justify-center mb-0.5">
+                <span className="w-2 h-2 rounded-full bg-green-500 inline-block" />
+                <span className="text-xs text-gray-500">增加</span>
+              </div>
+              <div className="text-2xl font-bold text-green-700">{counts.added ?? addedItems.length}</div>
+              {addedItems[0] && <div className="text-xs text-gray-500 truncate mt-0.5">{addedItems[0].title}</div>}
+            </div>
+            <div className="bg-gray-50 rounded-lg p-3 text-center">
+              <div className="flex items-center gap-1 justify-center mb-0.5">
+                <span className="w-2 h-2 rounded-full bg-gray-400 inline-block" />
+                <span className="text-xs text-gray-500">无效动作</span>
+              </div>
+              <div className="text-2xl font-bold text-gray-500">{counts.invalidated ?? invalidatedItems.length}</div>
+              {invalidatedItems[0] && <div className="text-xs text-gray-400 truncate mt-0.5">{invalidatedItems[0].title}</div>}
+            </div>
+            <div className="bg-amber-50 rounded-lg p-3 text-center">
+              <div className="flex items-center gap-1 justify-center mb-0.5">
+                <span className="w-2 h-2 rounded-full bg-amber-500 inline-block" />
+                <span className="text-xs text-gray-500">约束优化</span>
+              </div>
+              <div className="text-2xl font-bold text-amber-700">{counts.optimized ?? optimizedItems.length}</div>
+              {optimizedItems[0] && <div className="text-xs text-gray-500 truncate mt-0.5">{optimizedItems[0].label}</div>}
+            </div>
+            <div className="bg-purple-50 rounded-lg p-3 text-center">
+              <div className="flex items-center gap-1 justify-center mb-0.5">
+                <span className="w-2 h-2 rounded-full bg-purple-500 inline-block" />
+                <span className="text-xs text-gray-500">设计驱动力</span>
+              </div>
+              <div className="text-2xl font-bold text-purple-700">{counts.strengthened ?? strengthenedItems.length}</div>
+              {strengthenedItems[0] && (
+                <div className="text-xs text-gray-500 truncate mt-0.5">
+                  {strengthenedItems[0].label}・{strengthenedItems[1]?.label ? `[低] 与 [${strengthenedItems[1].tendency_label || '…'}` : ''}
+                </div>
+              )}
+            </div>
+          </div>
+          {/* 效果检验行 */}
+          <div className="flex items-center gap-3 text-xs text-gray-500 pt-2 border-t border-gray-100">
+            <span className="font-medium text-gray-600">效果检验</span>
+            <span className={`px-2 py-0.5 rounded ${gapEffective ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+              {gapEffective ? '✓ 信息补全有效' : '- 信息补全无明显增益'}
+            </span>
+            <span className="bg-gray-50 px-2 py-0.5 rounded">- 维度响应 {radarDimCount}</span>
+          </div>
+          {/* 雷达维度响应 badge 行 */}
+          {strengthenedItems.length > 0 && (
+            <div className="mt-2 pt-2 border-t border-gray-50">
+              <span className="text-xs text-gray-400 mr-2">维度响应对策</span>
+              {strengthenedItems.map((item: any, i: number) => (
+                <span key={i} className="inline-block mr-2 mb-1 px-2 py-0.5 text-xs border border-gray-200 rounded-full text-gray-600">
+                  ◦ {item.label}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+      );
+    })() : null;
+
+    // ─── ③ 校正后任务清单 ───────────────────────────────────────────
+    const taskList = confirmedTasks.length > 0 ? (
+      <div className="space-y-2">
+        {groupedTasks.map((group, gi) => (
+          <div key={gi} className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+            {groupedTasks.length > 1 && (
+              <div className="px-4 py-2 bg-gray-50 border-b border-gray-100">
+                <span className="text-xs font-semibold text-gray-600">{group.category}</span>
+              </div>
+            )}
+            <div className="divide-y divide-gray-50">
+              {group.tasks.map((task: any, ti: number) => (
+                <div key={task.id || ti} className="flex items-start gap-3 px-4 py-3">
+                  <span className="flex-shrink-0 w-5 h-5 mt-0.5 bg-gray-100 text-gray-600 rounded-full flex items-center justify-center text-xs font-medium">
+                    {task.execution_order || ti + 1}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center flex-wrap gap-1">
+                      <span className={`text-sm font-medium ${task._correction_action === 'invalidated' ? 'text-gray-400 line-through' : 'text-gray-900'}`}>
+                        {task.title}
+                      </span>
+                      {correctionBadge(task._correction_action)}
+                      {task.priority === 'high' && (
+                        <span className="px-1.5 py-0.5 text-xs bg-red-50 text-red-600 rounded">高</span>
+                      )}
+                    </div>
+                    {task.description && (
+                      <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{task.description}</p>
+                    )}
+                    {task._correction_reason && task._correction_action !== 'unchanged' && (
+                      <p className="text-xs text-blue-500 mt-0.5">{task._correction_reason}</p>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    ) : null;
+
+    // ─── ④ 可折叠深度洞察区 ─────────────────────────────────────────
+    const insightsSection = (
+      <div className="border border-gray-200 rounded-xl overflow-hidden">
+        <button
+          className="w-full flex items-center justify-between px-4 py-3 bg-gray-50 hover:bg-gray-100 transition-colors text-left"
+          onClick={() => setIsInsightsExpanded(!isInsightsExpanded)}
+        >
+          <span className="text-sm font-medium text-gray-700">深度洞察（关键冲突 / 隐性需求）</span>
+          <span className="text-xs text-gray-400">{isInsightsExpanded ? '▲ 收起' : '▼ 展开'}</span>
+        </button>
+        {isInsightsExpanded && (
+          <div className="p-4">
+            <QuestionnaireSummaryDisplay
+              ref={summaryDisplayRef}
+              data={stepData.restructured_requirements as RestructuredRequirements}
+              summaryText={stepData.requirements_summary_text}
+              onConfirm={() => {}}
+              onBack={undefined}
+            />
+          </div>
+        )}
+      </div>
+    );
+
     return (
-      <QuestionnaireSummaryDisplay
-        ref={summaryDisplayRef}
-        data={stepData.restructured_requirements as RestructuredRequirements}
-        summaryText={stepData.requirements_summary_text}
-        onConfirm={() => {}}  // 保留接口兼容，实际确认由底部按钮处理
-        onBack={undefined}
-      />
+      <div className="space-y-4">
+        {essenceBanner}
+        {reviewPanel}
+        {taskList}
+        {insightsSection}
+      </div>
     );
   };
 
@@ -1137,17 +1512,17 @@ export function UnifiedProgressiveQuestionnaireModal({
           {/* 步骤指示器 */}
           <div className="border-b border-gray-200 bg-white px-10 py-4">
             <div className="flex items-center justify-between mb-4">
-              {steps.map((step, index) => (
+              {FRONTCHAIN_STEPS.map((step, index) => (
                 <div key={step.number} className="flex items-center flex-1">
                   <div className="flex flex-col items-center flex-1">
                     <div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-medium transition-all duration-300 ${
-                      currentStep === step.number
+                      displayStep === step.number
                         ? 'bg-blue-600 text-white shadow-md'
-                        : currentStep > step.number
+                        : displayStep > step.number
                         ? 'bg-gray-500 text-white'
                         : 'bg-gray-100 text-gray-400'
                     }`}>
-                      {currentStep > step.number ? (
+                      {displayStep > step.number ? (
                         <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                           <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                         </svg>
@@ -1156,15 +1531,15 @@ export function UnifiedProgressiveQuestionnaireModal({
                       )}
                     </div>
                     <span className={`mt-2 text-sm font-medium ${
-                      currentStep === step.number ? 'text-gray-800' : 'text-gray-500'
+                      displayStep === step.number ? 'text-gray-800' : 'text-gray-500'
                     }`}>
                       {step.label}
                     </span>
                   </div>
 
-                  {index < steps.length - 1 && (
+                  {index < FRONTCHAIN_STEPS.length - 1 && (
                     <div className={`h-px flex-1 mx-4 rounded-full transition-all duration-500 ${
-                      currentStep > step.number ? 'bg-green-500' : 'bg-gray-300'
+                      displayStep > step.number ? 'bg-green-500' : 'bg-gray-300'
                     }`} />
                   )}
                 </div>
@@ -1229,31 +1604,31 @@ export function UnifiedProgressiveQuestionnaireModal({
         {/* 步骤指示器 */}
         <div className="border-b border-gray-200 bg-white px-10 py-4">
           <div className="flex items-center justify-between mb-4">
-            {steps.map((step, index) => (
+            {FRONTCHAIN_STEPS.map((step, index) => (
               <div key={step.number} className="flex items-center flex-1">
                 <div className="flex flex-col items-center flex-1">
                   <div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-medium transition-all duration-300 ${
-                    currentStep === step.number
+                    displayStep === step.number
                       ? 'bg-blue-600 text-white shadow-md'
-                      : currentStep > step.number
+                      : displayStep > step.number
                       ? 'bg-gray-500 text-white'
                       : 'bg-gray-100 text-gray-400'
                   }`}>
-                    {currentStep > step.number ? '✓' : step.icon}
+                    {displayStep > step.number ? '✓' : step.icon}
                   </div>
                   <div className={`mt-2 text-xs font-medium text-center transition-colors ${
-                    currentStep === step.number
+                    displayStep === step.number
                       ? 'text-gray-800'
-                      : currentStep > step.number
+                      : displayStep > step.number
                       ? 'text-gray-700'
                       : 'text-gray-500'
                   }`}>
                     {step.label}
                   </div>
                 </div>
-                {index < steps.length - 1 && (
+                {index < FRONTCHAIN_STEPS.length - 1 && (
                   <div className={`h-px flex-1 mx-2 rounded-full transition-all duration-500 ${
-                    currentStep > step.number
+                    displayStep > step.number
                       ? 'bg-green-500'
                       : 'bg-gray-300'
                   }`} />
@@ -1291,7 +1666,7 @@ export function UnifiedProgressiveQuestionnaireModal({
         <div className="px-10 py-4 bg-white flex items-center justify-end gap-3">
           <button
             onClick={handleConfirmClick}
-            disabled={currentStep === 2 && !validateStep3Required()}
+            disabled={currentStep === 3 && !validateStep3Required()}
             className="btn-primary-lg flex items-center gap-2"
           >
             <CheckCircle2 className="w-4 h-4" />

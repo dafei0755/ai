@@ -1,0 +1,47 @@
+# -*- coding: utf-8; mode: python -*-
+
+# Ignore patterns
+ignore_regexps = [
+    r'@minor',
+    r'!minor',
+    r'^\s*WIP',
+    r'^\s*Merge ',
+]
+
+# Section grouping by commit type
+section_regexps = [
+    ('New Features', [
+        r'^feat',
+        r'^feature',
+    ]),
+    ('Bug Fixes', [
+        r'^fix',
+        r'^bugfix',
+    ]),
+    ('Performance', [
+        r'^perf',
+    ]),
+    ('Refactoring', [
+        r'^refactor',
+    ]),
+    ('Documentation', [
+        r'^docs',
+    ]),
+    ('Tests', [
+        r'^test',
+    ]),
+    ('Build/CI', [
+        r'^build',
+        r'^ci',
+    ]),
+    ('Chores', [
+        r'^chore',
+        r'^style',
+    ]),
+]
+
+# Version label for unreleased changes
+unreleased_version_label = "Unreleased"
+
+# Include merge commits
+include_merge = False

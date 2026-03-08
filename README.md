@@ -3,7 +3,7 @@
 > 基于 LangGraph 的多智能体设计项目分析系统
 > 智能化设计项目需求分析 | 多专家协作 | 全流程质量保障
 
-[![Version](https://img.shields.io/badge/version-v7.122-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-v8.1.0-blue.svg)](CHANGELOG.md)
 [![Python](https://img.shields.io/badge/python-3.10+-green.svg)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-orange.svg)](LICENSE)
 [![CI/CD](https://github.com/dafei0755/ai/actions/workflows/ci.yml/badge.svg)](https://github.com/dafei0755/ai/actions/workflows/ci.yml)
@@ -86,6 +86,9 @@ cd frontend-nextjs && npm run dev
 # 前端: http://localhost:3001
 # API: http://localhost:8000/docs
 ```
+
+> 如果需要和 `D:\11-20\langgraph-v8.0.0-runtime` 同时运行，当前主线目录保持 `8000/3001`。
+> 也可以直接使用 `start_backend_main.bat` 和 `start_frontend_main.bat`。
 
 ### Docker 部署
 
@@ -206,7 +209,7 @@ MIT License - 详见 [LICENSE](LICENSE)
 
 <div align="center">
 
-**当前版本**: v7.502 | **最后更新**: 2026-02-10
+**当前版本**: v8.1.0 | **最后更新**: 2026-03-04
 
 ⭐ 如果这个项目对你有帮助，请给我们一个 Star！
 

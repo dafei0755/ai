@@ -4,7 +4,8 @@ LLM上下文提供器 (RAG)
 为LLM提供相关案例作为上下文，增强生成质量
 """
 
-from typing import List, Dict, Any
+from typing import Any, Dict, List
+
 from loguru import logger
 
 
@@ -214,8 +215,9 @@ class TrendAnalyzer:
         Returns:
             趋势分析结果
         """
-        from datetime import datetime, timedelta
         from collections import Counter
+        from datetime import datetime, timedelta
+
         from ..models import ExternalProject
 
         logger.info(f"📈 分析最近 {days} 天的风格趋势")

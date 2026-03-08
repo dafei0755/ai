@@ -24,11 +24,13 @@ import pytest
 # ---------------------------------------------------------------------------
 # 路径常量
 # ---------------------------------------------------------------------------
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 AGENT_FILE = os.path.join(ROOT, "intelligent_project_analyzer", "agents", "requirements_analyst_agent.py")
 QS_FILE = os.path.join(ROOT, "intelligent_project_analyzer", "interaction", "nodes", "questionnaire_summary.py")
-MW_FILE = os.path.join(ROOT, "intelligent_project_analyzer", "workflow", "main_workflow.py")
+MW_FILE = os.path.join(ROOT, "intelligent_project_analyzer", "workflow", "nodes", "requirements_nodes.py")
 OID_FILE = os.path.join(ROOT, "intelligent_project_analyzer", "interaction", "nodes", "output_intent_detection.py")
+# MT-21拆分后: 幂等保护逻辑在 _oid_scoring.py 而非聚合器
+OID_SCORING_FILE = os.path.join(ROOT, "intelligent_project_analyzer", "interaction", "nodes", "_oid_scoring.py")
 PQ_FILE = os.path.join(ROOT, "intelligent_project_analyzer", "interaction", "nodes", "progressive_questionnaire.py")
 
 
@@ -245,10 +247,10 @@ class TestOutputIntentIdempotency:
     """当 active_projections 已存在且 intent_changed=False 时，应跳过 interrupt"""
 
     def test_idempotency_source_code_check(self):
-        """静态检查幂等保护块是否存在"""
-        with open(OID_FILE, encoding="utf-8") as f:
+        """静态检查幂等保护块是否存在（MT-21后在_oid_scoring.py中）"""
+        with open(OID_SCORING_FILE, encoding="utf-8") as f:
             source = f.read()
-        assert "existing_projections" in source, "Bug④ 未修复 — output_intent_detection.py 缺少幂等保护变量 existing_projections"
+        assert "existing_projections" in source, "Bug④ 未修复 — _oid_scoring.py 缺少幂等保护变量 existing_projections"
         assert "intent_changed" in source, "Bug④ 未修复 — 缺少 intent_changed 判断"
 
     def test_idempotency_skips_interrupt_when_projections_exist(self):
@@ -273,7 +275,7 @@ class TestOutputIntentIdempotency:
             return {"selected": ["建筑设计方案"]}
 
         with patch(
-            "intelligent_project_analyzer.interaction.nodes.output_intent_detection.interrupt",
+            "intelligent_project_analyzer.interaction.nodes._oid_scoring.interrupt",
             side_effect=fake_interrupt,
         ):
             try:
@@ -288,7 +290,7 @@ class TestOutputIntentIdempotency:
 
     def test_intent_changed_true_allows_redetection(self):
         """intent_changed=True 时应重新执行检测（不跳过）"""
-        with open(OID_FILE, encoding="utf-8") as f:
+        with open(OID_SCORING_FILE, encoding="utf-8") as f:
             source = f.read()
         # 确认逻辑中 intent_changed=True 时不走幂等分支
         # 静态检查：not state.get("intent_changed", False) 或等效逻辑
@@ -452,6 +454,6 @@ class TestSourceCodeIntegrity:
         assert "progressive_questionnaire_step" in source, "progressive_questionnaire.py 缺少 step 赋值"
 
     def test_output_intent_detection_has_idempotency(self):
-        with open(OID_FILE, encoding="utf-8") as f:
+        with open(OID_SCORING_FILE, encoding="utf-8") as f:
             source = f.read()
         assert "existing_projections" in source, "Bug④ 修复代码丢失：缺少 existing_projections 幂等保护"

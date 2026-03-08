@@ -4,11 +4,12 @@
 提供外部数据爬虫系统的监控和管理接口
 """
 
-from fastapi import APIRouter, Query, HTTPException
-from typing import Optional, Dict, Any
-from pydantic import BaseModel
 from datetime import datetime
+from typing import Any, Dict
+
+from fastapi import APIRouter, HTTPException, Query
 from loguru import logger
+from pydantic import BaseModel
 
 router = APIRouter(prefix="/api/external", tags=["外部数据"])
 
@@ -23,15 +24,15 @@ class SyncHistory(BaseModel):
 
     id: int
     source: str
-    category: Optional[str] = None
+    category: str | None = None
     started_at: datetime
-    completed_at: Optional[datetime] = None
+    completed_at: datetime | None = None
     status: str  # running/completed/failed
     projects_total: int
     projects_new: int
     projects_updated: int
     projects_failed: int
-    error_message: Optional[str] = None
+    error_message: str | None = None
 
 
 class SourceStats(BaseModel):
@@ -52,14 +53,14 @@ class QualityIssue(BaseModel):
     issue_type: str
     severity: str  # low/medium/high/critical
     detected_at: datetime
-    resolved_at: Optional[datetime] = None
+    resolved_at: datetime | None = None
 
 
 class TriggerSyncRequest(BaseModel):
     """触发同步请求"""
 
     source: str
-    category: Optional[str] = None
+    category: str | None = None
     mode: str = "incremental"  # incremental/full
 
 
@@ -115,50 +116,6 @@ async def get_source_stats() -> Dict[str, Any]:
         stats = manager.get_source_stats()
 
         return {"status": "success", "stats": stats}
-
-    except Exception as e:
-        logger.error(f"❌ 获取数据源统计失败: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.get("/quality-issues", summary="获取质量问题")
-async def get_quality_issues_placeholder(
-    resolved: bool = Query(False), limit: int = Query(20, ge=1, le=100)
-) -> Dict[str, Any]:
-    """
-    获取所有数据源的统计信息
-
-    Returns:
-        数据源统计列表
-    """
-
-    try:
-        # TODO: 从数据库查询
-        # stats = []
-        # for source in ["archdaily", "gooood", "dezeen"]:
-        #     total = session.query(Project).filter(Project.source == source).count()
-        #     today = session.query(Project).filter(
-        #         Project.source == source,
-        #         Project.crawled_at >= datetime.now() - timedelta(days=1)
-        #     ).count()
-        #     avg_quality = session.query(func.avg(Project.quality_score)).filter(
-        #         Project.source == source
-        #     ).scalar() or 0.0
-        #     last_sync = session.query(func.max(SyncHistory.completed_at)).filter(
-        #         SyncHistory.source == source
-        #     ).scalar()
-        #
-        #     stats.append({
-        #         "source": source,
-        #         "total_projects": total,
-        #         "new_today": today,
-        #         "avg_quality_score": float(avg_quality),
-        #         "last_sync": last_sync
-        #     })
-
-        logger.info("📊 获取数据源统计")
-
-        return {"status": "success", "stats": [], "message": "后端接口待实现，请参考 LARGE_SCALE_EXTERNAL_DATA_ARCHITECTURE.md"}
 
     except Exception as e:
         logger.error(f"❌ 获取数据源统计失败: {e}")

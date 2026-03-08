@@ -21,12 +21,12 @@ project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
 from loguru import logger
+
 from intelligent_project_analyzer.crawlers import (
     ArchdailyCrawler,
-    GoooodCrawler,
     CrawlerConfig,
+    GoooodCrawler,
 )
-
 
 # 配置日志（DEBUG级别）
 logger.remove()
@@ -93,7 +93,7 @@ def test_archdaily():
             try:
                 crawler.close()
                 logger.info("🛑 Archdaily爬虫已关闭")
-            except:
+            except Exception:
                 pass
 
 
@@ -150,7 +150,7 @@ def test_gooood():
             try:
                 crawler.close()
                 logger.info("🛑 Gooood爬虫已关闭")
-            except:
+            except Exception:
                 pass
 
 

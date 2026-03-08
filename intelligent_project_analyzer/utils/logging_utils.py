@@ -8,7 +8,7 @@ import os
 import random
 import re
 from functools import wraps
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 from loguru import logger
 
@@ -59,7 +59,7 @@ class LogDataSanitizer:
 
             # 检查键名是否匹配敏感模式
             is_sensitive = False
-            for pattern_type, pattern in cls.SENSITIVE_PATTERNS.items():
+            for _pattern_type, pattern in cls.SENSITIVE_PATTERNS.items():
                 if re.search(pattern, key_lower, re.IGNORECASE):
                     is_sensitive = True
                     break
@@ -104,7 +104,7 @@ class LogDataSanitizer:
 class SampledLogger:
     """采样日志器"""
 
-    def __init__(self, sample_rate: Optional[float] = None):
+    def __init__(self, sample_rate: float | None = None):
         """
         Args:
             sample_rate: 采样率（0.0-1.0），默认从环境变量读取

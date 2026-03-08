@@ -18,15 +18,15 @@ warnings.warn(
 
 # 从新路径重导出所有公开接口，确保旧代码不中断
 from intelligent_project_analyzer.external_data_system.models.external_projects import (  # noqa: F401, E402
+    PGVECTOR_AVAILABLE,
     Base,
     ExternalProject,
-    ExternalProjectImage,
-    SyncHistory,
-    QualityIssue,
-    ProjectDiscovery,
     ExternalProjectDatabase,
+    ExternalProjectImage,
+    ProjectDiscovery,
+    QualityIssue,
+    SyncHistory,
     get_external_db,
-    PGVECTOR_AVAILABLE,
 )
 
 __all__ = [

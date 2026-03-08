@@ -11,7 +11,7 @@ v7.280 - 2026-01-25
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Tuple
 
 import yaml
 from loguru import logger
@@ -79,7 +79,7 @@ class AnalysisDimensionsConfig:
         if not self._loaded:
             self.load_config()
 
-    def load_config(self, config_dir: Optional[str] = None) -> bool:
+    def load_config(self, config_dir: str | None = None) -> bool:
         """
         加载分析维度配置
 
@@ -98,7 +98,7 @@ class AnalysisDimensionsConfig:
         dimensions_path = config_dir / "analysis_dimensions.yaml"
         if dimensions_path.exists():
             try:
-                with open(dimensions_path, "r", encoding="utf-8") as f:
+                with open(dimensions_path, encoding="utf-8") as f:
                     self._config = yaml.safe_load(f) or {}
                 logger.info(f" [DimensionsConfig] 加载维度配置: {dimensions_path}")
             except Exception as e:
@@ -109,7 +109,7 @@ class AnalysisDimensionsConfig:
         mapping_path = config_dir / "motivation_perspective_mapping.yaml"
         if mapping_path.exists():
             try:
-                with open(mapping_path, "r", encoding="utf-8") as f:
+                with open(mapping_path, encoding="utf-8") as f:
                     mapping_config = yaml.safe_load(f) or {}
                 self._load_motivation_mappings(mapping_config)
                 logger.info(f" [DimensionsConfig] 加载动机映射: {mapping_path}")
@@ -133,7 +133,7 @@ class AnalysisDimensionsConfig:
                 analysis_focus=mapping_data.get("analysis_focus", []),
             )
 
-    def reload(self, config_dir: Optional[str] = None) -> Dict[str, Any]:
+    def reload(self, config_dir: str | None = None) -> Dict[str, Any]:
         """
         热更新配置
 
@@ -170,7 +170,7 @@ class AnalysisDimensionsConfig:
         ]
         return [k for k in dimension_keys if k in self._config]
 
-    def get_dimension(self, dimension_id: str) -> Optional[Dict[str, Any]]:
+    def get_dimension(self, dimension_id: str) -> Dict[str, Any] | None:
         """获取指定维度的配置"""
         return self._config.get(dimension_id)
 
@@ -240,15 +240,15 @@ class AnalysisDimensionsConfig:
     # 动机→视角映射
     # ========================================================================
 
-    def get_motivation_mapping(self, motivation_id: str) -> Optional[MotivationMapping]:
+    def get_motivation_mapping(self, motivation_id: str) -> MotivationMapping | None:
         """获取指定动机类型的视角映射"""
         return self._motivation_mapping.get(motivation_id)
 
     def get_perspectives_for_motivation(
         self,
         primary_motivation: str,
-        secondary_motivations: Optional[List[str]] = None,
-        user_input: Optional[str] = None,
+        secondary_motivations: List[str] | None = None,
+        user_input: str | None = None,
     ) -> Tuple[List[str], List[str]]:
         """
         根据动机类型获取应激活的视角
@@ -389,7 +389,7 @@ class AnalysisDimensionsConfig:
         # 检查值是否有效（非空字符串、非空列表、非空字典）
         if isinstance(value, str):
             return len(value.strip()) > 0
-        if isinstance(value, (list, dict)):
+        if isinstance(value, list | dict):
             return len(value) > 0
         return value is not None
 
@@ -432,7 +432,7 @@ class AnalysisDimensionsConfig:
 
     def build_perspective_selection_prompt_section(
         self,
-        motivation_id: Optional[str] = None,
+        motivation_id: str | None = None,
     ) -> str:
         """构建视角选择的 Prompt 片段"""
         base_perspectives = self.get_base_perspectives()
@@ -504,7 +504,7 @@ class AnalysisDimensionsConfig:
 
 
 # 全局单例
-_dimensions_config: Optional[AnalysisDimensionsConfig] = None
+_dimensions_config: AnalysisDimensionsConfig | None = None
 
 
 def get_dimensions_config() -> AnalysisDimensionsConfig:
@@ -515,7 +515,7 @@ def get_dimensions_config() -> AnalysisDimensionsConfig:
     return _dimensions_config
 
 
-def reload_dimensions_config(config_dir: Optional[str] = None) -> Dict[str, Any]:
+def reload_dimensions_config(config_dir: str | None = None) -> Dict[str, Any]:
     """热更新维度配置"""
     config = get_dimensions_config()
     return config.reload(config_dir)

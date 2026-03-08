@@ -7,13 +7,12 @@ Tool Call Recorder (v7.64)
 import json
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from loguru import logger
 
 try:
     from langchain_core.callbacks import BaseCallbackHandler
-    from langchain_core.outputs import LLMResult
 except ImportError:
     logger.warning("LangChain callbacks not available")
     BaseCallbackHandler = object
@@ -36,7 +35,7 @@ class ToolCallRecorder(BaseCallbackHandler):
         references = recorder.get_search_references()
     """
 
-    def __init__(self, role_id: str, deliverable_id: Optional[str] = None, enable_recording: bool = True):
+    def __init__(self, role_id: str, deliverable_id: str | None = None, enable_recording: bool = True):
         """
         初始化工具调用记录器
 
@@ -54,7 +53,7 @@ class ToolCallRecorder(BaseCallbackHandler):
         self.tool_calls: List[Dict[str, Any]] = []
 
         # 当前正在执行的工具调用（用于关联start和end）
-        self.active_tool_call: Optional[Dict[str, Any]] = None
+        self.active_tool_call: Dict[str, Any] | None = None
 
         #  v7.133: 增强日志持久化 - 确保日志目录和文件存在
         self.log_file = Path("logs/tool_calls.jsonl")
@@ -104,7 +103,6 @@ class ToolCallRecorder(BaseCallbackHandler):
             }
 
             #  v7.153: 直接同步写入文件（确保持久化）
-            import fcntl  # 文件锁，防止并发写入问题
             import os
 
             try:
@@ -275,7 +273,7 @@ class ToolCallRecorder(BaseCallbackHandler):
         """
         return self.tool_calls
 
-    def get_search_references(self, deliverable_id: Optional[str] = None) -> List[Dict[str, Any]]:
+    def get_search_references(self, deliverable_id: str | None = None) -> List[Dict[str, Any]]:
         """
         从工具调用记录中提取搜索引用
 
@@ -347,7 +345,7 @@ class ToolCallRecorder(BaseCallbackHandler):
 
     def _convert_to_search_reference(
         self, result: Dict[str, Any], tool_name: str, query: str, deliverable_id: str, timestamp: str
-    ) -> Optional[Dict[str, Any]]:
+    ) -> Dict[str, Any] | None:
         """
         将搜索结果转换为SearchReference格式
 
@@ -474,7 +472,7 @@ class ToolCallRecorder(BaseCallbackHandler):
 
 
 def add_references_to_state(
-    state: Dict[str, Any], recorder: ToolCallRecorder, deliverable_id: Optional[str] = None
+    state: Dict[str, Any], recorder: ToolCallRecorder, deliverable_id: str | None = None
 ) -> Dict[str, Any]:
     """
     将ToolCallRecorder的搜索引用添加到state

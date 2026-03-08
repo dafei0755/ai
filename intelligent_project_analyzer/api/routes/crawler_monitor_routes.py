@@ -8,32 +8,33 @@
 4. 调整爬虫配置
 """
 
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect, HTTPException, Depends, Query
-from fastapi.responses import PlainTextResponse
-from typing import Optional, List, Dict, Any
-from datetime import datetime
-from pydantic import BaseModel
-from loguru import logger
-from sqlalchemy import func as _sqla_func
 import asyncio
 import threading
+from datetime import datetime
+from typing import Any, Dict, List
 
-from ..auth_middleware import require_admin
+from fastapi import APIRouter, Depends, HTTPException, Query, WebSocket, WebSocketDisconnect
+from fastapi.responses import PlainTextResponse
+from loguru import logger
+from pydantic import BaseModel
+from sqlalchemy import func as _sqla_func
+
+from ...external_data_system import get_external_db
 from ...external_data_system.crawler_scheduler import IntelligentCrawlerScheduler
 from ...external_data_system.discovery_manager import ProjectDiscoveryManager
-from ...external_data_system.spiders.archdaily_cn_spider import ArchdailyCNSpider
-from ...external_data_system.spiders.gooood_spider import GoooodSpider
-from ...external_data_system.spiders.dezeen_spider import DezeenSpider
 from ...external_data_system.models import ExternalProject
-from ...external_data_system import get_external_db
+from ...external_data_system.spiders.archdaily_cn_spider import ArchdailyCNSpider
+from ...external_data_system.spiders.dezeen_spider import DezeenSpider
+from ...external_data_system.spiders.gooood_spider import GoooodSpider
+from ..auth_middleware import require_admin
 
 router = APIRouter()
 
 # 全局调度器实例
-scheduler: Optional[IntelligentCrawlerScheduler] = None
+scheduler: IntelligentCrawlerScheduler | None = None
 active_connections: List[WebSocket] = []
 # 保存主事件循环引用（在第一次WebSocket连接时捕获）
-_main_loop: Optional[asyncio.AbstractEventLoop] = None
+_main_loop: asyncio.AbstractEventLoop | None = None
 
 
 def get_scheduler() -> IntelligentCrawlerScheduler:
@@ -120,8 +121,8 @@ class CrawlTaskRequest(BaseModel):
     """爬取任务请求"""
 
     source: str  # archdaily, gooood, dezeen
-    category: Optional[str] = None
-    limit: Optional[int] = None
+    category: str | None = None
+    limit: int | None = None
     auto_translate: bool = False
     translation_engine: str = "deepseek"
     resume: bool = True
@@ -130,12 +131,12 @@ class CrawlTaskRequest(BaseModel):
 class BatchConfigUpdate(BaseModel):
     """批次配置更新"""
 
-    batch_size: Optional[int] = None
-    min_delay: Optional[float] = None
-    max_delay: Optional[float] = None
-    batch_rest: Optional[float] = None
-    max_requests_per_hour: Optional[int] = None
-    max_requests_per_day: Optional[int] = None
+    batch_size: int | None = None
+    min_delay: float | None = None
+    max_delay: float | None = None
+    batch_rest: float | None = None
+    max_requests_per_hour: int | None = None
+    max_requests_per_day: int | None = None
 
 
 # ==================== 任务管理 ====================
@@ -520,7 +521,7 @@ async def get_schedule_state():
             "message": "调度状态文件不存在，请先启动 scripts/crawl_scheduler.py",
         }
     try:
-        with open(_SCHEDULE_STATE_FILE, "r", encoding="utf-8") as f:
+        with open(_SCHEDULE_STATE_FILE, encoding="utf-8") as f:
             data = json.load(f)
         _auto_recover_stale_state(data)
         data["exists"] = True
@@ -570,7 +571,7 @@ async def trigger_schedule(request: ScheduleTriggerRequest):
     # 检查是否已有调度任务在运行
     if _SCHEDULE_STATE_FILE.exists():
         try:
-            with open(_SCHEDULE_STATE_FILE, "r", encoding="utf-8") as f:
+            with open(_SCHEDULE_STATE_FILE, encoding="utf-8") as f:
                 current = json.load(f)
             _auto_recover_stale_state(current)  # 自动修复僵尸状态
             if current.get("phase") in ("full_crawling", "incremental_crawling"):
@@ -610,7 +611,7 @@ async def trigger_schedule(request: ScheduleTriggerRequest):
                 try:
                     import json as _json
 
-                    with open(_state_file, "r", encoding="utf-8") as _f:
+                    with open(_state_file, encoding="utf-8") as _f:
                         _s = _json.load(_f)
                     task = _s.get("running_task")
                     phase = _s.get("phase", "idle")
@@ -673,7 +674,7 @@ async def force_stop_schedule():
     if not _SCHEDULE_STATE_FILE.exists():
         return {"status": "ok", "message": "无运行中的任务"}
     try:
-        with open(_SCHEDULE_STATE_FILE, "r", encoding="utf-8") as f:
+        with open(_SCHEDULE_STATE_FILE, encoding="utf-8") as f:
             state = json.load(f)
         phase = state.get("phase", "idle")
         if phase == "idle":
@@ -753,10 +754,10 @@ async def run_job_now(job_id: str):
 class ModifyJobCronRequest(BaseModel):
     """修改 Cron 触发器请求"""
 
-    day_of_week: Optional[str] = None  # mon/tue/wed/thu/fri/sat/sun 或 0-6
-    hour: Optional[int] = None  # 0-23
-    minute: Optional[int] = None  # 0-59
-    second: Optional[int] = None  # 0-59
+    day_of_week: str | None = None  # mon/tue/wed/thu/fri/sat/sun 或 0-6
+    hour: int | None = None  # 0-23
+    minute: int | None = None  # 0-59
+    second: int | None = None  # 0-59
 
 
 @router.patch("/jobs/{job_id}/cron", dependencies=[Depends(require_admin)], summary="修改任务 Cron 触发器")
@@ -794,7 +795,6 @@ async def get_pre_scan(source: str = "archdaily_cn"):
 
     # ── 1. 读取 spider 静态分类配置 ───────────────────────────────────────
     try:
-        import importlib.util as _ilu
 
         _spider_modules = {
             "archdaily_cn": (
@@ -828,6 +828,7 @@ async def get_pre_scan(source: str = "archdaily_cn"):
 
     try:
         from sqlalchemy import func as _func
+
         from intelligent_project_analyzer.external_data_system.models.external_projects import (
             ExternalProject,
             get_external_db,
@@ -935,7 +936,7 @@ async def reset_full_crawl(source: str = "all"):
     if not _SCHEDULE_STATE_FILE.exists():
         raise HTTPException(status_code=404, detail="状态文件不存在")
     try:
-        with open(_SCHEDULE_STATE_FILE, "r", encoding="utf-8") as f:
+        with open(_SCHEDULE_STATE_FILE, encoding="utf-8") as f:
             state = json.load(f)
 
         _blank_full_crawl = {
@@ -993,9 +994,10 @@ async def get_crawl_errors(
     - summary: 按 error_type 分组的计数统计
     - diagnosis: 自动诊断建议（基于错误模式）
     """
-    from pathlib import Path as _Path
     import json as _json
-    from datetime import datetime as _dt, timedelta as _td
+    from datetime import datetime as _dt
+    from datetime import timedelta as _td
+    from pathlib import Path as _Path
 
     errors_file = _Path(__file__).parents[4] / "data" / "crawler_errors.jsonl"
     all_errors: list = []
@@ -1097,8 +1099,8 @@ async def get_crawl_errors(
 @router.get("/schedule/alerts", summary="获取爬虫告警（熔断、连续失败等）")
 async def get_crawler_alerts(limit: int = 20):
     """获取爬虫告警记录，最近 N 条"""
-    from pathlib import Path as _Path
     import json as _json
+    from pathlib import Path as _Path
 
     alert_file = _Path(__file__).parents[4] / "data" / "crawler_alerts.jsonl"
     alerts = []
@@ -1199,6 +1201,7 @@ async def get_source_status(source: str = "gooood"):
     last_sync_from_db: str | None = None
     try:
         from sqlalchemy import func as _func
+
         from intelligent_project_analyzer.external_data_system.models.external_projects import (
             ExternalProject,
             get_external_db,
@@ -1261,7 +1264,7 @@ async def get_source_status(source: str = "gooood"):
             }
         )
 
-    site_total_estimated = sum(v for v in site_totals.values() if isinstance(v, (int, float)))
+    site_total_estimated = sum(v for v in site_totals.values() if isinstance(v, int | float))
 
     # 读取该数据源的启用状态
     source_enabled = True
@@ -1327,7 +1330,7 @@ async def reset_checkpoint_endpoint(source: str):
 # ==================== 质检清单 ====================
 
 
-def _build_quality_query(session, source: Optional[str], category: Optional[str], keyword: Optional[str]):
+def _build_quality_query(session, source: str | None, category: str | None, keyword: str | None):
     """构建质检查询（共享逻辑）"""
     q = session.query(ExternalProject)
     if source:
@@ -1341,9 +1344,9 @@ def _build_quality_query(session, source: Optional[str], category: Optional[str]
 
 @router.get("/quality-list", summary="质检清单：爬取成功的项目列表")
 async def get_quality_list(
-    source: Optional[str] = Query(None, description="数据源过滤：archdaily_cn / gooood / dezeen"),
-    category: Optional[str] = Query(None, description="分类过滤"),
-    keyword: Optional[str] = Query(None, description="标题关键词搜索"),
+    source: str | None = Query(None, description="数据源过滤：archdaily_cn / gooood / dezeen"),
+    category: str | None = Query(None, description="分类过滤"),
+    keyword: str | None = Query(None, description="标题关键词搜索"),
     page: int = Query(1, ge=1, description="页码"),
     page_size: int = Query(50, ge=10, le=200, description="每页条数"),
     sort: str = Query("crawled_at", description="排序字段：crawled_at / publish_date / title"),
@@ -1427,9 +1430,9 @@ async def get_quality_list(
 
 @router.get("/quality-list/export", summary="导出质检清单为 TXT")
 async def export_quality_list_txt(
-    source: Optional[str] = Query(None, description="数据源过滤"),
-    category: Optional[str] = Query(None, description="分类过滤"),
-    keyword: Optional[str] = Query(None, description="标题关键词搜索"),
+    source: str | None = Query(None, description="数据源过滤"),
+    category: str | None = Query(None, description="分类过滤"),
+    keyword: str | None = Query(None, description="标题关键词搜索"),
 ):
     """
     导出所有符合条件的爬取成功项目为 TXT 文件。
@@ -1458,10 +1461,10 @@ async def export_quality_list_txt_by_ids(body: _QualityExportByIds):
 
 def _build_quality_export(
     *,
-    source: Optional[str] = None,
-    category: Optional[str] = None,
-    keyword: Optional[str] = None,
-    ids: Optional[list[int]] = None,
+    source: str | None = None,
+    category: str | None = None,
+    keyword: str | None = None,
+    ids: list[int] | None = None,
 ) -> PlainTextResponse:
     db = get_external_db()
     with db.get_session() as session:
@@ -1547,7 +1550,7 @@ def _build_quality_export(
 
         lines.append("=" * 100)
         lines.append(f"--- 结束 ({len(projects)} 条) ---")
-        total = len(projects)
+        len(projects)
 
     content = "\n".join(lines)
 

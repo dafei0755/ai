@@ -9,10 +9,10 @@
 5. 多轮记忆：维护对话历史上下文
 """
 
-from typing import Dict, Any, List, Optional, Literal
-from datetime import datetime
-from loguru import logger
+from typing import Any, Dict, List, Literal
+
 from langchain_core.messages import HumanMessage, SystemMessage
+from loguru import logger
 from pydantic import BaseModel, Field
 
 
@@ -114,7 +114,7 @@ class ConversationAgent:
         self,
         question: str,
         context: ConversationContext,
-        conversation_history: Optional[List[ConversationTurn]] = None
+        conversation_history: List[ConversationTurn] | None = None
     ) -> Dict[str, Any]:
         """
         回答用户问题
@@ -171,7 +171,7 @@ class ConversationAgent:
     def _classify_intent(
         self,
         question: str,
-        history: Optional[List[ConversationTurn]]
+        history: List[ConversationTurn] | None
     ) -> Literal["closed", "open_with_context", "creative", "general"]:
         """
          v7.14: 增强意图分类 - 区分问题类型以选择回答模式
@@ -276,7 +276,7 @@ class ConversationAgent:
         self,
         question: str,
         relevant_context: Dict[str, Any],
-        conversation_history: Optional[List[ConversationTurn]],
+        conversation_history: List[ConversationTurn] | None,
         intent: str
     ) -> Dict[str, Any]:
         """

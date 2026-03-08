@@ -29,8 +29,7 @@ from __future__ import annotations
 import asyncio
 import os
 import time
-from typing import Any, Dict, List, Optional
-
+from typing import Any, Dict, List
 
 # ---------------------------------------------------------------------------
 # 配置
@@ -222,7 +221,7 @@ class EventStore:
 # 全局单例
 # ---------------------------------------------------------------------------
 
-_store_instance: Optional[EventStore] = None
+_store_instance: EventStore | None = None
 
 
 def get_event_store() -> EventStore:

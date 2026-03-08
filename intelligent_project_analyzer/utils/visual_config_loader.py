@@ -31,7 +31,7 @@ def _load_visual_identity_config() -> Dict[str, Any]:
             logger.warning(f"️ 视觉配置文件不存在: {VISUAL_IDENTITY_FILE}")
             return {}
 
-        with open(VISUAL_IDENTITY_FILE, "r", encoding="utf-8") as f:
+        with open(VISUAL_IDENTITY_FILE, encoding="utf-8") as f:
             config = yaml.safe_load(f)
 
         logger.info(f" 视觉配置加载成功: {len(config.get('roles', {}))} 个角色")

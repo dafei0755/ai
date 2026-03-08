@@ -4,10 +4,10 @@ Celery异步任务
 定义外部数据同步的异步任务
 """
 
+import os
+
 from celery import Celery
 from loguru import logger
-from typing import Optional
-import os
 
 # Celery配置
 celery_app = Celery(
@@ -31,7 +31,7 @@ celery_app.conf.update(
 
 @celery_app.task(name="sync_external_source", bind=True)
 def sync_external_source(
-    self, source: str, category: Optional[str] = None, max_pages: int = 20, mode: str = "incremental"
+    self, source: str, category: str | None = None, max_pages: int = 20, mode: str = "incremental"
 ):
     """
     同步外部数据源任务
@@ -45,7 +45,9 @@ def sync_external_source(
     logger.info(f"🚀 Celery任务开始: sync_external_source({source}, {category})")
 
     try:
-        from intelligent_project_analyzer.external_data_system.spiders.spider_manager import SpiderManager
+        from intelligent_project_analyzer.external_data_system.spiders.spider_manager import (
+            SpiderManager,
+        )
 
         # 创建管理器
         manager = SpiderManager()
@@ -80,12 +82,14 @@ def generate_embeddings_task(project_id: int):
     logger.info(f"🚀 生成向量嵌入: project_id={project_id}")
 
     try:
-        from intelligent_project_analyzer.external_data_system.models.external_projects import (
-            get_external_db,
-            ExternalProject,
-        )
-        from openai import OpenAI
         import os
+
+        from openai import OpenAI
+
+        from intelligent_project_analyzer.external_data_system.models.external_projects import (
+            ExternalProject,
+            get_external_db,
+        )
 
         # OpenAI客户端
         client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
@@ -133,12 +137,13 @@ def quality_check_task(project_id: int):
     logger.info(f"🚀 质量检查: project_id={project_id}")
 
     try:
+        from datetime import datetime
+
         from intelligent_project_analyzer.external_data_system.models.external_projects import (
-            get_external_db,
             ExternalProject,
             QualityIssue,
+            get_external_db,
         )
-        from datetime import datetime
 
         db = get_external_db()
         with db.get_session() as session:

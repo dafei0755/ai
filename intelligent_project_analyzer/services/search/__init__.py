@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 services/search — 搜索与检索子包
 

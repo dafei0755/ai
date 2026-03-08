@@ -8,12 +8,15 @@ LT-1 执行节点 Mixin — 动态批次执行、Agent 并发调度
 # ruff: noqa (generated file)
 # type: ignore
 #  v7.16: LangGraph Agent 升级版本（通过环境变量控制）
+import asyncio
 import os
 import sqlite3
+import time
 import uuid
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Literal, Optional, Union
+
 import yaml
 from langgraph.checkpoint.base import BaseCheckpointSaver
 from langgraph.checkpoint.sqlite import SqliteSaver
@@ -25,16 +28,19 @@ from loguru import logger
 # 显式导入智能体类以触发 AgentFactory 注册
 from ...agents import AgentFactory, ProjectDirectorAgent, RequirementsAnalystAgent
 from ...agents.base import NullLLM
-from ...agents.dynamic_project_director import detect_and_handle_challenges_node  #  v3.5
-from ...agents.feasibility_analyst import FeasibilityAnalystAgent  #  V1.5可行性分析师
-from ...agents.quality_monitor import QualityMonitor  #
+from ...agents.dynamic_project_director import detect_and_handle_challenges_node  # v3.5
+from ...agents.feasibility_analyst import FeasibilityAnalystAgent  # V1.5可行性分析师
+from ...agents.quality_monitor import QualityMonitor
 from ...core.state import AnalysisStage, ProjectAnalysisState, StateManager
 from ...core.types import AgentType, format_role_display_name
 from ...interaction.interaction_nodes import (  # FinalReviewNode,  # 已移除：客户需求中没有最终审核阶段; AnalysisReviewNode,  # ️ v2.2: 已废弃，质量审核已前置化
     CalibrationQuestionnaireNode,
     UserQuestionNode,
 )
-from ...interaction.nodes.manual_review import ManualReviewNode  #  人工审核节点
+from ...interaction.nodes.manual_review import ManualReviewNode  # 人工审核节点
+
+# QW-2: LLM 并发 Semaphore
+from ...services.llm_concurrency import decrement_active, get_llm_semaphore, increment_active
 
 #  v7.87: 三步递进式问卷节点
 from ...interaction.nodes.progressive_questionnaire import (
@@ -43,7 +49,7 @@ from ...interaction.nodes.progressive_questionnaire import (
     progressive_step2_radar_node,
     progressive_step3_gap_filling_node,
 )
-from ...interaction.nodes.quality_preflight import QualityPreflightNode  #
+from ...interaction.nodes.quality_preflight import QualityPreflightNode
 
 #  v7.135: 问卷汇总节点（需求重构）
 from ...interaction.nodes.questionnaire_summary import questionnaire_summary_node
@@ -51,24 +57,27 @@ from ...interaction.nodes.questionnaire_summary import questionnaire_summary_nod
 #  统一审核节点（合并角色选择和任务分派审核）
 from ...interaction.role_task_unified_review import role_task_unified_review_node
 
-#  v7.502 P1优化: 智能上下文压缩器
-from ..context_compressor import create_context_compressor
-
 # from ..interaction.role_selection_review import role_selection_review_node  # 已废弃
 # from ..interaction.task_assignment_review import task_assignment_review_node  # 已废弃
 from ...interaction.second_batch_strategy_review import SecondBatchStrategyReviewNode
 from ...report.pdf_generator import PDFGeneratorAgent
 from ...report.result_aggregator import ResultAggregatorAgent
-from ...workflow.nodes.search_query_generator_node import search_query_generator_node  #  v7.109
 
 #  v7.87: 三步递进式问卷（默认启用）
-from ...security import ReportGuardNode  #  内容安全与领域过滤
+from ...security import ReportGuardNode  # 内容安全与领域过滤
 
 #  v7.3 统一输入验证节点（合并 input_guard 和 domain_validator）
 from ...security.unified_input_validator_node import InputRejectedNode, UnifiedInputValidatorNode
 
+# v8.2: 动态步骤追踪装饰器
+from ...utils.node_tracker import track_active_step
+
 # 动态本体论注入工具
 from ...utils.ontology_loader import OntologyLoader
+from ...workflow.nodes.search_query_generator_node import search_query_generator_node  # v7.109
+
+#  v7.502 P1优化: 智能上下文压缩器
+from ..context_compressor import create_context_compressor
 
 
 class ExecutionNodesMixin:
@@ -390,11 +399,13 @@ class ExecutionNodesMixin:
             session_id = state.get("session_id")
             if session_id:
                 try:
-                    # 导入broadcast函数
-                    # 推送专家结果
+                    # 推送专家结果（通过注册表，规避 workflow→api 层级直接导入）
                     import asyncio
 
-                    from intelligent_project_analyzer.api.server import broadcast_to_websockets
+                    from intelligent_project_analyzer.api._broadcast_registry import get_broadcast
+                    broadcast_to_websockets = get_broadcast()
+                    if not broadcast_to_websockets:
+                        raise RuntimeError("broadcast_to_websockets not registered yet")
 
                     #  v7.153: 提取该专家的搜索引用用于WebSocket推送
                     expert_search_refs = expert_result.get("search_references", [])
@@ -564,6 +575,7 @@ class ExecutionNodesMixin:
             traceback.print_exc()
             return {"error": str(e)}
 
+    @track_active_step("batch_executor")
     async def _batch_executor_node(self, state: ProjectAnalysisState) -> Dict[str, Any]:
         """
          P0优化: 批次执行器节点 - 真并行执行当前批次所有专家
@@ -591,12 +603,7 @@ class ExecutionNodesMixin:
         返回:
         - Dict[str, Any] - 包含 agent_results 的状态更新
         """
-        import asyncio
-        import time
-
         try:
-            batch_start = time.time()
-
             batch_start = time.time()
 
             #  优先检查是否有审核触发的重新执行
@@ -631,6 +638,38 @@ class ExecutionNodesMixin:
 
             display_roles = [format_role_display_name(r) for r in batch_roles]
             logger.info(f" [BatchParallel] 开始真并行执行: {len(batch_roles)} 个专家 {display_roles}")
+
+            #  v8.2: 构建批次详情（前端动态步骤条）
+            total_batches_for_detail = total_batches if not is_rerun else (state.get("total_batches") or len(batches))
+            batch_detail = {
+                "current_batch": current_batch,
+                "total_batches": total_batches_for_detail,
+                "batch_agents": batch_roles,
+                "completed_agents": [],
+                "active_agent": None,
+                "batch_progress": 0.0,
+            }
+
+            #  v8.2: 推送批次开始消息
+            session_id = state.get("session_id")
+            if session_id:
+                try:
+                    from intelligent_project_analyzer.api._broadcast_registry import get_broadcast
+                    broadcast_to_websockets = get_broadcast()
+                    if not broadcast_to_websockets:
+                        raise RuntimeError("broadcast_to_websockets not registered yet")
+
+                    await broadcast_to_websockets(
+                        session_id,
+                        {
+                            "type": "batch_started",
+                            "batch_detail": batch_detail,
+                            "timestamp": datetime.now().isoformat(),
+                        },
+                    )
+                    logger.info(f"📡 [v8.2] 已推送批次开始消息: Batch{current_batch}/{total_batches_for_detail}")
+                except Exception as broadcast_error:
+                    logger.warning(f"️ [v8.2] WebSocket推送失败: {broadcast_error}")
 
             #  P0优化: 使用asyncio.gather真正并行执行
             tasks = []
@@ -679,6 +718,24 @@ class ExecutionNodesMixin:
                         agent_results[role_id] = result
                         failed += 1
 
+                #  v8.2: 更新批次进度并推送
+                batch_detail["completed_agents"].append(role_id)
+                batch_detail["batch_progress"] = len(batch_detail["completed_agents"]) / len(batch_roles)
+
+                if session_id:
+                    try:
+                        await broadcast_to_websockets(
+                            session_id,
+                            {
+                                "type": "batch_progress",
+                                "batch_detail": batch_detail,
+                                "timestamp": datetime.now().isoformat(),
+                            },
+                        )
+                        logger.debug(f"📊 [v8.2] 批次进度更新: {len(batch_detail['completed_agents'])}/{len(batch_roles)}")
+                    except Exception as broadcast_error:
+                        logger.warning(f"️ [v8.2] 进度推送失败: {broadcast_error}")
+
             batch_elapsed = time.time() - batch_start
 
             # 性能日志
@@ -702,6 +759,7 @@ class ExecutionNodesMixin:
             return {
                 "agent_results": agent_results,
                 "batch_elapsed_seconds": batch_elapsed,
+                "batch_execution_detail": batch_detail,  #  v8.2: 批次执行详情
                 "detail": f"批次 {current_batch} 完成：{successful}/{len(batch_roles)} 位专家",
             }
 
@@ -716,6 +774,10 @@ class ExecutionNodesMixin:
         """
          P0优化: 执行单个专家并记录耗时
 
+        QW-2: 通过全局 LLM Semaphore 限制同时执行的 LLM 调用数量，
+        防止峰值 45+ 并发 HTTP 连接导致限流与超时。
+        并发上限由环境变量 LLM_GLOBAL_CONCURRENCY 控制（默认 8）。
+
         Args:
             agent_state: 专家状态
             role_id: 角色ID
@@ -726,19 +788,20 @@ class ExecutionNodesMixin:
         start = time.time()
         logger.info(f"▶️ [Agent] {role_id} 开始执行...")
 
-        try:
-            result = await self._execute_agent_node(agent_state)
-            elapsed = time.time() - start
-            logger.info(f" [Agent] {role_id} 完成，耗时 {elapsed:.2f}s")
-            return result
-        except Exception as e:
-            elapsed = time.time() - start
-            logger.error(f" [Agent] {role_id} 失败，耗时 {elapsed:.2f}s: {e}")
-            raise
-            import traceback
-
-            traceback.print_exc()
-            return {"errors": [str(e)]}
+        # QW-2: 获取全局 Semaphore，限制并发 LLM 连接数
+        async with get_llm_semaphore():
+            increment_active()
+            try:
+                result = await self._execute_agent_node(agent_state)
+                elapsed = time.time() - start
+                logger.info(f" [Agent] {role_id} 完成，耗时 {elapsed:.2f}s")
+                return result
+            except Exception as e:
+                elapsed = time.time() - start
+                logger.error(f" [Agent] {role_id} 失败，耗时 {elapsed:.2f}s: {e}")
+                raise
+            finally:
+                decrement_active()
 
     def _create_batch_sends(self, state: ProjectAnalysisState) -> List[Send]:
         """

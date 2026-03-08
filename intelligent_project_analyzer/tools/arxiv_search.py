@@ -6,8 +6,7 @@ Arxiv学术搜索工具
 
 import json
 import time
-from datetime import datetime
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List
 
 from loguru import logger
 
@@ -49,7 +48,7 @@ except ImportError:
 class ArxivSearchTool:
     """Arxiv学术搜索工具类"""
 
-    def __init__(self, config: Optional[ToolConfig] = None):
+    def __init__(self, config: ToolConfig | None = None):
         """
         初始化Arxiv搜索工具
 
@@ -79,10 +78,10 @@ class ArxivSearchTool:
     def search(
         self,
         query: str,
-        max_results: Optional[int] = None,
-        sort_by: Optional[arxiv.SortCriterion] = None,
-        sort_order: Optional[arxiv.SortOrder] = None,
-        categories: Optional[List[str]] = None,
+        max_results: int | None = None,
+        sort_by: arxiv.SortCriterion | None = None,
+        sort_order: arxiv.SortOrder | None = None,
+        categories: List[str] | None = None,
         **kwargs,
     ) -> Dict[str, Any]:
         """
@@ -115,7 +114,7 @@ class ArxivSearchTool:
                 category_filter = " OR ".join([f"cat:{cat}" for cat in categories])
                 search_params["query"] = f"({query}) AND ({category_filter})"
 
-            logger.info(f" [Arxiv] Starting search")
+            logger.info(" [Arxiv] Starting search")
             logger.info(f" [Arxiv] Query: {query}")
             logger.debug(
                 f"️ [Arxiv] Search params: max_results={search_params['max_results']}, sort_by={search_params['sort_by']}"
@@ -124,11 +123,11 @@ class ArxivSearchTool:
                 logger.debug(f"️ [Arxiv] Categories filter: {categories}")
 
             # 创建搜索对象
-            logger.debug(f" [Arxiv] Creating search object...")
+            logger.debug(" [Arxiv] Creating search object...")
             search = arxiv.Search(**search_params)
 
             # 执行搜索
-            logger.debug(f" [Arxiv] Calling Arxiv API...")
+            logger.debug(" [Arxiv] Calling Arxiv API...")
             api_start = time.time()
             results = list(self.client.results(search))
             api_time = time.time() - api_start
@@ -139,7 +138,7 @@ class ArxivSearchTool:
                 logger.debug(f" [Arxiv] Categories in results: {set([r.primary_category for r in results[:5]])}")
 
             # 处理响应
-            logger.debug(f"️ [Arxiv] Processing response...")
+            logger.debug("️ [Arxiv] Processing response...")
             process_start = time.time()
             processed_response = self._process_search_response(results, query, time.time() - start_time)
             process_time = time.time() - process_start
@@ -405,7 +404,7 @@ class ArxivSearchTool:
             logger.debug(f"️ [Arxiv Deliverable] Max results: {max_results}, QC: {enable_qc}, Recent: {focus_recent}")
 
             # Step 1: 构建学术化查询
-            logger.debug(f" [Arxiv Deliverable] Step 1: Building academic query...")
+            logger.debug(" [Arxiv Deliverable] Step 1: Building academic query...")
             if self.query_builder:
                 query_start = time.time()
                 queries = self.query_builder.build_multi_tool_queries(deliverable, project_type)
@@ -440,7 +439,7 @@ class ArxivSearchTool:
             logger.debug(f" [Arxiv Deliverable] Initial papers count: {initial_count}")
 
             # Step 3: 归一化结果格式（Arxiv结果结构不同于Tavily）
-            logger.debug(f" [Arxiv Deliverable] Step 3: Normalizing result format...")
+            logger.debug(" [Arxiv Deliverable] Step 3: Normalizing result format...")
             normalize_start = time.time()
             normalized_results = []
             for result in search_results.get("results", []):
@@ -462,7 +461,7 @@ class ArxivSearchTool:
 
             # Step 4: 质量控制
             if enable_qc and self.qc:
-                logger.debug(f" [Arxiv Deliverable] Step 4: Running quality control...")
+                logger.debug(" [Arxiv Deliverable] Step 4: Running quality control...")
                 qc_start = time.time()
                 processed_results = self.qc.process_results(normalized_results, deliverable_context=deliverable)
                 qc_time = time.time() - qc_start
@@ -482,10 +481,10 @@ class ArxivSearchTool:
             else:
                 search_results["results"] = normalized_results[:max_results]
                 search_results["quality_controlled"] = False
-                logger.debug(f"️ [Arxiv Deliverable] Quality control skipped")
+                logger.debug("️ [Arxiv Deliverable] Quality control skipped")
 
             # Step 5: 添加编号
-            logger.debug(f" [Arxiv Deliverable] Step 5: Adding reference numbers...")
+            logger.debug(" [Arxiv Deliverable] Step 5: Adding reference numbers...")
             for idx, result in enumerate(search_results.get("results", []), start=1):
                 result["reference_number"] = idx
             logger.debug(f" [Arxiv Deliverable] Reference numbers added (1-{len(search_results.get('results', []))})")
@@ -537,7 +536,7 @@ class ArxivSearchTool:
         try:
             # 简单测试搜索
             test_search = arxiv.Search(query="test", max_results=1)
-            test_results = list(self.client.results(test_search))
+            list(self.client.results(test_search))
             return True
         except Exception as e:
             logger.error(f"Arxiv tool availability check failed: {str(e)}")

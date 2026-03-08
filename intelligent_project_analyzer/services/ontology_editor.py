@@ -14,9 +14,10 @@
 """
 
 import shutil
-import yaml
 from pathlib import Path
-from typing import Dict, Any, Optional
+from typing import Any, Dict
+
+import yaml
 from loguru import logger
 
 try:
@@ -158,12 +159,12 @@ class OntologyEditor:
 
     def _load_with_ruamel(self) -> Dict[str, Any]:
         """使用 ruamel.yaml 加载（保留格式）"""
-        with open(self.ontology_path, "r", encoding="utf-8") as f:
+        with open(self.ontology_path, encoding="utf-8") as f:
             return self.yaml.load(f)
 
     def _load_with_pyyaml(self) -> Dict[str, Any]:
         """使用标准 yaml 加载（丢失注释）"""
-        with open(self.ontology_path, "r", encoding="utf-8") as f:
+        with open(self.ontology_path, encoding="utf-8") as f:
             return yaml.safe_load(f)
 
     def _save_with_ruamel(self, data: Dict[str, Any]):
@@ -179,7 +180,7 @@ class OntologyEditor:
     def _validate_syntax(self) -> bool:
         """验证 YAML 语法"""
         try:
-            with open(self.ontology_path, "r", encoding="utf-8") as f:
+            with open(self.ontology_path, encoding="utf-8") as f:
                 yaml.safe_load(f)
             return True
         except Exception as e:
@@ -189,7 +190,7 @@ class OntologyEditor:
 
 # ============ 全局实例 ============
 
-_ontology_editor: Optional[OntologyEditor] = None
+_ontology_editor: OntologyEditor | None = None
 
 
 def get_ontology_editor() -> OntologyEditor:

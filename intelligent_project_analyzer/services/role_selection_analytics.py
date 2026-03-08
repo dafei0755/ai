@@ -22,13 +22,12 @@
 
 import json
 import logging
+import sqlite3
+from collections import Counter, defaultdict
+from dataclasses import asdict, dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Any, Optional
-from collections import defaultdict, Counter
-from dataclasses import dataclass, asdict, field
-import sqlite3
-
+from typing import Dict, List
 
 # ============================================================================
 # 数据模型定义
@@ -45,8 +44,8 @@ class RoleSelectionRecord:
     keywords_matched: List[str]
     execution_time_ms: float
     success: bool
-    feedback_score: Optional[float] = None  # 用户反馈评分 (1-5)
-    error_message: Optional[str] = None
+    feedback_score: float | None = None  # 用户反馈评分 (1-5)
+    error_message: str | None = None
     
     def to_dict(self):
         return asdict(self)
@@ -74,7 +73,7 @@ class AnalyticsSummary:
 class SelectionDatabase:
     """角色选择数据库"""
     
-    def __init__(self, db_path: Optional[Path] = None):
+    def __init__(self, db_path: Path | None = None):
         if db_path is None:
             db_path = Path(__file__).parent.parent / "data" / "role_selection_analytics.db"
         
@@ -155,9 +154,9 @@ class SelectionDatabase:
     
     def query_records(
         self, 
-        start_date: Optional[str] = None,
-        end_date: Optional[str] = None,
-        mode: Optional[str] = None
+        start_date: str | None = None,
+        end_date: str | None = None,
+        mode: str | None = None
     ) -> List[RoleSelectionRecord]:
         """查询选择记录"""
         with sqlite3.connect(self.db_path) as conn:
@@ -204,7 +203,7 @@ class SelectionDatabase:
 class RoleSelectionAnalytics:
     """角色选择分析引擎"""
     
-    def __init__(self, db_path: Optional[Path] = None):
+    def __init__(self, db_path: Path | None = None):
         self.db = SelectionDatabase(db_path)
         self.logger = self._setup_logger()
     
@@ -247,7 +246,7 @@ class RoleSelectionAnalytics:
         keywords_matched: List[str],
         execution_time_ms: float,
         success: bool = True,
-        error_message: Optional[str] = None
+        error_message: str | None = None
     ) -> int:
         """
         记录一次角色选择
@@ -290,8 +289,8 @@ class RoleSelectionAnalytics:
     def generate_summary(
         self,
         period: str = "monthly",
-        start_date: Optional[str] = None,
-        end_date: Optional[str] = None
+        start_date: str | None = None,
+        end_date: str | None = None
     ) -> AnalyticsSummary:
         """
         生成统计摘要
@@ -439,7 +438,7 @@ class RoleSelectionAnalytics:
     def export_report(
         self,
         summary: AnalyticsSummary,
-        output_path: Optional[Path] = None
+        output_path: Path | None = None
     ) -> Path:
         """
         导出分析报告
@@ -582,7 +581,7 @@ if __name__ == "__main__":
     print("\n生成分析报告...")
     summary = analytics.generate_summary(period="demo")
     
-    print(f"\n 统计摘要:")
+    print("\n 统计摘要:")
     print(f"   总选择次数: {summary.total_selections}")
     print(f"   平均置信度: {summary.avg_confidence:.2%}")
     print(f"   成功率: {summary.success_rate:.2%}")

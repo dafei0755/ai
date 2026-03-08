@@ -1,11 +1,12 @@
 """最终审核节点"""
 
-from typing import Dict, Any, Literal, Optional
-from loguru import logger
-from langgraph.types import interrupt, Command
-from langgraph.store.base import BaseStore
+from typing import Literal
 
-from ...core.state import ProjectAnalysisState, AnalysisStage
+from langgraph.store.base import BaseStore
+from langgraph.types import Command, interrupt
+from loguru import logger
+
+from ...core.state import AnalysisStage, ProjectAnalysisState
 from ...core.types import InteractionType
 
 
@@ -15,7 +16,7 @@ class FinalReviewNode:
     @staticmethod
     def execute(
         state: ProjectAnalysisState,
-        store: Optional[BaseStore] = None
+        store: BaseStore | None = None
     ) -> Command[Literal["pdf_generator", "result_aggregator"]]:
         """
         执行最终报告审核交互

@@ -6,15 +6,15 @@
 重构后: requirements_confirmation_refactored.py (约100行，减少60%)
 """
 
-from typing import Dict, Any, Literal, Optional
 from datetime import datetime
-from loguru import logger
-from langgraph.types import Command
-from langgraph.store.base import BaseStore
+from typing import Any, Dict, Literal
 
+from langgraph.store.base import BaseStore
+from langgraph.types import Command
+from loguru import logger
+
+from ...core.state import ProjectAnalysisState
 from .interaction_agent_base import InteractionAgent, extract_intent_from_response
-from ...core.state import ProjectAnalysisState, AnalysisStage
-from ...core.types import InteractionType
 
 
 class RequirementsConfirmationNode(InteractionAgent):
@@ -57,7 +57,7 @@ class RequirementsConfirmationNode(InteractionAgent):
     def _prepare_interaction_data(
         self,
         state: ProjectAnalysisState,
-        store: Optional[BaseStore] = None
+        store: BaseStore | None = None
     ) -> Dict[str, Any]:
         """准备需求确认交互数据"""
         structured_requirements = state.get("structured_requirements", {})
@@ -109,7 +109,7 @@ class RequirementsConfirmationNode(InteractionAgent):
         self,
         state: ProjectAnalysisState,
         user_response: Any,
-        store: Optional[BaseStore] = None
+        store: BaseStore | None = None
     ) -> Command[Literal["project_director", "requirements_analyst"]]:
         """处理用户响应"""
         # 解析用户意图
@@ -195,7 +195,7 @@ class RequirementsConfirmationNode(InteractionAgent):
 
             if new_normalized != current_normalized:
                 # 计算实际差异长度
-                diff_chars = sum(1 for a, b in zip(new_normalized, current_normalized) if a != b)
+                diff_chars = sum(1 for a, b in zip(new_normalized, current_normalized, strict=False) if a != b)
                 diff_chars += abs(len(new_normalized) - len(current_normalized))
 
                 # 只有差异超过10个字符才算真实修改
@@ -254,9 +254,9 @@ class RequirementsConfirmationNode(InteractionAgent):
     def _handle_revision(
         self,
         state: ProjectAnalysisState,
-        feedback: Optional[str],
+        feedback: str | None,
         modifications: Any,
-        additional_info: Optional[str]
+        additional_info: str | None
     ) -> Command[Literal["requirements_analyst"]]:
         """处理：用户明确要求修订"""
         updated_state = {"requirements_confirmed": False}
@@ -299,7 +299,7 @@ def get_requirements_confirmation_node() -> RequirementsConfirmationNode:
 # 向后兼容: 原有调用方式
 def execute_requirements_confirmation(
     state: ProjectAnalysisState,
-    store: Optional[BaseStore] = None
+    store: BaseStore | None = None
 ) -> Command:
     """向后兼容的执行函数
 

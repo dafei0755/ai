@@ -158,7 +158,7 @@ class TestAsyncNodeSuccess:
         async def _async_node(self, state):
             return {"async_output": True}
 
-        result = asyncio.get_event_loop().run_until_complete(_async_node(FakeWorkflow(), FAKE_STATE))
+        result = asyncio.run(_async_node(FakeWorkflow(), FAKE_STATE))
         assert result == {"async_output": True}
 
     def test_async_decorator_preserves_function_name(self):
@@ -180,7 +180,7 @@ class TestAsyncNodeException:
         async def _async_failing_node(self, state):
             raise ConnectionError("async LLM 超时")
 
-        result = asyncio.get_event_loop().run_until_complete(_async_failing_node(FakeWorkflow(), FAKE_STATE))
+        result = asyncio.run(_async_failing_node(FakeWorkflow(), FAKE_STATE))
         assert result["status"] == "async_fallback"
         assert len(result["errors"]) == 1
         assert "ConnectionError" in result["errors"][0]
@@ -190,7 +190,7 @@ class TestAsyncNodeException:
         async def _async_timeout_node(self, state):
             raise asyncio.TimeoutError()
 
-        result = asyncio.get_event_loop().run_until_complete(_async_timeout_node(FakeWorkflow(), FAKE_STATE))
+        result = asyncio.run(_async_timeout_node(FakeWorkflow(), FAKE_STATE))
         assert len(result["errors"]) == 1
 
     def test_async_graph_interrupt_is_reraised(self):
@@ -199,7 +199,7 @@ class TestAsyncNodeException:
             raise GraphInterrupt("async pause")
 
         with pytest.raises(GraphInterrupt):
-            asyncio.get_event_loop().run_until_complete(_async_interrupt_node(FakeWorkflow(), FAKE_STATE))
+            asyncio.run(_async_interrupt_node(FakeWorkflow(), FAKE_STATE))
 
 
 # ---------------------------------------------------------------------------

@@ -4,10 +4,9 @@
 定义可扩展的智能体基类和通用功能
 """
 
-import asyncio
 from abc import ABC, abstractmethod
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
 from langchain_core.runnables import RunnableConfig
@@ -45,9 +44,9 @@ class BaseAgent(ABC):
         agent_type: AgentType,
         name: str,
         description: str,
-        llm_model: Optional[Any] = None,
-        tools: Optional[List[Any]] = None,
-        config: Optional[Dict[str, Any]] = None,
+        llm_model: Any | None = None,
+        tools: List[Any] | None = None,
+        config: Dict[str, Any] | None = None,
     ):
         self.agent_type = agent_type
         self.name = name
@@ -69,7 +68,7 @@ class BaseAgent(ABC):
 
     @abstractmethod
     def execute(
-        self, state: ProjectAnalysisState, config: RunnableConfig, store: Optional[BaseStore] = None
+        self, state: ProjectAnalysisState, config: RunnableConfig, store: BaseStore | None = None
     ) -> AnalysisResult:
         """执行智能体任务"""
         pass
@@ -123,7 +122,7 @@ class BaseAgent(ABC):
 
         return "\n\n".join(context_parts)
 
-    def get_review_feedback_for_agent(self, state: ProjectAnalysisState) -> Optional[Dict[str, Any]]:
+    def get_review_feedback_for_agent(self, state: ProjectAnalysisState) -> Dict[str, Any] | None:
         """
          获取针对当前专家的审核反馈
 
@@ -172,7 +171,7 @@ class BaseAgent(ABC):
         for i, issue in enumerate(issues, 1):
             suffix += f"\n{i}. {issue}"
 
-        suffix += f"""
+        suffix += """
 
  改进建议：
 """
@@ -200,9 +199,9 @@ class BaseAgent(ABC):
     def create_analysis_result(
         self,
         content: str,
-        structured_data: Optional[Dict[str, Any]] = None,
+        structured_data: Dict[str, Any] | None = None,
         confidence: float = 1.0,
-        sources: Optional[List[str]] = None,
+        sources: List[str] | None = None,
     ) -> AnalysisResult:
         """创建分析结果"""
         result = AnalysisResult(
@@ -233,7 +232,7 @@ class BaseAgent(ABC):
         logger.error(error_message)
 
         # 创建 SystemError dataclass 用于记录（但不用于 raise）
-        system_error = SystemError(
+        SystemError(
             error_type=ErrorType.AGENT_ERROR,
             message=error_message,
             details={
@@ -379,7 +378,7 @@ class LLMAgent(BaseAgent):
             raise
 
     def prepare_messages(
-        self, state: ProjectAnalysisState, additional_context: Optional[Dict[str, Any]] = None
+        self, state: ProjectAnalysisState, additional_context: Dict[str, Any] | None = None
     ) -> List[BaseMessage]:
         """
         准备LLM消息
@@ -429,7 +428,7 @@ class LLMAgent(BaseAgent):
 
         formatted_parts = []
         for key, value in context.items():
-            if isinstance(value, (list, dict)):
+            if isinstance(value, list | dict):
                 import json
 
                 value_str = json.dumps(value, ensure_ascii=False, indent=2)
@@ -466,7 +465,7 @@ class ToolAgent(BaseAgent):
             logger.error(f"Tool {tool_name} execution failed: {str(e)}")
             raise
 
-    def get_tool(self, tool_name: str) -> Optional[Any]:
+    def get_tool(self, tool_name: str) -> Any | None:
         """获取工具"""
         for tool in self.tools:
             if hasattr(tool, "name") and tool.name == tool_name:
@@ -514,9 +513,9 @@ class AgentFactory:
     def create_agent(
         cls,
         agent_type: AgentType,
-        llm_model: Optional[Any] = None,
-        tools: Optional[List[Any]] = None,
-        config: Optional[Dict[str, Any]] = None,
+        llm_model: Any | None = None,
+        tools: List[Any] | None = None,
+        config: Dict[str, Any] | None = None,
     ) -> BaseAgent:
         """创建智能体实例"""
         if agent_type not in cls._agent_classes:

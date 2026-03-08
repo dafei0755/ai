@@ -12,9 +12,9 @@
 作者: Ability Core P1 Implementation
 """
 
-from typing import List, Literal, Optional
-from pydantic import BaseModel, Field
+from typing import List, Literal
 
+from pydantic import BaseModel, Field
 
 # ============================================================================
 # 能力成熟度等级定义
@@ -96,9 +96,9 @@ class AbilityDeclaration(BaseModel):
 
     confidence: float = Field(default=0.9, ge=0.0, le=1.0, description="专家对该能力的置信度（0.0-1.0）")
 
-    focus: Optional[str] = Field(default=None, description="能力聚焦方向（如 '住宅类项目'、'技术系统整合' 等）")
+    focus: str | None = Field(default=None, description="能力聚焦方向（如 '住宅类项目'、'技术系统整合' 等）")
 
-    note: Optional[str] = Field(default=None, description="备注说明")
+    note: str | None = Field(default=None, description="备注说明")
 
     class Config:
         json_schema_extra = {

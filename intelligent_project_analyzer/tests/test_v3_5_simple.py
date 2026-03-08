@@ -3,9 +3,9 @@ v3.5简化验证测试 - 不依赖外部库
 只检查文件存在性、语法正确性和配置完整性
 """
 
-import sys
 import os
-import json
+import sys
+
 import yaml
 
 # 添加项目根目录
@@ -28,8 +28,8 @@ def test_yaml_syntax():
     for yaml_file in yaml_files:
         file_path = os.path.join(project_root, yaml_file)
         try:
-            with open(file_path, 'r', encoding='utf-8') as f:
-                data = yaml.safe_load(f)
+            with open(file_path, encoding='utf-8') as f:
+                yaml.safe_load(f)
             print(f" {os.path.basename(yaml_file)} - 语法正确")
         except yaml.YAMLError as e:
             print(f" {os.path.basename(yaml_file)} - YAML错误: {e}")
@@ -51,7 +51,7 @@ def test_requirements_analyst_config():
         file_path = os.path.join(project_root, 
             "intelligent_project_analyzer/config/prompts/requirements_analyst.yaml")
         
-        with open(file_path, 'r', encoding='utf-8') as f:
+        with open(file_path, encoding='utf-8') as f:
             config = yaml.safe_load(f)
         
         # 检查版本
@@ -95,7 +95,7 @@ def test_expert_protocol_config():
         file_path = os.path.join(project_root,
             "intelligent_project_analyzer/config/prompts/expert_autonomy_protocol.yaml")
         
-        with open(file_path, 'r', encoding='utf-8') as f:
+        with open(file_path, encoding='utf-8') as f:
             config = yaml.safe_load(f)
         
         # 检查版本
@@ -145,7 +145,7 @@ def test_v2_config():
         file_path = os.path.join(project_root,
             "intelligent_project_analyzer/config/roles/v2_design_director.yaml")
         
-        with open(file_path, 'r', encoding='utf-8') as f:
+        with open(file_path, encoding='utf-8') as f:
             config = yaml.safe_load(f)
         
         # 正确的结构：V2_设计总监 → roles → "2-0" → system_prompt
@@ -205,7 +205,7 @@ def test_python_syntax():
     for py_file in python_files:
         file_path = os.path.join(project_root, py_file)
         try:
-            with open(file_path, 'r', encoding='utf-8') as f:
+            with open(file_path, encoding='utf-8') as f:
                 code = f.read()
             
             # 尝试编译（不执行）
@@ -232,7 +232,7 @@ def test_code_contains_v35_features():
         file_path = os.path.join(project_root,
             "intelligent_project_analyzer/agents/dynamic_project_director.py")
         
-        with open(file_path, 'r', encoding='utf-8') as f:
+        with open(file_path, encoding='utf-8') as f:
             code = f.read()
         
         if "class ChallengeDetector" in code:
@@ -261,7 +261,7 @@ def test_code_contains_v35_features():
         file_path = os.path.join(project_root,
             "intelligent_project_analyzer/workflow/main_workflow.py")
         
-        with open(file_path, 'r', encoding='utf-8') as f:
+        with open(file_path, encoding='utf-8') as f:
             code = f.read()
         
         if "detect_challenges" in code:

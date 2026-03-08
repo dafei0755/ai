@@ -13,9 +13,8 @@ v7.105: LLM 驱动的任务信息完整性补充问题生成器
 - TaskCompletenessAnalyzer 作为回退方案
 """
 
-import json
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 import yaml
 from langchain_core.messages import HumanMessage, SystemMessage
@@ -44,7 +43,7 @@ class LLMGapQuestionGenerator:
         """
         config_path = Path(__file__).parent.parent / "config" / "prompts" / "gap_question_generator.yaml"
         try:
-            with open(config_path, "r", encoding="utf-8") as f:
+            with open(config_path, encoding="utf-8") as f:
                 config = yaml.safe_load(f)
                 logger.info(f" [LLMGapQuestionGenerator] 配置文件加载成功: {config_path}")
                 return config
@@ -86,7 +85,11 @@ class LLMGapQuestionGenerator:
         covered_dimensions: List[str],
         existing_info_summary: str,
         completeness_score: float,
-        llm: Optional[Any] = None,
+        llm: Any | None = None,
+        # v7.900 G5: 输出意图上下文（可选，供未来 YAML 模板注入）
+        active_projections: List[str] | None = None,
+        detected_identity_modes: List[str] | None = None,
+        output_framework_signals: Dict[str, Any] | None = None,
     ) -> List[Dict[str, Any]]:
         """
         生成任务信息补充问题
@@ -126,7 +129,7 @@ class LLMGapQuestionGenerator:
                 target_count=target_count,
             )
 
-            logger.info(f"[LLMGapQuestionGenerator] 开始生成问题...")
+            logger.info("[LLMGapQuestionGenerator] 开始生成问题...")
             logger.debug(f"[LLMGapQuestionGenerator] 用户输入: {user_input[:100]}...")
             logger.debug(f"[LLMGapQuestionGenerator] 缺失维度: {missing_dimensions}")
 
@@ -165,7 +168,7 @@ class LLMGapQuestionGenerator:
 
             #  v7.130: 修复数据类型错误 - 处理LLM返回list的情况
             if isinstance(data, list):
-                logger.warning(f"️ [LLMGapQuestionGenerator] LLM返回列表而非字典，自动转换")
+                logger.warning("️ [LLMGapQuestionGenerator] LLM返回列表而非字典，自动转换")
                 questions = data
                 rationale = ""
             elif isinstance(data, dict):
@@ -348,7 +351,11 @@ class LLMGapQuestionGenerator:
         covered_dimensions: List[str],
         existing_info_summary: str,
         completeness_score: float,
-        llm: Optional[Any] = None,
+        llm: Any | None = None,
+        # v7.900 G5: 输出意图上下文（可选知道）
+        active_projections: List[str] | None = None,
+        detected_identity_modes: List[str] | None = None,
+        output_framework_signals: Dict[str, Any] | None = None,
     ) -> List[Dict[str, Any]]:
         """
         同步版本的 generate 方法（供非异步环境调用）
@@ -373,6 +380,9 @@ class LLMGapQuestionGenerator:
                     existing_info_summary=existing_info_summary,
                     completeness_score=completeness_score,
                     llm=llm,
+                    active_projections=active_projections,
+                    detected_identity_modes=detected_identity_modes,
+                    output_framework_signals=output_framework_signals,
                 )
             )
         except Exception as e:

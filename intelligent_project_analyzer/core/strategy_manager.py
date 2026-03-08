@@ -5,16 +5,17 @@ Role Selection Strategy Manager
 负责加载、验证和应用角色选择策略
 """
 
-import yaml
 from pathlib import Path
-from typing import Dict, List, Any, Optional
+from typing import Any, Dict, List
+
+import yaml
 from loguru import logger
 
 
 class StrategyManager:
     """策略管理器"""
     
-    def __init__(self, strategy_file: Optional[str] = None):
+    def __init__(self, strategy_file: str | None = None):
         """
         初始化策略管理器
         
@@ -33,7 +34,7 @@ class StrategyManager:
     def _load_strategies(self) -> Dict[str, Any]:
         """加载策略配置"""
         try:
-            with open(self.strategy_file, 'r', encoding='utf-8') as f:
+            with open(self.strategy_file, encoding='utf-8') as f:
                 strategies = yaml.safe_load(f)
             logger.info(f"Loaded strategies from {self.strategy_file}")
             return strategies
@@ -64,7 +65,7 @@ class StrategyManager:
             }
         }
     
-    def get_strategy(self, strategy_name: Optional[str] = None) -> Dict[str, Any]:
+    def get_strategy(self, strategy_name: str | None = None) -> Dict[str, Any]:
         """
         获取指定策略
         
@@ -115,7 +116,7 @@ class StrategyManager:
     def validate_role_selection(
         self, 
         selected_roles: List[str], 
-        strategy_name: Optional[str] = None
+        strategy_name: str | None = None
     ) -> Dict[str, Any]:
         """
         验证角色选择是否符合策略要求
@@ -190,8 +191,8 @@ class StrategyManager:
         strategy_name: str,
         selected_roles: List[str],
         reasoning: str,
-        alternatives: Optional[List[Dict]] = None,
-        confidence: Optional[float] = None
+        alternatives: List[Dict] | None = None,
+        confidence: float | None = None
     ) -> str:
         """
         生成决策说明
@@ -238,7 +239,7 @@ class StrategyManager:
     def get_complementary_recommendations(
         self, 
         selected_roles: List[str],
-        strategy_name: Optional[str] = None
+        strategy_name: str | None = None
     ) -> List[Dict[str, str]]:
         """
         根据已选角色,获取互补性推荐

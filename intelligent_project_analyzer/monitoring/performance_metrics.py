@@ -4,8 +4,9 @@
 """
 
 import time
-from typing import Dict, Any, Optional
 from collections import defaultdict
+from typing import Any, Dict
+
 from loguru import logger
 
 
@@ -18,28 +19,28 @@ class MetricsCollector:
         self.histograms = defaultdict(list)
         self.timers = {}
 
-    def increment_counter(self, name: str, value: int = 1, labels: Optional[Dict[str, str]] = None):
+    def increment_counter(self, name: str, value: int = 1, labels: Dict[str, str] | None = None):
         """增加计数器"""
         key = self._make_key(name, labels)
         self.counters[key] += value
 
-    def set_gauge(self, name: str, value: float, labels: Optional[Dict[str, str]] = None):
+    def set_gauge(self, name: str, value: float, labels: Dict[str, str] | None = None):
         """设置仪表值"""
         key = self._make_key(name, labels)
         self.gauges[key] = value
 
-    def record_histogram(self, name: str, value: float, labels: Optional[Dict[str, str]] = None):
+    def record_histogram(self, name: str, value: float, labels: Dict[str, str] | None = None):
         """记录直方图值"""
         key = self._make_key(name, labels)
         self.histograms[key].append(value)
 
-    def start_timer(self, name: str, labels: Optional[Dict[str, str]] = None) -> str:
+    def start_timer(self, name: str, labels: Dict[str, str] | None = None) -> str:
         """开始计时"""
         key = self._make_key(name, labels)
         self.timers[key] = time.time()
         return key
 
-    def stop_timer(self, name: str, labels: Optional[Dict[str, str]] = None) -> float:
+    def stop_timer(self, name: str, labels: Dict[str, str] | None = None) -> float:
         """停止计时并记录"""
         key = self._make_key(name, labels)
         if key not in self.timers:
@@ -53,7 +54,7 @@ class MetricsCollector:
         self.record_histogram(name, elapsed, labels)
         return elapsed
 
-    def _make_key(self, name: str, labels: Optional[Dict[str, str]] = None) -> str:
+    def _make_key(self, name: str, labels: Dict[str, str] | None = None) -> str:
         """生成指标键"""
         if not labels:
             return name
@@ -250,7 +251,7 @@ def reset_metrics():
 class TimerContext:
     """计时上下文管理器"""
 
-    def __init__(self, name: str, labels: Optional[Dict[str, str]] = None):
+    def __init__(self, name: str, labels: Dict[str, str] | None = None):
         self.name = name
         self.labels = labels
         self.start_time = None

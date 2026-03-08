@@ -23,13 +23,16 @@ v7.151: 升级为"需求洞察"，合并需求确认功能
 """
 
 from datetime import datetime
-from typing import Any, Dict, Literal, Optional
+from typing import Any, Dict, Literal
 
 from langgraph.store.base import BaseStore
 from langgraph.types import Command, interrupt
 from loguru import logger
 
 from ...core.state import ProjectAnalysisState
+
+# v8.2: 动态步骤追踪装饰器
+from ...utils.node_tracker import track_active_step
 from .requirements_restructuring import RequirementsRestructuringEngine
 
 
@@ -45,7 +48,7 @@ class QuestionnaireSummaryNode:
 
     @staticmethod
     def execute(
-        state: ProjectAnalysisState, store: Optional[BaseStore] = None
+        state: ProjectAnalysisState, store: BaseStore | None = None
     ) -> Command[Literal["project_director", "requirements_analyst"]]:
         """
         执行需求重构并展示给用户确认/编辑
@@ -66,12 +69,17 @@ class QuestionnaireSummaryNode:
 
         # 诊断：检查必要的前置数据是否存在
         confirmed_tasks = state.get("confirmed_core_tasks") or []
-        gap_filling = state.get("gap_filling_answers") or {}
+        # LT-3: 优先从 questionnaire_responses["gap_filling_answers"] 读取，兼容旧 checkpoint 顶层字段
+        gap_filling = (
+            (state.get("questionnaire_responses") or {}).get("gap_filling_answers")
+            or state.get("gap_filling_answers")  # backward-compat: 旧 checkpoint 顶层字段
+            or {}
+        )
         selected_dims = state.get("selected_dimensions") or []
 
-        logger.info(f" [前置数据检查]")
+        logger.info(" [前置数据检查]")
         logger.info(f"   - confirmed_core_tasks: {len(confirmed_tasks)}个")
-        logger.info(f"   - gap_filling_answers: {len(gap_filling)}个字段")
+        logger.info(f"   - gap_filling_answers: {len(gap_filling)}个字段(via questionnaire_responses)")
         logger.info(f"   - selected_dimensions: {len(selected_dims)}个")
 
         if not confirmed_tasks:
@@ -130,7 +138,7 @@ class QuestionnaireSummaryNode:
         else:
             logger.warning("️ [analysis_layers] 所有路径均未获取到数据，将使用降级模式")
             logger.warning(
-                f"   已尝试路径: requirement_analysis, agent_results.requirements_analyst, structured_requirements, state.analysis_layers"
+                "   已尝试路径: requirement_analysis, agent_results.requirements_analyst, structured_requirements, state.analysis_layers"
             )
 
         user_input = state.get("user_input", "")
@@ -165,7 +173,7 @@ class QuestionnaireSummaryNode:
             state.get("structured_requirements") or {}, restructured_doc
         )
 
-        logger.info(f" 需求洞察完成")
+        logger.info(" 需求洞察完成")
         logger.info(f" 项目目标: {restructured_doc['project_objectives']['primary_goal'][:50]}...")
         logger.info(f" 设计重点: {len(restructured_doc['design_priorities'])}个维度")
         logger.info(f"️  风险识别: {len(restructured_doc['identified_risks'])}项")
@@ -311,12 +319,11 @@ class QuestionnaireSummaryNode:
 
                 # 计算差异字符数：长度差 + 内容差异
                 diff = abs(len(str(new_value)) - len(str(old_value)))
-                diff += sum(1 for a, b in zip(str(new_value), str(old_value)) if a != b)
+                diff += sum(1 for a, b in zip(str(new_value), str(old_value), strict=False) if a != b)
                 total_diff_chars += diff
 
         has_major_modification = total_diff_chars >= 50
         has_minor_modification = 0 < total_diff_chars < 50
-        no_modification = total_diff_chars == 0
 
         logger.info(f" [需求洞察] 修改分析: 差异字符数={total_diff_chars}, 重大修改={has_major_modification}")
 
@@ -366,8 +373,9 @@ class QuestionnaireSummaryNode:
 
             # 触发分类学习收集（fire-and-forget，不阻塞主流程）
             try:
-                from ...services.taxonomy_learning_collector import get_learning_collector
                 import asyncio
+
+                from ...services.taxonomy_learning_collector import get_learning_collector
 
                 session_id = state.get("session_id", "unknown")
                 user_input = state.get("user_input", "")
@@ -405,12 +413,12 @@ class QuestionnaireSummaryNode:
         # Step1: 核心任务
         confirmed_tasks = state.get("confirmed_core_tasks") or []
 
-        # Step2: 信息补全（可能在gap_filling_answers或questionnaire_responses中）
-        gap_filling = state.get("gap_filling_answers") or {}
-        if not gap_filling:
-            #  v7.143: 添加防御性代码，避免 questionnaire_responses 为 None 时崩溃
-            questionnaire_responses = state.get("questionnaire_responses") or {}
-            gap_filling = questionnaire_responses.get("gap_filling") or {}
+        # Step2: 信息补全（LT-3: 优先从 questionnaire_responses["gap_filling_answers"] 读取）
+        gap_filling = (
+            (state.get("questionnaire_responses") or {}).get("gap_filling_answers")
+            or state.get("gap_filling_answers")  # backward-compat: 旧 checkpoint 顶层字段
+            or {}
+        )
 
         # Step3: 雷达维度
         selected_dims = state.get("selected_dimensions") or []
@@ -433,7 +441,7 @@ class QuestionnaireSummaryNode:
                     "source": "fallback_top_level_fields",
                 }
 
-        logger.info(f" 问卷数据提取:")
+        logger.info(" 问卷数据提取:")
         logger.info(f"   - 核心任务: {len(confirmed_tasks)}个")
         logger.info(f"   - 信息补全: {len(gap_filling)}个字段")
         logger.info(f"   - 雷达维度: {len(selected_dims)}个")
@@ -532,9 +540,11 @@ class QuestionnaireSummaryNode:
 
         # --- 3. 与 snapshot 对比，构建复盘对象 ---
         baseline = snapshot or current_tasks or []
+        if not snapshot:
+            logger.info("[G3] step1_confirmed_tasks_snapshot 为空，使用 confirmed_core_tasks 作为复盘基线")
         baseline_ids = {t.get("id") for t in baseline if t.get("id")}
         baseline_titles = {t.get("title", "").strip().lower() for t in baseline}
-        current_ids = {t.get("id") for t in corrected if t.get("id")}
+        {t.get("id") for t in corrected if t.get("id")}
 
         # 增加：在 corrected 中但不在 baseline 中的任务
         added_items = []
@@ -547,7 +557,7 @@ class QuestionnaireSummaryNode:
                     {
                         "title": t.get("title", ""),
                         "source": t.get("source", "gap_backflow"),
-                        "reason": f"信息补全阶段发现新维度，自动补充",
+                        "reason": "信息补全阶段发现新维度，自动补充",
                     }
                 )
             elif tid and tid.startswith("task_correction_add_"):
@@ -780,12 +790,12 @@ class QuestionnaireSummaryNode:
                 constraint_texts.append(f"空间: {constraints['space']['area']}")
 
             if constraint_texts:
-                summary_parts.append(f"\n【核心约束】\n" + " | ".join(constraint_texts))
+                summary_parts.append("\n【核心约束】\n" + " | ".join(constraint_texts))
 
         # 重点部分
         if priorities:
             priority_texts = [f"{p['label']}({int(p['weight']*100)}%)" for p in priorities[:3]]
-            summary_parts.append(f"\n【设计重点】\n" + " > ".join(priority_texts))
+            summary_parts.append("\n【设计重点】\n" + " > ".join(priority_texts))
 
         return "\n".join(summary_parts)
 
@@ -929,8 +939,9 @@ class QuestionnaireSummaryNode:
 
 
 # 便捷函数（用于工作流节点调用）
+@track_active_step("questionnaire_summary")
 def questionnaire_summary_node(
-    state: ProjectAnalysisState, store: Optional[BaseStore] = None
+    state: ProjectAnalysisState, store: BaseStore | None = None
 ) -> Command[Literal["project_director", "requirements_analyst"]]:
     """问卷汇总节点函数
 

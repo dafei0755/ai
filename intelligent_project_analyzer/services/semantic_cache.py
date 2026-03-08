@@ -31,7 +31,7 @@ import hashlib
 import json
 import time
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Tuple
 
 import numpy as np
 from loguru import logger
@@ -115,8 +115,8 @@ class SemanticCache:
         enabled: bool = True,
         similarity_threshold: float = 0.90,
         ttl: int = 604800,  # 7天
-        redis_url: Optional[str] = None,
-        openai_api_key: Optional[str] = None,
+        redis_url: str | None = None,
+        openai_api_key: str | None = None,
     ):
         """
         初始化语义缓存
@@ -185,7 +185,7 @@ class SemanticCache:
         except Exception as e:
             logger.warning(f"⚠️ OpenAI初始化失败，语义缓存不可用: {e}")
 
-    def _generate_embedding(self, text: str) -> Optional[List[float]]:
+    def _generate_embedding(self, text: str) -> List[float] | None:
         """
         生成文本的向量表示
 
@@ -246,7 +246,7 @@ class SemanticCache:
         hash_key = hashlib.sha256(input_text.encode()).hexdigest()[:16]
         return f"semantic:requirements:{hash_key}"
 
-    def get(self, input_text: str) -> Optional[Tuple[Dict[str, Any], float]]:
+    def get(self, input_text: str) -> Tuple[Dict[str, Any], float] | None:
         """
         获取语义缓存结果
 
@@ -338,7 +338,7 @@ class SemanticCache:
         self,
         input_text: str,
         output_data: Dict[str, Any],
-        ttl: Optional[int] = None,
+        ttl: int | None = None,
     ) -> bool:
         """
         设置语义缓存
@@ -462,7 +462,7 @@ class SemanticCache:
 
 
 # 全局单例
-_semantic_cache: Optional[SemanticCache] = None
+_semantic_cache: SemanticCache | None = None
 
 
 def get_semantic_cache() -> SemanticCache:

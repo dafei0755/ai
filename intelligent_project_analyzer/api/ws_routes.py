@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 WebSocket 路由模块 (MT-1 提取自 api/server.py)
 
@@ -8,22 +7,11 @@ Routes:
 from __future__ import annotations
 
 import asyncio
-from typing import Dict, List
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from loguru import logger
 
-
-class _ServerProxy:
-    """延迟导入 server 模块中的运行时状态，避免循环导入。"""
-
-    def __getattr__(self, name: str):
-        import intelligent_project_analyzer.api.server as _srv
-
-        return getattr(_srv, name)
-
-
-_server = _ServerProxy()
+from intelligent_project_analyzer.api._server_proxy import server_proxy as _server
 
 router = APIRouter(tags=["websocket"])
 
@@ -136,16 +124,9 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
             # 如果没有连接了，清理字典
             if not _server.websocket_connections[session_id]:
                 del _server.websocket_connections[session_id]
-
-                #  v7.131: 当会话的所有 WebSocket 连接都断开时，清理浏览器池资源
-                try:
-                    total_active = sum(len(conns) for conns in _server.websocket_connections.values())
-                    if total_active == 0:
-                        from intelligent_project_analyzer.api.html_pdf_generator import PlaywrightBrowserPool
-
-                        await asyncio.wait_for(PlaywrightBrowserPool.cleanup(), timeout=10.0)
-                        logger.debug(" Playwright 浏览器池已清理（所有 WebSocket 已断开）")
-                except asyncio.TimeoutError:
-                    logger.warning(f"️ WebSocket断开后清理浏览器池超时: {session_id}")
-                except Exception as e:
-                    logger.debug(f" WebSocket断开后清理浏览器池失败: {session_id}, {e}")
+                # v7.131 BUG FIX: 不在此处清理 Playwright 浏览器池
+                # 原逻辑在 WebSocket 断开时检查 total_active==0 就调用 cleanup()，
+                # 但存在竞态条件：旧连接断开与新连接注册之间有 ~10ms 窗隙，
+                # 导致后台工作流仍在执行时浏览器池被错误销毁，PDF 生成必定失败。
+                # Playwright 浏览器池的正确清理时机是服务器关闭（lifespan handler），
+                # 而非 WebSocket 断开。

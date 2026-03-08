@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 用户会话隔离管理器
 
@@ -9,11 +8,10 @@
 4. 用户级别的 WebSocket 连接
 """
 
-import asyncio
-import time
-from typing import Dict, Any, Optional, List
+from dataclasses import dataclass
 from datetime import datetime
-from dataclasses import dataclass, field
+from typing import Any, Dict, List
+
 from loguru import logger
 
 from intelligent_project_analyzer.services.redis_session_manager import RedisSessionManager
@@ -28,8 +26,8 @@ class UserProgress:
     progress: float = 0.0
     current_stage: str = ""
     detail: str = ""
-    started_at: Optional[str] = None
-    updated_at: Optional[str] = None
+    started_at: str | None = None
+    updated_at: str | None = None
     
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -80,7 +78,7 @@ class UserSessionManager:
     USER_SESSION_TTL = 86400 * 7        # 用户会话保留 7 天
     
     def __init__(self):
-        self._session_manager: Optional[RedisSessionManager] = None
+        self._session_manager: RedisSessionManager | None = None
         self._local_cache: Dict[str, Dict] = {}  # 本地缓存，减少 Redis 查询
     
     async def connect(self):
@@ -100,7 +98,7 @@ class UserSessionManager:
         self,
         user_id: str,
         user_input: str,
-        session_id: Optional[str] = None
+        session_id: str | None = None
     ) -> str:
         """
         为用户创建新会话
@@ -182,12 +180,12 @@ class UserSessionManager:
             logger.error(f"获取用户会话失败: {e}")
             return []
     
-    async def get_user_active_session(self, user_id: str) -> Optional[str]:
+    async def get_user_active_session(self, user_id: str) -> str | None:
         """获取用户当前活跃会话"""
         key = f"{self.USER_ACTIVE_PREFIX}{user_id}"
         try:
             return await self._session_manager.redis_client.get(key)
-        except:
+        except Exception:
             return None
     
     # ==================== 进度管理 ====================
@@ -196,10 +194,10 @@ class UserSessionManager:
         self,
         user_id: str,
         session_id: str,
-        status: Optional[str] = None,
-        progress: Optional[float] = None,
-        stage: Optional[str] = None,
-        detail: Optional[str] = None
+        status: str | None = None,
+        progress: float | None = None,
+        stage: str | None = None,
+        detail: str | None = None
     ):
         """
         更新用户会话进度
@@ -216,9 +214,9 @@ class UserSessionManager:
         
         # 获取现有进度
         try:
-            existing = await self._session_manager.redis_client.hgetall(key)
-        except:
-            existing = {}
+            await self._session_manager.redis_client.hgetall(key)
+        except Exception:
+            pass
         
         # 更新字段
         update_data = {
@@ -245,7 +243,7 @@ class UserSessionManager:
         except Exception as e:
             logger.error(f"更新进度失败: {e}")
     
-    async def get_progress(self, user_id: str, session_id: str) -> Optional[UserProgress]:
+    async def get_progress(self, user_id: str, session_id: str) -> UserProgress | None:
         """
         获取用户会话进度
         
@@ -341,7 +339,7 @@ class UserSessionManager:
                 "total_tokens": int(data.get("total_tokens", 0)),
                 "last_used": data.get("last_used")
             }
-        except:
+        except Exception:
             return {"user_id": user_id, "total_requests": 0, "total_tokens": 0}
     
     # ==================== 内部方法 ====================
@@ -395,7 +393,7 @@ class UserSessionManager:
 
 
 # 全局实例
-_user_session_manager: Optional[UserSessionManager] = None
+_user_session_manager: UserSessionManager | None = None
 
 
 async def get_user_session_manager() -> UserSessionManager:

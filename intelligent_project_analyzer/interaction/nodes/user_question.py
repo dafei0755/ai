@@ -1,10 +1,11 @@
 """用户追问节点"""
 
 import json
-from typing import Dict, Any, Literal, Optional
-from loguru import logger
-from langgraph.types import interrupt, Command
+from typing import Literal
+
 from langgraph.store.base import BaseStore
+from langgraph.types import Command, interrupt
+from loguru import logger
 
 from ...core.state import ProjectAnalysisState
 from ...core.types import InteractionType
@@ -16,7 +17,7 @@ class UserQuestionNode:
     @staticmethod
     def execute(
         state: ProjectAnalysisState,
-        store: Optional[BaseStore] = None
+        store: BaseStore | None = None
     ) -> Command[Literal["project_director", "result_aggregator"]]:
         """
         处理用户追问交互

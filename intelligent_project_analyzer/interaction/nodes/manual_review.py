@@ -4,12 +4,13 @@
 当审核系统发现超过3个must_fix问题时，暂停流程，由用户裁决后续处理方式
 """
 
-from typing import Dict, Any, Literal, Optional
-from loguru import logger
-from langgraph.types import interrupt, Command
-from langgraph.store.base import BaseStore
+from typing import Any, Dict, Literal
 
-from ...core.state import ProjectAnalysisState, AnalysisStage
+from langgraph.store.base import BaseStore
+from langgraph.types import Command, interrupt
+from loguru import logger
+
+from ...core.state import AnalysisStage, ProjectAnalysisState
 from ...core.types import InteractionType
 
 
@@ -27,7 +28,7 @@ class ManualReviewNode:
     @staticmethod
     def execute(
         state: ProjectAnalysisState,
-        store: Optional[BaseStore] = None
+        store: BaseStore | None = None
     ) -> Command[Literal["batch_executor", "detect_challenges", "END"]]:
         """
         执行人工审核交互
@@ -102,11 +103,11 @@ class ManualReviewNode:
             "recommendation": "建议选择 'abort' 或 'selective_fix'，确保报告质量"
         }
         
-        logger.info(f"\n 问题统计:")
+        logger.info("\n 问题统计:")
         logger.info(f"   - 必须修复: {issues_count} 个")
         logger.info(f"   - Critical: {review_data['issues_summary']['critical_count']} 个")
         logger.info(f"   - High: {review_data['issues_summary']['high_count']} 个")
-        logger.info(f"\n 前5个问题:")
+        logger.info("\n 前5个问题:")
         for issue in review_data['top_issues'][:5]:
             logger.info(f"   [{issue['id']}] {issue['description']}")
         

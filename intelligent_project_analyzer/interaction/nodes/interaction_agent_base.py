@@ -12,7 +12,7 @@
 
 from abc import ABC, abstractmethod
 from datetime import datetime
-from typing import Any, Dict, List, Literal, Optional
+from typing import Any, Dict, List
 
 from langgraph.store.base import BaseStore
 from langgraph.types import Command, interrupt
@@ -56,7 +56,7 @@ class InteractionAgent(ABC):
 
     @abstractmethod
     def _prepare_interaction_data(
-        self, state: ProjectAnalysisState, store: Optional[BaseStore] = None
+        self, state: ProjectAnalysisState, store: BaseStore | None = None
     ) -> Dict[str, Any]:
         """准备交互数据 (子类实现)
 
@@ -74,7 +74,7 @@ class InteractionAgent(ABC):
 
     @abstractmethod
     def _process_response(
-        self, state: ProjectAnalysisState, user_response: Any, store: Optional[BaseStore] = None
+        self, state: ProjectAnalysisState, user_response: Any, store: BaseStore | None = None
     ) -> Command:
         """处理用户响应并路由到下一节点 (子类实现)
 
@@ -152,7 +152,7 @@ class InteractionAgent(ABC):
 
     # ========== 统一执行流程 (不建议重写) ==========
 
-    def execute(self, state: ProjectAnalysisState, store: Optional[BaseStore] = None) -> Command:
+    def execute(self, state: ProjectAnalysisState, store: BaseStore | None = None) -> Command:
         """统一的执行流程 (模板方法)
 
         执行顺序:
@@ -206,11 +206,11 @@ class InteractionAgent(ABC):
             if "timestamp" not in interaction_data:
                 interaction_data["timestamp"] = datetime.now().isoformat()
 
-            logger.info(f" Interaction data prepared")
+            logger.info(" Interaction data prepared")
             logger.info(f"   Keys: {list(interaction_data.keys())}")
 
             # Step 5: 发送 interrupt
-            logger.info(f" [INTERRUPT] Sending interrupt, waiting for user response...")
+            logger.info(" [INTERRUPT] Sending interrupt, waiting for user response...")
             user_response = interrupt(interaction_data)
             logger.info(f" Received user response: {type(user_response)}")
 
@@ -218,7 +218,7 @@ class InteractionAgent(ABC):
             updated_history = self._update_interaction_history(state, interaction_data, user_response)
 
             # Step 7: 处理响应
-            logger.info(f" Processing user response...")
+            logger.info(" Processing user response...")
             command = self._process_response(state, user_response, store)
 
             # Step 8: 合并交互历史到 Command.update
@@ -236,7 +236,7 @@ class InteractionAgent(ABC):
         except Exception as e:
             # 重新抛出 Interrupt 异常 (LangGraph控制流)
             if "Interrupt" in str(type(e)):
-                logger.debug(f"Re-raising Interrupt exception (normal LangGraph flow)")
+                logger.debug("Re-raising Interrupt exception (normal LangGraph flow)")
                 raise
 
             # 记录其他异常

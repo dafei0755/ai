@@ -14,25 +14,29 @@ import asyncio
 
 @pytest_asyncio.fixture
 async def redis_manager(env_setup):
-    """创建真实的RedisSessionManager实例用于测试"""
-    # 在env_setup之后导入，确保环境变量已设置
+    """创建真实的RedisSessionManager实例用于测试
+
+    隔离策略：通过 URL 直接指定 DB 15，确保连接池中所有连接都在 DB 15
+    上操作，避免 select(15) 仅影响单个连接的问题。
+    """
     from intelligent_project_analyzer.services.redis_session_manager import RedisSessionManager
 
-    manager = RedisSessionManager()
+    # 明确指定 DB 15，而非依赖连接后的 select()，保证连接池隔离
+    manager = RedisSessionManager(redis_url="redis://localhost:6379/15")
 
-    # 连接到Redis
     connected = await manager.connect()
+    if not connected or manager._memory_mode:
+        pytest.skip("Redis 不可用，跳过集成测试")
 
-    if connected and manager.redis_client:
-        # 使用测试专用DB
-        await manager.redis_client.select(15)
+    # 清除 DB 15 中的残留数据，确保测试起点干净
+    await manager.redis_client.flushdb()
 
     yield manager
 
-    # 清理测试数据
+    # 测试结束后清理 DB 15，避免污染其他测试
     if manager.redis_client:
         await manager.redis_client.flushdb()
-        await manager.redis_client.close()
+        await manager.redis_client.aclose()
 
 
 class TestRedisSessionManagerBasics:
@@ -252,3 +256,29 @@ class TestRedisSessionManagerDataHandling:
         assert loaded_data is not None
         for key, value in session_data.items():
             assert loaded_data[key] == value
+
+
+class TestRedisSessionManagerEdgeCases:
+    """测试 Redis 会话管理器边界条件"""
+
+    @pytest.mark.asyncio
+    async def test_delete_nonexistent_session(self, redis_manager):
+        """测试删除不存在的会话：幂等操作，不抛异常且返回 True"""
+        result = await redis_manager.delete("nonexistent-delete-xyz")
+        # 会话不存在时视为"已删除"，返回 True（幂等性保证）
+        assert result is True
+
+    @pytest.mark.asyncio
+    async def test_created_session_has_ttl(self, redis_manager):
+        """测试创建的会话具有有效的 TTL（不会永久存储）"""
+        session_id = "test-ttl-check-123"
+        await redis_manager.create(session_id, {"data": "ttl_test"})
+
+        key = f"{redis_manager.SESSION_PREFIX}{session_id}"
+        ttl = await redis_manager.redis_client.ttl(key)
+
+        # TTL 应大于 0（有过期时间）且不超过默认 SESSION_TTL
+        assert ttl > 0, f"会话 TTL 应 > 0，实际为 {ttl}"
+        assert ttl <= redis_manager.SESSION_TTL, (
+            f"TTL {ttl} 超过最大值 {redis_manager.SESSION_TTL}"
+        )

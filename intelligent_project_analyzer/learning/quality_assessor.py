@@ -13,10 +13,10 @@
 创建日期: 2026-02-10
 """
 
-from typing import Dict, List, Any, Optional
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
+from typing import Any, Dict, List
+
 from loguru import logger
-import statistics
 
 
 @dataclass

@@ -14,12 +14,19 @@ LLM重试机制工具模块
 
 import asyncio
 import functools
-from typing import Any, Callable, Optional, TypeVar, Union
+from typing import Any, Callable, TypeVar, Union
 
 import httpcore
 import openai
 from loguru import logger
-from tenacity import AsyncRetrying, RetryError, Retrying, retry_if_exception_type, stop_after_attempt, wait_exponential
+from tenacity import (
+    AsyncRetrying,
+    RetryError,
+    Retrying,
+    retry_if_exception_type,
+    stop_after_attempt,
+    wait_exponential,
+)
 
 # 定义可重试的异常类型
 RETRIABLE_EXCEPTIONS = (
@@ -50,7 +57,7 @@ class LLMRetryConfig:
         min_wait: float = 1.0,
         max_wait: float = 10.0,
         multiplier: float = 2.0,
-        timeout: Optional[float] = 30.0,
+        timeout: float | None = 30.0,
     ):
         """
         初始化重试配置
@@ -98,7 +105,7 @@ def _log_final_failure(retry_state) -> None:
 def invoke_llm_with_retry(
     llm: Any,
     messages: Union[list, str],
-    config: Optional[LLMRetryConfig] = None,
+    config: LLMRetryConfig | None = None,
     **kwargs,
 ) -> Any:
     """
@@ -161,7 +168,7 @@ def invoke_llm_with_retry(
 async def ainvoke_llm_with_retry(
     llm: Any,
     messages: Union[list, str],
-    config: Optional[LLMRetryConfig] = None,
+    config: LLMRetryConfig | None = None,
     **kwargs,
 ) -> Any:
     """
@@ -218,7 +225,7 @@ def llm_retry(
     min_wait: float = 1.0,
     max_wait: float = 10.0,
     multiplier: float = 2.0,
-    timeout: Optional[float] = 30.0,
+    timeout: float | None = 30.0,
 ) -> Callable[[F], F]:
     """
     LLM重试装饰器（同步函数）
@@ -278,7 +285,7 @@ def async_llm_retry(
     min_wait: float = 1.0,
     max_wait: float = 10.0,
     multiplier: float = 2.0,
-    timeout: Optional[float] = 30.0,
+    timeout: float | None = 30.0,
 ) -> Callable[[F], F]:
     """
     LLM重试装饰器（异步函数）

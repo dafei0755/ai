@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Celery 任务 API 路由
 
@@ -9,7 +8,7 @@ Celery 任务 API 路由
 import json
 import uuid
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from loguru import logger
@@ -23,7 +22,6 @@ try:
         analyze_project_with_files,
         get_queue_length,
         get_task_status,
-        resume_analysis,
     )
 
     CELERY_AVAILABLE = True
@@ -60,8 +58,8 @@ class CeleryTaskResponse(BaseModel):
     task_id: str
     status: str
     message: str
-    queue_position: Optional[int] = None
-    estimated_wait: Optional[str] = None
+    queue_position: int | None = None
+    estimated_wait: str | None = None
 
 
 class CeleryStatusResponse(BaseModel):
@@ -71,11 +69,11 @@ class CeleryStatusResponse(BaseModel):
     task_id: str
     status: str  # PENDING, STARTED, PROGRESS, WAITING, SUCCESS, FAILURE
     progress: float = 0.0
-    current_stage: Optional[str] = None
-    detail: Optional[str] = None
-    message: Optional[str] = None
-    result: Optional[Dict[str, Any]] = None
-    error: Optional[str] = None
+    current_stage: str | None = None
+    detail: str | None = None
+    message: str | None = None
+    result: Dict[str, Any] | None = None
+    error: str | None = None
 
 
 class QueueInfoResponse(BaseModel):
@@ -161,7 +159,7 @@ async def start_celery_analysis(request: CeleryAnalysisRequest):
         # 获取队列位置
         try:
             queue_length = get_queue_length("analysis")
-        except:
+        except Exception:
             queue_length = None
 
         logger.info(f" [Celery API] 任务已提交: session={session_id}, task={task.id}")
@@ -204,7 +202,7 @@ async def start_celery_analysis_with_files(
     if not CELERY_AVAILABLE:
         raise HTTPException(status_code=503, detail="Celery 服务不可用，请使用 /api/analysis/start-with-files 端点")
 
-    logger.info(f" [Celery] 收到多模态分析请求")
+    logger.info(" [Celery] 收到多模态分析请求")
     logger.info(f"用户输入: {user_input[:100] if user_input else '(无文本)'}...")
     logger.info(f"分析模式: {analysis_mode}")
     logger.info(f"文件数量: {len(files)}")
@@ -343,7 +341,7 @@ async def start_celery_analysis_with_files(
 
         try:
             queue_length = get_queue_length("analysis")
-        except:
+        except Exception:
             queue_length = None
 
         logger.info(f" [Celery API] 带文件任务已提交: session={session_id}, task={task.id}, files={len(files)}")
@@ -515,7 +513,7 @@ async def get_queue_info():
         for queue_name in ["analysis", "report", "default"]:
             try:
                 queues[queue_name] = get_queue_length(queue_name)
-            except:
+            except Exception:
                 queues[queue_name] = 0
 
         return QueueInfoResponse(celery_available=True, queues=queues, workers=workers, active_tasks=active_tasks)

@@ -52,7 +52,7 @@ class DynamicDimensionGenerator:
         config_path = Path(__file__).parent.parent / "config" / "prompts" / "dimension_generation_prompts.yaml"
 
         try:
-            with open(config_path, "r", encoding="utf-8") as f:
+            with open(config_path, encoding="utf-8") as f:
                 config = yaml.safe_load(f)
             logger.info(f" 加载Prompt配置: {config_path}")
             return config
@@ -89,7 +89,7 @@ class DynamicDimensionGenerator:
         user_input = self._safe_str(user_input)
 
         #  v7.117: 增强调试日志
-        logger.info(f" [DynamicDimensionGenerator] 开始LLM覆盖度分析")
+        logger.info(" [DynamicDimensionGenerator] 开始LLM覆盖度分析")
         #  v7.120: 日志输出使用_safe_str过滤emoji
         logger.info(f"   用户输入: {user_input[:100]}...")
         logger.info(f"   现有维度ID: {[d.get('id') for d in existing_dimensions]}")

@@ -17,24 +17,24 @@ Version: v8.110.0
 Date: 2026-02-17
 """
 
-import sys
 import json
-from pathlib import Path
+import sys
 from datetime import datetime
-from typing import List, Dict, Any
+from pathlib import Path
+from typing import Any, Dict, List
 
 # 添加项目根目录到path
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
 from loguru import logger
+
 from intelligent_project_analyzer.crawlers import (
     ArchdailyCrawler,
-    GoooodCrawler,
     CrawlerConfig,
+    GoooodCrawler,
     ProjectData,
 )
-
 
 # 配置日志
 logger.remove()
@@ -157,7 +157,7 @@ def load_layer1_examples() -> List[Dict[str, Any]]:
 
     import yaml
 
-    with open(registry_path, "r", encoding="utf-8") as f:
+    with open(registry_path, encoding="utf-8") as f:
         registry = yaml.safe_load(f)
 
     # 简化：直接返回示例ID列表
@@ -207,7 +207,10 @@ def main(use_login: bool = False, test_mode: bool = False):
     if use_login:
         # 尝试从配置文件读取
         try:
-            from intelligent_project_analyzer.config.crawler_credentials import ARCHDAILY_CONFIG, GOOOOD_CONFIG
+            from intelligent_project_analyzer.config.crawler_credentials import (
+                ARCHDAILY_CONFIG,
+                GOOOOD_CONFIG,
+            )
 
             logger.info("✅ 已加载登录配置")
             config_archdaily = ARCHDAILY_CONFIG
@@ -349,7 +352,7 @@ def main(use_login: bool = False, test_mode: bool = False):
         json.dump(cache_data, f, ensure_ascii=False, indent=2)
 
     logger.success(f"✅ 缓存已保存: {cache_path}")
-    logger.success(f"   有效期: 30天")
+    logger.success("   有效期: 30天")
 
     # 7. 统计
     logger.info("\n" + "=" * 80)

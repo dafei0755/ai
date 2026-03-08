@@ -1,6 +1,6 @@
 .PHONY: help test test-fast test-coverage test-unit test-integration
 .PHONY: test-agents test-workflow test-interaction test-security
-.PHONY: check report clean clean-test lint format security-scan
+.PHONY: check report clean clean-test lint format type-check security-scan
 .PHONY: install-test-deps ci
 
 # 默认目标
@@ -21,12 +21,13 @@ help:
 	@echo "  make test-security     - 运行Security模块测试"
 	@echo ""
 	@echo "辅助命令:"
-	@echo "  make check             - 检查测试环境前置条件"
+	@echo "  make check             - 代码质量全量检查 (lint + type-check)"
 	@echo "  make report            - 生成覆盖率报告"
 	@echo "  make clean-test        - 清理测试生成的文件"
-	@echo "  make lint              - 代码检查(flake8)"
-	@echo "  make format            - 代码格式化(black + isort)"
-	@echo "  make security-scan     - 安全扫描(bandit)"
+	@echo "  make lint              - 代码检查 (ruff check)"
+	@echo "  make format            - 代码格式化 (ruff format + fix)"
+	@echo "  make type-check        - 类型检查 (mypy)"
+	@echo "  make security-scan     - 安全扫描 (bandit)"
 	@echo "  make install-test-deps - 安装测试依赖"
 	@echo "  make ci                - 模拟CI环境测试"
 	@echo ""
@@ -77,11 +78,9 @@ test-security:
 
 # 前置条件检查
 check:
-	@echo "🔍 检查测试环境..."
-	@python -c "import sys; print(f'Python版本: {sys.version}')"
-	@python -c "import pytest; print(f'pytest版本: {pytest.__version__}')"
-	@python -c "import coverage; print(f'coverage版本: {coverage.__version__}')"
-	@python scripts/test_automation.py --check
+	@echo "🔍 ST-4: 代码质量全量检查 (lint + type-check)..."
+	@$(MAKE) lint
+	@$(MAKE) type-check
 
 # 生成报告
 report:
@@ -101,15 +100,19 @@ clean: clean-test
 	@find . -type d -name "*.egg-info" -exec rm -rf {} + 2>/dev/null || true
 	@rm -rf build/ dist/ .eggs/ 2>/dev/null || true
 
-# 代码质量
+# 代码质量 (ST-4: 已替换为 ruff)
 lint:
-	@echo "🔍 运行代码检查..."
-	@python -m flake8 intelligent_project_analyzer/ tests/ --max-line-length=120 --exclude=__pycache__,migrations
+	@echo "🔍 运行 ruff 代码检查..."
+	@python -m ruff check intelligent_project_analyzer/ --statistics
 
 format:
-	@echo "✨ 格式化代码..."
-	@python -m black intelligent_project_analyzer/ tests/ --line-length=120
-	@python -m isort intelligent_project_analyzer/ tests/ --profile=black
+	@echo "✨ 运行 ruff 格式化..."
+	@python -m ruff format intelligent_project_analyzer/
+	@python -m ruff check intelligent_project_analyzer/ --fix --unsafe-fixes
+
+type-check:
+	@echo "🧠 运行 mypy 类型检查..."
+	@python -m mypy --config-file mypy.ini
 
 security-scan:
 	@echo "🔒 运行安全扫描..."

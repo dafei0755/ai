@@ -3,7 +3,7 @@
 """
 
 from datetime import datetime
-from typing import Any, Dict, Literal, Optional
+from typing import Any, Dict, Literal
 
 from langgraph.store.base import BaseStore
 from langgraph.types import Command, interrupt
@@ -13,7 +13,10 @@ from intelligent_project_analyzer.core.state import AnalysisStage, ProjectAnalys
 from intelligent_project_analyzer.security.content_safety_guard import ContentSafetyGuard
 from intelligent_project_analyzer.security.domain_classifier import DomainClassifier
 from intelligent_project_analyzer.security.violation_logger import ViolationLogger
-from intelligent_project_analyzer.services.capability_boundary_service import CapabilityBoundaryService, CheckType
+from intelligent_project_analyzer.services.capability_boundary_service import (
+    CapabilityBoundaryService,
+    CheckType,
+)
 
 
 class InputGuardNode:
@@ -21,7 +24,7 @@ class InputGuardNode:
 
     @staticmethod
     def execute(
-        state: ProjectAnalysisState, store: Optional[BaseStore] = None, llm_model=None
+        state: ProjectAnalysisState, store: BaseStore | None = None, llm_model=None
     ) -> Command[Literal["requirements_analyst", "input_rejected"]]:
         """
         执行输入预检
@@ -91,7 +94,7 @@ class InputGuardNode:
         domain_result = domain_classifier.classify(user_input)
 
         #  优化：如果LLM判断非常明确（置信度>0.8），直接拒绝，不问用户
-        if domain_result["is_design_related"] == False:
+        if not domain_result["is_design_related"]:
             confidence = domain_result.get("confidence", 0)
 
             # 高置信度（>0.8）：直接拒绝
@@ -188,7 +191,7 @@ class InputGuardNode:
             check_type=CheckType.FULL,
         )
 
-        logger.info(f" 能力边界检查结果:")
+        logger.info(" 能力边界检查结果:")
         logger.info(f"   在能力范围内: {boundary_check.within_capability}")
         logger.info(f"   能力匹配度: {boundary_check.capability_score:.2f}")
         logger.info(f"   警告级别: {boundary_check.alert_level}")
@@ -200,7 +203,7 @@ class InputGuardNode:
         # 3.2 任务复杂度评估
         complexity_result = domain_classifier.assess_task_complexity(user_input)
 
-        logger.info(f" 复杂度评估结果:")
+        logger.info(" 复杂度评估结果:")
         logger.info(f"   复杂度: {complexity_result['complexity']}")
         logger.info(f"   置信度: {complexity_result['confidence']:.2f}")
         logger.info(f"   推理: {complexity_result['reasoning']}")
@@ -305,7 +308,7 @@ class InputRejectedNode:
     """输入拒绝节点 - 终止节点"""
 
     @staticmethod
-    def execute(state: ProjectAnalysisState, store: Optional[BaseStore] = None) -> Dict[str, Any]:
+    def execute(state: ProjectAnalysisState, store: BaseStore | None = None) -> Dict[str, Any]:
         """
         处理输入拒绝
 

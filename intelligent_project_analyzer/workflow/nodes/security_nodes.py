@@ -14,6 +14,7 @@ import uuid
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Literal, Optional, Union
+
 import yaml
 from langgraph.checkpoint.base import BaseCheckpointSaver
 from langgraph.checkpoint.sqlite import SqliteSaver
@@ -25,25 +26,25 @@ from loguru import logger
 # 显式导入智能体类以触发 AgentFactory 注册
 from ...agents import AgentFactory, ProjectDirectorAgent, RequirementsAnalystAgent
 from ...agents.base import NullLLM
-from ...agents.dynamic_project_director import detect_and_handle_challenges_node  #  v3.5
-from ...agents.feasibility_analyst import FeasibilityAnalystAgent  #  V1.5可行性分析师
-from ...agents.quality_monitor import QualityMonitor  #
+from ...agents.dynamic_project_director import detect_and_handle_challenges_node  # v3.5
+from ...agents.feasibility_analyst import FeasibilityAnalystAgent  # V1.5可行性分析师
+from ...agents.quality_monitor import QualityMonitor
 from ...core.state import AnalysisStage, ProjectAnalysisState, StateManager
 from ...core.types import AgentType, format_role_display_name
 from ...interaction.interaction_nodes import (  # FinalReviewNode,  # 已移除：客户需求中没有最终审核阶段; AnalysisReviewNode,  # ️ v2.2: 已废弃，质量审核已前置化
     CalibrationQuestionnaireNode,
     UserQuestionNode,
 )
-from ...interaction.nodes.manual_review import ManualReviewNode  #  人工审核节点
+from ...interaction.nodes.manual_review import ManualReviewNode  # 人工审核节点
 
-#  v7.87: 三步递进式问卷节点
+# 2026-03-06: progressive_step1_core_task_node 已删除（Step1 废弃）
 from ...interaction.nodes.progressive_questionnaire import (
     ProgressiveQuestionnaireNode,
-    progressive_step1_core_task_node,
     progressive_step2_radar_node,
     progressive_step3_gap_filling_node,
 )
-from ...interaction.nodes.quality_preflight import QualityPreflightNode  #
+from ...interaction.nodes.quality_preflight import QualityPreflightNode
+from ...config.feature_flags import ENABLE_REQUIREMENTS_FAST_PATH
 
 #  v7.135: 问卷汇总节点（需求重构）
 from ...interaction.nodes.questionnaire_summary import questionnaire_summary_node
@@ -51,24 +52,24 @@ from ...interaction.nodes.questionnaire_summary import questionnaire_summary_nod
 #  统一审核节点（合并角色选择和任务分派审核）
 from ...interaction.role_task_unified_review import role_task_unified_review_node
 
-#  v7.502 P1优化: 智能上下文压缩器
-from ..context_compressor import create_context_compressor
-
 # from ..interaction.role_selection_review import role_selection_review_node  # 已废弃
 # from ..interaction.task_assignment_review import task_assignment_review_node  # 已废弃
 from ...interaction.second_batch_strategy_review import SecondBatchStrategyReviewNode
 from ...report.pdf_generator import PDFGeneratorAgent
 from ...report.result_aggregator import ResultAggregatorAgent
-from ...workflow.nodes.search_query_generator_node import search_query_generator_node  #  v7.109
 
 #  v7.87: 三步递进式问卷（默认启用）
-from ...security import ReportGuardNode  #  内容安全与领域过滤
+from ...security import ReportGuardNode  # 内容安全与领域过滤
 
 #  v7.3 统一输入验证节点（合并 input_guard 和 domain_validator）
 from ...security.unified_input_validator_node import InputRejectedNode, UnifiedInputValidatorNode
 
 # 动态本体论注入工具
 from ...utils.ontology_loader import OntologyLoader
+from ...workflow.nodes.search_query_generator_node import search_query_generator_node  # v7.109
+
+#  v7.502 P1优化: 智能上下文压缩器
+from ..context_compressor import create_context_compressor
 
 
 class SecurityNodesMixin:
@@ -167,12 +168,35 @@ class SecurityNodesMixin:
             #  保留 skip_unified_review 标志
             if state.get("skip_unified_review"):
                 result["skip_unified_review"] = True
-                logger.info(" [DEBUG] secondary_validation 保留 skip_unified_review=True")
+                logger.debug(" [DEBUG] secondary_validation 保留 skip_unified_review=True")
+
+            # 最短路径：二次验证后直接进入项目总监，跳过二级需求步骤
+            if ENABLE_REQUIREMENTS_FAST_PATH:
+                fast_path_ok, fast_path_reasons = self._can_apply_requirements_fast_path(state)
+                if fast_path_ok:
+                    logger.warning(
+                        " [FAST_PATH] ENABLE_REQUIREMENTS_FAST_PATH=true 且最小保障通过，"
+                        "跳过 progressive_step3/progressive_step2/questionnaire_summary，直达 project_director"
+                    )
+                    result["requirements_fast_path"] = True
+                    result["questionnaire_summary_skipped"] = True
+                    result["progressive_step3_skipped"] = True
+                    result["progressive_step2_skipped"] = True
+                    result["requirements_fast_path_guard"] = {"passed": True, "reasons": fast_path_reasons}
+                    result["detail"] = "二次验证通过（fast path）"
+                    return Command(update=result, goto="project_director")
+
+                logger.warning(
+                    " [FAST_PATH] 已启用但最小保障未通过，回退默认链路继续补全 | reasons=%s"
+                    % fast_path_reasons
+                )
+                result["requirements_fast_path"] = False
+                result["requirements_fast_path_guard"] = {"passed": False, "reasons": fast_path_reasons}
 
             # 添加 detail 字段
             result["detail"] = "二次验证领域适配性"
 
-            logger.info(" [DEBUG] Secondary validation completed, proceeding to calibration_questionnaire")
+            logger.debug(" [DEBUG] Secondary validation completed, proceeding via workflow routing")
             return result
 
         except Interrupt:
@@ -187,6 +211,60 @@ class SecurityNodesMixin:
             # 出错时信任初始判断
             logger.warning("Secondary validation failed, trusting initial judgment")
             return {"secondary_validation_skipped": True, "secondary_validation_reason": "error_occurred"}
+
+    def _can_apply_requirements_fast_path(self, state: ProjectAnalysisState) -> tuple[bool, list[str]]:
+        """
+        Fast Path 最小保障守卫：
+        - 需求审阅门禁需通过（severity=pass）
+        - 核心分析产物字段齐备（项目类型/空间分类/任务框架/结构化需求）
+        - 关键方法字段存在（M18/M19/M22/M23/M24 的最小承载字段）
+        """
+        reasons: list[str] = []
+
+        # 1) 审阅门禁要求 pass
+        quality_gate = state.get("requirements_quality_gate") or {}
+        severity = str((quality_gate or {}).get("severity") or "").lower()
+        if severity != "pass":
+            reasons.append(f"quality_gate_not_pass:{severity or 'missing'}")
+
+        # 2) 核心结构化产物
+        structured = state.get("structured_requirements") or {}
+        if not isinstance(structured, dict):
+            reasons.append("structured_requirements_missing")
+            structured = {}
+
+        if not state.get("project_type"):
+            reasons.append("project_type_missing")
+        if not state.get("space_classification"):
+            reasons.append("space_classification_missing")
+        if not state.get("task_framework"):
+            reasons.append("task_framework_missing")
+
+        # 3) 27方法最小保障（关键方法字段）
+        stance = structured.get("stance_spectrum") if isinstance(structured.get("stance_spectrum"), dict) else {}
+        handoff = (
+            structured.get("expert_handoff_questions")
+            if isinstance(structured.get("expert_handoff_questions"), dict)
+            else {}
+        )
+        disruption = (
+            structured.get("disruption_authorization")
+            if isinstance(structured.get("disruption_authorization"), dict)
+            else {}
+        )
+
+        if not structured.get("project_motivation_detail"):
+            reasons.append("M18_missing_project_motivation_detail")
+        if not structured.get("design_motivation_detail"):
+            reasons.append("M19_missing_design_motivation_detail")
+        if not stance.get("rationale"):
+            reasons.append("M22_missing_stance_rationale")
+        if not handoff.get("universal_disruption_challenge"):
+            reasons.append("M23_missing_universal_disruption_challenge")
+        if not disruption.get("disruption_rationale"):
+            reasons.append("M24_missing_disruption_rationale")
+
+        return (len(reasons) == 0, reasons)
 
     def _report_guard_node(self, state: ProjectAnalysisState) -> Dict[str, Any]:
         """报告审核节点包装"""

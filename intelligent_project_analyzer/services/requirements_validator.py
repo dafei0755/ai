@@ -17,7 +17,8 @@ Author: AI Assistant
 Date: 2026-01-25
 """
 
-from typing import Dict, Any, List
+from typing import Any, Dict, List
+
 from loguru import logger
 
 

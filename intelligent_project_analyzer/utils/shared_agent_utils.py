@@ -4,12 +4,12 @@ v7.16 共享工具函数
 将原节点和新 Agent 的重复逻辑提取为共享函数，减少代码重复。
 """
 
-from typing import Dict, Any, List, Optional, Tuple
-from datetime import datetime
-from loguru import logger
-import time
 import json
+import time
+from datetime import datetime
+from typing import Any, Dict, List, Tuple
 
+from loguru import logger
 
 # ============================================================================
 # 性能监控装饰器
@@ -192,7 +192,7 @@ def classify_challenges(
     for challenge in raw_challenges:
         # 根据关键词判断严重程度
         rationale = challenge.get("rationale", "").lower()
-        challenged_item = challenge.get("challenged_item", "").lower()
+        challenge.get("challenged_item", "").lower()
         
         if any(kw in rationale for kw in ["严重", "关键", "必须", "安全"]):
             challenge["severity"] = "high"

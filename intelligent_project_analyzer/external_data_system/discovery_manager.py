@@ -5,13 +5,14 @@
 所有操作通过 get_session() 上下文管理器保证线程安全。
 """
 
-from typing import Optional, List, Dict, Any
 from datetime import datetime, timedelta
+from typing import Any, Dict, List
+
 from loguru import logger
 
 from .models.external_projects import (
-    ProjectDiscovery,
     ExternalProjectDatabase,
+    ProjectDiscovery,
     get_external_db,
 )
 
@@ -19,18 +20,18 @@ from .models.external_projects import (
 class ProjectDiscoveryManager:
     """线程安全的项目发现管理器"""
 
-    def __init__(self, db: Optional[ExternalProjectDatabase] = None):
+    def __init__(self, db: ExternalProjectDatabase | None = None):
         self.db = db or get_external_db()
 
     def add_project(
         self,
         source: str,
         url: str,
-        source_id: Optional[str] = None,
-        title: Optional[str] = None,
-        category: Optional[str] = None,
-        sub_category: Optional[str] = None,
-        preview_image: Optional[str] = None,
+        source_id: str | None = None,
+        title: str | None = None,
+        category: str | None = None,
+        sub_category: str | None = None,
+        preview_image: str | None = None,
     ) -> bool:
         """
         添加项目到发现索引
@@ -70,9 +71,9 @@ class ProjectDiscoveryManager:
 
     def get_uncrawled_projects(
         self,
-        source: Optional[str] = None,
-        category: Optional[str] = None,
-        limit: Optional[int] = None,
+        source: str | None = None,
+        category: str | None = None,
+        limit: int | None = None,
     ) -> List[ProjectDiscovery]:
         """获取未爬取的项目"""
         with self.db.get_session() as session:
@@ -89,7 +90,7 @@ class ProjectDiscoveryManager:
             session.expunge_all()
             return results
 
-    def mark_as_crawled(self, url: str, success: bool = True, error: Optional[str] = None):
+    def mark_as_crawled(self, url: str, success: bool = True, error: str | None = None):
         """标记项目为已爬取"""
         with self.db.get_session() as session:
             project = session.query(ProjectDiscovery).filter_by(url=url).first()

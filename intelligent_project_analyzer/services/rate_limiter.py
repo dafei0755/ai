@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 LLM API 限流模块
 
@@ -12,12 +11,13 @@ LLM API 限流模块
 """
 
 import asyncio
-import time
 import threading
-from typing import Dict, Optional, Callable, Any
-from dataclasses import dataclass, field
+import time
 from collections import deque
+from dataclasses import dataclass
 from functools import wraps
+from typing import Any, Callable, Dict
+
 from loguru import logger
 
 
@@ -270,7 +270,7 @@ class LLMRateLimiter:
     整合令牌桶、滑动窗口和并发控制
     """
     
-    def __init__(self, provider: str = "openai", config: Optional[RateLimitConfig] = None):
+    def __init__(self, provider: str = "openai", config: RateLimitConfig | None = None):
         """
         初始化限流器
         
@@ -422,7 +422,7 @@ class GlobalRateLimitManager:
         
         logger.info(" 全局限流管理器已初始化")
     
-    def get_limiter(self, provider: str = "openai", user_id: Optional[str] = None) -> LLMRateLimiter:
+    def get_limiter(self, provider: str = "openai", user_id: str | None = None) -> LLMRateLimiter:
         """
         获取限流器
         
@@ -476,7 +476,7 @@ rate_limit_manager = GlobalRateLimitManager()
 
 # ==================== 装饰器 ====================
 
-def rate_limited(provider: str = "openai", user_id: Optional[str] = None):
+def rate_limited(provider: str = "openai", user_id: str | None = None):
     """
     同步函数限流装饰器
     
@@ -502,7 +502,7 @@ def rate_limited(provider: str = "openai", user_id: Optional[str] = None):
     return decorator
 
 
-def rate_limited_async(provider: str = "openai", user_id: Optional[str] = None):
+def rate_limited_async(provider: str = "openai", user_id: str | None = None):
     """
     异步函数限流装饰器
     
@@ -539,7 +539,7 @@ async def with_rate_limit_async(
     provider: str,
     func: Callable,
     *args,
-    user_id: Optional[str] = None,
+    user_id: str | None = None,
     **kwargs
 ) -> Any:
     """
@@ -563,7 +563,7 @@ def with_rate_limit_sync(
     provider: str,
     func: Callable,
     *args,
-    user_id: Optional[str] = None,
+    user_id: str | None = None,
     **kwargs
 ) -> Any:
     """

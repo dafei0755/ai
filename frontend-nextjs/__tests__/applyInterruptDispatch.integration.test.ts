@@ -20,7 +20,8 @@ type InterruptSetters = {
   setShowUserQuestion: jest.Mock;
   setQualityPreflightData: jest.Mock;
   setShowQualityPreflight: jest.Mock;
-  // 🔄 v10.2 Path B: setOutputIntentData / setShowOutputIntentModal 已移除
+  setOutputIntentData: jest.Mock;
+  setShowOutputIntentModal: jest.Mock;
   setConfirmationData: jest.Mock;
   setShowConfirmation: jest.Mock;
   resumeAnalysis: jest.Mock;
@@ -62,9 +63,8 @@ function createApplyInterruptDispatch(setters: InterruptSetters, sessionId: stri
       setters.setQualityPreflightData(interruptData);
       setters.setShowQualityPreflight(true);
     } else if (type === 'output_intent_confirmation') {
-      // 🔄 v10.2 Path B: 后端不再发送此 interrupt，兜底走通用确认框
-      setters.setConfirmationData(interruptData);
-      setters.setShowConfirmation(true);
+      setters.setOutputIntentData(interruptData);
+      setters.setShowOutputIntentModal(true);
     } else {
       setters.setConfirmationData(interruptData);
       setters.setShowConfirmation(true);
@@ -86,6 +86,8 @@ function makeSetters(): InterruptSetters {
     setShowUserQuestion:     jest.fn(),
     setQualityPreflightData: jest.fn(),
     setShowQualityPreflight: jest.fn(),
+    setOutputIntentData:     jest.fn(),
+    setShowOutputIntentModal: jest.fn(),
     setConfirmationData:     jest.fn(),
     setShowConfirmation:     jest.fn(),
     resumeAnalysis:          jest.fn().mockResolvedValue(undefined),
@@ -180,16 +182,17 @@ describe('集成测试 > applyInterruptDispatch 路由逻辑', () => {
     expect(setters.setShowQualityPreflight).toHaveBeenCalledWith(true);
   });
 
-  // ── output_intent_confirmation（🔄 v10.2 Path B: 兜底走通用确认框）──
-  it('output_intent_confirmation → setShowConfirmation(true)（Path B 兜底）', () => {
+  // ── output_intent_confirmation（专用 modal）──
+  it('output_intent_confirmation → setShowOutputIntentModal(true)（专用弹窗）', () => {
     const data = {
       interaction_type: 'output_intent_confirmation',
       delivery_types: { options: [], max_select: 3 },
       identity_modes: { options: [] },
     };
     dispatch(data);
-    expect(setters.setConfirmationData).toHaveBeenCalledWith(data);
-    expect(setters.setShowConfirmation).toHaveBeenCalledWith(true);
+    expect(setters.setOutputIntentData).toHaveBeenCalledWith(data);
+    expect(setters.setShowOutputIntentModal).toHaveBeenCalledWith(true);
+    expect(setters.setShowConfirmation).not.toHaveBeenCalled();
     expect(setters.setShowQuestionnaire).not.toHaveBeenCalled();
   });
 
@@ -211,6 +214,7 @@ describe('集成测试 > applyInterruptDispatch 路由逻辑', () => {
       setters.setShowRoleTaskReview,
       setters.setShowUserQuestion,
       setters.setShowQualityPreflight,
+      setters.setShowOutputIntentModal,
       setters.setShowConfirmation,
     ].filter((fn) => fn.mock.calls.some(([v]) => v === true));
     expect(openCalls.length).toBe(1);

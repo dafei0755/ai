@@ -28,7 +28,7 @@ import time
 from collections import OrderedDict
 from dataclasses import dataclass
 from enum import Enum
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Tuple
 from urllib.parse import urlparse
 
 import httpx
@@ -165,10 +165,10 @@ class ExtractionResult:
 
     url: str
     content: str
-    title: Optional[str] = None
+    title: str | None = None
     method: ExtractionMethod = ExtractionMethod.FAILED
     extraction_time: float = 0.0
-    error: Optional[str] = None
+    error: str | None = None
     from_cache: bool = False  # v7.196: 是否来自缓存
     retry_count: int = 0  # v7.196: 重试次数
 
@@ -180,7 +180,7 @@ class LRUCache:
         self._cache: OrderedDict[str, ExtractionResult] = OrderedDict()
         self._max_size = max_size
 
-    def get(self, key: str) -> Optional[ExtractionResult]:
+    def get(self, key: str) -> ExtractionResult | None:
         if key in self._cache:
             # 移动到末尾（最近使用）
             self._cache.move_to_end(key)
@@ -228,7 +228,7 @@ class WebContentExtractor:
 
     def __init__(self):
         self._playwright = None
-        self._browser: Optional[Browser] = None
+        self._browser: Browser | None = None
         self._browser_lock = asyncio.Lock()
         self._cache = LRUCache(max_size=CONTENT_EXTRACTION_CACHE_SIZE)  # v7.196: URL 缓存
 
@@ -237,7 +237,7 @@ class WebContentExtractor:
             self._traf_config = use_config()
             self._traf_config.set("DEFAULT", "EXTRACTION_TIMEOUT", str(CONTENT_EXTRACTION_TIMEOUT))
 
-    async def _get_browser(self) -> Optional[Browser]:
+    async def _get_browser(self) -> Browser | None:
         """获取或创建 Playwright 浏览器实例（单例）"""
         if not PLAYWRIGHT_AVAILABLE:
             return None
@@ -767,7 +767,7 @@ class WebContentExtractor:
 
 # ==================== 单例模式 ====================
 
-_extractor_instance: Optional[WebContentExtractor] = None
+_extractor_instance: WebContentExtractor | None = None
 
 
 def get_web_content_extractor() -> WebContentExtractor:

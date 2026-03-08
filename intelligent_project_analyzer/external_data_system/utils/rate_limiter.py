@@ -5,15 +5,14 @@
 提供 4 种预设模板，可按目标网站的反爬强度快速套用。
 """
 
-import time
-import math
 import random
-from typing import Optional, Dict, List
+import time
 from collections import deque
 from dataclasses import dataclass
 from enum import Enum
-from loguru import logger
+from typing import Dict, List
 
+from loguru import logger
 
 # ==================== 延迟策略模板 ====================
 
@@ -173,7 +172,7 @@ class RateLimiter:
         min_delay: float = 3.0,
         max_delay: float = 5.0,
         *,
-        profile: Optional[CrawlProfileConfig] = None,
+        profile: CrawlProfileConfig | None = None,
     ):
         """
         初始化频率限制器
@@ -207,7 +206,7 @@ class RateLimiter:
         self.request_times: deque = deque(maxlen=requests_per_minute)
 
         # 上次请求时间
-        self.last_request_time: Optional[float] = None
+        self.last_request_time: float | None = None
 
         # 连续被封次数（暂停后重置）
         self.block_count = 0
@@ -412,7 +411,7 @@ class UserAgentRotator:
 class ProxyPool:
     """代理IP池（可选功能）"""
 
-    def __init__(self, proxies: Optional[List[str]] = None):
+    def __init__(self, proxies: List[str] | None = None):
         """
         初始化代理池
 
@@ -423,7 +422,7 @@ class ProxyPool:
         self.current_index = 0
         self.failed_proxies: Dict[str, int] = {}  # 记录失败次数
 
-    def get_next(self) -> Optional[str]:
+    def get_next(self) -> str | None:
         """获取下一个可用代理"""
         if not self.proxies:
             return None
@@ -456,7 +455,7 @@ class AntiBlocker:
     """反封禁综合工具"""
 
     def __init__(
-        self, rate_limiter: Optional[RateLimiter] = None, use_proxy: bool = False, proxies: Optional[List[str]] = None
+        self, rate_limiter: RateLimiter | None = None, use_proxy: bool = False, proxies: List[str] | None = None
     ):
         """
         初始化反封禁工具
@@ -482,7 +481,7 @@ class AntiBlocker:
             "Upgrade-Insecure-Requests": "1",
         }
 
-    def get_proxy(self) -> Optional[str]:
+    def get_proxy(self) -> str | None:
         """获取代理（如果启用）"""
         if self.proxy_pool:
             return self.proxy_pool.get_next()
@@ -492,7 +491,7 @@ class AntiBlocker:
         """请求前处理（频率限制）"""
         self.rate_limiter.wait()
 
-    def after_request(self, success: bool, status_code: Optional[int] = None):
+    def after_request(self, success: bool, status_code: int | None = None):
         """
         请求后处理
 

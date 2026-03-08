@@ -6,7 +6,7 @@ v7.139 Phase 3: 维度关联建模
 """
 
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 import yaml
 from loguru import logger
@@ -24,7 +24,7 @@ class DimensionCorrelationDetector:
     """
 
     _instance = None
-    _correlation_config: Optional[Dict[str, Any]] = None
+    _correlation_config: Dict[str, Any] | None = None
 
     def __new__(cls):
         if cls._instance is None:
@@ -45,7 +45,7 @@ class DimensionCorrelationDetector:
             return
 
         try:
-            with open(config_path, "r", encoding="utf-8") as f:
+            with open(config_path, encoding="utf-8") as f:
                 DimensionCorrelationDetector._correlation_config = yaml.safe_load(f)
             logger.info(" [v7.139] 维度关联配置加载成功")
         except Exception as e:
@@ -62,7 +62,7 @@ class DimensionCorrelationDetector:
         detection_config = self.config.get("detection_config", {})
         return detection_config.get("enabled", True)
 
-    def detect_conflicts(self, dimensions: List[Dict[str, Any]], mode: Optional[str] = None) -> List[Dict[str, Any]]:
+    def detect_conflicts(self, dimensions: List[Dict[str, Any]], mode: str | None = None) -> List[Dict[str, Any]]:
         """
         检测维度配置中的冲突
 

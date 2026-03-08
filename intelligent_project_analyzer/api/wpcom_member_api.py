@@ -18,7 +18,7 @@ WPCOM Member Pro API 客户端
 """
 
 import os
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 import httpx
 from loguru import logger
@@ -85,7 +85,7 @@ class WPCOMMemberAPI:
             logger.error(f"[WPCOMMemberAPI] Token 获取异常: {e}")
             raise
 
-    def _request(self, endpoint: str, method: str = "GET", data: Optional[Dict] = None) -> Dict[str, Any]:
+    def _request(self, endpoint: str, method: str = "GET", data: Dict | None = None) -> Dict[str, Any]:
         """
         通用请求方法
 
@@ -317,7 +317,7 @@ if __name__ == "__main__":
 
         if wc_count > 0:
             latest_order = orders["wc_orders"][0]
-            print(f"\n  最新订单:")
+            print("\n  最新订单:")
             print(f"    订单号: {latest_order['id']}")
             print(f"    状态: {latest_order['status']}")
             print(f"    金额: {latest_order['total']} {latest_order['currency']}")
@@ -332,7 +332,7 @@ if __name__ == "__main__":
         print(f"  总计: ¥{wallet['total']:.2f}")
         print(f"  积分: {wallet['points']}")
 
-        print(f"\n  佣金信息:")
+        print("\n  佣金信息:")
         print(f"    累计佣金: ¥{wallet['commission']['total']:.2f}")
         print(f"    可提现: ¥{wallet['commission']['available']:.2f}")
         print(f"    已提现: ¥{wallet['commission']['withdrawn']:.2f}")

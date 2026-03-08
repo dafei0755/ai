@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 MT-1 (2026-03-01): API 数据模型
 
@@ -7,7 +6,7 @@ MT-1 (2026-03-01): API 数据模型
 """
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List
 
 from pydantic import AliasChoices, BaseModel, ConfigDict, Field
 
@@ -29,7 +28,7 @@ class AnalysisRequest(BaseModel):
     analysis_mode: str = Field(default="normal", validation_alias=AliasChoices("analysis_mode", "mode"))
 
     # Optional legacy field: accepted but currently not used by backend.
-    domain: Optional[str] = None
+    domain: str | None = None
 
 
 class ResumeRequest(BaseModel):
@@ -63,15 +62,26 @@ class AnalysisStatus(BaseModel):
 
     session_id: str
     status: str  # running, waiting_for_input, completed, failed, rejected
-    current_stage: Optional[str] = None
-    detail: Optional[str] = None  #  新增：当前节点的详细信息
+    current_stage: str | None = None
+    detail: str | None = None  #  新增：当前节点的详细信息
     progress: float = 0.0
-    history: Optional[List[Dict[str, Any]]] = None  #  新增：执行历史
-    interrupt_data: Optional[Dict[str, Any]] = None
-    error: Optional[str] = None
-    traceback: Optional[str] = None  # 添加traceback字段用于调试
-    rejection_message: Optional[str] = None  #  拒绝原因提示
-    user_input: Optional[str] = None  #  v7.37.7: 用户原始输入
+    history: List[Dict[str, Any]] | None = None  #  新增：执行历史
+    interrupt_data: Dict[str, Any] | None = None
+    error: str | None = None
+    traceback: str | None = None  # 添加traceback字段用于调试
+    rejection_message: str | None = None  #  拒绝原因提示
+    user_input: str | None = None  #  v7.37.7: 用户原始输入
+    flow_route_name: str | None = None
+    flow_route_decision: Dict[str, Any] | None = None
+    flow_route_reason_codes: List[str] | None = None
+    routing_scores: Dict[str, float] | None = None
+    active_steps: List[str] | None = None
+    deviation_routing_applied: Dict[str, Any] | None = None
+    requirements_fast_path: bool | None = None
+    requirements_fast_path_guard: Dict[str, Any] | None = None
+    progressive_step3_skipped: bool | None = None
+    progressive_step2_skipped: bool | None = None
+    questionnaire_summary_skipped: bool | None = None
 
 
 class AnalysisResult(BaseModel):
@@ -80,12 +90,12 @@ class AnalysisResult(BaseModel):
     session_id: str
     status: str
     # 现行字段
-    results: Optional[Any] = None
-    final_report: Optional[Any] = None
+    results: Any | None = None
+    final_report: Any | None = None
 
     # 兼容旧字段（tests/api/test_analysis_endpoints.py 仍在使用）
-    final_result: Optional[Any] = None
-    agent_results: Optional[Any] = None
+    final_result: Any | None = None
+    agent_results: Any | None = None
 
 
 #  对话相关数据模型
@@ -94,7 +104,7 @@ class ConversationRequest(BaseModel):
 
     session_id: str
     question: str
-    context_hint: Optional[str] = None  # 可选：章节提示
+    context_hint: str | None = None  # 可选：章节提示
 
 
 class ConversationResponse(BaseModel):
@@ -139,7 +149,7 @@ class DeliverableAnswerResponse(BaseModel):
     owner_answer: str = Field(default="", description="责任者的核心答案")
     answer_summary: str = Field(default="", description="答案摘要")
     supporters: List[str] = Field(default_factory=list, description="支撑专家列表")
-    quality_score: Optional[float] = Field(default=None, description="质量分数")
+    quality_score: float | None = Field(default=None, description="质量分数")
 
 
 #  v7.0: 专家支撑链响应
@@ -334,34 +344,34 @@ class StructuredReportResponse(BaseModel):
     #  v7.0: 支持新的多交付物格式和旧格式（向后兼容）
     # 如果有 deliverable_answers 字段，则是 v7.0 格式
     # 否则是旧格式（只有 answer 字段）
-    core_answer: Optional[Dict[str, Any]] = Field(default=None, description="核心答案（支持v7.0多交付物格式和旧格式）")
+    core_answer: Dict[str, Any] | None = Field(default=None, description="核心答案（支持v7.0多交付物格式和旧格式）")
     #  Phase 1.4+ v4.1: 新增洞察、推敲过程、建议区块
-    insights: Optional[InsightsSectionResponse] = Field(default=None, description="需求洞察（LLM综合）")
-    requirements_analysis: Optional[RequirementsAnalysisResponse] = Field(default=None, description="需求分析结果（需求分析师原始输出）")
-    deliberation_process: Optional[DeliberationProcessResponse] = Field(default=None, description="推敲过程")
-    recommendations: Optional[RecommendationsSectionResponse] = Field(default=None, description="建议")
+    insights: InsightsSectionResponse | None = Field(default=None, description="需求洞察（LLM综合）")
+    requirements_analysis: RequirementsAnalysisResponse | None = Field(default=None, description="需求分析结果（需求分析师原始输出）")
+    deliberation_process: DeliberationProcessResponse | None = Field(default=None, description="推敲过程")
+    recommendations: RecommendationsSectionResponse | None = Field(default=None, description="建议")
     executive_summary: ExecutiveSummaryResponse = Field(default_factory=ExecutiveSummaryResponse)
     sections: List[ReportSectionResponse] = Field(default_factory=list)
     comprehensive_analysis: ComprehensiveAnalysisResponse = Field(default_factory=ComprehensiveAnalysisResponse)
     conclusions: ConclusionsResponse = Field(default_factory=ConclusionsResponse)
     expert_reports: Dict[str, str] = Field(default_factory=dict, description="专家原始报告")
-    review_feedback: Optional[ReviewFeedbackResponse] = None
-    questionnaire_responses: Optional[QuestionnaireResponseData] = Field(default=None, description="问卷回答数据")
-    review_visualization: Optional[ReviewVisualizationResponse] = None
-    challenge_detection: Optional[ChallengeDetectionResponse] = Field(default=None, description="挑战检测结果")
+    review_feedback: ReviewFeedbackResponse | None = None
+    questionnaire_responses: QuestionnaireResponseData | None = Field(default=None, description="问卷回答数据")
+    review_visualization: ReviewVisualizationResponse | None = None
+    challenge_detection: ChallengeDetectionResponse | None = Field(default=None, description="挑战检测结果")
     #  v7.4: 执行元数据汇总
-    execution_metadata: Optional[Dict[str, Any]] = Field(default=None, description="执行元数据汇总")
+    execution_metadata: Dict[str, Any] | None = Field(default=None, description="执行元数据汇总")
     #  v3.0.26: 思维导图内容结构（以内容为中心）
-    mindmap_content: Optional[Dict[str, Any]] = Field(default=None, description="思维导图内容结构")
+    mindmap_content: Dict[str, Any] | None = Field(default=None, description="思维导图内容结构")
     #  深度思考模式概念图（集中生成）
-    generated_images: Optional[List[str]] = Field(default=None, description="AI 概念图（深度思考模式）")
-    image_prompts: Optional[List[str]] = Field(default=None, description="AI 概念图提示词（深度思考模式）")
-    image_top_constraints: Optional[str] = Field(default=None, description="AI 概念图顶层约束（深度思考模式）")
+    generated_images: List[str] | None = Field(default=None, description="AI 概念图（深度思考模式）")
+    image_prompts: List[str] | None = Field(default=None, description="AI 概念图提示词（深度思考模式）")
+    image_top_constraints: str | None = Field(default=None, description="AI 概念图顶层约束（深度思考模式）")
     #  v7.39: 专家概念图（深度思考pro模式）
-    generated_images_by_expert: Optional[Dict[str, Any]] = Field(default=None, description="专家概念图（深度思考pro模式）")
+    generated_images_by_expert: Dict[str, Any] | None = Field(default=None, description="专家概念图（深度思考pro模式）")
     #  v7.154: 雷达图维度数据
-    radar_dimensions: Optional[List[Dict[str, Any]]] = Field(default=None, description="雷达图维度列表")
-    radar_dimension_values: Optional[Dict[str, Any]] = Field(default=None, description="雷达图维度值")
+    radar_dimensions: List[Dict[str, Any]] | None = Field(default=None, description="雷达图维度列表")
+    radar_dimension_values: Dict[str, Any] | None = Field(default=None, description="雷达图维度值")
 
 
 class ReportResponse(BaseModel):
@@ -369,12 +379,12 @@ class ReportResponse(BaseModel):
 
     session_id: str
     report_text: str
-    report_pdf_path: Optional[str] = None
+    report_pdf_path: str | None = None
     created_at: str
     user_input: str = Field(default="", description="用户原始输入")
     suggestions: List[str] = Field(default_factory=list)
-    conversation_id: Optional[int] = None
-    structured_report: Optional[StructuredReportResponse] = Field(default=None, description="结构化报告数据")
+    conversation_id: int | None = None
+    structured_report: StructuredReportResponse | None = Field(default=None, description="结构化报告数据")
 
 
 # ==================== 报告数据清洗辅助函数 ====================

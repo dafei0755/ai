@@ -45,9 +45,8 @@ plotly>=5.17.0
 
 # 存储和持久化
 # sqlite3  # 内置模块，不需要安装
-redis>=5.0.0
-aioredis>=2.0.0
-aiosqlite>=0.19.0  # LangGraph AsyncSqliteSaver 所需
+redis>=5.0.0          # 包含 redis.asyncio，无需独立安装异步 redis 包
+aiosqlite>=0.19.0     # LangGraph AsyncSqliteSaver 所需
 
 # 🔥 管理员后台系统依赖
 watchdog>=3.0.0      # 配置文件热重载监听
@@ -103,3 +102,7 @@ APScheduler>=3.10.0  # 定时任务（质量评分批量计算）
 
 # ==================== Phase 2 智能增强 (v2026.2.11 新增) ====================
 prometheus-client>=0.19.0  # Prometheus指标收集（可选，用于性能监控）
+
+# ==================== Phase 1 生产部署 - 固定版本 (v2026.3.4 新增) ====================
+sentence-transformers==2.3.1  # Few-Shot语义嵌入 - 固定生产版本
+faiss-cpu==1.7.4               # FAISS向量索引检索 - 固定生产版本

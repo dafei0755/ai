@@ -6,7 +6,7 @@ v7.80.6: Step 3 核心服务，分析核心任务的信息完整性
 """
 
 import re
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Dict, List
 
 from loguru import logger
 
@@ -97,7 +97,7 @@ class TaskCompletenessAnalyzer:
         confirmed_tasks: List[Dict[str, Any]],
         user_input: str,
         structured_data: Dict[str, Any],
-        predicted_roles: Optional[List[str]] = None,
+        predicted_roles: List[str] | None = None,
     ) -> Dict[str, Any]:
         """
         增强版完整性分析 + 专家视角风险预判
@@ -290,7 +290,7 @@ class TaskCompletenessAnalyzer:
         for key in ["project_type", "physical_context", "resource_constraints", "core_objectives"]:
             value = structured_data.get(key, "")
             if value:
-                if isinstance(value, (list, tuple)):
+                if isinstance(value, list | tuple):
                     texts.extend(str(v) for v in value)
                 else:
                     texts.append(str(value))
@@ -357,7 +357,7 @@ class TaskCompletenessAnalyzer:
 
         return critical_gaps
 
-    def _generate_gap_reason(self, dimension: str, all_text: str) -> Optional[str]:
+    def _generate_gap_reason(self, dimension: str, all_text: str) -> str | None:
         """生成缺失原因说明（v7.107.1：动态优先级判断）"""
 
         # v7.107.1：智能判断时间节点优先级
@@ -443,7 +443,7 @@ class TaskCompletenessAnalyzer:
         # 4. 限制最多 target_count 个问题
         return questions[:target_count]
 
-    def _generate_question_for_dimension(self, dimension: str, is_required: bool) -> Optional[Dict[str, Any]]:
+    def _generate_question_for_dimension(self, dimension: str, is_required: bool) -> Dict[str, Any] | None:
         """为特定维度生成问题"""
 
         question_templates = {

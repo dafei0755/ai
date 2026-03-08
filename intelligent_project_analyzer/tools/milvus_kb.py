@@ -12,7 +12,7 @@ Milvus 向量数据库知识库工具 (v7.141+)
 
 import json
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 import jieba
 from loguru import logger
@@ -148,7 +148,7 @@ class QueryProcessor:
         keywords = [w for w in words if w not in self.stopwords and len(w) > 1]
         return keywords[:10]  # 限制最多10个关键词
 
-    def _classify_intent(self, query: str, keywords: List[str], context: Optional[Dict]) -> str:
+    def _classify_intent(self, query: str, keywords: List[str], context: Dict | None) -> str:
         """意图分类 - 基于规则"""
         # 规则: "标准"/"规范"/"国标"/"要求" → 规范查询
         if any(k in query for k in ["标准", "规范", "国标", "要求", "规定"]):
@@ -193,7 +193,7 @@ class QueryProcessor:
             return f"{query} {' '.join(expanded_terms[:3])}"  # 最多添加3个同义词
         return query
 
-    def _build_filters(self, intent: str, context: Optional[Dict]) -> Dict:
+    def _build_filters(self, intent: str, context: Dict | None) -> Dict:
         """
         根据意图和上下文构建 Milvus 标量过滤条件
 
@@ -308,7 +308,7 @@ class HybridRetriever:
         logger.debug(f"Stage 2: 检索到 {len(candidates)} 个候选文档")
         return candidates
 
-    def _build_milvus_expr(self, filters: Dict) -> Optional[str]:
+    def _build_milvus_expr(self, filters: Dict) -> str | None:
         """
         构建 Milvus 标量过滤表达式
 
@@ -461,7 +461,7 @@ class CrossEncoderReranker:
             return candidates[:top_k]
 
         # 3. 更新分数
-        for doc, score in zip(candidates, rerank_scores):
+        for doc, score in zip(candidates, rerank_scores, strict=False):
             doc["rerank_score"] = float(score)
             # 融合分数: rerank_weight * rerank + (1-rerank_weight) * vector
             doc["final_score"] = rerank_weight * score + (1 - rerank_weight) * doc["vector_score"]
@@ -667,7 +667,7 @@ class MilvusKBTool:
         collection_name: str = "design_knowledge_base",
         embedding_model_name: str = "BAAI/bge-m3",
         reranker_model_name: str = "BAAI/bge-reranker-v2-m3",
-        config: Optional[ToolConfig] = None,
+        config: ToolConfig | None = None,
     ):
         """
         初始化 Milvus 知识库工具
@@ -743,12 +743,12 @@ class MilvusKBTool:
     def search_knowledge(
         self,
         query: str,
-        knowledge_base_id: Optional[str] = None,
-        max_results: Optional[int] = None,
-        similarity_threshold: Optional[float] = None,
-        user_id: Optional[str] = None,  #  v7.141: 用户ID（用于过滤私有知识库）
+        knowledge_base_id: str | None = None,
+        max_results: int | None = None,
+        similarity_threshold: float | None = None,
+        user_id: str | None = None,  #  v7.141: 用户ID（用于过滤私有知识库）
         search_scope: str = "all",  #  v7.141: 搜索范围 ("all" | "system" | "user" | "team")
-        team_id: Optional[str] = None,  #  v7.141.2: 团队ID（用于团队知识库）
+        team_id: str | None = None,  #  v7.141.2: 团队ID（用于团队知识库）
         **kwargs,
     ) -> Dict[str, Any]:
         """

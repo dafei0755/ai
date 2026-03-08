@@ -5,10 +5,10 @@
 Responsible for loading, managing, and querying role configurations.
 """
 
-import yaml
-import os
-from typing import Dict, List, Optional
 from pathlib import Path
+from typing import Dict, List
+
+import yaml
 
 
 class RoleManager:
@@ -22,7 +22,7 @@ class RoleManager:
     4. 创建默认配置模板
     """
     
-    def __init__(self, config_path: Optional[str] = None):
+    def __init__(self, config_path: str | None = None):
         """
         初始化角色管理器
 
@@ -63,7 +63,7 @@ class RoleManager:
 
                 for yaml_file in yaml_files:
                     print(f"[INFO] Loading {yaml_file.name}...")
-                    with open(yaml_file, 'r', encoding='utf-8') as f:
+                    with open(yaml_file, encoding='utf-8') as f:
                         file_roles = yaml.safe_load(f) or {}
                         self.roles.update(file_roles)
 
@@ -72,7 +72,7 @@ class RoleManager:
             # 方案2：如果是单个文件，按原方式加载
             elif self.config_path.is_file():
                 print(f"[INFO] Loading roles from file: {self.config_path}")
-                with open(self.config_path, 'r', encoding='utf-8') as f:
+                with open(self.config_path, encoding='utf-8') as f:
                     self.roles = yaml.safe_load(f) or {}
                 print(f"[OK] Successfully loaded role configuration: {len(self.get_all_role_ids())} roles")
 
@@ -109,7 +109,7 @@ class RoleManager:
 
         print(f"[OK] Created default configuration template: {self.config_path}")
     
-    def get_role_config(self, base_type: str, role_id: str) -> Optional[Dict]:
+    def get_role_config(self, base_type: str, role_id: str) -> Dict | None:
         """
         获取指定角色的配置
         
@@ -130,7 +130,7 @@ class RoleManager:
         roles = base_config.get("roles", {})
         return roles.get(role_id)
     
-    def get_available_roles(self, base_type: Optional[str] = None) -> List[Dict]:
+    def get_available_roles(self, base_type: str | None = None) -> List[Dict]:
         """
         获取可用角色列表
         

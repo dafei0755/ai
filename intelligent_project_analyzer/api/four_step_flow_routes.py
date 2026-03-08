@@ -13,7 +13,6 @@ Version: 1.0
 import json
 import uuid
 from datetime import datetime
-from typing import Optional
 
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import StreamingResponse
@@ -37,7 +36,7 @@ class FourStepSearchRequest(BaseModel):
     """4步骤搜索请求"""
 
     user_input: str = Field(..., description="用户输入的搜索问题")
-    config: Optional[dict] = Field(None, description="搜索执行配置（可选）")
+    config: dict | None = Field(None, description="搜索执行配置（可选）")
 
 
 class FourStepSearchResponse(BaseModel):
@@ -53,7 +52,7 @@ class FourStepSearchResponse(BaseModel):
 # ============================================================================
 
 
-async def optional_auth(request: Request) -> Optional[dict]:
+async def optional_auth(request: Request) -> dict | None:
     """可选认证依赖函数"""
     auth_header = request.headers.get("Authorization", "")
 
@@ -64,7 +63,7 @@ async def optional_auth(request: Request) -> Optional[dict]:
     return None
 
 
-def get_user_identifier(current_user: Optional[dict]) -> Optional[str]:
+def get_user_identifier(current_user: dict | None) -> str | None:
     """获取用户标识符"""
     if not current_user:
         return None
@@ -79,7 +78,7 @@ def get_user_identifier(current_user: Optional[dict]) -> Optional[str]:
 @router.post("/stream", response_model=FourStepSearchResponse)
 async def four_step_search_stream(
     request: FourStepSearchRequest,
-    current_user: Optional[dict] = Depends(optional_auth),
+    current_user: dict | None = Depends(optional_auth),
 ):
     """
     流式执行4步骤搜索流程
@@ -194,7 +193,7 @@ async def four_step_search_stream(
 @router.get("/status/{session_id}")
 async def get_four_step_status(
     session_id: str,
-    current_user: Optional[dict] = Depends(optional_auth),
+    current_user: dict | None = Depends(optional_auth),
 ):
     """
     查询4步骤搜索流程的执行状态

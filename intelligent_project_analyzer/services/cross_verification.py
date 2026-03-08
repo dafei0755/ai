@@ -15,7 +15,7 @@ import os
 import re
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 import httpx
 from loguru import logger
@@ -593,7 +593,7 @@ class CrossVerificationService:
 
 
 # 单例实例
-_verification_service: Optional[CrossVerificationService] = None
+_verification_service: CrossVerificationService | None = None
 
 
 def get_verification_service() -> CrossVerificationService:

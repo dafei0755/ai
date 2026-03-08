@@ -18,17 +18,17 @@ Dezeen 爬虫
   - 列表页用 /‹yyyy›/‹mm›/‹dd›/ 过滤无关链接
 """
 
+import random
 import re
 import time
-import random
 from datetime import datetime
-from typing import List, Dict, Any, Optional
+from typing import Any, Dict, List
+
 from bs4 import BeautifulSoup
 from loguru import logger
 from playwright.sync_api import TimeoutError as PlaywrightTimeout
 
 from .base_spider import BaseSpider, ProjectData
-from ..utils import get_rate_limiter
 from .registry import register_spider
 
 
@@ -57,7 +57,6 @@ class DezeenSpider(BaseSpider):
         super().__init__(timeout=60000)  # Dezeen需要更长超时
         self.source = "dezeen"
         self.base_url = "https://www.dezeen.com"
-        self.rate_limiter = get_rate_limiter("dezeen")
         self.use_playwright = use_playwright
 
     # ========================================================================
@@ -70,7 +69,7 @@ class DezeenSpider(BaseSpider):
     def get_base_url(self) -> str:
         return "https://www.dezeen.com"
 
-    def parse_project_page(self, url: str) -> Optional[ProjectData]:
+    def parse_project_page(self, url: str) -> ProjectData | None:
         return self.fetch_project_detail(url)
 
     def get_categories(self) -> Dict[str, str]:
@@ -83,13 +82,13 @@ class DezeenSpider(BaseSpider):
         self,
         category_url: str,
         max_pages: int = 20,
-        stop_url: Optional[str] = None,
+        stop_url: str | None = None,
     ) -> List[str]:
         category = category_url.replace(self.base_url, "").strip("/")
         logger.info(f"爬取分类: {category}, stop_url={'有' if stop_url else '无（首次全量）'}")
 
         urls: List[str] = []
-        first_url: Optional[str] = None
+        first_url: str | None = None
         consecutive_empty = 0  # 连续空页计数（防单次抖动提前结束）
 
         for page_num in range(1, max_pages + 1):
@@ -231,7 +230,7 @@ class DezeenSpider(BaseSpider):
     # 项目详情爬取
     # ========================================================================
 
-    def fetch_project_detail(self, url: str) -> Optional[ProjectData]:
+    def fetch_project_detail(self, url: str) -> ProjectData | None:
         logger.debug(f"爬取项目详情: {url}")
         self.rate_limiter.wait()
 
@@ -283,7 +282,7 @@ class DezeenSpider(BaseSpider):
     # 数据提取
     # ========================================================================
 
-    def _extract_project_data(self, soup: BeautifulSoup, url: str) -> Optional[ProjectData]:
+    def _extract_project_data(self, soup: BeautifulSoup, url: str) -> ProjectData | None:
         try:
             title = self._extract_title(soup)
             if not title:
@@ -359,7 +358,7 @@ class DezeenSpider(BaseSpider):
             logger.error(f"提取项目数据失败: {e}")
             return None
 
-    def _extract_title(self, soup: BeautifulSoup) -> Optional[str]:
+    def _extract_title(self, soup: BeautifulSoup) -> str | None:
         og_title = soup.find("meta", {"property": "og:title"})
         if og_title:
             title = og_title.get("content", "")
@@ -455,7 +454,7 @@ class DezeenSpider(BaseSpider):
 
         return location
 
-    def _extract_year(self, soup: BeautifulSoup) -> Optional[int]:
+    def _extract_year(self, soup: BeautifulSoup) -> int | None:
         time_elem = soup.find("time", {"datetime": True})
         if time_elem:
             match = re.search(r"(\d{4})", time_elem.get("datetime", ""))
@@ -492,9 +491,9 @@ class DezeenSpider(BaseSpider):
         # 不爬取图片及说明文字（脱离图片，这些备注说明失去意义）
         return []
 
-    def _extract_publish_date(self, soup: BeautifulSoup) -> Optional[datetime]:
+    def _extract_publish_date(self, soup: BeautifulSoup) -> datetime | None:
         time_elem = soup.find("time", {"datetime": True})
-        raw: Optional[str] = None
+        raw: str | None = None
         if time_elem:
             raw = time_elem.get("datetime")
         if not raw:

@@ -49,6 +49,7 @@ if sys.platform == "win32":
         # 如果设置失败，降级处理（已有 TextIOWrapper 兜底）
         pass
 
-__version__ = "1.0.0"
+from intelligent_project_analyzer.versioning import PRODUCT_VERSION as __version__
+
 __author__ = "AI Assistant"
 __description__ = "Intelligent Project Analysis System based on LangGraph"

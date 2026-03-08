@@ -16,7 +16,7 @@ API 文档: https://docs.openalex.org/
 """
 
 import os
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 import httpx
 from loguru import logger
@@ -57,7 +57,7 @@ except ImportError:
 class OpenAlexSearchTool:
     """OpenAlex 学术搜索工具类"""
 
-    def __init__(self, config: Optional[ToolConfig] = None):
+    def __init__(self, config: ToolConfig | None = None):
         """
         初始化 OpenAlex 搜索工具
 
@@ -88,9 +88,9 @@ class OpenAlexSearchTool:
     def search(
         self,
         query: str,
-        max_results: Optional[int] = None,
-        from_year: Optional[int] = None,
-        to_year: Optional[int] = None,
+        max_results: int | None = None,
+        from_year: int | None = None,
+        to_year: int | None = None,
         open_access_only: bool = False,
         **kwargs,
     ) -> Dict[str, Any]:
@@ -301,7 +301,7 @@ class OpenAlexSearchTool:
     def search_by_author(
         self,
         author_name: str,
-        max_results: Optional[int] = None,
+        max_results: int | None = None,
     ) -> Dict[str, Any]:
         """
         按作者搜索论文
@@ -321,7 +321,7 @@ class OpenAlexSearchTool:
     def search_by_concept(
         self,
         concept: str,
-        max_results: Optional[int] = None,
+        max_results: int | None = None,
         min_citations: int = 0,
     ) -> Dict[str, Any]:
         """
@@ -391,8 +391,8 @@ if LANGCHAIN_AVAILABLE:
 
         query: str = Field(description="搜索关键词，如论文标题、作者、研究主题等")
         max_results: int = Field(default=10, description="返回结果数量（1-50）")
-        from_year: Optional[int] = Field(default=None, description="起始年份，如 2020")
-        to_year: Optional[int] = Field(default=None, description="结束年份，如 2024")
+        from_year: int | None = Field(default=None, description="起始年份，如 2020")
+        to_year: int | None = Field(default=None, description="结束年份，如 2024")
         open_access_only: bool = Field(default=False, description="是否仅返回开放获取论文")
 
     def create_openalex_tool() -> StructuredTool:
@@ -402,8 +402,8 @@ if LANGCHAIN_AVAILABLE:
         def run_search(
             query: str,
             max_results: int = 10,
-            from_year: Optional[int] = None,
-            to_year: Optional[int] = None,
+            from_year: int | None = None,
+            to_year: int | None = None,
             open_access_only: bool = False,
         ) -> str:
             """执行搜索并返回结果"""
@@ -457,7 +457,7 @@ if LANGCHAIN_AVAILABLE:
 
 # ============ 工具实例创建 ============
 
-_tool_instance: Optional[OpenAlexSearchTool] = None
+_tool_instance: OpenAlexSearchTool | None = None
 
 
 def get_openalex_tool() -> OpenAlexSearchTool:

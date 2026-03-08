@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 MT-1 (2026-03-01): 系统监控、健康检查、用户管理路由
 
@@ -14,29 +13,19 @@ MT-1 (2026-03-01): 系统监控、健康检查、用户管理路由
 """
 from __future__ import annotations
 
-import asyncio
 import json
 import os
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from fastapi import APIRouter, HTTPException, Response
 from loguru import logger
 from pydantic import BaseModel, Field
 
-from intelligent_project_analyzer.settings import settings
+from intelligent_project_analyzer.services.file_processor import file_processor
 
 router = APIRouter(tags=["System & Monitoring"])
-
-
-class _ServerProxy:
-    def __getattr__(self, name: str):  # noqa: ANN204
-        import intelligent_project_analyzer.api.server as _srv  # noqa: PLC0415
-
-        return getattr(_srv, name)
-
-
-_server = _ServerProxy()
+from intelligent_project_analyzer.api._server_proxy import server_proxy as _server
 
 
 @router.get("/")
@@ -214,7 +203,7 @@ async def redis_health_check():
 
         # 测试 Read
         read_start = time.time()
-        data = await _server.session_manager.get(test_id)
+        await _server.session_manager.get(test_id)
         read_time = (time.time() - read_start) * 1000
 
         # 测试 Update
@@ -260,7 +249,7 @@ class DimensionValidationRequest(BaseModel):
     """维度验证请求"""
 
     dimensions: List[Dict[str, Any]] = Field(..., description="维度配置列表")
-    mode: Optional[str] = Field(None, description="检测模式: strict/balanced/lenient")
+    mode: str | None = Field(None, description="检测模式: strict/balanced/lenient")
 
 
 class DimensionValidationResponse(BaseModel):
@@ -317,7 +306,7 @@ async def readiness_check():
 
     # 1. 检查Redis连接
     try:
-        if session_manager:
+        if _server.session_manager:
             # 尝试ping Redis
             await _server.session_manager.list_all_sessions()
             checks["redis"] = {"status": "ok", "message": "Redis连接正常"}
@@ -331,7 +320,9 @@ async def readiness_check():
     # 2. 检查腾讯云API可达性（如果启用）
     try:
         if os.getenv("ENABLE_TENCENT_CONTENT_SAFETY") == "true":
-            from intelligent_project_analyzer.security.tencent_content_safety import get_tencent_content_safety_client
+            from intelligent_project_analyzer.security.tencent_content_safety import (
+                get_tencent_content_safety_client,
+            )
 
             client = get_tencent_content_safety_client()
             if client:
@@ -365,7 +356,7 @@ async def readiness_check():
 
     # 4. 检查会话管理器状态
     try:
-        if session_manager:
+        if _server.session_manager:
             checks["session_manager"] = {"status": "ok", "message": "会话管理器正常"}
         else:
             checks["session_manager"] = {"status": "error", "message": "会话管理器未初始化"}
@@ -410,7 +401,9 @@ async def get_user_sessions(user_id: str, limit: int = 10):
     v3.9新增：用户会话隔离
     """
     try:
-        from intelligent_project_analyzer.services.user_session_manager import get_user_session_manager
+        from intelligent_project_analyzer.services.user_session_manager import (
+            get_user_session_manager,
+        )
 
         manager = await get_user_session_manager()
         sessions = await manager.get_user_sessions(user_id, limit)
@@ -427,7 +420,9 @@ async def get_user_all_progress(user_id: str):
     v3.9新增：用户独立进度
     """
     try:
-        from intelligent_project_analyzer.services.user_session_manager import get_user_session_manager
+        from intelligent_project_analyzer.services.user_session_manager import (
+            get_user_session_manager,
+        )
 
         manager = await get_user_session_manager()
         progress_list = await manager.get_all_user_progress(user_id)
@@ -444,7 +439,9 @@ async def get_user_quota(user_id: str):
     v3.9新增：用户配额管理
     """
     try:
-        from intelligent_project_analyzer.services.user_session_manager import get_user_session_manager
+        from intelligent_project_analyzer.services.user_session_manager import (
+            get_user_session_manager,
+        )
 
         manager = await get_user_session_manager()
         quota = await manager.check_user_quota(user_id)
@@ -462,7 +459,9 @@ async def get_user_active_session(user_id: str):
     v3.9新增：快速获取用户正在进行的分析
     """
     try:
-        from intelligent_project_analyzer.services.user_session_manager import get_user_session_manager
+        from intelligent_project_analyzer.services.user_session_manager import (
+            get_user_session_manager,
+        )
 
         manager = await get_user_session_manager()
         active_session_id = await manager.get_user_active_session(user_id)

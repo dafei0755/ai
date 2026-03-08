@@ -24,6 +24,7 @@ docs/
 | 文档 | 说明 |
 |------|------|
 | [QUICKSTART.md](../QUICKSTART.md) | 5分钟快速启动（根目录） |
+| [USER_PLAIN_LANGUAGE_OVERVIEW.md](USER_PLAIN_LANGUAGE_OVERVIEW.md) | 面向普通用户的产品说明 |
 | [getting-started/INSTALLATION.md](getting-started/INSTALLATION.md) | 详细安装教程 |
 | [getting-started/CONFIGURATION.md](getting-started/CONFIGURATION.md) | 环境配置指南 |
 | [getting-started/FAQ.md](getting-started/FAQ.md) | 常见问题解答 |

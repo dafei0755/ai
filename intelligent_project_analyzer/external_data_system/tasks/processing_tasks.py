@@ -4,8 +4,9 @@
 定义向量生成、质量检查等数据处理任务
 """
 
-from loguru import logger
 import os
+
+from loguru import logger
 
 # 导入主Celery应用
 from .sync_tasks import celery_app
@@ -22,8 +23,9 @@ def generate_embeddings_task(project_id: int):
     logger.info(f"🚀 生成向量嵌入: project_id={project_id}")
 
     try:
-        from ..models import get_external_db, ExternalProject
         from openai import OpenAI
+
+        from ..models import ExternalProject, get_external_db
 
         # OpenAI客户端
         api_key = os.getenv("OPENAI_API_KEY")
@@ -76,8 +78,9 @@ def quality_check_task(project_id: int):
     logger.info(f"🚀 质量检查: project_id={project_id}")
 
     try:
-        from ..models import get_external_db, ExternalProject, QualityIssue
         from datetime import datetime
+
+        from ..models import ExternalProject, QualityIssue, get_external_db
 
         db = get_external_db()
         with db.get_session() as session:
@@ -146,7 +149,7 @@ def batch_generate_embeddings_task(limit: int = 100):
     logger.info(f"🚀 批量生成向量嵌入: limit={limit}")
 
     try:
-        from ..models import get_external_db, ExternalProject
+        from ..models import ExternalProject, get_external_db
 
         db = get_external_db()
         with db.get_session() as session:

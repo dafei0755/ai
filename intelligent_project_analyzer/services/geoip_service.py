@@ -8,7 +8,7 @@ GeoIP 地理位置服务
 
 import time
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 import httpx
 from fastapi import Request
@@ -42,7 +42,7 @@ class GeoIPService:
     RATE_LIMIT = 40
     RATE_WINDOW = 60  # 秒
 
-    def __init__(self, db_path: Optional[str] = None):
+    def __init__(self, db_path: str | None = None):
         """初始化 GeoIP 服务"""
 
         self.db_path = db_path or str(self.DEFAULT_DB_PATH)
@@ -181,7 +181,7 @@ class GeoIPService:
                 return True
 
             return False
-        except:
+        except Exception:
             return False
 
     def _lookup_local_database(self, ip: str) -> Dict[str, Any]:
@@ -325,7 +325,7 @@ class GeoIPService:
 
 
 # 全局单例
-_geoip_service: Optional[GeoIPService] = None
+_geoip_service: GeoIPService | None = None
 
 
 def get_geoip_service() -> GeoIPService:

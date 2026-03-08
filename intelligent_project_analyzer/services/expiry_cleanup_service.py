@@ -57,7 +57,7 @@ class ExpiryCleanupService:
                 logger.warning(f"配置文件不存在: {config_path}")
                 return {}
 
-            with open(config_file, "r", encoding="utf-8") as f:
+            with open(config_file, encoding="utf-8") as f:
                 config = yaml.safe_load(f)
 
             return config

@@ -47,7 +47,7 @@ class QuotaConfig:
                 logger.error(f"配额配置文件不存在: {self.config_path}")
                 return self._get_fallback_config()
 
-            with open(self.config_path, "r", encoding="utf-8") as f:
+            with open(self.config_path, encoding="utf-8") as f:
                 config = yaml.safe_load(f)
 
             logger.info(f"配额配置已加载: {self.config_path}")
@@ -78,7 +78,7 @@ class QuotaConfig:
             "exempt_users": ["admin", "system"],
         }
 
-    def get_tier_quota(self, tier: str) -> Optional[Dict]:
+    def get_tier_quota(self, tier: str) -> Dict | None:
         """
         获取指定会员等级的配额
 

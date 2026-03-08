@@ -5,96 +5,47 @@
 """
 
 #  v7.16: LangGraph Agent 升级版本（通过环境变量控制）
-import os
 import sqlite3
-import uuid
-from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Literal, Optional, Union
+from typing import Any, Dict
 
-import yaml
 from langgraph.checkpoint.base import BaseCheckpointSaver
 from langgraph.checkpoint.sqlite import SqliteSaver
 from langgraph.graph import END, START, StateGraph
 from langgraph.store.memory import InMemoryStore
-from langgraph.types import Command, Send
 from loguru import logger
 
 # 显式导入智能体类以触发 AgentFactory 注册
-from ..agents import AgentFactory, ProjectDirectorAgent, RequirementsAnalystAgent
 from ..agents.base import NullLLM
-from ..agents.dynamic_project_director import detect_and_handle_challenges_node  #  v3.5
-from ..agents.feasibility_analyst import FeasibilityAnalystAgent  #  V1.5可行性分析师
-from ..agents.quality_monitor import QualityMonitor  #
-from ..core.state import AnalysisStage, ProjectAnalysisState, StateManager
-from ..core.types import AgentType, format_role_display_name
-from ..interaction.interaction_nodes import (  # FinalReviewNode,  # 已移除：客户需求中没有最终审核阶段; AnalysisReviewNode,  # ️ v2.2: 已废弃，质量审核已前置化
-    CalibrationQuestionnaireNode,
-    UserQuestionNode,
-)
-from ..interaction.nodes.manual_review import ManualReviewNode  #  人工审核节点
+
+#  v7.17: 需求分析师 StateGraph Agent（永久启用，v8.4 内联）
+#  统一从 feature_flags 读取，消除跨模块默认值分裂
+#  v8.4: 清理已冻结的 flag，仅保留活跃开关
+from ..config.feature_flags import log_feature_flags_snapshot
+from ..core.state import ProjectAnalysisState
 
 #  v7.87: 三步递进式问卷节点
-from ..interaction.nodes.progressive_questionnaire import (
-    ProgressiveQuestionnaireNode,
-    progressive_step1_core_task_node,
-    progressive_step2_radar_node,
-    progressive_step3_gap_filling_node,
-)
-from ..interaction.nodes.quality_preflight import QualityPreflightNode  #
-
 #  v7.135: 问卷汇总节点（需求重构）
-from ..interaction.nodes.questionnaire_summary import questionnaire_summary_node
-
 #  统一审核节点（合并角色选择和任务分派审核）
-from ..interaction.role_task_unified_review import role_task_unified_review_node
-
-#  v7.502 P1优化: 智能上下文压缩器
-from .context_compressor import create_context_compressor
-
 # from ..interaction.role_selection_review import role_selection_review_node  # 已废弃
 # from ..interaction.task_assignment_review import task_assignment_review_node  # 已废弃
-from ..interaction.second_batch_strategy_review import SecondBatchStrategyReviewNode
-from ..report.pdf_generator import PDFGeneratorAgent
-from ..report.result_aggregator import ResultAggregatorAgent
-from ..workflow.nodes.search_query_generator_node import search_query_generator_node  #  v7.109
 
-USE_V716_AGENTS = os.getenv("USE_V716_AGENTS", "false").lower() == "true"
-USE_V717_REQUIREMENTS_ANALYST = os.getenv("USE_V717_REQUIREMENTS_ANALYST", "false").lower() == "true"
-USE_V718_QUESTIONNAIRE_AGENT = os.getenv("USE_V718_QUESTIONNAIRE_AGENT", "false").lower() == "true"
-#  v7.87: 三步递进式问卷（默认启用）
-USE_PROGRESSIVE_QUESTIONNAIRE = os.getenv("USE_PROGRESSIVE_QUESTIONNAIRE", "true").lower() == "true"
-USE_MULTI_ROUND_QUESTIONNAIRE = os.getenv("USE_MULTI_ROUND_QUESTIONNAIRE", "false").lower() == "true"
-if USE_V716_AGENTS:
-    # from ..agents.analysis_review_agent import AnalysisReviewAgent, AnalysisReviewNodeCompat  # ️ v2.2: 已废弃
-    from ..agents.challenge_detection_agent import ChallengeDetectionAgent, detect_and_handle_challenges_v2
-    from ..agents.quality_preflight_agent import QualityPreflightAgent, QualityPreflightNodeCompat
-    from ..agents.questionnaire_agent import LLMQuestionGeneratorCompat, QuestionnaireAgent
-    from ..agents.result_aggregator_agent import ResultAggregatorAgentCompat, ResultAggregatorAgentV2
+#  v7.502 P1优化: 智能上下文压缩器
 
-    logger.info(" [v7.16] 启用 LangGraph Agent 升级版本")
-if USE_V717_REQUIREMENTS_ANALYST:
-    from ..agents.requirements_analyst_agent import RequirementsAnalystAgentV2
-
-    logger.info(" [v7.17] 启用需求分析师 StateGraph Agent")
-if USE_V718_QUESTIONNAIRE_AGENT:
-    from ..agents.questionnaire_agent import QuestionnaireAgent
-
-    logger.info(" [v7.18] 启用问卷生成 StateGraph Agent")
-from ..security import ReportGuardNode  #  内容安全与领域过滤
+logger.info(" [v7.17] 需求分析师 StateGraph Agent（永久启用）")
+# ST-2: USE_V718_QUESTIONNAIRE_AGENT 已删除，QuestionnaireAgent 直接不导入
 
 #  v7.3 统一输入验证节点（合并 input_guard 和 domain_validator）
-from ..security.unified_input_validator_node import InputRejectedNode, UnifiedInputValidatorNode
 
 # 动态本体论注入工具
 from ..utils.ontology_loader import OntologyLoader
+from .nodes.aggregation_nodes import AggregationNodesMixin
+from .nodes.execution_nodes import ExecutionNodesMixin
+from .nodes.planning_nodes import PlanningNodesMixin
+from .nodes.requirements_nodes import RequirementsNodesMixin
 
 # LT-1: Mixin classes split from this file
 from .nodes.security_nodes import SecurityNodesMixin
-from .nodes.requirements_nodes import RequirementsNodesMixin
-from .nodes.planning_nodes import PlanningNodesMixin
-from .nodes.execution_nodes import ExecutionNodesMixin
-from .nodes.aggregation_nodes import AggregationNodesMixin
 
 
 class MainWorkflow(
@@ -108,9 +59,9 @@ class MainWorkflow(
 
     def __init__(
         self,
-        llm_model: Optional[Any] = None,
-        config: Optional[Dict[str, Any]] = None,
-        checkpointer: Optional[BaseCheckpointSaver[str]] = None,
+        llm_model: Any | None = None,
+        config: Dict[str, Any] | None = None,
+        checkpointer: BaseCheckpointSaver[str] | None = None,
     ):
         """
         初始化主工作流
@@ -132,7 +83,7 @@ class MainWorkflow(
         self.store = InMemoryStore()
 
         #  支持外部传入 AsyncSqliteSaver（默认回退到同步版）
-        self._sqlite_conn: Optional[sqlite3.Connection] = None
+        self._sqlite_conn: sqlite3.Connection | None = None
         if checkpointer is not None:
             self.checkpointer = checkpointer
             logger.info(" 使用外部提供的检查点存储 (AsyncSqliteSaver/自定义)")
@@ -167,6 +118,7 @@ class MainWorkflow(
         else:
             logger.warning("  ️ 图像生成已禁用，概念图不会生成（检查 .env 中的 IMAGE_GENERATION_ENABLED）")
 
+        log_feature_flags_snapshot()  #  启动时打印完整特性开关快照
         logger.info("Main workflow initialized successfully")
 
     def _build_workflow_graph(self) -> StateGraph:
@@ -195,21 +147,16 @@ class MainWorkflow(
         # 1. 前置流程节点（需求收集与确认）
         # ============================================================================
         workflow.add_node("requirements_analyst", self._requirements_analyst_node)
+        workflow.add_node("output_intent_detection", self._output_intent_detection_node)  #  Step 0 输出意图确认
         workflow.add_node("feasibility_analyst", self._feasibility_analyst_node)  #  V1.5可行性分析师
 
-        #  v7.87: 根据环境变量选择问卷类型
-        if USE_PROGRESSIVE_QUESTIONNAIRE:
-            # 三步递进式问卷（v7.80+）
-            workflow.add_node("progressive_step1_core_task", self._progressive_step1_node)
-            workflow.add_node("progressive_step2_radar", self._progressive_step2_node)
-            workflow.add_node("progressive_step3_gap_filling", self._progressive_step3_node)
-            #  v7.135: 需求洞察节点（需求重构）
-            workflow.add_node("questionnaire_summary", self._questionnaire_summary_node)
-            logger.info(" [v7.87] 启用三步递进式问卷（progressive_questionnaire）")
-        else:
-            # 旧版单轮问卷（向后兼容）
-            workflow.add_node("calibration_questionnaire", self._calibration_questionnaire_node)
-            logger.info("️ [v7.87] 使用旧版单轮问卷（calibration_questionnaire），建议设置 USE_PROGRESSIVE_QUESTIONNAIRE=true")
+        #  v7.87→v8.x: 三步递进式问卷（永久启用，USE_PROGRESSIVE_QUESTIONNAIRE 已冻结 True）
+        workflow.add_node("progressive_step1_core_task", self._progressive_step1_node)
+        workflow.add_node("progressive_step2_radar", self._progressive_step2_node)
+        workflow.add_node("progressive_step3_gap_filling", self._progressive_step3_node)
+        #  v7.135: 需求洞察节点（需求重构）
+        workflow.add_node("questionnaire_summary", self._questionnaire_summary_node)
+        logger.info(" [v8.x] 三步递进式问卷（固定启用）")
 
         #  v7.151: requirements_confirmation 已合并到 questionnaire_summary（需求洞察）
 
@@ -254,30 +201,24 @@ class MainWorkflow(
         # unified_input_validator_initial 使用 Command 路由到 requirements_analyst 或 input_rejected
         workflow.add_edge("input_rejected", END)  # 拒绝后终止
 
-        workflow.add_edge("requirements_analyst", "feasibility_analyst")  #  V1.5可行性分析
+        #  显式路由：需求分析失败时终止主链路，阻止静默降级到 Step 1
+        workflow.add_conditional_edges(
+            "requirements_analyst",
+            self._route_after_requirements_analyst,
+            {"output_intent_detection": "output_intent_detection", END: END},
+        )
         workflow.add_edge("feasibility_analyst", "unified_input_validator_secondary")  # 第二道防线：二次验证
 
-        #  v7.87: 根据环境变量配置问卷流程
-        if USE_PROGRESSIVE_QUESTIONNAIRE:
-            # 三步递进式问卷流程
-            workflow.add_edge("unified_input_validator_secondary", "progressive_step1_core_task")
-            # progressive_step1 使用 Command 路由到 progressive_step2_radar 或 requirements_analyst
-            # progressive_step2 使用 Command 路由到 progressive_step3_gap_filling 或 progressive_step1
-            # progressive_step3 使用 Command 路由到 questionnaire_summary（v7.135: 需求重构）
-            #  v7.151: questionnaire_summary 升级为需求洞察，使用 Command 动态路由
-            # - 确认/微调 → project_director
-            # - 重大修改 → requirements_analyst
-            #  移除静态边: workflow.add_edge("questionnaire_summary", "requirements_confirmation")
-            logger.info(" [v7.151] 配置需求洞察流程（合并需求洞察+需求确认）")
-        elif USE_MULTI_ROUND_QUESTIONNAIRE:
-            # 多轮迭代问卷已停用，回退到三步递进式
-            logger.warning("️ [v7.87] 多轮迭代问卷已停用，回退到三步递进式问卷")
-            workflow.add_edge("unified_input_validator_secondary", "progressive_step1_core_task")
-            #  v7.151: 同样使用 Command 动态路由
-        else:
-            # 旧版单轮问卷
-            workflow.add_edge("unified_input_validator_secondary", "calibration_questionnaire")
-            #  calibration_questionnaire 使用 Command 完全动态路由（无静态 edge）
+        #  v7.87: 三步递进式问卷流程（永久启用，v8.4 内联）
+        # 三步递进式问卷流程
+        workflow.add_edge("unified_input_validator_secondary", "progressive_step1_core_task")
+        # progressive_step1 使用 Command 路由到 progressive_step2_radar 或 requirements_analyst
+        # progressive_step2 使用 Command 路由到 progressive_step3_gap_filling 或 progressive_step1
+        # progressive_step3 使用 Command 路由到 questionnaire_summary（v7.135: 需求重构）
+        #  v7.151: questionnaire_summary 升级为需求洞察，使用 Command 动态路由
+        # - 确认/微调 → project_director
+        # - 重大修改 → requirements_analyst
+        logger.info(" [v7.151] 配置需求洞察流程（合并需求洞察+需求确认）")
 
         workflow.add_edge("project_director", "deliverable_id_generator")  #  v7.108 生成交付物ID
         workflow.add_edge("deliverable_id_generator", "search_query_generator")  #  v7.109 搜索查询生成
@@ -362,11 +303,11 @@ class MainWorkflow(
         workflow.add_edge("result_aggregator", "report_guard")  #  报告审核
         workflow.add_edge("report_guard", "pdf_generator")  #  审核后生成PDF
 
-        workflow.add_conditional_edges("pdf_generator", self._route_after_pdf_generator, ["user_question", END])
+        # 修复 P1：_route_after_pdf_generator 始终返回 END，user_question 不可达，移除死路声明
+        workflow.add_conditional_edges("pdf_generator", self._route_after_pdf_generator, [END])
 
-        workflow.add_conditional_edges(
-            "user_question", self._route_after_user_question, ["project_director", "result_aggregator"]
-        )
+        # 修复 P0：函数返回 Literal["project_director", END]，END 必须在声明列表；移除永远不可达的 result_aggregator
+        workflow.add_conditional_edges("user_question", self._route_after_user_question, ["project_director", END])
 
         # ============================================================================
         # 编译图

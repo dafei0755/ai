@@ -1,17 +1,21 @@
 """
 后台管理 - 分类体系监控API（v7.500 维度学习系统）
 """
-from fastapi import APIRouter, Depends, Query
-from typing import Optional
-from datetime import datetime, timedelta
-import os
 import json
 import logging
+import os
+from datetime import datetime, timedelta
+
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy import create_engine, func
 from sqlalchemy.orm import sessionmaker
 
+from ...models.taxonomy_models import (
+    TaxonomyConceptDiscovery,
+    TaxonomyEmergingType,
+    TaxonomyExtendedType,
+)
 from ..auth_middleware import require_admin
-from ...models.taxonomy_models import TaxonomyExtendedType, TaxonomyEmergingType, TaxonomyConceptDiscovery
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -125,7 +129,7 @@ async def get_taxonomy_overview():
 
 @router.get("/emerging-types", dependencies=[Depends(require_admin)])
 async def list_emerging_types(
-    dimension: Optional[str] = None,
+    dimension: str | None = None,
     sort_by: str = Query("case_count", regex="^(case_count|success_rate|created_at)$"),
     limit: int = Query(50, ge=1, le=200),
 ):

@@ -5,12 +5,12 @@
 Dynamically creates specialized agents based on role configurations.
 """
 
-from typing import Dict, Any, Callable
+from typing import Any, Callable, Dict
+
 try:
     from langgraph.prebuilt import create_react_agent
 except ImportError:
     # 尝试处理 langgraph 命名空间包问题
-    import sys
     from loguru import logger
     logger.warning("Failed to import langgraph.prebuilt directly. Attempting workarounds...")
     try:
@@ -23,11 +23,16 @@ except ImportError:
         try:
             import langgraph
             logger.error(f"langgraph path: {getattr(langgraph, '__path__', 'unknown')}")
-        except:
+        except Exception:
             pass
         raise
 
-from langchain_core.messages import AIMessage, HumanMessage, SystemMessage  #  N3优化：添加重试消息类型
+from langchain_core.messages import (  #  N3优化：添加重试消息类型
+    AIMessage,
+    HumanMessage,
+    SystemMessage,
+)
+
 from intelligent_project_analyzer.core.role_manager import RoleManager
 
 
@@ -109,6 +114,7 @@ class SpecializedAgentFactory:
                 状态更新
             """
             import json
+
             from loguru import logger
 
             #  获取完整的项目信息
@@ -384,7 +390,7 @@ Start directly with the JSON object (no markdown, no explanations).
                         state[f"protocol_retry_{role_id}"] = retry_count + 1
                         
                         # 重新调用LLM
-                        logger.info(f" 重新调用LLM进行协议修正...")
+                        logger.info(" 重新调用LLM进行协议修正...")
                         response = llm_model.invoke(retry_messages)
                         result_content = response.content
                         
@@ -440,9 +446,11 @@ Start directly with the JSON object (no markdown, no explanations).
 
 # 使用示例
 if __name__ == "__main__":
-    from langchain_openai import ChatOpenAI
-    from intelligent_project_analyzer.core.role_manager import RoleManager
     import os
+
+    from langchain_openai import ChatOpenAI
+
+    from intelligent_project_analyzer.core.role_manager import RoleManager
 
     # 初始化 - 使用 OpenAI Official API
     llm = ChatOpenAI(

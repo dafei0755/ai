@@ -1,13 +1,13 @@
-# -*- coding: utf-8 -*-
 """
 Celery 应用配置
 
 用于异步任务队列，支持多用户并发分析
 """
 
+import json
+
 from celery import Celery
 from kombu import serialization
-import json
 
 # 注册自定义序列化器以支持中文
 serialization.register(

@@ -115,6 +115,12 @@ export interface AnalysisStatus {
   // 🆕 v7.155: 多模态视觉参考
   visual_references?: VisualReference[];
   visual_style_anchor?: string;
+  // Smart Nodes Self-Skip 路由画像（可选）
+  flow_route_name?: string;
+  flow_route_decision?: Record<string, any>;
+  flow_route_reason_codes?: string[];
+  routing_scores?: Record<string, number>;
+  active_steps?: string[];
 }
 
 // 🔥 v7.109: 会话列表项类型（增强状态枚举和错误字段）
@@ -661,6 +667,24 @@ export interface RestructuredRequirements {
     sides: string[];
     recommended_approach: string;
     trade_off: string;
+  }>;
+  // 🆕 v13.0: 任务校正 + 雷达响应映射
+  task_corrections?: Array<{
+    task_id: string | null;
+    action: 'enhance' | 'reprioritize' | 'invalidate' | 'add';
+    title?: string;
+    description?: string;
+    new_priority?: 'high' | 'medium' | 'low';
+    enhance_note?: string;
+    reason: string;
+    source?: string;
+  }>;
+  radar_response_map?: Array<{
+    dimension_id: string;
+    dimension_label: string;
+    design_driver: string;
+    responses: Array<{ action_type: string; action_detail: string }>;
+    coverage_reason?: string;
   }>;
 }
 
@@ -1259,4 +1283,78 @@ export interface SearchPlanSuggestion {
   why_important: string;
   priority: 'P0' | 'P1' | 'P2';
   derived_from: string;
+}
+
+// ── v8.1: 偏好雷达图增强类型定义 ──────────────────────────────────────────────
+
+/** 雷达图单维度响应账本条目 (v14.0) */
+export interface RadarResponseLedgerItem {
+  dimension_id: string;
+  dimension_name: string;
+  user_value: number;
+  default_value: number;
+  adjusted: boolean;
+  adjustment_magnitude: number;
+}
+
+/** 雷达图响应证据对象 (v14.0) */
+export interface RadarEvidence {
+  adjusted_dimensions: RadarResponseLedgerItem[];
+  responded_dimensions: string[];
+  coverage_rate: number;
+}
+
+/** 维度分层结构 (v8.0 三层架构) */
+export interface DimensionLayers {
+  calibration?: string[];  // 从已知信息推断：AI有明确倾向，default_value !== 50
+  decision?: string[];     // 用户核心决策点：真正两难，default_value = 50
+  insight?: string[];      // LLM主动发现的隐性需求维度
+}
+
+/** 维度生成可观测性元数据 (v9.0) */
+export interface DimensionMeta {
+  degraded: boolean;       // 是否降级生成（未达最优策略）
+  quality_score: number;   // 质量评分 0-1，低于 0.55 触发下一层重试
+  attempts: number;        // 实际尝试次数
+  generation_method?: 'project_specific' | 'semi_dynamic' | 'rule_engine';
+}
+
+/** 任务校准复盘对象 (v13.0) */
+export interface TaskCalibrationReview {
+  summary_line?: string;
+  counts: {
+    added: number;
+    invalidated: number;
+    optimized: number;
+    strengthened: number;
+  };
+  added_items: Array<{ title: string; source: string; reason: string }>;
+  invalidated_items: Array<{ title: string; reason: string }>;
+  optimized_items: Array<{ label: string; evidence: string; source: string }>;
+  strengthened_items: Array<{
+    label: string;
+    design_driver?: string;
+    tendency_label?: string;
+    tier_label?: string;
+    source: string;
+  }>;
+  gap_effective: boolean;
+  radar_dim_count: number;
+}
+
+/** 权重语义翻译层 (v14.0) */
+export interface WeightInterpretations {
+  _summary?: {
+    core_drivers: string[];
+    important: string[];
+    background: string[];
+    de_emphasized: string[];
+  };
+  [dimension_id: string]: {
+    dimension_label: string;
+    design_intent: string;
+    tendency_label: string;
+    tier: 'core_driver' | 'important' | 'background' | 'de_emphasized';
+    weight_value: number;
+  } | undefined;
 }

@@ -19,7 +19,7 @@
 import asyncio
 import time
 from datetime import datetime
-from typing import Any, Callable, Coroutine, Dict, Optional
+from typing import Any, Callable, Coroutine, Dict
 
 from loguru import logger
 
@@ -38,8 +38,8 @@ class LearningTask:
         self.func = func
         self.interval_seconds = interval_seconds
         self.description = description
-        self.last_run: Optional[float] = None
-        self.last_result: Optional[Dict[str, Any]] = None
+        self.last_run: float | None = None
+        self.last_result: Dict[str, Any] | None = None
         self.run_count: int = 0
         self.error_count: int = 0
         self.enabled: bool = True
@@ -55,7 +55,7 @@ class LearningScheduler:
     def __init__(self):
         self.tasks: Dict[str, LearningTask] = {}
         self._running = False
-        self._background_task: Optional[asyncio.Task] = None
+        self._background_task: asyncio.Task | None = None
         self._register_default_tasks()
         logger.info(" LearningScheduler 已初始化")
 
@@ -263,7 +263,7 @@ class LearningScheduler:
     @staticmethod
     async def _run_motivation_analysis() -> Dict[str, Any]:
         """执行动机模式分析"""
-        from .motivation_engine import MotivationTypeRegistry, MotivationLearningSystem
+        from .motivation_engine import MotivationLearningSystem, MotivationTypeRegistry
 
         registry = MotivationTypeRegistry()
         learning = MotivationLearningSystem(registry)
@@ -297,7 +297,7 @@ class LearningScheduler:
 
 
 # 全局单例
-_learning_scheduler: Optional[LearningScheduler] = None
+_learning_scheduler: LearningScheduler | None = None
 
 
 def get_learning_scheduler() -> LearningScheduler:

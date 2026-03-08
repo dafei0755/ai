@@ -8,9 +8,9 @@ Version: v8.110.0
 Date: 2026-02-17
 """
 
+
 import requests
 from bs4 import BeautifulSoup
-from urllib.parse import urljoin
 
 # Archdaily
 print("=" * 80)

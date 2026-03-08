@@ -4,11 +4,9 @@ WordPress 原生 JWT 认证服务
 直接与 WordPress REST API 集成，无需 miniOrange 插件
 """
 
-import hashlib
-import hmac
 import os
 from datetime import datetime, timedelta
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 import httpx
 import jwt
@@ -32,7 +30,7 @@ class WordPressJWTService:
         self.jwt_algorithm = os.getenv("JWT_ALGORITHM", "HS256")
         self.jwt_expiry = int(os.getenv("JWT_EXPIRY", "604800"))  # 7天
 
-        logger.info(f" WordPress JWT Service 初始化完成")
+        logger.info(" WordPress JWT Service 初始化完成")
         logger.info(f"   WordPress URL: {self.wordpress_url}")
         logger.info(f"   认证算法: {self.jwt_algorithm}")
 
@@ -43,7 +41,7 @@ class WordPressJWTService:
 
         return secrets.token_urlsafe(32)
 
-    async def authenticate_with_wordpress(self, username: str, password: str) -> Optional[Dict[str, Any]]:
+    async def authenticate_with_wordpress(self, username: str, password: str) -> Dict[str, Any] | None:
         """
         使用 WordPress REST API 验证用户凭证
 
@@ -79,7 +77,7 @@ class WordPressJWTService:
             logger.error(f" WordPress 认证异常: {str(e)}")
             return None
 
-    def generate_jwt_token(self, user_data: Dict[str, Any], device_id: Optional[str] = None) -> str:
+    def generate_jwt_token(self, user_data: Dict[str, Any], device_id: str | None = None) -> str:
         """
         生成 JWT Token
 
@@ -116,7 +114,7 @@ class WordPressJWTService:
             logger.error(f" JWT Token 生成失败: {str(e)}")
             raise
 
-    def verify_jwt_token(self, token: str) -> Optional[Dict[str, Any]]:
+    def verify_jwt_token(self, token: str) -> Dict[str, Any] | None:
         """
         验证 JWT Token
 
@@ -162,7 +160,7 @@ class WordPressJWTService:
             logger.error(f" Token 验证异常: {str(e)}")
             return None
 
-    def refresh_jwt_token(self, old_token: str) -> Optional[str]:
+    def refresh_jwt_token(self, old_token: str) -> str | None:
         """
         刷新 JWT Token
 
@@ -198,7 +196,7 @@ class WordPressJWTService:
                     grace_period = timedelta(days=7)
 
                     if datetime.utcnow() > exp_datetime + grace_period:
-                        logger.warning(f" Token 过期超过宽限期，无法刷新")
+                        logger.warning(" Token 过期超过宽限期，无法刷新")
                         return None
 
                     logger.info(f" Token 已过期但在宽限期内，允许刷新: {payload.get('username')}")
@@ -244,7 +242,7 @@ class WordPressJWTService:
 
 
 # 全局实例
-_jwt_service: Optional[WordPressJWTService] = None
+_jwt_service: WordPressJWTService | None = None
 
 
 def get_jwt_service() -> WordPressJWTService:

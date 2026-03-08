@@ -13,10 +13,11 @@ v7.750 P1-Task3
 4. 计算验证分数
 """
 
-import yaml
-from typing import Dict, List, Any, Optional
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any, Dict, List
+
+import yaml
 
 
 @dataclass
@@ -54,13 +55,13 @@ class ModeValidationCriteriaLoader:
             raise FileNotFoundError(f"配置文件不存在: {cls._config_path}")
 
         # 加载YAML
-        with open(cls._config_path, "r", encoding="utf-8") as f:
+        with open(cls._config_path, encoding="utf-8") as f:
             cls._config_cache = yaml.safe_load(f)
 
         return cls._config_cache
 
     @classmethod
-    def get_validation_criteria(cls, mode_id: str) -> Optional[Dict[str, Any]]:
+    def get_validation_criteria(cls, mode_id: str) -> Dict[str, Any] | None:
         """
         获取指定模式的验证标准
 
@@ -102,7 +103,7 @@ class ModeValidationCriteriaLoader:
 
     @classmethod
     def validate_expert_output(
-        cls, mode_id: str, expert_output: str, strictness_override: Optional[float] = None
+        cls, mode_id: str, expert_output: str, strictness_override: float | None = None
     ) -> ValidationResult:
         """
         验证专家输出是否符合模式特征

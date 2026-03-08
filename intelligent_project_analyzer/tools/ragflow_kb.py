@@ -6,7 +6,7 @@ Ragflow知识库工具
 
 import json
 import time
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict
 
 import requests
 from loguru import logger
@@ -37,7 +37,7 @@ class RagflowKBTool:
     """Ragflow知识库工具类"""
 
     def __init__(
-        self, api_endpoint: str = "", api_key: str = "", dataset_id: str = "", config: Optional[ToolConfig] = None
+        self, api_endpoint: str = "", api_key: str = "", dataset_id: str = "", config: ToolConfig | None = None
     ):
         """
         初始化Ragflow知识库工具
@@ -78,9 +78,9 @@ class RagflowKBTool:
     def search_knowledge(
         self,
         query: str,
-        knowledge_base_id: Optional[str] = None,
-        max_results: Optional[int] = None,
-        similarity_threshold: Optional[float] = None,
+        knowledge_base_id: str | None = None,
+        max_results: int | None = None,
+        similarity_threshold: float | None = None,
         **kwargs,
     ) -> Dict[str, Any]:
         """
@@ -106,10 +106,10 @@ class RagflowKBTool:
             # 使用提供的dataset_id或默认值
             dataset_id = knowledge_base_id or self.dataset_id
             if not dataset_id:
-                logger.warning(f"️ [RAGFlow] No dataset_id provided, using placeholder response")
+                logger.warning("️ [RAGFlow] No dataset_id provided, using placeholder response")
                 return self._placeholder_search_response(query)
 
-            logger.info(f" [RAGFlow] Starting knowledge base search")
+            logger.info(" [RAGFlow] Starting knowledge base search")
             logger.info(f" [RAGFlow] Query: {query}")
             logger.debug(f" [RAGFlow] Dataset ID: {dataset_id}")
             logger.debug(f"️ [RAGFlow] Max results: {max_results}, Similarity threshold: {similarity_threshold}")
@@ -134,7 +134,7 @@ class RagflowKBTool:
             logger.debug(f" [RAGFlow] Request payload: {json.dumps(payload, ensure_ascii=False, indent=2)}")
 
             # 调用RAGFlow检索API
-            logger.debug(f" [RAGFlow] Calling RAGFlow API endpoint: /api/v1/retrieval")
+            logger.debug(" [RAGFlow] Calling RAGFlow API endpoint: /api/v1/retrieval")
             api_start = time.time()
             response = self._make_api_request("/api/v1/retrieval", payload)
             api_time = time.time() - api_start
@@ -143,7 +143,7 @@ class RagflowKBTool:
             logger.debug(f" [RAGFlow] Response code: {response.get('code', 'unknown')}")
 
             # 处理响应
-            logger.debug(f"️ [RAGFlow] Processing response...")
+            logger.debug("️ [RAGFlow] Processing response...")
             process_start = time.time()
             processed_response = self._process_search_response(response, time.time() - start_time, query)
             process_time = time.time() - process_start
@@ -400,7 +400,7 @@ class RagflowKBTool:
             )
 
             # Step 1: 构建查询（内部知识库优先使用中文原文）
-            logger.debug(f" [RAGFlow Deliverable] Step 1: Building Chinese-optimized query...")
+            logger.debug(" [RAGFlow Deliverable] Step 1: Building Chinese-optimized query...")
             if self.query_builder:
                 query_start = time.time()
                 queries = self.query_builder.build_multi_tool_queries(deliverable, project_type)
@@ -438,7 +438,7 @@ class RagflowKBTool:
             logger.debug(f" [RAGFlow Deliverable] Initial KB chunks count: {initial_count}")
 
             # Step 3: 归一化结果格式（RAGFlow结果结构）
-            logger.debug(f" [RAGFlow Deliverable] Step 3: Normalizing KB result format...")
+            logger.debug(" [RAGFlow Deliverable] Step 3: Normalizing KB result format...")
             normalize_start = time.time()
             normalized_results = []
             for result in search_results.get("results", []):
@@ -461,7 +461,7 @@ class RagflowKBTool:
 
             # Step 4: 质量控制
             if enable_qc and self.qc:
-                logger.debug(f" [RAGFlow Deliverable] Step 4: Running quality control...")
+                logger.debug(" [RAGFlow Deliverable] Step 4: Running quality control...")
                 qc_start = time.time()
                 processed_results = self.qc.process_results(normalized_results, deliverable_context=deliverable)
                 qc_time = time.time() - qc_start
@@ -481,10 +481,10 @@ class RagflowKBTool:
             else:
                 search_results["results"] = normalized_results[:max_results]
                 search_results["quality_controlled"] = False
-                logger.debug(f"️ [RAGFlow Deliverable] Quality control skipped")
+                logger.debug("️ [RAGFlow Deliverable] Quality control skipped")
 
             # Step 5: 添加编号
-            logger.debug(f" [RAGFlow Deliverable] Step 5: Adding reference numbers...")
+            logger.debug(" [RAGFlow Deliverable] Step 5: Adding reference numbers...")
             for idx, result in enumerate(search_results.get("results", []), start=1):
                 result["reference_number"] = idx
             logger.debug(
@@ -553,7 +553,7 @@ class RagflowKBTool:
         self.is_placeholder = False
         logger.info(f"Ragflow KB tool configured with endpoint: {api_endpoint}")
 
-    def _make_api_request(self, endpoint: str, data: Optional[Dict] = None) -> Dict[str, Any]:
+    def _make_api_request(self, endpoint: str, data: Dict | None = None) -> Dict[str, Any]:
         """
         执行API请求
 

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 多 API Key 负载均衡器
 
@@ -10,13 +9,13 @@
 """
 
 import os
-import time
 import random
 import threading
-from typing import List, Dict, Optional, Any, Tuple
-from dataclasses import dataclass, field
-from collections import deque
+import time
+from dataclasses import dataclass
 from enum import Enum
+from typing import Any, Dict, List, Tuple
+
 from loguru import logger
 
 
@@ -135,7 +134,7 @@ class APIKeyPool:
         
         logger.info(f" {provider} Key 池初始化: {len(self.keys)} 个 Key")
     
-    def get_key(self) -> Optional[APIKeyInfo]:
+    def get_key(self) -> APIKeyInfo | None:
         """
         获取一个可用的 Key
         
@@ -299,7 +298,7 @@ class MultiKeyLoadBalancer:
         else:
             self._pools[provider] = APIKeyPool(provider, keys, strategy)
     
-    def get_key(self, provider: Optional[str] = None) -> Optional[APIKeyInfo]:
+    def get_key(self, provider: str | None = None) -> APIKeyInfo | None:
         """
         获取一个可用的 Key
         
@@ -322,7 +321,7 @@ class MultiKeyLoadBalancer:
         
         return None
     
-    def get_key_with_fallback(self, preferred_provider: str) -> Tuple[Optional[APIKeyInfo], str]:
+    def get_key_with_fallback(self, preferred_provider: str) -> Tuple[APIKeyInfo | None, str]:
         """
         获取 Key，如果首选提供商不可用则回退
         
@@ -386,7 +385,7 @@ key_balancer = MultiKeyLoadBalancer()
 
 # ==================== 便捷函数 ====================
 
-def get_api_key(provider: str = "openai") -> Optional[str]:
+def get_api_key(provider: str = "openai") -> str | None:
     """
     获取一个可用的 API Key
     

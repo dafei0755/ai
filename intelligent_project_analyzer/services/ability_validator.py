@@ -8,10 +8,11 @@
 版本: v1.0
 """
 
-import yaml
-from pathlib import Path
-from typing import Any, Dict, List, Optional
 from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Any, Dict, List
+
+import yaml
 
 
 @dataclass
@@ -62,7 +63,7 @@ class AbilityValidator:
     4. 根据成熟度等级调整验证阈值
     """
 
-    def __init__(self, rules_path: Optional[Path] = None):
+    def __init__(self, rules_path: Path | None = None):
         """
         初始化验证器
 
@@ -94,7 +95,7 @@ class AbilityValidator:
     def _load_rules(self) -> Dict[str, Any]:
         """加载验证规则"""
         try:
-            with open(self.rules_path, "r", encoding="utf-8") as f:
+            with open(self.rules_path, encoding="utf-8") as f:
                 rules = yaml.safe_load(f)
             return rules
         except Exception as e:

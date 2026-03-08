@@ -6,9 +6,9 @@
 """
 
 import logging
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field, validator
 
 from intelligent_project_analyzer.services.dimension_usage_tracker import DimensionUsageTracker
@@ -24,8 +24,8 @@ class DimensionFeedbackRequest(BaseModel):
 
     session_id: str = Field(..., description="会话ID")
     dimension_ratings: Dict[str, int] = Field(..., description="维度评分字典 {dimension_id: rating}")
-    feedback_text: Optional[str] = Field(None, description="可选的文本反馈")
-    completion_time: Optional[float] = Field(None, description="填写耗时（秒）")
+    feedback_text: str | None = Field(None, description="可选的文本反馈")
+    completion_time: float | None = Field(None, description="填写耗时（秒）")
 
     @validator("dimension_ratings")
     def validate_ratings(cls, v):
@@ -41,8 +41,8 @@ class DimensionFeedbackResponse(BaseModel):
 
     success: bool = Field(..., description="是否成功")
     message: str = Field(..., description="响应消息")
-    feedback_id: Optional[str] = Field(None, description="反馈记录ID")
-    avg_rating: Optional[float] = Field(None, description="平均评分")
+    feedback_id: str | None = Field(None, description="反馈记录ID")
+    avg_rating: float | None = Field(None, description="平均评分")
 
 
 @router.post("/feedback", response_model=DimensionFeedbackResponse)

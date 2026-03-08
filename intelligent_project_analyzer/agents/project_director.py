@@ -7,16 +7,15 @@
 
 import json
 import time
-from typing import Any, Dict, List, Literal, Optional
+from typing import Any, Dict, List, Literal
 
-from langchain_core.messages import AIMessage, HumanMessage
 from langchain_core.runnables import RunnableConfig
 from langgraph.store.base import BaseStore
 from langgraph.types import Command, Send
 from loguru import logger
 
 from ..core.state import AgentType, ProjectAnalysisState
-from ..core.types import AnalysisResult, TaskAssignment, format_role_display_name
+from ..core.types import TaskAssignment, format_role_display_name
 from ..services.capability_boundary_service import CapabilityBoundaryService
 from .base import LLMAgent
 
@@ -162,7 +161,7 @@ def _extract_assigned_capabilities_from_distribution(task_distribution: Dict, se
     """
     capabilities = []
 
-    for role_id, task_data in task_distribution.items():
+    for _role_id, task_data in task_distribution.items():
         # 提取任务描述
         if hasattr(task_data, "tasks"):
             tasks_list = task_data.tasks
@@ -278,7 +277,7 @@ class ProjectDirectorAgent(LLMAgent):
     - enable_role_config: 是否启用角色配置系统 (默认: True)
     """
 
-    def __init__(self, llm_model, config: Optional[Dict[str, Any]] = None):
+    def __init__(self, llm_model, config: Dict[str, Any] | None = None):
         super().__init__(
             agent_type=AgentType.PROJECT_DIRECTOR,
             name="项目总监",
@@ -520,7 +519,7 @@ class ProjectDirectorAgent(LLMAgent):
         return "\n".join(context_parts)
 
     def execute(
-        self, state: ProjectAnalysisState, config: RunnableConfig, store: Optional[BaseStore] = None
+        self, state: ProjectAnalysisState, config: RunnableConfig, store: BaseStore | None = None
     ) -> Command[Literal["v2_agent", "v3_agent", "v4_agent", "v5_agent", "v6_agent", "result_aggregator"]]:
         """
         执行战略分析和任务分派（仅 Dynamic Mode）
@@ -542,7 +541,7 @@ class ProjectDirectorAgent(LLMAgent):
             raise error
 
     def _execute_dynamic_mode(
-        self, state: ProjectAnalysisState, config: RunnableConfig, store: Optional[BaseStore], start_time: float
+        self, state: ProjectAnalysisState, config: RunnableConfig, store: BaseStore | None, start_time: float
     ) -> Command:
         """
         动态模式执行 - 使用角色配置系统动态选择角色
@@ -564,6 +563,47 @@ class ProjectDirectorAgent(LLMAgent):
             requirements = structured_requirements
 
         requirements_text = self._format_requirements_for_selection(requirements)
+
+        # ── v8.0: 设计师行为动机注入（置信度 >= 0.5 时追加上下文给 LLM）──
+        dbm = state.get("designer_behavioral_motivation")
+        if isinstance(dbm, dict) and dbm.get("confidence", 0) >= 0.5:
+            _primary = dbm.get("primary", "")
+            _conf = dbm.get("confidence", 0)
+            _signals = "、".join(dbm.get("detection_signals", [])) or "无"
+            _motivation_hints = {
+                "D1_survival_securing": "设计师处于生存落地状态，请强化工程可行性分析，所有方案必须含成本估算和风险评估，优先选择V6工程角色。",
+                "D2_competitive_winning": "设计师处于竞争制胜状态，请强化商业逻辑分析，必须包含竞争分析和差异化策略任务，输出需具有说服力和对比性。",
+                "D3_breakthrough_innovation": "设计师追求突破创新，请提高概念驱动任务权重，强化V3叙事专家和V2设计总监，输出需有思想高度和锋芒。",
+                "D4_capability_learning": "设计师为学习型需求，请使用教学模式，任务描述需含原理解释和分步指导，强化V4研究员角色。",
+                "D5_structural_clarification": "设计师需结构表达，请增加框架性任务，使用表格和分层结构，优化输出逻辑清晰度。",
+                "D6_strategic_construction": "设计师需战略建构，请增加方法论和趋势分析任务，有宏观视角，强化V2设计总监和V4研究员。",
+            }
+            _hint = _motivation_hints.get(_primary, "")
+            if _hint:
+                requirements_text += f"\n\n## 设计师行为动机参考（置信度{_conf:.0%}，信号：{_signals}）\n{_hint}"
+                logger.info(f" [v8.0] 动机注入: {_primary} conf={_conf:.2f}")
+
+        # ── v8.0: 投射驱动的角色强制约束（输入侧约束，优先于 LLM 自由选择）──
+        active_projections = state.get("active_projections") or []
+        PROJECTION_ROLE_FORCES = {
+            "construction_execution": "必须包含 V6（专业总工程师），所有角色需有工程实施导向任务",
+            "investor_operator": "必须包含 V5（场景与行业专家）和 V2（设计总监），强化商业逻辑",
+            "aesthetic_critique": "必须包含 V3（叙事与体验专家），强化概念驱动与美学表达",
+            "government_policy": "必须包含 V2（设计总监），输出需有政策汇报框架",
+        }
+        force_lines = [v for k, v in PROJECTION_ROLE_FORCES.items() if k in active_projections]
+        if force_lines:
+            requirements_text += "\n\n## 投射视角驱动的角色约束（必须遵守）\n" + "\n".join(f"- {l}" for l in force_lines)
+            logger.info(f" [v8.0] 投射角色约束注入: {[k for k in PROJECTION_ROLE_FORCES if k in active_projections]}")
+
+        # 🔧 v9.0: 注入可行性分析上下文（feasibility_assessment 非空时生效）
+        feasibility_assessment = state.get("feasibility_assessment")
+        if feasibility_assessment:
+            feasibility_ctx = self._build_feasibility_context(feasibility_assessment)
+            if feasibility_ctx:
+                requirements_text += f"\n\n{feasibility_ctx}"
+                overall_fa = feasibility_assessment.get("feasibility_assessment", {}).get("overall_feasibility", "unknown")
+                logger.info(f" [v9.0] 可行性上下文注入完成: overall_feasibility={overall_fa}")
 
         #  v7.106: 获取用户确认的核心任务
         confirmed_tasks = state.get("confirmed_core_tasks", [])
@@ -625,7 +665,7 @@ class ProjectDirectorAgent(LLMAgent):
                 if validation_report["status"] == "passed":
                     # 验证通过，直接退出循环
                     validation_passed = True
-                    logger.info(f" [v7.140] 任务分配验证通过！")
+                    logger.info(" [v7.140] 任务分配验证通过！")
                     break
 
                 elif validation_report["status"] == "failed" and attempt < max_validation_retries - 1:
@@ -645,9 +685,9 @@ class ProjectDirectorAgent(LLMAgent):
                     # 达到最大重试或状态为 warning
                     if validation_report["status"] == "warning":
                         validation_passed = True  # warning 状态也算通过，但有警告
-                        logger.warning(f"️  [v7.140] 任务分配存在警告，但可继续执行")
+                        logger.warning("️  [v7.140] 任务分配存在警告，但可继续执行")
                     else:
-                        logger.warning(f"️  [v7.140] 任务分配验证未完全通过，已达最大重试次数")
+                        logger.warning("️  [v7.140] 任务分配验证未完全通过，已达最大重试次数")
                     break
 
             except Exception as e:
@@ -673,13 +713,13 @@ class ProjectDirectorAgent(LLMAgent):
                 },
             )
 
-            logger.info(f" 交付物能力边界检查结果:")
+            logger.info(" 交付物能力边界检查结果:")
             logger.info(f"   在能力范围内: {boundary_check.within_capability}")
             logger.info(f"   能力匹配度: {boundary_check.capability_score:.2f}")
 
             # 如果有超出能力的交付物，标记限制说明
             if not boundary_check.within_capability:
-                logger.warning(f"️ 部分交付物超出能力范围，已标记限制说明")
+                logger.warning("️ 部分交付物超出能力范围，已标记限制说明")
 
                 for i, deliv in enumerate(primary_deliverables):
                     deliv_type = deliv.get("type", "")
@@ -878,9 +918,9 @@ class ProjectDirectorAgent(LLMAgent):
         if final_validation_report:
             logger.info(f" [v7.140] 验证报告: {final_validation_report['summary']}")
             if validation_passed:
-                logger.info(f" [v7.140] 任务分配已通过验证")
+                logger.info(" [v7.140] 任务分配已通过验证")
             else:
-                logger.warning(f"️  [v7.140] 任务分配存在警告，详情见 state.validation_report")
+                logger.warning("️  [v7.140] 任务分配存在警告，详情见 state.validation_report")
 
         # 返回Command对象
         return Command(update=state_update, goto=parallel_commands)

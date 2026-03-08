@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 认证依赖和通用工具函数 (MT-1 提取自 api/server.py)
 
@@ -20,28 +19,19 @@ from __future__ import annotations
 import os
 import time
 from datetime import datetime
-from typing import Any, Optional
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from intelligent_project_analyzer.core.protocols import SessionManagerProtocol
 
 from fastapi import HTTPException, Request
 from loguru import logger
 from pydantic import BaseModel
 
+from intelligent_project_analyzer.api._server_proxy import server_proxy as _server
 from intelligent_project_analyzer.services.image_generator import ImageAspectRatio
 from intelligent_project_analyzer.services.wordpress_jwt_service import WordPressJWTService
 from intelligent_project_analyzer.settings import settings
-
-
-class _ServerProxy:
-    """惰性代理：首次调用属性时才导入 server 模块（避免循环导入）"""
-
-    def __getattr__(self, name: str):  # noqa: ANN204
-        import intelligent_project_analyzer.api.server as _srv  # noqa: PLC0415
-
-        return getattr(_srv, name)
-
-
-_server = _ServerProxy()
-
 
 # ============================================================
 #  v7.60.4: 宽高比工具
@@ -232,7 +222,7 @@ def get_user_identifier(current_user: dict) -> str:
 
 
 #  v7.130: 可选认证依赖函数（Token存在则验证，不存在也允许访问）
-async def optional_auth(request: Request) -> Optional[dict]:
+async def optional_auth(request: Request) -> dict | None:
     """
     可选认证依赖函数：如果有JWT Token则验证，没有也不报错
 
@@ -389,8 +379,29 @@ def _serialize_for_json(data: Any) -> Any:
         return _serialize_for_json(data.model_dump(exclude_none=True, exclude_defaults=True))
     if isinstance(data, dict):
         return {k: _serialize_for_json(v) for k, v in data.items()}
-    if isinstance(data, (list, tuple)):
+    if isinstance(data, list | tuple):
         return [_serialize_for_json(item) for item in data]
     if isinstance(data, datetime):
         return data.isoformat()
     return data
+
+
+# ============================================================
+#  服务层依赖注入 (P2 MT-DI)
+# ============================================================
+
+
+async def get_session_manager() -> "SessionManagerProtocol":
+    """FastAPI 依赖：获取会话管理器单例（SessionManagerProtocol）。
+
+    使用惰性代理避免循环导入——与各路由文件保持相同模式。
+
+    用法（路由函数）::
+
+        @router.get("/api/sessions")
+        async def list_sessions(sm=Depends(get_session_manager)):
+            return await sm.list_all_sessions()
+    """
+    from ._server_proxy import server_proxy as _proxy  # noqa: E402
+
+    return await _proxy._get_session_manager()

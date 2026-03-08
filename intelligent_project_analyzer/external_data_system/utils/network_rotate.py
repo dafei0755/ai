@@ -24,12 +24,11 @@ from __future__ import annotations
 import subprocess
 import time
 import urllib.request
-from typing import Optional
 
 from loguru import logger
 
 
-def get_public_ip(timeout: float = 10) -> Optional[str]:
+def get_public_ip(timeout: float = 10) -> str | None:
     """
     查询当前公网 IP（使用多个免费 API 做 fallback）。
 
@@ -54,7 +53,7 @@ def get_public_ip(timeout: float = 10) -> Optional[str]:
     return None
 
 
-def renew_ip(adapter_name: Optional[str] = None, wait: float = 8.0) -> bool:
+def renew_ip(adapter_name: str | None = None, wait: float = 8.0) -> bool:
     """
     通过 DHCP release/renew 获取新 IP（Windows）。
 
@@ -177,7 +176,7 @@ class IPRotator:
     def __init__(
         self,
         failure_threshold: int = 5,
-        adapter_name: Optional[str] = None,
+        adapter_name: str | None = None,
         enabled: bool = False,
     ):
         self.failure_threshold = failure_threshold

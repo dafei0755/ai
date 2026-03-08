@@ -11,11 +11,12 @@
 """
 
 import os
-from typing import Optional, Literal
-from langchain_openai import ChatOpenAI, AzureChatOpenAI
-from langchain_anthropic import ChatAnthropic
-from loguru import logger
+from typing import Literal
+
 from dotenv import load_dotenv
+from langchain_anthropic import ChatAnthropic
+from langchain_openai import AzureChatOpenAI, ChatOpenAI
+from loguru import logger
 
 # 加载环境变量
 load_dotenv()
@@ -105,7 +106,7 @@ class MultiLLMFactory:
     @classmethod
     def create_llm(
         cls,
-        provider: Optional[LLMProvider] = None,
+        provider: LLMProvider | None = None,
         temperature: float = None,
         max_tokens: int = None,
         timeout: int = None,
@@ -433,15 +434,15 @@ class FallbackLLM:
                 
                 # 如果是配额问题，立即尝试下一个
                 if "429" in error_msg or "quota" in error_msg.lower():
-                    logger.info(f" 检测到配额问题，切换到下一个提供商...")
+                    logger.info(" 检测到配额问题，切换到下一个提供商...")
                     continue
                 
                 # 其他错误也尝试降级
-                logger.info(f" 尝试降级到下一个提供商...")
+                logger.info(" 尝试降级到下一个提供商...")
                 continue
         
         # 所有提供商都失败
-        logger.error(f" 所有提供商调用失败")
+        logger.error(" 所有提供商调用失败")
         raise RuntimeError(f"所有 LLM 提供商调用失败: {list(self.llm_instances.keys())}") from last_error
     
     def __getattr__(self, name):

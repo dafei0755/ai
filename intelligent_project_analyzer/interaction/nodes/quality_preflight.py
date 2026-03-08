@@ -7,7 +7,7 @@ v7.280 重构：
 - 保留检查清单注入到执行环境
 """
 
-from typing import Any, Dict, List
+from typing import Any, Dict
 
 from loguru import logger
 

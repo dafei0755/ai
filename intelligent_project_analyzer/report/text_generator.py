@@ -2,25 +2,25 @@
 纯文本报告生成器 - 用于调试和查看完整数据结构
 """
 
-import os
 import json
-from pathlib import Path
-from typing import Dict, Any, Optional
+import os
 from datetime import datetime
-from loguru import logger
+from pathlib import Path
+from typing import Any, Dict
 
 from langchain_core.runnables import RunnableConfig
 from langgraph.store.base import BaseStore
+from loguru import logger
 
 from ..agents.base import BaseAgent
-from ..core.state import ProjectAnalysisState, AgentType
+from ..core.state import AgentType, ProjectAnalysisState
 from ..core.types import AnalysisResult
 
 
 class TextGeneratorAgent(BaseAgent):
     """纯文本报告生成器智能体"""
     
-    def __init__(self, config: Optional[Dict[str, Any]] = None):
+    def __init__(self, config: Dict[str, Any] | None = None):
         super().__init__(
             agent_type=AgentType.PDF_GENERATOR,  # 复用相同类型
             name="纯文本报告生成器",
@@ -36,7 +36,7 @@ class TextGeneratorAgent(BaseAgent):
         self,
         state: ProjectAnalysisState,
         config: RunnableConfig,
-        store: Optional[BaseStore] = None
+        store: BaseStore | None = None
     ) -> AnalysisResult:
         """执行纯文本报告生成"""
         try:
@@ -352,24 +352,8 @@ class TextGeneratorAgent(BaseAgent):
         lines.append(f"生成时间: {timestamp}")
         lines.append("")
         
-        # 添加审核结果
-        review_result = state.get("review_result", {})
-        if review_result:
-            lines.append("## 质量审核结果")
-            lines.append("")
-            final_ruling = review_result.get("final_ruling", "N/A")
-            lines.append(final_ruling)
-            lines.append("")
-        
-        # 添加改进建议
-        improvement_suggestions = state.get("improvement_suggestions", [])
-        if improvement_suggestions:
-            lines.append("## 改进建议")
-            lines.append("")
-            for idx, imp in enumerate(improvement_suggestions, 1):
-                lines.append(f"{idx}. {imp.get('description', 'N/A')}")
-                lines.append(f"   优先级: {imp.get('priority', 'N/A')}")
-                lines.append("")
+        # ️ ST-1: review_result / improvement_suggestions 字段已在 v2.2 废弃
+        # analysis_review 节点已删除，这两个字段永远不会被 state 赋值，块已移除。
         
         lines.append("=" * 80)
         lines.append("注：由于流程异常，本报告为简化版本")

@@ -27,7 +27,7 @@ class PromptManager:
     _instances: Dict[str, "PromptManager"] = {}  # key: config_path, value: instance
     _default_instance: Optional["PromptManager"] = None
 
-    def __new__(cls, config_path: Optional[str] = None):
+    def __new__(cls, config_path: str | None = None):
         """
         单例模式实现 - 同一config_path只创建一个实例
         """
@@ -47,7 +47,7 @@ class PromptManager:
 
         return cls._instances[config_path]
 
-    def __init__(self, config_path: Optional[str] = None):
+    def __init__(self, config_path: str | None = None):
         """
         初始化提示词管理器 (仅首次调用时执行)
 
@@ -102,7 +102,7 @@ class PromptManager:
             for yaml_file in yaml_files:
                 if is_first_load:
                     print(f"[INFO] Loading {yaml_file.name}...")
-                with open(yaml_file, "r", encoding="utf-8") as f:
+                with open(yaml_file, encoding="utf-8") as f:
                     file_content = yaml.safe_load(f) or {}
                     # 使用文件名（不含扩展名）作为 key
                     agent_name = yaml_file.stem
@@ -158,7 +158,7 @@ class PromptManager:
 
         print(f"[OK] Configuration integrity check passed - all {len(required_configs)} core configs present")
 
-    def get_prompt(self, agent_name: str, return_full_config: bool = False, **kwargs) -> Optional[str | Dict]:
+    def get_prompt(self, agent_name: str, return_full_config: bool = False, **kwargs) -> str | Dict | None:
         """
         获取指定智能体的提示词
 
@@ -208,7 +208,7 @@ class PromptManager:
 
         return prompt_template
 
-    def get_reviewer_prompt(self, reviewer_role: str, role_name: str, perspective: str) -> Optional[str]:
+    def get_reviewer_prompt(self, reviewer_role: str, role_name: str, perspective: str) -> str | None:
         """
         获取审核者提示词（便捷方法）
 
@@ -275,7 +275,7 @@ class PromptManager:
         print("[INFO] Reloading prompt configurations...")
         self._load_prompts()
 
-    def get_metadata(self, agent_name: str) -> Optional[Dict]:
+    def get_metadata(self, agent_name: str) -> Dict | None:
         """
         获取提示词元数据
 
@@ -295,7 +295,7 @@ class PromptManager:
             "last_updated": config.get("last_updated", ""),
         }
 
-    def get_task_description(self, agent_name: str, user_input: str, include_datetime: bool = True) -> Optional[str]:
+    def get_task_description(self, agent_name: str, user_input: str, include_datetime: bool = True) -> str | None:
         """
         获取任务描述，支持动态内容注入
 
@@ -334,7 +334,7 @@ class PromptManager:
             print(f"[ERROR] Missing template variable in task_description_template: {e}")
             return template
 
-    def get_output_example(self, agent_name: str) -> Optional[Dict]:
+    def get_output_example(self, agent_name: str) -> Dict | None:
         """
         获取完整的JSON输出示例
 
@@ -357,7 +357,7 @@ class PromptManager:
 
         return output_example
 
-    def get_ontology_framework(self, agent_name: str, project_type: Optional[str] = None) -> Optional[Dict]:
+    def get_ontology_framework(self, agent_name: str, project_type: str | None = None) -> Dict | None:
         """
         获取本体论框架配置
 
@@ -404,7 +404,7 @@ class PromptManager:
 
         return enabled_frameworks if enabled_frameworks else None
 
-    def get_business_config(self, agent_name: str) -> Optional[Dict]:
+    def get_business_config(self, agent_name: str) -> Dict | None:
         """
         获取业务配置
 

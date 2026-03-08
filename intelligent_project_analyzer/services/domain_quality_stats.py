@@ -8,7 +8,7 @@ import json
 from datetime import datetime
 from pathlib import Path
 from threading import Lock
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 from urllib.parse import urlparse
 
 from loguru import logger
@@ -31,14 +31,14 @@ class DomainStats(BaseModel):
 
     # 审核相关
     is_in_review_queue: bool = Field(default=False, description="是否在审核队列中")
-    review_reason: Optional[str] = Field(default=None, description="加入审核队列原因")
-    review_added_time: Optional[str] = Field(default=None, description="加入审核队列时间")
+    review_reason: str | None = Field(default=None, description="加入审核队列原因")
+    review_added_time: str | None = Field(default=None, description="加入审核队列时间")
 
     # 处理状态
     is_approved: bool = Field(default=False, description="是否已批准（加入白名单）")
     is_blocked: bool = Field(default=False, description="是否已屏蔽（加入黑名单）")
-    admin_action_time: Optional[str] = Field(default=None, description="管理员操作时间")
-    admin_notes: Optional[str] = Field(default=None, description="管理员备注")
+    admin_action_time: str | None = Field(default=None, description="管理员操作时间")
+    admin_notes: str | None = Field(default=None, description="管理员备注")
 
     # 历史分数记录（保留最近20次）
     score_history: List[float] = Field(default_factory=list, description="历史质量分记录")
@@ -100,7 +100,7 @@ class DomainQualityStatsService:
         "min_appearances": 3,  # 最少出现次数（避免误判）
     }
 
-    def __init__(self, data_path: Optional[Path] = None):
+    def __init__(self, data_path: Path | None = None):
         """
         初始化服务
 
@@ -124,7 +124,7 @@ class DomainQualityStatsService:
         """加载统计数据"""
         try:
             if self.data_path.exists():
-                with open(self.data_path, "r", encoding="utf-8") as f:
+                with open(self.data_path, encoding="utf-8") as f:
                     data = json.load(f)
                     for domain, stats_dict in data.items():
                         self._stats[domain] = DomainStats(**stats_dict)
@@ -143,7 +143,7 @@ class DomainQualityStatsService:
             logger.error(f" 保存域名统计数据失败: {e}")
 
     @staticmethod
-    def extract_domain(url: str) -> Optional[str]:
+    def extract_domain(url: str) -> str | None:
         """从URL中提取域名"""
         try:
             parsed = urlparse(url)
@@ -261,7 +261,7 @@ class DomainQualityStatsService:
         queue.sort(key=lambda x: x["avg_quality_score"])
         return queue
 
-    def approve_domain(self, domain: str, admin_notes: Optional[str] = None) -> bool:
+    def approve_domain(self, domain: str, admin_notes: str | None = None) -> bool:
         """
         批准域名（移出审核队列，标记为已批准）
 
@@ -287,7 +287,7 @@ class DomainQualityStatsService:
             logger.info(f" 域名 {domain} 已批准")
             return True
 
-    def block_domain(self, domain: str, admin_notes: Optional[str] = None) -> Dict[str, Any]:
+    def block_domain(self, domain: str, admin_notes: str | None = None) -> Dict[str, Any]:
         """
         屏蔽域名（移出审核队列，标记为已屏蔽，返回加入黑名单所需信息）
 
@@ -323,7 +323,7 @@ class DomainQualityStatsService:
                 },
             }
 
-    def dismiss_from_queue(self, domain: str, admin_notes: Optional[str] = None) -> bool:
+    def dismiss_from_queue(self, domain: str, admin_notes: str | None = None) -> bool:
         """
         从审核队列移除（既不批准也不屏蔽，保持观察）
 
@@ -350,7 +350,7 @@ class DomainQualityStatsService:
             logger.info(f" 域名 {domain} 已从审核队列移除")
             return True
 
-    def get_domain_stats(self, domain: str) -> Optional[Dict[str, Any]]:
+    def get_domain_stats(self, domain: str) -> Dict[str, Any] | None:
         """获取单个域名的统计信息"""
         if domain in self._stats:
             return self._stats[domain].model_dump()
@@ -401,7 +401,7 @@ class DomainQualityStatsService:
 
 
 # 全局单例
-_stats_service: Optional[DomainQualityStatsService] = None
+_stats_service: DomainQualityStatsService | None = None
 
 
 def get_domain_stats_service() -> DomainQualityStatsService:

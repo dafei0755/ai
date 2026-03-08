@@ -11,7 +11,7 @@ import json
 from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from ..services.ability_validator import AbilityValidator, ExpertValidationReport
 from ..utils.ability_query import AbilityQueryTool
@@ -33,7 +33,7 @@ class ValidationReportGenerator:
         self.ability_tool = AbilityQueryTool()
 
     def generate_session_report(
-        self, validation_reports: List[ExpertValidationReport], session_id: str, output_dir: Optional[Path] = None
+        self, validation_reports: List[ExpertValidationReport], session_id: str, output_dir: Path | None = None
     ) -> Dict[str, Any]:
         """
         生成会话级别的验证报告
@@ -266,7 +266,7 @@ class ValidationReportGenerator:
         return ability_names.get(ability_id, ability_id)
 
     def generate_session_report_from_dicts(
-        self, validation_dicts: List[Dict[str, Any]], session_id: str, output_dir: Optional[Path] = None
+        self, validation_dicts: List[Dict[str, Any]], session_id: str, output_dir: Path | None = None
     ) -> Dict[str, Any]:
         """
         从原始字典列表生成会话级别的验证报告。
@@ -532,7 +532,7 @@ class ValidationReportGenerator:
 def generate_validation_report(
     validation_reports: List[ExpertValidationReport],
     session_id: str,
-    output_dir: Optional[Path] = None,
+    output_dir: Path | None = None,
     print_report: bool = True,
 ) -> Dict[str, Any]:
     """

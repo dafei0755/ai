@@ -13,13 +13,13 @@
 创建日期: 2026-02-10
 """
 
-import sqlite3
 import json
-from pathlib import Path
-from typing import Dict, List, Any, Optional, Tuple
-from datetime import datetime
-from loguru import logger
+import sqlite3
 from contextlib import contextmanager
+from pathlib import Path
+from typing import Any, Dict, List
+
+from loguru import logger
 
 
 class DatabaseManager:
@@ -70,7 +70,7 @@ class DatabaseManager:
             logger.info(" 开始初始化数据库...")
 
             # 读取SQL脚本
-            with open(self.schema_file, "r", encoding="utf-8") as f:
+            with open(self.schema_file, encoding="utf-8") as f:
                 schema_sql = f.read()
 
             # 执行Schema创建
@@ -108,7 +108,7 @@ class DatabaseManager:
 
     def insert_dimension(
         self, name: str, category: str, project_type: str, description: str, ask_yourself: str, examples: str, **kwargs
-    ) -> Optional[int]:
+    ) -> int | None:
         """
         插入新维度
 
@@ -138,14 +138,14 @@ class DatabaseManager:
                 dim_id = cursor.lastrowid
                 logger.info(f" 插入维度: {name} (ID: {dim_id})")
                 return dim_id
-        except sqlite3.IntegrityError as e:
+        except sqlite3.IntegrityError:
             logger.warning(f"️ 维度已存在: {name}")
             return None
         except Exception as e:
             logger.error(f" 插入维度失败: {e}")
             return None
 
-    def get_dimension(self, dimension_id: int) -> Optional[Dict[str, Any]]:
+    def get_dimension(self, dimension_id: int) -> Dict[str, Any] | None:
         """获取维度详情"""
         try:
             with self.get_connection() as conn:
@@ -232,7 +232,7 @@ class DatabaseManager:
 
     def add_candidate(
         self, dimension_data: Dict[str, Any], confidence_score: float, source_session_id: str = None
-    ) -> Optional[int]:
+    ) -> int | None:
         """添加候选维度"""
         try:
             with self.get_connection() as conn:
@@ -431,7 +431,7 @@ class DatabaseManager:
     # 项目类型候选 (Project Type Candidates) 操作
     # ============================================================
 
-    def add_type_candidate(self, candidate: Dict[str, Any]) -> Optional[int]:
+    def add_type_candidate(self, candidate: Dict[str, Any]) -> int | None:
         """
         新增项目类型候选。
 
@@ -507,7 +507,7 @@ class DatabaseManager:
             logger.error(f" 获取类型候选失败: {e}")
             return []
 
-    def get_type_candidate_by_id(self, candidate_id: int) -> Optional[Dict[str, Any]]:
+    def get_type_candidate_by_id(self, candidate_id: int) -> Dict[str, Any] | None:
         """获取单条类型候选记录。"""
         try:
             with self.get_connection() as conn:
@@ -526,7 +526,7 @@ class DatabaseManager:
             logger.error(f" 获取类型候选失败: {e}")
             return None
 
-    def get_type_candidate_by_suggestion(self, type_id_suggestion: str) -> Optional[Dict[str, Any]]:
+    def get_type_candidate_by_suggestion(self, type_id_suggestion: str) -> Dict[str, Any] | None:
         """按建议ID查找已有候选（用于去重）。"""
         try:
             with self.get_connection() as conn:
@@ -703,7 +703,7 @@ class DatabaseManager:
 # 全局数据库实例
 # ============================================================
 
-_db_manager: Optional[DatabaseManager] = None
+_db_manager: DatabaseManager | None = None
 
 
 def get_db_manager() -> DatabaseManager:

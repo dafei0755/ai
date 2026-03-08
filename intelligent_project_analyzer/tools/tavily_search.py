@@ -7,7 +7,7 @@ Tavily搜索工具
 import json
 import os
 import time
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List
 
 from loguru import logger
 
@@ -50,7 +50,7 @@ except ImportError:
 class TavilySearchTool:
     """Tavily搜索工具类"""
 
-    def __init__(self, api_key: str, config: Optional[ToolConfig] = None):
+    def __init__(self, api_key: str, config: ToolConfig | None = None):
         """
         初始化Tavily搜索工具
 
@@ -82,7 +82,7 @@ class TavilySearchTool:
     def search(
         self,
         query: str,
-        max_results: Optional[int] = None,
+        max_results: int | None = None,
         search_depth: str = "advanced",
         include_answer: bool = True,
         include_raw_content: bool = False,
@@ -118,12 +118,12 @@ class TavilySearchTool:
                 **kwargs,
             }
 
-            logger.info(f" [Tavily] Starting search")
+            logger.info(" [Tavily] Starting search")
             logger.info(f" [Tavily] Query: {query}")
             logger.debug(f"️ [Tavily] Search params: {json.dumps(search_params, ensure_ascii=False, indent=2)}")
 
             # 执行搜索
-            logger.debug(f" [Tavily] Calling Tavily API...")
+            logger.debug(" [Tavily] Calling Tavily API...")
             api_start = time.time()
             response = self.client.search(**search_params)
             api_time = time.time() - api_start
@@ -135,7 +135,7 @@ class TavilySearchTool:
             )
 
             # 处理响应
-            logger.debug(f"️ [Tavily] Processing response...")
+            logger.debug("️ [Tavily] Processing response...")
             process_start = time.time()
             processed_response = self._process_search_response(response, time.time() - start_time)
             process_time = time.time() - process_start
@@ -359,7 +359,7 @@ class TavilySearchTool:
             logger.debug(f"️ [Tavily Deliverable] Max results: {max_results}, QC enabled: {enable_qc}")
 
             # Step 1: 构建精准查询
-            logger.debug(f" [Tavily Deliverable] Step 1: Building precise query...")
+            logger.debug(" [Tavily Deliverable] Step 1: Building precise query...")
             if self.query_builder:
                 query_start = time.time()
                 precise_query = self.query_builder.build_query(deliverable, project_type)
@@ -393,7 +393,7 @@ class TavilySearchTool:
 
             # Step 3: 质量控制
             if enable_qc and self.qc:
-                logger.debug(f" [Tavily Deliverable] Step 3: Running quality control...")
+                logger.debug(" [Tavily Deliverable] Step 3: Running quality control...")
                 qc_start = time.time()
                 processed_results = self.qc.process_results(
                     search_results.get("results", []), deliverable_context=deliverable
@@ -420,7 +420,7 @@ class TavilySearchTool:
                 )
 
             # Step 4: 添加编号（按质量分数排序）
-            logger.debug(f" [Tavily Deliverable] Step 4: Adding reference numbers...")
+            logger.debug(" [Tavily Deliverable] Step 4: Adding reference numbers...")
             for idx, result in enumerate(search_results.get("results", []), start=1):
                 result["reference_number"] = idx
             logger.debug(f" [Tavily Deliverable] Reference numbers added (1-{len(search_results.get('results', []))})")
@@ -459,7 +459,7 @@ class TavilySearchTool:
         """
         try:
             # 简单测试搜索
-            test_response = self.client.search(query="test", max_results=1, search_depth="basic")
+            self.client.search(query="test", max_results=1, search_depth="basic")
             return True
         except Exception as e:
             logger.error(f"Tavily tool availability check failed: {str(e)}")
@@ -542,7 +542,7 @@ class TavilySearchTool:
 # ----------------------------------------------------------------------------
 # 简化接口：兼容旧版直接函数调用 tavily_search("关键词")
 # ----------------------------------------------------------------------------
-_DEFAULT_CLIENT: Optional[TavilySearchTool] = None
+_DEFAULT_CLIENT: TavilySearchTool | None = None
 
 
 def tavily_search(query: str, max_results: int = 5, **kwargs) -> Dict[str, Any]:

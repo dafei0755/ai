@@ -4,7 +4,8 @@
 功能：识别用户问题的意图类型
 """
 
-from typing import List, Optional, Literal
+from typing import List, Literal
+
 from loguru import logger
 
 
@@ -34,7 +35,7 @@ class IntentClassifier:
     def classify(
         self,
         question: str,
-        history: Optional[List] = None
+        history: List | None = None
     ) -> Literal["clarification", "deep_dive", "regenerate", "new_analysis", "general"]:
         """
         分类用户意图

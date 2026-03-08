@@ -4,9 +4,10 @@ LangGraph运行时上下文 - 2025年Runtime Context模式
 提供动态配置支持,无需全局状态
 """
 
-from typing_extensions import TypedDict
-from typing import Optional, Dict, Any
+from typing import Any, Dict
+
 from loguru import logger
+from typing_extensions import TypedDict
 
 from intelligent_project_analyzer.settings import settings
 
@@ -32,13 +33,13 @@ class GraphContext(TypedDict):
     session_id: str
     
     # 可选的用户配置
-    user_id: Optional[str]
-    metadata: Optional[Dict[str, Any]]
+    user_id: str | None
+    metadata: Dict[str, Any] | None
 
 
 def get_default_context(
     session_id: str,
-    user_id: Optional[str] = None,
+    user_id: str | None = None,
     **overrides
 ) -> GraphContext:
     """
@@ -115,7 +116,7 @@ def create_context_for_testing(
 def create_context_for_user(
     user_id: str,
     session_id: str,
-    preferences: Optional[Dict[str, Any]] = None
+    preferences: Dict[str, Any] | None = None
 ) -> GraphContext:
     """
     为特定用户创建上下文

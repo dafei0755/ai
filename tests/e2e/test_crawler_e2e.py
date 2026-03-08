@@ -17,7 +17,8 @@ E2E 测试：爬虫体系化重构 — 端到端 live 验证
 import sys
 import threading
 from pathlib import Path
-from unittest.mock import MagicMock, patch, call
+from unittest.mock import MagicMock, call, patch
+
 import pytest
 
 ROOT = Path(__file__).parents[2]
@@ -175,7 +176,7 @@ class TestRetryFailedUrlsLogic:
         mock_spider = MagicMock()
         mock_spider.parse_project_page.return_value = None  # 模拟继续失败
 
-        with patch.object(manager, "_get_or_create_spider", return_value=mock_spider):
+        with patch.object(manager, "get_spider", return_value=mock_spider):
             with patch.object(manager, "_mark_discovered_url_failed"):
                 manager.retry_failed_urls("gooood", max_retries=3, limit=10)
 

@@ -6,7 +6,8 @@
 """
 
 import json
-from typing import List, Dict, Tuple, Optional, Any
+from typing import Any, Dict, List, Tuple
+
 from loguru import logger
 
 
@@ -973,7 +974,7 @@ class DesignModeDetector:
 
     @classmethod
     def detect(
-        cls, user_input: str, structured_requirements: Optional[Dict] = None
+        cls, user_input: str, structured_requirements: Dict | None = None
     ) -> List[Tuple[str, float, List[str]]]:
         """
         快速关键词检测（第一阶段筛选）
@@ -1181,7 +1182,7 @@ class HybridModeDetector:
 
     @classmethod
     async def detect(
-        cls, user_input: str, structured_requirements: Optional[Dict] = None, llm_client=None, use_llm: bool = True
+        cls, user_input: str, structured_requirements: Dict | None = None, llm_client=None, use_llm: bool = True
     ) -> List[Dict[str, Any]]:
         """
         混合策略检测
@@ -1233,7 +1234,7 @@ class HybridModeDetector:
         ]
 
     @classmethod
-    def detect_sync(cls, user_input: str, structured_requirements: Optional[Dict] = None) -> List[Dict[str, Any]]:
+    def detect_sync(cls, user_input: str, structured_requirements: Dict | None = None) -> List[Dict[str, Any]]:
         """
         同步版本检测（仅关键词，快速）
 
@@ -1253,7 +1254,7 @@ class HybridModeDetector:
 
 
 # 便捷函数
-def detect_design_modes(user_input: str, structured_requirements: Optional[Dict] = None) -> List[Dict[str, Any]]:
+def detect_design_modes(user_input: str, structured_requirements: Dict | None = None) -> List[Dict[str, Any]]:
     """
     便捷函数：同步检测设计模式（仅关键词）
 

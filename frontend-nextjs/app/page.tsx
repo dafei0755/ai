@@ -70,8 +70,9 @@ export default function HomePage() {
     }
   }, [isSidebarOpen]);
 
-  // 🔥 v7.180: 分析模式状态 - 深度搜索/深度思考/深度思考pro（默认深度搜索）
-  const [analysisMode, setAnalysisMode] = useState<'normal' | 'search' | 'deep_thinking'>('search');
+  // 🔥 v7.180: 分析模式状态 - 深度搜索/深度思考/深度思考pro
+  // ⚠️ 深度搜索暂停：默认改为 'normal'，恢复时改回 'search'
+  const [analysisMode, setAnalysisMode] = useState<'normal' | 'search' | 'deep_thinking'>('normal');
 
   // 🔥 检测是否在 iframe 中（用于显示主网站链接）
   const isInIframe = typeof window !== 'undefined' && window.self !== window.top;
@@ -539,7 +540,7 @@ export default function HomePage() {
                 onPinSession={handlePinSession}
                 onShareSession={handleShareSession}
                 onDeleteSession={handleDeleteSession}
-                loadMoreTriggerRef={loadMoreTriggerRef}
+                loadMoreTriggerRef={loadMoreTriggerRef as React.RefObject<HTMLDivElement>}
               />
             </div>
 
@@ -717,17 +718,12 @@ export default function HomePage() {
                         bg-gray-200
                         ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}
                       `}>
-                        {/* 深度搜索模式 - 🆕 v7.180: 默认模式，白色样式 */}
+                        {/* 深度搜索模式 - ⚠️ 暂停开放，按钮禁用；恢复时删除 disabled 并还原 onClick */}
                         <button
                           type="button"
-                          onClick={() => !isLoading && setAnalysisMode('search')}
-                          disabled={isLoading}
-                          className={`
-                            px-3 py-1.5 text-xs font-medium rounded-full transition-all duration-300 whitespace-nowrap
-                            ${analysisMode === 'search'
-                              ? 'bg-white dark:bg-gray-600 text-gray-800 dark:text-white shadow-sm'
-                              : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100/50 dark:hover:bg-gray-700/30'}
-                          `}
+                          disabled
+                          title="深度搜索功能暂停开放"
+                          className="px-3 py-1.5 text-xs font-medium rounded-full whitespace-nowrap opacity-40 cursor-not-allowed text-gray-400 dark:text-gray-600"
                         >
                           深度搜索
                         </button>
@@ -775,10 +771,10 @@ export default function HomePage() {
                         : 'bg-gray-200 text-gray-400 cursor-not-allowed'}
                     `}
                     title={
-                      isLoading 
+                      isLoading
                         ? '正在分析中... 预计12-60秒（取决于需求复杂度）'
-                        : userInput.trim() 
-                          ? '发送' 
+                        : userInput.trim()
+                          ? '发送'
                           : '请输入文字描述您的需求'
                     }
                   >

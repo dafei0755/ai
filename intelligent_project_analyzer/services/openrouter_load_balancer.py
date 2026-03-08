@@ -14,10 +14,10 @@ OpenRouter 多 Key 负载均衡器
 import os
 import random
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 from threading import Lock
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from langchain_openai import ChatOpenAI
 from loguru import logger
@@ -31,9 +31,9 @@ class APIKeyStats:
     total_requests: int = 0
     successful_requests: int = 0
     failed_requests: int = 0
-    last_used: Optional[datetime] = None
-    last_error: Optional[str] = None
-    last_error_time: Optional[datetime] = None
+    last_used: datetime | None = None
+    last_error: str | None = None
+    last_error_time: datetime | None = None
     is_healthy: bool = True
     consecutive_failures: int = 0
 
@@ -91,8 +91,8 @@ class OpenRouterLoadBalancer:
 
     def __init__(
         self,
-        api_keys: Optional[List[str]] = None,
-        config: Optional[LoadBalancerConfig] = None,
+        api_keys: List[str] | None = None,
+        config: LoadBalancerConfig | None = None,
         model: str = "openai/gpt-4o-2024-11-20",
         **llm_kwargs,
     ):
@@ -133,7 +133,7 @@ class OpenRouterLoadBalancer:
         logger.info(f" 负载均衡策略: {self.config.strategy}")
         logger.info(f" 最大重试次数: {self.config.max_retries}")
 
-    def _load_api_keys(self, api_keys: Optional[List[str]]) -> List[str]:
+    def _load_api_keys(self, api_keys: List[str] | None) -> List[str]:
         """
         加载 API Keys
 
@@ -222,7 +222,7 @@ class OpenRouterLoadBalancer:
         self._rate_limit_tracker[key_id].append(now)
         return True
 
-    def _update_stats(self, key_id: str, success: bool, error: Optional[str] = None):
+    def _update_stats(self, key_id: str, success: bool, error: str | None = None):
         """
         更新 Key 的统计信息
 
@@ -409,7 +409,7 @@ class OpenRouterLoadBalancer:
 
 
 # 全局单例
-_global_balancer: Optional[OpenRouterLoadBalancer] = None
+_global_balancer: OpenRouterLoadBalancer | None = None
 
 
 def get_global_balancer(**kwargs) -> OpenRouterLoadBalancer:

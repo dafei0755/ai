@@ -5,7 +5,7 @@
 """
 
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from loguru import logger
 
@@ -25,8 +25,8 @@ class AutoReviewService:
 
     def __init__(
         self,
-        stats_service: Optional[DomainQualityStatsService] = None,
-        filter_manager: Optional[SearchFilterManager] = None,
+        stats_service: DomainQualityStatsService | None = None,
+        filter_manager: SearchFilterManager | None = None,
     ):
         """
         初始化服务
@@ -54,7 +54,7 @@ class AutoReviewService:
         return len(self._stats_service.get_review_queue())
 
     def approve_domain(
-        self, domain: str, add_to_whitelist: bool = False, admin_notes: Optional[str] = None
+        self, domain: str, add_to_whitelist: bool = False, admin_notes: str | None = None
     ) -> Dict[str, Any]:
         """
         批准域名
@@ -90,7 +90,7 @@ class AutoReviewService:
             logger.error(f" 批准域名失败: {domain} - {e}")
             return {"success": False, "error": str(e)}
 
-    def block_domain(self, domain: str, admin_notes: Optional[str] = None) -> Dict[str, Any]:
+    def block_domain(self, domain: str, admin_notes: str | None = None) -> Dict[str, Any]:
         """
         屏蔽域名（加入黑名单）
 
@@ -126,7 +126,7 @@ class AutoReviewService:
             logger.error(f" 屏蔽域名失败: {domain} - {e}")
             return {"success": False, "error": str(e)}
 
-    def dismiss_domain(self, domain: str, admin_notes: Optional[str] = None) -> Dict[str, Any]:
+    def dismiss_domain(self, domain: str, admin_notes: str | None = None) -> Dict[str, Any]:
         """
         移出审核队列（保持观察）
 
@@ -147,7 +147,7 @@ class AutoReviewService:
             logger.error(f" 移出审核队列失败: {domain} - {e}")
             return {"success": False, "error": str(e)}
 
-    def batch_action(self, domains: List[str], action: str, admin_notes: Optional[str] = None) -> Dict[str, Any]:
+    def batch_action(self, domains: List[str], action: str, admin_notes: str | None = None) -> Dict[str, Any]:
         """
         批量操作
 
@@ -196,7 +196,7 @@ class AutoReviewService:
             "review_queue_size": self.get_review_queue_count(),
         }
 
-    def get_domain_detail(self, domain: str) -> Optional[Dict[str, Any]]:
+    def get_domain_detail(self, domain: str) -> Dict[str, Any] | None:
         """
         获取域名详细信息
 
@@ -231,7 +231,7 @@ class AutoReviewService:
 
 
 # 全局单例
-_review_service: Optional[AutoReviewService] = None
+_review_service: AutoReviewService | None = None
 
 
 def get_auto_review_service() -> AutoReviewService:

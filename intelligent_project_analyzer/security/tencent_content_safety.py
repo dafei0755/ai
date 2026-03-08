@@ -3,18 +3,19 @@
 文档: https://cloud.tencent.com/document/product/1124
 """
 
-import os
-import json
 import base64
-from typing import Dict, Any, List, Optional
+import json
+import os
+from typing import Any, Dict, List
+
 from loguru import logger
 
 try:
     from tencentcloud.common import credential
+    from tencentcloud.common.exception.tencent_cloud_sdk_exception import TencentCloudSDKException
     from tencentcloud.common.profile.client_profile import ClientProfile
     from tencentcloud.common.profile.http_profile import HttpProfile
-    from tencentcloud.common.exception.tencent_cloud_sdk_exception import TencentCloudSDKException
-    from tencentcloud.tms.v20201229 import tms_client, models
+    from tencentcloud.tms.v20201229 import models, tms_client
 except ImportError:
     logger.warning("️ 腾讯云SDK未安装，内容安全功能将不可用")
     tms_client = None
@@ -25,8 +26,8 @@ class TencentContentSafetyClient:
 
     def __init__(
         self,
-        secret_id: Optional[str] = None,
-        secret_key: Optional[str] = None,
+        secret_id: str | None = None,
+        secret_key: str | None = None,
         region: str = "ap-guangzhou",
         timeout: int = 5
     ):
@@ -70,8 +71,8 @@ class TencentContentSafetyClient:
         self,
         text: str,
         biz_type: str = "txt",
-        user_id: Optional[str] = None,
-        device_id: Optional[str] = None
+        user_id: str | None = None,
+        device_id: str | None = None
     ) -> Dict[str, Any]:
         """
         文本内容安全检测
@@ -212,10 +213,10 @@ class TencentContentSafetyClient:
 
 
 # 全局单例（懒加载）
-_client_instance: Optional[TencentContentSafetyClient] = None
+_client_instance: TencentContentSafetyClient | None = None
 
 
-def get_tencent_content_safety_client() -> Optional[TencentContentSafetyClient]:
+def get_tencent_content_safety_client() -> TencentContentSafetyClient | None:
     """获取腾讯云内容安全客户端单例"""
     global _client_instance
 

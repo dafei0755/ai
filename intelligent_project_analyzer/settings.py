@@ -2,21 +2,36 @@
 统一配置管理 - 基于Pydantic Settings 2.x (2025年标准)
 
 使用Pydantic Settings自动加载环境变量,无需手动调用load_dotenv()
+
+多环境配置支持 (v8.1+):
+    - 通过 APP_ENV 环境变量指定环境 (development/test/production)
+    - 优先级: 环境变量 > .env.{APP_ENV} > .env > 默认值
+    - 示例: APP_ENV=test python run.py
 """
 
 import os
 from enum import Enum
 from pathlib import Path
-from typing import Optional
 
 from dotenv import load_dotenv
 from pydantic import BaseModel, Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-# 确保.env文件被加载到环境变量中
-env_path = Path(__file__).parent.parent / ".env"
-if env_path.exists():
-    load_dotenv(env_path)
+# 多环境配置加载 (v8.1+)
+# 1. 首先加载 .env（基础配置）
+# 2. 然后根据 APP_ENV 加载环境特定配置（会覆盖同名变量）
+# 3. 最后环境变量拥有最高优先级
+root_path = Path(__file__).parent.parent
+base_env_path = root_path / ".env"
+if base_env_path.exists():
+    load_dotenv(base_env_path)
+
+# 根据 APP_ENV 加载环境特定配置
+app_env = os.getenv("APP_ENV", "development").lower()
+env_specific_path = root_path / f".env.{app_env}"
+if env_specific_path.exists():
+    # override=True: 环境特定配置覆盖基础配置
+    load_dotenv(env_specific_path, override=True)
 
 
 class Environment(str, Enum):
@@ -49,7 +64,7 @@ class LLMConfig(BaseModel):
     timeout: int = Field(default=60, description="请求超时时间(秒)", alias="LLM_TIMEOUT")
     temperature: float = Field(default=0.7, description="温度参数", alias="TEMPERATURE")
     api_key: str = Field(default="", description="LLM API密钥", alias="OPENAI_API_KEY")
-    api_base: Optional[str] = Field(default=None, description="自定义API Base URL")
+    api_base: str | None = Field(default=None, description="自定义API Base URL")
     # 重试配置
     max_retries: int = Field(default=3, description="LLM调用失败重试次数", alias="MAX_RETRIES")
     retry_delay: int = Field(default=5, description="重试间隔(秒)", alias="RETRY_DELAY")
@@ -286,12 +301,31 @@ class Settings(BaseSettings):
 
     使用Pydantic Settings自动从环境变量加载配置
     支持嵌套配置: LLM__MAX_TOKENS=8000
+    多环境配置: 通过 APP_ENV 环境变量指定环境
     """
 
     # 环境配置
-    environment: Environment = Field(default=Environment.DEV, description="运行环境")
-    debug: bool = Field(default=False, description="调试模式", alias="DEBUG")
+    app_env: str = Field(default="development", description="应用环境 (development/test/production)", alias="APP_ENV")
+    environment: Environment = Field(default=Environment.DEV, description="运行环境 (向后兼容)")
+    debug: bool = Field(default=False, description="调试模式（只接受布尔值：true/false/1/0/yes/no）", alias="DEBUG")
+    app_mode: str = Field(
+        default="standard",
+        description="发布通道/运行模式 (standard/release/staging/canary)。"
+                    " 与 DEBUG 布尔值严格分离：DEBUG 仅控制日志/断言等调试行为，"
+                    " 发布语义（如 'release'）请使用此字段，避免 DEBUG='release' 解析失败。",
+        alias="APP_DEPLOY_MODE",
+    )
     log_level: str = Field(default="INFO", description="日志级别", alias="LOG_LEVEL")
+
+    # 端口配置 (v8.1+): 支持多环境并行运行
+    api_port: int = Field(default=8000, description="后端API端口", alias="API_PORT")
+    frontend_port: int = Field(default=3001, description="前端端口", alias="FRONTEND_PORT")
+
+    # 日志配置 (v8.1+): 支持环境隔离
+    structured_logging: bool = Field(default=False, description="是否使用结构化日志(JSON)", alias="STRUCTURED_LOGGING")
+    enable_detailed_logging: bool = Field(default=False, description="是否启用详细日志", alias="ENABLE_DETAILED_LOGGING")
+    log_sample_rate: float = Field(default=1.0, description="日志采样率(0.0-1.0)", alias="LOG_SAMPLE_RATE")
+    log_file_path: str = Field(default="logs/server.log", description="日志文件路径", alias="LOG_FILE_PATH")
 
     # 应用配置
     app_name: str = Field(default="Intelligent Project Analyzer", description="应用名称", alias="APP_NAME")
@@ -323,6 +357,9 @@ class Settings(BaseSettings):
     concurrency: ConcurrencyConfig = Field(default_factory=ConcurrencyConfig)
 
     # 数据库配置
+    # [NOTE] 与 storage.database_url 映射同一个 env var (DATABASE_URL)
+    # 规范写法: settings.storage.database_url  (已在 config_manager.py 中使用)
+    # 遗留写法: settings.database_url           (session_archive_manager.py:1364 — 待迁移)
     database_url: str = Field(
         default="sqlite:///./data/archived_sessions.db", description="数据库URL", alias="DATABASE_URL"
     )
@@ -332,6 +369,36 @@ class Settings(BaseSettings):
     api_base_url: str = Field(default="http://localhost:8000", description="API服务地址")
     streamlit_port: int = Field(default=8501, description="Streamlit端口", alias="STREAMLIT_PORT")
     streamlit_host: str = Field(default="localhost", description="Streamlit主机", alias="STREAMLIT_HOST")
+
+    # ── DEBUG 字段容错 validator（v8.1.1）────────────────────────────────
+    # 目的：防止 DEBUG='release' / DEBUG='production' 等非布尔值在导入期触发
+    # Pydantic ValidationError，导致整个模块链崩溃、pytest 收集阶段失稳。
+    @field_validator("debug", mode="before")
+    @classmethod
+    def _coerce_debug_to_bool(cls, v: object) -> bool:
+        """将非标准 bool 字符串（如 'release'）容错转为 False，保障导入期稳定。"""
+        if isinstance(v, bool):
+            return v
+        if isinstance(v, int):
+            return bool(v)
+        if isinstance(v, str):
+            lower = v.lower().strip()
+            if lower in {"true", "1", "yes", "on"}:
+                return True
+            if lower in {"false", "0", "no", "off", ""}:
+                return False
+            # 非标准值（如 'release'）：降级为 False 并发出可见警告
+            import warnings
+            warnings.warn(
+                f"[settings] DEBUG='{v}' 不是合法布尔值，已自动降级为 False。\n"
+                f"  → 若需启用调试模式，请设置 DEBUG=true\n"
+                f"  → 若需标识发布通道，请使用 APP_DEPLOY_MODE='{v}' 替代",
+                UserWarning,
+                stacklevel=4,
+            )
+            return False
+        return bool(v)
+    # ────────────────────────────────────────────────────────────────────
 
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -514,4 +581,32 @@ class Settings(BaseSettings):
 
 
 # 全局配置实例 - 单例模式
-settings = Settings()
+# 导入期容错守卫（v8.1.1）：任何配置校验失败都输出诊断信息并以默认值回退，
+# 避免一个错误的环境变量值导致整个后端/测试收集阶段崩溃。
+try:
+    settings = Settings()
+except Exception as _settings_init_error:  # pragma: no cover
+    import sys
+    import traceback
+    import warnings
+    _err_type = type(_settings_init_error).__name__
+    _err_msg = str(_settings_init_error)
+    warnings.warn(
+        f"\n{'='*60}\n"
+        f"[settings] 配置加载失败，已使用全默认值回退。\n"
+        f"  错误类型: {_err_type}\n"
+        f"  错误详情: {_err_msg}\n"
+        f"  常见原因:\n"
+        f"    - DEBUG=release  → 请改用 APP_DEPLOY_MODE=release\n"
+        f"    - 数值字段设为字符串（如 API_PORT=auto）\n"
+        f"    - .env 文件格式错误\n"
+        f"  完整堆栈请查看 stderr 输出。\n"
+        f"{'='*60}",
+        UserWarning,
+        stacklevel=1,
+    )
+    print(f"[settings] 配置初始化异常堆栈：\n{traceback.format_exc()}", file=sys.stderr)
+    # 清除可能导致失败的环境变量，以全默认值重建 Settings
+    for _bad_key in ("DEBUG",):
+        os.environ.pop(_bad_key, None)
+    settings = Settings()

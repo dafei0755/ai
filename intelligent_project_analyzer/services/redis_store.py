@@ -5,7 +5,7 @@ Redis Store 适配器
 """
 
 import json
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Tuple
 
 import redis.asyncio as aioredis
 from loguru import logger
@@ -25,7 +25,7 @@ class RedisStore:
     STORE_PREFIX = "store:"
     NAMESPACE_SEPARATOR = ":"
 
-    def __init__(self, redis_url: Optional[str] = None, fallback_to_memory: bool = True):
+    def __init__(self, redis_url: str | None = None, fallback_to_memory: bool = True):
         """
         初始化 Redis Store
 
@@ -35,7 +35,7 @@ class RedisStore:
         """
         self.redis_url = redis_url or settings.redis_url
         self.fallback_to_memory = fallback_to_memory
-        self.redis_client: Optional[Redis] = None
+        self.redis_client: Redis | None = None
         self.is_connected = False
 
         # 内存回退存储
@@ -76,7 +76,7 @@ class RedisStore:
 
                 self.is_connected = True
                 self._memory_mode = False
-                logger.success(f" Redis Store 连接成功")
+                logger.success(" Redis Store 连接成功")
                 return True
 
             except asyncio.TimeoutError:
@@ -175,7 +175,7 @@ class RedisStore:
         except Exception as e:
             logger.error(f" Store 写入失败: {namespace}/{key}, 错误: {e}")
 
-    async def get(self, namespace: Tuple[str, ...], key: str) -> Optional[Dict[str, Any]]:
+    async def get(self, namespace: Tuple[str, ...], key: str) -> Dict[str, Any] | None:
         """
          P1修复: 增强读取容错，Redis失败时自动降级
 
@@ -296,7 +296,7 @@ class RedisStore:
             return []
 
     async def search(
-        self, namespace: Tuple[str, ...], filter: Optional[Dict[str, Any]] = None, limit: int = 10, offset: int = 0
+        self, namespace: Tuple[str, ...], filter: Dict[str, Any] | None = None, limit: int = 10, offset: int = 0
     ) -> List[Tuple[str, Dict[str, Any]]]:
         """
         搜索数据（简化实现）
@@ -353,7 +353,7 @@ class RedisStore:
 
 
 # 全局单例实例
-_store: Optional[RedisStore] = None
+_store: RedisStore | None = None
 
 
 async def get_redis_store() -> RedisStore:

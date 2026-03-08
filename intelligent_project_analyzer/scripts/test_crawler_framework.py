@@ -12,10 +12,11 @@ project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
 from loguru import logger
+
 from intelligent_project_analyzer.crawlers import (
     ArchdailyCrawler,
-    GoooodCrawler,
     CrawlerConfig,
+    GoooodCrawler,
 )
 
 
@@ -29,7 +30,7 @@ def test_config():
         days_back=30,
     )
 
-    logger.success(f"   ✅ 配置创建成功")
+    logger.success("   ✅ 配置创建成功")
     logger.info(f"      max_projects={config.max_projects}")
     logger.info(f"      request_delay={config.request_delay}")
 
@@ -40,11 +41,11 @@ def test_crawler_init():
 
     config = CrawlerConfig(max_projects=3)
 
-    archdaily = ArchdailyCrawler(config=config, category="residential")
-    logger.success(f"   ✅ Archdaily爬虫初始化成功")
+    ArchdailyCrawler(config=config, category="residential")
+    logger.success("   ✅ Archdaily爬虫初始化成功")
 
-    gooood = GoooodCrawler(config=config, category="residential")
-    logger.success(f"   ✅ Gooood爬虫初始化成功")
+    GoooodCrawler(config=config, category="residential")
+    logger.success("   ✅ Gooood爬虫初始化成功")
 
 
 def test_request_headers():
@@ -55,7 +56,7 @@ def test_request_headers():
     crawler = ArchdailyCrawler(config=config)
 
     headers = crawler._get_headers()
-    logger.success(f"   ✅ 请求头生成成功")
+    logger.success("   ✅ 请求头生成成功")
     logger.info(f"      User-Agent: {headers['User-Agent'][:50]}...")
 
 
@@ -68,12 +69,12 @@ def test_url_construction():
     archdaily = ArchdailyCrawler(config=config, category="residential")
     logger.info(f"   Archdaily Base URL: {archdaily.BASE_URL}")
     logger.info(f"   Category URL: {archdaily.category_url}")
-    logger.success(f"   ✅ Archdaily URL构造正确")
+    logger.success("   ✅ Archdaily URL构造正确")
 
     gooood = GoooodCrawler(config=config, category="commercial")
     logger.info(f"   Gooood Base URL: {gooood.BASE_URL}")
     logger.info(f"   Category URL: {gooood.category_url}")
-    logger.success(f"   ✅ Gooood URL构造正确")
+    logger.success("   ✅ Gooood URL构造正确")
 
 
 def main():

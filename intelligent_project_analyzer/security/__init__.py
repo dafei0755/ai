@@ -13,6 +13,7 @@ from .domain_classifier import DomainClassifier
 from .safe_llm_wrapper import SafeLLMWrapper, create_safe_llm
 from .violation_logger import ViolationLogger
 
+
 # 延迟导入节点（避免循环导入）
 def __getattr__(name):
     if name == "InputGuardNode":

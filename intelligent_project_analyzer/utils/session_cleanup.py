@@ -6,7 +6,6 @@
 
 import asyncio
 from datetime import datetime, timedelta
-from typing import Optional
 
 from loguru import logger
 
@@ -26,7 +25,7 @@ class SessionCleanupTask:
         self.session_manager = session_manager
         self.cleanup_interval_hours = cleanup_interval_hours
         self.session_ttl_days = session_ttl_days
-        self._task: Optional[asyncio.Task] = None
+        self._task: asyncio.Task | None = None
         self._running = False
 
     async def start(self):

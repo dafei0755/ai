@@ -4,16 +4,16 @@
 提供数据清洗、标准化、去重等工具函数
 """
 
-from typing import List, Dict, Any, Optional, Set
 import re
 from datetime import datetime
+from typing import Any, Dict, List, Set
 
 
 class DataCleaner:
     """数据清洗工具"""
 
     @staticmethod
-    def clean_text(text: Optional[str]) -> Optional[str]:
+    def clean_text(text: str | None) -> str | None:
         """
         清洗文本内容
 
@@ -53,7 +53,7 @@ class DataCleaner:
         return url
 
     @staticmethod
-    def extract_year(text: str) -> Optional[int]:
+    def extract_year(text: str) -> int | None:
         """从文本中提取年份"""
         # 匹配4位数字年份（1900-2099）
         matches = re.findall(r"\b(19\d{2}|20\d{2})\b", text)
@@ -66,7 +66,7 @@ class DataCleaner:
         return None
 
     @staticmethod
-    def extract_area(text: str) -> Optional[float]:
+    def extract_area(text: str) -> float | None:
         """
         从文本中提取面积（平方米）
 
@@ -108,7 +108,7 @@ class DataCleaner:
         return unique_images
 
     @staticmethod
-    def standardize_location(location: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    def standardize_location(location: Dict[str, Any] | None) -> Dict[str, Any] | None:
         """标准化位置信息"""
         if not location:
             return None
@@ -291,7 +291,7 @@ class AutoTagger:
         return new_tags
 
     @classmethod
-    def auto_categorize(cls, title: str, description: str) -> Optional[str]:
+    def auto_categorize(cls, title: str, description: str) -> str | None:
         """
         自动分类项目类型
 

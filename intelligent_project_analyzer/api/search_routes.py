@@ -11,7 +11,7 @@ import json
 import os
 import uuid
 from datetime import datetime
-from typing import List, Optional
+from typing import List
 
 from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import StreamingResponse
@@ -19,7 +19,10 @@ from loguru import logger
 from pydantic import BaseModel, Field
 
 #  v7.189: 导入数据库模型（用于会话迁移）
-from intelligent_project_analyzer.services.session_archive_manager import ArchivedSearchSession, ArchivedSession
+from intelligent_project_analyzer.services.session_archive_manager import (
+    ArchivedSearchSession,
+    ArchivedSession,
+)
 
 router = APIRouter(prefix="/api/search", tags=["Search Mode"])
 
@@ -28,7 +31,7 @@ router = APIRouter(prefix="/api/search", tags=["Search Mode"])
 DEV_MODE = os.getenv("DEV_MODE", "false").lower() == "true"
 
 
-async def optional_auth(request: Request) -> Optional[dict]:
+async def optional_auth(request: Request) -> dict | None:
     """
     可选认证依赖函数：如果有JWT Token则验证，没有也不报错
 
@@ -73,7 +76,7 @@ async def optional_auth(request: Request) -> Optional[dict]:
         return None
 
 
-def get_user_identifier(current_user: Optional[dict]) -> Optional[str]:
+def get_user_identifier(current_user: dict | None) -> str | None:
     """
      v7.277: 统一获取用户标识符（用户名字符串）
 
@@ -111,7 +114,9 @@ async def delete_search_session(
     验证用户权限后从 SearchSession 表删除
     """
     try:
-        from intelligent_project_analyzer.services.session_archive_manager import get_archive_manager
+        from intelligent_project_analyzer.services.session_archive_manager import (
+            get_archive_manager,
+        )
 
         archive_manager = get_archive_manager()
 
@@ -174,7 +179,9 @@ async def create_search_session(
     URL 中不包含查询参数，便于分享
     """
     try:
-        from intelligent_project_analyzer.services.session_archive_manager import get_archive_manager
+        from intelligent_project_analyzer.services.session_archive_manager import (
+            get_archive_manager,
+        )
 
         #  v7.189: 生成纯随机session_id，不包含用户ID（隐私安全）
         session_id = f"search-{datetime.now().strftime('%Y%m%d')}-{uuid.uuid4().hex[:12]}"
@@ -231,7 +238,7 @@ class SaveSearchSessionRequest(BaseModel):
     #  v7.171: 支持新字段名
     thinkingContent: str = Field(default="", description="深度思考内容")
     answerContent: str = Field(default="", description="AI回答内容")
-    searchPlan: Optional[dict] = Field(default=None, description="搜索规划")
+    searchPlan: dict | None = Field(default=None, description="搜索规划")
     rounds: list = Field(default=[], description="搜索轮次记录")
     totalRounds: int = Field(default=0, description="总轮数")
     executionTime: float = Field(default=0, description="执行时间(秒)")
@@ -242,14 +249,14 @@ class SaveSearchSessionRequest(BaseModel):
     #  v7.219: 需求洞察相关字段（完整链路持久化）
     l0Content: str = Field(default="", description="L0分析对话内容")
     problemSolvingThinking: str = Field(default="", description="解题思考内容")
-    structuredInfo: Optional[dict] = Field(default=None, description="结构化用户信息")
+    structuredInfo: dict | None = Field(default=None, description="结构化用户信息")
     #  v7.241: 框架清单和搜索主线字段
-    frameworkChecklist: Optional[dict] = Field(default=None, description="框架清单")
-    searchMasterLine: Optional[dict] = Field(default=None, description="搜索主线")
+    frameworkChecklist: dict | None = Field(default=None, description="框架清单")
+    searchMasterLine: dict | None = Field(default=None, description="搜索主线")
     #  v7.330: 深度分析相关字段（修复历史记录丢失）
-    deepAnalysisResult: Optional[dict] = Field(default=None, description="深度分析结果")
-    fourMissionsResult: Optional[dict] = Field(default=None, description="4条使命结果")
-    qualityAssessment: Optional[dict] = Field(default=None, description="答案质量评估")
+    deepAnalysisResult: dict | None = Field(default=None, description="深度分析结果")
+    fourMissionsResult: dict | None = Field(default=None, description="4条使命结果")
+    qualityAssessment: dict | None = Field(default=None, description="答案质量评估")
     answerThinkingContent: str = Field(default="", description="答案思考过程")
 
 
@@ -264,7 +271,9 @@ async def save_search_session(
     与主对话使用相同的归档机制
     """
     try:
-        from intelligent_project_analyzer.services.session_archive_manager import get_archive_manager
+        from intelligent_project_analyzer.services.session_archive_manager import (
+            get_archive_manager,
+        )
 
         archive_manager = get_archive_manager()
 
@@ -326,7 +335,9 @@ async def get_search_session(
     从数据库加载持久化的搜索结果
     """
     try:
-        from intelligent_project_analyzer.services.session_archive_manager import get_archive_manager
+        from intelligent_project_analyzer.services.session_archive_manager import (
+            get_archive_manager,
+        )
 
         archive_manager = get_archive_manager()
 
@@ -354,7 +365,9 @@ async def get_search_history(
     返回用户的搜索历史记录
     """
     try:
-        from intelligent_project_analyzer.services.session_archive_manager import get_archive_manager
+        from intelligent_project_analyzer.services.session_archive_manager import (
+            get_archive_manager,
+        )
 
         archive_manager = get_archive_manager()
 
@@ -383,9 +396,9 @@ class UcpptSearchRequest(BaseModel):
     query: str = Field(..., description="搜索查询", min_length=1, max_length=2000)
     max_rounds: int = Field(default=30, description="最大搜索轮数", ge=3, le=30)
     confidence_threshold: float = Field(default=0.8, description="信息充分度阈值", ge=0.5, le=0.95)
-    session_id: Optional[str] = Field(default=None, description="会话ID")  #  v7.280: 支持分阶段模式
-    phase_mode: Optional[str] = Field(default="full", description="执行模式: full(完整) / step1_only(仅分析) / step2_only(仅搜索)")
-    framework_data: Optional[dict] = Field(default=None, description="用户编辑后的框架数据（step2_only模式时必填）")
+    session_id: str | None = Field(default=None, description="会话ID")  #  v7.280: 支持分阶段模式
+    phase_mode: str | None = Field(default="full", description="执行模式: full(完整) / step1_only(仅分析) / step2_only(仅搜索)")
+    framework_data: dict | None = Field(default=None, description="用户编辑后的框架数据（step2_only模式时必填）")
 
 
 @router.post("/ucppt/stream")
@@ -557,7 +570,9 @@ async def migrate_guest_sessions(
         return {"success": False, "error": "需要登录"}
 
     try:
-        from intelligent_project_analyzer.services.session_archive_manager import get_archive_manager
+        from intelligent_project_analyzer.services.session_archive_manager import (
+            get_archive_manager,
+        )
 
         archive_manager = get_archive_manager()
 
@@ -632,7 +647,9 @@ async def associate_guest_session(
         return {"success": False, "error": "需要登录"}
 
     try:
-        from intelligent_project_analyzer.services.session_archive_manager import get_archive_manager
+        from intelligent_project_analyzer.services.session_archive_manager import (
+            get_archive_manager,
+        )
 
         archive_manager = get_archive_manager()
 
@@ -676,9 +693,9 @@ class UpdateSearchPlanRequest(BaseModel):
 
     session_id: str = Field(..., description="会话ID")
     action: str = Field(..., description="操作类型: add/delete/update/reorder")
-    step_id: Optional[str] = Field(default=None, description="步骤ID（delete/update时必填）")
-    step_data: Optional[dict] = Field(default=None, description="步骤数据（add/update时必填）")
-    new_order: Optional[List[str]] = Field(default=None, description="新顺序（reorder时必填）")
+    step_id: str | None = Field(default=None, description="步骤ID（delete/update时必填）")
+    step_data: dict | None = Field(default=None, description="步骤数据（add/update时必填）")
+    new_order: List[str] | None = Field(default=None, description="新顺序（reorder时必填）")
 
 
 @router.post("/step2/update")
@@ -692,7 +709,9 @@ async def update_search_plan(
     用户在第2步编辑搜索任务列表时调用
     """
     try:
-        from intelligent_project_analyzer.services.session_archive_manager import get_archive_manager
+        from intelligent_project_analyzer.services.session_archive_manager import (
+            get_archive_manager,
+        )
 
         archive_manager = get_archive_manager()
 
@@ -792,7 +811,7 @@ class ConfirmSearchPlanRequest(BaseModel):
     """v7.300: 确认搜索计划请求"""
 
     session_id: str = Field(..., description="会话ID")
-    search_plan: Optional[dict] = Field(default=None, description="用户编辑后的搜索计划（可选）")
+    search_plan: dict | None = Field(default=None, description="用户编辑后的搜索计划（可选）")
 
 
 @router.post("/step2/confirm")
@@ -806,7 +825,9 @@ async def confirm_search_plan(
     用户点击"运行"按钮后调用，标记计划已确认
     """
     try:
-        from intelligent_project_analyzer.services.session_archive_manager import get_archive_manager
+        from intelligent_project_analyzer.services.session_archive_manager import (
+            get_archive_manager,
+        )
 
         archive_manager = get_archive_manager()
 
@@ -872,7 +893,9 @@ async def validate_search_plan(
     如发现遗漏，自动建议补充任务（用户可忽略）
     """
     try:
-        from intelligent_project_analyzer.services.session_archive_manager import get_archive_manager
+        from intelligent_project_analyzer.services.session_archive_manager import (
+            get_archive_manager,
+        )
 
         archive_manager = get_archive_manager()
 

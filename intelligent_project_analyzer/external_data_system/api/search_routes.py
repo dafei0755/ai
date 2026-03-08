@@ -4,10 +4,11 @@
 提供语义搜索、相似项目、推荐等功能
 """
 
-from fastapi import APIRouter, Query, HTTPException
-from typing import List, Optional, Dict, Any
-from pydantic import BaseModel
+from typing import Any, Dict, List
+
+from fastapi import APIRouter, HTTPException, Query
 from loguru import logger
+from pydantic import BaseModel
 
 router = APIRouter(prefix="/api/external/search", tags=["外部数据-搜索"])
 
@@ -23,16 +24,16 @@ class SearchRequest(BaseModel):
     query: str
     limit: int = 10
     min_quality_score: float = 0.5
-    source: Optional[str] = None
-    category: Optional[str] = None
+    source: str | None = None
+    category: str | None = None
 
 
 class RecommendRequest(BaseModel):
     """推荐请求"""
 
-    categories: Optional[List[str]] = None
-    styles: Optional[List[str]] = None
-    min_year: Optional[int] = None
+    categories: List[str] | None = None
+    styles: List[str] | None = None
+    min_year: int | None = None
     limit: int = 20
 
 
@@ -142,7 +143,7 @@ async def recommend_projects(request: RecommendRequest) -> Dict[str, Any]:
 
 @router.get("/trending", summary="热门趋势")
 async def get_trending(
-    days: int = Query(30, ge=1, le=365), category: Optional[str] = None, limit: int = Query(20, ge=1, le=100)
+    days: int = Query(30, ge=1, le=365), category: str | None = None, limit: int = Query(20, ge=1, le=100)
 ) -> Dict[str, Any]:
     """
     获取热门/趋势项目

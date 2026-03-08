@@ -15,7 +15,7 @@
 
 import os
 from collections import OrderedDict
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Tuple
 
 import numpy as np
 from loguru import logger
@@ -65,7 +65,7 @@ class EmbeddingCache:
         self._cache: OrderedDict[str, np.ndarray] = OrderedDict()
         self._max_size = max_size
 
-    def get(self, text: str) -> Optional[np.ndarray]:
+    def get(self, text: str) -> np.ndarray | None:
         if text in self._cache:
             self._cache.move_to_end(text)
             return self._cache[text]
@@ -87,7 +87,7 @@ class EmbeddingCache:
 _embedding_cache = EmbeddingCache(max_size=EMBEDDING_CACHE_SIZE)
 
 
-def compute_embedding(text: str) -> Optional[np.ndarray]:
+def compute_embedding(text: str) -> np.ndarray | None:
     """
     计算文本的 Embedding 向量
 
@@ -221,7 +221,7 @@ def semantic_deduplicate(
     return unique_results, removed_count
 
 
-def batch_compute_embeddings(texts: List[str]) -> List[Optional[np.ndarray]]:
+def batch_compute_embeddings(texts: List[str]) -> List[np.ndarray | None]:
     """
     批量计算 Embedding（更高效）
 
@@ -244,7 +244,7 @@ def batch_compute_embeddings(texts: List[str]) -> List[Optional[np.ndarray]]:
         embeddings = model.encode(truncated, convert_to_numpy=True)
 
         # 缓存结果
-        for text, embedding in zip(texts, embeddings):
+        for text, embedding in zip(texts, embeddings, strict=False):
             if text:
                 _embedding_cache.set(text, embedding)
 

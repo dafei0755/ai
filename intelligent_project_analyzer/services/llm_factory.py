@@ -4,7 +4,6 @@ LLM工厂模块 - 2025年工厂模式 + 自动降级
 提供统一的LLM实例创建接口,支持依赖注入、配置管理和自动降级
 """
 
-from typing import Optional
 
 import httpcore
 import openai
@@ -34,7 +33,7 @@ class LLMFactory:
         retry=retry_if_exception_type((httpcore.ConnectError, openai.APIConnectionError, ConnectionError)),
         reraise=True,
     )
-    def create_llm(config: Optional[LLMConfig] = None, **kwargs) -> ChatOpenAI:
+    def create_llm(config: LLMConfig | None = None, **kwargs) -> ChatOpenAI:
         """
         创建LLM实例 (支持 OpenRouter 多 Key 负载均衡 + SSL重试)
 
@@ -115,7 +114,10 @@ class LLMFactory:
                 )
 
             # 尝试使用多LLM工厂创建(支持自动降级)
-            from intelligent_project_analyzer.services.multi_llm_factory import FallbackLLM, MultiLLMFactory
+            from intelligent_project_analyzer.services.multi_llm_factory import (
+                FallbackLLM,
+                MultiLLMFactory,
+            )
 
             fallback_chain = [primary_provider]
             if primary_provider == "openai":
@@ -204,7 +206,10 @@ class LLMFactory:
 
         # 尝试使用多LLM工厂创建(支持自动降级)
         try:
-            from intelligent_project_analyzer.services.multi_llm_factory import FallbackLLM, MultiLLMFactory
+            from intelligent_project_analyzer.services.multi_llm_factory import (
+                FallbackLLM,
+                MultiLLMFactory,
+            )
 
             # 定义降级链
             fallback_chain = [primary_provider]
@@ -272,7 +277,7 @@ class LLMFactory:
             return LLMFactory._create_llm_original(config, **kwargs)
 
     @staticmethod
-    def _create_llm_original(config: Optional[LLMConfig] = None, **kwargs) -> ChatOpenAI:
+    def _create_llm_original(config: LLMConfig | None = None, **kwargs) -> ChatOpenAI:
         """
         创建LLM实例 (原始方法,无降级)
 
@@ -312,7 +317,7 @@ class LLMFactory:
         return ChatOpenAI(**llm_params)
 
     @staticmethod
-    def create_streaming_llm(config: Optional[LLMConfig] = None, **kwargs) -> ChatOpenAI:
+    def create_streaming_llm(config: LLMConfig | None = None, **kwargs) -> ChatOpenAI:
         """
         创建流式LLM实例
 
@@ -333,7 +338,7 @@ class LLMFactory:
 
     @staticmethod
     def create_structured_llm(
-        config: Optional[LLMConfig] = None, schema: Optional[type] = None, **kwargs
+        config: LLMConfig | None = None, schema: type | None = None, **kwargs
     ) -> ChatOpenAI:
         """
         创建结构化输出LLM实例
@@ -416,7 +421,9 @@ class LLMFactory:
             result = await llm.ainvoke("Hello")
         """
         try:
-            from intelligent_project_analyzer.services.high_concurrency_llm import HighConcurrencyLLM
+            from intelligent_project_analyzer.services.high_concurrency_llm import (
+                HighConcurrencyLLM,
+            )
 
             return HighConcurrencyLLM(
                 preferred_provider=provider, enable_cache=enable_cache, enable_fallback=enable_fallback, **kwargs
@@ -479,7 +486,7 @@ class LLMFactory:
             return LLMFactory.create_llm(**kwargs)
 
 
-def get_llm(config: Optional[LLMConfig] = None, **kwargs) -> ChatOpenAI:
+def get_llm(config: LLMConfig | None = None, **kwargs) -> ChatOpenAI:
     """Backwards-compatible helper.
 
     Some legacy tests/scripts import `get_llm()` directly. Prefer using

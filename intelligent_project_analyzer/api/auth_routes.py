@@ -5,7 +5,6 @@ FastAPI 认证路由
 """
 
 import os
-from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Request
 from loguru import logger
@@ -206,7 +205,7 @@ async def check_device(request: Request):
     try:
         body = await request.json()
         device_id = body.get("device_id")
-    except:
+    except Exception:
         pass
 
     if not device_id:
@@ -296,7 +295,7 @@ async def verify_token(request: Request):
         body = await request.json()
         device_id = body.get("device_id")
         device_info = body.get("device_info")
-    except:
+    except Exception:
         # 请求体可能为空或非 JSON
         pass
 

@@ -5,11 +5,11 @@
 
 import json
 import logging
-from datetime import datetime
 from dataclasses import asdict, dataclass, field
+from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 logger = logging.getLogger(__name__)
 
@@ -178,12 +178,12 @@ class SearchModeConfig:
 class SearchModeConfigManager:
     """搜索模式配置管理器"""
 
-    def __init__(self, config_dir: Optional[str] = None):
+    def __init__(self, config_dir: str | None = None):
         self.config_dir = Path(config_dir) if config_dir else Path(__file__).parent / "config"
         self.config_dir.mkdir(exist_ok=True)
 
         # 当前配置
-        self._current_config: Optional[SearchModeConfig] = None
+        self._current_config: SearchModeConfig | None = None
 
         # 默认配置文件路径
         self.config_file = self.config_dir / "search_mode_config.json"
@@ -389,13 +389,13 @@ class SearchModeConfigManager:
         dev_config.expander.enabled = False
         self.save_config(dev_config, self.preset_configs_dir / "development.json")
 
-    def load_config(self, config_path: Optional[str] = None) -> SearchModeConfig:
+    def load_config(self, config_path: str | None = None) -> SearchModeConfig:
         """加载配置"""
         config_file = Path(config_path) if config_path else self.config_file
 
         try:
             if config_file.exists():
-                with open(config_file, "r", encoding="utf-8") as f:
+                with open(config_file, encoding="utf-8") as f:
                     config_dict = json.load(f)
 
                 # 转换为配置对象
@@ -412,7 +412,7 @@ class SearchModeConfigManager:
             logger.error(f" 加载配置失败: {e}")
             return self._create_default_config()
 
-    def save_config(self, config: SearchModeConfig, config_path: Optional[str] = None):
+    def save_config(self, config: SearchModeConfig, config_path: str | None = None):
         """保存配置"""
         config_file = Path(config_path) if config_path else self.config_file
 
@@ -483,12 +483,12 @@ class SearchModeConfigManager:
         preset_files = self.preset_configs_dir.glob("*.json")
         return [f.stem for f in preset_files]
 
-    def get_tool_config(self, tool_name: str) -> Optional[SearchToolConfig]:
+    def get_tool_config(self, tool_name: str) -> SearchToolConfig | None:
         """获取工具配置"""
         config = self.get_current_config()
         return config.search_tools.get(tool_name)
 
-    def get_search_type_config(self, search_type: str) -> Optional[SearchTypeConfig]:
+    def get_search_type_config(self, search_type: str) -> SearchTypeConfig | None:
         """获取搜索类型配置"""
         config = self.get_current_config()
         return config.search_types.get(search_type)
@@ -551,7 +551,7 @@ class SearchModeConfigManager:
 _config_manager = None
 
 
-def get_config_manager(config_dir: Optional[str] = None) -> SearchModeConfigManager:
+def get_config_manager(config_dir: str | None = None) -> SearchModeConfigManager:
     """获取配置管理器实例（单例模式）"""
     global _config_manager
     if _config_manager is None:

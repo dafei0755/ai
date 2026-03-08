@@ -14,7 +14,7 @@ import json
 import logging
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 from ..core.config import get_config
 from ..core.llm_service import LLMService
@@ -76,7 +76,7 @@ class ImmediateHypothesisGenerator:
         }
 
     async def generate_immediate_hypothesis(
-        self, user_input: str, context: Optional[Dict] = None
+        self, user_input: str, context: Dict | None = None
     ) -> ImmediateHypothesis:
         """
         生成立即假设 - 0-5秒响应目标

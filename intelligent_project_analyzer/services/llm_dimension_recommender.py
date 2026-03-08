@@ -8,7 +8,7 @@ v7.138 Phase 2: LLM需求理解层
 import json
 import os
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 import yaml
 from langchain_core.messages import HumanMessage, SystemMessage
@@ -29,7 +29,7 @@ class LLMDimensionRecommender:
     """
 
     _instance = None
-    _prompt_config: Optional[Dict[str, Any]] = None
+    _prompt_config: Dict[str, Any] | None = None
 
     def __new__(cls):
         if cls._instance is None:
@@ -52,7 +52,7 @@ class LLMDimensionRecommender:
             return
 
         try:
-            with open(config_path, "r", encoding="utf-8") as f:
+            with open(config_path, encoding="utf-8") as f:
                 LLMDimensionRecommender._prompt_config = yaml.safe_load(f)
             logger.info(" [v7.138] LLM维度Prompt配置加载成功")
         except Exception as e:
@@ -74,11 +74,11 @@ class LLMDimensionRecommender:
         user_input: str,
         all_dimensions: Dict[str, Dict[str, Any]],
         required_dimensions: List[str],
-        confirmed_tasks: Optional[List[Dict[str, Any]]] = None,
-        gap_filling_answers: Optional[Dict[str, str]] = None,
+        confirmed_tasks: List[Dict[str, Any]] | None = None,
+        gap_filling_answers: Dict[str, str] | None = None,
         min_dimensions: int = 9,
         max_dimensions: int = 12,
-    ) -> Optional[Dict[str, Any]]:
+    ) -> Dict[str, Any] | None:
         """
         使用LLM推荐维度
 
@@ -209,8 +209,8 @@ class LLMDimensionRecommender:
         project_type: str,
         user_input: str,
         required_dimensions: List[str],
-        confirmed_tasks: Optional[List[Dict[str, Any]]],
-        gap_filling_answers: Optional[Dict[str, str]],
+        confirmed_tasks: List[Dict[str, Any]] | None,
+        gap_filling_answers: Dict[str, str] | None,
         min_dimensions: int,
         max_dimensions: int,
     ) -> str:
@@ -236,7 +236,7 @@ class LLMDimensionRecommender:
 
         return user_prompt
 
-    def _build_tasks_summary(self, confirmed_tasks: Optional[List[Dict[str, Any]]]) -> str:
+    def _build_tasks_summary(self, confirmed_tasks: List[Dict[str, Any]] | None) -> str:
         """构建任务列表摘要"""
         if not confirmed_tasks:
             return "（无）"
@@ -251,7 +251,7 @@ class LLMDimensionRecommender:
 
         return "\n".join(lines)
 
-    def _build_answers_summary(self, gap_filling_answers: Optional[Dict[str, str]]) -> str:
+    def _build_answers_summary(self, gap_filling_answers: Dict[str, str] | None) -> str:
         """构建问卷答案摘要"""
         if not gap_filling_answers:
             return "（无）"
@@ -268,7 +268,7 @@ class LLMDimensionRecommender:
         response_text: str,
         all_dimensions: Dict[str, Dict[str, Any]],
         required_dimensions: List[str],
-    ) -> Optional[Dict[str, Any]]:
+    ) -> Dict[str, Any] | None:
         """
         解析LLM返回的JSON
 
@@ -350,7 +350,7 @@ class LLMDimensionRecommender:
             logger.error(f" 解析LLM响应失败: {e}")
             return None
 
-    def _extract_json(self, text: str) -> Optional[str]:
+    def _extract_json(self, text: str) -> str | None:
         """从文本中提取JSON（支持Markdown代码块）"""
         # 尝试直接解析
         text = text.strip()

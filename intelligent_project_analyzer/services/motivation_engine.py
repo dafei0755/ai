@@ -9,7 +9,7 @@ import json
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List
 
 import yaml
 from loguru import logger
@@ -40,7 +40,7 @@ class MotivationResult:
     confidence: float  # 置信度
     reasoning: str  # 推理说明
     method: str  # 识别方法: llm/keyword/rule/default
-    secondary: Optional[List[str]] = None  # 次要动机类型
+    secondary: List[str] | None = None  # 次要动机类型
     tags: List[str] = field(default_factory=list)  # 细粒度标签
     requires_human_review: bool = False  # 是否需要人工审核
     fallback_used: bool = False  # 是否使用了降级策略
@@ -57,7 +57,7 @@ class UnmatchedCase:
     assigned_type: str
     confidence: float
     method: str
-    session_id: Optional[str] = None
+    session_id: str | None = None
 
 
 class MotivationTypeRegistry:
@@ -76,13 +76,13 @@ class MotivationTypeRegistry:
         if not self._types:
             self.load_from_config()
 
-    def load_from_config(self, config_path: Optional[str] = None):
+    def load_from_config(self, config_path: str | None = None):
         """从配置文件加载动机类型"""
         if config_path is None:
             config_path = Path(__file__).parent.parent / "config" / "motivation_types.yaml"
 
         try:
-            with open(config_path, "r", encoding="utf-8") as f:
+            with open(config_path, encoding="utf-8") as f:
                 self._config = yaml.safe_load(f)
 
             # 加载动机类型
@@ -131,7 +131,7 @@ class MotivationTypeRegistry:
         for t in basic_types:
             self._types[t.id] = t
 
-    def get_type(self, type_id: str) -> Optional[MotivationType]:
+    def get_type(self, type_id: str) -> MotivationType | None:
         """获取指定类型"""
         return self._types.get(type_id)
 
@@ -139,7 +139,7 @@ class MotivationTypeRegistry:
         """获取所有启用的类型"""
         return [t for t in self._types.values() if t.enabled]
 
-    def reload(self, config_path: Optional[str] = None) -> Dict[str, Any]:
+    def reload(self, config_path: str | None = None) -> Dict[str, Any]:
         """
         热更新配置 - v7.261
 
@@ -262,7 +262,7 @@ class MotivationLearningSystem:
         cutoff = datetime.now().timestamp() - (days * 86400)
 
         try:
-            with open(self.feedback_log, "r", encoding="utf-8") as f:
+            with open(self.feedback_log, encoding="utf-8") as f:
                 for line in f:
                     case_dict = json.loads(line)
                     case_time = datetime.fromisoformat(case_dict["timestamp"]).timestamp()
@@ -491,7 +491,7 @@ class MotivationInferenceEngine:
         self.learning = MotivationLearningSystem(self.registry)
 
     async def infer(
-        self, task: Dict[str, Any], user_input: str, structured_data: Optional[Dict[str, Any]] = None
+        self, task: Dict[str, Any], user_input: str, structured_data: Dict[str, Any] | None = None
     ) -> MotivationResult:
         """
         推断任务的动机类型（4级降级策略）
@@ -546,7 +546,7 @@ class MotivationInferenceEngine:
         return result
 
     async def _llm_inference(
-        self, task: Dict[str, Any], user_input: str, structured_data: Optional[Dict[str, Any]]
+        self, task: Dict[str, Any], user_input: str, structured_data: Dict[str, Any] | None
     ) -> MotivationResult:
         """Level 1: LLM智能推理"""
 
@@ -698,7 +698,7 @@ class MotivationInferenceEngine:
             raise
 
     def _keyword_matching(
-        self, task: Dict[str, Any], user_input: str, structured_data: Optional[Dict[str, Any]]
+        self, task: Dict[str, Any], user_input: str, structured_data: Dict[str, Any] | None
     ) -> MotivationResult:
         """Level 2: 增强关键词匹配"""
 
@@ -764,7 +764,7 @@ class MotivationInferenceEngine:
         )
 
     def _rule_based_inference(
-        self, task: Dict[str, Any], structured_data: Optional[Dict[str, Any]]
+        self, task: Dict[str, Any], structured_data: Dict[str, Any] | None
     ) -> MotivationResult:
         """Level 3: 规则引擎（基于项目类型等）"""
 
@@ -793,7 +793,7 @@ class MotivationInferenceEngine:
 
 
 # 全局单例
-_engine: Optional[MotivationInferenceEngine] = None
+_engine: MotivationInferenceEngine | None = None
 
 
 def get_motivation_engine() -> MotivationInferenceEngine:
@@ -823,7 +823,7 @@ async def deep_motivation_analysis(
     task: Dict[str, Any],
     user_input: str,
     basic_result: MotivationResult,
-    structured_data: Optional[Dict[str, Any]] = None,
+    structured_data: Dict[str, Any] | None = None,
 ) -> MotivationInsight:
     """
     深度动机洞察分析（L1/L2/L3层次）
@@ -887,7 +887,7 @@ def _extract_explicit_keywords(user_input: str, result: MotivationResult) -> Lis
 
     # 检查哪些关键词出现在用户输入中
     explicit_keywords = []
-    for keyword, weight in motivation_type.keywords.items():
+    for keyword, _weight in motivation_type.keywords.items():
         if keyword in user_input.lower():
             explicit_keywords.append(keyword)
 
@@ -895,7 +895,7 @@ def _extract_explicit_keywords(user_input: str, result: MotivationResult) -> Lis
 
 
 async def _llm_deep_analysis(
-    task: Dict[str, Any], user_input: str, basic_result: MotivationResult, structured_data: Optional[Dict[str, Any]]
+    task: Dict[str, Any], user_input: str, basic_result: MotivationResult, structured_data: Dict[str, Any] | None
 ) -> Dict[str, Any]:
     """使用LLM进行L2/L3深度分析"""
 

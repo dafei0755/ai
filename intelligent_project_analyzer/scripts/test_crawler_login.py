@@ -16,8 +16,8 @@ project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
 from loguru import logger
-from intelligent_project_analyzer.crawlers import ArchdailyCrawler
 
+from intelligent_project_analyzer.crawlers import ArchdailyCrawler
 
 # 配置日志
 logger.remove()
@@ -37,7 +37,7 @@ def test_login_from_config():
     try:
         from intelligent_project_analyzer.config.crawler_credentials import ARCHDAILY_CONFIG
 
-        logger.info(f"✅ 配置已加载")
+        logger.info("✅ 配置已加载")
         logger.info(f"   use_login: {ARCHDAILY_CONFIG.use_login}")
         logger.info(f"   username: {ARCHDAILY_CONFIG.login_username}")
         logger.info(f"   password: {'*' * 8}")
@@ -78,7 +78,7 @@ def test_cookie_injection():
 
         # 创建不启用自动登录的配置
         config = CrawlerConfig(use_login=False)
-        crawler = ArchdailyCrawler(config=config, category="residential")
+        ArchdailyCrawler(config=config, category="residential")
 
         # 模拟Cookie注入（实际使用时需要浏览器获取真实Cookie）
         logger.info("💡 Cookie注入示例（需要浏览器手动获取）:")
@@ -186,9 +186,9 @@ def main():
         logger.info("   2. 配置 ARCHDAILY_CONFIG.login_username 和 login_password")
         logger.info("   3. 设置 use_login=True")
     elif success_count < len(results):
-        logger.info(f"\n⚠️ 部分测试失败，但至少一种登录方式可用")
+        logger.info("\n⚠️ 部分测试失败，但至少一种登录方式可用")
     else:
-        logger.success(f"\n🎉 所有测试通过！登录功能正常")
+        logger.success("\n🎉 所有测试通过！登录功能正常")
 
 
 if __name__ == "__main__":

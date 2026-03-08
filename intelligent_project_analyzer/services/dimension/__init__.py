@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 services/dimension — 维度分析子包
 

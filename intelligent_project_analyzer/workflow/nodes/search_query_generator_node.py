@@ -73,7 +73,7 @@ def search_query_generator_node(state: Dict[str, Any]) -> Dict[str, Any]:
     questionnaire_summary = state.get("questionnaire_summary", {})
     user_input_full = state.get("user_input", "")
 
-    logger.debug(f" [搜索查询生成] 可用数据:")
+    logger.debug(" [搜索查询生成] 可用数据:")
     logger.debug(f"   - 用户输入长度: {len(user_input_full)} 字符")
     logger.debug(f"   - 问卷摘要: {bool(questionnaire_summary)}")
     if questionnaire_summary:
@@ -153,7 +153,7 @@ def search_query_generator_node(state: Dict[str, Any]) -> Dict[str, Any]:
     project_aspect_ratio = "16:9"
 
     # 调试输出：显示每个交付物的搜索查询
-    for deliv_id, metadata in deliverable_metadata.items():
+    for _deliv_id, metadata in deliverable_metadata.items():
         logger.debug(f"   {metadata.get('name')}: {len(metadata.get('search_queries', []))} 个查询")
         for i, query in enumerate(metadata.get("search_queries", [])[:2], 1):  # 只显示前2个
             logger.debug(f"    {i}. {query}")

@@ -13,17 +13,16 @@
     extract_reports → extract_context → generate_report → validate_output → END
 """
 
-from typing import TypedDict, Dict, Any, List, Optional
-from loguru import logger
-from datetime import datetime
 import json
 import time
+from datetime import datetime
+from typing import Any, Dict, List, TypedDict
 
-from langgraph.graph import StateGraph, START, END
+from langgraph.graph import END, START, StateGraph
+from loguru import logger
 
 # 导入共享工具函数
-from ..utils.shared_agent_utils import PerformanceMonitor, extract_expert_reports
-
+from ..utils.shared_agent_utils import PerformanceMonitor
 
 # ============================================================================
 # 状态定义
@@ -459,7 +458,7 @@ class ResultAggregatorAgentV2:
         result = agent.execute(state)
     """
     
-    def __init__(self, llm_model=None, config: Optional[Dict[str, Any]] = None):
+    def __init__(self, llm_model=None, config: Dict[str, Any] | None = None):
         """
         初始化结果聚合智能体
         
@@ -582,7 +581,7 @@ class ResultAggregatorAgentCompat:
         USE_LANGGRAPH_AGGREGATOR=false → 使用原版 Agent
     """
     
-    def __init__(self, llm_model=None, config: Optional[Dict[str, Any]] = None):
+    def __init__(self, llm_model=None, config: Dict[str, Any] | None = None):
         import os
         self.use_langgraph = os.getenv("USE_LANGGRAPH_AGGREGATOR", "false").lower() == "true"
         

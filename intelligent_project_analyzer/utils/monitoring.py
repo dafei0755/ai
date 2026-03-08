@@ -9,7 +9,7 @@ import time
 from collections import defaultdict, deque
 from datetime import datetime, timedelta
 from threading import Lock
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from loguru import logger
 
@@ -92,7 +92,7 @@ class MetricsCollector:
         with self._lock:
             self._metrics[f"{tool}.errors"].append(error_metric)
 
-    def get_statistics(self, tool: Optional[str] = None, window_minutes: int = 60) -> Dict[str, Any]:
+    def get_statistics(self, tool: str | None = None, window_minutes: int = 60) -> Dict[str, Any]:
         """
         获取统计信息
 
@@ -147,7 +147,7 @@ class MetricsCollector:
     def _report_slow_query(self, tool: str, operation: str, execution_time: float, metric: Dict):
         """上报慢查询"""
         logger.warning(
-            f" Slow query detected",
+            " Slow query detected",
             tool=tool,
             operation=operation,
             execution_time=execution_time,
@@ -160,7 +160,7 @@ class MetricsCollector:
 class PerformanceMonitor:
     """性能监控器（上下文管理器）"""
 
-    def __init__(self, tool: str, operation: str, metrics_collector: Optional[MetricsCollector] = None, **context):
+    def __init__(self, tool: str, operation: str, metrics_collector: MetricsCollector | None = None, **context):
         """
         Args:
             tool: 工具名称
@@ -227,7 +227,7 @@ class PerformanceMonitor:
 class HealthCheck:
     """健康检查"""
 
-    def __init__(self, metrics_collector: Optional[MetricsCollector] = None):
+    def __init__(self, metrics_collector: MetricsCollector | None = None):
         self.metrics_collector = metrics_collector or global_metrics_collector
 
     def check_health(self) -> Dict[str, Any]:

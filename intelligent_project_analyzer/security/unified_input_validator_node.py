@@ -5,13 +5,14 @@
 通过智能路由减少重复检测，提升性能和用户体验。
 """
 
-from typing import Dict, Any, Literal, Optional, Union
 from datetime import datetime
-from loguru import logger
-from langgraph.types import interrupt, Command
-from langgraph.store.base import BaseStore
+from typing import Any, Dict, Literal, Union
 
-from intelligent_project_analyzer.core.state import ProjectAnalysisState, AnalysisStage
+from langgraph.store.base import BaseStore
+from langgraph.types import Command, interrupt
+from loguru import logger
+
+from intelligent_project_analyzer.core.state import AnalysisStage, ProjectAnalysisState
 from intelligent_project_analyzer.security.content_safety_guard import ContentSafetyGuard
 from intelligent_project_analyzer.security.domain_classifier import DomainClassifier
 from intelligent_project_analyzer.security.violation_logger import ViolationLogger
@@ -23,7 +24,7 @@ class UnifiedInputValidatorNode:
     @staticmethod
     def execute_initial_validation(
         state: ProjectAnalysisState,
-        store: Optional[BaseStore] = None,
+        store: BaseStore | None = None,
         llm_model = None
     ) -> Command[Literal["requirements_analyst", "input_rejected"]]:
         """
@@ -97,7 +98,7 @@ class UnifiedInputValidatorNode:
         is_naming_task = any(kw in user_input.lower() for kw in ["命名", "起名", "取名", "名字", "叫什么"])
 
         # 高置信度非设计类：直接拒绝
-        if domain_result["is_design_related"] == False:
+        if not domain_result["is_design_related"]:
             confidence = domain_result.get("confidence", 0)
 
             if confidence > 0.8 and not is_naming_task:
@@ -220,7 +221,7 @@ class UnifiedInputValidatorNode:
     @staticmethod
     def execute_secondary_validation(
         state: ProjectAnalysisState,
-        store: Optional[BaseStore] = None,
+        store: BaseStore | None = None,
         llm_model = None
     ) -> Union[Dict[str, Any], Command]:
         """
@@ -299,7 +300,7 @@ class UnifiedInputValidatorNode:
         domain_result = domain_classifier.classify(project_summary)
         secondary_confidence = domain_result.get("confidence", 0)
 
-        logger.info(f" 二次验证结果:")
+        logger.info(" 二次验证结果:")
         logger.info(f"   是否设计类: {domain_result['is_design_related']}")
         logger.info(f"   置信度: {secondary_confidence:.2f}")
         logger.info(f"   匹配类别: {domain_result.get('matched_categories', [])}")
@@ -307,7 +308,7 @@ class UnifiedInputValidatorNode:
         # ============================================================================
         # 第4步：领域漂移检测
         # ============================================================================
-        if domain_result["is_design_related"] == False:
+        if not domain_result["is_design_related"]:
             logger.error(" 领域漂移检测：需求分析结果偏离设计领域")
 
             # 记录漂移尝试
@@ -608,7 +609,7 @@ class InputRejectedNode:
     @staticmethod
     def execute(
         state: ProjectAnalysisState,
-        store: Optional[BaseStore] = None
+        store: BaseStore | None = None
     ) -> Dict[str, Any]:
         """
         处理输入拒绝

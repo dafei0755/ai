@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 需求分析师结构化输出Schema v7.600
 使用OpenAI Structured Outputs防止LLM幻觉
@@ -9,10 +8,10 @@
 目标: 幻觉率 15% → <1%
 """
 
-from typing import List, Literal, Optional, Dict, Any
-from pydantic import BaseModel, Field, field_validator, model_validator
 from enum import Enum
+from typing import Any, Dict, List, Literal
 
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 # ============================================================================
 # 预定义理论清单 (从8大透镜提取)
@@ -129,6 +128,29 @@ THEORY_TO_LENS: dict[str, LensCategory] = {
 
 
 # ============================================================================
+# 禁用泛化短语（16 个）— Prompt 约束 + AntiClicheCheck 参考清单
+# ============================================================================
+GENERIC_PHRASES: list[str] = [
+    "温馨",  # 过度使用的室内风格词
+    "舒适",  # 缺乏具体性
+    "以人为本",  # 空洞口号
+    "简约而不简单",  # 广告套话
+    "高端大气",  # 品牌套话
+    "精致",  # 无差异表达
+    "有品位",  # 主观泛词
+    "自然",  # 过宽泛
+    "清新",  # 装饰性形容词
+    "优雅",  # 缺乏设计指向
+    "现代感",  # 无方向性
+    "时尚",  # 随时效而变
+    "格调",  # 无可量化指标
+    "生活品质",  # 空泛概念
+    "人文关怀",  # 口号化
+    "情感共鸣",  # 无操作路径
+]
+
+
+# ============================================================================
 # Phase1 结构化输出模型 (v7.600新增)
 # ============================================================================
 
@@ -185,9 +207,9 @@ class CapabilityCheck(BaseModel):
     """能力边界检查"""
 
     within_capability: bool = Field(description="是否在系统能力范围内")
-    original_request: Optional[str] = Field(default=None, description="用户原文（如超出能力）")
-    transformed_to: Optional[str] = Field(default=None, description="转化后的交付物类型（如超出能力）")
-    transformation_reason: Optional[str] = Field(default=None, description="转化原因说明")
+    original_request: str | None = Field(default=None, description="用户原文（如超出能力）")
+    transformed_to: str | None = Field(default=None, description="转化后的交付物类型（如超出能力）")
+    transformation_reason: str | None = Field(default=None, description="转化原因说明")
 
 
 class Phase1Deliverable(BaseModel):
@@ -201,11 +223,11 @@ class Phase1Deliverable(BaseModel):
 
     priority: DeliverablePriorityEnum = Field(description="优先级")
 
-    quantity: Optional[int] = Field(default=None, ge=1, le=50, description="数量要求（如果适用）")
+    quantity: int | None = Field(default=None, ge=1, le=50, description="数量要求（如果适用）")
 
-    scope: Optional[str] = Field(default=None, description="应用范围/场景")
+    scope: str | None = Field(default=None, description="应用范围/场景")
 
-    format_requirements: Optional[Dict[str, Any]] = Field(default=None, description="格式/规格要求")
+    format_requirements: Dict[str, Any] | None = Field(default=None, description="格式/规格要求")
 
     acceptance_criteria: List[str] = Field(
         min_length=1, description="验收标准（必须可量化、可验证，使用'必须'句式）", examples=[["必须提供正好8个命名（不多不少）", "每个命名必须正好4个汉字"]]
@@ -246,11 +268,11 @@ class Phase1Output(BaseModel):
     next_step_reason: str = Field(min_length=20, max_length=200, description="推荐下一步的原因说明")
 
     # C-01: Phase1 prompt要求的额外输出字段，必须保留否则Pydantic静默丢弃
-    problem_types: Optional[List[str]] = Field(
+    problem_types: List[str] | None = Field(
         default_factory=list, description="问题类型分类列表（如 tension_identity/technical_first 等8种）"
     )
-    proposition_candidates: Optional[List[Dict[str, Any]]] = Field(default_factory=list, description="核心命题候选列表")
-    complexity_assessment: Optional[Dict[str, Any]] = Field(default=None, description="项目复杂度评估")
+    proposition_candidates: List[Dict[str, Any]] | None = Field(default_factory=list, description="核心命题候选列表")
+    complexity_assessment: Dict[str, Any] | None = Field(default=None, description="项目复杂度评估")
 
     @model_validator(mode="after")
     def validate_logic_consistency(self):
@@ -396,11 +418,11 @@ class StakeholderEntry(BaseModel):
 class FocusDivergence(BaseModel):
     """L2.5 关注点分歧"""
 
-    time_perspective: Optional[str] = Field(default=None, description="时间视角分歧", max_length=200)
-    risk_preference: Optional[str] = Field(default=None, description="风险偏好分歧", max_length=200)
-    value_priority: Optional[str] = Field(default=None, description="价值排序分歧", max_length=200)
-    aesthetic_orientation: Optional[str] = Field(default=None, description="审美取向分歧", max_length=200)
-    brand_attitude: Optional[str] = Field(default=None, description="品牌态度分歧", max_length=200)
+    time_perspective: str | None = Field(default=None, description="时间视角分歧", max_length=200)
+    risk_preference: str | None = Field(default=None, description="风险偏好分歧", max_length=200)
+    value_priority: str | None = Field(default=None, description="价值排序分歧", max_length=200)
+    aesthetic_orientation: str | None = Field(default=None, description="审美取向分歧", max_length=200)
+    brand_attitude: str | None = Field(default=None, description="品牌态度分歧", max_length=200)
 
 
 class ConflictEntry(BaseModel):
@@ -422,7 +444,7 @@ class PowerDynamics(BaseModel):
     """权力动态分析"""
 
     decision_hierarchy: str = Field(description="决策层级", min_length=10, max_length=300)
-    hidden_stakeholders: Optional[str] = Field(default=None, description="隐藏的利益相关者", max_length=300)
+    hidden_stakeholders: str | None = Field(default=None, description="隐藏的利益相关者", max_length=300)
 
 
 class StakeholderSystem(BaseModel):
@@ -434,7 +456,7 @@ class StakeholderSystem(BaseModel):
     focus_divergence: FocusDivergence = Field(description="各方关注点分歧分析")
     conflicts_identified: List[ConflictEntry] = Field(description="已识别的利益冲突", default_factory=list)
     synergies_identified: List[SynergyEntry] = Field(description="已识别的协同机会", default_factory=list)
-    power_dynamics: Optional[PowerDynamics] = Field(default=None, description="权力动态分析（lite模式或信息不足时可为null）")
+    power_dynamics: PowerDynamics | None = Field(default=None, description="权力动态分析（lite模式或信息不足时可为null）")
 
     @field_validator("conflicts_identified", mode="before")
     @classmethod
@@ -462,7 +484,7 @@ class FiveWhysChain(BaseModel):
     L2_why_surface: str = Field(description="表层原因", min_length=10, max_length=300)
     L3_why_behavior: str = Field(description="行为模式", min_length=10, max_length=300)
     L4_why_emotion: str = Field(description="情感需求（必须到达）", min_length=10, max_length=300)
-    L5_why_identity: Optional[str] = Field(default=None, description="身份认同（理想到达）", max_length=300)
+    L5_why_identity: str | None = Field(default=None, description="身份认同（理想到达）", max_length=300)
     design_implication: str = Field(description="设计启示", min_length=10, max_length=300)
 
 
@@ -470,20 +492,20 @@ class AssumptionEntry(BaseModel):
     """L6 假设审计条目"""
 
     assumption: str = Field(description="隐含假设", min_length=10, max_length=300)
-    evidence: Optional[str] = Field(default=None, description="支撑假设的证据", max_length=300)
-    counter_assumption: Optional[str] = Field(default=None, description="反向假设", max_length=300)
-    challenge_question: Optional[str] = Field(default=None, description="挑战问题", max_length=300)
-    impact_if_wrong: Optional[str] = Field(default=None, description="假设错误的影响", max_length=300)
-    alternative_approach: Optional[str] = Field(default=None, description="替代方案", max_length=300)
+    evidence: str | None = Field(default=None, description="支撑假设的证据", max_length=300)
+    counter_assumption: str | None = Field(default=None, description="反向假设", max_length=300)
+    challenge_question: str | None = Field(default=None, description="挑战问题", max_length=300)
+    impact_if_wrong: str | None = Field(default=None, description="假设错误的影响", max_length=300)
+    alternative_approach: str | None = Field(default=None, description="替代方案", max_length=300)
 
 
 class SystemicImpactTimeframe(BaseModel):
     """系统性影响 - 单个时间维度"""
 
-    social: Optional[str] = Field(default=None, description="社会影响", max_length=300)
-    environmental: Optional[str] = Field(default=None, description="环境影响", max_length=300)
-    economic: Optional[str] = Field(default=None, description="经济影响", max_length=300)
-    cultural: Optional[str] = Field(default=None, description="文化影响", max_length=300)
+    social: str | None = Field(default=None, description="社会影响", max_length=300)
+    environmental: str | None = Field(default=None, description="环境影响", max_length=300)
+    economic: str | None = Field(default=None, description="经济影响", max_length=300)
+    cultural: str | None = Field(default=None, description="文化影响", max_length=300)
 
 
 class SystemicImpact(BaseModel):
@@ -509,11 +531,11 @@ class AntiClicheCheck(BaseModel):
 class HumanDimensions(BaseModel):
     """人性维度深度分析"""
 
-    emotional_landscape: Optional[str] = Field(default=None, description="情绪地图（具体情绪转化路径，禁止'温馨舒适'等套话）", max_length=500)
-    spiritual_aspirations: Optional[str] = Field(default=None, description="精神追求（穿透功能到精神层面的渴望）", max_length=500)
-    psychological_safety_needs: Optional[str] = Field(default=None, description="心理安全需求（基于依恋理论的安全基地需求）", max_length=500)
-    ritual_behaviors: Optional[str] = Field(default=None, description="仪式行为（日常具有仪式感的微小行为及空间容器）", max_length=500)
-    memory_anchors: Optional[str] = Field(default=None, description="记忆锚点（承载情感记忆的物品/元素及归属设计）", max_length=500)
+    emotional_landscape: str | None = Field(default=None, description="情绪地图（具体情绪转化路径，禁止'温馨舒适'等套话）", max_length=500)
+    spiritual_aspirations: str | None = Field(default=None, description="精神追求（穿透功能到精神层面的渴望）", max_length=500)
+    psychological_safety_needs: str | None = Field(default=None, description="心理安全需求（基于依恋理论的安全基地需求）", max_length=500)
+    ritual_behaviors: str | None = Field(default=None, description="仪式行为（日常具有仪式感的微小行为及空间容器）", max_length=500)
+    memory_anchors: str | None = Field(default=None, description="记忆锚点（承载情感记忆的物品/元素及归属设计）", max_length=500)
 
 
 # ═══════════════════════════════════════════════════════════
@@ -545,14 +567,14 @@ class ThoughtExperimentSet(BaseModel):
     unlimited_budget: ThoughtExperiment = Field(description="无限预算实验：揭示'妥协'vs'真实偏好'")
     keep_one_space: ThoughtExperiment = Field(description="只保留一个空间实验：揭示需求优先级真实排序")
     ten_years_regret: ThoughtExperiment = Field(description="10年后后悔实验：揭示时间维度需求验证")
-    competitor_first: Optional[ThoughtExperiment] = Field(default=None, description="竞争者优先实验（可选）：揭示差异化需求")
+    competitor_first: ThoughtExperiment | None = Field(default=None, description="竞争者优先实验（可选）：揭示差异化需求")
 
 
 class RazorCheck(BaseModel):
     """L5.R 奥卡姆剃刀逆向检验 — 防止过度理论化"""
 
     is_overcomplicated: bool = Field(description="分析是否过度复杂化了一个本质简单的需求")
-    simpler_alternative: Optional[str] = Field(
+    simpler_alternative: str | None = Field(
         default=None, description="如果is_overcomplicated=True，提供更简洁的替代解释", max_length=200
     )
     reason_for_keeping_complexity: str = Field(
@@ -581,12 +603,12 @@ class MultiPerspectiveSynthesis(BaseModel):
 class ConstraintsMap(BaseModel):
     """A4 约束地图（v10 新增）：项目硬性约束全景"""
 
-    budget: Optional[Dict[str, Any]] = Field(default=None, description="预算约束（total/hard_ceiling/note）")
-    timeline: Optional[Dict[str, Any]] = Field(default=None, description="工期约束（construction/hard_deadline）")
-    regulatory: Optional[List[str]] = Field(default=None, description="规范要求列表（消防/审批等）")
-    physical: Optional[Dict[str, Any]] = Field(default=None, description="物理约束（面积/层高/承重墙等）")
-    operational: Optional[List[str]] = Field(default=None, description="运营约束（保洁/维修响应等）")
-    constraint_map_insight: Optional[str] = Field(default=None, description="约束地图洞察：关键取舍点分析", max_length=300)
+    budget: Dict[str, Any] | None = Field(default=None, description="预算约束（total/hard_ceiling/note）")
+    timeline: Dict[str, Any] | None = Field(default=None, description="工期约束（construction/hard_deadline）")
+    regulatory: List[str] | None = Field(default=None, description="规范要求列表（消防/审批等）")
+    physical: Dict[str, Any] | None = Field(default=None, description="物理约束（面积/层高/承重墙等）")
+    operational: List[str] | None = Field(default=None, description="运营约束（保洁/维修响应等）")
+    constraint_map_insight: str | None = Field(default=None, description="约束地图洞察：关键取舍点分析", max_length=300)
 
 
 class RequirementsAnalystOutput(BaseModel):
@@ -635,51 +657,49 @@ class RequirementsAnalystOutput(BaseModel):
     # 元数据
     confidence_score: float = Field(default=0.7, description="分析置信度（0.0-1.0），反映输入信息的充分性；LLM省略时默认 0.7", ge=0.0, le=1.0)
 
-    ontology_suggestions: Optional[List[str]] = Field(default=None, description="本体框架扩展建议（发现旧框架无法解释的现象时填写）")
+    ontology_suggestions: List[str] | None = Field(default=None, description="本体框架扩展建议（发现旧框架无法解释的现象时填写）")
 
     # ═══════════════════════════════════════════════════════════
     # v9.2: 深度分析层（Optional，向后兼容）
     # ═══════════════════════════════════════════════════════════
 
     # L2.5: 利益相关者系统分析
-    stakeholder_system: Optional[StakeholderSystem] = Field(default=None, description="L2.5 利益相关者系统分析（至少3类利益相关者）")
+    stakeholder_system: StakeholderSystem | None = Field(default=None, description="L2.5 利益相关者系统分析（至少3类利益相关者）")
 
     # L4.5: 五层为什么追问
-    five_whys_analysis: Optional[Dict[str, FiveWhysChain]] = Field(
+    five_whys_analysis: Dict[str, FiveWhysChain] | None = Field(
         default=None, description="L4.5 五层为什么追问，每个核心需求一条链（如 core_need_1, core_need_2）"
     )
 
     # L6: 假设审计
-    assumption_audit: Optional[List[AssumptionEntry]] = Field(default=None, description="L6 假设审计（至少3个假设+反向挑战）")
+    assumption_audit: List[AssumptionEntry] | None = Field(default=None, description="L6 假设审计（至少3个假设+反向挑战）")
 
     # L7: 系统性影响
-    systemic_impact: Optional[SystemicImpact] = Field(default=None, description="L7 系统性影响分析（短/中/长期 × 社会/环境/经济/文化）")
+    systemic_impact: SystemicImpact | None = Field(default=None, description="L7 系统性影响分析（短/中/长期 × 社会/环境/经济/文化）")
 
     # L8: 反套路化自检
-    anti_cliche_check: Optional[AntiClicheCheck] = Field(default=None, description="L8 反套路化检测结果")
+    anti_cliche_check: AntiClicheCheck | None = Field(default=None, description="L8 反套路化检测结果")
 
     # 人性维度深度分析
-    human_dimensions: Optional[HumanDimensions] = Field(default=None, description="人性维度深度分析（情绪地图/精神追求/心理安全/仪式行为/记忆锚点）")
+    human_dimensions: HumanDimensions | None = Field(default=None, description="人性维度深度分析（情绪地图/精神追求/心理安全/仪式行为/记忆锚点）")
 
     # ═══════════════════════════════════════════════════════════
     # v9.3: 多视角对抗 + 思维模型层（Optional，向后兼容）
     # ═══════════════════════════════════════════════════════════
 
     # L1.5: 第一性原理裸需求
-    first_principles: Optional[FirstPrinciplesAnalysis] = Field(
+    first_principles: FirstPrinciplesAnalysis | None = Field(
         default=None, description="L1.5 第一性原理裸需求验证（剥离风格标签/行业惯例后的最小需求）"
     )
 
     # L4.6: 思想实验层
-    thought_experiments: Optional[ThoughtExperimentSet] = Field(
-        default=None, description="L4.6 思想实验层（3个如果测试验证需求权重真实排序）"
-    )
+    thought_experiments: ThoughtExperimentSet | None = Field(default=None, description="L4.6 思想实验层（3个如果测试验证需求权重真实排序）")
 
     # L5.R: 奥卡姆剃刀逆向检验
-    razor_check: Optional[RazorCheck] = Field(default=None, description="L5.R 奥卡姆剃刀逆向检验（防止过度理论化，也防止过度简化）")
+    razor_check: RazorCheck | None = Field(default=None, description="L5.R 奥卡姆剃刀逆向检验（防止过度理论化，也防止过度简化）")
 
     # L9: 多视角对抗合成
-    multi_perspective_synthesis: Optional[MultiPerspectiveSynthesis] = Field(
+    multi_perspective_synthesis: MultiPerspectiveSynthesis | None = Field(
         default=None, description="L9/C6 多视角对抗合成（竞争对手/恶魔代言人/10年后用户/局外人 × 收敛盲点洞察）"
     )
 
@@ -688,7 +708,31 @@ class RequirementsAnalystOutput(BaseModel):
     # ═══════════════════════════════════════════════════════════
 
     # A4: 约束地图（新增）
-    constraints_map: Optional[ConstraintsMap] = Field(default=None, description="A4 约束地图（预算/工期/规范/物理/运营全景，v10新增）")
+    constraints_map: ConstraintsMap | None = Field(default=None, description="A4 约束地图（预算/工期/规范/物理/运营全景，v10新增）")
+
+    # ═══════════════════════════════════════════════════════════
+    # 元数据字段（v7.17 P3 规格，供下游专家和前端摘要使用）
+    # ═══════════════════════════════════════════════════════════
+
+    # 叙事摘要（一段面向后续专家的简洁描述）
+    narrative_summary: str | None = Field(
+        default=None,
+        description="叙事摘要：给后续专家看的简洁项目描述（2-4句，含核心矛盾+用户画像+设计机会）",
+        max_length=600,
+    )
+
+    # 项目概览（结构化字段，供 project_director 快速定向）
+    project_overview: dict | None = Field(
+        default=None,
+        description="项目概览：{'project_type', 'scale', 'core_challenge', 'primary_stakeholders'}",
+    )
+
+    # 分析质量自评说明
+    analysis_quality_note: str | None = Field(
+        default=None,
+        description="分析质量自评：说明输入信息充足度、分析置信度来源及主要不确定性（1-3句）",
+        max_length=400,
+    )
 
     # v10 架构语义别名（指向已有字段，供下游消费者使用新键名读取）
     # B4_first_principles  -> first_principles（已有）
@@ -696,6 +740,21 @@ class RequirementsAnalystOutput(BaseModel):
     # C3_thought_experiments -> thought_experiments（已有）
     # A2_stakeholders      -> stakeholder_system（已有）
     # 以上通过 agent _merge 的回退链支持，schema层不新增冗余字段
+
+    @model_validator(mode="after")
+    def validate_assumption_audit_min3(self) -> "RequirementsAnalystOutput":
+        """
+        L6 假设审计至少需要 3 条（cc2026-2 §3.3 规格约束）
+        仅在 assumption_audit 非 None 时执行，Lite 模式下允许为 None。
+        """
+        if self.assumption_audit is not None and len(self.assumption_audit) < 3:
+            import logging as _log
+
+            _log.getLogger(__name__).warning(
+                f"[SchemaWarn] assumption_audit 仅 {len(self.assumption_audit)} 条，"
+                " 低于规范要求的 3 条，已接受但请检查 Prompt 是否注入了最少3条约束"
+            )
+        return self
 
 
 # ============================================================================

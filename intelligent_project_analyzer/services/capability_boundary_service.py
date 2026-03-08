@@ -17,9 +17,9 @@ import uuid
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Literal, Optional
+from typing import Any, Dict, List, Literal
 
-from ..utils.capability_detector import CapabilityDetector, CapabilityLevel
+from ..utils.capability_detector import CapabilityDetector
 
 logger = logging.getLogger(__name__)
 
@@ -41,8 +41,8 @@ class DeliverableCheck:
 
     original_type: str
     within_capability: bool
-    transformed_type: Optional[str] = None
-    transformation_reason: Optional[str] = None
+    transformed_type: str | None = None
+    transformation_reason: str | None = None
     detected_keywords: List[str] = field(default_factory=list)
     confidence: float = 0.0
 
@@ -78,7 +78,7 @@ class BoundaryCheckResult:
     capable_deliverables: List[Dict[str, Any]] = field(default_factory=list)
 
     # 信息充足性
-    info_sufficiency: Optional[InfoSufficiencyCheck] = None
+    info_sufficiency: InfoSufficiencyCheck | None = None
 
     # 警告和建议
     alert_level: Literal["info", "warning", "error"] = "info"
@@ -148,7 +148,7 @@ class CapabilityBoundaryService:
     """统一能力边界检查服务"""
 
     # 配置缓存
-    _config_cache: Optional[Dict[str, Any]] = None
+    _config_cache: Dict[str, Any] | None = None
 
     @classmethod
     def check_user_input(
@@ -361,7 +361,7 @@ class CapabilityBoundaryService:
 
         # 提取答案文本
         answer_texts = []
-        for key, value in answers.items():
+        for _key, value in answers.items():
             if isinstance(value, str):
                 answer_texts.append(value)
             elif isinstance(value, list):
@@ -496,7 +496,7 @@ class CapabilityBoundaryService:
 
         # 应用转化（简单的文本替换）
         for trans in check_result.transformations_needed:
-            original = trans.get("original", "")
+            trans.get("original", "")
             transformed = trans.get("transformed_to", "")
 
             # 查找并替换关键词
@@ -511,7 +511,7 @@ class CapabilityBoundaryService:
 
     @classmethod
     def should_trigger_user_interaction(
-        cls, check_result: BoundaryCheckResult, node_config: Optional[Dict[str, Any]] = None
+        cls, check_result: BoundaryCheckResult, node_config: Dict[str, Any] | None = None
     ) -> bool:
         """
         判断是否应该触发用户交互（显示警告对话框）

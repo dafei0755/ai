@@ -8,7 +8,7 @@ v3.7 新增功能：
 """
 
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 import aiofiles
 import chardet
@@ -94,7 +94,7 @@ class FileProcessor:
     #  v7.156: 按需加载图片 base64 - 性能优化
     # ========================================================================
 
-    def load_image_base64(self, file_path: str, max_size: int = 1024) -> Optional[str]:
+    def load_image_base64(self, file_path: str, max_size: int = 1024) -> str | None:
         """
          v7.156: 按需加载图片为 base64 格式
 
@@ -149,7 +149,7 @@ class FileProcessor:
             logger.error(f" [v7.156] 加载图片失败: {file_path} - {e}")
             return None
 
-    def resolve_image_path(self, visual_ref: Dict[str, Any]) -> Optional[str]:
+    def resolve_image_path(self, visual_ref: Dict[str, Any]) -> str | None:
         """
          v7.156: 解析视觉参考中的图片路径
 
@@ -419,7 +419,7 @@ class FileProcessor:
                         vision_analysis = response.content
                         logger.info(f" Vision API分析完成: {len(vision_analysis)}字符")
                     except asyncio.TimeoutError:
-                        logger.warning(f"️ Vision API调用超时（30秒）")
+                        logger.warning("️ Vision API调用超时（30秒）")
                         vision_analysis = "[Vision API调用超时，跳过图片分析]"
 
                 except Exception as e:
@@ -472,7 +472,6 @@ class FileProcessor:
             包含结构化视觉特征的字典
         """
         try:
-            import base64
 
             from PIL import Image
 

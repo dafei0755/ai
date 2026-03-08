@@ -10,8 +10,9 @@
 3. 输出完全围绕任务，消除不可预计输出
 """
 
+import hashlib
 from enum import Enum
-from typing import Any, Dict, List, Literal, Optional, Union
+from typing import Any, Dict, List, Literal
 
 from pydantic import BaseModel, Field, validator
 
@@ -178,7 +179,7 @@ class Priority(str, Enum):
 class DeliverableSpec(BaseModel):
     """交付物规格说明
 
-     v7.65: 增加 require_search 字段，支持强制搜索标记
+    v7.65: 增加 require_search 字段，支持强制搜索标记
     """
 
     name: str = Field(title="名称", description="交付物名称")
@@ -234,6 +235,17 @@ class TaskInstruction(BaseModel):
     #  v7.10: 创意叙事模式标识
     is_creative_narrative: bool = Field(title="创意叙事模式", default=False, description="是否为创意叙事类任务（V3专家）- 此模式下放宽量化指标要求")
 
+    @validator("success_criteria", pre=True, always=True)
+    def ensure_min_success_criteria(cls, v):
+        """v8.0 修复：自动补全不足2条的 success_criteria，防止 LLM 少填导致 ValidationError"""
+        if not v:
+            return ["分析内容完整准确", "提供可执行建议"]
+        lst = list(v)
+        defaults = ["分析内容完整准确", "提供可执行建议", "符合预期输出格式", "满足项目目标要求"]
+        while len(lst) < 2:
+            lst.append(defaults[len(lst)])
+        return lst[:4]
+
 
 # ============================================================================
 # 协议执行相关模型
@@ -272,17 +284,17 @@ class ProtocolExecutionReport(BaseModel):
     protocol_status: ProtocolStatus = Field(title="协议状态", description="协议执行状态")
 
     # 遵照执行的情况
-    compliance_confirmation: Optional[str] = Field(
+    compliance_confirmation: str | None = Field(
         title="合规确认", default=None, description="确认接受需求分析师洞察的声明（当protocol_status=complied时必填）"
     )
 
     # 有挑战的情况
-    challenge_details: Optional[List[ChallengeFlag]] = Field(
+    challenge_details: List[ChallengeFlag] | None = Field(
         title="挑战详情", default=None, description="挑战详情列表（当protocol_status=challenged时必填）"
     )
 
     # 重新诠释的情况
-    reinterpretation: Optional[ReinterpretationDetail] = Field(
+    reinterpretation: ReinterpretationDetail | None = Field(
         title="重新诠释", default=None, description="重新诠释详情（当protocol_status=reinterpreted时必填）"
     )
 
@@ -322,15 +334,15 @@ class DeliverableOutput(BaseModel):
     content: str = Field(title="内容", description="交付物具体内容（纯文本格式）。LLM应直接生成文本内容，而非结构化数据。")
     completion_status: CompletionStatus = Field(title="完成状态", description="完成状态")
     #  v7.10: 放宽量化指标约束 - 创意叙事模式下可选
-    completion_rate: Optional[float] = Field(
+    completion_rate: float | None = Field(
         title="完成度", ge=0.0, le=1.0, default=1.0, description="完成度百分比（创意叙事模式下可省略，默认1.0）"  # 默认完成
     )
-    notes: Optional[str] = Field(title="备注", default=None, description="说明或备注")
-    quality_self_assessment: Optional[float] = Field(
+    notes: str | None = Field(title="备注", default=None, description="说明或备注")
+    quality_self_assessment: float | None = Field(
         title="质量自评", ge=0.0, le=1.0, default=None, description="质量自评分数（0-1）（创意叙事模式下可省略）"  # 创意模式下可不填
     )
     #  v7.64: 搜索引用记录
-    search_references: Optional[List["SearchReference"]] = Field(
+    search_references: List["SearchReference"] | None = Field(
         title="搜索引用", default=None, description="此交付物使用的搜索结果引用列表（v7.64+）"
     )
 
@@ -340,10 +352,10 @@ class TaskExecutionReport(BaseModel):
 
     deliverable_outputs: List[DeliverableOutput] = Field(title="交付物输出", description="按任务指令要求的交付物输出", min_items=1)
     task_completion_summary: str = Field(title="任务完成总结", description="任务完成情况总结（2-3句话）")
-    additional_insights: Optional[List[str]] = Field(
+    additional_insights: List[str] | None = Field(
         title="额外洞察", default=None, description="执行任务过程中的额外洞察（仅在与任务直接相关时填充）"
     )
-    execution_challenges: Optional[List[str]] = Field(title="执行挑战", default=None, description="执行过程中遇到的挑战或限制")
+    execution_challenges: List[str] | None = Field(title="执行挑战", default=None, description="执行过程中遇到的挑战或限制")
 
 
 class ExecutionMetadata(BaseModel):
@@ -355,11 +367,11 @@ class ExecutionMetadata(BaseModel):
 
     confidence: float = Field(title="置信度", ge=0.0, le=1.0, description="整体执行置信度")
     #  v7.10: 创意叙事模式下可省略 completion_rate
-    completion_rate: Optional[float] = Field(
+    completion_rate: float | None = Field(
         title="完成度", ge=0.0, le=1.0, default=1.0, description="整体完成度（创意叙事模式下默认1.0）"
     )
-    execution_time_estimate: Optional[str] = Field(title="执行时间估算", default=None, description="执行时间估算（创意叙事模式下可省略）")
-    execution_notes: Optional[str] = Field(title="执行备注", default=None, description="执行备注")
+    execution_time_estimate: str | None = Field(title="执行时间估算", default=None, description="执行时间估算（创意叙事模式下可省略）")
+    execution_notes: str | None = Field(title="执行备注", default=None, description="执行备注")
     dependencies_satisfied: bool = Field(title="依赖满足", description="依赖条件是否满足", default=True)
 
 
@@ -458,6 +470,24 @@ def validate_task_instruction_completeness(instruction: TaskInstruction) -> List
     return issues
 
 
+def generate_stable_task_id(title: str, description: str = "") -> str:
+    """
+    生成稳定的任务 ID：CT-{hash8}
+
+    相同标题+描述必然生成相同 ID，支持幂等性检查和重复消除。
+
+    Args:
+        title: 任务标题
+        description: 任务描述（取前 64 字符参与 hash）
+
+    Returns:
+        CT-{8位 hex} 格式，如 "CT-a3f8c12e"
+    """
+    raw = f"{title.strip()}:{description.strip()[:64]}"
+    h = hashlib.sha256(raw.encode("utf-8")).hexdigest()[:8]
+    return f"CT-{h}"
+
+
 def generate_task_instruction_template(role_type: str) -> TaskInstruction:
     """为不同角色类型生成任务指令模板"""
     templates = {
@@ -531,12 +561,12 @@ class SearchReference(BaseModel):
         title="来源工具", description="搜索工具名称"
     )  # v7.154: ragflow → milvus
     title: str = Field(title="标题", description="搜索结果标题")
-    url: Optional[str] = Field(title="URL", default=None, description="结果链接（知识库可能无URL）")
+    url: str | None = Field(title="URL", default=None, description="结果链接（知识库可能无URL）")
     snippet: str = Field(title="摘要", max_length=300, description="搜索结果摘要（限制300字）")
 
     # === 质量评分 ===
     relevance_score: float = Field(title="相关性分数", ge=0.0, le=1.0, description="搜索引擎返回的相关性分数（0-1）")
-    quality_score: Optional[float] = Field(
+    quality_score: float | None = Field(
         title="综合质量分数", ge=0.0, le=100.0, default=None, description="综合质量分数（0-100）= 相关性40% + 时效性20% + 可信度20% + 完整性20%"
     )
 
@@ -552,9 +582,9 @@ class SearchReference(BaseModel):
     timestamp: str = Field(title="时间戳", description="搜索时间（ISO格式）")
 
     # === LLM二次评分（可选） ===
-    llm_relevance_score: Optional[int] = Field(
+    llm_relevance_score: int | None = Field(
         title="LLM相关性评分", ge=0, le=100, default=None, description="LLM对交付物适配度的二次评分（0-100）"
     )
-    llm_scoring_reason: Optional[str] = Field(
+    llm_scoring_reason: str | None = Field(
         title="LLM评分理由", default=None, max_length=200, description="LLM评分的简要理由（限制200字）"
     )

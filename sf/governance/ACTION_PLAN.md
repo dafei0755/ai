@@ -84,7 +84,7 @@ ST-4（lint 激活）  ├→ MT-2（测试整理）
 | **工时估算** | 2h |
 | **回滚方式** | git revert，高风险操作前建议打一个 pre-cleanup tag |
 
-### ST-3：节点 Fallback 守卫装饰器
+### ST-3：节点 Fallback 守卫装饰器 ✅ DONE
 
 | 项 | 内容 |
 |----|------|
@@ -94,8 +94,9 @@ ST-4（lint 激活）  ├→ MT-2（测试整理）
 | **关键注意** | `Interrupt` 必须传播（不能被 except 吞掉），否则人工暂停恢复机制失效 |
 | **验收标准** | `pytest tests/unit/test_node_guard.py` 通过；模拟 LLM 调用抛出异常，工作流能继续而非崩溃，`errors` 字段有记录 |
 | **工时估算** | 1 天 |
+| **完成情况** | `workflow/node_guard.py` 新建（127行：GraphInterrupt 重抛、sync/async 兼容、fallback dict 深拷贝）；`tests/unit/test_node_guard.py` 新建（22 tests 全通过）；`requirements_nodes.py` 6 个无保护节点（`_output_intent_detection_node`、`_calibration_questionnaire_node`、`_progressive_step1/2/3_node`、`_questionnaire_summary_node`）均已应用 `@node_guard`；commit `08c088c` |
 
-### ST-4：激活 ruff 工具链，统一 lint/format
+### ST-4：激活 ruff 工具链，统一 lint/format ✅ DONE
 
 | 项 | 内容 |
 |----|------|
@@ -104,6 +105,7 @@ ST-4（lint 激活）  ├→ MT-2（测试整理）
 | **验收标准** | `make lint` 有输出（不是零报告）且不异常退出；`make format` 格式化成功；`make check` 全程可执行 |
 | **工时估算** | 3h |
 | **注意** | 首次 `ruff check` 可能报告大量问题，先统计数量，按模块分批修复，不要试图一次修完 |
+| **完成情况** | `ruff.toml` 已有完整 select 规则；`Makefile` 更新：`lint`→`ruff check`、`format`→`ruff format + ruff check --fix`、新增 `type-check`→`mypy`、`check` 串联 lint+type-check；`make lint` 验证通过（`1 UP009` 自动可修复）；commit `chore(st-4)` |
 
 ### ST-5：根目录临时脚本归类
 
@@ -118,7 +120,7 @@ ST-4（lint 激活）  ├→ MT-2（测试整理）
 
 ## 阶段 2：P2 结构改善（v8.2.0 目标，约 8 天）
 
-### MT-1：`server.py` 按业务域拆分
+### MT-1：`server.py` 按业务域拆分 ✅ DONE
 
 | 项 | 内容 |
 |----|------|
@@ -129,6 +131,7 @@ ST-4（lint 激活）  ├→ MT-2（测试整理）
 | **验收标准** | `server.py` < 500 行；所有 API 端点行为不变（`_smoke_v14.py` 通过）；WebSocket 连接正常 |
 | **工时估算** | 3 天 |
 | **风险** | 高——任何路由注册顺序或 middleware 挂载顺序变化都可能影响行为；必须有完整冒烟测试覆盖 |
+| **完成情况** | `server.py` 当前 408 行（< 500 验收线）；已拆分出 `ws_routes.py`、`session_routes.py`、`analysis_routes.py`、`auth_routes.py`、`member_routes.py`、`metrics_routes.py`、`admin_routes.py`、`quota_routes.py`、`search_routes.py` 等独立路由文件；`server.py` 仅保留应用初始化和 `include_router` 组装 |
 
 ### MT-2：测试目录整理 ✅ DONE
 
@@ -236,10 +239,17 @@ ST-4（lint 激活）  ├→ MT-2（测试整理）
   - `services/__init__.py` 更新：保留向后兼容的 `LLMFactory`、`ToolFactory` 导出；子包采用懒加载策略（用户需主动 import）
   - 所有旧导入路径**继续有效**，93 个现有测试零回归
 
-### LT-3：State 字段精简
+### LT-3：State 字段精简 ✅ DONE
 
 - **目标**：完成 ST-1 后进一步精简，统一问卷字段命名（三字段 `calibration_answers`/`questionnaire_responses`/`gap_filling_answers` 合并）
 - **工时**：3 天；**风险**：高（破坏性变更，需全量回归）
+- **完成情况**：
+  - `calibration_answers` 完全删除（写入端始终同步写 `questionnaire_responses["answers"]`，冗余）
+  - `gap_filling_answers` 顶层字段删除，改写入 `questionnaire_responses["gap_filling_answers"]` 子键
+  - 涉及 7 文件：`core/state.py` / `calibration_questionnaire.py` / `progressive_questionnaire.py` / `requirements_nodes.py` / `aggregation_nodes.py` / `questionnaire_summary.py` / `result_aggregator.py`
+  - `questionnaire_summary.py` 读取保留 `or state.get("gap_filling_answers")` backward-compat fallback（兼容旧 checkpoint）
+  - git tag `pre-lt3-state-merge` 作为回滚点
+  - 测试结果：456 passed / 8 skipped；commit `cb76600`
 
 ### LT-4：Circuit Breaker ✅ DONE
 

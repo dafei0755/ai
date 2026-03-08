@@ -8,7 +8,6 @@
 4. 性能指标导出
 """
 
-import asyncio
 import json
 import threading
 import time
@@ -17,7 +16,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Callable
 
-from fastapi import Request, Response
+from fastapi import Request
 from loguru import logger
 
 
@@ -66,14 +65,14 @@ class PerformanceMonitor:
             try:
                 with open(self.metrics_file, "a", encoding="utf-8") as f:
                     f.write(json.dumps(metric, ensure_ascii=False) + "\n")
-            except (PermissionError, OSError) as file_error:
+            except (PermissionError, OSError):
                 # 文件锁定或权限问题，静默忽略（每10次记录一次警告）
                 if not hasattr(self, "_write_error_count"):
                     self._write_error_count = 0
                 self._write_error_count += 1
                 if self._write_error_count % 10 == 1:
                     logger.debug(f"️ 性能指标写入跳过 (文件被占用，已跳过{self._write_error_count}次)")
-        except Exception as e:
+        except Exception:
             # 其他异常也不影响主流程
             pass
 
@@ -143,7 +142,7 @@ class PerformanceMonitor:
             list: 慢请求列表
         """
         with self.lock:
-            all_metrics = [m for ms in self.metrics.values() for m in ms]
+            [m for ms in self.metrics.values() for m in ms]
 
             # 筛选慢请求并按耗时排序
             slow_requests = [

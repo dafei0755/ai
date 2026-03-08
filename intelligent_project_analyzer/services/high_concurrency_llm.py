@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 高并发 LLM 客户端
 
@@ -12,25 +11,17 @@
 
 import asyncio
 import hashlib
-import json
 import time
-from typing import Any, Dict, List, Optional, Callable
-from functools import lru_cache
-from loguru import logger
+from typing import Any, Dict, List
 
+from langchain_core.messages import AIMessage
 from langchain_openai import ChatOpenAI
-from langchain_core.messages import BaseMessage, HumanMessage, AIMessage
+from loguru import logger
 
 from intelligent_project_analyzer.services.key_balancer import (
     key_balancer,
-    APIKeyInfo,
-    get_api_key_with_callback
 )
-from intelligent_project_analyzer.services.rate_limiter import (
-    rate_limit_manager,
-    RateLimitExceeded
-)
-
+from intelligent_project_analyzer.services.rate_limiter import rate_limit_manager
 
 # 提供商配置
 PROVIDER_CONFIGS = {
@@ -66,7 +57,7 @@ class SimpleCache:
         content = f"{model}:{prompt}"
         return hashlib.md5(content.encode()).hexdigest()
     
-    def get(self, prompt: str, model: str) -> Optional[str]:
+    def get(self, prompt: str, model: str) -> str | None:
         """获取缓存"""
         key = self._hash_key(prompt, model)
         if key in self._cache:
@@ -123,7 +114,7 @@ class HighConcurrencyLLM:
     def __init__(
         self,
         preferred_provider: str = "openai",
-        model: Optional[str] = None,
+        model: str | None = None,
         temperature: float = 0.7,
         max_tokens: int = 4096,
         timeout: int = 60,
@@ -189,7 +180,7 @@ class HighConcurrencyLLM:
             cached = self.cache.get(prompt_str, self.model)
             if cached:
                 self._cache_hits += 1
-                logger.debug(f" 缓存命中")
+                logger.debug(" 缓存命中")
                 return AIMessage(content=cached)
         
         # 获取限流器
@@ -215,7 +206,7 @@ class HighConcurrencyLLM:
             try:
                 # 获取限流许可
                 if not limiter.acquire_sync():
-                    logger.warning(f"️ 限流等待超时，尝试下一个 Key")
+                    logger.warning("️ 限流等待超时，尝试下一个 Key")
                     continue
                 
                 try:
@@ -413,7 +404,7 @@ class HighConcurrencyLLM:
 
 # ==================== 便捷函数 ====================
 
-_default_llm: Optional[HighConcurrencyLLM] = None
+_default_llm: HighConcurrencyLLM | None = None
 
 
 def get_high_concurrency_llm(**kwargs) -> HighConcurrencyLLM:

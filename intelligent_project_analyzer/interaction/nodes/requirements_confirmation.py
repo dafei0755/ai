@@ -1,13 +1,13 @@
 """需求确认节点"""
 
 from datetime import datetime
-from typing import Any, Dict, Literal, Optional
+from typing import Literal
 
 from langgraph.store.base import BaseStore
 from langgraph.types import Command, interrupt
 from loguru import logger
 
-from ...core.state import AnalysisStage, ProjectAnalysisState
+from ...core.state import ProjectAnalysisState
 from ...core.types import InteractionType
 from ...services.capability_boundary_service import CapabilityBoundaryService, CheckType
 
@@ -17,7 +17,7 @@ class RequirementsConfirmationNode:
 
     @staticmethod
     def execute(
-        state: ProjectAnalysisState, store: Optional[BaseStore] = None
+        state: ProjectAnalysisState, store: BaseStore | None = None
     ) -> Command[Literal["project_director", "requirements_analyst"]]:
         """
         执行需求确认交互
@@ -86,7 +86,7 @@ class RequirementsConfirmationNode:
             "options": {"approve": "确认需求分析准确，继续项目分析", "revise": "需求分析需要修改，重新分析需求"},
         }
 
-        logger.info(f" [DEBUG] 准备 requirements_confirmation interrupt 数据")
+        logger.info(" [DEBUG] 准备 requirements_confirmation interrupt 数据")
         logger.info(f" [DEBUG] requirements_summary 字段数: {len(requirements_summary)}")
         logger.info(f" [DEBUG] message: {message}")
 
@@ -166,7 +166,7 @@ class RequirementsConfirmationNode:
                 # 计算实际差异长度
                 if new_normalized != current_normalized:
                     # 找出真正不同的部分
-                    diff_chars = sum(1 for a, b in zip(new_normalized, current_normalized) if a != b)
+                    diff_chars = sum(1 for a, b in zip(new_normalized, current_normalized, strict=False) if a != b)
                     diff_chars += abs(len(new_normalized) - len(current_normalized))
 
                     # 只有差异超过10个字符才算真实修改

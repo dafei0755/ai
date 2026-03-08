@@ -1,20 +1,18 @@
-# -*- coding: utf-8 -*-
 """
 限流增强的 LLM 包装器
 
 提供带限流功能的 LLM 调用接口
 """
 
-from typing import Any, List, Optional, Dict
+from typing import Any, Dict, List
+
 from langchain_core.language_models import BaseChatModel
-from langchain_core.messages import BaseMessage
-from langchain_core.outputs import ChatResult
 from loguru import logger
 
 from intelligent_project_analyzer.services.rate_limiter import (
-    rate_limit_manager,
+    RateLimitConfig,
     RateLimitExceeded,
-    RateLimitConfig
+    rate_limit_manager,
 )
 
 
@@ -40,8 +38,8 @@ class RateLimitedLLM:
         self,
         llm: BaseChatModel,
         provider: str = "openai",
-        user_id: Optional[str] = None,
-        custom_config: Optional[RateLimitConfig] = None
+        user_id: str | None = None,
+        custom_config: RateLimitConfig | None = None
     ):
         """
         初始化限流 LLM
@@ -162,7 +160,7 @@ class RateLimitedLLM:
 
 def create_rate_limited_llm(
     provider: str = "openai",
-    user_id: Optional[str] = None,
+    user_id: str | None = None,
     **llm_kwargs
 ) -> RateLimitedLLM:
     """

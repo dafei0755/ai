@@ -30,8 +30,7 @@
 """
 
 import json
-import time
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from loguru import logger
 
@@ -99,7 +98,7 @@ class BochaSearchTool:
         base_url: str = "https://api.bochaai.com",
         default_count: int = 5,
         timeout: int = 30,
-        config: Optional[ToolConfig] = None,
+        config: ToolConfig | None = None,
     ):
         """
         初始化博查搜索工具
@@ -142,7 +141,7 @@ class BochaSearchTool:
                 logger.warning(f"️ [Bocha] TikHub初始化失败: {e}")
                 self.tikhub_enabled = False
 
-    def search(self, query: str, count: Optional[int] = None) -> Dict[str, Any]:
+    def search(self, query: str, count: int | None = None) -> Dict[str, Any]:
         """
         执行搜索 (v7.174: 支持缓存)
 
@@ -167,11 +166,11 @@ class BochaSearchTool:
                 cache = get_search_cache()
                 cached_result = cache.get(query, "bocha", count=result_count)
                 if cached_result is not None:
-                    logger.info(f" [Bocha] 缓存命中，跳过API调用")
+                    logger.info(" [Bocha] 缓存命中，跳过API调用")
                     cached_result["from_cache"] = True
                     return cached_result
 
-            logger.info(f" [Bocha] Starting Chinese search")
+            logger.info(" [Bocha] Starting Chinese search")
             logger.info(f" [Bocha] Query: {query}")
             logger.debug(f"️ [Bocha] Result count: {result_count}, Freshness: {freshness}")
 
@@ -187,7 +186,7 @@ class BochaSearchTool:
 
             api_start = time.time()
             with httpx.Client(timeout=self.timeout) as client:
-                logger.debug(f" [Bocha] Calling Bocha API...")
+                logger.debug(" [Bocha] Calling Bocha API...")
                 response = client.post(search_url, headers=headers, json=payload)
                 api_time = time.time() - api_start
 
@@ -199,7 +198,7 @@ class BochaSearchTool:
                     logger.debug(f" [Bocha] Response log_id: {data.get('log_id', 'unknown')}")
 
                     #  v7.105: 解析博查Web Search API响应格式
-                    logger.debug(f"️ [Bocha] Parsing response...")
+                    logger.debug("️ [Bocha] Parsing response...")
                     parse_start = time.time()
                     results = []
 
@@ -276,7 +275,7 @@ class BochaSearchTool:
                     if SEARCH_CACHE_AVAILABLE and result["success"]:
                         cache = get_search_cache()
                         cache.set(query, "bocha", result, count=result_count)
-                        logger.debug(f" [Bocha] 结果已缓存")
+                        logger.debug(" [Bocha] 结果已缓存")
 
                     return result
                 else:
@@ -368,7 +367,7 @@ class BochaSearchTool:
                 logger.info(f" [Bocha Deliverable] Query built in {query_time:.2f}s: {precise_query}")
             else:
                 precise_query = deliverable.get("name", "")
-                logger.warning(f"️ [Bocha Deliverable] Query builder not available, using name")
+                logger.warning("️ [Bocha Deliverable] Query builder not available, using name")
 
             # Step 2: 执行搜索（获取2倍结果用于质量过滤）
             search_count = max_results * 2 if enable_qc else max_results
@@ -423,7 +422,7 @@ class BochaSearchTool:
             combined_text = f"{name} {description}"
             keywords = jieba.analyse.extract_tags(combined_text, topK=5, withWeight=False)
             query_parts = keywords
-        except:
+        except Exception:
             query_parts = [name]
 
         # 添加项目类型（中文）
@@ -576,7 +575,7 @@ class BochaSearchTool:
 
             elif platform == "wechat_channels":
                 # 微信视频号: TikHub API需要额外权限或Cookie，暂不支持
-                logger.debug(f"[TikHub] wechat_channels API requires special permissions, skipped")
+                logger.debug("[TikHub] wechat_channels API requires special permissions, skipped")
                 pass
 
             elif platform == "weibo":
@@ -626,7 +625,7 @@ class BochaSearchTool:
 
         return results
 
-    def _normalize_xiaohongshu_result(self, item: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    def _normalize_xiaohongshu_result(self, item: Dict[str, Any]) -> Dict[str, Any] | None:
         """标准化小红书搜索结果
 
         数据结构: item = {"model_type": "note", "note": {...}}
@@ -667,7 +666,7 @@ class BochaSearchTool:
             logger.debug(f"Failed to normalize xiaohongshu result: {e}")
             return None
 
-    def _normalize_douyin_result(self, item: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    def _normalize_douyin_result(self, item: Dict[str, Any]) -> Dict[str, Any] | None:
         """标准化抖音搜索结果"""
         try:
             aweme_info = item.get("aweme_info", item)
@@ -692,11 +691,11 @@ class BochaSearchTool:
             logger.debug(f"Failed to normalize douyin result: {e}")
             return None
 
-    def _normalize_wechat_channels_result(self, item: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    def _normalize_wechat_channels_result(self, item: Dict[str, Any]) -> Dict[str, Any] | None:
         """标准化微信视频号搜索结果"""
         try:
             object_desc = item.get("objectDesc", {})
-            media = object_desc.get("media", [{}])[0] if object_desc.get("media") else {}
+            object_desc.get("media", [{}])[0] if object_desc.get("media") else {}
 
             feed_id = item.get("id", "")
             desc = object_desc.get("description", "")
@@ -716,7 +715,7 @@ class BochaSearchTool:
             logger.debug(f"Failed to normalize wechat_channels result: {e}")
             return None
 
-    def _normalize_weibo_result(self, item: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    def _normalize_weibo_result(self, item: Dict[str, Any]) -> Dict[str, Any] | None:
         """ v7.163: 标准化微博搜索结果
 
         URL格式说明：
@@ -774,7 +773,7 @@ class BochaSearchTool:
             logger.debug(f"Failed to normalize weibo result: {e}")
             return None
 
-    def _normalize_zhihu_result(self, item: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    def _normalize_zhihu_result(self, item: Dict[str, Any]) -> Dict[str, Any] | None:
         """ v7.163: 标准化知乎文章搜索结果
 
         URL格式说明：
@@ -904,7 +903,7 @@ class BochaSearchTool:
         return tool
 
 
-def create_bocha_search_tool_from_settings() -> Optional[BochaSearchTool]:
+def create_bocha_search_tool_from_settings() -> BochaSearchTool | None:
     """
     从全局配置创建博查搜索工具
 

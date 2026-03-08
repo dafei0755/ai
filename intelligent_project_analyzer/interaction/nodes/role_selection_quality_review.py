@@ -4,7 +4,7 @@
 实现红蓝对抗机制，审核角色选择的合理性、完整性和协同性
 """
 
-from typing import Any, Dict, List, Literal, Optional
+from typing import Any, Dict, List, Literal
 
 from langgraph.store.base import BaseStore
 from langgraph.types import Command
@@ -36,7 +36,7 @@ class RoleSelectionQualityReviewNode:
     _llm_model = None
 
     @classmethod
-    def initialize_coordinator(cls, llm_model, config: Optional[Dict[str, Any]] = None):
+    def initialize_coordinator(cls, llm_model, config: Dict[str, Any] | None = None):
         """初始化审核协调器"""
         if cls._review_coordinator is None or cls._llm_model != llm_model:
             cls._llm_model = llm_model
@@ -47,9 +47,9 @@ class RoleSelectionQualityReviewNode:
     def execute(
         cls,
         state: ProjectAnalysisState,
-        store: Optional[BaseStore] = None,
+        store: BaseStore | None = None,
         llm_model=None,
-        config: Optional[Dict[str, Any]] = None,
+        config: Dict[str, Any] | None = None,
     ) -> Command[Literal["user_question", "project_director"]]:
         """
         执行角色选择质量审核
@@ -89,7 +89,7 @@ class RoleSelectionQualityReviewNode:
         cls._log_review_context(selected_roles, requirements)
 
         # 执行红蓝对抗审核
-        logger.info(f"\n 启动红蓝对抗审核")
+        logger.info("\n 启动红蓝对抗审核")
 
         # 执行红蓝对抗审核（带错误处理）
         try:
@@ -105,7 +105,7 @@ class RoleSelectionQualityReviewNode:
         critical_issues = review_result.get("critical_issues", [])
         warnings = review_result.get("warnings", [])
         strengths = review_result.get("strengths", [])
-        overall_assessment = review_result.get("overall_assessment", "")
+        review_result.get("overall_assessment", "")
 
         # 记录审核摘要
         cls._log_review_summary(review_result)
@@ -131,14 +131,14 @@ class RoleSelectionQualityReviewNode:
             # 无关键问题，继续流程
             if warnings:
                 logger.info(f"ℹ️ 发现 {len(warnings)} 个警告，已记录但不阻塞流程")
-            logger.info(f" 角色选择质量审核通过，继续任务分解")
+            logger.info(" 角色选择质量审核通过，继续任务分解")
 
             return Command(update=updated_state, goto="quality_preflight")
 
     @classmethod
     def _log_review_context(cls, selected_roles: List[Dict[str, Any]], requirements: Dict[str, Any]):
         """记录审核上下文"""
-        logger.info(f"\n 审核上下文：")
+        logger.info("\n 审核上下文：")
         logger.info(f"  - 已选择角色数量: {len(selected_roles)}")
 
         role_names = []
@@ -161,14 +161,14 @@ class RoleSelectionQualityReviewNode:
         strengths = review_result.get("strengths", [])
         overall_assessment = review_result.get("overall_assessment", "")
 
-        logger.info(f"\n 审核结果摘要：")
+        logger.info("\n 审核结果摘要：")
         logger.info(f"  - 关键问题: {len(critical_issues)} 个")
         logger.info(f"  - 警告: {len(warnings)} 个")
         logger.info(f"  - 优势: {len(strengths)} 个")
         logger.info(f"  - 总体评估: {overall_assessment}")
 
         if critical_issues:
-            logger.info(f"\n️ 关键问题详情：")
+            logger.info("\n️ 关键问题详情：")
             for i, issue in enumerate(critical_issues, 1):
                 issue_text = issue.get("issue", "未知问题")
                 impact = issue.get("impact", "")
@@ -177,7 +177,7 @@ class RoleSelectionQualityReviewNode:
                     logger.info(f"     影响: {impact}")
 
         if warnings:
-            logger.info(f"\nℹ️ 警告详情：")
+            logger.info("\nℹ️ 警告详情：")
             for i, warning in enumerate(warnings, 1):
                 warning_text = warning.get("issue", "未知警告")
                 logger.info(f"  {i}. {warning_text}")
@@ -249,7 +249,7 @@ class RoleSelectionQualityReviewNode:
 
 # 导出节点执行函数（用于workflow集成）
 def role_selection_quality_review_node(
-    state: ProjectAnalysisState, store: Optional[BaseStore] = None, config: Optional[Dict[str, Any]] = None
+    state: ProjectAnalysisState, store: BaseStore | None = None, config: Dict[str, Any] | None = None
 ) -> Command[Literal["user_question", "project_director"]]:
     """
     角色选择质量审核节点（workflow入口）

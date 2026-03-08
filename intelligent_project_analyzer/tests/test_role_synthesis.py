@@ -14,10 +14,11 @@
 - 输出结构完整性
 """
 
-import pytest
-from typing import Dict, List, Any
-import yaml
 from pathlib import Path
+from typing import Any, Dict, List
+
+import pytest
+import yaml
 
 
 class RoleSynthesisTestCase:
@@ -248,7 +249,7 @@ class TestRoleSynthesisProtocol:
     def role_selection_config(self):
         """加载role_selection_strategy.yaml配置"""
         config_path = Path(__file__).parent.parent / "config" / "role_selection_strategy.yaml"
-        with open(config_path, 'r', encoding='utf-8') as f:
+        with open(config_path, encoding='utf-8') as f:
             return yaml.safe_load(f)
     
     @pytest.mark.parametrize("test_case", TEST_SCENARIOS, ids=lambda x: x.scenario_name)
@@ -273,7 +274,7 @@ class TestRoleSynthesisProtocol:
         assert "synthesis_constraints" in synthesis_protocol, "缺少合成约束"
         assert "synthesis_example" in synthesis_protocol, "缺少合成示例"
         
-        print(f" 配置文件验证通过")
+        print(" 配置文件验证通过")
         print(f" 合成步骤数: {len(synthesis_protocol['synthesis_steps'])}")
         print(f"️  约束条件数: {len(synthesis_protocol['synthesis_constraints'])}")
         
@@ -283,7 +284,7 @@ class TestRoleSynthesisProtocol:
         # 评估合成质量
         quality_report = SynthesisQualityScorer.evaluate(mock_synthesis_result)
         
-        print(f"\n 质量评估报告:")
+        print("\n 质量评估报告:")
         print(f"   总分: {quality_report['总分']}/10")
         print(f"   等级: {quality_report['等级']}")
         print(f"   详细评分: {quality_report['详细评分']}")
@@ -371,7 +372,7 @@ class TestRoleSynthesisProtocol:
         synthesis_protocol = role_selection_config["dynamic_role_synthesis_protocol"]
         constraints = synthesis_protocol["synthesis_constraints"]
         
-        print(f"\n测试合成约束条件:")
+        print("\n测试合成约束条件:")
         for i, constraint in enumerate(constraints, 1):
             print(f"  约束{i}: {constraint[:50]}...")
         
@@ -384,7 +385,7 @@ class TestRoleSynthesisProtocol:
         # 验证约束3: 最小化依赖
         assert any("dependencies" in c for c in constraints), "缺少依赖最小化约束"
         
-        print(f" 所有约束条件验证通过")
+        print(" 所有约束条件验证通过")
 
 
 # ============================================================================
@@ -396,8 +397,8 @@ if __name__ == "__main__":
     print("动态角色合成协议测试套件")
     print("="*80)
     print(f"\n 测试场景数量: {len(TEST_SCENARIOS)}")
-    print(f" 评分维度数量: 7个")
-    print(f" 合格标准: 总分 >= 7.0/10\n")
+    print(" 评分维度数量: 7个")
+    print(" 合格标准: 总分 >= 7.0/10\n")
     
     # 运行测试
     pytest.main([__file__, "-v", "-s"])

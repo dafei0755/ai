@@ -3,8 +3,7 @@
 """
 
 import re
-from typing import List, Dict, Tuple
-from loguru import logger
+from typing import Dict, List
 
 
 class EnhancedRegexDetector:

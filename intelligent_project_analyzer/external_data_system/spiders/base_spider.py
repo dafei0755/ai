@@ -9,22 +9,23 @@
 - 专用Playwright线程（避免asyncio冲突）
 """
 
+import concurrent.futures
+import json
+import os
+import random
+import re
+import time
 from abc import ABC, abstractmethod
-from typing import Optional, Dict, Any, List, Callable, TypeVar, Tuple
 from dataclasses import dataclass, field
 from datetime import datetime
-import os
-import time
-import re
-import random
-import concurrent.futures
 from pathlib import Path
-import json
-from loguru import logger
-from playwright.sync_api import sync_playwright, Browser, Page, Playwright
+from typing import Any, Callable, Dict, List, Optional, TypeVar
 
-from ..utils.rate_limiter import RateLimiter, get_rate_limiter
+from loguru import logger
+from playwright.sync_api import Browser, Page, Playwright, sync_playwright
+
 from ..utils.network_rotate import IPRotator
+from ..utils.rate_limiter import RateLimiter, get_rate_limiter
 
 T = TypeVar("T")
 
@@ -54,35 +55,35 @@ class ProjectData:
     title: str
 
     # 可选字段
-    description: Optional[str] = None
+    description: str | None = None
     architects: List[Dict[str, str]] = field(default_factory=list)
-    location: Optional[Dict[str, Any]] = None
-    area_sqm: Optional[float] = None
-    year: Optional[int] = None
-    primary_category: Optional[str] = None
+    location: Dict[str, Any] | None = None
+    area_sqm: float | None = None
+    year: int | None = None
+    primary_category: str | None = None
     sub_categories: List[str] = field(default_factory=list)
     tags: List[str] = field(default_factory=list)
     images: List[Dict[str, str]] = field(default_factory=list)
-    views: Optional[int] = None
-    publish_date: Optional[datetime] = None
+    views: int | None = None
+    publish_date: datetime | None = None
 
     # ── 双语内容字段 ──────────────────────────────────────────────
     # 页面语言标识
     lang: str = "unknown"  # "zh" | "en" | "bilingual" | "unknown"
     # 中文内容
-    title_zh: Optional[str] = None
-    description_zh: Optional[str] = None
+    title_zh: str | None = None
+    description_zh: str | None = None
     # 英文内容
-    title_en: Optional[str] = None
-    description_en: Optional[str] = None
+    title_en: str | None = None
+    description_en: str | None = None
 
     # 原始数据（调试用）
-    raw_html: Optional[str] = None
+    raw_html: str | None = None
 
     # ── 扩展字段 ──────────────────────────────────────────────────
     # 站点特有字段 catch-all（业主、方案类型等）
     # key 用英文小写_下划线，value 为 str / list[str] / dict
-    extra_fields: Optional[Dict[str, Any]] = None
+    extra_fields: Dict[str, Any] | None = None
 
     def to_dict(self) -> Dict[str, Any]:
         """转换为字典"""
@@ -431,12 +432,12 @@ class BaseSpider(ABC):
         self.save_cookies = save_cookies
 
         # Playwright实例（在专用线程中管理）
-        self.playwright: Optional[Playwright] = None
-        self.browser: Optional[Browser] = None
+        self.playwright: Playwright | None = None
+        self.browser: Browser | None = None
         self._started = False
 
         # 专用线程池（单线程，所有Playwright操作在此执行）
-        self._pw_executor: Optional[concurrent.futures.ThreadPoolExecutor] = None
+        self._pw_executor: concurrent.futures.ThreadPoolExecutor | None = None
 
         # Cookie存储路径
         self.cookie_dir = Path("data/cookies")
@@ -444,7 +445,7 @@ class BaseSpider(ABC):
 
         # ── 智能限速器（从预设模板自动创建，与 rate_limiter.py 联动）───────
         # 延迟初始化：get_name() 是抽象方法，子类 __init__ 完成后才可用
-        self._rate_limiter: Optional[RateLimiter] = None
+        self._rate_limiter: RateLimiter | None = None
 
         # ── IP 轮换器（Windows 免费方案，连续失败后自动触发） ────────────────
         # 通过环境变量 CRAWLER_IP_ROTATE=1 开启
@@ -458,7 +459,7 @@ class BaseSpider(ABC):
 
         # ── 代理支持（通过环境变量 CRAWLER_PROXY 配置） ───────────────────────
         # 格式: http://user:pass@host:port 或 socks5://host:port
-        self._proxy_server: Optional[str] = os.getenv("CRAWLER_PROXY")
+        self._proxy_server: str | None = os.getenv("CRAWLER_PROXY")
 
         # User-Agent池
         # 更新于 2026-02（与 UserAgentRotator 保持同步）
@@ -662,7 +663,7 @@ class BaseSpider(ABC):
             cookie_path = self.cookie_dir / f"{self.get_name()}_cookies.json"
             if cookie_path.exists():
                 try:
-                    with open(cookie_path, "r") as f:
+                    with open(cookie_path) as f:
                         cookies = json.load(f)
                         context.add_cookies(cookies)
                 except Exception:
@@ -737,7 +738,7 @@ class BaseSpider(ABC):
             )
         return random.choice(self._REFERRER_POOL[:6])  # 排除空字符串
 
-    def fetch_with_retry(self, url: str, page: Optional[Page] = None) -> Optional[Page]:
+    def fetch_with_retry(self, url: str, page: Page | None = None) -> Page | None:
         """
         带重试的页面加载（含 Referrer 伪装 + 智能限速 + IP 轮换）。
 
@@ -827,7 +828,7 @@ class BaseSpider(ABC):
         pass
 
     @abstractmethod
-    def parse_project_page(self, url: str) -> Optional[ProjectData]:
+    def parse_project_page(self, url: str) -> ProjectData | None:
         """解析项目页面"""
         pass
 
@@ -836,7 +837,7 @@ class BaseSpider(ABC):
         self,
         category_url: str,
         max_pages: int = 20,
-        stop_url: Optional[str] = None,
+        stop_url: str | None = None,
     ) -> List[str]:
         """爬取分类页面，获取项目URL列表
 
@@ -890,7 +891,6 @@ class BaseSpider(ABC):
 
         if cached_at == 0.0 or (now - cached_at) > 86400:
             try:
-                import urllib.request
 
                 base = self.get_base_url().rstrip("/")
                 robots_url = f"{base}/robots.txt"
@@ -917,7 +917,7 @@ class BaseSpider(ABC):
 
     def discover_from_sitemap(
         self,
-        category_filter: Optional[str] = None,
+        category_filter: str | None = None,
     ) -> List[str]:
         """
         从 sitemap.xml 发现项目 URL 列表。
@@ -931,8 +931,9 @@ class BaseSpider(ABC):
         Returns:
             项目 URL 列表（已去重，不含 checkpoint 哨兵）
         """
-        import requests as _req
         from xml.etree import ElementTree as ET
+
+        import requests as _req
 
         NS = {"sm": "http://www.sitemaps.org/schemas/sitemap/0.9"}
         base = self.get_base_url().rstrip("/")
@@ -940,7 +941,7 @@ class BaseSpider(ABC):
         headers = {"User-Agent": ua}
         found: List[str] = []
 
-        def _fetch_xml(url: str) -> Optional[ET.Element]:
+        def _fetch_xml(url: str) -> ET.Element | None:
             try:
                 resp = _req.get(url, timeout=15, headers=headers)
                 if resp.status_code == 200:
@@ -997,8 +998,8 @@ class BaseSpider(ABC):
         self,
         html: str,
         url: str,
-        source: Optional[str] = None,
-        source_id: Optional[str] = None,
+        source: str | None = None,
+        source_id: str | None = None,
     ) -> Optional["ProjectData"]:
         """
         通用页面数据提取器。
@@ -1020,8 +1021,9 @@ class BaseSpider(ABC):
                     return self.universal_extract(html, url)
                 # crawl_category() 视站点分页结构实现
         """
-        from bs4 import BeautifulSoup
         import json as _json
+
+        from bs4 import BeautifulSoup
 
         if not html:
             return None
@@ -1031,7 +1033,7 @@ class BaseSpider(ABC):
         _sid = source_id or self.extract_source_id(url)
 
         # ── 辅助：从 soup 读 meta ─────────────────────────────────────────
-        def _meta(*attrs: Dict) -> Optional[str]:
+        def _meta(*attrs: Dict) -> str | None:
             for attr in attrs:
                 tag = soup.find("meta", attr)
                 if tag:
@@ -1043,8 +1045,8 @@ class BaseSpider(ABC):
         # ════════════════════════════════════════════════════════════════════
         # 阶段 1：og: / twitter: meta 标签
         # ════════════════════════════════════════════════════════════════════
-        title: Optional[str] = _meta({"property": "og:title"}) or _meta({"name": "twitter:title"})
-        description: Optional[str] = (
+        title: str | None = _meta({"property": "og:title"}) or _meta({"name": "twitter:title"})
+        description: str | None = (
             _meta({"property": "og:description"})
             or _meta({"name": "description"})
             or _meta({"name": "twitter:description"})
@@ -1057,7 +1059,7 @@ class BaseSpider(ABC):
         lang_meta = _meta({"property": "og:locale"}) or soup.get("lang") or ""
 
         # ────── 发布时间解析 ──────────────────────────────────────────────
-        publish_date: Optional[datetime] = None
+        publish_date: datetime | None = None
         if publish_date_str:
             for fmt in ("%Y-%m-%dT%H:%M:%S%z", "%Y-%m-%dT%H:%M:%SZ", "%Y-%m-%d"):
                 try:
@@ -1079,8 +1081,8 @@ class BaseSpider(ABC):
         # ════════════════════════════════════════════════════════════════════
         architects: List[Dict] = []
         location: Dict = {}
-        area_sqm: Optional[float] = None
-        year: Optional[int] = None
+        area_sqm: float | None = None
+        year: int | None = None
         ld_extra: Dict = {}  # JSON-LD 中识别到的额外字段
 
         VALID_TYPES = {
@@ -1364,7 +1366,7 @@ class BaseSpider(ABC):
         """
         return bool(re.search(r"/\d{4,}/", url))
 
-    def _fetch_html_pw(self, url: str, wait_selector: Optional[str] = None) -> str:
+    def _fetch_html_pw(self, url: str, wait_selector: str | None = None) -> str:
         """
         通用 Playwright 获取页面 HTML（BaseSpider 默认实现）。
 

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 workflow/nodes — LT-1 Mixin 子包
 
@@ -11,11 +10,11 @@ workflow/nodes — LT-1 Mixin 子包
 
 由 _lt1_split_workflow.py 自动生成 — 请勿在此直接修改节点逻辑。
 """
-from .security_nodes import SecurityNodesMixin
-from .requirements_nodes import RequirementsNodesMixin
-from .planning_nodes import PlanningNodesMixin
-from .execution_nodes import ExecutionNodesMixin
 from .aggregation_nodes import AggregationNodesMixin
+from .execution_nodes import ExecutionNodesMixin
+from .planning_nodes import PlanningNodesMixin
+from .requirements_nodes import RequirementsNodesMixin
+from .security_nodes import SecurityNodesMixin
 
 __all__ = [
     "SecurityNodesMixin",

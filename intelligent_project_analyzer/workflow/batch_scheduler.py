@@ -20,10 +20,10 @@
 最后更新: 2025-11-18
 """
 
-from typing import Dict, List, Set, Tuple, Optional
 from graphlib import TopologicalSorter
+from typing import Dict, List, Set
+
 from loguru import logger
-from collections import defaultdict
 
 from ..core.types import format_role_display_name
 
@@ -75,7 +75,6 @@ class BatchScheduler:
             ValueError: 如果依赖的角色未在selected_roles中找到
         """
         dependency_graph = {}
-        missing_dependencies = []
 
         for role_id in selected_roles:
             # 提取基础类型 (V3, V4, V5, V2, V6)
@@ -291,7 +290,7 @@ class BatchScheduler:
         self,
         role_id: str,
         batches: List[List[str]]
-    ) -> Optional[int]:
+    ) -> int | None:
         """
         获取角色所在的批次编号（从 1 开始）
 

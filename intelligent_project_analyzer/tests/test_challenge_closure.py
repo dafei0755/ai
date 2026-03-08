@@ -7,7 +7,6 @@
 3. Escalate决策: 提交甲方裁决
 """
 
-import json
 import sys
 from datetime import datetime
 
@@ -78,7 +77,9 @@ def test_accept_closure():
     mock_state = {}
     
     # 导入实际的闭环函数
-    from intelligent_project_analyzer.agents.dynamic_project_director import _apply_accepted_reinterpretation
+    from intelligent_project_analyzer.agents.dynamic_project_director import (
+        _apply_accepted_reinterpretation,
+    )
     
     # 执行闭环逻辑
     _apply_accepted_reinterpretation(mock_state, challenge)
@@ -133,7 +134,9 @@ def test_synthesize_closure():
     mock_state = {}
     
     # 导入实际的闭环函数
-    from intelligent_project_analyzer.agents.dynamic_project_director import _synthesize_competing_frames
+    from intelligent_project_analyzer.agents.dynamic_project_director import (
+        _synthesize_competing_frames,
+    )
     
     # 执行闭环逻辑
     _synthesize_competing_frames(mock_state, challenges)
@@ -151,8 +154,8 @@ def test_synthesize_closure():
     print(f"    推荐方案: {synthesis['recommendation'][:60]}...")
     
     print("\n 验证3: 标志位正确设置")
-    assert mock_state.get("has_competing_frameworks") == True, " has_competing_frameworks未设置"
-    assert mock_state.get("synthesis_required") == True, " synthesis_required未设置"
+    assert mock_state.get("has_competing_frameworks"), " has_competing_frameworks未设置"
+    assert mock_state.get("synthesis_required"), " synthesis_required未设置"
     print("    has_competing_frameworks: True")
     print("    synthesis_required: True")
     
@@ -167,7 +170,9 @@ def test_escalate_closure():
     print("="*80)
     
     # 模拟需要甲方裁决的挑战
-    from intelligent_project_analyzer.agents.dynamic_project_director import detect_and_handle_challenges_node
+    from intelligent_project_analyzer.agents.dynamic_project_director import (
+        detect_and_handle_challenges_node,
+    )
     
     mock_state = {
         "batch_results": {
@@ -208,7 +213,7 @@ def test_escalate_closure():
         print(f"    需要甲方决策: {escalated['requires_client_decision']}")
     
     print("\n 验证3: requires_client_review标志位")
-    assert mock_state.get("requires_client_review") == True, " requires_client_review未设置"
+    assert mock_state.get("requires_client_review"), " requires_client_review未设置"
     print("    requires_client_review: True")
     
     print("\n 测试3通过: Escalate闭环机制正常工作")
@@ -306,8 +311,8 @@ def test_report_integration():
     
     # 验证结果
     print("\n 验证1: 基本结构")
-    assert challenge_resolutions["has_challenges"] == True, " has_challenges应为True"
-    print(f"    has_challenges: True")
+    assert challenge_resolutions["has_challenges"], " has_challenges应为True"
+    print("    has_challenges: True")
     
     print("\n 验证2: Accept结果")
     assert len(challenge_resolutions["accepted_reinterpretations"]) == 1, " Accept结果数量错误"

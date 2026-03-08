@@ -3,12 +3,13 @@
 """
 
 import os
-import yaml
-from pathlib import Path
-from typing import Dict, Any, Optional
-from datetime import datetime
-from loguru import logger
 import threading
+from datetime import datetime
+from pathlib import Path
+from typing import Any, Dict
+
+import yaml
+from loguru import logger
 
 
 class DynamicRuleLoader:
@@ -16,7 +17,7 @@ class DynamicRuleLoader:
 
     def __init__(
         self,
-        config_path: Optional[str] = None,
+        config_path: str | None = None,
         auto_reload: bool = True,
         reload_interval: int = 60
     ):
@@ -87,7 +88,7 @@ class DynamicRuleLoader:
         """获取白名单配置"""
         return self._rules.get("whitelist", {})
 
-    def is_whitelisted(self, text: str, user_id: Optional[str] = None) -> bool:
+    def is_whitelisted(self, text: str, user_id: str | None = None) -> bool:
         """
         检查是否在白名单中
 
@@ -127,7 +128,7 @@ class DynamicRuleLoader:
         """重新加载配置文件"""
         with self._lock:
             try:
-                with open(self.config_path, 'r', encoding='utf-8') as f:
+                with open(self.config_path, encoding='utf-8') as f:
                     rules = yaml.safe_load(f)
 
                 if not rules:
@@ -157,9 +158,9 @@ class DynamicRuleLoader:
 
     def update_threat_intelligence(
         self,
-        domains: Optional[list] = None,
-        ips: Optional[list] = None,
-        keywords: Optional[list] = None
+        domains: list | None = None,
+        ips: list | None = None,
+        keywords: list | None = None
     ):
         """
         更新威胁情报（从外部情报源同步）
@@ -260,7 +261,7 @@ class DynamicRuleLoader:
 
 
 # 全局单例（懒加载）
-_loader_instance: Optional[DynamicRuleLoader] = None
+_loader_instance: DynamicRuleLoader | None = None
 _loader_lock = threading.Lock()
 
 

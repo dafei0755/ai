@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 MT-1 (2026-03-01): API 报告数据清洗辅助函数
 
@@ -8,8 +7,9 @@ from __future__ import annotations
 
 import json
 import re
+import uuid
 from collections import OrderedDict, defaultdict
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any, Dict, List, Set, Tuple
 
 from .models import ReportSectionResponse
 
@@ -37,7 +37,7 @@ def _is_blank_section(section: ReportSectionResponse) -> bool:
     return False
 
 
-def _normalize_section_id(raw_identifier: Optional[str], fallback: str) -> str:
+def _normalize_section_id(raw_identifier: str | None, fallback: str) -> str:
     """规范化章节 ID，确保可用于字典键与前端锚点"""
 
     candidate = (raw_identifier or "").strip()
@@ -143,7 +143,7 @@ def _sanitize_custom_analysis(data: Dict[str, Any]) -> Tuple[Dict[str, Any], Lis
     return sanitized, warnings
 
 
-def _format_agent_payload(agent_result: Dict[str, Any]) -> Optional[OrderedDict]:
+def _format_agent_payload(agent_result: Dict[str, Any]) -> OrderedDict | None:
     """将智能体输出格式化为结构化payload"""
 
     if not agent_result:

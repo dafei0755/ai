@@ -12,7 +12,7 @@ import logging
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 logger = logging.getLogger(__name__)
 
@@ -46,10 +46,10 @@ class InteractiveControl:
     control_type: str  # 'slider', 'select', 'toggle', 'input'
     label: str
     current_value: Any
-    options: Optional[List] = None  # for select type
-    min_value: Optional[float] = None  # for slider
-    max_value: Optional[float] = None  # for slider
-    step: Optional[float] = None  # for slider
+    options: List | None = None  # for select type
+    min_value: float | None = None  # for slider
+    max_value: float | None = None  # for slider
+    step: float | None = None  # for slider
     description: str = ""
 
 

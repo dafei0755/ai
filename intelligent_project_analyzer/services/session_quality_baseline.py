@@ -21,7 +21,7 @@
 import asyncio
 import statistics
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Tuple
 
 from loguru import logger
 
@@ -126,7 +126,7 @@ class SessionQualityBaseline:
 
         # 计算加权总分
         total_weighted_score = 0.0
-        for dimension, data in evaluation["dimensions"].items():
+        for _dimension, data in evaluation["dimensions"].items():
             total_weighted_score += data["score"] * data["weight"]
 
         evaluation["overall_score"] = total_weighted_score
@@ -405,7 +405,7 @@ class SessionQualityAnalyzer:
 
         return analysis
 
-    def _get_session_data(self, session_id: str) -> Optional[Dict[str, Any]]:
+    def _get_session_data(self, session_id: str) -> Dict[str, Any] | None:
         """
         从 Redis 会话管理器和 MetricsCollector 获取真实会话数据。
 
@@ -431,10 +431,12 @@ class SessionQualityAnalyzer:
             logger.error(f"获取会话数据失败: {session_id}, 错误: {e}")
             return None
 
-    def _fetch_session_from_redis(self, session_id: str) -> Optional[Dict[str, Any]]:
+    def _fetch_session_from_redis(self, session_id: str) -> Dict[str, Any] | None:
         """从 Redis 同步获取会话数据"""
         try:
-            from intelligent_project_analyzer.services.redis_session_manager import get_session_manager
+            from intelligent_project_analyzer.services.redis_session_manager import (
+                get_session_manager,
+            )
 
             # 在已有事件循环中运行异步调用
             try:
@@ -528,7 +530,7 @@ class SessionQualityAnalyzer:
             "search_tools_used": search_tools_used,
         }
 
-    def _build_quality_data_from_metrics(self, session_id: str) -> Optional[Dict[str, Any]]:
+    def _build_quality_data_from_metrics(self, session_id: str) -> Dict[str, Any] | None:
         """从 MetricsCollector 全局统计构建近似质量数据"""
         from intelligent_project_analyzer.utils.monitoring import global_metrics_collector
 

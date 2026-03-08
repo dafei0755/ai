@@ -14,9 +14,10 @@ v7.151: 流程优化，直接路由到 questionnaire_summary（需求洞察）
 """
 
 import asyncio
+import copy
 import json
 from datetime import datetime
-from typing import Any, Dict, List, Literal, Optional
+from typing import Any, Dict, List, Literal
 
 from langgraph.store.base import BaseStore
 from langgraph.types import Command, interrupt
@@ -25,12 +26,109 @@ from loguru import logger
 from ...core.state import ProjectAnalysisState
 from ...core.workflow_flags import WorkflowFlagManager
 from ...services.capability_boundary_service import CapabilityBoundaryService, CheckType
-from ...services.core_task_decomposer import _simple_fallback_decompose, decompose_core_tasks
-from ...services.dimension_selector import DimensionSelector, RadarGapAnalyzer, select_dimensions_for_state
+from ...services.core_task_decomposer import (
+    _simple_fallback_decompose,
+    decompose_core_tasks,
+    decompose_core_tasks_hybrid,
+)
+from ...services.dimension_selector import (
+    DimensionSelector,
+    RadarGapAnalyzer,
+    select_dimensions_for_state,
+)
+from ...services.mode_question_loader import enrich_step1_payload_with_mode_questions
+from ._oid_signal import PROJECTION_DISPLAY
+
+# v8.2: 动态步骤追踪装饰器
+from ...utils.node_tracker import track_active_step
+
+# ── 节点路由常量（消除硬编码字符串，防止拼写错误）────────────────────────────────
+_NODE_STEP1 = "progressive_step1_core_task"
+_NODE_STEP2_RADAR = "progressive_step2_radar"
+_NODE_STEP3_GAP = "progressive_step3_gap_filling"
+_NODE_SUMMARY = "questionnaire_summary"
+_NODE_DIRECTOR = "project_director"
+_NODE_REQUIREMENTS = "requirements_analyst"
+
+
+def _check_step1_quality(tasks: List[Dict[str, Any]]) -> List[str]:
+    """
+    Step 1 软质量校验（v8.1）
+
+    返回警告信息列表（空列表 = 无问题）。警告仅供参考，不阻断流程。
+    """
+    warnings: List[str] = []
+    if len(tasks) < 3:
+        warnings.append("任务数量偏少（<3），建议补充细化")
+    if tasks and not any(t.get("priority") == "high" for t in tasks):
+        warnings.append("无高优先级任务，请确认是否遗漏核心任务")
+    if any(not t.get("description") for t in tasks):
+        warnings.append("部分任务缺少描述，可能影响后续搜索质量")
+    return warnings
 
 
 class ProgressiveQuestionnaireNode:
     """三步递进式问卷节点"""
+
+    @staticmethod
+    def _build_self_skip_decision(
+        state: "ProjectAnalysisState",
+        current_node: str,
+        default_next: str,
+    ) -> str:
+        """
+        基于 motivation_routing_profile 决定下一步节点。
+
+        当 ENABLE_SMART_NODE_SELF_SKIP=false（默认）时，直接返回 default_next，
+        行为与原来 100% 一致，无任何副作用。
+
+        当 ENABLE_SMART_NODE_SELF_SKIP=true 时，读取 motivation_routing_profile
+        中的 skip_candidates，根据当前节点决定是否跳过某步骤。
+
+        Args:
+            state: 当前工作流状态
+            current_node: 当前节点名称（用于日志）
+            default_next: 默认下一节点（未开启 self-skip 时的回退路径）
+
+        Returns:
+            下一节点名称字符串
+        """
+        from ...config.feature_flags import (
+            ENABLE_SMART_NODE_SELF_SKIP,
+            ENABLE_SMART_NODE_SELF_SKIP_SHADOW,
+        )
+
+        profile = state.get("motivation_routing_profile")
+
+        # Shadow 模式：记录决策意图但不实际跳步
+        if ENABLE_SMART_NODE_SELF_SKIP_SHADOW and profile:
+            skip_candidates = profile.get("skip_candidates", [])
+            routing_strategy = profile.get("routing_strategy", "full_flow")
+            logger.info(
+                f"[SelfSkip Shadow] node={current_node} strategy={routing_strategy} "
+                f"skip_candidates={skip_candidates} default_next={default_next}"
+            )
+
+        # 未开启实跳，直接走默认路径
+        if not ENABLE_SMART_NODE_SELF_SKIP or not profile:
+            return default_next
+
+        skip_candidates = profile.get("skip_candidates", [])
+        routing_strategy = profile.get("routing_strategy", "full_flow")
+
+        # Step1 完成后：是否跳过 gap_filling，直接进入 radar
+        if current_node == _NODE_STEP1 and default_next == _NODE_STEP3_GAP:
+            if "gap_filling" in skip_candidates and routing_strategy in ("skip_gap_filling", "skip_all_optional"):
+                logger.info(f"[SelfSkip] node={current_node} → 跳过 gap_filling，直达 {_NODE_STEP2_RADAR}")
+                return _NODE_STEP2_RADAR
+
+        # Step3(gap_filling) 完成后：是否跳过 radar，直接进入 summary
+        if current_node == _NODE_STEP3_GAP and default_next == _NODE_STEP2_RADAR:
+            if "radar" in skip_candidates and routing_strategy in ("skip_radar", "skip_all_optional"):
+                logger.info(f"[SelfSkip] node={current_node} → 跳过 radar，直达 {_NODE_SUMMARY}")
+                return _NODE_SUMMARY
+
+        return default_next
 
     # ==========================================================================
     # Step 1: 任务梳理（v7.80.1 智能拆解版）
@@ -38,8 +136,16 @@ class ProgressiveQuestionnaireNode:
 
     @staticmethod
     def step1_core_task(
-        state: ProjectAnalysisState, store: Optional[BaseStore] = None
-    ) -> Command[Literal["progressive_step2_radar", "requirements_analyst"]]:
+        state: ProjectAnalysisState, store: BaseStore | None = None
+    ) -> Command[
+        Literal[
+            "progressive_step2_radar",
+            "progressive_step3_gap_filling",
+            "questionnaire_summary",
+            "project_director",
+            "requirements_analyst",
+        ]
+    ]:
         """
         Step 1: 任务梳理
 
@@ -59,14 +165,14 @@ class ProgressiveQuestionnaireNode:
         # 检查是否已完成此步骤（使用新字段）
         if state.get("progressive_questionnaire_step", 0) >= 1 and state.get("confirmed_core_tasks"):
             logger.info(" Step 1 已完成，跳过")
-            return Command(update={"progressive_questionnaire_step": 1}, goto="progressive_step2_radar")
+            return Command(update={"progressive_questionnaire_step": 1}, goto=_NODE_STEP2_RADAR)
 
         # 追问模式跳过
         if state.get("is_followup"):
             logger.info(" Follow-up session, skipping progressive questionnaire")
             update_dict = {"progressive_questionnaire_completed": True, "progressive_questionnaire_step": 3}
             update_dict = WorkflowFlagManager.preserve_flags(state, update_dict)
-            return Command(update=update_dict, goto="project_director")
+            return Command(update=update_dict, goto=_NODE_DIRECTOR)
 
         #  v7.80.1: 使用 LLM 拆解核心任务
         user_input = state.get("user_input", "")
@@ -77,7 +183,6 @@ class ProgressiveQuestionnaireNode:
         if _contains_poetic_expression(user_input):
             logger.info(" [诗意解读] 检测到诗意/哲学表达，启动诗意解读子流程")
             try:
-                import functools
                 from concurrent.futures import ThreadPoolExecutor
 
                 def _run_async_poetic_interpret(user_input: str):
@@ -97,17 +202,16 @@ class ProgressiveQuestionnaireNode:
         # v7.80.1.2: 使用 ThreadPoolExecutor 在独立线程中运行 LLM 异步调用
         # 解决 LangGraph 异步上下文与 asyncio.run 不兼容的问题
         try:
-            import functools
             from concurrent.futures import ThreadPoolExecutor
 
             def _run_async_decompose(user_input: str, structured_data: dict):
                 """在独立线程中运行异步任务拆解"""
-                return asyncio.run(decompose_core_tasks(user_input, structured_data))
+                return asyncio.run(decompose_core_tasks_hybrid(user_input, structured_data))
 
-            logger.info(" [v7.80.1.2] 使用 ThreadPoolExecutor 执行 LLM 任务拆解")
+            logger.info(" [v8.1] 使用 ThreadPoolExecutor 执行 hybrid 任务拆解")
             with ThreadPoolExecutor(max_workers=1) as executor:
                 future = executor.submit(_run_async_decompose, user_input, structured_data)
-                extracted_tasks = future.result(timeout=60)  # 60秒超时
+                extracted_tasks = future.result(timeout=300)  # v8.1: 300秒超时
 
             if not extracted_tasks:
                 logger.warning("️ LLM 任务拆解返回空列表，使用回退策略")
@@ -128,21 +232,52 @@ class ProgressiveQuestionnaireNode:
         # 生成用户输入摘要
         user_input_summary = user_input[:100] + ("..." if len(user_input) > 100 else "")
 
-        #  v7.80.1: 构建新的 interrupt payload
+        #  v8.1: 构建任务分组（按 category 聚合，供前端分组展示）
+        task_groups: Dict[str, List[Dict[str, Any]]] = {}
+        for task in extracted_tasks:
+            cat = task.get("category", "调研分析")
+            task_groups.setdefault(cat, []).append(task)
+
+        #  v8.1: 构建意图识别展示（基于 active_projections + PROJECTION_DISPLAY）
+        intent_review: Dict[str, Any] = {}
+        active_projections = state.get("active_projections") or []
+        if active_projections:
+            projection_labels = [
+                PROJECTION_DISPLAY.get(p, {}).get("label", p)
+                for p in active_projections
+                if p in PROJECTION_DISPLAY
+            ]
+            detected_modes = state.get("detected_identity_modes") or []
+            framework_signals = state.get("output_framework_signals") or []
+            intent_review = {
+                "projections": projection_labels,
+                "identity_modes": detected_modes[:3],
+                "framework_signals": framework_signals[:3],
+            }
+
+        #  v8.1: 构建 interrupt payload
         payload = {
             "interaction_type": "progressive_questionnaire_step1",
             "step": 1,
             "total_steps": 3,
             "title": "任务梳理",
             "message": "系统已从您的描述中识别以下核心任务，请确认、调整或补充",
-            #  新字段：任务列表
+            #  v8.1 新字段
             "extracted_tasks": extracted_tasks,
+            "task_groups": task_groups,
+            "intent_review": intent_review,
             "user_input_summary": user_input_summary,
             # 旧字段：保留兼容
             "extracted_task": old_format_task,
             "editable": True,
             "options": {"confirm": "确认任务列表", "skip": "跳过问卷"},
         }
+
+        #  v8.1: 注入模式问题滚内容
+        try:
+            payload = enrich_step1_payload_with_mode_questions(state, payload)
+        except Exception as _eq:
+            logger.warning(f"️ [v8.1] enrich_step1_payload 失败，跳过: {_eq}")
 
         logger.info(" [Step 1] 即将调用 interrupt()，等待用户输入...")
         user_response = interrupt(payload)
@@ -154,7 +289,7 @@ class ProgressiveQuestionnaireNode:
             logger.warning("️ [v7.401 并发检测] Step 1 已在interrupt期间被其他线程完成，跳过重复执行")
             logger.info(f"   当前state['progressive_questionnaire_step'] = {state.get('progressive_questionnaire_step')}")
             logger.info(f"   当前state['confirmed_core_tasks'] 数量 = {len(state.get('confirmed_core_tasks', []))}")
-            return Command(update={"progressive_questionnaire_step": 1}, goto="progressive_step2_radar")
+            return Command(update={"progressive_questionnaire_step": 1}, goto=_NODE_STEP2_RADAR)
 
         #  v7.80.1: 解析用户响应（支持新旧格式）
         confirmed_tasks = extracted_tasks
@@ -212,10 +347,10 @@ class ProgressiveQuestionnaireNode:
                 "questionnaire_summary": default_questionnaire_summary,
                 "questionnaire_responses": default_questionnaire_summary,
             }
-            logger.info(f"️ [v7.87 P0] 已设置默认 questionnaire_summary（Step 1跳过）")
+            logger.info("️ [v7.87 P0] 已设置默认 questionnaire_summary（Step 1跳过）")
 
             update_dict = WorkflowFlagManager.preserve_flags(state, update_dict)
-            return Command(update=update_dict, goto="project_director")
+            return Command(update=update_dict, goto=_NODE_DIRECTOR)
 
         # 构建任务摘要
         task_summary = ProgressiveQuestionnaireNode._build_task_summary(confirmed_tasks)
@@ -241,13 +376,13 @@ class ProgressiveQuestionnaireNode:
                 check_type=CheckType.DELIVERABLE_ONLY,
             )
 
-            logger.info(f" 任务能力边界检查结果:")
+            logger.info(" 任务能力边界检查结果:")
             logger.info(f"   在能力范围内: {boundary_check.within_capability}")
             logger.info(f"   能力匹配度: {boundary_check.capability_score:.2f}")
 
             # 标记有风险的任务
             if not boundary_check.within_capability:
-                logger.warning(f"️ 部分任务可能超出能力范围")
+                logger.warning("️ 部分任务可能超出能力范围")
 
                 # 为每个任务检查是否包含超范围关键词
                 for i, task in enumerate(confirmed_tasks):
@@ -318,11 +453,16 @@ class ProgressiveQuestionnaireNode:
             "special_scene_metadata": special_scene_metadata,
             #  能力边界检查记录（ v7.147: 转换为dict避免序列化错误）
             "step1_boundary_check": boundary_check.to_dict() if (combined_text and boundary_check) else None,
+            #  v8.1: 快照 + 软质量校验
+            "step1_confirmed_tasks_snapshot": copy.deepcopy(confirmed_tasks),
+            "step1_quality_warnings": _check_step1_quality(confirmed_tasks),
         }
         update_dict = WorkflowFlagManager.preserve_flags(state, update_dict)
 
         #  v7.146: 修正路由顺序 - Step1 → Step2(信息补全)
-        return Command(update=update_dict, goto="progressive_step3_gap_filling")
+        #  v8.4: 双动机驱动 — 根据 motivation_routing_profile 决定是否跳过 gap_filling
+        _next = ProgressiveQuestionnaireNode._build_self_skip_decision(state, _NODE_STEP1, default_next=_NODE_STEP3_GAP)
+        return Command(update=update_dict, goto=_next)
 
     # ==========================================================================
     # Step 2: 雷达图维度
@@ -330,8 +470,10 @@ class ProgressiveQuestionnaireNode:
 
     @staticmethod
     def step2_radar(
-        state: ProjectAnalysisState, store: Optional[BaseStore] = None
-    ) -> Command[Literal["progressive_step3_gap_filling", "questionnaire_summary"]]:
+        state: ProjectAnalysisState, store: BaseStore | None = None
+    ) -> Command[
+        Literal["progressive_step2_radar", "progressive_step3_gap_filling", "questionnaire_summary", "project_director"]
+    ]:
         """
         Step 2: 雷达图多维度偏好收集
 
@@ -353,7 +495,7 @@ class ProgressiveQuestionnaireNode:
         # 检查是否已完成此步骤
         if state.get("progressive_questionnaire_step", 0) >= 2 and state.get("radar_dimension_values"):
             logger.info(" Step 2 已完成，跳过")
-            return Command(update={"progressive_questionnaire_step": 2}, goto="progressive_step3_gap_filling")
+            return Command(update={"progressive_questionnaire_step": 2}, goto=_NODE_SUMMARY)
 
         #  v7.80.4: 动态维度选择 + 智能生成
         #  v7.110: 集成混合策略 AdaptiveDimensionGenerator
@@ -393,6 +535,106 @@ class ProgressiveQuestionnaireNode:
                     return dims
                 return []
             return result
+
+        # Step 2.0: v8.0 项目专属维度生成（最高优先级）
+        #  v8.0: 当 USE_PROJECT_SPECIFIC_DIMENSIONS=true 时，优先使用 ProjectSpecificDimensionGenerator
+        USE_PROJECT_SPECIFIC_DIMENSIONS = os.getenv("USE_PROJECT_SPECIFIC_DIMENSIONS", "false").lower() == "true"
+        _v8_generation_result: dict = {}  # 存储 v8.0 生成结果（含 generation_summary）
+
+        if USE_PROJECT_SPECIFIC_DIMENSIONS:
+            logger.info("🎯 [v8.0] USE_PROJECT_SPECIFIC_DIMENSIONS=true，尝试项目专属维度生成")
+            try:
+                from ...services.project_specific_dimension_generator import (
+                    ProjectSpecificDimensionGenerator,
+                )
+
+                ps_generator = ProjectSpecificDimensionGenerator()
+                agent_results_v8 = state.get("agent_results", {})
+                requirements_result_v8 = agent_results_v8.get("requirements_analyst", {})
+                structured_data_v8 = requirements_result_v8.get("structured_data", {})
+                confirmed_tasks_v8 = state.get("confirmed_core_tasks", [])
+
+                _v8_generation_result = ps_generator.generate_dimensions(
+                    user_input=state.get("user_input", ""),
+                    structured_data=structured_data_v8,
+                    confirmed_tasks=confirmed_tasks_v8,
+                    project_type=state.get("project_type", ""),
+                )
+
+                if _v8_generation_result.get("dimensions") and len(_v8_generation_result["dimensions"]) >= 5:
+                    # v8.0 成功：直接使用 ProjectSpecificDimensionGenerator 结果
+                    _ps_dims = _v8_generation_result["dimensions"]
+                    logger.info(f"🎯 [v8.0] 项目专属维度生成成功：{len(_ps_dims)} 个维度")
+                    dimension_generation_method = "project_specific"
+
+                    # 按 source/category 分组 dimension_layers（用于前端分层展示）
+                    dimension_layers: dict = {}
+                    for _d in _ps_dims:
+                        _src = _d.get("source") or _d.get("category") or "other"
+                        dimension_layers.setdefault(_src, []).append(_d)
+
+                    # 构建 interrupt payload
+                    confirmed_task_v8 = state.get("confirmed_core_task", "")
+                    user_input_v8 = state.get("user_input", "")
+                    user_input_summary_v8 = user_input_v8[:100] + ("..." if len(user_input_v8) > 100 else "")
+                    payload_v8 = {
+                        "interaction_type": "progressive_questionnaire_step3",
+                        "step": 3,
+                        "total_steps": 3,
+                        "title": "多维度偏好设置",
+                        "message": "请通过拖动滑块表达您的设计偏好。每个维度代表两种不同的设计方向。",
+                        "core_task": confirmed_task_v8,
+                        "dimensions": _ps_dims,
+                        "dimension_layers": dimension_layers,
+                        "dimension_generation_method": dimension_generation_method,
+                        "generation_summary": _v8_generation_result.get("generation_summary", ""),
+                        "instructions": "拖动滑块到您偏好的位置（0-100）",
+                        "user_input": user_input_v8,
+                        "user_input_summary": user_input_summary_v8,
+                        "options": {"confirm": "确认偏好设置", "back": "返回修改核心任务"},
+                    }
+
+                    logger.info("🎯 [v8.0] 即将调用 interrupt()，等待用户输入...")
+                    user_response_v8 = interrupt(payload_v8)
+
+                    # 解析用户响应
+                    dimension_values_v8: dict = {}
+                    if isinstance(user_response_v8, dict):
+                        dimension_values_v8 = (
+                            user_response_v8.get("values") or user_response_v8.get("dimension_values") or {}
+                        )
+                        if not dimension_values_v8:
+                            for k, v in user_response_v8.items():
+                                if k in [d["id"] for d in _ps_dims] and isinstance(v, int | float):
+                                    dimension_values_v8[k] = int(v)
+
+                    if not dimension_values_v8:
+                        dimension_values_v8 = {d["id"]: d.get("default_value", 50) for d in _ps_dims}
+
+                    analyzer_v8 = RadarGapAnalyzer()
+                    analysis_v8 = analyzer_v8.analyze(dimension_values_v8, _ps_dims)
+
+                    update_dict_v8 = {
+                        "selected_radar_dimensions": _ps_dims,
+                        "selected_dimensions": _ps_dims,
+                        "radar_dimension_values": dimension_values_v8,
+                        "radar_analysis_summary": analysis_v8,
+                        "progressive_questionnaire_step": 2,
+                        "dimension_generation_method": dimension_generation_method,
+                    }
+                    update_dict_v8 = WorkflowFlagManager.preserve_flags(state, update_dict_v8)
+
+                    logger.info("🎯 [v8.0] 项目专属维度完成，路由到 questionnaire_summary")
+                    return Command(update=update_dict_v8, goto=_NODE_SUMMARY)
+                else:
+                    logger.warning("🎯 [v8.0] 项目专属维度不足（< 5），降级到传统流程")
+                    dimension_generation_method = "static"
+            except Exception as _e_v8:
+                logger.error(f"🎯 [v8.0] ProjectSpecificDimensionGenerator 异常: {_e_v8}，降级到传统流程")
+                dimension_generation_method = "static"
+        else:
+            dimension_generation_method = "static"
+            logger.info("🎯 [v8.0] USE_PROJECT_SPECIFIC_DIMENSIONS=false，使用传统维度选择")
 
         # Step 2.1: 智能维度选择（混合策略）
         #  v7.146: 添加异常处理和超时保护
@@ -605,7 +847,7 @@ class ProgressiveQuestionnaireNode:
 
             #  v7.146.1: 降级后再次校验，强制解包 v7.139 dict 格式
             if isinstance(dimensions, dict):
-                logger.warning(f"️ [降级后] dimensions 仍为 dict，强制提取 dimensions 字段")
+                logger.warning("️ [降级后] dimensions 仍为 dict，强制提取 dimensions 字段")
                 dimensions = dimensions.get("dimensions", [])
             if not isinstance(dimensions, list):
                 logger.error(f" [降级失败] dimensions 最终仍非列表: {type(dimensions)}，使用空列表")
@@ -626,6 +868,13 @@ class ProgressiveQuestionnaireNode:
             "user_input": user_input,
             "user_input_summary": user_input_summary,
             "options": {"confirm": "确认偏好设置", "back": "返回修改核心任务"},
+            #  v8.0: 维度生成方法标识（传统路径固定为 static）
+            "dimension_generation_method": dimension_generation_method,
+            "dimension_layers": {
+                src: [d for d in dimensions if (d.get("source") or d.get("category") or "other") == src]
+                for src in dict.fromkeys((d.get("source") or d.get("category") or "other") for d in dimensions)
+            },
+            "generation_summary": "",
         }
 
         logger.info(" [Step 2] 即将调用 interrupt()，等待用户输入...")
@@ -643,7 +892,7 @@ class ProgressiveQuestionnaireNode:
             # 如果没有values字段，尝试直接从响应中提取
             if not dimension_values:
                 for key, value in user_response.items():
-                    if key in [d["id"] for d in dimensions] and isinstance(value, (int, float)):
+                    if key in [d["id"] for d in dimensions] and isinstance(value, int | float):
                         dimension_values[key] = int(value)
 
         # 如果用户没有设置任何值，使用默认值
@@ -663,6 +912,7 @@ class ProgressiveQuestionnaireNode:
             "radar_dimension_values": dimension_values,
             "radar_analysis_summary": analysis,
             "progressive_questionnaire_step": 2,
+            "dimension_generation_method": dimension_generation_method,  #  v8.0: 维度生成方法标识
         }
         update_dict = WorkflowFlagManager.preserve_flags(state, update_dict)
 
@@ -675,7 +925,7 @@ class ProgressiveQuestionnaireNode:
             logger.info(f"   雷达图短板维度: {gap_dimensions}")
 
         # 直接进入需求洞察节点
-        return Command(update=update_dict, goto="questionnaire_summary")
+        return Command(update=update_dict, goto=_NODE_SUMMARY)
 
     # ==========================================================================
     # Step 3: 密度补齐追问
@@ -683,8 +933,8 @@ class ProgressiveQuestionnaireNode:
 
     @staticmethod
     def step3_gap_filling(
-        state: ProjectAnalysisState, store: Optional[BaseStore] = None
-    ) -> Command[Literal["questionnaire_summary"]]:
+        state: ProjectAnalysisState, store: BaseStore | None = None
+    ) -> Command[Literal["progressive_step2_radar", "questionnaire_summary", "project_director"]]:
         """
         Step 3: 核心任务信息完整性查漏补缺
 
@@ -709,7 +959,7 @@ class ProgressiveQuestionnaireNode:
         # 检查是否已完成此步骤
         if state.get("progressive_questionnaire_completed"):
             logger.info(" 问卷已完成，跳过 Step 3")
-            return Command(update={"progressive_questionnaire_step": 3}, goto="project_director")
+            return Command(update={"progressive_questionnaire_step": 3}, goto=_NODE_DIRECTOR)
 
         #  v7.80.6: 针对核心任务进行信息完整性分析
         from ...services.task_completeness_analyzer import TaskCompletenessAnalyzer
@@ -732,22 +982,100 @@ class ProgressiveQuestionnaireNode:
 
         # 判断是否需要补充问题
         critical_gaps = completeness.get("critical_gaps", [])
+
+        # v7.900 G1: 合并 uncertainty_map 到 critical_gaps
+        _uncertainty_map = (structured_data or {}).get("uncertainty_map", {})
+        if isinstance(_uncertainty_map, dict) and _uncertainty_map:
+            _existing_dims = {g.get("dimension") for g in critical_gaps}
+            for _dim, _level in _uncertainty_map.items():
+                if _level in ("high", "medium") and _dim not in _existing_dims:
+                    critical_gaps.append({
+                        "dimension": _dim,
+                        "reason": f"需求分析阶段识别为{_level}不确定性维度",
+                        "priority": _level,
+                        "source": "uncertainty_map",
+                    })
+                    _existing_dims.add(_dim)
+            logger.info(f" [G1] uncertainty_map 补充 {len(_uncertainty_map)} 条，critical_gaps 现有 {len(critical_gaps)} 条")
+
+        # v7.900 G8: active_projections 已确认时自动覆盖"交付要求"维度，避免重复追问
+        _active_projections = state.get("active_projections") or []
+        if _active_projections:
+            critical_gaps = [g for g in critical_gaps if g.get("dimension") != "交付要求"]
+            _covered = completeness.get("covered_dimensions") or []
+            if "交付要求" not in _covered:
+                completeness.setdefault("covered_dimensions", []).append("交付要求")
+            _missing = completeness.get("missing_dimensions") or []
+            completeness["missing_dimensions"] = [d for d in _missing if d != "交付要求"]
+            logger.info(f" [G8] active_projections 已设{_active_projections}，'交付要求' 维度已自动覆盖")
+
+        if not critical_gaps:
+            # v8.3 G4: 当 completeness_score 低或 missing_dims 多时，生成兜底追问
+            _score = completeness.get("completeness_score", 0)
+            _missing_dims = completeness.get("missing_dimensions", [])
+            if _score < 0.7 or len(_missing_dims) > 2:
+                for _dim in _missing_dims[:5]:
+                    critical_gaps.append({
+                        "dimension": _dim,
+                        "reason": f"完整度不足({int(_score * 100)}%)，需补充{_dim}信息",
+                        "priority": "medium",
+                        "source": "fallback_v8.3",
+                    })
+                logger.info(f" [G4] v8.3 兜底注入 {len(critical_gaps)} 条，score={_score:.2f}")
+
         if not critical_gaps:
             logger.info(" 任务信息完整，无需补充，跳过问题生成，直接进入雷达图")
             update_dict = {
                 "progressive_questionnaire_completed": False,  # 还未完全完成，需要进行雷达图
                 "progressive_questionnaire_step": 2,
                 "task_completeness_analysis": completeness,  # 保存分析结果
-                "gap_filling_answers": {},  # 空答案
+                # LT-3: gap_filling_answers 合并到 questionnaire_responses["gap_filling_answers"]
+                "questionnaire_responses": {**(state.get("questionnaire_responses") or {}), "gap_filling_answers": {}},
             }
             update_dict = WorkflowFlagManager.preserve_flags(state, update_dict)
             #  v7.146: 即使无需补充，也要进入雷达图环节
-            return Command(update=update_dict, goto="progressive_step2_radar")
+            #  v8.4: 双动机驱动 — 根据 motivation_routing_profile 决定是否跳过 radar
+            _next = ProgressiveQuestionnaireNode._build_self_skip_decision(
+                state, _NODE_STEP3_GAP, default_next=_NODE_STEP2_RADAR
+            )
+            return Command(update=update_dict, goto=_next)
 
         #  v7.107: 启用LLM智能生成补充问题
         import os
 
         existing_info_summary = ProgressiveQuestionnaireNode._build_existing_info_summary(structured_data)
+
+        # v8.0 G2: 输出意图已确认时，注入禁止追问交付物的 prefix（防止 LLM 重复追问）
+        if _active_projections:
+            _PROJ_LABEL_MAP = {
+                "design_professional": "空间策略报告",
+                "investor_operator": "商业运营分析",
+                "government_policy": "在地文化研究",
+                "construction_execution": "落地实施指南",
+                "aesthetic_critique": "叙事创意方案",
+            }
+            _proj_names = [_PROJ_LABEL_MAP.get(p, p) for p in _active_projections]
+            _intent_prefix = (
+                "【✅ 输出意向已确认 - 交付形式无需再追问】\n"
+                f"• 已确认输出意向：{', '.join(_proj_names)}\n"
+                "  → 禁止生成交付物类型相关追问\n\n"
+            )
+            existing_info_summary = _intent_prefix + (existing_info_summary or "")
+            logger.info(f" [G2] 注入意图约束前缀，projections={_active_projections}")
+
+        # B8 G3: 命题语义约束注入 — confirmed_proposition 存在时聚焦追问范围
+        _confirmed_proposition = state.get("confirmed_proposition")
+        _confirmed_exclusions = state.get("confirmed_exclusions") or []
+        if _confirmed_proposition:
+            _prop_prefix = (
+                "【🎯 命题语义约束 - 追问必须聚焦于此命题范围内】\n"
+                f"• 已确认设计命题：{_confirmed_proposition}\n"
+            )
+            if _confirmed_exclusions:
+                _prop_prefix += f"• 已排除的方向：{', '.join(str(e) for e in _confirmed_exclusions)}\n"
+            _prop_prefix += "\n"
+            existing_info_summary = _prop_prefix + (existing_info_summary or "")
+            logger.info(f" [G3] 注入命题语义约束，proposition={str(_confirmed_proposition)[:50]}")
 
         # 环境变量开关控制LLM生成（默认启用）
         enable_llm_generation = os.getenv("USE_LLM_GAP_QUESTIONS", "true").lower() == "true"
@@ -770,6 +1098,10 @@ class ProgressiveQuestionnaireNode:
                     covered_dimensions=completeness.get("covered_dimensions", []),
                     existing_info_summary=existing_info_summary,
                     completeness_score=completeness.get("completeness_score", 0),
+                    # v7.900 G5: 输出意图上下文透传
+                    active_projections=_active_projections or None,
+                    detected_identity_modes=state.get("detected_identity_modes") or None,
+                    output_framework_signals=state.get("output_framework_signals") or None,
                 )
 
                 logger.info(f" [LLM智能生成] 成功生成 {len(questions)} 个针对性问题")
@@ -872,6 +1204,30 @@ class ProgressiveQuestionnaireNode:
 
         logger.info(f" [Step 3] 收集到 {len(answers)} 个补充答案")
 
+        # v7.900 G7: Gap 回流 — 将用户回答的关键信息注入 user_intent_constraints，供后续节点使用
+        _gap_backflow: dict = {}
+        _existing_constraints: dict = state.get("user_intent_constraints") or {}
+        if answers and questions:
+            _q_map = {q.get("id", ""): q for q in questions}
+            for _qid, _ans in answers.items():
+                _q = _q_map.get(_qid, {})
+                _dim = _q.get("dimension") or _q.get("category") or ""
+                if _dim and _ans:
+                    _val = _ans if isinstance(_ans, str) else (", ".join(_ans) if isinstance(_ans, list) else str(_ans))
+                    if _val.strip():
+                        _gap_backflow[_dim] = _val.strip()
+        if _gap_backflow:
+            _merged_constraints = {**_existing_constraints, **_gap_backflow}
+            logger.info(f" [G7] Gap 回流 {len(_gap_backflow)} 条约束到 user_intent_constraints: {list(_gap_backflow.keys())}")
+        else:
+            _merged_constraints = _existing_constraints
+
+        # G7 增强 v9.1: Gap 回流 → 补充任务生成（关键词→confirmed_core_tasks）
+        _backflow_tasks = ProgressiveQuestionnaireNode._extract_gap_backflow_tasks(answers, confirmed_tasks)
+        if _backflow_tasks:
+            confirmed_tasks = list(confirmed_tasks) + _backflow_tasks
+            logger.info(f" [G7/v9.1] Gap 回流: 新增 {len(_backflow_tasks)} 个补充任务")
+
         #  v7.147: 移除此处的汇总调用，改为在雷达图完成后统一处理
         # 原因：此时 radar_dimension_values 尚未生成，会导致 NoneType 错误
         # questionnaire_summary = ProgressiveQuestionnaireNode._build_questionnaire_summary(state, answers)  #  删除
@@ -884,16 +1240,26 @@ class ProgressiveQuestionnaireNode:
                 "missing_dimensions": completeness.get("missing_dimensions", []),
                 "critical_gaps": critical_gaps,
             },
-            "gap_filling_answers": answers,
+            # LT-3: gap_filling_answers 合并到 questionnaire_responses["gap_filling_answers"]
+            "questionnaire_responses": {**(state.get("questionnaire_responses") or {}), "gap_filling_answers": answers},
             "progressive_questionnaire_completed": False,  #  改为 False，因为还有雷达图步骤
             "progressive_questionnaire_step": 2,  #  这是 UI 的 Step 2
             # "questionnaire_summary": questionnaire_summary,  #  删除，改为在雷达图后生成
             "calibration_processed": False,  #  改为 False，雷达图完成后才算完成
+            # v7.900 G7: Gap 回流约束
+            "user_intent_constraints": _merged_constraints,
         }
         update_dict = WorkflowFlagManager.preserve_flags(state, update_dict)
+        # G7 v9.1: 如有补充任务则写回 confirmed_core_tasks
+        if _backflow_tasks:
+            update_dict["confirmed_core_tasks"] = confirmed_tasks
 
         #  v7.146: 修正路由 - Step2(信息补全)完成后进入Step3(雷达图)
-        return Command(update=update_dict, goto="progressive_step2_radar")
+        #  v8.4: 双动机驱动 — 根据 motivation_routing_profile 决定是否跳过 radar
+        _next = ProgressiveQuestionnaireNode._build_self_skip_decision(
+            state, _NODE_STEP3_GAP, default_next=_NODE_STEP2_RADAR
+        )
+        return Command(update=update_dict, goto=_next)
 
     # ==========================================================================
     # 辅助方法
@@ -1030,7 +1396,7 @@ class ProgressiveQuestionnaireNode:
         selector = DimensionSelector()
         questions = []
 
-        for i, dim_id in enumerate(gap_dimensions[:5]):  # 最多5个问题
+        for _i, dim_id in enumerate(gap_dimensions[:5]):  # 最多5个问题
             # 尝试获取模板
             template = selector.get_gap_question_template(dim_id)
 
@@ -1120,6 +1486,78 @@ class ProgressiveQuestionnaireNode:
             "source": "progressive_questionnaire_v780",
             "notes": f"三步递进式问卷，风格标签：{radar_summary.get('profile_label', '未定义')}",
         }
+
+    @staticmethod
+    def _extract_gap_backflow_tasks(answers: Dict[str, Any], confirmed_tasks: list) -> list:
+        """
+        v9.1 G5: Gap 回流 — 从用户答案中提取高价值关键词，生成补充任务
+
+        扫描答案文本中的高价值关键词:
+        - 预算数字 (万、元、RMB 等)
+        - 时间节点 (月、周、季度 等)
+        - 特殊需求关键词 (防火、节能、无障碍 等)
+
+        如果关键词未被现有任务覆盖，生成 source='gap_filling_supplement' 的补充任务。
+        最多返回 3 个补充任务，避免过度扩展。
+        """
+        import re
+
+        if not answers:
+            return []
+
+        # 现有任务文本（用于去重判断）
+        existing_task_text = " ".join(
+            str(t.get("task_name", "")) + " " + str(t.get("description", ""))
+            for t in (confirmed_tasks or [])
+            if isinstance(t, dict)
+        ).lower()
+
+        backflow_tasks: list = []
+        _BUDGET_PAT = re.compile(r"\d[\d,.]*\s*(万|千万|亿|元|RMB|USD)")
+        _TIME_PAT = re.compile(r"\d+\s*(个月|月|周|天|季度|年)")
+        _SPECIAL_KEYS = ["防火", "节能", "无障碍", "绿建", "LEED", "装配式", "智慧", "BIM"]
+
+        all_ans_text = " ".join(
+            ans if isinstance(ans, str) else (", ".join(ans) if isinstance(ans, list) else str(ans))
+            for ans in answers.values()
+            if ans
+        )
+
+        # 预算约束
+        m = _BUDGET_PAT.search(all_ans_text)
+        if m and "预算" not in existing_task_text and "造价" not in existing_task_text:
+            backflow_tasks.append({
+                "task_id": "BT-budget-gf",
+                "task_name": f"预算控制：{m.group(0)}",
+                "description": f"来自信息补全阶段的预算约束：{all_ans_text[:120].strip()}",
+                "source": "gap_filling_supplement",
+                "priority": "medium",
+            })
+
+        # 时间约束
+        m = _TIME_PAT.search(all_ans_text)
+        if m and "工期" not in existing_task_text and "时间" not in existing_task_text:
+            backflow_tasks.append({
+                "task_id": "BT-timeline-gf",
+                "task_name": f"时间节点管控：{m.group(0)}",
+                "description": f"来自信息补全阶段的工期约束：{all_ans_text[:120].strip()}",
+                "source": "gap_filling_supplement",
+                "priority": "medium",
+            })
+
+        # 特殊需求关键词（只取首个匹配）
+        for kw in _SPECIAL_KEYS:
+            if kw in all_ans_text and kw.lower() not in existing_task_text:
+                backflow_tasks.append({
+                    "task_id": f"BT-special-{kw}",
+                    "task_name": f"专项需求：{kw}",
+                    "description": f"来自信息补全阶段的{kw}专项需求识别",
+                    "source": "gap_filling_supplement",
+                    "priority": "low",
+                })
+                break
+
+        return backflow_tasks[:3]
 
 
 # ==========================================================================
@@ -1226,7 +1664,6 @@ async def _llm_interpret_poetry(text: str) -> Dict[str, Any]:
             "design_implications": ["光影设计", "镜面元素", "冷色调"]  # 设计指向
         }
     """
-    import json
 
     from langchain_core.messages import HumanMessage, SystemMessage
 
@@ -1287,16 +1724,19 @@ async def _llm_interpret_poetry(text: str) -> Dict[str, Any]:
 # ==========================================================================
 
 
-def progressive_step1_core_task_node(state: ProjectAnalysisState, store: Optional[BaseStore] = None) -> Command:
+@track_active_step("progressive_step1_core_task")
+def progressive_step1_core_task_node(state: ProjectAnalysisState, store: BaseStore | None = None) -> Command:
     """Step 1 节点函数"""
     return ProgressiveQuestionnaireNode.step1_core_task(state, store)
 
 
-def progressive_step2_radar_node(state: ProjectAnalysisState, store: Optional[BaseStore] = None) -> Command:
+@track_active_step("progressive_step2_radar")
+def progressive_step2_radar_node(state: ProjectAnalysisState, store: BaseStore | None = None) -> Command:
     """Step 2 节点函数"""
     return ProgressiveQuestionnaireNode.step2_radar(state, store)
 
 
-def progressive_step3_gap_filling_node(state: ProjectAnalysisState, store: Optional[BaseStore] = None) -> Command:
+@track_active_step("progressive_step3_gap_filling")
+def progressive_step3_gap_filling_node(state: ProjectAnalysisState, store: BaseStore | None = None) -> Command:
     """Step 3 节点函数"""
     return ProgressiveQuestionnaireNode.step3_gap_filling(state, store)

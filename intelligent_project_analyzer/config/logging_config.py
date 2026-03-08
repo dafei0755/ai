@@ -7,7 +7,6 @@
 import os
 import sys
 from pathlib import Path
-from typing import Optional
 
 from loguru import logger
 
@@ -137,7 +136,7 @@ class LoggingConfig:
 
 
 # 全局日志配置实例
-_logging_config: Optional[LoggingConfig] = None
+_logging_config: LoggingConfig | None = None
 
 
 def setup_logging() -> logger:

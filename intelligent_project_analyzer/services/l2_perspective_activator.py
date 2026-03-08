@@ -28,7 +28,7 @@ Date: 2026-01-25
 """
 
 import os
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Tuple
 
 import yaml
 from loguru import logger
@@ -76,7 +76,7 @@ class L2PerspectiveActivator:
         },
     }
 
-    def __init__(self, config_path: Optional[str] = None):
+    def __init__(self, config_path: str | None = None):
         """
         Initialize L2 perspective activator
 
@@ -85,7 +85,7 @@ class L2PerspectiveActivator:
         """
         self.activation_rules = self._load_activation_rules(config_path)
 
-    def _load_activation_rules(self, config_path: Optional[str] = None) -> Dict[str, Any]:
+    def _load_activation_rules(self, config_path: str | None = None) -> Dict[str, Any]:
         """
         Load activation rules from phase2 config
 
@@ -97,7 +97,7 @@ class L2PerspectiveActivator:
         """
         if config_path and os.path.exists(config_path):
             try:
-                with open(config_path, "r", encoding="utf-8") as f:
+                with open(config_path, encoding="utf-8") as f:
                     config = yaml.safe_load(f)
                     rules = config.get(
                         "l2_perspective_activation",
@@ -115,7 +115,7 @@ class L2PerspectiveActivator:
 
         if os.path.exists(default_path):
             try:
-                with open(default_path, "r", encoding="utf-8") as f:
+                with open(default_path, encoding="utf-8") as f:
                     config = yaml.safe_load(f)
                     rules = config.get("l2_perspective_activation", {}).get("conditional_perspectives", {})
                     if rules:
@@ -129,7 +129,7 @@ class L2PerspectiveActivator:
         return self.DEFAULT_ACTIVATION_RULES
 
     def determine_active_perspectives(
-        self, project_type: Optional[str], user_input: str, phase1_result: Optional[Dict[str, Any]] = None
+        self, project_type: str | None, user_input: str, phase1_result: Dict[str, Any] | None = None
     ) -> List[str]:
         """
         Determine which extended perspectives to activate
@@ -163,9 +163,9 @@ class L2PerspectiveActivator:
     def _should_activate(
         self,
         perspective: str,
-        project_type: Optional[str],
+        project_type: str | None,
         user_input_lower: str,
-        phase1_result: Optional[Dict[str, Any]] = None,
+        phase1_result: Dict[str, Any] | None = None,
     ) -> bool:
         """
         Check if perspective should be activated based on rules
@@ -280,8 +280,8 @@ class L2PerspectiveActivator:
         self,
         motivation_id: str,
         user_input: str,
-        secondary_motivations: Optional[List[str]] = None,
-        project_type: Optional[str] = None,
+        secondary_motivations: List[str] | None = None,
+        project_type: str | None = None,
     ) -> Tuple[List[str], List[str]]:
         """
         v7.280: 基于动机类型激活视角
@@ -296,7 +296,9 @@ class L2PerspectiveActivator:
             (激活的视角列表, 激活原因列表)
         """
         try:
-            from intelligent_project_analyzer.services.analysis_dimensions_loader import get_dimensions_config
+            from intelligent_project_analyzer.services.analysis_dimensions_loader import (
+                get_dimensions_config,
+            )
 
             config = get_dimensions_config()
             perspectives, reasons = config.get_perspectives_for_motivation(
@@ -321,10 +323,10 @@ class L2PerspectiveActivator:
 
 # Convenience function
 def determine_active_perspectives(
-    project_type: Optional[str],
+    project_type: str | None,
     user_input: str,
-    phase1_result: Optional[Dict[str, Any]] = None,
-    config_path: Optional[str] = None,
+    phase1_result: Dict[str, Any] | None = None,
+    config_path: str | None = None,
 ) -> List[str]:
     """
     Convenience function to determine active L2 perspectives
@@ -347,8 +349,8 @@ def determine_active_perspectives(
 def determine_active_perspectives_with_motivation(
     motivation_id: str,
     user_input: str,
-    secondary_motivations: Optional[List[str]] = None,
-    project_type: Optional[str] = None,
+    secondary_motivations: List[str] | None = None,
+    project_type: str | None = None,
 ) -> Tuple[List[str], List[str]]:
     """
     v7.280: 便捷函数 - 基于动机类型激活视角

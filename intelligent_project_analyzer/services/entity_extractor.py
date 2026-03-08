@@ -23,7 +23,8 @@ Date: 2026-01-25
 import json
 import re
 from dataclasses import dataclass, field
-from typing import List, Dict, Any, Optional
+from typing import Any, Dict, List
+
 from loguru import logger
 
 
@@ -269,7 +270,7 @@ class EntityExtractor:
             logger.error(f" [Entity Extraction] Unexpected error: {e}")
             return EntityExtractionResult(extraction_method="llm", confidence=0.0)
 
-    def _extract_json_from_text(self, text: str) -> Optional[str]:
+    def _extract_json_from_text(self, text: str) -> str | None:
         """
         Extract JSON from text (handles markdown code blocks)
 

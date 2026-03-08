@@ -18,7 +18,7 @@ Online real-time validation for dynamically synthesized roles.
 """
 
 import re
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Tuple
 
 from loguru import logger
 
@@ -79,8 +79,8 @@ class SynthesisQualityValidator:
         role_name: str,
         dynamic_role_name: str,
         tasks: List[str],
-        keywords: Optional[List[str]] = None,
-        dependencies: Optional[List[str]] = None,
+        keywords: List[str] | None = None,
+        dependencies: List[str] | None = None,
     ) -> Dict[str, Any]:
         """
         综合验证合成角色质量
@@ -280,7 +280,7 @@ class SynthesisQualityValidator:
         role_name: str,
         dynamic_role_name: str,
         parent_ids: List[str],
-        tasks: Optional[List[str]] = None,
+        tasks: List[str] | None = None,
     ) -> Tuple[float, List[str]]:
         """维度3: 验证动态命名是否体现跨界融合 (v8.2增强: 泛化检测+任务关联)"""
         msgs = []
@@ -357,7 +357,7 @@ class SynthesisQualityValidator:
 
     @classmethod
     def _validate_dependency_minimization(
-        cls, dependencies: Optional[List[str]], parent_ids: List[str]
+        cls, dependencies: List[str] | None, parent_ids: List[str]
     ) -> Tuple[float, List[str]]:
         """维度5: 验证依赖是否最小化"""
         msgs = []
@@ -477,12 +477,13 @@ _DEFAULT_QUALITY_THRESHOLDS = {
 def _load_quality_thresholds() -> Dict[str, float]:
     """从 role_selection_strategy.yaml 加载质量阈值，失败时使用默认值"""
     try:
-        import yaml
         from pathlib import Path
+
+        import yaml
 
         config_path = Path(__file__).parent.parent / "config" / "role_selection_strategy.yaml"
         if config_path.exists():
-            with open(config_path, "r", encoding="utf-8") as f:
+            with open(config_path, encoding="utf-8") as f:
                 config = yaml.safe_load(f)
             thresholds = config.get("quality_thresholds", {})
             if thresholds:
@@ -496,7 +497,7 @@ def _load_quality_thresholds() -> Dict[str, float]:
 
 def _score_task_role_alignment(
     roles_data: List[Dict[str, Any]],
-    gene_pool_keywords: Optional[Dict[str, List[str]]] = None,
+    gene_pool_keywords: Dict[str, List[str]] | None = None,
 ) -> Tuple[float, List[str]]:
     """
     v8.2 Phase 2: 任务-角色对齐度评分
@@ -613,14 +614,15 @@ def _score_deliverable_coverage(
 def _load_gene_pool_keywords() -> Dict[str, List[str]]:
     """从 role_selection_strategy.yaml 加载 role_gene_pool 的关键词映射"""
     try:
-        import yaml
         from pathlib import Path
+
+        import yaml
 
         config_path = Path(__file__).parent.parent / "config" / "role_selection_strategy.yaml"
         if not config_path.exists():
             return {}
 
-        with open(config_path, "r", encoding="utf-8") as f:
+        with open(config_path, encoding="utf-8") as f:
             config = yaml.safe_load(f)
 
         gene_pool = config.get("role_gene_pool", {})
@@ -642,7 +644,7 @@ def _load_gene_pool_keywords() -> Dict[str, List[str]]:
 
 def validate_overall_quality(
     selected_roles: List[Dict[str, Any]],
-    gene_pool_keywords: Optional[Dict[str, List[str]]] = None,
+    gene_pool_keywords: Dict[str, List[str]] | None = None,
 ) -> Dict[str, Any]:
     """
     v8.2 Phase 2: 全局角色选择质量评分

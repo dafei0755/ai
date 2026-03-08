@@ -32,14 +32,12 @@
            [END]
 """
 
-from typing import Dict, Any, List, Optional, Literal, TypedDict, Annotated
-from datetime import datetime
-from loguru import logger
-from langgraph.graph import StateGraph, END
-from langchain_core.messages import HumanMessage, SystemMessage
-from pydantic import BaseModel, Field
 import operator
+from typing import Annotated, Any, Dict, List, TypedDict
 
+from langchain_core.messages import HumanMessage, SystemMessage
+from langgraph.graph import END, StateGraph
+from loguru import logger
 
 # ============================================================
 # 状态定义
@@ -180,7 +178,7 @@ def retrieve_context_node(state: FollowupAgentState) -> Dict[str, Any]:
     从报告中提取相关章节
     """
     report_context = state.get("report_context", {})
-    question = state.get("question", "")
+    state.get("question", "")
     
     sections = []
     
@@ -224,11 +222,11 @@ def generate_answer_node(state: FollowupAgentState) -> Dict[str, Any]:
     
     使用 LLM 生成回答
     """
-    from ..services.llm_factory import LLMFactory
     from ..services.followup_history_manager import FollowupHistoryManager
+    from ..services.llm_factory import LLMFactory
     
     question = state.get("question", "")
-    intent = state.get("intent", "general")
+    state.get("intent", "general")
     intent_prompt = state.get("intent_prompt", "")
     relevant_sections = state.get("relevant_sections", [])
     conversation_history = state.get("conversation_history", [])
@@ -416,7 +414,7 @@ class FollowupAgent:
         self,
         question: str,
         report_context: Dict[str, Any],
-        conversation_history: Optional[List[Dict]] = None
+        conversation_history: List[Dict] | None = None
     ) -> Dict[str, Any]:
         """
         回答用户问题
@@ -476,7 +474,7 @@ class FollowupAgent:
         self,
         question: str,
         report_context: Dict[str, Any],
-        conversation_history: Optional[List[Dict]] = None
+        conversation_history: List[Dict] | None = None
     ) -> Dict[str, Any]:
         """异步版本"""
         import asyncio

@@ -14,13 +14,13 @@ Version: v7.108
 
 import io
 import json
-import base64
-from pathlib import Path
-from typing import Dict, Any, Optional
 from datetime import datetime
+from pathlib import Path
+from typing import Any, Dict
+
+from fastapi import UploadFile
 from loguru import logger
 from PIL import Image
-from fastapi import UploadFile
 
 
 class FollowupImageStorageManager:
@@ -207,7 +207,7 @@ class FollowupImageStorageManager:
 
         # 加载现有索引
         if index_path.exists():
-            with open(index_path, "r", encoding="utf-8") as f:
+            with open(index_path, encoding="utf-8") as f:
                 index_data = json.load(f)
         else:
             index_data = {
@@ -246,7 +246,7 @@ class FollowupImageStorageManager:
         if not index_path.exists():
             return []
 
-        with open(index_path, "r", encoding="utf-8") as f:
+        with open(index_path, encoding="utf-8") as f:
             index_data = json.load(f)
 
         return index_data.get("images", [])
@@ -289,7 +289,7 @@ class FollowupImageStorageManager:
             # 更新索引
             index_path = session_dir / "metadata.json"
             if index_path.exists():
-                with open(index_path, "r", encoding="utf-8") as f:
+                with open(index_path, encoding="utf-8") as f:
                     index_data = json.load(f)
 
                 index_data["images"] = [img for img in index_data["images"] if img.get("turn_id") != turn_id]

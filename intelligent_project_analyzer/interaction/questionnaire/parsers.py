@@ -5,8 +5,7 @@
 """
 
 import json
-from typing import Dict, Any, List, Tuple, Optional
-from loguru import logger
+from typing import Any, Dict, List, Tuple
 
 
 class AnswerParser:
@@ -19,13 +18,13 @@ class AnswerParser:
     """
     
     @staticmethod
-    def extract_raw_answers(user_response: Any) -> Tuple[Optional[Any], str]:
+    def extract_raw_answers(user_response: Any) -> Tuple[Any | None, str]:
         """从用户响应中提取问卷答案原始结构和补充说明."""
         if user_response is None:
             return None, ""
 
         additional_notes = ""
-        raw_answers: Optional[Any] = None
+        raw_answers: Any | None = None
 
         if isinstance(user_response, dict):
             additional_notes = str(user_response.get("additional_info") or user_response.get("notes") or "").strip()
@@ -55,7 +54,7 @@ class AnswerParser:
     @staticmethod
     def build_answer_entries(
         questionnaire: Dict[str, Any],
-        raw_answers: Optional[Any]
+        raw_answers: Any | None
     ) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
         """将原始答案与问卷元数据合并为结构化摘要."""
         if not raw_answers:
@@ -132,7 +131,7 @@ class AnswerParser:
         return entries, compact_answers
 
     @staticmethod
-    def _normalize_answer_value(question: Dict[str, Any], answer: Any) -> Optional[Any]:
+    def _normalize_answer_value(question: Dict[str, Any], answer: Any) -> Any | None:
         """根据题型对答案进行归一化，便于后续处理."""
         if answer is None:
             return None
@@ -143,14 +142,14 @@ class AnswerParser:
             if isinstance(answer, str):
                 values = [item.strip() for item in answer.split(",") if item.strip()]
                 return values or None
-            if isinstance(answer, (list, tuple, set)):
+            if isinstance(answer, list | tuple | set):
                 values = [str(item).strip() for item in answer if str(item).strip()]
                 return values or None
             coerced = str(answer).strip()
             return [coerced] if coerced else None
 
         if q_type == "single_choice":
-            if isinstance(answer, (list, tuple, set)):
+            if isinstance(answer, list | tuple | set):
                 for item in answer:
                     candidate = str(item).strip()
                     if candidate:
@@ -158,7 +157,7 @@ class AnswerParser:
                 return None
             return str(answer).strip() or None
 
-        if isinstance(answer, (list, tuple, set)):
+        if isinstance(answer, list | tuple | set):
             values = [str(item).strip() for item in answer if str(item).strip()]
             return "、".join(values) if values else None
 

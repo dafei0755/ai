@@ -11,17 +11,16 @@ APScheduler BackgroundScheduler 单例服务
 from __future__ import annotations
 
 import importlib.util
+import random
 import threading
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
-import random
-
+from apscheduler.job import Job
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 from apscheduler.triggers.date import DateTrigger
-from apscheduler.job import Job
 from loguru import logger
 
 _SCRIPTS_DIR = Path(__file__).resolve().parents[2] / "scripts"
@@ -65,7 +64,7 @@ def _job_to_dict(job: Job) -> Dict[str, Any]:
 
     # 安全获取 next_run_time（APScheduler 3.x/4.x 兼容）
     raw_next_run = getattr(job, "next_run_time", None)
-    next_run: Optional[str] = None
+    next_run: str | None = None
     if raw_next_run:
         try:
             next_run = raw_next_run.isoformat()
@@ -96,13 +95,13 @@ def _job_to_dict(job: Job) -> Dict[str, Any]:
 class JobSchedulerService:
     """APScheduler BackgroundScheduler 单例，运行在 FastAPI 进程内"""
 
-    _instance: Optional["JobSchedulerService"] = None
+    _instance: JobSchedulerService | None = None
     _lock = threading.Lock()
 
     # ----------------------------- 单例 -----------------------------
 
     @classmethod
-    def get_instance(cls) -> "JobSchedulerService":
+    def get_instance(cls) -> JobSchedulerService:
         if cls._instance is None:
             with cls._lock:
                 if cls._instance is None:
@@ -166,7 +165,7 @@ class JobSchedulerService:
         # ── 从 SpiderRegistry 动态加载调度配置 ────────────────────────────
         schedules = []
         try:
-            from .spiders.registry import _auto_import_spiders, SpiderRegistry
+            from .spiders.registry import SpiderRegistry, _auto_import_spiders
 
             _auto_import_spiders()
             schedules = SpiderRegistry.get_instance().list_enabled_sources()
@@ -228,7 +227,7 @@ class JobSchedulerService:
         """列出所有任务"""
         return [_job_to_dict(j) for j in self._scheduler.get_jobs()]
 
-    def get_job(self, job_id: str) -> Optional[Dict[str, Any]]:
+    def get_job(self, job_id: str) -> Dict[str, Any] | None:
         """查询单个任务"""
         job = self._scheduler.get_job(job_id)
         if job is None:
@@ -279,10 +278,10 @@ class JobSchedulerService:
         self,
         job_id: str,
         *,
-        day_of_week: Optional[str] = None,
-        hour: Optional[int] = None,
-        minute: Optional[int] = None,
-        second: Optional[int] = None,
+        day_of_week: str | None = None,
+        hour: int | None = None,
+        minute: int | None = None,
+        second: int | None = None,
     ) -> Dict[str, Any]:
         """修改任务的 Cron 触发器（只传要改的字段）"""
         job = self._scheduler.get_job(job_id)

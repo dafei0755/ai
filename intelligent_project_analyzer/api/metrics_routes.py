@@ -3,12 +3,16 @@
 提供前端查询性能统计和告警历史的接口
 """
 
-from fastapi import APIRouter, Query
-from typing import List, Dict, Any, Optional
-from datetime import datetime, timedelta
 import json
+from datetime import datetime, timedelta
 from pathlib import Path
+from typing import Any, Dict, List
+
+from fastapi import APIRouter, Query
 from loguru import logger
+
+# QW-2: LLM 并发指标
+from intelligent_project_analyzer.services.llm_concurrency import get_llm_stats
 
 router = APIRouter(prefix="/api/metrics", tags=["metrics"])
 
@@ -24,7 +28,7 @@ def _read_jsonl(file_path: Path, limit: int = 1000) -> List[Dict[str, Any]]:
     records = []
     try:
         if file_path.exists():
-            with open(file_path, "r", encoding="utf-8") as f:
+            with open(file_path, encoding="utf-8") as f:
                 for line in f:
                     try:
                         record = json.loads(line.strip())
@@ -256,7 +260,7 @@ async def get_recent_alerts(limit: int = Query(default=20, ge=1, le=100, descrip
     alerts = []
     try:
         if ALERTS_LOG.exists():
-            with open(ALERTS_LOG, "r", encoding="utf-8") as f:
+            with open(ALERTS_LOG, encoding="utf-8") as f:
                 for line in f:
                     try:
                         alert = json.loads(line.strip())
@@ -284,7 +288,7 @@ async def get_alert_stats(hours: int = Query(default=24, ge=1, le=168, descripti
     alerts = []
     try:
         if ALERTS_LOG.exists():
-            with open(ALERTS_LOG, "r", encoding="utf-8") as f:
+            with open(ALERTS_LOG, encoding="utf-8") as f:
                 for line in f:
                     try:
                         alert = json.loads(line.strip())

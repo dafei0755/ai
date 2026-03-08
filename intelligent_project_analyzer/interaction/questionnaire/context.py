@@ -5,8 +5,9 @@
 """
 
 import re
-from dataclasses import dataclass, field
-from typing import Dict, Any, Optional, List, Tuple
+from dataclasses import dataclass
+from typing import Any, Dict, List, Tuple
+
 from loguru import logger
 
 
@@ -93,7 +94,7 @@ class KeywordExtractor:
     ]
 
     @classmethod
-    def extract(cls, user_input: str, structured_data: Optional[Dict] = None) -> Dict[str, Any]:
+    def extract(cls, user_input: str, structured_data: Dict | None = None) -> Dict[str, Any]:
         """
         从用户输入中提取关键信息
 
@@ -128,7 +129,7 @@ class KeywordExtractor:
         #  v7.4.1: 检查缓存
         cache_key = cls._generate_cache_key(user_input, structured_data)
         if cache_key in cls._cache:
-            logger.info(f" [KeywordExtractor] 使用缓存结果")
+            logger.info(" [KeywordExtractor] 使用缓存结果")
             return cls._cache[cache_key]
 
         logger.info(f" [KeywordExtractor] 开始提取，输入长度: {len(user_input)}")
@@ -176,7 +177,7 @@ class KeywordExtractor:
         return result
 
     @classmethod
-    def _generate_cache_key(cls, user_input: str, structured_data: Optional[Dict]) -> tuple:
+    def _generate_cache_key(cls, user_input: str, structured_data: Dict | None) -> tuple:
         """
         生成缓存键
 
@@ -221,7 +222,7 @@ class KeywordExtractor:
             # 移除第一个条目
             first_key = next(iter(cls._cache))
             del cls._cache[first_key]
-            logger.debug(f" [KeywordExtractor] 缓存已满，移除最旧条目")
+            logger.debug(" [KeywordExtractor] 缓存已满，移除最旧条目")
 
         cls._cache[cache_key] = result
         logger.debug(f" [KeywordExtractor] 结果已缓存 (cache_size={len(cls._cache)})")
@@ -314,7 +315,7 @@ class KeywordExtractor:
         }
 
     @classmethod
-    def _extract_core_concepts(cls, text: str, structured_data: Optional[Dict]) -> List[str]:
+    def _extract_core_concepts(cls, text: str, structured_data: Dict | None) -> List[str]:
         """提取核心概念"""
         concepts = []
 

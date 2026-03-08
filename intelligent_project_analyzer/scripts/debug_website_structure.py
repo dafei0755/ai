@@ -14,16 +14,14 @@ Date: 2026-02-17
 
 import sys
 from pathlib import Path
-import json
 
 # 添加项目根目录到path
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
-from playwright.sync_api import sync_playwright
 from bs4 import BeautifulSoup
 from loguru import logger
-
+from playwright.sync_api import sync_playwright
 
 # 配置日志
 logger.remove()
@@ -119,7 +117,7 @@ def analyze_archdaily():
                 ]
                 logger.info(f"      - 可能的项目链接: {len(project_links)} 个")
                 if project_links:
-                    logger.info(f"        示例:")
+                    logger.info("        示例:")
                     for link in project_links[:5]:
                         logger.info(f"          - {link}")
 
@@ -226,7 +224,7 @@ def analyze_gooood():
                 ]
                 logger.info(f"      - 可能的项目链接: {len(project_links)} 个")
                 if project_links:
-                    logger.info(f"        示例:")
+                    logger.info("        示例:")
                     for link in project_links[:5]:
                         logger.info(f"          - {link}")
 
