@@ -23,6 +23,10 @@ ENABLE_SMART_NODE_SELF_SKIP: bool = os.getenv("ENABLE_SMART_NODE_SELF_SKIP", "fa
 # Shadow 模式：只产生日志与路由画像，不实际跳步。
 ENABLE_SMART_NODE_SELF_SKIP_SHADOW: bool = os.getenv("ENABLE_SMART_NODE_SELF_SKIP_SHADOW", "true").lower() == "true"
 
+# ─── Requirements Fast Path（需求分析最短路径）──────────────────────────────────
+# 启用后在二次验证后直接进入 project_director，跳过 step3/step2/questionnaire_summary。
+ENABLE_REQUIREMENTS_FAST_PATH: bool = os.getenv("ENABLE_REQUIREMENTS_FAST_PATH", "false").lower() == "true"
+
 
 # v8.1.1 已删除向后兼容 flag：USE_V716_AGENTS / USE_V717_REQUIREMENTS_ANALYST /
 # USE_PROGRESSIVE_QUESTIONNAIRE / USE_V7_FRONTCHAIN_SEMANTICS / USE_MULTI_ROUND_QUESTIONNAIRE
@@ -35,5 +39,6 @@ def log_feature_flags_snapshot() -> None:
         "[feature_flags] snapshot | "
         f"DEEP_SEARCH_ENABLED={DEEP_SEARCH_ENABLED} | "
         f"ENABLE_SMART_NODE_SELF_SKIP={ENABLE_SMART_NODE_SELF_SKIP} | "
-        f"ENABLE_SMART_NODE_SELF_SKIP_SHADOW={ENABLE_SMART_NODE_SELF_SKIP_SHADOW}"
+        f"ENABLE_SMART_NODE_SELF_SKIP_SHADOW={ENABLE_SMART_NODE_SELF_SKIP_SHADOW} | "
+        f"ENABLE_REQUIREMENTS_FAST_PATH={ENABLE_REQUIREMENTS_FAST_PATH}"
     )

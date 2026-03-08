@@ -15,6 +15,8 @@ API端点测试 - Analysis相关端点
 import pytest
 import json
 import asyncio
+from types import SimpleNamespace
+from unittest.mock import AsyncMock, patch
 
 
 class TestAnalysisStartEndpoint:
@@ -85,7 +87,12 @@ class TestAnalysisStatusEndpoint:
             "session_id": "test-session-123",
             "status": "running",
             "progress": 0.5,
-            "current_stage": "需求分析"
+            "current_stage": "需求分析",
+            "deviation_routing_applied": {
+                "triggered": True,
+                "reason_tag": "boundary_break",
+                "applied_constraints": ["must_include_v6"],
+            }
         }).encode('utf-8')
 
         response = await client.get("/api/analysis/status/test-session-123")
@@ -94,6 +101,34 @@ class TestAnalysisStatusEndpoint:
         data = response.json()
         assert data["session_id"] == "test-session-123"
         assert "status" in data
+        assert data["deviation_routing_applied"]["reason_tag"] == "boundary_break"
+
+    @pytest.mark.asyncio
+    async def test_get_analysis_status_includes_fast_path_observability_fields(self, client, mock_redis):
+        """测试获取分析状态 - fast-path 可观测字段透传"""
+        mock_redis.get.return_value = json.dumps({
+            "session_id": "test-session-fastpath-1",
+            "status": "running",
+            "progress": 0.6,
+            "requirements_fast_path": True,
+            "requirements_fast_path_guard": {
+                "passed": True,
+                "reasons": []
+            },
+            "progressive_step3_skipped": True,
+            "progressive_step2_skipped": True,
+            "questionnaire_summary_skipped": True,
+        }).encode('utf-8')
+
+        response = await client.get("/api/analysis/status/test-session-fastpath-1")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["requirements_fast_path"] is True
+        assert data["requirements_fast_path_guard"]["passed"] is True
+        assert data["progressive_step3_skipped"] is True
+        assert data["progressive_step2_skipped"] is True
+        assert data["questionnaire_summary_skipped"] is True
 
 
 class TestAnalysisResumeEndpoint:
@@ -120,6 +155,39 @@ class TestAnalysisResumeEndpoint:
         assert response.status_code == 200
         data = response.json()
         assert "session_id" in data
+
+    @pytest.mark.asyncio
+    async def test_resume_analysis_rebuilds_workflow_from_checkpoint(self, client, mock_redis):
+        """测试恢复分析 - 内存实例丢失时自动从 checkpoint 重建"""
+        from intelligent_project_analyzer.api import server as server_module
+
+        server_module.workflows = {}
+
+        async def _interrupt_stream(*args, **kwargs):
+            yield {
+                "__interrupt__": (
+                    SimpleNamespace(value={"interaction_type": "confirm", "message": "请确认"}),
+                )
+            }
+
+        rebuilt_workflow = SimpleNamespace(graph=SimpleNamespace(astream=_interrupt_stream))
+
+        with patch(
+            "intelligent_project_analyzer.api._lifecycle_routes.restore_workflow_from_checkpoint",
+            AsyncMock(return_value=rebuilt_workflow),
+        ) as mock_restore:
+            response = await client.post(
+                "/api/analysis/resume",
+                json={
+                    "session_id": "test-session-123",
+                    "resume_value": {"answer": "确认"},
+                },
+            )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["session_id"] == "test-session-123"
+        mock_restore.assert_awaited_once_with("test-session-123")
 
 
 class TestAnalysisResultEndpoint:

@@ -47,7 +47,7 @@ from intelligent_project_analyzer.services.file_processor import (
 )
 from intelligent_project_analyzer.services.geoip_service import get_geoip_service
 
-from .deps import DEV_MODE, sessions_cache
+from .deps import DEV_MODE, get_session_manager, sessions_cache
 from .helpers import (
     _derive_section_identity,
     _enrich_sections_with_agent_results,
@@ -82,7 +82,7 @@ from .pdf_generator import (
     generate_all_experts_pdf_fast,
     generate_report_pdf,
 )
-from .workflow_runner import run_workflow_async
+from .workflow_runner import restore_workflow_from_checkpoint, run_workflow_async
 
 
 router = APIRouter(tags=["analysis"])
@@ -172,6 +172,12 @@ async def get_analysis_status(
         flow_route_reason_codes=session.get("flow_route_reason_codes"),
         routing_scores=session.get("routing_scores"),
         active_steps=session.get("active_steps"),
+        deviation_routing_applied=session.get("deviation_routing_applied"),
+        requirements_fast_path=session.get("requirements_fast_path"),
+        requirements_fast_path_guard=session.get("requirements_fast_path_guard"),
+        progressive_step3_skipped=session.get("progressive_step3_skipped"),
+        progressive_step2_skipped=session.get("progressive_step2_skipped"),
+        questionnaire_summary_skipped=session.get("questionnaire_summary_skipped"),
     )
 
 
@@ -207,9 +213,13 @@ async def resume_analysis(request: ResumeRequest, background_tasks: BackgroundTa
     # 获取工作流
     workflow = _server.workflows.get(session_id)
     if not workflow:
-        logger.error(f" 工作流实例不存在: {session_id}")
-        logger.error("   这通常发生在服务器重启后，工作流无法继续")
-        logger.error("   建议：使用持久化的检查点存储（如SqliteSaver）而非MemorySaver")
+        logger.warning(f"️ 内存中的工作流实例不存在，尝试从 checkpoint 重建: {session_id}")
+        workflow = await restore_workflow_from_checkpoint(session_id)
+
+    if not workflow:
+        logger.error(f" 工作流实例不存在且重建失败: {session_id}")
+        logger.error("   这通常发生在服务器重启后，且当前 checkpoint 后端中缺少对应 thread_id 数据")
+        logger.error("   如需继续恢复，请确认 CHECKPOINT_BACKEND/CHECKPOINT_DATABASE_URL 指向的存储里存在该 session 的 checkpoint")
 
         #  DEV_MODE：测试/本地调试时，不用 410 直接阻塞（单测只关注 API 是否可用）
         if DEV_MODE:
@@ -223,8 +233,11 @@ async def resume_analysis(request: ResumeRequest, background_tasks: BackgroundTa
             )
 
         raise HTTPException(
-            status_code=410, detail="工作流已失效，请重新开始分析。如果问题持续出现，请联系管理员。"  # 410 Gone - resource no longer available
+            status_code=410,
+            detail="工作流已失效且无法从持久化 checkpoint 恢复，请重新开始分析。如果问题持续出现，请联系管理员。",
         )
+
+    logger.info(f" 已获取可恢复的 workflow 实例: {session_id}")
 
     # 更新状态
     logger.debug(f"[DEBUG] Resume request for session {session_id}")

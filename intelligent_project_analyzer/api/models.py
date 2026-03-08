@@ -76,6 +76,12 @@ class AnalysisStatus(BaseModel):
     flow_route_reason_codes: List[str] | None = None
     routing_scores: Dict[str, float] | None = None
     active_steps: List[str] | None = None
+    deviation_routing_applied: Dict[str, Any] | None = None
+    requirements_fast_path: bool | None = None
+    requirements_fast_path_guard: Dict[str, Any] | None = None
+    progressive_step3_skipped: bool | None = None
+    progressive_step2_skipped: bool | None = None
+    questionnaire_summary_skipped: bool | None = None
 
 
 class AnalysisResult(BaseModel):
