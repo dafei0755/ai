@@ -141,6 +141,7 @@ class TaskCompletenessAnalyzer:
         active_projections: Optional[List[str]] = None,
         space_type: Optional[str] = None,
         project_type: Optional[str] = None,
+        space_classification: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """
         分析任务信息完整性
@@ -154,6 +155,8 @@ class TaskCompletenessAnalyzer:
                        (如 'residential_premium' / 'rural' / 'commercial' 等)
             project_type: v8.2 新增，项目类型标识符（如 'luxury_villa'）
                          当 space_type 为空时，自动通过 PARENT_TYPE_MAP 解析
+            space_classification: Phase 3 新增，space_classification state 字段（可选）
+                                  用于读取 routing.questionnaire_profile
 
         Returns:
             {
@@ -169,6 +172,12 @@ class TaskCompletenessAnalyzer:
                 "space_type": "residential_premium"  # 实际使用的空间类型
             }
         """
+        # Phase 3: 读取 questionnaire_profile（轻量接入，仅记录日志）
+        _routing = (space_classification or {}).get("routing") or {}
+        _questionnaire_profile = _routing.get("questionnaire_profile")
+        if _questionnaire_profile:
+            logger.debug(f"[TaskCompletenessAnalyzer] questionnaire_profile={_questionnaire_profile}")
+
         # v8.2: 根据空间类型 or 项目类型动态构建维度集
         active_dimensions = self._build_dimensions_for_space_type(space_type, project_type=project_type)
         if space_type or project_type:
