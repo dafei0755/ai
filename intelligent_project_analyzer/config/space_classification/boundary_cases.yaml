@@ -1,0 +1,51 @@
+# 首批 8 个高风险边界案例
+# risk_level: high / medium / low
+
+boundary_cases:
+  - id: hospitality_vs_residential
+    types: [commercial_hospitality, personal_residential]
+    trigger_keywords: [民宿, 度假屋, 乡村住宅, 农家乐, 短租]
+    risk_level: high
+    clarification: "请确认：这是对外经营的民宿，还是自住的乡村住宅？"
+
+  - id: brand_experience_vs_retail
+    types: [brand_experience, commercial_retail]
+    trigger_keywords: [展厅, 旗舰店, 体验中心, 品牌空间, showroom]
+    risk_level: high
+    clarification: "请确认：这个空间的核心功能是品牌体验/展示，还是日常零售销售？"
+
+  - id: hospitality_vs_healthcare
+    types: [commercial_hospitality, healthcare_wellness]
+    trigger_keywords: [康养, 疗愈, 养生, 健康度假, 康复]
+    risk_level: medium
+    clarification: "请确认：这是以住宿为主的康养度假，还是以医疗/康复为主的健康设施？"
+
+  - id: hospitality_vs_rural
+    types: [commercial_hospitality, rural_construction]
+    trigger_keywords: [乡建, 村落, 古村落, 村庄改造]
+    risk_level: medium
+    clarification: "请确认：这是乡村民宿/酒店，还是乡村整体建设/改造项目？"
+
+  - id: community_vs_cultural
+    types: [community_public, public_cultural]
+    trigger_keywords: [社区中心, 文化馆, 活动中心, 展览空间, 文化活动]
+    risk_level: medium
+    clarification: "请确认：这是以社区服务为主，还是以文化展览/演出为主？"
+
+  - id: office_vs_brand_experience
+    types: [commercial_office, brand_experience]
+    trigger_keywords: [创意园区, 品牌总部, 企业展厅, 总部大楼]
+    risk_level: medium
+    clarification: "请确认：这是以日常办公为主，还是以品牌展示/体验为主？"
+
+  - id: residential_renovation_vs_personal
+    types: [residential_renovation, personal_residential]
+    trigger_keywords: [旧房改造, 老宅翻新, 二手房, 存量住宅]
+    risk_level: low
+    clarification: "请确认：这是存量住宅的改造翻新，还是新建/全新装修的住宅？"
+
+  - id: popup_vs_brand_retail
+    types: [popup_temporary, brand_experience, commercial_retail]
+    trigger_keywords: [快闪店, 临时展, popup, 快闪, 限时]
+    risk_level: high
+    clarification: "请确认：这是临时性快闪活动空间，还是有固定经营周期的品牌/零售空间？"
