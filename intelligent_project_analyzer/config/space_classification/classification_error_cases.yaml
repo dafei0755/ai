@@ -1,0 +1,25 @@
+# 分类错判案例库
+# status: open / fixed / wont_fix
+
+error_cases:
+  - id: ec_001
+    created_at: "2026-04-30"
+    input_sample: "乡村民宿，对外出租，8间客房，田园风格"
+    wrong_classification: personal_residential
+    correct_classification: commercial_hospitality
+    confidence_at_error: 0.55
+    root_cause: "缺少「对外出租」关键词权重，优先匹配住宅关键词"
+    rule_fix: "在 commercial_hospitality 关键词增加「对外出租」「民宿经营」"
+    status: open
+    reviewed_by: null
+
+  - id: ec_002
+    created_at: "2026-04-30"
+    input_sample: "品牌旗舰店，以体验为主，兼顾零售销售"
+    wrong_classification: commercial_retail
+    correct_classification: brand_experience
+    confidence_at_error: 0.62
+    root_cause: "「旗舰店」关键词权重在 retail 类型中更高"
+    rule_fix: "brand_experience 增加「旗舰店+体验」复合权重"
+    status: open
+    reviewed_by: null

@@ -1,0 +1,35 @@
+project_type: commercial_hospitality
+display_name: 酒店民宿餐饮
+primary_bucket: hospitality
+
+core_logic: |
+  酒店/民宿/餐饮空间的核心是「体验经济」——客人支付的是时间与情绪，
+  而非单纯空间使用权。每个功能区须服务于入住/用餐的完整体验链。
+
+typical_tensions:
+  - "商业效率（翻台率/入住率）vs 情绪沉浸感"
+  - "品牌标准化 vs 在地文化表达"
+  - "公区展示性 vs 私区安全感"
+
+required_variables:
+  - room_count
+  - operation_model
+  - star_level_or_tier
+  - target_guest_profile
+
+questionnaire_profile: hospitality_v1
+floorplan_profile: hospitality_v1
+
+visual_profile:
+  visual_pitfalls:
+    - "把民宿拍成住宅客厅：缺乏接待感和品牌故事"
+    - "过度渲染奢华材质，脱离实际造价"
+  forbidden_biases:
+    - "一律使用暖光温馨氛围（商务酒店需要冷静、高效）"
+  type_constraints:
+    - "餐区必须展示动线和备餐区关系，不只是美食特写"
+    - "客房必须展示床位朝向与自然光关系"
+
+deliverable_profile:
+  preferred_label: "整体室内设计方案"
+  naming_pattern: "{project_name}{display_name}室内设计方案"

@@ -1,0 +1,35 @@
+project_type: residential_renovation
+display_name: 住宅改造翻新
+primary_bucket: residential
+
+core_logic: |
+  存量住宅改造的核心约束是「结构限制 + 用户记忆」——
+  设计不从零开始，须在既有格局和使用者情感记忆中寻找突破口。
+
+typical_tensions:
+  - "改造幅度 vs 预算与结构可行性"
+  - "业主对旧空间的情感依附 vs 设计师的提升方案"
+  - "局部翻新 vs 整体系统性改造"
+
+required_variables:
+  - original_building_age
+  - renovation_scope
+  - resident_profile
+  - budget_tier
+
+questionnaire_profile: renovation_v1
+floorplan_profile: renovation_v1
+
+visual_profile:
+  visual_pitfalls:
+    - "改造方案看起来像新建，失去改造叙事"
+    - "不展示改造前后对比"
+  forbidden_biases:
+    - "一律做「全屋大白墙」，忽略结构条件"
+  type_constraints:
+    - "必须包含改造前后平面对比"
+    - "须注明保留/拆除/新增的结构元素"
+
+deliverable_profile:
+  preferred_label: "住宅改造设计方案"
+  naming_pattern: "{project_name}住宅改造设计方案"

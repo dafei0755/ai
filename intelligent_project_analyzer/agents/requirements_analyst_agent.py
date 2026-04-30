@@ -721,6 +721,35 @@ def output_node(state: RequirementsAnalystState) -> Dict[str, Any]:
             structured_data["problem_solving_approach"] = psa
     project_type = _infer_project_type(structured_data) or "other"  # 双保险：永不写入 None
 
+    # Phase 2 双写：调用旁路分类服务生成 SpaceClassificationResult
+    _space_classification_dict = None
+    try:
+        from intelligent_project_analyzer.services.space_classification_service import (
+            SpaceClassificationService,
+        )
+        _combined_text = " ".join([
+            str(structured_data.get("project_task", "")),
+            str(structured_data.get("character_narrative", "")),
+            str(structured_data.get("project_overview", "")),
+            str(structured_data.get("target_users", "")),
+        ])
+        _spatial_zone_refs = [
+            z.get("zone_id", "") for z in (state.get("extracted_spatial_zones") or [])
+            if z.get("zone_id")
+        ]
+        _sc_result = SpaceClassificationService.get_instance().classify(
+            _combined_text,
+            confirmed_tasks=None,
+            spatial_zone_refs=_spatial_zone_refs,
+        )
+        _space_classification_dict = _sc_result.model_dump()
+        logger.info(
+            f"[Phase2] space_classification: {_sc_result.project_type} "
+            f"({_sc_result.confidence_level}, bucket={_sc_result.primary_bucket})"
+        )
+    except Exception as _sc_exc:
+        logger.warning(f"[Phase2] SpaceClassificationService 调用失败（忽略）: {_sc_exc}")
+
     structured_data["analysis_mode"] = analysis_mode
     structured_data["project_type"] = project_type
 
@@ -756,6 +785,7 @@ def output_node(state: RequirementsAnalystState) -> Dict[str, Any]:
         "confidence": confidence,
         "analysis_mode": analysis_mode,
         "project_type": project_type,
+        "space_classification": _space_classification_dict,   # 新增
         "total_elapsed_ms": total_elapsed,
         "processing_log": state.get("processing_log", [])
         + [f"[Output] 完成 ({elapsed_ms:.0f}ms) - 模式: {analysis_mode}, 置信度: {confidence:.2f}"],
@@ -1378,6 +1408,7 @@ class RequirementsAnalystAgentV2:
             metadata={
                 "analysis_mode": final_state.get("analysis_mode"),
                 "project_type": final_state.get("project_type"),
+                "space_classification": final_state.get("space_classification"),
                 "total_elapsed_ms": final_state.get("total_elapsed_ms"),
                 "node_path": final_state.get("node_path"),
                 "processing_log": final_state.get("processing_log"),

@@ -1174,9 +1174,13 @@ def output_intent_detection_node(state: dict, store=None) -> Command:
     structured_requirements = ra_result.get("structured_data", {}) or {}
     detected_modes = state.get("detected_design_modes", []) or []
 
-    # v10.1 fix: project_classification 已被 v9.1 移除（永远为 None），
-    # 改为从 project_type (str) 构造兼容结构，供 _detect_spatial_attribute_signals 使用
-    _project_type_str = state.get("project_type", "") or structured_requirements.get("project_type", "")
+    # v10.2 update: 优先读 space_classification（Phase 2 双写），无则回退 project_type
+    _sc = state.get("space_classification")
+    _project_type_str = (
+        (_sc.get("project_type") if _sc else None)
+        or state.get("project_type", "")
+        or structured_requirements.get("project_type", "")
+    )
     project_classification = {"project_type": _project_type_str} if _project_type_str else None
 
     # 如果 requirements_analyst 没有产出结构化数据，尝试从 state 直接取

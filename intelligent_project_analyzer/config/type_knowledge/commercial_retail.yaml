@@ -1,0 +1,35 @@
+project_type: commercial_retail
+display_name: 商业零售
+primary_bucket: retail
+
+core_logic: |
+  零售空间设计的核心是「购买转化」——
+  空间的每一个决策最终指向：让目标客群更愿意停留、浏览和购买。
+
+typical_tensions:
+  - "陈列密度（SKU展示）vs 空间体验感"
+  - "短期促销灵活性 vs 长期品牌形象稳定性"
+  - "线下体验差异化 vs 运营成本控制"
+
+required_variables:
+  - retail_category
+  - store_size_tier
+  - target_customer_profile
+  - online_offline_ratio
+
+questionnaire_profile: retail_v1
+floorplan_profile: retail_v1
+
+visual_profile:
+  visual_pitfalls:
+    - "只展示空陈列效果，不呈现商品与空间的关系"
+    - "忽略收银台、库房、试衣间等功能区"
+  forbidden_biases:
+    - "所有零售都做「极简白盒子」，忽略品类差异"
+  type_constraints:
+    - "动线设计（主动线/副动线）须在平面图标注"
+    - "收银点位置须合理规划"
+
+deliverable_profile:
+  preferred_label: "零售空间设计方案"
+  naming_pattern: "{project_name}零售空间设计方案"

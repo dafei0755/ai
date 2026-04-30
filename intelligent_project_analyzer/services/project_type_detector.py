@@ -65,6 +65,7 @@ PROJECT_TYPE_REGISTRY: Dict[str, Dict[str, Any]] = {
         "priority": 15,
         "min_secondary_hits": 3,
         "include_in_prompt": True,
+        "status": "active",
     },
 
     # ══════════════════════════════════════════════════════════════════════════
@@ -81,6 +82,7 @@ PROJECT_TYPE_REGISTRY: Dict[str, Dict[str, Any]] = {
         "priority": 10,
         "min_secondary_hits": 0,
         "include_in_prompt": True,
+        "status": "active",
     },
     "urban_renewal_heritage": {
         "name": "城市更新/历史建筑活化",
@@ -97,6 +99,7 @@ PROJECT_TYPE_REGISTRY: Dict[str, Dict[str, Any]] = {
         "priority": 10,
         "min_secondary_hits": 0,
         "include_in_prompt": True,
+        "status": "active",
     },
 
     # ══════════════════════════════════════════════════════════════════════════
@@ -110,6 +113,7 @@ PROJECT_TYPE_REGISTRY: Dict[str, Dict[str, Any]] = {
         "priority": 9,
         "min_secondary_hits": 0,
         "include_in_prompt": True,
+        "status": "active",
     },
     "industrial_conversion": {
         "name": "工业/生产设施/厂房改造",
@@ -125,6 +129,7 @@ PROJECT_TYPE_REGISTRY: Dict[str, Dict[str, Any]] = {
         "priority": 9,
         "min_secondary_hits": 0,
         "include_in_prompt": True,
+        "status": "active",
     },
     "educational_facility": {
         "name": "教育建筑/校园",
@@ -142,6 +147,7 @@ PROJECT_TYPE_REGISTRY: Dict[str, Dict[str, Any]] = {
         "priority": 9,
         "min_secondary_hits": 0,
         "include_in_prompt": True,
+        "status": "active",
     },
     "religious_spiritual": {
         "name": "宗教/仪式/殡葬空间",
@@ -160,6 +166,7 @@ PROJECT_TYPE_REGISTRY: Dict[str, Dict[str, Any]] = {
         "priority": 9,
         "min_secondary_hits": 1,
         "include_in_prompt": True,
+        "status": "active",
     },
 
     # ══════════════════════════════════════════════════════════════════════════
@@ -184,6 +191,7 @@ PROJECT_TYPE_REGISTRY: Dict[str, Dict[str, Any]] = {
         "priority": 8,
         "min_secondary_hits": 0,
         "include_in_prompt": True,
+        "status": "active",
     },
     "commercial_dining": {
         "name": "餐饮/夜生活空间",
@@ -204,6 +212,7 @@ PROJECT_TYPE_REGISTRY: Dict[str, Dict[str, Any]] = {
         "priority": 8,
         "min_secondary_hits": 0,
         "include_in_prompt": True,
+        "status": "active",
     },
     "performing_arts": {
         "name": "演艺/剧场空间",
@@ -220,6 +229,7 @@ PROJECT_TYPE_REGISTRY: Dict[str, Dict[str, Any]] = {
         "priority": 8,
         "min_secondary_hits": 0,
         "include_in_prompt": True,
+        "status": "active",
     },
     "public_cultural": {
         "name": "文化展陈/科教场馆",
@@ -244,6 +254,7 @@ PROJECT_TYPE_REGISTRY: Dict[str, Dict[str, Any]] = {
         "priority": 8,
         "min_secondary_hits": 0,
         "include_in_prompt": True,
+        "status": "active",
     },
     "landscape_outdoor": {
         "name": "景观/公共户外空间",
@@ -259,6 +270,7 @@ PROJECT_TYPE_REGISTRY: Dict[str, Dict[str, Any]] = {
         "priority": 8,
         "min_secondary_hits": 1,
         "include_in_prompt": True,
+        "status": "active",
     },
     "community_public": {
         "name": "社区/公共服务空间",
@@ -280,6 +292,7 @@ PROJECT_TYPE_REGISTRY: Dict[str, Dict[str, Any]] = {
         "priority": 8,
         "min_secondary_hits": 1,
         "include_in_prompt": True,
+        "status": "active",
     },
 
     # ══════════════════════════════════════════════════════════════════════════
@@ -293,6 +306,7 @@ PROJECT_TYPE_REGISTRY: Dict[str, Dict[str, Any]] = {
         "priority": 7,
         "min_secondary_hits": 0,
         "include_in_prompt": True,
+        "status": "active",
     },
     "brand_experience": {
         "name": "品牌旗舰/体验店",
@@ -302,6 +316,7 @@ PROJECT_TYPE_REGISTRY: Dict[str, Dict[str, Any]] = {
         "priority": 7,
         "min_secondary_hits": 0,
         "include_in_prompt": True,
+        "status": "active",
     },
     "commercial_office": {
         "name": "办公/联合办公",
@@ -320,6 +335,7 @@ PROJECT_TYPE_REGISTRY: Dict[str, Dict[str, Any]] = {
         "priority": 7,
         "min_secondary_hits": 0,
         "include_in_prompt": True,
+        "status": "active",
     },
     "commercial_enterprise": {
         "name": "企业空间/品牌展厅",
@@ -331,6 +347,7 @@ PROJECT_TYPE_REGISTRY: Dict[str, Dict[str, Any]] = {
         "priority": 7,
         "min_secondary_hits": 0,
         "include_in_prompt": True,
+        "status": "active",
     },
     "healthcare_wellness": {
         "name": "医疗/康养/养老",
@@ -357,6 +374,7 @@ PROJECT_TYPE_REGISTRY: Dict[str, Dict[str, Any]] = {
         "priority": 7,
         "min_secondary_hits": 0,
         "include_in_prompt": True,
+        "status": "active",
     },
     "sports_entertainment_arts": {
         "name": "体育/健身/运动场馆",
@@ -377,6 +395,7 @@ PROJECT_TYPE_REGISTRY: Dict[str, Dict[str, Any]] = {
         "priority": 7,
         "min_secondary_hits": 0,
         "include_in_prompt": True,
+        "status": "active",
     },
     "transportation_civic": {
         "name": "交通/市政/公共行政",
@@ -398,6 +417,7 @@ PROJECT_TYPE_REGISTRY: Dict[str, Dict[str, Any]] = {
         "priority": 7,
         "min_secondary_hits": 1,
         "include_in_prompt": True,
+        "status": "active",
     },
 
     # ══════════════════════════════════════════════════════════════════════════
@@ -420,6 +440,7 @@ PROJECT_TYPE_REGISTRY: Dict[str, Dict[str, Any]] = {
         "priority": 8,
         "min_secondary_hits": 0,
         "include_in_prompt": True,
+        "status": "active",
     },
     "wedding_banquet": {
         "name": "婚庆宴会/庆典空间",
@@ -437,6 +458,7 @@ PROJECT_TYPE_REGISTRY: Dict[str, Dict[str, Any]] = {
         "priority": 8,
         "min_secondary_hits": 0,
         "include_in_prompt": True,
+        "status": "active",
     },
     "children_family": {
         "name": "亲子/早教/儿童空间",
@@ -454,6 +476,7 @@ PROJECT_TYPE_REGISTRY: Dict[str, Dict[str, Any]] = {
         "priority": 8,
         "min_secondary_hits": 0,
         "include_in_prompt": True,
+        "status": "active",
     },
     "residential_renovation": {
         "name": "存量住宅改造/二手房翻新",
@@ -470,6 +493,7 @@ PROJECT_TYPE_REGISTRY: Dict[str, Dict[str, Any]] = {
         "priority": 8,
         "min_secondary_hits": 0,
         "include_in_prompt": True,
+        "status": "active",
     },
 
     # ══════════════════════════════════════════════════════════════════════════
@@ -491,6 +515,7 @@ PROJECT_TYPE_REGISTRY: Dict[str, Dict[str, Any]] = {
         "priority": 7,
         "min_secondary_hits": 0,
         "include_in_prompt": True,
+        "status": "active",
     },
     "automotive_showroom": {
         "name": "汽车展厅/4S店/改装",
@@ -507,6 +532,7 @@ PROJECT_TYPE_REGISTRY: Dict[str, Dict[str, Any]] = {
         "priority": 8,
         "min_secondary_hits": 1,
         "include_in_prompt": True,
+        "status": "active",
     },
     "digital_media_studio": {
         "name": "直播/拍摄/媒体基地",
@@ -523,6 +549,7 @@ PROJECT_TYPE_REGISTRY: Dict[str, Dict[str, Any]] = {
         "priority": 7,
         "min_secondary_hits": 0,
         "include_in_prompt": True,
+        "status": "active",
     },
     "popup_temporary": {
         "name": "快闪/临时装置空间",
@@ -539,6 +566,7 @@ PROJECT_TYPE_REGISTRY: Dict[str, Dict[str, Any]] = {
         "priority": 7,
         "min_secondary_hits": 0,
         "include_in_prompt": True,
+        "status": "active",
     },
 
     # ══════════════════════════════════════════════════════════════════════════
@@ -560,6 +588,7 @@ PROJECT_TYPE_REGISTRY: Dict[str, Dict[str, Any]] = {
         "priority": 6,
         "min_secondary_hits": 2,
         "include_in_prompt": True,
+        "status": "active",
     },
     "residential_collective": {
         "name": "集合住宅/公共住房",
@@ -577,6 +606,7 @@ PROJECT_TYPE_REGISTRY: Dict[str, Dict[str, Any]] = {
         "priority": 6,
         "min_secondary_hits": 1,
         "include_in_prompt": True,
+        "status": "active",
     },
     "hybrid_residential_commercial": {
         "name": "住商混合",
@@ -586,6 +616,7 @@ PROJECT_TYPE_REGISTRY: Dict[str, Dict[str, Any]] = {
         "priority": 6,
         "min_secondary_hits": 0,
         "include_in_prompt": True,
+        "status": "active",
     },
 
     # ══════════════════════════════════════════════════════════════════════════
@@ -617,6 +648,7 @@ PROJECT_TYPE_REGISTRY: Dict[str, Dict[str, Any]] = {
         "priority": 5,
         "min_secondary_hits": 0,
         "include_in_prompt": True,
+        "status": "active",
     },
 }
 
