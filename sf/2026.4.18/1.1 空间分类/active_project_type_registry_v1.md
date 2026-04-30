@@ -169,7 +169,7 @@
 ```
 一级：Project Type (ID)
       └─ 关键词驱动，优先级 5-15
-      └─ 33 个 active 类型参与检测
+      └─ 32 个 active 类型参与检测
 
 二级：Parent Type (PARENT_TYPE_MAP)
       └─ 宽泛业态桶（residential/hospitality/office/retail 等）
@@ -196,11 +196,11 @@
 
 | 指标 | 值 | 说明 |
 |------|-----|------|
-| **Active Types** | 33 | PROJECT_TYPE_REGISTRY 中的所有条目 |
+| **Active Types** | 32 | PROJECT_TYPE_REGISTRY 中的所有条目 |
 | **优先级分布** | — | — |
 | — P=15 | 1 | rural_construction |
 | — P=10 | 2 | urban_renewal_* (2) |
-| — P=9 | 5 | real_estate_showcase, industrial_conversion, educational_facility, religious_spiritual, (共4个) |
+| — P=9 | 5 | real_estate_showcase, industrial_conversion, educational_facility, religious_spiritual (共5个) |
 | — P=8 | 11 | commercial_*, performing_arts, public_cultural, landscape_outdoor, community_public, leisure_entertainment, wedding_banquet, children_family, residential_renovation, automotive_showroom |
 | — P=7 | 10 | commercial_*, healthcare_wellness, sports_*, transportation_civic, beauty_*, digital_media_studio, popup_temporary |
 | — P=6 | 3 | special_function, residential_collective, hybrid_residential_commercial |
@@ -215,7 +215,7 @@
 ## 7. 治理方向建议
 
 ### 7.1 短期（v8.1-v8.3）
-- ✓ 第一批 33 个 active 类型稳定运行
+- ✓ 第一批 32 个 active 类型稳定运行
 - ✓ 49 个 specialty_tag 细化子分类体验
 - 关注：低优先级类型 (P=5-6) 的实际命中率
 
@@ -246,4 +246,4 @@
 
 ---
 
-**本文档确认**: 首批 active 类型 33 个，≤50 约束满足 ✓
+**本文档确认**: 首批 active 类型 32 个，≤50 约束满足 ✓
