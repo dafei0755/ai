@@ -1,0 +1,1231 @@
+﻿'use client';
+
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { RefreshCw, Play, Calendar, CheckCircle, AlertCircle, Clock, RotateCcw,
+  Database, Globe, TrendingUp, Activity, FileText, AlertTriangle, Search, X } from 'lucide-react';
+
+// 鈹€鈹€ 鏁版嵁姒傝绫诲瀷 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+interface SyncHistory {
+  id: number; source: string; category?: string;
+  started_at: string; completed_at?: string;
+  status: 'running' | 'completed' | 'failed';
+  projects_total: number; projects_new: number;
+  projects_updated: number; projects_failed: number;
+  error_message?: string;
+}
+interface SourceStats {
+  source: string; total_projects: number;
+  new_today: number; avg_quality_score: number; last_sync: string;
+}
+interface QualityIssue {
+  id: number; project_id: number; issue_type: string;
+  severity: 'low' | 'medium' | 'high' | 'critical';
+  detected_at: string; resolved_at?: string;
+}
+
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const CRAWLER_API = `${API_BASE}/api/crawler`;
+
+// 鈹€鈹€ 瀹炴椂鐩戞帶绫诲瀷 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+interface TaskProgress {
+  task_id: string;
+  source: string;
+  status: string;
+  total: number;
+  completed: number;
+  failed: number;
+  progress_percent: number;
+  requests_count: number;
+  success_rate: number;
+  avg_response_time: number;
+  current_batch: number;
+  total_batches: number;
+  current_url: string | null;
+  last_error: string | null;
+}
+
+interface LogEntry {
+  id: number;
+  timestamp: string;
+  level: string;
+  message: string;
+}
+
+// 鈹€鈹€ APScheduler 浠诲姟绫诲瀷 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+interface SchedulerJob {
+  id: string;
+  name: string;
+  trigger_type: string;
+  trigger_str: string;
+  cron_fields: Record<string, string>;
+  next_run_time: string | null;
+  status: 'active' | 'paused';
+  max_instances: number;
+}
+interface SchedulerJobsResponse {
+  scheduler_running: boolean;
+  jobs: SchedulerJob[];
+}
+
+// 鈹€鈹€ 棰勬壂鎻忕粨鏋滅被鍨?鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+interface PreScanCategory {
+  name: string;
+  url: string;
+  db_count: number;
+  site_total?: number;  // 缃戠珯宸茬煡鏂囩珷鎬绘暟锛堟潵鑷?spider CATEGORY_TOTALS锛?
+}
+interface PreScanResult {
+  source: string;
+  categories: PreScanCategory[];
+  total_categories: number;
+  db_total: number;
+  date_range: { earliest: string | null; latest: string | null };
+  totals_source?: 'auto' | 'static';  // auto=鐖櫕鑷姩妫€娴? static=纭紪鐮佸熀鍑嗗€?
+  scanned_at: string;
+}
+
+// 鈹€鈹€ 鏁版嵁婧愮姸鎬侊紙checkpoint + DB + 缃戠珯鎬婚噺锛夆攢鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+interface CategoryStatus {
+  name: string;
+  url: string;
+  db_count: number;
+  site_total: number | null;
+  has_checkpoint: boolean;
+  checkpoint_url: string | null;
+}
+interface SourceStatus {
+  source: string;
+  db_total: number;
+  site_total_estimated: number;
+  totals_source: 'auto' | 'static';
+  last_sync: string | null;
+  is_running: boolean;
+  checkpoint_count: number;
+  total_categories: number;
+  categories: CategoryStatus[];
+  scanned_at: string;
+}
+
+// 鈹€鈹€ 璋冨害璁″垝绫诲瀷 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+interface CategoryStats {
+  status: string;
+  db_count?: number;
+  site_total?: number;  // 缃戠珯宸茬煡鏂囩珷鎬绘暟
+}
+
+interface FullCrawlState {
+  status: 'pending' | 'running' | 'completed' | 'failed';
+  started_at: string | null;
+  completed_at: string | null;
+  // 鍚姩鍩虹嚎蹇収
+  target_categories?: string[] | null;  // 鍏ㄩ噺寮€濮嬫椂浠?spider 鑾峰彇鐨勭洰鏍囧垎绫?
+  total_categories?: number | null;     // 鐩爣鍒嗙被鎬绘暟
+  baseline_count?: number | null;       // 鍏ㄩ噺寮€濮嬪墠 DB 宸叉湁鏉℃暟
+  scan_at?: string | null;              // 鍩虹嚎鎵弿鏃堕棿
+  categories_done: string[];
+  category_stats: Record<string, CategoryStats>;
+  total_stats: { total: number; new: number; skipped: number; failed: number };
+  error: string | null;
+}
+
+interface IncrementalRun {
+  run_at: string;
+  completed_at: string;
+  status: string;
+  duration_sec: number;
+  new_items: number;
+}
+
+interface SourceState {
+  full_crawl: FullCrawlState;
+  incremental: {
+    last_run_at: string | null;
+    next_run_at: string | null;
+    history: IncrementalRun[];
+  };
+}
+
+// v2 澶氭簮鏍煎紡锛屽吋瀹?v1 椤跺眰瀛楁
+interface ScheduleState {
+  exists: boolean;
+  version?: number;
+  phase: string;
+  running_task: string | null;
+  // v2 澶氭簮
+  sources?: Record<string, SourceState>;
+  // v1 鍏煎
+  full_crawl?: FullCrawlState;
+  incremental?: {
+    last_run_at: string | null;
+    next_run_at: string | null;
+    history: IncrementalRun[];
+  };
+  last_updated: string | null;
+  message?: string;
+}
+
+// 鍚勬暟鎹簮鍏冩暟鎹?
+const SOURCE_META: Record<string, { label: string; categories: string[]; schedule: string; enabled: boolean; categoryTotals?: Record<string, number> }> = {
+  archdaily_cn: {
+    label: 'archdaily.cn',
+    categories: ['浣忓畢', '鏂囧寲寤虹瓚', '鍟嗕笟寤虹瓚', '鏁欒偛寤虹瓚', '鍔炲叕寤虹瓚', '浣撹偛寤虹瓚', '宸ヤ笟寤虹瓚', '鍩虹璁炬柦'],
+    schedule: '姣忓懆涓€ 02:00',
+    enabled: true,
+  },
+  gooood: {
+    label: '璋峰痉璁捐缃?,
+    categories: [
+      '鍟嗕笟寤虹瓚', '浼戦棽濞变箰', '浣忓畢寤虹瓚', '鏂囧寲寤虹瓚', '鍏叡绌洪棿', '鏁欒偛寤虹瓚',
+      '瑁呯疆鑹烘湳', '鍏叡鑱岃兘寤虹瓚', '浜ら€氬缓绛?, '缁胯壊寤虹瓚', '浣撹偛寤虹瓚', '缁煎悎浣?,
+      '楂樺眰寤虹瓚', '宸ヤ笟寤虹瓚', '涓浗涔″缓', '宸ヤ笟寤虹瓚鏀归€?, '瀹楁暀寤虹瓚', '鍥尯',
+      '鍖荤枟寤虹瓚', '绀惧尯涓績', '婊ㄦ捣寤虹瓚', '鐑甫寤虹瓚', '鍩庡競鏇存柊', '鍙ゅ缓淇濇姢',
+    ],
+    schedule: '姣忓懆浜?02:00',
+    enabled: true,
+    categoryTotals: {
+      '鍟嗕笟寤虹瓚': 6169, '浼戦棽濞变箰': 5666, '浣忓畢寤虹瓚': 5481, '鏂囧寲寤虹瓚': 3545,
+      '鍏叡绌洪棿': 2140, '鏁欒偛寤虹瓚': 1681, '瑁呯疆鑹烘湳': 1383, '鍏叡鑱岃兘寤虹瓚': 755,
+      '浜ら€氬缓绛?:  604, '缁胯壊寤虹瓚':  558, '浣撹偛寤虹瓚':  530, '缁煎悎浣?:   527,
+      '楂樺眰寤虹瓚':  389, '宸ヤ笟寤虹瓚':  398, '涓浗涔″缓':  395, '宸ヤ笟寤虹瓚鏀归€?: 368,
+      '瀹楁暀寤虹瓚':  348, '鍥尯':     318, '鍖荤枟寤虹瓚':  269, '绀惧尯涓績':  265,
+      '婊ㄦ捣寤虹瓚':  263, '鐑甫寤虹瓚':  210, '鍩庡競鏇存柊':  203, '鍙ゅ缓淇濇姢':  111,
+    },
+  },
+  dezeen: {
+    label: 'Dezeen',
+    categories: ['Architecture', 'Interiors', 'Design', 'Landscape', 'Urban Design'],
+    schedule: '姣忓懆涓?02:00',
+    enabled: false,  // 寰呭紑鏀?
+  },
+};
+
+// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?
+export default function CrawlerMonitorPage() {
+  const [activeTab, setActiveTab] = useState<'overview' | 'schedule' | 'monitor'>('overview');
+
+  // 鈹€鈹€ 瀹炴椂鐩戞帶鐘舵€?鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+  const [connected, setConnected] = useState(false);
+  const [tasks, setTasks] = useState<Record<string, TaskProgress>>({});
+  const [logs, setLogs] = useState<LogEntry[]>([]);
+  const wsRef = useRef<WebSocket | null>(null);
+  const reconnectRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const logIdRef = useRef(0);
+  const logsEndRef = useRef<HTMLDivElement>(null);
+
+  // 鈹€鈹€ 璋冨害璁″垝鐘舵€?鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+  const [scheduleState, setScheduleState] = useState<ScheduleState | null>(null);
+  const [scheduleLoading, setScheduleLoading] = useState(false);
+  const [triggering, setTriggering] = useState<'full' | 'incremental' | null>(null);
+  const [triggerMsg, setTriggerMsg] = useState<string | null>(null);
+  const [selectedSource, setSelectedSource] = useState<string>('archdaily_cn');
+  const schedPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // 鈹€鈹€ 鏁版嵁婧愬悓姝ョ姸鎬?鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+  const [sourceStatus, setSourceStatus] = useState<SourceStatus | null>(null);
+  const [sourceStatusLoading, setSourceStatusLoading] = useState(false);
+  const [syncing, setSyncing] = useState<'sync' | 'reset-sync' | null>(null);
+
+  // 鈹€鈹€ APScheduler 浠诲姟 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+  const [jobsData, setJobsData] = useState<SchedulerJobsResponse | null>(null);
+  const [jobsLoading, setJobsLoading] = useState(false);
+  const [jobAction, setJobAction] = useState<string | null>(null);
+  const [editingJobId, setEditingJobId] = useState<string | null>(null);
+  const [editCron, setEditCron] = useState<{ day_of_week?: string; hour?: number; minute?: number }>({});
+
+  // 鈹€鈹€ 鏁版嵁姒傝鐘舵€?鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+  const [syncHistory, setSyncHistory] = useState<SyncHistory[]>([]);
+  const [sourceStats, setSourceStats] = useState<SourceStats[]>([]);
+  const [qualityIssues, setQualityIssues] = useState<QualityIssue[]>([]);
+  const [overviewLoading, setOverviewLoading] = useState(false);
+  const [overviewLastRefresh, setOverviewLastRefresh] = useState<Date | null>(null);
+
+  // 鈹€鈹€ 鍏叡 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+  const addLog = useCallback((level: string, message: string) => {
+    const entry: LogEntry = {
+      id: logIdRef.current++,
+      timestamp: new Date().toLocaleTimeString('zh-CN'),
+      level, message,
+    };
+    setLogs(prev => {
+      const next = [...prev, entry];
+      return next.length > 200 ? next.slice(-200) : next;
+    });
+  }, []);
+
+  // 鈹€鈹€ WebSocket锛堝疄鏃剁洃鎺э級鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+  useEffect(() => {
+    function connect() {
+      const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const wsHost = new URL(API_BASE).host;
+      const ws = new WebSocket(`${wsProtocol}//${wsHost}/api/crawler/ws/monitor`);
+      ws.onopen = () => { setConnected(true); addLog('info', 'WebSocket杩炴帴鎴愬姛'); };
+      ws.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        if (data.type === 'initial_state') {
+          const initial: Record<string, TaskProgress> = {};
+          data.data.forEach((t: TaskProgress) => { initial[t.task_id] = t; });
+          setTasks(initial);
+        } else if (data.type === 'progress') {
+          setTasks(prev => ({ ...prev, [data.data.task_id]: data.data }));
+        } else if (data.type === 'log') {
+          addLog(data.data.level, data.data.message);
+        }
+      };
+      ws.onerror = () => addLog('error', 'WebSocket杩炴帴閿欒');
+      ws.onclose = () => {
+        setConnected(false);
+        addLog('warning', 'WebSocket鏂紑锛?绉掑悗閲嶈繛');
+        reconnectRef.current = setTimeout(connect, 5000);
+      };
+      wsRef.current = ws;
+    }
+    connect();
+    return () => {
+      wsRef.current?.close();
+      if (reconnectRef.current) clearTimeout(reconnectRef.current);
+    };
+  }, [addLog]);
+
+  useEffect(() => {
+    logsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [logs]);
+
+  // 鈹€鈹€ 璋冨害璁″垝杞 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+  const fetchSchedule = useCallback(async () => {
+    try {
+      const res = await fetch(`${CRAWLER_API}/schedule`, {
+        headers: { 'Content-Type': 'application/json' },
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data: ScheduleState = await res.json();
+      setScheduleState(data);
+    } catch (e) {
+      console.error('鑾峰彇璋冨害鐘舵€佸け璐?', e);
+    }
+  }, []);
+
+  // 鈹€鈹€ 鏁版嵁婧愬悓姝ョ姸鎬佽幏鍙?鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+  const fetchSourceStatus = useCallback(async (src?: string) => {
+    const target = src ?? selectedSource;
+    setSourceStatusLoading(true);
+    try {
+      const res = await fetch(`${CRAWLER_API}/schedule/source-status?source=${encodeURIComponent(target)}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      setSourceStatus(await res.json());
+    } catch (e) {
+      console.error('鑾峰彇婧愮姸鎬佸け璐?', e);
+    } finally {
+      setSourceStatusLoading(false);
+    }
+  }, [selectedSource]);
+
+  // 鍒囨崲 Tab 鎴栧垏鎹?source 鏃跺姞杞斤紝杩愯涓瘡5绉掕疆璇?
+  useEffect(() => {
+    if (activeTab === 'schedule') {
+      setScheduleLoading(true);
+      Promise.all([fetchSchedule(), fetchSourceStatus()]).finally(() => setScheduleLoading(false));
+    }
+  }, [activeTab, fetchSchedule, fetchSourceStatus]);
+
+  useEffect(() => {
+    const isRunning = sourceStatus?.is_running || (scheduleState?.phase && scheduleState.phase !== 'idle');
+    if (isRunning) {
+      schedPollRef.current = setInterval(() => {
+        fetchSchedule();
+        fetchSourceStatus();
+      }, 5000);
+    } else {
+      if (schedPollRef.current) clearInterval(schedPollRef.current);
+    }
+    return () => { if (schedPollRef.current) clearInterval(schedPollRef.current); };
+  }, [sourceStatus?.is_running, scheduleState?.phase, fetchSchedule, fetchSourceStatus]);
+
+  // 鍒囨崲鏁版嵁婧愭椂閲嶆柊鑾峰彇鐘舵€?
+  useEffect(() => {
+    if (activeTab === 'schedule') fetchSourceStatus(selectedSource);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedSource]);
+
+  // 鈹€鈹€ 绔嬪嵆鍚屾锛坈heckpoint 椹卞姩锛屾湁璁板綍鈫掑閲忥紝鏃犺褰曗啋鍏ㄩ噺锛夆攢鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+  async function triggerSync(source: string = selectedSource) {
+    setSyncing('sync');
+    setTriggerMsg(null);
+    try {
+      const res = await fetch(`${CRAWLER_API}/schedule/trigger`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mode: 'incremental', source }),
+      });
+      const data = await res.json();
+      setTriggerMsg(data.message || data.status);
+      setTimeout(() => { fetchSchedule(); fetchSourceStatus(source); }, 2000);
+    } catch (e) {
+      setTriggerMsg(`瑙﹀彂澶辫触: ${e}`);
+    } finally {
+      setSyncing(null);
+    }
+  }
+
+  // 鈹€鈹€ 娓呯┖ checkpoint 骞堕噸鏂板叏閲忕埇鍙?鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+  async function resetCheckpointAndSync(source: string = selectedSource) {
+    const label = SOURCE_META[source]?.label ?? source;
+    if (!confirm(`纭畾娓呯┖ ${label} 鐨勫叏閮?checkpoint 骞堕噸鏂板叏閲忕埇鍙栵紵\n\n宸插叆搴撴暟鎹笉浼氬垹闄わ紝浣嗙埇铏皢閲嶆柊鐖彇鎵€鏈夊巻鍙查〉闈紙鑰楁椂杈冮暱锛夈€俙)) return;
+    setSyncing('reset-sync');
+    setTriggerMsg(null);
+    try {
+      // Step 1: 娓呯┖ checkpoint
+      const resetRes = await fetch(
+        `${CRAWLER_API}/schedule/reset-checkpoint?source=${encodeURIComponent(source)}`,
+        { method: 'POST' },
+      );
+      if (!resetRes.ok) throw new Error(`娓呯┖ checkpoint 澶辫触 HTTP ${resetRes.status}`);
+      const resetData = await resetRes.json();
+      // Step 2: 瑙﹀彂鍏ㄩ噺鐖彇
+      const trigRes = await fetch(`${CRAWLER_API}/schedule/trigger`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mode: 'full', source }),
+      });
+      const trigData = await trigRes.json();
+      setTriggerMsg(`宸叉竻绌?${resetData.cleared} 涓?checkpoint 骞惰Е鍙戝叏閲忕埇鍙?路 ${trigData.message ?? ''}`);
+      setTimeout(() => { fetchSchedule(); fetchSourceStatus(source); }, 2000);
+    } catch (e) {
+      setTriggerMsg(`鎿嶄綔澶辫触: ${e}`);
+    } finally {
+      setSyncing(null);
+    }
+  }
+
+  // 鈹€鈹€ APScheduler 浠诲姟鎺у埗 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+  const fetchJobs = useCallback(async () => {
+    setJobsLoading(true);
+    try {
+      const res = await fetch(`${CRAWLER_API}/jobs`);
+      if (res.ok) setJobsData(await res.json());
+    } catch (e) {
+      console.error('鑾峰彇浠诲姟鍒楄〃澶辫触:', e);
+    } finally {
+      setJobsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (activeTab === 'schedule') fetchJobs();
+  }, [activeTab, fetchJobs]);
+
+  // 鈹€鈹€ 鏁版嵁姒傝鑾峰彇 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+  const overviewHeaders = useCallback(() => {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('wp_jwt_token') : null;
+    return { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
+  }, []);
+
+  const fetchOverview = useCallback(async () => {
+    setOverviewLoading(true);
+    try {
+      const headers = overviewHeaders();
+      const [histRes, statsRes, issuesRes] = await Promise.allSettled([
+        fetch(`${API_BASE}/api/external/sync-history?limit=10`, { headers }),
+        fetch(`${API_BASE}/api/external/source-stats`, { headers }),
+        fetch(`${API_BASE}/api/external/quality-issues?resolved=false&limit=20`, { headers }),
+      ]);
+      if (histRes.status === 'fulfilled' && histRes.value.ok)
+        setSyncHistory((await histRes.value.json()).history || []);
+      if (statsRes.status === 'fulfilled' && statsRes.value.ok)
+        setSourceStats((await statsRes.value.json()).stats || []);
+      if (issuesRes.status === 'fulfilled' && issuesRes.value.ok)
+        setQualityIssues((await issuesRes.value.json()).issues || []);
+      setOverviewLastRefresh(new Date());
+    } catch (e) { console.error('鏁版嵁姒傝鍔犺浇澶辫触:', e); }
+    finally { setOverviewLoading(false); }
+  }, [overviewHeaders]);
+
+  useEffect(() => {
+    if (activeTab === 'overview') fetchOverview();
+  }, [activeTab, fetchOverview]);
+
+  const overviewFormatTime = (iso: string) => {
+    const diff = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
+    if (diff < 60) return `${diff}绉掑墠`;
+    if (diff < 3600) return `${Math.floor(diff / 60)}鍒嗛挓鍓峘;
+    if (diff < 86400) return `${Math.floor(diff / 3600)}灏忔椂鍓峘;
+    return `${Math.floor(diff / 86400)}澶╁墠`;
+  };
+  const overviewStatusColor = (s: string) => ({
+    completed: 'bg-green-100 text-green-800', running: 'bg-blue-100 text-blue-800',
+    failed: 'bg-red-100 text-red-800'
+  }[s] ?? 'bg-gray-100 text-gray-800');
+  const severityColor = (s: string) => ({
+    critical: 'bg-red-100 text-red-800', high: 'bg-orange-100 text-orange-800',
+    medium: 'bg-yellow-100 text-yellow-800', low: 'bg-blue-100 text-blue-800'
+  }[s] ?? 'bg-gray-100 text-gray-800');
+
+  async function jobControlAction(action: 'pause' | 'resume' | 'run-now', jobId: string) {
+    setJobAction(`${action}:${jobId}`);
+    try {
+      const res = await fetch(`${CRAWLER_API}/jobs/${encodeURIComponent(jobId)}/${action}`, { method: 'POST' });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      await fetchJobs();
+      setTriggerMsg(`浠诲姟宸?{action === 'pause' ? '鏆傚仠' : action === 'resume' ? '鎭㈠' : '瑙﹀彂绔嬪嵆鎵ц'}: ${jobId}`);
+    } catch (e) {
+      setTriggerMsg(`鎿嶄綔澶辫触: ${e}`);
+    } finally {
+      setJobAction(null);
+    }
+  }
+
+  async function saveJobCron(jobId: string) {
+    setJobAction(`cron:${jobId}`);
+    try {
+      const body: Record<string, unknown> = {};
+      if (editCron.day_of_week !== undefined) body.day_of_week = editCron.day_of_week;
+      if (editCron.hour !== undefined) body.hour = editCron.hour;
+      if (editCron.minute !== undefined) body.minute = editCron.minute;
+      const res = await fetch(`${CRAWLER_API}/jobs/${encodeURIComponent(jobId)}/cron`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      await fetchJobs();
+      setEditingJobId(null);
+      setEditCron({});
+      setTriggerMsg('Cron 宸叉洿鏂?);
+    } catch (e) {
+      setTriggerMsg(`淇敼澶辫触: ${e}`);
+    } finally {
+      setJobAction(null);
+    }
+  }
+
+  // 鈹€鈹€ 浠诲姟鎺у埗 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+  async function apiCall(endpoint: string, method = 'GET', body?: unknown) {
+    const options: RequestInit = { method, headers: { 'Content-Type': 'application/json' } };
+    if (body) options.body = JSON.stringify(body);
+    return (await fetch(`${CRAWLER_API}${endpoint}`, options)).json();
+  }
+  async function startCrawl(source: string) {
+    addLog('info', `姝ｅ湪鍚姩 ${source} 鐖彇浠诲姟...`);
+    try {
+      const result = await apiCall('/start', 'POST', { source, limit: 1000, resume: true });
+      addLog('info', `${source} 浠诲姟宸插惎鍔? ${result.task_id}`);
+    } catch (e: unknown) { addLog('error', `鍚姩澶辫触: ${e instanceof Error ? e.message : String(e)}`); }
+  }
+  async function controlAll(action: 'pause' | 'resume' | 'stop') {
+    if (action === 'stop' && !confirm('纭畾瑕佸仠姝㈡墍鏈変换鍔″悧锛?)) return;
+    const labels: Record<string, string> = { pause: '鏆傚仠', resume: '鎭㈠', stop: '鍋滄' };
+    for (const taskId of Object.keys(tasks)) {
+      try { await apiCall(`/${action}/${taskId}`, 'POST'); addLog('info', `浠诲姟宸?{labels[action]}: ${taskId}`); }
+      catch { addLog('error', `${labels[action]}澶辫触: ${taskId}`); }
+    }
+  }
+
+  // 鈹€鈹€ 璁＄畻缁熻 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+  const taskList = Object.values(tasks);
+  const activeTasks = taskList.filter(t => t.status === 'running').length;
+  const totalCompleted = taskList.reduce((s, t) => s + t.completed, 0);
+  const totalFailed = taskList.reduce((s, t) => s + t.failed, 0);
+  const totalRequests = taskList.reduce((s, t) => s + t.requests_count, 0);
+  const avgTime = totalRequests > 0 ? taskList.reduce((s, t) => s + t.avg_response_time * t.requests_count, 0) / totalRequests : 0;
+  const successRate = (totalCompleted + totalFailed) > 0 ? (totalCompleted / (totalCompleted + totalFailed) * 100) : 0;
+
+  const statusColor: Record<string, string> = {
+    running: 'bg-green-100 text-green-800', paused: 'bg-yellow-100 text-yellow-800',
+    stopped: 'bg-gray-100 text-gray-800', error: 'bg-red-100 text-red-800', idle: 'bg-blue-100 text-blue-800',
+  };
+  const logColor: Record<string, string> = {
+    info: 'text-blue-400', warning: 'text-yellow-400', error: 'text-red-400',
+  };
+
+  const ALL_CATEGORIES = SOURCE_META[selectedSource]?.categories ?? [];
+
+  // 褰撳墠閫変腑鏁版嵁婧愮殑鐘舵€侊紙v2 浠?sources 鍙栵紝v1 鍏煎椤跺眰瀛楁锛?
+  const currentSrc: SourceState | undefined = scheduleState
+    ? (scheduleState.sources?.[selectedSource] ??
+        (selectedSource === 'archdaily_cn' && scheduleState.full_crawl
+          ? {
+              full_crawl: scheduleState.full_crawl,
+              incremental: scheduleState.incremental ?? { last_run_at: null, next_run_at: null, history: [] },
+            }
+          : undefined))
+    : undefined;
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold text-gray-900">澶栭儴鏁版嵁绠＄悊</h1>
+        <div className="flex items-center gap-3">
+          {activeTab === 'monitor' && (
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-gray-100 text-sm">
+              <div className={`w-2 h-2 rounded-full ${connected ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`} />
+              <span className="text-gray-600">{connected ? '宸茶繛鎺? : '鏈繛鎺?}</span>
+            </div>
+          )}
+          {activeTab === 'schedule' && scheduleState?.phase && scheduleState.phase !== 'idle' && (
+            <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-blue-100 text-blue-700 text-sm font-medium animate-pulse">
+              <RefreshCw size={13} className="animate-spin" /> 浠诲姟杩涜涓?
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <div className="flex gap-1 bg-gray-100 p-1 rounded-xl w-fit">
+        {(['overview', 'schedule', 'monitor'] as const).map(tab => (
+          <button
+            key={tab}
+            onClick={() => setActiveTab(tab)}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+              activeTab === tab ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            {tab === 'overview' ? '馃搳 鏁版嵁姒傝' : tab === 'schedule' ? '馃搮 璋冨害璁″垝' : '馃摗 瀹炴椂鐩戞帶'}
+          </button>
+        ))}
+      </div>
+
+      {/* 鈺愨晲 鏁版嵁姒傝 Tab 鈺愨晲 */}
+      {activeTab === 'overview' && (
+        <div className="space-y-6">
+          {/* 鍒锋柊鏍?*/}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-sm text-gray-500">
+              <Database className="w-4 h-4 text-blue-600" />
+              <span>鐩戞帶澶栭儴寤虹瓚璁捐缃戠珯鐨勬暟鎹噰闆嗙姸鎬?/span>
+              {overviewLastRefresh && <span>路 鏇存柊浜?{overviewFormatTime(overviewLastRefresh.toISOString())}</span>}
+            </div>
+            <button
+              onClick={fetchOverview} disabled={overviewLoading}
+              className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 text-sm"
+            >
+              <RefreshCw className={`w-4 h-4 ${overviewLoading ? 'animate-spin' : ''}`} /> 鍒锋柊
+            </button>
+          </div>
+
+          {/* 鏁版嵁婧愮粺璁″崱鐗?*/}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {(sourceStats.length > 0 ? sourceStats : Object.keys(SOURCE_META).map(k => ({
+              source: k, total_projects: 0, new_today: 0, avg_quality_score: 0,
+              last_sync: new Date().toISOString(),
+            }))).map(stat => (
+              <div key={stat.source} className="bg-white rounded-xl shadow-sm border p-5">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+                      <Globe className="w-5 h-5 text-white" />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-gray-900 text-sm">
+                        {SOURCE_META[stat.source]?.label ?? stat.source}
+                      </h3>
+                      <p className="text-xs text-gray-500">{SOURCE_META[stat.source]?.schedule}</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-500 text-sm">鎬婚」鐩暟</span>
+                    <span className="font-bold text-lg text-gray-900">{stat.total_projects.toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-500 text-sm">浠婃棩鏂板</span>
+                    <span className="flex items-center gap-1 text-green-600 font-semibold text-sm">
+                      <TrendingUp className="w-3.5 h-3.5" />+{stat.new_today}
+                    </span>
+                  </div>
+                  {stat.avg_quality_score > 0 && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-500 text-sm">璐ㄩ噺璇勫垎</span>
+                      <div className="flex items-center gap-2">
+                        <div className="w-20 h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                          <div className="h-full bg-gradient-to-r from-blue-500 to-green-500 rounded-full"
+                            style={{ width: `${stat.avg_quality_score * 100}%` }} />
+                        </div>
+                        <span className="text-sm font-semibold">{(stat.avg_quality_score * 100).toFixed(0)}%</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* 鍚屾鍘嗗彶 */}
+          <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
+            <div className="px-5 py-3 border-b flex items-center gap-2">
+              <Activity className="w-4 h-4 text-blue-600" />
+              <h2 className="font-semibold text-gray-900 text-sm">鍚屾鍘嗗彶锛堟渶杩?0娆★級</h2>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50">
+                  <tr>
+                    {['鐘舵€?,'鏁版嵁婧?,'鍒嗙被','寮€濮嬫椂闂?,'鑰楁椂','椤圭洰鏁?,'鏂板/鏇存柊','澶辫触'].map(h => (
+                      <th key={h} className="px-4 py-2.5 text-left text-xs font-semibold text-gray-600">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {syncHistory.map(s => (
+                    <tr key={s.id} className="hover:bg-gray-50">
+                      <td className="px-4 py-3">
+                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold ${overviewStatusColor(s.status)}`}>
+                          {s.status === 'completed' ? '瀹屾垚' : s.status === 'running' ? '杩涜涓? : '澶辫触'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 font-medium text-gray-900 capitalize">{s.source}</td>
+                      <td className="px-4 py-3 text-gray-500">{s.category || '-'}</td>
+                      <td className="px-4 py-3 text-gray-500">{overviewFormatTime(s.started_at)}</td>
+                      <td className="px-4 py-3 text-gray-500">
+                        {s.completed_at ? `${Math.round((new Date(s.completed_at).getTime() - new Date(s.started_at).getTime()) / 1000)}绉抈 : '-'}
+                      </td>
+                      <td className="px-4 py-3 font-medium">{s.projects_total}</td>
+                      <td className="px-4 py-3">
+                        <span className="text-green-600 font-semibold">+{s.projects_new}</span>
+                        {' / '}
+                        <span className="text-blue-600">{s.projects_updated}</span>
+                      </td>
+                      <td className="px-4 py-3">
+                        {s.projects_failed > 0
+                          ? <span className="text-red-600 font-semibold">{s.projects_failed}</span>
+                          : <span className="text-gray-400">0</span>}
+                      </td>
+                    </tr>
+                  ))}
+                  {syncHistory.length === 0 && (
+                    <tr><td colSpan={8} className="px-4 py-10 text-center text-gray-400 text-sm">鏆傛棤鍚屾璁板綍</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* 璐ㄩ噺闂 */}
+          <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
+            <div className="px-5 py-3 border-b flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 text-orange-500" />
+              <h2 className="font-semibold text-gray-900 text-sm">鏁版嵁璐ㄩ噺闂锛堟湭瑙ｅ喅锛?/h2>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50">
+                  <tr>
+                    {['涓ラ噸绋嬪害','闂绫诲瀷','椤圭洰ID','鍙戠幇鏃堕棿','鎿嶄綔'].map(h => (
+                      <th key={h} className="px-4 py-2.5 text-left text-xs font-semibold text-gray-600">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {qualityIssues.map(issue => (
+                    <tr key={issue.id} className="hover:bg-gray-50">
+                      <td className="px-4 py-3">
+                        <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${severityColor(issue.severity)}`}>
+                          {({ critical:'涓ラ噸', high:'楂?, medium:'涓?, low:'浣? }[issue.severity]) ?? issue.severity}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-gray-900">
+                        {({ missing_description:'缂哄け鎻忚堪', low_quality_description:'鎻忚堪璐ㄩ噺浣?, missing_images:'缂哄け鍥剧墖' }[issue.issue_type]) ?? issue.issue_type}
+                      </td>
+                      <td className="px-4 py-3"><code className="px-1.5 py-0.5 bg-gray-100 rounded text-xs font-mono">{issue.project_id}</code></td>
+                      <td className="px-4 py-3 text-gray-500">{overviewFormatTime(issue.detected_at)}</td>
+                      <td className="px-4 py-3"><button className="text-blue-600 hover:text-blue-800 text-xs font-medium">鏌ョ湅</button></td>
+                    </tr>
+                  ))}
+                  {qualityIssues.length === 0 && (
+                    <tr><td colSpan={5} className="px-4 py-10 text-center text-gray-400 text-sm">
+                      <div className="flex flex-col items-center gap-2">
+                        <CheckCircle className="w-8 h-8 text-green-500" /><span>鏆傛棤璐ㄩ噺闂</span>
+                      </div>
+                    </td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* 鏂囨。閾炬帴 */}
+          <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+            <div className="flex items-start gap-3">
+              <FileText className="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="font-semibold text-gray-900 text-sm mb-1">鐩稿叧鏂囨。</p>
+                <ul className="space-y-1 text-sm">
+                  <li><a href="/LARGE_SCALE_EXTERNAL_DATA_ARCHITECTURE.md" className="text-blue-600 hover:underline">澶ц妯″閮ㄦ暟鎹郴缁熸灦鏋勮璁?/a></li>
+                  <li><a href="/EXTERNAL_DATA_STORAGE_GUIDE.md" className="text-blue-600 hover:underline">澶栭儴鏁版嵁瀛樺偍涓庡埄鐢ㄦ寚鍗?/a></li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 鈺愨晲 璋冨害璁″垝 Tab 鈺愨晲 */}
+      {activeTab === 'schedule' && (
+        <div className="space-y-5">
+
+          {/* 鏁版嵁婧愰€夋嫨 */}
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-gray-500">褰撳墠缃戠珯:</span>
+            <div className="flex gap-1 bg-gray-100 p-0.5 rounded-lg">
+              {Object.entries(SOURCE_META).map(([key, meta]) => (
+                <button
+                  key={key}
+                  onClick={() => meta.enabled ? setSelectedSource(key) : undefined}
+                  disabled={!meta.enabled}
+                  title={!meta.enabled ? `${meta.label} 寰呭紑鏀綻 : meta.label}
+                  className={`relative px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+                    !meta.enabled
+                      ? 'text-gray-300 cursor-not-allowed'
+                      : selectedSource === key
+                        ? 'bg-white shadow text-gray-900'
+                        : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  {meta.label}{!meta.enabled && <span className="ml-1 text-gray-300">馃敀</span>}
+                </button>
+              ))}
+            </div>
+            <button
+              onClick={() => fetchSourceStatus(selectedSource)}
+              disabled={sourceStatusLoading}
+              className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400"
+              title="鍒锋柊鐘舵€?
+            >
+              <RefreshCw size={13} className={sourceStatusLoading ? 'animate-spin' : ''} />
+            </button>
+          </div>
+
+          {/* 璋冨害鍣ㄥ惎鍔ㄦ彁绀?*/}
+          {(!scheduleState?.exists) && (
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-800">
+              <strong>璋冨害瀹堟姢杩涚▼鏈繍琛屻€?/strong> 鍏ㄩ噺/澧為噺鑷姩璋冨害闇€瑕佸崟鐙惎鍔細
+              <code className="ml-2 bg-amber-100 px-2 py-0.5 rounded font-mono">python scripts/crawl_scheduler.py daemon</code>
+              <br />鎵嬪姩瑙﹀彂鎸夐挳浠嶅彲浣跨敤锛堥€氳繃 API 鍚庡彴绾跨▼鎵ц锛夈€?
+            </div>
+          )}
+
+          {/* 鈹€鈹€ 鐘舵€?+ 鎿嶄綔鍗＄墖 鈹€鈹€ */}
+          <div className="bg-white rounded-xl shadow-sm border p-5 space-y-4">
+            {/* 鏍囬琛?*/}
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-base font-semibold text-gray-900">
+                  {SOURCE_META[selectedSource]?.label ?? selectedSource}
+                </h2>
+                <p className="text-xs text-gray-400 mt-0.5">
+                  璁″垝璋冨害锛歿SOURCE_META[selectedSource]?.schedule}
+                  {sourceStatus?.totals_source === 'auto' && (
+                    <span className="ml-2 px-1.5 py-0.5 bg-green-100 text-green-700 rounded text-[10px] font-medium">
+                      鎬婚噺宸茶嚜鍔ㄦ娴?
+                    </span>
+                  )}
+                </p>
+              </div>
+              {sourceStatus?.is_running && (
+                <span className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-100 text-blue-700 rounded-full text-xs font-medium animate-pulse">
+                  <RefreshCw size={12} className="animate-spin" /> 鍚屾涓?
+                </span>
+              )}
+            </div>
+
+            {/* 缁熻鏁板瓧 */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="bg-gray-50 rounded-lg p-3 text-center">
+                <p className="text-xl font-bold text-gray-900">
+                  {sourceStatus ? sourceStatus.db_total.toLocaleString() : '鈥?}
+                </p>
+                <p className="text-xs text-gray-500 mt-0.5">DB 宸插叆搴?/p>
+              </div>
+              <div className="bg-blue-50 rounded-lg p-3 text-center">
+                <p className="text-xl font-bold text-blue-700">
+                  {sourceStatus?.site_total_estimated
+                    ? `~${(sourceStatus.site_total_estimated / 1000).toFixed(0)}k`
+                    : '鈥?}
+                </p>
+                <p className="text-xs text-gray-500 mt-0.5">缃戠珯鎬婚噺浼扮畻</p>
+              </div>
+              <div className="bg-gray-50 rounded-lg p-3 text-center">
+                <p className="text-xl font-bold text-gray-900">
+                  {sourceStatus
+                    ? `${sourceStatus.checkpoint_count} / ${sourceStatus.total_categories}`
+                    : '鈥?}
+                </p>
+                <p className="text-xs text-gray-500 mt-0.5">Checkpoint</p>
+              </div>
+              <div className="bg-gray-50 rounded-lg p-3 text-center">
+                <p className="text-sm font-semibold text-gray-700 leading-tight">
+                  {sourceStatus?.last_sync
+                    ? new Date(sourceStatus.last_sync).toLocaleDateString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+                    : '灏氭湭鍚屾'}
+                </p>
+                <p className="text-xs text-gray-500 mt-0.5">鏈€杩戝悓姝?/p>
+              </div>
+            </div>
+
+            {/* 鎿嶄綔鎸夐挳 */}
+            <div className="flex flex-wrap items-center gap-3 pt-1">
+              <button
+                onClick={() => triggerSync(selectedSource)}
+                disabled={!!syncing || !!sourceStatus?.is_running}
+                className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 text-sm font-medium"
+              >
+                {syncing === 'sync'
+                  ? <><RefreshCw size={14} className="animate-spin" /> 瑙﹀彂涓?..</>
+                  : <><Play size={14} /> 绔嬪嵆鍚屾</>
+                }
+              </button>
+              <button
+                onClick={() => resetCheckpointAndSync(selectedSource)}
+                disabled={!!syncing || !!sourceStatus?.is_running}
+                title="娓呯┖鍏ㄩ儴 checkpoint 鍚庨噸鏂颁粠绗竴椤靛叏閲忕埇鍙栵紙宸插叆搴撴暟鎹繚鐣欙級"
+                className="flex items-center gap-2 px-4 py-2.5 bg-orange-50 text-orange-700 border border-orange-200 rounded-lg hover:bg-orange-100 disabled:opacity-50 text-sm"
+              >
+                {syncing === 'reset-sync'
+                  ? <><RefreshCw size={14} className="animate-spin" /> 澶勭悊涓?..</>
+                  : <><RotateCcw size={14} /> 娓呯┖ Checkpoint 閲嶆柊鍏ㄩ噺</>
+                }
+              </button>
+              {triggerMsg && (
+                <span className="text-sm text-gray-600 bg-gray-50 px-3 py-1.5 rounded-lg border flex-1 min-w-0 truncate">
+                  {triggerMsg}
+                </span>
+              )}
+            </div>
+
+            {/* 璇存槑 */}
+            <p className="text-xs text-gray-400 leading-relaxed">
+              銆岀珛鍗冲悓姝ャ€嶏細鏈?checkpoint 璁板綍鏃跺彧鐖柊鍐呭锛堝閲忥級锛屾湭璁板綍鏃朵粠澶寸埇鍙栵紙鍏ㄩ噺锛夈€?
+              銆屾竻绌?Checkpoint 閲嶆柊鍏ㄩ噺銆嶏細娓呯┖鎵€鏈夊垎绫昏褰曞悗瀹屾暣閲嶇埇锛岄€傜敤浜庨渶瑕佹洿鏂板巻鍙叉暟鎹殑鍦烘櫙銆?
+            </p>
+          </div>
+
+          {/* 鈹€鈹€ 鍒嗙被杩涘害闈㈡澘 鈹€鈹€ */}
+          <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
+            <div className="px-5 py-3 border-b bg-gray-50 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Database size={14} className="text-gray-500" />
+                <span className="text-sm font-semibold text-gray-700">
+                  鍒嗙被杩涘害
+                  {sourceStatus && (
+                    <span className="ml-2 text-xs font-normal text-gray-400">
+                      {sourceStatus.total_categories} 涓垎绫?
+                      {sourceStatus.checkpoint_count > 0 && (
+                        <span className="ml-1 text-green-600">路 {sourceStatus.checkpoint_count} 涓湁 checkpoint</span>
+                      )}
+                    </span>
+                  )}
+                </span>
+              </div>
+              {sourceStatus && sourceStatus.db_total > 0 && sourceStatus.site_total_estimated > 0 && (
+                <span className="text-xs text-gray-500">
+                  鎬昏繘搴?{Math.min(100, Math.round(sourceStatus.db_total / sourceStatus.site_total_estimated * 100))}%
+                </span>
+              )}
+            </div>
+
+            {!sourceStatus && (
+              <div className="px-5 py-10 text-center text-gray-400 text-sm">
+                {sourceStatusLoading ? '鍔犺浇涓?..' : '鏆傛棤鐘舵€佹暟鎹?}
+              </div>
+            )}
+
+            {sourceStatus && (
+              <div className="divide-y divide-gray-50">
+                {sourceStatus.categories.map(cat => {
+                  const pct = cat.site_total ? Math.min(100, Math.round(cat.db_count / cat.site_total * 100)) : null;
+                  return (
+                    <div key={cat.name} className="flex items-center justify-between px-5 py-2.5 hover:bg-gray-50">
+                      {/* 宸︼細checkpoint 鎸囩ず + 鍒嗙被鍚?*/}
+                      <div className="flex items-center gap-2.5">
+                        <div
+                          title={cat.has_checkpoint ? `鏈?checkpoint: ${cat.checkpoint_url ?? ''}` : '鏃?checkpoint锛堜笅娆″悓姝ュ皢鍏ㄩ噺鐖彇锛?}
+                          className={`w-2 h-2 flex-shrink-0 rounded-full ${cat.has_checkpoint ? 'bg-green-500' : 'bg-gray-300'}`}
+                        />
+                        <span className={`text-sm ${cat.has_checkpoint ? 'text-gray-800' : 'text-gray-500'}`}>
+                          {cat.name}
+                        </span>
+                      </div>
+                      {/* 鍙筹細杩涘害鏉?+ 鏁伴噺 */}
+                      <div className="flex items-center gap-3">
+                        {pct !== null && (
+                          <div className="flex items-center gap-1.5">
+                            <div className="w-20 bg-gray-200 rounded-full h-1.5">
+                              <div
+                                className={`h-1.5 rounded-full ${pct >= 100 ? 'bg-green-500' : pct > 50 ? 'bg-blue-500' : 'bg-orange-400'}`}
+                                style={{ width: `${pct}%` }}
+                              />
+                            </div>
+                            <span className="text-xs text-gray-400 w-8 text-right">{pct}%</span>
+                          </div>
+                        )}
+                        <span className="text-xs text-gray-500 tabular-nums min-w-[7rem] text-right">
+                          {cat.db_count.toLocaleString()}
+                          {cat.site_total != null ? ` / ${cat.site_total.toLocaleString()}` : ''}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* 鈹€鈹€ APScheduler 瀹氭椂浠诲姟 鈹€鈹€ */}
+          <div className="bg-white rounded-xl shadow-sm border p-5 space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-base font-semibold text-gray-900 flex items-center gap-2">
+                <Calendar size={16} className="text-purple-500" /> APScheduler 瀹氭椂浠诲姟
+              </h2>
+              <div className="flex items-center gap-2">
+                {jobsData !== null && (
+                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                    jobsData.scheduler_running ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                  }`}>
+                    {jobsData.scheduler_running ? '鈼?杩愯涓? : '鈼?鏈惎鍔?}
+                  </span>
+                )}
+                <button
+                  onClick={fetchJobs}
+                  disabled={jobsLoading}
+                  className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500"
+                >
+                  <RefreshCw size={13} className={jobsLoading ? 'animate-spin' : ''} />
+                </button>
+              </div>
+            </div>
+
+            {(!jobsData || jobsData.jobs.length === 0) ? (
+              <p className="text-sm text-gray-400 text-center py-4">
+                {jobsData ? '鏆傛棤瀹氭椂浠诲姟' : '鍔犺浇涓?..'}
+              </p>
+            ) : (
+              <div className="space-y-3">
+                {jobsData.jobs.map(job => (
+                  <div key={job.id} className="border rounded-xl p-4 space-y-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="font-medium text-gray-900 text-sm">{job.name}</p>
+                        <p className="text-xs text-gray-400 mt-0.5 font-mono truncate">{job.trigger_str}</p>
+                      </div>
+                      <span className={`flex-shrink-0 text-xs px-2 py-0.5 rounded-full font-medium ${
+                        job.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
+                      }`}>
+                        {job.status === 'active' ? '鍚敤' : '宸叉殏鍋?}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div className="bg-gray-50 rounded-lg p-2">
+                        <p className="text-gray-400 mb-0.5">涓嬫杩愯</p>
+                        <p className="font-medium text-gray-700">
+                          {job.next_run_time
+                            ? new Date(job.next_run_time).toLocaleString('zh-CN')
+                            : <span className="text-yellow-600">宸叉殏鍋?/span>}
+                        </p>
+                      </div>
+                      <div className="bg-gray-50 rounded-lg p-2">
+                        <p className="text-gray-400 mb-0.5">浠诲姟 ID</p>
+                        <p className="font-mono text-gray-600 truncate">{job.id}</p>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        onClick={() => jobControlAction('run-now', job.id)}
+                        disabled={!!jobAction}
+                        className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-medium hover:bg-blue-700 disabled:opacity-50"
+                      >
+                        <Play size={11} />
+                        {jobAction === `run-now:${job.id}` ? '瑙﹀彂涓?..' : '绔嬪嵆鎵ц'}
+                      </button>
+                      {job.status === 'active' ? (
+                        <button
+                          onClick={() => jobControlAction('pause', job.id)}
+                          disabled={!!jobAction}
+                          className="px-3 py-1.5 bg-yellow-100 text-yellow-700 rounded-lg text-xs font-medium hover:bg-yellow-200 disabled:opacity-50"
+                        >
+                          {jobAction === `pause:${job.id}` ? '鏆傚仠涓?..' : '鏆傚仠'}
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => jobControlAction('resume', job.id)}
+                          disabled={!!jobAction}
+                          className="px-3 py-1.5 bg-green-100 text-green-700 rounded-lg text-xs font-medium hover:bg-green-200 disabled:opacity-50"
+                        >
+                          {jobAction === `resume:${job.id}` ? '鎭㈠涓?..' : '鎭㈠'}
+                        </button>
+                      )}
+                      <button
+                        onClick={() => {
+                          if (editingJobId === job.id) {
+                            setEditingJobId(null); setEditCron({});
+                          } else {
+                            setEditingJobId(job.id);
+                            setEditCron({
+                              day_of_week: job.cron_fields.day_of_week,
+                              hour: Number(job.cron_fields.hour) || 0,
+                              minute: Number(job.cron_fields.minute) || 0,
+                            });
+                          }
+                        }}
+                        className="px-3 py-1.5 bg-gray-100 text-gray-600 rounded-lg text-xs font-medium hover:bg-gray-200"
+                      >
+                        {editingJobId === job.id ? '鍙栨秷' : '淇敼鏃堕棿'}
+                      </button>
+                    </div>
+
+                    {editingJobId === job.id && (
+                      <div className="bg-purple-50 border border-purple-200 rounded-xl p-4 space-y-3">
+                        <p className="text-xs font-semibold text-purple-800">淇敼鎵ц鏃堕棿</p>
+                        <div className="grid grid-cols-3 gap-3">
+                          <div>
+                            <label className="text-xs text-purple-600 mb-1 block">鏄熸湡鍑?/label>
+                            <select
+                              value={editCron.day_of_week ?? ''}
+                              onChange={e => setEditCron(p => ({ ...p, day_of_week: e.target.value }))}
+                              className="w-full border border-purple-300 rounded-lg px-2 py-1.5 text-sm bg-white"
+                            >
+                              <option value="*">姣忓ぉ</option>
+                              <option value="mon">鍛ㄤ竴</option>
+                              <option value="tue">鍛ㄤ簩</option>
+                              <option value="wed">鍛ㄤ笁</option>
+                              <option value="thu">鍛ㄥ洓</option>
+                              <option value="fri">鍛ㄤ簲</option>
+                              <option value="sat">鍛ㄥ叚</option>
+                              <option value="sun">鍛ㄦ棩</option>
+                            </select>
+                          </div>
+                          <div>
+                            <label className="text-xs text-purple-600 mb-1 block">灏忔椂 (0-23)</label>
+                            <input
+                              type="number" min={0} max={23}
+                              value={editCron.hour ?? 0}
+                              onChange={e => setEditCron(p => ({ ...p, hour: Number(e.target.value) }))}
+                              className="w-full border border-purple-300 rounded-lg px-2 py-1.5 text-sm bg-white"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-xs text-purple-600 mb-1 block">鍒嗛挓 (0-59)</label>
+                            <input
+                              type="number" min={0} max={59}
+                              value={editCron.minute ?? 0}
+                              onChange={e => setEditCron(p => ({ ...p, minute: Number(e.target.value) }))}
+                              className="w-full border border-purple-300 rounded-lg px-2 py-1.5 text-sm bg-white"
+                            />
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => saveJobCron(job.id)}
+                          disabled={!!jobAction}
+                          className="flex items-center gap-1 px-4 py-2 bg-purple-600 text-white rounded-lg text-xs font-medium hover:bg-purple-700 disabled:opacity-50"
+                        >
+                          {jobAction === `cron:${job.id}` ? '淇濆瓨涓?..' : '淇濆瓨'}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* 鈺愨晲 瀹炴椂鐩戞帶 Tab 鈺愨晲 */}
+      {activeTab === 'monitor' && (
+        <div className="space-y-5">
+          {/* Stats */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <StatCard label="娲昏穬浠诲姟" value={activeTasks} unit="涓繍琛屼腑" />
+            <StatCard label="绱鐖彇" value={totalCompleted} unit="涓」鐩? />
+            <StatCard label="鎴愬姛鐜? value={successRate.toFixed(1)} unit="%" />
+            <StatCard label="骞冲潎鑰楁椂" value={avgTime.toFixed(2)} unit="绉?椤? />
+          </div>
+
+          {/* Controls */}
+          <div className="flex flex-wrap gap-3">
+            <button onClick={() => startCrawl('gooood')} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium">鍚姩 Gooood</button>
+            <button onClick={() => startCrawl('archdaily')} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium">鍚姩 Archdaily</button>
+            <button onClick={() => startCrawl('dezeen')} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium">鍚姩 Dezeen</button>
+            <div className="flex-1" />
+            <button onClick={() => controlAll('pause')} className="px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 text-sm font-medium">鏆傚仠鍏ㄩ儴</button>
+            <button onClick={() => controlAll('resume')} className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm font-medium">鎭㈠鍏ㄩ儴</button>
+            <button onClick={() => controlAll('stop')} className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm font-medium">鍋滄鍏ㄩ儴</button>
+          </div>
+
+          {/* Active Tasks */}
+          <div className="bg-white rounded-xl shadow-sm border p-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">娲昏穬浠诲姟</h2>
+            {taskList.length === 0 ? (
+              <p className="text-center text-gray-400 py-8">鏆傛棤娲昏穬浠诲姟</p>
+            ) : (
+              <div className="space-y-4">
+                {taskList.map(task => (
+                  <div key={task.task_id} className="border rounded-lg p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="font-medium text-gray-900">{task.task_id}</span>
+                      <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${statusColor[task.status] || 'bg-gray-100 text-gray-800'}`}>{task.status}</span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2 mb-3">
+                      <div className="bg-blue-600 h-2 rounded-full transition-all duration-300" style={{ width: `${task.progress_percent}%` }} />
+                    </div>
+                    <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 text-sm text-gray-600">
+                      <div>杩涘害: <span className="font-medium text-gray-900">{task.completed}/{task.total}</span></div>
+                      <div>鎴愬姛鐜? <span className="font-medium text-gray-900">{(task.success_rate * 100).toFixed(1)}%</span></div>
+                      <div>澶辫触: <span className="font-medium text-gray-900">{task.failed}</span></div>
+                      <div>璇锋眰鏁? <span className="font-medium text-gray-900">{task.requests_count}</span></div>
+                      <div>鎵规: <span className="font-medium text-gray-900">{task.current_batch}/{task.total_batches}</span></div>
+                      <div>鑰楁椂: <span className="font-medium text-gray-900">{task.avg_response_time.toFixed(2)}s</span></div>
+                    </div>
+                    {task.last_error && <p className="mt-2 text-xs text-red-600">閿欒: {task.last_error}</p>}
+                    {task.current_url && <p className="mt-2 text-xs text-gray-400 break-all">褰撳墠: {task.current_url}</p>}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Logs */}
+          <div className="bg-white rounded-xl shadow-sm border p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-gray-900">瀹炴椂鏃ュ織</h2>
+              <button onClick={() => setLogs([])} className="px-3 py-1 text-sm bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200">娓呯┖</button>
+            </div>
+            <div className="bg-gray-900 rounded-lg p-4 max-h-80 overflow-y-auto font-mono text-xs leading-relaxed">
+              {logs.map(log => (
+                <div key={log.id} className="flex gap-3 mb-1">
+                  <span className="text-gray-500 whitespace-nowrap">[{log.timestamp}]</span>
+                  <span className={`w-12 font-semibold ${logColor[log.level] || 'text-gray-400'}`}>{log.level.toUpperCase()}</span>
+                  <span className="text-gray-300">{log.message}</span>
+                </div>
+              ))}
+              <div ref={logsEndRef} />
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function FullCrawlBadge({ status }: { status: string }) {
+  const map: Record<string, { cls: string; label: string }> = {
+    pending:   { cls: 'bg-gray-100 text-gray-600',    label: '寰呮墽琛? },
+    running:   { cls: 'bg-blue-100 text-blue-700',    label: '杩涜涓? },
+    completed: { cls: 'bg-green-100 text-green-700',  label: '宸插畬鎴? },
+    failed:    { cls: 'bg-red-100 text-red-700',      label: '澶辫触' },
+  };
+  const { cls, label } = map[status] || map.pending;
+  return <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${cls}`}>{label}</span>;
+}
+
+function StatCard({ label, value, unit }: { label: string; value: string | number; unit: string }) {
+  return (
+    <div className="bg-white rounded-xl shadow-sm border p-5">
+      <p className="text-sm text-gray-500 mb-1">{label}</p>
+      <p className="text-3xl font-bold text-gray-900">{value}</p>
+      <p className="text-sm text-gray-400">{unit}</p>
+    </div>
+  );
+}
+

@@ -1,0 +1,105 @@
+# 核心框架
+langgraph>=0.2.60  # 🔥 v7.502: 最新稳定版（性能优化）
+langchain>=0.3.15  # 小版本更新（bug修复）
+langchain-core>=0.3.15
+langchain-community>=0.3.15
+
+# LLM提供商
+langchain-openai>=0.2.0
+langchain-anthropic>=0.2.0
+langchain-google-genai>=2.0.0  # 🔥 v3.8新增: Google Gemini Vision
+
+# 数据处理
+pandas>=2.0.0
+numpy>=1.24.0
+pydantic>=2.10.0  # 🔥 v7.502: 重要性能提升
+jieba>=0.42.0  # 中文分词（用于角色权重计算）
+
+# 外部工具集成
+tavily-python>=0.3.0
+arxiv>=2.1.0
+requests>=2.31.0
+
+# PDF生成
+reportlab>=4.0.0
+weasyprint>=60.0
+
+# 🔥 v3.7新增: 文件处理
+pdfplumber>=0.10.0  # PDF文本提取
+PyPDF2>=3.0.0       # PDF处理备选方案
+chardet>=5.0.0,<6.0.0  # 文本编码检测（与 requests 兼容）
+Pillow>=10.0.0      # 图片处理
+aiofiles>=23.0.0    # 异步文件IO
+
+# 🔥 v3.8新增: Word/Excel支持
+python-docx>=1.1.0  # Word文档处理
+openpyxl>=3.1.0     # Excel处理
+
+# Web框架
+fastapi>=0.115.0  # 🔥 v7.502: 升级到最新稳定版（与README一致）
+uvicorn[standard]>=0.25.0  # 配套升级
+
+# 前端界面
+streamlit>=1.28.0
+plotly>=5.17.0
+
+# 存储和持久化
+# sqlite3  # 内置模块，不需要安装
+redis>=5.0.0
+aioredis>=2.0.0
+aiosqlite>=0.19.0  # LangGraph AsyncSqliteSaver 所需
+
+# 🔥 管理员后台系统依赖
+watchdog>=3.0.0      # 配置文件热重载监听
+psutil>=5.9.0        # 系统监控（CPU、内存）
+cachetools>=5.3.0    # API响应缓存
+# geoip2>=4.7.0      # 已废弃：改用 ip-api.com 在线API（无需安装）
+
+# 告警系统
+aiohttp>=3.9.0
+
+# 🔥 v3.9新增: 任务队列（多用户并发支持）
+celery>=5.3.0
+kombu>=5.3.0  # Celery 消息传输库
+flower>=2.0.0  # Celery 监控面板（可选）
+
+# 开发工具
+python-dotenv>=1.0.0
+loguru>=0.7.0
+pytest>=7.4.0
+black>=23.0.0
+isort>=5.12.0
+tenacity>=8.2.0  # 重试机制（用于 LLM SSL 错误处理）
+cachetools>=5.3.0  # 🔥 v7.1.2新增: PDF缓存（TTL内存缓存）
+
+# 类型检查
+mypy>=1.5.0
+types-requests>=2.31.0
+
+# ==================== 腾讯云内容安全 (v1.0 新增) ====================
+tencentcloud-sdk-python>=3.0.1100  # 腾讯云Python SDK（包含TMS内容安全）
+
+# ==================== Milvus向量数据库 (v7.141 新增) ====================
+pymilvus>=2.4.0  # Milvus Python SDK
+langchain-milvus>=0.1.0  # LangChain Milvus集成
+sentence-transformers>=2.3.0  # Embedding模型和Reranker
+FlagEmbedding>=1.2.0  # BGE系列模型（可选）
+
+# ==================== 智能化演进系统 Phase 1 (v2026.2.11 新增) ====================
+faiss-cpu>=1.7.4  # FAISS向量检索（CPU版本，快速相似度搜索）
+scikit-learn>=1.3.2  # 机器学习工具（用于质量分析）
+
+# ==================== TikHub 社交媒体搜索 (v7.162 新增) ====================
+tikhub>=1.13.0  # TikHub Python SDK（抖音/小红书/视频号）
+
+# ==================== 网页内容深度提取 (v7.195 新增) ====================
+trafilatura>=1.6.0  # 静态网页内容提取（高效轻量）
+# playwright 已在系统中安装，用于动态网页渲染
+
+# ==================== 本体论管理控制台 (v2026.2.11 新增) ====================
+ruamel.yaml>=0.18.0  # 保留YAML注释和格式（用于 ontology.yaml 动态编辑）
+portalocker>=2.8.0   # 文件锁（防止并发写入冲突）
+APScheduler>=3.10.0  # 定时任务（质量评分批量计算）
+
+# ==================== Phase 2 智能增强 (v2026.2.11 新增) ====================
+prometheus-client>=0.19.0  # Prometheus指标收集（可选，用于性能监控）

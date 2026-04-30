@@ -1,0 +1,313 @@
+- generic [ref=e1]:
+  - status [ref=e769]:
+    - generic [ref=e770]:
+      - img [ref=e772]
+      - generic [ref=e774]:
+        - text: Static route
+        - button "Hide static indicator" [ref=e775] [cursor=pointer]:
+          - img [ref=e776]
+  - alert [ref=e2]
+  - generic [ref=e3]:
+    - button "切换到驾驶舱全屏" [ref=e4] [cursor=pointer]:
+      - img [ref=e5]
+    - generic [ref=e8]:
+      - generic [ref=e779]:
+        - generic [ref=e782]: conv-20260412095825-5157deee / 大堂
+        - generic [ref=e785]:
+          - generic [ref=e787]:
+            - generic [ref=e788]: 暂无真实底图
+            - generic [ref=e789]: 请先从项目驾驶舱上传 PDF / DXF / 图片底图，再生成 FloorPlanIR。
+            - button "从底图生成 FloorPlanIR" [disabled] [ref=e790]
+          - generic [ref=e791]: FloorPlanIR 识别层 · FloorPlanIR_大堂_v0 基线
+          - generic [ref=e792]: 风险：入口识别依赖导视深化
+        - generic [ref=e793]:
+          - button "缩小平面沙盘" [ref=e794] [cursor=pointer]:
+            - img [ref=e795]
+          - button "100%" [ref=e798] [cursor=pointer]
+          - button "放大平面沙盘" [ref=e799] [cursor=pointer]:
+            - img [ref=e800]
+          - generic [ref=e804]: 滚轮缩放
+          - button "缩小" [ref=e806] [cursor=pointer]:
+            - img [ref=e807]
+          - button "放大" [ref=e808] [cursor=pointer]:
+            - img [ref=e809]
+        - generic [ref=e810]:
+          - generic [ref=e811]:
+            - textbox "搜索大堂输入源（例：图纸、流线、历史项目）" [ref=e812]
+            - generic [ref=e813]:
+              - button "项目驾驶舱" [ref=e814] [cursor=pointer]
+              - button "图纸基线" [ref=e815] [cursor=pointer]
+              - button "版本链" [ref=e816] [cursor=pointer]
+              - button "输出包" [ref=e817] [cursor=pointer]
+          - generic [ref=e819]:
+            - generic [ref=e820]:
+              - generic [ref=e821]:
+                - generic [ref=e822]:
+                  - paragraph [ref=e823]: 计划基础
+                  - heading "图纸基线 · 大堂" [level=3] [ref=e824]
+                  - paragraph [ref=e825]: 来自项目驾驶舱 · 平面图与空间关系
+                - generic [ref=e826]: 已同步
+              - generic [ref=e827]:
+                - generic [ref=e835]: IR 工程层
+                - generic [ref=e836]:
+                  - generic [ref=e837]: FloorPlanIR_大堂_v0 基线
+                  - generic [ref=e838]: AlignedBrief + SPG + 图纸
+                  - generic [ref=e839]: 2026-04-12
+                  - generic [ref=e840]: FloorPlanIR draft
+              - generic [ref=e841]:
+                - generic [ref=e842]:
+                  - generic [ref=e843]: 识别质量
+                  - generic [ref=e844]: 待生成
+                - generic [ref=e845]:
+                  - generic [ref=e846]: 比例尺
+                  - generic [ref=e847]: 未校准
+                - generic [ref=e848]:
+                  - generic [ref=e849]: 闭合空间
+                  - generic [ref=e850]: "0"
+                - generic [ref=e851]:
+                  - generic [ref=e852]: 门窗洞口
+                  - generic [ref=e853]: "0"
+                - generic [ref=e854]:
+                  - generic [ref=e855]: 墙线对象
+                  - generic [ref=e856]: "0"
+                - generic [ref=e857]:
+                  - generic [ref=e858]: 结构柱
+                  - generic [ref=e859]: "0"
+                - generic [ref=e860]:
+                  - generic [ref=e861]: 识别区
+                  - generic [ref=e862]: 整图
+              - generic [ref=e863]:
+                - button "上传图纸" [ref=e864] [cursor=pointer]:
+                  - img [ref=e865]
+                  - text: 上传图纸
+                - button "查看基线" [ref=e868] [cursor=pointer]
+                - button "框选识别区" [disabled] [ref=e869]
+                - button "生成 IR" [disabled] [ref=e870]
+                - button "注入高参" [ref=e871] [cursor=pointer]
+              - generic [ref=e872]:
+                - generic [ref=e873]: 待校正问题
+                - generic [ref=e874]:
+                  - generic [ref=e877]: 待校准比例
+                  - generic [ref=e880]: 待确认北向
+                  - generic [ref=e883]: 待补充高度
+            - generic [ref=e884]:
+              - generic [ref=e885]:
+                - generic [ref=e886]:
+                  - paragraph [ref=e887]: 方案控制卡
+                  - heading "低干预更新" [level=3] [ref=e888]
+                  - paragraph [ref=e889]: 保留空间秩序，优化接待、等候与导视关系。
+                  - paragraph [ref=e890]: 代价：展示冲击力较弱，但驾驶舱匹配度最高。
+                - generic [ref=e891]: 基线
+              - generic [ref=e892]:
+                - generic [ref=e893]:
+                  - img [ref=e894]
+                  - paragraph [ref=e897]: 驾驶舱继承信息
+                - generic [ref=e898]:
+                  - paragraph [ref=e899]: 项目：conv-20260412095825-5157deee
+                  - paragraph [ref=e900]: 输入：AlignedBrief + SPG + 图纸 / 参考素材
+                  - paragraph [ref=e901]: 目标：轻量推演、可解释、可回写，不在沙盘内重复填写驾驶舱信息。
+              - generic [ref=e902]:
+                - generic [ref=e903]:
+                  - img [ref=e904]
+                  - paragraph [ref=e908]: 参数权重
+                - generic [ref=e909]:
+                  - generic [ref=e910]:
+                    - generic [ref=e911]:
+                      - generic [ref=e912]: 到达识别
+                      - generic [ref=e913]: "72"
+                    - generic [ref=e916]:
+                      - generic [ref=e917]: 克制
+                      - generic [ref=e918]: 强化
+                  - generic [ref=e919]:
+                    - generic [ref=e920]:
+                      - generic [ref=e921]: 等候舒适
+                      - generic [ref=e922]: "66"
+                    - generic [ref=e925]:
+                      - generic [ref=e926]: 基础
+                      - generic [ref=e927]: 舒适
+                  - generic [ref=e928]:
+                    - generic [ref=e929]:
+                      - generic [ref=e930]: 服务可达
+                      - generic [ref=e931]: "78"
+                    - generic [ref=e934]:
+                      - generic [ref=e935]: 隐藏
+                      - generic [ref=e936]: 高效
+                  - generic [ref=e937]:
+                    - generic [ref=e938]:
+                      - generic [ref=e939]: 改造强度
+                      - generic [ref=e940]: "38"
+                    - generic [ref=e943]:
+                      - generic [ref=e944]: 低干预
+                      - generic [ref=e945]: 重构
+              - generic [ref=e946]:
+                - paragraph [ref=e947]: 指标摘要
+                - generic [ref=e948]:
+                  - generic [ref=e949]:
+                    - paragraph [ref=e950]: 驾驶舱匹配
+                    - paragraph [ref=e951]: "91"
+                  - generic [ref=e952]:
+                    - paragraph [ref=e953]: 动线效率
+                    - paragraph [ref=e954]: "84"
+                  - generic [ref=e955]:
+                    - paragraph [ref=e956]: 空间识别
+                    - paragraph [ref=e957]: "78"
+                  - generic [ref=e958]:
+                    - paragraph [ref=e959]: 改造强度
+                    - paragraph [ref=e960]: 低
+                  - generic [ref=e961]:
+                    - paragraph [ref=e962]: 实施风险
+                    - paragraph [ref=e963]: 低
+              - generic [ref=e964]:
+                - generic [ref=e965]:
+                  - img [ref=e966]
+                  - paragraph [ref=e970]: 方案版本
+                - generic [ref=e971]:
+                  - button "A · 低干预更新 91 保留空间秩序，优化接待、等候与导视关系。" [ref=e972] [cursor=pointer]:
+                    - generic [ref=e973]:
+                      - paragraph [ref=e974]: A · 低干预更新
+                      - generic [ref=e975]: "91"
+                    - paragraph [ref=e976]: 保留空间秩序，优化接待、等候与导视关系。
+                  - button "B · 到达体验强化 84 强化入口识别和第一停留节点，适合对外展示。" [ref=e977] [cursor=pointer]:
+                    - generic [ref=e978]:
+                      - paragraph [ref=e979]: B · 到达体验强化
+                      - generic [ref=e980]: "84"
+                    - paragraph [ref=e981]: 强化入口识别和第一停留节点，适合对外展示。
+                  - button "C · 运营效率优先 87 前置服务台并隐藏后勤动线，提升管理效率。" [ref=e982] [cursor=pointer]:
+                    - generic [ref=e983]:
+                      - paragraph [ref=e984]: C · 运营效率优先
+                      - generic [ref=e985]: "87"
+                    - paragraph [ref=e986]: 前置服务台并隐藏后勤动线，提升管理效率。
+              - generic [ref=e987]:
+                - button "新建推演" [ref=e988] [cursor=pointer]:
+                  - img [ref=e989]
+                  - text: 新建推演
+                - button "冻结版本" [ref=e990] [cursor=pointer]:
+                  - img [ref=e991]
+                  - text: 冻结版本
+                - button "回写驾驶舱" [ref=e996] [cursor=pointer]:
+                  - img [ref=e997]
+                  - text: 回写驾驶舱
+                - button "注入高参" [ref=e1000] [cursor=pointer]:
+                  - img [ref=e1001]
+                  - text: 注入高参
+                - button "发往画布" [ref=e1003] [cursor=pointer]:
+                  - img [ref=e1004]
+                  - text: 发往画布
+            - generic [ref=e1006]:
+              - generic [ref=e1007]:
+                - generic [ref=e1012]: 项目驾驶舱
+                - generic [ref=e1013]:
+                  - generic [ref=e1014]: 图纸基线
+                  - paragraph [ref=e1015]: 大堂 原始图纸、空间边界、结构限制与开口信息。
+                  - button "查看图纸" [ref=e1016] [cursor=pointer]
+              - generic [ref=e1017]:
+                - generic [ref=e1022]: FloorPlanIR_大堂_v0 基线
+                - generic [ref=e1023]:
+                  - generic [ref=e1024]: 回写包
+                  - paragraph [ref=e1025]: 冻结方向、指标、风险与下一步任务回写项目驾驶舱。
+                  - button "生成回写" [ref=e1026] [cursor=pointer]
+              - generic [ref=e1027]:
+                - generic [ref=e1032]: Prompt Anchor
+                - generic [ref=e1033]:
+                  - generic [ref=e1034]: 下游骨架
+                  - paragraph [ref=e1035]: 输出语义分区图、动线关系和方案画布控制骨架。
+                  - button "发往画布" [ref=e1036] [cursor=pointer]
+            - button "FloorPlanIR_大堂_v0 基线 基线 从项目驾驶舱读取 大堂 的图纸、空间画像、约束与策略目标，形成可推演基线。" [ref=e1038] [cursor=pointer]:
+              - generic [ref=e1039]:
+                - generic [ref=e1040]: FloorPlanIR_大堂_v0 基线
+                - generic [ref=e1041]: 基线
+              - paragraph [ref=e1042]: 从项目驾驶舱读取 大堂 的图纸、空间画像、约束与策略目标，形成可推演基线。
+      - generic [ref=e641]:
+        - generic [ref=e642]:
+          - button "项 目 驾 驶 舱" [ref=e643] [cursor=pointer]:
+            - generic [ref=e644]:
+              - generic [ref=e645]: 项
+              - generic [ref=e646]: 目
+              - generic [ref=e647]: 驾
+              - generic [ref=e648]: 驶
+              - generic [ref=e649]: 舱
+          - generic [ref=e650]:
+            - button "空 间" [ref=e651] [cursor=pointer]:
+              - generic [ref=e652]:
+                - generic [ref=e653]: 空
+                - generic [ref=e654]: 间
+            - button "平 面 沙 盘" [active] [ref=e655] [cursor=pointer]:
+              - generic [ref=e656]:
+                - generic [ref=e657]: 平
+                - generic [ref=e658]: 面
+                - generic [ref=e659]: 沙
+                - generic [ref=e660]: 盘
+            - button "方 案 画 布" [ref=e661] [cursor=pointer]:
+              - generic [ref=e662]:
+                - generic [ref=e663]: 方
+                - generic [ref=e664]: 案
+                - generic [ref=e665]: 画
+                - generic [ref=e666]: 布
+            - button "思 维 参 谋" [ref=e667] [cursor=pointer]:
+              - generic [ref=e668]:
+                - generic [ref=e669]: 思
+                - generic [ref=e670]: 维
+                - generic [ref=e671]: 参
+                - generic [ref=e672]: 谋
+        - button "资 源 雷 达" [ref=e673] [cursor=pointer]:
+          - generic [ref=e674]:
+            - generic [ref=e675]: 资
+            - generic [ref=e676]: 源
+            - generic [ref=e677]: 雷
+            - generic [ref=e678]: 达
+        - button "灵 感 仓 库" [ref=e679] [cursor=pointer]:
+          - generic [ref=e680]:
+            - generic [ref=e681]: 灵
+            - generic [ref=e682]: 感
+            - generic [ref=e683]: 仓
+            - generic [ref=e684]: 库
+        - button "梦 幻 团 队" [ref=e685] [cursor=pointer]:
+          - generic [ref=e686]:
+            - generic [ref=e687]: 梦
+            - generic [ref=e688]: 幻
+            - generic [ref=e689]: 团
+            - generic [ref=e690]: 队
+    - generic [ref=e691]:
+      - complementary [ref=e692]:
+        - generic [ref=e693]:
+          - generic [ref=e695]:
+            - img [ref=e697]
+            - generic [ref=e702]: 方案高参
+          - button "开启新对话" [ref=e704] [cursor=pointer]:
+            - img [ref=e705]
+            - generic [ref=e706]: 开启新对话
+          - generic [ref=e708]:
+            - generic [ref=e709]: 今天
+            - button "未命名会话 4/14 10:37 [深度思考]" [ref=e711] [cursor=pointer]:
+              - generic [ref=e712]: 未命名会话
+              - generic [ref=e713]:
+                - generic [ref=e714]: 4/14 10:37
+                - generic [ref=e715]: "[深度思考]"
+      - generic [ref=e716]:
+        - banner:
+          - generic [ref=e718]:
+            - button "展开历史记录" [ref=e719] [cursor=pointer]:
+              - img [ref=e720]
+            - heading "方案高参" [level=1] [ref=e722]
+        - generic [ref=e735]:
+          - generic [ref=e737]:
+            - generic [ref=e738]: 💬
+            - paragraph [ref=e739]: 随时开始聊
+            - paragraph [ref=e740]: 分享你的想法、灵感或设计需求
+          - generic [ref=e742]:
+            - textbox "输入你的想法、问题或设计需求…" [ref=e743]
+            - button "发送" [disabled] [ref=e745]:
+              - img [ref=e746]
+    - generic [ref=e749]:
+      - generic [ref=e750]:
+        - heading "节点详情" [level=3] [ref=e751]
+        - button [ref=e752] [cursor=pointer]:
+          - img [ref=e753]
+      - generic [ref=e758]: 节点 ID
+  - generic [ref=e761]:
+    - generic [ref=e762]: 🔧
+    - generic [ref=e763]:
+      - generic [ref=e764]: 开发模式
+      - generic [ref=e765]: 跳过登录验证
+    - button "最小化" [ref=e766] [cursor=pointer]:
+      - img [ref=e767]

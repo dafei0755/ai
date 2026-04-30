@@ -1,0 +1,296 @@
+# ==================== 系统全局配置 ====================
+# 文件说明: 统一管理系统参数，避免硬编码固化
+# 版本: v7.800
+# 设计原则: 
+#   1. 提供合理默认值作为基线
+#   2. 所有参数支持在函数调用时传入覆盖
+#   3. 配置结构支持灵活扩展，新增模式不需要改代码
+#   4. 关注智能化和灵活性，而非预定义分类场景
+
+# ==================== 系统基础配置 ====================
+system:
+  version: "7.800"
+  environment: "production"
+  
+  # 文件路径配置
+  paths:
+    config_dir: "config"
+    cache_dir: "cache"
+    log_dir: "logs"
+    
+  # 默认模式（未检测到有效模式时使用）
+  default_mode: "M2_function_efficiency"
+
+# ==================== 混合模式检测配置 ====================
+# 设计原则: 提供基础默认值，所有参数都可在调用时传入覆盖
+hybrid_mode:
+  detection:
+    # 最小置信度阈值（低于此值的模式不参与混合判断）
+    # 调用示例: detect_hybrid_mode(confidences, min_confidence=0.50)
+    min_confidence: 0.45
+    
+    # 最大置信度差（置信度差≤此值视为混合模式）
+    # 可根据项目特征在调用时动态传入
+    max_confidence_gap: 0.25
+    
+    # 置信度差异容忍度
+    tolerance_ratio: 0.15
+  
+  resolution:
+    # 启用通用降级策略（混合模式无预定义模式时）
+    enable_generic_fallback: true
+    
+    # 生成建议数量范围
+    min_recommendations: 4
+    max_recommendations: 8
+
+# ==================== 模式检测配置 ====================
+# 设计原则: 基础阈值作为默认值，支持调用时灵活覆盖
+mode_detection:
+  # 模式有效性置信度阈值
+  # 系统会基于此值过滤有效模式
+  # 调用时可传入: confidence_threshold=0.35
+  confidence_threshold: 0.30
+  
+  # 最小有效模式数量
+  min_valid_modes: 1
+  
+  # 最大考虑模式数量（性能优化）
+  max_modes_considered: 3
+
+# ==================== 问卷配置 ====================
+# 设计原则: 
+#   - 提供合理默认值
+#   - 支持根据检测到的模式数量、置信度分布等智能调整
+#   - 所有限制都可在调用时覆盖
+questionnaire:
+  dimensions:
+    # 优先维度数量限制（默认值）
+    # 可在调用get_priority_dimensions_for_modes时传入max_dimensions参数覆盖
+    default_max: 8
+    min: 4          # 最少维度数（保证信息完整性）
+    max: 15         # 最多维度数（避免用户疲劳）
+  
+  questions:
+    # Step1 任务梳理问题数量
+    step1_max: 5
+    step1_min: 3
+    
+    # Step2 维度深挖问题数量（每个维度）
+    step2_max_per_dimension: 2
+    step2_min_per_dimension: 1
+    
+    # Step3 查漏补缺问题数量
+    step3_max: 8
+    step3_min: 4
+
+# ==================== 任务库配置 ====================
+# 设计原则: 
+#   - 默认包含P0+P1
+#   - 支持调用时传入自定义优先级列表: include_priorities=['P0', 'P2']
+#   - 支持扩展新优先级（P3, P4...）无需改代码
+task_library:
+  priority_filters:
+    # 默认包含的任务优先级列表
+    # 调用get_mandatory_tasks_for_modes时可传入include_priorities参数覆盖
+    default_include:
+      - "P0"  # 必做任务（核心价值）
+      - "P1"  # 推荐任务（重要但非必需）
+    
+    # 支持的所有优先级（可扩展）
+    supported_priorities:
+      - "P0"
+      - "P1"
+      - "P2"
+      - "P3"
+  
+  # 任务生成数量限制
+  max_mandatory_tasks: 20
+  min_mandatory_tasks: 4
+
+# ==================== 能力验证配置 ====================
+# 设计原则: 
+#   - L1-L5为系统固有的能力成熟度等级
+#   - 提供推荐阈值，但验证函数支持传入自定义阈值
+validation:
+  # 字段完整性阈值
+  field_completeness:
+    default: 0.75
+    # 按专家成熟度的推荐阈值
+    # 调用时可选择使用: threshold = config.get(f'validation.field_completeness.by_maturity.{level}')
+    by_maturity:
+      L1: 0.60
+      L2: 0.65
+      L3: 0.75
+      L4: 0.85
+      L5: 0.90
+  
+  # 关键词密度阈值
+  keyword_density:
+    default: 0.015
+    # 按专家成熟度的推荐阈值
+    by_maturity:
+      L1: 0.010
+      L2: 0.012
+      L3: 0.015
+      L4: 0.018
+      L5: 0.020
+  
+  # 覆盖率分级阈值
+  # 可在调用时传入自定义分级标准
+  coverage_grades:
+    excellent: 0.90
+    good: 0.80
+    acceptable: 0.70
+    insufficient: 0.50
+    critical: 0.30
+  
+  # 默认的弱覆盖和严重缺口判断阈值
+  weak_threshold: 0.70
+  critical_threshold: 0.50
+  
+  # 能力成熟度数值映射
+  maturity_level_mapping:
+    L1: 1
+    L2: 2
+    L3: 3
+    L4: 4
+    L5: 5
+
+# ==================== LLM配置 ====================
+# 设计原则: 提供默认参数，支持根据任务类型动态调整
+llm:
+  # 模式检测LLM参数
+  mode_detection:
+    temperature: 0.3      # 低温度，确保输出稳定性
+    max_tokens: 2000
+    model: "gpt-4"
+    
+  # 专家输出LLM参数
+  expert_output:
+    temperature: 0.7      # 中温度，平衡创造性和准确性
+    max_tokens: 4000
+    model: "gpt-4-turbo"
+  
+  # 问卷生成LLM参数
+  questionnaire_generation:
+    temperature: 0.5
+    max_tokens: 1500
+    model: "gpt-4"
+
+# ==================== 性能配置 ====================
+performance:
+  # 缓存配置
+  cache:
+    enabled: true
+    ttl_seconds: 3600
+    max_size_mb: 100
+    cache_config_files: true
+  
+  # 超时配置（毫秒）
+  timeouts:
+    config_load: 5000
+    mode_detection: 30000
+    expert_execution: 120000
+    llm_call: 60000
+  
+  # 并发配置
+  concurrency:
+    max_parallel_experts: 3
+    max_parallel_validations: 5
+    max_parallel_llm_calls: 2
+  
+  # 性能监控
+  monitoring:
+    enable_timing_logs: true
+    slow_threshold_ms: 1000
+    enable_memory_profiling: false
+
+# ==================== 日志配置 ====================
+logging:
+  level: "INFO"
+  
+  # 按模块的日志级别覆盖
+  levels_by_module:
+    hybrid_mode_resolver: "DEBUG"
+    mode_detector: "INFO"
+    ability_validator: "INFO"
+    config_loader: "INFO"
+    llm_service: "WARNING"
+  
+  # 日志格式
+  format: "%(asctime)s | %(levelname)-8s | %(name)-30s | %(message)s"
+  date_format: "%Y-%m-%d %H:%M:%S"
+  
+  # 日志文件配置
+  file:
+    enabled: true
+    path: "logs/system.log"
+    max_size_mb: 50
+    backup_count: 5
+    
+  # 性能日志
+  performance_logging:
+    enabled: true
+    threshold_ms: 1000
+
+# ==================== 特性开关 ====================
+features:
+  # P2功能：混合模式冲突解决
+  hybrid_mode_resolution:
+    enabled: true
+    version: "7.800"
+  
+  # P1功能：模式特征验证
+  mode_feature_validation:
+    enabled: true
+    version: "7.301"
+  
+  # P1功能：能力验证
+  ability_validation:
+    enabled: true
+    version: "7.300"
+  
+  # P0功能：10模式引擎
+  ten_mode_engine:
+    enabled: true
+    version: "7.000"
+
+# ==================== 扩展性配置 ====================
+# 设计原则: 为未来功能预留扩展接口
+extensibility:
+  # 支持的模式列表（可动态扩展）
+  supported_modes:
+    - "M1_concept_driven"
+    - "M2_function_efficiency"
+    - "M3_emotional_experience"
+    - "M4_capital_oriented"
+    - "M5_rural_context"
+    - "M6_urban_regeneration"
+    - "M7_tech_integration"
+    - "M8_extreme_condition"
+    - "M9_social_structure"
+    - "M10_future_projection"
+  
+  # 新模式注册机制（预留）
+  # 未来可通过插件机制动态注册新模式而无需修改核心代码
+  plugin_mode_support: false
+
+# ==================== 智能化配置（未来扩展） ====================
+# 设计原则: 为智能化功能预留配置空间
+intelligence:
+  # 自适应阈值调整（未来功能）
+  adaptive_thresholds:
+    enabled: false
+    # 基于历史数据自动优化阈值
+    learning_enabled: false
+  
+  # 智能维度数量推荐
+  smart_dimension_recommendation:
+    enabled: false
+    # 根据模式置信度分布、权重等智能推荐维度数量
+  
+  # 智能任务优先级推荐
+  smart_priority_recommendation:
+    enabled: false
+    # 根据检测到的模式特征智能推荐任务优先级组合

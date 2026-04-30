@@ -1,0 +1,354 @@
+# 示例:赫本精神大平层室内设计
+# 来源:q.txt Q6
+# 类型:审美主导 (Aesthetic Dominant) / 概念驱动 M1 + 情绪体验 M3
+# 特征:赫本精神解构、现代女性独立空间、优雅克制美学、社交与独处平衡、空间比例、动线组织
+# v8.000 (P3-T14): 新增示例，覆盖 审美主导+人物精神转译+独立女性空间哲学
+
+example:
+  project_info:
+    name: 赫本精神大平层室内设计项目
+    description: |
+      深圳南山200平方米大平层室内设计，业主为38岁英国海归独立女性，不婚主义者，
+      对Audrey Hepburn赫本精神高度认同。项目以优雅、自律、轻盈与现代女性独立精神
+      为核心出发点，建立空间比例体系、动线组织逻辑、社交与独处平衡系统，
+      避免复古化符号堆砌，追求精神内核的当代空间转译。
+
+    feature_vector:
+      commercial: 0.20
+      functional: 0.55
+      social: 0.45
+      cultural: 0.40
+      experiential: 0.60
+      sustainable: 0.25
+      regional: 0.15
+      technical: 0.30
+      material_innovation: 0.42
+      aesthetic: 0.70
+      historical: 0.35
+      symbolic: 0.65
+
+    constraints:
+      - 避免复古化符号堆砌（非Hepburn视觉元素搬运）
+      - 赫本精神需转化为空间语言而非装饰语言
+      - 200平方米大平层格局的比例控制
+      - 不婚主义生活方式的空间适配（非传统家庭功能分区）
+      - 英国海归背景的中西审美融合
+
+    goals:
+      - 建立赫本精神的当代空间转译体系
+      - 构建优雅克制的空间比例与材质系统
+      - 设计社交与独处的动态平衡机制
+      - 实现现代独立女性的完整生活动线
+      - 创造轻盈而有力量感的居住氛围
+
+  ideal_tasks:
+    # ========== 第一阶段:精神解构与人物研究(Task 1-5) ==========
+
+    - id: task_1
+      title: 搜索 Audrey Hepburn赫本精神的 人格内核、生活哲学、审美主张、晚年人道主义转向
+      description: |
+        深入研究赫本精神的多层内核，从早期芭蕾训练的自律与轻盈，到好莱坞时期
+        与Givenchy合作建立的优雅范式，再到晚年UNICEF人道主义工作的精神升华，
+        提取可转化为空间语言的核心精神要素。
+      task_type: research
+      motivation: symbolic
+      support_search: true
+      dimensions:
+        - 人格内核(自律、优雅、轻盈、克制的精神结构)
+        - 生活哲学(Less is more的生活态度、自然主义晚年)
+        - 审美主张(Givenchy合作的极简优雅、小黑裙精神)
+        - 精神演变(从银幕偶像到人道主义者的内在转化)
+      priority: high
+      execution_order: 1
+
+    - id: task_2
+      title: 搜索 赫本美学的空间转译案例、极简优雅住宅设计、精神性空间营造方法论
+      description: |
+        调研人物精神如何转化为空间设计语言的方法论与案例，包括John Pawson的
+        极简精神空间、Claudio Silvestrin的克制美学、以及赫本晚年瑞士La Paisible
+        庄园的居住哲学，提取精神→空间的转译路径。
+      task_type: research
+      motivation: aesthetic
+      support_search: true
+      dimensions:
+        - 精神转译方法论(人物精神→空间语言的系统路径)
+        - 极简优雅案例(John Pawson/Claudio Silvestrin的克制美学)
+        - 赫本居住空间(La Paisible庄园的生活方式与空间关系)
+        - 反符号化策略(避免复古堆砌的当代转化手法)
+      priority: high
+      execution_order: 2
+
+    - id: task_3
+      title: 搜索 现代独立女性居住空间的 设计趋势、单身精英住宅案例、非传统功能分区策略
+      description: |
+        研究当代独立女性居住空间的设计趋势，聚焦不婚主义、单身精英女性的
+        空间需求特征，调研打破传统家庭功能分区的创新案例，为非传统生活方式
+        提供空间设计参考。
+      task_type: research
+      motivation: experiential
+      support_search: true
+      dimensions:
+        - 独立女性空间趋势(去家庭化、个人化、自我表达)
+        - 单身精英住宅案例(200平方米以上的单人居住空间设计)
+        - 非传统分区(取消客卧优先、强化个人功能区)
+        - 海归审美融合(英式克制与东方留白的交汇点)
+      priority: high
+      execution_order: 3
+
+    - id: task_4
+      title: 分析 业主生活方式画像、日常行为动线、社交模式特征、独处空间需求层次
+      description: |
+        构建38岁英国海归独立女性的完整生活方式模型，分析其日常行为节奏、
+        社交频率与形式、独处偏好与深度、职业与生活的边界管理，
+        为空间设计提供精准的用户行为洞察。
+      task_type: analysis
+      motivation: experiential
+      support_search: false
+      dimensions:
+        - 日常行为动线(晨起-工作-运动-社交-独处的时间节奏)
+        - 社交模式(小型聚会偏好、一对一深度社交、职业社交)
+        - 独处需求层次(阅读/瑜伽/冥想/护理/创作的空间类型)
+        - 中西生活习惯(英式下午茶、中式饮食、国际化生活方式)
+      priority: high
+      execution_order: 4
+
+    - id: task_5
+      title: 搜索 大平层空间比例控制、开放式动线组织、留白与密度平衡的设计手法
+      description: |
+        研究200平方米大平层的空间比例控制方法，聚焦开放式布局的动线组织、
+        空间留白与功能密度的平衡策略，以及如何通过比例关系传达轻盈与克制感。
+      task_type: research
+      motivation: aesthetic
+      support_search: true
+      dimensions:
+        - 空间比例控制(黄金比例、模数系统、视觉重心)
+        - 开放式动线(流动性路径、视线通廊、空间序列)
+        - 留白策略(功能留白vs装饰留白、呼吸感营造)
+        - 大平层案例(200平方米级别的比例处理参考)
+      priority: high
+      execution_order: 5
+
+    # ========== 第二阶段:概念构建与空间设计(Task 6-11) ==========
+
+    - id: task_6
+      title: 制定 赫本精神空间转译体系、核心设计概念、精神关键词→空间语言映射表
+      description: |
+        建立赫本精神到空间语言的系统转译框架，将优雅、自律、轻盈、克制
+        四个精神关键词映射为具体的空间比例、材质选择、色彩策略、光线处理，
+        形成可执行的设计概念体系。
+      task_type: design
+      motivation: symbolic
+      support_search: false
+      dimensions:
+        - 精神→空间映射(优雅=比例精确、自律=秩序感、轻盈=通透性、克制=减法美学)
+        - 核心设计概念(一句话概念陈述+三层展开逻辑)
+        - 反符号化原则(禁止清单+替代策略+精神表达方式)
+        - 当代性锚点(赫本精神的2020年代空间表达)
+      priority: high
+      execution_order: 6
+
+    - id: task_7
+      title: 设计 200平方米大平层的 空间比例体系、功能分区方案、开放与围合的节奏关系
+      description: |
+        基于赫本精神的轻盈与克制，设计大平层的整体空间比例体系，
+        定义公共区域与私密区域的面积比、开放空间与围合空间的节奏关系，
+        建立适配独立女性生活方式的非传统功能分区方案。
+      task_type: design
+      motivation: aesthetic
+      support_search: false
+      dimensions:
+        - 空间比例体系(公共区55%+私密区30%+过渡区15%的面积分配)
+        - 功能分区(取消传统客卧、增设书房/瑜伽室/衣帽间)
+        - 开放围合节奏(客厅开放→书房半开放→卧室围合的渐变)
+        - 层高利用(2.9米层高的视觉拉伸与压缩策略)
+      priority: high
+      execution_order: 7
+
+    - id: task_8
+      title: 设计 全屋动线组织系统、主动线与辅动线层次、视线通廊规划、空间序列编排
+      description: |
+        构建完整的动线组织系统，设计主动线（日常生活流线）与辅动线
+        （社交流线、服务流线）的层次关系，规划关键视线通廊，
+        编排从入户到各功能区的空间体验序列。
+      task_type: design
+      motivation: functional
+      support_search: false
+      dimensions:
+        - 主动线设计(入户→客厅→厨房→卧室的日常流线)
+        - 辅动线层次(社交动线、服务动线、私密动线的分离)
+        - 视线通廊(3条关键视线轴的起点、终点、框景)
+        - 空间序列(压缩→释放→转折→高潮的体验节奏)
+      priority: high
+      execution_order: 8
+
+    - id: task_9
+      title: 制定 社交与独处平衡系统、空间模式切换机制、公私边界弹性设计方案
+      description: |
+        设计社交模式与独处模式的动态平衡系统，通过空间弹性设计实现
+        同一空间在不同场景下的功能切换，建立公私边界的柔性控制机制，
+        满足独立女性对社交品质与独处深度的双重需求。
+      task_type: design
+      motivation: experiential
+      support_search: false
+      dimensions:
+        - 社交模式(4-6人小型聚会、2人深度对话、职业会客)
+        - 独处模式(深度阅读、瑜伽冥想、自我护理、创作思考)
+        - 切换机制(活动隔断、灯光场景、家具重组、窗帘控制)
+        - 边界弹性(半开放书房、可关闭厨房、多功能阳台)
+      priority: high
+      execution_order: 9
+
+    - id: task_10
+      title: 制定 优雅克制的材质体系、色彩系统、触感层次规划、光线与材质的互动策略
+      description: |
+        建立与赫本精神匹配的材质与色彩系统，以克制的中性色为基底，
+        通过材质触感的丰富层次替代色彩的视觉刺激，设计光线与材质的
+        互动关系，实现优雅而非华丽的空间质感。
+      task_type: design
+      motivation: aesthetic
+      support_search: false
+      dimensions:
+        - 色彩系统(暖白+灰调+裸色为主、黑色点缀、拒绝高饱和)
+        - 材质选择(天然石材+实木+亚麻+丝绒的克制组合)
+        - 触感层次(粗糙石材→光滑木面→柔软织物的触觉序列)
+        - 光材互动(哑光为主、局部镜面反射、自然光漫射效果)
+      priority: medium
+      execution_order: 10
+
+    - id: task_11
+      title: 搜索 芭蕾训练空间与家庭瑜伽室的 设计要素、镜面与光线处理、身体觉知空间营造
+      description: |
+        研究赫本芭蕾背景关联的身体觉知空间设计，调研家庭瑜伽室、
+        冥想空间、身体训练区域的设计要素，为业主的自律生活方式
+        提供专业的空间设计参考。
+      task_type: research
+      motivation: functional
+      support_search: true
+      dimensions:
+        - 芭蕾空间要素(镜面处理、把杆设计、地面材质、采光)
+        - 瑜伽冥想空间(净高需求、通风策略、声学处理、氛围)
+        - 身体觉知设计(空间尺度与身体感知的关系)
+        - 多功能转换(训练→冥想→阅读的场景切换)
+      priority: medium
+      execution_order: 11
+
+    # ========== 第三阶段:整合验证与策略(Task 12-15) ==========
+
+    - id: task_12
+      title: 分析 赫本精神转译的 符号化风险评估、当代性验证、精神表达完整度审核
+      description: |
+        对整体设计方案进行赫本精神转译的质量审核，识别可能滑向复古符号堆砌
+        的风险点，验证设计语言的当代性，评估优雅、自律、轻盈、克制四个
+        精神维度的空间表达完整度。
+      task_type: analysis
+      motivation: symbolic
+      support_search: false
+      dimensions:
+        - 符号化风险(复古元素清单审查、装饰过度预警)
+        - 当代性验证(设计语言是否属于2020年代表达)
+        - 精神完整度(四个关键词的空间覆盖率评估)
+        - 业主匹配度(38岁海归独立女性的认同感预判)
+      priority: medium
+      execution_order: 12
+
+    - id: task_13
+      title: 整合 全屋灯光系统方案、自然光优化策略、人工光层次设计、情境预设编程
+      description: |
+        构建与赫本精神匹配的完整灯光体系，优化南山地区的自然光引入策略，
+        设计人工光的多层次系统，编排社交、独处、工作、休息四种情境的
+        灯光预设方案。
+      task_type: design
+      motivation: experiential
+      support_search: false
+      dimensions:
+        - 自然光优化(朝向分析、窗帘层次、光线反射面规划)
+        - 人工光层次(基础照明+重点照明+氛围照明+装饰照明)
+        - 情境预设(社交明亮→独处柔和→工作专注→夜间安眠)
+        - 灯具选型(建筑感灯具为主、拒绝装饰性水晶灯)
+      priority: medium
+      execution_order: 13
+
+    - id: task_14
+      title: 评估 整体方案的 动线合理性验证、比例协调性审核、生活实用性检查、落地可行性分析
+      description: |
+        对整体方案进行系统性评估，验证动线组织的合理性与效率，
+        审核空间比例的协调性与舒适度，检查日常生活的实用性需求满足度，
+        分析深圳本地供应链与施工的落地可行性。
+      task_type: analysis
+      motivation: functional
+      support_search: false
+      dimensions:
+        - 动线合理性(主辅动线效率、交叉冲突检查、无障碍验证)
+        - 比例协调性(各空间面积比、家具尺度适配、视觉重心平衡)
+        - 生活实用性(收纳容量、清洁便利、设备维护、季节适应)
+        - 落地可行性(深圳本地供应商、工期估算、预算控制)
+      priority: medium
+      execution_order: 14
+
+    - id: task_15
+      title: 制定 项目实施策略、分阶段执行计划、关键节点品质控制、长期维护与进化方案
+      description: |
+        制定从设计到落地的完整实施策略，规划分阶段执行计划与关键节点，
+        建立品质控制标准与验收流程，设计空间的长期维护方案与
+        随业主生活变化的进化预案。
+      task_type: strategy
+      motivation: functional
+      support_search: false
+      dimensions:
+        - 分阶段计划(硬装→软装→艺术品→生活用品的四阶段)
+        - 品质控制(材质验收标准、工艺节点检查、完工验收清单)
+        - 预算管理(总预算分配、优先级排序、弹性预留)
+        - 长期进化(5年维护计划、生活变化适配、可替换模块)
+      priority: low
+      execution_order: 15
+
+  quality_highlights:
+    - 15任务精神深度：赫本精神四维解构(优雅+自律+轻盈+克制)→空间语言系统转译
+    - 反符号化策略：明确禁止复古元素堆砌，建立精神内核的当代空间表达路径
+    - 独立女性空间哲学：不婚主义生活方式驱动的非传统功能分区与动线组织
+    - 社交独处平衡系统：弹性空间切换机制+灯光情境预设+公私边界柔性控制
+    - 空间比例体系：200平方米大平层的开放围合节奏+视线通廊+体验序列编排
+    - 身体觉知空间：芭蕾精神关联的瑜伽冥想区设计，自律生活方式的空间支撑
+metadata:
+  tags_matrix:
+    space_type:
+      - residential
+      - luxury_apartment
+      - penthouse
+    scale: medium
+    design_direction:
+      - aesthetic
+      - cultural
+      - experiential
+      - symbolic
+    user_profile:
+      - independent_woman
+      - cultural_intellectual
+      - aesthetic_pursuer
+    challenge_type:
+      - character_identity
+      - lifestyle_expression
+      - spatial_narrative
+      - cultural_reference
+    methodology:
+      - character_driven_design
+      - narrative_space
+      - sensory_design
+    phase: concept_to_detailed
+  discipline: interior
+  urgency: 0.40
+  innovation_quotient: 0.72
+  commercial_sensitivity: 0.35
+  cultural_depth: 0.75
+  performance:
+    specialty_score: 0.55
+    recommended_strength: medium
+  best_for:
+    - "人物气质驱动的住宅设计"
+    - "文化符号空间化表达"
+    - "高端定制生活方式空间"
+    - "叙事性室内设计"
+  not_suitable_for:
+    - "标准化精装交付"
+    - "无明确业主个性项目"
+    - "商业空间设计"

@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }}</title>
+    <style>
+        /* 基础样式 */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        @page {
+            size: A4;
+            margin: 20mm 15mm 25mm 15mm;
+        }
+        
+        body {
+            font-family: "Microsoft YaHei", "微软雅黑", "PingFang SC", "Helvetica Neue", Arial, sans-serif;
+            font-size: 11pt;
+            line-height: 1.8;
+            color: #333;
+            background: white;
+        }
+        
+        /* 封面 */
+        .cover-page {
+            page-break-after: always;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            text-align: center;
+            padding: 50px;
+        }
+        
+        .cover-title {
+            font-size: 28pt;
+            font-weight: bold;
+            color: #1a365d;
+            margin-bottom: 30px;
+            line-height: 1.4;
+        }
+        
+        .cover-subtitle {
+            font-size: 16pt;
+            color: #4a5568;
+            margin-bottom: 50px;
+        }
+        
+        .cover-info {
+            font-size: 12pt;
+            color: #718096;
+            margin-top: 80px;
+        }
+        
+        .cover-info p {
+            margin: 8px 0;
+        }
+        
+        /* 专家报告页 */
+        .expert-page {
+            page-break-before: always;
+            padding: 10px 0;
+        }
+        
+        .expert-page:first-of-type {
+            page-break-before: auto;
+        }
+        
+        /* 专家标题 */
+        .expert-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 25px 30px;
+            border-radius: 8px;
+            margin-bottom: 25px;
+        }
+        
+        .expert-name {
+            font-size: 20pt;
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+        
+        .expert-role {
+            font-size: 12pt;
+            opacity: 0.9;
+        }
+        
+        /* 章节标题 */
+        .section-title {
+            font-size: 14pt;
+            font-weight: bold;
+            color: #2d3748;
+            border-left: 4px solid #667eea;
+            padding-left: 15px;
+            margin: 25px 0 15px 0;
+        }
+        
+        /* 内容区块 */
+        .content-block {
+            background: #f8fafc;
+            border-radius: 6px;
+            padding: 20px;
+            margin-bottom: 15px;
+        }
+        
+        .content-block.highlight {
+            background: #ebf8ff;
+            border-left: 4px solid #4299e1;
+        }
+        
+        .content-block.warning {
+            background: #fffaf0;
+            border-left: 4px solid #ed8936;
+        }
+        
+        .content-block.success {
+            background: #f0fff4;
+            border-left: 4px solid #48bb78;
+        }
+        
+        /* 字段样式 */
+        .field-group {
+            margin-bottom: 15px;
+        }
+        
+        .field-label {
+            font-weight: 600;
+            color: #4a5568;
+            margin-bottom: 5px;
+            font-size: 10.5pt;
+        }
+        
+        .field-value {
+            color: #2d3748;
+            line-height: 1.9;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        
+        /* 🔥 v7.1: 改进段落和列表间距 */
+        .field-value br + br {
+            display: block;
+            content: "";
+            margin-top: 0.8em;
+        }
+        
+        .field-value strong {
+            display: inline-block;
+            margin-top: 0.5em;
+            color: #2d3748;
+        }
+        
+        /* 编号列表样式优化 */
+        .field-value br {
+            line-height: 1.6;
+        }
+        
+        /* 列表样式 */
+        .content-list {
+            list-style: none;
+            padding: 0;
+        }
+        
+        .content-list li {
+            position: relative;
+            padding-left: 20px;
+            margin-bottom: 10px;
+            line-height: 1.7;
+        }
+        
+        .content-list li::before {
+            content: "•";
+            color: #667eea;
+            font-weight: bold;
+            position: absolute;
+            left: 0;
+        }
+        
+        /* 编号列表 */
+        .numbered-list {
+            list-style: none;
+            padding: 0;
+            counter-reset: item;
+        }
+        
+        .numbered-list li {
+            position: relative;
+            padding-left: 30px;
+            margin-bottom: 12px;
+            line-height: 1.7;
+            counter-increment: item;
+        }
+        
+        .numbered-list li::before {
+            content: counter(item) ".";
+            color: #667eea;
+            font-weight: bold;
+            position: absolute;
+            left: 0;
+            min-width: 20px;
+        }
+        
+        /* 表格样式 */
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+            font-size: 10.5pt;
+        }
+        
+        .data-table th,
+        .data-table td {
+            border: 1px solid #e2e8f0;
+            padding: 12px 15px;
+            text-align: left;
+        }
+        
+        .data-table th {
+            background: #edf2f7;
+            font-weight: 600;
+            color: #4a5568;
+        }
+        
+        .data-table tr:nth-child(even) {
+            background: #f8fafc;
+        }
+        
+        /* 引用块 */
+        .quote-block {
+            border-left: 4px solid #9f7aea;
+            background: #faf5ff;
+            padding: 15px 20px;
+            margin: 15px 0;
+            font-style: italic;
+            color: #553c9a;
+        }
+        
+        /* 卡片布局 */
+        .card-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin: 15px 0;
+        }
+        
+        .card {
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 15px;
+        }
+        
+        .card-title {
+            font-weight: 600;
+            color: #2d3748;
+            margin-bottom: 8px;
+            font-size: 11pt;
+        }
+        
+        .card-content {
+            color: #4a5568;
+            font-size: 10.5pt;
+            line-height: 1.6;
+        }
+        
+        /* Q&A 样式 */
+        .qa-section {
+            padding: 10px 0;
+        }
+        
+        .qa-question {
+            font-weight: 600;
+            color: #2d3748;
+            font-size: 11pt;
+            margin-bottom: 10px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        
+        .qa-answer {
+            color: #4a5568;
+            line-height: 1.8;
+            padding-left: 10px;
+            border-left: 3px solid #667eea;
+        }
+        
+        /* 标签 */
+        .tag {
+            display: inline-block;
+            background: #edf2f7;
+            color: #4a5568;
+            padding: 3px 10px;
+            border-radius: 15px;
+            font-size: 9pt;
+            margin: 2px 4px 2px 0;
+        }
+        
+        .tag.primary {
+            background: #ebf4ff;
+            color: #3182ce;
+        }
+        
+        .tag.success {
+            background: #c6f6d5;
+            color: #276749;
+        }
+        
+        /* 分隔线 */
+        .divider {
+            border: none;
+            border-top: 1px solid #e2e8f0;
+            margin: 20px 0;
+        }
+        
+        /* 页脚 */
+        .page-footer {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            text-align: center;
+            font-size: 9pt;
+            color: #a0aec0;
+            padding: 10px;
+        }
+        
+        /* 打印优化 */
+        @media print {
+            body {
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+            
+            .expert-page {
+                page-break-before: always;
+            }
+            
+            .content-block {
+                break-inside: avoid;
+            }
+            
+            .field-group {
+                break-inside: avoid;
+            }
+        }
+        
+        /* Markdown 渲染的内容 */
+        .markdown-content h1 {
+            font-size: 16pt;
+            color: #1a365d;
+            margin: 20px 0 10px 0;
+        }
+        
+        .markdown-content h2 {
+            font-size: 14pt;
+            color: #2d3748;
+            margin: 18px 0 10px 0;
+        }
+        
+        .markdown-content h3 {
+            font-size: 12pt;
+            color: #4a5568;
+            margin: 15px 0 8px 0;
+        }
+        
+        .markdown-content p {
+            margin-bottom: 12px;
+        }
+        
+        .markdown-content ul,
+        .markdown-content ol {
+            margin-left: 20px;
+            margin-bottom: 12px;
+        }
+        
+        .markdown-content li {
+            margin-bottom: 6px;
+        }
+        
+        .markdown-content code {
+            background: #edf2f7;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: "Consolas", "Monaco", monospace;
+            font-size: 10pt;
+        }
+        
+        .markdown-content pre {
+            background: #2d3748;
+            color: #e2e8f0;
+            padding: 15px;
+            border-radius: 6px;
+            overflow-x: auto;
+            margin: 15px 0;
+        }
+        
+        .markdown-content pre code {
+            background: none;
+            padding: 0;
+            color: inherit;
+        }
+        
+        .markdown-content blockquote {
+            border-left: 4px solid #9f7aea;
+            background: #faf5ff;
+            padding: 10px 15px;
+            margin: 15px 0;
+            color: #553c9a;
+        }
+        
+        .markdown-content strong {
+            font-weight: 600;
+            color: #2d3748;
+        }
+        
+        .markdown-content em {
+            font-style: italic;
+            color: #4a5568;
+        }
+    </style>
+</head>
+<body>
+    <!-- 封面 -->
+    <div class="cover-page">
+        <h1 class="cover-title">{{ title }}</h1>
+        {% if subtitle %}
+        <p class="cover-subtitle">{{ subtitle }}</p>
+        {% endif %}
+        <div class="cover-info">
+            <p>专家团队综合分析报告</p>
+            <p>生成时间：{{ generated_time }}</p>
+            {% if session_id %}
+            <p>会话编号：{{ session_id }}</p>
+            {% endif %}
+        </div>
+    </div>
+    
+    <!-- 专家报告 -->
+    {% for expert in experts %}
+    <div class="expert-page">
+        <div class="expert-header">
+            <div class="expert-name">{{ expert.name }}</div>
+            {% if expert.role %}
+            <div class="expert-role">{{ expert.role }}</div>
+            {% endif %}
+        </div>
+        
+        {% for section in expert.sections %}
+        <div class="section-title">{{ section.title }}</div>
+        
+        {% if section.type == 'text' %}
+        <div class="content-block">
+            <div class="field-value markdown-content">{{ section.content | safe }}</div>
+        </div>
+        
+        {% elif section.type == 'list' %}
+        <div class="content-block">
+            <ul class="content-list">
+                {% for item in section.list_items %}
+                <li>{{ item }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+        
+        {% elif section.type == 'numbered_list' %}
+        <div class="content-block">
+            <ol class="numbered-list">
+                {% for item in section.list_items %}
+                <li>{{ item }}</li>
+                {% endfor %}
+            </ol>
+        </div>
+        
+        {% elif section.type == 'fields' %}
+        <div class="content-block">
+            {% for field in section.fields %}
+            <div class="field-group">
+                <div class="field-label">{{ field.label }}</div>
+                <div class="field-value">{{ field.value | safe }}</div>
+            </div>
+            {% endfor %}
+        </div>
+        
+        {% elif section.type == 'table' %}
+        <table class="data-table">
+            <thead>
+                <tr>
+                    {% for header in section.headers %}
+                    <th>{{ header }}</th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in section.rows %}
+                <tr>
+                    {% for cell in row %}
+                    <td>{{ cell }}</td>
+                    {% endfor %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        
+        {% elif section.type == 'qa' %}
+        <div class="content-block">
+            <div class="qa-section">
+                <div class="qa-question">{{ section.question }}</div>
+                <div class="qa-answer">{{ section.answer | safe }}</div>
+            </div>
+        </div>
+        
+        {% elif section.type == 'cards' %}
+        <div class="card-grid">
+            {% for card in section.cards %}
+            <div class="card">
+                <div class="card-title">{{ card.title }}</div>
+                <div class="card-content">{{ card.content | safe }}</div>
+            </div>
+            {% endfor %}
+        </div>
+        
+        {% elif section.type == 'quote' %}
+        <div class="quote-block">
+            {{ section.content }}
+        </div>
+        
+        {% elif section.type == 'highlight' %}
+        <div class="content-block highlight">
+            <div class="field-value">{{ section.content | safe }}</div>
+        </div>
+        
+        {% elif section.type == 'warning' %}
+        <div class="content-block warning">
+            <div class="field-value">{{ section.content | safe }}</div>
+        </div>
+        
+        {% elif section.type == 'success' %}
+        <div class="content-block success">
+            <div class="field-value">{{ section.content | safe }}</div>
+        </div>
+        
+        {% elif section.type == 'tags' %}
+        <div class="content-block">
+            {% for tag in section.tags %}
+            <span class="tag {{ tag.style | default('') }}">{{ tag.text }}</span>
+            {% endfor %}
+        </div>
+        
+        {% else %}
+        <!-- 默认文本渲染 -->
+        <div class="content-block">
+            <div class="field-value">{{ section.content | safe }}</div>
+        </div>
+        {% endif %}
+        
+        {% endfor %}
+    </div>
+    {% endfor %}
+</body>
+</html>

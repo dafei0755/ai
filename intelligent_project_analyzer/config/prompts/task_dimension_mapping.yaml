@@ -1,0 +1,429 @@
+# 任务类型 → 雷达图维度映射配置
+# v7.137 Phase 1: 智能利用 Step1 confirmed_tasks 信息
+# 根据用户确认的任务类型，自动推荐高相关性维度
+
+metadata:
+  version: "7.137.0"
+  description: "任务类型到雷达图维度的映射规则，充分利用问卷第一步信息"
+  created_at: "2026-01-05"
+  author: "雷达图智能化优化 Phase 1"
+
+# ========================================
+# 任务类型映射规则
+# ========================================
+# 每个任务类型定义：
+# - keywords: 任务描述中的关键词（用于匹配）
+# - dimensions: 强相关的维度列表
+# - priority: 优先级权重 (1-10，10最高)
+
+task_mappings:
+  # ------ 空间布局类 ------
+
+  space_layout_optimization:
+    name: "空间布局优化"
+    keywords: ["空间布局", "平面规划", "功能分区", "户型优化", "动线设计"]
+    dimensions:
+      - dimension_id: "space_flexibility"
+        priority: 10
+        reason: "空间布局需要考虑灵活性和功能分区"
+      - dimension_id: "function_intensity"
+        priority: 9
+        reason: "布局优化直接关联功能性需求"
+      - dimension_id: "traffic_flow"
+        priority: 8
+        reason: "布局必须考虑动线流畅度"
+      - dimension_id: "privacy_level"
+        priority: 7
+        reason: "功能分区需要考虑隐私与开放的平衡"
+
+  circulation_design:
+    name: "动线设计"
+    keywords: ["动线", "流线", "路径", "走道", "交通"]
+    dimensions:
+      - dimension_id: "traffic_flow"
+        priority: 10
+        reason: "动线设计核心关注流畅度"
+      - dimension_id: "space_flexibility"
+        priority: 8
+        reason: "动线需要适应不同使用场景"
+      - dimension_id: "function_intensity"
+        priority: 6
+        reason: "动线效率影响功能性"
+
+  # ------ 风格定位类 ------
+
+  style_positioning:
+    name: "风格定位"
+    keywords: ["风格", "主题", "美学", "调性", "气质"]
+    dimensions:
+      - dimension_id: "cultural_axis"
+        priority: 10
+        reason: "风格定位首先需要确定文化归属"
+      - dimension_id: "aesthetic_direction"
+        priority: 10
+        reason: "美学方向是风格定位的核心维度"
+      - dimension_id: "material_temperature"
+        priority: 8
+        reason: "材质温度直接影响风格感受"
+      - dimension_id: "energy_level"
+        priority: 7
+        reason: "空间能量层级影响风格氛围"
+
+  cultural_integration:
+    name: "文化元素融合"
+    keywords: ["文化", "传统", "本土", "地域", "民族"]
+    dimensions:
+      - dimension_id: "cultural_axis"
+        priority: 10
+        reason: "文化融合核心维度"
+      - dimension_id: "cultural_authenticity"
+        priority: 9
+        reason: "需要评估文化真实性深度"
+      - dimension_id: "aesthetic_direction"
+        priority: 7
+        reason: "文化表达方式影响美学取向"
+
+  # ------ 功能优化类 ------
+
+  storage_optimization:
+    name: "收纳优化"
+    keywords: ["收纳", "储物", "整理", "柜体", "衣柜", "鞋柜"]
+    dimensions:
+      - dimension_id: "storage_priority"
+        priority: 10
+        reason: "收纳优化直接对应此维度"
+      - dimension_id: "space_flexibility"
+        priority: 8
+        reason: "收纳方案需要考虑空间灵活性"
+      - dimension_id: "function_intensity"
+        priority: 7
+        reason: "收纳是功能性的重要体现"
+
+  lighting_design:
+    name: "照明设计"
+    keywords: ["照明", "灯光", "光线", "采光", "自然光"]
+    dimensions:
+      - dimension_id: "natural_connection"
+        priority: 9
+        reason: "照明设计需要考虑自然光利用"
+      - dimension_id: "energy_level"
+        priority: 8
+        reason: "灯光设计直接影响空间氛围"
+      - dimension_id: "sensory_focus"
+        priority: 7
+        reason: "照明是多感官体验的重要部分"
+
+  # ------ 科技智能类 ------
+
+  smart_home_integration:
+    name: "智能家居集成"
+    keywords: ["智能", "智能家居", "自动化", "科技", "物联网"]
+    dimensions:
+      - dimension_id: "tech_visibility"
+        priority: 10
+        reason: "智能家居的核心维度"
+      - dimension_id: "automation_workflow"
+        priority: 10
+        reason: "自动化程度是智能家居的关键"
+      - dimension_id: "function_intensity"
+        priority: 6
+        reason: "智能化提升功能便捷性"
+
+  acoustic_optimization:
+    name: "声学优化"
+    keywords: ["声学", "隔音", "降噪", "吸音", "音质"]
+    dimensions:
+      - dimension_id: "acoustic_performance"
+        priority: 10
+        reason: "声学优化专用维度"
+      - dimension_id: "privacy_level"
+        priority: 8
+        reason: "隔音与隐私密切相关"
+      - dimension_id: "sensory_focus"
+        priority: 7
+        reason: "声学是感官体验的重要维度"
+
+  # ------ 材料选择类 ------
+
+  material_selection:
+    name: "材料选择"
+    keywords: ["材料", "材质", "饰面", "质感", "肌理"]
+    dimensions:
+      - dimension_id: "material_temperature"
+        priority: 10
+        reason: "材料选择核心维度"
+      - dimension_id: "material_sustainability"
+        priority: 9
+        reason: "材料需要考虑环保可持续性"
+      - dimension_id: "budget_priority"
+        priority: 8
+        reason: "材料选择受预算约束"
+      - dimension_id: "sensory_focus"
+        priority: 7
+        reason: "材质触感影响感官体验"
+
+  sustainable_design:
+    name: "可持续设计"
+    keywords: ["可持续", "环保", "绿色", "生态", "节能"]
+    dimensions:
+      - dimension_id: "material_sustainability"
+        priority: 10
+        reason: "可持续设计核心维度"
+      - dimension_id: "natural_connection"
+        priority: 8
+        reason: "生态设计强调自然连接"
+      - dimension_id: "tech_visibility"
+        priority: 7
+        reason: "绿色科技是可持续的重要手段"
+
+  # ------ 成本控制类 ------
+
+  budget_control:
+    name: "预算控制"
+    keywords: ["预算", "成本", "造价", "报价", "性价比"]
+    dimensions:
+      - dimension_id: "budget_priority"
+        priority: 10
+        reason: "预算控制核心维度"
+      - dimension_id: "cost_efficiency"
+        priority: 9
+        reason: "成本效率与预算控制密切相关"
+      - dimension_id: "material_sustainability"
+        priority: 6
+        reason: "材料选择影响成本"
+
+  value_engineering:
+    name: "价值工程"
+    keywords: ["价值工程", "优化", "降本", "增效", "性价比"]
+    dimensions:
+      - dimension_id: "cost_efficiency"
+        priority: 10
+        reason: "价值工程追求成本效率最大化"
+      - dimension_id: "budget_priority"
+        priority: 9
+        reason: "价值工程核心是成本优化"
+      - dimension_id: "function_intensity"
+        priority: 8
+        reason: "不能牺牲功能性"
+
+  # ------ 体验设计类 ------
+
+  atmosphere_design:
+    name: "氛围营造"
+    keywords: ["氛围", "情绪", "感受", "体验", "情感"]
+    dimensions:
+      - dimension_id: "energy_level"
+        priority: 10
+        reason: "氛围营造核心维度"
+      - dimension_id: "sensory_focus"
+        priority: 9
+        reason: "氛围通过多感官体验实现"
+      - dimension_id: "material_temperature"
+        priority: 8
+        reason: "材质温度影响氛围感受"
+      - dimension_id: "cultural_axis"
+        priority: 7
+        reason: "文化背景影响氛围定位"
+
+  spiritual_space:
+    name: "精神空间营造"
+    keywords: ["精神", "冥想", "禅意", "超越", "灵性"]
+    dimensions:
+      - dimension_id: "spiritual_atmosphere"
+        priority: 10
+        reason: "精神空间专用维度"
+      - dimension_id: "energy_level"
+        priority: 9
+        reason: "精神空间通常偏向静谧能量"
+      - dimension_id: "natural_connection"
+        priority: 8
+        reason: "精神空间强调与自然的连接"
+      - dimension_id: "sensory_focus"
+        priority: 7
+        reason: "多感官体验促进精神体验"
+
+  # ------ 特殊需求类 ------
+
+  accessibility_design:
+    name: "无障碍设计"
+    keywords: ["无障碍", "适老", "全龄", "辅助", "医疗"]
+    dimensions:
+      - dimension_id: "accessibility_level"
+        priority: 10
+        reason: "无障碍设计专用维度"
+      - dimension_id: "function_intensity"
+        priority: 9
+        reason: "无障碍强调功能性和安全性"
+      - dimension_id: "space_flexibility"
+        priority: 7
+        reason: "无障碍需要空间灵活适应"
+
+  family_needs_mediation:
+    name: "家庭需求调和"
+    keywords: ["家庭", "多代", "代际", "冲突", "协调"]
+    dimensions:
+      - dimension_id: "conflict_mediation"
+        priority: 10
+        reason: "家庭需求调和专用维度"
+      - dimension_id: "privacy_level"
+        priority: 9
+        reason: "多代同堂需要平衡隐私与社交"
+      - dimension_id: "space_flexibility"
+        priority: 8
+        reason: "需要灵活适应不同家庭成员需求"
+
+  # ------ 商业空间类 ------
+
+  brand_expression:
+    name: "品牌表达"
+    keywords: ["品牌", "VI", "形象", "识别", "logo"]
+    dimensions:
+      - dimension_id: "brand_visibility"
+        priority: 10
+        reason: "品牌表达核心维度"
+      - dimension_id: "aesthetic_direction"
+        priority: 8
+        reason: "品牌美学定位"
+      - dimension_id: "cultural_axis"
+        priority: 7
+        reason: "品牌文化属性"
+
+  customer_experience:
+    name: "客户体验优化"
+    keywords: ["客户体验", "用户体验", "体验", "感受", "旅程"]
+    dimensions:
+      - dimension_id: "traffic_flow"
+        priority: 10
+        reason: "客户动线是体验的基础"
+      - dimension_id: "sensory_focus"
+        priority: 9
+        reason: "多感官体验提升客户感受"
+      - dimension_id: "energy_level"
+        priority: 8
+        reason: "空间氛围影响客户体验"
+
+  # ------ 城市更新类（v7.152新增） ------
+
+  urban_renewal:
+    name: "城市更新改造"
+    keywords: ["城市更新", "改造", "更新", "活化", "再生", "旧改", "老旧改造"]
+    dimensions:
+      - dimension_id: "urban_memory_preservation"
+        priority: 10
+        reason: "城市更新核心是平衡保留与创新"
+      - dimension_id: "community_participation"
+        priority: 9
+        reason: "城市更新需要社区参与"
+      - dimension_id: "local_culture_depth"
+        priority: 8
+        reason: "在地文化是城市更新的灵魂"
+      - dimension_id: "benchmark_innovation"
+        priority: 7
+        reason: "城市更新项目常作为示范标杆"
+
+  market_renovation:
+    name: "菜市场/公共市场改造"
+    keywords: ["菜市场", "市场", "集市", "农贸", "农贸市场", "生鲜市场"]
+    dimensions:
+      - dimension_id: "vitality_preservation"
+        priority: 10
+        reason: "菜市场的核心是烟火气"
+      - dimension_id: "traffic_flow"
+        priority: 9
+        reason: "市场动线直接影响体验"
+      - dimension_id: "accessibility_level"
+        priority: 8
+        reason: "市场需要全龄友好"
+      - dimension_id: "multi_user_balance"
+        priority: 7
+        reason: "市场服务多元客群"
+
+  multi_stakeholder_project:
+    name: "多元客群项目"
+    keywords: ["多元", "客群", "外籍", "游客", "居民", "老居民", "访客", "国际化"]
+    dimensions:
+      - dimension_id: "multi_user_balance"
+        priority: 10
+        reason: "多元客群需要平衡不同需求"
+      - dimension_id: "cultural_axis"
+        priority: 8
+        reason: "跨文化项目需要考虑文化定位"
+      - dimension_id: "accessibility_level"
+        priority: 7
+        reason: "多元客群需要无障碍设计"
+
+  heritage_preservation:
+    name: "历史文化保护"
+    keywords: ["历史", "文化", "保护", "传承", "渔村", "老街", "历史街区", "非遗"]
+    dimensions:
+      - dimension_id: "urban_memory_preservation"
+        priority: 10
+        reason: "历史保护核心是记忆保留"
+      - dimension_id: "local_culture_depth"
+        priority: 10
+        reason: "文化保护需要深度挖掘"
+      - dimension_id: "cultural_authenticity"
+        priority: 9
+        reason: "历史保护需要文化真实性"
+
+  benchmark_project:
+    name: "标杆示范项目"
+    keywords: ["标杆", "示范", "典范", "样板", "引领", "创新", "先锋"]
+    dimensions:
+      - dimension_id: "benchmark_innovation"
+        priority: 10
+        reason: "标杆项目需要创新引领"
+      - dimension_id: "sensory_focus"
+        priority: 8
+        reason: "标杆项目需要多感官体验"
+      - dimension_id: "tech_visibility"
+        priority: 7
+        reason: "标杆项目常融入科技元素"
+
+# ========================================
+# 任务组合增强规则
+# ========================================
+# 当多个任务同时出现时，可能需要额外的维度
+
+task_combination_rules:
+  - tasks: ["space_layout_optimization", "storage_optimization"]
+    additional_dimensions:
+      - dimension_id: "function_intensity"
+        reason: "空间布局+收纳优化需要强调功能性"
+
+  - tasks: ["style_positioning", "cultural_integration"]
+    additional_dimensions:
+      - dimension_id: "cultural_authenticity"
+        reason: "风格定位+文化融合需要评估文化真实性"
+
+  - tasks: ["smart_home_integration", "budget_control"]
+    additional_dimensions:
+      - dimension_id: "cost_efficiency"
+        reason: "智能化+预算控制需要权衡成本效率"
+
+  - tasks: ["lighting_design", "atmosphere_design"]
+    additional_dimensions:
+      - dimension_id: "sensory_focus"
+        reason: "照明+氛围设计需要强化感官体验"
+
+  - tasks: ["material_selection", "sustainable_design"]
+    additional_dimensions:
+      - dimension_id: "material_sustainability"
+        reason: "材料选择+可持续设计需要重点关注环保"
+
+# ========================================
+# 匹配算法配置
+# ========================================
+
+matching_config:
+  # 关键词匹配阈值
+  keyword_match_threshold: 0.5  # 至少匹配50%关键词才算命中
+
+  # 优先级权重计算
+  priority_weights:
+    exact_match: 1.0   # 精确匹配任务类型
+    keyword_match: 0.7  # 关键词部分匹配
+    combination_bonus: 0.3  # 任务组合额外加成
+
+  # 最大维度注入数量（防止过度注入）
+  max_injected_dimensions: 5

@@ -1,0 +1,324 @@
+# 示例:季裕棠叙事手法浪子客厅设计
+# 来源:q.txt Q10
+# 类型:审美主导 (Aesthetic Dominant) / 叙事设计 + 大师风格研究
+# 特征:季裕棠设计语言、叙事性空间、浪子精神转译、材料对比张力、克制奢华
+# v8.000: 新增示例，覆盖 审美主导+大师风格研究+叙事性空间营造
+
+example:
+  project_info:
+    name: 季裕棠叙事手法浪子客厅设计项目
+    description: |
+      深圳湾120平方米复式客厅设计，业主45岁男性企业家，对季裕棠(Tony Chi)设计
+      哲学高度认同，要求以"浪子回头"为叙事主题，通过空间叙事手法表达叛逆与
+      回归的双重精神。项目核心在于深入研究季裕棠设计语言体系，提取其粗犷与
+      精致并置、野性与温柔共存的美学特征，转化为具体的空间设计策略。
+
+    feature_vector:
+      aesthetic: 0.78
+      symbolic: 0.72
+      experiential: 0.68
+      cultural: 0.45
+      material_innovation: 0.55
+      functional: 0.40
+      commercial: 0.35
+      social: 0.50
+      sustainable: 0.25
+      technical: 0.30
+      historical: 0.38
+      regional: 0.28
+
+    constraints:
+      - 季裕棠风格需深度研究后转化，而非表面模仿
+      - 浪子回头叙事主题需空间化表达，避免文学化堆砌
+      - 粗犷材料与精致细节的张力平衡需精准控制
+      - 120平方米复式空间的纵向叙事序列构建
+      - 男性企业家审美偏好与居住舒适度平衡
+
+    goals:
+      - 深入研究季裕棠设计语言体系与核心方法论
+      - 建立浪子回头叙事主题的空间转译框架
+      - 构建粗犷与精致并置的材料对比体系
+      - 设计从叛逆到回归的空间叙事序列
+      - 实现克制奢华的整体空间氛围
+
+  ideal_tasks:
+    # ========== 第一阶段:大师研究与叙事构建(Task 1-4) ==========
+
+    - id: task_1
+      title: 搜索 季裕棠(Tony Chi)的 设计哲学、代表作品拆解、空间叙事方法论、材料运用特征
+      description: |
+        深入研究季裕棠的设计哲学体系，从Park Hyatt Tokyo、The Setai Miami、
+        居舍系列酒店等代表作品中提取其核心设计语言，分析其空间叙事的构建逻辑、
+        材料选择的对比张力手法、光影与空间的戏剧性关系。
+      task_type: research
+      motivation: aesthetic
+      support_search: true
+      dimensions:
+        - 设计哲学(东方留白+西方戏剧性、克制中的力量感、不完美美学)
+        - 代表作品拆解(Park Hyatt Tokyo的宁静力量、The Setai的材料叙事、居舍系列的在地性)
+        - 空间叙事方法论(场景序列编排、情绪节奏控制、高潮与留白交替)
+        - 材料运用特征(混凝土+丝绒、旧木+黄铜、粗糙+光滑的对比法则)
+      priority: high
+      execution_order: 1
+
+    - id: task_2
+      title: 搜索 叙事性空间设计的 方法论体系、故事线构建技术、场景编排策略、情绪空间映射
+      description: |
+        调研叙事性空间设计的理论体系与实践案例，包括建筑叙事学、
+        空间戏剧理论、场景编排方法，理解如何将文学叙事结构
+        转化为空间体验序列。
+      task_type: research
+      motivation: symbolic
+      support_search: true
+      dimensions:
+        - 叙事方法论(线性叙事vs非线性叙事、空间蒙太奇、场景转换技术)
+        - 故事线构建(起承转合的空间化、冲突与和解的材料表达、高潮场景设计)
+        - 场景编排策略(入场→铺垫→冲突→转折→回归→尾声的空间节奏)
+        - 情绪空间映射(叛逆=粗犷材料、挣扎=光影对比、回归=温暖质感)
+      priority: high
+      execution_order: 2
+
+    - id: task_3
+      title: 搜索 粗犷材料与精致工艺并置的 设计案例、材料对比张力手法、侘寂美学应用、工业与温暖平衡
+      description: |
+        研究材料对比张力的设计手法与案例，聚焦混凝土与丝绒、旧木与黄铜、
+        铁锈与大理石等粗犷–精致材料组合的应用逻辑，理解侘寂美学中
+        不完美材料的精致处理方法。
+      task_type: research
+      motivation: material_innovation
+      support_search: true
+      dimensions:
+        - 材料对比案例(Axel Vervoordt的侘寂空间、Vincent Van Duysen的粗粝优雅)
+        - 粗犷材料处理(清水混凝土肌理、风化木表面、铁锈钢板氧化控制)
+        - 精致细节工艺(手工黄铜铸件、定制丝绒软包、石材拼花工艺)
+        - 对比平衡法则(面积比控制、视觉重心分配、触感层次编排)
+      priority: high
+      execution_order: 3
+
+    - id: task_4
+      title: 分析 业主生活方式画像、男性企业家审美特征、社交场景需求、私人空间偏好
+      description: |
+        构建45岁男性企业家的完整生活方式模型，分析其社交场景（商务会客、
+        朋友聚会、独处沉思）的空间需求，提取浪子回头叙事主题与个人经历的
+        共鸣点，为空间设计提供精准的用户洞察。
+      task_type: analysis
+      motivation: experiential
+      support_search: false
+      dimensions:
+        - 生活方式画像(商务社交频率、独处偏好、收藏品类型、音乐/雪茄/威士忌)
+        - 男性企业家审美(力量感+克制、成熟+不羁、品质感+不炫耀)
+        - 社交场景需求(6-8人商务晚宴、2-3人深度对话、独处冥想阅读)
+        - 浪子回头共鸣(创业历程映射、叛逆精神认同、回归家庭的温暖)
+      priority: high
+      execution_order: 4
+
+    # ========== 第二阶段:概念构建与空间设计(Task 5-9) ==========
+
+    - id: task_5
+      title: 制定 浪子回头叙事主题的 空间故事线、场景序列编排、情绪节奏图谱、空间高潮设计
+      description: |
+        建立浪子回头叙事主题的完整空间故事线，将"出走→漂泊→挣扎→顿悟→回归"
+        的叙事结构映射为从入户到各功能区的空间体验序列，
+        定义每个场景的情绪基调、材料语言、光影策略。
+      task_type: design
+      motivation: symbolic
+      support_search: false
+      dimensions:
+        - 空间故事线(入户=出走的决然、楼梯=漂泊的孤独、客厅=回归的温暖)
+        - 场景序列编排(暗→明→暗→亮的光影叙事、粗→细→粗→柔的材料叙事)
+        - 情绪节奏图谱(紧张→舒缓→冲突→和解→宁静的五段式节奏)
+        - 空间高潮设计(复式挑空处的叙事转折点、光影戏剧性瞬间)
+      priority: high
+      execution_order: 5
+
+    - id: task_6
+      title: 设计 120㎡复式客厅的 空间比例体系、纵向空间序列、视觉重心规划、动线叙事编排
+      description: |
+        基于浪子回头叙事框架，设计复式客厅的整体空间比例体系，
+        利用挑空层高构建纵向空间叙事序列，规划视觉重心的层次关系，
+        设计从入户到二层的完整动线叙事编排。
+      task_type: design
+      motivation: aesthetic
+      support_search: false
+      dimensions:
+        - 空间比例体系(挑空区域面积比、上下层视觉关系、黄金分割应用)
+        - 纵向空间序列(一层入户压缩→挑空释放→二层俯瞰→回望一层)
+        - 视觉重心规划(主墙面焦点、楼梯雕塑感、灯具悬挂位置)
+        - 动线叙事编排(主动线=叙事主线、辅动线=叙事支线、停留点=叙事节点)
+      priority: high
+      execution_order: 6
+
+    - id: task_7
+      title: 制定 粗犷与精致并置的 材料体系、材料对比方案、触感层次规划、材料叙事地图
+      description: |
+        建立与季裕棠风格匹配的材料对比体系，定义粗犷材料（清水混凝土、
+        风化旧木、铁锈钢板）与精致材料（手工黄铜、意大利丝绒、天然石材）
+        的搭配逻辑，绘制材料在空间中的叙事分布地图。
+      task_type: design
+      motivation: material_innovation
+      support_search: false
+      dimensions:
+        - 材料对比方案(混凝土墙面+丝绒沙发、旧木地板+黄铜灯具、铁锈屏风+大理石台面)
+        - 触感层次规划(粗糙→光滑→柔软→冰冷的四级触感序列)
+        - 材料叙事地图(入户=最粗犷、过渡=对比加剧、客厅=粗精平衡、二层=最温暖)
+        - 面积比控制(粗犷材料40%+精致材料30%+中性材料30%的比例)
+      priority: high
+      execution_order: 7
+
+    - id: task_8
+      title: 设计 光影叙事系统、自然光戏剧性利用、人工光情绪层次、灯具作为叙事道具
+      description: |
+        构建与浪子回头主题匹配的光影叙事系统，利用复式空间的自然光条件
+        创造戏剧性光影效果，设计人工光的情绪层次，将灯具本身作为
+        叙事道具（如工业吊灯象征漂泊、壁灯象征归宿）。
+      task_type: design
+      motivation: experiential
+      support_search: false
+      dimensions:
+        - 自然光戏剧性(侧窗光束、天窗光柱、百叶光影条纹、季节性光影变化)
+        - 人工光情绪层次(基础暗光氛围+重点戏剧照明+氛围烛光效果)
+        - 灯具叙事功能(工业吊灯=漂泊记忆、黄铜壁灯=回归温暖、烛台=内心宁静)
+        - 场景预设(独处沉思模式、社交会客模式、深夜威士忌模式)
+      priority: high
+      execution_order: 8
+
+    - id: task_9
+      title: 制定 家具与艺术品配置方案、叙事性家具选型、收藏品陈列策略、空间记忆锚点
+      description: |
+        设计与叙事主题匹配的家具与艺术品配置方案，选择具有故事感的
+        家具单品（手工皮沙发、古木茶台、铸铁书架），规划收藏品的
+        叙事性陈列，在空间中创建个人记忆的锚点。
+      task_type: design
+      motivation: aesthetic
+      support_search: false
+      dimensions:
+        - 叙事性家具选型(手工做旧皮沙发、百年古木茶台、铸铁工业书架)
+        - 收藏品陈列策略(旅行纪念品=漂泊章节、家族物件=回归章节)
+        - 空间记忆锚点(入户处的旅行箱装置、客厅的家族照片墙、书房的手稿收藏)
+        - 品质控制(材质真实性、工艺可追溯、避免装饰性仿旧)
+      priority: medium
+      execution_order: 9
+
+    # ========== 第三阶段:整合验证与策略(Task 10-13) ==========
+
+    - id: task_10
+      title: 分析 叙事设计的 主题一致性验证、过度装饰风险评估、男性审美适配度检查
+      description: |
+        对整体设计方案进行叙事主题一致性审核，识别从"叙事空间"滑向
+        "主题乐园"的风险点，验证材料对比的张力是否在舒适范围内，
+        评估方案对45岁男性企业家审美的适配度。
+      task_type: analysis
+      motivation: symbolic
+      support_search: false
+      dimensions:
+        - 主题一致性(每个空间节点的叙事贡献度、整体故事线完整性)
+        - 过度装饰风险(符号化倾向检查、装饰密度控制、留白比例验证)
+        - 男性审美适配(力量感表达充分度、克制度评估、舒适度与戏剧性平衡)
+        - 居住性验证(日常生活功能满足度、维护便利性、长期居住舒适度)
+      priority: medium
+      execution_order: 10
+
+    - id: task_11
+      title: 设计 楼梯作为叙事转折的 空间雕塑方案、材料过渡策略、扶手细节设计、光影编排
+      description: |
+        将复式楼梯设计为叙事的核心转折点，从一层的"叛逆粗犷"
+        过渡到二层的"回归温暖"，通过楼梯的材料渐变、光影变化、
+        空间压缩与释放实现叙事的戏剧性转折。
+      task_type: design
+      motivation: aesthetic
+      support_search: false
+      dimensions:
+        - 空间雕塑方案(楼梯作为空间中的独立雕塑体、视觉焦点)
+        - 材料过渡策略(铁锈钢板→氧化铜→温润木材的渐变)
+        - 扶手细节设计(手工锻造铁艺→打磨铜管→实木握把的触感叙事)
+        - 光影编排(踏步侧光→转角暗处→到达层明亮的叙事节奏)
+      priority: medium
+      execution_order: 11
+
+    - id: task_12
+      title: 整合 全屋声学与气味设计、背景音乐系统、香氛策略、五感叙事完整度
+      description: |
+        构建超越视觉的五感叙事体验，设计背景音乐系统的分区播放策略、
+        空间香氛的叙事性选择（皮革+烟草→木质+琥珀的气味转变）、
+        以及触觉、听觉维度的叙事补充。
+      task_type: design
+      motivation: experiential
+      support_search: false
+      dimensions:
+        - 声学设计(背景音乐分区、爵士/古典场景切换、声学吸收控制)
+        - 香氛策略(入户皮革烟草调→客厅木质琥珀调→二层棉麻清新调)
+        - 五感叙事完整度(视觉70%+触觉15%+嗅觉8%+听觉5%+味觉2%)
+        - 感官协同(材料触感+灯光色温+背景音乐的情绪一致性)
+      priority: medium
+      execution_order: 12
+
+    - id: task_13
+      title: 制定 项目实施策略、关键材料采购路径、工艺质量控制节点、长期维护方案
+      description: |
+        制定从设计到落地的完整实施策略，规划手工材料与定制家具的
+        采购路径与工期控制，建立关键工艺节点的质量验收标准，
+        设计材料自然老化的维护方案与空间进化预案。
+      task_type: strategy
+      motivation: functional
+      support_search: false
+      dimensions:
+        - 材料采购路径(清水混凝土浇筑商、古木贸易商、手工黄铜工坊、意大利丝绒面料)
+        - 工艺质量控制(混凝土模板精度、旧木处理防虫防腐、黄铜焊接打磨标准)
+        - 实施时间线(硬装3个月→软装2个月→艺术品1个月→调试入住1个月)
+        - 长期维护方案(材料自然氧化美学管理、皮革护理、木质保养周期)
+      priority: low
+      execution_order: 13
+
+  quality_highlights:
+    - 13任务叙事深度：季裕棠5个经典项目拆解+设计语言体系提取+浪子回头空间化转译
+    - 大师研究方法论：从作品分析→设计语言提取→风格转化→个性化应用的完整路径
+    - 叙事构建体系：出走→漂泊→挣扎→顿悟→回归的五段式空间叙事序列
+    - 材料对比张力：粗犷(混凝土/旧木/铁锈)+精致(黄铜/丝绒/石材)的系统化并置
+    - 五感叙事完整度：视觉材料+触觉层次+嗅觉香氛+听觉音乐的多维叙事体验
+    - 复式空间叙事：楼梯作为叙事核心转折点，纵向空间序列的戏剧性编排
+
+metadata:
+  tags_matrix:
+    space_type:
+      - living_room
+      - residence
+      - duplex
+    scale: medium
+    design_direction:
+      - aesthetic
+      - narrative
+      - symbolic
+      - material_innovation
+    user_profile:
+      - high_net_worth
+      - male_entrepreneur
+      - personality_driven
+    challenge_type:
+      - master_style_study
+      - character_translation
+      - narrative_design
+      - material_contrast
+    methodology:
+      - designer_research
+      - narrative_design
+      - material_curation
+    phase: concept_to_detailed
+  discipline: interior_design
+  urgency: 0.35
+  innovation_quotient: 0.75
+  commercial_sensitivity: 0.35
+  cultural_depth: 0.65
+  performance:
+    specialty_score: 0.60
+    recommended_strength: medium
+  best_for:
+    - "叙事性空间设计"
+    - "大师风格深度研究与转化"
+    - "人物性格空间化表达"
+    - "克制奢华高端住宅"
+    - "材料对比张力设计"
+  not_suitable_for:
+    - "标准化精装项目"
+    - "无明确业主个性项目"
+    - "低预算快速翻新"
+    - "商业空间设计"

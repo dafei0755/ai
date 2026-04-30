@@ -1,0 +1,386 @@
+# 示例:广州老旧小区社区活动中心改造
+# 来源:q.txt Q35
+# 类型:社会主导 (Social Dominant) / 社区空间分时复用
+# 特征:老旧小区改造、老幼共融、分时复用、可变家具、声学分区、安全监管、低成本施工
+# 适用场景:社区活动中心、老幼共融空间、分时复用设计、低成本改造
+
+example:
+  project_info:
+    name: 广州老旧小区200㎡社区活动中心分时复用改造
+    description: |
+      广州老旧小区200㎡社区活动中心改造，主要使用者为老年人与放学后小学生，
+      需要实现棋牌、阅读、书法与儿童托管"分时复用"。
+      核心挑战是在有限面积内满足老幼两代人截然不同的行为模式、声学需求与安全标准，
+      同时通过可变家具系统与低成本施工模型实现空间的高效切换与可持续运营。
+
+    feature_vector:
+      social: 0.75
+      functional: 0.68
+      cultural: 0.45
+      aesthetic: 0.35
+      sustainable: 0.52
+      technical: 0.48
+      experiential: 0.55
+      regional: 0.42
+      material_innovation: 0.40
+      commercial: 0.15
+      historical: 0.30
+      symbolic: 0.38
+
+    constraints:
+      - 200㎡有限面积需容纳棋牌、阅读、书法、儿童托管四大功能
+      - 老年人与小学生两类使用者行为模式差异大
+      - 老旧小区结构限制（承重墙、层高、管线老化）
+      - 低成本施工预算（社区公共资金有限）
+      - 分时段切换需快速高效（15分钟内完成场景转换）
+
+    goals:
+      - 构建老幼共融的分时复用空间机制
+      - 设计可快速切换的可变家具系统
+      - 实现棋牌区与儿童托管区的声学隔离
+      - 建立安全监管动线保障老幼双方安全
+      - 控制施工成本在社区可承受范围内
+
+  ideal_tasks:
+    # ========== 第一阶段:需求与标杆研究(Task 1-4) ==========
+
+    - id: task_1
+      title: 搜索 国内外社区活动中心分时复用的 空间切换机制、时段分配模型、使用者行为冲突、运营管理经验
+      description: |
+        系统调研社区活动中心分时复用的成功案例，包括日本公民馆的时段管理、
+        新加坡组屋社区中心的多功能切换、国内社区营造标杆项目的运营经验，
+        提取空间切换机制与时段分配的设计逻辑。
+      task_type: research
+      motivation: social
+      support_search: true
+      dimensions:
+        - 空间切换机制(场景转换流程、切换时间控制、家具移动路径、标识引导系统)
+        - 时段分配模型(上午老年活动、下午儿童托管、晚间社区共享的时间表)
+        - 使用者行为冲突(噪音干扰、空间占用、设备共享、卫生标准差异)
+        - 运营管理经验(志愿者排班、物业协作、费用分摊、社区自治)
+      priority: high
+      execution_order: 1
+
+    - id: task_2
+      title: 搜索 老年人社区活动空间的 行为特征、人体工学需求、无障碍标准、社交模式、安全防护
+      description: |
+        研究老年人在社区活动中心的典型行为模式，包括棋牌活动的桌椅高度与间距、
+        书法练习的采光与台面需求、阅读空间的照明与座椅舒适度，
+        以及老年人的无障碍通行、防滑防摔、紧急呼叫等安全需求。
+      task_type: research
+      motivation: social
+      support_search: true
+      dimensions:
+        - 行为特征(久坐棋牌2-3小时、书法站立交替、阅读光线敏感、社交聚集偏好)
+        - 人体工学需求(座椅高度42-45cm、桌面高度72-75cm、扶手支撑、靠背角度)
+        - 无障碍标准(通道宽度≥1.2m、门宽≥0.9m、防滑地面、扶手配置)
+        - 社交模式(4-6人棋牌小组、书法交流圈、阅读独处与分享交替)
+        - 安全防护(防滑地面、圆角家具、紧急呼叫按钮、照明充足≥300lux)
+      priority: high
+      execution_order: 2
+
+    - id: task_3
+      title: 搜索 儿童托管空间的 活动行为模式、安全防护标准、噪音控制需求、家具尺度要求
+      description: |
+        研究小学生放学后托管空间的设计标准，包括6-12岁儿童的活动半径、
+        奔跑追逐行为的安全防护、作业辅导与游戏活动的声学隔离、
+        以及儿童家具的尺度标准与防撞要求。
+      task_type: research
+      motivation: functional
+      support_search: true
+      dimensions:
+        - 活动行为模式(作业辅导安静期、游戏活动高峰期、阅读绘画过渡期)
+        - 安全防护标准(防撞软包、窗户限位器、插座保护盖、视线无死角)
+        - 噪音控制需求(儿童活动噪音60-75dB、与老年区隔离要求≥25dB衰减)
+        - 家具尺度要求(桌高58-64cm、椅高34-38cm、可调节高度、轻量化便于移动)
+      priority: high
+      execution_order: 3
+
+    - id: task_4
+      title: 搜索 老幼共融社区空间的 代际互动设计、冲突化解策略、共享时段活动、情感连接机制
+      description: |
+        研究老幼共融空间的设计策略，包括代际互动的空间节点设计、
+        老人教小学生书法/棋艺的共享活动空间、冲突高发时段的空间缓冲机制、
+        以及通过空间设计促进代际情感连接的方法。
+      task_type: research
+      motivation: social
+      support_search: true
+      dimensions:
+        - 代际互动设计(共享书法台、棋艺教学区、故事角、手工协作区)
+        - 冲突化解策略(声学缓冲带、视线隔断、时段错峰、行为引导标识)
+        - 共享时段活动(周末亲子棋艺赛、书法展示墙、代际阅读分享会)
+        - 情感连接机制(作品展示交换、代际互助积分、社区记忆墙)
+      priority: high
+      execution_order: 4
+
+    # ========== 第二阶段:空间功能规划(Task 5-8) ==========
+
+    - id: task_5
+      title: 制定 200㎡分时复用的 功能分区策略、面积分配逻辑、场景切换方案、时段转换流程
+      description: |
+        在200㎡内规划棋牌、阅读、书法、儿童托管四大功能的空间分区，
+        定义固定区域与可变区域的比例关系，设计上午老年模式与下午儿童模式的
+        场景切换方案，确保15分钟内完成空间转换。
+      task_type: design
+      motivation: functional
+      support_search: false
+      dimensions:
+        - 功能分区(固定核心区40%+可变复用区45%+服务辅助区15%)
+        - 面积分配(棋牌/书法复用区50㎡、阅读/作业复用区40㎡、儿童活动区40㎡、公共过渡区40㎡、储物服务区30㎡)
+        - 场景切换方案(家具折叠收纳→地面标识切换→设备推出→功能激活)
+        - 时段转换流程(上午8-12老年模式→12-14清洁过渡→14-18儿童模式→18-20社区共享)
+      priority: high
+      execution_order: 5
+
+    - id: task_6
+      title: 设计 可变家具系统的 折叠收纳机制、快速部署方案、多功能转换逻辑、耐久性与成本控制
+      description: |
+        设计适配分时复用的可变家具系统，包括可折叠棋牌桌转儿童活动桌、
+        书法长台转作业辅导台、阅读沙发转儿童软垫区的转换机制，
+        确保家具轻量化便于社区工作人员操作，同时控制采购成本。
+      task_type: design
+      motivation: functional
+      support_search: false
+      dimensions:
+        - 折叠收纳机制(壁挂折叠桌、嵌墙收纳柜、可堆叠椅、滑轨移动隔断)
+        - 快速部署方案(单人可操作、滚轮锁定、磁吸定位、色彩编码引导)
+        - 多功能转换(棋牌桌↔儿童桌高度可调、书法台↔作业台宽度可变、阅读椅↔儿童坐垫)
+        - 耐久性与成本(钢木结构、五金件耐久≥5万次、单套成本控制≤3000元)
+      priority: high
+      execution_order: 6
+
+    - id: task_7
+      title: 制定 声学分区策略的 隔声构造方案、吸声材料选型、活动噪音控制、分区声学指标
+      description: |
+        针对老年棋牌区的交谈声、书法区的安静需求、儿童活动区的高分贝噪音，
+        设计声学分区方案，包括移动隔声屏、吸声天花、地面减震垫的组合应用，
+        确保各功能区之间的声学隔离满足使用舒适度。
+      task_type: design
+      motivation: technical
+      support_search: false
+      dimensions:
+        - 隔声构造方案(移动隔声屏Rw≥25dB、软包隔断、玻璃折叠门)
+        - 吸声材料选型(穿孔吸声板NRC≥0.7、织物软包、吸声窗帘)
+        - 活动噪音控制(儿童区地面橡胶垫、桌椅脚垫、软质玩具替代硬质)
+        - 分区声学指标(阅读区≤40dB、书法区≤45dB、棋牌区≤55dB、儿童活动区≤65dB)
+      priority: high
+      execution_order: 7
+
+    - id: task_8
+      title: 设计 安全监管动线的 视线覆盖系统、老幼分流路径、紧急疏散方案、监控盲区消除
+      description: |
+        设计工作人员可同时监管老年区与儿童区的视线动线，
+        规划老年人与儿童的分流入口与交汇节点，
+        制定紧急疏散方案确保老幼双方安全撤离。
+      task_type: design
+      motivation: social
+      support_search: false
+      dimensions:
+        - 视线覆盖系统(管理台位于中心、透明隔断、监控摄像头补盲)
+        - 老幼分流路径(主入口分流标识、老年慢行通道、儿童快速通道、交汇缓冲区)
+        - 紧急疏散方案(双向疏散出口、老年优先通道、儿童集合点、应急照明)
+        - 监控盲区消除(角落凸面镜、摄像头全覆盖、工作人员巡视路线)
+      priority: high
+      execution_order: 8
+
+    # ========== 第三阶段:技术与材料策略(Task 9-12) ==========
+
+    - id: task_9
+      title: 搜索 老旧小区改造的 结构加固方案、管线更新策略、层高优化技术、承重墙处理方法
+      description: |
+        研究老旧小区建筑结构对改造的限制与应对策略，
+        包括承重墙不可拆除条件下的空间优化、老化管线的更新路径、
+        有限层高下的吊顶与设备管线整合方案。
+      task_type: research
+      motivation: technical
+      support_search: true
+      dimensions:
+        - 结构加固方案(承重墙保留利用、非承重墙拆除开放、梁下空间利用)
+        - 管线更新策略(明装管线美化、集中管井设置、电路扩容方案)
+        - 层高优化技术(薄型吊顶≤100mm、裸顶处理、设备管线贴梁走)
+        - 承重墙处理(开洞加固、利用墙体做收纳嵌入、墙面功能化)
+      priority: medium
+      execution_order: 9
+
+    - id: task_10
+      title: 制定 低成本施工模型的 材料选型策略、工艺简化方案、分期实施计划、社区参与施工
+      description: |
+        在社区公共资金有限的条件下，制定低成本施工方案，
+        包括性价比最优的材料选型、可由社区工人完成的简化工艺、
+        分期投入的实施计划、以及社区居民参与施工的共建模式。
+      task_type: strategy
+      motivation: sustainable
+      support_search: false
+      dimensions:
+        - 材料选型策略(PVC地板替代实木、乳胶漆替代墙纸、成品家具替代定制)
+        - 工艺简化方案(干法施工优先、模块化安装、减少湿作业、缩短工期)
+        - 分期实施计划(一期基础功能→二期家具升级→三期智能化补充)
+        - 社区参与施工(居民志愿者墙面涂刷、老人书法墙共创、儿童手印墙)
+      priority: medium
+      execution_order: 10
+
+    - id: task_11
+      title: 分析 200㎡空间的 地面材料分区方案、防滑与减震平衡、易清洁维护、色彩导视系统
+      description: |
+        针对老年防滑需求与儿童减震需求的差异，设计地面材料分区方案，
+        通过色彩编码实现功能区导视，确保材料易清洁、耐磨损、低维护成本。
+      task_type: analysis
+      motivation: functional
+      support_search: false
+      dimensions:
+        - 地面材料分区(老年区防滑PVC R10级、儿童区橡胶减震垫、过渡区耐磨瓷砖)
+        - 防滑与减震平衡(老年区摩擦系数≥0.5、儿童区冲击吸收≥40%)
+        - 易清洁维护(防污涂层、可局部更换、日常湿拖即可、年维护成本≤2000元)
+        - 色彩导视系统(暖色老年区、冷色儿童区、中性过渡区、地面标线引导)
+      priority: medium
+      execution_order: 11
+
+    - id: task_12
+      title: 设计 照明系统的 分区照度标准、色温分时调节、节能控制方案、老年视觉友好策略
+      description: |
+        设计适配分时复用的照明系统，上午老年模式采用高照度暖色温，
+        下午儿童模式采用活泼色温，书法区配置专业台灯照明，
+        阅读区保证均匀无眩光照明。
+      task_type: design
+      motivation: functional
+      support_search: false
+      dimensions:
+        - 分区照度标准(书法区500lux、阅读区300lux、棋牌区200lux、儿童活动区250lux)
+        - 色温分时调节(老年模式3500K暖光、儿童模式5000K白光、共享模式4000K中性)
+        - 节能控制方案(LED灯具、分区独立开关、感应控制、定时场景切换)
+        - 老年视觉友好(防眩光灯罩、均匀配光、高显色指数Ra≥90、局部补光)
+      priority: medium
+      execution_order: 12
+
+    # ========== 第四阶段:运营与整合(Task 13-16) ==========
+
+    - id: task_13
+      title: 搜索 社区活动中心的 运营管理模式、志愿者体系、费用分摊机制、物业协作方案
+      description: |
+        研究社区活动中心的可持续运营模式，包括社区自治管理、
+        志愿者排班体系、使用费用的合理分摊、与物业公司的协作机制，
+        确保空间改造后能长期有效运营。
+      task_type: research
+      motivation: social
+      support_search: true
+      dimensions:
+        - 运营管理模式(社区委员会管理、居民轮值、专职管理员、混合模式)
+        - 志愿者体系(退休老人值班、家长轮值托管、大学生社区服务、积分激励)
+        - 费用分摊机制(政府补贴+居民缴费+社会捐赠、按时段收费、会员制)
+        - 物业协作方案(保洁维护、设备维修、安全巡查、钥匙管理)
+      priority: medium
+      execution_order: 13
+
+    - id: task_14
+      title: 制定 分时复用的 时段排班表、场景切换操作手册、设备维护计划、应急预案
+      description: |
+        制定完整的分时复用运营方案，包括每日时段排班、
+        场景切换的标准化操作流程、可变家具与设备的定期维护计划、
+        以及突发情况（老人跌倒、儿童受伤、设备故障）的应急预案。
+      task_type: strategy
+      motivation: social
+      support_search: false
+      dimensions:
+        - 时段排班表(工作日/周末差异化排班、节假日特殊安排、弹性调整机制)
+        - 场景切换操作手册(图文步骤、家具移动顺序、设备开关清单、验收检查表)
+        - 设备维护计划(家具月检、五金件季检、地面年检、照明半年检)
+        - 应急预案(老人跌倒急救流程、儿童受伤处理、设备故障备用方案、停电应急)
+      priority: medium
+      execution_order: 14
+
+    - id: task_15
+      title: 评估 改造方案的 成本效益分析、使用满意度预判、社区凝聚力提升、可复制推广性
+      description: |
+        从社会效益角度评估改造方案的综合价值，包括投入产出比、
+        老年人与儿童家长的使用满意度预判、对社区凝聚力的促进作用、
+        以及方案在其他老旧小区的可复制推广潜力。
+      task_type: analysis
+      motivation: social
+      support_search: false
+      dimensions:
+        - 成本效益分析(总投入≤40万元、服务覆盖200+户、人均使用成本≤5元/次)
+        - 使用满意度预判(老年人活动频次提升、儿童托管需求满足率、投诉率控制)
+        - 社区凝聚力提升(代际互动频次、邻里关系改善、社区活动参与率)
+        - 可复制推广性(标准化设计模块、材料清单可复用、施工工艺可培训)
+      priority: medium
+      execution_order: 15
+
+    - id: task_16
+      title: 整合 社区活动中心改造的 总体设计方案、分时复用空间图解、施工图深化要点、交付验收标准
+      description: |
+        基于前期研究与设计成果，整合形成完整的改造设计方案，
+        包括平面布局图、分时复用场景切换图解、关键节点施工详图、
+        可变家具清单与采购指南、以及竣工交付的验收标准。
+      task_type: strategy
+      motivation: functional
+      support_search: false
+      dimensions:
+        - 总体设计方案(平面布局、立面处理、天花设计、家具布置)
+        - 分时复用空间图解(老年模式平面、儿童模式平面、共享模式平面、切换动画)
+        - 施工图深化要点(隔声构造节点、家具五金详图、地面分区收口、管线综合)
+        - 交付验收标准(声学测试达标、家具切换演练、安全设施检查、消防验收)
+      priority: high
+      execution_order: 16
+
+  quality_highlights:
+    - 16任务社会主导分布：需求研究25% + 空间功能设计25% + 技术材料25% + 运营整合25%
+    - 分时复用核心机制：上午老年模式→下午儿童模式→晚间社区共享，15分钟场景切换
+    - 老幼共融设计：代际互动节点 + 冲突缓冲带 + 共享活动空间 + 情感连接机制
+    - 可变家具系统：折叠收纳 + 高度可调 + 滚轮锁定 + 单人可操作 + 成本≤3000元/套
+    - 声学分区策略：移动隔声屏Rw≥25dB + 吸声天花NRC≥0.7 + 地面减震垫组合
+    - 低成本施工模型：总投入≤40万元 + 干法施工优先 + 分期实施 + 社区参与共建
+
+metadata:
+  tags_matrix:
+    space_type:
+      - community_center
+      - elderly_activity_space
+      - children_care_space
+      - multi_function_hall
+    scale: small  # 200㎡
+    design_direction:
+      - social        # 社会主导（老幼共融）
+      - functional    # 功能复用（分时切换）
+      - technical     # 技术支撑（声学+家具）
+      - sustainable   # 可持续（低成本+运营）
+    user_profile:
+      - elderly_residents
+      - primary_school_children
+      - community_workers
+      - parent_guardians
+    challenge_type:
+      - time_sharing_reuse       # 分时复用
+      - intergenerational_design # 老幼共融
+      - low_budget_renovation    # 低成本改造
+      - acoustic_zoning          # 声学分区
+      - safety_supervision       # 安全监管
+    methodology:
+      - participatory_design     # 参与式设计
+      - modular_flexibility      # 模块化灵活性
+      - phased_implementation    # 分期实施
+      - community_co_creation    # 社区共创
+    phase: schematic_to_detailed
+
+  # v8.100 Phase 3.1: 新增5维
+  discipline: interior_design  # 室内设计主导（社区空间改造）
+  urgency: 0.50  # 中等紧急（社区民生项目）
+  innovation_quotient: 0.55  # 中等创新（分时复用+可变家具）
+  commercial_sensitivity: 0.15  # 低商业（公共服务性质）
+  cultural_depth: 0.45  # 中等文化（社区记忆+代际传承）
+
+  performance:
+    specialty_score: 0.60  # 中等特殊性（老幼共融+分时复用）
+    recommended_strength: medium  # 建议中度示例
+
+  best_for:
+    - "社区活动中心改造"
+    - "老幼共融空间设计"
+    - "分时复用多功能空间"
+    - "低成本公共空间改造"
+    - "老旧小区微更新"
+
+  not_suitable_for:
+    - "新建大型文化设施"
+    - "纯商业空间设计"
+    - "单一人群专属空间"
+    - "高预算精装项目"

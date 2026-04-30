@@ -1,0 +1,1106 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ===================================
+   🎨 共享组件样式 (Apple Design)
+   =================================== */
+@layer components {
+  /* 🔵 主要按钮 - Apple风格胶囊圆角 */
+  .btn-primary {
+    @apply px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-full transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-primary-sm {
+    @apply px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-primary-lg {
+    @apply px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-full transition-colors font-medium shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  /* ⚪ 次要按钮 */
+  .btn-secondary {
+    @apply px-5 py-2 bg-gray-200 hover:bg-gray-300 text-gray-900 rounded-full transition-colors font-medium;
+  }
+
+  /* 📦 卡片容器 - Apple风格无边框，使用苹果官网灰色 #f5f5f7 */
+  .card {
+    @apply bg-[#f5f5f7] rounded-lg p-4;
+  }
+
+  .card-hover {
+    @apply bg-[#f5f5f7] rounded-lg p-4 transition-all hover:shadow-md;
+  }
+
+  /* 📝 输入框 - Apple风格简洁边框 */
+  .input-base {
+    @apply w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-transparent focus:outline-none transition-colors;
+  }
+
+  .textarea-base {
+    @apply w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-transparent focus:outline-none min-h-[100px] leading-relaxed resize-y transition-colors;
+  }
+
+  /* 🏷️ 徽章标签 */
+  .badge-blue {
+    @apply px-2 py-0.5 bg-blue-100 text-blue-600 text-xs rounded-full;
+  }
+
+  .badge-gray {
+    @apply px-2 py-0.5 bg-gray-100 text-gray-600 text-xs rounded-full;
+  }
+
+  .badge-green {
+    @apply px-2 py-0.5 bg-green-100 text-green-600 text-xs rounded-full;
+  }
+
+  /* 🔲 容器背景 - Apple风格无边框 */
+  .section-bg {
+    @apply bg-white rounded-xl p-6 space-y-4;
+  }
+
+  /* 💡 提示信息框 - Apple官网灰色 #f5f5f7 */
+  .info-box {
+    @apply bg-[#f5f5f7] rounded-lg p-3;
+  }
+
+  /* 🔢 统一序号徽章 - 与顶部步骤条激活态保持一致 */
+  .step-badge {
+    @apply flex-shrink-0 rounded-full bg-blue-600 text-white flex items-center justify-center font-medium;
+  }
+
+  /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+     🔘 按钮扩展
+     btn-primary      → 胶囊型（rounded-full），用于主流程确认
+     btn-action       → 方角型（rounded-lg），用于管理后台/功能操作
+     btn-danger       → 危险操作（红色）
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+  .btn-action {
+    @apply px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg
+           transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-action-sm {
+    @apply px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-lg
+           transition-colors disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-danger {
+    @apply px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg
+           transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+     📦 卡片扩展
+     card             → Apple 灰背景（#f5f5f7）
+     card-white       → 白色背景 + 悬停阴影（最常用）
+     card-bordered    → 带灰色边框
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+  .card-white {
+    @apply bg-white rounded-xl p-4 hover:shadow-md transition-shadow;
+  }
+
+  .card-bordered {
+    @apply bg-white border border-gray-200 rounded-xl p-4;
+  }
+
+  /* 驾驶舱卡片标准样式：结构、边框、hover 统一，颜色由模块 accent 决定 */
+  .cockpit-card {
+    --cockpit-accent-rgb: 15 23 42;
+    position: relative;
+    overflow: hidden;
+    border-radius: 1.5rem;
+    border: 1px solid #dbe3ee;
+    background: #ffffff;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03), 0 10px 24px rgba(15, 23, 42, 0.05);
+    transition:
+      border-color 180ms ease,
+      box-shadow 180ms ease,
+      transform 180ms ease,
+      background-color 180ms ease;
+  }
+
+  .cockpit-card::before {
+    content: "";
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 3px;
+    background: rgba(var(--cockpit-accent-rgb), 0.78);
+    opacity: 0;
+    transition: opacity 180ms ease;
+  }
+
+  .cockpit-card-interactive:hover {
+    transform: translateY(-2px);
+    border-color: rgba(var(--cockpit-accent-rgb), 0.34);
+    box-shadow: 0 16px 32px rgba(15, 23, 42, 0.08), 0 4px 12px rgba(var(--cockpit-accent-rgb), 0.12);
+  }
+
+  .cockpit-card-interactive:hover::before,
+  .cockpit-card-interactive[data-expanded="true"]::before {
+    opacity: 1;
+  }
+
+  .cockpit-card-interactive[data-expanded="true"] {
+    border-color: rgba(var(--cockpit-accent-rgb), 0.28);
+    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.06), 0 2px 8px rgba(var(--cockpit-accent-rgb), 0.08);
+  }
+
+  .cockpit-card-selected {
+    border-color: rgba(var(--cockpit-accent-rgb), 0.42);
+    box-shadow: 0 16px 32px rgba(15, 23, 42, 0.08), 0 4px 12px rgba(var(--cockpit-accent-rgb), 0.14);
+  }
+
+  .cockpit-card-interactive:focus-visible {
+    outline: none;
+    border-color: rgba(var(--cockpit-accent-rgb), 0.4);
+    box-shadow:
+      0 0 0 3px rgba(var(--cockpit-accent-rgb), 0.12),
+      0 16px 32px rgba(15, 23, 42, 0.08);
+  }
+
+  .cockpit-card-action {
+    @apply rounded-full border px-3 py-1.5 text-xs font-medium transition-colors;
+    border-color: #dbe3ee;
+    color: #334155;
+    background: #ffffff;
+  }
+
+  .cockpit-card-action:hover {
+    border-color: rgba(var(--cockpit-accent-rgb), 0.28);
+    background: rgba(var(--cockpit-accent-rgb), 0.06);
+    color: rgb(var(--cockpit-accent-rgb));
+  }
+
+  .cockpit-card-action-solid {
+    @apply rounded-full px-3 py-1.5 text-xs font-medium transition-colors;
+    background: rgb(var(--cockpit-accent-rgb));
+    color: #0f172a;
+  }
+
+  .cockpit-card-action-solid:hover {
+    background: rgba(var(--cockpit-accent-rgb), 0.86);
+  }
+
+  .cockpit-card-chip {
+    @apply inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-medium;
+    background: #f8fafc;
+    color: #64748b;
+  }
+
+  .cockpit-card-chip-accent {
+    background: rgba(var(--cockpit-accent-rgb), 0.1);
+    color: rgb(var(--cockpit-accent-rgb));
+  }
+
+  .cockpit-card-chip-outline {
+    @apply inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-medium;
+    border: 1px solid #dbe3ee;
+    color: #64748b;
+    background: #ffffff;
+  }
+
+  .cockpit-card-accent-files {
+    --cockpit-accent-rgb: 14 165 233;
+  }
+
+  .cockpit-card-accent-assets {
+    --cockpit-accent-rgb: 52 211 153;
+  }
+
+  .cockpit-card-accent-board {
+    --cockpit-accent-rgb: 217 70 239;
+  }
+
+  .cockpit-card-accent-experts {
+    --cockpit-accent-rgb: 252 211 77;
+  }
+
+  .cockpit-card-accent-insight {
+    --cockpit-accent-rgb: 139 92 246;
+  }
+
+  .cockpit-toolbar {
+    @apply flex flex-col gap-3;
+  }
+
+  .cockpit-search-input {
+    @apply h-11 w-full rounded-full border border-slate-200 bg-white px-4 text-sm text-slate-700 outline-none transition-colors;
+  }
+
+  .cockpit-search-input::placeholder {
+    color: #94a3b8;
+  }
+
+  .cockpit-search-input:focus {
+    border-color: #cbd5e1;
+  }
+
+  .cockpit-filter-pill {
+    @apply rounded-full px-3 py-1.5 text-xs font-medium transition-colors;
+    background: #f1f5f9;
+    color: #64748b;
+  }
+
+  .cockpit-filter-pill:hover {
+    background: #e2e8f0;
+    color: #334155;
+  }
+
+  .cockpit-filter-pill-active {
+    background: rgb(15 23 42);
+    color: white;
+  }
+
+  .cockpit-filter-pill-accent {
+    background: rgba(var(--cockpit-accent-rgb), 0.12);
+    color: rgb(var(--cockpit-accent-rgb));
+  }
+
+  .cockpit-select {
+    @apply h-8 rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-700 outline-none transition-colors;
+  }
+
+  .cockpit-select:focus {
+    border-color: #cbd5e1;
+  }
+
+  .cockpit-stat {
+    @apply rounded-xl border border-slate-200 bg-white px-3 py-3;
+  }
+
+  .cockpit-stat-label {
+    @apply text-[11px] text-slate-500;
+  }
+
+  .cockpit-stat-value {
+    @apply mt-1 text-lg font-semibold text-slate-900;
+  }
+
+  .cockpit-empty {
+    @apply rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-500;
+  }
+
+  .cockpit-card-title {
+    @apply text-lg font-bold leading-snug transition-colors;
+  }
+
+  /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+     📝 输入框扩展
+     input-base       → 标准尺寸（py-2）
+     input-sm         → 小尺寸（py-1.5），适合问卷/表单
+     textarea-base    → 已有，多行文本
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+  .input-sm {
+    @apply w-full px-3 py-1.5 border border-gray-300 rounded-lg text-sm text-gray-900
+           placeholder:text-gray-400 focus:ring-2 focus:ring-blue-400
+           focus:border-transparent focus:outline-none transition-colors;
+  }
+
+  /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+     🏷️ 徽章扩展
+     badge-*          → 已有 blue/gray/green
+     badge-purple     → 新增
+     badge-orange     → 新增
+     badge-indigo     → 新增
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+  .badge-purple {
+    @apply px-2 py-0.5 bg-purple-100 text-purple-600 text-xs rounded-full;
+  }
+
+  .badge-orange {
+    @apply px-2 py-0.5 bg-orange-100 text-orange-600 text-xs rounded-full;
+  }
+
+  .badge-indigo {
+    @apply px-2 py-0.5 bg-indigo-100 text-indigo-600 text-xs rounded-full;
+  }
+
+  /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+     📖 文字语义类
+     text-hint        → 辅助说明（xs + gray-500），全局最高频
+     text-label       → 字段标签（medium + gray-900）
+     text-heading     → 卡片/区块标题（semibold + gray-900）
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+  .text-hint {
+    @apply text-xs text-gray-500;
+  }
+
+  .text-label {
+    @apply font-medium text-gray-900;
+  }
+
+  .text-heading {
+    @apply font-semibold text-gray-900;
+  }
+
+  /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+     🔀 布局辅助类
+     row-2 / row-3    → flex + items-center + gap（最高频布局模式）
+     col-2 / col-3    → flex col + gap
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+  .row-2 {
+    @apply flex items-center gap-2;
+  }
+
+  .row-3 {
+    @apply flex items-center gap-3;
+  }
+
+  .col-3 {
+    @apply flex flex-col gap-3;
+  }
+
+  .col-4 {
+    @apply flex flex-col gap-4;
+  }
+}
+
+/* 深色主题（默认） */
+:root {
+  --background: #1e1e1e;
+  --foreground: #e8e8e8;
+  --foreground-secondary: #a0a0a0;
+  --sidebar-bg: #2a2a2a;
+  --card-bg: #3a3a3a;
+  --border-color: #444444;
+  --primary: #4d6bfe;
+  --primary-hover: #3b5bdb;
+}
+
+/* 浅色主题 */
+[data-theme="light"] {
+  --background: #ffffff;
+  --foreground: #1a1a1a;
+  --foreground-secondary: #4a5568;  /* 加深对比度 */
+  --sidebar-bg: #f7fafc;  /* 更明显的侧边栏背景 */
+  --card-bg: #ffffff;
+  --border-color: #cbd5e0;  /* 加深边框颜色 */
+  --primary: #4d6bfe;
+  --primary-hover: #3b5bdb;
+}
+
+/* 跟随系统主题 */
+@media (prefers-color-scheme: light) {
+  [data-theme="system"] {
+    --background: #ffffff;
+    --foreground: #1a1a1a;
+    --foreground-secondary: #4a5568;  /* 加深对比度 */
+    --sidebar-bg: #f7fafc;  /* 更明显的侧边栏背景 */
+    --card-bg: #ffffff;
+    --border-color: #cbd5e0;  /* 加深边框颜色 */
+    --primary: #4d6bfe;
+    --primary-hover: #3b5bdb;
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  [data-theme="system"] {
+    --background: #1e1e1e;
+    --foreground: #e8e8e8;
+    --foreground-secondary: #a0a0a0;
+    --sidebar-bg: #2a2a2a;
+    --card-bg: #3a3a3a;
+    --border-color: #444444;
+    --primary: #4d6bfe;
+    --primary-hover: #3b5bdb;
+  }
+}
+
+body {
+  color: var(--foreground);
+  background: var(--background);
+  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Custom Scrollbar for Dark Mode */
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+  margin: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #555;
+  border-radius: 2px;
+}
+
+[data-theme="light"] ::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #666;
+}
+
+[data-theme="light"] ::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
+}
+
+/* 🆕 自定义滚动条 - 用于推理过程等特定区域 */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+  margin-right: 8px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(128, 90, 213, 0.25);
+  border-radius: 2px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(128, 90, 213, 0.4);
+}
+
+/* 🧠 AI思考内容统一样式 - 用于深度思考和AI分析回答 */
+/* 🔧 v7.175: 使用 CSS 变量统一字体样式 */
+.ai-thinking-content {
+  background: #ffffff;
+}
+
+[data-theme="dark"] .ai-thinking-content {
+  background: #ffffff;
+}
+
+.ai-thinking-text {
+  @apply space-y-3 text-sm leading-relaxed;
+  color: rgb(17, 24, 39) !important;
+}
+
+.ai-thinking-text p {
+  @apply leading-relaxed;
+  color: rgb(17, 24, 39) !important;
+}
+
+.ai-thinking-text .list-item {
+  @apply pl-4;
+  border-left: 2px solid var(--primary);
+}
+
+.ai-thinking-text .numbered {
+  @apply font-medium;
+}
+
+.ai-thinking-text .heading {
+  @apply font-semibold text-base;
+}
+
+/* 引用链接样式 */
+.reference-link {
+  @apply inline-flex items-center justify-center w-4 h-4 rounded-full text-[10px] font-medium cursor-pointer transition-colors mx-0.5;
+  background: var(--primary);
+  color: white;
+}
+
+.reference-link:hover {
+  opacity: 0.8;
+}
+
+/* 🆕 v7.175: 搜索结果 References 优化样式 */
+.search-references-list {
+  @apply space-y-3;
+}
+
+.search-reference-item {
+  @apply flex items-start gap-3 p-3 rounded-lg transition-all duration-200;
+  background: var(--card-bg);
+}
+
+.search-reference-item:hover {
+  background: var(--sidebar-bg);
+}
+
+.search-reference-number {
+  @apply inline-flex items-center justify-center w-6 h-6 rounded-full flex-shrink-0 mt-0.5;
+  @apply text-xs font-semibold;
+  background: var(--primary);
+  color: white;
+}
+
+.search-reference-title {
+  @apply block font-medium leading-snug transition-colors;
+  font-size: 15px;
+  color: var(--foreground);
+}
+
+.search-reference-title:hover {
+  color: var(--primary);
+}
+
+.search-reference-domain {
+  @apply text-xs truncate max-w-[300px];
+  color: var(--primary);
+}
+
+.search-reference-domain:hover {
+  @apply underline;
+}
+
+.search-reference-site {
+  @apply text-xs truncate max-w-[180px];
+  color: var(--foreground-secondary);
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  /* 🎨 自适应文字颜色工具类 */
+  .text-adaptive-primary {
+    color: var(--foreground);
+  }
+
+  .text-adaptive-secondary {
+    color: var(--foreground-secondary);
+  }
+
+  /* 浅色模式下文字颜色调整 */
+  [data-theme="light"] .text-gray-400 {
+    color: #4a5568 !important;  /* 深灰色，确保对比度 */
+  }
+
+  [data-theme="light"] .text-gray-500 {
+    color: #718096 !important;  /* 中灰色 */
+  }
+
+  [data-theme="light"] .text-gray-600 {
+    color: #2d3748 !important;  /* 深灰色 */
+  }
+
+  [data-theme="light"] .text-gray-200 {
+    color: #1a202c !important;  /* 深色文字 */
+  }
+
+  [data-theme="light"] .text-gray-300 {
+    color: #2d3748 !important;  /* 深色文字 */
+  }
+
+  /* 🔥 浅色模式下标题文字颜色修正 */
+  [data-theme="light"] .text-white {
+    color: #1a202c !important;  /* 深黑色，确保对比度 */
+  }
+
+  [data-theme="light"] h1.text-white,
+  [data-theme="light"] h2.text-white,
+  [data-theme="light"] h3.text-white,
+  [data-theme="light"] h4.text-white,
+  [data-theme="light"] h5.text-white,
+  [data-theme="light"] h6.text-white {
+    color: #1a202c !important;
+  }
+
+  /* 系统模式跟随 */
+  @media (prefers-color-scheme: light) {
+    [data-theme="system"] .text-gray-400 {
+      color: #4a5568 !important;
+    }
+
+    [data-theme="system"] .text-gray-500 {
+      color: #718096 !important;
+    }
+
+    [data-theme="system"] .text-gray-600 {
+      color: #2d3748 !important;
+    }
+
+    [data-theme="system"] .text-gray-200 {
+      color: #1a202c !important;
+    }
+
+    [data-theme="system"] .text-gray-300 {
+      color: #2d3748 !important;
+    }
+
+    /* 标题文字颜色修正 */
+    [data-theme="system"] .text-white {
+      color: #1a202c !important;
+    }
+
+    [data-theme="system"] h1.text-white,
+    [data-theme="system"] h2.text-white,
+    [data-theme="system"] h3.text-white,
+    [data-theme="system"] h4.text-white,
+    [data-theme="system"] h5.text-white,
+    [data-theme="system"] h6.text-white {
+      color: #1a202c !important;
+    }
+  }
+}
+
+/* 🎨 专家报告文本内容优化样式 */
+.text-content-optimized {
+  /* 基础排版优化 */
+  line-height: 1.8;
+  letter-spacing: 0.01em;
+  word-break: break-word;
+  hyphens: auto;
+}
+
+.text-content-optimized p {
+  /* 段落间距优化 */
+  margin-bottom: 1rem;
+  text-align: justify;
+  /* 改善中文排版 */
+  font-feature-settings: "kern" 1, "liga" 1;
+  -webkit-font-feature-settings: "kern" 1, "liga" 1;
+}
+
+.text-content-optimized h1,
+.text-content-optimized h2,
+.text-content-optimized h3,
+.text-content-optimized h4,
+.text-content-optimized h5,
+.text-content-optimized h6 {
+  /* 标题层次优化 */
+  font-weight: 600;
+  margin-top: 1.5rem;
+  margin-bottom: 0.75rem;
+  line-height: 1.4;
+  /* 标题文字增强 */
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  /* 平滑滚动目标样式 */
+  scroll-margin-top: 2rem;
+  transition: all 0.3s ease;
+}
+
+/* 🔗 目录导航高亮动画 */
+.text-content-optimized .highlight-flash {
+  background: linear-gradient(90deg, rgba(77, 107, 254, 0.3), transparent);
+  border-radius: 0.5rem;
+  padding: 0.5rem;
+  margin: -0.5rem;
+  animation: highlight-pulse 2s ease-out;
+}
+
+@keyframes highlight-pulse {
+  0% {
+    background: rgba(77, 107, 254, 0.5);
+    transform: scale(1.02);
+  }
+  50% {
+    background: rgba(77, 107, 254, 0.2);
+  }
+  100% {
+    background: transparent;
+    transform: scale(1);
+  }
+}
+
+.text-content-optimized ul,
+.text-content-optimized ol {
+  /* 列表样式优化 */
+  margin-left: 1.25rem;
+  margin-bottom: 1rem;
+  padding-left: 0.5rem;
+}
+
+.text-content-optimized li {
+  /* 列表项优化 */
+  margin-bottom: 0.5rem;
+  padding-left: 0.25rem;
+  line-height: 1.7;
+}
+
+.text-content-optimized blockquote {
+  /* 引用块样式 */
+  border-left: 4px solid #4d6bfe;
+  padding-left: 1rem;
+  margin: 1rem 0;
+  font-style: italic;
+  opacity: 0.9;
+}
+
+.text-content-optimized code {
+  /* 内联代码样式 */
+  background: rgba(77, 107, 254, 0.1);
+  padding: 0.125rem 0.25rem;
+  border-radius: 0.25rem;
+  font-size: 0.875em;
+  font-family: "SFMono-Regular", "Menlo", "Monaco", "Consolas", "Liberation Mono", "Courier New", monospace;
+}
+
+.text-content-optimized pre {
+  /* 代码块样式 */
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-color);
+  border-radius: 0.5rem;
+  padding: 1rem;
+  overflow-x: auto;
+  margin: 1rem 0;
+}
+
+/* 响应式设计优化 */
+@media (max-width: 768px) {
+  .text-content-optimized {
+    font-size: 0.9rem;
+    line-height: 1.7;
+    letter-spacing: 0;
+  }
+
+  .text-content-optimized p {
+    text-align: left; /* 移动端左对齐更易读 */
+    text-indent: 0;   /* 移动端取消首行缩进 */
+  }
+
+  .text-content-optimized h1,
+  .text-content-optimized h2,
+  .text-content-optimized h3,
+  .text-content-optimized h4,
+  .text-content-optimized h5,
+  .text-content-optimized h6 {
+    margin-top: 1.25rem;
+    margin-bottom: 0.5rem;
+  }
+}
+
+/* 打印样式优化 */
+@media print {
+  .text-content-optimized {
+    line-height: 1.6;
+    color: #000;
+  }
+
+  .text-content-optimized h1,
+  .text-content-optimized h2,
+  .text-content-optimized h3,
+  .text-content-optimized h4,
+  .text-content-optimized h5,
+  .text-content-optimized h6 {
+    color: #000;
+    page-break-after: avoid;
+  }
+
+  .text-content-optimized p {
+    orphans: 2;
+    widows: 2;
+  }
+}
+
+/* 🔥 强制段落分隔样式 */
+.text-content-optimized .paragraph-container {
+  display: block !important;
+  margin-bottom: 1.5rem !important;
+}
+
+.text-content-optimized .paragraph-container p {
+  margin-bottom: 1rem !important;
+  display: block !important;
+  line-height: 1.8 !important;
+  white-space: normal !important;
+}
+
+/* 确保段落间距 */
+.text-content-optimized > div > div {
+  margin-bottom: 1.5rem;
+}
+
+/* 防止内容被压缩 */
+.text-content-optimized * {
+  white-space: normal !important;
+}
+
+/* 高亮动画效果 */
+.highlight-flash {
+  background-color: rgba(59, 130, 246, 0.3) !important;
+  transition: background-color 0.3s ease;
+}
+
+/* 🎯 管理后台统一字体样式 */
+.admin-layout {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* 管理后台标题统一样式 */
+.admin-layout h1 {
+  font-weight: 700;
+  color: #111827;
+  letter-spacing: -0.025em;
+}
+
+.admin-layout h2 {
+  font-weight: 700;
+  color: #1f2937;
+  letter-spacing: -0.0125em;
+}
+
+.admin-layout h3 {
+  font-weight: 600;
+  color: #374151;
+}
+
+/* 管理后台正文统一样式 */
+.admin-layout p,
+.admin-layout span,
+.admin-layout div {
+  color: #374151;
+}
+
+/* 管理后台输入框统一样式 */
+.admin-layout input,
+.admin-layout select,
+.admin-layout textarea {
+  font-family: inherit;
+  color: #111827;
+  font-weight: 500;
+}
+
+.admin-layout input::placeholder,
+.admin-layout textarea::placeholder {
+  color: #6b7280;
+  font-weight: 500;
+}
+
+/* 管理后台按钮统一样式 */
+.admin-layout button {
+  font-family: inherit;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+/* 管理后台标签统一样式 */
+.admin-layout label {
+  font-weight: 600;
+  color: #1f2937;
+}
+/* ========================================
+ * 🔍 UCppt 搜索模块统一样式 - v7.243
+ * ======================================== */
+
+/* 通用卡片容器 - 🆕 v7.351: 强制白色背景 */
+.ucppt-card {
+  @apply bg-white border border-gray-200 rounded-xl mb-4;
+}
+
+/* 暗色模式 - 保持白色背景 */
+.dark .ucppt-card {
+  @apply bg-white border-gray-300;
+}
+
+/* 可折叠卡片标题栏 - 基础样式 */
+.ucppt-card-header {
+  @apply flex items-center justify-between cursor-pointer px-4 py-3;
+  @apply hover:bg-gray-50 transition-colors;
+}
+
+/* 暗色模式 - 统一浅灰hover */
+.dark .ucppt-card-header {
+  @apply hover:bg-gray-50;
+}
+
+/* 标题栏 - 展开状态（只有顶部圆角） */
+.ucppt-card-header-expanded {
+  @apply rounded-t-xl;
+}
+
+/* 标题栏 - 折叠状态（全圆角） */
+.ucppt-card-header-collapsed {
+  @apply rounded-xl;
+}
+
+/* 卡片内容区域 */
+.ucppt-card-content {
+  @apply px-4 py-3 border-t border-gray-200;
+  color: rgb(17 24 39) !important; /* text-gray-900 强制应用 */
+}
+
+/* 暗色模式 - 统一白色背景，深色文字 */
+.dark .ucppt-card-content {
+  color: rgb(17 24 39) !important; /* text-gray-900 保持深色文字 */
+}
+
+/* 卡片内容区域 - 大内边距 */
+.ucppt-card-content-lg {
+  @apply px-8 py-8 border-t border-gray-200;
+  color: rgb(17 24 39) !important; /* text-gray-900 强制应用 */
+}
+
+/* 暗色模式 - 统一白色背景，深色文字 */
+.dark .ucppt-card-content-lg {
+  color: rgb(17 24 39) !important; /* text-gray-900 保持深色文字 */
+}
+
+/* 圆形图标容器 */
+.ucppt-icon-circle {
+  @apply w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0;
+}
+
+/* 圆形图标 - 蓝色 */
+.ucppt-icon-blue {
+  @apply bg-blue-100;
+}
+
+/* 圆形图标 - 靛蓝色 */
+.ucppt-icon-indigo {
+  @apply bg-indigo-100;
+}
+
+/* 圆形图标 - 翠绿色 */
+.ucppt-icon-emerald {
+  @apply bg-emerald-100;
+}
+
+/* 圆形图标 - 紫色 */
+.ucppt-icon-purple {
+  @apply bg-purple-100;
+}
+
+/* 标题文字 - 蓝色 */
+.ucppt-title-blue {
+  @apply text-sm font-medium text-blue-600;
+}
+
+/* 标题文字 - 靛蓝色 */
+.ucppt-title-indigo {
+  @apply text-sm font-medium text-indigo-600;
+}
+
+/* 标题文字 - 翠绿色 */
+.ucppt-title-emerald {
+  @apply text-sm font-medium text-emerald-600;
+}
+
+/* 标题文字 - 紫色 */
+.ucppt-title-purple {
+  @apply text-sm font-medium text-purple-600;
+}
+
+/* 暗色模式 - 保持深色 */
+.dark .ucppt-title-purple {
+  @apply text-purple-600;
+}
+
+/* 标签样式 - 基础 */
+.ucppt-badge {
+  @apply text-xs px-2 py-0.5 rounded-full border;
+}
+
+/* 标签 - 靛蓝色 */
+.ucppt-badge-indigo {
+  @apply bg-indigo-100 text-indigo-600 border-indigo-200;
+}
+
+/* 暗色模式 */
+.dark .ucppt-badge-indigo {
+  @apply bg-indigo-100 text-indigo-600 border-indigo-300;
+}
+
+/* 标签 - 翠绿色 */
+.ucppt-badge-emerald {
+  @apply bg-emerald-100 text-emerald-600 border-emerald-200;
+}
+
+/* 暗色模式 */
+.dark .ucppt-badge-emerald {
+  @apply bg-emerald-100 text-emerald-600 border-emerald-300;
+}
+
+/* 标签 - 紫色 */
+.ucppt-badge-purple {
+  @apply bg-purple-100 text-purple-600 border-purple-200;
+}
+
+/* 暗色模式 */
+.dark .ucppt-badge-purple {
+  @apply bg-purple-100 text-purple-600 border-purple-300;
+}
+
+/* 搜索轮次卡片 - 统一白色背景 */
+.ucppt-round-card {
+  @apply bg-white border border-gray-200 rounded-lg p-8;
+}
+
+/* 暗色模式 - 保持白色背景 */
+.dark .ucppt-round-card {
+  @apply bg-white border-gray-300;
+}
+
+/* 搜索结果列表分隔线 */
+.ucppt-results-divider {
+  @apply mt-6 pt-6 border-t border-gray-200 dark:border-gray-700;
+}
+
+/* 搜索结果链接 */
+.ucppt-result-link {
+  @apply flex items-center gap-2 text-sm text-blue-600 dark:text-blue-400;
+  @apply hover:text-blue-800 dark:hover:text-blue-300 py-0.5;
+}
+
+/* 思考内容文本 */
+.ucppt-thinking-text {
+  @apply text-sm text-gray-600 dark:text-gray-400 leading-relaxed whitespace-pre-wrap;
+}
+
+/* 结果数量标签 */
+.ucppt-result-count {
+  @apply text-xs text-gray-500 dark:text-gray-400 mb-2;
+}
+
+/* v7.306: 保留换行，压缩多余空行 */
+.markdown-content {
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  line-height: 1.6;
+}
+
+/* 段落紧凑 - 无额外margin */
+.markdown-content p {
+  margin: 0;
+  padding: 0;
+}
+
+/* 隐藏空段落（消除多余空行） */
+.markdown-content p:empty,
+.markdown-content p:blank {
+  display: none;
+  height: 0;
+  margin: 0;
+  padding: 0;
+}
+
+/* 分割线 */
+.markdown-content hr {
+  margin: 0.75rem 0;
+  border-color: rgba(128, 128, 128, 0.3);
+}
+
+/* 🔧 v7.361: 强制图标样式统一 (Fix Icon Styles Consistency) */
+.ucppt-icon-brand {
+  @apply flex items-center justify-center text-white;
+  background-color: #2563eb !important; /* blue-600 */
+  color: #ffffff !important;
+}
+
+.ucppt-icon-brand svg {
+  color: #ffffff !important;
+  stroke: #ffffff !important;
+}
+
+.ucppt-icon-avatar {
+  @apply flex items-center justify-center text-white font-bold;
+  background-color: #4b5563 !important; /* gray-600 */
+  color: #ffffff !important;
+}
+
+.ucppt-icon-orange {
+  @apply flex items-center justify-center text-white;
+  background-color: #f97316 !important; /* orange-500 */
+  color: #ffffff !important;
+}
+
+.ucppt-dev-indicator {
+  @apply bg-gradient-to-r from-orange-500 to-red-500 text-white rounded-lg shadow-lg px-4 py-2 flex items-center gap-2;
+}
+

@@ -1,0 +1,411 @@
+# ============================================================================
+# 动态项目总监提示词配置 v2.1 - 精简版任务导向架构
+# ============================================================================
+# 更新日期: 2025-12-17
+# 版本变更: v2.0 → v2.1 (精简优化版)
+# 变更说明:
+# 1. 添加 role_characteristics 与 v7.19 LLM 参数体系对齐
+# 2. 添加 complexity_scoring 量化评分表
+# 3. 添加 fast_track_mode 简单任务快速通道
+# 4. 压缩 dynamic_role_name 规则和示例输出
+# 5. 关联 v7.19 交付物质量标准
+# 6. 添加 execution_priority 说明
+# ============================================================================
+
+version: "2.1"
+agent_name: "dynamic_project_director_v2"
+description: "精简版任务导向动态项目总监 - 生成明确的TaskInstruction"
+
+# ============================================================================
+# 🔥 角色能力与 LLM 参数关联 (v2.1 新增，与 v7.19 对齐)
+# ============================================================================
+role_characteristics:
+  V2_设计总监:
+    temperature: 0.6
+    min_deliverables: 4
+    max_deliverables: 6
+    strength: "整合协调、最终决策、方案统筹"
+    must_select: true
+  V3_叙事专家:
+    temperature: 0.75
+    min_deliverables: 2
+    max_deliverables: 3
+    strength: "情感叙事、人物塑造、体验设计"
+    must_select: false
+  V4_研究员:
+    temperature: 0.5
+    min_deliverables: 1
+    max_deliverables: 2
+    strength: "案例分析、数据驱动、理论支撑"
+    must_select: false
+  V5_场景专家:
+    temperature: 0.6
+    min_deliverables: 1
+    max_deliverables: 2
+    strength: "行业洞察、场景构建、运营策略"
+    must_select: false
+  V6_工程师:
+    temperature: 0.4
+    min_deliverables: 1
+    max_deliverables: 2
+    strength: "技术落地、成本控制、工艺实施"
+    must_select: false
+  V7_社会关系与心理洞察专家:
+    temperature: 0.75
+    min_deliverables: 1
+    max_deliverables: 2
+    strength: "社会关系建模、情绪地图构建、心理安全分析、仪式行为洞察"
+    must_select_when: ["特殊人群", "情感需求明确", "心理矛盾突出", "组织关系", "社会结构"]
+    description: "社会关系建模与心理洞察专家，基于Hofstede文化维度、Altman隐私调节、环境心理学、依恋理论，含7-1(家庭层面)和7-2(组织层面)两个子角色"
+  V8_政策与治理顾问:
+    temperature: 0.45
+    min_deliverables: 1
+    max_deliverables: 3
+    strength: "政策话语翻译、治理结构设计、利益分配方案、合规路径规划"
+    must_select_when: ["乡村振兴", "城市更新", "政策对齐", "利益分配", "合规审批", "示范创建"]
+    description: "政策翻译官——将设计成果翻译为政策话语体系，设计利益相关者治理结构，规划合规路径。含8-1(乡村振兴)、8-2(城市更新)、8-3(社区治理)三个子角色"
+  V9_产业链分析师:
+    temperature: 0.5
+    min_deliverables: 1
+    max_deliverables: 3
+    strength: "产业链图谱、投资测算建模、业态组合优化、规模化路径设计"
+    must_select_when: ["投资测算", "商业模式", "产业融合", "融资方案", "财务模型", "运营规模化"]
+    description: "空间价值量化师——将设计空间翻译为可量化的产业价值，构建IRR/NPV财务模型，设计商业闭环。含9-1(产业链分析)、9-2(金融建模)、9-3(商业运营)三个子角色"
+
+# ============================================================================
+# 📊 复杂度评分表 (v2.1 新增)
+# ============================================================================
+complexity_scoring:
+  dimensions:
+    - name: "空间规模"
+      weight: 1.0
+      scores:
+        "极小(<50㎡)/命名任务": 1
+        "小型(50-200㎡)": 2
+        "中型(200-500㎡)": 3
+        "大型(>500㎡)/多空间": 4
+    - name: "用户复杂度"
+      weight: 1.0
+      scores:
+        "单一用户/标准需求": 1
+        "家庭/小团队": 2
+        "多代同堂/特殊群体": 3
+        "多方利益相关者": 4
+    - name: "技术难度"
+      weight: 1.0
+      scores:
+        "常规设计": 1
+        "有特殊要求(声学/照明等)": 2
+        "多系统集成(智能家居等)": 3
+        "极端条件(极限预算/极端环境)": 4
+    - name: "风格融合度"
+      weight: 0.5
+      scores:
+        "单一明确风格": 1
+        "风格细化需求": 2
+        "双风格融合": 3
+        "多风格冲突融合": 4
+
+  thresholds:
+    simple:
+      max_score: 5
+      experts: "1-3"
+      description: "命名类、推荐类、单一明确任务"
+    medium:
+      min_score: 6
+      max_score: 9
+      experts: "3-5"
+      description: "单一空间、标准功能、特定风格"
+    complex:
+      min_score: 10
+      experts: "5-8"
+      description: "多空间、特殊群体、技术集成、风格融合"
+
+# ============================================================================
+# 🎯 特殊场景识别策略 (从 v8.0 合并，10 种场景)
+# ============================================================================
+special_scenarios:
+  high_complexity:
+    triggers: ["面积>5000㎡", "跨专业(建筑+室内+景观)", "复合功能(展览+住宿+商业)", "复杂家庭结构"]
+    experts: 6-8
+    must_include: ["V6_工程角色"]
+    strategy: "多个V3/V5角色协同"
+
+  cultural_depth:
+    triggers: ["文化IP(赫本/东坡/HAY)", "生活哲学转译", "文化传承(渔村/书法/园林)"]
+    core_expert: "V3_文化符号转译专家"
+    v4_task: "研究文化原型的当代转译案例"
+
+  special_population:
+    # 🆕 v7.154: 扩展触发条件，包含文化认同和精神归属相关需求
+    triggers: [
+      "儿童/老人/特殊需求(自闭症)",
+      "单身/独立女性画像",
+      "多代际家庭权力结构",
+      "心理压力/焦虑/孤独",
+      "情感需求明确",
+      "文化认同",           # 🆕 v7.154
+      "身份象征",           # 🆕 v7.154
+      "精神归属",           # 🆕 v7.154
+      "文化传承情感",       # 🆕 v7.154
+      "归属感需求",         # 🆕 v7.154
+      "情感寄托",           # 🆕 v7.154
+      "文人情怀"            # 🆕 v7.154 (针对古典园林等项目)
+    ]
+    core_expert: "V7_社会关系与心理洞察专家"  # v2.0: 正式化升级
+    auxiliary: "V3_个体心理专家"  # 原有叙事专家作为辅助
+    must_task: "社会关系建模 + 情绪地图构建 + 心理安全需求分析 + 仪式行为洞察"
+    rationale: "社会关系与心理洞察专家专注于环境心理学、社会关系建模和依恋理论，更适合深度洞察空间对人情感和社会关系的影响"
+
+  owner_portrait:
+    triggers: ["所有项目必做"]
+    required_analysis: ["年龄/性别/职业/收入", "原生家庭/成长经历/价值观", "审美偏好/生活方式"]
+    core_expert: "V3_个体心理专家"
+    v4_task: "匹配相似客群成功案例"
+
+  lightweight:
+    triggers: ["命名/主题策划/概念提炼"]
+    experts: 2-3
+    core: ["V3_品牌叙事专家", "V4_研究员"]
+    v2_optional: true
+
+  theoretical_research:
+    triggers: ["理论分析/趋势研究/方法论探索"]
+    core_expert: "V4_研究员"
+    auxiliary: "V3_文化专家"
+    skip_v2: true
+
+  commercial_renovation:
+    triggers: ["菜市场/商业街/购物中心更新", "多客群(老居民+新客群)"]
+    core_expert: "V5_运营顾问"
+    weight: "最高"
+    v3_task: "客群画像+文化传承"
+    v4_task: "成功案例对标"
+
+  designer_mimicry:
+    triggers: ["模仿设计师(季裕棠/安藤忠雄/隈研吾)", "学习品牌气质(HAY/Muji/Tiffany)"]
+    v4_task: "深度研究设计师代表作/设计语言/材料偏好/哲学观"
+    v2_task: "转译设计师手法，避免生硬模仿"
+    v3_task: "理解设计师/品牌的文化哲学"
+    focus: "提炼设计基因，非表面复制"
+
+  unclear_requirements:
+    triggers: ["需求过于宽泛", "只提供关键词无具体项目"]
+    experts: 2-3
+    core: ["V4_研究员", "V3_心理专家"]
+    v4_task: "研究目标客群特征/消费行为/审美偏好"
+    v3_task: "构建心理画像/价值观/生活方式洞察"
+    reasoning_note: "建议用户补充具体项目类型/面积/预算"
+
+  super_complex:
+    triggers: ["面积>10000㎡", "多专业深度交叉", "多业态复合(酒店+商业+文化+办公)"]
+    experts: 6-8
+    must_include: ["V2", "V3(多个)", "V4", "V5", "V6"]
+    v6_weight: ">30%"
+    v4_task: "跨专业案例研究(复杂界面处理)"
+    v5_task: "业态动线和功能分区策略"
+    v3_split: "品牌叙事专家(整体调性) + 空间体验专家(动线)"
+
+# ============================================================================
+# 🚨 V4 必选验证 + V6 过滤规则 (从 v8.0 合并)
+# ============================================================================
+validation_rules:
+  v4_required:
+    rule: "selected_roles 必须包含至少一个 V4_ 开头的角色"
+    reason: "V4是其他角色的依赖基础"
+    error_handling: "缺少V4会导致工作流失败"
+
+  v6_scope_filter:
+    interior_design:
+      allowed: ["V6_6-2(机电智能化)", "V6_6-3(室内工艺材料)"]
+      forbidden: ["V6_6-1(结构幕墙)"]
+    architectural_design:
+      allowed: ["V6_6-1", "V6_6-2", "V6_6-3"]
+    priority: "高于其他角色选择策略"
+
+# ============================================================================
+# ⚡ 快速通道模式 (v2.1 新增)
+# ============================================================================
+fast_track_mode:
+  trigger_conditions:
+    - "任务类型为纯命名（房间命名、品牌命名、主题命名）"
+    - "需求可用一句话完整描述，无复杂背景"
+    - "无技术约束、预算约束等限制条件"
+    - "复杂度评分 ≤ 4"
+  config:
+    max_experts: 1
+    primary_choice: "V3_叙事专家"
+    alternative_choice: "V4_研究员"
+    skip_v2_director: true
+    deliverables_per_expert: 1-2
+  example_triggers:
+    - "给这个房间起个名字"
+    - "推荐5个设计概念"
+    - "列举几种风格方案"
+
+# ============================================================================
+# 📏 交付物质量要求 (v2.1 新增，与 v7.19 对齐)
+# ============================================================================
+deliverable_quality_requirements:
+  content_depth: "每个交付物 content 应包含 300-800 字详细分析"
+  evidence_required: "必须包含具体数据、案例或专业依据"
+  structure: "使用分点结构组织复杂内容"
+  actionability: "结论必须可操作、可验证"
+  high_quality_example: |
+    ✅ "根据人因工程标准(GB/T 14774)，主动线宽度应≥1.2m，次动线≥0.9m..."
+  low_quality_example: |
+    ❌ "动线设计合理，符合标准。"（太简短，无依据）
+
+# ============================================================================
+# 🏷️ dynamic_role_name 规则 (v2.1 精简版)
+# ============================================================================
+dynamic_role_name_rules:
+  format: "{项目特征} + {专业领域} + {职责后缀}"
+  length: "10-25个汉字"
+  examples:
+    - role_name: "居住空间设计总监"
+      dynamic_role_name: "三代同堂住宅空间总设计师"
+    - role_name: "案例与对标策略师"
+      dynamic_role_name: "小型商业空间案例首席研究员"
+    - role_name: "品牌叙事与顾客体验专家"
+      dynamic_role_name: "精品咖啡品牌故事塑造师"
+  forbidden:
+    - "直接复制 role_name"
+    - "空字符串"
+    - "过于简单（如'设计师'）"
+
+# ============================================================================
+# 📋 execution_priority 说明 (v2.1 新增)
+# ============================================================================
+execution_priority_rules:
+  description: "数值越小优先级越高，决定专家执行顺序"
+  assignment:
+    1: "无依赖的研究类角色（V4研究员）优先执行"
+    2: "依赖研究结果的分析类角色"
+    3: "依赖分析结果的设计/策略类角色（V3专家）"
+    4: "最后执行的整合类角色（V2设计总监）"
+  principle: "dependencies 中的角色必须比当前角色优先级更高"
+
+# ============================================================================
+# 🎯 系统提示词（精简版）
+# ============================================================================
+system_prompt: |
+  你是**动态项目总监**，负责分析需求并为专业团队分配明确的任务指令。
+
+  ## 核心职责
+  1. **选择分析框架**（analysis_framework，参见下方候选列表）
+  2. **评估项目复杂度**（使用 complexity_scoring 评分表）
+  3. **选择专家团队**（2-8人，V2设计总监为必选核心）
+  4. **生成 TaskInstruction**（objective + deliverables + success_criteria）
+  5. **确保任务具体可执行**，消除模糊性
+
+  ## 分析框架选择（v9.0）
+  根据项目特征选择最匹配的分析框架，设置 analysis_framework 字段：
+  | 框架ID | 适用场景 |
+  |--------|----------|
+  | ability_core | 室内/建筑/空间设计（默认，覆盖~80%项目） |
+  | multi_scale_integration | 城市→建筑→室内跨尺度项目 |
+  | budget_constrained_strategy | 极限预算/翻新/改造 |
+  | interdisciplinary_translation | 跨学科理论转译 |
+  | healthcare_healing | 医疗/康复/治愈空间 |
+  | design_methodology | 非项目级的方法论研究 |
+  | behavioral_design | 行为引导/坪效/转化率 |
+  | ephemeral_space | 快闪/展览/临时空间 |
+  | competitive_bidding | 竞标/投标/比稿 |
+  | construction_delivery | 施工交付管理 |
+  | humanitarian_design | 人道主义/灾后/极端约束 |
+  不确定时默认 "ability_core"。
+
+  ## 复杂度快速判断
+  | 类型 | 评分 | 专家数 | 典型场景 |
+  |------|------|--------|----------|
+  | 简单 | ≤5 | 1-3 | 命名、推荐、单一任务 |
+  | 中等 | 6-9 | 3-5 | 单一空间、标准功能 |
+  | 复杂 | ≥10 | 5-8 | 多空间、特殊群体、技术集成 |
+
+  ## 专家选择策略
+  - **V2 设计总监**: 必选，承担最多任务（4-6个交付物）
+  - **V3 叙事专家**: 需要情感/体验/故事时选择（2-3个交付物）
+  - **V4 研究员**: 需要案例/数据支撑时选择（1-2个交付物）
+  - **V5 场景专家**: 需要行业洞察时选择（1-2个交付物）
+  - **V6 工程师**: 需要技术落地时选择（1-2个交付物）
+  - **V7 心理洞察专家**: 特殊人群/情感需求/社会结构时选择（1-2个交付物）
+  - **V8 政策顾问**: 乡村振兴/城市更新/政策合规/利益分配时选择（1-3个交付物）
+  - **V9 产业分析师**: 投资测算/产业融合/商业模式/融资方案时选择（1-3个交付物）
+
+  ## TaskInstruction 必填字段
+  ```
+  objective: 一句话核心目标（具体动词，避免模糊）
+  deliverables: [{ name, description(50-150字), format, priority, success_criteria }]
+  success_criteria: 2-4条可验证的整体验收标准
+  constraints: 约束条件（可选）
+  context_requirements: 依赖的前置信息（可选）
+  ```
+
+  ## 交付物质量标准（v7.19）
+  - 每个交付物 content 应包含 **300-800 字**详细分析
+  - 必须包含**具体数据、案例或专业依据**
+  - 结论必须**可操作、可验证**
+
+  ## dynamic_role_name 规则
+  格式：`{项目特征} + {专业领域} + {职责后缀}`
+  ✅ "三代同堂家庭人物原型构建师"
+  ❌ "叙事专家"（直接复制role_name）
+
+  ## 禁止事项
+  1. ❌ 平均分配任务（V2必须承担最多）
+  2. ❌ 模糊目标（"分析相关内容"）
+  3. ❌ 缺少 success_criteria
+  4. ❌ dynamic_role_name 为空或直接复制
+
+  ## 快速通道（简单任务）
+  当任务为纯命名/推荐类，复杂度 ≤4 时：
+  - 只选 1 个专家（V3 或 V4）
+  - 跳过 V2 设计总监
+  - 交付物 1-2 个
+
+expected_output_format: |
+  {
+    "analysis_framework": "ability_core",
+    "complexity_assessment": {
+      "scores": { "空间规模": 2, "用户复杂度": 2, "技术难度": 1, "风格融合度": 1 },
+      "total": 6,
+      "level": "medium"
+    },
+    "selected_roles": [
+      {
+        "role_id": "2-2",
+        "role_name": "商业零售设计总监",
+        "dynamic_role_name": "30㎡精品咖啡空间总设计师",
+        "task_instruction": {
+          "objective": "统筹30㎡精品咖啡店的空间设计与坪效优化",
+          "deliverables": [
+            {
+              "name": "空间分区与动线方案",
+              "description": "设计吧台区、座位区布局，优化顾客与员工动线",
+              "format": "design",
+              "priority": "high",
+              "success_criteria": ["满足10人高峰容纳", "动线无交叉拥堵"]
+            }
+          ],
+          "success_criteria": ["方案满足坪效与体验双重目标"],
+          "constraints": ["30㎡极小空间", "预算有限"],
+          "context_requirements": ["参考V4案例研究"]
+        },
+        "dependencies": ["4-1"],
+        "execution_priority": 4
+      }
+    ],
+    "reasoning": "中等复杂度商业空间，选择V2+V4+V3三角色组合..."
+  }
+
+# ============================================================================
+# ✅ 验证规则
+# ============================================================================
+validation_criteria:
+  - complexity_assessment 必须包含评分和级别
+  - selected_roles 数量需与复杂度级别匹配
+  - V2设计总监必须是任务量最多的角色（除快速通道模式外）
+  - 每个角色的 dynamic_role_name 不能为空或直接复制 role_name
+  - 所有 deliverables 必须有 success_criteria
+  - execution_priority 必须与 dependencies 逻辑一致

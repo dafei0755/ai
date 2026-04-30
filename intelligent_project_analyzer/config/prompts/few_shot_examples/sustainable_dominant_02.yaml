@@ -1,0 +1,280 @@
+# 示例:三亚海边木结构抗腐餐厅设计
+# 来源:q.txt Q86
+# 类型:可持续主导 (Sustainable Dominant) / 材料耐久性 + 气候适应性
+# 特征:滨海木结构、防腐体系、台风抗性、材料耐久、区域气候适应
+
+example:
+  project_info:
+    name: 三亚海边木结构抗腐餐厅空间设计
+    description: |
+      三亚海棠湾300平方米海景餐厅设计，业主要求采用木结构为主的建筑形式，
+      营造热带度假氛围。项目核心挑战在于高湿(年均RH 80%+)、高盐(距海500m)、
+      强台风(年均3-5次)环境下木结构的耐久性与防腐性能保障，
+      需建立完整的材料防护体系与全生命周期维护策略。
+
+    feature_vector:
+      sustainable: 0.60
+      technical: 0.65
+      material_innovation: 0.68
+      functional: 0.58
+      regional: 0.55
+      aesthetic: 0.50
+      commercial: 0.45
+      experiential: 0.52
+      cultural: 0.35
+      social: 0.30
+      historical: 0.25
+      symbolic: 0.38
+
+    constraints:
+      - 距海500m高盐雾环境(年均NaCl沉降量高)
+      - 年均台风3-5次(最大风力可达16级)
+      - 年均相对湿度80%以上(霉菌滋生高风险)
+      - 木结构需满足30年使用寿命要求
+      - 300平方米餐厅需满足120座位容量
+
+    goals:
+      - 建立滨海木结构防腐防护完整体系
+      - 设计抗台风结构系统与应急方案
+      - 构建材料耐久性全生命周期管理策略
+      - 实现热带度假氛围与结构安全的平衡
+      - 控制初始投资与全生命周期成本平衡
+
+  ideal_tasks:
+    - id: task_1
+      title: 搜索 滨海木结构建筑的 国际标杆案例、材料防腐技术、气候适应策略、使用寿命数据
+      description: |
+        调研国际滨海木结构建筑的成功案例，包括东南亚热带木建筑传统、
+        澳大利亚滨海度假建筑、日本耐候性木结构设计，提取材料选型与防护策略。
+      task_type: research
+      motivation: sustainable
+      support_search: true
+      dimensions:
+        - 国际标杆案例(东南亚传统木架构、澳大利亚滨海度假村、日本耐候木建筑)
+        - 材料防腐技术(ACQ防腐处理、炭化木技术、铜唑防腐剂、硼化合物)
+        - 气候适应策略(通风除湿设计、屋面排水优化、海风导流)
+        - 使用寿命数据(各树种滨海环境耐久年限、维护周期与成本)
+      priority: high
+      execution_order: 1
+
+    - id: task_2
+      title: 搜索 热带滨海环境的 木材腐蚀机理、盐雾侵蚀特征、霉菌滋生条件、虫害防治策略
+      description: |
+        深入研究热带滨海环境对木结构的破坏机理，理解木材腐蚀的化学与生物过程，
+        为防护体系设计提供科学依据。
+      task_type: research
+      motivation: technical
+      support_search: true
+      dimensions:
+        - 木材腐蚀机理(真菌腐朽、化学降解、物理风化、紫外线老化)
+        - 盐雾侵蚀特征(氯离子渗透、金属连接件腐蚀、表面结晶)
+        - 霉菌滋生条件(含水率大于20%、温度20-35度、通风不良)
+        - 虫害防治策略(白蚁防治、海洋钻孔虫、甲虫类防治)
+      priority: high
+      execution_order: 2
+
+    - id: task_3
+      title: 搜索 抗台风建筑结构的 设计规范、连接节点技术、风载荷计算、破坏性试验数据
+      description: |
+        研究抗台风建筑结构设计的规范与技术，包括木结构抗风连接节点设计、
+        风载荷计算方法、台风破坏模式分析。
+      task_type: research
+      motivation: technical
+      support_search: true
+      dimensions:
+        - 设计规范(GB 50005木结构设计规范、ASCE 7风载荷标准、海南地方规范)
+        - 连接节点技术(抗拔锚栓、剪力连接板、胶合螺栓节点、金属抗风夹)
+        - 风载荷计算(基本风压值、体型系数、高度变化系数、地面粗糙度)
+        - 破坏性试验数据(木框架抗风测试、屋面掀翻机理、薄弱环节识别)
+      priority: high
+      execution_order: 3
+
+    - id: task_4
+      title: 设计 木材选型与防腐处理的 树种对比方案、防腐工艺流程、防腐等级标准、成本效益分析
+      description: |
+        基于滨海环境要求，设计木材选型方案，对比不同树种的耐久性与成本，
+        制定防腐处理工艺流程与质量控制标准。
+      task_type: design
+      motivation: material_innovation
+      support_search: false
+      dimensions:
+        - 树种对比方案(菠萝格vs柚木vs炭化松木vs防腐南方松vs塑木复合)
+        - 防腐工艺流程(真空加压浸渍+表面涂层+端头封蜡三重防护)
+        - 防腐等级标准(C4以上滨海环境等级、防腐剂载药量)
+        - 成本效益分析(初始成本+维护成本+更换成本的30年全周期)
+      priority: high
+      execution_order: 4
+
+    - id: task_5
+      title: 设计 抗台风木结构体系的 主体结构方案、连接节点设计、屋面抗掀系统、应急加固预案
+      description: |
+        设计300平方米餐厅的抗台风木结构体系，包括主体框架、屋面系统、
+        连接节点的详细设计方案。
+      task_type: design
+      motivation: technical
+      support_search: false
+      dimensions:
+        - 主体结构方案(重型木框架+钢木混合节点、基础锚固系统)
+        - 连接节点设计(不锈钢角码、预埋螺栓、胶合钢板连接)
+        - 屋面抗掀系统(屋面板锚固+檐口加固+通风减压设计)
+        - 应急加固预案(可拆卸挡风板、活动百叶关闭系统、台风前检查清单)
+      priority: high
+      execution_order: 5
+
+    - id: task_6
+      title: 设计 金属连接件防锈系统的 材质选型、防腐涂层、电化学防护、检查更换方案
+      description: |
+        设计木结构金属连接件的全面防锈系统，确保高盐环境下连接件的安全性。
+      task_type: design
+      motivation: technical
+      support_search: false
+      dimensions:
+        - 材质选型(316L不锈钢、热镀锌钢、钛合金特殊部位)
+        - 防腐涂层(富锌底漆+环氧中间漆+聚氨酯面漆三层)
+        - 电化学防护(牺牲阳极法、绝缘垫片隔离异种金属)
+        - 检查更换方案(年度检查+5年更换清单+紧固力矩标准)
+      priority: high
+      execution_order: 6
+
+    - id: task_7
+      title: 设计 通风除湿系统的 自然通风策略、机械除湿方案、地面防潮构造、屋面排水系统
+      description: |
+        设计滨海高湿环境下的综合除湿系统，控制木构件含水率在安全范围内。
+      task_type: design
+      motivation: sustainable
+      support_search: false
+      dimensions:
+        - 自然通风策略(穿堂风设计、屋脊通风口、地面架空通风)
+        - 机械除湿方案(工业除湿机配置、湿度传感器联动)
+        - 地面防潮构造(架空层300mm+防潮膜+排水层)
+        - 屋面排水系统(大坡度排水+防回流风帽+天沟加大)
+      priority: high
+      execution_order: 7
+
+    - id: task_8
+      title: 设计 热带度假氛围的 空间营造方案、材料美学表达、海景框景设计、室内外过渡空间
+      description: |
+        在满足结构安全前提下，设计热带度假氛围的空间方案，实现功能与美学平衡。
+      task_type: design
+      motivation: aesthetic
+      support_search: false
+      dimensions:
+        - 空间营造方案(开放式半室外用餐区+室内空调区+景观平台)
+        - 材料美学表达(木材自然纹理展示、防腐处理后的色泽管理)
+        - 海景框景设计(景观面最大化开窗+防风门窗系统)
+        - 室内外过渡空间(半开敞廊道+可开闭折叠门系统)
+      priority: medium
+      execution_order: 8
+
+    - id: task_9
+      title: 制定 餐厅功能布局的 座位容量方案、厨房动线设计、服务流线规划、设备防潮策略
+      description: |
+        设计300平方米餐厅的完整功能布局，满足120座位容量需求。
+      task_type: design
+      motivation: functional
+      support_search: false
+      dimensions:
+        - 座位容量方案(室内80座+半室外40座+灵活调配机制)
+        - 厨房动线设计(中央厨房+备餐区+出餐口+回收路线)
+        - 服务流线规划(前厅动线+后厨动线+客流动线分离)
+        - 设备防潮策略(不锈钢设备+密封电气箱+防潮排风)
+      priority: medium
+      execution_order: 9
+
+    - id: task_10
+      title: 制定 全生命周期维护策略的 定期检查规程、维修更换计划、成本预算周期、监测预警系统
+      description: |
+        建立木结构餐厅30年全生命周期的维护管理体系。
+      task_type: strategy
+      motivation: sustainable
+      support_search: false
+      dimensions:
+        - 定期检查规程(月度巡查+季度专项+年度全面+台风后特检)
+        - 维修更换计划(表面涂层3年重涂+结构件10年检测+连接件5年检查)
+        - 成本预算周期(年维护费用占初装3-5%+储备更换基金)
+        - 监测预警系统(含水率传感器+变形监测+腐蚀电位检测)
+      priority: high
+      execution_order: 10
+
+    - id: task_11
+      title: 分析 初始投资与全生命周期成本的 方案对比、敏感性分析、风险评估
+      description: |
+        对不同结构和材料方案进行全生命周期成本对比分析。
+      task_type: analysis
+      motivation: commercial
+      support_search: false
+      dimensions:
+        - 方案对比(纯木方案vs钢木混合vs钢结构木饰面的30年总成本)
+        - 敏感性分析(台风损失频率、材料价格波动、维护频率变化)
+        - 风险评估(结构失效风险、营业中断损失、保险费用)
+        - 投资回报(热带木结构品牌溢价、客单价提升、网红打卡效应)
+      priority: medium
+      execution_order: 11
+
+    - id: task_12
+      title: 整合 总体设计方案、结构施工详图要点、材料采购规范、质量验收标准
+      description: |
+        基于前期研究与设计成果，整合形成完整的设计方案文件体系。
+      task_type: strategy
+      motivation: functional
+      support_search: false
+      dimensions:
+        - 总体设计方案(结构布局+功能分区+材料方案+设备系统)
+        - 结构施工详图要点(关键节点详图+预埋件定位+安装顺序)
+        - 材料采购规范(木材等级标准+防腐处理验收+金属件材质证明)
+        - 质量验收标准(结构安全检测+防腐质量抽检+防水试验+整体验收)
+      priority: high
+      execution_order: 12
+
+  quality_highlights:
+    - 12任务覆盖滨海木结构全生命周期 标杆研究到材料选型到结构设计到维护管理
+    - 防腐体系三重防护 真空加压浸渍+表面涂层+端头封蜡系统化方案
+    - 抗台风结构完整闭环 主体框架+连接节点+屋面抗掀+应急预案
+    - 金属连接件防锈系统 316L不锈钢+三层涂层+电化学防护+定期更换
+    - 通风除湿综合策略 自然通风+机械除湿+架空防潮+屋面排水
+    - 30年全生命周期成本分析 初始投资+年维护+更换储备+风险评估
+
+metadata:
+  tags_matrix:
+    space_type:
+      - restaurant
+      - commercial
+      - coastal_building
+    scale: medium
+    design_direction:
+      - sustainable
+      - technical
+      - regional
+      - aesthetic
+    user_profile:
+      - public
+      - tourists
+      - commercial_operator
+    challenge_type:
+      - material_durability
+      - climate_adaptation
+      - technical_complexity
+      - typhoon_resistance
+    methodology:
+      - material_research
+      - technical_innovation
+      - regional_adaptation
+      - lifecycle_analysis
+    phase: concept_to_detailed
+  discipline: architecture
+  urgency: 0.50
+  innovation_quotient: 0.60
+  commercial_sensitivity: 0.55
+  cultural_depth: 0.30
+  performance:
+    specialty_score: 0.65
+    recommended_strength: medium
+  best_for:
+    - "滨海建筑设计"
+    - "木结构防腐体系"
+    - "极端气候应对设计"
+    - "材料耐久性优化"
+  not_suitable_for:
+    - "内陆常规建筑"
+    - "纯室内设计项目"
+    - "无气候挑战项目"

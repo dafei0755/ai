@@ -1,0 +1,241 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'intelligent_project_analyzer/**'
+      - 'tests/**'
+      - 'frontend-nextjs/**'
+      - 'scripts/**'
+      - '.github/workflows/ci.yml'
+      - 'requirements*.txt'
+      - 'package*.json'
+      - 'Makefile'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'intelligent_project_analyzer/**'
+      - 'tests/**'
+      - 'frontend-nextjs/**'
+      - 'scripts/**'
+      - '.github/workflows/ci.yml'
+      - 'requirements*.txt'
+      - 'package*.json'
+      - 'Makefile'
+  schedule:
+    # 每天 UTC 02:00 运行全量后端回归
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+    inputs:
+      run_scope:
+        description: "手动触发范围"
+        required: true
+        default: gate_only
+        type: choice
+        options:
+          - gate_only
+          - full_backend
+          - all
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.resolve.outputs.backend }}
+      frontend: ${{ steps.resolve.outputs.frontend }}
+      scripts_or_build: ${{ steps.resolve.outputs.scripts_or_build }}
+    steps:
+    - uses: actions/checkout@v3
+    - name: Defaults for non-diff events
+      id: defaults
+      run: |
+        echo "backend=false" >> "$GITHUB_OUTPUT"
+        echo "frontend=false" >> "$GITHUB_OUTPUT"
+        echo "scripts_or_build=false" >> "$GITHUB_OUTPUT"
+    - name: Detect changed paths
+      id: filter
+      if: github.event_name == 'push' || github.event_name == 'pull_request'
+      uses: dorny/paths-filter@v3
+      with:
+        filters: |
+          backend:
+            - 'intelligent_project_analyzer/**'
+            - 'tests/**'
+            - 'requirements*.txt'
+            - 'scripts/**'
+            - 'Makefile'
+          frontend:
+            - 'frontend-nextjs/**'
+            - 'package*.json'
+          scripts_or_build:
+            - 'scripts/**'
+            - '.github/workflows/ci.yml'
+    - name: Resolve event outputs
+      id: resolve
+      run: |
+        if [ "${{ github.event_name }}" = "schedule" ]; then
+          echo "backend=true" >> "$GITHUB_OUTPUT"
+          echo "frontend=false" >> "$GITHUB_OUTPUT"
+          echo "scripts_or_build=false" >> "$GITHUB_OUTPUT"
+        elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+          echo "backend=true" >> "$GITHUB_OUTPUT"
+          echo "frontend=true" >> "$GITHUB_OUTPUT"
+          echo "scripts_or_build=true" >> "$GITHUB_OUTPUT"
+        else
+          echo "backend=${{ steps.filter.outputs.backend || steps.defaults.outputs.backend }}" >> "$GITHUB_OUTPUT"
+          echo "frontend=${{ steps.filter.outputs.frontend || steps.defaults.outputs.frontend }}" >> "$GITHUB_OUTPUT"
+          echo "scripts_or_build=${{ steps.filter.outputs.scripts_or_build || steps.defaults.outputs.scripts_or_build }}" >> "$GITHUB_OUTPUT"
+        fi
+
+  # 根目录清洁度检查 - 第一步
+  check-root-directory:
+    if: |
+      (github.event_name == 'push' || github.event_name == 'pull_request') &&
+      (needs.changes.outputs.backend == 'true' || needs.changes.outputs.frontend == 'true' || needs.changes.outputs.scripts_or_build == 'true') ||
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.run_scope != 'full_backend')
+    needs: [changes]
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+
+    - name: Check root directory cleanliness
+      run: python scripts/check_root_cleanliness.py
+
+  backend-gate:
+    if: |
+      ((github.event_name == 'push' || github.event_name == 'pull_request') && needs.changes.outputs.backend == 'true') ||
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.run_scope != 'full_backend')
+    needs: [changes]
+    runs-on: ubuntu-latest
+
+    services:
+      redis:
+        image: redis:latest
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+        cache: 'pip'
+
+    - name: Cache Playwright browsers
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/ms-playwright
+        key: playwright-${{ runner.os }}-chromium
+
+    - name: Install dependencies
+      run: |
+        pip install -r requirements.txt
+        pip install ruff
+        playwright install chromium
+
+    - name: Run Ruff (backend)
+      run: |
+        python -m ruff check intelligent_project_analyzer/api intelligent_project_analyzer/core intelligent_project_analyzer/external_data_system intelligent_project_analyzer/utils intelligent_project_analyzer/services intelligent_project_analyzer/tools tests
+
+    - name: Run API smoke regression
+      run: |
+        python -m pytest -q \
+          tests/api/test_session_endpoints.py \
+          tests/api/test_analysis_endpoints.py \
+          tests/unit/api/test_output_intent_file_upload.py \
+          tests/unit/test_mode_config.py \
+          tests/unit/test_mode_detector.py \
+          tests/unit/test_deliverable_constraint_validation.py
+
+  backend-tests-full:
+    # 仅夜间定时或手动触发，避免阻塞日常提交
+    if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && (github.event.inputs.run_scope == 'full_backend' || github.event.inputs.run_scope == 'all'))
+    runs-on: ubuntu-latest
+
+    services:
+      redis:
+        image: redis:latest
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+        cache: 'pip'
+
+    - name: Cache Playwright browsers
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/ms-playwright
+        key: playwright-${{ runner.os }}-chromium
+
+    - name: Install dependencies
+      run: |
+        pip install -r requirements.txt
+        playwright install chromium
+
+    - name: Run backend tests (full, no integration/e2e)
+      env:
+        REDIS_URL: redis://localhost:6379/0
+        LLM_PROVIDER: openrouter
+        OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+        WORDPRESS_JWT_SECRET: ${{ secrets.WORDPRESS_JWT_SECRET }}
+      run: |
+        python -m pytest tests/ -v --ignore=tests/integration/ --ignore=e2e-tests/
+
+  frontend-tests:
+    if: |
+      ((github.event_name == 'push' || github.event_name == 'pull_request') && needs.changes.outputs.frontend == 'true') ||
+      (github.event_name == 'workflow_dispatch' && (github.event.inputs.run_scope == 'gate_only' || github.event.inputs.run_scope == 'all'))
+    needs: [changes]
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+        cache: 'npm'
+        cache-dependency-path: frontend-nextjs/package-lock.json
+
+    - name: Install dependencies
+      working-directory: ./frontend-nextjs
+      run: npm ci
+
+    - name: Run linter
+      working-directory: ./frontend-nextjs
+      run: npm run lint
+
+    - name: Build
+      working-directory: ./frontend-nextjs
+      env:
+        NEXT_PUBLIC_API_URL: http://localhost:8000
+      run: npm run build

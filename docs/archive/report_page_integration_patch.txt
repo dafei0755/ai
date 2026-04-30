@@ -1,0 +1,131 @@
+"""
+报告页面搜索引用组件集成补丁 (v7.113)
+
+此文件展示了需要在 frontend-nextjs/app/report/[sessionId]/page.tsx 中添加的代码。
+
+注意：这不是完整的文件，只是需要添加/修改的部分。
+"""
+
+# ==================== 1. 在文件顶部添加导入 ====================
+# 位置：在现有import语句之后添加
+
+import { SearchReferences } from '@/components/SearchReferences';
+import { ExpertSearchReferences } from '@/components/ExpertSearchReferences';
+
+
+# ==================== 2. 在 renderContent() 函数中集成组件 ====================
+# 位置：在报告内容渲染的末尾，return语句中的 </div> 之前
+
+# 找到这段代码（约第910行）:
+        )}
+      </div>
+    );
+  };
+
+# 修改为:
+        )}
+
+        {/* 🆕 v7.113: 搜索引用 - 专家使用的参考资料 */}
+        {report.structuredReport?.search_references &&
+         report.structuredReport.search_references.length > 0 && (
+          <>
+            {/* 分隔线 */}
+            <div className="border-t border-[var(--border-color)] my-8 opacity-30" />
+
+            {/* 搜索引用组件（可选择使用基础版或专家分组版） */}
+
+            {/* 选项1: 专家分组版（推荐） */}
+            <ExpertSearchReferences
+              references={report.structuredReport.search_references}
+              expertReports={report.structuredReport.expert_reports}
+            />
+
+            {/* 选项2: 基础版（备选，与上面二选一）
+            <SearchReferences
+              references={report.structuredReport.search_references}
+            />
+            */}
+          </>
+        )}
+      </div>
+    );
+  };
+
+
+# ==================== 3. 完整的修改示例 ====================
+# 以下是完整的renderContent函数末尾部分示例：
+
+  const renderContent = () => {
+    // ... 前面的代码保持不变 ...
+
+    return (
+      <div className="space-y-6">
+        {/* 报告头部 */}
+        <div className="bg-[var(--card-bg)] border border-[var(--border-color)] rounded-2xl p-6">
+          {/* ... 头部内容 ... */}
+        </div>
+
+        {/* 结构化报告或原始文本 */}
+        {report.structuredReport ? (
+          /* 结构化视图 */
+          <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-6">
+            {/* ... 结构化报告内容 ... */}
+          </div>
+        ) : (
+          /* 原始文本视图 */
+          <div className="bg-[var(--card-bg)] border border-[var(--border-color)] rounded-2xl p-6">
+            <div className="bg-[var(--sidebar-bg)] rounded-lg p-6 border border-[var(--border-color)] whitespace-pre-wrap font-mono text-sm text-gray-200 max-h-[70vh] overflow-y-auto">
+              {report.reportText}
+            </div>
+          </div>
+        )}
+
+        {/* 🆕 v7.113: 搜索引用组件 */}
+        {report.structuredReport?.search_references &&
+         report.structuredReport.search_references.length > 0 && (
+          <>
+            <div className="border-t border-[var(--border-color)] my-8 opacity-30" />
+
+            <ExpertSearchReferences
+              references={report.structuredReport.search_references}
+              expertReports={report.structuredReport.expert_reports}
+            />
+          </>
+        )}
+      </div>
+    );
+  };
+
+
+# ==================== 4. 可选：添加调试日志 ====================
+# 在 fetchReport 函数中，console.log之后添加：
+
+console.log('📊 报告数据检查:', {
+  hasQuestionnaireResponses: !!result.structured_report?.questionnaire_responses,
+  hasRequirementsAnalysis: !!result.structured_report?.requirements_analysis,
+  hasCoreAnswer: !!result.structured_report?.core_answer,
+  // 🆕 v7.113: 添加搜索引用检查
+  hasSearchReferences: !!result.structured_report?.search_references,
+  searchReferencesCount: result.structured_report?.search_references?.length || 0,
+});
+
+
+# ==================== 5. 样式定制（可选）====================
+# 如果需要自定义样式，可以在组件周围添加包装器：
+
+<div className="search-references-section">
+  <ExpertSearchReferences
+    references={report.structuredReport.search_references}
+    expertReports={report.structuredReport.expert_reports}
+    className="custom-class"
+  />
+</div>
+
+# 然后在全局CSS中添加：
+# frontend-nextjs/app/globals.css
+
+.search-references-section {
+  margin-top: 3rem;
+  padding-top: 2rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}

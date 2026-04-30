@@ -1,0 +1,592 @@
+# ============================================================================
+# 交付物类型与角色约束映射表 v1.1
+# Deliverable Type & Role Constraints Mapping v1.1
+# ============================================================================
+# 版本: v1.1
+# 更新日期: 2025-12-17
+# 
+# 🔧 v1.1 更新:
+# - 添加与 v7.19 专家工厂 ROLE_LLM_PARAMS 的对齐说明
+# - 确认与 constraint_loader.py 的集成关系
+#
+# 本配置文件定义了不同交付物类型对应的角色约束规则
+# 用于防止不相关角色参与任务，减少冗余和Token消耗
+#
+# 🔗 代码引用:
+# - utils/constraint_loader.py: ConstraintLoader 类加载此配置
+# ============================================================================
+
+metadata:
+  version: "1.1"
+  description: "交付物类型与角色约束的集中管理配置"
+  purpose: "统一管理must_include、must_exclude规则，供所有模块引用"
+
+# ============================================================================
+# 约束规则定义
+# ============================================================================
+
+constraints:
+  # --------------------------------------------------------------------------
+  # 📝 文案/命名/品牌策略类
+  # --------------------------------------------------------------------------
+  naming_list:
+    description: "命名方案（如：产品命名、空间命名、品牌名称等）"
+    must_include: ["V3"]  # 必须包含V3（叙事专家）
+    must_exclude: ["V2", "V6"]  # 禁止V2（设计总监）和V6（工程师）
+    optional: ["V4"]  # 可选V4（研究支持）
+    reason: "命名是纯文案创意任务，不涉及空间设计和工程实施"
+    examples:
+      - "为8间包房命名"
+      - "品牌名称策划"
+      - "产品系列命名"
+
+  brand_narrative:
+    description: "品牌故事/品牌叙事"
+    must_include: ["V3"]
+    must_exclude: ["V2", "V6"]
+    optional: ["V4", "V5"]
+    reason: "品牌叙事是内容创作，不需要设计和工程支持"
+    examples:
+      - "品牌故事撰写"
+      - "企业文化叙事"
+
+  copywriting_plan:
+    description: "文案策划方案"
+    must_include: ["V3"]
+    must_exclude: ["V2", "V6"]
+    optional: ["V4", "V5"]
+    reason: "文案策划不涉及物理空间实施"
+    examples:
+      - "营销文案策划"
+      - "宣传文案撰写"
+
+  # --------------------------------------------------------------------------
+  # 📊 研究/分析报告类
+  # --------------------------------------------------------------------------
+  analysis_report:
+    description: "分析报告（如：市场分析、用户研究、竞品分析等）"
+    must_include: ["V4"]
+    must_exclude: ["V2", "V6"]
+    optional: ["V3", "V5", "V7", "V8", "V9"]  # V7社会洞察/V8政策分析/V9产业分析
+    reason: "研究分析不涉及设计方案或工程实施"
+    examples:
+      - "市场趋势分析"
+      - "用户行为研究"
+      - "竞品对标分析"
+
+  research_summary:
+    description: "研究综述/文献回顾"
+    must_include: ["V4"]
+    must_exclude: ["V2", "V6"]
+    optional: ["V3"]
+    reason: "纯研究类任务，不需要设计和工程"
+    examples:
+      - "设计趋势研究"
+      - "行业现状综述"
+
+  case_study:
+    description: "案例研究"
+    must_include: ["V4"]
+    must_exclude: ["V2", "V6"]
+    optional: ["V3", "V5"]
+    reason: "案例拆解和分析，不涉及新设计或工程"
+    examples:
+      - "国际标杆案例分析"
+      - "成功项目复盘"
+
+  evaluation_report:
+    description: "评估报告"
+    must_include: ["V4"]
+    must_exclude: ["V2", "V6"]
+    optional: ["V5"]
+    reason: "评估分析不需要设计和工程专业"
+    examples:
+      - "方案评估报告"
+      - "效果评测分析"
+
+  # --------------------------------------------------------------------------
+  # 🎨 设计策略/指导类（非图纸）
+  # --------------------------------------------------------------------------
+  design_strategy:
+    description: "设计策略文档（概念/思路/原则，不含具体图纸）"
+    must_include: ["V2"]
+    must_exclude: ["V6"]  # 策略阶段不需要工程师
+    optional: ["V3", "V4", "V5"]
+    reason: "设计策略和指导原则阶段不需要施工技术支持"
+    examples:
+      - "空间设计策略"
+      - "平面规划思路"
+      - "功能分区建议"
+
+  material_guidance:
+    description: "材料选择指导原则（非具体清单）"
+    must_include: ["V2"]
+    must_exclude: ["V6"]
+    optional: ["V4"]
+    reason: "材料指导原则不需要施工工艺支持"
+    examples:
+      - "材料选型策略"
+      - "材料美学指南"
+
+  spatial_concept:
+    description: "空间概念设计"
+    must_include: ["V2"]
+    must_exclude: ["V6"]
+    optional: ["V3", "V4", "V5"]
+    reason: "概念阶段不涉及施工技术"
+    examples:
+      - "空间氛围概念"
+      - "设计主题构思"
+
+  # --------------------------------------------------------------------------
+  # 🔧 技术/选型框架类（非具体实施）
+  # --------------------------------------------------------------------------
+  selection_framework:
+    description: "技术选型决策框架（评估标准，非具体方案）"
+    must_include: ["V6"]
+    must_exclude: []
+    optional: ["V4", "V5"]
+    reason: "选型框架需要技术专业知识"
+    examples:
+      - "智能家居系统选型框架"
+      - "材料技术评估标准"
+
+  implementation_guide:
+    description: "实施指南/方法论"
+    must_include: ["V6"]
+    must_exclude: []
+    optional: ["V2", "V5"]
+    reason: "实施指南需要工程专业支持"
+    examples:
+      - "施工流程指导"
+      - "技术实施方法"
+
+  evaluation_criteria:
+    description: "评估标准/验收标准"
+    must_include: []
+    must_exclude: []
+    optional: ["V4", "V5", "V6"]
+    reason: "评估标准可能涉及多个维度"
+    examples:
+      - "质量验收标准"
+      - "性能评估指标"
+
+  # --------------------------------------------------------------------------
+  # 🎯 运营/场景类
+  # --------------------------------------------------------------------------
+  operational_plan:
+    description: "运营策略/运营方案"
+    must_include: ["V5"]
+    must_exclude: ["V6"]
+    optional: ["V3", "V4", "V8", "V9"]  # V8治理运营/V9产业链运营
+    reason: "运营策略不需要工程技术支持"
+    examples:
+      - "商业运营策略"
+      - "服务流程设计"
+
+  service_design:
+    description: "服务流程设计"
+    must_include: ["V5"]
+    must_exclude: ["V6"]
+    optional: ["V3"]
+    reason: "服务设计关注体验流程，不涉及工程"
+    examples:
+      - "顾客服务流程"
+      - "用户体验设计"
+
+  scenario_planning:
+    description: "场景规划"
+    must_include: ["V5"]
+    must_exclude: []
+    optional: ["V2", "V3", "V4", "V8", "V9"]  # V8政策场景/V9业态场景
+    reason: "场景规划可能需要多角色协作"
+    examples:
+      - "使用场景策划"
+      - "生活场景设计"
+
+  # --------------------------------------------------------------------------
+  # 💰 预算/采购指导类（非具体清单）
+  # --------------------------------------------------------------------------
+  budget_framework:
+    description: "预算分配框架/预算策略（非精确估算）"
+    must_include: []
+    must_exclude: []
+    optional: ["V5", "V6", "V9"]  # V9产业资本策略与财务分析
+    reason: "预算框架可由运营专家或工程师提供"
+    examples:
+      - "预算分配比例建议"
+      - "成本控制策略"
+
+  procurement_guidance:
+    description: "采购决策指南（选品标准，非具体清单）"
+    must_include: []
+    must_exclude: []
+    optional: ["V5", "V6"]
+    reason: "采购指导可由运营或工程专家提供"
+    examples:
+      - "供应商选择标准"
+      - "采购决策框架"
+
+  cost_control_strategy:
+    description: "成本控制策略"
+    must_include: []
+    must_exclude: []
+    optional: ["V5", "V6"]
+    reason: "成本策略可由多角色提供"
+    examples:
+      - "降本增效方案"
+      - "成本优化策略"
+
+  # --------------------------------------------------------------------------
+  # 🏗️ 物理空间实施类（涉及具体图纸/施工）
+  # --------------------------------------------------------------------------
+  design_plan:
+    description: "设计方案（包含具体图纸/平面图）"
+    must_include: ["V2"]
+    must_exclude: []
+    optional: ["V3", "V4", "V5", "V6"]
+    reason: "设计方案需要完整的设计和工程支持"
+    examples:
+      - "住宅空间设计方案"
+      - "商业空间设计方案"
+
+  technical_spec:
+    description: "技术规格书/施工图纸"
+    must_include: ["V2", "V6"]
+    must_exclude: []
+    optional: ["V5"]
+    reason: "技术规格需要设计和工程双重支持"
+    examples:
+      - "施工技术规格"
+      - "工程技术图纸"
+
+  construction_guide:
+    description: "施工指导/施工方案"
+    must_include: ["V6"]
+    must_exclude: []
+    optional: ["V2"]
+    reason: "施工指导需要工程专业知识"
+    examples:
+      - "施工流程方案"
+      - "工艺节点指导"
+
+  material_selection:
+    description: "材料选型方案（具体品牌/型号/价格）"
+    must_include: ["V6"]
+    must_exclude: []
+    optional: ["V2"]
+    reason: "具体材料选型需要工程技术支持"
+    examples:
+      - "材料清单（含品牌型号）"
+      - "材料技术参数对比"
+
+  cost_estimate:
+    description: "成本估算（精确预算）"
+    must_include: ["V6"]
+    must_exclude: []
+    optional: ["V5", "V9"]  # V9产业资本模型与财务估算
+    reason: "精确成本估算需要工程专业支持"
+    examples:
+      - "工程造价预算"
+      - "装修成本估算"
+
+  # --------------------------------------------------------------------------
+  # 🔀 混合/综合类
+  # --------------------------------------------------------------------------
+  strategy_plan:
+    description: "综合战略方案"
+    must_include: []
+    must_exclude: []
+    optional: ["V2", "V3", "V4", "V5", "V6", "V7", "V8", "V9"]  # V7软性权力/V8政策战略/V9产业战略
+    reason: "综合战略可能需要多角色协作，根据具体侧重点选择"
+    examples:
+      - "品牌综合战略（V3主导）"
+      - "市场战略方案（V4主导）"
+      - "技术战略规划（V6主导）"
+
+  # --------------------------------------------------------------------------
+  # ❓ 自定义/未知类型
+  # --------------------------------------------------------------------------
+  custom:
+    description: "自定义交付物类型（需具体分析）"
+    must_include: []
+    must_exclude: []
+    optional: ["V2", "V3", "V4", "V5", "V6"]
+    reason: "自定义类型需根据具体内容判断"
+    note: "如果交付物类型不在预定义列表中，应分析其核心能力要求来选择角色"
+
+# ============================================================================
+# 角色能力边界定义（用于交叉验证）
+# ============================================================================
+
+role_boundaries:
+  V2_设计总监:
+    core_capabilities:
+      - "空间规划与功能布局"
+      - "建筑概念设计"
+      - "美学风格定位"
+      - "设计策略制定"
+    not_suitable_for:
+      - "纯文案/命名任务"
+      - "纯研究/分析任务"
+      - "技术选型框架（无设计内容）"
+    examples:
+      suitable: ["设计方案", "空间概念", "美学框架"]
+      not_suitable: ["为包房命名", "市场分析报告", "技术评估标准"]
+
+  V3_叙事与体验专家:
+    core_capabilities:
+      - "品牌故事与叙事"
+      - "文案创意与命名"
+      - "文化符号解读"
+      - "用户体验旅程"
+    not_suitable_for:
+      - "技术可行性评估"
+      - "工程实施方案"
+      - "精确成本估算"
+    examples:
+      suitable: ["命名方案", "品牌故事", "文化叙事"]
+      not_suitable: ["施工图纸", "材料技术参数", "工程预算"]
+
+  V4_设计研究员:
+    core_capabilities:
+      - "案例研究与对标分析"
+      - "趋势研究与方法论"
+      - "市场分析与用户研究"
+      - "设计理论与创新模式"
+    not_suitable_for:
+      - "具体设计方案（非研究）"
+      - "施工技术指导"
+      - "精确成本估算"
+    examples:
+      suitable: ["案例分析", "趋势研究", "竞品对标"]
+      not_suitable: ["平面图绘制", "施工方案", "工程报价"]
+
+  V5_场景与行业专家:
+    core_capabilities:
+      - "运营策略与商业模式"
+      - "场景规划与服务设计"
+      - "行业KPI与性能指标"
+      - "用户生态系统分析"
+    not_suitable_for:
+      - "纯文案创意任务"
+      - "施工技术方案"
+      - "建筑结构设计"
+    examples:
+      suitable: ["运营方案", "服务流程", "场景策划"]
+      not_suitable: ["品牌命名", "施工工艺", "结构设计"]
+
+  V6_专业总工程师:
+    core_capabilities:
+      - "技术可行性评估"
+      - "施工工艺与材料选型"
+      - "成本估算与价值工程"
+      - "工程实施与质量控制"
+    not_suitable_for:
+      - "纯文案/命名任务"
+      - "纯研究/分析任务"
+      - "设计策略（无技术内容）"
+    examples:
+      suitable: ["施工方案", "技术规格", "成本估算"]
+      not_suitable: ["为包房命名", "市场分析", "品牌故事"]
+
+  V7_社会关系与心理洞察专家:
+    core_capabilities:
+      - "社会关系建模与权力结构分析"
+      - "隐私层级设计与冲突缓冲"
+      - "心理安全感与代际平衡"
+      - "情绪体验设计与感官调度"
+    not_suitable_for:
+      - "工程施工技术方案"
+      - "精确成本估算"
+      - "纯研究文献回顾"
+    examples:
+      suitable: ["家庭关系分析", "心理安全空间设计", "情绪体验方案"]
+      not_suitable: ["施工图纸", "工程预算", "材料技术参数"]
+
+  V8_政策与治理顾问:
+    core_capabilities:
+      - "政策对齐与审批路径谋设"
+      - "利益相关者治理结构设计"
+      - "社会效益评估与示范项目包装"
+      - "公共资源对接与政府诚信路径"
+    not_suitable_for:
+      - "纯美学/设计表达任务"
+      - "施工技术方案"
+      - "心理治疗与情绪流线设计"
+    examples:
+      suitable: ["政策汇报方案", "审批战略", "示范项目包装"]
+      not_suitable: ["空间概念设计", "施工工艺指导", "品牌间命名"]
+
+  V9_产业链分析师:
+    core_capabilities:
+      - "产业链绑合与投资逻辑设计"
+      - "资本化工具选择与机制导入"
+      - "可行性分析与商业模式验证"
+      - "成本结构优化与盈利预测"
+    not_suitable_for:
+      - "纯美学/设计表达任务"
+      - "心理治疗与情绪流线设计"
+      - "施工技术方案"
+    examples:
+      suitable: ["产业投资分析", "商业运营测算", "资本化路径设计"]
+      not_suitable: ["概念设计", "施工图纸", "心理安全评估"]
+
+# ============================================================================
+# B10: 软排除覆盖规则 (Soft Exclusion Overrides)
+# 补充原有 must_exclude 的硬规则，提供条件性覆盖机制
+# 用法: confirmed_proposition 满足 override_conditions 时，soft_exclude 失效
+# ============================================================================
+soft_exclusion_overrides:
+  version: "B10.0"
+  description: |
+    soft_exclude: 默认排除，但可被命题或任务上下文覆盖。
+    must_exclude: 无条件强制排除，任何情况下都不激活。
+    override_conditions: 触发覆盖（即取消 soft_exclude）的条件字符串列表，任意一条满足即可。
+
+  # 文案/命名/品牌策略类
+  naming_list:
+    soft_exclude: ["V2"]  # 默认命名不需要V2，但品牌空间命名可例外
+    override_conditions:
+      - "confirmed_proposition includes brand_identity"     # 命题含品牌身份
+      - "confirmed_proposition includes spatial_branding"  # 空间品牌化命题
+      - "task.type == 'decision' and task.domain == 'naming_strategy'"
+
+  brand_narrative:
+    soft_exclude: ["V5"]  # 品牌故事默认不需行业场景专家
+    override_conditions:
+      - "confirmed_proposition includes industry_positioning"  # 行业定位命题
+      - "motivation_type == 'commercial'"                       # 商业动机时需行业洞察
+
+  analysis_report:
+    soft_exclude: ["V5"]  # 分析报告默认不需场景专家
+    override_conditions:
+      - "confirmed_proposition includes operational_ecosystem"  # 运营生态命题
+      - "task.type == 'tension_resolution'"                     # 张力解决型任务
+
+  # 空间设计类
+  spatial_concept:
+    soft_exclude: ["V6"]  # 概念阶段默认不需工程师
+    override_conditions:
+      - "confirmed_proposition includes structural_expression"  # 结构表达命题
+      - "task.type == 'technical' and task.priority == 'P0'"   # P0技术任务
+      - "problem_type == 'technical_constraints'"               # 问题类型为技术约束
+
+  space_planning:
+    soft_exclude: ["V3"]  # 空间规划默认不需叙事专家
+    override_conditions:
+      - "confirmed_proposition includes narrative_space"        # 叙事空间命题
+      - "confirmed_proposition includes cultural_journey"       # 文化游线命题
+      - "motivation_type == 'cultural'"                          # 文化认同动机
+
+  interior_design:
+    soft_exclude: []  # 室内设计通常不软排除
+    override_conditions: []
+
+  # 工程/施工类
+  construction_doc:
+    soft_exclude: ["V3", "V4"]  # 施工文件默认不需叙事和研究
+    override_conditions:
+      - "task.type == 'exclusion' and domain == 'material'"    # 材料排除型任务需V4支持
+      - "confirmed_proposition includes craftsmanship_narrative"  # 工艺叙事命题需V3
+
+  cost_estimation:
+    soft_exclude: ["V3", "V4", "V5"]  # 纯成本估算不需要非技术角色
+    override_conditions:
+      - "confirmed_proposition includes value_engineering"     # 价值工程命题需V4
+      - "motivation_type == 'commercial'"                       # 商业动机需V5
+
+  # 研究类
+  research_summary:
+    soft_exclude: ["V5"]
+    override_conditions:
+      - "confirmed_proposition includes industry_disruption"   # 行业颠覆命题
+      - "problem_type == 'resource_allocation'"                 # 资源分配问题类型
+
+  user_research:
+    soft_exclude: ["V6"]  # 用户研究不需工程师
+    override_conditions:
+      - "task.type == 'decision' and domain == 'accessibility'"  # 无障碍决策需V6
+
+  # 战略/运营类
+  strategy_doc:
+    soft_exclude: ["V6"]  # 策略文件不需工程
+    override_conditions:
+      - "confirmed_proposition includes technical_feasibility_strategy"  # 技术可行性战略
+
+  operation_plan:
+    soft_exclude: ["V2", "V6"]  # 运营计划不需设计和工程（除非空间场景）
+    override_conditions:
+      - "confirmed_proposition includes space_operation_fusion"  # 空间运营融合命题
+      - "motivation_type == 'commercial' and radar_mode == 'enhanced'"  # 增强型商业动机
+
+# ============================================================================
+# 验证规则（用于审核层）
+# ============================================================================
+
+validation_rules:
+  # 规则1：检查必需角色是否包含
+  check_must_include:
+    enabled: true
+    error_message: "交付物类型'{deliverable_type}'必须包含角色{required_roles}，但当前未激活"
+
+  # 规则2：检查禁止角色是否被排除
+  check_must_exclude:
+    enabled: true
+    error_message: "交付物类型'{deliverable_type}'禁止激活角色{forbidden_roles}，但当前已激活"
+
+  # 规则3：检查角色数量是否合理
+  check_role_count:
+    enabled: true
+    max_roles: 8
+    min_roles: 2
+    warning_message: "当前激活了{count}个角色，可能存在冗余"
+
+  # 规则4：检查交付物类型是否已定义
+  check_deliverable_type:
+    enabled: true
+    allow_custom: true
+    warning_message: "交付物类型'{deliverable_type}'未在配置中定义，使用custom规则"
+
+  # 🆕 规则5 (B10)：软排除 + 覆盖检查
+  check_soft_exclude_with_override:
+    enabled: true
+    description: |
+      1. 检查角色是否在 soft_exclusion_overrides[deliverable_type].soft_exclude 中
+      2. 如在，检查是否满足 override_conditions 中任意一条
+      3. 满足任一 override_condition → 允许激活（soft_exclude 失效）
+      4. 不满足任何 override_condition → 降级为 observer 或排除（非 must_exclude 硬规则）
+    override_evaluation_mode: "any"   # any: 满足任意一条即可覆盖; all: 需满足全部
+    fallback_on_soft_exclude: "observer"   # observer / excluded（未覆盖时的降级策略）
+    log_override_decisions: true
+    warning_message: "角色{role}在{deliverable_type}的soft_exclude中，覆盖条件{'满足' if overridden else '不满足'}，最终参与级别: {participation_tier}"
+
+# ============================================================================
+# 使用说明
+# ============================================================================
+
+usage_notes: |
+  本配置文件供以下模块使用：
+
+  1. **project_director.yaml** (项目总监提示词)
+     - 在"第零步：交付物边界检查"时引用本配置
+     - 根据交付物类型应用must_exclude规则
+
+  2. **role_selection_review.py** (角色选择审核层)
+     - 在角色分配后进行二次验证
+     - 检查是否违反must_include/must_exclude约束
+
+  3. **dynamic_project_director.py** (项目总监代码)
+     - 可选：在代码层面硬性校验约束规则
+
+  使用示例：
+  ```python
+  from intelligent_project_analyzer.utils.constraint_loader import load_constraints
+
+  # 加载约束
+  constraints = load_constraints("naming_list")
+
+  # 验证角色分配
+  if "V6" in selected_roles and "V6" in constraints["must_exclude"]:
+      raise ValueError("naming_list禁止激活V6")
+  ```

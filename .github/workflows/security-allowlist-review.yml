@@ -1,0 +1,57 @@
+name: Security Allowlist Review Reminder
+
+on:
+  schedule:
+    # Monthly review: 1st day UTC 03:00
+    - cron: '0 3 1 * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  create-monthly-review-issue:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Open monthly allowlist review issue
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const owner = context.repo.owner;
+          const repo = context.repo.repo;
+          const ym = new Date().toISOString().slice(0, 7);
+          const title = `[Security Review] Allowlist monthly review (${ym})`;
+
+          const openIssues = await github.paginate(github.rest.issues.listForRepo, {
+            owner, repo, state: "open", labels: "security-review,auto-created", per_page: 100
+          });
+          if (openIssues.some(i => i.title === title)) {
+            core.info("Monthly issue already exists.");
+            return;
+          }
+
+          const body = [
+            "自动创建：每月安全白名单复核",
+            "",
+            "检查项：",
+            "- 复核 `config/security/security_allowlist.txt` 仍然必要且最小化",
+            "- 复核 `security-baseline-report.json` 是否存在新增风险趋势",
+            "- 确认是否可以移除历史临时豁免",
+            "",
+            "关联文档：",
+            "- docs/testing/STATIC_TESTING_OPERATIONS_GUIDE.md",
+            "- docs/deployment/TENCENT_CLOUD_TESTING_CHECKLIST.md"
+          ].join("\n");
+
+          await github.rest.issues.create({
+            owner,
+            repo,
+            title,
+            body,
+            labels: ["security-review", "auto-created"]
+          });

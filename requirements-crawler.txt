@@ -1,0 +1,15 @@
+# 外部爬虫依赖
+
+# HTTP请求
+requests>=2.31.0
+beautifulsoup4>=4.12.0
+lxml>=4.9.0
+
+# 可选：更强大的爬虫
+playwright>=1.40.0  # 应对动态加载，需要 playwright install
+
+# HTML解析
+html5lib>=1.1
+
+# 日志
+loguru>=0.7.0

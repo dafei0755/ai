@@ -1,0 +1,334 @@
+# Mode × Ability 激活矩阵
+# 版本: v1.0 (阶段1实施)
+#
+# 设计原则:
+#   - 每个模式对应 primary_abilities (目标L4) + secondary_abilities (目标L3)
+#   - primary_abilities 直接注入专家 prompt 的【核心能力要求】段落
+#   - secondary_abilities 作为"建议激活"信号，供 V2/V3/V7 自行判断是否深化
+#   - 取代 ability_injections.yaml 中的 1:1 映射（保留旧文件向后兼容）
+#
+# 能力 ID 对照表 (sf/12_Ability_Core):
+#   A1  = A1_concept_architecture       概念建构力
+#   A2  = A2_spatial_structuring        空间结构力
+#   A3  = A3_narrative_orchestration    叙事编排力
+#   A4  = A4_material_intelligence      材料智性
+#   A5  = A5_lighting_architecture      光环境建构力
+#   A6  = A6_functional_optimization    功能优化力
+#   A7  = A7_capital_strategy           资本策略力
+#   A8  = A8_technology_integration     技术整合力
+#   A9  = A9_social_structure_modeling  社会结构建模力
+#   A10 = A10_environmental_adaptation  环境适应力
+#   A11 = A11_operation_productization  运营产品化力
+#   A12 = A12_civilizational_expression 文明表达力
+
+metadata:
+  version: "1.0"
+  description: "Mode×Ability 1:N 激活矩阵，驱动专家 prompt 深度构建"
+  created_at: "2026-02-19"
+  replaces: "ability_injections.yaml 的 1:1 映射"
+
+# ================================================================================
+# M1 — 概念驱动模式 (Concept-Driven)
+# 典型项目：美术馆、装置艺术、哲学建筑、概念性公共空间
+# ================================================================================
+M1_concept_driven:
+  mode_essence: "设计的核心价值是批判性概念的建构与物化"
+  primary_abilities:
+    - id: A1_concept_architecture
+      target_maturity: L4
+      focus: "建构具有批判性张力的核心概念，让形式服从于思想"
+    - id: A3_narrative_orchestration
+      target_maturity: L4
+      focus: "将概念转化为空间叙事序列，每个节点强化概念意图"
+  secondary_abilities:
+    - id: A12_civilizational_expression
+      target_maturity: L3
+      focus: "将概念置于文明/时代语境中赋予其意义厚度"
+    - id: A2_spatial_structuring
+      target_maturity: L3
+      focus: "用空间结构逻辑承载概念，避免形式与概念脱节"
+
+# ================================================================================
+# M2 — 功能效能模式 (Function-Efficiency)
+# 典型项目：办公空间、医疗设施、工业建筑、高效住宅
+# ================================================================================
+M2_function_efficiency:
+  mode_essence: "设计的核心价值是功能效率与空间性能的最优解"
+  primary_abilities:
+    - id: A6_functional_optimization
+      target_maturity: L4
+      focus: "识别功能关键路径，优化流线和效率瓶颈"
+    - id: A8_technology_integration
+      target_maturity: L4
+      focus: "整合技术手段实现性能可测量的提升"
+  secondary_abilities:
+    - id: A2_spatial_structuring
+      target_maturity: L3
+      focus: "通过空间结构逻辑支撑功能分层"
+    - id: A5_lighting_architecture
+      target_maturity: L3
+      focus: "光环境直接影响效率与健康，需纳入功能计算"
+
+# ================================================================================
+# M3 — 情感体验模式 (Emotional-Experience)
+# 典型项目：精品酒店、沉浸式零售、高端餐厅、疗愈中心
+# ================================================================================
+M3_emotional_experience:
+  mode_essence: "设计的核心价值是创造可记忆的情感节奏与体验高潮"
+  primary_abilities:
+    - id: A3_narrative_orchestration
+      target_maturity: L4
+      focus: "设计情感旅程节拍：起伏节奏、高潮点位、余韵延续"
+    - id: A1_concept_architecture
+      target_maturity: L4
+      focus: "为情感体验建立内在一致的概念锚点"
+  secondary_abilities:
+    - id: A5_lighting_architecture
+      target_maturity: L3
+      focus: "光是情感氛围的核心调节器，需与叙事节拍协同"
+    - id: A2_spatial_structuring
+      target_maturity: L3
+      focus: "空间序列结构决定情感体验的展开方式"
+    - id: A4_material_intelligence
+      target_maturity: L3
+      focus: "材料触感与情感共鸣直接相关"
+
+# ================================================================================
+# M4 — 资本增值模式 (Capital-Asset)
+# 典型项目：商业地产、酒店投资、联合办公、商业综合体
+# ================================================================================
+M4_capital_asset:
+  mode_essence: "设计的核心价值是通过空间策略实现资本增值与商业回报"
+  primary_abilities:
+    - id: A7_capital_strategy
+      target_maturity: L4
+      focus: "分析投资回报路径，识别空间价值创造的关键节点"
+    - id: A4_material_intelligence
+      target_maturity: L4
+      focus: "平衡投资成本与材料品质感知，最大化性价比"
+  secondary_abilities:
+    - id: A6_functional_optimization
+      target_maturity: L3
+      focus: "功能效率直接影响坪效和运营成本"
+    - id: A8_technology_integration
+      target_maturity: L3
+      focus: "技术投入应有明确的ROI论证"
+    - id: A11_operation_productization
+      target_maturity: L3
+      focus: "设计决策需考虑运营可持续性"
+
+# ================================================================================
+# M5 — 乡村语境模式 (Rural-Context)
+# 典型项目：乡村民宿、文化保育、农业旅游、在地建筑
+# ================================================================================
+M5_rural_context:
+  mode_essence: "设计的核心价值是在去城市化语境中实现文化保存与在地建构"
+  primary_abilities:
+    - id: A1_concept_architecture
+      target_maturity: L4
+      focus: "建构去城市化的概念立场，抵抗同质化审美滑落"
+    - id: A4_material_intelligence
+      target_maturity: L4
+      focus: "在地材料策略：识别、激活、创新性使用本土材料"
+    - id: A9_social_structure_modeling
+      target_maturity: L4
+      focus: "理解村落社会关系网络，设计与社区共生的空间结构"
+    - id: A12_civilizational_expression
+      target_maturity: L4
+      focus: "识别并表达场地的文明基因，而非表面符号借用"
+  secondary_abilities:
+    - id: A2_spatial_structuring
+      target_maturity: L3
+      focus: "乡土空间结构逻辑（院落/街巷/公共空间）的传承与转化"
+    - id: A3_narrative_orchestration
+      target_maturity: L3
+      focus: "建立地方性叙事，让外来访客理解场地故事"
+    - id: A5_lighting_architecture
+      target_maturity: L3
+      focus: "自然光与乡土氛围的协同，区别于城市精控照明逻辑"
+    - id: A6_functional_optimization
+      target_maturity: L3
+      focus: "在低技条件下实现功能的适宜性"
+    - id: A10_environmental_adaptation
+      target_maturity: L3
+      focus: "气候、地形、生态的在地适应策略"
+    - id: A11_operation_productization
+      target_maturity: L3
+      focus: "乡村运营的特殊性：季节性、社区参与、可持续维护"
+    - id: A7_capital_strategy
+      target_maturity: L3
+      focus: "乡村振兴项目的资金引入、PPP模式与投资回报评估"
+
+# ================================================================================
+# M6 — 城市更新模式 (Urban-Regeneration)
+# 典型项目：老旧小区改造、历史街区活化、工厂改造
+# ================================================================================
+M6_urban_regeneration:
+  mode_essence: "设计的核心价值是通过密度再激活、业态重组实现城市价值的重生"
+  primary_abilities:
+    - id: A6_functional_optimization
+      target_maturity: L4
+      focus: "重新配置功能混合比例，识别被抑制的空间潜力"
+    - id: A9_social_structure_modeling
+      target_maturity: L4
+      focus: "分析并设计不同社群之间的空间协商机制"
+    - id: A7_capital_strategy
+      target_maturity: L4
+      focus: "更新项目的政策窗口、资本路径和利益方博弈"
+  secondary_abilities:
+    - id: A1_concept_architecture
+      target_maturity: L3
+      focus: "更新叙事：保存记忆同时赋予新的生命力"
+    - id: A4_material_intelligence
+      target_maturity: L3
+      focus: "新旧材料的对话与共存策略"
+    - id: A12_civilizational_expression
+      target_maturity: L3
+      focus: "场所文化记忆的识别与传承"
+    - id: A11_operation_productization
+      target_maturity: L3
+      focus: "更新后的运营模型设计"
+
+# ================================================================================
+# M7 — 技术整合模式 (Tech-Integration)
+# 典型项目：智慧办公、数字展览、参数化建筑、智能家居
+# ================================================================================
+M7_tech_integration:
+  mode_essence: "设计的核心价值是让技术成为空间体验的核心生成逻辑"
+  primary_abilities:
+    - id: A8_technology_integration
+      target_maturity: L4
+      focus: "界定技术的显/隐策略，确保技术服务于体验而非炫技"
+    - id: A6_functional_optimization
+      target_maturity: L4
+      focus: "技术赋能下的功能动态化与自适应"
+  secondary_abilities:
+    - id: A2_spatial_structuring
+      target_maturity: L3
+      focus: "数字/物理空间的结构性整合"
+    - id: A5_lighting_architecture
+      target_maturity: L3
+      focus: "智能光控与动态光环境的设计逻辑"
+    - id: A7_capital_strategy
+      target_maturity: L3
+      focus: "技术投入的ROI与维护成本测算"
+
+# ================================================================================
+# M8 — 极端条件模式 (Extreme-Condition)
+# 典型项目：高海拔建筑、极地设施、漂浮建筑、战时临时建筑
+# ================================================================================
+M8_extreme_condition:
+  mode_essence: "设计的核心价值是在极端约束条件下保持人类基本尊严与安全"
+  primary_abilities:
+    - id: A10_environmental_adaptation
+      target_maturity: L4
+      focus: "极端气候/地形/环境的主动适应策略：隔离、缓冲、适应"
+    - id: A8_technology_integration
+      target_maturity: L4
+      focus: "技术作为生存保障的核心，系统冗余设计"
+    - id: A4_material_intelligence
+      target_maturity: L4
+      focus: "极端条件下材料性能边界的测试与运用"
+  secondary_abilities:
+    - id: A2_spatial_structuring
+      target_maturity: L3
+      focus: "极端条件下功能最小化的空间结构"
+    - id: A6_functional_optimization
+      target_maturity: L3
+      focus: "维持生存基本功能的极致优化"
+    - id: A5_lighting_architecture
+      target_maturity: L3
+      focus: "极端光照条件下的生理健康保障"
+
+# ================================================================================
+# M9 — 社会结构模式 (Social-Structure)
+# 典型项目：多代同堂、集合住宅、社区中心、多文化混居
+# ================================================================================
+M9_social_structure:
+  mode_essence: "设计的核心价值是通过空间结构调节复杂的社会关系"
+  primary_abilities:
+    - id: A9_social_structure_modeling
+      target_maturity: L4
+      focus: "建模权力距离/隐私层级/冲突缓冲/代际平衡的空间机制"
+    - id: A6_functional_optimization
+      target_maturity: L4
+      focus: "多群体需求的功能配置：专属空间 vs 共享空间的平衡"
+  secondary_abilities:
+    - id: A3_narrative_orchestration
+      target_maturity: L3
+      focus: "为不同群体建构各自认同的空间叙事"
+    - id: A12_civilizational_expression
+      target_maturity: L3
+      focus: "多文化/多代际的文明表达共存策略"
+    - id: A2_spatial_structuring
+      target_maturity: L3
+      focus: "空间结构如何物化社会关系的边界与弹性"
+
+# ================================================================================
+# M10 — 未来推演模式 (Future-Speculation)
+# 典型项目：概念性未来城市、思辨性设计、技术引领的想象建筑
+# ================================================================================
+M10_future_speculation:
+  mode_essence: "设计的核心价值是通过思辨性建筑表达对未来文明的想象与批判"
+  primary_abilities:
+    - id: A1_concept_architecture
+      target_maturity: L4
+      focus: "构建内在自洽的未来世界观，让推演具有批判性而非娱乐性"
+    - id: A8_technology_integration
+      target_maturity: L4
+      focus: "对技术发展路径的推演：可能性/不可能性/反乌托邦张力"
+    - id: A12_civilizational_expression
+      target_maturity: L4
+      focus: "将未来想象置于文明演进的历史坐标中"
+  secondary_abilities:
+    - id: A2_spatial_structuring
+      target_maturity: L3
+      focus: "未来空间结构的逻辑一致性"
+    - id: A3_narrative_orchestration
+      target_maturity: L3
+      focus: "让观者能够进入并理解未来世界的叙事入口"
+    - id: A10_environmental_adaptation
+      target_maturity: L3
+      focus: "未来气候/生态条件下的空间预设"
+
+# ================================================================================
+# M11 — 健康疗愈模式 (Healthcare-Healing)
+# 典型项目：康复中心、心理干预空间、临终关怀、无障碍住宅、月子中心、正念空间
+# ================================================================================
+M11_healthcare_healing:
+  mode_essence: "设计的核心价值是让脆弱状态的人安全地恢复，安全感优先于美学，降低激活优于制造高潮"
+  primary_abilities:
+    - id: A5_lighting_architecture
+      target_maturity: L4
+      focus: "昼夜节律调光系统：早晨高色温促进皮质醇，傍晚低色温促进褪黑素，夜间极低照度避免节律紊乱"
+    - id: A9_social_structure_modeling
+      target_maturity: L4
+      focus: "双视角动线分离：服务提供者与被服务者的空间协商，家属情绪缓冲区设计"
+    - id: A4_material_intelligence
+      target_maturity: L4
+      focus: "低VOC、触感安全、无刺激性材料系统，材料先问'无害'再问'好看'"
+  secondary_abilities:
+    - id: A6_functional_optimization
+      target_maturity: L3
+      focus: "无障碍动线零摩擦，减少碰撞和暴露，功能隐形化（扶手即造型语言）"
+    - id: A2_spatial_structuring
+      target_maturity: L3
+      focus: "安全角落、退场位置、隐私分级的空间结构，低刺激环境系统"
+    - id: A3_narrative_orchestration
+      target_maturity: L3
+      focus: "下行节奏叙事：不是高潮，而是降低刺激、减少焦虑的空间序列"
+
+# ================================================================================
+# 通用消费规则（给 core_task_decomposer 和专家 prompt 构建器）
+# ================================================================================
+consumption_rules:
+  primary_abilities_behavior:
+    - "为每个 primary_ability 在任务清单中生成至少1个深度分析任务"
+    - "专家 prompt 必须包含该能力的 L4 判断标准（来自 sf/12_Ability_Core）"
+    - "验收标准要求 L4 成熟度的输出特征"
+  secondary_abilities_behavior:
+    - "在任务描述中作为 '扩展能力' 信号提示专家"
+    - "专家可自主判断是否深化，无强制任务生成"
+  task_generation_formula:
+    - "primary_abilities 数量 × 1.5 ≈ 最小任务数"
+    - "M5 有4个primary → 最少6个任务（不含通用框架任务）"

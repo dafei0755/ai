@@ -1,0 +1,400 @@
+# ============================================================================
+# 角色基因池 (Role Gene Pool) - 元数据目录
+# ============================================================================
+# 版本: v1.0
+# 创建日期: 2026-02-16
+#
+# 本文件是 DPD (Dynamic Project Director) 的选角手册，只包含选角所需的元数据。
+# 完整的角色定义（system_prompt、deliverables等）存储在 roles/*.yaml 中。
+#
+# 设计原则：
+# 1. 单一信息源：角色的完整定义只存在于 roles/*.yaml
+# 2. 元数据提取：本文件只提取 DPD 选角需要的关键信息
+# 3. 显式化子角色：所有子角色（包括 V6）都显式列出，便于精确选择
+# ============================================================================
+
+# ============================================================================
+# V2 - 设计总监 (Design Director)
+# ============================================================================
+V2_设计总监:
+  description: "项目总设计师，负责整体设计策略、空间概念和最终方案整合"
+  config_file: "roles/v2_design_director.yaml"
+
+  # 核心能力
+  primary_abilities: ["A1", "A7"]  # A1: 概念建构, A7: 资本策略
+  secondary_abilities: ["A2", "A11", "A12"]  # A2: 空间结构, A11: 运营, A12: 文明表达
+
+  # LLM 参数（来自 dynamic_project_director_v2.yaml）
+  llm_params:
+    temperature: 0.6
+    min_deliverables: 4
+    max_deliverables: 6
+
+  # 子角色
+  sub_roles:
+    "2-0":
+      name: "项目设计总监"
+      description: "综合体项目的总规划师与整合者"
+      keywords: ["综合体", "总体规划", "整合", "跨领域", "master plan", "多业态", "项目设计"]
+      primary_abilities: ["A1", "A2", "A7"]
+
+    "2-1":
+      name: "居住空间设计总监"
+      description: "住宅空间专家，专注于私宅、别墅、大平层等居住空间"
+      keywords: ["居住空间设计", "住宅空间设计", "私宅设计", "别墅设计", "公寓设计", "平层设计", "LOFT设计", "共享生活空间", "住宅改造"]
+      primary_abilities: ["A1", "A2", "A7"]
+
+    "2-2":
+      name: "商业零售设计总监"
+      description: "商业零售专家，专注于零售店、旗舰店、购物中心等消费空间"
+      keywords: ["商业空间设计", "零售店铺设计", "品牌旗舰店设计", "店铺空间设计", "展厅设计", "购物中心设计", "市场空间设计", "商店设计"]
+      primary_abilities: ["A1", "A6", "A7", "A11"]
+
+    "2-3":
+      name: "办公空间设计总监"
+      description: "办公空间专家，专注于企业总部、联合办公、创意园区等工作空间"
+      keywords: ["办公空间设计", "企业总部设计", "联合办公设计", "创意园区设计", "工作空间设计", "办公楼设计"]
+      primary_abilities: ["A1", "A2", "A6", "A11"]
+
+    "2-4":
+      name: "文化展览设计总监"
+      description: "文化展览专家，专注于博物馆、美术馆、展览馆等文化空间"
+      keywords: ["文化空间设计", "博物馆设计", "美术馆设计", "展览馆设计", "艺术空间设计", "文化建筑设计"]
+      primary_abilities: ["A1", "A3", "A12"]
+
+    "2-5":
+      name: "餐饮空间设计总监"
+      description: "餐饮空间专家，专注于餐厅、咖啡馆、酒吧等餐饮空间"
+      keywords: ["餐饮空间设计", "餐厅设计", "咖啡馆设计", "酒吧设计", "茶室设计", "美食空间设计"]
+      primary_abilities: ["A1", "A3", "A11"]
+
+    "2-6":
+      name: "文化公共建筑总监"
+      description: "文化公共建筑专家，专注于图书馆、剧院、音乐厅等公共文化建筑"
+      keywords: ["公共建筑设计", "图书馆设计", "剧院设计", "音乐厅设计", "文化中心设计", "社区中心设计"]
+      primary_abilities: ["A1", "A12", "A9"]
+
+# ============================================================================
+# V3 - 叙事与体验专家 (Narrative & Experience Expert)
+# ============================================================================
+V3_叙事与体验专家:
+  description: "空间叙事构建者，负责文化符号转译、情感体验设计和用户心理洞察"
+  config_file: "roles/v3_narrative_expert.yaml"
+
+  primary_abilities: ["A3"]  # A3: 叙事建构
+  secondary_abilities: ["A1", "A9"]  # A1: 概念建构, A9: 社会关系建模
+
+  llm_params:
+    temperature: 0.75
+    min_deliverables: 2
+    max_deliverables: 4
+
+  sub_roles:
+    "3-1":
+      name: "个体心理与生活方式专家"
+      description: "个体心理洞察专家，专注于用户画像、生活方式和情感需求"
+      keywords: ["用户画像", "生活方式", "情感需求", "心理洞察", "个体叙事", "自我认同"]
+      primary_abilities: ["A3", "A9"]
+
+    "3-2":
+      name: "文化符号转译专家"
+      description: "文化IP转译专家，专注于文化母题、符号系统和当代转译"
+      keywords: ["文化IP", "符号转译", "文化母题", "当代转译", "文化叙事", "品牌故事"]
+      primary_abilities: ["A3", "A12"]
+
+    "3-3":
+      name: "品牌命名与视觉识别专家"
+      description: "品牌命名专家，专注于项目命名、视觉识别和品牌叙事"
+      keywords: ["品牌命名", "视觉识别", "品牌叙事", "命名策略", "VI设计", "品牌定位"]
+      primary_abilities: ["A3", "A7"]
+
+# ============================================================================
+# V4 - 设计研究员 (Design Researcher)
+# ============================================================================
+V4_设计研究员:
+  description: "设计研究专家，负责趋势分析、案例研究和技术调研"
+  config_file: "roles/v4_design_researcher.yaml"
+
+  primary_abilities: ["A4"]  # A4: 材料智能
+  secondary_abilities: ["A8", "A10"]  # A8: 技术整合, A10: 环境适应
+
+  llm_params:
+    temperature: 0.5
+    min_deliverables: 2
+    max_deliverables: 3
+
+  sub_roles:
+    "4-1":
+      name: "用户研究与行为分析专家"
+      description: "用户研究专家，专注于用户行为、需求调研和体验评估"
+      keywords: ["用户研究", "行为分析", "需求调研", "体验评估", "用户测试", "人因工程"]
+      primary_abilities: ["A9", "A6"]
+
+    "4-2":
+      name: "设计趋势与材料研究专家"
+      description: "趋势研究专家，专注于设计趋势、材料创新和技术前沿"
+      keywords: ["设计趋势", "材料研究", "技术前沿", "案例分析", "大师作品", "创新材料"]
+      primary_abilities: ["A4", "A8"]
+
+# ============================================================================
+# V5 - 场景与行业专家 (Scenario & Industry Expert)
+# ============================================================================
+V5_场景与行业专家:
+  description: "场景运营专家，负责业态分析、运营模式和商业策略"
+  config_file: "roles/v5_scenario_expert.yaml"
+
+  primary_abilities: ["A11"]  # A11: 运营与产品化
+  secondary_abilities: ["A6", "A7"]  # A6: 功能优化, A7: 资本策略
+
+  llm_params:
+    temperature: 0.6
+    min_deliverables: 2
+    max_deliverables: 3
+
+  sub_roles:
+    "5-1":
+      name: "居住场景运营专家"
+      description: "居住场景专家，专注于家庭生活、居住模式和社区运营"
+      keywords: ["居住场景", "家庭生活", "居住模式", "社区运营", "生活服务", "邻里关系"]
+      primary_abilities: ["A11", "A9"]
+
+    "5-2":
+      name: "商业场景运营专家"
+      description: "商业场景专家，专注于零售业态、商业模式和坪效优化"
+      keywords: ["商业场景", "零售业态", "商业模式", "坪效优化", "顾客动线", "运营策略"]
+      primary_abilities: ["A11", "A7"]
+
+    "5-3":
+      name: "办公场景运营专家"
+      description: "办公场景专家，专注于工作模式、组织效率和空间使用"
+      keywords: ["办公场景", "工作模式", "组织效率", "空间使用", "协作模式", "灵活办公"]
+      primary_abilities: ["A11", "A6"]
+
+# ============================================================================
+# V6 - 专业总工程师 (Chief Engineer) 🆕 显式化子角色
+# ============================================================================
+V6_专业总工程师:
+  description: "技术实施专家，负责结构、机电、材料、成本、照明、可持续等工程技术"
+  config_file: "roles/v6_chief_engineer.yaml"
+
+  primary_abilities: ["A8"]  # A8: 技术整合
+  secondary_abilities: ["A2", "A4", "A5", "A6", "A10"]  # A2: 空间结构, A4: 材料, A5: 照明, A6: 功能, A10: 环境
+
+  llm_params:
+    temperature: 0.4
+    min_deliverables: 1
+    max_deliverables: 2
+
+  # 🆕 显式化 V6 的 6 个子角色（原本隐藏在运行时路由中）
+  sub_roles:
+    "6-1":
+      name: "结构与幕墙工程师"
+      description: "结构工程专家，专注于结构设计、幕墙系统、抗震设计"
+      keywords: ["结构设计", "幕墙系统", "抗震设计", "基础设计", "结构优化", "结构力学", "承重系统"]
+      primary_abilities: ["A2", "A8"]
+      config_file: "roles/v6_chief_engineer.yaml"  # 暂时共用主配置
+      sub_role_id: "6-1"
+
+    "6-2":
+      name: "机电与智能化工程师"
+      description: "机电工程专家，专注于暖通、给排水、电气、智能化系统"
+      keywords: ["暖通", "给排水", "电气", "智能化", "BIM", "MEP系统", "设备集成", "智能家居"]
+      primary_abilities: ["A8", "A6"]
+      config_file: "roles/v6_chief_engineer.yaml"
+      sub_role_id: "6-2"
+
+    "6-3":
+      name: "室内工艺与材料工程师"
+      description: "材料工艺专家，专注于材料选型、工艺实施、施工图深化"
+      keywords: ["材料选型", "工艺实施", "施工图", "节点详图", "材料性能", "施工工艺", "材料系统"]
+      primary_abilities: ["A4", "A8"]
+      config_file: "roles/v6_chief_engineer.yaml"
+      sub_role_id: "6-3"
+
+    "6-4":
+      name: "成本与造价工程师"
+      description: "成本控制专家，专注于造价估算、成本优化、预算管理"
+      keywords: ["成本控制", "造价估算", "材料询价", "预算管理", "成本优化", "价值工程", "全生命周期成本"]
+      primary_abilities: ["A7", "A8"]
+      config_file: "roles/v6_chief_engineer.yaml"
+      sub_role_id: "6-4"
+
+    "6-5":
+      name: "照明与灯光工程师"
+      description: "照明设计专家，专注于照明设计、灯光策略、光环境营造"
+      keywords: ["照明设计", "灯光策略", "光环境", "节能照明", "智能照明", "照明场景", "光线控制"]
+      primary_abilities: ["A5", "A8"]
+      config_file: "roles/v6_chief_engineer.yaml"
+      sub_role_id: "6-5"
+
+    "6-6":
+      name: "可持续与绿建工程师"
+      description: "可持续设计专家，专注于绿色建筑、被动式设计、能耗分析"
+      keywords: ["绿色建筑", "LEED", "被动式设计", "能耗分析", "可持续材料", "碳中和", "生态设计"]
+      primary_abilities: ["A10", "A8"]
+      config_file: "roles/v6_chief_engineer.yaml"
+      sub_role_id: "6-6"
+
+# ============================================================================
+# V7 - 社会关系与心理洞察专家 (Social & Psychological Insight Expert)
+# ============================================================================
+V7_社会关系与心理洞察专家:
+  description: "社会关系建模与心理洞察专家，专注于环境心理学、社会关系和依恋理论"
+  config_file: "roles/v7_emotional_insight_expert.yaml"
+
+  primary_abilities: ["A9"]  # A9: 社会关系建模
+  secondary_abilities: ["A3"]  # A3: 叙事建构
+
+  llm_params:
+    temperature: 0.75
+    min_deliverables: 1
+    max_deliverables: 2
+
+  sub_roles:
+    "7-1":
+      name: "家庭关系与情感空间专家"
+      description: "家庭层面的社会关系专家，专注于家庭结构、代际关系、情感需求"
+      keywords: ["家庭关系", "代际关系", "情感空间", "家庭结构", "亲密关系", "隐私调节", "依恋理论"]
+      primary_abilities: ["A9", "A3"]
+      must_select_when: ["多代同堂", "家庭矛盾", "特殊家庭结构", "情感需求明确"]
+
+    "7-2":
+      name: "组织心理与社会结构专家"
+      description: "组织层面的社会关系专家，专注于组织行为、社会结构、权力关系"
+      keywords: ["组织心理", "社会结构", "权力关系", "组织行为", "社会网络", "文化维度", "集体行为"]
+      primary_abilities: ["A9", "A12"]
+      must_select_when: ["组织关系", "社会结构", "权力分析", "集体行为"]
+
+# ============================================================================
+# 角色选择辅助信息
+# ============================================================================
+
+# ============================================================================
+# V8 - 政策与治理顾问 (Policy & Governance Advisor) 🆕 v10.0
+# ============================================================================
+V8_政策与治理顾问:
+  description: "政策翻译与治理结构设计专家，负责将项目成果对齐政策话语体系、设计利益分配机制和合规路径"
+  config_file: "roles/v8_policy_advisor.yaml"
+
+  primary_abilities: ["A9", "A12"]  # A9: 社会关系建模（治理结构）, A12: 文明表达（政策翻译）
+  secondary_abilities: ["A7", "A11"]  # A7: 资本策略（财政对齐）, A11: 运营产品化（产业政策）
+
+  llm_params:
+    temperature: 0.45
+    min_deliverables: 2
+    max_deliverables: 4
+
+  sub_roles:
+    "8-1":
+      name: "乡村振兴与农文旅政策专家"
+      description: "专注于乡村振兴、三产融合、农文旅政策对齐，擅长将项目成果翻译为政策话语"
+      keywords: ["乡村振兴", "三产融合", "农文旅", "共同富裕", "示范工程", "政策对齐", "财政补贴", "社会效益", "扶贫攻坚", "美丽乡村"]
+      primary_abilities: ["A9", "A12"]
+      must_select_when: ["乡村振兴", "政府汇报", "政策对接", "示范项目申报"]
+
+    "8-2":
+      name: "城市更新与规划管控专家"
+      description: "专注于城市更新、容积率管控、历史保护与土地政策，擅长与规划审批部门对话"
+      keywords: ["城市更新", "容积率", "历史保护", "土地政策", "规划审批", "城市设计导则", "控规", "修详规", "用地性质"]
+      primary_abilities: ["A9", "A7"]
+      must_select_when: ["城市更新", "审批对接", "历史保护", "规划管控"]
+
+    "8-3":
+      name: "社区治理与利益分配专家"
+      description: "专注于利益相关者治理结构设计、股权分配、冲突调解机制和社区公约"
+      keywords: ["治理结构", "股权分配", "利益分配", "社区公约", "村集体", "合作社", "冲突调解", "保底收益", "退出机制"]
+      primary_abilities: ["A9", "A7"]
+      must_select_when: ["多方利益", "治理结构", "股权设计", "村集体"]
+
+# ============================================================================
+# V9 - 产业链分析师 (Industry Chain Analyst) 🆕 v10.0
+# ============================================================================
+V9_产业链分析师:
+  description: "产业经济与商业模型专家，负责产业链解构、收入结构设计、投资回报测算和规模化路径规划"
+  config_file: "roles/v9_industry_analyst.yaml"
+
+  primary_abilities: ["A7", "A11"]  # A7: 资本策略, A11: 运营与产品化
+  secondary_abilities: ["A6", "A9"]  # A6: 功能效率（坪效运营）, A9: 社会关系（利益相关者）
+
+  llm_params:
+    temperature: 0.5
+    min_deliverables: 2
+    max_deliverables: 4
+
+  sub_roles:
+    "9-1":
+      name: "农文旅产业链分析师"
+      description: "专注于农文旅产业闭环设计、多收入结构、品牌联名和深加工产品线"
+      keywords: ["产业闭环", "农产品深加工", "品牌联名", "认养模型", "内容经济", "农文旅", "多收入结构", "订阅模式"]
+      primary_abilities: ["A7", "A11"]
+      must_select_when: ["产业设计", "收入模型", "农文旅", "商业闭环"]
+
+    "9-2":
+      name: "投资回报与金融建模师"
+      description: "专注于投资测算、IRR/NPV建模、风险对冲、融资方案和退出策略"
+      keywords: ["投资测算", "IRR", "NPV", "融资方案", "退出策略", "风险对冲", "回报周期", "保底收益", "资产证券化"]
+      primary_abilities: ["A7", "A9"]
+      must_select_when: ["投资分析", "融资", "退出机制", "回报测算"]
+
+    "9-3":
+      name: "商业运营与规模化专家"
+      description: "专注于运营效率优化、标准化复制、品牌矩阵和区域扩张策略"
+      keywords: ["运营效率", "标准化复制", "品牌矩阵", "坪效优化", "翻台率", "客单价", "区域扩张", "连锁模型"]
+      primary_abilities: ["A11", "A6"]
+      must_select_when: ["运营优化", "规模复制", "连锁扩张", "品牌运营"]
+
+# ============================================================================
+# 角色选择辅助信息
+# ============================================================================
+role_selection_hints:
+  # 同层去重规则
+  same_layer_deduplication:
+    V2: "V2-1(住宅)与V2-2(商业)通常互斥，除非项目是住商混合体"
+    V3: "V3-2(文化IP)与V3-3(品牌命名)可共存，但需明确各自交付物边界"
+    V4: "V4-1(用户研究)与V4-2(趋势分析)可共存，服务于不同研究维度"
+    V5: "V5-1(居住)与V5-2(商业)与V5-3(办公)按实际业态选择，单业态项目只选1个"
+    V6: "V6-1到V6-6可按需组合，但每个工程专业最多1个"
+    V7: "V7-1(家庭层面)与V7-2(组织层面)按分析尺度选择，通常只选1个"
+    V8: "V8-1(乡村)与V8-2(城市更新)按项目类型互斥；V8-3(治理)可与任一共存"
+    V9: "V9-1(产业链)与V9-3(运营)可共存；V9-2(金融)需项目有明确融资需求"
+
+  # 依赖关系
+  collaboration_flow:
+    upstream: ["V3", "V4", "V5", "V8", "V9"]  # 策略与洞察层
+    downstream: ["V2", "V6"]  # 设计与实现层
+    rule: "下游角色必须依赖至少一个上游角色的输入"
+
+  # 特殊场景触发
+  special_scenarios:
+    high_complexity:
+      triggers: ["面积>5000㎡", "跨专业", "复合功能", "复杂家庭结构"]
+      must_include: ["V6"]
+      experts_count: "6-8"
+
+    cultural_depth:
+      triggers: ["文化IP", "生活哲学转译", "文化传承"]
+      core_expert: "V3-2"
+
+    special_population:
+      triggers: ["儿童/老人/特殊需求", "单身/独立女性", "多代际家庭", "心理压力", "文化认同", "精神归属"]
+      core_expert: "V7-1"
+
+    technical_integration:
+      triggers: ["智能化", "极端环境", "技术创新", "系统集成"]
+      must_include: ["V6-2", "V6-6"]
+
+    rural_revitalization:
+      triggers: ["乡村振兴", "农文旅", "三产融合", "共同富裕", "村集体", "美丽乡村"]
+      core_expert: "V8-1"
+      must_include: ["V9-1"]
+      experts_count: "6-8"
+
+    investment_financing:
+      triggers: ["投资测算", "融资", "IRR", "NPV", "回报周期", "资产证券化"]
+      core_expert: "V9-2"
+      must_include: ["V5"]
+
+    policy_compliance:
+      triggers: ["政策对接", "审批", "规划管控", "示范申报", "补贴申请"]
+      core_expert: "V8"
+      must_include: ["V9"]

@@ -1,0 +1,3472 @@
+/**
+ * 左侧导航内容组件
+ * 根据不同的胶囊模块渲染对应内容
+ */
+'use client';
+
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { ChevronDown, ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { KnowledgeGraphCanvas } from '@/components/KnowledgeGraphCanvas';
+
+export type CockpitModuleKey = 'files' | 'assets' | 'board' | 'experts' | 'insight';
+
+interface CockpitPanelProps {
+	moduleKey: CockpitModuleKey;
+	onNodeClick?: (nodeId: string, label: string) => void;
+	onCardClick?: (title: string) => void;
+	className?: string;
+}
+
+type FlowCategory =
+	| '项目锚点'
+	| '外部认知'
+	| '决策约束'
+	| '空间策略'
+	| '表达系统'
+	| '评审定版';
+
+type StageTag = 'S1 意图显影' | 'S2 分析扩展' | 'S3 审阅裁决' | 'S4 定向收束' | 'S5 缺口补全' | 'S6 定版冻结';
+
+type FileStatus = '进行中' | '待审' | '已审' | '已冻结' | '待验证';
+type SortMode = '相关性优先' | '引用热度' | '最近更新' | '标题 A-Z';
+type FileViewMode = '综合视图' | '空间视图';
+
+interface ProjectFileCard {
+	title: string;
+	desc: string;
+	badge: string;
+	legacyCategory: string;
+	objectAnchor: 'AlignedBrief' | 'SPG' | 'InitialDesignPack' | 'EvidenceOnly';
+	flowCategory: FlowCategory;
+	stage: StageTag;
+	status: FileStatus;
+	spaceScope: '全局' | '大堂' | '餐厅' | '客房' | '公区' | '后勤' | '连廊';
+	primaryTopic: '用户' | '市场' | '竞品' | '空间' | '动线' | '预算' | '品牌' | '色彩' | '材料' | '灯光' | '家具';
+	domainTags: string[];
+	updatedAt: string;
+	refCount: number;
+}
+
+type ResourceCategory = '家具' | '灯光' | '材料' | '工艺' | '配色' | '参考';
+type ResourceSpace = '全局' | '大堂' | '餐厅' | '客房' | '公区' | '后勤';
+type ResourceBudgetBand = '经济型' | '均衡型' | '高配型';
+type ResourceRisk = '低' | '中' | '高';
+
+interface ResourceItem {
+	id: string;
+	title: string;
+	category: ResourceCategory;
+	imageSrc: string;
+	fallbackImageSrc: string;
+	desc: string;
+	space: ResourceSpace;
+	budgetBand: ResourceBudgetBand;
+	leadTimeDays: number;
+	risk: ResourceRisk;
+	tags: string[];
+	alternatives: string[];
+}
+
+interface ResourceSeriesImage {
+	id: string;
+	name: string;
+	src: string;
+	fallbackSrc: string;
+}
+
+interface ResourceCardItem extends ResourceItem {
+	coverImageSrc: string;
+	imageSeries: ResourceSeriesImage[];
+}
+
+interface BasketSelectionItem {
+	resourceId: string;
+	resourceTitle: string;
+	imageId: string;
+	imageName: string;
+	imageSrc: string;
+	risk: ResourceRisk;
+	leadTimeDays: number;
+}
+
+interface BoardCollectionItem {
+	id: string;
+	resourceId: string;
+	resourceTitle: string;
+	resourceCategory: ResourceCategory;
+	imageId: string;
+	imageName: string;
+	imageSrc: string;
+	space: string;
+	sourceSpace: ResourceSpace;
+	customTitle: string;
+	note: string;
+	tags: string[];
+	desc: string;
+	addedAt: string;
+}
+
+interface BoardCollectionDraft {
+	resourceId: string;
+	imageId: string;
+	customTitle: string;
+	note: string;
+	tagsInput: string;
+	space: string;
+	useCustomSpace: boolean;
+	newSpace: string;
+}
+
+type ResourceTaskKey = '替代优先' | '空间搭配' | '预算压缩' | '缺失补全';
+
+const FLOW_ORDER: FlowCategory[] = ['项目锚点', '外部认知', '决策约束', '空间策略', '表达系统', '评审定版'];
+const SPACE_ORDER: ProjectFileCard['spaceScope'][] = ['全局', '大堂', '餐厅', '客房', '公区', '连廊', '后勤'];
+const SPACE_VIEW_ORDER: Exclude<ProjectFileCard['spaceScope'], '全局'>[] = ['大堂', '餐厅', '客房', '公区', '连廊', '后勤'];
+const ASSET_CATEGORY_OPTIONS: string[] = ['全部分类', '家具', '灯光', '材料', '工艺', '配色', '参考'];
+const ASSET_SPACE_OPTIONS: string[] = ['全部空间', '全局', '大堂', '餐厅', '客房', '公区', '后勤'];
+const ASSET_BUDGET_OPTIONS: string[] = ['全部预算', '经济型', '均衡型', '高配型'];
+const ALL_FLOW = '全部流程';
+const ALL_SPACE = '全部空间';
+const ALL_STAGE = '全部阶段';
+const ALL_STATUS = '全部状态';
+const ALL_ANCHOR = '全部锚点';
+const ALL_TOPIC = '全部专题';
+const VIEW_MODES: FileViewMode[] = ['综合视图', '空间视图'];
+const FILE_VIEW_PREFS_KEY = 'ipa.files.view.prefs.v1';
+const COLLECTION_SPACE_OPTIONS: string[] = [...SPACE_ORDER];
+
+const toDisplaySpaceName = (space: ProjectFileCard['spaceScope'] | string) => (space === '全局' ? '跨空间' : space);
+
+const PROJECT_FILE_CARDS: ProjectFileCard[] = [
+	{
+		title: '用户需求',
+		desc: '围绕丹麦家居品牌 HAY 的年轻、克制、功能主义气质，梳理项目目标客群、预算区间、空间优先级与体验期待。重点关注山地民宿在自然景观、轻度度假属性与品牌识别度之间的平衡关系。',
+		badge: '核心输入',
+		legacyCategory: '分析项目',
+		objectAnchor: 'AlignedBrief',
+		flowCategory: '项目锚点',
+		stage: 'S1 意图显影',
+		status: '已审',
+		spaceScope: '全局',
+		primaryTopic: '用户',
+		domainTags: ['用户', '目标', '品牌'],
+		updatedAt: '2026-03-30',
+		refCount: 23,
+	},
+	{
+		title: '市场分析',
+		desc: '分析峨眉山周边山地民宿市场的客群画像、消费价格带与审美变化趋势，校准项目在区域中的价值锚点。同步比较本地度假型住宿与城市型精品酒店在社交属性和停留时长上的差异。',
+		badge: '外部环境',
+		legacyCategory: '分析项目',
+		objectAnchor: 'AlignedBrief',
+		flowCategory: '外部认知',
+		stage: 'S2 分析扩展',
+		status: '已审',
+		spaceScope: '全局',
+		primaryTopic: '市场',
+		domainTags: ['市场', '客群', '定价'],
+		updatedAt: '2026-03-29',
+		refCount: 18,
+	},
+	{
+		title: '竞品策略',
+		desc: '拆解标杆民宿和设计酒店在公区氛围、客房尺度、材料表达与品牌传播上的差异点，识别可借鉴与应规避的策略。进一步提炼体验缺口、品牌错位和定价机会，作为后续概念切入依据。',
+		badge: '对标拆解',
+		legacyCategory: '分析项目',
+		objectAnchor: 'EvidenceOnly',
+		flowCategory: '外部认知',
+		stage: 'S2 分析扩展',
+		status: '待审',
+		spaceScope: '全局',
+		primaryTopic: '竞品',
+		domainTags: ['竞品', '体验', '品牌'],
+		updatedAt: '2026-03-31',
+		refCount: 16,
+	},
+	{
+		title: '色彩策略',
+		desc: '定义主辅色、材质映射与情绪目标，构建适合山地民宿的低饱和色彩体系。通过山地灰绿、低饱和木色与暖感金属细节建立统一语气，避免空间在自然语境中显得过度商业化。',
+		badge: '氛围语言',
+		legacyCategory: '分析项目',
+		objectAnchor: 'InitialDesignPack',
+		flowCategory: '表达系统',
+		stage: 'S4 定向收束',
+		status: '进行中',
+		spaceScope: '公区',
+		primaryTopic: '色彩',
+		domainTags: ['色彩', '情绪', '品牌'],
+		updatedAt: '2026-03-31',
+		refCount: 12,
+	},
+	{
+		title: '空间功能清单',
+		desc: '梳理客房、公区、接待、餐饮与后勤等功能模块的面积占比和优先顺序，明确哪些区域承担品牌展示、停留社交和运营效率。同步界定高价值空间与可压缩空间，避免后期概念泛化。',
+		badge: '功能配置',
+		legacyCategory: '规划文件',
+		objectAnchor: 'SPG',
+		flowCategory: '空间策略',
+		stage: 'S4 定向收束',
+		status: '已审',
+		spaceScope: '全局',
+		primaryTopic: '空间',
+		domainTags: ['功能', '空间', '运营'],
+		updatedAt: '2026-03-28',
+		refCount: 20,
+	},
+	{
+		title: '动线组织草案',
+		desc: '建立主人、住客、服务与补给四类动线的基础组织逻辑，确保抵达体验、入住效率与后勤流线互不干扰。特别关注山地场地中入口高差、景观面朝向与夜间照明对动线选择的影响。',
+		badge: '流线',
+		legacyCategory: '规划文件',
+		objectAnchor: 'SPG',
+		flowCategory: '空间策略',
+		stage: 'S5 缺口补全',
+		status: '待验证',
+		spaceScope: '连廊',
+		primaryTopic: '动线',
+		domainTags: ['动线', '入口', '后勤'],
+		updatedAt: '2026-03-31',
+		refCount: 15,
+	},
+	{
+		title: '场地约束条件',
+		desc: '归纳山地高差、采光朝向、消防疏散、结构限制和雨雾气候对空间组织的影响，为概念方案建立现实边界。优先识别需要在早期就锁定的限制条件，避免后期出现大规模推翻。',
+		badge: '约束',
+		legacyCategory: '规划文件',
+		objectAnchor: 'AlignedBrief',
+		flowCategory: '决策约束',
+		stage: 'S2 分析扩展',
+		status: '已冻结',
+		spaceScope: '全局',
+		primaryTopic: '空间',
+		domainTags: ['场地', '消防', '结构'],
+		updatedAt: '2026-03-27',
+		refCount: 24,
+	},
+	{
+		title: '预算分配表',
+		desc: '给出硬装、软装、灯光、家具与设备的预算比例建议，帮助项目在品牌表达与实际落地之间建立合理分配。重点列出可高配与可替代部分，防止预算被单一环节吞噬。',
+		badge: '预算',
+		legacyCategory: '规划文件',
+		objectAnchor: 'InitialDesignPack',
+		flowCategory: '决策约束',
+		stage: 'S4 定向收束',
+		status: '进行中',
+		spaceScope: '全局',
+		primaryTopic: '预算',
+		domainTags: ['预算', '成本', '取舍'],
+		updatedAt: '2026-03-30',
+		refCount: 17,
+	},
+	{
+		title: '品牌语义板',
+		desc: '围绕 HAY 的年轻、克制、功能主义气质提炼可转译为空间语言的关键词与反关键词。通过情绪语义、品牌语境与消费心理交叉校准，避免“像北欧但没有品牌辨识”的模糊表达。',
+		badge: '品牌',
+		legacyCategory: '指导文件',
+		objectAnchor: 'InitialDesignPack',
+		flowCategory: '表达系统',
+		stage: 'S4 定向收束',
+		status: '待审',
+		spaceScope: '全局',
+		primaryTopic: '品牌',
+		domainTags: ['品牌', '语义', '识别度'],
+		updatedAt: '2026-03-31',
+		refCount: 19,
+	},
+	{
+		title: '材料样本册',
+		desc: '收录墙、地、顶及家具触感材料的搭配方向、耐用等级与替代层级，明确概念表达与运营维护之间的平衡。优先筛选适合潮湿山地环境、但不失细腻触感和品牌质感的材料组合。',
+		badge: '材料',
+		legacyCategory: '指导文件',
+		objectAnchor: 'InitialDesignPack',
+		flowCategory: '表达系统',
+		stage: 'S5 缺口补全',
+		status: '进行中',
+		spaceScope: '客房',
+		primaryTopic: '材料',
+		domainTags: ['材料', '耐用性', '触感'],
+		updatedAt: '2026-03-29',
+		refCount: 14,
+	},
+	{
+		title: '灯光场景表',
+		desc: '梳理白天、傍晚、夜间及社交时段的照明层级与色温变化，建立一套兼顾情绪与运营的灯光场景表。强调公共空间的氛围转换与客房私密感的细微区别，避免一套照明走到底。',
+		badge: '灯光',
+		legacyCategory: '指导文件',
+		objectAnchor: 'InitialDesignPack',
+		flowCategory: '表达系统',
+		stage: 'S5 缺口补全',
+		status: '待验证',
+		spaceScope: '大堂',
+		primaryTopic: '灯光',
+		domainTags: ['灯光', '氛围', '色温'],
+		updatedAt: '2026-03-28',
+		refCount: 11,
+	},
+	{
+		title: '家具选型方向',
+		desc: '明确床、沙发、椅凳、边几等重点家具的风格、尺寸与比例基准，避免不同供应渠道带来的视觉断裂。优先建立“轻、薄、功能明确”的家具轮廓，同时保留局部温润感。',
+		badge: '家具',
+		legacyCategory: '指导文件',
+		objectAnchor: 'InitialDesignPack',
+		flowCategory: '表达系统',
+		stage: 'S5 缺口补全',
+		status: '待审',
+		spaceScope: '客房',
+		primaryTopic: '家具',
+		domainTags: ['家具', '比例', '风格'],
+		updatedAt: '2026-03-30',
+		refCount: 13,
+	},
+	{
+		title: '大堂到店体验脚本',
+		desc: '梳理从落客、迎宾、办入住到首段停留的体验链条，明确大堂在品牌第一印象中的节奏设计与关键触点，减少高峰时段拥堵与情绪落差。',
+		badge: '到店体验',
+		legacyCategory: '规划文件',
+		objectAnchor: 'SPG',
+		flowCategory: '空间策略',
+		stage: 'S4 定向收束',
+		status: '待审',
+		spaceScope: '大堂',
+		primaryTopic: '动线',
+		domainTags: ['大堂', '入口', '体验'],
+		updatedAt: '2026-03-31',
+		refCount: 10,
+	},
+	{
+		title: '餐厅运营动线卡',
+		desc: '建立餐厅高峰与非高峰两套服务流线，明确备餐、上菜、回收、清洁与住客动线的交错边界，平衡运营效率与就餐体验。',
+		badge: '餐饮运营',
+		legacyCategory: '规划文件',
+		objectAnchor: 'InitialDesignPack',
+		flowCategory: '空间策略',
+		stage: 'S5 缺口补全',
+		status: '进行中',
+		spaceScope: '餐厅',
+		primaryTopic: '空间',
+		domainTags: ['餐厅', '运营', '动线'],
+		updatedAt: '2026-03-31',
+		refCount: 9,
+	},
+	{
+		title: '客房睡眠灯光子策略',
+		desc: '细化客房“入睡-夜起-晨起”三段灯光场景，控制照度、色温与眩光，兼顾睡眠质量与路径安全，避免与公共区照明逻辑混用。',
+		badge: '客房灯光',
+		legacyCategory: '指导文件',
+		objectAnchor: 'InitialDesignPack',
+		flowCategory: '表达系统',
+		stage: 'S5 缺口补全',
+		status: '待验证',
+		spaceScope: '客房',
+		primaryTopic: '灯光',
+		domainTags: ['客房', '睡眠', '照明'],
+		updatedAt: '2026-03-30',
+		refCount: 8,
+	},
+	{
+		title: '公区社交家具组合',
+		desc: '针对短停留与长停留两类社交场景定义公区家具组合与尺度关系，提升自由社交概率，同时保证通行效率与视觉秩序。',
+		badge: '公区家具',
+		legacyCategory: '指导文件',
+		objectAnchor: 'InitialDesignPack',
+		flowCategory: '表达系统',
+		stage: 'S4 定向收束',
+		status: '进行中',
+		spaceScope: '公区',
+		primaryTopic: '家具',
+		domainTags: ['公区', '社交', '家具'],
+		updatedAt: '2026-03-31',
+		refCount: 9,
+	},
+	{
+		title: '后勤补给流线校核',
+		desc: '校核布草、清洁、补货、垃圾回收等后勤路径在不同时段的冲突点，保证后勤效率同时降低对住客主要动线的干扰。',
+		badge: '后勤流线',
+		legacyCategory: '规划文件',
+		objectAnchor: 'SPG',
+		flowCategory: '空间策略',
+		stage: 'S5 缺口补全',
+		status: '待审',
+		spaceScope: '后勤',
+		primaryTopic: '动线',
+		domainTags: ['后勤', '补给', '效率'],
+		updatedAt: '2026-03-31',
+		refCount: 7,
+	},
+];
+
+const RESOURCE_ITEMS: ResourceItem[] = [
+	{
+		id: 'sofa-hay-mags',
+		title: 'MAGS 模块沙发（原型）',
+		category: '家具',
+		imageSrc: 'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=1200&q=80',
+		fallbackImageSrc: '/resource-images/public-furniture.svg',
+		desc: '低轮廓、可拼接，适合公区与大堂自由社交布局。',
+		space: '公区',
+		budgetBand: '高配型',
+		leadTimeDays: 35,
+		risk: '中',
+		tags: ['北欧', '社交', '可重组'],
+		alternatives: ['sofa-local-modular', 'sofa-compact-fabric'],
+	},
+	{
+		id: 'sofa-local-modular',
+		title: '本地替代模块沙发 A',
+		category: '家具',
+		imageSrc: 'https://images.unsplash.com/photo-1494526585095-c41746248156?auto=format&fit=crop&w=1200&q=80',
+		fallbackImageSrc: '/resource-images/public-furniture.svg',
+		desc: '体量接近，交期更短，适合预算控制项目。',
+		space: '公区',
+		budgetBand: '均衡型',
+		leadTimeDays: 14,
+		risk: '低',
+		tags: ['替代', '快交付', '性价比'],
+		alternatives: ['sofa-hay-mags'],
+	},
+	{
+		id: 'lamp-lobby-layer',
+		title: '大堂分层照明组',
+		category: '灯光',
+		imageSrc: 'https://images.unsplash.com/photo-1513694203232-719a280e022f?auto=format&fit=crop&w=1200&q=80',
+		fallbackImageSrc: '/resource-images/lobby-light.svg',
+		desc: '主照 + 洗墙 + 装饰灯，支持到店体验节奏。',
+		space: '大堂',
+		budgetBand: '均衡型',
+		leadTimeDays: 10,
+		risk: '低',
+		tags: ['到店体验', '分层照明', '可调光'],
+		alternatives: ['lamp-lobby-soft'],
+	},
+	{
+		id: 'lamp-lobby-soft',
+		title: '大堂暖感照明替代组',
+		category: '灯光',
+		imageSrc: 'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=1200&q=80',
+		fallbackImageSrc: '/resource-images/lobby-light.svg',
+		desc: '强调低照度舒适性，降低眩光和维护成本。',
+		space: '大堂',
+		budgetBand: '经济型',
+		leadTimeDays: 8,
+		risk: '低',
+		tags: ['暖感', '低眩光', '替代'],
+		alternatives: ['lamp-lobby-layer'],
+	},
+	{
+		id: 'mat-room-antiwet',
+		title: '客房防潮木饰面系统',
+		category: '材料',
+		imageSrc: 'https://images.unsplash.com/photo-1484154218962-a197022b5858?auto=format&fit=crop&w=1200&q=80',
+		fallbackImageSrc: '/resource-images/guestroom-material.svg',
+		desc: '针对山地潮湿环境优化，兼顾触感与耐久。',
+		space: '客房',
+		budgetBand: '均衡型',
+		leadTimeDays: 18,
+		risk: '中',
+		tags: ['客房', '防潮', '木饰面'],
+		alternatives: ['mat-room-laminate'],
+	},
+	{
+		id: 'mat-room-laminate',
+		title: '客房木纹复合替代板',
+		category: '材料',
+		imageSrc: 'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=1200&q=80',
+		fallbackImageSrc: '/resource-images/guestroom-material.svg',
+		desc: '外观接近，预算更友好，适合压缩成本。',
+		space: '客房',
+		budgetBand: '经济型',
+		leadTimeDays: 7,
+		risk: '低',
+		tags: ['替代', '预算优化'],
+		alternatives: ['mat-room-antiwet'],
+	},
+	{
+		id: 'craft-joint-silent',
+		title: '静音节点收口工艺',
+		category: '工艺',
+		imageSrc: 'https://images.unsplash.com/photo-1505409859467-3a796fd5798e?auto=format&fit=crop&w=1200&q=80',
+		fallbackImageSrc: '/resource-images/craft-detail.svg',
+		desc: '优化夜间脚步与碰撞噪声，提升客房静谧性。',
+		space: '客房',
+		budgetBand: '均衡型',
+		leadTimeDays: 5,
+		risk: '中',
+		tags: ['节点', '静音', '施工标准'],
+		alternatives: ['craft-standard-joint'],
+	},
+	{
+		id: 'palette-hay-mountain',
+		title: 'HAY 山地低饱和色板',
+		category: '配色',
+		imageSrc: 'https://images.unsplash.com/photo-1513519245088-0e12902e5a38?auto=format&fit=crop&w=1200&q=80',
+		fallbackImageSrc: '/resource-images/color-palette.svg',
+		desc: '灰绿 + 木色 + 暖白，适配自然语境与品牌识别。',
+		space: '全局',
+		budgetBand: '均衡型',
+		leadTimeDays: 1,
+		risk: '低',
+		tags: ['品牌一致', '低饱和', '跨空间'],
+		alternatives: ['palette-neutral-warm'],
+	},
+	{
+		id: 'ref-hotel-arrival',
+		title: '山地酒店到店体验参考包',
+		category: '参考',
+		imageSrc: 'https://images.unsplash.com/photo-1445019980597-93fa8acb246c?auto=format&fit=crop&w=1200&q=80',
+		fallbackImageSrc: '/resource-images/arrival-reference.svg',
+		desc: '包含入口、落客、迎宾与首停留的动线案例。',
+		space: '大堂',
+		budgetBand: '经济型',
+		leadTimeDays: 1,
+		risk: '低',
+		tags: ['案例', '到店体验', '动线'],
+		alternatives: [],
+	},
+];
+
+const buildPublicPictureUrl = (name: string) => `/api/public-pictures?name=${encodeURIComponent(name)}`;
+const buildAdvisorAvatarUrl = (name: string) =>
+	`/api/public-pictures?collection=advisor-avatar&name=${encodeURIComponent(name)}`;
+
+const getPublicPictureSeries = (pictureNames: string[], startIndex: number, desiredCount = 5) => {
+	if (pictureNames.length === 0) return [];
+
+	const count = Math.min(desiredCount, pictureNames.length);
+	const result: string[] = [];
+	for (let offset = 0; offset < pictureNames.length && result.length < count; offset += 1) {
+		const name = pictureNames[(startIndex + offset) % pictureNames.length];
+		if (!result.includes(name)) result.push(name);
+	}
+	return result;
+};
+
+const ASSET_MASONRY_HEIGHTS = [240, 300, 260, 340, 280, 320];
+
+type ExpertWorkspaceKey = 'assembly' | 'tasks' | 'reports' | 'review';
+
+interface ExpertTeamRoleItem {
+	id: string;
+	title: string;
+	shortName: string;
+	avatarName: string;
+	summary: string;
+	status: '当前激活' | '储备位';
+	duty: string;
+	trigger: string;
+	source: string;
+	tags: string[];
+	featured?: boolean;
+}
+
+interface ExpertTaskItem {
+	id: string;
+	order: number;
+	title: string;
+	mission: string;
+	status: '已完成' | '执行中' | '待触发';
+	team: string[];
+	outputs: string[];
+	checks: string[];
+	featured?: boolean;
+}
+
+interface ExpertReportItem {
+	id: string;
+	title: string;
+	summary: string;
+	lead: string;
+	partners: string[];
+	sourceTask: string;
+	points: string[];
+	featured?: boolean;
+}
+
+interface ExpertReviewItem {
+	id: string;
+	title: string;
+	summary: string;
+	group: string;
+	checks: string[];
+	source: string;
+	featured?: boolean;
+}
+
+type ExpertDetailSelection =
+	| { kind: 'role'; id: string }
+	| { kind: 'task'; id: string }
+	| { kind: 'report'; id: string }
+	| { kind: 'review'; id: string };
+
+const EXPERT_WORKSPACE_TABS: Array<{ key: ExpertWorkspaceKey; label: string; desc: string }> = [
+	{ key: 'assembly', label: '团队组建', desc: '按工作地图确定当前激活位，方向锁定后再启用储备位。' },
+	{ key: 'tasks', label: '任务安排', desc: '先锁 1-5，再推进 6-9，最后封装 10。' },
+	{ key: 'reports', label: '专题汇报', desc: '对色彩、家具、尺度、公区四专题做汇总确认。' },
+	{ key: 'review', label: '成果审阅', desc: '最终一致性复核与冻结，不在这里重新发散。' },
+];
+
+const EXPERT_VIEW_SUMMARY: Record<ExpertWorkspaceKey, string> = {
+	assembly: '所有角色都必须对应明确工作责任；没有责任映射的角色不进当前列表。',
+	tasks: '4.2 不做设计定案，只确认任务顺序、输入输出、依赖和校验标准。',
+	reports: '4.3 是按任务清单执行后的专题确认，不是再次开题。',
+	review: '4.4 只做最终一致性复核、治理检查与冻结说明。',
+};
+
+const EXPERT_TEAM_SECTIONS: Array<{ id: string; label: string; eyebrow: string; items: ExpertTeamRoleItem[] }> = [
+	{
+		id: 'assembly-space',
+		label: '空间与实施主线',
+		eyebrow: '当前激活',
+		items: [
+			{
+				id: 'role-space-director',
+				title: '空间设计总统筹',
+				shortName: '空间总控',
+				avatarName: '未标题-1.png',
+				summary: '统筹项目级方向框架、尺度主线与四专题收口。',
+				status: '当前激活',
+				duty: '绑定任务 4 / 5 / 8 / 10，负责方向基线与尺度总口径。',
+				trigger: '3.S.2 工作地图完成后立即激活。',
+				source: '来自 SPG 主骨架与方向框架定义。',
+				tags: ['方向框架', '尺度控制', '深化入口'],
+				featured: true,
+			},
+			{
+				id: 'role-boundary-advisor',
+				title: '实施边界顾问',
+				shortName: '边界顾问',
+				avatarName: '未标题-2.png',
+				summary: '提前界定哪些判断能落，哪些判断要留作待确认项。',
+				status: '当前激活',
+				duty: '绑定任务 4 / 7 / 8，负责实施边界、结构风险与家具落地接口。',
+				trigger: '方向框架与家具策略定义阶段全程在线。',
+				source: '来自工作地图中的实施约束主线。',
+				tags: ['实施边界', '结构预警', '家具策略'],
+				featured: true,
+			},
+			{
+				id: 'role-interface-advisor',
+				title: '建筑-景观室内接口顾问',
+				shortName: '接口顾问',
+				avatarName: '未标题-3.png',
+				summary: '处理建筑、景观、室内之间的边界与开口冲突。',
+				status: '当前激活',
+				duty: '绑定任务 1 / 8，负责场地接口、开口策略与连贯体验。',
+				trigger: '项目底板建立时激活，后续跟随尺度专题复核。',
+				source: '来自 SPG 分区与流线结构校验。',
+				tags: ['接口边界', '开口策略', '场地参数'],
+			},
+		],
+	},
+	{
+		id: 'assembly-user',
+		label: '用户与体验主线',
+		eyebrow: '当前激活',
+		items: [
+			{
+				id: 'role-user-researcher',
+				title: '用户研究专家',
+				shortName: '用户研究',
+				avatarName: '未标题-4.png',
+				summary: '把客群动机、支付逻辑和复购线索显性化。',
+				status: '当前激活',
+				duty: '绑定任务 1 / 2，负责项目底板中的用户侧证据与成功条件。',
+				trigger: '项目底板和核心目标锁定阶段优先激活。',
+				source: '来自三驱动力中的用户关系驱动力。',
+				tags: ['用户动机', '成功条件', '复购线索'],
+				featured: true,
+			},
+			{
+				id: 'role-vacation-journey',
+				title: '轻度假旅程研究员',
+				shortName: '旅程研究',
+				avatarName: '未标题-5.png',
+				summary: '把周末短住的行为顺序拆成可设计的节点脚本。',
+				status: '当前激活',
+				duty: '绑定任务 2 / 9，负责四时段行为剧本和公区节点组织。',
+				trigger: '方向基线明确后进入公区专题时持续激活。',
+				source: '来自人因序列与 SPG 公区结构。',
+				tags: ['四时段剧本', '节点组织', '旅程序列'],
+				featured: true,
+			},
+			{
+				id: 'role-social-psychology',
+				title: '社交心理研究员',
+				shortName: '社交心理',
+				avatarName: '未标题-6.png',
+				summary: '控制公区社交密度，保证可见但不强制。',
+				status: '当前激活',
+				duty: '绑定任务 9，负责情侣 / 亲子 / 单人三类客群的公区分层。',
+				trigger: '公共社交专题排程与专题确认阶段激活。',
+				source: '来自 HumanContextLayer 的私密梯度约束。',
+				tags: ['社交密度', '私密梯度', '客群分层'],
+			},
+		],
+	},
+	{
+		id: 'assembly-brand',
+		label: '品牌与生活方式转译',
+		eyebrow: '当前激活',
+		items: [
+			{
+				id: 'role-hay-research',
+				title: 'HAY 品牌研究专家',
+				shortName: 'HAY研究',
+				avatarName: '未标题-7.png',
+				summary: '把 HAY 语法转成方法，不做表面贴皮。',
+				status: '当前激活',
+				duty: '绑定任务 3 / 6，负责品牌语义、色彩入口与关键触点识别。',
+				trigger: '品牌与在地依据建立时优先激活。',
+				source: '来自品牌转译与方法语法约束。',
+				tags: ['品牌语法', '色彩入口', '关键触点'],
+				featured: true,
+			},
+			{
+				id: 'role-nordic-lifestyle',
+				title: '北欧生活方式研究员',
+				shortName: '北欧方式',
+				avatarName: '未标题-8.png',
+				summary: '把年轻、克制、功能主义翻成日常使用方式。',
+				status: '当前激活',
+				duty: '绑定任务 3 / 4，负责生活方式语气与总体气质基线。',
+				trigger: '方向框架定义前完成品牌语义翻译。',
+				source: '来自品牌参照与生活方式映射。',
+				tags: ['总体气质', '功能主义', '日常使用'],
+			},
+			{
+				id: 'role-mountain-lifestyle',
+				title: '山地生活方式研究员',
+				shortName: '山地方式',
+				avatarName: '未标题-9.png',
+				summary: '把在地山地节律转成色彩、节奏和停留感。',
+				status: '当前激活',
+				duty: '绑定任务 3 / 6，负责场地提取色、四季氛围和专题 1 主提。',
+				trigger: '色彩专题定义与专题汇报阶段持续激活。',
+				source: '来自 GeoCoordinateBaseline 与 TemporalBaseline。',
+				tags: ['场地提取色', '四季节律', '专题主提'],
+				featured: true,
+			},
+		],
+	},
+	{
+		id: 'assembly-support',
+		label: '专题支撑与经营风险',
+		eyebrow: '当前激活',
+		items: [
+			{
+				id: 'role-color-light',
+				title: '色彩情绪与光环境系统专家',
+				shortName: '色光系统',
+				avatarName: '未标题-10.png',
+				summary: '把色彩与日夜光环境作为同一系统处理。',
+				status: '当前激活',
+				duty: '绑定任务 6，负责色温策略、季节调节和情绪曲线。',
+				trigger: '色彩专题任务卡启动时激活。',
+				source: '来自 TemporalBaseline 的日夜节律要求。',
+				tags: ['色温管理', '情绪曲线', '季节调节'],
+				featured: true,
+			},
+			{
+				id: 'role-ffe-lead',
+				title: '家具软装系统统筹专家（FF&E）',
+				shortName: 'FF&E统筹',
+				avatarName: '未标题-11.png',
+				summary: '统筹原品、在地定制、触点强化与保养逻辑。',
+				status: '当前激活',
+				duty: '绑定任务 7，负责家具语法、耐候策略与触点分配。',
+				trigger: '家具专题任务卡启动时激活。',
+				source: '来自家具策略与供应可得性检查。',
+				tags: ['家具语法', '耐候策略', '触点分配'],
+				featured: true,
+			},
+			{
+				id: 'role-investment-agent',
+				title: '经营与投资视角代理人',
+				shortName: '经营代理',
+				avatarName: '未标题-12.png',
+				summary: '从经营模型反看哪些选择值得花钱，哪些只会加重负担。',
+				status: '当前激活',
+				duty: '绑定任务 2 / 7，负责目标优先级、投入产出与关键触点投资。',
+				trigger: '核心目标锁定后持续参与家具和专题确认。',
+				source: '来自盈利质量驱动力与投资边界。',
+				tags: ['投入产出', '经营视角', '关键触点'],
+			},
+			{
+				id: 'role-operation-temporal',
+				title: '运营时序顾问',
+				shortName: '时序顾问',
+				avatarName: '未标题-13.png',
+				summary: '把淡旺季、日夜节律和开业时序传导到专题参数里。',
+				status: '当前激活',
+				duty: '绑定任务 2 / 6 / 9，负责时段策略、淡旺季切换与开业窗口提醒。',
+				trigger: '目标锁定后全流程跟进 6-9 专题。',
+				source: '来自 TemporalBaseline 的经营时序约束。',
+				tags: ['淡旺季', '日夜节律', '开业时序'],
+				featured: true,
+			},
+			{
+				id: 'role-risk-controller',
+				title: '风险分析员（总控）',
+				shortName: '风险总控',
+				avatarName: '未标题-14.png',
+				summary: '把高风险材料、供应链与结构变更集中挂账。',
+				status: '当前激活',
+				duty: '绑定任务 5 / 10，负责风险清单、待确认项和冻结前复核。',
+				trigger: '方向锁定检查点与深化入口准备阶段激活。',
+				source: '来自 Failure-First 清单与冻结治理。',
+				tags: ['风险清单', '挂账治理', '冻结前复核'],
+			},
+		],
+	},
+	{
+		id: 'assembly-reserve',
+		label: '方向锁定后可启用的储备位',
+		eyebrow: '储备位',
+		items: [
+			{
+				id: 'role-natural-light',
+				title: '自然光感顾问',
+				shortName: '自然光感',
+				avatarName: '未标题-1.png',
+				summary: '在方向锁定后进一步优化自然采光与低位见山策略。',
+				status: '储备位',
+				duty: '用于补强开口、窗台和白天光感的微调判断。',
+				trigger: '任务 5 完成后，如需深化自然采光体验时启用。',
+				source: '来自尺度专题的后置优化位。',
+				tags: ['自然采光', '低位见山', '后置优化'],
+			},
+			{
+				id: 'role-soundscape',
+				title: '山地声景编辑',
+				shortName: '山地声景',
+				avatarName: '未标题-2.png',
+				summary: '在晚间与户外节点补强声环境体验。',
+				status: '储备位',
+				duty: '用于公区与户外廊的声景节奏编辑。',
+				trigger: '任务 9 进入晚间场景细化后启用。',
+				source: '来自公区专题的时段体验补位。',
+				tags: ['声景节奏', '晚间体验', '户外廊'],
+			},
+			{
+				id: 'role-service-script',
+				title: '服务剧本策划',
+				shortName: '服务剧本',
+				avatarName: '未标题-3.png',
+				summary: '把运营人员动作和空间使用脚本进一步对齐。',
+				status: '储备位',
+				duty: '用于把服务节奏回写到入口缓冲、早餐与晚间场景。',
+				trigger: '任务 10 进入深化入口封装时启用。',
+				source: '来自后续深化设计入口准备。',
+				tags: ['服务节奏', '运营脚本', '深化入口'],
+			},
+		],
+	},
+];
+
+const EXPERT_TASK_SECTIONS: Array<{ id: string; label: string; eyebrow: string; items: ExpertTaskItem[] }> = [
+	{
+		id: 'tasks-baseline',
+		label: '基线与方向锁定',
+		eyebrow: '任务 1-5',
+		items: [
+			{
+				id: 'task-1',
+				order: 1,
+				title: '项目底板建立',
+				mission: '先把项目类型、场地、目标客群、交付边界和成功条件站稳。',
+				status: '已完成',
+				team: ['用户研究专家', '建筑-景观室内接口顾问', '项目总控'],
+				outputs: ['项目底板卡', '成功条件摘要', '待确认项挂账'],
+				checks: ['是否形成唯一项目定义', '是否列出 In / Out 边界', '是否保留待确认项索引'],
+				featured: true,
+			},
+			{
+				id: 'task-2',
+				order: 2,
+				title: '核心目标与阶段范围锁定',
+				mission: '先裁品牌纯粹度与经营可行性的优先级，再锁本轮范围。',
+				status: '已完成',
+				team: ['用户研究专家', '经营与投资视角代理人', '运营时序顾问'],
+				outputs: ['目标优先级卡', '阶段范围锁定单', '三驱动力映射'],
+				checks: ['是否写清买单前 / 中 / 后链条', '是否显式处理时间维度', '是否明确本轮不做什么'],
+				featured: true,
+			},
+			{
+				id: 'task-3',
+				order: 3,
+				title: '品牌与在地依据建立',
+				mission: '把 HAY 语法和山地在地依据同时站稳，避免风格贴皮。',
+				status: '已完成',
+				team: ['HAY 品牌研究专家', '北欧生活方式研究员', '山地生活方式研究员'],
+				outputs: ['品牌依据卡', '在地依据卡', '冲突项说明'],
+				checks: ['是否是方法语法而非样式拼贴', '是否形成在地提取规则', '是否可回写到四专题'],
+			},
+			{
+				id: 'task-4',
+				order: 4,
+				title: '项目级方向框架定义',
+				mission: '先定方向底色，再定总体气质和体验-运营重心。',
+				status: '已完成',
+				team: ['空间设计总统筹', '北欧生活方式研究员', '经营与投资视角代理人'],
+				outputs: ['方向基线卡', '身份认同锚点', '原创独特锚点'],
+				checks: ['是否形成唯一方向基线', '是否能映射四专题', '是否回答用户为何来 / 选 / 复购 / 传播'],
+				featured: true,
+			},
+			{
+				id: 'task-5',
+				order: 5,
+				title: '方向基线锁定检查点',
+				mission: '未锁基线，不进专题。',
+				status: '已完成',
+				team: ['空间设计总统筹', '风险分析员（总控）', '各专题负责人'],
+				outputs: ['方向锁定确认单', '专题启动条件', '风险挂账更新'],
+				checks: ['是否形成唯一方向', '是否完成专题映射', '是否保留结构与成本预警项'],
+				featured: true,
+			},
+		],
+	},
+	{
+		id: 'tasks-topics',
+		label: '专题任务定义与排程',
+		eyebrow: '任务 6-9',
+		items: [
+			{
+				id: 'task-6',
+				order: 6,
+				title: '色彩专题任务卡',
+				mission: '定义色彩系统的输入依据、输出格式、启动条件与校验标准。',
+				status: '执行中',
+				team: ['色彩情绪与光环境系统专家', 'HAY 品牌研究专家', '运营时序顾问'],
+				outputs: ['基础底色', '场地提取色规则', '日夜色温管理', '季节调节策略'],
+				checks: ['是否同时响应品牌语法与在地色', '是否处理白天 / 夜间双方案', '是否避免淡季冷清负向情绪'],
+				featured: true,
+			},
+			{
+				id: 'task-7',
+				order: 7,
+				title: '家具专题任务卡',
+				mission: '明确家具语法边界、原品 / 定制分工与耐候校验方式。',
+				status: '执行中',
+				team: ['家具软装系统统筹专家（FF&E）', '实施边界顾问', '经营与投资视角代理人'],
+				outputs: ['原品 / 定制分工', '关键触点清单', '四季保养约束'],
+				checks: ['是否验证高湿与冻融耐候', '是否兼容情侣 / 亲子两类姿势', '是否挂高风险材料校验项'],
+			},
+			{
+				id: 'task-8',
+				order: 8,
+				title: '尺度专题任务卡',
+				mission: '明确公区、客房、过渡空间的尺度阈值与开口策略。',
+				status: '执行中',
+				team: ['空间设计总统筹', '建筑-景观室内接口顾问', '实施边界顾问'],
+				outputs: ['尺度阈值', '窗台与开口策略', '结构与成本预警'],
+				checks: ['是否验证夏季通风与冬季保温', '是否分别审查昼 / 夜采光状态', '是否保留结构验证入口'],
+			},
+			{
+				id: 'task-9',
+				order: 9,
+				title: '公区专题任务卡',
+				mission: '明确公共空间组织方式与“可见不强制”的行为剧本。',
+				status: '执行中',
+				team: ['轻度假旅程研究员', '社交心理研究员', '运营时序顾问'],
+				outputs: ['四节点结构', '四时段行为剧本', '客群分层策略', '淡旺季切换'],
+				checks: ['是否覆盖晨 / 白 / 晚 / 夜四时段', '是否兼容情侣 / 亲子 / 单人三类客群', '是否定义淡季低客流激活方式'],
+				featured: true,
+			},
+		],
+	},
+	{
+		id: 'tasks-entry',
+		label: '后续分支入口准备',
+		eyebrow: '任务 10',
+		items: [
+			{
+				id: 'task-10',
+				order: 10,
+				title: '深化设计入口准备',
+				mission: '封装方向基线、四专题任务卡与风险清单，准备进入后续分支。',
+				status: '待触发',
+				team: ['空间设计总统筹', '风险分析员（总控）', '各专题负责人'],
+				outputs: ['深化设计入口说明', '三驱动力证据链', '继续 / 自行执行 / 返回修改触发条件'],
+				checks: ['是否汇总方向基线与四专题', '是否标注风险与待确认项', '是否写清下一回合触发条件'],
+				featured: true,
+			},
+		],
+	},
+];
+
+const EXPERT_REPORT_ITEMS: ExpertReportItem[] = [
+	{
+		id: 'report-color',
+		title: '专题 1 · 色彩系统',
+		summary: '底色克制，提取色唯一，日夜与冬季情绪要能切换。',
+		lead: '山地生活方式研究员',
+		partners: ['HAY 品牌研究专家', '运营时序顾问'],
+		sourceTask: '来自任务 6 · 色彩专题任务卡',
+		points: ['暖白 / 浅灰 / 深炭为底', '苔藓绿为唯一场地提取色', '夜间以暖光激活深炭与苔藓绿对比', '冬季可引入暖米色调辅助暖场', '避免淡季冷白造成空旷凉意'],
+		featured: true,
+	},
+	{
+		id: 'report-furniture',
+		title: '专题 2 · 家具策略',
+		summary: '在地定制为主，原品只强化关键触点，耐候与人因一起验证。',
+		lead: '实施边界顾问',
+		partners: ['经营与投资视角代理人', '运营时序顾问'],
+		sourceTask: '来自任务 7 · 家具专题任务卡',
+		points: ['语法五条：比例 / 座高 / 密度 / 材温 / 工艺', '在地定制为主，原品用于关键触点', '高湿与冬季冻融下须验证耐候', '淡季需有低成本易操作的保养方案', '同时适配夫妻阅读与亲子短停两类姿势'],
+		featured: true,
+	},
+	{
+		id: 'report-scale',
+		title: '专题 3 · 尺度控制',
+		summary: '公区高、客房稳、过渡低，开口与采光必须在夏冬和昼夜两条线上都成立。',
+		lead: '空间设计总统筹',
+		partners: ['实施边界顾问', '运营时序顾问'],
+		sourceTask: '来自任务 8 · 尺度专题任务卡',
+		points: ['公区高、客房稳、过渡低', '窗台低位见山', '结构与成本预警保留为待决项', '夏季重通风观景，冬季补冷桥验证', '昼间自然采光与夜间灯光接管需分别复核'],
+		featured: true,
+	},
+	{
+		id: 'report-public',
+		title: '专题 4 · 公共社交组织',
+		summary: '四节点组织，偶遇而非聚众，四时段和三类客群都要有落位。',
+		lead: '轻度假旅程研究员',
+		partners: ['社交心理研究员', '运营时序顾问'],
+		sourceTask: '来自任务 9 · 公区专题任务卡',
+		points: ['四节点：入口缓冲 / 早餐轻食 / 阅读独处 / 户外过渡廊', '可见不强制，偶遇而非聚众', '晨 / 白 / 晚 / 夜四时段各有照明与动线预设', '情侣 / 亲子 / 单人三类客群同时容纳', '淡季通过暖场灯光与局部启用维持活性'],
+		featured: true,
+	},
+];
+
+const EXPERT_REVIEW_ITEMS: ExpertReviewItem[] = [
+	{
+		id: 'review-pack',
+		title: '任务书预览',
+		summary: '命题说明、专题拆解、优先级与红线、待确认项、回溯索引必须完整露出。',
+		group: '成果结构',
+		checks: ['命题说明是否绑定 3.1 基线与 4.3 锁定方向', '四专题参数是否能独立回看', 'P0 / P1 / P2 与不可跨越红线是否显式', '待确认项是否带来源与后续检查点'],
+		source: '对应 4.4 的任务书预览面板',
+		featured: true,
+	},
+	{
+		id: 'review-governance',
+		title: '运行时治理',
+		summary: '跨阶段推进、越权改写、结构变更未做影响分析时都要阻断。',
+		group: '治理约束',
+		checks: ['Gate Guardian：缺前置冻结 ID 时阻断', 'ContractValidator：缺 source_frozen_id 或越权改写时阻断', 'Impact Enforcer：结构变更未附影响分析时阻断'],
+		source: '对应 4.4 的运行时治理提示',
+		featured: true,
+	},
+	{
+		id: 'review-method',
+		title: '方法论一致性复核',
+		summary: '冻结前最后 30 秒，确认终局目标、关键变量、动作顺序、失败点和回写路径都没跑偏。',
+		group: '最终复核',
+		checks: ['是否回答项目最终要什么', '是否写清关键变量 / 关键约束', '是否明确先后顺序与失败位置', '是否保留待确认项与回写路径', '是否解释用户为何来 / 选 / 复购 / 传播', '是否完成时间维度与人因维度验证'],
+		source: '对应 3.S.1 前置审阅门与 4.4 复核联动',
+		featured: true,
+	},
+	{
+		id: 'review-freeze',
+		title: '冻结边界与可回溯索引',
+		summary: '哪些能直接改，哪些必须回到前一步，冻结后都要能回看来源与裁决过程。',
+		group: '冻结说明',
+		checks: ['核心命题与主要取舍不可直接改', '专题关键参数不可直接改', '文字表述、标签、缺口优先级可内联微调', '每条结论都要附来源阶段 / 主提 / 联提 / 用户确认轮次'],
+		source: '对应 InitialDesignPack 冻结说明与可回溯索引',
+		featured: true,
+	},
+];
+
+export function CockpitPanel({ moduleKey, onNodeClick, onCardClick, className = '' }: CockpitPanelProps) {
+	const [fileQuery, setFileQuery] = useState('');
+	const [fileViewMode, setFileViewMode] = useState<FileViewMode>('综合视图');
+	const [activeFlow, setActiveFlow] = useState<string>(ALL_FLOW);
+	const [activeSpace, setActiveSpace] = useState<string>(ALL_SPACE);
+	const [activeAnchor, setActiveAnchor] = useState<string>(ALL_ANCHOR);
+	const [activeTopic, setActiveTopic] = useState<string>(ALL_TOPIC);
+	const [activeStage, setActiveStage] = useState<string>(ALL_STAGE);
+	const [activeStatus, setActiveStatus] = useState<string>(ALL_STATUS);
+	const [sortMode, setSortMode] = useState<SortMode>('相关性优先');
+	const [pinnedTitles, setPinnedTitles] = useState<string[]>([]);
+	const [fileDetailOpen, setFileDetailOpen] = useState(false);
+	const [selectedFileTitle, setSelectedFileTitle] = useState<string>('');
+	const [assetQuery, setAssetQuery] = useState('');
+	const [assetCategory, setAssetCategory] = useState<string>('全部分类');
+	const [assetSpace, setAssetSpace] = useState<string>('全部空间');
+	const [assetBudget, setAssetBudget] = useState<string>('全部预算');
+	const [assetTask, setAssetTask] = useState<ResourceTaskKey | '全部'>('全部');
+	const [selectedAssetId, setSelectedAssetId] = useState<string>('');
+	const [assetBasketSelections, setAssetBasketSelections] = useState<BasketSelectionItem[]>([]);
+	const [boardCollections, setBoardCollections] = useState<BoardCollectionItem[]>([]);
+	const [boardQuery, setBoardQuery] = useState('');
+	const [boardSpace, setBoardSpace] = useState<string>('全部空间');
+	const [fileHeaderCollapsed, setFileHeaderCollapsed] = useState(true);
+	const [assetHeaderCollapsed, setAssetHeaderCollapsed] = useState(true);
+	const [boardHeaderCollapsed, setBoardHeaderCollapsed] = useState(true);
+	const [fileHeaderHovered, setFileHeaderHovered] = useState(false);
+	const [assetHeaderHovered, setAssetHeaderHovered] = useState(false);
+	const [boardHeaderHovered, setBoardHeaderHovered] = useState(false);
+	const [boardCollectModalOpen, setBoardCollectModalOpen] = useState(false);
+	const [boardCollectionDraft, setBoardCollectionDraft] = useState<BoardCollectionDraft | null>(null);
+	const [assetDetailOpen, setAssetDetailOpen] = useState(false);
+	const [selectedDetailImageId, setSelectedDetailImageId] = useState<string>('');
+	const [publicPictureNames, setPublicPictureNames] = useState<string[]>([]);
+	const [isClient, setIsClient] = useState(false);
+	const [expertView, setExpertView] = useState<ExpertWorkspaceKey>('assembly');
+	const [expertQuery, setExpertQuery] = useState('');
+	const [expertHeaderCollapsed, setExpertHeaderCollapsed] = useState(true);
+	const [expertHeaderHovered, setExpertHeaderHovered] = useState(false);
+	const [showExpertAdvanced, setShowExpertAdvanced] = useState(false);
+	const [selectedExpertDetail, setSelectedExpertDetail] = useState<ExpertDetailSelection | null>(null);
+	const [expertOnlyKeyItems, setExpertOnlyKeyItems] = useState(false);
+	const [expertShowReserve, setExpertShowReserve] = useState(true);
+
+	const fileHeaderExpanded = !fileHeaderCollapsed || fileHeaderHovered;
+	const assetHeaderExpanded = !assetHeaderCollapsed || assetHeaderHovered;
+	const boardHeaderExpanded = !boardHeaderCollapsed || boardHeaderHovered;
+	const expertHeaderExpanded = !expertHeaderCollapsed || expertHeaderHovered;
+
+	useEffect(() => {
+		setIsClient(true);
+		return () => setIsClient(false);
+	}, []);
+
+	useEffect(() => {
+		setSelectedExpertDetail(null);
+	}, [expertOnlyKeyItems, expertQuery, expertShowReserve, expertView]);
+
+	useEffect(() => {
+		let cancelled = false;
+
+		const loadPublicPictures = async () => {
+			try {
+				const response = await fetch('/api/public-pictures', { cache: 'no-store' });
+				if (!response.ok) {
+					throw new Error(`Failed to load public pictures: ${response.status}`);
+				}
+
+				const payload = (await response.json()) as { files?: string[] };
+				if (!cancelled) {
+					setPublicPictureNames(Array.isArray(payload.files) ? payload.files : []);
+				}
+			} catch (error) {
+				console.error('[CockpitPanel] failed to load public pictures:', error);
+				if (!cancelled) {
+					setPublicPictureNames([]);
+				}
+			}
+		};
+
+		void loadPublicPictures();
+
+		return () => {
+			cancelled = true;
+		};
+	}, []);
+
+	useEffect(() => {
+		try {
+			const raw = localStorage.getItem(FILE_VIEW_PREFS_KEY);
+			if (!raw) return;
+			const parsed = JSON.parse(raw) as Partial<{
+				fileViewMode: FileViewMode;
+				activeFlow: string;
+				activeSpace: string;
+				activeAnchor: string;
+				activeTopic: string;
+				activeStage: string;
+				activeStatus: string;
+				sortMode: SortMode;
+				pinnedTitles: string[];
+			}>;
+
+			if (parsed.fileViewMode && VIEW_MODES.includes(parsed.fileViewMode)) setFileViewMode(parsed.fileViewMode);
+			if (parsed.activeFlow) setActiveFlow(parsed.activeFlow);
+			if (parsed.activeSpace) setActiveSpace(parsed.activeSpace);
+			if (parsed.activeAnchor) setActiveAnchor(parsed.activeAnchor);
+			if (parsed.activeTopic) setActiveTopic(parsed.activeTopic);
+			if (parsed.activeStage) setActiveStage(parsed.activeStage);
+			if (parsed.activeStatus) setActiveStatus(parsed.activeStatus);
+			if (parsed.sortMode && (['相关性优先', '引用热度', '最近更新', '标题 A-Z'] as SortMode[]).includes(parsed.sortMode)) {
+				setSortMode(parsed.sortMode);
+			}
+			if (parsed.pinnedTitles && Array.isArray(parsed.pinnedTitles)) setPinnedTitles(parsed.pinnedTitles);
+		} catch {
+			// ignore invalid persisted state
+		}
+	}, []);
+
+	useEffect(() => {
+		try {
+			localStorage.setItem(
+				FILE_VIEW_PREFS_KEY,
+				JSON.stringify({
+					fileViewMode,
+					activeFlow,
+					activeSpace,
+					activeAnchor,
+					activeTopic,
+					activeStage,
+					activeStatus,
+					sortMode,
+					pinnedTitles,
+				})
+			);
+		} catch {
+			// ignore storage failure
+		}
+	}, [fileViewMode, activeFlow, activeSpace, activeAnchor, activeTopic, activeStage, activeStatus, sortMode, pinnedTitles]);
+
+	useEffect(() => {
+		if (fileViewMode === '空间视图' && activeStage !== ALL_STAGE) {
+			setActiveStage(ALL_STAGE);
+		}
+	}, [fileViewMode, activeStage]);
+
+	const filteredFileCards = useMemo(() => {
+		const query = fileQuery.trim().toLowerCase();
+		const tokens = query.split(/\s+/).filter(Boolean);
+
+		const scoreCard = (card: ProjectFileCard): number => {
+			if (!query) return 0;
+			const searchable = [
+				card.title,
+				card.desc,
+				card.badge,
+				card.flowCategory,
+				card.stage,
+				card.status,
+				...card.domainTags,
+			]
+				.join(' ')
+				.toLowerCase();
+
+			let score = 0;
+			if (card.title.toLowerCase().includes(query)) score += 20;
+			if (searchable.includes(query)) score += 10;
+			for (const token of tokens) {
+				if (card.title.toLowerCase().includes(token)) score += 6;
+				else if (searchable.includes(token)) score += 3;
+			}
+			return score;
+		};
+
+		return PROJECT_FILE_CARDS
+			.map((card) => ({ card, score: scoreCard(card) }))
+			.filter(({ card, score }) => {
+				if (fileViewMode === '空间视图') {
+					if (card.spaceScope === '全局') return false;
+					if (activeSpace !== ALL_SPACE && card.spaceScope !== activeSpace) return false;
+				}
+				if (fileViewMode === '综合视图') {
+					if (activeFlow !== ALL_FLOW && card.flowCategory !== activeFlow) return false;
+					if (activeAnchor !== ALL_ANCHOR && card.objectAnchor !== activeAnchor) return false;
+					if (activeTopic !== ALL_TOPIC && card.primaryTopic !== activeTopic) return false;
+				}
+				if (activeStage !== ALL_STAGE && card.stage !== activeStage) return false;
+				if (activeStatus !== ALL_STATUS && card.status !== activeStatus) return false;
+				if (query && score <= 0) return false;
+				return true;
+			})
+			.sort((a, b) => {
+				if (sortMode === '引用热度') return b.card.refCount - a.card.refCount;
+				if (sortMode === '最近更新') return b.card.updatedAt.localeCompare(a.card.updatedAt);
+				if (sortMode === '标题 A-Z') return a.card.title.localeCompare(b.card.title, 'zh-CN');
+				if (query) {
+					if (b.score !== a.score) return b.score - a.score;
+					if (b.card.refCount !== a.card.refCount) return b.card.refCount - a.card.refCount;
+				}
+				return FLOW_ORDER.indexOf(a.card.flowCategory) - FLOW_ORDER.indexOf(b.card.flowCategory);
+			})
+			.map(({ card }) => card);
+	}, [activeFlow, activeSpace, activeAnchor, activeTopic, activeStage, activeStatus, fileQuery, fileViewMode, sortMode]);
+
+	const groupedCardsByView = useMemo(() => {
+		const groups = new Map<string, ProjectFileCard[]>();
+		const addToGroup = (key: string, card: ProjectFileCard) => {
+			if (!groups.has(key)) groups.set(key, []);
+			groups.get(key)?.push(card);
+		};
+
+		for (const card of filteredFileCards) {
+			if (fileViewMode === '综合视图') addToGroup(card.stage, card);
+			else if (fileViewMode === '空间视图') addToGroup(card.spaceScope, card);
+			else addToGroup(card.status, card);
+		}
+
+		const orderedKeys =
+			fileViewMode === '综合视图'
+				? ['S1 意图显影', 'S2 分析扩展', 'S3 审阅裁决', 'S4 定向收束', 'S5 缺口补全', 'S6 定版冻结']
+				: fileViewMode === '空间视图'
+					? [...SPACE_VIEW_ORDER]
+					: ['进行中', '待审', '已审', '已冻结', '待验证'];
+
+		const result: Array<{ label: string; cards: ProjectFileCard[] }> = [];
+		for (const key of orderedKeys) {
+			const cards = groups.get(key);
+			if (cards && cards.length > 0) result.push({ label: key, cards });
+		}
+		for (const [key, cards] of groups.entries()) {
+			if (!orderedKeys.includes(key) && cards.length > 0) result.push({ label: key, cards });
+		}
+		return result;
+	}, [fileViewMode, filteredFileCards]);
+
+	const matchesExpertQuery = useCallback(
+		(values: Array<string | string[] | undefined>) => {
+			const tokens = expertQuery.trim().toLowerCase().split(/\s+/).filter(Boolean);
+			if (tokens.length === 0) return true;
+			const haystack = values
+				.flatMap((value) => (Array.isArray(value) ? value : [value]))
+				.filter(Boolean)
+				.join(' ')
+				.toLowerCase();
+			return tokens.every((token) => haystack.includes(token));
+		},
+		[expertQuery]
+	);
+
+	const expertTeamSections = useMemo(
+		() =>
+			EXPERT_TEAM_SECTIONS.map((section) => ({
+				...section,
+				items: section.items.filter((item) => {
+					if (!expertShowReserve && item.status === '储备位') return false;
+					if (expertOnlyKeyItems && !item.featured) return false;
+					return matchesExpertQuery([item.title, item.summary, item.duty, item.trigger, item.source, item.status, item.tags]);
+				}),
+			})).filter((section) => section.items.length > 0),
+		[expertOnlyKeyItems, expertShowReserve, matchesExpertQuery]
+	);
+
+	const expertTaskSections = useMemo(
+		() =>
+			EXPERT_TASK_SECTIONS.map((section) => ({
+				...section,
+				items: section.items.filter((item) => {
+					if (expertOnlyKeyItems && !item.featured) return false;
+					return matchesExpertQuery([item.title, item.mission, item.status, item.team, item.outputs, item.checks]);
+				}),
+			})).filter((section) => section.items.length > 0),
+		[expertOnlyKeyItems, matchesExpertQuery]
+	);
+
+	const expertReportItems = useMemo(
+		() =>
+			EXPERT_REPORT_ITEMS.filter((item) => {
+				if (expertOnlyKeyItems && !item.featured) return false;
+				return matchesExpertQuery([item.title, item.summary, item.lead, item.partners, item.sourceTask, item.points]);
+			}),
+		[expertOnlyKeyItems, matchesExpertQuery]
+	);
+
+	const expertReviewItems = useMemo(
+		() =>
+			EXPERT_REVIEW_ITEMS.filter((item) => {
+				if (expertOnlyKeyItems && !item.featured) return false;
+				return matchesExpertQuery([item.title, item.summary, item.group, item.source, item.checks]);
+			}),
+		[expertOnlyKeyItems, matchesExpertQuery]
+	);
+
+	const expertSummary = useMemo(
+		() => ({
+			activeRoles: EXPERT_TEAM_SECTIONS.flatMap((section) => section.items).filter((item) => item.status === '当前激活').length,
+			reserveRoles: EXPERT_TEAM_SECTIONS.flatMap((section) => section.items).filter((item) => item.status === '储备位').length,
+			tasks: EXPERT_TASK_SECTIONS.flatMap((section) => section.items).length,
+			reports: EXPERT_REPORT_ITEMS.length,
+			review: EXPERT_REVIEW_ITEMS.length,
+		}),
+		[]
+	);
+
+	const expertRoleLookup = useMemo(
+		() =>
+			new Map(
+				EXPERT_TEAM_SECTIONS.flatMap((section) => section.items).map((item) => [item.id, item] as const)
+			),
+		[]
+	);
+	const expertTaskLookup = useMemo(
+		() =>
+			new Map(
+				EXPERT_TASK_SECTIONS.flatMap((section) => section.items).map((item) => [item.id, item] as const)
+			),
+		[]
+	);
+	const expertReportLookup = useMemo(() => new Map(EXPERT_REPORT_ITEMS.map((item) => [item.id, item] as const)), []);
+	const expertReviewLookup = useMemo(() => new Map(EXPERT_REVIEW_ITEMS.map((item) => [item.id, item] as const)), []);
+	const selectedExpertDetailData = useMemo(() => {
+		if (!selectedExpertDetail) return null;
+		if (selectedExpertDetail.kind === 'role') return expertRoleLookup.get(selectedExpertDetail.id) ?? null;
+		if (selectedExpertDetail.kind === 'task') return expertTaskLookup.get(selectedExpertDetail.id) ?? null;
+		if (selectedExpertDetail.kind === 'report') return expertReportLookup.get(selectedExpertDetail.id) ?? null;
+		return expertReviewLookup.get(selectedExpertDetail.id) ?? null;
+	}, [expertReportLookup, expertReviewLookup, expertRoleLookup, expertTaskLookup, selectedExpertDetail]);
+	const expertDetailViewModel = useMemo(() => {
+		if (!selectedExpertDetail || !selectedExpertDetailData) return null;
+
+		if (selectedExpertDetail.kind === 'role') {
+			const item = selectedExpertDetailData as ExpertTeamRoleItem;
+			return {
+				title: item.title,
+				eyebrow: '团队角色详情',
+				summary: item.summary,
+				primaryMeta: [
+					{ label: '当前状态', value: item.status },
+					{ label: '触发时机', value: item.trigger },
+					{ label: '来源', value: item.source },
+				],
+				sections: [
+					{ title: '核心职责', items: [item.duty] },
+					{ title: '标签', items: item.tags },
+				],
+				actionLabel: '插入当前项目',
+			};
+		}
+
+		if (selectedExpertDetail.kind === 'task') {
+			const item = selectedExpertDetailData as ExpertTaskItem;
+			return {
+				title: item.title,
+				eyebrow: `任务 ${item.order}`,
+				summary: item.mission,
+				primaryMeta: [
+					{ label: '执行状态', value: item.status },
+					{ label: '责任团队', value: item.team.join(' · ') },
+				],
+				sections: [
+					{ title: '输出物', items: item.outputs },
+					{ title: '校验标准', items: item.checks },
+				],
+				actionLabel: '插入当前项目',
+			};
+		}
+
+		if (selectedExpertDetail.kind === 'report') {
+			const item = selectedExpertDetailData as ExpertReportItem;
+			return {
+				title: item.title,
+				eyebrow: '专题策略确认',
+				summary: item.summary,
+				primaryMeta: [
+					{ label: '主提', value: item.lead },
+					{ label: '联提', value: item.partners.join(' · ') },
+					{ label: '来源任务', value: item.sourceTask },
+				],
+				sections: [{ title: '确认要点', items: item.points }],
+				actionLabel: '写入当前项目',
+			};
+		}
+
+		const item = selectedExpertDetailData as ExpertReviewItem;
+		return {
+			title: item.title,
+			eyebrow: item.group,
+			summary: item.summary,
+			primaryMeta: [
+				{ label: '分组', value: item.group },
+				{ label: '来源', value: item.source },
+			],
+			sections: [{ title: '冻结检查项', items: item.checks }],
+			actionLabel: '查看冻结项',
+		};
+	}, [selectedExpertDetail, selectedExpertDetailData]);
+
+	const activeExpertResultCount = useMemo(() => {
+		if (expertView === 'assembly') return expertTeamSections.reduce((sum, section) => sum + section.items.length, 0);
+		if (expertView === 'tasks') return expertTaskSections.reduce((sum, section) => sum + section.items.length, 0);
+		if (expertView === 'reports') return expertReportItems.length;
+		return expertReviewItems.length;
+	}, [expertReportItems.length, expertReviewItems.length, expertTaskSections, expertTeamSections, expertView]);
+
+	const currentWorkset = useMemo(() => {
+		const pinnedCards = pinnedTitles
+			.map((title) => PROJECT_FILE_CARDS.find((item) => item.title === title))
+			.filter(Boolean) as ProjectFileCard[];
+		const topReferenced = [...filteredFileCards].sort((a, b) => b.refCount - a.refCount).slice(0, 2);
+		const frozen = filteredFileCards.find((item) => item.status === '已冻结');
+		const activeStageCard = filteredFileCards.find((item) => activeStage !== ALL_STAGE && item.stage === activeStage);
+		const merged = [...pinnedCards, activeStageCard, frozen, ...topReferenced].filter(Boolean) as ProjectFileCard[];
+		return Array.from(new Map(merged.map((item) => [item.title, item])).values()).slice(0, 4);
+	}, [activeStage, filteredFileCards, pinnedTitles]);
+
+	const togglePin = (title: string) => {
+		setPinnedTitles((prev) => (prev.includes(title) ? prev.filter((item) => item !== title) : [...prev, title]));
+	};
+
+	const applyWorksetFilter = (title: string) => {
+		setFileQuery(title);
+	};
+
+	const usablePublicPictureNames = useMemo(() => {
+		const nonSvg = publicPictureNames.filter((name) => !name.toLowerCase().endsWith('.svg'));
+		return nonSvg.length > 0 ? nonSvg : publicPictureNames;
+	}, [publicPictureNames]);
+
+	const fallbackPublicPictureSrc = useMemo(() => {
+		const firstPublicPicture = usablePublicPictureNames[0];
+		return firstPublicPicture ? buildPublicPictureUrl(firstPublicPicture) : '';
+	}, [usablePublicPictureNames]);
+
+	const resourceItems = useMemo<ResourceCardItem[]>(
+		() =>
+			RESOURCE_ITEMS.map((item, index) => {
+				const pictureSeriesNames = getPublicPictureSeries(usablePublicPictureNames, index * 3, 5);
+				const imageSeries: ResourceSeriesImage[] = pictureSeriesNames.length
+					? pictureSeriesNames.map((name, pictureIndex) => ({
+						id: `${item.id}-series-${pictureIndex}`,
+						name,
+						src: buildPublicPictureUrl(name),
+						fallbackSrc: fallbackPublicPictureSrc || buildPublicPictureUrl(name),
+					}))
+					: [
+						{
+							id: `${item.id}-cover`,
+							name: item.title,
+							src: fallbackPublicPictureSrc,
+							fallbackSrc: fallbackPublicPictureSrc,
+						},
+					];
+
+				return {
+					...item,
+					coverImageSrc: imageSeries[0]?.src ?? fallbackPublicPictureSrc,
+					imageSeries,
+				};
+			}),
+		[usablePublicPictureNames, fallbackPublicPictureSrc]
+	);
+
+	const filteredAssets = useMemo(() => {
+		const query = assetQuery.trim().toLowerCase();
+		return resourceItems.filter((item) => {
+			if (assetCategory !== '全部分类' && item.category !== assetCategory) return false;
+			if (assetSpace !== '全部空间' && item.space !== assetSpace) return false;
+			if (assetBudget !== '全部预算' && item.budgetBand !== assetBudget) return false;
+			if (!query) return true;
+			const haystack = [item.title, item.desc, item.category, item.space, item.budgetBand, ...item.tags].join(' ').toLowerCase();
+			return haystack.includes(query);
+		});
+	}, [assetBudget, assetCategory, assetQuery, assetSpace, resourceItems]);
+
+	const selectedFileCard = useMemo(
+		() => PROJECT_FILE_CARDS.find((item) => item.title === selectedFileTitle) ?? null,
+		[selectedFileTitle]
+	);
+
+	useEffect(() => {
+		if (!filteredAssets.length) {
+			setSelectedAssetId('');
+			return;
+		}
+		if (!selectedAssetId || !filteredAssets.some((item) => item.id === selectedAssetId)) {
+			setSelectedAssetId(filteredAssets[0].id);
+		}
+	}, [filteredAssets, selectedAssetId]);
+
+	const selectedAsset = useMemo(() => resourceItems.find((item) => item.id === selectedAssetId) ?? null, [resourceItems, selectedAssetId]);
+
+	useEffect(() => {
+		if (!selectedAsset) {
+			setSelectedDetailImageId('');
+			return;
+		}
+
+		if (!selectedDetailImageId || !selectedAsset.imageSeries.some((image) => image.id === selectedDetailImageId)) {
+			setSelectedDetailImageId(selectedAsset.imageSeries[0]?.id ?? '');
+		}
+	}, [selectedAsset, selectedDetailImageId]);
+
+	const assetBasisTone = (risk: ResourceRisk) => {
+		if (risk === '高') return 'bg-rose-50 border-rose-100 text-rose-700';
+		if (risk === '中') return 'bg-amber-50 border-amber-100 text-amber-700';
+		return 'bg-emerald-50 border-emerald-100 text-emerald-700';
+	};
+
+	const handleResourceImageError = (event: React.SyntheticEvent<HTMLImageElement>) => {
+		const fallbackSrc = event.currentTarget.dataset.fallbackSrc;
+		if (!fallbackSrc || event.currentTarget.src.endsWith(fallbackSrc)) return;
+		event.currentTarget.src = fallbackSrc;
+	};
+
+	const assetHoverTone = () => 'bg-black/42';
+
+	const basketItems = useMemo(
+		() => assetBasketSelections,
+		[assetBasketSelections]
+	);
+
+	const basketSummary = useMemo(() => {
+		const highRiskCount = basketItems.filter((item) => item.risk === '高').length;
+		const avgLeadTime = basketItems.length
+			? Math.round(basketItems.reduce((sum, item) => sum + item.leadTimeDays, 0) / basketItems.length)
+			: 0;
+		return { highRiskCount, avgLeadTime };
+	}, [basketItems]);
+
+	const openFileDetail = useCallback((card: ProjectFileCard) => {
+		setSelectedFileTitle(card.title);
+		setFileDetailOpen(true);
+	}, []);
+
+	const closeFileDetail = useCallback(() => {
+		setFileDetailOpen(false);
+	}, []);
+
+	const openExpertDetail = useCallback((detail: ExpertDetailSelection) => {
+		setSelectedExpertDetail(detail);
+	}, []);
+
+	const closeExpertDetail = useCallback(() => {
+		setSelectedExpertDetail(null);
+	}, []);
+
+	const selectedDetailImage = useMemo(
+		() => selectedAsset?.imageSeries.find((image) => image.id === selectedDetailImageId) ?? selectedAsset?.imageSeries[0] ?? null,
+		[selectedAsset, selectedDetailImageId]
+	);
+
+	const selectedDetailImageIndex = useMemo(() => {
+		if (!selectedAsset || !selectedDetailImage) return -1;
+		return selectedAsset.imageSeries.findIndex((image) => image.id === selectedDetailImage.id);
+	}, [selectedAsset, selectedDetailImage]);
+
+	const toggleAssetBasketSelection = (resource: ResourceCardItem, image: ResourceSeriesImage) => {
+		setAssetBasketSelections((prev) => {
+			const exists = prev.some((item) => item.imageId === image.id);
+			if (exists) return prev.filter((item) => item.imageId !== image.id);
+
+			return [
+				...prev,
+				{
+					resourceId: resource.id,
+					resourceTitle: resource.title,
+					imageId: image.id,
+					imageName: image.name,
+					imageSrc: image.src,
+					risk: resource.risk,
+					leadTimeDays: resource.leadTimeDays,
+				},
+			];
+		});
+	};
+
+	const isImageInBasket = (imageId: string) => basketItems.some((item) => item.imageId === imageId);
+
+	const removeBasketSelection = (imageId: string) => {
+		setAssetBasketSelections((prev) => prev.filter((item) => item.imageId !== imageId));
+	};
+
+	const openBoardCollectionModal = (resource: ResourceCardItem, image: ResourceSeriesImage) => {
+		const existing = boardCollections.find((item) => item.imageId === image.id);
+		const isCustomSpace = existing ? !COLLECTION_SPACE_OPTIONS.includes(existing.space) : false;
+
+		setBoardCollectionDraft({
+			resourceId: resource.id,
+			imageId: image.id,
+			customTitle: existing?.customTitle ?? resource.title,
+			note: existing?.note ?? resource.desc,
+			tagsInput: existing?.tags.join(', ') ?? resource.tags.join(', '),
+			space: existing?.space ?? resource.space,
+			useCustomSpace: isCustomSpace,
+			newSpace: isCustomSpace ? existing?.space ?? '' : '',
+		});
+		setBoardCollectModalOpen(true);
+	};
+
+	const closeBoardCollectionModal = () => {
+		setBoardCollectModalOpen(false);
+		setBoardCollectionDraft(null);
+	};
+
+	const updateBoardCollectionDraft = (patch: Partial<BoardCollectionDraft>) => {
+		setBoardCollectionDraft((prev) => (prev ? { ...prev, ...patch } : prev));
+	};
+
+	const saveBoardCollection = () => {
+		if (!boardCollectionDraft) return;
+
+		const resource = resourceItems.find((item) => item.id === boardCollectionDraft.resourceId);
+		const image = resource?.imageSeries.find((item) => item.id === boardCollectionDraft.imageId);
+		if (!resource || !image) return;
+
+		const resolvedSpace = (boardCollectionDraft.useCustomSpace ? boardCollectionDraft.newSpace : boardCollectionDraft.space).trim() || resource.space;
+		const normalizedTags = Array.from(
+			new Set(
+				boardCollectionDraft.tagsInput
+					.split(/[，,\n]/)
+					.map((item) => item.trim())
+					.filter(Boolean)
+			)
+		);
+
+		setBoardCollections((prev) => {
+			const nextItem: BoardCollectionItem = {
+				id: `board-${image.id}`,
+				resourceId: resource.id,
+				resourceTitle: resource.title,
+				resourceCategory: resource.category,
+				imageId: image.id,
+				imageName: image.name,
+				imageSrc: image.src,
+				space: resolvedSpace,
+				sourceSpace: resource.space,
+				customTitle: boardCollectionDraft.customTitle.trim() || resource.title,
+				note: boardCollectionDraft.note.trim() || resource.desc,
+				tags: normalizedTags,
+				desc: resource.desc,
+				addedAt: new Date().toLocaleString('zh-CN', {
+					month: '2-digit',
+					day: '2-digit',
+					hour: '2-digit',
+					minute: '2-digit',
+				}),
+			};
+
+			const others = prev.filter((item) => item.imageId !== image.id);
+			return [nextItem, ...others];
+		});
+
+		closeBoardCollectionModal();
+	};
+
+	const isImageCollectedToBoard = (imageId: string) => boardCollections.some((item) => item.imageId === imageId);
+
+	const toggleBoardCollection = (resource: ResourceCardItem, image: ResourceSeriesImage) => {
+		if (isImageCollectedToBoard(image.id)) {
+			removeBoardCollection(image.id);
+			return;
+		}
+
+		openBoardCollectionModal(resource, image);
+	};
+
+	const removeBoardCollection = (imageId: string) => {
+		setBoardCollections((prev) => prev.filter((item) => item.imageId !== imageId));
+	};
+
+	const applyAssetTask = (task: ResourceTaskKey) => {
+		setAssetTask(task);
+		if (task === '替代优先') {
+			setAssetQuery('替代');
+			setAssetBudget('全部预算');
+			setAssetCategory('全部分类');
+			return;
+		}
+		if (task === '空间搭配') {
+			setAssetQuery('');
+			setAssetSpace('大堂');
+			setAssetBudget('均衡型');
+			return;
+		}
+		if (task === '预算压缩') {
+			setAssetQuery('');
+			setAssetBudget('经济型');
+			return;
+		}
+		if (task === '缺失补全') {
+			setAssetQuery('参考');
+			setAssetCategory('参考');
+		}
+	};
+
+	const openAssetDetail = useCallback((id: string) => {
+		setSelectedAssetId(id);
+		setAssetDetailOpen(true);
+	}, []);
+
+	const closeAssetDetail = useCallback(() => {
+		setAssetDetailOpen(false);
+	}, []);
+
+	const showPrevDetailImage = useCallback(() => {
+		if (!selectedAsset || selectedAsset.imageSeries.length <= 1) return;
+		const currentIndex = selectedDetailImageIndex >= 0 ? selectedDetailImageIndex : 0;
+		const prevIndex = (currentIndex - 1 + selectedAsset.imageSeries.length) % selectedAsset.imageSeries.length;
+		setSelectedDetailImageId(selectedAsset.imageSeries[prevIndex]?.id ?? '');
+	}, [selectedAsset, selectedDetailImageIndex]);
+
+	const showNextDetailImage = useCallback(() => {
+		if (!selectedAsset || selectedAsset.imageSeries.length <= 1) return;
+		const currentIndex = selectedDetailImageIndex >= 0 ? selectedDetailImageIndex : 0;
+		const nextIndex = (currentIndex + 1) % selectedAsset.imageSeries.length;
+		setSelectedDetailImageId(selectedAsset.imageSeries[nextIndex]?.id ?? '');
+	}, [selectedAsset, selectedDetailImageIndex]);
+
+	useEffect(() => {
+		if (!fileDetailOpen) return;
+
+		const handleKeyDown = (event: KeyboardEvent) => {
+			if (event.key === 'Escape') {
+				closeFileDetail();
+			}
+		};
+
+		window.addEventListener('keydown', handleKeyDown);
+		return () => window.removeEventListener('keydown', handleKeyDown);
+	}, [closeFileDetail, fileDetailOpen]);
+
+	useEffect(() => {
+		if (!selectedExpertDetail) return;
+
+		const handleKeyDown = (event: KeyboardEvent) => {
+			if (event.key === 'Escape') {
+				closeExpertDetail();
+			}
+		};
+
+		window.addEventListener('keydown', handleKeyDown);
+		return () => window.removeEventListener('keydown', handleKeyDown);
+	}, [closeExpertDetail, selectedExpertDetail]);
+
+	useEffect(() => {
+		if (!assetDetailOpen) return;
+
+		const handleKeyDown = (event: KeyboardEvent) => {
+			if (event.key === 'Escape') {
+				event.preventDefault();
+				closeAssetDetail();
+				return;
+			}
+
+			if (event.key === 'ArrowLeft') {
+				event.preventDefault();
+				showPrevDetailImage();
+				return;
+			}
+
+			if (event.key === 'ArrowRight') {
+				event.preventDefault();
+				showNextDetailImage();
+			}
+		};
+
+		window.addEventListener('keydown', handleKeyDown);
+		return () => window.removeEventListener('keydown', handleKeyDown);
+	}, [assetDetailOpen, closeAssetDetail, showNextDetailImage, showPrevDetailImage]);
+
+	const relatedAssets = useMemo(() => {
+		if (!selectedAsset) return [];
+
+		const score = (item: ResourceCardItem) => {
+			let points = 0;
+			if (item.category === selectedAsset.category) points += 4;
+			if (item.space === selectedAsset.space) points += 3;
+			if (selectedAsset.alternatives.includes(item.id)) points += 5;
+			if (item.budgetBand === selectedAsset.budgetBand) points += 2;
+			return points;
+		};
+
+		return resourceItems
+			.filter((item) => item.id !== selectedAsset.id)
+			.map((item) => ({ item, points: score(item) }))
+			.sort((a, b) => b.points - a.points)
+			.slice(0, 4)
+			.map(({ item }) => item);
+	}, [resourceItems, selectedAsset]);
+
+	const selectedBoardDraftResource = useMemo(
+		() => resourceItems.find((item) => item.id === boardCollectionDraft?.resourceId) ?? null,
+		[boardCollectionDraft?.resourceId, resourceItems]
+	);
+
+	const selectedBoardDraftImage = useMemo(
+		() => selectedBoardDraftResource?.imageSeries.find((item) => item.id === boardCollectionDraft?.imageId) ?? null,
+		[selectedBoardDraftResource, boardCollectionDraft?.imageId]
+	);
+
+	const customBoardSpaces = useMemo(
+		() =>
+			Array.from(
+				new Set(
+					boardCollections
+						.map((item) => item.space)
+						.filter((space) => space && !COLLECTION_SPACE_OPTIONS.includes(space))
+				)
+			),
+		[boardCollections]
+	);
+
+	const boardSpaceOptions = useMemo(
+		() => [ALL_SPACE, ...COLLECTION_SPACE_OPTIONS, ...customBoardSpaces],
+		[customBoardSpaces]
+	);
+
+	const filteredBoardCollections = useMemo(() => {
+		const query = boardQuery.trim().toLowerCase();
+		return boardCollections.filter((item) => {
+			if (boardSpace !== '全部空间' && item.space !== boardSpace) return false;
+			if (!query) return true;
+			const haystack = [item.resourceTitle, item.customTitle, item.imageName, item.resourceCategory, item.space, item.note, item.desc, ...item.tags]
+				.join(' ')
+				.toLowerCase();
+			return haystack.includes(query);
+		});
+	}, [boardCollections, boardQuery, boardSpace]);
+
+	const boardCollectionsBySpace = useMemo(() => {
+		const grouped = new Map<string, BoardCollectionItem[]>();
+		for (const item of filteredBoardCollections) {
+			if (!grouped.has(item.space)) grouped.set(item.space, []);
+			grouped.get(item.space)?.push(item);
+		}
+
+		return boardSpaceOptions
+			.filter((space) => space !== '全部空间')
+			.map((space) => ({ space, items: grouped.get(space) ?? [] }))
+			.filter((group) => group.items.length > 0);
+	}, [filteredBoardCollections, boardSpaceOptions]);
+
+	const stageOptions: string[] = [
+		ALL_STAGE,
+		'S1 意图显影',
+		'S2 分析扩展',
+		'S3 审阅裁决',
+		'S4 定向收束',
+		'S5 缺口补全',
+		'S6 定版冻结',
+	];
+
+	const statusOptions: string[] = [ALL_STATUS, '进行中', '待审', '已审', '已冻结', '待验证'];
+	const anchorOptions: string[] = [ALL_ANCHOR, 'AlignedBrief', 'SPG', 'InitialDesignPack', 'EvidenceOnly'];
+	const topicOptions: string[] = [ALL_TOPIC, '用户', '市场', '竞品', '空间', '动线', '预算', '品牌', '色彩', '材料', '灯光', '家具'];
+
+	const getCardDisplayTitle = (card: ProjectFileCard) => {
+		if (fileViewMode === '空间视图') return `${toDisplaySpaceName(card.spaceScope)}·${card.title}`;
+		if (fileViewMode === '综合视图') return `${card.stage} · ${card.title}`;
+		return card.title;
+	};
+
+	const renderFileCard = (card: ProjectFileCard) => (
+		<button
+			key={card.title}
+			onClick={() => openFileDetail(card)}
+			className="cockpit-card cockpit-card-interactive cockpit-card-accent-files group flex h-full flex-col p-6 text-left"
+		>
+			<div className="flex items-center justify-between gap-2 mb-2">
+				<div className="text-xs font-medium text-slate-400">{card.legacyCategory}</div>
+				<span className="cockpit-card-chip">
+					{card.stage}
+				</span>
+			</div>
+
+			<h3 className="cockpit-card-title mb-2 text-slate-900 group-hover:text-sky-600">{getCardDisplayTitle(card)}</h3>
+
+			<p
+				className="text-sm text-slate-600 leading-6 flex-1 mb-4"
+				style={{
+					display: '-webkit-box',
+					WebkitLineClamp: 4,
+					WebkitBoxOrient: 'vertical',
+					overflow: 'hidden',
+				}}
+			>
+				{card.desc}
+			</p>
+
+			<div className="flex flex-wrap items-center gap-1 mb-3">
+				{card.domainTags.slice(0, 3).map((tag) => (
+					<span key={tag} className="cockpit-card-chip cockpit-card-chip-accent">
+						{tag}
+					</span>
+				))}
+			</div>
+
+			<div className="flex flex-wrap items-center gap-1 mb-3">
+				<span className="cockpit-card-chip">
+					锚点 {card.objectAnchor}
+				</span>
+				<span className="cockpit-card-chip">
+					空间 {card.spaceScope}
+				</span>
+			</div>
+
+			<div className="flex items-center justify-between pt-4 border-t border-slate-100">
+				<div className="flex items-center gap-2">
+					<span className="cockpit-card-chip cockpit-card-chip-accent">{card.badge}</span>
+					<span className="cockpit-card-chip">{card.status}</span>
+				</div>
+				<div className="text-[10px] text-slate-400 text-right">
+					<div>引用 {card.refCount}</div>
+					<div>{card.updatedAt}</div>
+				</div>
+			</div>
+		</button>
+	);
+
+	const renderExpertTeamCard = (item: ExpertTeamRoleItem) => {
+		return (
+			<div
+				key={item.id}
+				className="flex w-[8.5rem] flex-col items-center text-left"
+			>
+				<div className="flex flex-col items-center gap-3 text-center">
+					<button
+						onClick={() => openExpertDetail({ kind: 'role', id: item.id })}
+						className="relative inline-flex h-[7.5rem] w-[7.5rem] shrink-0 items-center justify-center overflow-hidden rounded-full transition-transform hover:scale-[1.03]"
+						aria-label={`查看 ${item.title} 详情`}
+					>
+						<img
+							src={buildAdvisorAvatarUrl(item.avatarName)}
+							alt={item.title}
+							className="block h-full w-full rounded-full border border-white/70 object-cover object-center shadow-sm"
+						/>
+						<span
+							className={`absolute bottom-1 right-1 h-3.5 w-3.5 rounded-full border-2 border-white ${
+								item.status === '当前激活' ? 'bg-emerald-400' : 'bg-slate-300'
+							}`}
+						/>
+					</button>
+					<div className="min-w-0 max-w-[7.5rem]">
+						<div className="text-xs font-medium leading-5 text-white break-words text-center whitespace-normal">
+							{item.shortName}
+						</div>
+					</div>
+				</div>
+			</div>
+		);
+	};
+
+	const renderExpertTaskCard = (item: ExpertTaskItem) => {
+		return (
+			<div
+				key={item.id}
+				className="cockpit-card cockpit-card-interactive cockpit-card-accent-experts border-white/10 bg-[#171717] text-left"
+				onClick={() => openExpertDetail({ kind: 'task', id: item.id })}
+				role="button"
+				tabIndex={0}
+				onKeyDown={(event) => {
+					if (event.key === 'Enter' || event.key === ' ') {
+						event.preventDefault();
+						openExpertDetail({ kind: 'task', id: item.id });
+					}
+				}}
+			>
+				<div className="flex flex-col gap-4 p-4">
+					<div className="flex items-start justify-between gap-3">
+						<div className="min-w-0 flex-1">
+							<div className="flex flex-wrap items-center gap-2">
+								<span className="rounded-full border border-white/12 px-2.5 py-1 text-[10px] font-medium text-white/70">任务 {item.order}</span>
+								<span className={`cockpit-card-chip ${item.status === '执行中' ? 'cockpit-card-chip-accent' : ''}`}>
+									{item.status}
+								</span>
+							</div>
+							<h4 className="mt-3 text-sm font-semibold text-white">{item.title}</h4>
+							<p className="mt-1 line-clamp-2 text-sm leading-6 text-white/70">{item.mission}</p>
+						</div>
+						<div className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 text-white/55">
+							<ChevronRight className="h-4 w-4" />
+						</div>
+					</div>
+
+					<div className="flex items-center justify-between gap-3 border-t border-white/10 pt-3">
+						<div className="text-xs text-white/55">{item.team.join(' · ')}</div>
+						<button onClick={(e) => { e.stopPropagation(); onCardClick?.(item.title); }} className="cockpit-card-action">
+							插入当前项目
+						</button>
+					</div>
+				</div>
+			</div>
+		);
+	};
+
+	const renderExpertReportCard = (item: ExpertReportItem) => {
+		return (
+			<div
+				key={item.id}
+				className="cockpit-card cockpit-card-interactive cockpit-card-accent-experts border-white/10 bg-[#171717] text-left"
+				onClick={() => openExpertDetail({ kind: 'report', id: item.id })}
+				role="button"
+				tabIndex={0}
+				onKeyDown={(event) => {
+					if (event.key === 'Enter' || event.key === ' ') {
+						event.preventDefault();
+						openExpertDetail({ kind: 'report', id: item.id });
+					}
+				}}
+			>
+				<div className="flex flex-col gap-4 p-4">
+					<div className="flex items-start justify-between gap-3">
+						<div className="min-w-0 flex-1">
+							<div className="flex flex-wrap items-center gap-2">
+								<span className="rounded-full border border-white/12 px-2.5 py-1 text-[10px] font-medium text-white/70">专题确认</span>
+								<span className="cockpit-card-chip cockpit-card-chip-accent">{item.lead}</span>
+							</div>
+							<h4 className="mt-3 text-sm font-semibold text-white">{item.title}</h4>
+							<p className="mt-1 line-clamp-2 text-sm leading-6 text-white/70">{item.summary}</p>
+						</div>
+						<div className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 text-white/55">
+							<ChevronRight className="h-4 w-4" />
+						</div>
+					</div>
+
+					<div className="flex items-center justify-between gap-3 border-t border-white/10 pt-3">
+						<div className="text-xs text-white/55">{item.sourceTask}</div>
+						<button onClick={(e) => { e.stopPropagation(); onCardClick?.(item.title); }} className="cockpit-card-action">
+							写入当前项目
+						</button>
+					</div>
+				</div>
+			</div>
+		);
+	};
+
+	const renderExpertReviewCard = (item: ExpertReviewItem) => {
+		return (
+			<div
+				key={item.id}
+				className="cockpit-card cockpit-card-interactive cockpit-card-accent-experts border-white/10 bg-[#171717] text-left"
+				onClick={() => openExpertDetail({ kind: 'review', id: item.id })}
+				role="button"
+				tabIndex={0}
+				onKeyDown={(event) => {
+					if (event.key === 'Enter' || event.key === ' ') {
+						event.preventDefault();
+						openExpertDetail({ kind: 'review', id: item.id });
+					}
+				}}
+			>
+				<div className="flex flex-col gap-4 p-4">
+					<div className="flex items-start justify-between gap-3">
+						<div className="min-w-0 flex-1">
+							<div className="flex flex-wrap items-center gap-2">
+								<span className="rounded-full border border-white/12 px-2.5 py-1 text-[10px] font-medium text-white/70">{item.group}</span>
+								<span className="cockpit-card-chip cockpit-card-chip-accent">冻结前必查</span>
+							</div>
+							<h4 className="mt-3 text-sm font-semibold text-white">{item.title}</h4>
+							<p className="mt-1 line-clamp-2 text-sm leading-6 text-white/70">{item.summary}</p>
+						</div>
+						<div className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 text-white/55">
+							<ChevronRight className="h-4 w-4" />
+						</div>
+					</div>
+
+					<div className="flex items-center justify-between gap-3 border-t border-white/10 pt-3">
+						<div className="text-xs text-white/55">{item.source}</div>
+						<button onClick={(e) => { e.stopPropagation(); onCardClick?.(item.title); }} className="cockpit-card-action">
+							查看冻结项
+						</button>
+					</div>
+				</div>
+			</div>
+		);
+	};
+
+	const renderContent = () => {
+		switch (moduleKey) {
+			case 'insight':
+				return (
+					<div className="w-full h-full flex flex-col gap-2">
+						<KnowledgeGraphCanvas
+							className="flex-1"
+							onNodeClick={(id, label) => {
+								console.log('📊 点击知识图谱节点:', label);
+								onNodeClick?.(id, label);
+							}}
+						/>
+					</div>
+				);
+
+			case 'files':
+				return (
+					<div className="w-full h-full flex flex-col overflow-hidden bg-gray-100">
+						<div className="border-b border-slate-200 bg-white/90 backdrop-blur pl-20 pr-6 py-4">
+							<div className="flex flex-col gap-3">
+								<div
+									className="flex items-center justify-between gap-3"
+									onMouseEnter={() => setFileHeaderHovered(true)}
+									onMouseLeave={() => setFileHeaderHovered(false)}
+								>
+									<div className="flex items-center gap-2">
+										<h3 className="text-base font-semibold text-slate-800">项目文件 · 决策驾驶舱</h3>
+										<button
+											onClick={() => setFileHeaderCollapsed((prev) => !prev)}
+											className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 transition hover:border-slate-300 hover:text-slate-800"
+											aria-label={fileHeaderCollapsed ? '持续展开头部功能' : '收起头部功能'}
+											title={fileHeaderCollapsed ? '持续展开头部功能' : '收起头部功能'}
+										>
+											<ChevronDown className={`h-4 w-4 transition-transform ${fileHeaderExpanded ? 'rotate-180' : ''}`} />
+										</button>
+									</div>
+									<input
+										value={fileQuery}
+										onChange={(e) => setFileQuery(e.target.value)}
+										placeholder="搜索文件（例：预算、动线、品牌语义、已冻结）"
+										className="cockpit-search-input max-w-[360px]"
+									/>
+								</div>
+
+								<div
+									className={`grid overflow-hidden transition-[grid-template-rows,opacity,transform] duration-200 ease-out ${
+										fileHeaderExpanded ? 'grid-rows-[1fr] opacity-100 translate-y-0' : 'pointer-events-none grid-rows-[0fr] -translate-y-1 opacity-0'
+									}`}
+								>
+									<div className="space-y-3 overflow-hidden pt-2">
+								<div className="flex flex-wrap items-center gap-2">
+									{VIEW_MODES.map((mode) => (
+										<button
+											key={mode}
+											onClick={() => setFileViewMode(mode)}
+											className={`cockpit-filter-pill ${
+												fileViewMode === mode
+													? 'cockpit-filter-pill-active'
+													: ''
+											}`}
+										>
+											{mode}
+										</button>
+									))}
+								</div>
+
+								{fileViewMode === '综合视图' && (
+									<div className="flex flex-wrap items-center gap-2">
+										{[ALL_FLOW, ...FLOW_ORDER].map((flow) => (
+											<button
+												key={flow}
+												onClick={() => setActiveFlow(flow)}
+											className={`cockpit-filter-pill cockpit-card-accent-files ${
+												activeFlow === flow
+													? 'cockpit-filter-pill-accent'
+													: ''
+											}`}
+											>
+												{flow}
+											</button>
+										))}
+									</div>
+								)}
+
+								{fileViewMode === '空间视图' && (
+									<div className="flex flex-wrap items-center gap-2">
+										{[ALL_SPACE, ...SPACE_VIEW_ORDER].map((space) => (
+											<button
+												key={space}
+												onClick={() => setActiveSpace(space)}
+											className={`cockpit-filter-pill cockpit-card-accent-files ${
+												activeSpace === space
+													? 'cockpit-filter-pill-accent'
+													: ''
+											}`}
+											>
+												{space}
+											</button>
+										))}
+									</div>
+								)}
+
+								<div className="flex flex-wrap items-center gap-2">
+									{fileViewMode !== '空间视图' && (
+										<select
+											value={activeAnchor}
+											onChange={(e) => setActiveAnchor(e.target.value)}
+											aria-label="对象锚点筛选"
+											className="h-8 rounded-md border border-slate-200 px-2 text-xs text-slate-700 bg-white outline-none focus:border-sky-400"
+										>
+											{anchorOptions.map((anchor) => (
+												<option key={anchor} value={anchor} className="text-slate-700 bg-white">
+													对象锚点：{anchor}
+												</option>
+											))}
+										</select>
+									)}
+									{fileViewMode !== '空间视图' && (
+										<select
+											value={activeTopic}
+											onChange={(e) => setActiveTopic(e.target.value)}
+											aria-label="专题筛选"
+											className="h-8 rounded-md border border-slate-200 px-2 text-xs text-slate-700 bg-white outline-none focus:border-sky-400"
+										>
+											{topicOptions.map((topic) => (
+												<option key={topic} value={topic} className="text-slate-700 bg-white">
+													专题：{topic}
+												</option>
+											))}
+										</select>
+									)}
+									{fileViewMode !== '空间视图' && (
+										<select
+											value={activeStage}
+											onChange={(e) => setActiveStage(e.target.value)}
+											aria-label="流程阶段筛选"
+											className="h-8 rounded-md border border-slate-200 px-2 text-xs text-slate-700 bg-white outline-none focus:border-sky-400"
+										>
+											{stageOptions.map((stage) => (
+												<option key={stage} value={stage} className="text-slate-700 bg-white">
+													流程阶段：{stage}
+												</option>
+											))}
+										</select>
+									)}
+									<select
+										value={activeStatus}
+										onChange={(e) => setActiveStatus(e.target.value)}
+										aria-label="审核状态筛选"
+										className="cockpit-select"
+									>
+										{statusOptions.map((status) => (
+											<option key={status} value={status} className="text-slate-700 bg-white">
+												审核状态：{status}
+											</option>
+										))}
+									</select>
+									<select
+										value={sortMode}
+										onChange={(e) => setSortMode(e.target.value as SortMode)}
+										aria-label="排序方式筛选"
+										className="cockpit-select"
+									>
+										{(['相关性优先', '引用热度', '最近更新', '标题 A-Z'] as SortMode[]).map((mode) => (
+											<option key={mode} value={mode} className="text-slate-700 bg-white">
+												排序：{mode}
+											</option>
+										))}
+									</select>
+								</div>
+
+								{currentWorkset.length > 0 && (
+									<div className="flex items-center gap-2 overflow-x-auto whitespace-nowrap pt-2">
+										<span className="text-xs text-slate-500">工作集筛选：</span>
+										<button
+											onClick={() => setFileQuery('')}
+											className={`cockpit-filter-pill ${
+												fileQuery.trim() === '' ? 'cockpit-filter-pill-active' : ''
+											}`}
+										>
+											全部
+										</button>
+										{currentWorkset.map((item) => (
+											<div key={`workset-filter-${item.title}`} className="inline-flex items-center overflow-hidden rounded-full border border-slate-200">
+												<button
+													onClick={() => applyWorksetFilter(item.title)}
+													className={`inline-flex items-center gap-1 px-2.5 py-1 text-xs ${
+														fileQuery.trim() === item.title ? 'bg-slate-900 text-white' : 'bg-slate-50 text-slate-700 hover:bg-slate-100'
+													}`}
+												>
+													{item.title}
+													<span className={`text-[10px] ${fileQuery.trim() === item.title ? 'text-sky-100' : 'text-sky-500'}`}>
+														{item.status}
+													</span>
+												</button>
+												<button
+													onClick={() => togglePin(item.title)}
+													className={`px-2 text-[10px] ${pinnedTitles.includes(item.title) ? 'bg-slate-200 text-slate-700' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}
+													title={pinnedTitles.includes(item.title) ? '取消固定' : '固定到工作集'}
+												>
+													{pinnedTitles.includes(item.title) ? '已固定' : '固定'}
+												</button>
+											</div>
+										))}
+									</div>
+								)}
+									</div>
+								</div>
+							</div>
+						</div>
+
+						<div className="flex-1 min-h-0 overflow-y-auto pl-20 pr-6 py-6">
+							{filteredFileCards.length === 0 ? (
+								<div className="cockpit-empty">
+									未找到匹配结果，试试关键词“预算 / 动线 / 品牌 / 已冻结”
+								</div>
+							) : (
+								<div className="space-y-8 pb-6">
+									{groupedCardsByView.map((group) => {
+										const cards = group.cards;
+										if (!cards.length) return null;
+
+										return (
+											<section key={group.label} className="space-y-3">
+												<div className="flex items-center justify-between">
+													<h4 className="text-sm font-semibold text-slate-700">{fileViewMode === '空间视图' ? toDisplaySpaceName(group.label) : group.label}</h4>
+													<span className="text-xs text-slate-400">{cards.length} 条</span>
+												</div>
+												<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+													{cards.map((card) => renderFileCard(card))}
+												</div>
+											</section>
+										);
+									})}
+								</div>
+							)}
+						</div>
+
+						{isClient && fileDetailOpen && selectedFileCard && createPortal(
+							<div
+								className="fixed left-0 top-0 z-[2147483646] flex h-screen w-screen items-center justify-center p-6"
+								style={{ backgroundColor: 'rgba(2, 4, 9, 0.92)' }}
+								onClick={closeFileDetail}
+							>
+								<div
+									onClick={(e) => e.stopPropagation()}
+									className="relative w-full max-w-6xl overflow-hidden rounded-3xl border border-slate-800 bg-[#05070a] text-white shadow-2xl"
+								>
+									<button
+										onClick={closeFileDetail}
+										className="absolute right-4 top-4 z-20 inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20"
+										aria-label="关闭详情"
+									>
+										<X className="h-5 w-5" />
+									</button>
+
+									<div className="grid h-full grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px]">
+										<div className="min-h-[520px] bg-black p-8 xl:p-10">
+											<div className="flex flex-wrap items-center gap-2 text-xs text-white/70">
+												<span className="cockpit-card-chip cockpit-card-chip-accent">{selectedFileCard.stage}</span>
+												<span className="cockpit-card-chip">{selectedFileCard.legacyCategory}</span>
+												<span className="cockpit-card-chip">{selectedFileCard.status}</span>
+											</div>
+											<h4 className="cockpit-card-title mt-5 text-white">{getCardDisplayTitle(selectedFileCard)}</h4>
+											<p className="mt-5 text-base leading-8 text-white/72">{selectedFileCard.desc}</p>
+
+											<div className="mt-8 grid gap-4 md:grid-cols-2">
+												<div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+													<div className="text-xs text-white/45">对象锚点</div>
+													<div className="mt-2 text-base font-semibold text-white">{selectedFileCard.objectAnchor}</div>
+												</div>
+												<div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+													<div className="text-xs text-white/45">空间范围</div>
+													<div className="mt-2 text-base font-semibold text-white">{selectedFileCard.spaceScope}</div>
+												</div>
+												<div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+													<div className="text-xs text-white/45">主专题</div>
+													<div className="mt-2 text-base font-semibold text-white">{selectedFileCard.primaryTopic}</div>
+												</div>
+												<div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+													<div className="text-xs text-white/45">流程分类</div>
+													<div className="mt-2 text-base font-semibold text-white">{selectedFileCard.flowCategory}</div>
+												</div>
+											</div>
+
+											<div className="mt-8">
+												<div className="text-xs text-white/45">标签</div>
+												<div className="mt-3 flex flex-wrap gap-2">
+													{selectedFileCard.domainTags.map((tag) => (
+														<span key={`${selectedFileCard.title}-${tag}`} className="cockpit-card-chip cockpit-card-chip-accent">
+															{tag}
+														</span>
+													))}
+												</div>
+											</div>
+										</div>
+
+										<div className="flex h-full flex-col overflow-hidden border-l border-slate-800 bg-[#0b0f14] p-8">
+											<div className="text-xs text-white/45">浮窗详情 · ESC 可退出</div>
+											<div className="mt-6 space-y-5">
+												<div>
+													<div className="text-xs text-white/45">文件状态</div>
+													<div className="mt-2 text-lg font-semibold text-white">{selectedFileCard.badge}</div>
+												</div>
+												<div>
+													<div className="text-xs text-white/45">引用热度</div>
+													<div className="mt-2 text-lg font-semibold text-white">{selectedFileCard.refCount}</div>
+												</div>
+												<div>
+													<div className="text-xs text-white/45">最近更新</div>
+													<div className="mt-2 text-base font-semibold text-white">{selectedFileCard.updatedAt}</div>
+												</div>
+											</div>
+
+											<div className="mt-8 flex flex-wrap gap-2">
+												<button
+													onClick={() => onCardClick?.(selectedFileCard.title)}
+													className="cockpit-card-action-solid"
+												>
+													引用到右侧
+												</button>
+												<button
+													onClick={closeFileDetail}
+													className="cockpit-card-action"
+												>
+													关闭详情
+												</button>
+											</div>
+										</div>
+									</div>
+								</div>
+							</div>,
+							document.body
+						)}
+					</div>
+				);
+
+			case 'assets':
+				return (
+					<div className="w-full h-full flex flex-col overflow-hidden bg-slate-50">
+						<div className="border-b border-slate-200 bg-white/90 backdrop-blur pl-20 pr-6 py-4">
+							<div className="flex flex-col gap-3">
+								<div
+									className="flex items-center justify-between gap-3"
+									onMouseEnter={() => setAssetHeaderHovered(true)}
+									onMouseLeave={() => setAssetHeaderHovered(false)}
+								>
+									<div className="flex items-center gap-2">
+										<h3 className="text-base font-semibold text-slate-800">资源助手 · 决策编排台</h3>
+										<button
+											onClick={() => setAssetHeaderCollapsed((prev) => !prev)}
+											className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 transition hover:border-slate-300 hover:text-slate-800"
+											aria-label={assetHeaderCollapsed ? '持续展开头部功能' : '收起头部功能'}
+											title={assetHeaderCollapsed ? '持续展开头部功能' : '收起头部功能'}
+										>
+											<ChevronDown className={`h-4 w-4 transition-transform ${assetHeaderExpanded ? 'rotate-180' : ''}`} />
+										</button>
+									</div>
+									<input
+										value={assetQuery}
+										onChange={(e) => setAssetQuery(e.target.value)}
+										placeholder="搜索资源（例：替代、客房、防潮、到店体验）"
+										className="cockpit-search-input max-w-[380px]"
+									/>
+								</div>
+
+								<div
+									className={`grid overflow-hidden transition-[grid-template-rows,opacity,transform] duration-200 ease-out ${
+										assetHeaderExpanded ? 'grid-rows-[1fr] opacity-100 translate-y-0' : 'pointer-events-none grid-rows-[0fr] -translate-y-1 opacity-0'
+									}`}
+								>
+									<div className="space-y-3 overflow-hidden pt-2">
+								<div className="flex flex-wrap items-center gap-2">
+									{(['替代优先', '空间搭配', '预算压缩', '缺失补全'] as ResourceTaskKey[]).map((task) => (
+										<button
+											key={task}
+											onClick={() => applyAssetTask(task)}
+											className={`cockpit-filter-pill ${
+												assetTask === task ? 'cockpit-filter-pill-active' : ''
+											}`}
+										>
+											{task}
+										</button>
+									))}
+								</div>
+
+								<div className="flex flex-wrap items-center gap-2">
+									<select
+										value={assetCategory}
+										onChange={(e) => setAssetCategory(e.target.value)}
+										aria-label="资源分类筛选"
+										className="cockpit-select"
+									>
+										{ASSET_CATEGORY_OPTIONS.map((category) => (
+											<option key={category} value={category}>
+												分类：{category}
+											</option>
+										))}
+									</select>
+									<select
+										value={assetSpace}
+										onChange={(e) => setAssetSpace(e.target.value)}
+										aria-label="适用空间筛选"
+										className="cockpit-select"
+									>
+										{ASSET_SPACE_OPTIONS.map((space) => (
+											<option key={space} value={space}>
+												空间：{space}
+											</option>
+										))}
+									</select>
+									<select
+										value={assetBudget}
+										onChange={(e) => setAssetBudget(e.target.value)}
+										aria-label="预算带筛选"
+										className="cockpit-select"
+									>
+										{ASSET_BUDGET_OPTIONS.map((budget) => (
+											<option key={budget} value={budget}>
+												预算：{budget}
+											</option>
+										))}
+									</select>
+								</div>
+									</div>
+								</div>
+							</div>
+						</div>
+
+						<div className="flex-1 min-h-0 overflow-y-auto pl-20 pr-6 py-6">
+							<div className="space-y-4">
+								<div className="flex items-center justify-between">
+									<h4 className="text-sm font-semibold text-slate-700">推荐资源</h4>
+									<span className="text-xs text-slate-400">{filteredAssets.length} 条</span>
+								</div>
+
+								{filteredAssets.length === 0 ? (
+								<div className="cockpit-empty p-6">
+										暂无匹配资源，试试放宽预算或切换任务入口。
+									</div>
+								) : (
+									<div className="columns-1 md:columns-2 xl:columns-3 gap-5 [column-fill:_balance]">
+										{filteredAssets.map((item, index) => {
+											const selected = item.id === selectedAssetId;
+											const imageHeight = ASSET_MASONRY_HEIGHTS[index % ASSET_MASONRY_HEIGHTS.length];
+											return (
+												<button
+													key={item.id}
+													onClick={() => openAssetDetail(item.id)}
+													className={`cockpit-card cockpit-card-interactive cockpit-card-accent-assets group relative mb-5 block w-full break-inside-avoid overflow-hidden text-left ${
+														selected ? 'cockpit-card-selected' : ''
+													}`}
+													data-expanded={selected ? 'true' : 'false'}
+													style={{ height: `${imageHeight}px` }}
+												>
+														<img
+															src={item.coverImageSrc}
+															alt={item.title}
+															className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+															loading="lazy"
+															data-fallback-src={item.fallbackImageSrc}
+															onError={handleResourceImageError}
+														/>
+														<div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
+														<div className={`absolute inset-0 ${assetHoverTone()} opacity-0 transition-opacity duration-300 group-hover:opacity-100`} />
+														<div className="absolute inset-x-0 top-0 h-28 bg-gradient-to-b from-black/75 via-black/35 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+														<div className="absolute inset-x-0 bottom-0 p-4 text-white">
+															<div className="cockpit-card-title line-clamp-2 text-white drop-shadow-sm">{item.title}</div>
+															<div className="mt-2 flex flex-wrap gap-1.5">
+																<span className="rounded-full bg-white/20 px-2 py-1 text-[10px] text-white/90 backdrop-blur-sm">{item.category}</span>
+																<span className="rounded-full bg-white/20 px-2 py-1 text-[10px] text-white/90 backdrop-blur-sm">{item.space}</span>
+															</div>
+														</div>
+														<div className="absolute inset-x-0 top-0 p-4 opacity-0 transition-opacity duration-300 group-hover:opacity-100 pointer-events-none">
+															<div className="w-full text-white">
+																<div className="text-[11px] font-medium text-white/85">系列 {item.imageSeries.length} 张</div>
+																<div className="cockpit-card-title mt-2 line-clamp-3 max-w-[85%] text-white">{item.desc}</div>
+																<div className="mt-3 flex flex-wrap gap-1.5">
+																	<span className="rounded-full bg-white/20 px-2 py-1 text-[10px] backdrop-blur-sm">预算 {item.budgetBand}</span>
+																	<span className="rounded-full bg-white/20 px-2 py-1 text-[10px] backdrop-blur-sm">交期 {item.leadTimeDays} 天</span>
+																	<span className="rounded-full bg-white/20 px-2 py-1 text-[10px] backdrop-blur-sm">风险 {item.risk}</span>
+																</div>
+															</div>
+														</div>
+												</button>
+											);
+										})}
+									</div>
+								)}
+
+								<div className="cockpit-card cockpit-card-accent-assets p-4">
+										<div className="flex items-center justify-between mb-2">
+											<h4 className="text-sm font-semibold text-slate-700">方案篮</h4>
+											<span className="text-xs text-slate-400">{basketItems.length} 项</span>
+										</div>
+										<div className="grid grid-cols-2 gap-2 text-xs mb-3">
+											<div className="rounded-md bg-slate-50 px-2 py-1.5 text-slate-600">平均交期：{basketSummary.avgLeadTime} 天</div>
+											<div className="rounded-md bg-slate-50 px-2 py-1.5 text-slate-600">高风险项：{basketSummary.highRiskCount}</div>
+										</div>
+										{basketItems.length === 0 ? (
+													<div className="text-xs text-slate-400">请先打开浮窗，再把喜欢的图片加入方案篮。</div>
+										) : (
+											<div className="space-y-1.5">
+												{basketItems.map((item) => (
+															<div key={`basket-${item.imageId}`} className="flex items-center justify-between gap-2 rounded-xl border border-slate-200 bg-slate-50/80 px-2.5 py-2">
+																<div className="min-w-0">
+																	<div className="text-xs text-slate-700 truncate">{item.resourceTitle}</div>
+																	<div className="text-[10px] text-slate-400 truncate">{item.imageName}</div>
+																</div>
+														<button
+																	onClick={() => removeBasketSelection(item.imageId)}
+															className="cockpit-card-action"
+														>
+															移除
+														</button>
+													</div>
+												))}
+											</div>
+										)}
+								</div>
+
+								{isClient && assetDetailOpen && selectedAsset && createPortal(
+									<div
+										className="fixed left-0 top-0 z-[2147483647] flex h-screen w-screen items-center justify-center p-6"
+										style={{ backgroundColor: 'rgba(2, 4, 9, 0.92)' }}
+										onClick={closeAssetDetail}
+									>
+										<div
+											onClick={(e) => e.stopPropagation()}
+											className="relative h-[88vh] w-full max-w-6xl overflow-hidden rounded-3xl border border-slate-800 bg-[#05070a] text-white shadow-2xl"
+										>
+											<button
+												onClick={closeAssetDetail}
+												className="absolute right-4 top-4 z-20 inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20"
+												aria-label="关闭详情"
+											>
+												<X className="h-5 w-5" />
+											</button>
+
+											<div className="grid h-full grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px]">
+												<div className="relative min-h-[520px] overflow-y-auto bg-black">
+													<img
+														src={selectedDetailImage?.src ?? selectedAsset.coverImageSrc}
+														alt={selectedAsset.title}
+														className="min-h-full w-full bg-black object-contain"
+														data-fallback-src={selectedDetailImage?.fallbackSrc ?? selectedAsset.fallbackImageSrc}
+														onError={handleResourceImageError}
+													/>
+
+													{selectedAsset.imageSeries.length > 1 && (
+														<>
+															<button
+																onClick={showPrevDetailImage}
+																className="absolute left-4 top-1/2 inline-flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-black/35 text-white hover:bg-black/55"
+																aria-label="上一张图片"
+															>
+																<ChevronLeft className="h-6 w-6" />
+															</button>
+															<button
+																onClick={showNextDetailImage}
+																className="absolute right-4 top-1/2 inline-flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-black/35 text-white hover:bg-black/55"
+																aria-label="下一张图片"
+															>
+																<ChevronRight className="h-6 w-6" />
+															</button>
+														</>
+													)}
+
+													<div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 bg-gradient-to-t from-black/88 via-black/48 to-transparent p-5">
+														<div className="text-xs text-white/70">
+															{selectedAsset.category} · {selectedAsset.space} · {selectedDetailImageIndex + 1}/{selectedAsset.imageSeries.length}
+														</div>
+														<div className="mt-2 text-lg font-semibold">{selectedAsset.title}</div>
+														<div className="mt-1 line-clamp-2 text-sm text-white/80">{selectedDetailImage?.name ?? selectedAsset.desc}</div>
+													</div>
+												</div>
+
+												<div className="flex h-full flex-col overflow-hidden border-l border-slate-800 bg-[#0b0f14]">
+													<div className="border-b border-slate-800 p-5">
+														<div className="flex items-center justify-between gap-3">
+															<div>
+																<div className="text-xs text-white/45">浮窗详情 · ESC 可退出</div>
+																<h4 className="mt-1 text-lg font-semibold text-white">{selectedAsset.title}</h4>
+															</div>
+															{selectedDetailImage && (
+																<div className="flex flex-wrap items-center justify-end gap-2">
+																	<button
+																		onClick={() => onCardClick?.(`${selectedAsset.title} · ${selectedDetailImage.name}`)}
+																		className="rounded-full border border-white/15 bg-white/8 px-3 py-1.5 text-xs text-white hover:bg-white/15"
+																	>
+																		引用到右侧
+																	</button>
+																	<button
+																		onClick={() => openBoardCollectionModal(selectedAsset, selectedDetailImage)}
+																		className={`rounded-full px-3 py-1.5 text-xs ${
+																			isImageCollectedToBoard(selectedDetailImage.id)
+																				? 'border border-sky-400/30 bg-sky-500/20 text-sky-200'
+																				: 'border border-sky-200/20 bg-sky-400/10 text-sky-100 hover:bg-sky-400/20'
+																		}`}
+																	>
+																		{isImageCollectedToBoard(selectedDetailImage.id) ? '编辑参考画布收藏' : '收藏到参考画布'}
+																	</button>
+																	<button
+																		onClick={() => toggleAssetBasketSelection(selectedAsset, selectedDetailImage)}
+																		className={`rounded-full px-3 py-1.5 text-xs ${
+																			isImageInBasket(selectedDetailImage.id)
+																				? 'border border-emerald-400/30 bg-emerald-500/20 text-emerald-200'
+																				: 'bg-white text-slate-900 hover:bg-slate-100'
+																		}`}
+																	>
+																		{isImageInBasket(selectedDetailImage.id) ? '当前图已在方案栏' : '当前图加入方案栏'}
+																	</button>
+																</div>
+															)}
+														</div>
+														<p className="mt-3 text-sm leading-7 text-white/70">{selectedAsset.desc}</p>
+														<div className="mt-4 flex flex-wrap gap-2 text-[11px] text-white/75">
+															<span className="rounded-full bg-white/10 px-2.5 py-1">预算 {selectedAsset.budgetBand}</span>
+															<span className="rounded-full bg-white/10 px-2.5 py-1">交期 {selectedAsset.leadTimeDays} 天</span>
+															<span className="rounded-full bg-white/10 px-2.5 py-1">风险 {selectedAsset.risk}</span>
+														</div>
+													</div>
+
+													<div className="flex-1 space-y-5 overflow-y-auto p-5">
+														<div>
+															<div className="mb-3 flex items-center justify-between">
+																<h5 className="text-sm font-semibold text-white">系列图片</h5>
+																<span className="text-xs text-white/45">每张都可单独加入方案栏</span>
+															</div>
+															<div className="grid grid-cols-2 gap-3">
+																{selectedAsset.imageSeries.map((image) => {
+																	const selected = image.id === selectedDetailImageId;
+																	return (
+																		<div key={image.id} className={`rounded-2xl border p-2 ${selected ? 'border-sky-400 bg-sky-400/10' : 'border-white/10 bg-white/5'}`}>
+																			<button onClick={() => setSelectedDetailImageId(image.id)} className="block w-full text-left">
+																				<img
+																					src={image.src}
+																					alt={image.name}
+																					className="h-28 w-full rounded-xl object-cover"
+																					data-fallback-src={image.fallbackSrc}
+																					onError={handleResourceImageError}
+																				/>
+																				<div className="mt-2 min-h-8 line-clamp-2 text-[11px] text-white/75">{image.name}</div>
+																			</button>
+																			<button
+																				onClick={() => toggleAssetBasketSelection(selectedAsset, image)}
+																				className={`mt-2 w-full rounded-full px-2.5 py-1.5 text-xs ${
+																					isImageInBasket(image.id)
+																						? 'border border-emerald-400/30 bg-emerald-500/20 text-emerald-200'
+																						: 'bg-white/10 text-white hover:bg-white/15'
+																				}`}
+																			>
+																				{isImageInBasket(image.id) ? '已加入方案栏' : '加入方案栏'}
+																			</button>
+																			<button
+																				onClick={() => openBoardCollectionModal(selectedAsset, image)}
+																				className={`mt-2 w-full rounded-full px-2.5 py-1.5 text-xs ${
+																					isImageCollectedToBoard(image.id)
+																						? 'border border-sky-400/30 bg-sky-500/20 text-sky-200'
+																						: 'bg-sky-500/10 text-sky-100 hover:bg-sky-500/20'
+																				}`}
+																			>
+																				{isImageCollectedToBoard(image.id) ? '编辑参考画布收藏' : '收藏到参考画布'}
+																			</button>
+																		</div>
+																	);
+																})}
+															</div>
+														</div>
+
+														<div>
+															<div className="mb-3 flex items-center justify-between">
+																<h5 className="text-sm font-semibold text-white">推荐延展</h5>
+																<span className="text-xs text-white/45">{relatedAssets.length} 项</span>
+															</div>
+															<div className="space-y-3">
+																{relatedAssets.map((item) => (
+																	<button
+																		key={`related-${item.id}`}
+																		onClick={() => setSelectedAssetId(item.id)}
+																		className="w-full rounded-2xl border border-white/10 bg-white/5 p-2 text-left hover:bg-white/10"
+																	>
+																		<div className="flex gap-3">
+																			<img
+																				src={item.coverImageSrc}
+																				alt={item.title}
+																				className="h-16 w-16 rounded-xl object-cover"
+																				data-fallback-src={item.fallbackImageSrc}
+																				onError={handleResourceImageError}
+																			/>
+																			<div className="min-w-0 flex-1">
+																				<div className="line-clamp-2 text-xs font-semibold text-white">{item.title}</div>
+																				<div className="mt-1 text-[11px] text-white/65">{item.category} · {item.space}</div>
+																				<div className="mt-2 line-clamp-2 text-[11px] text-white/45">{item.desc}</div>
+																			</div>
+																		</div>
+																	</button>
+																))}
+															</div>
+														</div>
+													</div>
+												</div>
+											</div>
+										</div>
+									</div>,
+									document.body
+								)}
+
+									{isClient && boardCollectModalOpen && boardCollectionDraft && selectedBoardDraftResource && selectedBoardDraftImage && createPortal(
+										<div
+											className="fixed inset-0 z-[2147483648] flex items-center justify-center bg-black/70 p-6 backdrop-blur-sm"
+											onClick={closeBoardCollectionModal}
+										>
+											<div
+												onClick={(e) => e.stopPropagation()}
+												className="grid w-full max-w-4xl grid-cols-1 overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl lg:grid-cols-[300px_minmax(0,1fr)]"
+											>
+												<div className="border-b border-slate-200 bg-slate-100 p-5 lg:border-b-0 lg:border-r">
+													<div className="sticky top-0 space-y-4">
+														<div className="text-xs font-medium uppercase tracking-[0.2em] text-slate-500">收藏预览</div>
+														<img
+															src={selectedBoardDraftImage.src}
+															alt={selectedBoardDraftImage.name}
+															className="h-64 w-full rounded-2xl object-cover"
+															data-fallback-src={selectedBoardDraftImage.fallbackSrc}
+															onError={handleResourceImageError}
+														/>
+														<div>
+															<div className="text-sm font-semibold text-slate-900">{selectedBoardDraftResource.title}</div>
+															<div className="mt-1 text-xs text-slate-500">{selectedBoardDraftImage.name}</div>
+														</div>
+														<div className="flex flex-wrap gap-2 text-[11px] text-slate-500">
+															<span className="rounded-full bg-white px-2.5 py-1">原始空间：{toDisplaySpaceName(selectedBoardDraftResource.space)}</span>
+															<span className="rounded-full bg-white px-2.5 py-1">{selectedBoardDraftResource.category}</span>
+														</div>
+													</div>
+												</div>
+
+												<div className="max-h-[80vh] overflow-y-auto p-6">
+													<div className="mb-6 flex items-start justify-between gap-4">
+														<div>
+															<div className="text-xs font-medium uppercase tracking-[0.2em] text-sky-600">参考画布收藏</div>
+															<h4 className="mt-2 text-2xl font-semibold text-slate-900">像 Eagle 一样整理这张图</h4>
+															<p className="mt-2 text-sm leading-7 text-slate-500">你可以在收藏时直接改名称、写注释、打标签，并决定它应该落在哪个空间；如果现有空间不够，还能在这里马上新建。</p>
+														</div>
+														<button
+															onClick={closeBoardCollectionModal}
+															className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 text-slate-500 hover:border-slate-300 hover:text-slate-700"
+															aria-label="关闭收藏弹窗"
+														>
+															<X className="h-5 w-5" />
+														</button>
+													</div>
+
+													<div className="space-y-5">
+														<div>
+															<label className="mb-2 block text-sm font-medium text-slate-800">自定义名称</label>
+															<input
+																value={boardCollectionDraft.customTitle}
+																onChange={(e) => updateBoardCollectionDraft({ customTitle: e.target.value })}
+																placeholder="给这张图起一个更适合项目语境的名字"
+																className="h-11 w-full rounded-xl border border-slate-200 px-3 text-sm text-slate-700 outline-none focus:border-sky-400"
+															/>
+														</div>
+
+														<div>
+															<label className="mb-2 block text-sm font-medium text-slate-800">注释</label>
+															<textarea
+																value={boardCollectionDraft.note}
+																onChange={(e) => updateBoardCollectionDraft({ note: e.target.value })}
+																placeholder="例如：适合大堂入口的暖调木质氛围，可作为到店体验第一视觉参考。"
+																rows={4}
+																className="w-full rounded-xl border border-slate-200 px-3 py-3 text-sm leading-7 text-slate-700 outline-none focus:border-sky-400"
+															/>
+														</div>
+
+														<div>
+															<label className="mb-2 block text-sm font-medium text-slate-800">标签</label>
+															<input
+																value={boardCollectionDraft.tagsInput}
+																onChange={(e) => updateBoardCollectionDraft({ tagsInput: e.target.value })}
+																placeholder="用逗号分隔：到店体验, 木色, 低饱和, 入口"
+																className="h-11 w-full rounded-xl border border-slate-200 px-3 text-sm text-slate-700 outline-none focus:border-sky-400"
+															/>
+															<div className="mt-2 flex flex-wrap gap-2">
+																{boardCollectionDraft.tagsInput
+																	.split(/[，,\n]/)
+																	.map((tag) => tag.trim())
+																	.filter(Boolean)
+																	.slice(0, 8)
+																	.map((tag) => (
+																		<span key={tag} className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] text-slate-600">#{tag}</span>
+																	))}
+															</div>
+														</div>
+
+														<div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+															<div className="mb-3 flex items-center justify-between gap-3">
+																<div>
+																	<div className="text-sm font-medium text-slate-800">保存位置</div>
+																	<div className="mt-1 text-xs text-slate-500">优先沿用项目文件里的空间口径；如果不够用，可以现场新建一个空间。</div>
+																</div>
+																<button
+																	onClick={() => updateBoardCollectionDraft({ useCustomSpace: !boardCollectionDraft.useCustomSpace })}
+																	className="cockpit-card-action"
+																>
+																	{boardCollectionDraft.useCustomSpace ? '改回项目空间' : '新建空间'}
+																</button>
+															</div>
+
+															{boardCollectionDraft.useCustomSpace ? (
+																<input
+																	value={boardCollectionDraft.newSpace}
+																	onChange={(e) => updateBoardCollectionDraft({ newSpace: e.target.value })}
+																	placeholder="例如：到店前厅 / SPA 前区 / 会客壁炉角"
+																	className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none focus:border-sky-400"
+																/>
+															) : (
+																<select
+																	value={boardCollectionDraft.space}
+																	onChange={(e) => updateBoardCollectionDraft({ space: e.target.value })}
+																	className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none focus:border-sky-400"
+																>
+																	{COLLECTION_SPACE_OPTIONS.map((space) => (
+																		<option key={`collect-space-${space}`} value={space}>
+																			{toDisplaySpaceName(space)}
+																		</option>
+																	))}
+																</select>
+															)}
+														</div>
+
+														<div className="flex items-center justify-end gap-3 pt-2">
+															<button
+																onClick={closeBoardCollectionModal}
+																className="rounded-full border border-slate-200 px-4 py-2 text-sm text-slate-600 hover:border-slate-300 hover:text-slate-800"
+															>
+																取消
+															</button>
+															<button
+																onClick={saveBoardCollection}
+																className="rounded-full bg-slate-900 px-5 py-2 text-sm font-medium text-white hover:bg-slate-800"
+															>
+																{isImageCollectedToBoard(boardCollectionDraft.imageId) ? '更新收藏' : '保存到参考画布'}
+															</button>
+														</div>
+													</div>
+												</div>
+											</div>
+										</div>,
+										document.body
+									)}
+							</div>
+						</div>
+					</div>
+				);
+
+			case 'board':
+				return (
+					<div className="w-full h-full flex flex-col overflow-hidden bg-slate-50">
+						<div className="border-b border-slate-200 bg-white/90 backdrop-blur pl-20 pr-6 py-4">
+							<div className="flex flex-col gap-3">
+								<div
+									className="flex items-center justify-between gap-3"
+									onMouseEnter={() => setBoardHeaderHovered(true)}
+									onMouseLeave={() => setBoardHeaderHovered(false)}
+								>
+									<div className="flex items-center gap-2">
+										<h3 className="text-base font-semibold text-slate-800">参考画布 · 收藏池</h3>
+										<button
+											onClick={() => setBoardHeaderCollapsed((prev) => !prev)}
+											className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 transition hover:border-slate-300 hover:text-slate-800"
+											aria-label={boardHeaderCollapsed ? '持续展开头部功能' : '收起头部功能'}
+											title={boardHeaderCollapsed ? '持续展开头部功能' : '收起头部功能'}
+										>
+											<ChevronDown className={`h-4 w-4 transition-transform ${boardHeaderExpanded ? 'rotate-180' : ''}`} />
+										</button>
+									</div>
+									<input
+										value={boardQuery}
+										onChange={(e) => setBoardQuery(e.target.value)}
+										placeholder="搜索参考画布（例：大堂、材料、到店体验）"
+										className="cockpit-search-input max-w-[360px]"
+									/>
+								</div>
+
+								<div
+									className={`grid overflow-hidden transition-[grid-template-rows,opacity,transform] duration-200 ease-out ${
+										boardHeaderExpanded ? 'grid-rows-[1fr] opacity-100 translate-y-0' : 'pointer-events-none grid-rows-[0fr] -translate-y-1 opacity-0'
+									}`}
+								>
+									<div className="space-y-3 overflow-hidden pt-2">
+										<div className="flex flex-wrap items-center gap-2">
+											{boardSpaceOptions.map((space) => (
+												<button
+													key={`board-space-${space}`}
+													onClick={() => setBoardSpace(space)}
+													className={`cockpit-filter-pill ${
+														boardSpace === space
+															? 'cockpit-filter-pill-active'
+															: ''
+													}`}
+												>
+													{space}
+												</button>
+											))}
+										</div>
+
+										<div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+											<div className="cockpit-stat">
+												<div className="cockpit-stat-label">收藏总数</div>
+												<div className="cockpit-stat-value">{boardCollections.length}</div>
+											</div>
+											<div className="cockpit-stat">
+												<div className="cockpit-stat-label">当前空间命中</div>
+												<div className="cockpit-stat-value">{filteredBoardCollections.length}</div>
+											</div>
+											<div className="cockpit-stat">
+												<div className="cockpit-stat-label">空间口径</div>
+												<div className="mt-1 text-sm font-semibold text-slate-900">项目空间 + 自定义空间</div>
+											</div>
+										</div>
+									</div>
+								</div>
+							</div>
+						</div>
+
+						<div className="flex-1 min-h-0 overflow-y-auto pl-20 pr-6 py-6">
+							{filteredBoardCollections.length === 0 ? (
+								<div className="cockpit-empty">
+									参考画布还是空的。先到“资源助手”浮窗里把喜欢的图片收藏进来，这块就不再当静态样机了。
+								</div>
+							) : (
+								<div className="space-y-6 pb-4">
+									{boardCollectionsBySpace.map((group) => (
+										<section key={`board-group-${group.space}`} className="space-y-3">
+											<div className="flex items-center justify-between">
+												<h4 className="text-sm font-semibold text-slate-700">{group.space === '全局' ? '跨空间' : group.space}</h4>
+												<span className="text-xs text-slate-400">{group.items.length} 项</span>
+											</div>
+
+											<div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+												{group.items.map((item) => (
+													<div key={item.id} className="cockpit-card cockpit-card-interactive cockpit-card-accent-board overflow-hidden">
+														<button onClick={() => onCardClick?.(`${item.resourceTitle} · ${item.imageName}`)} className="block w-full text-left">
+															<img
+																src={item.imageSrc}
+																alt={item.imageName}
+																className="h-48 w-full object-cover"
+																data-fallback-src={fallbackPublicPictureSrc}
+																onError={handleResourceImageError}
+															/>
+														</button>
+
+														<div className="space-y-3 p-4">
+															<div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-500">
+																<span className="cockpit-card-chip">{item.resourceCategory}</span>
+																<span className="cockpit-card-chip cockpit-card-chip-accent">{item.space === '全局' ? '跨空间' : item.space}</span>
+																{item.space !== item.sourceSpace && (
+																	<span className="cockpit-card-chip">源自 {toDisplaySpaceName(item.sourceSpace)}</span>
+																)}
+																<span>收藏于 {item.addedAt}</span>
+															</div>
+															<div>
+																<div className="text-sm font-semibold text-slate-900">{item.customTitle}</div>
+																<div className="mt-1 line-clamp-2 text-xs text-slate-500">{item.imageName}</div>
+															</div>
+															<p className="line-clamp-3 text-sm leading-6 text-slate-600">{item.note}</p>
+															{item.tags.length > 0 && (
+																<div className="flex flex-wrap gap-2">
+																	{item.tags.slice(0, 6).map((tag) => (
+																		<span key={`${item.id}-${tag}`} className="cockpit-card-chip">#{tag}</span>
+																	))}
+																</div>
+															)}
+
+															<div className="flex items-center gap-2">
+																<button
+																	onClick={() => onCardClick?.(item.customTitle)}
+																	className="cockpit-card-action-solid"
+																>
+																	引用到右侧
+																</button>
+																<button
+																	onClick={() => removeBoardCollection(item.imageId)}
+																	className="cockpit-card-action"
+																>
+																	移出画布
+																</button>
+															</div>
+														</div>
+													</div>
+												))}
+											</div>
+										</section>
+									))}
+								</div>
+							)}
+						</div>
+					</div>
+				);
+
+			case 'experts':
+				return (
+					<div className="w-full h-full flex flex-col overflow-hidden bg-[#226fc0] text-white">
+						<div className="border-b border-black/8 bg-[#226fc0]/96 backdrop-blur pl-20 pr-6 py-4">
+							<div className="flex flex-col gap-3">
+								<div
+									className="flex items-center justify-between gap-4"
+									onMouseEnter={() => setExpertHeaderHovered(true)}
+									onMouseLeave={() => setExpertHeaderHovered(false)}
+								>
+									<div className="flex items-center gap-2">
+										<h3 className="text-base font-semibold text-white">高参助手 · 初步设计执行台</h3>
+										<button
+											onClick={() => setExpertHeaderCollapsed((prev) => !prev)}
+											className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-white/15 bg-white/5 text-white/65 transition hover:border-white/30 hover:text-white"
+											aria-label={expertHeaderCollapsed ? '持续展开头部功能' : '收起头部功能'}
+											title={expertHeaderCollapsed ? '持续展开头部功能' : '收起头部功能'}
+										>
+											<ChevronDown className={`h-4 w-4 transition-transform ${expertHeaderExpanded ? 'rotate-180' : ''}`} />
+										</button>
+									</div>
+									<input
+										value={expertQuery}
+										onChange={(e) => setExpertQuery(e.target.value)}
+										placeholder="搜索角色、任务、专题或冻结检查项"
+										className="cockpit-search-input max-w-[420px]"
+									/>
+								</div>
+
+								<div
+									className={`grid overflow-hidden transition-[grid-template-rows,opacity,transform] duration-200 ease-out ${
+										expertHeaderExpanded ? 'grid-rows-[1fr] opacity-100 translate-y-0' : 'pointer-events-none grid-rows-[0fr] -translate-y-1 opacity-0'
+									}`}
+								>
+									<div className="space-y-3 overflow-hidden pt-2">
+										<div className="max-w-3xl">
+											<p className="text-sm leading-6 text-white/60">
+												根据 HAY × 七里坪旅程脚本，把高参过程收成四段：团队组建、任务安排、专题汇报、成果审阅。
+											</p>
+										</div>
+
+										<div className="flex flex-wrap items-center gap-2">
+											<span className="cockpit-card-chip cockpit-card-chip-accent">
+												{EXPERT_WORKSPACE_TABS.find((tab) => tab.key === expertView)?.label}
+											</span>
+										</div>
+
+										<div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+											<div className="flex items-center gap-2">
+												<button
+													onClick={() => onCardClick?.('创建自定义角色')}
+													className="cockpit-card-action px-4 py-2 text-sm"
+												>
+													创建自定义角色
+												</button>
+												<button
+													onClick={() => setShowExpertAdvanced((prev) => !prev)}
+													className="cockpit-card-action inline-flex items-center gap-2 self-start xl:self-auto"
+												>
+													高级操作
+													<ChevronDown className={`h-4 w-4 transition-transform ${showExpertAdvanced ? 'rotate-180' : ''}`} />
+												</button>
+											</div>
+										</div>
+
+										<div className="flex flex-wrap items-center gap-2">
+											{EXPERT_WORKSPACE_TABS.map((tab) => (
+												<button
+													key={tab.key}
+													onClick={() => setExpertView(tab.key)}
+													className={`cockpit-filter-pill ${
+														expertView === tab.key
+															? 'cockpit-filter-pill-active'
+															: ''
+													}`}
+													title={tab.desc}
+												>
+													{tab.label}
+												</button>
+											))}
+										</div>
+
+										<div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
+											<div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+												<div>
+													<div className="text-[11px] text-white/45">当前流程段</div>
+													<div className="mt-1 text-sm font-medium text-white">
+														{EXPERT_WORKSPACE_TABS.find((tab) => tab.key === expertView)?.label}
+													</div>
+												</div>
+												<div className="text-sm leading-6 text-white/65">{EXPERT_VIEW_SUMMARY[expertView]}</div>
+											</div>
+										</div>
+
+										{showExpertAdvanced && (
+											<div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-4">
+												<div className="mt-4 flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+													<div className="text-sm text-white/65">
+														<span className="font-medium text-white">显示控制</span>
+														<span className="mx-2 text-white/20">/</span>
+														默认只露出必要操作，额外筛选都收在这里。
+													</div>
+													<div className="flex flex-wrap items-center gap-2">
+														<button
+															onClick={() => setExpertOnlyKeyItems((prev) => !prev)}
+															className={`cockpit-filter-pill cockpit-card-accent-experts ${expertOnlyKeyItems ? 'cockpit-filter-pill-accent' : ''}`}
+														>
+															只看关键项
+														</button>
+														<button
+															onClick={() => setExpertShowReserve((prev) => !prev)}
+															className={`cockpit-filter-pill cockpit-card-accent-experts ${expertShowReserve ? 'cockpit-filter-pill-accent' : ''}`}
+														>
+															显示储备位
+														</button>
+													</div>
+												</div>
+											</div>
+										)}
+									</div>
+								</div>
+							</div>
+						</div>
+
+						<div className="flex-1 min-h-0 overflow-y-auto pl-20 pr-6 py-6">
+							<div className="space-y-6 pb-4">
+								{expertView === 'assembly' && (
+									<>
+										{expertTeamSections.length === 0 ? (
+											<div className="cockpit-empty">当前筛选下没有可显示的团队角色。</div>
+										) : (
+											expertTeamSections.map((section) => (
+												<section key={section.id} className="space-y-3">
+													<div className="flex items-center justify-between">
+														<div>
+															<div className="text-[11px] text-white/45">{section.eyebrow}</div>
+															<h4 className="mt-1 text-sm font-semibold text-white">{section.label}</h4>
+														</div>
+													</div>
+													<div className="flex flex-wrap gap-x-6 gap-y-8">
+														{section.items.map((item) => renderExpertTeamCard(item))}
+													</div>
+												</section>
+											))
+										)}
+									</>
+								)}
+
+								{expertView === 'tasks' && (
+									expertTaskSections.length === 0 ? (
+										<div className="cockpit-empty">当前筛选下没有任务卡。</div>
+									) : (
+										expertTaskSections.map((section) => (
+											<section key={section.id} className="space-y-3">
+												<div className="flex items-center justify-between">
+													<div>
+														<div className="text-[11px] text-white/45">{section.eyebrow}</div>
+														<h4 className="mt-1 text-sm font-semibold text-white">{section.label}</h4>
+													</div>
+												</div>
+												<div className="grid grid-cols-1 gap-4 xl:grid-cols-2 2xl:grid-cols-3">
+													{section.items.map((item) => renderExpertTaskCard(item))}
+												</div>
+											</section>
+										))
+									)
+								)}
+
+								{expertView === 'reports' && (
+									expertReportItems.length === 0 ? (
+										<div className="cockpit-empty">当前筛选下没有专题汇报内容。</div>
+									) : (
+										<section className="space-y-3">
+											<div className="flex items-center justify-between">
+												<div>
+													<div className="text-[11px] text-white/45">4.3 汇总确认</div>
+													<h4 className="mt-1 text-sm font-semibold text-white">专题策略确认</h4>
+												</div>
+											</div>
+											<div className="grid grid-cols-1 gap-4 xl:grid-cols-2 2xl:grid-cols-3">
+												{expertReportItems.map((item) => renderExpertReportCard(item))}
+											</div>
+										</section>
+									)
+								)}
+
+								{expertView === 'review' && (
+									expertReviewItems.length === 0 ? (
+										<div className="cockpit-empty">当前筛选下没有成果审阅内容。</div>
+									) : (
+										<section className="space-y-3">
+											<div className="flex items-center justify-between">
+												<div>
+													<div className="text-[11px] text-white/45">4.4 最终复核</div>
+													<h4 className="mt-1 text-sm font-semibold text-white">成果审阅与冻结</h4>
+												</div>
+											</div>
+											<div className="grid grid-cols-1 gap-4 xl:grid-cols-2 2xl:grid-cols-3">
+												{expertReviewItems.map((item) => renderExpertReviewCard(item))}
+											</div>
+										</section>
+									)
+								)}
+							</div>
+						</div>
+
+						{isClient && selectedExpertDetail && selectedExpertDetailData && expertDetailViewModel && createPortal(
+							<div
+								className="fixed left-0 top-0 z-[2147483646] flex h-screen w-screen items-center justify-center p-6"
+								style={{ backgroundColor: 'rgba(2, 4, 9, 0.92)' }}
+								onClick={closeExpertDetail}
+							>
+								<div
+									onClick={(e) => e.stopPropagation()}
+									className="relative h-[88vh] w-full max-w-6xl overflow-hidden rounded-3xl border border-slate-800 bg-[#05070a] text-white shadow-2xl"
+								>
+									<button
+										onClick={closeExpertDetail}
+										className="absolute right-4 top-4 z-20 inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20"
+										aria-label="关闭详情"
+									>
+										<X className="h-5 w-5" />
+									</button>
+
+									<div className="grid h-full grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px]">
+										<div className="min-h-[520px] overflow-y-auto bg-black p-8 xl:p-10">
+											<div className="text-xs text-white/45">{expertDetailViewModel.eyebrow}</div>
+											<h4 className="cockpit-card-title mt-3 text-white">{expertDetailViewModel.title}</h4>
+											<p className="mt-5 text-base leading-8 text-white/72">{expertDetailViewModel.summary}</p>
+
+											{'avatarName' in selectedExpertDetailData && (
+												<div className="mt-8">
+													<img
+														src={buildAdvisorAvatarUrl(selectedExpertDetailData.avatarName)}
+														alt={selectedExpertDetailData.title}
+														className="h-32 w-32 rounded-full border border-white/15 object-cover object-center"
+													/>
+												</div>
+											)}
+
+											<div className="mt-8 grid gap-4 md:grid-cols-2">
+												{expertDetailViewModel.primaryMeta.map((meta) => (
+													<div key={`${expertDetailViewModel.title}-${meta.label}`} className="rounded-2xl border border-white/10 bg-white/5 p-4">
+														<div className="text-xs text-white/45">{meta.label}</div>
+														<div className="mt-2 text-base font-semibold text-white">{meta.value}</div>
+													</div>
+												))}
+											</div>
+
+											<div className="mt-8 space-y-5">
+												{expertDetailViewModel.sections.map((section) => (
+													<div key={`${expertDetailViewModel.title}-${section.title}`} className="rounded-2xl border border-white/10 bg-white/5 p-4">
+														<div className="text-sm font-semibold text-white">{section.title}</div>
+														<div className="mt-3 space-y-2 text-sm leading-7 text-white/72">
+															{section.items.map((entry) => (
+																<div key={`${section.title}-${entry}`}>{entry}</div>
+															))}
+														</div>
+													</div>
+												))}
+											</div>
+										</div>
+
+										<div className="flex h-full flex-col overflow-hidden border-l border-slate-800 bg-[#0b0f14] p-8">
+											<div className="text-xs text-white/45">浮窗详情 · ESC 可退出</div>
+											<div className="mt-6 space-y-5">
+												<div>
+													<div className="text-xs text-white/45">当前流程段</div>
+													<div className="mt-2 text-lg font-semibold text-white">
+														{EXPERT_WORKSPACE_TABS.find((tab) => tab.key === expertView)?.label}
+													</div>
+												</div>
+												<div>
+													<div className="text-xs text-white/45">详情类型</div>
+													<div className="mt-2 text-base font-semibold text-white">
+														{selectedExpertDetail.kind === 'role'
+															? '团队角色'
+															: selectedExpertDetail.kind === 'task'
+																? '任务安排'
+																: selectedExpertDetail.kind === 'report'
+																	? '专题汇报'
+																	: '成果审阅'}
+													</div>
+												</div>
+											</div>
+
+											<div className="mt-8 flex flex-wrap gap-2">
+												<button
+													onClick={() => onCardClick?.(expertDetailViewModel.title)}
+													className="rounded-full border border-white/15 bg-white/8 px-3 py-1.5 text-xs text-white hover:bg-white/15"
+												>
+													{expertDetailViewModel.actionLabel}
+												</button>
+												<button
+													onClick={closeExpertDetail}
+													className="rounded-full border border-white/15 bg-transparent px-3 py-1.5 text-xs text-white/80 hover:bg-white/10 hover:text-white"
+												>
+													关闭详情
+												</button>
+											</div>
+										</div>
+									</div>
+								</div>
+							</div>,
+							document.body
+						)}
+					</div>
+				);
+
+			default:
+				return <div className="p-4 text-sm text-[var(--foreground-secondary)]">选择一个模块查看内容</div>;
+		}
+	};
+
+	return <div className={`w-full h-full flex flex-col overflow-hidden bg-[var(--background)] ${className}`}>{renderContent()}</div>;
+}

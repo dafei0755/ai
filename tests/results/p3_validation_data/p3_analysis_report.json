@@ -1,0 +1,231 @@
+{
+  "timestamp": "2026-02-13T10:19:58.660169",
+  "total_validations": 112,
+  "overall_statistics": {
+    "total_reports": 112,
+    "passed_count": 0,
+    "failed_count": 112,
+    "pass_rate": 0.0,
+    "average_score": 0.5627394697056488
+  },
+  "mode_analysis": {
+    "M1": {
+      "total": 12,
+      "passed": 0,
+      "pass_rate": 0.0,
+      "average_score": 0.597022962962963
+    },
+    "M2": {
+      "total": 8,
+      "passed": 0,
+      "pass_rate": 0.0,
+      "average_score": 0.498805
+    },
+    "M3": {
+      "total": 12,
+      "passed": 0,
+      "pass_rate": 0.0,
+      "average_score": 0.5557764455567781
+    },
+    "M4": {
+      "total": 8,
+      "passed": 0,
+      "pass_rate": 0.0,
+      "average_score": 0.49829166666666663
+    },
+    "M5": {
+      "total": 12,
+      "passed": 0,
+      "pass_rate": 0.0,
+      "average_score": 0.6349945811872902
+    },
+    "M6": {
+      "total": 12,
+      "passed": 0,
+      "pass_rate": 0.0,
+      "average_score": 0.57545164439118
+    },
+    "M7": {
+      "total": 12,
+      "passed": 0,
+      "pass_rate": 0.0,
+      "average_score": 0.4703944444444444
+    },
+    "M8": {
+      "total": 12,
+      "passed": 0,
+      "pass_rate": 0.0,
+      "average_score": 0.6427578814127399
+    },
+    "M9": {
+      "total": 12,
+      "passed": 0,
+      "pass_rate": 0.0,
+      "average_score": 0.5258244444444444
+    },
+    "M10": {
+      "total": 12,
+      "passed": 0,
+      "pass_rate": 0.0,
+      "average_score": 0.585281535075104
+    }
+  },
+  "ability_analysis": {
+    "A1": {
+      "total_checks": 68,
+      "passed_checks": 0,
+      "pass_rate": 0.0,
+      "average_score": 0.6109115468409586
+    },
+    "A7": {
+      "total_checks": 28,
+      "passed_checks": 0,
+      "pass_rate": 0.0,
+      "average_score": 0.4321428571428572
+    },
+    "A2": {
+      "total_checks": 36,
+      "passed_checks": 0,
+      "pass_rate": 0.0,
+      "average_score": 0.6270746848222524
+    },
+    "A11": {
+      "total_checks": 28,
+      "passed_checks": 0,
+      "pass_rate": 0.0,
+      "average_score": 0.5127262619892338
+    },
+    "A12": {
+      "total_checks": 28,
+      "passed_checks": 0,
+      "pass_rate": 0.0,
+      "average_score": 0.44532142857142853
+    },
+    "A3": {
+      "total_checks": 44,
+      "passed_checks": 0,
+      "pass_rate": 0.0,
+      "average_score": 0.4818181818181818
+    },
+    "A9": {
+      "total_checks": 40,
+      "passed_checks": 0,
+      "pass_rate": 0.0,
+      "average_score": 0.54
+    },
+    "A4": {
+      "total_checks": 32,
+      "passed_checks": 0,
+      "pass_rate": 0.0,
+      "average_score": 0.5009019891997777
+    },
+    "A8": {
+      "total_checks": 40,
+      "passed_checks": 0,
+      "pass_rate": 0.0,
+      "average_score": 0.6829414228896223
+    },
+    "A10": {
+      "total_checks": 8,
+      "passed_checks": 0,
+      "pass_rate": 0.0,
+      "average_score": 0.8625
+    },
+    "A5": {
+      "total_checks": 4,
+      "passed_checks": 0,
+      "pass_rate": 0.0,
+      "average_score": 0.5
+    }
+  },
+  "quality_analysis": {
+    "excellent": {
+      "total": 28,
+      "passed": 0,
+      "pass_rate": 0.0,
+      "average_score": 0.5923551066537488
+    },
+    "good": {
+      "total": 28,
+      "passed": 0,
+      "pass_rate": 0.0,
+      "average_score": 0.5921396238190427
+    },
+    "fair": {
+      "total": 28,
+      "passed": 0,
+      "pass_rate": 0.0,
+      "average_score": 0.5724882277148831
+    },
+    "poor": {
+      "total": 28,
+      "passed": 0,
+      "pass_rate": 0.0,
+      "average_score": 0.4939749206349206
+    }
+  },
+  "failure_patterns": {
+    "top_missing_fields": {
+      "narrative_design": 44,
+      "conceptual_foundation": 40,
+      "tech_integration": 40,
+      "spatial_analysis": 36,
+      "capital_analysis": 28,
+      "operation_analysis": 28,
+      "civilizational_analysis": 28,
+      "material_system": 26,
+      "social_structure_analysis": 24,
+      "conceptual_foundation.philosophical_framework": 14
+    },
+    "top_missing_keywords": {
+      "精神主轴": 68,
+      "思想": 68,
+      "理念": 68,
+      "哲学": 54,
+      "叙事": 44,
+      "节奏": 44,
+      "体验": 44,
+      "情绪曲线": 44,
+      "记忆点": 44,
+      "社会关系": 40
+    },
+    "top_failed_checks": {
+      "A1:depth_score": 68,
+      "A1:required_fields": 47,
+      "A3:required_fields": 44,
+      "A3:keyword_density": 44,
+      "A1:keyword_density": 41,
+      "A9:theoretical_framework": 40,
+      "A8:required_fields": 40,
+      "A2:required_fields": 36,
+      "A3:rhythm_analysis": 34,
+      "A9:required_fields": 32
+    }
+  },
+  "recommendations": [
+    {
+      "priority": "高",
+      "category": "整体质量",
+      "issue": "整体通过率仅0.0%，低于70%目标",
+      "suggestion": "建议全面检查专家system_prompt，确保明确要求输出能力相关内容"
+    },
+    {
+      "priority": "中",
+      "category": "能力质量",
+      "issue": "以下能力平均分<70%: A1, A7, A2",
+      "suggestion": "建议优化这些能力对应专家的输出结构，增强相关字段和关键词"
+    },
+    {
+      "priority": "中",
+      "category": "验证规则",
+      "issue": "检查项'A1:depth_score'失败率60.7%，超过30%",
+      "suggestion": "建议降低该检查项阈值或优化专家输出指导"
+    },
+    {
+      "priority": "中",
+      "category": "模式适配",
+      "issue": "以下模式通过率<70%: M1, M2, M3, M4, M5, M6, M7, M8, M9, M10",
+      "suggestion": "建议检查这些模式对应专家的能力声明是否准确，可能需要补充能力"
+    }
+  ]
+}

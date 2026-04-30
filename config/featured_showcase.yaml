@@ -1,0 +1,13 @@
+autoplay: true
+cache_ttl_seconds: 300
+fallback_behavior: skip
+image_selection: random
+loop: true
+max_slides: 10
+rotation_interval_seconds: 5
+session_ids:
+- 8pdwoxj8-20260103181555-163e0ad3
+- 8pdwoxj8-20260103162422-3a46bd9b
+- 8pdwoxj8-20260105175540-513d63c0
+show_navigation: true
+show_pagination: true

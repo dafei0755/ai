@@ -1,0 +1,37 @@
+{
+  "version": "1.0",
+  "last_updated": "2026-01-02T20:26:00",
+  "total_fixes": 2,
+  "total_failures": 0,
+  "fixes": [
+    {
+      "id": "fix-2026-01-02-quality-preflight-data-structure",
+      "title": "修复质量预检警告前后端数据结构不匹配",
+      "date": "2026-01-02",
+      "status": "success",
+      "tags": ["data-structure", "frontend-backend", "type-safety", "quality-preflight", "runtime-error"],
+      "files": [
+        "intelligent_project_analyzer/interaction/nodes/quality_preflight.py",
+        "frontend-nextjs/components/QualityPreflightModal.tsx"
+      ],
+      "error_type": "TypeError",
+      "error_message": "Cannot read properties of undefined (reading 'map')",
+      "session_id": "api-20260102202550-2685aca7",
+      "path": ".github/historical_fixes/2026-01-02_quality_preflight_data_structure_mismatch.md"
+    },
+    {
+      "id": "fix-2026-01-02-dimension-selector-special-scenes",
+      "title": "修复 DimensionSelector.select_for_project() 缺少 special_scenes 参数",
+      "date": "2026-01-02",
+      "status": "success",
+      "tags": ["parameter-mismatch", "interface-compatibility", "dimension-selector", "questionnaire"],
+      "files": [
+        "intelligent_project_analyzer/services/dimension_selector.py",
+        "intelligent_project_analyzer/services/adaptive_dimension_generator.py"
+      ],
+      "error_type": "TypeError",
+      "error_message": "DimensionSelector.select_for_project() got an unexpected keyword argument 'special_scenes'",
+      "path": ".github/historical_fixes/2026-01-02_dimension-selector-special-scenes.md"
+    }
+  ]
+}

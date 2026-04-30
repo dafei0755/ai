@@ -1,0 +1,219 @@
+# ═══════════════════════════════════════════════════════════════
+# 预映射表 — 设计模式 ↔ 特征系统 统一映射
+# v8.100 (M11 级联): 新增 M11_healthcare_healing 映射
+#
+# 本文件统一定义三套分类系统之间的桥接关系：
+#   1. 11 Mode Engine (M1-M11) → tags_matrix 标签
+#   2. 11 Mode Engine (M1-M11) → feature_vector 12维 关联
+#   3. feature_vector 12维 → 反向推导适用模式
+#
+# 注意: Mode ID 以 mode_detector.py 中定义为准
+#   M2 = M2_function_efficiency (不是 functional_efficiency)
+#   M7 = M7_tech_integration (不是 technology_integration)
+# ═══════════════════════════════════════════════════════════════
+
+version: v8.000
+
+# ─────────────────────────────────────────────────────
+# 1. Mode → tags_matrix 映射
+#    用于 _select_best_few_shot() 构建 query_tags
+#    值为 tags_matrix 中出现的有效标签
+# ─────────────────────────────────────────────────────
+mode_to_tags:
+  M1_concept_driven:
+    - concept
+    - aesthetic
+    - cultural
+    - narrative
+    - symbolic
+    - brand_translation
+    - identity_expression
+
+  M2_function_efficiency:
+    - functional
+    - operation_efficiency
+    - space_efficiency
+    - ergonomics_research
+    - technical_innovation
+
+  M3_emotional_experience:
+    - experiential
+    - aesthetic
+    - narrative_design
+    - color_psychology
+    - ritual_design
+    - lifestyle_design
+
+  M4_capital_asset:
+    - commercial
+    - operation_efficiency
+    - operation_driven
+    - cost_engineering
+    - value_optimization
+    - budget_control
+
+  M5_rural_context:
+    - rural_residence
+    - cultural_heritage
+    - cultural_research
+    - cluster
+    - community
+    - vernacular
+
+  M6_urban_regeneration:
+    - urban_renewal
+    - public_space
+    - renovation
+    - heritage_building
+    - community
+    - social
+
+  M7_tech_integration:
+    - technical_complexity
+    - technical_innovation
+    - smart_system
+    - digital_integration
+
+  M8_extreme_condition:
+    - technical_complexity
+    - climate_adaptation
+    - material_durability
+    - material_research
+    - sustainable
+
+  M9_social_structure:
+    - social_impact
+    - family
+    - community
+    - special_needs
+    - intergenerational_design
+    - accessibility
+    - behavioral_research
+
+  M10_future_speculation:
+    - technical_innovation
+    - concept
+    - modular_approach
+    - spatial_strategy
+    - sustainable
+
+  M11_healthcare_healing:
+    - accessibility
+    - special_needs
+    - experiential
+    - social_impact
+    - behavioral_research
+
+# ─────────────────────────────────────────────────────
+# 2. Mode → feature_vector 关联维度
+#    每个模式关联到 12 维 feature_vector 中的强相关维度
+#    primary: 权重 >= 0.6 的强关联维度
+#    secondary: 权重 0.3-0.6 的弱关联维度
+#    用于 feature_vector 匹配时的维度筛选
+# ─────────────────────────────────────────────────────
+mode_to_features:
+  M1_concept_driven:
+    primary: [cultural, aesthetic, symbolic]
+    secondary: [experiential, historical]
+
+  M2_function_efficiency:
+    primary: [functional, technical]
+    secondary: [commercial, sustainable]
+
+  M3_emotional_experience:
+    primary: [experiential, aesthetic]
+    secondary: [symbolic, cultural, material_innovation]
+
+  M4_capital_asset:
+    primary: [commercial, functional]
+    secondary: [technical, social]
+
+  M5_rural_context:
+    primary: [regional, cultural, historical]
+    secondary: [social, sustainable, material_innovation]
+
+  M6_urban_regeneration:
+    primary: [social, cultural, historical]
+    secondary: [regional, functional, commercial]
+
+  M7_tech_integration:
+    primary: [technical, functional]
+    secondary: [material_innovation, commercial]
+
+  M8_extreme_condition:
+    primary: [technical, material_innovation]
+    secondary: [functional, sustainable, regional]
+
+  M9_social_structure:
+    primary: [social, functional]
+    secondary: [experiential, cultural]
+
+  M10_future_speculation:
+    primary: [technical, material_innovation]
+    secondary: [functional, sustainable, experiential]
+
+  M11_healthcare_healing:
+    primary: [social, experiential]
+    secondary: [functional, technical, material_innovation]
+
+# ─────────────────────────────────────────────────────
+# 3. feature_vector 维度 → 适用模式（反向映射）
+#    当 feature_vector 某一维度分数 >= 0.5 时，
+#    该维度暗示的可能设计模式
+#    用于 detected_modes 交叉验证 & fallback 推断
+# ─────────────────────────────────────────────────────
+feature_to_modes:
+  cultural:
+    - M1_concept_driven
+    - M5_rural_context
+    - M6_urban_regeneration
+
+  commercial:
+    - M4_capital_asset
+    - M6_urban_regeneration
+
+  functional:
+    - M2_function_efficiency
+    - M4_capital_asset
+
+  aesthetic:
+    - M1_concept_driven
+    - M3_emotional_experience
+
+  experiential:
+    - M3_emotional_experience
+    - M10_future_speculation
+    - M11_healthcare_healing
+
+  technical:
+    - M7_tech_integration
+    - M8_extreme_condition
+    - M2_function_efficiency
+
+  social:
+    - M9_social_structure
+    - M6_urban_regeneration
+    - M11_healthcare_healing
+
+  regional:
+    - M5_rural_context
+    - M8_extreme_condition
+
+  historical:
+    - M5_rural_context
+    - M6_urban_regeneration
+    - M1_concept_driven
+
+  material_innovation:
+    - M8_extreme_condition
+    - M7_tech_integration
+    - M10_future_speculation
+
+  symbolic:
+    - M1_concept_driven
+    - M3_emotional_experience
+
+  sustainable:
+    - M8_extreme_condition
+    - M10_future_speculation
+    - M5_rural_context

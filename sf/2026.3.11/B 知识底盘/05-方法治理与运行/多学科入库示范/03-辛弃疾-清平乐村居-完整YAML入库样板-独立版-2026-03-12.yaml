@@ -1,0 +1,330 @@
+ingest_package:
+  package_id: pkg_lit_qingpingyue_cunju_independent_v1
+  package_type: literature_ingest_template
+  title: 辛弃疾《清平乐·村居》完整 YAML 入库样板
+  created_on: 2026-03-12
+  language: zh-CN
+  authoring_mode: independent
+  intended_use:
+    - knowledge_ingest
+    - project_projection
+    - review_training
+  package_principle: >
+    不把整首词当作风格标签入库，而把它拆成来源、语义片段、体验假设、
+    项目投影、风险禁忌与审核结论等可分别调用的对象。
+
+source:
+  source_id: src_lit_xinqiji_qingpingyue_cunju_001
+  domain: literature
+  genre: ci_poem
+  title: 清平乐·村居
+  author: 辛弃疾
+  era: 南宋
+  language: classical_chinese
+  authenticity: canonical
+  citation_form: 辛弃疾《清平乐·村居》
+  original_text: |
+    茅檐低小，溪上青青草。
+    醉里吴音相媚好，白发谁家翁媪?
+    大儿锄豆溪东，中儿正织鸡笼。
+    最喜小儿无赖，溪头卧剥莲蓬。
+  source_notes:
+    - 词中没有宏大抒情，重心在低强度日常生活
+    - 景物不是独立景观，而与家庭行为交织出现
+    - 快乐来自共处与生活展开，不来自事件性高潮
+  storage_policy:
+    layer: source_archive
+    preserve_original_text: true
+    editable_fields_only: false
+    direct_freeze_allowed: false
+
+semantic_segmentation:
+  segment_method: manual_curated
+  segments:
+    - segment_id: seg_01
+      text: 茅檐低小
+      semantic_role:
+        - low_scale_shelter
+        - intimate_threshold
+        - humble_dwelling
+      design_meaning:
+        - 尺度亲近
+        - 入口不张扬
+        - 居住感强于展示感
+    - segment_id: seg_02
+      text: 溪上青青草
+      semantic_role:
+        - nature_attached_to_daily_life
+        - soft_edge_environment
+        - low_intervention_landscape
+      design_meaning:
+        - 自然界面柔和
+        - 不是“景观秀”，而是贴身环境
+        - 生活与自然相互浸润
+    - segment_id: seg_03
+      text: 醉里吴音相媚好，白发谁家翁媪
+      semantic_role:
+        - tender_elder_companionship
+        - familiar_speech
+        - domestic_warmth
+      design_meaning:
+        - 关系氛围柔软
+        - 语言和声音具有亲近性
+        - 公共空间可容纳轻声对话而不被打断
+    - segment_id: seg_04
+      text: 大儿锄豆溪东，中儿正织鸡笼
+      semantic_role:
+        - visible_daily_work
+        - parallel_activity
+        - non_performative_productivity
+      design_meaning:
+        - 生活活动可被看见
+        - 同场景多行为并行
+        - 劳作不是表演，而是秩序的一部分
+    - segment_id: seg_05
+      text: 最喜小儿无赖，溪头卧剥莲蓬
+      semantic_role:
+        - playful_rest
+        - bodily_looseness
+        - unforced_staying
+      design_meaning:
+        - 停留姿态松弛
+        - 允许无目的停留
+        - 最动人的部分来自不被规定的身体状态
+
+semantic_atoms:
+  emotional_atoms:
+    - calm
+    - tenderness
+    - warmth
+    - ease
+    - gentle_joy
+  relational_atoms:
+    - family_presence
+    - soft_companionship
+    - parallel_coexistence
+    - low_pressure_togetherness
+  behavioral_atoms:
+    - linger
+    - light_work
+    - observe
+    - rest
+    - playful_pause
+  bodily_atoms:
+    - low_stimulation
+    - groundedness
+    - relaxed_posture
+    - soft_boundary
+  temporal_atoms:
+    - slow_rhythm
+    - domestic_continuity
+    - non_climactic_flow
+  value_atoms:
+    - daily_life_priority
+    - dwelling
+    - authenticity
+    - anti_performance
+
+experience_hypotheses:
+  - hypothesis_id: xp_h_01
+    name: 日常共处的低压温度
+    type: climate_relation_hybrid
+    statement: >
+      空间的核心魅力来自“在一起但不互相消耗”的低压共处，
+      而不是热闹、戏剧或高浓度社交。
+    supports_mainline: true
+    supports_boundary: true
+    supports_driver: false
+  - hypothesis_id: xp_h_02
+    name: 生活展开本身就是内容
+    type: value_hybrid
+    statement: >
+      真正有价值的不是布置出来的田园感，而是生活活动自然发生、
+      被温和看见并持续展开。
+    supports_mainline: true
+    supports_boundary: true
+    supports_driver: false
+  - hypothesis_id: xp_h_03
+    name: 尺度亲近比视觉气派更重要
+    type: spatial_value
+    statement: >
+      这个文本更适合支持亲近、小尺度、低阈值空间，而不适合支持宏大、
+      对景式、景观消费型表达。
+    supports_mainline: true
+    supports_boundary: true
+    supports_driver: false
+
+translation_to_project_language:
+  mainline_candidates:
+    - candidate_id: ml_01
+      statement: >
+        空间应服务一种被日常承托的乡居生活感，而不是被观看、被传播、
+        被拍照的田园舞台感。
+      priority: highest
+    - candidate_id: ml_02
+      statement: >
+        空间应让家庭尺度的共处与分散活动自然并存，而不是把所有人推向同一社交中心。
+      priority: high
+  experience_principles:
+    - low_eave_or_low_threshold_transition
+    - micro_stay_nodes_near_soft_nature_edge
+    - parallel_activity_friendly_shared_space
+    - visible_but_non_staged_daily_life_interface
+    - soft_evening_light_for_tender_conversation
+    - relaxed_body_posture_support
+  taboo_principles:
+    - 不要把乡居做成高饱和、强布景、强拍照导向的网红空间
+    - 不要把劳作意象做成符号化民俗陈列
+    - 不要把低尺度空间做成压抑局促
+    - 不要把“生活感”理解为粗糙、简陋或缺乏设计
+    - 不要用表面旧化和伪手工替代真实生活秩序
+
+normalized_ir:
+  object_id: ir_lit_qingpingyue_cunju_independent_001
+  confidence: 0.84
+  evidence_class: literary_analogy
+  axis_scores:
+    emotion:
+      calm: 0.86
+      warmth: 0.78
+      tenderness: 0.81
+      tension: 0.09
+      theatricality: 0.05
+      restoration: 0.73
+    relation:
+      companionship: 0.88
+      collective_presence: 0.74
+      social_optionality: 0.79
+      gaze_pressure: 0.17
+      boundary_need: 0.56
+    behavior:
+      linger: 0.83
+      small_work: 0.76
+      rest: 0.71
+      playful_pause: 0.67
+      spectacle: 0.04
+    body:
+      low_stimulation: 0.82
+      relaxed_posture: 0.87
+      groundedness: 0.76
+      enclosure: 0.52
+      openness: 0.61
+    time:
+      slow_rhythm: 0.91
+      daily_cycle: 0.88
+      climax_density: 0.07
+      continuity: 0.84
+    aesthetic:
+      plainness: 0.89
+      softness: 0.77
+      material_truth: 0.72
+      ornamentation: 0.06
+    order:
+      flexibility: 0.74
+      porosity: 0.69
+      legibility: 0.64
+      hierarchy: 0.38
+    meaning:
+      dwelling: 0.93
+      daily_life_priority: 0.95
+      locality: 0.71
+      status_signal: 0.03
+      anti_performance: 0.92
+  projection_assessment:
+    mainline_strength: 0.9
+    driver_strength: 0.34
+    boundary_strength: 0.68
+    dominant_role: mainline
+    secondary_role: boundary
+
+ingest_decision:
+  bundle_verdict: accepted_as_multilayer_bundle
+  accepted_objects:
+    - source_archive_entry
+    - semantic_segmentation_record
+    - experience_hypothesis_set
+    - normalized_ir_record
+    - project_projection_template
+  rejected_direct_usages:
+    - poem_as_style_label
+    - poem_as_direct_taskbook_copy
+    - poem_as_visual_theme_only
+  review_reason: >
+    该文本具有清晰而稳定的生活秩序、关系氛围与价值姿态，
+    适合入库为高质量文学型来源；但其作用主要在于改写主命题与体验倾向，
+    不能被粗暴简化成“乡村风格”或“古诗意境”。
+
+project_projection_templates:
+  - template_id: proj_rural_homestay_001
+    suitable_for:
+      - rural_homestay
+      - waterfront_homestay
+      - family_retreat_stay
+    mainline_statement: >
+      以低压共处、生活展开、自然贴附的乡居日常作为核心体验，
+      而不是以景观消费和风格表演作为主要内容。
+    spatial_translation:
+      arrival:
+        - 小尺度过渡而非高势入口
+        - 进入即见柔软生活线索，而非直接视觉爆点
+      public_space:
+        - 共享但可分散的家庭尺度客厅
+        - 可同时容纳聊天、发呆、做小事的并行结构
+      edge_space:
+        - 靠溪、靠草、靠院边的微停留位
+        - 可坐、可蹲、可倚、可卧的非正式停留姿态
+      material_and_light:
+        - 低饱和自然色
+        - 触感友好而非造型先行
+        - 夜间暖而不艳的平缓照明
+    danger_points:
+      - 乡村审美表皮化
+      - 低檐空间压迫化
+      - “生活感”被民俗道具替代
+    freeze_recommendation:
+      level: B_plus
+      note: >
+        可冻结为主命题方向和禁忌原则，但不应直接冻结为具体形式风格。
+
+  - template_id: proj_community_tea_space_001
+    suitable_for:
+      - tea_space
+      - small_community_culture_space
+      - slow_social_space
+    mainline_statement: >
+      以低压力并行共处为主，而不是以强主题社交和仪式性展示为主。
+    spatial_translation:
+      - 多组分散式停留
+      - 同场不同事
+      - 声音可轻度流动但不形成噪声中心
+    danger_points:
+      - 过于居家导致运营弱
+      - 社交组织过松散导致场所失焦
+    freeze_recommendation:
+      level: B
+
+review_checklist:
+  required_questions:
+    - 这次转译有没有把文本简化成“乡村风”？
+    - 有没有把生活秩序误译成民俗装饰？
+    - 主命题是否真的从“看”转向“住”和“共处”？
+    - 是否保留了并行活动和低压关系，而不是单一公共中心？
+    - 是否把最打动人的“卧剥莲蓬”翻成了身体松弛，而不是仅仅翻成儿童趣味？
+  pass_conditions:
+    - source_traceable
+    - no_style_label_abuse
+    - mainline_statement_present
+    - taboo_principles_present
+    - at_least_one_project_template_present
+  fail_conditions:
+    - 直接输出“新中式乡村风”
+    - 只讨论景观和材料，不讨论关系与生活秩序
+    - 没有禁忌项
+
+lifecycle:
+  current_stage: structured_candidate
+  next_stage: review_pending
+  release_strategy:
+    - 用于 2 到 3 个乡居民宿或慢社交项目试跑
+    - 重点回看复购感、生活感、家庭共处舒适度评价
+    - 若连续项目中被误译为民俗布景，则降级并补强禁忌项

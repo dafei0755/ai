@@ -1,0 +1,788 @@
+- generic [active] [ref=e1]:
+  - alert [ref=e2]
+  - generic [ref=e3]:
+    - button "切换到驾驶舱全屏" [ref=e4] [cursor=pointer]:
+      - img [ref=e5]
+    - generic [ref=e8]:
+      - generic [ref=e11]:
+        - generic [ref=e13]:
+          - generic [ref=e14]:
+            - generic [ref=e15]:
+              - generic [ref=e16]:
+                - button "切换到文档索引模式" [ref=e17] [cursor=pointer]:
+                  - img [ref=e18]
+                - heading "项目驾驶舱" [level=3] [ref=e23]
+              - generic [ref=e24]: 智能决策中枢
+              - button "持续展开头部功能" [ref=e25] [cursor=pointer]:
+                - img [ref=e26]
+            - textbox "搜索文件（例：预算、动线、品牌语义、已冻结）" [ref=e28]
+          - generic:
+            - generic:
+              - generic:
+                - button "综合视图"
+                - button "空间视图"
+              - generic:
+                - button "全部流程"
+                - button "项目锚点"
+                - button "外部认知"
+                - button "决策约束"
+                - button "空间策略"
+                - button "表达系统"
+                - button "评审定版"
+              - generic:
+                - combobox "对象锚点筛选":
+                  - option "对象锚点：全部锚点" [selected]
+                  - option "对象锚点：AlignedBrief"
+                  - option "对象锚点：SPG"
+                  - option "对象锚点：InitialDesignPack"
+                  - option "对象锚点：EvidenceOnly"
+                - combobox "专题筛选":
+                  - option "专题：全部专题" [selected]
+                  - option "专题：用户"
+                  - option "专题：市场"
+                  - option "专题：竞品"
+                  - option "专题：空间"
+                  - option "专题：动线"
+                  - option "专题：预算"
+                  - option "专题：品牌"
+                  - option "专题：色彩"
+                  - option "专题：材料"
+                  - option "专题：灯光"
+                  - option "专题：家具"
+                - combobox "流程阶段筛选":
+                  - option "流程阶段：全部阶段" [selected]
+                  - option "流程阶段：S1 意图显影"
+                  - option "流程阶段：S2 分析扩展"
+                  - option "流程阶段：S3 审阅裁决"
+                  - option "流程阶段：S4 定向收束"
+                  - option "流程阶段：S5 缺口补全"
+                  - option "流程阶段：S6 定版冻结"
+                - combobox "审核状态筛选":
+                  - option "审核状态：全部状态" [selected]
+                  - option "审核状态：进行中"
+                  - option "审核状态：待审"
+                  - option "审核状态：已审"
+                  - option "审核状态：已冻结"
+                  - option "审核状态：待验证"
+                - combobox "排序方式筛选":
+                  - option "排序：相关性优先" [selected]
+                  - option "排序：引用热度"
+                  - option "排序：最近更新"
+                  - option "排序：标题 A-Z"
+              - generic:
+                - generic: 工作集筛选：
+                - button "全部"
+                - generic:
+                  - button "场地约束条件 已冻结":
+                    - text: 场地约束条件
+                    - generic: 已冻结
+                  - button "固定"
+                - generic:
+                  - button "用户需求 已审":
+                    - text: 用户需求
+                    - generic: 已审
+                  - button "固定"
+        - generic [ref=e30]:
+          - generic [ref=e31]:
+            - generic [ref=e32]:
+              - heading "S1 意图显影" [level=4] [ref=e33]
+              - generic [ref=e35]: 3 条
+            - generic [ref=e36]:
+              - button "分析项目 S1 意图显影 S1 意图显影 · 用户需求 围绕丹麦家居品牌 HAY 的年轻、克制、功能主义气质，梳理项目目标客群、预算区间、空间优先级与体验期待。重点关注山地民宿在自然景观、轻度度假属性与品牌识别度之间的平衡关系。 用户 目标 品牌 锚点 AlignedBrief 空间 全局 核心输入 已审 引用 23 2026-03-30" [ref=e37] [cursor=pointer]:
+                - generic [ref=e38]:
+                  - generic [ref=e39]: 分析项目
+                  - generic [ref=e40]: S1 意图显影
+                - heading "S1 意图显影 · 用户需求" [level=3] [ref=e41]
+                - paragraph [ref=e42]: 围绕丹麦家居品牌 HAY 的年轻、克制、功能主义气质，梳理项目目标客群、预算区间、空间优先级与体验期待。重点关注山地民宿在自然景观、轻度度假属性与品牌识别度之间的平衡关系。
+                - generic [ref=e43]:
+                  - generic [ref=e44]: 用户
+                  - generic [ref=e45]: 目标
+                  - generic [ref=e46]: 品牌
+                - generic [ref=e47]:
+                  - generic [ref=e48]: 锚点 AlignedBrief
+                  - generic [ref=e49]: 空间 全局
+                - generic [ref=e50]:
+                  - generic [ref=e51]:
+                    - generic [ref=e52]: 核心输入
+                    - generic [ref=e53]: 已审
+                  - generic [ref=e54]:
+                    - generic [ref=e55]: 引用 23
+                    - generic [ref=e56]: 2026-03-30
+              - button "分析项目 S1 意图显影 S1 意图显影 · 项目启动会纪要 汇总甲方对品牌调性、目标房价、首期开放区域、试营业时间与样板优先级的口径，明确“先形成可试住样板，再放大到全项目”的推进策略，并记录品牌方对过度装饰与过度商业化表达的明确限制。 纪要 目标 节点 锚点 AlignedBrief 空间 全局 会议纪要 已审 引用 21 2026-03-26" [ref=e57] [cursor=pointer]:
+                - generic [ref=e58]:
+                  - generic [ref=e59]: 分析项目
+                  - generic [ref=e60]: S1 意图显影
+                - heading "S1 意图显影 · 项目启动会纪要" [level=3] [ref=e61]
+                - paragraph [ref=e62]: 汇总甲方对品牌调性、目标房价、首期开放区域、试营业时间与样板优先级的口径，明确“先形成可试住样板，再放大到全项目”的推进策略，并记录品牌方对过度装饰与过度商业化表达的明确限制。
+                - generic [ref=e63]:
+                  - generic [ref=e64]: 纪要
+                  - generic [ref=e65]: 目标
+                  - generic [ref=e66]: 节点
+                - generic [ref=e67]:
+                  - generic [ref=e68]: 锚点 AlignedBrief
+                  - generic [ref=e69]: 空间 全局
+                - generic [ref=e70]:
+                  - generic [ref=e71]:
+                    - generic [ref=e72]: 会议纪要
+                    - generic [ref=e73]: 已审
+                  - generic [ref=e74]:
+                    - generic [ref=e75]: 引用 21
+                    - generic [ref=e76]: 2026-03-26
+              - button "分析项目 S1 意图显影 S1 意图显影 · 目标客群入住画像与停留时段 将周末短住情侣、轻商务结伴、山地度假家庭三类核心客群拆成入住动机、到店时段、停留强度和社交偏好，明确大堂、公区、餐厅与客房在不同时间段承担的情绪任务和服务重点。 用户画像 入住 停留 锚点 AlignedBrief 空间 全局 用户研究 已审 引用 17 2026-03-30" [ref=e77] [cursor=pointer]:
+                - generic [ref=e78]:
+                  - generic [ref=e79]: 分析项目
+                  - generic [ref=e80]: S1 意图显影
+                - heading "S1 意图显影 · 目标客群入住画像与停留时段" [level=3] [ref=e81]
+                - paragraph [ref=e82]: 将周末短住情侣、轻商务结伴、山地度假家庭三类核心客群拆成入住动机、到店时段、停留强度和社交偏好，明确大堂、公区、餐厅与客房在不同时间段承担的情绪任务和服务重点。
+                - generic [ref=e83]:
+                  - generic [ref=e84]: 用户画像
+                  - generic [ref=e85]: 入住
+                  - generic [ref=e86]: 停留
+                - generic [ref=e87]:
+                  - generic [ref=e88]: 锚点 AlignedBrief
+                  - generic [ref=e89]: 空间 全局
+                - generic [ref=e90]:
+                  - generic [ref=e91]:
+                    - generic [ref=e92]: 用户研究
+                    - generic [ref=e93]: 已审
+                  - generic [ref=e94]:
+                    - generic [ref=e95]: 引用 17
+                    - generic [ref=e96]: 2026-03-30
+          - generic [ref=e97]:
+            - generic [ref=e98]:
+              - heading "S2 分析扩展" [level=4] [ref=e99]
+              - generic [ref=e101]: 5 条
+            - generic [ref=e102]:
+              - button "分析项目 S2 分析扩展 S2 分析扩展 · 市场分析 分析峨眉山周边山地民宿市场的客群画像、消费价格带与审美变化趋势，校准项目在区域中的价值锚点。同步比较本地度假型住宿与城市型精品酒店在社交属性和停留时长上的差异。 市场 客群 定价 锚点 AlignedBrief 空间 全局 外部环境 已审 引用 18 2026-03-29" [ref=e103] [cursor=pointer]:
+                - generic [ref=e104]:
+                  - generic [ref=e105]: 分析项目
+                  - generic [ref=e106]: S2 分析扩展
+                - heading "S2 分析扩展 · 市场分析" [level=3] [ref=e107]
+                - paragraph [ref=e108]: 分析峨眉山周边山地民宿市场的客群画像、消费价格带与审美变化趋势，校准项目在区域中的价值锚点。同步比较本地度假型住宿与城市型精品酒店在社交属性和停留时长上的差异。
+                - generic [ref=e109]:
+                  - generic [ref=e110]: 市场
+                  - generic [ref=e111]: 客群
+                  - generic [ref=e112]: 定价
+                - generic [ref=e113]:
+                  - generic [ref=e114]: 锚点 AlignedBrief
+                  - generic [ref=e115]: 空间 全局
+                - generic [ref=e116]:
+                  - generic [ref=e117]:
+                    - generic [ref=e118]: 外部环境
+                    - generic [ref=e119]: 已审
+                  - generic [ref=e120]:
+                    - generic [ref=e121]: 引用 18
+                    - generic [ref=e122]: 2026-03-29
+              - button "分析项目 S2 分析扩展 S2 分析扩展 · 竞品策略 拆解标杆民宿和设计酒店在公区氛围、客房尺度、材料表达与品牌传播上的差异点，识别可借鉴与应规避的策略。进一步提炼体验缺口、品牌错位和定价机会，作为后续概念切入依据。 竞品 体验 品牌 锚点 EvidenceOnly 空间 全局 对标拆解 待审 引用 16 2026-03-31" [ref=e123] [cursor=pointer]:
+                - generic [ref=e124]:
+                  - generic [ref=e125]: 分析项目
+                  - generic [ref=e126]: S2 分析扩展
+                - heading "S2 分析扩展 · 竞品策略" [level=3] [ref=e127]
+                - paragraph [ref=e128]: 拆解标杆民宿和设计酒店在公区氛围、客房尺度、材料表达与品牌传播上的差异点，识别可借鉴与应规避的策略。进一步提炼体验缺口、品牌错位和定价机会，作为后续概念切入依据。
+                - generic [ref=e129]:
+                  - generic [ref=e130]: 竞品
+                  - generic [ref=e131]: 体验
+                  - generic [ref=e132]: 品牌
+                - generic [ref=e133]:
+                  - generic [ref=e134]: 锚点 EvidenceOnly
+                  - generic [ref=e135]: 空间 全局
+                - generic [ref=e136]:
+                  - generic [ref=e137]:
+                    - generic [ref=e138]: 对标拆解
+                    - generic [ref=e139]: 待审
+                  - generic [ref=e140]:
+                    - generic [ref=e141]: 引用 16
+                    - generic [ref=e142]: 2026-03-31
+              - button "分析项目 S2 分析扩展 S2 分析扩展 · 竞品房价带与公区配置对照表 对比周边山地民宿与目的地酒店的房价带、房间面积、公区座位数、到店体验配置和餐饮模式，识别高感知价值但低投入的配置项，避免在错误环节投入过高成本。 竞品 房价 配置 锚点 EvidenceOnly 空间 全局 竞品对照 已审 引用 15 2026-03-30" [ref=e143] [cursor=pointer]:
+                - generic [ref=e144]:
+                  - generic [ref=e145]: 分析项目
+                  - generic [ref=e146]: S2 分析扩展
+                - heading "S2 分析扩展 · 竞品房价带与公区配置对照表" [level=3] [ref=e147]
+                - paragraph [ref=e148]: 对比周边山地民宿与目的地酒店的房价带、房间面积、公区座位数、到店体验配置和餐饮模式，识别高感知价值但低投入的配置项，避免在错误环节投入过高成本。
+                - generic [ref=e149]:
+                  - generic [ref=e150]: 竞品
+                  - generic [ref=e151]: 房价
+                  - generic [ref=e152]: 配置
+                - generic [ref=e153]:
+                  - generic [ref=e154]: 锚点 EvidenceOnly
+                  - generic [ref=e155]: 空间 全局
+                - generic [ref=e156]:
+                  - generic [ref=e157]:
+                    - generic [ref=e158]: 竞品对照
+                    - generic [ref=e159]: 已审
+                  - generic [ref=e160]:
+                    - generic [ref=e161]: 引用 15
+                    - generic [ref=e162]: 2026-03-30
+              - button "规划文件 S2 分析扩展 S2 分析扩展 · 场地约束条件 归纳山地高差、采光朝向、消防疏散、结构限制和雨雾气候对空间组织的影响，为概念方案建立现实边界。优先识别需要在早期就锁定的限制条件，避免后期出现大规模推翻。 场地 消防 结构 锚点 AlignedBrief 空间 全局 约束 已冻结 引用 24 2026-03-27" [ref=e163] [cursor=pointer]:
+                - generic [ref=e164]:
+                  - generic [ref=e165]: 规划文件
+                  - generic [ref=e166]: S2 分析扩展
+                - heading "S2 分析扩展 · 场地约束条件" [level=3] [ref=e167]
+                - paragraph [ref=e168]: 归纳山地高差、采光朝向、消防疏散、结构限制和雨雾气候对空间组织的影响，为概念方案建立现实边界。优先识别需要在早期就锁定的限制条件，避免后期出现大规模推翻。
+                - generic [ref=e169]:
+                  - generic [ref=e170]: 场地
+                  - generic [ref=e171]: 消防
+                  - generic [ref=e172]: 结构
+                - generic [ref=e173]:
+                  - generic [ref=e174]: 锚点 AlignedBrief
+                  - generic [ref=e175]: 空间 全局
+                - generic [ref=e176]:
+                  - generic [ref=e177]:
+                    - generic [ref=e178]: 约束
+                    - generic [ref=e179]: 已冻结
+                  - generic [ref=e180]:
+                    - generic [ref=e181]: 引用 24
+                    - generic [ref=e182]: 2026-03-27
+              - button "分析项目 S2 分析扩展 S2 分析扩展 · 场地踏勘照片整理与问题标注 整理入口高差、现状挡墙、屋檐压低、景观朝向、设备暴露面和临时施工通道等踏勘照片，并对影响首轮方案判断的现场问题做编号，方便后续设计、施工与机电同步校核。 踏勘 现场 问题 锚点 EvidenceOnly 空间 全局 现场踏勘 待审 引用 14 2026-03-28" [ref=e183] [cursor=pointer]:
+                - generic [ref=e184]:
+                  - generic [ref=e185]: 分析项目
+                  - generic [ref=e186]: S2 分析扩展
+                - heading "S2 分析扩展 · 场地踏勘照片整理与问题标注" [level=3] [ref=e187]
+                - paragraph [ref=e188]: 整理入口高差、现状挡墙、屋檐压低、景观朝向、设备暴露面和临时施工通道等踏勘照片，并对影响首轮方案判断的现场问题做编号，方便后续设计、施工与机电同步校核。
+                - generic [ref=e189]:
+                  - generic [ref=e190]: 踏勘
+                  - generic [ref=e191]: 现场
+                  - generic [ref=e192]: 问题
+                - generic [ref=e193]:
+                  - generic [ref=e194]: 锚点 EvidenceOnly
+                  - generic [ref=e195]: 空间 全局
+                - generic [ref=e196]:
+                  - generic [ref=e197]:
+                    - generic [ref=e198]: 现场踏勘
+                    - generic [ref=e199]: 待审
+                  - generic [ref=e200]:
+                    - generic [ref=e201]: 引用 14
+                    - generic [ref=e202]: 2026-03-28
+          - generic [ref=e203]:
+            - generic [ref=e204]:
+              - heading "S4 定向收束" [level=4] [ref=e205]
+              - generic [ref=e207]: 8 条
+            - generic [ref=e208]:
+              - button "规划文件 S4 定向收束 S4 定向收束 · 预算分配表 给出硬装、软装、灯光、家具与设备的预算比例建议，帮助项目在品牌表达与实际落地之间建立合理分配。重点列出可高配与可替代部分，防止预算被单一环节吞噬。 预算 成本 取舍 锚点 InitialDesignPack 空间 全局 预算 进行中 引用 17 2026-03-30" [ref=e209] [cursor=pointer]:
+                - generic [ref=e210]:
+                  - generic [ref=e211]: 规划文件
+                  - generic [ref=e212]: S4 定向收束
+                - heading "S4 定向收束 · 预算分配表" [level=3] [ref=e213]
+                - paragraph [ref=e214]: 给出硬装、软装、灯光、家具与设备的预算比例建议，帮助项目在品牌表达与实际落地之间建立合理分配。重点列出可高配与可替代部分，防止预算被单一环节吞噬。
+                - generic [ref=e215]:
+                  - generic [ref=e216]: 预算
+                  - generic [ref=e217]: 成本
+                  - generic [ref=e218]: 取舍
+                - generic [ref=e219]:
+                  - generic [ref=e220]: 锚点 InitialDesignPack
+                  - generic [ref=e221]: 空间 全局
+                - generic [ref=e222]:
+                  - generic [ref=e223]:
+                    - generic [ref=e224]: 预算
+                    - generic [ref=e225]: 进行中
+                  - generic [ref=e226]:
+                    - generic [ref=e227]: 引用 17
+                    - generic [ref=e228]: 2026-03-30
+              - button "规划文件 S4 定向收束 S4 定向收束 · 空间功能清单 梳理客房、公区、接待、餐饮与后勤等功能模块的面积占比和优先顺序，明确哪些区域承担品牌展示、停留社交和运营效率。同步界定高价值空间与可压缩空间，避免后期概念泛化。 功能 空间 运营 锚点 SPG 空间 全局 功能配置 已审 引用 20 2026-03-28" [ref=e229] [cursor=pointer]:
+                - generic [ref=e230]:
+                  - generic [ref=e231]: 规划文件
+                  - generic [ref=e232]: S4 定向收束
+                - heading "S4 定向收束 · 空间功能清单" [level=3] [ref=e233]
+                - paragraph [ref=e234]: 梳理客房、公区、接待、餐饮与后勤等功能模块的面积占比和优先顺序，明确哪些区域承担品牌展示、停留社交和运营效率。同步界定高价值空间与可压缩空间，避免后期概念泛化。
+                - generic [ref=e235]:
+                  - generic [ref=e236]: 功能
+                  - generic [ref=e237]: 空间
+                  - generic [ref=e238]: 运营
+                - generic [ref=e239]:
+                  - generic [ref=e240]: 锚点 SPG
+                  - generic [ref=e241]: 空间 全局
+                - generic [ref=e242]:
+                  - generic [ref=e243]:
+                    - generic [ref=e244]: 功能配置
+                    - generic [ref=e245]: 已审
+                  - generic [ref=e246]:
+                    - generic [ref=e247]: 引用 20
+                    - generic [ref=e248]: 2026-03-28
+              - button "规划文件 S4 定向收束 S4 定向收束 · 大堂到店体验脚本 梳理从落客、迎宾、办入住到首段停留的体验链条，明确大堂在品牌第一印象中的节奏设计与关键触点，减少高峰时段拥堵与情绪落差。 大堂 入口 体验 锚点 SPG 空间 大堂 到店体验 待审 引用 10 2026-03-31" [ref=e249] [cursor=pointer]:
+                - generic [ref=e250]:
+                  - generic [ref=e251]: 规划文件
+                  - generic [ref=e252]: S4 定向收束
+                - heading "S4 定向收束 · 大堂到店体验脚本" [level=3] [ref=e253]
+                - paragraph [ref=e254]: 梳理从落客、迎宾、办入住到首段停留的体验链条，明确大堂在品牌第一印象中的节奏设计与关键触点，减少高峰时段拥堵与情绪落差。
+                - generic [ref=e255]:
+                  - generic [ref=e256]: 大堂
+                  - generic [ref=e257]: 入口
+                  - generic [ref=e258]: 体验
+                - generic [ref=e259]:
+                  - generic [ref=e260]: 锚点 SPG
+                  - generic [ref=e261]: 空间 大堂
+                - generic [ref=e262]:
+                  - generic [ref=e263]:
+                    - generic [ref=e264]: 到店体验
+                    - generic [ref=e265]: 待审
+                  - generic [ref=e266]:
+                    - generic [ref=e267]: 引用 10
+                    - generic [ref=e268]: 2026-03-31
+              - button "规划文件 S4 定向收束 S4 定向收束 · 大堂首屏体验与服务台关系草图 定义住客进入大堂后 8 秒内可感知的品牌信息、主景别、服务台视线和等候落点，避免前台过强、景观过弱或导向不足导致的体验断点，并同步标注高峰时段排队缓冲区。 大堂 首屏 服务台 锚点 SPG 空间 大堂 首屏体验 进行中 引用 12 2026-03-31" [ref=e269] [cursor=pointer]:
+                - generic [ref=e270]:
+                  - generic [ref=e271]: 规划文件
+                  - generic [ref=e272]: S4 定向收束
+                - heading "S4 定向收束 · 大堂首屏体验与服务台关系草图" [level=3] [ref=e273]
+                - paragraph [ref=e274]: 定义住客进入大堂后 8 秒内可感知的品牌信息、主景别、服务台视线和等候落点，避免前台过强、景观过弱或导向不足导致的体验断点，并同步标注高峰时段排队缓冲区。
+                - generic [ref=e275]:
+                  - generic [ref=e276]: 大堂
+                  - generic [ref=e277]: 首屏
+                  - generic [ref=e278]: 服务台
+                - generic [ref=e279]:
+                  - generic [ref=e280]: 锚点 SPG
+                  - generic [ref=e281]: 空间 大堂
+                - generic [ref=e282]:
+                  - generic [ref=e283]:
+                    - generic [ref=e284]: 首屏体验
+                    - generic [ref=e285]: 进行中
+                  - generic [ref=e286]:
+                    - generic [ref=e287]: 引用 12
+                    - generic [ref=e288]: 2026-03-31
+              - button "分析项目 S4 定向收束 S4 定向收束 · 色彩策略 定义主辅色、材质映射与情绪目标，构建适合山地民宿的低饱和色彩体系。通过山地灰绿、低饱和木色与暖感金属细节建立统一语气，避免空间在自然语境中显得过度商业化。 色彩 情绪 品牌 锚点 InitialDesignPack 空间 公区 氛围语言 进行中 引用 12 2026-03-31" [ref=e289] [cursor=pointer]:
+                - generic [ref=e290]:
+                  - generic [ref=e291]: 分析项目
+                  - generic [ref=e292]: S4 定向收束
+                - heading "S4 定向收束 · 色彩策略" [level=3] [ref=e293]
+                - paragraph [ref=e294]: 定义主辅色、材质映射与情绪目标，构建适合山地民宿的低饱和色彩体系。通过山地灰绿、低饱和木色与暖感金属细节建立统一语气，避免空间在自然语境中显得过度商业化。
+                - generic [ref=e295]:
+                  - generic [ref=e296]: 色彩
+                  - generic [ref=e297]: 情绪
+                  - generic [ref=e298]: 品牌
+                - generic [ref=e299]:
+                  - generic [ref=e300]: 锚点 InitialDesignPack
+                  - generic [ref=e301]: 空间 公区
+                - generic [ref=e302]:
+                  - generic [ref=e303]:
+                    - generic [ref=e304]: 氛围语言
+                    - generic [ref=e305]: 进行中
+                  - generic [ref=e306]:
+                    - generic [ref=e307]: 引用 12
+                    - generic [ref=e308]: 2026-03-31
+              - button "指导文件 S4 定向收束 S4 定向收束 · 品牌语义板 围绕 HAY 的年轻、克制、功能主义气质提炼可转译为空间语言的关键词与反关键词。通过情绪语义、品牌语境与消费心理交叉校准，避免“像北欧但没有品牌辨识”的模糊表达。 品牌 语义 识别度 锚点 InitialDesignPack 空间 全局 品牌 待审 引用 19 2026-03-31" [ref=e309] [cursor=pointer]:
+                - generic [ref=e310]:
+                  - generic [ref=e311]: 指导文件
+                  - generic [ref=e312]: S4 定向收束
+                - heading "S4 定向收束 · 品牌语义板" [level=3] [ref=e313]
+                - paragraph [ref=e314]: 围绕 HAY 的年轻、克制、功能主义气质提炼可转译为空间语言的关键词与反关键词。通过情绪语义、品牌语境与消费心理交叉校准，避免“像北欧但没有品牌辨识”的模糊表达。
+                - generic [ref=e315]:
+                  - generic [ref=e316]: 品牌
+                  - generic [ref=e317]: 语义
+                  - generic [ref=e318]: 识别度
+                - generic [ref=e319]:
+                  - generic [ref=e320]: 锚点 InitialDesignPack
+                  - generic [ref=e321]: 空间 全局
+                - generic [ref=e322]:
+                  - generic [ref=e323]:
+                    - generic [ref=e324]: 品牌
+                    - generic [ref=e325]: 待审
+                  - generic [ref=e326]:
+                    - generic [ref=e327]: 引用 19
+                    - generic [ref=e328]: 2026-03-31
+              - button "指导文件 S4 定向收束 S4 定向收束 · 公区社交家具组合 针对短停留与长停留两类社交场景定义公区家具组合与尺度关系，提升自由社交概率，同时保证通行效率与视觉秩序。 公区 社交 家具 锚点 InitialDesignPack 空间 公区 公区家具 进行中 引用 9 2026-03-31" [ref=e329] [cursor=pointer]:
+                - generic [ref=e330]:
+                  - generic [ref=e331]: 指导文件
+                  - generic [ref=e332]: S4 定向收束
+                - heading "S4 定向收束 · 公区社交家具组合" [level=3] [ref=e333]
+                - paragraph [ref=e334]: 针对短停留与长停留两类社交场景定义公区家具组合与尺度关系，提升自由社交概率，同时保证通行效率与视觉秩序。
+                - generic [ref=e335]:
+                  - generic [ref=e336]: 公区
+                  - generic [ref=e337]: 社交
+                  - generic [ref=e338]: 家具
+                - generic [ref=e339]:
+                  - generic [ref=e340]: 锚点 InitialDesignPack
+                  - generic [ref=e341]: 空间 公区
+                - generic [ref=e342]:
+                  - generic [ref=e343]:
+                    - generic [ref=e344]: 公区家具
+                    - generic [ref=e345]: 进行中
+                  - generic [ref=e346]:
+                    - generic [ref=e347]: 引用 9
+                    - generic [ref=e348]: 2026-03-31
+              - button "指导文件 S4 定向收束 S4 定向收束 · 公区软装首轮配置清单 罗列沙发、休闲椅、边几、地毯、落地灯、艺术装饰与绿植的首轮配置数量、预算档位与替代优先级，帮助判断哪些单品承担品牌识别，哪些单品承担氛围补位。 公区 软装 配置 锚点 InitialDesignPack 空间 公区 软装清单 待审 引用 10 2026-03-31" [ref=e349] [cursor=pointer]:
+                - generic [ref=e350]:
+                  - generic [ref=e351]: 指导文件
+                  - generic [ref=e352]: S4 定向收束
+                - heading "S4 定向收束 · 公区软装首轮配置清单" [level=3] [ref=e353]
+                - paragraph [ref=e354]: 罗列沙发、休闲椅、边几、地毯、落地灯、艺术装饰与绿植的首轮配置数量、预算档位与替代优先级，帮助判断哪些单品承担品牌识别，哪些单品承担氛围补位。
+                - generic [ref=e355]:
+                  - generic [ref=e356]: 公区
+                  - generic [ref=e357]: 软装
+                  - generic [ref=e358]: 配置
+                - generic [ref=e359]:
+                  - generic [ref=e360]: 锚点 InitialDesignPack
+                  - generic [ref=e361]: 空间 公区
+                - generic [ref=e362]:
+                  - generic [ref=e363]:
+                    - generic [ref=e364]: 软装清单
+                    - generic [ref=e365]: 待审
+                  - generic [ref=e366]:
+                    - generic [ref=e367]: 引用 10
+                    - generic [ref=e368]: 2026-03-31
+          - generic [ref=e369]:
+            - generic [ref=e370]:
+              - heading "S5 缺口补全" [level=4] [ref=e371]
+              - generic [ref=e373]: 11 条
+            - generic [ref=e374]:
+              - button "规划文件 S5 缺口补全 S5 缺口补全 · 机电点位与天花净高复核表 将空调风口、喷淋、烟感、检修口、线性灯、音响与投影设备点位叠合到天花方案上，核查净高、对称关系与主景别完整性，提前识别会破坏品牌感的设备暴露问题。 机电 天花 复核 锚点 EvidenceOnly 空间 大堂 机电复核 待审 引用 13 2026-03-31" [ref=e375] [cursor=pointer]:
+                - generic [ref=e376]:
+                  - generic [ref=e377]: 规划文件
+                  - generic [ref=e378]: S5 缺口补全
+                - heading "S5 缺口补全 · 机电点位与天花净高复核表" [level=3] [ref=e379]
+                - paragraph [ref=e380]: 将空调风口、喷淋、烟感、检修口、线性灯、音响与投影设备点位叠合到天花方案上，核查净高、对称关系与主景别完整性，提前识别会破坏品牌感的设备暴露问题。
+                - generic [ref=e381]:
+                  - generic [ref=e382]: 机电
+                  - generic [ref=e383]: 天花
+                  - generic [ref=e384]: 复核
+                - generic [ref=e385]:
+                  - generic [ref=e386]: 锚点 EvidenceOnly
+                  - generic [ref=e387]: 空间 大堂
+                - generic [ref=e388]:
+                  - generic [ref=e389]:
+                    - generic [ref=e390]: 机电复核
+                    - generic [ref=e391]: 待审
+                  - generic [ref=e392]:
+                    - generic [ref=e393]: 引用 13
+                    - generic [ref=e394]: 2026-03-31
+              - button "规划文件 S5 缺口补全 S5 缺口补全 · 动线组织草案 建立主人、住客、服务与补给四类动线的基础组织逻辑，确保抵达体验、入住效率与后勤流线互不干扰。特别关注山地场地中入口高差、景观面朝向与夜间照明对动线选择的影响。 动线 入口 后勤 锚点 SPG 空间 连廊 流线 待验证 引用 15 2026-03-31" [ref=e395] [cursor=pointer]:
+                - generic [ref=e396]:
+                  - generic [ref=e397]: 规划文件
+                  - generic [ref=e398]: S5 缺口补全
+                - heading "S5 缺口补全 · 动线组织草案" [level=3] [ref=e399]
+                - paragraph [ref=e400]: 建立主人、住客、服务与补给四类动线的基础组织逻辑，确保抵达体验、入住效率与后勤流线互不干扰。特别关注山地场地中入口高差、景观面朝向与夜间照明对动线选择的影响。
+                - generic [ref=e401]:
+                  - generic [ref=e402]: 动线
+                  - generic [ref=e403]: 入口
+                  - generic [ref=e404]: 后勤
+                - generic [ref=e405]:
+                  - generic [ref=e406]: 锚点 SPG
+                  - generic [ref=e407]: 空间 连廊
+                - generic [ref=e408]:
+                  - generic [ref=e409]:
+                    - generic [ref=e410]: 流线
+                    - generic [ref=e411]: 待验证
+                  - generic [ref=e412]:
+                    - generic [ref=e413]: 引用 15
+                    - generic [ref=e414]: 2026-03-31
+              - button "规划文件 S5 缺口补全 S5 缺口补全 · 餐厅运营动线卡 建立餐厅高峰与非高峰两套服务流线，明确备餐、上菜、回收、清洁与住客动线的交错边界，平衡运营效率与就餐体验。 餐厅 运营 动线 锚点 InitialDesignPack 空间 餐厅 餐饮运营 进行中 引用 9 2026-03-31" [ref=e415] [cursor=pointer]:
+                - generic [ref=e416]:
+                  - generic [ref=e417]: 规划文件
+                  - generic [ref=e418]: S5 缺口补全
+                - heading "S5 缺口补全 · 餐厅运营动线卡" [level=3] [ref=e419]
+                - paragraph [ref=e420]: 建立餐厅高峰与非高峰两套服务流线，明确备餐、上菜、回收、清洁与住客动线的交错边界，平衡运营效率与就餐体验。
+                - generic [ref=e421]:
+                  - generic [ref=e422]: 餐厅
+                  - generic [ref=e423]: 运营
+                  - generic [ref=e424]: 动线
+                - generic [ref=e425]:
+                  - generic [ref=e426]: 锚点 InitialDesignPack
+                  - generic [ref=e427]: 空间 餐厅
+                - generic [ref=e428]:
+                  - generic [ref=e429]:
+                    - generic [ref=e430]: 餐饮运营
+                    - generic [ref=e431]: 进行中
+                  - generic [ref=e432]:
+                    - generic [ref=e433]: 引用 9
+                    - generic [ref=e434]: 2026-03-31
+              - button "规划文件 S5 缺口补全 S5 缺口补全 · 后勤补给流线校核 校核布草、清洁、补货、垃圾回收等后勤路径在不同时段的冲突点，保证后勤效率同时降低对住客主要动线的干扰。 后勤 补给 效率 锚点 SPG 空间 后勤 后勤流线 待审 引用 7 2026-03-31" [ref=e435] [cursor=pointer]:
+                - generic [ref=e436]:
+                  - generic [ref=e437]: 规划文件
+                  - generic [ref=e438]: S5 缺口补全
+                - heading "S5 缺口补全 · 后勤补给流线校核" [level=3] [ref=e439]
+                - paragraph [ref=e440]: 校核布草、清洁、补货、垃圾回收等后勤路径在不同时段的冲突点，保证后勤效率同时降低对住客主要动线的干扰。
+                - generic [ref=e441]:
+                  - generic [ref=e442]: 后勤
+                  - generic [ref=e443]: 补给
+                  - generic [ref=e444]: 效率
+                - generic [ref=e445]:
+                  - generic [ref=e446]: 锚点 SPG
+                  - generic [ref=e447]: 空间 后勤
+                - generic [ref=e448]:
+                  - generic [ref=e449]:
+                    - generic [ref=e450]: 后勤流线
+                    - generic [ref=e451]: 待审
+                  - generic [ref=e452]:
+                    - generic [ref=e453]: 引用 7
+                    - generic [ref=e454]: 2026-03-31
+              - button "指导文件 S5 缺口补全 S5 缺口补全 · 餐厅早餐与晚间酒饮双场景切换表 梳理餐厅在早餐、下午茶、晚间酒饮三种运营场景下的家具布置、灯光亮度、服务动线与台面陈列切换逻辑，确保同一空间在不同营运时段仍保持统一气质。 餐厅 早餐 酒饮 锚点 InitialDesignPack 空间 餐厅 场景切换 进行中 引用 8 2026-03-30" [ref=e455] [cursor=pointer]:
+                - generic [ref=e456]:
+                  - generic [ref=e457]: 指导文件
+                  - generic [ref=e458]: S5 缺口补全
+                - heading "S5 缺口补全 · 餐厅早餐与晚间酒饮双场景切换表" [level=3] [ref=e459]
+                - paragraph [ref=e460]: 梳理餐厅在早餐、下午茶、晚间酒饮三种运营场景下的家具布置、灯光亮度、服务动线与台面陈列切换逻辑，确保同一空间在不同营运时段仍保持统一气质。
+                - generic [ref=e461]:
+                  - generic [ref=e462]: 餐厅
+                  - generic [ref=e463]: 早餐
+                  - generic [ref=e464]: 酒饮
+                - generic [ref=e465]:
+                  - generic [ref=e466]: 锚点 InitialDesignPack
+                  - generic [ref=e467]: 空间 餐厅
+                - generic [ref=e468]:
+                  - generic [ref=e469]:
+                    - generic [ref=e470]: 场景切换
+                    - generic [ref=e471]: 进行中
+                  - generic [ref=e472]:
+                    - generic [ref=e473]: 引用 8
+                    - generic [ref=e474]: 2026-03-30
+              - button "指导文件 S5 缺口补全 S5 缺口补全 · 材料样本册 收录墙、地、顶及家具触感材料的搭配方向、耐用等级与替代层级，明确概念表达与运营维护之间的平衡。优先筛选适合潮湿山地环境、但不失细腻触感和品牌质感的材料组合。 材料 耐用性 触感 锚点 InitialDesignPack 空间 客房 材料 进行中 引用 14 2026-03-29" [ref=e475] [cursor=pointer]:
+                - generic [ref=e476]:
+                  - generic [ref=e477]: 指导文件
+                  - generic [ref=e478]: S5 缺口补全
+                - heading "S5 缺口补全 · 材料样本册" [level=3] [ref=e479]
+                - paragraph [ref=e480]: 收录墙、地、顶及家具触感材料的搭配方向、耐用等级与替代层级，明确概念表达与运营维护之间的平衡。优先筛选适合潮湿山地环境、但不失细腻触感和品牌质感的材料组合。
+                - generic [ref=e481]:
+                  - generic [ref=e482]: 材料
+                  - generic [ref=e483]: 耐用性
+                  - generic [ref=e484]: 触感
+                - generic [ref=e485]:
+                  - generic [ref=e486]: 锚点 InitialDesignPack
+                  - generic [ref=e487]: 空间 客房
+                - generic [ref=e488]:
+                  - generic [ref=e489]:
+                    - generic [ref=e490]: 材料
+                    - generic [ref=e491]: 进行中
+                  - generic [ref=e492]:
+                    - generic [ref=e493]: 引用 14
+                    - generic [ref=e494]: 2026-03-29
+              - button "指导文件 S5 缺口补全 S5 缺口补全 · 灯光场景表 梳理白天、傍晚、夜间及社交时段的照明层级与色温变化，建立一套兼顾情绪与运营的灯光场景表。强调公共空间的氛围转换与客房私密感的细微区别，避免一套照明走到底。 灯光 氛围 色温 锚点 InitialDesignPack 空间 大堂 灯光 待验证 引用 11 2026-03-28" [ref=e495] [cursor=pointer]:
+                - generic [ref=e496]:
+                  - generic [ref=e497]: 指导文件
+                  - generic [ref=e498]: S5 缺口补全
+                - heading "S5 缺口补全 · 灯光场景表" [level=3] [ref=e499]
+                - paragraph [ref=e500]: 梳理白天、傍晚、夜间及社交时段的照明层级与色温变化，建立一套兼顾情绪与运营的灯光场景表。强调公共空间的氛围转换与客房私密感的细微区别，避免一套照明走到底。
+                - generic [ref=e501]:
+                  - generic [ref=e502]: 灯光
+                  - generic [ref=e503]: 氛围
+                  - generic [ref=e504]: 色温
+                - generic [ref=e505]:
+                  - generic [ref=e506]: 锚点 InitialDesignPack
+                  - generic [ref=e507]: 空间 大堂
+                - generic [ref=e508]:
+                  - generic [ref=e509]:
+                    - generic [ref=e510]: 灯光
+                    - generic [ref=e511]: 待验证
+                  - generic [ref=e512]:
+                    - generic [ref=e513]: 引用 11
+                    - generic [ref=e514]: 2026-03-28
+              - button "指导文件 S5 缺口补全 S5 缺口补全 · 家具选型方向 明确床、沙发、椅凳、边几等重点家具的风格、尺寸与比例基准，避免不同供应渠道带来的视觉断裂。优先建立“轻、薄、功能明确”的家具轮廓，同时保留局部温润感。 家具 比例 风格 锚点 InitialDesignPack 空间 客房 家具 待审 引用 13 2026-03-30" [ref=e515] [cursor=pointer]:
+                - generic [ref=e516]:
+                  - generic [ref=e517]: 指导文件
+                  - generic [ref=e518]: S5 缺口补全
+                - heading "S5 缺口补全 · 家具选型方向" [level=3] [ref=e519]
+                - paragraph [ref=e520]: 明确床、沙发、椅凳、边几等重点家具的风格、尺寸与比例基准，避免不同供应渠道带来的视觉断裂。优先建立“轻、薄、功能明确”的家具轮廓，同时保留局部温润感。
+                - generic [ref=e521]:
+                  - generic [ref=e522]: 家具
+                  - generic [ref=e523]: 比例
+                  - generic [ref=e524]: 风格
+                - generic [ref=e525]:
+                  - generic [ref=e526]: 锚点 InitialDesignPack
+                  - generic [ref=e527]: 空间 客房
+                - generic [ref=e528]:
+                  - generic [ref=e529]:
+                    - generic [ref=e530]: 家具
+                    - generic [ref=e531]: 待审
+                  - generic [ref=e532]:
+                    - generic [ref=e533]: 引用 13
+                    - generic [ref=e534]: 2026-03-30
+              - button "指导文件 S5 缺口补全 S5 缺口补全 · 客房睡眠灯光子策略 细化客房“入睡-夜起-晨起”三段灯光场景，控制照度、色温与眩光，兼顾睡眠质量与路径安全，避免与公共区照明逻辑混用。 客房 睡眠 照明 锚点 InitialDesignPack 空间 客房 客房灯光 待验证 引用 8 2026-03-30" [ref=e535] [cursor=pointer]:
+                - generic [ref=e536]:
+                  - generic [ref=e537]: 指导文件
+                  - generic [ref=e538]: S5 缺口补全
+                - heading "S5 缺口补全 · 客房睡眠灯光子策略" [level=3] [ref=e539]
+                - paragraph [ref=e540]: 细化客房“入睡-夜起-晨起”三段灯光场景，控制照度、色温与眩光，兼顾睡眠质量与路径安全，避免与公共区照明逻辑混用。
+                - generic [ref=e541]:
+                  - generic [ref=e542]: 客房
+                  - generic [ref=e543]: 睡眠
+                  - generic [ref=e544]: 照明
+                - generic [ref=e545]:
+                  - generic [ref=e546]: 锚点 InitialDesignPack
+                  - generic [ref=e547]: 空间 客房
+                - generic [ref=e548]:
+                  - generic [ref=e549]:
+                    - generic [ref=e550]: 客房灯光
+                    - generic [ref=e551]: 待验证
+                  - generic [ref=e552]:
+                    - generic [ref=e553]: 引用 8
+                    - generic [ref=e554]: 2026-03-30
+              - button "指导文件 S5 缺口补全 S5 缺口补全 · 夜间归房路径照明与导视策略 定义从大堂、电梯厅、连廊到客房门口的夜间照明层级、脚下引导、门牌显隐与安全感阈值，控制眩光和迷失感，保证雨雾天气下仍具备清晰的归房路径。 夜间 导视 归房 锚点 InitialDesignPack 空间 连廊 夜间导视 待验证 引用 9 2026-03-29" [ref=e555] [cursor=pointer]:
+                - generic [ref=e556]:
+                  - generic [ref=e557]: 指导文件
+                  - generic [ref=e558]: S5 缺口补全
+                - heading "S5 缺口补全 · 夜间归房路径照明与导视策略" [level=3] [ref=e559]
+                - paragraph [ref=e560]: 定义从大堂、电梯厅、连廊到客房门口的夜间照明层级、脚下引导、门牌显隐与安全感阈值，控制眩光和迷失感，保证雨雾天气下仍具备清晰的归房路径。
+                - generic [ref=e561]:
+                  - generic [ref=e562]: 夜间
+                  - generic [ref=e563]: 导视
+                  - generic [ref=e564]: 归房
+                - generic [ref=e565]:
+                  - generic [ref=e566]: 锚点 InitialDesignPack
+                  - generic [ref=e567]: 空间 连廊
+                - generic [ref=e568]:
+                  - generic [ref=e569]:
+                    - generic [ref=e570]: 夜间导视
+                    - generic [ref=e571]: 待验证
+                  - generic [ref=e572]:
+                    - generic [ref=e573]: 引用 9
+                    - generic [ref=e574]: 2026-03-29
+              - button "规划文件 S5 缺口补全 S5 缺口补全 · 客房样板间问题清单 基于样板间首轮评审，记录床头开关位置、行李摆放、窗帘遮光、夜起照明、插座可达性与卫浴收纳等问题，并按“必须修正 / 试住观察 / 可后置优化”三档排序。 客房 样板间 问题 锚点 SPG 空间 客房 问题清单 待验证 引用 11 2026-03-31" [ref=e575] [cursor=pointer]:
+                - generic [ref=e576]:
+                  - generic [ref=e577]: 规划文件
+                  - generic [ref=e578]: S5 缺口补全
+                - heading "S5 缺口补全 · 客房样板间问题清单" [level=3] [ref=e579]
+                - paragraph [ref=e580]: 基于样板间首轮评审，记录床头开关位置、行李摆放、窗帘遮光、夜起照明、插座可达性与卫浴收纳等问题，并按“必须修正 / 试住观察 / 可后置优化”三档排序。
+                - generic [ref=e581]:
+                  - generic [ref=e582]: 客房
+                  - generic [ref=e583]: 样板间
+                  - generic [ref=e584]: 问题
+                - generic [ref=e585]:
+                  - generic [ref=e586]: 锚点 SPG
+                  - generic [ref=e587]: 空间 客房
+                - generic [ref=e588]:
+                  - generic [ref=e589]:
+                    - generic [ref=e590]: 问题清单
+                    - generic [ref=e591]: 待验证
+                  - generic [ref=e592]:
+                    - generic [ref=e593]: 引用 11
+                    - generic [ref=e594]: 2026-03-31
+          - generic [ref=e595]:
+            - generic [ref=e596]:
+              - heading "S6 定版冻结" [level=4] [ref=e597]
+              - generic [ref=e599]: 2 条
+            - generic [ref=e600]:
+              - button "规划文件 S6 定版冻结 S6 定版冻结 · 施工样板段验收标准 针对木饰面拼缝、石材收口、门套转角、灯槽阴影、五金表面和墙地交接等高敏感细节建立样板段验收标准，明确“可接受误差 / 必须返工 / 可后续修补”的判断依据。 施工 样板 验收 锚点 SPG 空间 全局 样板验收 待审 引用 18 2026-03-31" [ref=e601] [cursor=pointer]:
+                - generic [ref=e602]:
+                  - generic [ref=e603]: 规划文件
+                  - generic [ref=e604]: S6 定版冻结
+                - heading "S6 定版冻结 · 施工样板段验收标准" [level=3] [ref=e605]
+                - paragraph [ref=e606]: 针对木饰面拼缝、石材收口、门套转角、灯槽阴影、五金表面和墙地交接等高敏感细节建立样板段验收标准，明确“可接受误差 / 必须返工 / 可后续修补”的判断依据。
+                - generic [ref=e607]:
+                  - generic [ref=e608]: 施工
+                  - generic [ref=e609]: 样板
+                  - generic [ref=e610]: 验收
+                - generic [ref=e611]:
+                  - generic [ref=e612]: 锚点 SPG
+                  - generic [ref=e613]: 空间 全局
+                - generic [ref=e614]:
+                  - generic [ref=e615]:
+                    - generic [ref=e616]: 样板验收
+                    - generic [ref=e617]: 待审
+                  - generic [ref=e618]:
+                    - generic [ref=e619]: 引用 18
+                    - generic [ref=e620]: 2026-03-31
+              - button "规划文件 S6 定版冻结 S6 定版冻结 · 风险项跟踪与冻结清单 汇总目前仍影响排期和预算的高风险事项，包括场地排水、设备降噪、定制家具交期、进口灯具替代、样板段返修和消防审图反馈，并标记责任方、处理时点与冻结状态。 风险 冻结 排期 锚点 EvidenceOnly 空间 全局 风险跟踪 进行中 引用 16 2026-03-31" [ref=e621] [cursor=pointer]:
+                - generic [ref=e622]:
+                  - generic [ref=e623]: 规划文件
+                  - generic [ref=e624]: S6 定版冻结
+                - heading "S6 定版冻结 · 风险项跟踪与冻结清单" [level=3] [ref=e625]
+                - paragraph [ref=e626]: 汇总目前仍影响排期和预算的高风险事项，包括场地排水、设备降噪、定制家具交期、进口灯具替代、样板段返修和消防审图反馈，并标记责任方、处理时点与冻结状态。
+                - generic [ref=e627]:
+                  - generic [ref=e628]: 风险
+                  - generic [ref=e629]: 冻结
+                  - generic [ref=e630]: 排期
+                - generic [ref=e631]:
+                  - generic [ref=e632]: 锚点 EvidenceOnly
+                  - generic [ref=e633]: 空间 全局
+                - generic [ref=e634]:
+                  - generic [ref=e635]:
+                    - generic [ref=e636]: 风险跟踪
+                    - generic [ref=e637]: 进行中
+                  - generic [ref=e638]:
+                    - generic [ref=e639]: 引用 16
+                    - generic [ref=e640]: 2026-03-31
+      - generic [ref=e641]:
+        - generic [ref=e642]:
+          - button "项 目 驾 驶 舱" [ref=e643] [cursor=pointer]:
+            - generic [ref=e644]:
+              - generic [ref=e645]: 项
+              - generic [ref=e646]: 目
+              - generic [ref=e647]: 驾
+              - generic [ref=e648]: 驶
+              - generic [ref=e649]: 舱
+          - generic [ref=e650]:
+            - button "空 间" [ref=e651] [cursor=pointer]:
+              - generic [ref=e652]:
+                - generic [ref=e653]: 空
+                - generic [ref=e654]: 间
+            - button "平 面 沙 盘" [ref=e655] [cursor=pointer]:
+              - generic [ref=e656]:
+                - generic [ref=e657]: 平
+                - generic [ref=e658]: 面
+                - generic [ref=e659]: 沙
+                - generic [ref=e660]: 盘
+            - button "方 案 画 布" [ref=e661] [cursor=pointer]:
+              - generic [ref=e662]:
+                - generic [ref=e663]: 方
+                - generic [ref=e664]: 案
+                - generic [ref=e665]: 画
+                - generic [ref=e666]: 布
+            - button "思 维 参 谋" [ref=e667] [cursor=pointer]:
+              - generic [ref=e668]:
+                - generic [ref=e669]: 思
+                - generic [ref=e670]: 维
+                - generic [ref=e671]: 参
+                - generic [ref=e672]: 谋
+        - button "资 源 雷 达" [ref=e673] [cursor=pointer]:
+          - generic [ref=e674]:
+            - generic [ref=e675]: 资
+            - generic [ref=e676]: 源
+            - generic [ref=e677]: 雷
+            - generic [ref=e678]: 达
+        - button "灵 感 仓 库" [ref=e679] [cursor=pointer]:
+          - generic [ref=e680]:
+            - generic [ref=e681]: 灵
+            - generic [ref=e682]: 感
+            - generic [ref=e683]: 仓
+            - generic [ref=e684]: 库
+        - button "梦 幻 团 队" [ref=e685] [cursor=pointer]:
+          - generic [ref=e686]:
+            - generic [ref=e687]: 梦
+            - generic [ref=e688]: 幻
+            - generic [ref=e689]: 团
+            - generic [ref=e690]: 队
+    - generic [ref=e691]:
+      - complementary [ref=e692]:
+        - generic [ref=e693]:
+          - generic [ref=e695]:
+            - img [ref=e697]
+            - generic [ref=e702]: 方案高参
+          - button "开启新对话" [ref=e704] [cursor=pointer]:
+            - img [ref=e705]
+            - generic [ref=e706]: 开启新对话
+          - generic [ref=e708]:
+            - generic [ref=e709]: 今天
+            - button "未命名会话 4/14 10:37 [深度思考]" [ref=e711] [cursor=pointer]:
+              - generic [ref=e712]: 未命名会话
+              - generic [ref=e713]:
+                - generic [ref=e714]: 4/14 10:37
+                - generic [ref=e715]: "[深度思考]"
+      - generic [ref=e716]:
+        - banner:
+          - generic [ref=e717]:
+            - generic [ref=e718]:
+              - button "展开历史记录" [ref=e719] [cursor=pointer]:
+                - img [ref=e720]
+              - heading "方案高参" [level=1] [ref=e722]
+            - generic [ref=e723]:
+              - img [ref=e724]
+              - generic [ref=e731]: 网络异常，正在重连...
+        - generic [ref=e735]:
+          - generic [ref=e737]:
+            - generic [ref=e738]: 💬
+            - paragraph [ref=e739]: 随时开始聊
+            - paragraph [ref=e740]: 分享你的想法、灵感或设计需求
+          - generic [ref=e742]:
+            - textbox "输入你的想法、问题或设计需求…" [ref=e743]
+            - button "发送" [disabled] [ref=e745]:
+              - img [ref=e746]
+    - generic [ref=e749]:
+      - generic [ref=e750]:
+        - heading "节点详情" [level=3] [ref=e751]
+        - button [ref=e752] [cursor=pointer]:
+          - img [ref=e753]
+      - generic [ref=e758]: 节点 ID
+  - generic [ref=e761]:
+    - generic [ref=e762]: 🔧
+    - generic [ref=e763]:
+      - generic [ref=e764]: 开发模式
+      - generic [ref=e765]: 跳过登录验证
+    - button "最小化" [ref=e766] [cursor=pointer]:
+      - img [ref=e767]

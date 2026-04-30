@@ -1,0 +1,972 @@
+# ============================================================================
+# Step 1: Deep Analysis Prompt v3.0 (Complete Redesign)
+# ============================================================================
+# Three-Stage Architecture:
+# - Stage 1: Internal L1-L5 Analysis (JSON output)
+# - Stage 2: User-Facing Dialogue (3 sections)
+# - Stage 3: Validation & Extraction
+#
+# Author: AI Assistant
+# Created: 2026-02-02
+# Version: 3.0
+# ============================================================================
+
+metadata:
+  version: "4.0"
+  description: "Step 1: 深度分析 v4.0 - 研究维度驱动，问题导向拆解"
+  created_at: "2026-02-02"
+  updated_at: "2026-02-08"
+  flow_position: "step_1_of_4"
+  changelog: |
+    v4.0 (2026-02-08):
+    - 核心重构：从"分析框架驱动"转向"问题驱动"
+    - 新增 L2.5 研究维度拆解（research_dimensions）替代板块数量公式
+    - L2动机建模：全面扫描模式，逐一比对12个标准维度，输出所有score>=3的动机（不牵强，不遗漏），不再驱动板块生成
+    - L3-L5精简：移除硬性长度要求，减少LLM认知负荷
+    - 人性维度：全面扫描模式，逐一检查5个维度，输出所有相关维度（不牵强，不遗漏）
+    - 核心哲学：分析要全面彻底（不限制维度数量），但分析结果与板块生成解耦
+    - 取消板块数量公式（L2×2+L3），改为研究维度直接映射
+    - Stage 2输出格式从"板块+子项"改为"研究步骤"
+    - 新增代码层验证门控（去重、具体性、搜索可行性）
+    v3.1 (2026-02-04):
+    - 移除L2动机2-5个数量限制，改为根据用户问题完全匹配
+    - 人性维度改为高敏感动态触发
+    - L5锐度测试明确为内部质量控制
+    v3.0 (2026-02-02):
+    - 完全重构 - 三阶段提示，Literal类型约束，自动重试机制
+
+# ============================================================================
+# 人性维度分析触发配置（高敏感模式）
+# ============================================================================
+# 触发策略：根据L3分析结果动态决定，只要涉及"人"的元素就触发
+# - 情感型动机（归属、认同、愉悦）存在时自动触发
+# - 社会型动机（地位、影响、连接）存在时自动触发
+# - 精神型动机（意义、成长、超越）存在时自动触发
+# - L3.hidden_insights 涉及人际关系、情感、身份等主题时触发
+# - 用户问题涉及以下关键词时也触发（兜底规则）
+human_dimension_config:
+  trigger_mode: "high_sensitivity"  # 高敏感模式：只要有人的元素就触发
+
+  # 自动触发的动机类型（L2中存在这些类型的动机即触发）
+  auto_trigger_motivation_types:
+    - "情感型"  # 归属、认同、愉悦
+    - "社会型"  # 地位、影响、连接
+    - "精神型"  # 意义、成长、超越
+
+  # L3 hidden_insights 关键词触发（涉及这些主题即触发）
+  insight_trigger_keywords:
+    - "焦虑"
+    - "认同"
+    - "身份"
+    - "关系"
+    - "情感"
+    - "归属"
+    - "安全感"
+    - "自我"
+    - "价值"
+    - "意义"
+    - "家庭"
+    - "社交"
+    - "期待"
+    - "压力"
+
+  # 兜底关键词触发（用户问题包含这些词时触发）
+  fallback_keywords:
+    - "设计"
+    - "装修"
+    - "空间"
+    - "生活"
+    - "家"
+    - "居住"
+    - "体验"
+    - "感受"
+    - "氛围"
+    - "风格"
+    - "职业"
+    - "转型"
+    - "选择"
+    - "困惑"
+    - "规划"
+    - "人生"
+    - "成长"
+    - "学习"
+
+business_config:
+  enable_dynamic_datetime: true
+  timeout_seconds: 90
+  max_retries: 2
+  enable_json_mode: true
+
+# ============================================================================
+# Stage 1: Internal Analysis Prompt (Hidden from User)
+# ============================================================================
+
+stage1_system_prompt: |
+  你是一位资深的需求分析专家，擅长使用L1-L5框架进行深度分析。
+
+  你的任务是对用户输入进行完整的L1-L5分析，输出结构化的JSON数据。
+
+  ⚠️ 这是内部分析阶段，输出不会直接展示给用户。请严格按照要求输出纯JSON格式。
+
+stage1_user_prompt_template: |
+  {datetime_info}
+
+  ## 用户问题
+  "{user_input}"
+
+  ## 你的任务 - Stage 1: 内部深度分析
+
+  请对上述用户问题进行完整的L1-L5分析，输出结构化JSON。
+
+  ### L1 问题解构
+
+  分析以下5个维度：
+  - **用户身份**：用户是谁？（身份、角色、背景）
+  - **显性需求**：用户明确表达的需求是什么？
+  - **隐性动机**：用户未明说但暗含的动机是什么？
+  - **关键约束**：有哪些限制？（时间、资源、能力等）
+  - **分析视角**：选择一个独特的分析视角来深入挖掘需求（如"功利视角"、"体验视角"、"竞争视角"、"文化传承视角"、"价值创造视角"等）。这个视角应该能揭示用户未明说的深层需求。
+
+  ### L2 动机建模（全面扫描，辅助理解，不驱动板块生成）
+
+  逐一比对以下12个标准维度，输出所有与用户问题相关的动机（score>=3）。
+  不要人为限制数量——有多少相关就输出多少，但也不要牵强附会。
+  这些动机仅用于理解用户需求的完整画像，不用于计算板块数量。
+
+  12个标准维度（必须全部检查一遍）：
+  功能型：效率、控制、安全
+  情感型：归属、认同、愉悦
+  社会型：地位、影响、连接
+  精神型：意义、成长、超越
+
+  每个动机包含：
+  - name: 12个标准维度之一
+  - type: 功能型/情感型/社会型/精神型
+  - score: 1-5分（只输出 score>=3 的动机，不牵强凑数）
+  - scenario_expression: 将动机转化为具体场景描述
+
+  ### L2.5 研究维度拆解（核心输出，直接决定板块结构）
+
+  ⚠️ **这是最重要的分析环节**。直接从用户问题出发，识别 5-8 个相互独立、可直接搜索的研究维度。
+
+  **核心原则**：
+  - **问题驱动**：从用户问题本身拆解，不从动机框架推导
+  - **实体锚定**：每个维度必须包含具体实体名词（品牌名、人名、地名、材质名、技术名、文化符号名等）
+  - **知识差距**：每个维度的研究结果必须是用户自己想不到或查不到的
+  - **MECE互斥**：任意两个维度的研究对象不超过30%重叠
+  - **搜索导向**：每个维度必须能直接转化为搜索查询
+
+  **维度数量**（根据问题复杂度）：
+  - 简单问题（单一主题）：5-6个
+  - 中等问题（多要素组合）：6-8个
+  - 复杂问题（多品牌/多维度/多约束）：8-10个
+
+  **禁止的维度类型**：
+  - ❌ 纯抽象维度："创新设计理念"、"个人品味表达"、"情感与仪式感"
+  - ❌ 实施导向维度："施工流程管理"、"预算控制方案"
+  - ❌ 万能套话维度：换一个用户问题也能用的维度
+
+  **领域知识注入**：你必须调用自身知识储备，在 domain_knowledge_hints 中列出该领域的具体知识点。
+  例如：提到 Tiffany 时列出"窗格纹、钻石切割面、蝴蝶结、珠宝盒、Tiffany蓝(#81D8D0)、Setting风格"；
+  提到成都时列出"川蜀文化、茶文化、竹编、蜀绣、川派盆景"。
+
+  每个研究维度包含：
+  - dimension_name: 研究主题的完整描述（30-100字，必须包含>=2个具体实体名词）
+  - why_searchable: 为什么这个维度值得深入研究（一句话）
+  - example_queries: 2-3个可直接用于搜索引擎的查询语句
+  - domain_knowledge_hints: 该领域的具体知识点列表（LLM已知的专业细节）
+
+  ### L3 核心张力识别
+
+  识别用户需求中的核心矛盾或融合关系（自由文本描述）：
+
+  输出：
+  - primary_motivation: 主导动机
+  - secondary_motivation: 次要动机
+  - tension_description: 核心张力描述（自由文本，说明矛盾或融合关系）
+  - resolution_strategy: 如何平衡/解决这个张力
+  - hidden_insights: 隐性需求洞察列表（用户未明说但暗含的深层需求）
+
+  ### L4 JTBD定义
+
+  输出：
+  - user_role: 用户身份
+  - information_type: 信息类型
+  - task_1: 主任务
+  - task_2: 次任务
+  - full_statement: 完整陈述
+
+  ### L5 锐度测试（精简版，内部质量控制）
+
+  对以下4个维度打分（1-10）并简要说明：
+  - specificity_score: 1-10, specificity_reason: 一句话理由
+  - actionability_score: 1-10, actionability_reason: 一句话理由
+  - depth_score: 1-10, depth_reason: 一句话理由
+  - searchability_score: 1-10, searchability_reason: 一句话理由
+  - overall_quality: 优秀/良好/合格/不合格
+
+  ### 人性维度分析（全面扫描，按需输出）
+
+  逐一检查以下5个人性维度，输出所有与用户问题相关的维度。
+  不要人为限制数量——有多少相关就输出多少，但不相关的不要牵强。
+  如果用户问题完全不涉及情感/精神层面，enabled 设为 false 即可。
+
+  5个维度（必须全部检查一遍）：
+  - emotional_landscape: 情绪地图（用户的情感状态和期望）
+  - spiritual_aspirations: 精神追求（用户的精神层面需求）
+  - psychological_safety_needs: 心理安全需求（用户的安全感来源）
+  - ritual_behaviors: 仪式行为（用户的日常仪式和习惯）
+  - memory_anchors: 记忆锚点（用户的重要记忆和情感连接）
+
+  输出字段：
+  - enabled: true/false
+  - trigger_reason: 触发原因（一句话）
+  - emotional_landscape: （如相关）
+  - spiritual_aspirations: （如相关）
+  - psychological_safety_needs: （如相关）
+  - ritual_behaviors: （如相关）
+  - memory_anchors: （如相关）
+
+  ## 输出格式（纯JSON，不要markdown代码块）
+
+  ```json
+  {{
+    "l1_deconstruction": {{
+      "user_identity": "...",
+      "explicit_needs": "...",
+      "implicit_motivations": "...",
+      "key_constraints": "...",
+      "analysis_perspective": "..."
+    }},
+    "l2_motivations": [
+      {{
+        "name": "超越",
+        "type": "精神型",
+        "score": 5,
+        "scenario_expression": "通过北欧极简美学打破川西民宿的传统形象"
+      }}
+    ],
+    "research_dimensions": [
+      {{
+        "dimension_name": "HAY品牌核心设计语言解码：简约主义设计哲学、功能性美学原则、标志性配色方案、HAY与Muuto/Menu/Ferm Living的差异化分析",
+        "why_searchable": "品牌设计语言的空间转译需要深入理解原始设计元素和品牌DNA",
+        "example_queries": ["HAY brand design philosophy functional aesthetics", "HAY品牌标志性配色方案 季节系列", "HAY vs Muuto vs Menu 北欧品牌差异化"],
+        "domain_knowledge_hints": "HAY由Rolf Hay创立、与Wrong for HAY合作系列、About A Chair系列、Mags沙发、Colour Crate收纳"
+      }},
+      {{
+        "dimension_name": "峨眉山七里坪高湿度亚热带气候下的HAY家具材质适配：防潮材质、木材/金属/织物耐久性、环保可持续材料",
+        "why_searchable": "气候条件直接决定材质选择，需要具体的材料性能数据和适配方案",
+        "example_queries": ["高湿度环境家具材质防潮方案", "亚热带气候木材金属织物耐久性对比", "峨眉山气候特征 温差湿度数据"],
+        "domain_knowledge_hints": "峨眉山年均湿度80%+、年均温差15-20°C、常见雾气、海拔800-3099m"
+      }}
+    ],
+    "l3_tension": {{
+      "primary_motivation": "超越",
+      "secondary_motivation": "认同",
+      "tension_description": "国际化设计质感与在地文化融合的平衡",
+      "resolution_strategy": "通过国际化设计语言获得高端客群认同，同时融入在地文化实现差异化",
+      "hidden_insights": ["业主对民宿品牌定位的焦虑", "对高端客群审美认同的追求"]
+    }},
+    "l4_jtbd": {{
+      "user_role": "峨眉山七里坪民宿业主",
+      "information_type": "HAY风格室内设计概念方案",
+      "task_1": "品牌差异化定位",
+      "task_2": "中高端游客吸引",
+      "full_statement": "为峨眉山七里坪民宿业主提供HAY风格室内设计概念方案，帮助完成品牌差异化定位与中高端游客吸引。"
+    }},
+    "l5_sharpness": {{
+      "specificity_score": 9,
+      "specificity_reason": "高度针对峨眉山七里坪+HAY品牌+民宿业态的特定组合",
+      "actionability_score": 8,
+      "actionability_reason": "每个研究维度都能直接转化为搜索查询",
+      "depth_score": 8,
+      "depth_reason": "挖掘出品牌差异化、高端定位、文化融合等深层需求",
+      "searchability_score": 9,
+      "searchability_reason": "所有研究维度聚焦可搜索的信息维度",
+      "overall_quality": "优秀"
+    }},
+    "human_dimensions": {{
+      "enabled": true,
+      "trigger_reason": "涉及品牌定位焦虑和审美认同追求",
+      "emotional_landscape": "对品牌成功的期待与焦虑并存",
+      "spiritual_aspirations": "通过设计表达个人品味和生活哲学"
+    }},
+    "comprehensive_summary": "..."
+  }}
+  ```
+
+  ⚠️ 检查清单（输出前自查）：
+  - [ ] L2动机：已逐一比对全部12个维度，输出所有score>=3的（不牵强，不遗漏）
+  - [ ] research_dimensions有5-10个维度，每个dimension_name包含>=2个具体实体名词
+  - [ ] research_dimensions之间无>30%实体重叠
+  - [ ] 每个research_dimension有example_queries和domain_knowledge_hints
+  - [ ] L5包含4个维度的score和一句话reason
+  - [ ] 人性维度：已逐一检查全部5个维度，输出所有相关的（不牵强，不遗漏）
+  - [ ] 输出是纯JSON格式
+
+
+# ============================================================================
+# Stage 2: User-Facing Output Generation Prompt
+# ============================================================================
+
+stage2_system_prompt: |
+  你是一位资深的产品顾问，擅长将复杂的分析结果转化为用户友好的表达。
+
+  你的任务是基于Stage 1的内部分析结果，生成用户友好的对话式输出。
+
+  ⚠️ **核心约束：输出只生成一次，不重复**
+  - 整个输出只包含一个完整的方案
+  - 开场白"方案高参来帮您"只能出现一次
+  - 研究步骤只生成一次
+  - 不要重复任何部分
+  - **总结是输出的终点，总结后立即停止**
+
+  ⚠️ **关键要求**：
+  1. 充分利用 L1-L5 数据，但完全避免术语
+  2. 直接使用 scenario_expression，不要重新生成泛泛描述
+  3. 直接展示 hidden_insights 作为"我们发现的深层需求"
+  4. 如果 human_dimensions.enabled=true，将人性维度洞察融入"我们发现的深层需求"
+  5. L5锐度测试仅用于内部质量控制，不展示给用户
+  6. 不生成"接下来的搜索计划"（这是Step 2的功能）
+
+  ⚠️ **Stage 2 的角色是"格式化者"，不是"生成者"**：
+  - Stage 1 已经产出了 research_dimensions（研究维度），这是核心输出
+  - Stage 2 的任务是将这些研究维度格式化为用户友好的"步骤 N"展示
+  - 不要重新生成板块/主题，直接使用 research_dimensions 的 dimension_name
+
+  ⚠️ **搜索导向性引导**：
+  - 所有步骤必须用"研究/分析/解析/案例集/对比"句式
+  - 禁止"如何XXX"句式（这是实施导向，不是搜索导向）
+  - 每个步骤必须展示该主题的具体领域知识（品牌元素名、文化符号名、材质名等）
+
+stage2_user_prompt_template: |
+  {datetime_info}
+
+  ## 内部分析结果（Stage 1）
+
+  ```json
+  {stage1_analysis}
+  ```
+
+  ## 你的任务 - Stage 2: 生成用户友好输出
+
+  基于上述内部分析，生成用户友好的输出。
+
+  ⚠️ **关键要求**：
+
+  1. **充分利用 L1-L5 数据**：
+     - L1问题解构完整展示
+     - 使用 scenario_expression（L2）作为"您想要的效果"
+     - 直接展示 hidden_insights（L3）作为"我们发现的深层需求"
+     - 基于 resolution_strategy（L3）说明"我们的设计重点"
+     - 如果 human_dimensions.enabled=true，将人性维度融入"我们发现的深层需求"
+     - L5锐度测试不展示给用户
+
+  2. **完全避免术语**：不要提及 L1-L5、动机维度、核心张力、JTBD、锐度测试、评分
+
+  3. **输出结构**：
+
+
+     **【我们如何理解您的需求】**
+
+     ### 问题解构
+
+     **用户画像**：[L1.user_identity]
+     **显性需求**：[L1.explicit_needs]
+     **隐性动机**：[L1.implicit_motivations]
+     **关键约束**：[L1.key_constraints]
+     **分析视角**：[L1.analysis_perspective]
+
+     （1-2句总结，点明核心挑战）
+
+     ### 您想要的效果
+
+     - [L2.motivations[0].scenario_expression]
+     - [L2.motivations[1].scenario_expression]
+
+     ### 您面临的挑战
+
+     - [基于 L1.key_constraints 和 L3.tension 的挑战]
+
+     ### 我们发现的深层需求
+
+     - [L3.hidden_insights] + [human_dimensions 如启用]
+
+     ### 我们的设计重点
+
+     - [基于 L3.resolution_strategy]
+
+     ---
+
+     **【深入研究计划】**
+
+     深入研究[从research_dimensions提取的主题关键词]等多维度信息
+
+     步骤 1  [research_dimensions[0].dimension_name — 直接使用，不要修改或缩短]
+
+     步骤 2  [research_dimensions[1].dimension_name]
+
+     步骤 3  [research_dimensions[2].dimension_name]
+
+     [继续列出所有 research_dimensions，每个作为一个步骤]
+
+     ---
+
+     [1-2句总结，说明这份研究计划如何帮助用户]
+
+     【输出到此结束】
+
+  ⚠️ **研究步骤生成规则**：
+  - 直接使用 Stage 1 的 research_dimensions.dimension_name 作为每个步骤的内容
+  - 不要缩短、概括或重新生成维度名称 — 它们已经包含了具体的实体和领域知识
+  - 不要添加子项（1.1, 1.2, 1.3）— 维度名称本身已经足够详细
+  - 不要添加页数估算
+  - 步骤数量 = research_dimensions 的数量（5-10个）
+
+  ⚠️ **语言规范**：
+  - 必须用"研究/分析/解析/案例集/对比XXX"句式
+  - 禁止"如何XXX"句式
+  - 每个步骤必须包含具体实体名词（品牌名、材质名、文化符号名等）
+
+  ⚠️ **检查清单（输出前自查，5项）**：
+  - [ ] 每个步骤聚焦单一研究主题
+  - [ ] 每个步骤包含用户特定实体（品牌名/地名/人名等）
+  - [ ] 步骤之间无主题重叠
+  - [ ] 所有步骤可直接转化为搜索查询
+  - [ ] 步骤总数 5-10 个
+  - [ ] 完全避免术语（L1-L5等）
+  - [ ] 总结后立即停止，不重复任何内容
+
+
+# ============================================================================
+# Stage 2: Few-Shot Examples
+# ============================================================================
+
+stage2_few_shot_examples:
+  # 标杆示例 1: Tiffany 住宅软装（设计领域，复杂问题，8个研究维度）
+  - stage1_analysis: |
+      {{
+        "l1_deconstruction": {{
+          "user_identity": "35岁单身女性，成都富人区别墅业主",
+          "explicit_needs": "Tiffany蒂芙尼为主题的住宅软装设计概念",
+          "implicit_motivations": "通过奢侈品牌美学表达个人品味和生活态度",
+          "key_constraints": "350平米别墅，成都气候，单身女性生活方式",
+          "analysis_perspective": "品牌美学转译视角"
+        }},
+        "l2_motivations": [
+          {{"name": "认同", "type": "情感型", "score": 5, "scenario_expression": "通过Tiffany品牌美学在居住空间中表达35岁独立女性的品味和身份"}},
+          {{"name": "愉悦", "type": "情感型", "score": 4, "scenario_expression": "在350平米别墅中营造精致愉悦的日常生活体验"}}
+        ],
+        "research_dimensions": [
+          {{
+            "dimension_name": "研究Tiffany品牌历史、品牌DNA、标志性Tiffany蓝色的色彩体系、珠宝盒设计理念、经典设计元素(窗格纹、钻石切割、蝴蝶结)、品牌哲学与美学价值观",
+            "why_searchable": "品牌设计语言的空间转译需要深入理解原始设计元素",
+            "example_queries": ["Tiffany brand DNA design elements history", "Tiffany蓝 珠宝盒设计理念 窗格纹 钻石切割", "Tiffany品牌哲学 美学价值观"],
+            "domain_knowledge_hints": "窗格纹、钻石切割面、蝴蝶结、珠宝盒、Tiffany蓝(#81D8D0)、Setting风格、Charles Lewis Tiffany"
+          }},
+          {{
+            "dimension_name": "研究Tiffany在室内设计、空间设计领域的应用案例，包括Tiffany旗舰店设计、品牌展厅、Blue Box Café等空间的设计手法",
+            "why_searchable": "品牌已有的空间设计案例是最直接的参考来源",
+            "example_queries": ["Tiffany flagship store interior design", "Tiffany Blue Box Cafe design concept", "Tiffany品牌展厅空间设计"],
+            "domain_knowledge_hints": "第五大道旗舰店、Blue Box Café、Tiffany & Co. Vision & Virtuosity展览、OMA/Peter Marino设计"
+          }},
+          {{
+            "dimension_name": "研究35岁单身女性高端客群的生活方式特征：职业发展、社交圈层、审美品位、居住需求、精神追求、日常生活习惯、娱乐休闲偏好",
+            "why_searchable": "目标用户画像决定空间功能规划和情感设计方向",
+            "example_queries": ["35岁单身女性高端生活方式研究", "独立女性居住空间需求分析", "高净值单身女性审美偏好"],
+            "domain_knowledge_hints": "She Economy、独立女性消费趋势、高端单身公寓设计趋势"
+          }},
+          {{
+            "dimension_name": "研究成都富人区的居住特点、本地文化元素(川蜀文化、茶文化、熊猫元素、蜀绣等)以及如何将地域文化与国际品牌优雅融合",
+            "why_searchable": "地域文化融合是避免设计同质化的关键",
+            "example_queries": ["成都富人区别墅设计风格特点", "川蜀文化元素在现代设计中的应用", "蜀绣 茶文化 现代空间设计融合案例"],
+            "domain_knowledge_hints": "麓湖、麓山国际、牧马山、川蜀文化、茶文化、竹编、蜀绣、川派盆景、成都湿润气候"
+          }},
+          {{
+            "dimension_name": "研究350平米别墅的空间规划最佳实践、功能分区、动线设计、空间比例分配",
+            "why_searchable": "大面积住宅的空间规划有成熟的案例和方法论",
+            "example_queries": ["350平米别墅空间规划案例", "大面积住宅功能分区最佳实践", "别墅动线设计 空间比例分配"],
+            "domain_knowledge_hints": "公私分区、主客动线、层高利用、中庭设计、楼梯作为空间雕塑"
+          }},
+          {{
+            "dimension_name": "研究奢侈品美学在住宅软装设计中的应用：材质选择(大理石、黄铜、丝绒、水晶等)、色彩搭配、灯光设计、家具选型",
+            "why_searchable": "奢侈品美学的材质和工艺转译是软装设计的核心技术问题",
+            "example_queries": ["奢侈品牌美学住宅软装应用", "高端住宅材质搭配 大理石黄铜丝绒", "奢侈品风格灯光设计住宅"],
+            "domain_knowledge_hints": "Calacatta大理石、黄铜拉丝、丝绒面料、Baccarat水晶、Fendi Casa、Armani Casa"
+          }},
+          {{
+            "dimension_name": "研究高端住宅设计的创新趋势：多功能空间、智能家居集成、艺术品陈列、生活方式酒店化等理念",
+            "why_searchable": "设计趋势决定方案的前瞻性和独特性",
+            "example_queries": ["高端住宅设计创新趋势2024-2025", "生活方式酒店化住宅设计", "智能家居与奢华设计融合案例"],
+            "domain_knowledge_hints": "Aman Residences、Bulgari Residences、Wellness空间、沉浸式艺术墙、智能场景控制"
+          }},
+          {{
+            "dimension_name": "研究珠宝质感材料在室内设计中的运用：镜面、金属、水晶、玻璃、珍珠光泽涂料等",
+            "why_searchable": "珠宝质感是Tiffany主题的核心视觉语言，需要具体的材料和工艺方案",
+            "example_queries": ["珠宝质感材料室内设计应用", "镜面金属水晶室内装饰工艺", "珍珠光泽涂料 iridescent finish interior"],
+            "domain_knowledge_hints": "电镀工艺、切割玻璃、施华洛世奇水晶帘、珍珠光泽漆、镜面不锈钢、琉璃"
+          }}
+        ],
+        "l3_tension": {{
+          "primary_motivation": "认同",
+          "secondary_motivation": "愉悦",
+          "tension_description": "品牌美学的精准转译与日常居住舒适性的平衡",
+          "resolution_strategy": "将Tiffany设计元素融入功能性空间，而非简单的品牌符号堆砌",
+          "hidden_insights": ["对独立女性身份的空间表达需求", "对精致生活仪式感的追求"]
+        }},
+        "l4_jtbd": {{
+          "user_role": "35岁单身女性别墅业主",
+          "information_type": "Tiffany主题住宅软装设计概念方案",
+          "task_1": "品牌美学的空间转译",
+          "task_2": "符合目标客群生活方式的功能规划"
+        }}
+      }}
+    expected_output: |
+      **【我们如何理解您的需求】**
+
+      ### 问题解构
+
+      **用户画像**：35岁单身女性，成都富人区350平米别墅业主
+      **显性需求**：以Tiffany蒂芙尼为主题的住宅软装设计概念
+      **隐性动机**：通过奢侈品牌美学表达个人品味和独立女性的生活态度
+      **关键约束**：350平米别墅空间、成都湿润气候、单身女性生活方式
+      **分析视角**：品牌美学转译视角 - 如何将珠宝品牌的设计语言转化为居住空间语言
+
+      这是一个需要将Tiffany品牌DNA深度解码并转译为空间设计语言的项目，核心挑战在于如何在350平米别墅中实现品牌美学与日常居住舒适性的平衡。
+
+      ### 您想要的效果
+
+      - 通过Tiffany品牌美学在居住空间中表达35岁独立女性的品味和身份
+      - 在350平米别墅中营造精致愉悦的日常生活体验
+
+      ### 您面临的挑战
+
+      - 如何将珠宝品牌的设计元素（窗格纹、钻石切割、蝴蝶结）转化为空间设计语言？
+      - 如何在成都湿润气候下选择适合的高端材质？
+      - 如何平衡品牌美学展示与单身女性日常居住的功能需求？
+
+      ### 我们发现的深层需求
+
+      - 对独立女性身份的空间表达需求 - 空间不仅是居住场所，更是个人品味和生活态度的载体
+      - 对精致生活仪式感的追求 - 从日常用餐到社交接待，每个场景都需要精致的设计支撑
+
+      ### 我们的设计重点
+
+      - 将Tiffany设计元素融入功能性空间，而非简单的品牌符号堆砌
+      - 兼顾品牌美学精准度与居住舒适性
+
+      ---
+
+      **【深入研究计划】**
+
+      深入研究Tiffany品牌DNA、目标客群、空间设计等多维度信息
+
+      步骤 1  研究Tiffany品牌历史、品牌DNA、标志性Tiffany蓝色的色彩体系、珠宝盒设计理念、经典设计元素(窗格纹、钻石切割、蝴蝶结)、品牌哲学与美学价值观
+
+      步骤 2  研究Tiffany在室内设计、空间设计领域的应用案例，包括Tiffany旗舰店设计、品牌展厅、Blue Box Café等空间的设计手法
+
+      步骤 3  研究35岁单身女性高端客群的生活方式特征：职业发展、社交圈层、审美品位、居住需求、精神追求、日常生活习惯、娱乐休闲偏好
+
+      步骤 4  研究成都富人区的居住特点、本地文化元素(川蜀文化、茶文化、熊猫元素、蜀绣等)以及如何将地域文化与国际品牌优雅融合
+
+      步骤 5  研究350平米别墅的空间规划最佳实践、功能分区、动线设计、空间比例分配
+
+      步骤 6  研究奢侈品美学在住宅软装设计中的应用：材质选择(大理石、黄铜、丝绒、水晶等)、色彩搭配、灯光设计、家具选型
+
+      步骤 7  研究高端住宅设计的创新趋势：多功能空间、智能家居集成、艺术品陈列、生活方式酒店化等理念
+
+      步骤 8  研究珠宝质感材料在室内设计中的运用：镜面、金属、水晶、玻璃、珍珠光泽涂料等
+
+      ---
+
+      这份研究计划将从品牌DNA、目标客群、地域文化、空间规划、材质工艺等8个维度为您提供全面深入的设计参考信息。
+
+  # 示例 2: React性能优化（技术领域，中等复杂度，6个研究维度）
+  - stage1_analysis: |
+      {{
+        "l1_deconstruction": {{
+          "user_identity": "React开发者，面临应用性能问题",
+          "explicit_needs": "React应用性能优化方法",
+          "implicit_motivations": "提升用户体验，展示技术能力",
+          "key_constraints": "现有代码库较大，重构成本高",
+          "analysis_perspective": "技术效能视角"
+        }},
+        "l2_motivations": [
+          {{"name": "效率", "type": "功能型", "score": 5, "scenario_expression": "通过系统性优化方法快速定位和解决性能瓶颈，节省调试时间"}},
+          {{"name": "控制", "type": "功能型", "score": 4, "scenario_expression": "建立性能监控体系，掌控应用的运行状态和优化方向"}}
+        ],
+        "research_dimensions": [
+          {{
+            "dimension_name": "研究React DevTools Profiler、Chrome Performance面板的深度使用方法，以及核心Web指标(LCP、FID、CLS)的诊断与基准建立",
+            "why_searchable": "性能诊断工具的使用方法有大量教程和案例",
+            "example_queries": ["React DevTools Profiler deep usage guide", "Chrome Performance panel analysis tutorial", "Core Web Vitals LCP FID CLS optimization"],
+            "domain_knowledge_hints": "Profiler面板、Flamegraph、Ranked chart、Performance timeline、Lighthouse CI"
+          }},
+          {{
+            "dimension_name": "研究React.memo、useMemo、useCallback的使用场景与反模式，以及Context优化与状态管理性能对比(Redux vs Zustand vs Jotai)",
+            "why_searchable": "组件渲染优化是React性能的核心问题，有大量最佳实践",
+            "example_queries": ["React.memo useMemo useCallback best practices 2024", "React Context performance vs Redux vs Zustand", "React unnecessary re-render prevention"],
+            "domain_knowledge_hints": "React.memo shallow comparison、useMemo dependency array、useCallback referential equality、Context splitting"
+          }},
+          {{
+            "dimension_name": "研究React.lazy与Suspense的代码分割策略、路由级别懒加载、动态导入的最佳实践与常见陷阱",
+            "why_searchable": "代码分割是减少初始加载时间的关键技术",
+            "example_queries": ["React.lazy Suspense code splitting best practices", "route-based code splitting React", "dynamic import pitfalls React"],
+            "domain_knowledge_hints": "React.lazy、Suspense boundary、loadable-components、webpack magic comments、prefetch hints"
+          }},
+          {{
+            "dimension_name": "研究大数据渲染优化方案：react-window vs react-virtualized对比、无限滚动实现、大型表格性能优化",
+            "why_searchable": "虚拟列表是处理大数据量渲染的标准方案",
+            "example_queries": ["react-window vs react-virtualized comparison", "infinite scroll React performance", "large table rendering optimization React"],
+            "domain_knowledge_hints": "react-window FixedSizeList、VariableSizeList、react-virtualized AutoSizer、TanStack Virtual"
+          }},
+          {{
+            "dimension_name": "研究React应用构建优化：Tree Shaking配置、bundle-analyzer依赖分析、图片与静态资源优化策略",
+            "why_searchable": "构建优化直接影响加载性能，有明确的工具和方法",
+            "example_queries": ["webpack tree shaking configuration React", "bundle-analyzer dependency optimization", "React image optimization lazy loading"],
+            "domain_knowledge_hints": "webpack-bundle-analyzer、sideEffects配置、next/image、sharp、AVIF/WebP"
+          }},
+          {{
+            "dimension_name": "研究React应用持续性能监控体系：Lighthouse CI、Web Vitals库、Sentry Performance、性能预算与CI/CD集成",
+            "why_searchable": "性能监控工具和CI集成有成熟的方案",
+            "example_queries": ["Lighthouse CI setup React project", "web-vitals library React integration", "performance budget CI/CD pipeline"],
+            "domain_knowledge_hints": "Lighthouse CI、web-vitals npm包、Sentry Performance Monitoring、performance budget webpack plugin"
+          }}
+        ],
+        "l3_tension": {{
+          "primary_motivation": "效率",
+          "secondary_motivation": "控制",
+          "tension_description": "快速解决当前性能问题与建立长期监控体系的平衡",
+          "resolution_strategy": "先诊断后优化，同时建立监控防止回归",
+          "hidden_insights": ["对技术债务的担忧", "在有限时间内展示技术能力的压力"]
+        }},
+        "l4_jtbd": {{
+          "user_role": "React开发者",
+          "information_type": "React性能优化完整方案",
+          "task_1": "识别性能瓶颈",
+          "task_2": "实施优化措施"
+        }}
+      }}
+    expected_output: |
+      **【我们如何理解您的需求】**
+
+      ### 问题解构
+
+      **用户画像**：React开发者，面临应用性能问题
+      **显性需求**：React应用性能优化方法
+      **隐性动机**：提升用户体验，展示技术能力
+      **关键约束**：现有代码库较大，重构成本高
+      **分析视角**：技术效能视角 - 如何在有限时间内高效解决性能问题
+
+      这是一个需要在不大规模重构的前提下实现性能优化的技术项目，核心挑战在于快速定位瓶颈并采用低成本高效果的优化策略。
+
+      ### 您想要的效果
+
+      - 通过系统性优化方法快速定位和解决性能瓶颈，节省调试时间
+      - 建立性能监控体系，掌控应用的运行状态和优化方向
+
+      ### 您面临的挑战
+
+      - 现有代码库较大，如何在不大规模重构的情况下实现优化？
+      - 如何快速定位性能问题的根本原因？
+
+      ### 我们发现的深层需求
+
+      - 您对技术债务的担忧 - 希望在不增加复杂度的情况下提升性能
+      - 在有限时间内展示技术能力的压力 - 需要高效的优化方法
+
+      ### 我们的设计重点
+
+      - 先诊断后优化，同时建立监控防止回归
+
+      ---
+
+      **【深入研究计划】**
+
+      深入研究React性能诊断工具、渲染优化、代码分割、构建优化等多维度信息
+
+      步骤 1  研究React DevTools Profiler、Chrome Performance面板的深度使用方法，以及核心Web指标(LCP、FID、CLS)的诊断与基准建立
+
+      步骤 2  研究React.memo、useMemo、useCallback的使用场景与反模式，以及Context优化与状态管理性能对比(Redux vs Zustand vs Jotai)
+
+      步骤 3  研究React.lazy与Suspense的代码分割策略、路由级别懒加载、动态导入的最佳实践与常见陷阱
+
+      步骤 4  研究大数据渲染优化方案：react-window vs react-virtualized对比、无限滚动实现、大型表格性能优化
+
+      步骤 5  研究React应用构建优化：Tree Shaking配置、bundle-analyzer依赖分析、图片与静态资源优化策略
+
+      步骤 6  研究React应用持续性能监控体系：Lighthouse CI、Web Vitals库、Sentry Performance、性能预算与CI/CD集成
+
+      ---
+
+      这份研究计划将从诊断工具、渲染优化、代码分割、构建优化、持续监控等6个维度为您提供系统性的React性能优化参考。
+
+
+
+
+# ============================================================================
+# Stage 3: Validation Rules (v4.0 — research_dimensions driven)
+# ============================================================================
+
+validation_rules:
+  # --- v4.0: L2 动机（全面扫描，辅助理解，不驱动板块生成） ---
+  l2_motivations:
+    rule: "Motivation names must be from 12 standard dimensions, output all relevant (score>=3)"
+    count_constraint: "flexible"  # 不限制数量，有多少相关就输出多少
+    min_count: 1
+    max_count: 12  # 全部12个维度都可能相关
+    standard_dimensions:
+      - "效率"
+      - "控制"
+      - "安全"
+      - "归属"
+      - "认同"
+      - "愉悦"
+      - "地位"
+      - "影响"
+      - "连接"
+      - "意义"
+      - "成长"
+      - "超越"
+    required_fields_per_motivation:
+      - "name"
+      - "type"
+      - "score"
+      - "scenario_expression"
+    error_message: "动机名称'{name}'不在12个标准维度中。请使用：效率、控制、安全、归属、认同、愉悦、地位、影响、连接、意义、成长、超越"
+
+  # --- v4.0: L2.5 研究维度（核心验证） ---
+  research_dimensions:
+    rule: "Research dimensions must be entity-anchored, MECE, and searchable"
+    min_count: 5
+    max_count: 10
+    required_fields_per_dimension:
+      - "dimension_name"
+      - "why_searchable"
+      - "example_queries"
+      - "domain_knowledge_hints"
+    entity_check:
+      min_entities_per_dimension: 2  # 每个维度至少包含2个具体实体名词
+      entity_types: ["品牌名", "人名", "地名", "材质名", "技术名", "文化符号名", "数字/规格"]
+    mece_check:
+      max_overlap_ratio: 0.3  # 任意两个维度的实体重叠不超过30%
+    forbidden_patterns:
+      - "创新设计理念"
+      - "个人品味表达"
+      - "综合考量"
+      - "整体规划"
+    error_message: "研究维度验证失败：{issue}"
+
+  # --- v4.0: 人性维度（全面扫描，按需输出，不限数量） ---
+  human_dimensions:
+    rule: "Human dimensions: check all 5, output all relevant (thorough but not forced)"
+    trigger_mode: "high_sensitivity"  # 保持高敏感模式
+    available_dimensions:
+      - "emotional_landscape"
+      - "spiritual_aspirations"
+      - "psychological_safety_needs"
+      - "ritual_behaviors"
+      - "memory_anchors"
+    required_fields_when_enabled:
+      - "enabled"
+      - "trigger_reason"
+    error_message: "人性维度已启用但缺少必填字段。请确保包含：trigger_reason 和至少1个维度内容"
+
+  # --- v4.0: L4 JTBD（简化，移除 full_statement 长度要求） ---
+  l4_jtbd:
+    rule: "JTBD must follow template structure"
+    required_fields:
+      - "user_role"
+      - "information_type"
+      - "task_1"
+      - "task_2"
+    error_message: "L4 JTBD定义不完整。必须包含：user_role, information_type, task_1, task_2"
+
+  # --- v4.0: L5 锐度测试（简化，仅保留分数+一句话理由） ---
+  l5_sharpness:
+    rule: "Internal quality control - 4 scores with brief reasons"
+    purpose: "内部质量控制，不展示给用户"
+    display_to_user: false
+    required_scores:
+      - "specificity_score"
+      - "actionability_score"
+      - "depth_score"
+      - "searchability_score"
+    score_range: [1, 10]
+    quality_thresholds:
+      retry_if_below: 5
+      pass_if_above: 7
+    required_fields:
+      - "specificity_reason"
+      - "actionability_reason"
+      - "depth_reason"
+      - "searchability_reason"
+    error_message: "L5 锐度测试不完整。必须包含4个维度的score（1-10）和reason（一句话理由）"
+
+  # --- v4.0: 搜索可行性检查（代码层强制执行） ---
+  searchability_check:
+    rule: "Research dimension names must be searchable, not implementation-oriented"
+    forbidden_keywords:
+      - "执行"
+      - "流程"
+      - "时间节点"
+      - "施工管理"
+      - "成本控制"
+      - "把控"
+      - "制定"
+      - "实施"
+      - "预算"
+      - "如何"
+    recommended_keywords:
+      - "研究"
+      - "分析"
+      - "探索"
+      - "解读"
+      - "案例"
+      - "参考"
+      - "调研"
+      - "解析"
+      - "对比"
+    error_message: "研究维度'{name}'包含实施类关键词'{keyword}'，请改为搜索导向的表述"
+
+  # --- v4.0: 步骤数量（由研究维度直接映射，不再用公式） ---
+  step_count:
+    rule: "Step count equals research_dimensions count"
+    min_count: 5
+    max_count: 10
+    source: "research_dimensions"  # 直接映射，不再用 L2*2+L3 公式
+    error_message: "步骤数量不符合要求：当前{count}个，应为5-10个"
+
+  # --- v4.0: 输出格式（新的"步骤 N"格式） ---
+  output_format:
+    rule: "Output must have 2 sections with new step format"
+    required_sections:
+      - "我们如何理解您的需求"
+      - "深入研究计划"
+    step_format: "步骤 N  研究XXX"  # 新格式
+    forbidden_content:
+      - "L1"
+      - "L2"
+      - "L3"
+      - "L4"
+      - "L5"
+      - "动机维度"
+      - "核心张力"
+      - "JTBD"
+      - "锐度测试"
+      - "核心板块"
+      - "子板块"
+    error_message: "输出格式不符合要求。必须包含【我们如何理解您的需求】和【深入研究计划】，使用'步骤 N'格式，不能包含术语"
+
+# ============================================================================
+# Retry Error Messages (v4.0)
+# ============================================================================
+
+retry_error_messages:
+  l2_invalid_motivation: |
+    ⚠️ 验证失败：L2动机分析
+
+    问题：发现了不在12个标准维度中的动机名称
+    - 错误的动机：{invalid_motivations}
+
+    请修正：
+    - 只使用以下12个标准维度：
+      功能型：效率、控制、安全
+      情感型：归属、认同、愉悦
+      社会型：地位、影响、连接
+      精神型：意义、成长、超越
+    - 最多选择2-3个最相关的动机
+
+  research_dimensions_invalid: |
+    ⚠️ 验证失败：L2.5 研究维度
+
+    问题：{issue}
+
+    请修正：
+    - 每个维度必须包含≥2个具体实体名词（品牌名、人名、地名、材质名等）
+    - 任意两个维度的实体重叠不超过30%
+    - 禁止纯抽象维度（如"创新设计理念"、"个人品味表达"）
+    - 每个维度必须包含 dimension_name, why_searchable, example_queries, domain_knowledge_hints
+
+  l4_incomplete: |
+    ⚠️ 验证失败：L4 JTBD定义
+
+    问题：JTBD定义不完整
+    - 缺失字段：{missing_fields}
+
+    请修正：
+    - 必须包含：user_role, information_type, task_1, task_2
+
+  l5_incomplete: |
+    ⚠️ 验证失败：L5 锐度测试
+
+    问题：锐度测试不完整
+    - 缺失字段：{missing_fields}
+
+    请修正：
+    - 必须包含4个维度的评分：
+      * specificity_score (1-10) + specificity_reason
+      * actionability_score (1-10) + actionability_reason
+      * depth_score (1-10) + depth_reason
+      * searchability_score (1-10) + searchability_reason
+
+  dimension_overlap: |
+    ⚠️ 验证失败：研究维度重叠
+
+    问题：以下研究维度之间存在过高重叠
+    {overlapping_pairs}
+
+    请修正：
+    - 合并重叠维度，或重新拆分使每个维度聚焦单一主题
+    - 确保任意两个维度的实体重叠不超过30%
+
+  dimension_too_abstract: |
+    ⚠️ 验证失败：研究维度过于抽象
+
+    问题：以下研究维度缺少具体实体名词
+    {abstract_dimensions}
+
+    请修正：
+    - 每个维度必须包含≥2个具体实体名词
+    - 示例：不要写"品牌设计理念"，而要写"Tiffany品牌历史、品牌DNA、标志性蓝色色彩体系、珠宝盒设计理念、经典设计元素(窗格纹、钻石切割、蝴蝶结)"
+
+  format_violation: |
+    ⚠️ 验证失败：输出格式不符合要求
+
+    问题：{issue}
+
+    请修正：
+    - 输出2个部分：【我们如何理解您的需求】→【深入研究计划】
+    - 【深入研究计划】使用"步骤 N  研究XXX"格式
+    - 每个步骤必须用"研究/分析/解析"句式，禁止"如何XXX"
+    - 完全避免术语：不要提及L1-L5、动机维度、核心张力、JTBD、锐度测试
+
+# ============================================================================
+# Success Criteria (v4.0)
+# ============================================================================
+
+success_criteria:
+  stage1:
+    - "L2动机：已逐一比对全部12个维度，输出所有score>=3的（不牵强，不遗漏）"
+    - "每个L2动机都有scenario_expression"
+    - "research_dimensions包含5-10个研究维度"
+    - "每个研究维度包含≥2个具体实体名词"
+    - "任意两个研究维度的实体重叠不超过30%"
+    - "L4 JTBD包含user_role, information_type, task_1, task_2"
+    - "L5包含4个维度的score和reason"
+    - "人性维度：已逐一检查全部5个维度，输出所有相关的（不牵强，不遗漏）"
+    - "输出是有效的JSON格式"
+
+  stage2:
+    - "输出包含【我们如何理解您的需求】和【深入研究计划】"
+    - "【深入研究计划】使用'步骤 N'格式"
+    - "步骤数量与research_dimensions数量一致"
+    - "每个步骤用'研究/分析/解析'句式，无'如何XXX'"
+    - "每个步骤包含具体领域知识（品牌元素名、文化符号名、材质名等）"
+    - "步骤间无主题重叠"
+    - "完全避免了术语（L1-L5、动机维度、锐度测试等）"
+
+  overall:
+    - "Stage 1和Stage 2的所有成功标准都满足"
+    - "验证报告显示overall_status为'passed'"
+    - "研究维度质量：实体锚定、MECE互斥、搜索导向"

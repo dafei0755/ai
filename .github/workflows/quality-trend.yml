@@ -1,0 +1,83 @@
+name: Quality Trend Report
+
+on:
+  schedule:
+    # Weekly report: Monday UTC 01:30
+    - cron: '30 1 * * 1'
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  weekly-trend:
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Build weekly trend report
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const owner = context.repo.owner;
+          const repo = context.repo.repo;
+
+          async function collect(workflow_id) {
+            const resp = await github.rest.actions.listWorkflowRuns({
+              owner,
+              repo,
+              workflow_id,
+              per_page: 50
+            });
+            const now = new Date();
+            const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+            const runs = resp.data.workflow_runs.filter(r => new Date(r.created_at) >= weekAgo);
+            const total = runs.length;
+            const success = runs.filter(r => r.conclusion === "success").length;
+            const failed = runs.filter(r => r.conclusion === "failure").length;
+            const cancelled = runs.filter(r => r.conclusion === "cancelled").length;
+            const avgMin = total
+              ? (runs.reduce((s, r) => s + ((new Date(r.updated_at) - new Date(r.run_started_at || r.created_at)) / 60000), 0) / total).toFixed(1)
+              : "0.0";
+            return { total, success, failed, cancelled, avgMin };
+          }
+
+          const ci = await collect("ci.yml");
+          const tests = await collect("tests.yml");
+
+          const lines = [
+            "# Weekly CI Trend Report",
+            "",
+            `Generated at: ${new Date().toISOString()}`,
+            "",
+            "## CI (ci.yml)",
+            `- Runs: ${ci.total}`,
+            `- Success: ${ci.success}`,
+            `- Failed: ${ci.failed}`,
+            `- Cancelled: ${ci.cancelled}`,
+            `- Avg duration (min): ${ci.avgMin}`,
+            "",
+            "## Automated Tests (tests.yml)",
+            `- Runs: ${tests.total}`,
+            `- Success: ${tests.success}`,
+            `- Failed: ${tests.failed}`,
+            `- Cancelled: ${tests.cancelled}`,
+            `- Avg duration (min): ${tests.avgMin}`,
+            "",
+          ].join("\n");
+
+          const fs = require("fs");
+          fs.mkdirSync("reports", { recursive: true });
+          fs.writeFileSync("reports/weekly-ci-trend.md", lines, "utf8");
+
+    - name: Upload weekly trend report
+      uses: actions/upload-artifact@v4
+      with:
+        name: weekly-ci-trend
+        path: reports/weekly-ci-trend.md

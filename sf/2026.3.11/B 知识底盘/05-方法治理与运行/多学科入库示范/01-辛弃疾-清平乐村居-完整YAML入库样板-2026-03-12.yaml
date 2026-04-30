@@ -1,0 +1,430 @@
+entry_bundle:
+  bundle_id: BUNDLE-LIT-XQJ-QPLCJ-001
+  bundle_type: multidisciplinary_ingest_demo
+  title: 辛弃疾《清平乐·村居》完整YAML入库样板
+  created_at: 2026-03-12
+  language: zh-CN
+  version: v1
+  status: structured_candidate
+  maturity_level: L1
+  authoring_agent: copilot
+  purpose: >
+    示范如何将一首古诗词从原始文学材料转译为知识底盘可调用、可追溯、
+    可比较、可挂接、可冻结的结构化条目包。
+
+source_record:
+  source_id: SRC-LIT-辛弃疾-清平乐村居-001
+  source_type: poem
+  title: 清平乐·村居
+  author: 辛弃疾
+  dynasty: 南宋
+  source_domain: literature
+  source_time_context: 南宋乡居日常语境
+  original_text: |
+    茅檐低小，溪上青青草。
+    醉里吴音相媚好，白发谁家翁媪?
+    大儿锄豆溪东，中儿正织鸡笼。
+    最喜小儿无赖，溪头卧剥莲蓬。
+  source_context:
+    - 乡居日常
+    - 家庭共处
+    - 非表演性幸福
+    - 生活连续性
+  evidence_tier: analogy
+  confidence: 0.76
+  storage_level: L0_raw_source
+  usage_level: curated_reference
+  collector: Copilot
+  notes:
+    - 原文保留，不直接作为任务书条目
+    - 后续所有转译结果必须能够回溯至该原始材料
+
+bridge_terms_hit:
+  bridge_packet_id: BRIDGE-LIT-XQJ-QPLCJ-001
+  source_ref: SRC-LIT-辛弃疾-清平乐村居-001
+  terms:
+    - 低压共处
+    - 生活展开
+    - 各得其所
+    - 非表演性幸福
+    - 家庭连续性
+    - 自然贴附
+    - 日常余韵
+  extraction_method: hybrid
+  notes: >
+    这些桥接词条不等于最终结论，只用于触发语义切片与中间表示编码。
+
+feeling_core:
+  record_id: FEELING-XQJ-QPLCJ-001
+  source_ref: SRC-LIT-辛弃疾-清平乐村居-001
+  core_feelings:
+    - id: F1
+      label: 共享场景中的不互相打扰
+      description: >
+        同一家庭成员处于同一场域中，但每个人都做自己的事，既共处又不被迫互动。
+    - id: F2
+      label: 低压、松弛、非戏剧化的幸福
+      description: >
+        幸福并非来自高潮式叙事，而来自日常中自然生成的满足与轻微的温情。
+    - id: F3
+      label: 生活感强于观赏感
+      description: >
+        核心不是“给人看”，而是“人真的在这里生活、劳作、停留、陪伴”。
+    - id: F4
+      label: 代际共处但关系温和
+      description: >
+        老人、成年子女、孩子同时存在，但没有命令式秩序，是柔和的家庭连续性。
+    - id: F5
+      label: 人与自然的贴附关系
+      description: >
+        溪、草、莲蓬不是景观道具，而是生活本身的一部分。
+  compressed_judgement: >
+    这首词的真正价值不在“田园风格”，而在“低压共处的生活秩序”。
+
+experience_structure:
+  emotion_climate:
+    calm: high
+    warmth: medium_high
+    restoration: high
+    theatricality: low
+    tension: low
+    innocence: medium
+  relation_distance:
+    companionship: high
+    forced_sociality: low
+    solitude_within_togetherness: high
+    intergenerational_presence: high
+    boundary_softness: medium_high
+  behavior_rhythm:
+    linger: high
+    small_daily_actions: high
+    ritual_action: low
+    spectacle_behavior: low
+    self_directed_activity: high
+  body_state:
+    bodily_relaxation: high
+    vigilance: low
+    enclosure: medium
+    openness_to_nature: high
+    sensory_stimulation: low
+    groundedness: high
+  time_sense:
+    slow_rhythm: high
+    cyclical_daily_time: high
+    climax_density: low
+    afterglow: high
+    continuous_dwelling: high
+  meaning_posture:
+    daily_life_priority: very_high
+    dwelling: high
+    status_signal: very_low
+    performance_display: very_low
+    family_continuity: high
+    nature_embeddedness: high
+
+ir_packet:
+  ir_id: IR-XQJ-QPLCJ-001
+  source_ref: SRC-LIT-辛弃疾-清平乐村居-001
+  source_domains:
+    - literature
+  evidence_tier: analogy
+  confidence: 0.76
+  semantic_axes:
+    emotion_axis:
+      calm: 0.88
+      intimacy: 0.71
+      solemnity: 0.14
+      vitality: 0.42
+      tension: 0.08
+      playfulness: 0.33
+      restoration: 0.79
+      mystery: 0.11
+    relation_axis:
+      solitude: 0.52
+      companionship: 0.83
+      collective_presence: 0.78
+      social_optionality: 0.86
+      gaze_exposure: 0.18
+      boundary_need: 0.63
+    behavior_axis:
+      linger: 0.81
+      pass_through: 0.16
+      gather: 0.44
+      ritual_action: 0.09
+      explore: 0.22
+      rest: 0.61
+      work: 0.74
+      observe: 0.68
+    body_axis:
+      stimulation: 0.18
+      comfort: 0.77
+      enclosure: 0.52
+      openness: 0.73
+      touch_sensitivity: 0.49
+      mobility_support: 0.64
+      acoustic_protection: 0.66
+      thermal_tolerance: 0.58
+    time_axis:
+      slow_rhythm: 0.89
+      ceremonial_peak: 0.05
+      cyclical_repeat: 0.85
+      transition_density: 0.22
+      arrival_emphasis: 0.18
+      departure_emphasis: 0.09
+    aesthetic_axis:
+      plainness: 0.91
+      ornamentation: 0.06
+      material_authenticity: 0.84
+      theatricality: 0.07
+      precision: 0.41
+      roughness: 0.38
+      warmth: 0.67
+      coolness: 0.31
+    order_axis:
+      symmetry: 0.12
+      porosity: 0.78
+      centrality: 0.18
+      layering: 0.47
+      legibility: 0.66
+      flexibility: 0.75
+    meaning_axis:
+      dwelling: 0.91
+      locality: 0.73
+      sacredness: 0.04
+      identity_expression: 0.09
+      status_signal: 0.03
+      daily_life_priority: 0.94
+      memory_density: 0.72
+  projection_scores:
+    mainline_score: 0.86
+    driver_score: 0.63
+    boundary_score: 0.72
+    stage_fit_s1: 0.74
+    stage_fit_s2: 0.88
+    stage_fit_s3: 0.79
+    stage_fit_s4: 0.66
+  risk_flags:
+    - rural_stylization
+    - over_symbolization
+    - nostalgia_surface_translation
+  misread_risk: 0.44
+  execution_risk: 0.31
+  maintenance_risk: 0.22
+  ethics_risk: 0.08
+  trace:
+    bridge_terms:
+      - 低压共处
+      - 生活展开
+      - 各得其所
+      - 非表演性幸福
+    extraction_method: hybrid
+    reviewer: pending
+    notes: >
+      高主线分不等于可直接冻结为风格结论，仍需通过空间状态命题与项目适配性审查。
+
+space_state_propositions:
+  - proposition_id: PROP-QPLCJ-A1
+    level: A
+    serves_axis:
+      - mainline
+    statement: >
+      在公共共享空间中，不同成员应能在彼此可感知的同一场域内各做各的事，
+      同时不被迫互动，从而形成低压、自然的共处感。
+    why_it_matters: >
+      这是这首词最核心的空间经验，不成立则“村居式松弛感”不成立。
+    applicable_space_types:
+      - 乡村民宿
+      - 家庭度假型民宿
+      - 康养社区公共客厅
+      - 社区型茶空间
+    not_applicable_when:
+      - 高流转高翻台商业餐饮
+      - 强事件型发布空间
+    validation_hint:
+      - 是否存在多个可独立停留的小节点
+      - 是否允许“同场不同事”
+      - 是否不会因为动线或座位组织强迫互动
+    freeze_ceiling: A
+    review_status: pending
+
+  - proposition_id: PROP-QPLCJ-A2
+    level: A
+    serves_axis:
+      - mainline
+    statement: >
+      空间应优先支持生活性行为与轻日常活动，而不是把公共区域做成以观看和打卡为主的展示场。
+    why_it_matters: >
+      词中的幸福来自生活展开，而不是视觉奇观。
+    applicable_space_types:
+      - 民宿
+      - 乡村社区公共空间
+      - 生活方式会所
+    validation_hint:
+      - 是否有支持轻劳动、轻停留、轻陪伴的行为容器
+      - 是否避免空间只剩拍照和观看功能
+    freeze_ceiling: A
+    review_status: pending
+
+  - proposition_id: PROP-QPLCJ-B1
+    level: B
+    serves_axis:
+      - implementation_boundary
+    statement: >
+      公共空间的声环境应允许低声交流和轻微生活声存在，
+      但不应让任何一个停留节点被整体噪声吞没。
+    why_it_matters: >
+      这首词不是绝对寂静，而是“有生活声但不烦扰”。
+    validation_hint:
+      - 是否允许生活性背景声
+      - 是否避免高混响和全场噪声扩散
+    freeze_ceiling: B
+    review_status: pending
+
+  - proposition_id: PROP-QPLCJ-B2
+    level: B
+    serves_axis:
+      - implementation_boundary
+      - mainline
+    statement: >
+      空间尺度与构件表达应保持低姿态、低压感和贴地性，
+      避免为了“乡居感”而做成刻意表演的田园布景。
+    why_it_matters: >
+      “茅檐低小”不是风格标签，而是低姿态的生活容器。
+    risk_flags:
+      - over_symbolization
+      - rural_stylization
+    freeze_ceiling: B
+    review_status: pending
+
+  - proposition_id: PROP-QPLCJ-B3
+    level: B
+    serves_axis:
+      - driver_axis
+    statement: >
+      若用户表达“向往诗意乡居”，更可能真正向往的是低压共处、生活连续性与自然贴附感，
+      而不只是乡土材料或田园景观符号。
+    why_it_matters: >
+      这条命题可以纠正甲方表述和真实驱动力之间的错位。
+    freeze_ceiling: B
+    review_status: pending
+
+  - proposition_id: PROP-QPLCJ-C1
+    level: C
+    serves_axis:
+      - review_hint
+    statement: >
+      停留位置之间最好给人一种“自然长出来”的感觉，
+      而不是被设计师强行排布出来。
+    why_it_matters: >
+      有助于保留这首词的自然生成感，但不宜直接作为硬性条目。
+    freeze_ceiling: C
+    review_status: pending
+
+  - proposition_id: PROP-QPLCJ-C2
+    level: C
+    serves_axis:
+      - review_hint
+    statement: >
+      儿童活动感最好以松散、自发、微顽皮的方式出现，
+      而不是被过度教育化或过度策划化。
+    why_it_matters: >
+      用于保留词中“无赖”带来的生动性，但不构成硬约束。
+    freeze_ceiling: C
+    review_status: pending
+
+binding_to_one_main_two_aux:
+  mainline_statement: >
+    以“同场而不互扰、生活展开而不表演”的低压共处感作为核心空间体验。
+  driver_statement: >
+    “乡居向往”常常不是风格偏好，而是对低压生活秩序、关系轻松与自然贴附感的向往。
+  boundary_statement: >
+    禁止把“村居感”误译为“乡土符号堆砌”“田园表演化”或“高密互动型热闹组织”。
+  review_tips:
+    - 方向对，但若空间过于整齐和用力，容易损伤自然生成感
+    - 若强调乡土材料而忽视关系组织，会落入表皮化误译
+    - 若把松弛理解成散乱，会削弱真正的低压秩序
+
+freeze_assessment:
+  freeze_index: 0.74
+  suggested_level: B_plus_toward_A
+  rationale:
+    projection_fit: 0.86
+    evidence_strength: 0.58
+    executability: 0.81
+    risk_penalty: 0.29
+  final_guidance: >
+    该材料足以强烈影响一主与边界，但因其来源仍属文学类比材料，
+    更适合作为高质量主线候选与驱动力修正依据，在结合项目具体客群与空间类型后可升入 A 级冻结。
+
+case_projection_record:
+  case_id: CASE-QPLCJ-HOMESTAY-001
+  source_ref: SRC-LIT-辛弃疾-清平乐村居-001
+  project_type: 乡村民宿
+  project_subtype: 家庭度假型民宿
+  target_users:
+    - 城市家庭客群
+    - 中高压工作人群
+    - 偏好低压相处与自然停留的用户
+  mainline_statement: >
+    以同场不互扰、生活展开而不表演的低压共处感作为核心体验。
+  driver_statement: >
+    用户真实向往的是低压生活秩序，而不是乡土风格符号。
+  boundary_statement: >
+    禁止把村居感做成田园布景、民俗表演或社交热闹场。
+  accepted_propositions:
+    - PROP-QPLCJ-A1
+    - PROP-QPLCJ-A2
+    - PROP-QPLCJ-B1
+    - PROP-QPLCJ-B2
+    - PROP-QPLCJ-B3
+  inspiration_only:
+    - PROP-QPLCJ-C1
+    - PROP-QPLCJ-C2
+  reviewer_notes: >
+    最适合用于乡村民宿、低压社区客厅、茶空间等“生活性强于展示性”的项目；
+    不宜直接迁移到强商业流转、高刺激品牌表达型项目中。
+
+repository_entry_index:
+  entry_groups:
+    raw_sources:
+      - SRC-LIT-辛弃疾-清平乐村居-001
+    bridge_terms:
+      - BRIDGE-LIT-XQJ-QPLCJ-001
+    ir_profiles:
+      - IR-XQJ-QPLCJ-001
+    propositions:
+      - PROP-QPLCJ-A1
+      - PROP-QPLCJ-A2
+      - PROP-QPLCJ-B1
+      - PROP-QPLCJ-B2
+      - PROP-QPLCJ-B3
+      - PROP-QPLCJ-C1
+      - PROP-QPLCJ-C2
+    case_records:
+      - CASE-QPLCJ-HOMESTAY-001
+  recommended_primary_reuse_object: space_state_propositions
+  reason: >
+    真正可复用的价值不在原诗文本本身，而在其被验证后的空间状态命题。
+
+lifecycle:
+  current_status: structured_candidate
+  next_status: review_pending
+  required_reviews:
+    - 内容审
+    - 方法审
+    - 风险审
+  release_channel: sandbox_only
+  promotion_criteria:
+    - 至少在2个低压生活型项目中被采用
+    - 至少1次进入冻结候选并被保留
+    - 无明显“田园风格化误译”高风险案例
+  downgrade_triggers:
+    - 被频繁误用为乡土风格装饰依据
+    - 多次导致“生活感被表皮化”的错误输出
+
+summary:
+  final_statement: >
+    《清平乐·村居》不应被入库为“田园风格素材”，而应被入库为
+    “低压共处、生活展开、非表演性幸福、自然贴附”的感觉结构与空间状态命题包。
+  core_principle: >
+    入库的不是诗，而是诗中可以稳定复用的判断。

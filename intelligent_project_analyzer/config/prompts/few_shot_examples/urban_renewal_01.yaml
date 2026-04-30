@@ -1,0 +1,301 @@
+# 示例:重庆防空洞改造美术馆（城市更新）
+# 来源:q.txt Q68
+# 类型:城市更新主导 (Urban Renewal Dominant) / 工业遗存
+# 特征:防空洞改造、恒温恒湿、历史痕迹保留、公共性、山城特色
+# 适用场景:城市更新、工业遗产改造、特殊空间激活、文化功能植入
+example:
+  project_info:
+    name: 重庆防空洞改造当代美术馆
+    description: '重庆山城防空洞（800㎡）改造为当代美术馆，需利用天然恒温恒湿优势，
+
+      保留历史痕迹，设计无障碍通道，构建公共性。
+
+      核心挑战是洞穴空间与展陈功能的适配，以及历史记忆与当代艺术的对话。
+
+      '
+    feature_vector:
+      cultural: 0.72
+      commercial: 0.38
+      aesthetic: 0.68
+      functional: 0.62
+      sustainable: 0.58
+      social: 0.7
+      technical: 0.55
+      historical: 0.85
+      regional: 0.75
+      material_innovation: 0.5
+      experiential: 0.75
+      symbolic: 0.68
+    constraints:
+    - 800㎡防空洞空间（层高2.8-4.5米不等）
+    - 保留历史痕迹（混凝土肌理、标语、通风孔）
+    - 天然恒温恒湿利用（18-22℃，60-70%湿度）
+    - 无障碍通道设计（坡道/电梯）
+    - 公共性与开放性
+    goals:
+    - 激活防空洞历史空间
+    - 实现展陈功能高适配
+    - 构建历史-当代对话
+    - 打造重庆山城文化地标
+  ideal_tasks:
+  - id: task_1
+    title: 调研 重庆防空洞的历史背景、建造年代、使用演变、集体记忆
+    description: 研究防空洞历史（抗战时期/三线建设/改革开放后闲置），收集档案照片和口述史。
+    task_type: research
+    motivation: historical
+    support_search: true
+    priority: high
+    execution_order: 1
+    dimensions:
+    - 防空洞建造年代与历史分期梳理
+    - 不同时期的使用功能与空间改造痕迹
+    - 相关档案照片与口述史资料收集
+    - 集体记忆的价值评估与保护优先级
+  - id: task_2
+    title: 搜索 当代美术馆的 展陈标准、灯光要求、恒温恒湿、动线设计
+    description: 研究美术馆标准（照度150-300lux、色温4000K、湿度60-70%、动线流畅性）。
+    task_type: research
+    motivation: functional
+    support_search: true
+    priority: high
+    execution_order: 2
+    dimensions:
+    - 当代美术馆照度/色温/显色性标准
+    - 展品保存的恒温恒湿精确要求
+    - 展览动线的流畅性与停留节点设计
+    - 无障碍参观的空间标准与设施要求
+  - id: task_3
+    title: 规划 防空洞空间分区、展厅/过渡/服务、动线组织、高差处理
+    description: 设计空间分区（主展厅500㎡、过渡空间150㎡、服务区100㎡、休息区50㎡），利用高差营造层次。
+    task_type: design
+    motivation: functional
+    support_search: false
+    priority: high
+    execution_order: 3
+    dimensions:
+    - 800㎡洞穴空间的功能分区比例
+    - 主展厅/过渡/服务/休息的面积配置
+    - 高差利用的空间层次营造手法
+    - 人流容量估算与疏散路径规划
+  - id: task_4
+    title: 制定 历史痕迹保留策略、混凝土肌理、标语文字、通风孔、新旧对话
+    description: 保留策略（原始混凝土打磨保护、标语透明罩保护、通风孔转化为展览装置、新旧材料对比）。
+    task_type: design
+    motivation: historical
+    support_search: false
+    priority: high
+    execution_order: 4
+    dimensions:
+    - 原始混凝土肌理的保护工艺
+    - 历史标语文字的保留与展示方式
+    - 通风孔等历史构件的功能转化
+    - 新介入材料与历史痕迹的对话关系
+  - id: task_5
+    title: 设计 无障碍通道系统、坡道/电梯、轮椅动线、安全设施
+    description: 设计无障碍（入口坡道≤1:12、垂直电梯、轮椅回转空间、扶手照明）。
+    task_type: design
+    motivation: social
+    support_search: false
+    priority: high
+    execution_order: 5
+    dimensions:
+    - 入口坡道坡度与无障碍规范适配
+    - 垂直交通电梯的选型与安装限制
+    - 轮椅回转空间与引导标识系统
+    - 安全扶手与照明的人性化设计
+  - id: task_6
+    title: 设计 灯光系统、展陈照明、氛围营造、历史感渲染、可调光
+    description: 设计三层灯光（基础环境光、展品射灯、氛围灯带），可调节适应不同展览。
+    task_type: design
+    motivation: aesthetic
+    support_search: false
+    priority: high
+    execution_order: 6
+    dimensions:
+    - 基础环境光/展品射灯/氛围灯带的三层分工
+    - 不同展览主题的灯光场景预设
+    - 洞穴空间历史感的灯光渲染手法
+    - 可调光系统的控制方案与操作便捷性
+  - id: task_7
+    title: 利用 天然恒温恒湿优势、节能策略、微调控制、艺术品保护
+    description: 利用洞穴恒温（18-22℃）优势，微调控制系统（±2℃±5%湿度），降低能耗50%。
+    task_type: strategy
+    motivation: sustainable
+    support_search: false
+    priority: medium
+    execution_order: 7
+    dimensions:
+    - 洞穴恒温恒湿的利用与微调控制
+    - 温湿度偏差±2℃±5%的精确调节方案
+    - 节能效果量化评估(对比常规美术馆)
+    - 艺术品保存环境的长期监测方案
+  - id: task_8
+    title: 策划 首展主题、重庆历史与当代艺术对话、公共性活动、社区参与
+    description: 策划首展"洞穴记忆：重庆防空洞影像与叙事"，邀请社区居民口述史，构建公共参与。
+    task_type: strategy
+    motivation: cultural
+    support_search: false
+    priority: medium
+    execution_order: 8
+    dimensions:
+    - 首展与洞穴历史记忆的叙事关联
+    - 社区居民口述史的参与式策展方法
+    - 公共性活动的空间配置与频次规划
+    - 展览策划的长期主题脉络规划
+  - id: task_9
+    title: 搜索 全球防空洞/地下空间改造的 成功案例、Tate Modern/798/红砖美术馆经验
+    description: 研究国际地下空间改造案例（伦敦地下防空洞画廊、赫尔辛基岩石教堂、那不勒斯地下博物馆），提炼空间策略与运营模式。
+    task_type: research
+    motivation: cultural
+    support_search: true
+    priority: high
+    execution_order: 9
+    dimensions:
+    - 国际地下空间改造的标杆案例分析
+    - 不同气候/地质条件下的改造策略对比
+    - 成功案例的空间策略与运营模式提炼
+    - 失败案例的共性教训与风险预警
+  - id: task_10
+    title: 调研 重庆山城地形的 地质条件、防潮防渗、结构安全评估、加固方案
+    description: 评估防空洞岩体稳定性、渗水风险与结构承载力，制定注浆加固、防水层施工、排水系统等技术方案。
+    task_type: research
+    motivation: technical
+    support_search: true
+    priority: high
+    execution_order: 10
+    dimensions:
+    - 防空洞岩体稳定性与承载力评估
+    - 渗水风险识别与防水层施工方案
+    - 结构加固方案(注浆/锚杆/喷射混凝土)
+    - 排水系统设计与地下水位监测
+  - id: task_11
+    title: 设计 展览挂装系统、可移动展墙、吊装轨道、适应不规则洞壁的展陈方案
+    description: 针对洞穴不规则壁面设计模块化展墙系统（自立式展墙+吊装轨道），实现灵活布展与快速换展。
+    task_type: design
+    motivation: functional
+    support_search: false
+    priority: high
+    execution_order: 11
+    dimensions:
+    - 模块化展墙系统的标准尺寸与组合
+    - 自立式展墙的稳定性与安全固定
+    - 吊装轨道的承载力与布展灵活性
+    - 不规则洞壁的展品悬挂解决方案
+  - id: task_12
+    title: 设计 通风与空气质量系统、CO2监测、新风补充、湿度微调控制
+    description: 设计智能通风系统（CO2浓度<1000ppm、新风量30m³/h/人），结合洞穴自然通风与机械补充，保障展品与观众安全。
+    task_type: design
+    motivation: technical
+    support_search: false
+    priority: high
+    execution_order: 12
+    dimensions:
+    - CO2浓度<1000ppm的通风量计算
+    - 自然通风与机械补充的混合策略
+    - 高湿度环境的空气质量净化方案
+    - 观众高峰期的通风应急预案
+  - id: task_13
+    title: 设计 入口广场与过渡空间、从城市到洞穴的心理转换、光线渐变、声音过渡
+    description: 设计三段式过渡体验（城市广场→半室外灰空间→洞穴入口），通过光线渐暗、声音渐静、温度渐凉实现心理转换。
+    task_type: design
+    motivation: experiential
+    support_search: false
+    priority: medium
+    execution_order: 13
+    dimensions:
+    - 城市→灰空间→洞穴的三段式过渡设计
+    - 光线渐暗/声音渐静/温度渐凉的感官序列
+    - 入口广场的公共性与引导功能
+    - 心理转换空间的材质与尺度控制
+  - id: task_14
+    title: 设计 材料策略、新旧材料对话、耐候钢/清水混凝土/白色展墙的对比体系
+    description: 建立材料对比体系（原始岩壁+耐候钢嵌入件+白色可移动展墙+清水混凝土地面），形成历史与当代的视觉张力。
+    task_type: design
+    motivation: aesthetic
+    support_search: false
+    priority: medium
+    execution_order: 14
+    dimensions:
+    - 原始岩壁与新介入材料的对比体系
+    - 耐候钢/清水混凝土/白色展墙的选型逻辑
+    - 材料语言对历史-当代对话的表达
+    - 材料耐久性与洞穴环境适应性评估
+  - id: task_15
+    title: 制定 运营模式与可持续发展策略、门票/展览/教育/文创收入结构
+    description: 规划多元收入模式（基础门票30%+临展合作25%+教育工作坊20%+文创衍生15%+场地租赁10%），确保长期运营可持续。
+    task_type: strategy
+    motivation: commercial
+    support_search: false
+    priority: medium
+    execution_order: 15
+    dimensions:
+    - 门票/临展/教育/文创/场租的收入配比
+    - 多元收入模式的盈亏平衡分析
+    - 政府补贴与社会赞助的争取路径
+    - 长期运营可持续的财务模型构建
+  - id: task_16
+    title: 评估 社会影响力与公共价值、社区参与度、文化旅游带动、城市更新示范效应
+    description: 建立社会影响评估框架（社区参与人次、文化旅游增长率、周边物业价值变化、城市更新示范指数），量化公共价值。
+    task_type: analysis
+    motivation: social
+    support_search: false
+    priority: medium
+    execution_order: 16
+    dimensions:
+    - 社区参与度的量化评估指标
+    - 文化旅游带动效应的测算方法
+    - 周边物业价值变化的关联分析
+    - 城市更新示范效应的传播与复制
+  quality_highlights:
+  - 16任务全维度覆盖：研究25% + 设计37.5% + 策略18.75% + 分析18.75%，涵盖历史/功能/技术/体验/美学/商业/社会七大维度
+  - 研究深度：历史背景+展陈标准+国际案例+地质安全，四维调研确保决策有据
+  - 核心策略：保留历史痕迹 + 美术馆功能植入 + 天然环境利用 + 新旧材料对话
+  - 技术闭环：结构安全评估→通风空气质量→恒温恒湿微调→展陈挂装系统
+  - 体验设计：城市→灰空间→洞穴的三段式心理过渡，光线/声音/温度渐变
+  - 可持续运营：多元收入结构 + 社会影响评估 + 社区参与 + 城市更新示范效应
+metadata:
+  tags_matrix:
+    space_type:
+    - museum
+    - art_gallery
+    - cultural_space
+    - underground_space
+    scale: medium
+    design_direction:
+    - historical
+    - cultural
+    - functional
+    - social
+    user_profile:
+    - art_enthusiasts
+    - cultural_tourists
+    - local_community
+    - historians
+    challenge_type:
+    - urban_renewal
+    - industrial_heritage
+    - adaptive_reuse
+    - historical_preservation
+    - spatial_transformation
+    methodology:
+    - preservation_design
+    - adaptive_reuse
+    - participatory_curation
+    phase: schematic_to_detailed
+  discipline: architecture
+  urgency: 0.4
+  innovation_quotient: 0.68
+  commercial_sensitivity: 0.38
+  cultural_depth: 0.82
+  performance:
+    specialty_score: 0.6
+    recommended_strength: medium
+  best_for:
+  - 城市更新项目
+  - 工业遗产改造
+  - 特殊空间激活（防空洞/水塔/粮仓）
+  - 历史保护与功能植入
+  not_suitable_for:
+  - 新建建筑
+  - 住宅项目
+  - 无历史价值空间

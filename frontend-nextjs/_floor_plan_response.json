@@ -1,0 +1,76 @@
+{
+  "status": "no_result",
+  "compilerStatus": "gate_failed",
+  "source": "pdf",
+  "message": "未校准比例尺，已禁止识别与编译候选。请先手动校准比例尺，或上传带可识别尺寸标注的图纸。",
+  "elements": [],
+  "compileResult": {
+    "status": "gate_failed",
+    "formalPromotionAllowed": false,
+    "promotionBlockers": [
+      "未校准比例尺，已禁止识别与编译候选。请先手动校准比例尺，或上传带可识别尺寸标注的图纸。"
+    ],
+    "gates": {
+      "scale": {
+        "status": "failed",
+        "score": 0,
+        "issues": [
+          {
+            "id": "scale-unknown",
+            "severity": "error",
+            "message": "未完成比例尺校准。当前仅允许在存在明确尺寸证据或手动比例尺时进行识别与编译。 当前比例尺来源=missing，mmPerNorm=21000。 请先在前端手动校准比例尺，或提供可识别尺寸标注后再重新编译。",
+            "targetIds": []
+          }
+        ],
+        "metrics": {
+          "tier": 0,
+          "mmPerNormalized": 21000,
+          "prelimMmPerNorm": 21000,
+          "evidenceCount": 0
+        },
+        "tier": "unknown"
+      }
+    }
+  },
+  "gates": {
+    "scale": {
+      "status": "failed",
+      "score": 0,
+      "issues": [
+        {
+          "id": "scale-unknown",
+          "severity": "error",
+          "message": "未完成比例尺校准。当前仅允许在存在明确尺寸证据或手动比例尺时进行识别与编译。 当前比例尺来源=missing，mmPerNorm=21000。 请先在前端手动校准比例尺，或提供可识别尺寸标注后再重新编译。",
+          "targetIds": []
+        }
+      ],
+      "metrics": {
+        "tier": 0,
+        "mmPerNormalized": 21000,
+        "prelimMmPerNorm": 21000,
+        "evidenceCount": 0
+      },
+      "tier": "unknown"
+    }
+  },
+  "formalPromotionAllowed": false,
+  "promotionBlockers": [
+    "未校准比例尺，已禁止识别与编译候选。请先手动校准比例尺，或上传带可识别尺寸标注的图纸。"
+  ],
+  "scaleCalibration": {
+    "mmPerNormalized": 21000,
+    "source": "missing",
+    "samples": 0
+  },
+  "diagnostics": {
+    "rawSegments": 29808,
+    "dimensionsInRegion": 0,
+    "scaleEvidenceSource": "missing",
+    "scaleEvidenceSamples": 0,
+    "blockedBy": "scale_calibration_required"
+  },
+  "issues": [],
+  "issueMessages": [
+    "未完成比例尺校准。当前仅允许在存在明确尺寸证据或手动比例尺时进行识别与编译。 当前比例尺来源=missing，mmPerNorm=21000。 请先在前端手动校准比例尺，或提供可识别尺寸标注后再重新编译。"
+  ]
+}

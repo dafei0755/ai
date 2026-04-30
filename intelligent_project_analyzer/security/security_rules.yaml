@@ -1,0 +1,150 @@
+custom_rules:
+  enabled: true
+  rules: []
+detection_config:
+  cache_enabled: true
+  cache_ttl: 3600
+  enable_evasion_check: true
+  enable_external_api: true
+  enable_keyword_check: true
+  enable_llm_check: false
+  enable_privacy_check: false
+  enable_short_circuit: true
+  llm_confidence_threshold: 0.7
+  log_safe_content: false
+  log_violations: true
+evasion_patterns:
+  全角半角混用:
+    description: 检测到全角半角混用
+    enabled: true
+    pattern: '[！-～]'
+    severity: low
+  拆字组合:
+    description: 检测到拆字组合规避
+    enabled: true
+    patterns:
+    - context: 违法
+      keyword: 法
+      pattern: 氵[\s\-_\*\.]*去
+    - context: 强制
+      keyword: 强
+      pattern: 弓[\s\-_\*\.]*虽
+    severity: high
+  数字字母替换:
+    description: 检测到数字字母替换规避
+    enabled: true
+    patterns:
+    - keyword: 性
+      pattern: '[sS][eE][xX]'
+      severity: medium
+    - keyword: 色情
+      pattern: '[pP][oO][rR][nN]'
+      severity: high
+    - keyword: 毒品
+      pattern: '[dD][rR][uU][gG]'
+      severity: high
+    severity: medium
+  特殊符号分隔:
+    description: 检测到特殊符号分隔规避
+    enabled: true
+    examples:
+    - 色_情
+    - 色*情
+    - 色.情
+    pattern: '[\u4e00-\u9fa5a-zA-Z]\s*[_\-\*\.\+\#\$\%\&\@\!]\s*[\u4e00-\u9fa5a-zA-Z]'
+    severity: medium
+  谐音替换:
+    description: 检测到谐音替换规避
+    enabled: true
+    patterns:
+    - keyword: 色情
+      pattern: '[色射涩瑟][\s\-_\*\.]*[情亲青清]'
+      severity: medium
+    - keyword: 毒品
+      pattern: '[毒独读督][\s\-_\*\.]*[品贫拼]'
+      severity: high
+    - keyword: 赌博
+      pattern: '[赌睹堵][\s\-_\*\.]*[博勃搏薄]'
+      severity: high
+    - keyword: 黄色
+      pattern: '[黄王][\s\-_\*\.]*[色涩瑟]'
+      severity: medium
+    severity: medium
+keywords:
+  政治敏感:
+    description: 政治敏感内容
+    enabled: true
+    severity: high
+    words: []
+  暴力血腥:
+    description: 暴力血腥内容
+    enabled: true
+    severity: high
+    words:
+    - 杀人
+    - 自杀
+    - 血腥
+    - 暴力
+    - 屠杀
+    - 谋杀
+  歧视仇恨:
+    description: 歧视仇恨言论
+    enabled: true
+    severity: medium
+    words:
+    - 歧视
+    - 仇恨
+    - 种族
+    - 歧视性
+  色情低俗:
+    description: 色情低俗内容
+    enabled: true
+    severity: high
+    words:
+    - 色情
+    - 黄色
+    - 裸体
+    - 性爱
+  违法犯罪:
+    description: 违法犯罪内容
+    enabled: true
+    severity: high
+    words:
+    - 毒品
+    - 诈骗
+    - 洗钱
+    - 赌博
+    - 走私
+    - 贩卖
+threat_intelligence:
+  enabled: true
+  last_updated: '2026-02-23T14:30:07.518862'
+  malicious_domains:
+    domains:
+    - malicious1.com
+    - malicious2.com
+    enabled: true
+  malicious_ips:
+    enabled: true
+    ips:
+    - 1.2.3.4
+    - 5.6.7.8
+  malicious_keywords:
+    enabled: true
+    keywords:
+    - scam
+    - phishing
+  sources:
+  - abuse.ch
+  - phishtank
+  - custom
+version: '1.0'
+whitelist:
+  domains:
+  - example.com
+  - test.com
+  enabled: true
+  ips:
+  - 127.0.0.1
+  - localhost
+  users: []

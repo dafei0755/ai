@@ -1,0 +1,397 @@
+# 示例:零碳住宅样板房设计框架
+# 来源:q.txt Q97
+# 类型:可持续主导 (Sustainable Dominant)
+# 特征:零碳路径、循环材料、碳足迹追踪、施工节点优化、材料可追溯性
+
+example:
+  project_info:
+    name: 零碳生活方式住宅样板房设计框架
+    description: |
+      定位"零碳生活方式"的住宅样板房项目,核心诉求为所有材料来源可追溯且可回收。
+      需提出完整设计框架,涵盖材料数据库选择逻辑、施工节点优化与碳足迹展示策略。
+      项目涉及全生命周期碳核算、循环经济材料体系、LEED/WELL双认证路径、
+      施工阶段碳排放控制、以及面向公众的碳足迹可视化展示系统。
+
+    # 12维特征向量(与注册表一致)
+    feature_vector:
+      sustainable: 0.82        # 零碳路径+循环材料+碳足迹追踪+全生命周期碳核算
+      material_innovation: 0.72 # 可追溯材料体系+可回收材料选型+新型低碳材料应用
+      technical: 0.68           # 施工节点优化+碳核算技术+数据库系统+BIM集成
+      functional: 0.45          # 样板房展示功能+居住功能验证
+      experiential: 0.40        # 碳足迹可视化体验+零碳生活方式展示
+      aesthetic: 0.35           # 低碳美学表达+材料本色呈现
+      commercial: 0.30          # 样板房商业展示价值+品牌溢价
+      social: 0.25              # 零碳生活方式倡导+公众教育
+      symbolic: 0.20            # 零碳理念符号化表达
+      cultural: 0.15
+      regional: 0.18            # 本地化材料优先策略
+      historical: 0.08
+
+    # 关键约束
+    constraints:
+      - 所有材料来源必须可追溯(供应链全链路透明)
+      - 所有材料必须可回收或可降解(循环经济闭环)
+      - 零碳目标要求全生命周期碳排放净零
+      - 样板房需兼顾展示功能与真实居住体验
+      - 施工过程碳排放需纳入核算与优化范围
+
+    # 项目目标
+    goals:
+      - 建立完整的零碳住宅材料数据库与选择逻辑
+      - 实现施工全流程碳排放最小化
+      - 构建面向公众的碳足迹实时展示系统
+      - 达成LEED Platinum与WELL Gold双认证标准
+      - 形成可复制的零碳住宅设计方法论
+
+  # ========== 理想拆解结果 ==========
+  # 复杂度评分: 0.81 (高) → 推荐任务数: 16个
+  # 可持续主导项目的完整拆解逻辑
+
+  ideal_tasks:
+    # ========== 第一阶段:标杆研究与基准建立(Task 1-3) ==========
+
+    # 1. 国际零碳住宅标杆案例研究
+    - id: task_1
+      title: 搜索 国际零碳住宅标杆项目的 碳中和路径、材料策略、认证体系、技术集成方案
+      description: |
+        深度调研国际领先零碳住宅案例(如BedZED零碳社区、被动房研究所PHI认证项目、
+        Living Building Challenge获奖住宅),提取零碳路径设计逻辑、材料选型策略、
+        施工碳控制经验与认证达标方法论。
+      task_type: research
+      motivation: sustainable
+      support_search: true
+      dimensions:
+        - 碳中和路径(运营零碳策略、隐含碳控制、碳补偿机制、净零达标时间线)
+        - 材料策略(低碳材料优先级、生物基材料应用、回收材料比例、本地化采购半径)
+        - 认证体系(LEED Platinum路径、WELL Gold路径、PHI被动房标准、LBC挑战)
+        - 技术集成方案(光伏一体化、地源热泵、雨水回收、智能能源管理系统)
+      priority: high
+      execution_order: 1
+
+    # 2. 全生命周期碳核算方法论研究
+    - id: task_2
+      title: 搜索 建筑全生命周期碳核算的 LCA方法论、碳排放因子数据库、核算边界定义、国际标准对比
+      description: |
+        研究建筑全生命周期评价(LCA)的核心方法论框架,理解ISO 14040/14044标准、
+        EN 15978建筑可持续性评价标准,建立从材料开采到建筑拆除全阶段的碳核算基准。
+      task_type: research
+      motivation: sustainable
+      support_search: true
+      dimensions:
+        - LCA方法论(摇篮到摇篮评价框架、功能单元定义、系统边界划定、分配规则)
+        - 碳排放因子数据库(CLCD中国生命周期数据库、Ecoinvent、GaBi、ICE数据库对比)
+        - 核算边界定义(A1-A3材料生产阶段、A4-A5施工阶段、B1-B7使用阶段、C1-C4拆除阶段)
+        - 国际标准对比(ISO 14040/14044、EN 15978、PAS 2080、中国GB/T 51366)
+      priority: high
+      execution_order: 2
+
+    # 3. 材料可追溯性技术体系研究
+    - id: task_3
+      title: 搜索 建筑材料可追溯体系的 区块链溯源技术、EPD环境产品声明、供应链透明度标准、数字护照方案
+      description: |
+        调研建筑材料全链路可追溯的技术方案与行业标准,理解EPD环境产品声明体系、
+        区块链溯源技术在建材领域的应用、欧盟建筑产品数字护照(DPP)框架。
+      task_type: research
+      motivation: technical
+      support_search: true
+      dimensions:
+        - 区块链溯源技术(分布式账本记录、智能合约验证、供应链节点追踪、防篡改机制)
+        - EPD环境产品声明(III型环境声明、PCR产品类别规则、第三方验证流程、数据更新周期)
+        - 供应链透明度标准(ISO 20400可持续采购、FSC森林认证、Cradle to Cradle认证)
+        - 数字护照方案(欧盟DPP框架、材料成分数据、碳足迹数据、回收指导信息)
+      priority: high
+      execution_order: 3
+
+    # ========== 第二阶段:材料数据库与选择逻辑(Task 4-7) ==========
+
+    # 4. 零碳材料数据库架构设计
+    - id: task_4
+      title: 设计 零碳住宅材料数据库的 数据模型架构、碳排放指标体系、可回收性评分算法、多维筛选逻辑
+      description: |
+        构建零碳住宅专用材料数据库的核心架构,定义材料碳排放指标体系、
+        可追溯性数据字段、可回收性评分模型、健康安全指标,
+        建立支持多维度筛选与智能推荐的材料选择决策引擎。
+      task_type: design
+      motivation: technical
+      support_search: false
+      dimensions:
+        - 数据模型架构(材料基础属性、环境性能指标、供应链信息、认证状态、生命周期数据)
+        - 碳排放指标体系(隐含碳kgCO2e/kg、运输碳排放、施工碳排放、使用阶段碳排放)
+        - 可回收性评分算法(材料纯度评分、拆解难度系数、回收市场成熟度、降级利用比例)
+        - 多维筛选逻辑(碳排放阈值、可追溯等级、可回收评分、性能达标、成本约束联合筛选)
+      priority: high
+      execution_order: 4
+
+    # 5. 循环经济材料选型策略研究
+    - id: task_5
+      title: 搜索 循环经济建筑材料的 生物基材料应用、回收再生材料技术、可拆解连接工艺、材料银行模式
+      description: |
+        研究循环经济理念下的建筑材料选型策略,调研生物基材料(竹材、麻纤维、菌丝体)、
+        回收再生材料(再生混凝土、回收钢材、再生塑料板)的性能与碳足迹数据,
+        以及支持材料循环的可拆解连接工艺与材料银行运营模式。
+      task_type: research
+      motivation: sustainable
+      support_search: true
+      dimensions:
+        - 生物基材料应用(工程竹材、麻纤维复合板、菌丝体隔热材料、稻草压缩板、软木)
+        - 回收再生材料技术(再生混凝土骨料、回收钢材性能、再生塑料建材、废玻璃骨料)
+        - 可拆解连接工艺(干式连接节点、螺栓连接替代焊接、卡扣式幕墙、可逆粘接技术)
+        - 材料银行模式(Madaster材料护照平台、材料残值评估、二手建材交易、拆除材料分级)
+        - 性能验证标准(结构强度测试、耐久性评估、防火等级、VOC释放量、使用寿命预测)
+      priority: high
+      execution_order: 5
+
+    # 6. 低碳饰面与健康材料选型研究
+    - id: task_6
+      title: 搜索 低碳健康饰面材料的 零VOC涂料体系、天然饰面材料、可回收地面系统、低碳卫浴洁具
+      description: |
+        调研住宅室内饰面材料的低碳健康选型方案,聚焦零VOC涂料、天然石材替代品、
+        可回收地面系统(亚麻地板、软木地板)、低碳卫浴洁具等,
+        建立兼顾碳足迹、健康性能与美学表达的饰面材料清单。
+      task_type: research
+      motivation: material_innovation
+      support_search: true
+      dimensions:
+        - 零VOC涂料体系(矿物涂料、硅藻泥、石灰基涂料、植物基涂料、碳足迹对比)
+        - 天然饰面材料(夯土墙面、竹饰面板、软木墙板、再生木饰面、天然石材薄板)
+        - 可回收地面系统(亚麻地板Marmoleum、软木地板、回收橡胶地板、可拆卸木地板)
+        - 低碳卫浴洁具(节水器具、再生陶瓷、低碳五金、本地化生产优先)
+      priority: high
+      execution_order: 6
+
+    # 7. 材料选择决策矩阵制定
+    - id: task_7
+      title: 制定 零碳材料选择的 多准则决策矩阵、权重分配模型、碳预算分配策略、替代方案评估流程
+      description: |
+        基于前期材料研究成果,建立零碳住宅材料选择的多准则决策矩阵(MCDM),
+        定义碳足迹、可追溯性、可回收性、性能、成本、美学六维权重分配模型,
+        制定各部位碳预算分配策略与材料替代方案快速评估流程。
+      task_type: strategy
+      motivation: sustainable
+      support_search: false
+      dimensions:
+        - 多准则决策矩阵(碳足迹权重30%、可追溯性20%、可回收性20%、性能15%、成本10%、美学5%)
+        - 权重分配模型(AHP层次分析法、敏感性分析、场景化权重调整、利益相关方偏好整合)
+        - 碳预算分配策略(结构体系碳预算、围护系统碳预算、室内装修碳预算、设备系统碳预算)
+        - 替代方案评估流程(快速碳足迹比较、性能等效验证、供应链可行性、成本增量分析)
+      priority: high
+      execution_order: 7
+
+    # ========== 第三阶段:施工节点优化(Task 8-11) ==========
+
+    # 8. 施工阶段碳排放热点分析
+    - id: task_8
+      title: 分析 住宅施工全流程的 碳排放热点分布、高碳工序识别、施工机械碳排放、临时设施碳足迹
+      description: |
+        系统分析住宅施工全流程的碳排放热点,识别混凝土浇筑、钢筋加工、
+        模板周转、施工机械运行、临时设施搭建等高碳工序,
+        建立施工阶段碳排放基准线与优化优先级排序。
+      task_type: analysis
+      motivation: sustainable
+      support_search: false
+      dimensions:
+        - 碳排放热点分布(A4运输阶段占比、A5施工阶段占比、各工序碳排放排名)
+        - 高碳工序识别(混凝土浇筑、钢筋焊接、湿作业抹灰、防水施工、机电安装)
+        - 施工机械碳排放(塔吊能耗、混凝土泵车、电焊机、切割机、运输车辆)
+        - 临时设施碳足迹(脚手架周转次数、模板损耗率、临时用电、施工用水、废弃物处理)
+      priority: high
+      execution_order: 8
+
+    # 9. 装配式施工节点优化设计
+    - id: task_9
+      title: 设计 装配式低碳施工的 预制构件节点、干式连接工艺、模块化安装流程、现场湿作业消减方案
+      description: |
+        针对施工阶段碳排放热点,设计装配式低碳施工节点优化方案,
+        包括预制构件标准化设计、干式连接替代湿作业、模块化厨卫安装、
+        现场切割与废弃物最小化策略。
+      task_type: design
+      motivation: technical
+      support_search: false
+      dimensions:
+        - 预制构件节点(预制墙板连接节点、预制楼板搭接节点、预制阳台悬挑节点、接缝防水节点)
+        - 干式连接工艺(螺栓连接替代焊接、卡扣式管道连接、插接式电气接口、可逆装配设计)
+        - 模块化安装流程(整体卫浴模块、整体厨房模块、管线集成墙体、设备管井预制)
+        - 现场湿作业消减方案(免抹灰体系、薄贴法替代厚贴、预拌砂浆定量供应、废水零排放)
+      priority: high
+      execution_order: 9
+
+    # 10. 施工废弃物零填埋策略研究
+    - id: task_10
+      title: 搜索 建筑施工废弃物的 分类回收体系、资源化利用技术、零填埋实施路径、废弃物追踪系统
+      description: |
+        研究施工废弃物零填埋的实施策略,调研建筑垃圾分类回收体系、
+        混凝土/木材/金属/塑料等废弃物的资源化利用技术路径、
+        以及废弃物全流程追踪与计量系统。
+      task_type: research
+      motivation: sustainable
+      support_search: true
+      dimensions:
+        - 分类回收体系(现场分类站设置、废弃物分类标准、回收容器配置、分类培训制度)
+        - 资源化利用技术(混凝土破碎再生、木材回收再利用、金属回炉、塑料再生、石膏回收)
+        - 零填埋实施路径(废弃物减量设计、现场再利用、场外资源化、最终处置率<5%目标)
+        - 废弃物追踪系统(称重计量、去向记录、资源化率统计、月度报告、第三方审计)
+      priority: medium
+      execution_order: 10
+
+    # 11. 施工过程碳监测与优化方案制定
+    - id: task_11
+      title: 制定 施工过程碳排放的 实时监测方案、碳预算管控机制、低碳施工激励制度、碳减排验证流程
+      description: |
+        建立施工过程碳排放实时监测与动态管控体系,制定施工各阶段碳预算分配、
+        超标预警机制、低碳施工班组激励制度、以及碳减排效果第三方验证流程。
+      task_type: strategy
+      motivation: sustainable
+      support_search: false
+      dimensions:
+        - 实时监测方案(施工机械能耗监测、材料进场碳核算、运输里程记录、废弃物计量)
+        - 碳预算管控机制(月度碳预算分配、超标预警阈值、动态调整策略、累计碳排放追踪)
+        - 低碳施工激励制度(班组碳减排奖励、低碳工艺创新奖、废弃物减量竞赛、绿色施工评比)
+        - 碳减排验证流程(第三方核查机构、数据采集规范、减排量计算方法、验证报告模板)
+      priority: medium
+      execution_order: 11
+
+    # ========== 第四阶段:碳足迹展示与认证(Task 12-14) ==========
+
+    # 12. 碳足迹可视化展示系统设计
+    - id: task_12
+      title: 设计 样板房碳足迹展示的 数据可视化界面、实时碳计量装置、交互体验流程、材料溯源展示墙
+      description: |
+        设计面向参观者的碳足迹可视化展示系统,包括实时能耗与碳排放数据大屏、
+        材料碳足迹溯源互动墙、零碳生活方式体验动线、
+        以及支持手机扫码查看每件材料碳护照的交互系统。
+      task_type: design
+      motivation: experiential
+      support_search: false
+      dimensions:
+        - 数据可视化界面(实时碳排放仪表盘、累计碳减排曲线、材料碳占比饼图、对比基准线)
+        - 实时碳计量装置(智能电表、水表、燃气表数据采集、光伏发电量监测、碳汇计算)
+        - 交互体验流程(入口碳足迹计算器、材料扫码溯源、生活场景碳对比、出口碳承诺墙)
+        - 材料溯源展示墙(材料样品展示、产地地图、运输路径、碳足迹标签、回收指南)
+      priority: high
+      execution_order: 12
+
+    # 13. LEED与WELL双认证路径规划
+    - id: task_13
+      title: 制定 LEED Platinum与WELL Gold双认证的 得分策略、交叉得分项优化、文档准备清单、认证时间线
+      description: |
+        规划LEED Platinum与WELL Gold双认证的达标路径,识别两套体系的交叉得分项,
+        制定各信用点的达标策略与优先级排序,建立认证文档准备清单与里程碑时间线。
+      task_type: strategy
+      motivation: sustainable
+      support_search: false
+      dimensions:
+        - 得分策略(LEED必达信用点、WELL必达前提条件、高性价比得分项、创新加分项)
+        - 交叉得分项优化(室内空气质量双认证、节水措施双认证、材料透明度双认证、能源性能双认证)
+        - 文档准备清单(设计阶段提交文件、施工阶段记录文件、运营阶段监测数据、第三方检测报告)
+        - 认证时间线(预认证申请节点、设计审查节点、施工审查节点、最终认证节点)
+      priority: high
+      execution_order: 13
+
+    # 14. 零碳运营能源策略设计
+    - id: task_14
+      title: 设计 零碳住宅运营阶段的 可再生能源系统、能耗优化策略、碳补偿机制、智能能源管理平台
+      description: |
+        设计样板房运营阶段的零碳能源策略,包括屋顶光伏与建筑一体化光伏(BIPV)系统、
+        地源热泵与空气源热泵选型、智能能源管理平台、
+        以及剩余碳排放的高质量碳补偿机制。
+      task_type: design
+      motivation: technical
+      support_search: false
+      dimensions:
+        - 可再生能源系统(屋顶光伏容量计算、BIPV幕墙集成、储能电池配置、并网/离网策略)
+        - 能耗优化策略(被动式节能设计、高性能围护结构、自然通风采光优化、设备能效标准)
+        - 碳补偿机制(剩余碳排放量化、高质量碳信用采购、本地碳汇项目、碳补偿透明度)
+        - 智能能源管理平台(能耗实时监测、负荷预测调度、光伏自发自用优化、峰谷电价响应)
+      priority: high
+      execution_order: 14
+
+    # ========== 第五阶段:整合输出与方法论(Task 15-16) ==========
+
+    # 15. 零碳住宅设计导则整合
+    - id: task_15
+      title: 整合 零碳住宅设计导则的 材料选择手册、施工碳控制规程、碳足迹展示标准、质量验收清单
+      description: |
+        基于前期全部研究与设计成果,整合形成零碳住宅设计导则文件体系,
+        包括材料选择操作手册、施工碳控制标准规程、碳足迹展示设计标准、
+        以及各阶段质量验收清单,确保设计意图在施工与运营阶段的完整落地。
+      task_type: strategy
+      motivation: sustainable
+      support_search: false
+      dimensions:
+        - 材料选择手册(材料数据库使用指南、决策矩阵操作流程、替代方案评估模板、采购规范)
+        - 施工碳控制规程(碳预算分配表、低碳工艺操作规范、废弃物管理制度、碳监测报告模板)
+        - 碳足迹展示标准(展示系统技术规格、数据更新频率、交互设计规范、维护保养手册)
+        - 质量验收清单(材料进场碳核查、施工节点碳验收、系统调试碳测试、认证文档完整性)
+        - 可复制性评估(方法论适用范围、地域化调整指南、规模化推广路径、成本效益分析)
+      priority: high
+      execution_order: 15
+
+    # 16. 零碳生活方式传播策略制定
+    - id: task_16
+      title: 制定 零碳样板房的 公众教育策略、参观体验设计、碳数据传播方案、行业示范推广路径
+      description: |
+        制定零碳住宅样板房作为公众教育与行业示范平台的传播策略,
+        设计参观者碳足迹认知提升路径、碳数据可视化传播方案、
+        行业交流与技术推广机制、以及零碳生活方式倡导活动规划。
+      task_type: strategy
+      motivation: social
+      support_search: false
+      dimensions:
+        - 公众教育策略(碳知识科普内容、互动体验设计、儿童友好展示、社区开放日规划)
+        - 参观体验设计(导览动线规划、关键展示节点、讲解话术设计、体验时长控制)
+        - 碳数据传播方案(社交媒体内容策略、碳数据信息图、案例白皮书、媒体合作计划)
+        - 行业示范推广路径(技术交流会、行业论坛分享、设计竞赛参与、标准编制参与)
+      priority: medium
+      execution_order: 16
+
+  # ========== 质量要点总结 ==========
+  quality_highlights:
+    - 16个任务覆盖零碳住宅全生命周期:标杆研究→材料数据库→施工优化→碳展示→整合输出
+    - 材料数据库选择逻辑完整闭环:LCA方法论→可追溯体系→循环材料选型→决策矩阵→设计导则
+    - 施工节点优化从分析到落地:碳热点分析→装配式节点设计→废弃物零填埋→碳监测管控
+    - 碳足迹展示策略兼顾技术与体验:实时碳计量→数据可视化→交互体验→公众教育传播
+    - 任务类型分布合理:research 6个(37.5%)、design 4个(25%)、strategy 5个(31.25%)、analysis 1个(6.25%)
+    - LEED/WELL双认证路径与零碳目标深度整合,避免认证与设计脱节
+metadata:
+  tags_matrix:
+    space_type:
+      - residential
+      - showroom
+      - sustainable_building
+    scale: medium
+    design_direction:
+      - sustainable
+      - technical
+      - experiential
+      - functional
+    user_profile:
+      - eco_conscious
+      - technology_adopter
+      - health_focused
+    challenge_type:
+      - zero_carbon
+      - energy_efficiency
+      - material_sustainability
+      - certification_compliance
+    methodology:
+      - life_cycle_assessment
+      - passive_design
+      - carbon_accounting
+    phase: concept_to_detailed
+  discipline: architecture
+  urgency: 0.45
+  innovation_quotient: 0.78
+  commercial_sensitivity: 0.52
+  cultural_depth: 0.30
+  performance:
+    specialty_score: 0.65
+    recommended_strength: light
+  best_for:
+    - "零碳/低碳建筑设计"
+    - "绿色建筑认证项目(LEED/WELL)"
+    - "可持续材料创新"
+    - "被动式节能设计"
+  not_suitable_for:
+    - "无环保要求项目"
+    - "极低预算翻新"
+    - "纯商业快速开发"

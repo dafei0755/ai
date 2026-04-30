@@ -1,0 +1,207 @@
+# 维度动态生成Prompt模板配置
+# 用于LLM驱动的雷达图维度生成（v7.105+）
+
+# ===== 覆盖度分析Prompt =====
+coverage_analysis_prompt: |
+  你是一位专业的设计需求分析专家。请分析现有维度是否能充分覆盖用户的设计项目需求。
+
+  ## 用户需求
+  {user_input}
+
+  ## 用户确认的任务列表
+  {confirmed_tasks}
+
+  ## 现有维度列表
+  {existing_dimensions}
+
+  ## 分析任务
+  请判断现有维度是否能全面覆盖用户的特殊需求，特别关注：
+  1. **行业特性**：是否有行业专属的维度需求（如医疗、教育、零售等）
+  2. **特殊场景**：是否有特殊使用场景（如极端环境、无障碍需求等）
+  3. **创新要素**：是否有创新性需求未被标准维度覆盖（如智能家居、可持续设计等）
+  4. **文化深度**：是否有深层文化需求（如宗教空间、传统工艺等）
+
+  ## 输出格式（严格JSON）
+  {{
+    "coverage_score": 0.85,  // 覆盖度评分 0.0-1.0
+    "should_generate": false,  // 是否需要生成新维度（覆盖度<0.8时为true）
+    "missing_aspects": [  // 缺失的方面
+      {{
+        "aspect": "医疗功能性",
+        "reason": "用户需要手术室设计，现有维度缺少医疗卫生、消毒流程等专业维度",
+        "importance": "high"  // high/medium/low
+      }}
+    ],
+    "analysis": "详细分析说明..."
+  }}
+
+  注意：
+  - 覆盖度评分要严格，只有真正缺失重要维度时才低于0.8
+  - missing_aspects最多列出3个最重要的缺失方面
+  - 输出必须是有效的JSON格式
+
+# ===== 维度生成Prompt =====
+dimension_generation_prompt: |
+  你是一位设计维度定义专家。请根据用户需求和缺失分析，生成1-3个定制化的雷达图维度。
+
+  ## 用户需求
+  {user_input}
+
+  ## 缺失方面分析
+  {missing_aspects}
+
+  ## 现有维度ID列表（避免重复）
+  {existing_dimension_ids}
+
+  ## 维度生成规则
+  1. **ID命名**：使用snake_case，英文，描述性强（如 medical_hygiene_level）
+  2. **名称**：中文，简洁（2-6个字），如"医疗卫生度"
+  3. **标签对称性**：left_label和right_label必须是对立的两极概念
+  4. **描述清晰**：用一句话说明这个维度的评估维度
+  5. **类别**：从[aesthetic, functional, technical, resource, experiential, special]选择
+  6. **默认值**：通常为50（中性），特殊情况可调整
+
+  ## 输出格式（严格JSON数组）
+  [
+    {{
+      "id": "medical_hygiene_level",
+      "name": "医疗卫生度",
+      "left_label": "家用标准",
+      "right_label": "医疗级标准",
+      "description": "从日常家用清洁标准到医疗级卫生标准的要求程度",
+      "category": "special",
+      "default_value": 50,
+      "gap_threshold": 30,
+      "source": "llm_generated"
+    }}
+  ]
+
+  ## 优秀维度示例
+  {few_shot_examples}
+
+  注意：
+  - 最多生成3个维度，最少1个
+  - 每个维度必须有明确的业务价值，不要生成泛化的维度
+  - left_label和right_label必须是真正的对立概念
+  - 输出必须是有效的JSON数组格式
+  - ID不能与现有维度ID重复
+
+# ===== Few-shot示例 =====
+few_shot_examples:
+  # 室内设计示例
+  interior_design:
+    - user_input: "设计一个中医诊所，需要体现传统文化和现代医疗的平衡"
+      generated_dimensions:
+        - id: "cultural_authenticity"
+          name: "文化真实性"
+          left_label: "现代诠释"
+          right_label: "传统还原"
+          description: "从现代化改良到完全遵循传统文化的真实性程度"
+          category: "aesthetic"
+          default_value: 50
+          gap_threshold: 30
+        - id: "medical_hygiene_level"
+          name: "医疗卫生度"
+          left_label: "家用标准"
+          right_label: "医疗级标准"
+          description: "从日常家用清洁标准到医疗级卫生标准的要求程度"
+          category: "special"
+          default_value: 70
+          gap_threshold: 25
+
+    - user_input: "设计一个智能健身房，强调科技感和用户体验"
+      generated_dimensions:
+        - id: "fitness_tech_integration"
+          name: "健身科技融合度"
+          left_label: "传统器械"
+          right_label: "智能互联"
+          description: "从传统健身器械到AI驱动的智能训练系统的科技融合程度"
+          category: "technical"
+          default_value: 75
+          gap_threshold: 30
+        - id: "workout_social_level"
+          name: "运动社交性"
+          left_label: "独立私密"
+          right_label: "社群互动"
+          description: "从独立训练空间到社群化互动健身的社交倾向"
+          category: "experiential"
+          default_value: 50
+          gap_threshold: 35
+
+  # 产品设计示例
+  product_design:
+    - user_input: "设计一款老年人智能手表，需要平衡科技和易用性"
+      generated_dimensions:
+        - id: "interaction_complexity"
+          name: "交互复杂度"
+          left_label: "极简操作"
+          right_label: "功能丰富"
+          description: "从极简一键操作到多功能复杂交互的界面复杂度"
+          category: "functional"
+          default_value: 30
+          gap_threshold: 25
+        - id: "health_monitoring_depth"
+          name: "健康监测深度"
+          name: "基础监测"
+          right_label: "专业级监测"
+          description: "从基础心率血压到专业级医疗监测的健康数据采集深度"
+          category: "technical"
+          default_value: 60
+          gap_threshold: 30
+
+  # 品牌设计示例
+  brand_design:
+    - user_input: "设计一个环保品牌，强调可持续理念和年轻化"
+      generated_dimensions:
+        - id: "sustainability_commitment"
+          name: "可持续承诺度"
+          left_label: "概念呈现"
+          right_label: "深度践行"
+          description: "从概念化的环保表达到全链路可持续实践的承诺程度"
+          category: "resource"
+          default_value: 80
+          gap_threshold: 30
+        - id: "brand_tone_age"
+          name: "品牌调性年龄"
+          left_label: "成熟稳重"
+          right_label: "年轻活力"
+          description: "从成熟稳重的传统品牌到年轻活力的潮流品牌的调性定位"
+          category: "aesthetic"
+          default_value: 70
+          gap_threshold: 35
+
+# ===== 维度验证规则 =====
+validation_rules:
+  id_pattern: "^[a-z][a-z0-9_]{{2,30}}$"  # snake_case，3-31字符（{{}}转义避免模板误报）
+  name_max_length: 10  # 中文名称最大长度
+  label_max_length: 20  # 标签最大长度
+  description_max_length: 100  # 描述最大长度
+  valid_categories:
+    - aesthetic  # 美学维度
+    - functional  # 功能维度
+    - technical  # 科技维度
+    - resource  # 资源维度
+    - experiential  # 体验维度
+    - special  # 特殊维度
+  default_value_range: [0, 100]
+  gap_threshold_range: [10, 50]
+  max_dimensions_per_generation: 3  # 单次生成最大维度数
+
+# ===== 语义去重配置 =====
+semantic_deduplication:
+  enabled: true
+  similarity_threshold: 0.85  # 相似度阈值（>0.85认为重复）
+  embedding_model: "text-embedding-3-small"  # OpenAI Embedding模型
+  check_fields:
+    - name  # 检查名称
+    - description  # 检查描述
+    - left_label  # 检查左标签
+    - right_label  # 检查右标签
+
+# ===== 降级策略 =====
+fallback_strategy:
+  enabled: true
+  max_retries: 2  # LLM调用失败最大重试次数
+  timeout_seconds: 30  # 单次LLM调用超时
+  on_failure_action: "use_fixed_only"  # 失败时使用100%固定配置
+  log_failures: true  # 记录失败日志

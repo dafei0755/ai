@@ -1,0 +1,117 @@
+name: Branch Protection Audit
+
+on:
+  schedule:
+    # Weekly audit: Monday UTC 02:30
+    - cron: '30 2 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  audit-main-branch-protection:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Audit branch protection rule for main
+      id: audit
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const owner = context.repo.owner;
+          const repo = context.repo.repo;
+
+          const query = `
+            query($owner: String!, $repo: String!) {
+              repository(owner: $owner, name: $repo) {
+                branchProtectionRules(first: 50) {
+                  nodes {
+                    pattern
+                    isAdminEnforced
+                    requiresApprovingReviews
+                    requiredApprovingReviewCount
+                    dismissesStaleReviews
+                    requiresStatusChecks
+                    requiresStrictStatusChecks
+                    requiredStatusCheckContexts
+                  }
+                }
+              }
+            }
+          `;
+
+          const res = await github.graphql(query, { owner, repo });
+          const rules = res?.repository?.branchProtectionRules?.nodes || [];
+          const rule = rules.find(r => r.pattern === "main");
+
+          const requiredChecks = [
+            "CI / check-root-directory",
+            "CI / backend-gate",
+            "Automated Tests / test-fast",
+            "Automated Tests / lint",
+            "Automated Tests / security"
+          ];
+
+          const problems = [];
+          if (!rule) {
+            problems.push("Missing branch protection rule for pattern `main`.");
+          } else {
+            if (!rule.requiresApprovingReviews) problems.push("Approving reviews are not required.");
+            if ((rule.requiredApprovingReviewCount || 0) < 1) problems.push("Required approving review count < 1.");
+            if (!rule.dismissesStaleReviews) problems.push("Stale review dismissal is disabled.");
+            if (!rule.requiresStatusChecks) problems.push("Status checks are not required.");
+            if (!rule.requiresStrictStatusChecks) problems.push("Strict up-to-date status checks are disabled.");
+            if (!rule.isAdminEnforced) problems.push("Admin enforcement is disabled.");
+
+            const contexts = new Set(rule.requiredStatusCheckContexts || []);
+            for (const check of requiredChecks) {
+              if (!contexts.has(check)) problems.push(`Missing required status check: ${check}`);
+            }
+          }
+
+          core.setOutput("ok", problems.length === 0 ? "true" : "false");
+          core.setOutput("problems", JSON.stringify(problems));
+
+    - name: Create audit issue when non-compliant
+      if: steps.audit.outputs.ok != 'true'
+      uses: actions/github-script@v7
+      env:
+        PROBLEMS_JSON: ${{ steps.audit.outputs.problems }}
+      with:
+        script: |
+          const owner = context.repo.owner;
+          const repo = context.repo.repo;
+          const problems = JSON.parse(process.env.PROBLEMS_JSON || "[]");
+          const date = new Date().toISOString().slice(0, 10);
+          const title = `[Governance] Branch protection drift on main (${date})`;
+
+          const openIssues = await github.paginate(github.rest.issues.listForRepo, {
+            owner, repo, state: "open", labels: "governance,auto-created", per_page: 100
+          });
+          const exists = openIssues.find(i => i.title.startsWith("[Governance] Branch protection drift on main"));
+          if (exists) {
+            core.info(`Existing governance issue found: #${exists.number}`);
+            return;
+          }
+
+          const body = [
+            "自动创建：Branch Protection 审计发现漂移",
+            "",
+            "不符合项：",
+            ...problems.map(p => `- ${p}`),
+            "",
+            "请按文档修复：`docs/deployment/BRANCH_PROTECTION_SETUP_CHECKLIST.md`"
+          ].join("\n");
+
+          await github.rest.issues.create({
+            owner,
+            repo,
+            title,
+            body,
+            labels: ["governance", "auto-created"]
+          });

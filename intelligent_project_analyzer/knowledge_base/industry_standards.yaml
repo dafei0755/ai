@@ -1,0 +1,201 @@
+# ====================================================================================================
+# 行业标准配置文件
+# 用于 V1.5 可行性分析师进行成本估算、冲突检测、优先级计算
+# ====================================================================================================
+
+version: "1.0"
+description: "设计行业标准数据库 - 成本/工期/空间基准"
+
+# ==================== 住宅项目成本标准 ====================
+residential_costs:
+  # 智能家居系统
+  smart_home:
+    core_system:
+      description: "核心智能控制系统（中控+网关+基础传感器）"
+      total_cost: [40000, 70000]  # [最低, 最高] 单位：元
+    full_system:
+      description: "全屋智能系统（含灯光、窗帘、安防、环境）"
+      total_cost: [80000, 150000]
+    luxury_system:
+      description: "豪华智能系统（含影音、场景联动、AI助手）"
+      total_cost: [150000, 300000]
+  
+  # 家庭影院
+  home_theater:
+    entry:
+      description: "入门级影院（5.1声道+65寸电视）"
+      total_cost: [30000, 60000]
+    standard:
+      description: "标准影院（7.1声道+投影+隔音处理）"
+      total_cost: [60000, 120000]
+    professional:
+      description: "专业影院（杜比全景声+4K激光+声学设计）"
+      total_cost: [150000, 400000]
+  
+  # 装修基础成本（每平米）
+  renovation:
+    basic:
+      description: "基础装修（简单硬装+基础家具）"
+      cost_per_sqm: [800, 1500]
+    standard:
+      description: "标准装修（中档材料+定制家具）"
+      cost_per_sqm: [1500, 3000]
+    premium:
+      description: "高端装修（进口材料+全屋定制）"
+      cost_per_sqm: [3000, 6000]
+    luxury:
+      description: "豪华装修（顶级材料+艺术品+设计师定制）"
+      cost_per_sqm: [6000, 15000]
+
+# ==================== 商业项目成本标准 ====================
+commercial_costs:
+  # 零售空间
+  retail:
+    basic:
+      description: "基础零售空间"
+      cost_per_sqm: [2000, 4000]
+    boutique:
+      description: "精品店铺"
+      cost_per_sqm: [4000, 8000]
+    flagship:
+      description: "旗舰店/体验店"
+      cost_per_sqm: [8000, 20000]
+  
+  # 餐饮空间
+  restaurant:
+    fast_casual:
+      description: "快餐/轻食店"
+      cost_per_sqm: [3000, 6000]
+    dining:
+      description: "正餐厅"
+      cost_per_sqm: [5000, 10000]
+    fine_dining:
+      description: "高端餐厅"
+      cost_per_sqm: [10000, 25000]
+  
+  # 办公空间
+  office:
+    basic:
+      description: "基础办公"
+      cost_per_sqm: [1500, 3000]
+    modern:
+      description: "现代办公"
+      cost_per_sqm: [3000, 6000]
+    premium:
+      description: "高端办公/总部"
+      cost_per_sqm: [6000, 15000]
+
+# ==================== 工期标准（天） ====================
+timeline_standards:
+  residential:
+    small:  # < 100㎡
+      design_phase: [15, 30]
+      construction_phase: [45, 90]
+    medium:  # 100-300㎡
+      design_phase: [30, 60]
+      construction_phase: [90, 150]
+    large:  # > 300㎡
+      design_phase: [45, 90]
+      construction_phase: [120, 240]
+  
+  commercial:
+    small:  # < 200㎡
+      design_phase: [20, 45]
+      construction_phase: [60, 120]
+    medium:  # 200-1000㎡
+      design_phase: [45, 90]
+      construction_phase: [90, 180]
+    large:  # > 1000㎡
+      design_phase: [60, 120]
+      construction_phase: [150, 360]
+
+# ==================== 冲突检测阈值 ====================
+# 比值 = 实际需求 / 可用资源
+# 例如：预算critical=1.5 表示当估算成本是预算的1.5倍以上时为严重冲突
+conflict_thresholds:
+  budget:
+    critical: 1.5    # 严重：超预算50%以上
+    high: 1.25       # 高：超预算25-50%
+    medium: 1.1      # 中等：超预算10-25%
+    low: 1.05        # 低：超预算5-10%
+  
+  timeline:
+    critical: 2.0    # 严重：工期需要翻倍
+    high: 1.5        # 高：工期需要1.5倍
+    medium: 1.2      # 中等：工期需要1.2倍
+    low: 1.1         # 低：工期需要1.1倍
+  
+  space:
+    critical: 1.5    # 严重：需求空间超50%
+    high: 1.3        # 高：需求空间超30%
+    medium: 1.15     # 中等：需求空间超15%
+    low: 1.05        # 低：需求空间超5%
+
+# ==================== 利益相关者权重 ====================
+stakeholder_weights:
+  residential:
+    owner: 0.40              # 业主
+    family_members: 0.30     # 家庭成员
+    guests: 0.15             # 访客
+    investment_value: 0.15   # 投资价值
+  
+  commercial:
+    owner: 0.30              # 业主/投资方
+    customers: 0.35          # 顾客/用户
+    employees: 0.20          # 员工
+    brand_value: 0.15        # 品牌价值
+
+# ==================== 需求层次权重（马斯洛） ====================
+necessity_levels:
+  survival:
+    description: "生存需求（水电、结构安全）"
+    weight: 1.0
+  safety:
+    description: "安全需求（消防、防盗、隐私）"
+    weight: 0.85
+  social:
+    description: "社交需求（待客、聚会空间）"
+    weight: 0.70
+  esteem:
+    description: "尊重需求（品牌、档次、面子）"
+    weight: 0.60
+  self_actualization:
+    description: "自我实现（艺术、收藏、个性化）"
+    weight: 0.50
+
+# ==================== 时间敏感性权重 ====================
+time_sensitivity:
+  urgent:
+    description: "紧急（影响正常使用）"
+    weight: 1.0
+  important:
+    description: "重要（影响生活品质）"
+    weight: 0.75
+  normal:
+    description: "一般（可以等待）"
+    weight: 0.50
+  nice_to_have:
+    description: "锦上添花（无时间压力）"
+    weight: 0.30
+
+# ==================== 设计复杂度系数 ====================
+complexity_multipliers:
+  # 空间类型复杂度
+  space_type:
+    standard: 1.0        # 标准空间（客厅、卧室）
+    wet_area: 1.3        # 湿区（卫生间、厨房）
+    technical: 1.5       # 技术空间（影音室、智能中控）
+    custom: 1.8          # 高度定制（异形空间、艺术装置）
+  
+  # 功能复杂度
+  function:
+    single: 1.0          # 单一功能
+    multi: 1.2           # 多功能复合
+    transformable: 1.5   # 可变换空间
+  
+  # 材料复杂度
+  material:
+    standard: 1.0        # 标准材料
+    premium: 1.2         # 高端材料
+    exotic: 1.5          # 进口/稀有材料
+    custom: 1.8          # 定制/特殊工艺

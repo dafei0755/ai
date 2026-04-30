@@ -1,0 +1,385 @@
+/**
+ * ConversationChat.tsx — v2.0 对话态聊天面板
+ * Created by GitHub Copilot · 2026-03-22
+ *
+ * 对话态常驻底态的主聊天界面，支持：
+ *   - 多轮对话消息列表（用户 / AI）
+ *   - 草稿侧边栏收纳指示
+ *   - 升级提示横幅联动
+ *   - 发送输入框（回车 / 按钮提交）
+ */
+
+'use client';
+
+import { ArrowUp } from 'lucide-react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import GuidanceCardWidget from './GuidanceCard';
+import CandidateCard, { type CandidateCardData, type CandidateCardResponse } from './CandidateCard';
+
+// ── 类型定义 ────────────────────────────────────
+
+export type MessageRole = 'user' | 'assistant' | 'system';
+
+/** 引导卡片选项 */
+export interface GuidanceCardOptionData {
+  id: string;
+  label: string;
+  description: string;
+  consequence_hint?: string;
+  recommended?: boolean;
+}
+
+/** 引导卡片单页（多页模式）*/
+export interface GuidanceCardPage {
+  page_title?: string;
+  prompt_text: string;
+  options: GuidanceCardOptionData[];
+  allow_freetext?: boolean;
+}
+
+/** 引导卡片数据（与后端 GuidanceCard 对应） */
+export interface GuidanceCardData {
+  card_id: string;
+  card_type: 'mirror' | 'fork' | 'gap' | 'hypothesis' | 'candidate';
+  /** 卡片总标题，显示在 Header */
+  title?: string;
+  prompt_text: string;
+  options: GuidanceCardOptionData[];
+  allow_freetext?: boolean;
+  /** 多页模式：非空时以 pages 为准 */
+  pages?: GuidanceCardPage[];
+  source_turns?: string[];
+  // 候选卡扩展字段（card_type="candidate" 时生效）
+  candidate_fields?: CandidateCardData['candidate_fields'];
+  card_status?: CandidateCardData['card_status'];
+  gap_round?: boolean;
+}
+
+export interface ChatMessage {
+  id: string;
+  role: MessageRole;
+  content: string;
+  timestamp: string;
+  /** 是否含有草稿对象（如 IntentSeed）*/
+  has_draft?: boolean;
+  draft_type?: string;
+  /** 引导卡片（None 表示本条无卡） */
+  guidance_card?: GuidanceCardData;
+  /** 该条消息的微卧希拟卡片是否已经被操作 */
+  card_responded?: boolean;
+  /** 用户选择结果摘要（用于确认后留痕显示） */
+  card_selection_label?: string;
+}
+
+export interface ConversationChatProps {
+  sessionId: string;
+  messages: ChatMessage[];
+  /** 发送新消息的回调 */
+  onSendMessage: (text: string) => void;
+  /** 是否正在等待 AI 响应 */
+  loading?: boolean;
+  /** 输入框占位文本 */
+  placeholder?: string;
+  /** 是否显示升级提示横幅 */
+  showUpgradeBanner?: boolean;
+  /** 升级横幅「确认升级」回调 */
+  onUpgradeConfirm?: () => void;
+  /** 升级横幅「暂不升级」回调 */
+  onUpgradeDismiss?: () => void;
+  /**
+   * 用户对引导卡片的操作回调。
+   * @param cardId 卡片 ID
+   * @param optionId 选择的选项 ID（跳过时为 undefined）
+   * @param freetext 用户自由输入内容
+   */
+  onCardResponse?: (cardId: string, optionId?: string, freetext?: string) => void;
+  /**
+   * 候选卡（candidate 类型）操作回调。
+   * @param response CandidateCardResponse 对象
+   */
+  onCandidateCardResponse?: (response: CandidateCardResponse) => void;
+  /** 外部预填充输入提示（如 @引用），id 变化时追加一次 */
+  prefillHint?: { id: number; text: string } | null;
+  className?: string;
+}
+
+// ── 子组件：单条消息气泡 ────────────────────────────────────
+
+function MessageBubble({
+  message,
+  onCardResponse,
+  onCandidateCardResponse,
+}: {
+  message: ChatMessage;
+  onCardResponse?: (cardId: string, optionId?: string, freetext?: string) => void;
+  onCandidateCardResponse?: (response: CandidateCardResponse) => void;
+}) {
+  const isUser = message.role === 'user';
+
+  // ── 用户消息：右对齐圆角底纹气泡，无头像 ──
+  if (isUser) {
+    return (
+      <div className="flex justify-end mb-5" data-testid="message-bubble">
+        <div className="ui-type-body max-w-[min(78%,54rem)] px-5 py-3.5 rounded-[1.5rem] bg-[var(--card-bg)] text-[var(--foreground)]">
+          <p className="whitespace-pre-wrap">{message.content}</p>
+        </div>
+      </div>
+    );
+  }
+
+  const gc = message.guidance_card;
+  const isCandidateCard = gc?.card_type === 'candidate';
+
+  // ── AI 消息：纯文本，无气泡，无头像 ──
+  return (
+    <div className="mb-6" data-testid="message-bubble">
+      {/* 正文 — markdown 渲染 */}
+      <div className="ui-type-body text-[var(--foreground)] prose-conv">
+        <ReactMarkdown
+          remarkPlugins={[remarkGfm]}
+          components={{
+            h1: ({ children }) => <h1 className="ui-type-title font-bold mt-5 mb-2 first:mt-0">{children}</h1>,
+            h2: ({ children }) => <h2 className="ui-type-body font-bold mt-5 mb-2 first:mt-0">{children}</h2>,
+            h3: ({ children }) => <h3 className="ui-type-body font-semibold mt-4 mb-2 first:mt-0">{children}</h3>,
+            strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
+            p: ({ children }) => <p className="mb-3 last:mb-0">{children}</p>,
+            br: () => <br />,
+            ul: ({ children }) => <ul className="list-disc pl-5 mb-3 space-y-1.5">{children}</ul>,
+            ol: ({ children }) => <ol className="list-decimal pl-5 mb-3 space-y-1.5">{children}</ol>,
+            li: ({ children }) => <li>{children}</li>,
+            hr: () => <hr className="my-3 border-[var(--border-color)]" />,
+            code: ({ children }) => <code className="px-1.5 py-0.5 rounded bg-[var(--border-color)] text-[0.85em] font-mono">{children}</code>,
+          }}
+        >
+          {message.content}
+        </ReactMarkdown>
+      </div>
+
+      {/* 已确认草稿/阶段成果强调卡 */}
+      {message.has_draft && message.draft_type && (
+        <div className="mt-3 inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border-l-2 border-indigo-400 bg-indigo-500/10 text-xs text-indigo-400">
+          <span>📎</span>
+          <span>已记录 · <span className="font-medium">{message.draft_type}</span></span>
+        </div>
+      )}
+
+      {/* 候选卡（高参协作协议 L2 层）— 未响应时可交互 */}
+      {gc && isCandidateCard && !message.card_responded && onCandidateCardResponse && gc.candidate_fields && (
+        <div className="mt-4 max-w-[88%]">
+          <CandidateCard
+            card={{
+              card_id: gc.card_id,
+              card_type: (gc.card_type === 'candidate'
+                ? (gc.gap_round ? 'gap' : 'echo')
+                : 'echo') as 'echo' | 'gap',
+              title: gc.title ?? gc.prompt_text,
+              summary: gc.prompt_text,
+              candidate_fields: gc.candidate_fields,
+              card_status: gc.card_status ?? 'candidate',
+              gap_round: gc.gap_round,
+            }}
+            onRespond={onCandidateCardResponse}
+          />
+        </div>
+      )}
+
+      {/* 候选卡留痕 — 已响应后 */}
+      {gc && isCandidateCard && message.card_responded && gc.candidate_fields && (
+        <div className="mt-4 max-w-[88%]">
+          <CandidateCard
+            card={{
+              card_id: gc.card_id,
+              card_type: (gc.gap_round ? 'gap' : 'echo') as 'echo' | 'gap',
+              title: gc.title ?? gc.prompt_text,
+              summary: gc.prompt_text,
+              candidate_fields: gc.candidate_fields,
+              card_status: gc.card_status ?? 'confirmed',
+              gap_round: gc.gap_round,
+            }}
+            initialResponded
+            respondedSummary={message.card_selection_label}
+            onRespond={() => {}}
+          />
+        </div>
+      )}
+
+      {/* 普通引导卡片（mirror/fork/gap/hypothesis）— 未响应时可交互 */}
+      {gc && !isCandidateCard && !message.card_responded && onCardResponse && (
+        <div className="mt-4 max-w-[88%]">
+          <GuidanceCardWidget
+            card={gc}
+            onRespond={(optionId, freetext) =>
+              onCardResponse(gc.card_id, optionId, freetext)
+            }
+          />
+        </div>
+      )}
+
+      {/* 普通引导卡片留痕 — 已响应后的卡片历史 */}
+      {gc && !isCandidateCard && message.card_responded && (
+        <div className="mt-4 max-w-[88%]">
+          <GuidanceCardWidget
+            card={gc}
+            initialResponded
+            respondedSummary={message.card_selection_label}
+            onRespond={() => {}}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── 打字指示器 ────────────────────────────────────────────
+
+function TypingIndicator() {
+  return (
+    <div className="mb-6 flex items-center gap-1.5">
+      <span className="w-2 h-2 rounded-full bg-[var(--foreground-secondary)] animate-bounce [animation-delay:-0.3s]" />
+      <span className="w-2 h-2 rounded-full bg-[var(--foreground-secondary)] animate-bounce [animation-delay:-0.15s]" />
+      <span className="w-2 h-2 rounded-full bg-[var(--foreground-secondary)] animate-bounce" />
+    </div>
+  );
+}
+
+// ── 主组件 ────────────────────────────────────────────────
+
+export default function ConversationChat({
+  sessionId,
+  messages,
+  onSendMessage,
+  loading = false,
+  placeholder = '输入你的想法、问题或设计需求…',
+  showUpgradeBanner = false,
+  onUpgradeConfirm,
+  onUpgradeDismiss,
+  onCardResponse,
+  onCandidateCardResponse,
+  prefillHint = null,
+  className = '',
+}: ConversationChatProps) {
+  const [inputText, setInputText] = useState('');
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const adaptiveChatGutter = 'clamp(12px, 2vw, 32px)';
+
+  // 自动滚动到底部
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [messages, loading]);
+
+  // 接收外部引用注入（如 @用户需求）
+  useEffect(() => {
+    if (!prefillHint?.text) return;
+    setInputText((prev) => {
+      if (prev.includes(prefillHint.text)) return prev;
+      return `${prev} ${prefillHint.text}`.trim();
+    });
+    textareaRef.current?.focus();
+  }, [prefillHint?.id, prefillHint?.text]);
+
+  const handleSend = useCallback(() => {
+    const trimmed = inputText.trim();
+    if (!trimmed || loading) return;
+    onSendMessage(trimmed);
+    setInputText('');
+    textareaRef.current?.focus();
+  }, [inputText, loading, onSendMessage]);
+
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        handleSend();
+      }
+    },
+    [handleSend]
+  );
+
+  return (
+    <div
+      className={`relative flex flex-col h-full bg-[var(--background)] ${className}`}
+      data-session-id={sessionId}
+    >
+      {/* 升级提示横幅 */}
+      {showUpgradeBanner && (
+        <div className="ui-type-meta mt-3 p-3.5 bg-amber-50 border border-amber-300 rounded-xl flex items-center gap-3 flex-shrink-0" style={{ marginInline: adaptiveChatGutter }}>
+          <span className="text-amber-500 text-lg flex-shrink-0">✨</span>
+          <span className="text-amber-800 flex-1">
+            对话已积累足够上下文，可以整理为正式项目
+          </span>
+          <button
+            onClick={onUpgradeConfirm}
+            className="px-3 py-1.5 bg-amber-500 text-white text-sm rounded-lg hover:bg-amber-600 transition-colors flex-shrink-0"
+          >
+            立即整理
+          </button>
+          <button
+            onClick={onUpgradeDismiss}
+            className="text-amber-400 hover:text-amber-600 text-sm flex-shrink-0"
+          >
+            稍后
+          </button>
+        </div>
+      )}
+
+      {/* 消息列表（底部留空间给浮动输入栏） */}
+      <div ref={scrollRef} className="flex-1 overflow-y-auto pb-28" style={{ paddingInline: adaptiveChatGutter }}>
+        {messages.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-full text-center select-none">
+            <div className="text-4xl mb-3">💬</div>
+            <p className="ui-type-body font-medium text-[var(--foreground)]">随时开始聊</p>
+            <p className="ui-type-meta mt-1 text-[var(--foreground-secondary)]">分享你的想法、灵感或设计需求</p>
+          </div>
+        ) : (
+          <div className="w-full max-w-[1260px] xl:max-w-none mx-auto py-4" style={{ paddingInline: '2px' }}>
+            {messages.map((msg) => (
+              <MessageBubble key={msg.id} message={msg} onCardResponse={onCardResponse} onCandidateCardResponse={onCandidateCardResponse} />
+            ))}
+            {loading && <TypingIndicator />}
+          </div>
+        )}
+      </div>
+
+      {/* 浮动输入框（ChatGPT 暗色风格） */}
+      <div className="absolute bottom-0 left-0 right-0 pb-4 pt-8 bg-gradient-to-t from-[var(--background)] via-[var(--background)] to-transparent pointer-events-none" style={{ paddingInline: adaptiveChatGutter }}>
+      <div className="mx-auto pointer-events-auto max-w-[1260px] xl:max-w-none" style={{ width: 'calc(100% + 4px)', marginLeft: '-2px' }}>
+          <div className="rounded-[1.6rem] border border-[var(--border-color)] shadow-lg overflow-hidden bg-[var(--card-bg)]">
+            <textarea
+              ref={textareaRef}
+              value={inputText}
+              onChange={(e) => setInputText(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder={placeholder}
+              rows={2}
+              className="ui-type-body w-full bg-transparent text-[var(--foreground)] px-5 pt-4 pb-2 outline-none resize-none max-h-32 overflow-y-auto placeholder:text-[var(--foreground-secondary)] disabled:opacity-50"
+              style={{ fieldSizing: 'content' } as React.CSSProperties}
+              disabled={loading}
+            />
+            <div className="flex items-center justify-end px-4 pb-3">
+              <button
+                onClick={handleSend}
+                disabled={!inputText.trim() || loading}
+                className={`p-2 rounded-full transition-all duration-300 ${
+                  inputText.trim() && !loading
+                    ? 'bg-[var(--foreground)] text-[var(--background)] hover:opacity-80 hover:scale-105'
+                    : 'bg-[var(--border-color)] text-[var(--foreground-secondary)] cursor-not-allowed opacity-50'
+                }`}
+                aria-label="发送"
+              >
+                <ArrowUp className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+          <p className="ui-type-meta text-[var(--foreground-secondary)] mt-1.5 text-center opacity-60">
+            Enter 发送，Shift+Enter 换行
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}

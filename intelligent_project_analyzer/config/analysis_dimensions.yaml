@@ -1,0 +1,463 @@
+# 统一分析维度配置文件
+# v7.280 - 2026-01-25
+# 配置驱动的需求分析维度定义，避免硬编码
+
+version: "v7.280"
+last_updated: "2026-01-25"
+description: "UCPPT搜索模式第一步需求理解与深度分析的完整维度定义"
+
+# ============================================================================
+# 第一部分：用户画像维度
+# ============================================================================
+user_profile:
+  id: "user_profile"
+  label: "用户画像"
+  display_priority: 1
+  required: true
+
+  fields:
+    - id: location
+      label: 地理位置
+      required: true
+      description: 从问题中推断用户的地理位置
+
+    - id: occupation
+      label: 职业
+      required: true
+      description: 从表达方式推断职业背景
+
+    - id: identity_tags
+      label: 身份标签
+      required: true
+      min_items: 3
+      max_items: 5
+      description: 具体的身份标签列表
+
+    - id: explicit_need
+      label: 显性需求
+      required: true
+      description: 用户明确表达的需求
+
+    - id: implicit_needs
+      label: 隐性需求
+      required: true
+      min_items: 1
+      description: 基于分析推断的潜在需求
+
+    - id: motivation_types
+      label: 动机类型
+      required: true
+      description: 从12种动机类型中识别主导动机
+      sub_fields:
+        - id: primary
+          label: 主导动机
+          required: true
+        - id: primary_reason
+          label: 判断依据
+          required: true
+        - id: secondary
+          label: 次要动机
+          required: false
+        - id: secondary_reason
+          label: 次要依据
+          required: false
+
+# ============================================================================
+# 第二部分：实体提取（L1事实解构）
+# ============================================================================
+entity_extraction:
+  id: "l1_facts"
+  label: "L1 事实解构"
+  display_priority: 2
+  required: true
+  description: "结构化实体清单，必须具体到名称而非泛化描述"
+
+  entity_types:
+    - id: brand_entities
+      label: 品牌实体
+      icon: "🏷️"
+      required_fields:
+        - name: 品牌名称
+        - product_lines: 产品线列表
+        - designers: 核心设计师
+        - color_system: 标志性色彩
+        - materials: 常用材质
+        - design_philosophy: 设计哲学
+      extraction_hints:
+        - "如果用户提到品牌，必须推断其具体产品线、设计师、色彩系统"
+        - "查找相关设计师的代表作品"
+
+    - id: location_entities
+      label: 地点实体
+      icon: "📍"
+      required_fields:
+        - name: 地名
+        - climate: 气候特征
+        - altitude: 海拔
+        - local_materials: 在地材料
+        - architecture_style: 建筑风格
+        - cultural_context: 文化背景
+      extraction_hints:
+        - "分析地点的环境约束条件"
+        - "识别可用于设计的本地材料和工艺"
+
+    - id: style_entities
+      label: 风格实体
+      icon: "🎨"
+      required_fields:
+        - name: 风格名称
+        - characteristics: 代表性特征
+        - era: 所属时代
+        - representatives: 代表作品或设计师
+
+    - id: scene_entities
+      label: 场景实体
+      icon: "🏠"
+      required_fields:
+        - type: 场景类型
+        - target_users: 目标用户群
+        - business_model: 商业模式特征
+        - usage_patterns: 使用模式
+
+    - id: competitor_entities
+      label: 竞品实体
+      icon: "🔄"
+      required_fields:
+        - name: 案例名称
+        - positioning: 市场定位
+        - differentiator: 差异化特点
+        - success_factors: 成功因素
+
+    - id: person_entities
+      label: 人物实体
+      icon: "👤"
+      required_fields:
+        - name: 姓名
+        - role: 角色/身份
+        - works: 代表作品
+        - influence: 影响力领域
+
+# ============================================================================
+# 第三部分：L2多视角建模
+# ============================================================================
+l2_perspective_modeling:
+  id: "l2_models"
+  label: "L2 多视角建模"
+  display_priority: 3
+  required: true
+  description: "从多个视角分析问题，动态选择3-5个最相关视角"
+
+  # 基础视角（始终激活）
+  base_perspectives:
+    - id: psychological
+      label: 心理学视角
+      description: 用户心理动机、认知模式、情感需求
+      prompt_hint: "分析用户的深层心理动机和情感诉求"
+
+    - id: sociological
+      label: 社会学视角
+      description: 社会身份、群体认同、文化资本
+      prompt_hint: "分析用户的社会角色和群体归属"
+
+    - id: aesthetic
+      label: 美学视角
+      description: 审美偏好、视觉语言、风格取向
+      prompt_hint: "分析用户的审美倾向和视觉期望"
+
+    - id: emotional
+      label: 情感视角
+      description: 情感体验、氛围需求、心理感受
+      prompt_hint: "分析期望创造的情感体验"
+
+    - id: ritual
+      label: 仪式视角
+      description: 生活仪式、日常习惯、行为模式
+      prompt_hint: "分析用户的生活仪式和日常习惯"
+
+  # 扩展视角（条件激活）
+  extended_perspectives:
+    - id: business
+      label: 商业视角
+      description: ROI、市场定位、竞争优势、商业模式
+      prompt_hint: "分析商业可行性和价值创造"
+
+    - id: technical
+      label: 技术视角
+      description: 技术可行性、技术栈、集成复杂度
+      prompt_hint: "分析技术实现的可行性和挑战"
+
+    - id: ecological
+      label: 生态视角
+      description: 可持续性、环境影响、循环经济
+      prompt_hint: "分析环境影响和可持续发展"
+
+    - id: cultural
+      label: 文化视角
+      description: 文化语境、象征意义、遗产保护
+      prompt_hint: "分析文化内涵和象征意义"
+
+    - id: political
+      label: 政治视角
+      description: 利益相关者、监管环境、社区影响
+      prompt_hint: "分析利益相关者和政策约束"
+
+  # 视角选择原则（根据问题类型）
+  selection_principles:
+    creative:
+      description: 创造型问题
+      preferred: ["aesthetic", "psychological", "cultural"]
+
+    decision:
+      description: 决策型问题
+      preferred: ["business", "technical", "political"]
+
+    exploration:
+      description: 探索型问题
+      preferred: ["sociological", "cultural", "ecological"]
+
+    design:
+      description: 设计型问题
+      preferred: ["aesthetic", "emotional", "ritual"]
+
+# ============================================================================
+# 第四部分：L3核心张力
+# ============================================================================
+l3_core_tension:
+  id: "l3_tension"
+  label: "L3 核心张力"
+  display_priority: 4
+  required: true
+  description: "识别问题中的核心矛盾或张力点"
+
+  fields:
+    - id: formula
+      label: 张力公式
+      required: true
+      format: "[具体元素A] vs [具体元素B]"
+      validation: "不能是泛化的'现代vs传统'，必须具体到问题中的元素"
+
+    - id: description
+      label: 张力描述
+      required: true
+      description: 详细解释这个张力为什么存在、表现形式是什么
+
+    - id: resolution_strategy
+      label: 解决策略
+      required: true
+      min_items: 1
+      description: 至少1条可操作的融合手法或解决方案
+
+# ============================================================================
+# 第五部分：L4用户任务（JTBD）
+# ============================================================================
+l4_user_task:
+  id: "l4_jtbd"
+  label: "L4 用户任务"
+  display_priority: 5
+  required: true
+  description: "用户真正想要完成的任务"
+  format: "当[情境]时，我想要[动作]，以便[价值]"
+
+# ============================================================================
+# 第六部分：L5锐度自检
+# ============================================================================
+l5_sharpness:
+  id: "l5_sharpness"
+  label: "L5 锐度自检"
+  display_priority: 6
+  required: true
+  description: "三问测试验证分析质量"
+
+  questions:
+    - id: specificity
+      question: "此分析只适用于本问题吗？"
+      description: "专一性检验"
+      passing_criteria: "分析结论不能直接套用到其他类似问题"
+
+    - id: actionability
+      question: "能直接指导下一步行动吗？"
+      description: "可操作性检验"
+      passing_criteria: "有明确的行动指引而非泛泛而谈"
+
+    - id: depth
+      question: "触及了用户未明说的深层诉求吗？"
+      description: "深度检验"
+      passing_criteria: "揭示了用户可能没有意识到的需求"
+
+  scoring:
+    min_passing_score: 2
+    max_score: 3
+
+# ============================================================================
+# 第七部分：人性化维度（深层心理分析）
+# ============================================================================
+human_dimensions:
+  id: "human_dimensions"
+  label: "人性化维度"
+  display_priority: 7
+  required: false
+  description: "深层心理和情感维度分析"
+
+  dimensions:
+    - id: emotion_map
+      label: 情绪地图
+      icon: "🗺️"
+      description: 用户当前和期望的情绪状态
+      fields:
+        - current_state: 当前情绪状态
+        - desired_state: 期望情绪状态
+        - triggers: 情绪触发因素
+
+    - id: spiritual_pursuit
+      label: 精神追求
+      icon: "✨"
+      description: 深层精神和意义追求
+      fields:
+        - core_values: 核心价值观
+        - meaning_source: 意义来源
+        - aspiration: 精神追求
+
+    - id: psychological_safety
+      label: 心理安全需求
+      icon: "🛡️"
+      description: 安全感和保护需求
+      fields:
+        - fears: 担忧和恐惧
+        - assurance_needs: 保障需求
+        - risk_tolerance: 风险承受能力
+
+    - id: ritual_behaviors
+      label: 仪式行为
+      icon: "🎭"
+      description: 日常仪式和习惯模式
+      fields:
+        - daily_rituals: 日常仪式
+        - special_occasions: 特殊场合仪式
+        - habit_patterns: 习惯模式
+
+    - id: memory_anchors
+      label: 记忆锚点
+      icon: "⚓"
+      description: 重要记忆和情感联结
+      fields:
+        - positive_memories: 正向记忆
+        - nostalgic_elements: 怀旧元素
+        - emotional_connections: 情感联结
+
+# ============================================================================
+# 第八部分：解题思路（战术级规划）
+# ============================================================================
+problem_solving_approach:
+  id: "problem_solving_approach"
+  label: "解题思路"
+  display_priority: 8
+  required: true
+  description: "战术级5-8步详细路径规划"
+
+  fields:
+    - id: task_type
+      label: 任务本质
+      required: true
+      options:
+        - research: 研究型（需要收集和整理信息）
+        - design: 设计型（需要创造性输出）
+        - decision: 决策型（需要对比和选择）
+        - exploration: 探索型（需要发现和理解）
+        - verification: 验证型（需要确认和证实）
+
+    - id: complexity_level
+      label: 复杂度评估
+      required: true
+      options:
+        - simple: 简单（1-3步可完成）
+        - moderate: 中等（3-5步可完成）
+        - complex: 复杂（5-8步可完成）
+        - highly_complex: 高度复杂（需要8+步或迭代）
+
+    - id: required_expertise
+      label: 所需专业知识
+      required: true
+      min_items: 3
+      max_items: 5
+
+    - id: solution_steps
+      label: 解题路径
+      required: true
+      min_items: 5
+      max_items: 8
+      step_structure:
+        - step_id: 步骤编号（S1, S2...）
+        - action: 具体行动（可执行级别）
+        - purpose: 目的（为什么做这一步）
+        - expected_output: 预期产出（具体可验证的结果）
+
+    - id: breakthrough_points
+      label: 关键突破口
+      required: true
+      min_items: 1
+      max_items: 3
+      point_structure:
+        - point: 突破要点
+        - why_key: 为什么关键
+        - how_to_leverage: 如何利用
+
+    - id: expected_deliverable
+      label: 预期产出形态
+      required: true
+      fields:
+        - format: 输出格式（report/list/comparison/recommendation/plan）
+        - sections: 必须包含的章节（5-8个）
+        - key_elements: 关键交付物
+        - quality_criteria: 质量标准
+
+# ============================================================================
+# 维度完整性校验配置
+# ============================================================================
+validation:
+  # 强制维度（缺失则触发重试）
+  mandatory_dimensions:
+    - user_profile
+    - l1_facts
+    - l3_tension
+    - problem_solving_approach
+
+  # 重要维度（缺失则警告但不重试）
+  important_dimensions:
+    - l2_models
+    - l4_jtbd
+    - l5_sharpness
+
+  # 可选维度（不强制要求）
+  optional_dimensions:
+    - human_dimensions
+
+  # 重试配置
+  retry:
+    max_retries: 2
+    retry_delay_seconds: 1
+    retry_on_missing_mandatory: true
+    retry_on_low_quality: true
+    quality_threshold: 0.6
+
+# ============================================================================
+# 前端展示配置
+# ============================================================================
+display:
+  # 默认展开的维度
+  default_expanded:
+    - l3_tension
+    - problem_solving_approach
+
+  # 折叠的维度（需要点击展开）
+  collapsed_by_default:
+    - l1_facts
+    - l2_models
+    - l5_sharpness
+    - human_dimensions
+
+  # 摘要展示（在折叠状态下显示的摘要字段）
+  summary_fields:
+    l1_facts: ["brand_entities.0.name", "location_entities.0.name"]
+    l2_models: ["selected_perspectives"]
+    l5_sharpness: ["score"]
+    human_dimensions: ["emotion_map.desired_state"]

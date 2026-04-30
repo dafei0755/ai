@@ -1,0 +1,61 @@
+{
+  "email": {
+    "enabled": false,
+    "smtp_server": "smtp.gmail.com",
+    "smtp_port": 587,
+    "use_tls": true,
+    "username": "your-email@gmail.com",
+    "password": "your-app-password",
+    "from_email": "your-email@gmail.com",
+    "to_emails": [
+      "developer1@example.com",
+      "developer2@example.com"
+    ],
+    "subject_prefix": "[TEST]"
+  },
+
+  "slack": {
+    "enabled": false,
+    "webhook_url": "https://hooks.slack.com/services/YOUR/WEBHOOK/URL",
+    "channel": "#test-notifications",
+    "username": "Test Bot",
+    "icon_emoji": ":robot_face:"
+  },
+
+  "dingtalk": {
+    "enabled": false,
+    "webhook_url": "https://oapi.dingtalk.com/robot/send?access_token=YOUR_TOKEN",
+    "secret": "YOUR_SECRET",
+    "at_mobiles": [],
+    "is_at_all": false
+  },
+
+  "wecom": {
+    "enabled": false,
+    "webhook_url": "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=YOUR_KEY"
+  },
+
+  "notification_rules": {
+    "on_test_failure": true,
+    "on_test_success": false,
+    "on_coverage_decrease": true,
+    "coverage_threshold": 14.0,
+    "send_daily_summary": false,
+    "daily_summary_time": "09:00"
+  },
+
+  "message_templates": {
+    "test_failure": {
+      "title": "🚨 测试失败",
+      "message": "测试运行失败\n失败数: {failed_count}\n总测试数: {total_count}\n详情: {details}"
+    },
+    "test_success": {
+      "title": "✅ 测试通过",
+      "message": "所有测试通过\n总测试数: {total_count}\n覆盖率: {coverage}%"
+    },
+    "coverage_decrease": {
+      "title": "⚠️ 覆盖率下降",
+      "message": "代码覆盖率下降\n当前: {current_coverage}%\n之前: {previous_coverage}%\n差值: {diff}%"
+    }
+  }
+}

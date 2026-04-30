@@ -1,0 +1,682 @@
+PRINT语句详细分析
+================================================================================
+
+
+文件: intelligent_project_analyzer\agents\dynamic_project_director.py
+--------------------------------------------------------------------------------
+Line 1314 (debug):
+  原始:     print("正在分析需求并选择角色...")
+  建议:     logger.debug("正在分析需求并选择角色...")
+
+Line 1318 (debug):
+  原始:     print("\n" + director.explain_selection(selection))
+  建议:     logger.debug("\n" + director.explain_selection(selection))
+
+
+文件: intelligent_project_analyzer\agents\specialized_agent_factory.py
+--------------------------------------------------------------------------------
+Line 474 (debug):
+  原始:         print("智能体响应:")
+  建议:         logger.debug("智能体响应:")
+
+Line 475 (debug):
+  原始:         print(result["role_results"][0]["result"])
+  建议:         logger.debug(result["role_results"][0]["result"])
+
+
+文件: intelligent_project_analyzer\api\html_pdf_generator.py
+--------------------------------------------------------------------------------
+Line 2039 (info):
+  原始:     print(f"PDF 生成成功，大小: {len(pdf_bytes)} bytes")
+  建议:     logger.info(f"PDF 生成成功，大小: {len(pdf_bytes)} bytes")
+
+
+文件: intelligent_project_analyzer\api\member_routes.py
+--------------------------------------------------------------------------------
+Line 19 (warning):
+  原始:     print(f"[MemberRoutes] 警告：无法导入 WPCOMMemberAPI: {e}")
+  建议:     logger.warning(f"[MemberRoutes] 警告：无法导入 WPCOMMemberAPI: {e}")
+
+Line 45 (debug):
+  原始:         print(f"[MemberRoutes] 🔍 开始获取会员信息...")
+  建议:         logger.debug(f"[MemberRoutes] 🔍 开始获取会员信息...")
+
+Line 46 (debug):
+  原始:         print(f"[MemberRoutes] 当前用户信息: {current_user}")
+  建议:         logger.debug(f"[MemberRoutes] 当前用户信息: {current_user}")
+
+Line 52 (debug):
+  原始:             print(f"[MemberRoutes] ❌ 用户ID缺失，current_user: {current_user}")
+  建议:             logger.debug(f"[MemberRoutes] ❌ 用户ID缺失，current_user: {current_user}")
+
+Line 55 (debug):
+  原始:         print(f"[MemberRoutes] 📡 正在调用 WordPress API 获取用户 {user_id} 的会员信息...")
+  建议:         logger.debug(f"[MemberRoutes] 📡 正在调用 WordPress API 获取用户 {user_id} 的会员信息...")
+
+Line 58 (debug):
+  原始:         print(f"[MemberRoutes] 📞 调用 api.get_user_membership({user_id})...")
+  建议:         logger.debug(f"[MemberRoutes] 📞 调用 api.get_user_membership({user_id})...")
+
+Line 60 (debug):
+  原始:         print(f"[MemberRoutes] ✅ WordPress API 返回结果: {result}")
+  建议:         logger.debug(f"[MemberRoutes] ✅ WordPress API 返回结果: {result}")
+
+Line 64 (debug):
+  原始:         print(f"[MemberRoutes] 会员数据: {membership}")
+  建议:         logger.debug(f"[MemberRoutes] 会员数据: {membership}")
+
+Line 65 (debug):
+  原始:         print(f"[MemberRoutes] Meta 数据: {meta}")
+  建议:         logger.debug(f"[MemberRoutes] Meta 数据: {meta}")
+
+Line 74 (debug):
+  原始:                 print(f"[MemberRoutes] 从 meta 字段读取 VIP 数据: type={vip_type}, end_date={vip_end_date}")
+  建议:                 logger.debug(f"[MemberRoutes] 从 meta 字段读取 VIP 数据: type={vip_type}, end_date={vip_end_date}")
+
+Line 92 (debug):
+  原始:                 print(f"[MemberRoutes] 构造的 membership 数据: {membership}")
+  建议:                 logger.debug(f"[MemberRoutes] 构造的 membership 数据: {membership}")
+
+Line 97 (debug):
+  原始:             print(f"[MemberRoutes] 钱包 API 返回结果: {wallet_result}")
+  建议:             logger.debug(f"[MemberRoutes] 钱包 API 返回结果: {wallet_result}")
+
+Line 112 (debug):
+  原始:             print(f"[MemberRoutes] 解析的钱包余额: {wallet_balance}")
+  建议:             logger.debug(f"[MemberRoutes] 解析的钱包余额: {wallet_balance}")
+
+Line 114 (debug):
+  原始:             print(f"[MemberRoutes] 获取钱包余额失败: {e}")
+  建议:             logger.debug(f"[MemberRoutes] 获取钱包余额失败: {e}")
+
+Line 122 (debug):
+  原始:             print(f"[MemberRoutes] ⚠️ 用户 {user_id} 没有会员数据，返回免费用户")
+  建议:             logger.debug(f"[MemberRoutes] ⚠️ 用户 {user_id} 没有会员数据，返回免费用户")
+
+Line 140 (debug):
+  原始:         print(f"[MemberRoutes] ✅ 用户 {user_id} 会员等级: {level_name}")
+  建议:         logger.debug(f"[MemberRoutes] ✅ 用户 {user_id} 会员等级: {level_name}")
+
+Line 153 (debug):
+  原始:         print(f"[MemberRoutes] ❌ 获取会员信息失败: {e}")
+  建议:         logger.debug(f"[MemberRoutes] ❌ 获取会员信息失败: {e}")
+
+Line 193 (debug):
+  原始:         print(f"[MemberRoutes] 获取订单失败: {e}")
+  建议:         logger.debug(f"[MemberRoutes] 获取订单失败: {e}")
+
+Line 228 (debug):
+  原始:         print(f"[MemberRoutes] 获取钱包信息失败: {e}")
+  建议:         logger.debug(f"[MemberRoutes] 获取钱包信息失败: {e}")
+
+Line 273 (debug):
+  原始:         print(f"[MemberRoutes] 检查访问权限失败: {e}")
+  建议:         logger.debug(f"[MemberRoutes] 检查访问权限失败: {e}")
+
+
+文件: intelligent_project_analyzer\api\server.py
+--------------------------------------------------------------------------------
+Line 18 (info):
+  原始:     print("✅ 已设置 WindowsSelectorEventLoopPolicy（Python 3.13+ Windows 兼容）")
+  建议:     logger.info("✅ 已设置 WindowsSelectorEventLoopPolicy（Python 3.13+ Windows 兼容）")
+
+Line 247 (debug):
+  原始:     print("=" * 60)
+  建议:     logger.debug("=" * 60)
+
+Line 248 (debug):
+  原始:     print("  🤖 智能项目分析系统 - API 服务器")
+  建议:     logger.debug("  🤖 智能项目分析系统 - API 服务器")
+
+Line 249 (debug):
+  原始:     print("=" * 60)
+  建议:     logger.debug("=" * 60)
+
+Line 250 (debug):
+  原始:     print()
+  建议:     logger.debug()
+
+Line 256 (info):
+  原始:         print("✅ Redis 会话管理器已启动")
+  建议:         logger.info("✅ Redis 会话管理器已启动")
+
+Line 259 (warning):
+  原始:         print("⚠️ Redis 会话管理器启动失败（使用内存模式）")
+  建议:         logger.warning("⚠️ Redis 会话管理器启动失败（使用内存模式）")
+
+Line 264 (info):
+  原始:         print("✅ 追问历史管理器已启动")
+  建议:         logger.info("✅ 追问历史管理器已启动")
+
+Line 267 (warning):
+  原始:         print("⚠️ 追问历史管理器启动失败（追问功能受限）")
+  建议:         logger.warning("⚠️ 追问历史管理器启动失败（追问功能受限）")
+
+Line 272 (info):
+  原始:         print("✅ 会话归档管理器已启动（永久保存功能已启用）")
+  建议:         logger.info("✅ 会话归档管理器已启动（永久保存功能已启用）")
+
+Line 275 (warning):
+  原始:         print("⚠️ 会话归档管理器启动失败（无法使用永久保存功能）")
+  建议:         logger.warning("⚠️ 会话归档管理器启动失败（无法使用永久保存功能）")
+
+Line 286 (info):
+  原始:         print("✅ Redis Pub/Sub 已启动")
+  建议:         logger.info("✅ Redis Pub/Sub 已启动")
+
+Line 289 (warning):
+  原始:         print("⚠️ Redis Pub/Sub 启动失败（WebSocket 仅支持单实例）")
+  建议:         logger.warning("⚠️ Redis Pub/Sub 启动失败（WebSocket 仅支持单实例）")
+
+Line 296 (info):
+  原始:         print("✅ Playwright 浏览器池已启动（PDF 生成性能优化）")
+  建议:         logger.info("✅ Playwright 浏览器池已启动（PDF 生成性能优化）")
+
+Line 299 (warning):
+  原始:         print("⚠️ Playwright 浏览器池启动失败（PDF 生成将使用备用方案）")
+  建议:         logger.warning("⚠️ Playwright 浏览器池启动失败（PDF 生成将使用备用方案）")
+
+Line 301 (info):
+  原始:     print("✅ 服务器启动成功")
+  建议:     logger.info("✅ 服务器启动成功")
+
+Line 302 (debug):
+  原始:     print("📍 API 文档: http://localhost:8000/docs")
+  建议:     logger.debug("📍 API 文档: http://localhost:8000/docs")
+
+Line 303 (debug):
+  原始:     print("📍 健康检查: http://localhost:8000/health")
+  建议:     logger.debug("📍 健康检查: http://localhost:8000/health")
+
+Line 304 (debug):
+  原始:     print()
+  建议:     logger.debug()
+
+Line 331 (debug):
+  原始:     print("\n👋 服务器关闭中...")
+  建议:     logger.debug("\n👋 服务器关闭中...")
+
+Line 337 (info):
+  原始:         print("✅ Playwright 浏览器池已关闭")
+  建议:         logger.info("✅ Playwright 浏览器池已关闭")
+
+Line 362 (debug):
+  原始:     print("👋 服务器已关闭")
+  建议:     logger.debug("👋 服务器已关闭")
+
+Line 1186 (debug):
+  原始:         print(f"\n{'='*60}")
+  建议:         logger.debug(f"\n{'='*60}")
+
+Line 1187 (info):
+  原始:         print(f"🚀 开始执行工作流")
+  建议:         logger.info(f"🚀 开始执行工作流")
+
+Line 1188 (debug):
+  原始:         print(f"Session ID: {session_id}")
+  建议:         logger.debug(f"Session ID: {session_id}")
+
+Line 1189 (debug):
+  原始:         print(f"用户输入: {user_input[:100]}...")
+  建议:         logger.debug(f"用户输入: {user_input[:100]}...")
+
+Line 1190 (debug):
+  原始:         print(f"运行模式: Dynamic Mode")
+  建议:         logger.debug(f"运行模式: Dynamic Mode")
+
+Line 1191 (debug):
+  原始:         print(f"分析模式: {analysis_mode}")  # 🆕 v7.39
+  建议:         logger.debug(f"分析模式: {analysis_mode}")
+
+Line 1192 (debug):
+  原始:         print(f"{'='*60}\n")
+  建议:         logger.debug(f"{'='*60}\n")
+
+Line 1209 (debug):
+  原始:         print(f"📦 创建工作流 (Dynamic Mode)...")
+  建议:         logger.debug(f"📦 创建工作流 (Dynamic Mode)...")
+
+Line 1212 (debug):
+  原始:             print(f"❌ 工作流创建失败")
+  建议:             logger.debug(f"❌ 工作流创建失败")
+
+Line 1220 (info):
+  原始:         print(f"✅ 工作流创建成功")
+  建议:         logger.info(f"✅ 工作流创建成功")
+
+Line 1970 (debug):
+  原始:     print(f"\n📥 收到分析请求")
+  建议:     logger.debug(f"\n📥 收到分析请求")
+
+Line 1971 (debug):
+  原始:     print(f"用户输入: {request.user_input[:100]}...")
+  建议:     logger.debug(f"用户输入: {request.user_input[:100]}...")
+
+Line 1972 (debug):
+  原始:     print(f"分析模式: {request.analysis_mode}")  # 🆕 v7.39
+  建议:     logger.debug(f"分析模式: {request.analysis_mode}")
+
+Line 1973 (debug):
+  原始:     print(f"运行模式: Dynamic Mode")
+  建议:     logger.debug(f"运行模式: Dynamic Mode")
+
+Line 1977 (debug):
+  原始:     print(f"生成 Session ID: {session_id}")
+  建议:     logger.debug(f"生成 Session ID: {session_id}")
+
+Line 1995 (info):
+  原始:     print(f"✅ 会话状态已初始化（Redis）")
+  建议:     logger.info(f"✅ 会话状态已初始化（Redis）")
+
+Line 1998 (debug):
+  原始:     print(f"📤 添加后台任务...")
+  建议:     logger.debug(f"📤 添加后台任务...")
+
+Line 2005 (info):
+  原始:     print(f"✅ 后台任务已添加，返回响应\n")
+  建议:     logger.info(f"✅ 后台任务已添加，返回响应\n")
+
+
+文件: intelligent_project_analyzer\core\prompt_manager.py
+--------------------------------------------------------------------------------
+Line 74 (warning):
+  原始:             print(f"[WARNING] Prompts directory does not exist: {self.config_path}")
+  建议:             logger.warning(f"[WARNING] Prompts directory does not exist: {self.config_path}")
+
+Line 75 (debug):
+  原始:             print("[INFO] Creating default prompts directory...")
+  建议:             logger.debug("[INFO] Creating default prompts directory...")
+
+Line 85 (warning):
+  原始:                 print(f"[WARNING] Config path is not a directory: {self.config_path}")
+  建议:                 logger.warning(f"[WARNING] Config path is not a directory: {self.config_path}")
+
+Line 92 (debug):
+  原始:                 print(f"[INFO] 🔄 Loading prompts from directory: {self.config_path}")
+  建议:                 logger.debug(f"[INFO] 🔄 Loading prompts from directory: {self.config_path}")
+
+Line 98 (warning):
+  原始:                 print("[WARNING] No YAML files found in prompts directory")
+  建议:                 logger.warning("[WARNING] No YAML files found in prompts directory")
+
+Line 103 (debug):
+  原始:                     print(f"[INFO] Loading {yaml_file.name}...")
+  建议:                     logger.debug(f"[INFO] Loading {yaml_file.name}...")
+
+Line 111 (debug):
+  原始:                 print(f"[OK] ✅ Successfully loaded {len(self.prompts)} prompt configuration(s) (cached)")
+  建议:                 logger.debug(f"[OK] ✅ Successfully loaded {len(self.prompts)} prompt configuration(s) (cached)")
+
+Line 114 (debug):
+  原始:                 print(f"[INFO] Using cached prompts ({len(self.prompts)} configs)")
+  建议:                 logger.debug(f"[INFO] Using cached prompts ({len(self.prompts)} configs)")
+
+Line 117 (debug):
+  原始:             print(f"[ERROR] Failed to load prompt configuration: {e}")
+  建议:             logger.debug(f"[ERROR] Failed to load prompt configuration: {e}")
+
+Line 158 (debug):
+  原始:         print(f"[OK] Configuration integrity check passed - all {len(required_configs)} core configs present")
+  建议:         logger.debug(f"[OK] Configuration integrity check passed - all {len(required_configs)} core configs present")
+
+Line 173 (warning):
+  原始:             print(f"[WARNING] Prompt not found for agent: {agent_name}")
+  建议:             logger.warning(f"[WARNING] Prompt not found for agent: {agent_name}")
+
+Line 186 (warning):
+  原始:             print(f"[WARNING] Empty prompt for agent: {agent_name}")
+  建议:             logger.warning(f"[WARNING] Empty prompt for agent: {agent_name}")
+
+Line 194 (debug):
+  原始:                 print(f"[ERROR] Missing template variable for {agent_name}: {e}")
+  建议:                 logger.debug(f"[ERROR] Missing template variable for {agent_name}: {e}")
+
+Line 213 (warning):
+  原始:             print("[WARNING] review_agents prompt configuration not found")
+  建议:             logger.warning("[WARNING] review_agents prompt configuration not found")
+
+Line 220 (warning):
+  原始:             print(f"[WARNING] Reviewer role not found: {reviewer_role}")
+  建议:             logger.warning(f"[WARNING] Reviewer role not found: {reviewer_role}")
+
+Line 226 (warning):
+  原始:             print(f"[WARNING] Empty prompt template for reviewer: {reviewer_role}")
+  建议:             logger.warning(f"[WARNING] Empty prompt template for reviewer: {reviewer_role}")
+
+Line 232 (debug):
+  原始:             print(f"[ERROR] Missing template variable for {reviewer_role}: {e}")
+  建议:             logger.debug(f"[ERROR] Missing template variable for {reviewer_role}: {e}")
+
+Line 263 (debug):
+  原始:         print("[INFO] Reloading prompt configurations...")
+  建议:         logger.debug("[INFO] Reloading prompt configurations...")
+
+Line 304 (warning):
+  原始:             print(f"[WARNING] Prompt config not found for agent: {agent_name}")
+  建议:             logger.warning(f"[WARNING] Prompt config not found for agent: {agent_name}")
+
+Line 311 (warning):
+  原始:             print(f"[WARNING] No task_description_template found for agent: {agent_name}")
+  建议:             logger.warning(f"[WARNING] No task_description_template found for agent: {agent_name}")
+
+Line 329 (debug):
+  原始:             print(f"[ERROR] Missing template variable in task_description_template: {e}")
+  建议:             logger.debug(f"[ERROR] Missing template variable in task_description_template: {e}")
+
+Line 343 (warning):
+  原始:             print(f"[WARNING] Prompt config not found for agent: {agent_name}")
+  建议:             logger.warning(f"[WARNING] Prompt config not found for agent: {agent_name}")
+
+Line 350 (debug):
+  原始:             print(f"[INFO] No output_example found for agent: {agent_name}")
+  建议:             logger.debug(f"[INFO] No output_example found for agent: {agent_name}")
+
+Line 371 (warning):
+  原始:             print(f"[WARNING] Prompt config not found for agent: {agent_name}")
+  建议:             logger.warning(f"[WARNING] Prompt config not found for agent: {agent_name}")
+
+Line 378 (debug):
+  原始:             print(f"[INFO] No ontology_frameworks found for agent: {agent_name}")
+  建议:             logger.debug(f"[INFO] No ontology_frameworks found for agent: {agent_name}")
+
+Line 385 (warning):
+  原始:                 print(f"[WARNING] Framework not found for project_type: {project_type}")
+  建议:                 logger.warning(f"[WARNING] Framework not found for project_type: {project_type}")
+
+Line 394 (debug):
+  原始:             print(f"[INFO] No enabled project_types in business_config for agent: {agent_name}")
+  建议:             logger.debug(f"[INFO] No enabled project_types in business_config for agent: {agent_name}")
+
+Line 417 (warning):
+  原始:             print(f"[WARNING] Prompt config not found for agent: {agent_name}")
+  建议:             logger.warning(f"[WARNING] Prompt config not found for agent: {agent_name}")
+
+Line 424 (debug):
+  原始:             print(f"[INFO] No business_config found for agent: {agent_name}")
+  建议:             logger.debug(f"[INFO] No business_config found for agent: {agent_name}")
+
+Line 436 (debug):
+  原始:     print("\n所有已加载的智能体:")
+  建议:     logger.debug("\n所有已加载的智能体:")
+
+Line 439 (debug):
+  原始:         print(f"  - {name} (v{metadata['version']})")
+  建议:         logger.debug(f"  - {name} (v{metadata['version']})")
+
+Line 442 (debug):
+  原始:     print("\n需求分析师提示词:")
+  建议:     logger.debug("\n需求分析师提示词:")
+
+Line 445 (debug):
+  原始:         print(f"  长度: {len(prompt)} 字符")
+  建议:         logger.debug(f"  长度: {len(prompt)} 字符")
+
+Line 446 (debug):
+  原始:         print(f"  前100字符: {prompt[:100]}...")
+  建议:         logger.debug(f"  前100字符: {prompt[:100]}...")
+
+Line 449 (debug):
+  原始:     print("\n红队审核者提示词:")
+  建议:     logger.debug("\n红队审核者提示词:")
+
+Line 456 (debug):
+  原始:         print(f"  长度: {len(red_team_prompt)} 字符")
+  建议:         logger.debug(f"  长度: {len(red_team_prompt)} 字符")
+
+
+文件: intelligent_project_analyzer\core\role_manager.py
+--------------------------------------------------------------------------------
+Line 60 (debug):
+  原始:                 print(f"[INFO] Loading roles from directory: {self.config_path}")
+  建议:                 logger.debug(f"[INFO] Loading roles from directory: {self.config_path}")
+
+Line 65 (debug):
+  原始:                     print(f"[INFO] Loading {yaml_file.name}...")
+  建议:                     logger.debug(f"[INFO] Loading {yaml_file.name}...")
+
+Line 70 (debug):
+  原始:                 print(f"[OK] Successfully loaded role configuration from {len(yaml_files)} files: {len(self.get_all_role_ids())} roles")
+  建议:                 logger.debug(f"[OK] Successfully loaded role configuration from {len(yaml_files)} files: {len(self.get_all_role_ids())} roles")
+
+Line 74 (debug):
+  原始:                 print(f"[INFO] Loading roles from file: {self.config_path}")
+  建议:                 logger.debug(f"[INFO] Loading roles from file: {self.config_path}")
+
+Line 77 (debug):
+  原始:                 print(f"[OK] Successfully loaded role configuration: {len(self.get_all_role_ids())} roles")
+  建议:                 logger.debug(f"[OK] Successfully loaded role configuration: {len(self.get_all_role_ids())} roles")
+
+Line 80 (warning):
+  原始:                 print(f"[WARNING] Config path does not exist: {self.config_path}")
+  建议:                 logger.warning(f"[WARNING] Config path does not exist: {self.config_path}")
+
+Line 84 (debug):
+  原始:             print(f"[ERROR] Failed to load role configuration: {e}")
+  建议:             logger.debug(f"[ERROR] Failed to load role configuration: {e}")
+
+Line 110 (debug):
+  原始:         print(f"[OK] Created default configuration template: {self.config_path}")
+  建议:         logger.debug(f"[OK] Created default configuration template: {self.config_path}")
+
+Line 263 (info):
+  原始:             print(f"✅ 成功添加角色: {base_type}_{role_id}")
+  建议:             logger.info(f"✅ 成功添加角色: {base_type}_{role_id}")
+
+Line 267 (debug):
+  原始:             print(f"❌ 添加角色失败: {e}")
+  建议:             logger.debug(f"❌ 添加角色失败: {e}")
+
+Line 276 (debug):
+  原始:             print(f"❌ 保存角色配置失败: {e}")
+  建议:             logger.debug(f"❌ 保存角色配置失败: {e}")
+
+Line 328 (debug):
+  原始:     print("\n所有角色:")
+  建议:     logger.debug("\n所有角色:")
+
+Line 329 (debug):
+  原始:     print(manager.get_role_summary())
+  建议:     logger.debug(manager.get_role_summary())
+
+Line 332 (debug):
+  原始:     print("\n搜索'建筑'相关角色:")
+  建议:     logger.debug("\n搜索'建筑'相关角色:")
+
+Line 335 (debug):
+  原始:         print(f"  - {role['full_id']}: {role['name']} (匹配分数: {role['match_score']})")
+  建议:         logger.debug(f"  - {role['full_id']}: {role['name']} (匹配分数: {role['match_score']})")
+
+
+文件: intelligent_project_analyzer\models\flexible_output.py
+--------------------------------------------------------------------------------
+Line 315 (debug):
+  原始:     print("=" * 60)
+  建议:     logger.debug("=" * 60)
+
+Line 316 (debug):
+  原始:     print("示例1: Targeted模式 - 方案比选")
+  建议:     logger.debug("示例1: Targeted模式 - 方案比选")
+
+Line 317 (debug):
+  原始:     print("=" * 60)
+  建议:     logger.debug("=" * 60)
+
+Line 318 (debug):
+  原始:     print(targeted_example.model_dump_json(indent=2))
+  建议:     logger.debug(targeted_example.model_dump_json(indent=2))
+
+Line 353 (debug):
+  原始:     print("\n" + "=" * 60)
+  建议:     logger.debug("\n" + "=" * 60)
+
+Line 354 (debug):
+  原始:     print("示例2: Comprehensive模式 - 完整报告")
+  建议:     logger.debug("示例2: Comprehensive模式 - 完整报告")
+
+Line 355 (debug):
+  原始:     print("=" * 60)
+  建议:     logger.debug("=" * 60)
+
+Line 356 (debug):
+  原始:     print(comprehensive_example.model_dump_json(indent=2))
+  建议:     logger.debug(comprehensive_example.model_dump_json(indent=2))
+
+Line 368 (debug):
+  原始:         print("\n" + "=" * 60)
+  建议:         logger.debug("\n" + "=" * 60)
+
+Line 369 (debug):
+  原始:         print("示例3: 验证器捕获错误")
+  建议:         logger.debug("示例3: 验证器捕获错误")
+
+Line 370 (debug):
+  原始:         print("=" * 60)
+  建议:         logger.debug("=" * 60)
+
+Line 371 (info):
+  原始:         print(f"✅ 成功捕获错误: {e}")
+  建议:         logger.info(f"✅ 成功捕获错误: {e}")
+
+
+文件: intelligent_project_analyzer\services\image_generator.py
+--------------------------------------------------------------------------------
+Line 1055 (debug):
+  原始:             print(result.image_url)
+  建议:             logger.debug(result.image_url)
+
+
+文件: intelligent_project_analyzer\services\role_selection_analytics.py
+--------------------------------------------------------------------------------
+Line 530 (debug):
+  原始:     print("="*80)
+  建议:     logger.debug("="*80)
+
+Line 531 (debug):
+  原始:     print("角色选择运行时监控演示")
+  建议:     logger.debug("角色选择运行时监控演示")
+
+Line 532 (debug):
+  原始:     print("="*80)
+  建议:     logger.debug("="*80)
+
+Line 579 (debug):
+  原始:     print("\n✅ 已记录3条模拟数据")
+  建议:     logger.debug("\n✅ 已记录3条模拟数据")
+
+Line 582 (debug):
+  原始:     print("\n生成分析报告...")
+  建议:     logger.debug("\n生成分析报告...")
+
+Line 585 (debug):
+  原始:     print(f"\n📊 统计摘要:")
+  建议:     logger.debug(f"\n📊 统计摘要:")
+
+Line 586 (debug):
+  原始:     print(f"   总选择次数: {summary.total_selections}")
+  建议:     logger.debug(f"   总选择次数: {summary.total_selections}")
+
+Line 587 (debug):
+  原始:     print(f"   平均置信度: {summary.avg_confidence:.2%}")
+  建议:     logger.debug(f"   平均置信度: {summary.avg_confidence:.2%}")
+
+Line 588 (info):
+  原始:     print(f"   成功率: {summary.success_rate:.2%}")
+  建议:     logger.info(f"   成功率: {summary.success_rate:.2%}")
+
+Line 589 (debug):
+  原始:     print(f"   协同模式分布: {summary.mode_distribution}")
+  建议:     logger.debug(f"   协同模式分布: {summary.mode_distribution}")
+
+Line 593 (debug):
+  原始:     print(f"\n📄 报告已导出: {report_path}")
+  建议:     logger.debug(f"\n📄 报告已导出: {report_path}")
+
+Line 595 (debug):
+  原始:     print("\n" + "="*80)
+  建议:     logger.debug("\n" + "="*80)
+
+Line 596 (info):
+  原始:     print("✅ 监控系统部署完成")
+  建议:     logger.info("✅ 监控系统部署完成")
+
+Line 597 (debug):
+  原始:     print("="*80)
+  建议:     logger.debug("="*80)
+
+
+文件: intelligent_project_analyzer\services\role_weight_calculator.py
+--------------------------------------------------------------------------------
+Line 31 (debug):
+  原始:     >>> print(weights)
+  建议:     logger.debug(weights)
+
+Line 311 (debug):
+  原始:     print("=" * 80)
+  建议:     logger.debug("=" * 80)
+
+Line 312 (debug):
+  原始:     print("权重计算器测试")
+  建议:     logger.debug("权重计算器测试")
+
+Line 313 (debug):
+  原始:     print("=" * 80)
+  建议:     logger.debug("=" * 80)
+
+Line 319 (debug):
+  原始:         print("\n" + "=" * 80)
+  建议:         logger.debug("\n" + "=" * 80)
+
+Line 320 (debug):
+  原始:         print("计算结果:")
+  建议:         logger.debug("计算结果:")
+
+Line 321 (debug):
+  原始:         print("=" * 80)
+  建议:         logger.debug("=" * 80)
+
+Line 323 (debug):
+  原始:             print(f"{role}: {weight:.1f}")
+  建议:             logger.debug(f"{role}: {weight:.1f}")
+
+Line 325 (debug):
+  原始:         print("\n" + "=" * 80)
+  建议:         logger.debug("\n" + "=" * 80)
+
+Line 326 (debug):
+  原始:         print("详细说明:")
+  建议:         logger.debug("详细说明:")
+
+Line 327 (debug):
+  原始:         print("=" * 80)
+  建议:         logger.debug("=" * 80)
+
+Line 329 (debug):
+  原始:         print(explanation)
+  建议:         logger.debug(explanation)
+
+Line 334 (debug):
+  原始:             print(f"\n✅ V4 权重为 {v4_weight:.1f}，应该被选中")
+  建议:             logger.debug(f"\n✅ V4 权重为 {v4_weight:.1f}，应该被选中")
+
+Line 336 (debug):
+  原始:             print(f"\n⚠️ V4 权重为 {v4_weight:.1f}，可能不会被选中")
+  建议:             logger.debug(f"\n⚠️ V4 权重为 {v4_weight:.1f}，可能不会被选中")
+
+
+文件: intelligent_project_analyzer\workflow\batch_scheduler.py
+--------------------------------------------------------------------------------
+Line 367 (debug):
+  原始:     print("\n=== 批次调度结果 ===")
+  建议:     logger.debug("\n=== 批次调度结果 ===")
+
+Line 369 (debug):
+  原始:         print(f"批次 {i}: {batch}")
+  建议:         logger.debug(f"批次 {i}: {batch}")
+
+Line 374 (debug):
+  原始:     print(f"\n{role} 在批次 {batch_num}")
+  建议:     logger.debug(f"\n{role} 在批次 {batch_num}")
+
+Line 378 (debug):
+  原始:     print(f"{role} 依赖: {deps}")
+  建议:     logger.debug(f"{role} 依赖: {deps}")
