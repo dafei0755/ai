@@ -17,6 +17,12 @@ from .research_scan import (
     TrustTier,
     EvidenceType,
 )
+from .space_classification import (  # noqa: F401
+    AmbiguityInfo,
+    RoutingInfo,
+    SecondaryCandidate,
+    SpaceClassificationResult,
+)
 
 __all__ = [
     "V6_1_FlexibleOutput",
@@ -29,4 +35,8 @@ __all__ = [
     "ClaimVerificationStatus",
     "TrustTier",
     "EvidenceType",
+    "AmbiguityInfo",
+    "RoutingInfo",
+    "SecondaryCandidate",
+    "SpaceClassificationResult",
 ]
