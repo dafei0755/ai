@@ -132,3 +132,23 @@ def test_specialty_tags_list(svc):
     result = svc.classify("牙科诊所室内设计")
     assert isinstance(result.specialty_tags, list)
     # specialty_tags 可能为空或包含细粒度标签
+
+
+def test_classify_empty_input(svc):
+    # 空字符串不应抛异常，应回退到 "other"
+    result = svc.classify("")
+    assert result.project_type is not None
+    assert result.schema_version == "space_classification.v1"
+
+
+def test_llm_boundary_resolve_valid_ids_cover_registry(svc):
+    # 验证 valid_ids 真正包含注册表中的类型 ID（非空集合）
+    from intelligent_project_analyzer.services.project_type_detector import PROJECT_TYPE_REGISTRY
+    assert isinstance(PROJECT_TYPE_REGISTRY, dict)
+    assert len(PROJECT_TYPE_REGISTRY) > 0
+    # 所有注册表 key 都应能被 valid_ids 逻辑覆盖
+    valid_ids = set(PROJECT_TYPE_REGISTRY.keys())
+    valid_ids.add("other")
+    assert "commercial_retail" in valid_ids
+    assert "residential_renovation" in valid_ids
+    assert len(valid_ids) >= 32

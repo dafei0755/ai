@@ -1408,6 +1408,7 @@ class RequirementsAnalystAgentV2:
             metadata={
                 "analysis_mode": final_state.get("analysis_mode"),
                 "project_type": final_state.get("project_type"),
+                "space_classification": final_state.get("space_classification"),
                 "total_elapsed_ms": final_state.get("total_elapsed_ms"),
                 "node_path": final_state.get("node_path"),
                 "processing_log": final_state.get("processing_log"),

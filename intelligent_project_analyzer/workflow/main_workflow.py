@@ -694,6 +694,7 @@ class MainWorkflow:
                 "current_stage": AnalysisStage.REQUIREMENT_COLLECTION.value,
                 "structured_requirements": result.structured_data,
                 "project_type": project_type,  # 添加项目类型字段
+                "space_classification": result.metadata.get("space_classification"),  # Phase 2 双写
                 "detected_design_modes": detected_design_modes,  # BUG2修复：同步到 top-level
                 # ⚠️ v9.1: project_classification 已移除（死代码清理，零下游读取）
                 "deliverable_owner_map": deliverable_owner_map,  # v7.0: 交付物责任者映射

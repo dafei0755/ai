@@ -265,9 +265,7 @@ class SpaceClassificationService:
             PROJECT_TYPE_REGISTRY,
         )
 
-        valid_ids = {
-            e["id"] for e in PROJECT_TYPE_REGISTRY if isinstance(e, dict) and "id" in e
-        }
+        valid_ids = set(PROJECT_TYPE_REGISTRY.keys())
         valid_ids.add("other")
 
         if llm_result.project_type not in valid_ids:
