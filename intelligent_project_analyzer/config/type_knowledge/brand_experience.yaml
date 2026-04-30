@@ -1,0 +1,34 @@
+project_type: brand_experience
+display_name: 品牌体验空间
+primary_bucket: retail
+
+core_logic: |
+  品牌体验空间的核心是「叙事性」——空间本身就是品牌的三维广告牌。
+  访客不是来购买商品，而是来「体验品牌价值观」。
+
+typical_tensions:
+  - "强烈品牌主张 vs 访客舒适度"
+  - "视觉冲击力 vs 功能实用性"
+  - "品牌全球标准化 vs 在地文化适配"
+
+required_variables:
+  - brand_positioning
+  - target_visitor_dwell_time
+  - commercial_conversion_goal
+
+questionnaire_profile: brand_experience_v1
+floorplan_profile: brand_experience_v1
+
+visual_profile:
+  visual_pitfalls:
+    - "退化为普通零售陈列，失去品牌叙事性"
+    - "展示图不体现品牌视觉语言"
+  forbidden_biases:
+    - "一律套用「白墙+射灯」展厅模板"
+  type_constraints:
+    - "必须展示品牌核心视觉元素的空间应用"
+    - "访客动线须体现「入场→沉浸→高潮→离场」叙事节奏"
+
+deliverable_profile:
+  preferred_label: "品牌体验空间设计方案"
+  naming_pattern: "{project_name}品牌体验空间设计方案"

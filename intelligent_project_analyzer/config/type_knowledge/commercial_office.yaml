@@ -1,0 +1,35 @@
+project_type: commercial_office
+display_name: 商业办公
+primary_bucket: office
+
+core_logic: |
+  办公空间设计的核心是「工作效能 + 文化表达」——
+  既要支撑高效协作，也要通过空间传递企业文化和雇主品牌。
+
+typical_tensions:
+  - "开放协作 vs 专注私密"
+  - "企业文化个性表达 vs 通用功能灵活性"
+  - "短期装修成本 vs 长期使用弹性"
+
+required_variables:
+  - headcount
+  - work_mode
+  - industry_type
+  - culture_positioning
+
+questionnaire_profile: office_v1
+floorplan_profile: office_v1
+
+visual_profile:
+  visual_pitfalls:
+    - "只展示公区和会议室，忽略工作区实际体验"
+    - "企业文化符号堆砌，缺乏空间逻辑"
+  forbidden_biases:
+    - "一律做「工业风+植物墙」的互联网办公模板"
+  type_constraints:
+    - "工位区密度和采光关系须在平面图中体现"
+    - "协作区与安静区的比例须标注"
+
+deliverable_profile:
+  preferred_label: "办公空间设计方案"
+  naming_pattern: "{project_name}办公空间设计方案"

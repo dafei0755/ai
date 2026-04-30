@@ -1,0 +1,34 @@
+project_type: healthcare_wellness
+display_name: 医疗康养
+primary_bucket: healthcare
+
+core_logic: |
+  医疗康养空间服务于身体和心理的修复过程，核心价值是「安全感 + 疗愈感」。
+  功能分区需满足医疗流程（洁污分区、动线隔离）同时减少恐惧感。
+
+typical_tensions:
+  - "医疗功能严谨性 vs 空间温馨疗愈感"
+  - "感控要求 vs 家庭化氛围"
+  - "效率动线 vs 患者心理安抚"
+
+required_variables:
+  - facility_type
+  - patient_profile
+  - regulatory_requirements
+
+questionnaire_profile: healthcare_v1
+floorplan_profile: healthcare_v1
+
+visual_profile:
+  visual_pitfalls:
+    - "只输出疗愈氛围图，忽略医疗功能区划"
+    - "过度使用绿色植物掩盖功能缺失"
+  forbidden_biases:
+    - "一律使用白色+原木的「北欧轻医疗」"
+  type_constraints:
+    - "必须展示候诊区与诊室的动线关系"
+    - "感控分区必须在平面图中可读"
+
+deliverable_profile:
+  preferred_label: "室内设计方案"
+  naming_pattern: "{project_name}{display_name}室内设计方案"

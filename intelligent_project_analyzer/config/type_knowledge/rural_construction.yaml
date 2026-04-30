@@ -1,0 +1,34 @@
+project_type: rural_construction
+display_name: 乡建乡村
+primary_bucket: special
+
+core_logic: |
+  乡村建设的核心是「在地性」——设计需根植于当地文化、材料、
+  建造工艺和社区需求，而非将城市审美强加于乡村。
+
+typical_tensions:
+  - "外来设计师视角 vs 在地文化认同"
+  - "现代功能需求 vs 传统建筑肌理"
+  - "商业开发 vs 社区原生生活保护"
+
+required_variables:
+  - village_type
+  - community_involvement
+  - preservation_level
+
+questionnaire_profile: rural_v1
+floorplan_profile: rural_v1
+
+visual_profile:
+  visual_pitfalls:
+    - "把乡建做成「伪乡村网红打卡地」，失去在地真实性"
+    - "只展示改造后效果，不呈现与周边环境的关系"
+  forbidden_biases:
+    - "一律使用夯土+青砖的视觉符号，脱离具体地域文化"
+  type_constraints:
+    - "必须展示建筑与村落整体肌理的关系"
+    - "材料选择需注释当地来源"
+
+deliverable_profile:
+  preferred_label: "乡村建设设计方案"
+  naming_pattern: "{project_name}乡村建设设计方案"
