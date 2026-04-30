@@ -196,6 +196,8 @@ class ProjectAnalysisState(TypedDict):
     所有下游组件应优先读取此字段，而非各自独立分类。
     """
 
+    space_classification: Optional[Dict[str, Any]]
+
     # 分析策略和任务分派
     # 使用Annotated和reducer函数来处理并发更新
     strategic_analysis: Annotated[Optional[Dict[str, Any]], merge_agent_results]
@@ -753,6 +755,7 @@ class StateManager:
             info_status=None,
             detected_design_modes=None,     #  阶段2: 统一分类出口初始化
             project_classification=None,    #  阶段2: 统一分类出口初始化
+            space_classification=None,
             # 🆕 v15.0: DWP 架构初始化
             deliverable_work_packages=None,
             dwp_completion_map=None,
