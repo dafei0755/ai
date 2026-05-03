@@ -25,7 +25,7 @@ import {
 import type { AdvisorViewModel, SceneRef, ActionChip, AdvisorModule } from '@/types/advisor';
 
 // 底盘页内模块：页内切换 activeCapability，不跳页
-const COCKPIT_MODULES = new Set<AdvisorModule>([
+const COCKPIT_MODULES = new Set<CapabilityStatus['key']>([
   'project_base',
   'floor_plan',
   'scheme_canvas',
@@ -40,7 +40,8 @@ export default function ProjectCockpitPage() {
   const [activeView, setActiveView]             = useState<ViewKey>('overview');
   const [activeCapability, setActiveCapability] = useState<CapabilityStatus['key']>('project_base');
   const [prefillMessage, setPrefillMessage]     = useState<string | undefined>(undefined);
-  const [, setSceneRef]                         = useState<SceneRef>({
+  // Phase A2 接入点：_sceneRef 将作为 POST /v1/advisor/intents 的请求体传入
+  const [_sceneRef, setSceneRef]                = useState<SceneRef>({
     projectId,
     sessionId: 'local-session',
     module: 'project_base',
@@ -70,7 +71,7 @@ export default function ProjectCockpitPage() {
   const handleChipAction = (chip: ActionChip) => {
     if (chip.type === 'navigate') {
       const { target } = chip.payload;
-      if (COCKPIT_MODULES.has(target)) {
+      if (COCKPIT_MODULES.has(target as CapabilityStatus['key'])) {
         // L0：页内切换，不发后端请求
         setActiveCapability(target as CapabilityStatus['key']);
         // navigate_in 到达 → 触发 L2（Phase A2 替换为 POST /v1/advisor/intents）
