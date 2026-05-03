@@ -1,6 +1,8 @@
 // Mock data for project-cockpit static prototype
 // All data is static — replace with API calls in Sprint 2+
 
+import type { AdvisorViewModel } from '@/types/advisor';
+
 export type ObjectiveState = 'active' | 'preview_only' | 'concept_available' | 'callable';
 export type ProjectStage = 'project_definition' | 'space_inference' | 'scheme_expression' | 'version_frozen';
 export type ReadinessLevel = 'sufficient' | 'concept_only' | 'not_started';
@@ -172,4 +174,81 @@ export const MOCK_STAGES: StageInfo[] = [
 export const MOCK_VIEW_BADGES: Partial<Record<ViewKey, string>> = {
   spaces: '1 待确认',
   files: '12',
+};
+
+export const MOCK_ADVISOR_VIEW_MODEL: AdvisorViewModel = {
+  traceId: 'trace-mock-001',
+  generatedAt: '2026-05-03T10:00:00Z',
+  sceneContext: {
+    projectId: 'hay-qilipng',
+    sessionId: 'local-session',
+    module: 'project_base',
+    userAction: 'view',
+    dispatchLevel: 'L1',
+  },
+  boundObjectId: 'project-hay-qilipng',
+  objectState: 'draft',
+  objectVersion: '0.1.0',
+  judgment: {
+    content:
+      '品牌气质和地点约束已明确；主要缺口是面积分布、房间数量和平面图。补齐后平面推演可正式启动。',
+    confidence: 'medium',
+    evidence: {
+      evidenceClass: 'internal_reasoning',
+      verificationState: 'unverified',
+    },
+    sourceParts: {
+      ontology: '民宿类型 · 山地',
+    },
+    cannotDo: [
+      {
+        reason: '缺少面积和平面图，无法启动空间推演',
+        blockedChipTypes: ['navigate'],
+      },
+    ],
+  },
+  evidenceStatus: 'internal_hint',
+  activatedCapabilities: [
+    {
+      type: 'ontology',
+      name: '本体论',
+      status: 'placeholder',
+      summary: 'Phase A2 接入后生效',
+    },
+    {
+      type: 'methodology',
+      name: '方法论',
+      status: 'placeholder',
+      summary: 'Phase A2 接入后生效',
+    },
+    {
+      type: 'knowledge',
+      name: '知识库',
+      status: 'placeholder',
+      summary: 'Phase A2 接入后生效',
+    },
+  ],
+  actionChips: [
+    {
+      type: 'ask',
+      label: '补充 3 个关键信息',
+      isPrimary: true,
+      payload: {
+        question:
+          '请问项目总建筑面积大概是多少？客房数量和房型组合是什么？是否有平面图或现场照片？',
+      },
+    },
+    {
+      type: 'navigate',
+      label: '预览平面推演',
+      isPrimary: false,
+      payload: { target: 'floor_plan' },
+    },
+    {
+      type: 'fill',
+      label: '保存项目方向草案',
+      isPrimary: false,
+      payload: { formId: 'project-base-draft' },
+    },
+  ],
 };
