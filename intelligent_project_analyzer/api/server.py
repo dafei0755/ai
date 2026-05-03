@@ -1017,6 +1017,16 @@ except Exception as e:
     logger.warning(f"⚠️ Advisor API 路由加载失败: {e}")
 
 
+#  Phase A: QuickNote 草池路由
+try:
+    from intelligent_project_analyzer.api.quick_note_routes import router as quick_note_router
+
+    app.include_router(quick_note_router)
+    logger.info("✅ QuickNote 草池路由已注册 (POST/GET /v1/quick-notes)")
+except Exception as e:
+    logger.warning(f"⚠️ QuickNote 草池路由加载失败: {e}")
+
+
 # ==================== 数据模型 ====================
 
 
