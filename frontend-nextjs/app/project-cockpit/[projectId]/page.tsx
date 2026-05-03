@@ -38,7 +38,7 @@ export default function ProjectCockpitPage() {
     userAction: 'view',
     dispatchLevel: 'L1',
   });
-  const viewModel: AdvisorViewModel = MOCK_ADVISOR_VIEW_MODEL;
+  const [viewModel, setViewModel] = useState<AdvisorViewModel>(MOCK_ADVISOR_VIEW_MODEL);
 
   const handleEntry = (type: EntryType) => {
     console.log('[mock] activation entry:', type);

@@ -147,7 +147,7 @@ export function AdvisorPanel({
               <span className="font-medium text-white/60">
                 {OBJECT_STATE_LABELS[viewModel.objectState ?? 'draft'] ?? '草案'}：
               </span>
-              {viewModel.judgment.content.slice(0, 40)}...
+              {viewModel.judgment.content.slice(0, 20)}...
             </div>
             {messages.map(msg => (
               <div
