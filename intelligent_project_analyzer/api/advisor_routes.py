@@ -134,6 +134,8 @@ async def create_draft(project_id: str, req: CreateDraftRequest):
 @router.post("/v1/projects/{project_id}/drafts/{draft_id}/confirm")
 async def confirm_draft(project_id: str, draft_id: str):
     """Write Path — MVP Gate + CommandHandler。"""
+    error_detail = None
+    result_data = None
     with get_session(_engine) as session:
         gw = ObjectGateway(session)
         draft = gw.get_draft(draft_id)
@@ -144,9 +146,12 @@ async def confirm_draft(project_id: str, draft_id: str):
         ch = CommandHandler(gw, gate, state_svc)
         try:
             ticket = ch.execute(draft)
+            result_data = {"ticket_id": ticket.ticket_id, "execution_state": ticket.execution_state}
         except (PermissionError, ValueError) as e:
-            raise HTTPException(status_code=409, detail=str(e))
-    return {"ticket_id": ticket.ticket_id, "execution_state": ticket.execution_state}
+            error_detail = str(e)
+    if error_detail:
+        raise HTTPException(status_code=409, detail=error_detail)
+    return result_data
 
 
 @router.get("/v1/tickets/{ticket_id}")
