@@ -51,14 +51,23 @@ export function AdvisorPanel({
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isThinking, setIsThinking] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (prefillMessage) setInputValue(prefillMessage);
   }, [prefillMessage]);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (messages.length > 0) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
   }, [messages, isThinking]);
+
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  }, []);
 
   const handleSend = () => {
     const text = inputValue.trim();
@@ -68,7 +77,7 @@ export function AdvisorPanel({
     setIsThinking(true);
     onAsk(text);
     // Phase A1 mock response: echo judgment content after delay
-    setTimeout(() => {
+    timerRef.current = setTimeout(() => {
       setIsThinking(false);
       setMessages(prev => [
         ...prev,
@@ -195,9 +204,9 @@ export function AdvisorPanel({
 
       {/* ③ ActionChip 区 */}
       <div className="px-3 pb-2 shrink-0 space-y-1.5">
-        {primaryChips.map((chip, i) => (
+        {primaryChips.map((chip) => (
           <button
-            key={i}
+            key={chip.label}
             onClick={() => handleChipClick(chip)}
             className="w-full text-left rounded-lg bg-[#2e67ff] px-3 py-2 text-sm font-medium text-white hover:bg-[#2558e0] transition-colors"
           >
@@ -206,9 +215,9 @@ export function AdvisorPanel({
         ))}
         {secondaryChips.length > 0 && (
           <div className="flex gap-1.5">
-            {secondaryChips.map((chip, i) => (
+            {secondaryChips.map((chip) => (
               <button
-                key={i}
+                key={chip.label}
                 onClick={() => handleChipClick(chip)}
                 className="flex-1 rounded-lg border border-white/15 px-3 py-1.5 text-xs text-white/70 hover:border-white/30 hover:text-white transition-colors"
               >
@@ -217,8 +226,8 @@ export function AdvisorPanel({
             ))}
           </div>
         )}
-        {viewModel.judgment.cannotDo?.map((item, i) => (
-          <p key={i} className="text-[10px] text-white/30 px-1">
+        {viewModel.judgment.cannotDo?.map((item) => (
+          <p key={item.reason} className="text-[10px] text-white/30 px-1">
             {item.reason}
           </p>
         ))}
