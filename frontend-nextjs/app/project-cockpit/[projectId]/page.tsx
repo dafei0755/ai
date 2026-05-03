@@ -18,22 +18,11 @@ import { AdvisorPanel } from '@/components/project-cockpit/AdvisorPanel';
 import {
   MOCK_PROJECT_OVERVIEW,
   MOCK_STAGES,
+  MOCK_ADVISOR_VIEW_MODEL,
   type ViewKey,
   type CapabilityStatus,
 } from '@/components/project-cockpit/mock/mockData';
-
-const ADVISOR_OUTPUT = {
-  focus: '整个项目 · HAY 气质七里坪山地民宿',
-  stage: '项目底盘草案',
-  judgment: '品牌气质和地点约束已明确；主要缺口是面积分布、房间数量和平面图。补齐后平面推演可正式启动。',
-  suggestion: '补充面积 / 房间数量 / 平面图，或先保存项目方向草案。',
-};
-
-const INPUT_PLACEHOLDERS: Record<string, string> = {
-  global: '问我这个项目下一步怎么推进，或让我解释当前判断...',
-  space:  '围绕空间动线、接待、功能关系继续深化...',
-  card:   '围绕这张卡追问、改写、补证据或生成下一步动作...',
-};
+import type { ActionChip } from '@/types/advisor';
 
 export default function ProjectCockpitPage() {
   const params    = useParams();
@@ -43,7 +32,6 @@ export default function ProjectCockpitPage() {
   const [isActivated, setIsActivated]   = useState(projectId !== 'new');
   const [activeView, setActiveView]     = useState<ViewKey>('overview');
   const [activeCapability, setActiveCapability] = useState<CapabilityStatus['key']>('project_base');
-  const [advisorFocus]                  = useState<'global' | 'space' | 'card'>('global');
   const [prefillMessage, setPrefillMessage] = useState<string | undefined>(undefined);
 
   const handleEntry = (type: EntryType) => {
@@ -63,8 +51,12 @@ export default function ProjectCockpitPage() {
   };
 
   const handleAdvisorSend = (text: string) => {
-    console.log('[mock] advisor send:', text);
+    console.log('[mock] advisor ask:', text);
     setPrefillMessage(undefined);
+  };
+
+  const handleChipAction = (chip: ActionChip) => {
+    console.log('[mock] chip action:', chip);
   };
 
   const handleAdvisorPrefill = (text: string) => {
@@ -95,11 +87,10 @@ export default function ProjectCockpitPage() {
 
   const advisorPanel = (
     <AdvisorPanel
-      advisorFocus={advisorFocus}
-      output={ADVISOR_OUTPUT}
-      inputPlaceholder={INPUT_PLACEHOLDERS[advisorFocus]}
+      viewModel={MOCK_ADVISOR_VIEW_MODEL}
       prefillMessage={prefillMessage}
-      onSend={handleAdvisorSend}
+      onChipAction={handleChipAction}
+      onAsk={handleAdvisorSend}
     />
   );
 

@@ -2,76 +2,58 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { Send, Loader2 } from 'lucide-react';
-import type { AdvisorFocus } from './mock/mockData';
+import type { AdvisorViewModel, ActionChip } from '@/types/advisor';
 
-interface AdvisorOutput {
-  focus: string;
-  stage: string;
-  judgment: string;
-  suggestion: string;
-  cannotDo?: string;
+interface AdvisorPanelProps {
+  viewModel: AdvisorViewModel;
+  prefillMessage?: string;
+  onChipAction: (chip: ActionChip) => void;
+  onAsk: (text: string) => void;
 }
 
 interface ChatMessage {
   id: string;
   role: 'user' | 'advisor';
   text: string;
-  isThinking?: boolean;
 }
 
-interface AdvisorPanelProps {
-  advisorFocus: AdvisorFocus;
-  switchNotice?: string;
-  output: AdvisorOutput;
-  inputPlaceholder: string;
-  prefillMessage?: string;
-  onSend: (text: string) => void;
-}
+const EVIDENCE_CONFIG = {
+  none:          { dot: 'bg-gray-500',   label: '无依据' },
+  internal_hint: { dot: 'bg-yellow-400', label: '内部推断' },
+  verified:      { dot: 'bg-green-400',  label: '已验证' },
+} as const;
 
-// ── Mock 响应逻辑 ──────────────────────────────────────────────────────────
-function getMockResponse(input: string): string {
-  const text = input.toLowerCase();
+const MODULE_LABELS: Record<string, string> = {
+  project_base:   '项目底盘',
+  floor_plan:     '平面推演',
+  scheme_canvas:  '方案画布',
+  resource_radar: '资源雷达',
+  silicon_avatar: '硅基分身',
+  knowledge_hub:  '知识中枢',
+};
 
-  if (text.includes('平面图') || text.includes('上传')) {
-    return `有了平面图之后，我可以做三件事：\n\n1. 识别空间结构和动线关系\n2. 对照山地民宿标准判断各空间面积是否合理\n3. 给出平面推演的第一版方向建议\n\n上传前先确认：是现场测绘图还是设计草稿？`;
-  }
-
-  if (text.includes('方向') || text.includes('概念') || text.includes('定位') || text.includes('草案') || text.includes('保存')) {
-    return `好，当前方向已整理为草案：\n\n**项目方向**：HAY 气质 × 七里坪山地 × 轻度假精品民宿\n**设计路线**：「山间轻居」— 克制 / 功能主义 / 看山留白\n**当前状态**：草案（待补：面积 / 房型 / 平面）\n\n你认可这个方向吗？确认后可以进入空间分类。`;
-  }
-
-  if (text.includes('缺口') || text.includes('补充') || text.includes('面积') || text.includes('房间')) {
-    return `当前主要缺口按优先级排：\n\n1. **总建筑面积和各空间面积分布**（影响平面推演起点）\n2. **客房数量和房型组合**（影响运营密度判断）\n3. **现场平面图或测绘图**（影响空间策略准确性）\n\n哪个你现在方便补？`;
-  }
-
-  if (text.includes('大堂') || text.includes('客房') || text.includes('餐厅') || text.includes('空间')) {
-    return `七里坪项目的空间优先级建议：\n\n**首优先**：公共大堂（品牌第一印象）+ 观景露台（核心卖点）\n**次优先**：标准客房（运营主体）\n**按需规划**：餐饮轻服务区、后勤区\n\n有平面图后，我可以给出更精准的面积分配建议。`;
-  }
-
-  if (text.includes('主矛盾') || text.includes('矛盾')) {
-    return `当前主矛盾是**品牌气质 vs 山地在地性**。\n\nHAY 的克制美学需要和峨眉山的自然粗粝共存，而不是简单叠加。\n\n我的判断是：用材料语言做连接——本地自然材料（石、木）作为肌底，HAY 风格的家具和灯具作为气质载体。这样两者各自成立，不互相消解。\n\n你觉得这个方向可以推进吗？`;
-  }
-
-  return `听到了。\n\n当前底盘已覆盖：品牌气质 / 地点约束 / 目标人群。\n主要缺口：面积分布、房间数量、平面结构。\n\n补上这三点，我可以给出更准确的推演和空间策略建议。你想先从哪个方向入手？`;
-}
+const OBJECT_STATE_LABELS: Record<string, string> = {
+  draft:               '草案',
+  pending_confirmation: '待确认',
+  frozen:              '已冻结',
+  stale:               '已过期',
+  forked:              '已分叉',
+  archived:            '已归档',
+};
 
 export function AdvisorPanel({
-  switchNotice,
-  output,
-  inputPlaceholder,
+  viewModel,
   prefillMessage,
-  onSend,
+  onChipAction,
+  onAsk,
 }: AdvisorPanelProps) {
   const [inputValue, setInputValue] = useState('');
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isThinking, setIsThinking] = useState(false);
-  const [showNotice, setShowNotice] = useState(!!switchNotice);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (prefillMessage) {
-      setInputValue(prefillMessage);
-    }
+    if (prefillMessage) setInputValue(prefillMessage);
   }, [prefillMessage]);
 
   useEffect(() => {
@@ -80,28 +62,41 @@ export function AdvisorPanel({
 
   const handleSend = () => {
     const text = inputValue.trim();
-    if (!text) return;
-
-    const userMsg: ChatMessage = { id: Date.now().toString(), role: 'user', text };
-    setMessages(prev => [...prev, userMsg]);
+    if (!text || isThinking) return;
+    setMessages(prev => [...prev, { id: Date.now().toString(), role: 'user', text }]);
     setInputValue('');
     setIsThinking(true);
-    onSend(text);
-
+    onAsk(text);
+    // Phase A1 mock response: echo judgment content after delay
     setTimeout(() => {
       setIsThinking(false);
       setMessages(prev => [
         ...prev,
-        { id: (Date.now() + 1).toString(), role: 'advisor', text: getMockResponse(text) },
+        { id: (Date.now() + 1).toString(), role: 'advisor', text: viewModel.judgment.content },
       ]);
-    }, 1500);
+    }, 1200);
+  };
+
+  const handleChipClick = (chip: ActionChip) => {
+    if (chip.type === 'ask') {
+      setInputValue(chip.payload.question);
+    } else {
+      onChipAction(chip);
+    }
   };
 
   const hasChatHistory = messages.length > 0;
+  const evidenceConfig = EVIDENCE_CONFIG[viewModel.evidenceStatus];
+  const renderableChips = viewModel.actionChips.filter(
+    c => c.type === 'ask' || c.type === 'navigate' || c.type === 'fill'
+  );
+  const primaryChips = renderableChips.filter(c => c.isPrimary);
+  const secondaryChips = renderableChips.filter(c => !c.isPrimary).slice(0, 2);
 
   return (
     <div className="flex flex-col h-full bg-[#161616] text-white">
-      {/* 标题栏 */}
+
+      {/* ① 标题栏 + 场景绑定 */}
       <div className="flex items-center gap-3 border-b border-white/8 px-4 py-3.5 shrink-0">
         <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#2e67ff] text-white shrink-0">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
@@ -110,56 +105,58 @@ export function AdvisorPanel({
             <path d="M2 12l10 5 10-5"/>
           </svg>
         </div>
-        <span className="text-sm font-semibold text-white">方案高参</span>
+        <div className="flex-1 min-w-0">
+          <span className="text-sm font-semibold text-white">方案高参</span>
+          <div className="flex items-center gap-1.5 mt-0.5">
+            <span className="text-[10px] text-white/40">
+              {MODULE_LABELS[viewModel.sceneContext.module] ?? viewModel.sceneContext.module}
+              {viewModel.objectState && ` · ${OBJECT_STATE_LABELS[viewModel.objectState] ?? viewModel.objectState}`}
+            </span>
+            <span className={`inline-block w-1.5 h-1.5 rounded-full ${evidenceConfig.dot}`} />
+            <span className="text-[10px] text-white/40">{evidenceConfig.label}</span>
+          </div>
+        </div>
       </div>
 
-      {/* 切换通知 */}
-      {showNotice && switchNotice && (
-        <div className="mx-3 mt-2 px-3 py-1.5 rounded-md bg-white/5 border border-white/10 flex items-center justify-between shrink-0">
-          <span className="text-xs text-white/60">{switchNotice}</span>
-          <button onClick={() => setShowNotice(false)} className="text-white/40 hover:text-white/70 ml-2 text-sm leading-none">×</button>
-        </div>
-      )}
-
-      {/* 内容区 */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-5">
-        {!hasChatHistory && (
+      {/* ② 判断区 */}
+      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
+        {!hasChatHistory ? (
           <>
             <section>
-              <p className="text-[10px] font-semibold text-white/38 uppercase tracking-widest mb-1.5">我正在看</p>
-              <p className="text-sm text-white leading-relaxed">{output.focus}</p>
+              <p className="text-[10px] font-semibold text-white/38 uppercase tracking-widest mb-1.5">
+                我正在看
+              </p>
+              <p className="text-sm text-white/80 leading-relaxed">
+                {viewModel.boundObjectId
+                  ? viewModel.boundObjectId
+                  : (MODULE_LABELS[viewModel.sceneContext.module] ?? viewModel.sceneContext.module)}
+              </p>
             </section>
             <section>
-              <p className="text-[10px] font-semibold text-white/38 uppercase tracking-widest mb-1.5">当前状态</p>
-              <p className="text-sm text-white/90 font-medium leading-relaxed">{output.stage}</p>
-              {output.judgment && (
-                <p className="mt-1.5 text-sm text-white/60 leading-relaxed">{output.judgment}</p>
+              <p className="text-[10px] font-semibold text-white/38 uppercase tracking-widest mb-1.5">
+                判断
+              </p>
+              <p className="text-sm text-white/90 leading-relaxed">{viewModel.judgment.content}</p>
+              {viewModel.judgment.confidence === 'low' && (
+                <p className="mt-1 text-[10px] text-yellow-400/70">
+                  置信度低，建议补充信息后重新评估
+                </p>
               )}
             </section>
-            <section>
-              <p className="text-[10px] font-semibold text-white/38 uppercase tracking-widest mb-1.5">我建议</p>
-              <p className="text-sm text-white/90 leading-relaxed">{output.suggestion}</p>
-            </section>
-            {output.cannotDo && (
-              <section>
-                <p className="text-[10px] font-semibold text-white/38 uppercase tracking-widest mb-1.5">现在不能做</p>
-                <p className="text-sm text-white/50 leading-relaxed">{output.cannotDo}</p>
-              </section>
-            )}
-            <div className="flex items-center gap-2 rounded-lg bg-white/5 px-3 py-2 mt-2">
-              <span className="text-[10px] text-white/30 leading-relaxed">随时开始聊 — 分享你的想法、灵感或设计需求</span>
-            </div>
           </>
-        )}
-
-        {hasChatHistory && (
+        ) : (
           <>
-            <div className="rounded-lg bg-white/5 px-3 py-2 text-xs text-white/40 border border-white/8">
-              <span className="font-medium text-white/60">当前状态：</span>{output.stage} · {output.suggestion.slice(0, 20)}...
+            <div className="rounded-lg bg-white/5 px-3 py-2 text-xs text-white/40 border border-white/8 shrink-0">
+              <span className="font-medium text-white/60">
+                {OBJECT_STATE_LABELS[viewModel.objectState ?? 'draft'] ?? '草案'}：
+              </span>
+              {viewModel.judgment.content.slice(0, 40)}...
             </div>
-
             {messages.map(msg => (
-              <div key={msg.id} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+              <div
+                key={msg.id}
+                className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+              >
                 {msg.role === 'advisor' && (
                   <div className="h-6 w-6 rounded-full bg-[#2e67ff] flex items-center justify-center shrink-0 mr-2 mt-0.5">
                     <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
@@ -178,7 +175,6 @@ export function AdvisorPanel({
                 </div>
               </div>
             ))}
-
             {isThinking && (
               <div className="flex justify-start">
                 <div className="h-6 w-6 rounded-full bg-[#2e67ff] flex items-center justify-center shrink-0 mr-2 mt-0.5">
@@ -197,16 +193,70 @@ export function AdvisorPanel({
         )}
       </div>
 
-      {/* 输入框 */}
-      <div className="px-3 pb-3 pt-2 border-t border-white/8 shrink-0">
+      {/* ③ ActionChip 区 */}
+      <div className="px-3 pb-2 shrink-0 space-y-1.5">
+        {primaryChips.map((chip, i) => (
+          <button
+            key={i}
+            onClick={() => handleChipClick(chip)}
+            className="w-full text-left rounded-lg bg-[#2e67ff] px-3 py-2 text-sm font-medium text-white hover:bg-[#2558e0] transition-colors"
+          >
+            {chip.label}
+          </button>
+        ))}
+        {secondaryChips.length > 0 && (
+          <div className="flex gap-1.5">
+            {secondaryChips.map((chip, i) => (
+              <button
+                key={i}
+                onClick={() => handleChipClick(chip)}
+                className="flex-1 rounded-lg border border-white/15 px-3 py-1.5 text-xs text-white/70 hover:border-white/30 hover:text-white transition-colors"
+              >
+                {chip.label}
+              </button>
+            ))}
+          </div>
+        )}
+        {viewModel.judgment.cannotDo?.map((item, i) => (
+          <p key={i} className="text-[10px] text-white/30 px-1">
+            {item.reason}
+          </p>
+        ))}
+      </div>
+
+      {/* ④ 已激活能力（Phase A1 占位，纯展示） */}
+      <div className="px-3 pb-2 shrink-0">
+        <div className="rounded-lg bg-white/3 border border-white/8 px-3 py-2">
+          <p className="text-[10px] font-semibold text-white/30 uppercase tracking-widest mb-1.5">
+            已激活能力
+          </p>
+          <div className="flex gap-2 flex-wrap">
+            {viewModel.activatedCapabilities.map((cap, i) => (
+              <span
+                key={i}
+                className={`text-[10px] px-2 py-0.5 rounded-full border ${
+                  cap.status === 'placeholder'
+                    ? 'border-white/10 text-white/25'
+                    : 'border-blue-500/40 text-blue-400/70'
+                }`}
+              >
+                {cap.name}
+              </span>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* ⑤ 输入框 */}
+      <div className="px-3 pb-3 pt-1 border-t border-white/8 shrink-0">
         <div className="flex items-end gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2 focus-within:border-white/20 transition-colors">
           <textarea
             value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
-            placeholder={inputPlaceholder}
+            onChange={e => setInputValue(e.target.value)}
+            placeholder="问我任何关于这个项目的问题..."
             rows={2}
             className="flex-1 bg-transparent text-sm text-white placeholder:text-white/30 resize-none outline-none leading-relaxed"
-            onKeyDown={(e) => {
+            onKeyDown={e => {
               if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
                 handleSend();
@@ -222,6 +272,7 @@ export function AdvisorPanel({
           </button>
         </div>
       </div>
+
     </div>
   );
 }
