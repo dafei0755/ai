@@ -240,9 +240,9 @@ export function AdvisorPanel({
             已激活能力
           </p>
           <div className="flex gap-2 flex-wrap">
-            {viewModel.activatedCapabilities.map((cap, i) => (
+            {viewModel.activatedCapabilities.map((cap) => (
               <span
-                key={i}
+                key={cap.name}
                 className={`text-[10px] px-2 py-0.5 rounded-full border ${
                   cap.status === 'placeholder'
                     ? 'border-white/10 text-white/25'
