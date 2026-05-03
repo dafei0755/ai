@@ -1,4 +1,3 @@
-// frontend-nextjs/__tests__/AdvisorPanel.test.tsx
 import { render, screen, fireEvent } from '@testing-library/react';
 import { AdvisorPanel } from '@/components/project-cockpit/AdvisorPanel';
 import { MOCK_ADVISOR_VIEW_MODEL } from '@/components/project-cockpit/mock/mockData';

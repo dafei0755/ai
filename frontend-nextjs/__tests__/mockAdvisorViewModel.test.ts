@@ -1,4 +1,3 @@
-// frontend-nextjs/__tests__/mockAdvisorViewModel.test.ts
 import { MOCK_ADVISOR_VIEW_MODEL } from '@/components/project-cockpit/mock/mockData';
 
 describe('MOCK_ADVISOR_VIEW_MODEL', () => {

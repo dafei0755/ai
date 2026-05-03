@@ -1007,6 +1007,15 @@ try:
 except Exception as e:
     logger.warning(f"⚠️ 平面推演多版本生成路由加载失败: {e}")
 
+#  Phase A: Advisor API 路由
+try:
+    from intelligent_project_analyzer.api.advisor_routes import router as advisor_router
+
+    app.include_router(advisor_router)
+    logger.info("✅ Advisor API 路由已注册 (POST /v1/advisor/intents + CRUD)")
+except Exception as e:
+    logger.warning(f"⚠️ Advisor API 路由加载失败: {e}")
+
 
 # ==================== 数据模型 ====================
 

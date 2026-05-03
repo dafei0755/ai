@@ -1,5 +1,3 @@
-// frontend-nextjs/types/advisor.ts
-
 export type AdvisorModule =
   | 'project_base'
   | 'floor_plan'

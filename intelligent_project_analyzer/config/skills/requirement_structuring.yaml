@@ -1,0 +1,26 @@
+skill_id: req_structuring_v1
+skill_name: 需求结构化 Skill
+skill_type: analysis
+owner_domain: project_base
+input_contract:
+  required:
+    - project_id
+    - raw_description
+  optional:
+    - context_hints
+output_contract:
+  required:
+    - structured_data
+    - evidence_status
+    - confidence
+  optional:
+    - missing_fields
+    - suggestions
+failure_modes:
+  llm_parse_error: retry_once_then_degrade
+  empty_input: return_422
+execution_mode: sync
+side_effect_level: none
+timeout_ms: 30000
+fallback_strategy: return_partial_with_low_confidence
+version: "1.0.0"

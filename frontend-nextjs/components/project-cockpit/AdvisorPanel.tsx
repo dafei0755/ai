@@ -51,23 +51,14 @@ export function AdvisorPanel({
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isThinking, setIsThinking] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (prefillMessage) setInputValue(prefillMessage);
   }, [prefillMessage]);
 
   useEffect(() => {
-    if (messages.length > 0) {
-      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isThinking]);
-
-  useEffect(() => {
-    return () => {
-      if (timerRef.current) clearTimeout(timerRef.current);
-    };
-  }, []);
 
   const handleSend = () => {
     const text = inputValue.trim();
@@ -76,8 +67,7 @@ export function AdvisorPanel({
     setInputValue('');
     setIsThinking(true);
     onAsk(text);
-    // Phase A1 mock response: echo judgment content after delay
-    timerRef.current = setTimeout(() => {
+    setTimeout(() => {
       setIsThinking(false);
       setMessages(prev => [
         ...prev,
@@ -136,9 +126,7 @@ export function AdvisorPanel({
                 我正在看
               </p>
               <p className="text-sm text-white/80 leading-relaxed">
-                {viewModel.boundObjectId
-                  ? viewModel.boundObjectId
-                  : (MODULE_LABELS[viewModel.sceneContext.module] ?? viewModel.sceneContext.module)}
+                {viewModel.boundObjectId ?? viewModel.sceneContext.objectId ?? viewModel.sceneContext.sessionId}
               </p>
             </section>
             <section>
@@ -159,7 +147,7 @@ export function AdvisorPanel({
               <span className="font-medium text-white/60">
                 {OBJECT_STATE_LABELS[viewModel.objectState ?? 'draft'] ?? '草案'}：
               </span>
-              {viewModel.judgment.content.slice(0, 40)}...
+              {viewModel.judgment.content.slice(0, 20)}...
             </div>
             {messages.map(msg => (
               <div
@@ -204,9 +192,9 @@ export function AdvisorPanel({
 
       {/* ③ ActionChip 区 */}
       <div className="px-3 pb-2 shrink-0 space-y-1.5">
-        {primaryChips.map((chip) => (
+        {primaryChips.map((chip, i) => (
           <button
-            key={chip.label}
+            key={i}
             onClick={() => handleChipClick(chip)}
             className="w-full text-left rounded-lg bg-[#2e67ff] px-3 py-2 text-sm font-medium text-white hover:bg-[#2558e0] transition-colors"
           >
@@ -215,9 +203,9 @@ export function AdvisorPanel({
         ))}
         {secondaryChips.length > 0 && (
           <div className="flex gap-1.5">
-            {secondaryChips.map((chip) => (
+            {secondaryChips.map((chip, i) => (
               <button
-                key={chip.label}
+                key={i}
                 onClick={() => handleChipClick(chip)}
                 className="flex-1 rounded-lg border border-white/15 px-3 py-1.5 text-xs text-white/70 hover:border-white/30 hover:text-white transition-colors"
               >
@@ -226,8 +214,8 @@ export function AdvisorPanel({
             ))}
           </div>
         )}
-        {viewModel.judgment.cannotDo?.map((item) => (
-          <p key={item.reason} className="text-[10px] text-white/30 px-1">
+        {viewModel.judgment.cannotDo?.map((item, i) => (
+          <p key={i} className="text-[10px] text-white/30 px-1">
             {item.reason}
           </p>
         ))}
@@ -240,9 +228,9 @@ export function AdvisorPanel({
             已激活能力
           </p>
           <div className="flex gap-2 flex-wrap">
-            {viewModel.activatedCapabilities.map((cap) => (
+            {viewModel.activatedCapabilities.map((cap, i) => (
               <span
-                key={cap.name}
+                key={i}
                 className={`text-[10px] px-2 py-0.5 rounded-full border ${
                   cap.status === 'placeholder'
                     ? 'border-white/10 text-white/25'
@@ -263,7 +251,7 @@ export function AdvisorPanel({
             value={inputValue}
             onChange={e => setInputValue(e.target.value)}
             placeholder="问我任何关于这个项目的问题..."
-            rows={5}
+            rows={2}
             className="flex-1 bg-transparent text-sm text-white placeholder:text-white/30 resize-none outline-none leading-relaxed"
             onKeyDown={e => {
               if (e.key === 'Enter' && !e.shiftKey) {
