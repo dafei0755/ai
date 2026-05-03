@@ -19,7 +19,8 @@ export default function DevModeIndicator() {
   const [isHovered, setIsHovered] = useState(false);
   const pathname = usePathname();
   const isAnalysisPage = pathname?.startsWith('/analysis/');
-  const indicatorPositionClass = isAnalysisPage
+  const isCockpitPage = pathname?.startsWith('/project-cockpit/');
+  const indicatorPositionClass = (isAnalysisPage || isCockpitPage)
     ? 'fixed right-5 bottom-[calc(env(safe-area-inset-bottom)+132px)] z-50'
     : 'fixed bottom-28 right-4 z-50';
 
