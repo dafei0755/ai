@@ -11,7 +11,7 @@ def skill():
     registry = SkillRegistry()
     with patch("intelligent_project_analyzer.advisor.skills.requirement_structuring.LLMFactory.create_llm") as mock_factory:
         mock_factory.return_value = MagicMock()
-        return RequirementStructuringSkill(registry)
+        yield RequirementStructuringSkill(registry)
 
 
 def test_skill_registered_in_manifest(skill):
