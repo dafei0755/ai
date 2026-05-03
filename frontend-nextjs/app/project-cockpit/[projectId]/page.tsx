@@ -1,13 +1,5 @@
 'use client';
 
-/**
- * 项目底盘页 — 方案高参核心决策视图
- *
- * 路由：
- *   /project-cockpit/new       → 空状态激活入口
- *   /project-cockpit/[id]      → 已激活项目决策视图
- */
-
 import { useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { PageLayout } from '@/components/project-cockpit/PageLayout';
@@ -18,33 +10,35 @@ import { AdvisorPanel } from '@/components/project-cockpit/AdvisorPanel';
 import {
   MOCK_PROJECT_OVERVIEW,
   MOCK_STAGES,
+  MOCK_ADVISOR_VIEW_MODEL,
   type ViewKey,
   type CapabilityStatus,
 } from '@/components/project-cockpit/mock/mockData';
+import type { AdvisorViewModel, SceneRef, ActionChip, AdvisorModule } from '@/types/advisor';
 
-const ADVISOR_OUTPUT = {
-  focus: '整个项目 · HAY 气质七里坪山地民宿',
-  stage: '项目底盘草案',
-  judgment: '品牌气质和地点约束已明确；主要缺口是面积分布、房间数量和平面图。补齐后平面推演可正式启动。',
-  suggestion: '补充面积 / 房间数量 / 平面图，或先保存项目方向草案。',
-};
-
-const INPUT_PLACEHOLDERS: Record<string, string> = {
-  global: '问我这个项目下一步怎么推进，或让我解释当前判断...',
-  space:  '围绕空间动线、接待、功能关系继续深化...',
-  card:   '围绕这张卡追问、改写、补证据或生成下一步动作...',
-};
+const COCKPIT_MODULES = new Set<AdvisorModule>([
+  'project_base',
+  'floor_plan',
+  'scheme_canvas',
+]);
 
 export default function ProjectCockpitPage() {
   const params    = useParams();
   const router    = useRouter();
   const projectId = params.projectId as string;
 
-  const [isActivated, setIsActivated]   = useState(projectId !== 'new');
-  const [activeView, setActiveView]     = useState<ViewKey>('overview');
+  const [isActivated, setIsActivated]           = useState(projectId !== 'new');
+  const [activeView, setActiveView]             = useState<ViewKey>('overview');
   const [activeCapability, setActiveCapability] = useState<CapabilityStatus['key']>('project_base');
-  const [advisorFocus]                  = useState<'global' | 'space' | 'card'>('global');
-  const [prefillMessage, setPrefillMessage] = useState<string | undefined>(undefined);
+  const [prefillMessage, setPrefillMessage]     = useState<string | undefined>(undefined);
+  const [sceneRef, setSceneRef]                 = useState<SceneRef>({
+    projectId,
+    sessionId: 'local-session',
+    module: 'project_base',
+    userAction: 'view',
+    dispatchLevel: 'L1',
+  });
+  const viewModel: AdvisorViewModel = MOCK_ADVISOR_VIEW_MODEL;
 
   const handleEntry = (type: EntryType) => {
     console.log('[mock] activation entry:', type);
@@ -62,8 +56,28 @@ export default function ProjectCockpitPage() {
     setActiveCapability(key);
   };
 
-  const handleAdvisorSend = (text: string) => {
-    console.log('[mock] advisor send:', text);
+  const handleChipAction = (chip: ActionChip) => {
+    if (chip.type === 'navigate') {
+      const { target } = chip.payload;
+      if (COCKPIT_MODULES.has(target)) {
+        setActiveCapability(target as CapabilityStatus['key']);
+        setSceneRef(prev => ({
+          ...prev,
+          module: target,
+          userAction: 'navigate_in',
+          dispatchLevel: 'L2',
+        }));
+      } else {
+        router.push(`/analysis/${projectId}?module=${target}`);
+      }
+    } else if (chip.type === 'fill') {
+      console.log('[mock] fill chip:', chip.payload);
+    }
+  };
+
+  const handleAsk = (text: string) => {
+    console.log('[mock] advisor ask:', text);
+    setSceneRef(prev => ({ ...prev, userAction: 'ask', dispatchLevel: 'L3' }));
     setPrefillMessage(undefined);
   };
 
@@ -95,11 +109,10 @@ export default function ProjectCockpitPage() {
 
   const advisorPanel = (
     <AdvisorPanel
-      advisorFocus={advisorFocus}
-      output={ADVISOR_OUTPUT}
-      inputPlaceholder={INPUT_PLACEHOLDERS[advisorFocus]}
+      viewModel={viewModel}
       prefillMessage={prefillMessage}
-      onSend={handleAdvisorSend}
+      onChipAction={handleChipAction}
+      onAsk={handleAsk}
     />
   );
 
