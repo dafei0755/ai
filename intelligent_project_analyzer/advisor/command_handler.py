@@ -36,7 +36,7 @@ class CommandHandler:
             elif first_error.code == 403:
                 raise PermissionError(f"Permission denied: {first_error.message}")
             else:
-                raise ValueError(f"Validation error: {first_error.message}")
+                raise ValueError(f"422 Validation error: {first_error.message}")
 
         ticket = SyncExecutionTicket(
             ticket_id=str(uuid.uuid4()),
