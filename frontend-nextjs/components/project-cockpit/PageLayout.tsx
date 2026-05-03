@@ -24,7 +24,7 @@ export function PageLayout({ leftNav, mainContent, advisorPanel }: PageLayoutPro
       </div>
 
       {/* 右侧方案高参 */}
-      <div className="w-80 shrink-0 border-l border-black/10 bg-[#161616] text-white flex flex-col overflow-hidden">
+      <div className="w-[30rem] shrink-0 border-l border-black/10 bg-[#161616] text-white flex flex-col overflow-hidden">
         {advisorPanel}
       </div>
     </div>

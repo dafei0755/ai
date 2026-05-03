@@ -263,7 +263,7 @@ export function AdvisorPanel({
             value={inputValue}
             onChange={e => setInputValue(e.target.value)}
             placeholder="问我任何关于这个项目的问题..."
-            rows={2}
+            rows={5}
             className="flex-1 bg-transparent text-sm text-white placeholder:text-white/30 resize-none outline-none leading-relaxed"
             onKeyDown={e => {
               if (e.key === 'Enter' && !e.shiftKey) {
