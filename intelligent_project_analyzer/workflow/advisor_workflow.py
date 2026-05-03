@@ -51,12 +51,12 @@ class AdvisorState(TypedDict):
 def _make_advisor_graph(db_url: str = "sqlite:///advisor_objects.db"):
     engine = init_db(db_url)
     registry = SkillRegistry()
+    skill = RequirementStructuringSkill(registry)
 
     def read_context_node(state: AdvisorState) -> dict:
         with get_session(engine) as session:
             gw = ObjectGateway(session)
             project = gw.get_project(state["project_id"])
-            ctx = gw.get_project_context(state["project_id"])
         return {
             "bound_object_id": state["project_id"],
             "object_state": project.object_state if project else "draft",
@@ -64,7 +64,6 @@ def _make_advisor_graph(db_url: str = "sqlite:///advisor_objects.db"):
         }
 
     def run_skill_node(state: AdvisorState) -> dict:
-        skill = RequirementStructuringSkill(registry)
         inp = SkillInput(
             project_id=state["project_id"],
             raw_description=state["user_message"],
