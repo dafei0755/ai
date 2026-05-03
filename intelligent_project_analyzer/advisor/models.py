@@ -5,6 +5,7 @@ from pydantic import BaseModel, Field
 ObjectState = Literal["draft", "pending_confirmation", "frozen", "stale"]
 ExecutionState = Literal["pending", "running", "succeeded", "failed", "cancelled", "timeout"]
 EvidenceStatus = Literal["none", "internal_hint", "verified"]
+PatchState = Literal["draft", "applied", "discarded"]
 
 
 class Project(BaseModel):
@@ -45,7 +46,7 @@ class ProjectBasePatch(BaseModel):
     project_id: str
     draft_id: str
     content: dict[str, Any]
-    object_state: Literal["draft", "applied", "discarded"] = "draft"
+    object_state: PatchState = "draft"
     created_at: datetime
 
 
