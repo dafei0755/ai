@@ -3,7 +3,7 @@ from contextlib import contextmanager
 from datetime import datetime
 from typing import Generator
 
-from sqlalchemy import create_engine, Column, String, DateTime, Text, Engine
+from sqlalchemy import create_engine, Column, String, DateTime, Text, Boolean, Engine
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
 
@@ -79,6 +79,16 @@ class AuditLogRow(Base):
     result = Column(String, nullable=False)
     detail = Column(Text, nullable=False, default="{}")
     created_at = Column(DateTime, nullable=False)
+
+
+class QuickNoteRow(Base):
+    __tablename__ = "quick_notes"
+    quicknote_id = Column(String, primary_key=True)
+    raw_text = Column(Text, nullable=False)
+    created_at = Column(DateTime, nullable=False)
+    source = Column(String, nullable=False, default="web")
+    status = Column(String, nullable=False, default="raw")
+    original_preserved = Column(Boolean, nullable=False, default=True)
 
 
 def init_db(url: str = "sqlite:///advisor_objects.db") -> Engine:
