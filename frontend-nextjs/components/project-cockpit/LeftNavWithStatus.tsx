@@ -44,12 +44,19 @@ export function LeftNavWithStatus({ capabilities, activeKey, onCapabilityClick }
       })}
 
       {/* 辅助功能胶囊 */}
-      {AUXILIARY_ITEMS.map((item) => (
+      {AUXILIARY_ITEMS.map((item) => {
+        const isActive = item.key === activeKey;
+        return (
         <div
           key={item.key}
-          className="w-[32px] overflow-hidden rounded-[18px] border border-slate-300 bg-[rgba(204,209,216,0.96)] text-slate-800 shadow-[0_14px_32px_rgba(15,23,42,0.22)] backdrop-blur-md"
+          className={`w-[32px] overflow-hidden rounded-[18px] border shadow-[0_14px_32px_rgba(15,23,42,0.22)] backdrop-blur-md transition-all duration-300 ${
+            isActive
+              ? 'border-sky-300/80 bg-[#1fa2df] text-white'
+              : 'border-slate-300 bg-[rgba(204,209,216,0.96)] text-slate-800'
+          }`}
         >
           <button
+            onClick={() => onCapabilityClick(item.key)}
             className="flex w-full min-h-[120px] items-center justify-center px-0 py-4 text-center"
             title={item.label}
           >
@@ -60,7 +67,8 @@ export function LeftNavWithStatus({ capabilities, activeKey, onCapabilityClick }
             </div>
           </button>
         </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

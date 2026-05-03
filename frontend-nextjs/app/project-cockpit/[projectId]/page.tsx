@@ -19,16 +19,22 @@ import {
   MOCK_PROJECT_OVERVIEW,
   MOCK_STAGES,
   MOCK_ADVISOR_VIEW_MODEL,
+  MOCK_ADVISOR_VIEW_MODEL_FLOOR_PLAN,
+  MOCK_ADVISOR_VIEW_MODEL_SCHEME_CANVAS,
+  MOCK_ADVISOR_VIEW_MODEL_RESOURCE_RADAR,
+  MOCK_ADVISOR_VIEW_MODEL_SILICON_AVATAR,
   type ViewKey,
   type CapabilityStatus,
 } from '@/components/project-cockpit/mock/mockData';
 import type { AdvisorViewModel, SceneRef, ActionChip, AdvisorModule } from '@/types/advisor';
 
-// 底盘页内模块：页内切换 activeCapability，不跳页
+// 底盘页内所有模块（页内切换，不跳页）
 const COCKPIT_MODULES = new Set<CapabilityStatus['key']>([
   'project_base',
   'floor_plan',
   'scheme_canvas',
+  'resource_radar',
+  'silicon_avatar',
 ]);
 
 export default function ProjectCockpitPage() {
@@ -48,9 +54,15 @@ export default function ProjectCockpitPage() {
     userAction: 'view',
     dispatchLevel: 'L1',
   });
-  // Phase A2: const [viewModel, setViewModel] = useState<AdvisorViewModel>(MOCK_ADVISOR_VIEW_MODEL);
-  // 届时 handleAsk 调用 setViewModel(response) 替换 mock
-  const viewModel: AdvisorViewModel = MOCK_ADVISOR_VIEW_MODEL;
+  // Phase A2: 替换为 useState + setViewModel(POST /v1/advisor/intents 响应)
+  const ADVISOR_VIEW_MODELS: Record<CapabilityStatus['key'], AdvisorViewModel> = {
+    project_base:   MOCK_ADVISOR_VIEW_MODEL,
+    floor_plan:     MOCK_ADVISOR_VIEW_MODEL_FLOOR_PLAN,
+    scheme_canvas:  MOCK_ADVISOR_VIEW_MODEL_SCHEME_CANVAS,
+    resource_radar: MOCK_ADVISOR_VIEW_MODEL_RESOURCE_RADAR,
+    silicon_avatar: MOCK_ADVISOR_VIEW_MODEL_SILICON_AVATAR,
+  };
+  const viewModel: AdvisorViewModel = ADVISOR_VIEW_MODELS[activeCapability];
 
   const handleEntry = (type: EntryType) => {
     console.log('[mock] activation entry:', type);

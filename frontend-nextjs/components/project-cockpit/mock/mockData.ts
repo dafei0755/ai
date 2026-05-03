@@ -17,7 +17,7 @@ export interface StageInfo {
 }
 
 export interface CapabilityStatus {
-  key: 'project_base' | 'floor_plan' | 'scheme_canvas';
+  key: 'project_base' | 'floor_plan' | 'scheme_canvas' | 'resource_radar' | 'silicon_avatar';
   label: string;
   statusLabel: string;
   state: ObjectiveState;
@@ -249,6 +249,243 @@ export const MOCK_ADVISOR_VIEW_MODEL: AdvisorViewModel = {
       label: '保存项目方向草案',
       isPrimary: false,
       payload: { formId: 'project-base-draft' },
+    },
+  ],
+};
+
+export const MOCK_ADVISOR_VIEW_MODEL_FLOOR_PLAN: AdvisorViewModel = {
+  traceId: 'trace-mock-002',
+  generatedAt: '2026-05-03T10:01:00Z',
+  sceneContext: {
+    projectId: 'hay-qilipng',
+    sessionId: 'local-session',
+    module: 'floor_plan',
+    userAction: 'navigate_in',
+    dispatchLevel: 'L2',
+  },
+  boundObjectId: 'floor-plan-hay-draft',
+  objectState: 'draft',
+  objectVersion: '0.0.1',
+  judgment: {
+    content:
+      '平面推演处于预览模式。当前缺少建筑面积和房型数据，推演结论置信度低。补充面积分布后可生成有效的空间排布方案。',
+    confidence: 'low',
+    evidence: {
+      evidenceClass: 'internal_reasoning',
+      verificationState: 'unverified',
+    },
+    sourceParts: {
+      methodology: '山地民宿空间模型 v1',
+    },
+    cannotDo: [
+      {
+        reason: '面积数据缺失，无法输出精确空间比例',
+        blockedChipTypes: ['freeze'],
+      },
+    ],
+  },
+  evidenceStatus: 'none',
+  activatedCapabilities: [
+    {
+      type: 'ontology',
+      name: '本体论',
+      status: 'placeholder',
+      summary: 'Phase A2 接入后生效',
+    },
+    {
+      type: 'methodology',
+      name: '方法论',
+      status: 'placeholder',
+      summary: 'Phase A2 接入后生效',
+    },
+    {
+      type: 'knowledge',
+      name: '知识库',
+      status: 'placeholder',
+      summary: 'Phase A2 接入后生效',
+    },
+  ],
+  actionChips: [
+    {
+      type: 'ask',
+      label: '告诉我建筑面积和房型',
+      isPrimary: true,
+      payload: {
+        question: '请提供总建筑面积（㎡）、客房数量，以及希望的主要房型（大床/双床/亲子等）比例？',
+      },
+    },
+    {
+      type: 'navigate',
+      label: '返回项目底盘补充',
+      isPrimary: false,
+      payload: { target: 'project_base' },
+    },
+  ],
+};
+
+export const MOCK_ADVISOR_VIEW_MODEL_SCHEME_CANVAS: AdvisorViewModel = {
+  traceId: 'trace-mock-003',
+  generatedAt: '2026-05-03T10:02:00Z',
+  sceneContext: {
+    projectId: 'hay-qilipng',
+    sessionId: 'local-session',
+    module: 'scheme_canvas',
+    userAction: 'navigate_in',
+    dispatchLevel: 'L2',
+  },
+  boundObjectId: 'concept-canvas-hay-draft',
+  objectState: 'pending_confirmation',
+  objectVersion: '0.1.0',
+  judgment: {
+    content:
+      '概念画布已可启动，品牌气质方向明确。但落位精度依赖平面推演完成，建议先完成空间排布后再推进方案表达。',
+    confidence: 'medium',
+    evidence: {
+      evidenceClass: 'internal_reasoning',
+      verificationState: 'unverified',
+    },
+    sourceParts: {
+      ontology: '民宿品牌 · HAY 功能主义',
+      methodology: '方案表达流程 v2',
+    },
+  },
+  evidenceStatus: 'internal_hint',
+  activatedCapabilities: [
+    {
+      type: 'ontology',
+      name: '本体论',
+      status: 'placeholder',
+      summary: 'Phase A2 接入后生效',
+    },
+    {
+      type: 'methodology',
+      name: '方法论',
+      status: 'placeholder',
+      summary: 'Phase A2 接入后生效',
+    },
+    {
+      type: 'knowledge',
+      name: '知识库',
+      status: 'placeholder',
+      summary: 'Phase A2 接入后生效',
+    },
+  ],
+  actionChips: [
+    {
+      type: 'ask',
+      label: '生成概念方向草案',
+      isPrimary: true,
+      payload: {
+        question: '基于 HAY 功能主义风格和山地轻度假场景，帮我生成 3 个概念方向草案，各附一句设计主张。',
+      },
+    },
+    {
+      type: 'navigate',
+      label: '先完成平面推演',
+      isPrimary: false,
+      payload: { target: 'floor_plan' },
+    },
+  ],
+};
+
+export const MOCK_ADVISOR_VIEW_MODEL_RESOURCE_RADAR: AdvisorViewModel = {
+  traceId: 'trace-mock-004',
+  generatedAt: '2026-05-03T10:03:00Z',
+  sceneContext: {
+    projectId: 'hay-qilipng',
+    sessionId: 'local-session',
+    module: 'resource_radar',
+    userAction: 'navigate_in',
+    dispatchLevel: 'L2',
+  },
+  objectState: 'draft',
+  judgment: {
+    content:
+      '资源雷达尚未激活。待项目底盘草案确认后，可自动匹配符合 HAY 功能主义风格的供应商、材料库和施工团队资源。',
+    confidence: 'low',
+    evidence: {
+      evidenceClass: 'none',
+      verificationState: 'unverified',
+    },
+    sourceParts: {},
+    cannotDo: [
+      {
+        reason: '项目草案未确认，无法启动资源匹配',
+        blockedChipTypes: ['fill', 'navigate'],
+      },
+    ],
+  },
+  evidenceStatus: 'none',
+  activatedCapabilities: [
+    { type: 'ontology',    name: '本体论', status: 'placeholder', summary: 'Phase A2 接入后生效' },
+    { type: 'methodology', name: '方法论', status: 'placeholder', summary: 'Phase A2 接入后生效' },
+    { type: 'knowledge',   name: '知识库', status: 'placeholder', summary: 'Phase A2 接入后生效' },
+  ],
+  actionChips: [
+    {
+      type: 'ask',
+      label: '了解资源雷达能做什么',
+      isPrimary: true,
+      payload: {
+        question: '资源雷达可以帮我找到哪些类型的供应商和材料？匹配逻辑是什么？',
+      },
+    },
+    {
+      type: 'navigate',
+      label: '先完成项目底盘',
+      isPrimary: false,
+      payload: { target: 'project_base' },
+    },
+  ],
+};
+
+export const MOCK_ADVISOR_VIEW_MODEL_SILICON_AVATAR: AdvisorViewModel = {
+  traceId: 'trace-mock-005',
+  generatedAt: '2026-05-03T10:04:00Z',
+  sceneContext: {
+    projectId: 'hay-qilipng',
+    sessionId: 'local-session',
+    module: 'silicon_avatar',
+    userAction: 'navigate_in',
+    dispatchLevel: 'L2',
+  },
+  objectState: 'draft',
+  judgment: {
+    content:
+      '硅基分身处于初始化状态。完成项目底盘和方案画布后，将基于你的决策记录和设计偏好，生成可代理日常沟通与方案解释的设计师分身。',
+    confidence: 'low',
+    evidence: {
+      evidenceClass: 'none',
+      verificationState: 'unverified',
+    },
+    sourceParts: {},
+    cannotDo: [
+      {
+        reason: '需要足够的决策历史才能生成有效分身',
+        blockedChipTypes: ['fill'],
+      },
+    ],
+  },
+  evidenceStatus: 'none',
+  activatedCapabilities: [
+    { type: 'ontology',    name: '本体论', status: 'placeholder', summary: 'Phase A2 接入后生效' },
+    { type: 'methodology', name: '方法论', status: 'placeholder', summary: 'Phase A2 接入后生效' },
+    { type: 'knowledge',   name: '知识库', status: 'placeholder', summary: 'Phase A2 接入后生效' },
+  ],
+  actionChips: [
+    {
+      type: 'ask',
+      label: '了解硅基分身的能力边界',
+      isPrimary: true,
+      payload: {
+        question: '硅基分身具体能代替我做哪些事情？它如何学习我的设计风格和决策偏好？',
+      },
+    },
+    {
+      type: 'navigate',
+      label: '先完成方案画布',
+      isPrimary: false,
+      payload: { target: 'scheme_canvas' },
     },
   ],
 };
