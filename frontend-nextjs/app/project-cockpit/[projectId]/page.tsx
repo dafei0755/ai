@@ -22,17 +22,34 @@ import {
   type ViewKey,
   type CapabilityStatus,
 } from '@/components/project-cockpit/mock/mockData';
-import type { ActionChip } from '@/types/advisor';
+import type { AdvisorViewModel, SceneRef, ActionChip, AdvisorModule } from '@/types/advisor';
+
+// 底盘页内模块：页内切换 activeCapability，不跳页
+const COCKPIT_MODULES = new Set<AdvisorModule>([
+  'project_base',
+  'floor_plan',
+  'scheme_canvas',
+]);
 
 export default function ProjectCockpitPage() {
   const params    = useParams();
   const router    = useRouter();
   const projectId = params.projectId as string;
 
-  const [isActivated, setIsActivated]   = useState(projectId !== 'new');
-  const [activeView, setActiveView]     = useState<ViewKey>('overview');
+  const [isActivated, setIsActivated]           = useState(projectId !== 'new');
+  const [activeView, setActiveView]             = useState<ViewKey>('overview');
   const [activeCapability, setActiveCapability] = useState<CapabilityStatus['key']>('project_base');
-  const [prefillMessage, setPrefillMessage] = useState<string | undefined>(undefined);
+  const [prefillMessage, setPrefillMessage]     = useState<string | undefined>(undefined);
+  const [, setSceneRef]                         = useState<SceneRef>({
+    projectId,
+    sessionId: 'local-session',
+    module: 'project_base',
+    userAction: 'view',
+    dispatchLevel: 'L1',
+  });
+  // Phase A2: const [viewModel, setViewModel] = useState<AdvisorViewModel>(MOCK_ADVISOR_VIEW_MODEL);
+  // 届时 handleAsk 调用 setViewModel(response) 替换 mock
+  const viewModel: AdvisorViewModel = MOCK_ADVISOR_VIEW_MODEL;
 
   const handleEntry = (type: EntryType) => {
     console.log('[mock] activation entry:', type);
@@ -50,13 +67,33 @@ export default function ProjectCockpitPage() {
     setActiveCapability(key);
   };
 
-  const handleAdvisorSend = (text: string) => {
-    console.log('[mock] advisor ask:', text);
-    setPrefillMessage(undefined);
+  const handleChipAction = (chip: ActionChip) => {
+    if (chip.type === 'navigate') {
+      const { target } = chip.payload;
+      if (COCKPIT_MODULES.has(target)) {
+        // L0：页内切换，不发后端请求
+        setActiveCapability(target as CapabilityStatus['key']);
+        // navigate_in 到达 → 触发 L2（Phase A2 替换为 POST /v1/advisor/intents）
+        setSceneRef(prev => ({
+          ...prev,
+          module: target,
+          userAction: 'navigate_in',
+          dispatchLevel: 'L2',
+        }));
+      } else {
+        router.push(`/analysis/${projectId}?module=${target}`);
+      }
+    } else if (chip.type === 'fill') {
+      console.log('[mock] fill chip:', chip.payload);
+      // Phase A2: 打开对应表单
+    }
   };
 
-  const handleChipAction = (chip: ActionChip) => {
-    console.log('[mock] chip action:', chip);
+  const handleAsk = (text: string) => {
+    console.log('[mock] advisor ask:', text);
+    setSceneRef(prev => ({ ...prev, userAction: 'ask', dispatchLevel: 'L3' }));
+    setPrefillMessage(undefined);
+    // Phase A2: POST /v1/advisor/intents → setViewModel(response)
   };
 
   const handleAdvisorPrefill = (text: string) => {
@@ -87,10 +124,10 @@ export default function ProjectCockpitPage() {
 
   const advisorPanel = (
     <AdvisorPanel
-      viewModel={MOCK_ADVISOR_VIEW_MODEL}
+      viewModel={viewModel}
       prefillMessage={prefillMessage}
       onChipAction={handleChipAction}
-      onAsk={handleAdvisorSend}
+      onAsk={handleAsk}
     />
   );
 
