@@ -51,6 +51,7 @@ reports/
 htmlcov/
 .coverage
 .pytest_cache/
+.cache/
 .git-backup/
 
 # Frontend
@@ -78,7 +79,29 @@ _archive/
 
 # Root-level temp/debug output files
 _*.txt
+/_*.py
+/patch.py
+/patch*.js
+/update.py
+/update_*.py
+/check.py
+/analyze_columns.py
 *_backup_*.yaml
+
+# Local generated artifacts
+*.db
+*.sqlite
+*.sqlite3
+/node_modules/
+/.playwright-cli/
+/.pytest_tmp*/
+/output/
+/security-baseline-report.json
+/requirements.server.tmp.txt
+frontend-nextjs/.playwright-cli/
+frontend-nextjs/.uploads/
+frontend-nextjs/output/playwright/
+frontend-nextjs/frontend-nextjs/
 
 # Crawler credentials and cookies
 intelligent_project_analyzer/config/crawler_credentials.py
