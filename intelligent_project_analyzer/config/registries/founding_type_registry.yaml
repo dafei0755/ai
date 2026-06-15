@@ -1,0 +1,744 @@
+schema_version: founding_type_registry.v1.9
+owner: core_team
+review_status: approved
+last_updated: '2026-06-14'
+items:
+  operating_business:
+    name: 经营性项目
+    name_en: operating business commercial revenue
+    group: commercial
+    keywords:
+    - 开店
+    - 外带
+    - 翻台
+    - 坪效
+    - 试营业
+    - 营业
+    - 经营
+    - 出杯
+    - 客单价
+    - 毛利
+    - 翻桌率
+    - 营收
+    - 盈利
+    - 开业
+    - 门店运营
+    - 招商
+    - 营业额
+    - 销售转化
+    - 复购
+    - 客流提升
+    - 商业闭环
+    - 留存率
+    - 获客成本
+    secondary_keywords:
+    - 商业
+    - 客户
+    - 顾客
+    - 消费者
+    - 回头客
+    - 客流
+    - 销售
+    - 转化率
+    - 到店
+    - 留存
+    - 下单
+    - 营业时间
+    - 高峰
+    - 现金流
+    negative_co_occurrence:
+    - public_service
+    - rural_revitalization
+    - urban_renewal
+    priority: 9
+    status: active_mvp
+    name_cn: 经营性项目
+  flagship_demonstration:
+    name: 旗舰示范 / 标杆样板
+    name_en: flagship demonstration benchmark prototype
+    group: commercial
+    keywords:
+    - 旗舰店
+    - 标杆店
+    - 示范店
+    - 形象店
+    - 体验中心
+    - 样板房
+    - 样板项目
+    - 示范中心
+    - 标杆项目
+    - 行业示范
+    - 全新旗舰
+    - 首个样板
+    - 可复制模型
+    - 产品线样板
+    - 品牌展示馆
+    - 品牌体验馆
+    - 全球总部
+    - 中国旗舰
+    - 标志性项目
+    secondary_keywords:
+    - 示范
+    - 样板
+    - 标杆
+    - 复制
+    - 形象
+    - 引领
+    - 展示
+    - 原型
+    - 起步形象
+    - 模型项目
+    - 行业突破
+    - 战略形象
+    - 试点
+    negative_co_occurrence:
+    - personal_use
+    - healing_repair
+    priority: 8
+    status: active_mvp
+    name_cn: 旗舰示范 / 标杆样板
+  commercial_renewal:
+    name: 商业更新 / 存量商业改造
+    name_en: commercial renewal retail repositioning
+    group: commercial
+    keywords:
+    - 商业更新
+    - 商场改造
+    - 商业街区升级
+    - 商业空间升级
+    - 客流下降
+    - 商业综合体改造
+    - 百货升级
+    - 生活方式中心
+    - 夜经济
+    - 主力店
+    - 次主力
+    - 租户组合
+    - 动线优化
+    - 招商调整
+    - 商业活化
+    - 业态重组
+    - 客流回升
+    - 不闭店改造
+    - 商业再定位
+    secondary_keywords:
+    - 客流
+    - 租金
+    - 坪效
+    - 品牌组合
+    - 业态
+    - 打卡点
+    - 社交场景
+    - 夜间
+    - 消费场景
+    - 商业地产
+    - 换装
+    - 翻新
+    priority: 8
+    status: active_mvp
+    name_cn: 商业更新 / 存量商业改造
+  asset_value_upgrade:
+    name: 资产价值提升 / 存量资产盘活
+    name_en: asset value upgrade property appreciation
+    group: commercial
+    keywords:
+    - 资产增值
+    - 物业增值
+    - 存量资产
+    - 资产盘活
+    - 物业改造
+    - 租金提升
+    - 空置率
+    - 入住率
+    - 资产运营
+    - 地产溢价
+    - 土地价值
+    - 物业价值
+    - 商业地产升级
+    - 公共空间升级
+    - 不大规模结构改造
+    - 招商提振
+    - 持有型资产
+    - 重资产
+    - 客房升级
+    - 酒店升级
+    - 酒店改造
+    - 客房改造
+    - 客房翻新
+    - 保持原有结构
+    - 保持结构不变
+    - 提振入住率
+    - 重建信心
+    - 重新建立信心
+    - 品牌吸引力
+    secondary_keywords:
+    - 租户
+    - 招租
+    - 回报率
+    - 收益
+    - 运营收益
+    - 现金流
+    - 投资回收
+    - 持有
+    - 空置
+    - 出租率
+    - 投资人
+    - 客房
+    - 入住
+    - 客群重定位
+    priority: 8
+    status: active_mvp
+    name_cn: 资产价值提升 / 存量资产盘活
+  personal_use:
+    name: 自用 / 私人生活项目
+    name_en: personal use private residence self-occupied
+    group: personal
+    keywords:
+    - 自住
+    - 私宅
+    - 私人住宅
+    - 自用
+    - 我家
+    - 我们家
+    - 自家
+    - 家里
+    - 新房装修
+    - 改善型住宅
+    - 婚房
+    - 大平层
+    - 别墅
+    - 别墅装修
+    - 公寓装修
+    - 住宅翻新
+    - 私人书房
+    - 卧室改造
+    - 居家
+    - 自家装修
+    - 入住
+    - 家居
+    - 居住
+    - 豪宅
+    - 洋房
+    - 独栋
+    - 联排
+    - 复式
+    - 跃层
+    - 顶层
+    - 三居
+    - 四居
+    - 三室
+    - 四室
+    secondary_keywords:
+    - 家人
+    - 起居
+    - 日常
+    - 家庭
+    - 收纳
+    - 卧室
+    - 客厅
+    - 厨房
+    - 卫生间
+    - 玄关
+    - 阳台
+    - 户型
+    - 生活方式
+    negative_co_occurrence:
+    - operating_business
+    - flagship_demonstration
+    - public_service
+    priority: 9
+    status: active_mvp
+    name_cn: 自用 / 私人生活项目
+  family_legacy:
+    name: 家族传承 / 家庭秩序重建
+    name_en: family legacy generational continuity
+    group: personal
+    keywords:
+    - 家族传承
+    - 多代同堂
+    - 家族精神
+    - 家庭传承
+    - 家庭秩序
+    - 家族会客
+    - 家族聚会
+    - 祖孙
+    - 家族宅
+    - 老宅更新
+    - 传家
+    - 家族记忆
+    - 三代人
+    - 家族议事
+    - 家族客厅
+    - 长辈短住
+    - 外公外婆
+    - 父母同住
+    secondary_keywords:
+    - 长辈
+    - 子代
+    - 亲情
+    - 家庭关系
+    - 代际
+    - 家庭结构
+    - 家族仪式
+    - 亲属
+    - 多代
+    - 兄弟姐妹
+    - 家庭重组
+    - 再婚家庭
+    priority: 8
+    status: active_light
+    name_cn: 家族传承 / 家庭秩序重建
+  identity_expression:
+    name: 身份表达 / 精神画像项目
+    name_en: identity expression personal symbolic
+    group: personal
+    keywords:
+    - 身份表达
+    - 精神结构
+    - 成就象征
+    - 个人气质
+    - 生活态度
+    - 自我认同
+    - 精神表达
+    - 审美人格
+    - 企业家精神
+    - 女性独立精神
+    - 文人精神
+    - 生活美学
+    - 权力感
+    - 体面感
+    - 圈层认同
+    - 高净值
+    - 收藏家
+    - 主理人精神
+    - 跨文化身份
+    - 不婚主义
+    - 一代创业者
+    secondary_keywords:
+    - 气场
+    - 象征
+    - 叙事
+    - 品味
+    - 圈层
+    - 自律
+    - 优雅
+    - 厚度
+    - 克制
+    - 尊严
+    - 财富
+    - 成就
+    - 独立
+    - 桀骜
+    negative_co_occurrence:
+    - operating_business
+    - public_service
+    priority: 8
+    status: active_light
+    name_cn: 身份表达 / 精神画像项目
+  healing_repair:
+    name: 疗愈修复 / 情绪与关系支持
+    name_en: healing repair emotional relational support
+    group: personal
+    keywords:
+    - 疗愈
+    - 情绪修复
+    - 心理安全
+    - 焦虑
+    - 失眠
+    - 正念
+    - 冥想
+    - 重新开始
+    - 婚姻修复
+    - 情绪缓冲
+    - 心理恢复
+    - 临终关怀
+    - 创伤修复
+    - 安静陪伴
+    - 抗焦虑
+    - 婚姻复合
+    - 夫妻复合
+    - 感情复合
+    - 重建关系
+    - 内观
+    - 静修
+    - 心境
+    - 修复关系
+    secondary_keywords:
+    - 温暖
+    - 私密
+    - 放松
+    - 安全感
+    - 平静
+    - 慢下来
+    - 呼吸
+    - 光线节律
+    - 声环境
+    - 触感
+    - 沉静
+    - 修复
+    - 恢复
+    - 仪式
+    priority: 8
+    status: active_light
+    name_cn: 疗愈修复 / 情绪与关系支持
+  special_needs_care:
+    name: 特殊需求照护 / 无障碍 / 医疗适配
+    name_en: special needs care accessibility medical adaptation
+    group: personal
+    keywords:
+    - 自闭症
+    - 感统训练
+    - 无障碍
+    - 轮椅
+    - 过敏
+    - 低敏
+    - 医疗级新风
+    - 空气净化
+    - 护理动线
+    - 新生儿
+    - 产妇
+    - 老年照护
+    - 失能
+    - 行动不便
+    - 康复
+    - 适老化
+    - 适老化改造
+    - 残障
+    - 心理干预
+    - 创伤敏感
+    - 医疗适配
+    - 全屋无障碍
+    secondary_keywords:
+    - 安全
+    - 照护
+    - 辅助
+    - 适老
+    - 防滑
+    - 隔音
+    - 净化
+    - 材料安全
+    - 尺度
+    - 情绪稳定
+    - 特殊需求
+    - 陪护
+    priority: 8
+    status: active_light
+    name_cn: 特殊需求照护 / 无障碍 / 医疗适配
+  urban_renewal:
+    name: 城市更新 / 街区微更新
+    name_en: urban renewal micro regeneration adaptive reuse
+    group: urban
+    keywords:
+    - 城市更新
+    - 微更新
+    - 老城区
+    - 老街区
+    - 历史街区
+    - 城中村改造
+    - 街巷界面
+    - 底商改造
+    - 公共节点
+    - 片区更新
+    - 社区更新
+    - 城市公共客厅
+    - 滨水界面
+    - 夜间文化市集
+    - 街区活化
+    - 工业厂区改造
+    - 废弃工厂改造
+    - 旧厂房改造
+    - 历史建筑活化
+    - 工业遗存
+    - 老码头
+    - 防空洞改造
+    - 菜市场更新
+    - 百货商场改造
+    - 街区焕新
+    - 城市记忆
+    - 地下空间活化
+    secondary_keywords:
+    - 街道
+    - 巷道
+    - 界面
+    - 存量
+    - 活力
+    - 公共空间
+    - 社区参与
+    - 肌理
+    - 保留
+    - 非标店铺
+    - 灯光升级
+    - 改造
+    - 旧改
+    - 活化
+    - 再生
+    - 适应性改造
+    - 文物保护
+    - 历史保护
+    priority: 9
+    status: active_mvp
+    name_cn: 城市更新 / 街区微更新
+  rural_revitalization:
+    name: 乡村振兴 / 农文旅激活
+    name_en: rural revitalization agro cultural tourism
+    group: rural
+    keywords:
+    - 乡村振兴
+    - 新农村建设
+    - 美丽乡村
+    - 示范村
+    - 乡村旅游
+    - 农文旅
+    - 农文旅融合
+    - 民宿集群
+    - 乡村公共空间
+    - 村庄更新
+    - 农产品销售
+    - 乡村经济
+    - 村民参与
+    - 留守儿童
+    - 乡村书屋
+    - 非遗工坊
+    - 生态研学
+    - 乡建
+    - 村庄改造
+    - 自建房
+    - 农村民居
+    - 田园民居
+    - 返乡住宅
+    - 乡村振兴示范
+    - 村集体
+    - 在地农耕
+    - 乡村人才回流
+    secondary_keywords:
+    - 农耕文化
+    - 在地材料
+    - 村民
+    - 返乡
+    - 农田
+    - 乡土建筑
+    - 农产品
+    - 产业结构
+    - 公共会客厅
+    - 农村
+    - 村庄
+    - 田园
+    - 古村
+    - 乡土
+    - 在地
+    - 非遗
+    priority: 9
+    status: active_mvp
+    name_cn: 乡村振兴 / 农文旅激活
+  organizational_efficiency:
+    name: 组织效能 / 高精办公空间
+    name_en: organizational efficiency productivity workspace
+    group: institutional
+    keywords:
+    - 集团总部
+    - 研发中心
+    - 企业办公室
+    - 创客空间
+    - 联合办公
+    - 直播基地
+    - 智能实验室
+    - 数据安全指挥中心
+    - 算力中心
+    - 生产车间
+    - 工作室
+    - 联合工作室
+    - 共享办公
+    - 律师事务所
+    - 律所
+    - 写字楼
+    - 总部大楼
+    - 行政会所
+    - 工程师文化
+    - AI研发
+    - 协同办公
+    - 跨境电商直播基地
+    - 实验室办公
+    - 创作工作室
+    - 制片工作室
+    - 元宇宙办公
+    - VR办公
+    - 注意力经济公司
+    - AI生成内容
+    secondary_keywords:
+    - 生产力提振
+    - 组织文化物化
+    - 协作动线
+    - 设备散热负荷
+    - 声学隔离系统
+    - 电力冗余
+    - 数字孪生集成度
+    - 行为热力图
+    - 可迭代弹性模块
+    - 员工
+    - 工位
+    - 会议
+    - 协作
+    - 创新
+    - 研发
+    - 工程师
+    - 团队
+    - 灵感
+    priority: 8
+    status: active_mvp
+    name_cn: 组织效能 / 高精办公空间
+  public_service:
+    name: 公共服务 / 民生与社区效益
+    name_en: public service civic community welfare resilience
+    group: institutional
+    keywords:
+    - 公共服务
+    - 社区服务
+    - 政府项目
+    - 村民
+    - 市民中心
+    - 公益项目
+    - 公益空间
+    - 便民服务
+    - 社区共享厨房
+    - 应急避难空间
+    - 青少年心理干预中心
+    - 银发再就业中心
+    - 保障性住房
+    - 保障房
+    - 社区中心
+    - 城市记忆馆
+    - 难民社区服务中心
+    - 战后社区恢复中心
+    - 韧性社区
+    - 灾害模拟训练中心
+    - 公共应急
+    - 公共图书馆
+    - 社区活动中心
+    - 留守儿童服务
+    - 老人活动中心
+    - 数字游民服务中心
+    - 文明档案库
+    secondary_keywords:
+    - 政府
+    - 财政
+    - 公共
+    - 公益
+    - 社区
+    - 村集体
+    - 社会包容性
+    - 弱势群体
+    - 通用设计
+    - 无障碍底线
+    - 尊严感表达
+    - 灾时快速转换
+    - 社会效益
+    - 韧性
+    - 防灾
+    - 难民
+    - 灾后
+    - 民生
+    priority: 8
+    status: active_mvp
+    name_cn: 公共服务 / 民生与社区效益
+  cultural_institution:
+    name: 文化机构 / 公共文化与展示
+    name_en: cultural institution heritage public culture exhibition
+    group: institutional
+    keywords:
+    - 美术馆
+    - 博物馆
+    - 文化机构
+    - 公共文化
+    - 艺术机构
+    - 文化驿站
+    - 城市书房
+    - 私人博物馆
+    - 文化综合体
+    - 展示馆
+    - 体验馆
+    - 体验中心
+    - 科普教育
+    - 展示中心
+    - 品牌展示
+    - 科技展示
+    - 数据可视化
+    - 互动装置
+    - 沉浸式体验
+    - 能源教育博物馆
+    - 行为经济学体验馆
+    - 氢能展示馆
+    - 太空旅游体验中心
+    - 数据遗产博物馆
+    - 电竞文化博物馆
+    - 历史展厅
+    - 城市形象展示中心
+    - 国际学校图书馆
+    - 学校
+    - 大学
+    - 研学基地
+    - 教育中心
+    - 培训中心
+    - 数字课堂
+    secondary_keywords:
+    - 策展
+    - 馆藏
+    - 公教
+    - 非营利
+    - 文物
+    - 叙事轴线
+    - 观展人流
+    - 展陈路径
+    - 沉浸式
+    - 符号学
+    - 教育
+    - 普及
+    - 参观
+    - 多媒体
+    - 文化地标
+    - 文化记忆
+    - 学习
+    - 研究
+    priority: 8
+    status: active_mvp
+    name_cn: 文化机构 / 公共文化与展示
+  hybrid_composite:
+    name: 复合性质项目
+    name_en: hybrid composite mixed purpose
+    group: hybrid
+    keywords:
+    - 前店后宅
+    - 自住兼经营
+    - 民宿自营
+    - 公益结合商业
+    - 复合用途
+    - 混合大楼
+    - 多功能厅
+    - 分时复用
+    - 酒店式公寓
+    - 会所住宅复合
+    - 社区复合空间
+    - 商业加办公
+    - 办公加住宅
+    - 展览加住宿
+    - 工作室加住宅
+    - 农业加艺术加居住
+    - 生活加研究
+    - 住宅加工作室
+    - 平灾两态
+    - 平时灾时切换
+    secondary_keywords:
+    - 兼
+    - 兼营
+    - 混合
+    - 复合
+    - 多功能
+    - 一体化
+    - 跨界
+    - 组合
+    - 弹性切换
+    - 双态
+    - 同时承担
+    - 既...又
+    priority: 6
+    status: active_mvp
+    name_cn: 复合性质项目

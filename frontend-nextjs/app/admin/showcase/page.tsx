@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import axios from "axios";
 import { Swiper, SwiperSlide } from "swiper/react";
@@ -50,24 +50,24 @@ export default function ShowcasePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    loadFeaturedSessions();
-  }, []);
-
-  const loadFeaturedSessions = async () => {
+  const loadFeaturedSessions = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
       const response = await axios.get("/api/showcase/featured");
       setSessions(response.data.featured_sessions || []);
-      setConfig(response.data.config || config);
+      setConfig(prev => response.data.config || prev);
     } catch (err: any) {
       console.error("加载精选展示失败:", err);
       setError(err.response?.data?.detail || "加载失败");
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    loadFeaturedSessions();
+  }, [loadFeaturedSessions]);
 
   const handleSlideClick = (sessionId: string) => {
     router.push(`/analysis/${sessionId}`);

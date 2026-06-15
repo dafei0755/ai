@@ -11,7 +11,9 @@ Milvus 向量数据库知识库工具 (v7.141+)
 """
 
 import json
+import os
 import time
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import jieba
@@ -22,7 +24,7 @@ from ..core.types import ToolConfig
 # Milvus imports
 try:
     from pymilvus import Collection, connections, utility
-    from sentence_transformers import CrossEncoder, SentenceTransformer
+    from sentence_transformers import CrossEncoder
 
     MILVUS_AVAILABLE = True
 except ImportError:
@@ -129,6 +131,10 @@ class QueryProcessor:
 
         # 3. 查询扩展 (当前版本使用规则,未来可集成LLM)
         expanded_query = self._expand_query(query, keywords, intent)
+        if context:
+            search_tags = [str(tag) for tag in context.get("search_tags", []) or [] if tag]
+            if search_tags:
+                expanded_query = f"{expanded_query} {' '.join(search_tags[:8])}"
 
         # 4. 构建标量过滤条件
         filters = self._build_filters(intent, context)
@@ -221,6 +227,15 @@ class QueryProcessor:
                 filters["team_id"] = context["team_id"]
             if context.get("search_scope"):
                 filters["search_scope"] = context["search_scope"]
+            knowledge_packages = context.get("knowledge_packages") or context.get("package_ids") or []
+            if knowledge_packages:
+                filters["knowledge_packages"] = [str(item) for item in knowledge_packages if item]
+            search_tags = context.get("search_tags") or []
+            if search_tags:
+                filters["tags"] = [str(item) for item in search_tags if item]
+            if context.get("approved_knowledge_only"):
+                filters["review_status"] = "approved"
+                filters["source_type"] = "approved_knowledge_card"
 
         return filters
 
@@ -238,6 +253,10 @@ class HybridRetriever:
     def __init__(self, collection: "Collection", embedding_model: "SentenceTransformer"):
         self.collection = collection
         self.embedding_model = embedding_model
+        try:
+            self.field_names = {field.name for field in collection.schema.fields}
+        except Exception:
+            self.field_names = set()
 
     def retrieve(self, processed_query: Dict, top_k: int = 50) -> List[Dict]:
         """
@@ -252,7 +271,8 @@ class HybridRetriever:
         """
         # 1. 生成查询向量
         query_text = processed_query["expanded_query"]
-        query_vector = self.embedding_model.encode(query_text, normalize_embeddings=True).tolist()
+        encoded = self.embedding_model.encode(query_text, normalize_embeddings=True)
+        query_vector = encoded.tolist() if hasattr(encoded, "tolist") else encoded
 
         # 2. 构建标量过滤表达式
         filter_expr = self._build_milvus_expr(processed_query["filters"])
@@ -261,23 +281,33 @@ class HybridRetriever:
         search_params = {"metric_type": "COSINE", "params": {"ef": 128}}  # HNSW 参数
 
         try:
-            results = self.collection.search(
-                data=[query_vector],
-                anns_field="vector",
-                param=search_params,
-                limit=top_k,
-                expr=filter_expr,  # 标量过滤
-                output_fields=[
+            output_fields = [
+                field
+                for field in [
                     "title",
                     "content",
                     "document_type",
                     "tags",
                     "source_file",
                     "project_type",
+                    "package_id",
                     "owner_type",
                     "owner_id",
                     "visibility",
-                ],  #  v7.141: 包含用户隔离字段
+                    "card_id",
+                    "source_type",
+                    "review_status",
+                    "knowledge_status",
+                ]
+                if not self.field_names or field in self.field_names
+            ]
+            results = self.collection.search(
+                data=[query_vector],
+                anns_field="vector",
+                param=search_params,
+                limit=top_k,
+                expr=filter_expr,  # 标量过滤
+                output_fields=output_fields,  #  v7.141+: 包含用户隔离与知识包字段
             )
         except Exception as e:
             logger.error(f"Milvus 检索失败: {e}")
@@ -296,11 +326,16 @@ class HybridRetriever:
                         "document_type": hit.entity.get("document_type", ""),
                         "tags": hit.entity.get("tags", []),
                         "project_type": hit.entity.get("project_type", ""),
+                        "package_id": hit.entity.get("package_id", ""),
                         "source_file": hit.entity.get("source_file", ""),
                         #  v7.141: 添加用户隔离字段
                         "owner_type": hit.entity.get("owner_type", "system"),
                         "owner_id": hit.entity.get("owner_id", "public"),
                         "visibility": hit.entity.get("visibility", "public"),
+                        "card_id": hit.entity.get("card_id", ""),
+                        "source_type": hit.entity.get("source_type", ""),
+                        "review_status": hit.entity.get("review_status", ""),
+                        "knowledge_status": hit.entity.get("knowledge_status", ""),
                     },
                 }
             )
@@ -342,18 +377,18 @@ class HybridRetriever:
             visibility_conditions.append('owner_type == "system"')
 
             # 2. 用户共享文档（visibility=public）
-            visibility_conditions.append('(owner_type == "user" AND visibility == "public")')
+            visibility_conditions.append('(owner_type == "user" and visibility == "public")')
 
             # 3. 当前用户的私有文档
             if user_id:
-                visibility_conditions.append(f'(owner_type == "user" AND owner_id == "{user_id}")')
+                visibility_conditions.append(f'(owner_type == "user" and owner_id == "{user_id}")')
 
             # 4. 所属团队的文档
             if team_id:
-                visibility_conditions.append(f'(owner_type == "team" AND owner_id == "{team_id}")')
+                visibility_conditions.append(f'(owner_type == "team" and owner_id == "{team_id}")')
 
             if visibility_conditions:
-                exprs.append(f'({" OR ".join(visibility_conditions)})')
+                exprs.append(f'({" or ".join(visibility_conditions)})')
 
         elif search_scope == "system":
             # 仅查询公共知识库
@@ -361,11 +396,11 @@ class HybridRetriever:
 
         elif search_scope == "user" and user_id:
             # 仅查询当前用户的私有库（包括 private 和 public）
-            exprs.append(f'(owner_type == "user" AND owner_id == "{user_id}")')
+            exprs.append(f'(owner_type == "user" and owner_id == "{user_id}")')
 
         elif search_scope == "team" and team_id:
             #  v7.141.2: 仅查询团队知识库
-            exprs.append(f'(owner_type == "team" AND owner_id == "{team_id}")')
+            exprs.append(f'(owner_type == "team" and owner_id == "{team_id}")')
 
         # 原有过滤逻辑
         if "document_type" in filters:
@@ -374,10 +409,23 @@ class HybridRetriever:
         if "project_type" in filters:
             exprs.append(f'project_type == "{filters["project_type"]}"')
 
+        if "knowledge_packages" in filters and filters["knowledge_packages"]:
+            package_ids = [pkg for pkg in filters["knowledge_packages"] if pkg]
+            if package_ids and (not self.field_names or "package_id" in self.field_names):
+                package_exprs = [f'package_id == "{package_id}"' for package_id in package_ids]
+                exprs.append(f'({" or ".join(package_exprs)})')
+
         if "tags" in filters and filters["tags"]:
             # Array 包含查询 (如果 tags 是数组字段)
-            tag_exprs = [f'array_contains(tags, "{tag}")' for tag in filters["tags"]]
-            exprs.append(f'({" or ".join(tag_exprs)})')
+            if not self.field_names or "tags" in self.field_names:
+                tag_exprs = [f'array_contains(tags, "{tag}")' for tag in filters["tags"]]
+                exprs.append(f'({" or ".join(tag_exprs)})')
+
+        if filters.get("review_status") and (not self.field_names or "review_status" in self.field_names):
+            exprs.append(f'review_status == "{filters["review_status"]}"')
+
+        if filters.get("source_type") and (not self.field_names or "source_type" in self.field_names):
+            exprs.append(f'source_type == "{filters["source_type"]}"')
 
         return " and ".join(exprs) if exprs else None
 
@@ -426,6 +474,10 @@ class CrossEncoderReranker:
     """
 
     def __init__(self, model_name: str = "BAAI/bge-reranker-v2-m3"):
+        if _should_skip_local_model_load(model_name):
+            logger.warning(f"Reranker model '{model_name}' has no usable local cache. 将跳过重排序阶段")
+            self.model = None
+            return
         try:
             self.model = CrossEncoder(model_name, max_length=512)
             logger.info(f"Reranker 模型加载成功: {model_name}")
@@ -472,6 +524,49 @@ class CrossEncoderReranker:
         logger.debug(f"Stage 4: 重排序完成, Top-1: {reranked[0]['title']}")
 
         return reranked[:top_k]
+
+
+def _should_skip_local_model_load(model_name: str) -> bool:
+    if os.getenv("KNOWLEDGE_FORCE_HASH_EMBEDDING", "").lower() in {"1", "true", "yes"}:
+        return True
+    if os.getenv("KNOWLEDGE_ALLOW_MODEL_DOWNLOAD", "").lower() in {"1", "true", "yes"}:
+        return False
+    if Path(model_name).exists():
+        return False
+    cache_home = Path(os.getenv("HF_HOME") or ".cache/huggingface")
+    model_cache_name = f"models--{model_name.replace('/', '--')}"
+    snapshot_root = cache_home / "hub" / model_cache_name / "snapshots"
+    if not snapshot_root.exists():
+        return True
+    return not any(snapshot.glob("config.json") for snapshot in snapshot_root.iterdir() if snapshot.is_dir())
+
+
+def _lexical_terms(text: str) -> List[str]:
+    text = (text or "").lower()
+    latin_terms = [term for term in jieba.cut(text) if len(term.strip()) > 1]
+    cjk_bigrams = [
+        text[index : index + 2]
+        for index in range(max(0, len(text) - 1))
+        if all("\u4e00" <= char <= "\u9fff" for char in text[index : index + 2])
+    ]
+    seen = set()
+    terms = []
+    for term in latin_terms + cjk_bigrams:
+        term = term.strip()
+        if term and term not in seen:
+            terms.append(term)
+            seen.add(term)
+    return terms[:24]
+
+
+def _metadata_text(metadata: Dict[str, Any]) -> str:
+    parts = []
+    for value in (metadata or {}).values():
+        if isinstance(value, list):
+            parts.extend(str(item) for item in value)
+        else:
+            parts.append(str(value))
+    return " ".join(parts)
 
 
 # ==================== Stage 5: 后处理与质量控制 ====================
@@ -668,6 +763,7 @@ class MilvusKBTool:
         embedding_model_name: str = "BAAI/bge-m3",
         reranker_model_name: str = "BAAI/bge-reranker-v2-m3",
         config: Optional[ToolConfig] = None,
+        default_context: Optional[Dict[str, Any]] = None,
     ):
         """
         初始化 Milvus 知识库工具
@@ -682,6 +778,7 @@ class MilvusKBTool:
         """
         self.config = config or ToolConfig(name="milvus_kb")
         self.name = self.config.name
+        self.default_context = default_context or {}
 
         # 连接状态
         self.is_connected = False
@@ -717,7 +814,16 @@ class MilvusKBTool:
         if not self.is_placeholder:
             try:
                 logger.info(f"加载 Embedding 模型: {embedding_model_name}")
-                self.embedding_model = SentenceTransformer(embedding_model_name)
+                from ..services.embedding_provider import load_embedding_model
+
+                vector_dim = 1024
+                try:
+                    vector_fields = [field for field in self.collection.schema.fields if field.name == "vector"]
+                    if vector_fields:
+                        vector_dim = int(vector_fields[0].params.get("dim", vector_dim))
+                except Exception:
+                    pass
+                self.embedding_model = load_embedding_model(embedding_model_name, dim=vector_dim)
                 logger.info("Embedding 模型加载成功")
             except Exception as e:
                 logger.error(f"Embedding 模型加载失败: {e}")
@@ -728,7 +834,7 @@ class MilvusKBTool:
         if not self.is_placeholder:
             self.query_processor = QueryProcessor()
             self.hybrid_retriever = HybridRetriever(self.collection, self.embedding_model)
-            self.coarse_ranker = CoarseRanker(similarity_threshold=0.6)
+            self.coarse_ranker = CoarseRanker(similarity_threshold=0.0 if getattr(self.embedding_model, "is_fallback", False) else 0.6)
             self.reranker = CrossEncoderReranker(model_name=reranker_model_name)
             self.post_processor = PostProcessor(
                 qc_module=SearchQualityControl() if SearchQualityControl else None, dedup_threshold=0.95
@@ -778,6 +884,9 @@ class MilvusKBTool:
             #  v7.141: 添加用户隔离参数到 context
             #  v7.141.2: 添加团队知识库参数
             context = kwargs.get("context", {})
+            merged_context = dict(self.default_context)
+            merged_context.update(context or {})
+            context = merged_context
             context["user_id"] = user_id
             context["team_id"] = team_id  #  v7.141.2
             context["search_scope"] = search_scope
@@ -792,6 +901,10 @@ class MilvusKBTool:
             candidates = self.hybrid_retriever.retrieve(processed_query, top_k=max_results * 5)
             metrics["stage2_time"] = time.time() - t2
             metrics["candidates_count"] = len(candidates)
+
+            if getattr(self.embedding_model, "is_fallback", False):
+                candidates = self._apply_fallback_lexical_filter(processed_query, candidates)
+                metrics["lexical_filtered_count"] = len(candidates)
 
             # Stage 3: 粗排
             t3 = time.time()
@@ -820,6 +933,38 @@ class MilvusKBTool:
         except Exception as e:
             logger.error(f"Milvus 搜索失败: {e}")
             return {"success": False, "error": str(e), "query": query, "results": []}
+
+    def _apply_fallback_lexical_filter(self, processed_query: Dict[str, Any], candidates: List[Dict]) -> List[Dict]:
+        query_terms = _lexical_terms(
+            " ".join(
+                [
+                    processed_query.get("original_query", ""),
+                    " ".join(processed_query.get("keywords", []) or []),
+                ]
+            )
+        )
+        if not query_terms:
+            logger.info(f"Fallback lexical filter: query='{processed_query.get('original_query', '')}' 无有效关键词")
+            return []
+
+        matched = []
+        for doc in candidates:
+            doc_text = " ".join(
+                [
+                    str(doc.get("title", "")),
+                    str(doc.get("content", "")),
+                    _metadata_text(doc.get("metadata", {})),
+                ]
+            ).lower()
+            score = sum(1 for term in query_terms if term in doc_text)
+            if score > 0:
+                doc["lexical_score"] = score
+                matched.append(doc)
+
+        matched.sort(key=lambda item: (item.get("lexical_score", 0), item.get("vector_score", 0)), reverse=True)
+        if not matched:
+            logger.info(f"Fallback lexical filter: query='{processed_query.get('original_query', '')}' 无关键词命中")
+        return matched
 
     def search_for_deliverable(
         self, deliverable: Dict, project_type: str = "", max_results: int = 10, **kwargs
@@ -895,7 +1040,7 @@ class MilvusKBTool:
 
         def milvus_search_func(query: str) -> str:
             """在 Milvus 知识库中搜索相关内容 (6-Stage Deep Pipeline)"""
-            result = self.search_knowledge(query)
+            result = self.search_knowledge(query, context=self.default_context)
             if not result.get("success", False):
                 return f"搜索失败: {result.get('error', 'Unknown error')}"
 

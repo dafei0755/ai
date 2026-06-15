@@ -1,12 +1,12 @@
-"""
-execution/skills/transformation_skills.py — 转换变换技能
+﻿"""
+execution/skills/transformation_skills.py 鈥?杞崲鍙樻崲鎶€鑳?
 
-Copilot 生成（2026-03-22）
+Copilot 鐢熸垚锛?026-03-22锛?
 
-技能列表：
-  - rewrite_outline    (A 类门控)：重写方案大纲/文案框架
-  - map_version_params (A 类门控)：版本参数映射（v1 → v1.1 参数继承）
-  - parse_format       (A 类门控)：解析外部格式（PDF 规范、CAD 属性表）
+鎶€鑳藉垪琛細
+  - rewrite_outline    (A 绫婚棬鎺?锛氶噸鍐欐柟妗堝ぇ绾?鏂囨妗嗘灦
+  - map_version_params (A 绫婚棬鎺?锛氱増鏈弬鏁版槧灏勶紙v1 鈫?v1.1 鍙傛暟缁ф壙锛?
+  - parse_format       (A 绫婚棬鎺?锛氳В鏋愬閮ㄦ牸寮忥紙PDF 瑙勮寖銆丆AD 灞炴€ц〃锛?
 """
 
 from __future__ import annotations
@@ -22,7 +22,7 @@ from intelligent_project_analyzer.workflow.execution.risk_gates import (
 
 
 # ---------------------------------------------------------------------------
-# 结果结构
+# 缁撴灉缁撴瀯
 # ---------------------------------------------------------------------------
 
 
@@ -82,7 +82,7 @@ class ParseFormatResult:
 
 
 # ---------------------------------------------------------------------------
-# 转换技能
+# 杞崲鎶€鑳?
 # ---------------------------------------------------------------------------
 
 
@@ -94,22 +94,18 @@ def rewrite_outline(
     call_counts: Optional[Dict[str, int]] = None,
 ) -> RewriteResult:
     """
-    A 类门控 — 按指令重写方案大纲或文案框架。
+    A 绫婚棬鎺?鈥?鎸夋寚浠ら噸鍐欐柟妗堝ぇ绾叉垨鏂囨妗嗘灦銆?
 
-    参数:
-      original_text       — 待改写的原始文本
-      rewrite_instruction — 改写指令（如 "更简洁，突出成本优先"）
+    鍙傛暟:
+      original_text       鈥?寰呮敼鍐欑殑鍘熷鏂囨湰
+      rewrite_instruction 鈥?鏀瑰啓鎸囦护锛堝 "鏇寸畝娲侊紝绐佸嚭鎴愭湰浼樺厛"锛?
     """
     request = ActionRequest(
         action_name="draft_compile",
         context={"session_id": session_id, "task": "rewrite"},
-        description=f"重写大纲: {rewrite_instruction[:80]}",
+        description=f"閲嶅啓澶х翰: {rewrite_instruction[:80]}",
     )
-    outcome = gate_engine.check(
-        request.action_name,
-        context=request.context,
-        call_counts=call_counts or {},
-    )
+    outcome = gate_engine.check(request, call_counts=call_counts or {})
 
     if not outcome.can_proceed:
         return RewriteResult(
@@ -119,10 +115,10 @@ def rewrite_outline(
         )
 
     logger.info(f"[{session_id}] rewrite_outline: instruction='{rewrite_instruction[:60]}'")
-    # 实际改写由 LLM 层完成；此处返回占位结构
+    # 瀹為檯鏀瑰啓鐢?LLM 灞傚畬鎴愶紱姝ゅ杩斿洖鍗犱綅缁撴瀯
     return RewriteResult(
         original=original_text,
-        rewritten=original_text,  # placeholder — LLM 填充
+        rewritten=original_text,  # placeholder 鈥?LLM 濉厖
         rationale=rewrite_instruction,
     )
 
@@ -137,20 +133,16 @@ def map_version_params(
     call_counts: Optional[Dict[str, int]] = None,
 ) -> VersionMapResult:
     """
-    A 类门控 — 版本参数继承映射。
+    A 绫婚棬鎺?鈥?鐗堟湰鍙傛暟缁ф壙鏄犲皠銆?
 
-    将 from_version 的基础参数与 delta_overrides 合并，生成 to_version 的参数集。
+    灏?from_version 鐨勫熀纭€鍙傛暟涓?delta_overrides 鍚堝苟锛岀敓鎴?to_version 鐨勫弬鏁伴泦銆?
     """
     request = ActionRequest(
         action_name="reasoning_evaluate",
         context={"session_id": session_id, "task": "version_map"},
-        description=f"版本参数映射 {from_version} → {to_version}",
+        description=f"鐗堟湰鍙傛暟鏄犲皠 {from_version} 鈫?{to_version}",
     )
-    outcome = gate_engine.check(
-        request.action_name,
-        context=request.context,
-        call_counts=call_counts or {},
-    )
+    outcome = gate_engine.check(request, call_counts=call_counts or {})
 
     if not outcome.can_proceed:
         return VersionMapResult(
@@ -160,10 +152,10 @@ def map_version_params(
             overridden_params={},
         )
 
-    # 合并：base_params 覆盖写入 delta_overrides
+    # 鍚堝苟锛歜ase_params 瑕嗙洊鍐欏叆 delta_overrides
     inherited = {k: v for k, v in base_params.items() if k not in delta_overrides}
     logger.info(
-        f"[{session_id}] map_version_params: {from_version}→{to_version}, "
+        f"[{session_id}] map_version_params: {from_version} -> {to_version}, "
         f"overrides={list(delta_overrides.keys())}"
     )
     return VersionMapResult(
@@ -182,18 +174,14 @@ def parse_format(
     call_counts: Optional[Dict[str, int]] = None,
 ) -> ParseFormatResult:
     """
-    A 类门控 — 解析外部格式（PDF 规范、CAD 属性表、JSON 摘要等）提取结构化字段。
+    A 绫婚棬鎺?鈥?瑙ｆ瀽澶栭儴鏍煎紡锛圥DF 瑙勮寖銆丆AD 灞炴€ц〃銆丣SON 鎽樿绛夛級鎻愬彇缁撴瀯鍖栧瓧娈点€?
     """
     request = ActionRequest(
         action_name="draft_compile",
         context={"session_id": session_id, "task": "parse"},
-        description=f"格式解析: source_format={source_format}",
+        description=f"鏍煎紡瑙ｆ瀽: source_format={source_format}",
     )
-    outcome = gate_engine.check(
-        request.action_name,
-        context=request.context,
-        call_counts=call_counts or {},
-    )
+    outcome = gate_engine.check(request, call_counts=call_counts or {})
 
     if not outcome.can_proceed:
         return ParseFormatResult(
@@ -203,7 +191,7 @@ def parse_format(
         )
 
     logger.info(f"[{session_id}] parse_format: format={source_format}, len={len(raw_content)}")
-    # 实际解析逻辑由 actions 层完成
+    # 瀹為檯瑙ｆ瀽閫昏緫鐢?actions 灞傚畬鎴?
     return ParseFormatResult(
         source_format=source_format,
         extracted_fields={},

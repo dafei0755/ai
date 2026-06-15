@@ -1,14 +1,14 @@
-"""
-execution/skills/evidence_skills.py — E 类取证技能
+﻿"""
+execution/skills/evidence_skills.py 鈥?E 绫诲彇璇佹妧鑳?
 
-Copilot 生成（2026-03-22）
+Copilot 鐢熸垚锛?026-03-22锛?
 
-技能列表：
-  - web_search        (B 类门控)：广域网搜索，返回摘要片段列表
-  - rag_query         (A 类门控)：私有知识库检索
-  - archive_recall    (A 类门控)：从 ProjectArchive 检索历史决策
+鎶€鑳藉垪琛細
+  - web_search        (B 绫婚棬鎺?锛氬箍鍩熺綉鎼滅储锛岃繑鍥炴憳瑕佺墖娈靛垪琛?
+  - rag_query         (A 绫婚棬鎺?锛氱鏈夌煡璇嗗簱妫€绱?
+  - archive_recall    (A 绫婚棬鎺?锛氫粠 ProjectArchive 妫€绱㈠巻鍙插喅绛?
 
-所有技能在执行前必须通过 RiskGateEngine.check()，blocked 时直接返回空结果。
+鎵€鏈夋妧鑳藉湪鎵ц鍓嶅繀椤婚€氳繃 RiskGateEngine.check()锛宐locked 鏃剁洿鎺ヨ繑鍥炵┖缁撴灉銆?
 """
 
 from __future__ import annotations
@@ -25,12 +25,12 @@ from intelligent_project_analyzer.workflow.execution.risk_gates import (
 
 
 # ---------------------------------------------------------------------------
-# 结果数据结构
+# 缁撴灉鏁版嵁缁撴瀯
 # ---------------------------------------------------------------------------
 
 
 class SearchResult:
-    """web_search 返回结果"""
+    """web_search 杩斿洖缁撴灉"""
 
     def __init__(
         self,
@@ -56,7 +56,7 @@ class SearchResult:
 
 
 class RAGResult:
-    """rag_query 返回结果"""
+    """rag_query 杩斿洖缁撴灉"""
 
     def __init__(
         self,
@@ -79,7 +79,7 @@ class RAGResult:
 
 
 class ArchiveRecallResult:
-    """archive_recall 返回结果"""
+    """archive_recall 杩斿洖缁撴灉"""
 
     def __init__(
         self,
@@ -99,7 +99,7 @@ class ArchiveRecallResult:
 
 
 # ---------------------------------------------------------------------------
-# 取证技能
+# 鍙栬瘉鎶€鑳?
 # ---------------------------------------------------------------------------
 
 
@@ -111,26 +111,22 @@ def web_search(
     config: Optional[Dict[str, Any]] = None,
 ) -> SearchResult:
     """
-    B 类门控 — 广域网搜索。
+    B 绫婚棬鎺?鈥?骞垮煙缃戞悳绱€?
 
-    gate_engine 必须在调用前已初始化（由 ExecutionOrchestrator 传入）。
-    实际网络请求由 actions.search_actions.search_web_action 完成，
-    本函数仅负责门控 + 结果封装。
+    gate_engine 蹇呴』鍦ㄨ皟鐢ㄥ墠宸插垵濮嬪寲锛堢敱 ExecutionOrchestrator 浼犲叆锛夈€?
+    瀹為檯缃戠粶璇锋眰鐢?actions.search_actions.search_web_action 瀹屾垚锛?
+    鏈嚱鏁颁粎璐熻矗闂ㄦ帶 + 缁撴灉灏佽銆?
     """
     request = ActionRequest(
         action_name="search_web",
         context={"session_id": session_id},
-        description=f"广域网搜索: {query[:80]}",
+        description=f"骞垮煙缃戞悳绱? {query[:80]}",
     )
-    outcome = gate_engine.check(
-        request.action_name,
-        context=request.context,
-        call_counts=call_counts or {},
-    )
+    outcome = gate_engine.check(request, call_counts=call_counts or {})
 
     if not outcome.can_proceed:
         logger.warning(
-            f"[{session_id}] web_search 被门控阻断: {outcome.block_reason}"
+            f"[{session_id}] web_search 琚棬鎺ч樆鏂? {outcome.block_reason}"
         )
         return SearchResult(
             query=query,
@@ -139,9 +135,9 @@ def web_search(
             block_reason=outcome.block_reason or "gate_blocked",
         )
 
-    # 实际搜索（Phase E-3 actions 层实现，此处为 stub）
+    # 瀹為檯鎼滅储锛圥hase E-3 actions 灞傚疄鐜帮紝姝ゅ涓?stub锛?
     logger.info(f"[{session_id}] web_search: {query[:80]}")
-    snippets: List[Dict[str, str]] = []  # action 层将在此填充
+    snippets: List[Dict[str, str]] = []  # action 灞傚皢鍦ㄦ濉厖
     return SearchResult(query=query, snippets=snippets)
 
 
@@ -153,27 +149,23 @@ def rag_query(
     call_counts: Optional[Dict[str, int]] = None,
 ) -> RAGResult:
     """
-    A 类门控 — 私有知识库检索。
+    A 绫婚棬鎺?鈥?绉佹湁鐭ヨ瘑搴撴绱€?
 
-    不阻塞，但记录审计留痕。
+    涓嶉樆濉烇紝浣嗚褰曞璁＄暀鐥曘€?
     """
     request = ActionRequest(
         action_name="query_knowledge_base",
         context={"session_id": session_id},
-        description=f"RAG 检索: {query[:80]}",
+        description=f"RAG 妫€绱? {query[:80]}",
     )
-    outcome = gate_engine.check(
-        request.action_name,
-        context=request.context,
-        call_counts=call_counts or {},
-    )
+    outcome = gate_engine.check(request, call_counts=call_counts or {})
 
     if not outcome.can_proceed:
-        logger.warning(f"[{session_id}] rag_query 被门控阻断")
+        logger.warning(f"[{session_id}] rag_query gate blocked")
         return RAGResult(query=query, passages=[], blocked=True)
 
     logger.info(f"[{session_id}] rag_query: {query[:80]}, filters={filters}")
-    passages: List[Dict[str, Any]] = []  # action 层填充
+    passages: List[Dict[str, Any]] = []  # action 灞傚～鍏?
     return RAGResult(query=query, passages=passages)
 
 
@@ -185,18 +177,14 @@ def archive_recall(
     call_counts: Optional[Dict[str, int]] = None,
 ) -> ArchiveRecallResult:
     """
-    A 类门控 — 从 ProjectArchive 检索历史决策/审查留痕。
+    A 绫婚棬鎺?鈥?浠?ProjectArchive 妫€绱㈠巻鍙插喅绛?瀹℃煡鐣欑棔銆?
     """
     request = ActionRequest(
         action_name="query_knowledge_base",
         context={"session_id": session_id, "source": "archive"},
-        description=f"档案回溯: {keyword[:80]}",
+        description=f"妗ｆ鍥炴函: {keyword[:80]}",
     )
-    outcome = gate_engine.check(
-        request.action_name,
-        context=request.context,
-        call_counts=call_counts or {},
-    )
+    outcome = gate_engine.check(request, call_counts=call_counts or {})
 
     if not outcome.can_proceed:
         return ArchiveRecallResult(session_id=session_id, matched_records=[])
@@ -204,7 +192,7 @@ def archive_recall(
     if not archive_raw:
         return ArchiveRecallResult(session_id=session_id, matched_records=[])
 
-    # 简单关键词过滤历史决策记录
+    # 绠€鍗曞叧閿瘝杩囨护鍘嗗彶鍐崇瓥璁板綍
     matched: List[Dict[str, Any]] = []
     for record in archive_raw.get("decision_records", []):
         rec_str = str(record)

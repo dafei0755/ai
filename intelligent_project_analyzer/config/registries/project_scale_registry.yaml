@@ -1,0 +1,146 @@
+# =============================================================================
+# Project Scale Registry  (v1.8 §7.3 项目尺度 canonical 枚举)
+# =============================================================================
+# 职责: 9 档 project_scale canonical 枚举
+#       = spatial_extent × lifecycle 笛卡尔积的有效组合
+# 唯一维护入口: 本文件
+# 消费者:
+#   - SpaceClassificationService 合成 project_scale (最终输出)
+#   - 任务书生成器选择 rendering_profile
+#   - OntologyLoader 决定激活哪些 spatial_layer
+#
+# 注意:
+#   1. detector 只输出 spatial_extent / lifecycle 候选, 不直接合成 project_scale
+#   2. SpaceClassificationService 用本表做合成与校验
+#   3. 非 canonical 组合 (如 site × renovation) 被拒绝, 提示更高优先组合
+# =============================================================================
+
+schema_version: project_scale_registry.v1.8
+owner: core_team
+review_status: approved
+last_updated: 2026-05-20
+
+# 合成规则: SpaceClassificationService 按以下顺序消费
+synthesis_rule:
+  formula: project_scale = canonical_lookup(spatial_extent, lifecycle)
+  fallback_priority:
+    # 当输入只有 spatial_extent 没有 lifecycle 时, 选用此 lifecycle 兜底
+    interior: fitout
+    building: renovation
+    site: newbuild
+    cluster: newbuild
+    district: adaptive_reuse
+    regional: newbuild
+  unsupported_action: ask_clarification_before_subdomain_activation
+
+# Canonical project_scale 枚举
+items:
+  interior_fitout:
+    name_cn: 室内装修
+    spatial_extent: interior
+    lifecycle: fitout
+    status: active_mvp
+    ontology_action: |
+      激活室内层对象、运营节点、行为节点、机电消防风险提示
+    default_spatial_layer_ids:
+      - interior_layer
+
+  interior_renovation:
+    name_cn: 室内改造
+    spatial_extent: interior
+    lifecycle: renovation
+    status: active_light
+    ontology_action: |
+      激活室内层对象, 并提示原建筑、机电、消防条件
+    default_spatial_layer_ids:
+      - interior_layer
+
+  interior_temporary:
+    name_cn: 室内临时 / 快闪
+    spatial_extent: interior
+    lifecycle: temporary
+    status: active_light
+    ontology_action: |
+      激活室内层对象, 并突出临时搭建、撤场、峰值动线与可拆卸设备风险
+    default_spatial_layer_ids:
+      - interior_layer
+
+  building_renovation:
+    name_cn: 建筑改造
+    spatial_extent: building
+    lifecycle: renovation
+    status: reserved_light
+    ontology_action: |
+      预留建筑层、结构、外立面、入口、室内外连续性
+    default_spatial_layer_ids:
+      - interior_layer
+      - building_layer
+
+  building_newbuild:
+    name_cn: 新建建筑
+    spatial_extent: building
+    lifecycle: newbuild
+    status: reserved
+    ontology_action: |
+      预留建筑主导逻辑, 不在 MVP 展开
+    default_spatial_layer_ids:
+      - building_layer
+      - interior_layer
+
+  building_adaptive_reuse:
+    name_cn: 建筑活化
+    spatial_extent: building
+    lifecycle: adaptive_reuse
+    status: reserved
+    ontology_action: |
+      预留遗存改造逻辑
+    default_spatial_layer_ids:
+      - building_layer
+      - interior_layer
+
+  site_landscape:
+    name_cn: 场地景观
+    spatial_extent: site
+    lifecycle: newbuild
+    status: reserved
+    ontology_action: |
+      预留场地与景观层逻辑
+    default_spatial_layer_ids:
+      - site_layer
+      - landscape_layer
+
+  cluster_planning:
+    name_cn: 建筑群 / 园区
+    spatial_extent: cluster
+    lifecycle: newbuild
+    status: reserved
+    ontology_action: |
+      预留多建筑、园区、运营与动线协同
+    default_spatial_layer_ids:
+      - site_layer
+      - building_layer
+      - interior_layer
+      - landscape_layer
+
+  district_renewal:
+    name_cn: 街区 / 城市更新
+    spatial_extent: district
+    lifecycle: adaptive_reuse
+    status: reserved
+    ontology_action: |
+      预留城市更新、公共空间、社区治理
+    default_spatial_layer_ids:
+      - site_layer
+      - building_layer
+      - landscape_layer
+
+  regional_strategy:
+    name_cn: 区域 / 文旅 / 产业规划
+    spatial_extent: regional
+    lifecycle: newbuild
+    status: reserved
+    ontology_action: |
+      预留区域级策划与产业逻辑
+    default_spatial_layer_ids:
+      - site_layer
+      - landscape_layer

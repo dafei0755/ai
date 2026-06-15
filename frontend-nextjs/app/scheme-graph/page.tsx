@@ -5,14 +5,40 @@
 
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { Suspense, useEffect, useRef } from 'react';
+import dynamic from 'next/dynamic';
 import { useSearchParams } from 'next/navigation';
 import { GitBranch, X } from 'lucide-react';
-import { SchemeGraph } from '@/components/SchemeGraph';
 import { useGraphStore, GraphHint } from '@/store/graphStore';
 import type { GraphNode, GraphEdge } from '@/store/graphStore';
 
+const SchemeGraph = dynamic(
+  () => import('@/components/SchemeGraph').then((module) => module.SchemeGraph),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex h-full w-full items-center justify-center text-sm text-[var(--foreground-secondary)]">
+        正在加载方案图谱...
+      </div>
+    ),
+  },
+);
+
 export default function SchemeGraphPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex h-screen w-screen items-center justify-center bg-[var(--background)] text-sm text-[var(--foreground-secondary)]">
+          正在加载方案图谱观察屏...
+        </div>
+      }
+    >
+      <SchemeGraphPageContent />
+    </Suspense>
+  );
+}
+
+function SchemeGraphPageContent() {
   const searchParams = useSearchParams();
   const sessionId    = searchParams.get('session') ?? undefined;
   const channelRef   = useRef<BroadcastChannel | null>(null);

@@ -399,6 +399,7 @@ class FallbackLLM:
         max_tokens: int = None,
         timeout: int = None,
         max_retries: int = None,
+        llm_instances: dict | None = None,
         **kwargs
     ):
         """初始化降级 LLM"""
@@ -408,6 +409,13 @@ class FallbackLLM:
         self.timeout = timeout
         self.max_retries = max_retries
         self.kwargs = kwargs
+
+        if llm_instances is not None:
+            self.llm_instances = dict(llm_instances)
+            if not self.llm_instances:
+                raise RuntimeError(f"无法创建任何 LLM 实例: {providers}")
+            logger.info(f" 降级链就绪: {' -> '.join(self.llm_instances.keys())}")
+            return
         
         # 预创建所有 LLM 实例
         self.llm_instances = {}

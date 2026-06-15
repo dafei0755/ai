@@ -1,0 +1,710 @@
+# =============================================================================
+# Boundary Cases  ⭐ 空间分类的"歧义判断协议"
+# =============================================================================
+#
+# 一句话: 当 detector 同时命中 2 个或以上 project_type 候选,
+#         本文件提供"该选哪个 / 是否需要澄清"的协议。
+#
+# -----------------------------------------------------------------------------
+# 【为什么需要本文件】
+# -----------------------------------------------------------------------------
+# 关键词分类有天然边界冲突 — 比如:
+#   "民宿集群" 同时是 rural_construction + commercial_hospitality
+#   "工业遗存" 同时是 urban_renewal_heritage + industrial_conversion
+#   "养老社区" 同时是 healthcare_wellness + community_public
+#
+# 单纯靠"哪个 type 的关键词命中多就选哪个" 在这些场景下不可靠。
+# 本文件让 detector 命中 boundary_keyword 时, **不直接加分**, 而触发本协议:
+#   1. 比对两个候选 type 各自的 strong_signals 谁更强
+#   2. 输出 boundary_case_ids (让 SpaceClassificationService 后续处理)
+#   3. 必要时由 SpaceClassificationService 取 clarification_questions
+#      生成 ClarificationRequest 让用户澄清
+#
+# -----------------------------------------------------------------------------
+# 【与 PROJECT_TYPE_REGISTRY 的事实源边界】
+# -----------------------------------------------------------------------------
+# 本文件内的 strong_signals 字段**仅作 boundary 判别引用**,
+# 不是 keywords 的事实源。
+# 真正的 project_type keywords 仍在 project_type_detector.py::PROJECT_TYPE_REGISTRY。
+# 本文件改动不影响 detector 主检测算法, 仅影响 boundary 触发后的二次判断。
+#
+# -----------------------------------------------------------------------------
+# 【schema v2.0 说明】
+# -----------------------------------------------------------------------------
+# v2.0 升级 (v1.9 配套):
+#   - boundary_keywords (新增): 触发本 case 的关键词清单
+#   - primary_preference_rules (新增): 每个 type 的 strong_signals (倾向证据)
+#   - risk_keywords (保留): 兼容 v1, 不再是新协议主字段
+#
+# 数量: 7 → 20 个 case (新增 13 个高风险边界对)
+# =============================================================================
+
+schema_version: boundary_cases.v2.0
+version: "2026.05.v2"
+description: "High-risk spatial classification boundary cases (v2.0 with primary_preference_rules)"
+owner: core_team
+review_status: approved
+last_updated: 2026-05-20
+
+cases:
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # 一、住宿与生活类边界 (4)
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  hospitality_vs_residential:
+    types: [commercial_hospitality, personal_residential]
+    boundary_keywords:
+      - 像家
+      - 居家感
+      - 生活方式酒店
+      - 长住公寓
+      - 度假宅
+    risk_keywords: ["像家", "居家感", "生活方式", "客厅", "卧室", "温暖"]
+    decision_axis:
+      - success_standard
+      - primary_user
+      - usage_duration
+      - operation_logic
+    primary_preference_rules:
+      commercial_hospitality:
+        strong_signals: [客房, 入住, 房态, OTA, 前台, 管家, 客单价, 度假定位, 短住]
+      personal_residential:
+        strong_signals: [自住, 私宅, 家人, 长期居住, 户型, 业主]
+    clarification_questions:
+      - "这个空间主要服务短住客人，还是长期家庭生活？"
+      - "项目最怕失败在住宿体验和运营，还是家庭日常不舒适？"
+    risks:
+      as_residential: "会忽略客群旅程、公私分区和运营弹性。"
+      as_hospitality: "会过度商业化，弱化长期生活细节。"
+
+  hospitality_vs_hybrid_residential_commercial:
+    types: [commercial_hospitality, hybrid_residential_commercial]
+    boundary_keywords:
+      - 公寓酒店
+      - 服务式公寓
+      - 酒店式公寓
+      - 品牌公寓
+      - 雅诗阁
+      - 辉盛阁
+      - 馨乐庭
+      - 长租公寓
+    decision_axis:
+      - short_stay_vs_long_stay
+      - hotel_operation_vs_residential_lease
+      - service_intensity
+    primary_preference_rules:
+      commercial_hospitality:
+        strong_signals: [客房, 房态, 短住, 度假, 前台, 房价, OTA, 入住体验]
+      hybrid_residential_commercial:
+        strong_signals: [长租, 长期居住, 商业配套, 住商一体, 居住兼经营, 上下分层]
+    clarification_questions:
+      - "这个项目主要是短住经营，还是长期居住+商业服务复合？"
+      - "首要锁定的是房态/OTA 房价管理，还是长租合同和居住功能？"
+    risks:
+      as_hospitality: "会用酒店运营逻辑套用长租公寓, 忽略居家收纳和长期生活。"
+      as_hybrid: "会低估短住客群旅程和品牌服务体系。"
+
+  hospitality_vs_rural_construction:
+    types: [commercial_hospitality, rural_construction]
+    boundary_keywords:
+      - 民宿集群
+      - 乡村民宿
+      - 山地民宿集群
+      - 村庄度假
+      - 民宿聚落
+    risk_keywords: ["乡村", "村庄", "村民", "乡建", "乡村振兴", "共创", "村集体"]
+    decision_axis:
+      - lodging_operation_vs_public_value
+      - tourist_vs_community_primary_user
+      - governance_structure
+      - private_operator_vs_village_collective
+    primary_preference_rules:
+      commercial_hospitality:
+        strong_signals: [客房, 入住, 房态, OTA, 前台, 管家, 客单价, 度假品牌, 房价]
+      rural_construction:
+        strong_signals: [乡村振兴, 村集体, 村民, 村民共创, 产业导入, 公共空间, 农文旅, 在地农耕]
+    clarification_questions:
+      - "项目成败主要取决于住宿经营，还是村庄整体更新与公共性？"
+      - "主要服务对象是游客，还是村民/村集体/地方产业共同体？"
+    risks:
+      as_hospitality: "可能低估村民关系、公共性和产业联动。"
+      as_rural_construction: "可能稀释住宿产品、客群旅程和运营回报。"
+
+  hospitality_vs_healthcare:
+    types: [commercial_hospitality, healthcare_wellness]
+    boundary_keywords:
+      - 疗愈酒店
+      - 康养度假
+      - 度假疗愈
+      - 健康度假村
+      - 温泉康养
+    risk_keywords: ["疗愈", "康养", "修复", "冥想", "理疗", "健康餐", "泡汤", "康复"]
+    decision_axis:
+      - stay_experience_vs_care_result
+      - medical_or_care_process
+      - safety_and_accessibility_level
+    primary_preference_rules:
+      commercial_hospitality:
+        strong_signals: [客房, 入住, OTA, 度假定位, 房价, 前台]
+      healthcare_wellness:
+        strong_signals: [医疗资质, 护理动线, 康复, 临终关怀, 治疗流程, 医生, 病房]
+    clarification_questions:
+      - "这个项目的主要成功标准是度假停留体验，还是康复照护结果？"
+      - "是否涉及医疗资质、治疗流程、护理关系或持续健康管理？"
+    risks:
+      as_hospitality: "可能低估安全、照护、流程、伦理和技术支持。"
+      as_healthcare: "可能过度制度化，压缩度假体验和情绪修复。"
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # 二、改造与更新类边界 (3) — 关键泛词"改造/活化/再生"
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  urban_renewal_heritage_vs_industrial_conversion:
+    types: [urban_renewal_heritage, industrial_conversion]
+    boundary_keywords:
+      - 工业遗存
+      - 工业遗址
+      - 废弃工厂
+      - 老厂房
+      - 旧厂区
+      - 粮仓改造
+      - 旧码头
+    decision_axis:
+      - cultural_memory_vs_production_function
+      - exhibition_vs_office_production
+      - heritage_protection_level
+    primary_preference_rules:
+      urban_renewal_heritage:
+        strong_signals: [文物保护, 历史建筑, 文化记忆, 展览, 美术馆, 文创, 街区肌理, 真实性, 民国, 历史风貌]
+      industrial_conversion:
+        strong_signals: [产业园, 创意园, 厂房办公, 工厂改造办公, 生产, 物流, 仓储, 大跨度]
+    clarification_questions:
+      - "项目主要追求历史文化活化和展览价值，还是生产+办公的功能转型？"
+      - "建筑本身有文物保护级别 / 历史风貌要求吗？"
+    risks:
+      as_heritage: "会过度保护, 压缩新的生产/办公功能空间。"
+      as_industrial: "会用产业园逻辑套用, 破坏文化记忆与历史肌理。"
+
+  renovation_vs_residential:
+    types: [residential_renovation, personal_residential]
+    boundary_keywords:
+      - 旧宅
+      - 老房
+      - 翻新
+      - 改造
+      - 二手房
+      - 原始格局
+      - 老破小
+    risk_keywords: ["旧宅", "老房", "翻新", "改造", "二手房", "原始格局"]
+    decision_axis:
+      - existing_condition_vs_lifestyle
+      - structural_boundary
+      - equipment_upgrade
+    primary_preference_rules:
+      residential_renovation:
+        strong_signals: [二手房, 老房改造, 拆改, 承重墙, 原有管线, 老破小, 房龄, 翻新]
+      personal_residential:
+        strong_signals: [新房装修, 婚房, 大平层, 私宅, 别墅, 户型, 业主, 自住]
+    clarification_questions:
+      - "这个项目的第一边界是家庭生活方式，还是原始格局/结构/设备条件？"
+      - "是否存在承重、管线、设备或拆改限制？"
+    risks:
+      as_residential: "可能过度理想化布局，低估拆改和施工代价。"
+      as_renovation: "可能过度保守，弱化新的生活方式组织。"
+
+  urban_renewal_market_vs_commercial_retail:
+    types: [urban_renewal_market, commercial_retail]
+    boundary_keywords:
+      - 菜市场改造
+      - 老百货改造
+      - 商业街区升级
+      - 综合体改造
+      - 业态重组
+      - 商业更新
+    decision_axis:
+      - public_livelihood_vs_commercial_revenue
+      - civic_value_vs_retail_efficiency
+      - state_driven_vs_market_driven
+    primary_preference_rules:
+      urban_renewal_market:
+        strong_signals: [城市更新, 政府主导, 公共市场, 民生, 老居民, 渔村文化, 蛇口, 公共客厅, 微更新]
+      commercial_retail:
+        strong_signals: [坪效, 招商, 租金, 客流, 业态组合, 主力店, 主次主力, 夜经济, 生活方式中心]
+    clarification_questions:
+      - "项目首要目标是公共民生价值，还是商业运营效率与坪效？"
+      - "决策主体是政府/财政，还是商业地产业主？"
+    risks:
+      as_market: "会低估商业可持续性, 长期靠财政补贴。"
+      as_retail: "会过度商业化, 排斥老居民和民生属性。"
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # 三、办公与企业类边界 (2)
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  office_vs_commercial_enterprise:
+    types: [commercial_office, commercial_enterprise]
+    boundary_keywords:
+      - 总部
+      - 全球总部
+      - 亚太总部
+      - 总部大楼
+      - 接待中心
+      - 企业展示
+    decision_axis:
+      - employee_efficiency_vs_visitor_perception
+      - internal_collaboration_vs_external_reception
+      - office_space_vs_brand_showcase
+    primary_preference_rules:
+      commercial_office:
+        strong_signals: [员工, 工位, 会议室, 协作动线, 研发, 工程师, 行为热力图, 团队]
+      commercial_enterprise:
+        strong_signals: [接待动线, 客户接待, 投资人, 高净值会客, 行政会所, VIP, 圈层, 权力感]
+    clarification_questions:
+      - "这个总部的首要功能是员工日常办公协作，还是高层接待与品牌展示？"
+      - "面积占比上, 办公区/研发区 vs 接待区/展厅 哪个更大？"
+    risks:
+      as_office: "会低估高层接待峰值和品牌叙事节奏。"
+      as_enterprise: "会低估员工日常使用和长期组织效率。"
+
+  office_vs_brand_experience:
+    types: [commercial_office, brand_experience]
+    boundary_keywords:
+      - 总部展厅
+      - 体验中心
+      - 客户接待
+      - 企业展示
+      - 发布
+    risk_keywords: ["总部", "展厅", "体验中心", "客户接待", "企业展示", "发布"]
+    decision_axis:
+      - employee_work_efficiency_vs_visitor_perception
+      - internal_user_vs_external_visitor
+    primary_preference_rules:
+      commercial_office:
+        strong_signals: [员工, 工位, 会议室, 协作, 工作日, 团队]
+      brand_experience:
+        strong_signals: [品牌叙事, 沉浸式, 体验路径, 旗舰店, 打卡, 销售转化, 互动装置]
+    clarification_questions:
+      - "这个空间主要服务员工协作效率，还是外部访客的品牌感知？"
+      - "首先必须冻结的是组织工作方式，还是参观与展示路径？"
+    risks:
+      as_office: "可能低估访客体验峰值和品牌叙事节奏。"
+      as_brand_experience: "可能低估长期办公效率、会议系统和员工使用。"
+
+  office_industry_legal_vs_ai:
+    project_type_scope: commercial_office
+    industry_pairs:
+      - [legal_service, technology_ai]
+      - [legal_service, financial_service]
+    boundary_keywords:
+      - 律所
+      - 法律咨询
+      - 算法
+      - 研发中心
+      - 数据安全
+      - 保密
+    risk_keywords: [保密, 会议, 协作, 风控, 合规, 研发]
+    decision_axis:
+      - confidentiality_hierarchy_vs_high_collaboration
+      - case_archive_path_vs_engineering_iteration_path
+      - client_consultation_vs_team_development
+    clarification_questions:
+      - "该办公空间以高保密法律咨询为主，还是以高协作研发迭代为主？"
+      - "核心约束是卷宗/会谈保密，还是研发协作密度与设备散热？"
+    risks:
+      as_legal_service: "会把研发组织误建为封闭保密空间，压缩协作效率。"
+      as_technology_ai: "会忽视会谈保密、档案安全和客户分级接待。"
+
+  retail_industry_eyewear_vs_fashion:
+    project_type_scope: commercial_retail
+    industry_pairs:
+      - [eyewear_optical, retail_apparel_luxury]
+      - [eyewear_optical, healthcare_medical]
+    boundary_keywords:
+      - 眼镜店
+      - 视光
+      - 验光
+      - 奢侈品
+      - 试戴
+      - 精品店
+    risk_keywords: [试戴, 验配, 隐私, 陈列, 转化, 咨询]
+    decision_axis:
+      - professional_optical_service_vs_fashion_display
+      - diagnosis_consultation_path_vs_merchandising_path
+      - privacy_care_vs_open_retail_experience
+    clarification_questions:
+      - "该零售项目是否包含验光/验配等专业服务流程？"
+      - "核心目标是专业视光服务可信度，还是时尚陈列与品牌转化？"
+    risks:
+      as_eyewear_optical: "会过度医疗化普通时尚零售，降低开放体验。"
+      as_retail_apparel_luxury: "会忽视视光咨询隐私与专业设备区需求。"
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # 四、展示与文化类边界 (3)
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  public_cultural_vs_commercial_enterprise:
+    types: [public_cultural, commercial_enterprise]
+    boundary_keywords:
+      - 展示馆
+      - 展示中心
+      - 体验馆
+      - 氢能展示馆
+      - 城市形象展示中心
+      - 企业文化馆
+    decision_axis:
+      - public_education_vs_corporate_showcase
+      - audience_general_public_vs_invited_guests
+      - non_profit_vs_commercial_value
+    primary_preference_rules:
+      public_cultural:
+        strong_signals: [博物馆, 美术馆, 公教, 公众参观, 馆藏, 文物, 学术交流, 非营利, 文化地标]
+      commercial_enterprise:
+        strong_signals: [企业总部, 投资人接待, 客户接待, 企业实力展示, 战略发布, 行政会所]
+    clarification_questions:
+      - "这个展示空间的主要受众是普通公众, 还是受邀客户/投资人?"
+      - "目标是公共教育/文化传播, 还是企业战略/品牌价值表达?"
+    risks:
+      as_public_cultural: "会用公教逻辑套用企业展示, 模糊投资价值表达。"
+      as_enterprise: "会过度封闭, 失去公共性和文化普及价值。"
+
+  public_cultural_vs_brand_experience:
+    types: [public_cultural, brand_experience]
+    boundary_keywords:
+      - 沉浸式体验馆
+      - 行为经济学体验馆
+      - 主题体验馆
+      - 文化品牌馆
+      - IP馆
+    decision_axis:
+      - cultural_value_vs_commercial_branding
+      - public_audience_vs_consumer_audience
+      - non_profit_vs_retail_conversion
+    primary_preference_rules:
+      public_cultural:
+        strong_signals: [博物馆, 美术馆, 公教, 公众参观, 文物, 文化地标, 学术]
+      brand_experience:
+        strong_signals: [品牌叙事, 旗舰店, 打卡, 销售转化, 互动装置, 消费场景, 沉浸式品牌]
+    clarification_questions:
+      - "项目首要追求文化传播教育价值, 还是品牌认知与商业转化?"
+      - "门票/参观免费 vs 消费/会员制?"
+    risks:
+      as_public_cultural: "会低估商业转化和品牌叙事, 项目自负盈亏困难。"
+      as_brand_experience: "会过度商业化, 弱化公共教育价值。"
+
+  educational_facility_vs_public_cultural:
+    types: [educational_facility, public_cultural]
+    boundary_keywords:
+      - 图书馆
+      - 学习中心
+      - 研学基地
+      - 阅读空间
+      - 城市书房
+      - 未来学习中心
+    decision_axis:
+      - formal_teaching_vs_public_culture
+      - in_campus_vs_open_to_city
+      - curriculum_driven_vs_event_driven
+    primary_preference_rules:
+      educational_facility:
+        strong_signals: [校园, 学校, 教学楼, 学生, 课程, 学院, 大学, 国际学校]
+      public_cultural:
+        strong_signals: [城市书房, 博物馆, 公共文化, 文化地标, 馆藏, 公教, 公众参观, 非营利]
+    clarification_questions:
+      - "这个图书馆是校园内教学配套, 还是面向城市公众的公共文化设施?"
+      - "运营驱动力是课程体系, 还是公教活动与文化节庆?"
+    risks:
+      as_educational: "会低估公众访客和文化活动需求。"
+      as_public_cultural: "会低估学生使用和课程配套。"
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # 五、医疗与社区类边界 (2)
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  healthcare_vs_community_public:
+    types: [healthcare_wellness, community_public]
+    boundary_keywords:
+      - 养老社区
+      - AI陪伴养老社区
+      - 高端养老社区
+      - 银发驿站
+      - 长者中心
+      - 社区康养
+    decision_axis:
+      - medical_care_vs_social_service
+      - health_outcome_vs_community_engagement
+      - clinical_staff_vs_social_workers
+    primary_preference_rules:
+      healthcare_wellness:
+        strong_signals: [护理, 医生, 康复, 医疗资质, 长期照护, 临终关怀, 失能, 治疗]
+      community_public:
+        strong_signals: [社区活动, 社区服务, 再就业, 公共活动, 民生, 公益, 政府主导, 社区中心]
+    clarification_questions:
+      - "项目主要追求医疗照护结果, 还是社区社交与公共服务?"
+      - "运营方是医疗机构, 还是民政/社区/政府?"
+    risks:
+      as_healthcare: "会过度医疗化, 压缩老人社交需求和尊严感。"
+      as_community: "会低估医疗资质、护理流程和安全等级。"
+
+  personal_residential_vs_public_housing_planning:
+    types: [personal_residential, community_public, rural_construction, healthcare_wellness, special_function]
+    allow_primary_from_boundary_signals: true
+    minimum_primary_signal_hits: 2
+    boundary_keywords:
+      - 政府主导
+      - 地方政府
+      - 保障性住房
+      - 住房项目
+      - 住宅产品
+      - 住宅产品结构
+      - 康养小镇
+      - 文明重启样板住宅
+      - 样板住宅
+      - 未来城市
+      - 社会基础生活单元
+      - 乡村人才回流计划
+      - 青年返乡
+    decision_axis:
+      - private_home_vs_public_policy_product
+      - household_living_vs_site_scale_planning
+      - private_owner_vs_public_operator
+    primary_preference_rules:
+      personal_residential:
+        strong_signals: [个人业主, 私人住宅, 自住, 私宅, 家中, 家人日常, 主卧, 家庭成员]
+      community_public:
+        strong_signals: [政府主导, 地方政府, 保障性住房, 低收入家庭, 民生, 室内标准, 标准化模块, 公共服务]
+      rural_construction:
+        strong_signals: [乡村人才回流计划, 青年返乡, 自建房, 乡村现代生活方式, 返乡, 乡村振兴]
+      healthcare_wellness:
+        strong_signals: [康养小镇, 医疗资源, 60岁以上, 康养, 养老, 慢行系统, 景观疗愈, 中高净值人群]
+      special_function:
+        strong_signals: [未来城市, 文明重启, 极端灾难, 快速重建, 社会基础生活单元, 模块化扩展, 社区协作]
+    clarification_questions:
+      - "这个问题是在做私人住宅方案, 还是在制定公共住房、康养社区或城市级产品策略?"
+      - "真正的决策主体是家庭业主, 还是政府/开发方/运营方?"
+    risks:
+      as_residential: "会把公共政策、社区运营或规划尺度误压成单户家庭装修逻辑。"
+      as_public_or_planning: "会忽略真实住户的日常尊严、隐私和可维护成本。"
+
+  personal_residential_vs_healthcare_wellness:
+    types: [personal_residential, healthcare_wellness]
+    boundary_keywords:
+      - 无障碍住宅
+      - 全屋无障碍
+      - 适老化住宅
+      - 过敏儿童卧室
+      - 医疗级新风住宅
+      - 住宅
+      - 家庭结构
+      - 自闭症儿童
+      - 感统训练空间
+      - 卧室
+      - 儿童房
+      - 儿童卧室
+      - 低敏
+      - 无敏
+      - 空气净化系统
+      - 不能显得像病房
+      - 意识研究住宅
+    decision_axis:
+      - residential_form_vs_medical_function
+      - business_owner_vs_clinical_operator
+      - lifestyle_vs_treatment_protocol
+    primary_preference_rules:
+      personal_residential:
+        strong_signals: [自住, 业主, 私宅, 家庭, 家庭结构, 户型, 住宅, 家中, 卧室, 儿童房, 儿童卧室, 长期居住, 改善型]
+      healthcare_wellness:
+        strong_signals: [医疗机构, 医生, 问诊, 治疗, 治疗流程, 临床, 病房, 医疗资质]
+    clarification_questions:
+      - "这个项目是带医疗适配的私人住宅, 还是医疗机构的康养业务?"
+      - "决策方是业主家庭, 还是医疗机构经营方?"
+    risks:
+      as_residential: "会低估医疗安全标准与护理动线。"
+      as_healthcare: "会过度临床化, 失去家庭温度与居住舒适。"
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # 六、餐饮与功能类边界 (3)
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  commercial_dining_vs_special_function:
+    types: [commercial_dining, special_function]
+    boundary_keywords:
+      - 茶室
+      - 茶道空间
+      - 极致茶室
+      - 私人茶室
+      - 私人会客茶室
+    decision_axis:
+      - commercial_operation_vs_private_function
+      - revenue_vs_personal_ritual
+      - menu_driven_vs_ceremony_driven
+    primary_preference_rules:
+      commercial_dining:
+        strong_signals: [营业, 经营, 客单价, 客流, 出杯, 翻台, 招商, 门店]
+      special_function:
+        strong_signals: [私人, 自用, 业主茶室, 家庭茶室, 仪式, 私密, 独立功能房]
+    clarification_questions:
+      - "这个茶室是对外经营的店铺, 还是业主家中或私人会客的独立功能房?"
+      - "运营方是商家, 还是业主自用 / 私人邀约?"
+    risks:
+      as_commercial_dining: "会用经营效率套用私人空间, 错位强加客流动线。"
+      as_special_function: "会低估对外经营的合规与客流管理。"
+
+  commercial_dining_vs_children_family:
+    types: [commercial_dining, children_family]
+    boundary_keywords:
+      - 亲子餐厅
+      - 儿童友好餐饮
+      - 亲子主题餐厅
+      - 家庭餐厅
+    decision_axis:
+      - dining_revenue_vs_child_behavior_safety
+      - parent_visitor_vs_child_user
+      - menu_centered_vs_play_centered
+    primary_preference_rules:
+      commercial_dining:
+        strong_signals: [菜单, 厨房, 客单价, 翻台, 出餐, 餐饮品牌, 经营]
+      children_family:
+        strong_signals: [早教, 儿童, 亲子, 安全, 圆角, 低甲醛, 启蒙, 蒙台梭利, 游乐]
+    clarification_questions:
+      - "项目核心成功标准是餐饮经营效率, 还是儿童行为/亲子关系/早教价值?"
+      - "面积占比上, 厨房+用餐区 vs 游乐+教学区 哪个更大?"
+    risks:
+      as_commercial_dining: "会低估儿童安全和亲子行为, 形成事故隐患。"
+      as_children_family: "会低估厨房动线和餐饮经营效率。"
+
+  commercial_dining_vs_digital_media_studio:
+    types: [commercial_dining, digital_media_studio]
+    boundary_keywords:
+      - 美食实验室
+      - 美食工作室
+      - 美食拍摄厨房
+      - 美食博主工作室
+      - 视频拍摄厨房
+    decision_axis:
+      - dining_to_customer_vs_content_to_audience
+      - revenue_from_food_vs_revenue_from_content
+      - guest_traffic_vs_camera_traffic
+    primary_preference_rules:
+      commercial_dining:
+        strong_signals: [菜单, 客流, 客单价, 翻台, 经营, 用餐区, 出餐, 餐厅]
+      digital_media_studio:
+        strong_signals: [博主, KOL, 拍摄, 直播, 视频, MCN, 主播, 内容创作, 灯光控制]
+    clarification_questions:
+      - "这个空间主要服务到店用餐客户, 还是博主拍摄/直播?"
+      - "收入来源是堂食/外卖, 还是流量/带货/MCN?"
+    risks:
+      as_commercial_dining: "会用经营动线套用拍摄基地, 灯光/声学不达标。"
+      as_digital_media_studio: "会低估食品安全与餐饮合规。"
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # 七、媒体与功能类边界 (1)
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  digital_media_studio_vs_special_function:
+    types: [digital_media_studio, special_function]
+    boundary_keywords:
+      - 家庭影院
+      - 私人录音棚
+      - 私人影音室
+      - 私人混音室
+      - 杜比全景声家庭影院
+    decision_axis:
+      - content_production_vs_private_enjoyment
+      - external_audience_vs_owner_self_use
+      - workspace_vs_home_function
+    primary_preference_rules:
+      digital_media_studio:
+        strong_signals: [博主, KOL, 拍摄, 直播, MCN, 工作室对外, 商业摄影]
+      special_function:
+        strong_signals: [家庭影院, 私人影音, 业主自用, 住宅内, 自宅, 自用录音]
+    clarification_questions:
+      - "这个空间是对外内容生产, 还是业主家中自用的影音/录音设施?"
+      - "运营时间是工作日商业, 还是周末家庭娱乐?"
+    risks:
+      as_digital_media_studio: "会用商业拍摄标准套用住宅, 过度投资。"
+      as_special_function: "会低估对外内容生产的声学/电力需求。"
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # 八、零售与品牌类边界 (2)
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  brand_experience_vs_retail:
+    types: [brand_experience, commercial_retail]
+    boundary_keywords:
+      - 品牌体验
+      - 体验店
+      - 旗舰店
+      - 沉浸
+      - 互动
+      - 认知
+    risk_keywords: ["品牌体验", "体验店", "旗舰店", "沉浸", "互动", "认知"]
+    decision_axis:
+      - brand_awareness_vs_sales_conversion
+      - narrative_path
+      - product_display_role
+    primary_preference_rules:
+      brand_experience:
+        strong_signals: [品牌叙事, 沉浸式, 互动装置, 旗舰店, 体验路径, 打卡, 品牌IP]
+      commercial_retail:
+        strong_signals: [坪效, 销售转化, 客流, 招商, 业态组合, 商场, 综合体]
+    clarification_questions:
+      - "这个项目的首要成功标准是品牌认知沉浸，还是销售转化和坪效？"
+      - "用户进入空间的主要目的，是购买商品，还是理解和参与品牌？"
+    risks:
+      as_retail: "可能过度强调坪效和陈列，低估品牌叙事与记忆点。"
+      as_brand_experience: "可能过度展陈化，弱化销售、收银、库存和运营效率。"
+
+  popup_vs_brand_experience:
+    types: [popup_temporary, brand_experience]
+    boundary_keywords:
+      - 快闪
+      - 临时
+      - 短期
+      - 撤场
+      - 活动
+      - 发布
+    risk_keywords: ["快闪", "临时", "短期", "撤场", "活动", "发布"]
+    decision_axis:
+      - temporary_lifecycle_vs_long_term_operation
+      - spread_peak_vs_stable_service
+    primary_preference_rules:
+      popup_temporary:
+        strong_signals: [快闪, 三个月, 限时, 可拆卸, 撤场, 音乐节, 双年展]
+      brand_experience:
+        strong_signals: [长期运营, 品牌叙事, 旗舰店, 体验路径, 沉浸式]
+    clarification_questions:
+      - "这个空间是周/月级短期活动，还是长期运营的体验空间？"
+      - "首要冻结的是传播峰值和撤场机制，还是长期服务结构？"
+    risks:
+      as_brand_experience: "可能过度追求长期完整性，低估搭建速度和撤场成本。"
+      as_popup: "可能过度轻量化，低估长期运营稳定性。"
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # 九、乡村跨域边界 (1)
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  rural_construction_vs_public_cultural:
+    types: [rural_construction, public_cultural]
+    boundary_keywords:
+      - 乡村文化馆
+      - 村史馆
+      - 乡村书屋
+      - 非遗工坊
+      - 乡村会客厅
+      - 农耕文化馆
+    decision_axis:
+      - village_governance_vs_cultural_exhibition
+      - villager_use_vs_visitor_use
+      - production_industry_vs_cultural_value
+    primary_preference_rules:
+      rural_construction:
+        strong_signals: [村集体, 村民, 乡村振兴, 产业导入, 公共空间, 乡建, 在地农耕]
+      public_cultural:
+        strong_signals: [策展, 馆藏, 公教, 文化地标, 文物, 公众参观, 非遗展览]
+    clarification_questions:
+      - "这个乡村文化空间首要服务村民日常和产业, 还是外部访客的文化体验?"
+      - "项目决策方是村集体/地方政府, 还是文化机构/策展团队?"
+    risks:
+      as_rural_construction: "会低估文化展陈深度和外部访客需求。"
+      as_public_cultural: "会忽略村民日常使用和在地产业组织。"

@@ -8,6 +8,9 @@ import DevModeIndicator from "@/components/ui/DevModeIndicator";
 export const metadata: Metadata = {
   title: "智能项目分析系统",
   description: "基于 LangGraph 多智能体协作的智能项目分析系统",
+  icons: {
+    icon: "/icon.svg",
+  },
 };
 
 export default function RootLayout({

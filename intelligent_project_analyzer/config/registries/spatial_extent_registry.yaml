@@ -1,0 +1,76 @@
+schema_version: spatial_extent_registry.v1.8
+owner: core_team
+review_status: approved
+last_updated: '2026-06-14'
+items:
+  interior:
+    name_cn: interior
+    keywords:
+    - 室内
+    - 店面
+    - 店铺
+    - 门店
+    - 装修
+    - 户型
+    - 硬装
+    - 软装
+    - 局部改造
+    - 室内空间
+    status: active_mvp
+  building:
+    name_cn: building
+    keywords:
+    - 建筑
+    - 整栋
+    - 整楼
+    - 立面
+    - 外立面
+    - 屋顶
+    - 幕墙
+    - 结构改造
+    - 建筑改造
+    - 单体建筑
+    status: active_mvp
+  site:
+    name_cn: site
+    keywords:
+    - 场地
+    - 用地
+    - 地块
+    - 庭院
+    - 园区景观
+    - 景观设计
+    - 总图
+    status: active_mvp
+  cluster:
+    name_cn: cluster
+    keywords:
+    - 建筑群
+    - 园区
+    - 校区
+    - 营地
+    - 民宿集群
+    - 组团
+    - 建筑组合
+    status: active_mvp
+  district:
+    name_cn: district
+    keywords:
+    - 街区
+    - 城市更新
+    - 片区
+    - 老旧小区改造
+    - 历史街区
+    - 街道
+    status: active_mvp
+  regional:
+    name_cn: regional
+    keywords:
+    - 区域
+    - 全域
+    - 市域
+    - 县域
+    - 文旅规划
+    - 产业园规划
+    - 片区规划
+    status: active_mvp

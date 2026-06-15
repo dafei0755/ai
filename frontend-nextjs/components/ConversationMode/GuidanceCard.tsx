@@ -12,7 +12,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { Check, ChevronLeft, ChevronRight } from 'lucide-react';
 import { type GuidanceCardData, type GuidanceCardPage } from './ConversationChat';
 
 // ── 卡片类型元信息 ────────────────────────────────────────
@@ -56,14 +56,58 @@ const CARD_META: Record<
     badgeBg: 'bg-cyan-50 text-cyan-600',
     accentBorder: 'border-cyan-400',
   },
+  scheme_round_1: {
+    label: '关键确认',
+    color: 'text-cyan-700',
+    borderColor: 'border-cyan-200',
+    badgeBg: 'bg-cyan-50 text-cyan-600',
+    accentBorder: 'border-cyan-400',
+  },
+  scheme_round_2: {
+    label: '决策确认',
+    color: 'text-violet-700',
+    borderColor: 'border-violet-200',
+    badgeBg: 'bg-violet-50 text-violet-600',
+    accentBorder: 'border-violet-400',
+  },
+  scheme_stage_conclusion: {
+    label: '阶段结论',
+    color: 'text-emerald-700',
+    borderColor: 'border-emerald-200',
+    badgeBg: 'bg-emerald-50 text-emerald-600',
+    accentBorder: 'border-emerald-400',
+  },
+  scheme_version_selection: {
+    label: '版本选择',
+    color: 'text-cyan-700',
+    borderColor: 'border-cyan-200',
+    badgeBg: 'bg-cyan-50 text-cyan-600',
+    accentBorder: 'border-cyan-400',
+  },
 };
 
 // ── 内部类型 ──────────────────────────────────────────────
 
 interface PageSelection {
   optionId?: string;
+  optionIds?: string[];
   freetext?: string;
 }
+
+const MISSING_SLOT_ACTION_META: Record<string, { label: string; className: string }> = {
+  certainty_ceiling: {
+    label: '现实边界缺口',
+    className: 'border-amber-400/40 bg-amber-400/10 text-amber-200',
+  },
+  branch_answer_plus_followup: {
+    label: '经营事实缺口',
+    className: 'border-cyan-400/40 bg-cyan-400/10 text-cyan-100',
+  },
+  option_menu: {
+    label: '路径选择',
+    className: 'border-violet-400/40 bg-violet-400/10 text-violet-100',
+  },
+};
 
 // ── Props ────────────────────────────────────────────────
 
@@ -108,26 +152,73 @@ export default function GuidanceCardWidget({ card, initialResponded = false, res
   const [selections, setSelections] = useState<Record<number, PageSelection>>({});
   const [freetextValue, setFreetextValue] = useState('');
   const [responded, setResponded] = useState(initialResponded);
+  const [historyExpanded, setHistoryExpanded] = useState(false);
 
   const meta = CARD_META[card.card_type] ?? CARD_META.mirror;
   const currentPage = allPages[pageIdx];
   const currentSelection = selections[pageIdx];
+  const responseMode = currentPage.response_mode ?? 'single_select';
+  const isMultiMode = responseMode === 'multi_select' || responseMode === 'priority_pick';
+  const maxSelect = currentPage.max_select ?? (responseMode === 'priority_pick' ? 3 : undefined);
   const isLastPage = pageIdx === totalPages - 1;
+  const isSchemeInquiry = card.card_type === 'scheme_round_1' || card.card_type === 'scheme_round_2';
+  const currentQuestionTitle = currentPage.page_title || `问题 ${pageIdx + 1}`;
+  const nextQuestionTitle = allPages[pageIdx + 1]?.page_title || `问题 ${pageIdx + 2}`;
+  const missingSlotMeta =
+    currentPage.source === 'context_packet.missing_slots' && currentPage.missing_slot_action
+      ? MISSING_SLOT_ACTION_META[currentPage.missing_slot_action]
+      : undefined;
+  const submitLabel =
+    card.card_type === 'scheme_round_1'
+      ? '提交首轮判断'
+      : card.card_type === 'scheme_round_2'
+        ? '提交决策判断'
+        : '提交';
 
   // 当前页是否可继续（选了选项或填了自由输入）
   const canProceed =
-    !!currentSelection?.optionId || !!(freetextValue.trim()) || !!currentSelection?.freetext;
+    !!currentSelection?.optionId ||
+    !!currentSelection?.optionIds?.length ||
+    !!(freetextValue.trim()) ||
+    !!currentSelection?.freetext;
 
   const handleSelectOption = (optionId: string) => {
     if (responded) return;
-    setSelections((prev) => ({ ...prev, [pageIdx]: { optionId } }));
+    if (isMultiMode) {
+      setSelections((prev) => {
+        const existing = prev[pageIdx]?.optionIds ?? [];
+        const selected = existing.includes(optionId);
+        const nextIds = selected
+          ? existing.filter((id) => id !== optionId)
+          : maxSelect && existing.length >= maxSelect
+            ? [...existing.slice(0, maxSelect - 1), optionId]
+            : [...existing, optionId];
+        const next = { ...prev, [pageIdx]: { optionIds: nextIds } };
+        if (isSchemeInquiry) {
+          Object.keys(next).forEach((key) => {
+            if (Number(key) > pageIdx) delete next[Number(key)];
+          });
+        }
+        return next;
+      });
+      return;
+    }
+    setSelections((prev) => {
+      const next = { ...prev, [pageIdx]: { optionId } };
+      if (isSchemeInquiry) {
+        Object.keys(next).forEach((key) => {
+          if (Number(key) > pageIdx) delete next[Number(key)];
+        });
+      }
+      return next;
+    });
   };
 
   const handleNext = () => {
     if (responded) return;
     // 保存当前页自由输入（若已有 optionId 则不覆盖 freetext）
     const ft = freetextValue.trim();
-    if (ft && !currentSelection?.optionId) {
+    if (ft && !currentSelection?.optionId && !currentSelection?.optionIds?.length) {
       setSelections((prev) => ({ ...prev, [pageIdx]: { freetext: ft } }));
     }
     setFreetextValue('');
@@ -139,7 +230,7 @@ export default function GuidanceCardWidget({ card, initialResponded = false, res
     // 先保存最后一页的自由输入
     const ft = freetextValue.trim();
     const finalSelections = { ...selections };
-    if (ft && !currentSelection?.optionId) {
+    if (ft && !currentSelection?.optionId && !currentSelection?.optionIds?.length) {
       finalSelections[pageIdx] = { freetext: ft };
     }
 
@@ -150,6 +241,12 @@ export default function GuidanceCardWidget({ card, initialResponded = false, res
       if (sel.optionId) {
         const opt = page.options.find((o) => o.id === sel.optionId);
         return opt ? opt.label : sel.optionId;
+      }
+      if (sel.optionIds?.length) {
+        const labels = sel.optionIds.map((id) => page.options.find((o) => o.id === id)?.label ?? id);
+        return page.response_mode === 'priority_pick'
+          ? `优先级：${labels.join(' > ')}`
+          : labels.join('、');
       }
       return sel.freetext ?? '';
     }).filter(Boolean);
@@ -194,23 +291,51 @@ export default function GuidanceCardWidget({ card, initialResponded = false, res
           const opt = page.options.find((o) => o.id === sel.optionId);
           return opt?.label ?? sel.optionId;
         }
+        if (sel.optionIds?.length) {
+          const labels = sel.optionIds.map((id) => page.options.find((o) => o.id === id)?.label ?? id);
+          return page.response_mode === 'priority_pick'
+            ? `优先级：${labels.join(' > ')}`
+            : labels.join('、');
+        }
         return sel.freetext ?? '';
       }).filter(Boolean);
       return labels.join(' / ');
     })();
+    const historyDetails = buildReadOnlyHistoryDetails(allPages, selections, respondedSummary);
 
     return (
-      <div className="flex items-start gap-2 py-0.5 text-xs text-[var(--foreground-secondary)]">
-        <span className={`flex-shrink-0 mt-0.5 ${meta.color}`}>◆</span>
-        <span>
-          <span className="opacity-60">{meta.label}</span>
-          <span className="opacity-40 mx-1.5">·</span>
-          {displayText ? (
-            <span className="text-[var(--foreground)]">{displayText}</span>
-          ) : (
-            <span className="opacity-60">已确认</span>
-          )}
-        </span>
+      <div className="py-0.5 text-xs text-[var(--foreground-secondary)]">
+        <button
+          type="button"
+          onClick={() => setHistoryExpanded((value) => !value)}
+          className="flex items-start gap-2 text-left transition hover:text-[var(--foreground)]"
+          aria-expanded={historyExpanded}
+        >
+          <span className={`flex-shrink-0 mt-0.5 ${meta.color}`}>◆</span>
+          <span>
+            <span className="opacity-60">{meta.label}</span>
+            <span className="opacity-40 mx-1.5">·</span>
+            {displayText ? (
+              <span className="text-[var(--foreground)]">{displayText}</span>
+            ) : (
+              <span className="opacity-60">已确认</span>
+            )}
+            <span className="ml-2 opacity-50">{historyExpanded ? '收起' : '查看'}</span>
+          </span>
+        </button>
+        {historyExpanded && (
+          <div className="mt-2 rounded-lg border border-[#3a3f4b] bg-[#252526] p-3">
+            <div className="mb-2 text-[11px] text-[var(--foreground-secondary)]">历史记录只读，如需修改请在当前问诊中重新校准。</div>
+            <div className="space-y-2">
+              {historyDetails.map((item, index) => (
+                <div key={`${item.title}-${index}`} className="rounded-md bg-black/10 px-3 py-2">
+                  <div className="text-[11px] font-semibold text-[var(--foreground)]">{item.title}</div>
+                  <div className="mt-1 text-[11px] leading-5 text-[var(--foreground-secondary)]">{item.answer || '已确认'}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     );
   }
@@ -218,75 +343,140 @@ export default function GuidanceCardWidget({ card, initialResponded = false, res
   // ── 激活态卡片 ────────────────────────────────────────────
   return (
     <div
-      className="ui-card-shell rounded-xl bg-[#252526] text-sm overflow-hidden"
+      className="guidance-card"
       data-testid="guidance-card"
       data-card-id={card.card_id}
       data-card-type={card.card_type}
     >
       {/* ── Header ── */}
-      <div className="flex items-center justify-between px-4 py-2.5 border-b border-[#3a3f4b]">
-        <div className="flex items-center gap-2 min-w-0">
-          <span className={`flex-shrink-0 text-xs px-2 py-0.5 rounded-full font-medium ${meta.badgeBg}`}>
-            {meta.label}
-          </span>
-          {card.title && (
-            <span className="text-sm font-semibold text-[var(--foreground)] truncate">{card.title}</span>
+      <div className="px-4 py-2.5 border-b border-[#3a3f4b]">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className={`flex-shrink-0 text-xs px-2 py-0.5 rounded-full font-medium ${meta.badgeBg}`}>
+              {meta.label}
+            </span>
+            <span className="text-sm font-semibold text-[var(--foreground)] truncate">
+              {isSchemeInquiry && totalPages > 1
+                ? currentQuestionTitle
+                : card.title}
+            </span>
+          </div>
+          {totalPages > 1 && !isSchemeInquiry && (
+            <div className="flex items-center gap-1 flex-shrink-0 ml-2">
+              <button
+                onClick={handlePrevPage}
+                disabled={pageIdx === 0}
+                className="p-0.5 rounded disabled:opacity-30 text-[var(--foreground-secondary)] hover:text-[var(--foreground)] transition-colors"
+                aria-label="上一页"
+              >
+                <ChevronLeft size={14} />
+              </button>
+              <span className="text-xs text-[var(--foreground-secondary)] select-none px-0.5">
+                {pageIdx + 1} of {totalPages}
+              </span>
+              <button
+                onClick={handleNextPage}
+                disabled={isLastPage || !canProceed}
+                className="p-0.5 rounded disabled:opacity-30 text-[var(--foreground-secondary)] hover:text-[var(--foreground)] transition-colors"
+                aria-label="下一页"
+              >
+                <ChevronRight size={14} />
+              </button>
+            </div>
           )}
         </div>
-        {totalPages > 1 && (
-          <div className="flex items-center gap-1 flex-shrink-0 ml-2">
-            <button
-              onClick={handlePrevPage}
-              disabled={pageIdx === 0}
-              className="p-0.5 rounded disabled:opacity-30 text-[var(--foreground-secondary)] hover:text-[var(--foreground)] transition-colors"
-              aria-label="上一页"
-            >
-              <ChevronLeft size={14} />
-            </button>
-            <span className="text-xs text-[var(--foreground-secondary)] select-none px-0.5">
-              {pageIdx + 1} of {totalPages}
-            </span>
-            <button
-              onClick={handleNextPage}
-              disabled={isLastPage || !canProceed}
-              className="p-0.5 rounded disabled:opacity-30 text-[var(--foreground-secondary)] hover:text-[var(--foreground)] transition-colors"
-              aria-label="下一页"
-            >
-              <ChevronRight size={14} />
-            </button>
+
+        {isSchemeInquiry && totalPages > 1 && (
+          <div className="mt-3 grid gap-2" style={{ gridTemplateColumns: `repeat(${totalPages}, minmax(0, 1fr))` }}>
+            {allPages.map((page, index) => {
+              const completed = index < pageIdx || Boolean(selections[index]);
+              const active = index === pageIdx;
+              return (
+                <button
+                  key={`${page.page_title || 'question'}-${index}`}
+                  type="button"
+                  onClick={() => {
+                    if (index <= pageIdx || selections[index]) {
+                      setFreetextValue('');
+                      setPageIdx(index);
+                    }
+                  }}
+                  className={`flex min-w-0 items-center gap-2 rounded-lg border px-2.5 py-2 text-left transition-colors ${
+                    active
+                      ? 'border-[#3b6bc7] bg-[#1f3a5f]'
+                      : completed
+                        ? 'border-emerald-500/30 bg-emerald-500/8'
+                        : 'border-[#3a3f4b] bg-black/10'
+                  }`}
+                  aria-label={`第 ${index + 1} 问：${page.page_title || `问题 ${index + 1}`}`}
+                >
+                  <span
+                    className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold ${
+                      completed
+                        ? 'bg-emerald-400 text-black'
+                        : active
+                          ? 'bg-cyan-300 text-black'
+                          : 'bg-[#3a3f4b] text-[var(--foreground-secondary)]'
+                    }`}
+                  >
+                    {completed ? <Check size={12} /> : index + 1}
+                  </span>
+                  <span className="min-w-0">
+                    <span className={`block truncate text-xs font-semibold ${active ? 'text-white' : 'text-[var(--foreground)]'}`}>
+                      {page.page_title || `问题 ${index + 1}`}
+                    </span>
+                  </span>
+                </button>
+              );
+            })}
           </div>
         )}
       </div>
 
       {/* ── 页面内容 ── */}
       <div className="px-4 pt-3 pb-2">
-        {currentPage.page_title && (
+        {currentPage.page_title && !isSchemeInquiry && (
           <p className="text-xs font-semibold uppercase tracking-wide text-[var(--foreground-secondary)] opacity-60 mb-1.5">
             {currentPage.page_title}
           </p>
         )}
+        {missingSlotMeta && (
+          <div className="mb-2 flex items-center gap-2">
+            <span className={`rounded-full border px-2 py-0.5 text-[11px] font-semibold ${missingSlotMeta.className}`}>
+              {missingSlotMeta.label}
+            </span>
+            {currentPage.missing_slot_names?.length ? (
+              <span className="truncate text-[11px] text-[var(--foreground-secondary)]">
+                {currentPage.missing_slot_names.length} 项待确认
+              </span>
+            ) : null}
+          </div>
+        )}
         <p className="text-[var(--foreground)] leading-relaxed mb-3">
           {currentPage.prompt_text}
         </p>
+        {currentPage.helper_text && (
+          <p className="mb-3 text-xs leading-5 text-[var(--foreground-secondary)]">
+            {currentPage.helper_text}
+          </p>
+        )}
 
         {/* 编号选项列表 */}
         {currentPage.options && currentPage.options.length > 0 && (
           <div className="flex flex-col gap-1">
             {currentPage.options.map((opt, i) => {
-              const selected = currentSelection?.optionId === opt.id;
+              const selectedIds = currentSelection?.optionIds ?? [];
+              const selected = currentSelection?.optionId === opt.id || selectedIds.includes(opt.id);
+              const priorityIndex = responseMode === 'priority_pick' ? selectedIds.indexOf(opt.id) : -1;
               return (
                 <button
                   key={opt.id}
                   onClick={() => handleSelectOption(opt.id)}
-                  className={`w-full text-left px-3 py-2.5 rounded-lg flex items-start gap-3 transition-colors border
-                    ${selected
-                      ? 'bg-[#1f3a5f] border-[#3b6bc7]'
-                      : 'border-transparent hover:bg-[#2a2d2e]'
-                    }`}
+                  className={`guidance-card-option ${selected ? 'guidance-card-option-active' : ''}`}
                 >
                   <span className={`flex-shrink-0 text-xs w-5 text-right mt-0.5 tabular-nums select-none
                     ${selected ? 'text-[#4fc3f7]' : 'text-[var(--foreground-secondary)]'}`}>
-                    {i + 1}.
+                    {priorityIndex >= 0 ? priorityIndex + 1 : `${i + 1}.`}
                   </span>
                   <span className="flex flex-col gap-0.5 min-w-0">
                     <span className={`font-medium leading-snug ${selected ? 'text-white' : 'text-[var(--foreground)]'}`}>
@@ -336,7 +526,7 @@ export default function GuidanceCardWidget({ card, initialResponded = false, res
           onClick={handleSkip}
           className="text-xs text-[var(--foreground-secondary)] opacity-50 hover:opacity-90 transition-opacity"
         >
-          忽略 ESC
+          可跳过
         </button>
         {isLastPage ? (
           <button
@@ -344,7 +534,7 @@ export default function GuidanceCardWidget({ card, initialResponded = false, res
             disabled={!canProceed}
             className="px-4 py-1.5 text-xs font-semibold rounded-full bg-[#1a6fcf] text-white hover:bg-[#1660b8] disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1"
           >
-            提交 <span className="opacity-70">↵</span>
+            {submitLabel} <span className="opacity-70">↵</span>
           </button>
         ) : (
           <button
@@ -352,10 +542,44 @@ export default function GuidanceCardWidget({ card, initialResponded = false, res
             disabled={!canProceed}
             className="px-4 py-1.5 text-xs font-semibold rounded-full bg-[#1a6fcf] text-white hover:bg-[#1660b8] disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1"
           >
-            下一步 <ChevronRight size={12} />
+            下一问：{nextQuestionTitle} <ChevronRight size={12} />
           </button>
         )}
       </div>
     </div>
   );
+}
+
+function buildReadOnlyHistoryDetails(
+  pages: GuidanceCardPage[],
+  selections: Record<number, PageSelection>,
+  respondedSummary?: string
+): Array<{ title: string; answer: string }> {
+  const summaryParts = respondedSummary
+    ? respondedSummary
+        .split(/[;；/]/)
+        .map((part) => part.trim())
+        .filter(Boolean)
+    : [];
+
+  return pages.map((page, index) => {
+    const sel = selections[index];
+    let answer = summaryParts[index] ?? '';
+
+    if (sel?.optionId) {
+      answer = page.options.find((option) => option.id === sel.optionId)?.label ?? sel.optionId;
+    } else if (sel?.optionIds?.length) {
+      const labels = sel.optionIds.map((id) => page.options.find((option) => option.id === id)?.label ?? id);
+      answer = page.response_mode === 'priority_pick'
+        ? labels.map((label, order) => `${order + 1}. ${label}`).join('；')
+        : labels.join('、');
+    } else if (sel?.freetext) {
+      answer = sel.freetext;
+    }
+
+    return {
+      title: page.page_title || `问题 ${index + 1}`,
+      answer,
+    };
+  });
 }

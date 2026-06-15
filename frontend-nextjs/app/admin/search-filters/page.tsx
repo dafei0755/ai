@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
@@ -86,7 +86,7 @@ export default function SearchFiltersPage() {
   const loadReviewQueue = async () => {
     try {
       setReviewLoading(true);
-      const token = localStorage.getItem('wp_jwt_token');
+      const token = localStorage.getItem('app_auth_token');
 
       const response = await fetch('/api/admin/domain-quality/review-queue', {
         headers: {
@@ -108,7 +108,7 @@ export default function SearchFiltersPage() {
 
   const handleReviewAction = async (domain: string, action: 'approve' | 'block' | 'dismiss', addToWhitelist: boolean = false) => {
     try {
-      const token = localStorage.getItem('wp_jwt_token');
+      const token = localStorage.getItem('app_auth_token');
 
       const response = await fetch(`/api/admin/domain-quality/${action}`, {
         method: 'POST',
@@ -140,7 +140,7 @@ export default function SearchFiltersPage() {
   const loadConfig = async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem('wp_jwt_token');
+      const token = localStorage.getItem('app_auth_token');
 
       const response = await fetch('/api/admin/search-filters', {
         headers: {
@@ -168,7 +168,7 @@ export default function SearchFiltersPage() {
     }
 
     try {
-      const token = localStorage.getItem('wp_jwt_token');
+      const token = localStorage.getItem('app_auth_token');
 
       const response = await fetch(`/api/admin/search-filters/${listType}?domain=${encodeURIComponent(newDomain)}&match_type=${newMatchType}&note=${encodeURIComponent(newNote || '')}`, {
         method: 'POST',
@@ -201,7 +201,7 @@ export default function SearchFiltersPage() {
     }
 
     try {
-      const token = localStorage.getItem('wp_jwt_token');
+      const token = localStorage.getItem('app_auth_token');
 
       const response = await fetch(`/api/admin/search-filters/${listType}?domain=${encodeURIComponent(domain)}&match_type=${matchType}`, {
         method: 'DELETE',
@@ -230,7 +230,7 @@ export default function SearchFiltersPage() {
     }
 
     try {
-      const token = localStorage.getItem('wp_jwt_token');
+      const token = localStorage.getItem('app_auth_token');
 
       const response = await fetch(`/api/admin/search-filters/test?url=${encodeURIComponent(testUrl)}`, {
         headers: {
@@ -250,7 +250,7 @@ export default function SearchFiltersPage() {
 
   const reloadConfig = async () => {
     try {
-      const token = localStorage.getItem('wp_jwt_token');
+      const token = localStorage.getItem('app_auth_token');
 
       const response = await fetch('/api/admin/search-filters/reload', {
         method: 'POST',

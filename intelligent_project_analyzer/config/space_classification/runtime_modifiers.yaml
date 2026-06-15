@@ -1,0 +1,46 @@
+version: "2026.04.v1"
+description: Lightweight runtime modifier extraction rules for SpaceClassificationService.
+
+modifier_axes:
+  geo_scene:
+    mountain: ["山地", "山里", "山谷", "山顶", "半山", "峨眉", "高山"]
+    waterfront: ["滨水", "临水", "河边", "湖边", "海边", "海景", "江边"]
+    rural: ["乡村", "村庄", "田园", "古村", "村落", "农村"]
+    urban: ["城市", "街区", "商圈", "市中心", "社区"]
+
+  lifecycle:
+    renovation: ["改造", "翻新", "旧改", "存量", "老房", "旧宅"]
+    adaptive_reuse: ["活化", "再生", "历史建筑", "老建筑", "工业遗存", "厂房改造"]
+    temporary: ["快闪", "临时", "短期", "撤场"]
+    long_term_operation: ["长期运营", "全年运营", "四季运营", "常年运营"]
+
+  audience:
+    family: ["亲子", "家庭", "儿童", "一家人"]
+    young_group: ["年轻人", "年轻客群", "社交", "打卡"]
+    elderly: ["银发", "老人", "适老", "养老"]
+    tourist: ["游客", "旅客", "度假客"]
+    employee: ["员工", "团队", "办公人员"]
+    visitor: ["访客", "客户", "参观者"]
+
+  operation_mode:
+    high_turnover: ["翻台", "高周转", "坪效"]
+    event_based: ["活动", "沙龙", "发布会", "展演", "文化活动"]
+    independent_operation: ["独立经营", "主理人", "小型精品"]
+    seasonal_operation: ["淡旺季", "四季运营", "全年运营", "季节性"]
+
+  experience_focus:
+    restoration: ["疗愈", "修复", "放松", "松弛", "冥想", "恢复"]
+    social: ["社交", "会客", "交流", "聚会"]
+    brand_memory: ["品牌", "记忆点", "传播", "打卡", "识别度"]
+    cultural: ["文化", "在地", "非遗", "地方记忆", "茶空间"]
+
+secondary_type_triggers:
+  tea_house:
+    role: supporting_function
+    keywords: ["茶空间", "茶室", "茶馆", "茶饮", "品茶"]
+  culture_saloon:
+    role: experience_amplifier
+    keywords: ["文化活动", "沙龙", "讲座", "展览", "活动空间"]
+  brand_experience:
+    role: brand_component
+    keywords: ["品牌体验", "展厅", "体验中心", "品牌展示", "发布"]

@@ -1,0 +1,254 @@
+{
+  "schema_version": "scheme_advisor_golden_review_completion.v1",
+  "generated_at": "2026-06-16T00:55:51",
+  "summary": {
+    "total_rows": 29,
+    "complete_rows": 0,
+    "incomplete_rows": 29,
+    "required_fields": [
+      "gold_expected_project_type",
+      "gold_expected_core_tension",
+      "gold_expected_output_depth"
+    ],
+    "missing_by_field": {
+      "gold_expected_project_type": 29,
+      "gold_expected_core_tension": 29,
+      "gold_expected_output_depth": 29
+    }
+  },
+  "incomplete_items": [
+    {
+      "id": "50",
+      "missing_fields": [
+        "gold_expected_project_type",
+        "gold_expected_core_tension",
+        "gold_expected_output_depth"
+      ]
+    },
+    {
+      "id": "28",
+      "missing_fields": [
+        "gold_expected_project_type",
+        "gold_expected_core_tension",
+        "gold_expected_output_depth"
+      ]
+    },
+    {
+      "id": "145",
+      "missing_fields": [
+        "gold_expected_project_type",
+        "gold_expected_core_tension",
+        "gold_expected_output_depth"
+      ]
+    },
+    {
+      "id": "16",
+      "missing_fields": [
+        "gold_expected_project_type",
+        "gold_expected_core_tension",
+        "gold_expected_output_depth"
+      ]
+    },
+    {
+      "id": "26",
+      "missing_fields": [
+        "gold_expected_project_type",
+        "gold_expected_core_tension",
+        "gold_expected_output_depth"
+      ]
+    },
+    {
+      "id": "42",
+      "missing_fields": [
+        "gold_expected_project_type",
+        "gold_expected_core_tension",
+        "gold_expected_output_depth"
+      ]
+    },
+    {
+      "id": "104",
+      "missing_fields": [
+        "gold_expected_project_type",
+        "gold_expected_core_tension",
+        "gold_expected_output_depth"
+      ]
+    },
+    {
+      "id": "118",
+      "missing_fields": [
+        "gold_expected_project_type",
+        "gold_expected_core_tension",
+        "gold_expected_output_depth"
+      ]
+    },
+    {
+      "id": "161",
+      "missing_fields": [
+        "gold_expected_project_type",
+        "gold_expected_core_tension",
+        "gold_expected_output_depth"
+      ]
+    },
+    {
+      "id": "123",
+      "missing_fields": [
+        "gold_expected_project_type",
+        "gold_expected_core_tension",
+        "gold_expected_output_depth"
+      ]
+    },
+    {
+      "id": "152",
+      "missing_fields": [
+        "gold_expected_project_type",
+        "gold_expected_core_tension",
+        "gold_expected_output_depth"
+      ]
+    },
+    {
+      "id": "169",
+      "missing_fields": [
+        "gold_expected_project_type",
+        "gold_expected_core_tension",
+        "gold_expected_output_depth"
+      ]
+    },
+    {
+      "id": "126",
+      "missing_fields": [
+        "gold_expected_project_type",
+        "gold_expected_core_tension",
+        "gold_expected_output_depth"
+      ]
+    },
+    {
+      "id": "143",
+      "missing_fields": [
+        "gold_expected_project_type",
+        "gold_expected_core_tension",
+        "gold_expected_output_depth"
+      ]
+    },
+    {
+      "id": "97",
+      "missing_fields": [
+        "gold_expected_project_type",
+        "gold_expected_core_tension",
+        "gold_expected_output_depth"
+      ]
+    },
+    {
+      "id": "43",
+      "missing_fields": [
+        "gold_expected_project_type",
+        "gold_expected_core_tension",
+        "gold_expected_output_depth"
+      ]
+    },
+    {
+      "id": "135",
+      "missing_fields": [
+        "gold_expected_project_type",
+        "gold_expected_core_tension",
+        "gold_expected_output_depth"
+      ]
+    },
+    {
+      "id": "172",
+      "missing_fields": [
+        "gold_expected_project_type",
+        "gold_expected_core_tension",
+        "gold_expected_output_depth"
+      ]
+    },
+    {
+      "id": "147",
+      "missing_fields": [
+        "gold_expected_project_type",
+        "gold_expected_core_tension",
+        "gold_expected_output_depth"
+      ]
+    },
+    {
+      "id": "180",
+      "missing_fields": [
+        "gold_expected_project_type",
+        "gold_expected_core_tension",
+        "gold_expected_output_depth"
+      ]
+    },
+    {
+      "id": "108",
+      "missing_fields": [
+        "gold_expected_project_type",
+        "gold_expected_core_tension",
+        "gold_expected_output_depth"
+      ]
+    },
+    {
+      "id": "187",
+      "missing_fields": [
+        "gold_expected_project_type",
+        "gold_expected_core_tension",
+        "gold_expected_output_depth"
+      ]
+    },
+    {
+      "id": "54",
+      "missing_fields": [
+        "gold_expected_project_type",
+        "gold_expected_core_tension",
+        "gold_expected_output_depth"
+      ]
+    },
+    {
+      "id": "101",
+      "missing_fields": [
+        "gold_expected_project_type",
+        "gold_expected_core_tension",
+        "gold_expected_output_depth"
+      ]
+    },
+    {
+      "id": "83",
+      "missing_fields": [
+        "gold_expected_project_type",
+        "gold_expected_core_tension",
+        "gold_expected_output_depth"
+      ]
+    },
+    {
+      "id": "69",
+      "missing_fields": [
+        "gold_expected_project_type",
+        "gold_expected_core_tension",
+        "gold_expected_output_depth"
+      ]
+    },
+    {
+      "id": "76",
+      "missing_fields": [
+        "gold_expected_project_type",
+        "gold_expected_core_tension",
+        "gold_expected_output_depth"
+      ]
+    },
+    {
+      "id": "167",
+      "missing_fields": [
+        "gold_expected_project_type",
+        "gold_expected_core_tension",
+        "gold_expected_output_depth"
+      ]
+    },
+    {
+      "id": "2",
+      "missing_fields": [
+        "gold_expected_project_type",
+        "gold_expected_core_tension",
+        "gold_expected_output_depth"
+      ]
+    }
+  ],
+  "source_review_csv": "D:\\11-20\\2026.2.25\\langgraph-design\\docs\\system-completeness-audit\\scheme-advisor-golden-review-batch-01-p0-synced-2026-03-22.csv"
+}

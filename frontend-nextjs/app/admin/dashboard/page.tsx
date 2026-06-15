@@ -1,6 +1,6 @@
-'use client';
+﻿'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import axios from 'axios';
 
 interface SystemMetrics {
@@ -55,9 +55,9 @@ export default function AdminDashboardPage() {
 
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  const fetchMetrics = async () => {
+  const fetchMetrics = useCallback(async () => {
     try {
-      const token = localStorage.getItem('wp_jwt_token');
+      const token = localStorage.getItem('app_auth_token');
       if (!token) {
         throw new Error('未登录');
       }
@@ -119,7 +119,7 @@ export default function AdminDashboardPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     // 立即获取一次
@@ -134,7 +134,7 @@ export default function AdminDashboardPage() {
         clearInterval(intervalRef.current);
       }
     };
-  }, []);
+  }, [fetchMetrics]);
 
   if (loading) {
     return (

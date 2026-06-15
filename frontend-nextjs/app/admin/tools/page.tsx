@@ -1,6 +1,6 @@
-'use client';
+﻿'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
 
 interface TopQuery {
@@ -54,12 +54,12 @@ export default function ToolsPage() {
   const [error, setError] = useState<string | null>(null);
   const [timeRange, setTimeRange] = useState<number>(24);
 
-  const fetchStats = async () => {
+  const fetchStats = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
 
-      const token = localStorage.getItem('wp_jwt_token');
+      const token = localStorage.getItem('app_auth_token');
       if (!token) {
         setError('未登录，请先登录管理员账号');
         setLoading(false);
@@ -69,11 +69,11 @@ export default function ToolsPage() {
       // 并行获取工具统计和调用率
       const [statsResponse, callRateResponse] = await Promise.all([
         axios.get<ToolsStatsResponse>(
-          `http://localhost:8000/api/admin/tools/stats?hours=${timeRange}`,
+          `/api/admin/tools/stats?hours=${timeRange}`,
           { headers: { Authorization: `Bearer ${token}` } }
         ),
         axios.get<CallRateResponse>(
-          `http://localhost:8000/api/admin/tools/call-rate?hours=${timeRange}`,
+          `/api/admin/tools/call-rate?hours=${timeRange}`,
           { headers: { Authorization: `Bearer ${token}` } }
         ).catch(() => ({ data: null })),  // 调用率接口失败不影响主页面
       ]);
@@ -86,7 +86,7 @@ export default function ToolsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [timeRange]);
 
   useEffect(() => {
     fetchStats();
@@ -94,7 +94,7 @@ export default function ToolsPage() {
     // 每60秒自动刷新
     const interval = setInterval(fetchStats, 60000);
     return () => clearInterval(interval);
-  }, [timeRange]);
+  }, [fetchStats]);
 
   // 工具显示名称映射
   const toolDisplayNames: Record<string, string> = {

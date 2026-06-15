@@ -1,0 +1,1025 @@
+# =============================================================================
+# Classification Master Index  ⭐ 空间分类系统的"唯一入口 / 目录页"
+# =============================================================================
+#
+# ⭐ 一句话: 这是空间分类与本体论的"地图", 10 张分类表 + 1 张本体维度表
+#            通过这里互相连接。新人 / 新代码不要从单张 yaml 反推全貌,
+#            必须先读本文件。
+#
+# -----------------------------------------------------------------------------
+# 【系统大图】用户输入文本 → 系统怎么理解它?
+# -----------------------------------------------------------------------------
+# 1. 用户给一段话 (如 "我想在购物中心开一家茶饮店, 主打外带, 新品牌")
+# 2. project_type_detector.py 在多个轴上并行检测候选:
+#       ├─ 这是什么空间?       → project_type     = commercial_dining
+#       ├─ 项目为什么成立?     → founding_type    = operating_business
+#       ├─ 有子域吗?           → subdomain        = tea_drink_store
+#       ├─ 空间多大尺度?       → spatial_extent   = interior
+#       └─ 处于哪个生命周期?   → lifecycle        = fitout
+# 3. SpaceClassificationService 把候选合成 classification_output:
+#       ├─ project_scale 由 (spatial_extent × lifecycle) 笛卡尔积合成
+#       │   例: interior × fitout = interior_fitout
+#       ├─ discipline_scope 由 type_operating_profiles + founding_type 推导
+#       │   例: 茶饮店激活 [interior, mep, fire_life_safety, equipment, ...]
+#       ├─ spatial_layer_ids 由 project_scale 决定
+#       │   例: interior_fitout → [interior_layer]
+#       └─ project_conditions 由用户文本 + runtime_modifiers 抽取
+#           例: [mall_store, takeaway_priority, new_brand, small_area]
+# 4. OntologyLoader 按 spatial_layer + founding_type 决定激活哪些本体维度
+#       例: interior_layer + operating_business
+#           → active_dimensions = [E2, E5, E6, E9, ...]
+# 5. 输出 ProjectDefinitionActivationPack, 提供给问卷 / 任务书 / 知识召回消费
+#
+# -----------------------------------------------------------------------------
+# 【本文件做的 4 件事】
+# -----------------------------------------------------------------------------
+#   1. classification_axes  — 列出 10 个分类轴各自在哪个 yaml 文件维护
+#   2. registry_contract    — 所有 yaml 必须遵守的"通用格式"
+#   3. axis_mappings        — 轴之间怎么相互映射 (这是本文件真正的灵魂)
+#   4. deprecated_compat    — 哪些旧文件已经废弃, 但暂时保留兼容
+#
+# -----------------------------------------------------------------------------
+# 【新人入门顺序】
+# -----------------------------------------------------------------------------
+#   1. 先看本节最下面的 "10 张 yaml 一句话简介"
+#   2. 再看 classification_axes 知道每个轴的归属文件
+#   3. 再看 axis_mappings 理解轴间关系
+#   4. 不要从单个 yaml 反推全貌, 容易漏掉关系
+# =============================================================================
+
+schema_version: classification_master_index.v1.9
+owner: core_team
+review_status: approved
+last_updated: 2026-05-20
+
+# v1.9 变更摘要:
+#   - founding_type_registry 从 7 条扩展到 15 条 (项目动因细分)
+#   - new_brand / brand_renovation 从 founding_type 迁移到 project_condition
+#     (因为它们是"项目阶段"而非"项目动因")
+#   - 新增 axis_mappings.founding_type_to_dimensions (动因 → 本体激活)
+#   - 新增 axis_mappings.founding_type_to_card_weights (动因 → 卡片召回偏置)
+
+# =============================================================================
+# 10 张 yaml 一句话简介 (人话版, 给新人快速建立 mental model)
+# =============================================================================
+#
+# 第一部分: 10 张"空间分类"yaml (回答"项目是什么")
+# -----------------------------------------------------------------------------
+#   founding_type_registry.yaml         项目为什么成立? (经营 / 自用 / 公益 ...)
+#                                       这是 v1.8 §4 的"第 0 段路由起点",
+#                                       决定下游用什么决策逻辑去理解项目
+#
+#   project_type_registry_meta.yaml     项目是什么空间? (餐饮 / 住宅 / 办公 ...)
+#                                       注: 只放元数据 (status/aliases/owner),
+#                                       关键词 keywords 在 .py 内 (因为算法紧耦合)
+#
+#   subdomain_registry.yaml             项目下有子域吗? (茶饮店 / 咖啡馆 ...)
+#                                       茶饮 MVP 必备, 受控枚举,
+#                                       必须挂在 parent_project_type_id 下
+#
+#   spatial_extent_registry.yaml        空间范围有多大? (室内 / 建筑 / 场地 /
+#                                       园区 / 街区 / 区域 6 档)
+#
+#   lifecycle_registry.yaml             生命周期阶段是? (装修 / 改造 / 活化 /
+#                                       新建 / 临时 5 档)
+#
+#   project_scale_registry.yaml         项目尺度 (9 档 canonical)
+#                                       = spatial_extent × lifecycle 笛卡尔积
+#                                       例: interior × fitout = interior_fitout
+#
+#   discipline_registry.yaml            涉及哪些学科? (室内 / 机电 / 消防 ...)
+#                                       含专业优先级 P0_硬否决 / P1_系统 / ...
+#
+#   spatial_layer_registry.yaml         作用在哪些空间层? (场地 / 建筑 / 室内 /
+#                                       景观 4 层 + 跨尺度哨兵对象)
+#
+#   project_condition_registry.yaml     项目运行条件? (mall_store / 新品牌 /
+#                                       limited_budget / 高翻台 / 山地语境 ...)
+#                                       含互斥组规则
+#
+#   industry_registry.yaml              行业语境? (法律 / AI / 医疗 / 教育 ...)
+#                                       与 project_type 正交, 用于行业差异路由与长尾兜底
+#
+# 第二部分: 1 张"本体维度"yaml (回答"本体怎么激活", 不属于分类)
+# -----------------------------------------------------------------------------
+#   ontology_dimension_registry.yaml    E1-E9 本体维度的唯一事实源
+#                                       位置在 knowledge_base/ 而非 registries/
+#                                       因为它是本体侧的资产, 不是分类轴
+#
+# 第三部分: 激活包 (activation_packs/*.yaml, 按业态写"具体怎么做")
+# -----------------------------------------------------------------------------
+#   activation_packs/tea_drink_store_pack.yaml  茶饮店落地手册 (MVP)
+#   activation_packs/<其他业态>_pack.yaml       未来扩展
+#
+#   ⭐ 激活包与 ontology.yaml 的边界规则 (必读):
+#      👉 knowledge_base/activation_packs/ACTIVATION_PACK_BOUNDARY_RULES.md
+#
+#   ⭐ 校验器 (新建/修改激活包必跑):
+#      python -m intelligent_project_analyzer.services.validate_activation_pack
+#
+#   ⭐ 系统自我迭代协议 (讲系统如何"用得越多越聪明"):
+#      👉 sf/2026.5.16/SELF_EVOLUTION_PROTOCOL.md
+#      含 4 级迭代框架 (L0 自检 / L1 受控学习 / L2 自动学习 / L3 不做)
+#      + 4 条数据反馈回路 + Phase A-D 演化路线
+#
+#   核心边界 (6 条规则的精简版):
+#     - ontology.yaml = "教科书" (跨业态共通议题, 17 framework × 12 议题)
+#     - activation_pack = "开店手册" (业态专属量化参数)
+#     - 激活包必须通过 routing_binding.parent_project_type_id 挂在
+#       ontology framework 下 (单向继承)
+#     - 没激活包时系统用 ontology 兜底 (70 分回答, 永远不哑火)
+#     - 有激活包时叠加专属内容 (90 分回答)
+# =============================================================================
+
+# =============================================================================
+# ⭐⭐⭐  改动同步规则 (Change Propagation Rules) ⭐⭐⭐
+# -----------------------------------------------------------------------------
+#  改了下面任何一个文件, 必须同步检查相关文件。这是"硬性规则"。
+#  详细的"哪些文件改了要同步检查谁"清单, 在
+#  services/project_type_detector.py 文件最顶部, 用 ASCII 表格列得很详细。
+#  本节给一个总览, 让新人有 mental model。
+# -----------------------------------------------------------------------------
+#
+#  ─────────────────────────────────────────────────────────────────────────
+#  改谁 → 必须同步检查谁 (按"事实源 → 镜像/消费方"链路)
+#  ─────────────────────────────────────────────────────────────────────────
+#
+#  改 project_type_detector.py::PROJECT_TYPE_REGISTRY (新增 / 删除 / 重命名)
+#    ├─ project_type_registry_meta.yaml          (meta overlay 必同步)
+#    ├─ classification_master_index.yaml         (axis_mappings.project_type_to_framework)
+#    ├─ type_operating_profiles.yaml             (类型运营画像, 否则下游没方法论)
+#    ├─ ontology.yaml                            (新类型需要本体框架时)
+#    ├─ utils/ontology_loader.py::DETECTOR_TO_ONTOLOGY (近邻归并映射)
+#    └─ PARENT_TYPE_MAP (detector 内, 父桶归属)
+#
+#  改 detector 输出结构 (新增 / 删除 result 字段)
+#    └─ 必须同步检查 14 个直接消费 detector 的文件:
+#       services/space_classification_service.py  ⭐ 主消费方
+#       services/dimension_selector.py            ⭐ 读 confidence float
+#       services/core_task_decomposer.py
+#       services/llm_gap_question_generator.py
+#       services/project_type_expansion.py
+#       services/task_completeness_analyzer.py
+#       services/taxonomy_learning_collector.py
+#       services/type_alias_normalizer.py
+#       agents/questionnaire_agent.py
+#       agents/requirements_analyst.py
+#       agents/requirements_analyst_agent.py
+#       api/admin_routes.py
+#       tools/query_builder.py
+#       utils/capability_detector.py
+#       utils/shared_agent_utils.py
+#
+#  改 founding_type_registry.yaml
+#    ├─ project_type_detector.py::FOUNDING_TYPE_REGISTRY (内联镜像必同步)
+#    └─ classification_master_index.yaml.axis_mappings.founding_type_to_dimensions
+#                                                       founding_type_to_card_weights
+#
+#  改 subdomain_registry.yaml
+#    ├─ project_type_detector.py::SUBDOMAIN_REGISTRY (内联镜像必同步)
+#    └─ classification_master_index.yaml.axis_mappings.subdomain_to_pack
+#
+#  改 boundary_cases.yaml
+#    └─ project_type_detector.py 命中协议自动生效, 但需要确保:
+#       - boundary_keywords 内的词在 PROJECT_TYPE_REGISTRY 内确实存在
+#       - primary_preference_rules 的 strong_signals 是真实区分词
+#       - 跑 190 题回归看 boundary_triggered 数量是否合理
+#
+#  改 project_condition_registry.yaml
+#    └─ services/space_classification_service.py validator (互斥组校验)
+#
+#  改 spatial_extent_registry.yaml / lifecycle_registry.yaml
+#    ├─ project_type_detector.py::SPATIAL_EXTENT_KEYWORDS / LIFECYCLE_KEYWORDS
+#    └─ project_scale_registry.yaml (笛卡尔积合成依赖这两个轴)
+#
+#  ─────────────────────────────────────────────────────────────────────────
+#  【6 条硬性规则】
+#  ─────────────────────────────────────────────────────────────────────────
+#   1. 改 PROJECT_TYPE_REGISTRY → 必须跑 registry 一致性校验
+#       python -c "from intelligent_project_analyzer.services.
+#                  project_type_detector import
+#                  validate_registries_against_yaml;
+#                  print(validate_registries_against_yaml())"
+#
+#   2. 新增 project_type_id → 必须同步 meta + profile + ontology 映射 + 边界规则
+#
+#   3. 新增关键词 → 必须先判断它是哪一层:
+#       ▸ "茶饮店 / 咖啡馆 / 民宿集群" → 业态细分 → subdomain_registry
+#       ▸ "乡村振兴 / 资产盘活 / 品牌旗舰" → 项目动因 → founding_type_registry
+#       ▸ "新品牌 / 限时 / 高翻台" → 项目阶段 → project_condition_registry
+#       ▸ "室内装修 / 建筑改造" → 空间尺度 → spatial_extent/lifecycle_registry
+#       ▸ 真的是新空间对象 (餐厅 / 学校 / 博物馆) → 才进 PROJECT_TYPE_REGISTRY
+#       ▸ 跨多个 type 都可能命中的词 (改造 / 总部 / 展厅) → boundary_cases
+#
+#   4. 新增细分业态 → 优先放 subdomain_registry, 不要轻易增加大类型
+#
+#   5. 出现高歧义词 → 补 boundary_cases.yaml, 不要靠 priority 硬压
+#
+#   6. 改完必跑 → 190 题回归 (sf/2026.3.22/模拟问题集合.txt) 验证零回归
+#
+#  ─────────────────────────────────────────────────────────────────────────
+#  【常见反模式】(改 detector 时容易踩的坑)
+#  ─────────────────────────────────────────────────────────────────────────
+#   ❌ 把"乡村振兴"塞 commercial_hospitality 的 keywords (污染了项目类型)
+#   ❌ 新增 type_id 后忘了改 master_index.project_type_to_framework
+#   ❌ 在 detector 输出加新字段, 但 SpaceClassificationService 没改
+#   ❌ 用 priority=15 硬压跨类型歧义 (应该补 boundary_cases)
+#   ❌ 新增"美食工作室"两个 type 都加 (应该补 boundary_cases.commercial_dining_vs_digital_media_studio)
+#   ❌ keywords 里堆"展厅"这种通用词 (应该是 type 专属强信号词)
+# =============================================================================
+
+# =============================================================================
+# Registry Contract  (v1.8 §6.4)
+# -----------------------------------------------------------------------------
+# 这是所有 registry yaml 必须遵守的"通用格式"。如果你新建一张 yaml 加入这个
+# 体系, 必须确保它满足以下条款。
+# =============================================================================
+registry_contract:
+
+  # 每个 registry yaml 文件顶层必须有的字段
+  required_top_level_fields:
+    - schema_version   # 版本号, 改了内容必须改这里, 如 founding_type_registry.v1.9
+    - owner            # 谁负责维护这张表
+    - review_status    # draft / approved / deprecated
+    - last_updated     # 上次修改时间
+    - items            # 主体内容 (Python dict 形式)
+
+  # items 内每个条目最少要有的字段
+  required_item_fields:
+    - name_cn          # 中文标签 (这是这个 id 在系统里的唯一显示名)
+    - status           # 在 status_enum 中选一个
+
+  # 每个条目的 status 必须从这 5 个值里选 (决定它能不能进 MVP)
+  status_enum:
+    - active_mvp        # 第一阶段直接用, 进入结构化判断
+    - active_light      # 第一阶段轻量支持 (能用但不展开深度逻辑)
+    - reserved_light    # 仅做风险提示, 不展开本体激活
+    - reserved          # 仅预留字段名, 不进入 MVP 判断
+    - deprecated_compat # 已废弃, 禁止新写入, 仅旧代码读取兼容
+
+  # 禁止做的事
+  forbidden:
+    - 下游服务自维护同义词典 (会与 master 失去同步)
+    - 跳过 taxonomy_promotion 手工新增 active_mvp 条目 (必须走审批)
+    - 字段命名漂移 (同一个中文标签 / 英文 ID 在多处重复定义)
+
+# =============================================================================
+# 10 个分类轴 — 各自的"事实源文件"在哪里, 谁来消费
+# -----------------------------------------------------------------------------
+# 这一节相当于"目录页": 系统的 9 张分类表分别在哪个 yaml/.py 维护,
+# 谁来读它。下游代码要用某个轴, 不要自己实现解析逻辑, 必须从这里指向
+# 的文件读取。
+# =============================================================================
+classification_axes:
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # 轴 1: founding_type — 项目为什么成立 (v1.8 §4 第 0 段路由起点)
+  # -----------------------------------------------------------------------
+  # 这是"战略总闸口" — 决定 AI 是用"商业经营思维"还是"自住改善思维"
+  # 还是"城市更新思维"还是"乡村振兴思维"去理解一个项目。
+  # 14 类: operating_business / personal_use / family_legacy /
+  #        identity_expression / healing_repair / special_needs_care /
+  #        flagship_demonstration / commercial_renewal / asset_value_upgrade /
+  #        urban_renewal / rural_revitalization / organizational_efficiency /
+  #        public_service / cultural_institution / hybrid_composite
+  # ─────────────────────────────────────────────────────────────────────────
+  founding_type:
+    description: 项目成立方式 / 终局类型 (v1.8 §4 第 0 段路由)
+    source: founding_type_registry.yaml
+    consumer:
+      - project_type_detector._detect_founding_type_candidates()  # 关键词检测
+      - SpaceClassificationService  # 装配 classification_output.founding_type
+    related_axes:
+      - 与 project_type 正交  # founding 回答"为什么", project_type 回答"是什么"
+      - 触发 axis_mappings.founding_type_to_dimensions (本体激活)
+      - 触发 axis_mappings.founding_type_to_card_weights (知识召回)
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # 轴 2: project_type — 项目是什么空间 (32 个类型)
+  # -----------------------------------------------------------------------
+  # 注意: 这个轴是双源的:
+  #   - keywords 留在 .py 文件: 因为 _build_exclusivity_weights 算法
+  #     和关键词布局紧耦合, 抽到 yaml 会让 detector 启动时反向加载
+  #   - meta (status/aliases/owner) 在 yaml 文件: 满足 Registry Contract
+  # ─────────────────────────────────────────────────────────────────────────
+  project_type:
+    description: 项目类型 (32 项, 含住宅/餐饮/办公/医疗/教育/城市更新/乡村等)
+    registry_role: behavior_registry_with_meta_overlay
+    source:
+      canonical_type_source: ../../services/project_type_detector.py::PROJECT_TYPE_REGISTRY
+      behavior_registry: ../../services/project_type_detector.py::ProjectTypeDetector
+      meta_overlay: project_type_registry_meta.yaml
+      keywords_and_logic: ../../services/project_type_detector.py::PROJECT_TYPE_REGISTRY  # 兼容别名
+    validation:
+      required: true
+      validator: project_type_detector.validate_registries_against_yaml()
+      checks:
+        - meta_overlay_items_must_exist_in_PROJECT_TYPE_REGISTRY
+        - canonical_type_source_must_match_master_index
+        - behavior_registry_must_match_master_index
+    note: keywords 留 .py 因为排他性权重算法紧耦合; meta 在 yaml 维护合规字段
+    consumer:
+      - project_type_detector.detect()  # 关键词命中算分
+      - SpaceClassificationService  # 装配 classification_output.project_type_id
+    related_axes:
+      - 与 founding_type 正交  # 一个项目 = (project_type, founding_type) 二维定位
+      - 触发 axis_mappings.project_type_to_framework (映射到 ontology framework)
+      - 触发 axis_mappings.project_type_to_pack (映射到 activation_pack)
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # 轴 3: subdomain — project_type 下的子域 (受控枚举)
+  # -----------------------------------------------------------------------
+  # 这是"业态细分", 必须挂在某个 project_type 下面。
+  # 当前只有种子 2 项: tea_drink_store (茶饮 MVP) / coffee_shop (预留)
+  # 新增子域必须走 taxonomy_promotion 流程审批, 不能手工写 yaml。
+  # ─────────────────────────────────────────────────────────────────────────
+  subdomain:
+    description: 项目类型下的子域 (受控枚举, 每个子域有 parent_project_type_id)
+    source: subdomain_registry.yaml
+    consumer:
+      - project_type_detector._detect_subdomain_signals()  # 信号词输出
+      - SpaceClassificationService  # 装配 subdomain_id
+      - OntologyLoader Layer 4  # 按 activation_pack_id 加载激活包
+    related_axes:
+      - 必须挂在 project_type 下
+      - 触发 axis_mappings.subdomain_to_pack (映射到激活包)
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # 轴 4: spatial_extent — 空间范围 (6 档)
+  # -----------------------------------------------------------------------
+  # interior  室内  | building  建筑  | site     场地
+  # cluster   园区  | district  街区  | regional 区域
+  # 这个轴和 lifecycle 笛卡尔积合成 project_scale。
+  # detector 只出"候选词", 最终 project_scale 由 SpaceClassificationService 合成。
+  # ─────────────────────────────────────────────────────────────────────────
+  spatial_extent:
+    description: 空间范围 6 档 (interior/building/site/cluster/district/regional)
+    source: spatial_extent_registry.yaml
+    consumer:
+      - project_type_detector._detect_scale_signals()  # 输出候选
+      - SpaceClassificationService  # 与 lifecycle 合成 project_scale
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # 轴 5: lifecycle — 生命周期 (5 档)
+  # -----------------------------------------------------------------------
+  # fitout    装修  | renovation     改造  | adaptive_reuse 活化
+  # newbuild  新建  | temporary      临时
+  # 注意: v1.5 老文件 runtime_modifiers.yaml 也有 lifecycle 轴,
+  #       已标记 deprecated_compat, 切换期保留只读。
+  # ─────────────────────────────────────────────────────────────────────────
+  lifecycle:
+    description: 生命周期 5 档 (fitout/renovation/adaptive_reuse/newbuild/temporary)
+    source: lifecycle_registry.yaml
+    deprecated_overlap:
+      file: ../space_classification/runtime_modifiers.yaml
+      axis: lifecycle
+      status: deprecated_compat
+      note: v1.5 老文件的 lifecycle 轴, 仅保留只读兼容, 新代码读 lifecycle_registry.yaml
+    consumer:
+      - project_type_detector._detect_scale_signals()
+      - SpaceClassificationService
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # 轴 6: project_scale — 项目尺度 (9 档 canonical)
+  # -----------------------------------------------------------------------
+  # 这个轴的取值 = spatial_extent × lifecycle 笛卡尔积。
+  # 例: interior × fitout = interior_fitout (茶饮 MVP 默认)
+  #     building × renovation = building_renovation (山地民宿)
+  #     district × adaptive_reuse = district_renewal (城市更新)
+  # detector 不出 project_scale 候选, 它只出 spatial_extent / lifecycle 候选,
+  # 真正的合成在 SpaceClassificationService 里。
+  # ─────────────────────────────────────────────────────────────────────────
+  project_scale:
+    description: 项目尺度 (9 档 canonical, 由 spatial_extent × lifecycle 合成)
+    source: project_scale_registry.yaml
+    consumer:
+      - SpaceClassificationService._synthesize_project_scale()  # 最终合成器
+      - 任务书生成器 (按 project_scale 选择 rendering_profile)
+    related_axes:
+      - 决定 spatial_layer_ids 默认激活哪几层 (见 scale_to_default_layers)
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # 轴 7: discipline — 涉及哪些学科 / 专业
+  # -----------------------------------------------------------------------
+  # 15 个学科, 按优先级分 4 档:
+  #   P0_硬否决: 结构 / 消防 / 法规合规  (一票否决, 任何审美不能覆盖)
+  #   P1_系统:   机电 / 设备 / 造价 / 运营
+  #   P2_体验:   照明 / 声学 / 标识 / 景观
+  #   P3_灵感:   品牌 / 跨域灵感
+  # ─────────────────────────────────────────────────────────────────────────
+  discipline:
+    description: 学科 / 专业 + 优先级 P0-P3
+    source: discipline_registry.yaml
+    consumer:
+      - SpaceClassificationService  # 装配 discipline_scope / lead_discipline /
+                                    # hard_constraint_discipline_ids
+      - Dependency Tracer  # 按 priority_level 生成复核任务 (v2.0 新建)
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # 轴 8: spatial_layer — 空间层级 (4 层)
+  # -----------------------------------------------------------------------
+  # site_layer       场地层 (含地形 / 边界 / 朝向 / 视线)
+  # building_layer   建筑层 (含体量 / 立面 / 结构 / 入口)
+  # interior_layer   室内层 (茶饮 MVP 默认主作用层)
+  # landscape_layer  景观层 (含庭院 / 路径 / 植物 / 雨水)
+  # 另含 cross_scale_objects (跨尺度哨兵对象, 如 main_entrance)
+  # ─────────────────────────────────────────────────────────────────────────
+  spatial_layer:
+    description: 空间层级 4 层 + 跨尺度哨兵对象
+    source: spatial_layer_registry.yaml
+    consumer:
+      - SpaceClassificationService  # 装配 spatial_layer_ids
+      - OntologyLoader Layer 4  # 按 spatial_layer_ids 过滤本体对象
+    related_axes:
+      - 触发 axis_mappings.spatial_layer_to_dimensions (每层激活哪些 E 维度)
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # 轴 9: project_condition — 项目条件全局词表
+  # -----------------------------------------------------------------------
+  # 这是受控的"项目运行条件"枚举, 含 4 个互斥组:
+  #   area_size            (small/medium/large/xlarge)
+  #   budget_level         (limited/mid/high/flagship)
+  #   brand_lifecycle      (new_brand/mature_brand/brand_renovation_stage)
+  #   location_type        (mall_store/street_store/standalone_store/mixed_use)
+  # 加 23 个独立条件 (takeaway_priority/mountain_context/social_experience...)
+  # 注意: v1.9 把 new_brand / brand_renovation_stage 从 founding_type 迁入了
+  #       (因为它们是"项目阶段"而非"成立动因")
+  # ─────────────────────────────────────────────────────────────────────────
+  project_condition:
+    description: 项目条件全局词表 + 互斥组
+    source: project_condition_registry.yaml
+    deprecated_overlap:
+      file: ../space_classification/runtime_modifiers.yaml
+      axes: [geo_scene, audience, operation_mode, experience_focus]
+      status: detection_layer_kept    # 关键词检测层仍由 runtime_modifiers 跑
+      note: |
+        v1.5 runtime_modifiers 负责"关键词→修饰标签"的检测,
+        SpaceClassificationService 在装配阶段把修饰标签映射到本表条目。
+        本表是受控枚举源, runtime_modifiers 是检测器, 不冲突。
+    consumer:
+      - SpaceClassificationService validator  # 校验互斥组
+      - 知识召回 / 风险卡 / 任务书渲染
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # 轴 10: industry_domain — 行业语境 (独立维度)
+  # -----------------------------------------------------------------------
+  # 回答"服务于哪个行业语境"，而不是"空间是什么"。
+  # 例: commercial_office + legal_service vs commercial_office + technology_ai
+  # 表面同为办公, 但保密/协作/合规/设备等约束显著不同。
+  # 未识别行业时允许 unspecified，系统应触发通用行业适配与澄清机制。
+  # ─────────────────────────────────────────────────────────────────────────
+  industry_domain:
+    description: 行业语境维度 (法律/AI/金融/医疗/教育等)
+    source: industry_registry.yaml
+    consumer:
+      - project_type_detector._detect_industry_candidates()  # 行业候选检测
+      - SpaceClassificationService  # 装配 industry_profile / 澄清提示
+    related_axes:
+      - 与 project_type 正交
+      - 与 subdomain 协同 (同类空间的行业细分)
+      - 未命中时回退 generic_industry_adapter
+
+# =============================================================================
+# 本体维度 (E1-E9) — 单独维护, 不属于"分类轴", 但分类要联动它
+# -----------------------------------------------------------------------------
+# v1.8 §16.1 明确: 本体激活归 OntologyLoader, 卡片召回归 knowledge_package_registry。
+# 所以 E 维度不放在 config/registries/ 内, 而放在 knowledge_base/ 内。
+#
+# 9 个本体维度的简介:
+#   E1_spatial_order        空间秩序 / 体量比例
+#   E2_body_movement        身体体验 / 动觉
+#   E3_light_material       光与材料感知
+#   E4_boundary_threshold   边界 / 阈限 / 材料物性
+#   E5_time_sequence        时间 / 节奏 / 时序
+#   E6_operation_system     运营系统 / 服务流程
+#   E7_social_relation      社会关系 / 共同性
+#   E8_symbol_narrative     符号 / 叙事 / 品牌
+#   E9_constraint_risk      约束 / 风险 / 可实施性
+#
+# 它通过 axis_mappings 的两条映射被分类系统调用:
+#   - spatial_layer_to_dimensions  (空间层激活哪些 E 维度)
+#   - founding_type_to_dimensions  (成立方式激活哪些 E 维度)
+# 装配规则: 两条映射的结果取并集, 然后用 priority_dimensions 加权。
+# =============================================================================
+ontology_dimensions:
+  source: ../../knowledge_base/ontology_dimension_registry.yaml
+  consumer:
+    - OntologyLoader.dimension_resolver           # 把 E2 id 解析为完整定义
+    - ontology.yaml 内 framework 引用 dimension_ids  # framework 不再内嵌定义
+  note: |
+    E1-E9 是本体维度, 不是空间分类轴。
+    本文件通过 axis_mappings.spatial_layer_to_dimensions 与
+    axis_mappings.founding_type_to_dimensions 两条映射来调用它。
+
+# =============================================================================
+# Axis Mappings  ⭐ 轴间关系唯一定义处 — 这一节是"完整空间分类表"的灵魂
+# -----------------------------------------------------------------------------
+# 单看任何一张分类 yaml 都只能知道"这个轴有什么取值",
+# 看完所有 yaml 也不知道"它们怎么互相工作"。
+# 这一节就是回答"轴之间怎么联动"的唯一权威定义。
+# 共 9 张映射表:
+#   1. project_type_to_framework      项目类型 → 本体框架 (32→14 归并)
+#   2. subdomain_to_pack              子域 → 激活包 (业态资源包)
+#   3. spatial_layer_to_dimensions    空间层 → E 维度 (基础维度激活)
+#   4. scale_to_default_layers        项目尺度 → 默认空间层 (反向索引)
+#   5. discipline_to_priority         学科 → 约束优先级 (反向索引)
+#   6. founding_type_to_dimensions    成立方式 → E 维度 (战略维度激活)
+#   7. founding_type_to_card_weights  成立方式 → 知识卡权重 (召回偏置)
+#   8. industry_to_card_weights       行业语境 → 知识卡权重 (召回偏置)
+#   9. founding_x_project_conflicts   成立方式 × 项目类型 冲突表
+# =============================================================================
+axis_mappings:
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # 映射 1: project_type → ontology_framework
+  # -----------------------------------------------------------------------
+  # 32 个 project_type 怎么映射到 14 个 ontology_framework?
+  # ontology_frameworks 比 project_type 数量少 (因为多个相似业态共享本体框架),
+  # 这张表就是"近邻归并"规则。
+  #
+  # 替代了旧的 utils/ontology_loader.py::DETECTOR_TO_ONTOLOGY 字典
+  # (那个常量已标 deprecated_compat, 现在统一从本表读)
+  # ─────────────────────────────────────────────────────────────────────────
+  project_type_to_framework:
+    description: 32 个 project_type 到 14 个 ontology_framework 的近邻归并
+    mappings:
+      # 直接匹配 (一对一)
+      commercial_dining: commercial_dining
+      commercial_hospitality: commercial_hospitality
+      commercial_retail: commercial_retail
+      commercial_office: commercial_office
+      personal_residential: personal_residential
+      educational_facility: educational_facility
+      healthcare_wellness: healthcare_wellness
+      industrial_conversion: industrial_conversion
+      religious_spiritual: religious_spiritual
+      transportation_civic: transportation_civic
+      landscape_outdoor: landscape_outdoor
+      # 多对一近邻归并 (多个 project_type 共享同一 framework)
+      rural_construction: rural_regeneration_urban_renewal
+      urban_renewal_market: rural_regeneration_urban_renewal
+      urban_renewal_heritage: rural_regeneration_urban_renewal
+      performing_arts: public_cultural
+      community_public: public_cultural
+      public_cultural: public_cultural
+      brand_experience: commercial_retail
+      real_estate_showcase: personal_residential
+      residential_collective: hybrid_residential_commercial
+      hybrid_residential_commercial: hybrid_residential_commercial
+      leisure_entertainment: commercial_hospitality
+      wedding_banquet: commercial_hospitality
+      children_family: educational_facility
+      residential_renovation: personal_residential
+      beauty_personal_care: commercial_retail
+      automotive_showroom: commercial_retail
+      digital_media_studio: commercial_office
+      popup_temporary: commercial_retail
+      commercial_enterprise: commercial_enterprise
+      special_function: commercial_enterprise
+      sports_entertainment_arts: commercial_hospitality
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # 映射 2: subdomain → activation_pack
+  # -----------------------------------------------------------------------
+  # 子域映射到激活包。当 SpaceClassificationService 识别出 subdomain_id 后,
+  # OntologyLoader Layer 4 用这张表查 activation_pack_id, 然后加载激活包 yaml
+  # (如 activation_packs/tea_drink_store_pack.yaml)。
+  #
+  # 注意: 真实事实源在 subdomain_registry.yaml 内 (parent_project_type_id +
+  # activation_pack_id 已经声明), 此处仅汇总方便人查阅。
+  # ─────────────────────────────────────────────────────────────────────────
+  subdomain_to_pack:
+    description: 子域到激活包的映射 (subdomain_registry.yaml 内已声明, 此处汇总)
+    mappings:
+      tea_drink_store: tea_drink_store_pack
+      coffee_shop: coffee_shop_pack
+    pack_files:
+      tea_drink_store_pack: ../../knowledge_base/activation_packs/tea_drink_store_pack.yaml
+      coffee_shop_pack: ../../knowledge_base/activation_packs/coffee_shop_pack.yaml
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # 映射 3: spatial_layer → ontology_dimensions
+  # -----------------------------------------------------------------------
+  # ⭐ 这是"本体与分类"对应的核心。
+  # 每个空间层默认激活哪些 E 维度? 哪几个是优先维度?
+  # 例: interior_layer (室内层) 激活 E2(身体) + E3(光) + E5(时间) +
+  #     E6(运营) + E7(社会) + E8(符号) + E9(约束) 共 7 个维度,
+  #     其中 E2/E6/E9 优先 (任务书重点描述)
+  # ─────────────────────────────────────────────────────────────────────────
+  spatial_layer_to_dimensions:
+    description: 每个空间层默认激活哪些本体 E 维度
+    mappings:
+      site_layer:
+        active_dimensions:
+          - E1_spatial_order
+          - E4_boundary_threshold
+          - E5_time_sequence
+        priority_dimensions: [E1_spatial_order, E4_boundary_threshold]
+      building_layer:
+        active_dimensions:
+          - E1_spatial_order
+          - E4_boundary_threshold
+          - E8_symbol_narrative
+          - E9_constraint_risk
+        priority_dimensions: [E1_spatial_order, E9_constraint_risk]
+      interior_layer:
+        active_dimensions:
+          - E2_body_movement
+          - E3_light_material
+          - E5_time_sequence
+          - E6_operation_system
+          - E7_social_relation
+          - E8_symbol_narrative
+          - E9_constraint_risk
+        priority_dimensions:
+          - E2_body_movement
+          - E6_operation_system
+          - E9_constraint_risk
+      landscape_layer:
+        active_dimensions:
+          - E3_light_material
+          - E5_time_sequence
+          - E7_social_relation
+        priority_dimensions: [E5_time_sequence, E7_social_relation]
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # 映射 4: project_scale → spatial_layer_ids (反向索引, 不是事实源)
+  # -----------------------------------------------------------------------
+  # 不同的 project_scale 默认激活哪几个空间层?
+  # 例: interior_fitout      → [interior_layer]
+  #     building_renovation  → [interior_layer, building_layer]
+  #     cluster_planning     → [site_layer, building_layer, interior_layer,
+  #                             landscape_layer]
+  # 这里只做交叉引用提醒, 真实数据在 project_scale_registry.yaml 内的
+  # items.*.default_spatial_layer_ids 字段。
+  # ─────────────────────────────────────────────────────────────────────────
+  scale_to_default_layers:
+    description: 不同 project_scale 默认激活哪些空间层
+    source: project_scale_registry.yaml::items.*.default_spatial_layer_ids
+    note: 真正的数据在 project_scale_registry.yaml; 本节仅作交叉引用提醒
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # 映射 5: discipline → constraint_priority (反向索引, 不是事实源)
+  # -----------------------------------------------------------------------
+  # 学科到约束优先级的映射 (P0_硬否决 / P1_系统 / P2_体验 / P3_灵感)
+  # 真实数据在 discipline_registry.yaml::priority_levels 内。
+  # ─────────────────────────────────────────────────────────────────────────
+  discipline_to_priority:
+    description: 学科到约束优先级的映射
+    source: discipline_registry.yaml::priority_levels
+    note: 真正的数据在 discipline_registry.yaml; 本节仅作交叉引用提醒
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # 映射 6: founding_type → ontology_dimensions  ⭐ v1.9 新增
+  # -----------------------------------------------------------------------
+  # 把"项目成立方式"绑定到本体 E 维度激活权重。
+  # 这是 v1.9 的关键创新: 让 AI 在路由起点就感知项目战略身份,
+  # 不再只看"空间是什么", 还看"项目要追求什么"。
+  #
+  # 与映射 3 (spatial_layer_to_dimensions) 的关系:
+  #   - 两者并行, 取并集
+  #   - 例: project_type=commercial_dining + founding_type=operating_business
+  #         spatial_layer = interior_layer
+  #         → 激活维度 = (E2 E3 E5 E6 E7 E8 E9)  ← 来自 interior_layer
+  #                    ∪ (E2 E5 E6 E9)             ← 来自 operating_business
+  #                    = (E2 E3 E5 E6 E7 E8 E9)   去重后并集
+  #         → priority_dimensions = (E2 E6 E9) ∪ (E6 E9)  → 双重 priority
+  #
+  # 装配规则: 两条映射的结果取并集, priority_dimensions 加权 1.5x。
+  # ─────────────────────────────────────────────────────────────────────────
+  founding_type_to_dimensions:
+    description: 15 个 founding_type 对 E1-E9 本体维度的激活偏置
+    mappings:
+
+      # ── 商业经营组 ──
+      operating_business:
+        # 经营性项目: 关注高并发人流 / 高峰运营时序 / 运营系统 / 消防风险
+        active_dimensions:
+          - E2_body_movement      # 高并发人流走位
+          - E5_time_sequence      # 高峰运营时序
+          - E6_operation_system   # 运营系统主轴
+          - E9_constraint_risk    # 消防安全 / 投资风险
+        priority_dimensions: [E6_operation_system, E9_constraint_risk]
+      flagship_demonstration:
+        # 旗舰示范: 关注光材表达 / 运营 / 符号叙事 / 风险
+        active_dimensions:
+          - E3_light_material
+          - E6_operation_system
+          - E8_symbol_narrative   # 符号叙事主轴
+          - E9_constraint_risk
+        priority_dimensions: [E8_symbol_narrative, E3_light_material]
+      commercial_renewal:
+        # 商业更新: 关注空间秩序 / 时序 / 运营 / 社会关系 / 风险
+        active_dimensions:
+          - E1_spatial_order
+          - E5_time_sequence
+          - E6_operation_system
+          - E7_social_relation
+          - E9_constraint_risk
+        priority_dimensions: [E6_operation_system, E7_social_relation]
+      asset_value_upgrade:
+        # 资产盘活: 关注空间秩序 / 运营 / 风险
+        active_dimensions:
+          - E1_spatial_order
+          - E6_operation_system
+          - E9_constraint_risk
+        priority_dimensions: [E9_constraint_risk, E1_spatial_order]
+
+      # ── 私人生活组 ──
+      personal_use:
+        # 自用住宅: 关注空间秩序 / 身体体验 / 边界阈限 / 社会关系
+        active_dimensions:
+          - E1_spatial_order
+          - E2_body_movement
+          - E4_boundary_threshold
+          - E7_social_relation
+        priority_dimensions: [E2_body_movement, E7_social_relation]
+      family_legacy:
+        # 家族传承: 关注空间秩序 / 时序 / 社会关系 / 符号叙事
+        active_dimensions:
+          - E1_spatial_order
+          - E5_time_sequence
+          - E7_social_relation
+          - E8_symbol_narrative
+        priority_dimensions: [E7_social_relation, E8_symbol_narrative]
+      identity_expression:
+        # 身份表达: 关注光材 / 边界 / 社会关系 / 符号叙事
+        active_dimensions:
+          - E3_light_material
+          - E4_boundary_threshold
+          - E7_social_relation
+          - E8_symbol_narrative
+        priority_dimensions: [E8_symbol_narrative, E4_boundary_threshold]
+      healing_repair:
+        # 疗愈修复: 关注身体 / 光材 / 边界 / 时序 (慢节奏)
+        active_dimensions:
+          - E2_body_movement
+          - E3_light_material
+          - E4_boundary_threshold
+          - E5_time_sequence
+        priority_dimensions: [E3_light_material, E4_boundary_threshold]
+      special_needs_care:
+        # 特殊照护: 关注身体 / 边界 / 风险 (安全为先)
+        active_dimensions:
+          - E2_body_movement
+          - E4_boundary_threshold
+          - E9_constraint_risk
+        priority_dimensions: [E2_body_movement, E9_constraint_risk]
+
+      # ── 城市与乡村组 ──
+      urban_renewal:
+        # 城市更新: 五项全维度激活, 优先社会关系 / 风险
+        active_dimensions:
+          - E1_spatial_order
+          - E5_time_sequence
+          - E7_social_relation
+          - E8_symbol_narrative
+          - E9_constraint_risk
+        priority_dimensions: [E7_social_relation, E9_constraint_risk]
+      rural_revitalization:
+        # 乡村振兴: 关注边界 / 时序 / 运营 / 社会关系 / 符号叙事
+        active_dimensions:
+          - E4_boundary_threshold
+          - E5_time_sequence
+          - E6_operation_system
+          - E7_social_relation
+          - E8_symbol_narrative
+        priority_dimensions: [E6_operation_system, E7_social_relation, E8_symbol_narrative]
+
+      # ── 机构与组织组 ──
+      organizational_efficiency:
+        # 组织效能 (办公 / 研发): 关注空间秩序 / 运营 / 风险
+        active_dimensions:
+          - E1_spatial_order
+          - E6_operation_system
+          - E9_constraint_risk
+        priority_dimensions: [E1_spatial_order, E6_operation_system]
+      public_service:
+        # 公共服务: 关注身体 / 社会关系 / 风险 (包容性 + 应急韧性)
+        active_dimensions:
+          - E2_body_movement
+          - E7_social_relation
+          - E9_constraint_risk
+        priority_dimensions: [E7_social_relation, E9_constraint_risk]
+
+      # ── 文化与机构组 ──
+      cultural_institution:
+        # 文化机构 / 展陈: 关注身体 / 光材 / 时序 / 运营 / 符号叙事
+        active_dimensions:
+          - E2_body_movement
+          - E3_light_material
+          - E5_time_sequence
+          - E6_operation_system
+          - E8_symbol_narrative
+        priority_dimensions: [E8_symbol_narrative, E3_light_material]
+
+      # ── 复合 ──
+      hybrid_composite:
+        # 复合性质: 关注时序 / 社会关系 / 风险 (动静冲突 + 规范交叠)
+        active_dimensions:
+          - E5_time_sequence
+          - E7_social_relation
+          - E9_constraint_risk
+        priority_dimensions: [E5_time_sequence, E9_constraint_risk]
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # 映射 7: founding_type → card_recall_profile  ⭐ v1.9 新增
+  # -----------------------------------------------------------------------
+  # 把"项目成立方式"绑定到知识卡召回偏置 (供 knowledge_package_registry 消费)。
+  # 5 种知识卡类型:
+  #   StandardCard      规范 / 标准 / 数据卡 (硬约束信息)
+  #   RiskCard          风险 / 红线卡
+  #   TranslationCard   设计转译卡 (抽象意图 → 空间动作)
+  #   CaseMechanismCard 案例机制卡 (其他项目怎么做的)
+  #   SynthesisCard     综合判断卡 (多专业交叉)
+  #   QuestionCard      追问卡 (向用户提问)
+  # 不同 founding_type 偏好不同卡片, 默认 1.0, 调高 = 优先召回。
+  # ─────────────────────────────────────────────────────────────────────────
+  founding_type_to_card_weights:
+    description: 15 个 founding_type 对各类知识卡的召回权重
+    mappings:
+      operating_business:
+        StandardCard: 1.20      # 规范主导
+        RiskCard: 1.15
+        TranslationCard: 1.10
+      flagship_demonstration:
+        CaseMechanismCard: 1.25  # 标杆项目重案例机制
+        TranslationCard: 1.20
+        SynthesisCard: 1.10
+      commercial_renewal:
+        SynthesisCard: 1.20
+        RiskCard: 1.15
+        TranslationCard: 1.10
+      asset_value_upgrade:
+        RiskCard: 1.25           # 资产盘活风险为先
+        StandardCard: 1.20
+      personal_use:
+        TranslationCard: 1.20
+        QuestionCard: 1.10
+      family_legacy:
+        TranslationCard: 1.25
+        SynthesisCard: 1.20
+      identity_expression:
+        TranslationCard: 1.30    # 抽象意图特别多, 转译卡权重最高
+        SynthesisCard: 1.25
+      healing_repair:
+        TranslationCard: 1.30
+        QuestionCard: 1.20       # 疗愈项目要多追问
+      special_needs_care:
+        StandardCard: 1.25       # 医疗 / 无障碍规范最严格
+        RiskCard: 1.20
+      urban_renewal:
+        SynthesisCard: 1.25      # 多专业综合判断重
+        RiskCard: 1.20
+        TranslationCard: 1.15
+      rural_revitalization:
+        SynthesisCard: 1.30
+        TranslationCard: 1.15
+      organizational_efficiency:
+        StandardCard: 1.20
+        RiskCard: 1.10
+      public_service:
+        RiskCard: 1.20
+        StandardCard: 1.15
+        QuestionCard: 1.10
+      cultural_institution:
+        TranslationCard: 1.25
+        CaseMechanismCard: 1.20
+      hybrid_composite:
+        SynthesisCard: 1.30      # 复合项目最依赖综合判断
+        RiskCard: 1.20
+        QuestionCard: 1.15
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # 映射 8: industry_domain → card_recall_profile  ⭐ v1.10 新增
+  # -----------------------------------------------------------------------
+  # 行业语境对知识卡召回的偏置。
+  # 设计原则:
+  #   - founding_type 反映"为什么做"，industry_domain 反映"在哪个行业做"
+  #   - 两者权重可以叠加, 由下游召回器进行归一化
+  # ─────────────────────────────────────────────────────────────────────────
+  industry_to_card_weights:
+    description: 行业语境到知识卡召回权重映射
+    mappings:
+      legal_service:
+        RiskCard: 1.20
+        StandardCard: 1.15
+        QuestionCard: 1.10
+      technology_ai:
+        StandardCard: 1.20
+        SynthesisCard: 1.15
+        RiskCard: 1.10
+      financial_service:
+        RiskCard: 1.25
+        StandardCard: 1.15
+      healthcare_medical:
+        StandardCard: 1.25
+        RiskCard: 1.20
+      education_training:
+        SynthesisCard: 1.15
+        QuestionCard: 1.10
+      culture_art:
+        TranslationCard: 1.20
+        CaseMechanismCard: 1.15
+      automotive:
+        CaseMechanismCard: 1.15
+        TranslationCard: 1.10
+      retail_apparel_luxury:
+        TranslationCard: 1.20
+        CaseMechanismCard: 1.10
+      eyewear_optical:
+        StandardCard: 1.15
+        TranslationCard: 1.10
+      pet_service:
+        QuestionCard: 1.15
+        TranslationCard: 1.10
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # 映射 9: founding_type × project_type 冲突表
+  # -----------------------------------------------------------------------
+  # 某些 founding_type 与 project_type 的组合不合理, 系统应该触发 boundary_case
+  # 让用户澄清, 不要直接锁定。
+  # 例: founding=personal_use + project_type=commercial_dining
+  #     → 用户既说"自住"又说"开餐厅", 必须澄清是住宅 + 兼营? 还是住商混合?
+  # ─────────────────────────────────────────────────────────────────────────
+  founding_x_project_conflicts:
+    description: founding_type 与 project_type 的不合理组合, 触发 boundary_case
+    rules:
+      - founding_type: personal_use
+        project_type: [commercial_dining, commercial_hospitality, commercial_office]
+        action: trigger_boundary_case
+        boundary_case_id: founding_personal_vs_business
+      - founding_type: operating_business
+        project_type: [personal_residential]
+        action: trigger_boundary_case
+        boundary_case_id: founding_business_vs_residential
+
+# =============================================================================
+# 兼容层声明 (v1.8 §17 deprecated_compat 文件清单)
+# -----------------------------------------------------------------------------
+# 以下文件 / 数据结构已被新协议取代, 但暂时保留供旧代码读取兼容,
+# 等所有下游消费方完成迁移后 (Phase 4 清理期), 这些文件会被冻结归档。
+#
+# 新代码必须读"取代它的事实源", 不要再读这些旧文件。
+# =============================================================================
+deprecated_compat:
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # 旧文件 1: space_type_dimension_map.yaml
+  # -----------------------------------------------------------------------
+  # 这是 v1.5 时代的"空间类型 → 信息补全维度"映射表, 含 8 个 space_type
+  # (residential_premium / residential_standard / rural / ...)。
+  # v1.8 §2.1 明确反对它: 抽象层级混入了 类型 + 客群 + 规模 + 在地性,
+  # 单个 space_type 答不上"同样是民宿, 是室内升级还是山地新建"这种问题。
+  # 新逻辑必须走 (project_type, project_scale, discipline_scope) 三元组路由。
+  # ─────────────────────────────────────────────────────────────────────────
+  space_type_dimension_map:
+    file: ../space_type_dimension_map.yaml
+    status: deprecated_compat
+    reason: v1.8 §2.1 反对 — 抽象层级混入了类型 + 客群 + 规模 + 在地性
+    migration: 新逻辑必须走 (project_type, project_scale, discipline_scope) 三元组路由
+    read_only_until: Phase 4 清理期
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # 旧常量 2: utils/ontology_loader.py::DETECTOR_TO_ONTOLOGY
+  # -----------------------------------------------------------------------
+  # v1.5 时代的"项目类型 → 本体框架"映射字典, 散在 .py 内。
+  # v1.9 已迁移到本文件 axis_mappings.project_type_to_framework。
+  # ontology_loader 已改为优先读本文件, 失败回退到内联字典 (零运行时风险)。
+  # ─────────────────────────────────────────────────────────────────────────
+  detector_to_ontology:
+    file: ../../utils/ontology_loader.py::DETECTOR_TO_ONTOLOGY
+    status: deprecated_compat
+    reason: 已迁移到本文件 axis_mappings.project_type_to_framework
+    migration: ontology_loader._resolve_detector_to_ontology() 优先读本文件
+    read_only_until: Phase 4
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # 旧常量 3: project_type_detector.py::PARENT_TYPE_MAP
+  # -----------------------------------------------------------------------
+  # 把 32 个 project_type 聚合到 11 个父桶 (residential / hospitality / ...)。
+  # v1.8 §4 明确: parent_type 不进入主协议, 只能用于兼容聚合。
+  # 不要在新代码里依赖它推导 project_type_id / subdomain_id / project_scale 等。
+  # ─────────────────────────────────────────────────────────────────────────
+  parent_type_map:
+    file: ../../services/project_type_detector.py::PARENT_TYPE_MAP
+    status: deprecated_compat
+    reason: v1.8 §4 — parent_type 只可用于兼容聚合, 不进入主协议
+    keep_for:
+      - 旧下游 (task_completeness_analyzer 等)
+      - 统计聚合 (按 11 个父桶分组)
+      - 兜底问卷
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # 旧常量 4: project_type_detector.py::SPECIALTY_TAG_MAP
+  # -----------------------------------------------------------------------
+  # 90+ 个细分标签 (tea_bar / loft / dental / ...)。
+  # v1.8 §4 明确: specialty_tag 是开放词集, 不直接进入主协议,
+  # 仅作为 subdomain_signals 的辅助证据 (如 specialty_tag=tea_bar
+  # 加成 suggested_subdomain_id=tea_drink_store 的置信度)。
+  # ─────────────────────────────────────────────────────────────────────────
+  specialty_tag_map:
+    file: ../../services/project_type_detector.py::SPECIALTY_TAG_MAP
+    status: aux_signal
+    reason: v1.8 §4 — specialty_tag 是开放词集, 不直接进入主协议
+    keep_for: 作为 subdomain_signals 的辅助证据

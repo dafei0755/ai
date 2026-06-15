@@ -1,0 +1,291 @@
+# =============================================================================
+# 咖啡馆激活包（轻量版）
+# =============================================================================
+#
+# 文件角色:
+#   - 被 OntologyLoader Layer 4 按 subdomain_id 加载
+#   - 作为 coffee_shop 子域的领域推进说明书
+#   - 继承 commercial_dining 通用框架, 只补咖啡馆专属运营与体验参数
+# =============================================================================
+
+schema_version: activation_pack.v1
+pack_id: coffee_shop_pack
+status: reserved_light
+maturity: exploratory
+owner: core_team
+last_updated: 2026-06-09
+
+meta:
+  display_name: 咖啡馆激活包
+  description: >
+    面向咖啡馆、精品咖啡、社区咖啡与品牌咖啡门店项目，聚焦吧台出品节拍、
+    外带与停留并存、香气/声学/座位体验、品牌日常复购与社区界面。
+  assumptions:
+    - 以室内层为主，不覆盖建筑结构改造的深层论证
+    - 默认存在吧台出品、外带取餐、短停留与社交停留的混合需求
+    - 优先支持中小体量门店的早期概念与方案判断
+  non_goals:
+    - 不替代消防规范、机电顾问、设备厂家专项设计
+    - 不直接输出施工图或设备深化图
+
+routing_binding:
+  parent_project_type_id: commercial_dining
+  subdomain_id: coffee_shop
+  industry_hints:
+    - food_beverage
+    - retail_lifestyle
+  confidence_gate:
+    preferred_min_confidence: 0.55
+    fallback_policy: keep_general_pack
+
+supported_project_scales:
+  - interior_fitout
+  - interior_renovation
+
+default_project_conditions:
+  - medium_dwell_time
+  - bar_counter_priority
+  - takeaway_and_seating_mixed
+
+store_archetypes:
+  - id: quick_grab
+    name: 快取咖啡
+    traits:
+      - 外带比例高
+      - 点单和取餐路径短
+      - 门头与吧台可见性强
+    default_targets:
+      takeaway_ratio_min: 0.65
+      seat_ratio_max: 0.25
+  - id: neighborhood_third_place
+    name: 社区第三空间
+    traits:
+      - 停留与社交明显
+      - 对座位舒适、声学与插座友好度敏感
+      - 需要稳定复购与社区识别
+    default_targets:
+      seat_ratio_range: [0.35, 0.55]
+      acoustic_comfort_priority: high
+  - id: specialty_tasting
+    name: 精品品鉴店
+    traits:
+      - 手冲或豆单展示重要
+      - 吧台互动和出品仪式感强
+      - 材料与灯光需要服务风味感知
+    default_targets:
+      bar_interaction_priority: high
+      menu_story_visibility: high
+
+active_spatial_layer_ids:
+  - interior_layer
+
+active_discipline_ids:
+  - interior
+  - mep
+  - fire_life_safety
+  - signage_wayfinding
+  - equipment
+  - cost_construction
+  - operation
+  - acoustic
+
+domain_framework:
+  profile_id: coffee_shop.domain_framework.v1
+  required_dimensions:
+    - E2_body_movement
+    - E3_light_material
+    - E6_operation_system
+    - E9_constraint_risk
+  recommended_dimensions:
+    - E5_time_sequence
+    - E7_social_relation
+    - E8_symbol_narrative
+  dimension_intent_notes:
+    E2_body_movement: 顾客、咖啡师、外带取餐与停留客群动线避免互相穿插
+    E3_light_material: 灯光、材质、香气和声学共同影响停留与风味感知
+    E6_operation_system: 吧台出品节拍、清洗补给、取餐窗口和座位翻台要协同
+    E9_constraint_risk: 给排水、电力、排烟/异味、消防疏散和设备净距先行
+
+type_method_profile:
+  profile_id: coffee_shop.type_method.v1
+  priority_sequence:
+    - store_archetype_alignment
+    - bar_counter_and_pickup_flow
+    - dwell_time_and_seating_mix
+    - aroma_acoustic_light_control
+    - mep_and_equipment_feasibility
+    - brand_daily_memory_point
+  stage_notes:
+    store_archetype_alignment: 先判断快取、社区停留或精品品鉴模型
+    bar_counter_and_pickup_flow: 吧台长度、点单、等待、取餐决定效率上限
+    dwell_time_and_seating_mix: 座位结构决定客单、翻台和社区氛围
+    aroma_acoustic_light_control: 咖啡体验不只靠视觉, 香气、声学和光色同等关键
+    mep_and_equipment_feasibility: 咖啡机、磨豆机、制冰、清洗和排水必须提前校验
+    brand_daily_memory_point: 记忆点应服务日常复购, 不是一次性打卡装饰
+
+general_method_profile:
+  profile_id: general_method.coffee_shop.v1
+  must_check:
+    - objective_clarity
+    - hard_constraint_completeness
+    - contradiction_scan
+    - delivery_alignment
+  warn_thresholds:
+    missing_required_slots: 2
+    contradiction_count: 1
+
+operation_model:
+  core_nodes:
+    - entry
+    - order
+    - bar_prepare
+    - pickup
+    - seating
+    - wash_supply
+    - retail_display
+  key_conflicts:
+    - pickup_vs_seating_conflict
+    - bar_staff_crossing
+    - noise_from_equipment
+    - aroma_and_air_quality
+    - mep_feasibility
+    - fire_compliance
+  service_sla_targets:
+    peak_order_to_pickup_mins: 7
+    avg_queue_wait_mins: 5
+    queue_spillover_allowed: false
+
+zoning_heuristics:
+  note: 以下为经验阈值，最终以现场条件、品牌模型和运营数据为准
+  area_ratio_guideline:
+    customer_seating: [0.35, 0.55]
+    bar_and_prepare: [0.22, 0.35]
+    storage_and_wash: [0.08, 0.16]
+    retail_display: [0.03, 0.10]
+  min_clear_width_mm:
+    customer_main_path: 1100
+    queue_path: 1000
+    bar_staff_path: 900
+  critical_adjacency:
+    - order_counter -> pickup_counter
+    - espresso_machine -> grinder -> milk_station
+    - wash_sink -> bar_prepare
+    - retail_display -> queue_or_exit
+
+equipment_precheck:
+  required_items:
+    - water_supply_and_drain
+    - power_capacity
+    - espresso_machine_location
+    - grinder_noise_control
+    - refrigeration_and_ice
+    - wash_and_cleaning_station
+  risk_if_missing:
+    water_supply_and_drain: 清洗补给和食品安全节拍无法保证
+    power_capacity: 咖啡机、磨豆机和制冰设备并发运行可能跳闸
+    espresso_machine_location: 吧台流程和客人可见性会被动返工
+    grinder_noise_control: 磨豆噪声可能破坏停留与交谈体验
+    refrigeration_and_ice: 冷链与冰品补给影响出品稳定
+    wash_and_cleaning_station: 清洗动线绕行会拖慢高峰出品
+
+object_sets:
+  - coffee_zone_vocabulary
+  - coffee_operation_node_vocabulary
+  - coffee_equipment_vocabulary
+  - coffee_behavior_node_vocabulary
+  - coffee_brand_memory_vocabulary
+
+ask_yourself:
+  - id: coffee_bar_001
+    priority: P0
+    question: 吧台、点单、等待、取餐是否形成单向且可视的出品路径？
+    why: 吧台流程决定高峰效率与顾客等待感受
+  - id: coffee_seating_001
+    priority: P1
+    question: 外带客、短停留客和长停留客是否有不同的座位与路径策略？
+    why: 停留模型混杂会造成噪声、占座和翻台冲突
+  - id: coffee_mep_001
+    priority: P0
+    question: 给排水、电力、制冰、冷藏和清洗点位是否已确认？
+    why: 设备条件不清会直接限制吧台布局
+  - id: coffee_sensory_001
+    priority: P2
+    question: 香气、磨豆噪声、光色和材料触感是否共同服务品牌体验？
+    why: 咖啡馆的体验记忆来自多感官，而不只是视觉风格
+
+questionnaire_profile:
+  profile_id: coffee_shop_minimal_intake
+  required_slots:
+    - store_model
+    - seat_ratio
+    - estimated_peak_orders_per_hour
+    - takeaway_ratio
+    - back_of_house_equipment_scope
+    - existing_mep_capacity
+    - fire_boundary_conditions
+  optional_slots:
+    - coffee_product_mix
+    - bar_interaction_level
+    - target_customer_mix
+    - brand_memory_keywords
+    - night_operation_ratio
+
+knowledge_recall_profile:
+  package_ids: &kr_package_ids
+    - kp.commercial_dining
+    - kp.commercial_retail
+    - kp.customer_flow
+    - kp.brand_display
+    - kp.cultural_motif_translation
+    - kp.theme_naming_system
+  search_tags: &kr_search_tags
+    - coffee_shop
+    - specialty_cafe
+    - bar_counter
+    - dwell_time
+    - takeaway_experience
+    - seating_mix
+    - aroma_acoustic_light
+    - food_beverage_operation
+    - brand_memory_point
+
+knowledge_base_binding:
+  _deprecated_in_favor_of: knowledge_recall_profile
+  knowledge_packages: *kr_package_ids
+  search_tags: *kr_search_tags
+
+knowledge_binding:
+  _deprecated_in_favor_of: knowledge_recall_profile
+  knowledge_packages: *kr_package_ids
+  search_tags: *kr_search_tags
+
+deliverable_hints:
+  must_have:
+    - zoning_and_flow_diagram
+    - bar_counter_operation_note
+    - mep_and_equipment_precheck_sheet
+    - seating_mix_strategy
+  should_have:
+    - sensory_experience_map
+    - brand_memory_point_map
+    - peak_hour_operation_walkthrough
+
+risk_control:
+  p0_blockers:
+    - fire_compliance
+    - mep_feasibility
+  p1_high:
+    - bar_counter_bottleneck
+    - pickup_vs_seating_conflict
+    - equipment_noise
+  p2_watchlist:
+    - cost_risk
+    - aroma_air_quality
+    - long_stay_occupancy_pressure
+  escalation_rules:
+    - if: "missing(existing_mep_capacity)"
+      then: "raise_to_p0"
+      note: 未知机电容量时，吧台和设备方案不应冻结
+    - if: "takeaway_ratio > 0.65 and seat_ratio > 0.45"
+      then: "force_flow_conflict_review"
+      note: 高外带与高座位占比并存时，需复核入口、等待和取餐冲突

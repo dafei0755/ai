@@ -29,6 +29,8 @@ class AdvisorState(TypedDict):
     session_id: str
     user_message: str
     module: str
+    view: Optional[str]
+    object_id: Optional[str]
     user_action: str
     dispatch_level: str
     # 节点输出
@@ -119,9 +121,34 @@ def _build_judgment(output) -> str:
     return "；".join(parts) if parts else "需求已初步结构化，请查看建议行动。"
 
 
+_VIEW_CHIP_MAP: dict[str, list[dict]] = {
+    "portfolio": [
+        {"type": "navigate", "label": "查看作品详情", "isPrimary": True,
+         "payload": {"target": "scheme_canvas"}},
+        {"type": "ask", "label": "这个作品的核心亮点是什么？", "isPrimary": False,
+         "payload": {"question": "这个作品的核心亮点是什么？"}},
+    ],
+    "sediment": [
+        {"type": "ask", "label": "哪些沉淀值得复用？", "isPrimary": True,
+         "payload": {"question": "哪些沉淀可以直接复用到新项目？"}},
+        {"type": "navigate", "label": "关联到方案画布", "isPrimary": False,
+         "payload": {"target": "scheme_canvas"}},
+    ],
+    "profile": [
+        {"type": "ask", "label": "如何提升个人影响力？", "isPrimary": True,
+         "payload": {"question": "基于当前档案，如何进一步提升个人影响力？"}},
+    ],
+}
+
+
 def _build_chips(state: AdvisorState) -> list:
     skill_out = state.get("skill_output", {})
     missing = skill_out.get("missing_fields", [])
+    view = state.get("view")
+
+    if view and view in _VIEW_CHIP_MAP:
+        return _VIEW_CHIP_MAP[view]
+
     chips = []
     if missing:
         chips.append({
@@ -152,12 +179,14 @@ def get_advisor_app(db_url: str = "sqlite:///advisor_objects.db"):
 
 def run_advisor(project_id: str, trace_id: str, session_id: str,
                 user_message: str, module: str = "project_base",
+                view: Optional[str] = None, object_id: Optional[str] = None,
                 db_url: str = "sqlite:///advisor_objects.db") -> dict:
     app = get_advisor_app(db_url)
     initial_state = AdvisorState(
         project_id=project_id, trace_id=trace_id, session_id=session_id,
         user_message=user_message, module=module,
-        user_action="ask", dispatch_level="L1",
+        view=view, object_id=object_id,
+        user_action="ask", dispatch_level="L1" if not view else "L2",
         skill_output=None, action_draft=None, confirmed=False,
         ticket_id=None, error=None,
         bound_object_id=None, object_state=None, object_version=None,

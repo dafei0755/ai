@@ -90,6 +90,7 @@ export interface AdvisorViewModel {
   generatedAt: string;
   sceneContext: SceneRef;
   boundObjectId?: string;
+  boundObjectLabel?: string;
   objectState?: 'draft' | 'pending_confirmation' | 'frozen' | 'stale' | 'forked' | 'archived';
   objectVersion?: string;
   judgment: AdvisorJudgment;

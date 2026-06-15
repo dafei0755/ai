@@ -1,0 +1,246 @@
+# =============================================================================
+# Ontology Dimension Registry  (v1.8 §12 E 维度受控枚举)
+# =============================================================================
+# 职责: E1-E9 本体维度的唯一事实源
+# 唯一维护入口: 本文件
+# 命名规则:
+#   id   = E<数字>_<英文关键词>  (程序匹配主键)
+#   code = E<数字>               (人类可读简写, 不用于程序匹配)
+#
+# 抽离原因 (v1.7 §3.2):
+#   1. E1-E9 是跨 framework 共享的, 在 ontology.yaml 内嵌会被 14 个 framework
+#      重复定义, 维护漂移风险高
+#   2. v1.8 §15 要求程序匹配只能用 id (如 E2_body_movement),
+#      旧 issue_id: E1 + 中文名 [E1] 标记的写法人能读但机器难匹配
+#   3. OntologyLoader 增加 dimension_resolver 后, framework 改为只引用 id
+#
+# 消费者:
+#   - OntologyLoader.dimension_resolver
+#   - ontology.yaml 内 framework 通过 ontology_dimension_ids 引用
+#   - knowledge_package_registry 知识召回
+#   - SpaceClassificationService 通过 spatial_layer_to_dimensions 映射
+#
+# 与空间分类的关系:
+#   见 config/registries/classification_master_index.yaml::
+#       axis_mappings.spatial_layer_to_dimensions
+# =============================================================================
+
+schema_version: ontology_dimension_registry.v1.8
+owner: core_team
+review_status: approved
+last_updated: 2026-05-20
+
+ontology_dimensions:
+  E1_spatial_order:
+    code: E1
+    name_cn: 空间秩序与组织 (空间体量与比例)
+    name_en: Spatial Volume & Proportion / Spatial Order
+    status: active_mvp
+    description: |
+      空间作为三维容器的物理本质：体量感、高度比例、压缩与释放的节奏、
+      门槛与边界。这是所有设计的物质起点——先有空间容器，才有功能和意义。
+      关注空间本身的"身体性"，而非仅将空间视为功能的载体。
+    ask_yourself: |
+      这个空间的体量感是什么？天花高度与平面尺度的比例关系如何？
+      从入口到核心空间，是压缩-释放还是渐进-展开？哪里是门槛——
+      空间性质发生质变的边界？空间的"负形"与"实体"如何对话？
+    examples:
+      - 层高压缩创造亲密感 (Double-height to intimate compression)
+      - 门洞作为空间叙事的标点 (Doorway as spatial punctuation)
+      - 中庭体量锚定整体空间秩序 (Atrium volume anchoring spatial order)
+      - 走廊的窄-宽节奏引导行进体验 (Corridor width rhythm guiding movement)
+      - 结构柱网定义空间的基本韵律 (Column grid defining spatial rhythm)
+    related_dimensions: [E2_body_movement, E4_boundary_threshold]
+
+  E2_body_movement:
+    code: E2
+    name_cn: 身体体验与动觉
+    name_en: Bodily Experience & Kinesthesia
+    status: active_mvp
+    description: |
+      人体在空间中的物理存在与运动感知：行走、停留、弯腰、攀爬、
+      视线高度、触碰距离。超越"人体工学"的工具性理解，
+      关注身体与空间的现象学关系——人如何通过身体"理解"空间。
+      这是 E1（空间）与 E6（功能）之间的关键桥梁。
+    ask_yourself: |
+      人的身体在这个空间中如何被"接收"？行走时地面材质的变化
+      是否暗示了区域转换？坐下时的视线高度看到什么？
+      楼梯的踏步尺度是邀请还是阻断？身体的紧张（狭窄处）
+      与放松（开阔处）节奏如何编排？老人、儿童、轮椅使用者
+      的身体经验是否被同等考虑？
+    examples:
+      - 踏步比例影响攀爬的身体节奏
+      - 吧台高度决定社交的身体关系
+      - 窗台高度决定坐 / 倚 / 望的身体姿态
+      - 走道宽度编码"擦肩"或"并行"的社交距离
+      - 地面高差作为空间界定的身体信号
+    related_dimensions: [E1_spatial_order, E6_operation_system, E7_social_relation]
+
+  E3_light_material:
+    code: E3
+    name_cn: 光与材料 (光作为设计材料)
+    name_en: Light as Design Material
+    status: active_mvp
+    description: |
+      自然光与人工光的物质性：方向、强度、色温、阴影图案、昼夜节律、
+      季节变化。光不是"照明设施"的附属品，而是与材料、空间并列的
+      核心设计材料。光的变化赋予空间时间性（连接 E5），
+      光与材料的相遇定义表面品质（连接 E4）。
+    ask_yourself: |
+      主要自然光从哪个方向、以什么角度进入？一天中这个空间的
+      光影戏剧如何展开（晨光-正午-黄昏）？北向漫射光与南向直射光
+      分别适合什么活动？人工照明的层次如何组织？
+      有没有"黑暗"也是设计语言的区域？
+    examples:
+      - 天窗创造的光井效果
+      - 百叶控制的光影图案随时间移动
+      - 北向窗为画室提供稳定漫射光
+      - 壁灯的间接光洗墙创造漂浮感
+      - 烛光尺度的低色温光源营造亲密氛围
+    related_dimensions: [E4_boundary_threshold, E5_time_sequence]
+
+  E4_boundary_threshold:
+    code: E4
+    name_cn: 边界 / 阈限与材料物性
+    name_en: Boundary, Threshold & Material Physicality
+    status: active_mvp
+    description: |
+      材料超越"表面装饰"的深层物理属性：热质量、声学特性、触觉品质、
+      老化轨迹。同时关注空间边界的阈限性——内外关系如何被建立。
+      材料的"诚实性"——它是什么就表现为什么，还是被涂层掩盖了本质？
+      材料的时间性与 E5 直接关联。
+    ask_yourself: |
+      这种材料的触感传达什么情感？它的热导率如何影响体感舒适？
+      它的声学特性是吸收还是反射？十年后它会变成什么样子——
+      是优雅的铜绿还是廉价的老化？材料之间的接缝如何处理？
+    examples:
+      - 夯土墙的蓄热性能平衡昼夜温差
+      - 橡木地板随年月形成的脚步磨痕
+      - 耐候钢的锈蚀层作为时间叙事
+      - 手工砖的微差异创造表面活力
+      - 铜扶手被手掌触摸后的光泽变化
+    related_dimensions: [E3_light_material, E5_time_sequence]
+
+  E5_time_sequence:
+    code: E5
+    name_cn: 时间与时序动态
+    name_en: Time & Temporal Dynamics
+    status: active_mvp
+    description: |
+      空间的第四维度：日内节律、季节循环、生命周期、使用节奏。
+      时间不是设计之外的变量，而是需要被主动编排的设计材料。
+    ask_yourself: |
+      这个空间在凌晨 5 点和下午 5 点分别是什么状态？
+      夏至和冬至的光线入射角如何改变空间体验？
+      五年内哪些元素会先老化？使用高峰与低谷如何转换？
+      空间能否支持"分时复用"？这个设计如何优雅地老去而非过时？
+    examples:
+      - 落叶树在夏遮阳冬透光
+      - 可翻转的季节性家具布局
+      - 预留管线通道支持未来技术升级
+      - 材料选择考虑 20 年老化轨迹
+      - 模块化隔墙支持家庭结构变化
+    related_dimensions: [E3_light_material, E4_boundary_threshold]
+
+  E6_operation_system:
+    code: E6
+    name_cn: 运营系统与服务流程 (场所叙事)
+    name_en: Operation System & Service Flow / Place Spirit
+    status: active_mvp
+    description: |
+      运营 / 服务流程作为空间设计驱动: 出杯效率、备餐流线、
+      高峰排队、外卖骑手干扰、收银节点。这一维度在商业空间中
+      与体验直接相关。同时承载场所叙事 (E6 在 v1.5 ontology.yaml
+      中本作"场所精神", v1.8 重新聚焦运营系统, 场所精神语义合并到
+      E8 符号叙事)。
+    ask_yourself: |
+      运营流线与顾客流线是否冲突？高峰时备餐 / 出杯 / 取餐
+      三个节点能否并行？外卖骑手与堂食顾客是否需要物理隔离？
+      收银节点是否暗示了结账离场的动作？
+    examples:
+      - 备餐动线与顾客动线完全分离
+      - 等位区可视化座位 (心理加速翻台)
+      - 取餐口与外卖口物理分隔
+      - 收银前置缩短入店决策时间
+    related_dimensions: [E2_body_movement, E9_constraint_risk]
+
+  E7_social_relation:
+    code: E7
+    name_cn: 社会关系与共同性
+    name_en: Social Relations & Collectivity
+    status: active_mvp
+    description: |
+      空间如何塑造和回应人与人之间的关系：公共性与私密性的梯度、
+      权力关系的空间化表达、陌生人之间的偶遇机制、群体认同的物质基础。
+      E7 与 E2 交叉：空间距离和身体姿态共同编码了社会关系。
+    ask_yourself: |
+      这个空间对"陌生人相遇"持什么态度——是鼓励、容忍还是回避？
+      "公共性"是真实的还是表演性的？空间是否在无意中排斥了
+      某些群体（老人、残障人士、低收入者、儿童）？
+    examples:
+      - 阶梯看台在非演出时成为非正式社交空间
+      - 走廊加宽创造自然的停留与对话
+      - 共享厨房作为社区凝聚力的物质核心
+      - 可见的内部工作台让顾客感到被邀请参与
+      - 不同收入群体共用同一门厅避免社会隔离
+    related_dimensions: [E2_body_movement, E8_symbol_narrative]
+
+  E8_symbol_narrative:
+    code: E8
+    name_cn: 符号、叙事与品牌表达
+    name_en: Symbol, Narrative & Brand Expression
+    status: active_mvp
+    description: |
+      空间作为符号 / 叙事载体: 品牌识别度、文化转译、记忆点、
+      打卡价值、场所精神。这一维度在商业空间是营销资产,
+      在文化空间是文脉传承。
+    ask_yourself: |
+      这个地方原来是什么？那段历史如何在当下设计中留下可被感知的
+      痕迹？如果拆掉所有标牌，人们还能从空间本身"读出"这是
+      什么地方吗？品牌叙事如何在不堆砌符号的情况下被传达？
+    examples:
+      - 保留工厂锯齿屋顶成为展览空间的光源叙事
+      - 旧码头木桩暴露于新楼板之下讲述港口历史
+      - 古树位置决定庭院中心而非被移走
+      - 标志性植物墙作为品牌签名
+      - 定制霓虹灯品牌语句
+    related_dimensions: [E5_time_sequence, E7_social_relation]
+
+  E9_constraint_risk:
+    code: E9
+    name_cn: 约束、风险与可实施性
+    name_en: Constraint, Risk & Feasibility
+    status: active_mvp
+    description: |
+      结构、机电、消防、规范、造价、施工等技术约束作为设计驱动,
+      而非"填空题"。同时关注经济伦理与价值分配。
+      技术约束往往是创意的最佳催化剂。
+    ask_yourself: |
+      结构体系如何影响空间的开敞度与韵律感？管线走向如何与吊顶 /
+      地面设计协调？空调出风方式如何影响人的体感？预算分配的
+      优先级如何体现价值观？花在隐蔽工程上的钱是否足够？
+    examples:
+      - 暴露的木结构桁架成为空间特色
+      - 地暖取消了散热器释放墙面空间
+      - 双层幕墙的呼吸效应与自然通风
+      - 标准化构件+关键节点精细化的成本策略
+      - 被动式设计减少机电系统投入
+      - 全生命周期成本分析替代初始造价最优
+    related_dimensions: [E4_boundary_threshold, E6_operation_system]
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 与空间层的对应关系
+# (真实事实源: classification_master_index.yaml::
+#                axis_mappings.spatial_layer_to_dimensions
+#  此处仅作反向索引方便人类查阅)
+# ─────────────────────────────────────────────────────────────────────────────
+spatial_layer_index:
+  E1_spatial_order: [site_layer, building_layer, interior_layer]
+  E2_body_movement: [interior_layer]
+  E3_light_material: [interior_layer, landscape_layer]
+  E4_boundary_threshold: [site_layer, building_layer, interior_layer]
+  E5_time_sequence: [site_layer, interior_layer, landscape_layer]
+  E6_operation_system: [interior_layer]
+  E7_social_relation: [interior_layer, landscape_layer]
+  E8_symbol_narrative: [building_layer, interior_layer]
+  E9_constraint_risk: [building_layer, interior_layer]

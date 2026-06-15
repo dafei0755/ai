@@ -1,0 +1,69 @@
+schema_version: capability_registry.v1
+description: Runtime capability guardrails for Scheme Advisor context packets.
+
+capabilities:
+  Understanding:
+    name: 理解力
+    primary_principle: 先定位
+    guardrail_principles:
+      - 防定位上瘾
+      - 低置信时保留澄清入口
+    failure_modes:
+      - 把空间类型当成唯一答案
+      - 忽略复合场景中的主次关系
+    external_search_allowed: false
+
+  Retrieval:
+    name: 检索力
+    primary_principle: 信息不全不硬猜
+    guardrail_principles:
+      - 证据不足不当定论
+      - 只调用治理后的知识包和知识卡
+    failure_modes:
+      - 把弱证据说成规律
+      - 把项目事实上升为通用知识
+    external_search_allowed: false
+
+  Reasoning:
+    name: 推理力
+    primary_principle: 排头号风险
+    guardrail_principles:
+      - 分层判断
+      - 主诉求必须经过风险审查
+    failure_modes:
+      - 只讲概念不处理约束
+      - 忽略工程和运营前置条件
+    external_search_allowed: false
+
+  Translation:
+    name: 转译力
+    primary_principle: 源不搬表面，必须解码不变量
+    guardrail_principles:
+      - 防符号滑坡
+      - 把文化和品牌先转成空间关系
+    failure_modes:
+      - 符号堆砌
+      - 把风格词直接当设计策略
+    external_search_allowed: false
+
+  Generation:
+    name: 生成力
+    primary_principle: 结论封顶
+    guardrail_principles:
+      - 追问克制
+      - 指出风险必须给路径
+    failure_modes:
+      - 在硬约束缺失时输出确定结论
+      - 越过成熟度生成落地承诺
+    external_search_allowed: false
+
+  MemoryGovernance:
+    name: 沉淀力
+    primary_principle: 顺手记账
+    guardrail_principles:
+      - 宁可窄，不错误上提
+      - 候选知识必须经过审核
+    failure_modes:
+      - 把一次项目答案直接沉淀为通用知识
+      - 缺证据链入库
+    external_search_allowed: false

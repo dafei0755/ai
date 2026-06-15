@@ -1,0 +1,17 @@
+{
+  "schema_version": "scheme_advisor_golden_review_apply.v1",
+  "generated_at": "2026-06-16T00:55:51",
+  "summary": {
+    "review_rows": 29,
+    "updated_items": 0,
+    "updated_fields": 0,
+    "skipped_empty_fields": 203,
+    "skipped_unapproved_gold_fields": 0,
+    "review_rows_pending_decision": 0,
+    "unknown_review_rows": 0
+  },
+  "unknown_ids": [],
+  "source_golden_path": "D:\\11-20\\2026.2.25\\langgraph-design\\docs\\system-completeness-audit\\scheme-advisor-190-golden-annotation-base-2026-03-22.json",
+  "review_csv_path": "D:\\11-20\\2026.2.25\\langgraph-design\\docs\\system-completeness-audit\\scheme-advisor-golden-review-batch-01-p0-synced-2026-03-22.csv",
+  "updated_golden_output": "D:\\11-20\\2026.2.25\\langgraph-design\\docs\\system-completeness-audit\\scheme-advisor-190-golden-annotation-updated-2026-03-22.json"
+}

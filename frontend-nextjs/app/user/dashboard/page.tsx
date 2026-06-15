@@ -1,10 +1,10 @@
 'use client';
 
 /**
- * 用户中心主页面 - v7.141.3
+ * 用户中心主页面
  *
  * 功能模块：
- * 1. 概览 - 会员信息、配额使用情况
+ * 1. 概览 - 独立用户系统状态
  * 2. 知识库管理 - 用户的私有知识库
  * 3. 账户设置 - 个人信息、偏好设置
  * 4. 帮助中心 - 服务条款、隐私政策、使用指南
@@ -70,28 +70,37 @@ export default function UserDashboardPage() {
   const loadQuotaData = async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem('jwt_token');
+      const currentUser = user;
+      if (!currentUser) {
+        setQuotaData(null);
+        return;
+      }
 
-      // TODO: 替换为实际用户ID和会员等级
-      const userId = 'user_mock_123';
-      const userTier = 'free';
-
-      const response = await fetch(
-        `/api/admin/knowledge-quota/quota/${userId}?user_tier=${userTier}`,
-        {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        }
-      );
-
-      if (!response.ok) throw new Error('加载配额数据失败');
-
-      const data = await response.json();
-      setQuotaData(data.data);
+      setQuotaData({
+        user_id: currentUser.user_id?.toString() || currentUser.username || 'local-user',
+        user_tier: 'internal',
+        quota: {
+          max_documents: -1,
+          max_storage_mb: -1,
+          max_file_size_mb: -1,
+          document_expiry_days: -1,
+          allow_sharing: true,
+          allow_team_kb: true,
+        },
+        usage: {
+          document_count: 0,
+          storage_mb: 0,
+        },
+        remaining: {
+          documents: -1,
+          storage_mb: -1,
+        },
+        warnings: ['独立登录、付费、会员和权限系统正在规划中，旧原站会员配额已停用。'],
+        quota_exceeded: false,
+      });
     } catch (error) {
-      console.error('加载配额数据失败:', error);
-      toast.error('加载配额数据失败');
+      console.error('加载用户中心数据失败:', error);
+      toast.error('加载用户中心数据失败');
     } finally {
       setLoading(false);
     }
@@ -233,10 +242,7 @@ function OverviewTab({ quotaData, loading, onUpgrade }: {
   }
 
   const tierNames: Record<string, string> = {
-    free: '免费版',
-    basic: '基础版',
-    professional: '专业版',
-    enterprise: '企业版'
+    internal: '内部治理模式'
   };
 
   const documentUsagePercent = quotaData.quota.max_documents !== -1
@@ -261,12 +267,12 @@ function OverviewTab({ quotaData, loading, onUpgrade }: {
               文档有效期: {quotaData.quota.document_expiry_days === -1 ? '永久' : `${quotaData.quota.document_expiry_days} 天`}
             </p>
           </div>
-          {quotaData.user_tier !== 'enterprise' && (
+          {false && (
             <button
               onClick={onUpgrade}
               className="px-6 py-3 bg-white text-blue-600 rounded-lg font-semibold hover:bg-blue-50 transition-colors"
             >
-              升级会员
+              升级
             </button>
           )}
         </div>
@@ -291,13 +297,13 @@ function OverviewTab({ quotaData, loading, onUpgrade }: {
         <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
           <h3 className="text-red-800 dark:text-red-400 font-semibold mb-2">❌ 配额已满</h3>
           <p className="text-sm text-red-700 dark:text-red-500 mb-3">
-            您的配额已用尽，无法上传新文档。请升级会员或清理旧文档。
+            当前上传条件不满足，请检查知识库治理设置。
           </p>
           <button
             onClick={onUpgrade}
             className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
           >
-            立即升级
+            查看设置
           </button>
         </div>
       )}

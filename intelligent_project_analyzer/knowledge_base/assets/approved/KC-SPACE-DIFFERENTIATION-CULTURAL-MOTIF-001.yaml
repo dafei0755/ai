@@ -1,0 +1,83 @@
+card_id: KC-SPACE-DIFFERENTIATION-CULTURAL-MOTIF-001
+title: 文化母题驱动的连锁空间去同质化机制
+status: approved
+source_role: translation_method
+species:
+- MechanismCard
+- MeaningExpressionCard
+- TranslationMethodCard
+production_method: CL
+layer: SpaceType
+source_refs:
+- SRC-XHS-HEY-20260608-002
+- OBS-XHS-HEY-20260608-002
+- HEYTEA_2_0_chinese_inspiration_theme_stores
+grid_coordinate:
+  primary_lens: E8_symbol_narrative
+  secondary_lens:
+  - E7_social_relation
+  - E3_light_material
+  layer: SpaceType
+time_validity:
+  variable_type: medium
+  review_cycle: 12 months
+transferability:
+  level: SpaceType
+  limitation: 仅可迁移文化母题转译机制，不可推断商业业绩或单店真实运营状态。
+output_usage:
+- DesignBrief_2_0
+- ConceptMatrix
+- SpatialNarrative
+task_brief_chapter:
+- concept_strategy
+- spatial_narrative
+- brand_memory
+judgment_bet:
+  is_verifiable: false
+  judgment: 文化母题可帮助连锁空间形成差异化叙事。
+  why_this_judgment: 来自已整理的门店主题、母题和诗性表达样本。
+  what_would_prove_it_right: 后续案例复盘显示母题确实被用户识别并参与空间记忆。
+  what_would_prove_it_wrong: 用户记忆只来自产品或品牌标识，与空间母题无关。
+  expected_observation: 访谈、传播素材或复盘中出现对空间母题的稳定引用。
+  review_time: after project post-occupancy review
+primary_domain: food_beverage
+secondary_domains:
+- retail
+- hospitality
+- bookstore
+- cultural_tourism
+knowledge_status: processed_insight
+evidence_level: supporting_evidence
+evidence_strength: B
+ontology_dimension_ids:
+- E8_symbol_narrative
+- E7_social_relation
+- E3_light_material
+- E1_spatial_order
+package_ids:
+- kp.cultural_motif_translation
+- kp.theme_naming_system
+- kp.chain_store_differentiation
+- kp.spatial_narrative
+- kp.tea_drink_store
+allowed_use:
+- theme_generation
+- concept_inspiration
+- motif_recall
+- spatial_narrative_design
+- chain_store_differentiation_strategy
+not_allowed_use:
+- business_performance_claim
+- construction_standard
+- compliance_basis
+- confirmed_user_preference
+- verified_store_status
+evidence_case_ids:
+- HEYTEA_2_0_chinese_inspiration_theme_stores
+summary: 连锁空间可在统一品牌与运营底盘上，通过文化母题、双字主题命名、诗性短句和局部空间构件形成门店差异化身份。
+review_required: true
+review:
+  reviewer_id: codex
+  reviewed_at: '2026-06-08T03:55:44.509937+00:00'
+  decision: approved
+  note: initial approved MVP asset from HEYTEA cultural motif source

@@ -492,6 +492,18 @@ class Settings(BaseSettings):
 
         return self
 
+    @field_validator("debug", mode="before")
+    @classmethod
+    def parse_debug_aliases(cls, value):
+        """兼容部分启动环境把 DEBUG 写成 release/dev/prod 的情况。"""
+        if isinstance(value, str):
+            normalized = value.strip().lower()
+            if normalized in {"release", "prod", "production", "false", "0", "no", "off"}:
+                return False
+            if normalized in {"debug", "dev", "development", "true", "1", "yes", "on"}:
+                return True
+        return value
+
     @property
     def is_production(self) -> bool:
         """是否为生产环境"""

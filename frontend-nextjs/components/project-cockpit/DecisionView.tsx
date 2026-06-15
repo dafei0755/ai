@@ -4,9 +4,10 @@ import { useState } from 'react';
 import { ChevronDown, ChevronUp, Info, Lock, Eye } from 'lucide-react';
 import type { ProjectOverview, ReadinessItem, StageInfo, ViewKey } from './mock/mockData';
 import { MOCK_VIEW_BADGES } from './mock/mockData';
+import { ProjectGrowthCanvasView } from './ProjectGrowthCanvasView';
 
 const VIEW_TABS: { key: ViewKey; label: string }[] = [
-  { key: 'overview', label: '项目概览' },
+  { key: 'overview', label: '项目智能画布' },
   { key: 'spaces',   label: '空间内容' },
   { key: 'files',    label: '项目资料' },
   { key: 'history',  label: '历史记录' },
@@ -14,12 +15,19 @@ const VIEW_TABS: { key: ViewKey; label: string }[] = [
 
 interface DecisionViewProps {
   overview: ProjectOverview;
+  projectLabel?: string;
+  onProjectLabelChange?: (currentTitle: string) => void;
   stages: StageInfo[];
   activeView: ViewKey;
   onViewChange: (view: ViewKey) => void;
   onAction: (label: string) => void;
   onCapabilityClick: (key: 'floor_plan' | 'scheme_canvas') => void;
   onAdvisorPrefill?: (text: string) => void;
+  onSwitchModule?: (target: 'floor_plan' | 'scheme_canvas') => void;
+  /** 会话 id — 透传给项目底盘，用于挂载 PlanSandboxPanel 到平面推演悬浮工作台 */
+  sessionId?: string;
+  /** 打开地理工作台回调 */
+  onOpenGeoWorkspace?: () => void;
 }
 
 // ── 准备度条 ──────────────────────────────────────────────────────────────
@@ -59,81 +67,77 @@ function ReadinessBar({ item }: { item: ReadinessItem }) {
 }
 
 // ── 空间视图内容 ──────────────────────────────────────────────────────────
-const MOCK_SPACES = [
-  {
-    key: 'lobby',
-    name: '公共大堂',
-    status: 'S1 概念',
-    statusColor: 'bg-sky-100 text-sky-700',
-    desc: '品牌第一印象区域，HAY 克制美学与峨眉山景观的核心交汇点。设计挑战：如何在进门5秒内建立「山间轻居」的气质感知。',
-    tags: ['品牌锚点', '动线核心', '体验优先'],
-    area: '约 80–120㎡',
-  },
-  {
-    key: 'guestroom',
-    name: '标准客房',
-    status: 'S1 概念',
-    statusColor: 'bg-sky-100 text-sky-700',
-    desc: '运营主体空间，目标：让客人在山景环境中体验到 HAY 家具的功能主义美感，而非堆砌风格符号。',
-    tags: ['运营主体', '功能主义', '山景朝向'],
-    area: '约 35–45㎡ × N间',
-  },
-  {
-    key: 'dining',
-    name: '餐饮轻服务',
-    status: '待规划',
-    statusColor: 'bg-slate-100 text-slate-600',
-    desc: '轻餐饮服务区，满足早餐和简单社交需求。与公共区共享空间策略，避免功能分割带来的管理复杂度。',
-    tags: ['轻运营', '社交触点'],
-    area: '待定',
-  },
-  {
-    key: 'outdoor',
-    name: '半户外观景',
-    status: 'S1 概念',
-    statusColor: 'bg-amber-100 text-amber-700',
-    desc: '七里坪山景是最核心的竞争资产。半户外区域是将自然景观转化为可售卖体验的关键节点，也是社交媒体传播的主要出口。',
-    tags: ['核心卖点', '传播节点', '山景资产'],
-    area: '约 40–60㎡',
-  },
-];
-
-function SpacesView({ onAdvisorPrefill }: { onAdvisorPrefill?: (t: string) => void }) {
+function SpacesView({
+  onAdvisorPrefill,
+}: {
+  onAdvisorPrefill?: (t: string) => void;
+  onSwitchModule?: (target: 'floor_plan' | 'scheme_canvas') => void;
+}) {
   return (
     <div className="space-y-5 pb-8">
-      <section>
-        <button className="flex w-full items-center justify-between rounded-xl border border-slate-200 bg-white/85 px-4 py-3 text-left transition hover:border-slate-300">
-          <div className="flex items-center gap-3">
-            <h4 className="ui-type-subtitle font-semibold text-slate-700">空间视图内容</h4>
-            <span className="ui-type-meta text-slate-400">{MOCK_SPACES.length} 条</span>
-          </div>
+      <div className="flex flex-col items-center justify-center py-16 text-center gap-3">
+        <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-slate-400">
+            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+            <polyline points="9 22 9 12 15 12 15 22"/>
+          </svg>
+        </div>
+        <p className="text-sm text-slate-500">暂无空间数据</p>
+        <p className="text-xs text-slate-400 max-w-xs">空间信息将在问卷完成、上传平面图后自动提取</p>
+        <button
+          onClick={() => onAdvisorPrefill?.('帮我梳理这个项目的主要空间类型和功能分区')}
+          className="mt-2 text-xs text-sky-600 hover:text-sky-700 transition-colors"
+        >
+          问高参：梳理空间分区 →
         </button>
-      </section>
+      </div>
+    </div>
+  );
+}
 
-      <div className="cockpit-adaptive-grid cockpit-grid-files">
-        {MOCK_SPACES.map(space => (
-          <button
-            key={space.key}
-            onClick={() => onAdvisorPrefill?.(`我想深化${space.name}的设计方向`)}
-            className="cockpit-card cockpit-card-interactive cockpit-card-accent-files cockpit-file-card flex flex-col p-5 text-left group"
-          >
-            <div className="flex items-center justify-between gap-2 mb-2">
-              <span className="ui-type-meta font-medium text-slate-400">空间规划</span>
-              <span className={`cockpit-card-chip text-[10px] font-medium ${space.statusColor}`}>{space.status}</span>
-            </div>
-            <h3 className="cockpit-card-title mb-2 text-slate-900 group-hover:text-sky-600">{space.name}</h3>
-            <p className="ui-type-body text-slate-600 flex-1 mb-4 line-clamp-3">{space.desc}</p>
-            <div className="flex flex-wrap gap-1 mb-3">
-              {space.tags.map(t => (
-                <span key={t} className="cockpit-card-chip cockpit-card-chip-accent">{t}</span>
-              ))}
-            </div>
-            <div className="flex items-center justify-between pt-3 border-t border-slate-100">
-              <span className="cockpit-card-chip">{space.area}</span>
-              <span className="ui-type-meta text-sky-600">进入深化 →</span>
-            </div>
-          </button>
-        ))}
+// ── 项目资料视图 ──────────────────────────────────────────────────────────
+function FilesView({ onAdvisorPrefill }: { onAdvisorPrefill?: (t: string) => void }) {
+  return (
+    <div className="space-y-5 pb-8">
+      <div className="flex flex-col items-center justify-center py-16 text-center gap-3">
+        <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-slate-400">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <polyline points="14 2 14 8 20 8"/>
+          </svg>
+        </div>
+        <p className="text-sm text-slate-500">暂无项目资料</p>
+        <p className="text-xs text-slate-400 max-w-xs">上传平面图、方案文件后，资料将自动归入此处</p>
+        <button
+          onClick={() => onAdvisorPrefill?.('我想整理这个项目目前已有的资料清单')}
+          className="mt-2 text-xs text-sky-600 hover:text-sky-700 transition-colors"
+        >
+          问高参：整理资料清单 →
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ── 历史记录视图 ──────────────────────────────────────────────────────────
+function HistoryView({ onAdvisorPrefill }: { onAdvisorPrefill?: (t: string) => void }) {
+  return (
+    <div className="space-y-3 pb-8">
+      <div className="flex flex-col items-center justify-center py-16 text-center gap-3">
+        <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-slate-400">
+            <circle cx="12" cy="12" r="10"/>
+            <polyline points="12 6 12 12 16 14"/>
+          </svg>
+        </div>
+        <p className="text-sm text-slate-500">暂无历史记录</p>
+        <p className="text-xs text-slate-400 max-w-xs">项目推进过程中的关键决策和缺口记录将自动沉淀至此</p>
+        <button
+          onClick={() => onAdvisorPrefill?.('帮我回顾一下目前这个项目我们讨论了什么')}
+          className="mt-2 text-xs text-sky-600 hover:text-sky-700 transition-colors"
+        >
+          问高参：回顾讨论 →
+        </button>
       </div>
     </div>
   );
@@ -329,66 +333,84 @@ function OverviewContent({
 // ── 主组件 ────────────────────────────────────────────────────────────────
 export function DecisionView({
   overview,
+  projectLabel,
+  onProjectLabelChange,
   activeView,
   onViewChange,
   onAction,
   onCapabilityClick,
   onAdvisorPrefill,
+  onSwitchModule,
+  sessionId,
+  onOpenGeoWorkspace,
 }: DecisionViewProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [softUnlockCapability, setSoftUnlockCapability] = useState<'floor_plan' | 'scheme_canvas' | null>(null);
+  const resolvedProjectSummary = projectLabel || overview.name || '未命名项目';
+  const isCanvasView = !softUnlockCapability && activeView === 'overview';
 
   const handleCapabilityClick = (key: 'floor_plan' | 'scheme_canvas') => {
-    setSoftUnlockCapability(key);
+    if (onSwitchModule) {
+      onSwitchModule(key);
+    } else {
+      setSoftUnlockCapability(key);
+    }
     onCapabilityClick(key);
   };
 
   return (
-    <div className="flex flex-col h-full min-h-0 bg-[#f5f5f7]">
-      {/* Sticky Header */}
-      <div className="border-b border-slate-200 bg-white/90 backdrop-blur pl-20 pr-6 py-4 shrink-0 sticky top-0 z-10">
-        <div className="cockpit-header-row">
-          <div className="cockpit-header-main">
-            <h3 className="cockpit-panel-title text-slate-800">项目底盘</h3>
-            <span className="cockpit-header-note">智能决策中枢</span>
-            <button
-              onClick={() => onAdvisorPrefill?.(`解释当前阶段「${overview.stage.label}」意味着什么`)}
-              className="cockpit-card-chip cockpit-card-chip-accent hover:bg-slate-200 transition-colors cursor-pointer"
-            >
-              {overview.stage.label}
-            </button>
-          </div>
-          <input
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="搜索判断、缺口或推荐动作..."
-            className="cockpit-search-input cockpit-header-search"
-          />
-        </div>
-
-        <div className="flex items-center gap-2 mt-3">
-          {VIEW_TABS.map(tab => {
-            const badge = MOCK_VIEW_BADGES[tab.key];
-            return (
+    <div className={`flex h-full min-h-0 flex-col ${isCanvasView ? 'bg-[var(--canvas-bg)]' : 'bg-[#f5f5f7]'}`}>
+      {!isCanvasView && (
+        <div className="shrink-0 sticky top-0 z-10 border-b border-slate-200 bg-white/90 pb-4 pl-[108px] pr-6 pt-6 backdrop-blur">
+          <div className="cockpit-header-row">
+            <div className="cockpit-header-main">
               <button
-                key={tab.key}
-                onClick={() => { onViewChange(tab.key); setSoftUnlockCapability(null); }}
-                className={`cockpit-filter-pill flex items-center gap-1.5 ${activeView === tab.key ? 'cockpit-filter-pill-active' : ''}`}
+                type="button"
+                onClick={() => onProjectLabelChange?.(resolvedProjectSummary)}
+                className="max-w-[36rem] truncate text-left text-[18px] font-semibold leading-6 tracking-normal text-slate-900 transition-colors hover:text-sky-700"
+                title="点击修改项目摘要"
               >
-                {tab.label}
-                {badge && (
-                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${
-                    activeView === tab.key ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-600'
-                  }`}>{badge}</span>
-                )}
+                {resolvedProjectSummary}
               </button>
-            );
-          })}
+            </div>
+            <input
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="搜索判断、缺口或推荐动作..."
+              className="cockpit-search-input cockpit-header-search"
+            />
+          </div>
+
+          <div className="flex items-center gap-2 mt-3">
+            {VIEW_TABS.map(tab => {
+              const badge = MOCK_VIEW_BADGES[tab.key];
+              return (
+                <button
+                  key={tab.key}
+                  onClick={() => { onViewChange(tab.key); setSoftUnlockCapability(null); }}
+                  className={`cockpit-filter-pill flex items-center gap-1.5 ${activeView === tab.key ? 'cockpit-filter-pill-active' : ''}`}
+                >
+                  {tab.label}
+                  {badge && (
+                    <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${
+                      activeView === tab.key ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-600'
+                    }`}>{badge}</span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Scrollable Body */}
-      <div className="flex-1 min-h-0 overflow-y-auto pl-20 pr-6 py-6">
+      <div
+        className={
+          isCanvasView
+            ? 'flex-1 min-h-0 overflow-hidden'
+            : 'flex-1 min-h-0 overflow-y-auto pl-20 pr-6 py-6'
+        }
+      >
         {softUnlockCapability && (
           <SoftUnlockView
             capability={softUnlockCapability}
@@ -404,21 +426,29 @@ export function DecisionView({
         )}
 
         {!softUnlockCapability && activeView === 'overview' && (
-          <OverviewContent
+          <ProjectGrowthCanvasView
             overview={overview}
-            onAction={onAction}
-            onCapabilityClick={handleCapabilityClick}
+            projectLabel={resolvedProjectSummary}
+            tabs={VIEW_TABS.map(tab => ({
+              key: tab.key,
+              label: tab.label === '项目智能画布' ? '全部' : tab.label,
+              active: activeView === tab.key,
+              badge: MOCK_VIEW_BADGES[tab.key],
+              onClick: () => { onViewChange(tab.key); setSoftUnlockCapability(null); },
+            }))}
             onAdvisorPrefill={onAdvisorPrefill}
+            sessionId={sessionId}
+            onOpenGeoWorkspace={onOpenGeoWorkspace}
           />
         )}
         {!softUnlockCapability && activeView === 'spaces' && (
-          <SpacesView onAdvisorPrefill={onAdvisorPrefill} />
+          <SpacesView onAdvisorPrefill={onAdvisorPrefill} onSwitchModule={onSwitchModule} />
         )}
         {!softUnlockCapability && activeView === 'files' && (
-          <div className="cockpit-empty">项目资料 — Sprint 4 对接 WorkspaceContentPanel</div>
+          <FilesView onAdvisorPrefill={onAdvisorPrefill} />
         )}
         {!softUnlockCapability && activeView === 'history' && (
-          <div className="cockpit-empty">历史记录 — Sprint 7 实现</div>
+          <HistoryView onAdvisorPrefill={onAdvisorPrefill} />
         )}
       </div>
     </div>

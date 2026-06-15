@@ -1,6 +1,6 @@
-'use client';
+﻿'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
 
 interface ExpertStat {
@@ -45,12 +45,12 @@ export default function ConceptMapsPage() {
   const [error, setError] = useState<string | null>(null);
   const [timeRange, setTimeRange] = useState<number>(7);
 
-  const fetchStats = async () => {
+  const fetchStats = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
 
-      const token = localStorage.getItem('wp_jwt_token');
+      const token = localStorage.getItem('app_auth_token');
       if (!token) {
         setError('未登录，请先登录管理员账号');
         setLoading(false);
@@ -58,7 +58,7 @@ export default function ConceptMapsPage() {
       }
 
       const response = await axios.get<ConceptMapsStatsResponse>(
-        `http://localhost:8000/api/admin/concept-maps/stats?days=${timeRange}`,
+        `/api/admin/concept-maps/stats?days=${timeRange}`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -73,7 +73,7 @@ export default function ConceptMapsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [timeRange]);
 
   useEffect(() => {
     fetchStats();
@@ -81,7 +81,7 @@ export default function ConceptMapsPage() {
     // 每60秒自动刷新
     const interval = setInterval(fetchStats, 60000);
     return () => clearInterval(interval);
-  }, [timeRange]);
+  }, [fetchStats]);
 
   // 专家角色显示名称映射
   const expertDisplayNames: Record<string, string> = {

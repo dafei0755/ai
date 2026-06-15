@@ -1,0 +1,454 @@
+schema_version: knowledge_asset_bundle.v1
+source_document:
+  source_id: SRC-XHS-HEY-20260608-002
+  source_path: \\XUPC\Users\Public\Documents\喜茶_2.0中式灵感主题店_重新提取.md
+  source_type: manual_visible_xiaohongshu_page
+  raw_text_stored: false
+  screenshot_stored: false
+  user_identifier_stored: false
+  full_url_stored: false
+observation_card:
+  observation_id: OBS-XHS-HEY-20260608-002
+  source_type: manual_visible_xiaohongshu_page
+  sample_count: 24
+  raw_text_stored: false
+  screenshot_stored: false
+  user_identifier_stored: false
+  full_url_stored: false
+candidate_card:
+  card_id: KC-SPACE-DIFFERENTIATION-CULTURAL-MOTIF-001
+  title: 文化母题驱动的连锁空间去同质化机制
+  status: candidate
+  source_role: translation_method
+  species:
+  - MechanismCard
+  - MeaningExpressionCard
+  - TranslationMethodCard
+  production_method: CL
+  layer: SpaceType
+  source_refs:
+  - SRC-XHS-HEY-20260608-002
+  - OBS-XHS-HEY-20260608-002
+  - HEYTEA_2_0_chinese_inspiration_theme_stores
+  grid_coordinate:
+    primary_lens: E8_symbol_narrative
+    secondary_lens:
+    - E7_social_relation
+    - E3_light_material
+    layer: SpaceType
+  time_validity:
+    variable_type: medium
+    review_cycle: 12 months
+  transferability:
+    level: SpaceType
+    limitation: 仅可迁移文化母题转译机制，不可推断商业业绩或单店真实运营状态。
+  output_usage:
+  - DesignBrief_2_0
+  - ConceptMatrix
+  - SpatialNarrative
+  task_brief_chapter:
+  - concept_strategy
+  - spatial_narrative
+  - brand_memory
+  judgment_bet:
+    is_verifiable: false
+    judgment: 文化母题可帮助连锁空间形成差异化叙事。
+    why_this_judgment: 来自已整理的门店主题、母题和诗性表达样本。
+    what_would_prove_it_right: 后续案例复盘显示母题确实被用户识别并参与空间记忆。
+    what_would_prove_it_wrong: 用户记忆只来自产品或品牌标识，与空间母题无关。
+    expected_observation: 访谈、传播素材或复盘中出现对空间母题的稳定引用。
+    review_time: after project post-occupancy review
+  primary_domain: food_beverage
+  secondary_domains:
+  - retail
+  - hospitality
+  - bookstore
+  - cultural_tourism
+  knowledge_status: processed_insight
+  evidence_level: supporting_evidence
+  evidence_strength: B
+  ontology_dimension_ids:
+  - E8_symbol_narrative
+  - E7_social_relation
+  - E3_light_material
+  - E1_spatial_order
+  package_ids:
+  - kp.cultural_motif_translation
+  - kp.theme_naming_system
+  - kp.chain_store_differentiation
+  - kp.spatial_narrative
+  - kp.tea_drink_store
+  allowed_use:
+  - theme_generation
+  - concept_inspiration
+  - motif_recall
+  - spatial_narrative_design
+  - chain_store_differentiation_strategy
+  not_allowed_use:
+  - business_performance_claim
+  - construction_standard
+  - compliance_basis
+  - confirmed_user_preference
+  - verified_store_status
+  evidence_case_ids:
+  - HEYTEA_2_0_chinese_inspiration_theme_stores
+  summary: 连锁空间可在统一品牌与运营底盘上，通过文化母题、双字主题命名、诗性短句和局部空间构件形成门店差异化身份。
+  review_required: true
+case_objects:
+- case_id: CASE-HEYTEA-2-0-01
+  brand: 喜茶 HEYTEA
+  city: 重庆
+  store_name: 南坪协信店
+  theme_name: 观·檐
+  poetic_expression: 小窗坐地，侧听檐声
+  motif_tags:
+  - 檐
+  - 窗
+  - 听觉
+  - 静观
+  case_group_id: HEYTEA_2_0_chinese_inspiration_theme_stores
+  verification_status: not_individually_verified
+- case_id: CASE-HEYTEA-2-0-02
+  brand: 喜茶 HEYTEA
+  city: 重庆
+  store_name: 龙湖源著天街店
+  theme_name: 茶·扇
+  poetic_expression: 茶水悠煮香茗，折扇轻来往间
+  motif_tags:
+  - 茶
+  - 扇
+  - 器物
+  - 文人日常
+  case_group_id: HEYTEA_2_0_chinese_inspiration_theme_stores
+  verification_status: not_individually_verified
+- case_id: CASE-HEYTEA-2-0-03
+  brand: 喜茶 HEYTEA
+  city: 天津
+  store_name: 南开大悦城店
+  theme_name: 悠·弦
+  poetic_expression: 转轴拨弦三两声，未成曲调先有情
+  motif_tags:
+  - 弦
+  - 乐
+  - 情绪铺陈
+  case_group_id: HEYTEA_2_0_chinese_inspiration_theme_stores
+  verification_status: not_individually_verified
+- case_id: CASE-HEYTEA-2-0-04
+  brand: 喜茶 HEYTEA
+  city: 成都
+  store_name: 龙湖滨江天街店
+  theme_name: 石·栖
+  poetic_expression: 倚山石而栖，啜品一盏茶
+  motif_tags:
+  - 山石
+  - 栖居
+  - 茶
+  case_group_id: HEYTEA_2_0_chinese_inspiration_theme_stores
+  verification_status: not_individually_verified
+- case_id: CASE-HEYTEA-2-0-05
+  brand: 喜茶 HEYTEA
+  city: 成都
+  store_name: 总府王府井店
+  theme_name: 檐·间
+  poetic_expression: 香茗古馆静，蝉影拂窗前
+  motif_tags:
+  - 檐
+  - 馆
+  - 窗
+  - 蝉影
+  case_group_id: HEYTEA_2_0_chinese_inspiration_theme_stores
+  verification_status: not_individually_verified
+- case_id: CASE-HEYTEA-2-0-06
+  brand: 喜茶 HEYTEA
+  city: 杭州
+  store_name: 万象城店
+  theme_name: 天·青
+  poetic_expression: 雨过天青云破处，这般颜色做将来
+  motif_tags:
+  - 天青
+  - 雨后
+  - 色彩
+  case_group_id: HEYTEA_2_0_chinese_inspiration_theme_stores
+  verification_status: not_individually_verified
+- case_id: CASE-HEYTEA-2-0-07
+  brand: 喜茶 HEYTEA
+  city: 南京
+  store_name: 金茂览秀城店
+  theme_name: 月·轮
+  poetic_expression: 素月分辉，明河共影，表里俱澄澈
+  motif_tags:
+  - 月
+  - 轮
+  - 澄澈
+  - 水光
+  case_group_id: HEYTEA_2_0_chinese_inspiration_theme_stores
+  verification_status: not_individually_verified
+- case_id: CASE-HEYTEA-2-0-08
+  brand: 喜茶 HEYTEA
+  city: 苏州
+  store_name: 永旺梦乐城工业园店
+  theme_name: 岩·园
+  poetic_expression: 一亭尽揽山中趣，幽室能观室外天
+  motif_tags:
+  - 岩
+  - 园
+  - 亭
+  - 内外关系
+  case_group_id: HEYTEA_2_0_chinese_inspiration_theme_stores
+  verification_status: not_individually_verified
+- case_id: CASE-HEYTEA-2-0-09
+  brand: 喜茶 HEYTEA
+  city: 无锡
+  store_name: 苏宁广场店
+  theme_name: 陶所·围炉
+  poetic_expression: 寒夜客来茶当酒，竹炉汤沸火初红
+  motif_tags:
+  - 陶
+  - 炉
+  - 围坐
+  - 待客
+  case_group_id: HEYTEA_2_0_chinese_inspiration_theme_stores
+  verification_status: not_individually_verified
+- case_id: CASE-HEYTEA-2-0-10
+  brand: 喜茶 HEYTEA
+  city: 无锡
+  store_name: 海岸城店
+  theme_name: 檐·岩
+  poetic_expression: 半壁山房待明月，一盏清茗酬知音
+  motif_tags:
+  - 檐
+  - 岩
+  - 山房
+  - 知音
+  case_group_id: HEYTEA_2_0_chinese_inspiration_theme_stores
+  verification_status: not_individually_verified
+- case_id: CASE-HEYTEA-2-0-11
+  brand: 喜茶 HEYTEA
+  city: 南通
+  store_name: 万象城店
+  theme_name: 尺·檐
+  poetic_expression: 几时友来映尺檐，风花诗茗共我闲
+  motif_tags:
+  - 尺度
+  - 檐
+  - 友聚
+  - 闲适
+  case_group_id: HEYTEA_2_0_chinese_inspiration_theme_stores
+  verification_status: not_individually_verified
+- case_id: CASE-HEYTEA-2-0-12
+  brand: 喜茶 HEYTEA
+  city: 金华
+  store_name: 永盛店
+  theme_name: 岩·流
+  poetic_expression: 日月星天外，品茗山雨间
+  motif_tags:
+  - 岩
+  - 流
+  - 山雨
+  - 天象
+  case_group_id: HEYTEA_2_0_chinese_inspiration_theme_stores
+  verification_status: not_individually_verified
+- case_id: CASE-HEYTEA-2-0-13
+  brand: 喜茶 HEYTEA
+  city: 武汉
+  store_name: 光谷 K11 店
+  theme_name: 园·韵
+  poetic_expression: 雅集茗韵满园春，小庭苍苔一片青
+  motif_tags:
+  - 园
+  - 雅集
+  - 庭
+  - 苔
+  case_group_id: HEYTEA_2_0_chinese_inspiration_theme_stores
+  verification_status: not_individually_verified
+- case_id: CASE-HEYTEA-2-0-14
+  brand: 喜茶 HEYTEA
+  city: 济南
+  store_name: 万象城店
+  theme_name: 玄箔·茶行
+  poetic_expression: 冷冷流泉引玄山，丝金箔缎绣茶行
+  motif_tags:
+  - 玄色
+  - 金箔
+  - 流泉
+  - 茶行
+  case_group_id: HEYTEA_2_0_chinese_inspiration_theme_stores
+  verification_status: not_individually_verified
+- case_id: CASE-HEYTEA-2-0-15
+  brand: 喜茶 HEYTEA
+  city: 济南
+  store_name: 和谐广场店
+  theme_name: 亭·泊
+  poetic_expression: 高下亭台山水境。两畔清辉，中有垂杨径
+  motif_tags:
+  - 亭台
+  - 水境
+  - 垂杨
+  case_group_id: HEYTEA_2_0_chinese_inspiration_theme_stores
+  verification_status: not_individually_verified
+- case_id: CASE-HEYTEA-2-0-16
+  brand: 喜茶 HEYTEA
+  city: 青岛
+  store_name: 万象城店
+  theme_name: 纸·境
+  poetic_expression: 久在樊笼里，复得返自然
+  motif_tags:
+  - 纸
+  - 自然
+  - 返璞
+  case_group_id: HEYTEA_2_0_chinese_inspiration_theme_stores
+  verification_status: not_individually_verified
+- case_id: CASE-HEYTEA-2-0-17
+  brand: 喜茶 HEYTEA
+  city: 沈阳
+  store_name: 万象城食通天店
+  theme_name: 柱·间
+  poetic_expression: 倚柱品茗，茶韵映阳
+  motif_tags:
+  - 柱
+  - 光
+  - 品茗
+  case_group_id: HEYTEA_2_0_chinese_inspiration_theme_stores
+  verification_status: not_individually_verified
+- case_id: CASE-HEYTEA-2-0-18
+  brand: 喜茶 HEYTEA
+  city: 沈阳
+  store_name: 大悦城店
+  theme_name: 流·茗
+  poetic_expression: 流华净肌骨，疏瀹涤心原
+  motif_tags:
+  - 流
+  - 净
+  - 茶性
+  - 身体感
+  case_group_id: HEYTEA_2_0_chinese_inspiration_theme_stores
+  verification_status: not_individually_verified
+- case_id: CASE-HEYTEA-2-0-19
+  brand: 喜茶 HEYTEA
+  city: 西安
+  store_name: 大悦城店
+  theme_name: 雅·宴
+  poetic_expression: 烹茶雅聚宴家友，曲江烟水杏园花
+  motif_tags:
+  - 雅宴
+  - 友聚
+  - 曲江
+  case_group_id: HEYTEA_2_0_chinese_inspiration_theme_stores
+  verification_status: not_individually_verified
+- case_id: CASE-HEYTEA-2-0-20
+  brand: 喜茶 HEYTEA
+  city: 西安
+  store_name: 万象城店
+  theme_name: 烟·云
+  poetic_expression: 听万物氤氲，从来形色，每向静中觑
+  motif_tags:
+  - 烟云
+  - 氤氲
+  - 静观
+  case_group_id: HEYTEA_2_0_chinese_inspiration_theme_stores
+  verification_status: not_individually_verified
+- case_id: CASE-HEYTEA-2-0-21
+  brand: 喜茶 HEYTEA
+  city: 合肥
+  store_name: 百盛店
+  theme_name: 竹·逸
+  poetic_expression: 痴竹客忘俗，有禅者醉茶
+  motif_tags:
+  - 竹
+  - 逸
+  - 禅
+  - 茶
+  case_group_id: HEYTEA_2_0_chinese_inspiration_theme_stores
+  verification_status: not_individually_verified
+- case_id: CASE-HEYTEA-2-0-22
+  brand: 喜茶 HEYTEA
+  city: 南昌
+  store_name: 王府井店
+  theme_name: 亭·居
+  poetic_expression: 倚亭居山月，披书坐落花
+  motif_tags:
+  - 亭
+  - 居
+  - 山月
+  - 读书
+  case_group_id: HEYTEA_2_0_chinese_inspiration_theme_stores
+  verification_status: not_individually_verified
+- case_id: CASE-HEYTEA-2-0-23
+  brand: 喜茶 HEYTEA
+  city: 昆明
+  store_name: 恒隆广场店
+  theme_name: 峦·间
+  poetic_expression: 野泉烟火白云间，坐饮香茶爱此山
+  motif_tags:
+  - 山峦
+  - 野泉
+  - 烟火
+  - 白云
+  case_group_id: HEYTEA_2_0_chinese_inspiration_theme_stores
+  verification_status: not_individually_verified
+- case_id: CASE-HEYTEA-2-0-24
+  brand: 喜茶 HEYTEA
+  city: 三亚
+  store_name: 国际免税城二期店
+  theme_name: 海·耕
+  poetic_expression: 以舟为室，视水为路，浮生江海，舟楫为家
+  motif_tags:
+  - 海
+  - 舟
+  - 水路
+  - 漂居
+  case_group_id: HEYTEA_2_0_chinese_inspiration_theme_stores
+  verification_status: not_individually_verified
+motif_vocabulary:
+  vocabulary_id: VOCAB-CULTURAL-MOTIF-SPACE-001
+  title: 东方文化母题空间转译词表
+  status: approved_mvp
+  motif_families:
+    architectural_component:
+      name_cn: 建筑构件母题
+      motifs:
+      - 檐
+      - 亭
+      - 窗
+      - 柱
+      - 馆
+      - 山房
+    landscape_garden:
+      name_cn: 山水园林母题
+      motifs:
+      - 石
+      - 岩
+      - 园
+      - 峦
+      - 泉
+      - 流
+      - 水境
+      - 江海
+    literati_object:
+      name_cn: 文人器物母题
+      motifs:
+      - 茶
+      - 扇
+      - 弦
+      - 陶
+      - 炉
+      - 纸
+      - 书
+    celestial_color:
+      name_cn: 天象色彩母题
+      motifs:
+      - 天青
+      - 月轮
+      - 清辉
+      - 烟云
+      - 日月星
+      - 氤氲
+    social_gathering:
+      name_cn: 雅集社交母题
+      motifs:
+      - 知音
+      - 友来
+      - 雅集
+      - 家友
+      - 围炉
+      - 品茗

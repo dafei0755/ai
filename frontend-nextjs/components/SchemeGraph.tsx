@@ -449,7 +449,7 @@ export function SchemeGraph({ sessionId: _sessionId, className = '', showMockDat
   const tooltipColor = hoveredRole ? ROLE_COLOR[hoveredRole] : undefined;
 
   return (
-    <div className={`relative w-full h-full bg-[#08090e] ${className}`}>
+    <div className={`relative w-full h-full bg-[var(--canvas-bg)] ${className}`}>
       {/* Sigma 容器 */}
       <div ref={containerRef} className="w-full h-full" />
       {/* Canvas2D 渐变边覆盖层（pointer-events-none 不拦截交互） */}

@@ -174,6 +174,11 @@ class SearchOrchestrator:
             if requirements_context.get("structured_requirements"):
                 enhanced_queries = self._build_enhanced_queries(requirements_context, domain)
                 logger.info(f" [Orchestrator] 已提取需求分析上下文，生成 {len(enhanced_queries)} 个增强查询")
+            knowledge_context = requirements_context.get("knowledge_context") or {}
+            knowledge_tags = knowledge_context.get("search_tags") or []
+            if knowledge_tags:
+                enhanced_queries.extend(self._build_knowledge_tag_queries(query, knowledge_tags, domain))
+                logger.info(f" [Orchestrator] 已注入 {len(knowledge_tags)} 个知识库标签到搜索查询")
 
         # Step 2: 执行多轮搜索
         all_results = {
@@ -605,30 +610,58 @@ class SearchOrchestrator:
             结构化输出
         """
         #  v7.176: 保留 all_sources 用于后续处理
-        all_sources = all_results.get("all_sources", [])
+        all_sources = [self._mark_external_candidate_source(source) for source in all_results.get("all_sources", [])]
+        governed_results = dict(all_results)
+        governed_results["all_sources"] = all_sources
 
         integrated = {
             "success": True,
-            "query": all_results.get("query", ""),
-            "concepts": all_results.get("concepts", []),
-            "domain": all_results.get("domain", ""),
+            "query": governed_results.get("query", ""),
+            "concepts": governed_results.get("concepts", []),
+            "domain": governed_results.get("domain", ""),
             "all_sources": all_sources,  #  v7.176: 保留原始结果列表
             "rounds": all_results.get("rounds", {}),  #  v7.176: 保留轮次信息
-            "summary": self._generate_summary(all_results),
-            "concept_definitions": self._extract_definitions(all_results),
-            "dimensions": self._organize_dimensions(all_results),
-            "academic_sources": self._organize_academic(all_results),
-            "case_studies": self._organize_cases(all_results),
-            "data_points": self._organize_data(all_results),
-            "references": self._generate_references(all_results),
+            "knowledge_boundary": self._external_search_boundary(),
+            "rounds": governed_results.get("rounds", {}),
+            "summary": self._generate_summary(governed_results),
+            "concept_definitions": self._extract_definitions(governed_results),
+            "dimensions": self._organize_dimensions(governed_results),
+            "academic_sources": self._organize_academic(governed_results),
+            "case_studies": self._organize_cases(governed_results),
+            "data_points": self._organize_data(governed_results),
+            "references": self._generate_references(governed_results),
             "statistics": {
                 "total_sources": len(all_sources),
-                "rounds_completed": len(all_results.get("rounds", {})),
+                "rounds_completed": len(governed_results.get("rounds", {})),
                 "by_round": {name: data.get("result_count", 0) for name, data in all_results.get("rounds", {}).items()},
+                "by_round": {
+                    name: data.get("result_count", 0) for name, data in governed_results.get("rounds", {}).items()
+                },
             },
         }
 
         return integrated
+
+    def _external_search_boundary(self) -> Dict[str, Any]:
+        return {
+            "source": "external_search",
+            "review_status": "unreviewed",
+            "external_search_results_are_candidates": True,
+            "approved_knowledge_cards_count": 0,
+            "runtime_recall_source": "approved_knowledge_runtime_only",
+        }
+
+    def _mark_external_candidate_source(self, source: Dict[str, Any]) -> Dict[str, Any]:
+        marked = dict(source or {})
+        marked["source_kind"] = marked.get("source_kind") or "external_search_result"
+        marked["review_status"] = marked.get("review_status") or "unreviewed"
+        marked["allowed_use"] = marked.get("allowed_use") or ["evidence_candidate", "asset_draft_input"]
+        not_allowed = list(marked.get("not_allowed_use") or [])
+        for item in ("approved_knowledge_claim", "runtime_recall_without_review"):
+            if item not in not_allowed:
+                not_allowed.append(item)
+        marked["not_allowed_use"] = not_allowed
+        return marked
 
     def _generate_summary(self, all_results: Dict[str, Any]) -> str:
         """生成搜索摘要"""
@@ -724,7 +757,14 @@ class SearchOrchestrator:
             if url and url not in seen_urls:
                 seen_urls.add(url)
                 references.append(
-                    {"id": idx, "title": source.get("title", ""), "url": url, "source": source.get("siteName", "")}
+                    {
+                        "id": idx,
+                        "title": source.get("title", ""),
+                        "url": url,
+                        "source": source.get("siteName", ""),
+                        "source_kind": source.get("source_kind", ""),
+                        "review_status": source.get("review_status", ""),
+                    }
                 )
 
             if len(references) >= 20:  # 最多20条参考文献
@@ -770,7 +810,27 @@ class SearchOrchestrator:
             "user_model": analysis_layers.get("L2_user_model", {}),
             "design_challenge": structured_output.get("design_challenge", ""),
             "project_type": state.get("project_type", ""),
+            "knowledge_context": self._extract_knowledge_context(state),
         }
+
+    def _extract_knowledge_context(self, state: Dict[str, Any]) -> Dict[str, Any]:
+        try:
+            from .knowledge_package_registry import get_knowledge_context_from_state
+
+            return get_knowledge_context_from_state(state)
+        except Exception as exc:
+            logger.warning(f"️ knowledge context extraction failed: {exc}")
+            return {}
+
+    def _build_knowledge_tag_queries(self, query: str, tags: List[str], domain: str) -> List[str]:
+        clean_tags = [str(tag).replace("_", " ") for tag in tags if tag]
+        if not clean_tags:
+            return []
+        base = query[:80]
+        return [
+            f"{base} {' '.join(clean_tags[:4])}",
+            f"{domain} {' '.join(clean_tags[4:8] or clean_tags[:4])} 案例 方法",
+        ]
 
     def _build_enhanced_queries(self, requirements_context: Dict[str, Any], domain: str) -> List[str]:
         """

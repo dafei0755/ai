@@ -4,7 +4,7 @@
 """
 
 from fastapi import APIRouter, Query
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from datetime import datetime, timedelta
 import json
 from pathlib import Path
@@ -37,6 +37,68 @@ def _read_jsonl(file_path: Path, limit: int = 1000) -> List[Dict[str, Any]]:
         return []
 
 
+def _parse_timestamp(value: Any) -> Optional[datetime]:
+    if not value:
+        return None
+    try:
+        return datetime.fromisoformat(str(value))
+    except (TypeError, ValueError):
+        return None
+
+
+def _filter_recent_records(records: List[Dict[str, Any]], hours: int) -> List[Dict[str, Any]]:
+    cutoff_time = datetime.now() - timedelta(hours=hours)
+    recent_records = []
+    for record in records:
+        timestamp = _parse_timestamp(record.get("timestamp"))
+        if timestamp and timestamp > cutoff_time:
+            recent_records.append(record)
+    return recent_records
+
+
+def _is_slow_duration(duration: Any) -> bool:
+    try:
+        value = float(duration)
+    except (TypeError, ValueError):
+        return False
+
+    # New performance middleware stores seconds. Older JSONL may contain ms.
+    if value <= 60:
+        return value > 1.0
+    return value > 1000
+
+
+def _log_file_status(file_path: Path) -> Dict[str, Any]:
+    return {
+        "path": str(file_path),
+        "exists": file_path.exists(),
+        "parent_exists": file_path.parent.exists(),
+        "writable": file_path.parent.exists() and file_path.parent.is_dir(),
+    }
+
+
+@router.get("/health")
+async def get_monitoring_health() -> Dict[str, Any]:
+    """Return actionable monitoring subsystem health for admin and smoke tests."""
+    try:
+        from intelligent_project_analyzer.api.alert_monitor import alert_monitor
+
+        alert_stats = alert_monitor.get_current_stats()
+    except Exception as e:
+        alert_stats = {"error": str(e)}
+
+    return {
+        "status": "ok",
+        "timestamp": datetime.now().isoformat(),
+        "logs": {
+            "performance": _log_file_status(PERFORMANCE_LOG),
+            "llm": _log_file_status(LLM_LOG),
+            "alerts": _log_file_status(ALERTS_LOG),
+        },
+        "alerts": alert_stats,
+    }
+
+
 @router.get("/performance/summary")
 async def get_performance_summary(
     hours: int = Query(default=1, ge=1, le=24, description="统计时长（小时）")
@@ -55,11 +117,7 @@ async def get_performance_summary(
     records = _read_jsonl(PERFORMANCE_LOG, limit=10000)
     
     # 过滤指定时间范围内的记录
-    cutoff_time = datetime.now() - timedelta(hours=hours)
-    filtered_records = [
-        r for r in records
-        if datetime.fromisoformat(r.get("timestamp", "")) > cutoff_time
-    ]
+    filtered_records = _filter_recent_records(records, hours)
     
     if not filtered_records:
         return {
@@ -79,7 +137,7 @@ async def get_performance_summary(
     avg_duration = sum(durations) / total_requests
     max_duration = max(durations)
     min_duration = min(durations)
-    slow_requests = sum(1 for d in durations if d > 1000)
+    slow_requests = sum(1 for d in durations if _is_slow_duration(d))
     error_count = sum(1 for s in status_codes if s >= 400)
     error_rate = (error_count / total_requests * 100) if total_requests > 0 else 0
     
@@ -120,10 +178,10 @@ async def get_slow_requests(
             "status_code": r.get("status_code")
         }
         for r in records
-        if r.get("duration", 0) > 1000
+        if _is_slow_duration(r.get("duration", 0))
     ]
     
-    slow_requests.sort(key=lambda x: x["timestamp"], reverse=True)
+    slow_requests.sort(key=lambda x: x.get("timestamp") or "", reverse=True)
     return slow_requests[:limit]
 
 
@@ -145,11 +203,7 @@ async def get_performance_by_endpoint(
     records = _read_jsonl(PERFORMANCE_LOG, limit=10000)
     
     # 过滤时间范围
-    cutoff_time = datetime.now() - timedelta(hours=hours)
-    filtered_records = [
-        r for r in records
-        if datetime.fromisoformat(r.get("timestamp", "")) > cutoff_time
-    ]
+    filtered_records = _filter_recent_records(records, hours)
     
     # 按端点分组统计
     endpoint_stats = {}
@@ -167,7 +221,7 @@ async def get_performance_by_endpoint(
         duration = r.get("duration", 0)
         endpoint_stats[key]["count"] += 1
         endpoint_stats[key]["durations"].append(duration)
-        if duration > 1000:
+        if _is_slow_duration(duration):
             endpoint_stats[key]["slow_count"] += 1
     
     # 计算统计值
@@ -205,11 +259,7 @@ async def get_llm_summary(
     records = _read_jsonl(LLM_LOG, limit=10000)
     
     # 过滤时间范围
-    cutoff_time = datetime.now() - timedelta(hours=hours)
-    filtered_records = [
-        r for r in records
-        if datetime.fromisoformat(r.get("timestamp", "")) > cutoff_time
-    ]
+    filtered_records = _filter_recent_records(records, hours)
     
     if not filtered_records:
         return {
@@ -323,11 +373,7 @@ async def get_alert_stats(
         logger.error(f"读取告警日志失败: {e}")
     
     # 过滤时间范围
-    cutoff_time = datetime.now() - timedelta(hours=hours)
-    filtered_alerts = [
-        a for a in alerts
-        if datetime.fromisoformat(a.get("timestamp", "")) > cutoff_time
-    ]
+    filtered_alerts = _filter_recent_records(alerts, hours)
     
     total_alerts = len(filtered_alerts)
     alerts_per_hour = total_alerts / hours if hours > 0 else 0
@@ -336,7 +382,9 @@ async def get_alert_stats(
     trend_hours = min(24, hours)
     trend = [0] * trend_hours
     for alert in filtered_alerts:
-        alert_time = datetime.fromisoformat(alert.get("timestamp", ""))
+        alert_time = _parse_timestamp(alert.get("timestamp"))
+        if not alert_time:
+            continue
         hours_ago = int((datetime.now() - alert_time).total_seconds() / 3600)
         if 0 <= hours_ago < trend_hours:
             trend[trend_hours - 1 - hours_ago] += 1

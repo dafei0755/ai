@@ -1,0 +1,110 @@
+schema_version: knowledge_asset_index.v1
+cards:
+  KC-SPACE-DIFFERENTIATION-CULTURAL-MOTIF-001:
+    title: 文化母题驱动的连锁空间去同质化机制
+    status: approved
+    evidence_level: supporting_evidence
+    knowledge_status: processed_insight
+    package_ids:
+    - kp.cultural_motif_translation
+    - kp.theme_naming_system
+    - kp.chain_store_differentiation
+    - kp.spatial_narrative
+    - kp.tea_drink_store
+    ontology_dimension_ids:
+    - E8_symbol_narrative
+    - E7_social_relation
+    - E3_light_material
+    - E1_spatial_order
+  KC-TEA-BRAND-DISPLAY-MEMORY-001:
+    title: 茶饮门店品牌展示与出杯记忆点机制
+    status: approved
+    evidence_level: supporting_evidence
+    knowledge_status: processed_insight
+    package_ids:
+    - kp.tea_drink_store
+    - kp.brand_display
+    - kp.customer_flow
+    - kp.spatial_narrative
+    ontology_dimension_ids:
+    - E8_symbol_narrative
+    - E7_social_relation
+    - E3_light_material
+  KC-TEA-EQUIPMENT-MEP-PRECHECK-001:
+    title: 茶饮门店设备与机电容量前置预检机制
+    status: approved
+    evidence_level: supporting_evidence
+    knowledge_status: processed_insight
+    package_ids:
+    - kp.tea_drink_store
+    - kp.kitchen_design
+    - kp.mep_retrofit
+    - kp.commercial_dining
+    ontology_dimension_ids:
+    - E6_operation_system
+    - E9_constraint_risk
+    - E2_body_movement
+  KC-TEA-QUEUE-PICKUP-FLOW-001:
+    title: 茶饮门店点单等候取餐三线解耦机制
+    status: approved
+    evidence_level: supporting_evidence
+    knowledge_status: processed_insight
+    package_ids:
+    - kp.tea_drink_store
+    - kp.customer_flow
+    - kp.commercial_dining
+    ontology_dimension_ids:
+    - E2_body_movement
+    - E6_operation_system
+    - E5_time_sequence
+    - E9_constraint_risk
+package_index:
+  kp.cultural_motif_translation:
+  - KC-SPACE-DIFFERENTIATION-CULTURAL-MOTIF-001
+  kp.theme_naming_system:
+  - KC-SPACE-DIFFERENTIATION-CULTURAL-MOTIF-001
+  kp.chain_store_differentiation:
+  - KC-SPACE-DIFFERENTIATION-CULTURAL-MOTIF-001
+  kp.spatial_narrative:
+  - KC-SPACE-DIFFERENTIATION-CULTURAL-MOTIF-001
+  - KC-TEA-BRAND-DISPLAY-MEMORY-001
+  kp.tea_drink_store:
+  - KC-SPACE-DIFFERENTIATION-CULTURAL-MOTIF-001
+  - KC-TEA-BRAND-DISPLAY-MEMORY-001
+  - KC-TEA-EQUIPMENT-MEP-PRECHECK-001
+  - KC-TEA-QUEUE-PICKUP-FLOW-001
+  kp.brand_display:
+  - KC-TEA-BRAND-DISPLAY-MEMORY-001
+  kp.customer_flow:
+  - KC-TEA-BRAND-DISPLAY-MEMORY-001
+  - KC-TEA-QUEUE-PICKUP-FLOW-001
+  kp.kitchen_design:
+  - KC-TEA-EQUIPMENT-MEP-PRECHECK-001
+  kp.mep_retrofit:
+  - KC-TEA-EQUIPMENT-MEP-PRECHECK-001
+  kp.commercial_dining:
+  - KC-TEA-EQUIPMENT-MEP-PRECHECK-001
+  - KC-TEA-QUEUE-PICKUP-FLOW-001
+dimension_index:
+  E8_symbol_narrative:
+  - KC-SPACE-DIFFERENTIATION-CULTURAL-MOTIF-001
+  - KC-TEA-BRAND-DISPLAY-MEMORY-001
+  E7_social_relation:
+  - KC-SPACE-DIFFERENTIATION-CULTURAL-MOTIF-001
+  - KC-TEA-BRAND-DISPLAY-MEMORY-001
+  E3_light_material:
+  - KC-SPACE-DIFFERENTIATION-CULTURAL-MOTIF-001
+  - KC-TEA-BRAND-DISPLAY-MEMORY-001
+  E1_spatial_order:
+  - KC-SPACE-DIFFERENTIATION-CULTURAL-MOTIF-001
+  E6_operation_system:
+  - KC-TEA-EQUIPMENT-MEP-PRECHECK-001
+  - KC-TEA-QUEUE-PICKUP-FLOW-001
+  E9_constraint_risk:
+  - KC-TEA-EQUIPMENT-MEP-PRECHECK-001
+  - KC-TEA-QUEUE-PICKUP-FLOW-001
+  E2_body_movement:
+  - KC-TEA-EQUIPMENT-MEP-PRECHECK-001
+  - KC-TEA-QUEUE-PICKUP-FLOW-001
+  E5_time_sequence:
+  - KC-TEA-QUEUE-PICKUP-FLOW-001

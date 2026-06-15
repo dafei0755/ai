@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
@@ -1747,7 +1747,7 @@ export default function SearchResultPage() {
       // 🆕 v7.189: 如果是guest会话且用户已登录，自动关联到用户账户
       if (data.success && data.session && sessionId.startsWith('guest-')) {
         try {
-          const token = localStorage.getItem('wp_jwt_token');
+          const token = localStorage.getItem('app_auth_token');
           if (token) {
             // 用户已登录，尝试关联此guest会话
             const associateResponse = await fetch(`${backendUrl}/api/search/session/associate?session_id=${sessionId}`, {
@@ -2216,7 +2216,7 @@ export default function SearchResultPage() {
       const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
 
       // 🔧 v7.280: 添加 Authorization header（如果已登录）
-      const token = localStorage.getItem('wp_jwt_token');
+      const token = localStorage.getItem('app_auth_token');
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
       };
@@ -2317,7 +2317,7 @@ export default function SearchResultPage() {
     setIsValidatingPlan(true);
     try {
       const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
-      const token = localStorage.getItem('wp_jwt_token');
+      const token = localStorage.getItem('app_auth_token');
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
       };
@@ -2369,7 +2369,7 @@ export default function SearchResultPage() {
 
     try {
       const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
-      const token = localStorage.getItem('wp_jwt_token');
+      const token = localStorage.getItem('app_auth_token');
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
       };
@@ -2551,7 +2551,7 @@ export default function SearchResultPage() {
       console.log('📋 [v7.280] 发送框架数据:', frameworkData);
 
       // 🔧 v7.280: 添加 Authorization header（如果已登录）
-      const token = localStorage.getItem('wp_jwt_token');
+      const token = localStorage.getItem('app_auth_token');
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
       };

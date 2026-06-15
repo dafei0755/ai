@@ -10,12 +10,13 @@ import { createPortal } from 'react-dom';
 import { Chart as ChartJS, RadarController, RadialLinearScale, PointElement, LineElement, Filler, Tooltip, Legend } from 'chart.js';
 import { Radar } from 'react-chartjs-2';
 import { KnowledgeGraphCanvas } from '@/components/KnowledgeGraphCanvas';
+import { clampCanvasZoom, getWheelZoomFactor, zoomCanvasViewAt as zoomSharedCanvasViewAt } from '@/lib/canvasViewport';
 import { describeArcPath, getDxfStroke, getDxfTextFill, parseDxfPreviewGeometry } from '@/lib/dxfPreview';
 import type { DxfPreviewArc, DxfPreviewGeometry } from '@/lib/dxfPreview';
 import type { ExpertGeneratedImage } from '@/types';
 import { DecisionView } from '@/components/project-cockpit/DecisionView';
-import { MOCK_PROJECT_OVERVIEW, MOCK_STAGES, type ViewKey } from '@/components/project-cockpit/mock/mockData';
-import { QuickNoteInbox } from '@/components/project-cockpit/QuickNoteInbox';
+import { GeoIntelligencePanel } from '@/components/geo/GeoIntelligencePanel';
+import { EMPTY_PROJECT_OVERVIEW, MOCK_PROJECT_OVERVIEW, MOCK_STAGES, type ViewKey } from '@/components/project-cockpit/mock/mockData';
 
 ChartJS.register(RadarController, RadialLinearScale, PointElement, LineElement, Filler, Tooltip, Legend);
 
@@ -80,8 +81,9 @@ const getNineDimRadarScore = (
 	return clampRadarScore(normalized * 10);
 };
 
-export type CockpitModuleKey = 'files' | 'assets' | 'inspiration' | 'board' | 'experts' | 'insight' | 'knowledge';
+export type CockpitModuleKey = 'files' | 'assets' | 'inspiration' | 'board' | 'experts' | 'insight' | 'knowledge' | 'geo';
 export type BoardCanvasSpace = '全部' | Exclude<ProjectFileCard['spaceScope'], '全局'>;
+export type DssPage = 'sediment' | 'portfolio' | 'profile';
 type BoardCanvasMode = '综合' | '色彩' | '材料' | '家具' | '氛围' | '反例';
 
 interface CockpitPanelProps {
@@ -89,6 +91,8 @@ interface CockpitPanelProps {
 	preferredFileViewMode?: FileViewMode;
 	sessionId?: string;
 	projectLabel?: string;
+	onProjectLabelChange?: (currentTitle: string) => void;
+	projectOverview?: import('./project-cockpit/mock/mockData').ProjectOverview;
 	activeBoardSpace?: BoardCanvasSpace;
 	onActiveBoardSpaceChange?: (space: BoardCanvasSpace) => void;
 	onEnterBoardSpace?: (space: Exclude<ProjectFileCard['spaceScope'], '全局'>) => void;
@@ -98,10 +102,11 @@ interface CockpitPanelProps {
 	onBoardVisualBriefChange?: (brief: BoardVisualBrief | null) => void;
 	onBoardZoomChange?: (zoom: number) => void;
 	portfolioYearHeightScale?: number;
-	onDssPageChange?: (page: 'sediment' | 'portfolio' | 'profile') => void;
+	onDssPageChange?: (page: DssPage) => void;
 	onNodeClick?: (nodeId: string, label: string) => void;
 	onCardClick?: (title: string) => void;
 	onSwitchModule?: (target: 'floor_plan' | 'scheme_canvas') => void;
+	onOpenGeoWorkspace?: () => void;
 	className?: string;
 }
 
@@ -119,7 +124,7 @@ type FileStatus = '进行中' | '待审' | '已审' | '已冻结' | '待验证';
 type SortMode = '相关性优先' | '引用热度' | '最近更新' | '标题 A-Z';
 type FileViewMode = '统一视图' | '思维参谋';
 type FilePresentationMode = '卡片模式' | '文档索引';
-type KnowledgeEntryType = '习惯' | '经验' | '方法' | '模板' | '禁忌' | '案例复盘' | '作品';
+type KnowledgeEntryType = '待分类' | '习惯' | '经验' | '方法' | '模板' | '禁忌' | '案例复盘' | '作品';
 type KnowledgeEntryStatus = '草稿' | '已整理' | '已验证' | '可复用';
 type KnowledgeEntryScope = 'personal' | 'project';
 type KnowledgePublishLevel = '草稿' | '已整理' | '团队发布' | '公开发布';
@@ -224,7 +229,7 @@ interface ProjectFileCard {
 }
 
 type ResourceCategory = '家具' | '灯光' | '材料' | '工艺' | '配色' | '参考';
-type ResourceSpace = '全局' | '大堂' | '餐厅' | '客房' | '公区' | '后勤';
+type ResourceSpace = '全局' | '大堂' | '餐厅' | '客房' | '公区' | '连廊' | '后勤';
 type ResourceBudgetBand = '经济型' | '均衡型' | '高配型';
 type ResourceRisk = '低' | '中' | '高';
 type ResourceSourceType = 'system' | 'user';
@@ -427,6 +432,30 @@ interface DetailDiscussionEntry {
 }
 
 type BoardSourceTab = 'radar' | 'inspiration' | 'history' | 'generated';
+type BoardDeepBrowseTab = Exclude<BoardSourceTab, 'generated'>;
+type BoardLibraryNavKey =
+	| 'soft'
+	| 'furniture'
+	| 'kitchen'
+	| 'bath'
+	| 'lighting'
+	| 'decor'
+	| 'storage'
+	| 'smart'
+	| 'outdoor'
+	| 'plants'
+	| 'materials'
+	| 'scene';
+interface BoardLibraryNavChild {
+	label: string;
+	keywords: string[];
+}
+interface BoardLibraryNavItem {
+	key: BoardLibraryNavKey;
+	label: string;
+	keywords: string[];
+	children: BoardLibraryNavChild[];
+}
 type BoardCanvasSourceType = 'radar' | 'inspiration' | 'history' | 'generated';
 type BoardGeneratedStatus = 'generated' | 'shortlisted' | 'collaged' | 'adopted' | 'archived';
 type BoardGeneratedRoundFilter = '本轮' | '最近' | '全部';
@@ -698,7 +727,7 @@ const FLOW_ORDER: FlowCategory[] = ['项目锚点', '外部认知', '决策约�
 const SPACE_ORDER: ProjectFileCard['spaceScope'][] = ['全局', '大堂', '餐厅', '客房', '公区', '连廊', '后勤'];
 const SPACE_VIEW_ORDER: Exclude<ProjectFileCard['spaceScope'], '全局'>[] = ['大堂', '餐厅', '客房', '公区', '连廊', '后勤'];
 const ASSET_CATEGORY_OPTIONS: string[] = ['全部分类', '家具', '灯光', '材料', '工艺', '配色', '参考'];
-const ASSET_SPACE_OPTIONS: string[] = ['全部空间', '全局', '大堂', '餐厅', '客房', '公区', '后勤'];
+const ASSET_SPACE_OPTIONS: string[] = ['全部空间', '全局', '大堂', '餐厅', '客房', '公区', '连廊', '后勤'];
 const ASSET_BUDGET_OPTIONS: string[] = ['全部预算', '经济型', '均衡型', '高配型'];
 const ALL_FLOW = '全部流程';
 const ALL_SPACE = '全部空间';
@@ -706,6 +735,163 @@ const ALL_STAGE = '全部阶段';
 const ALL_STATUS = '全部状态';
 const ALL_ANCHOR = '全部锚点';
 const ALL_TOPIC = '全部专题';
+const BOARD_DEEP_BROWSE_TABS: Array<{ key: BoardDeepBrowseTab; label: string; desc: string }> = [
+	{ key: 'radar', label: '资源雷达', desc: '从资源库里连续浏览可加入画布的素材。' },
+	{ key: 'inspiration', label: '灵感收藏', desc: '查看已收藏的图片、锚点和解读。' },
+	{ key: 'history', label: '历史项目素材', desc: '复用历史项目沉淀出的方案素材。' },
+];
+const ALL_BOARD_LIBRARY_SUBCATEGORY = '全部';
+const BOARD_LIBRARY_NAV_ITEMS: BoardLibraryNavItem[] = [
+	{
+		key: 'soft',
+		label: '窗帘和软帘',
+		keywords: ['窗帘', '软帘', '软装', '布艺', '纺织', '地毯', '织物'],
+		children: [
+			{ label: '窗帘', keywords: ['窗帘', '软帘', '遮光'] },
+			{ label: '地毯', keywords: ['地毯', '织物', '毯'] },
+			{ label: '布艺', keywords: ['布艺', '纺织', '软装'] },
+			{ label: '靠包', keywords: ['靠包', '抱枕', '坐垫'] },
+		],
+	},
+	{
+		key: 'furniture',
+		label: '家具和陈设',
+		keywords: ['家具', '陈设', '沙发', '椅', '桌', '柜', '床', '茶几'],
+		children: [
+			{ label: '沙发', keywords: ['沙发', '座椅', '休闲椅'] },
+			{ label: '桌几', keywords: ['桌', '茶几', '餐桌', '边几'] },
+			{ label: '柜体', keywords: ['柜', '收纳柜', '木作'] },
+			{ label: '床榻', keywords: ['床', '榻', '卧室'] },
+		],
+	},
+	{
+		key: 'kitchen',
+		label: '整体厨房和电器',
+		keywords: ['厨房', '橱柜', '电器', '吧台', '台面', '餐厨'],
+		children: [
+			{ label: '橱柜', keywords: ['橱柜', '厨房柜', '收纳'] },
+			{ label: '台面', keywords: ['台面', '石材', '水槽'] },
+			{ label: '电器', keywords: ['电器', '冰箱', '烤箱', '灶'] },
+			{ label: '吧台', keywords: ['吧台', '餐厨', '高脚椅'] },
+		],
+	},
+	{
+		key: 'bath',
+		label: '浴室家具和家居',
+		keywords: ['浴室', '卫浴', '洗手台', '洁具', '五金', '水龙头'],
+		children: [
+			{ label: '洗手台', keywords: ['洗手台', '台盆', '水槽'] },
+			{ label: '卫浴柜', keywords: ['浴室柜', '卫浴柜', '收纳'] },
+			{ label: '镜柜', keywords: ['镜柜', '镜子', '浴镜'] },
+			{ label: '五金', keywords: ['五金', '水龙头', '花洒'] },
+		],
+	},
+	{
+		key: 'lighting',
+		label: '灯具照明',
+		keywords: ['灯光', '灯具', '照明', '吊灯', '壁灯', '灯带', '光'],
+		children: [
+			{ label: '吊灯', keywords: ['吊灯', '悬挂灯'] },
+			{ label: '壁灯', keywords: ['壁灯', '墙灯'] },
+			{ label: '灯带', keywords: ['灯带', '线性灯'] },
+			{ label: '氛围光', keywords: ['氛围', '光影', '间接照明'] },
+		],
+	},
+	{
+		key: 'decor',
+		label: '装饰品',
+		keywords: ['装饰', '摆件', '花瓶', '画框', '镜子', '香氛', '艺术'],
+		children: [
+			{ label: '花瓶和装饰盘', keywords: ['花瓶', '装饰盘', '器皿'] },
+			{ label: '图片和框架', keywords: ['画框', '图片', '挂画'] },
+			{ label: '镜子', keywords: ['镜子', '镜面'] },
+			{ label: '香氛', keywords: ['香氛', '香薰'] },
+		],
+	},
+	{
+		key: 'storage',
+		label: '清洁及收纳用品',
+		keywords: ['清洁', '收纳', '储物', '整理', '篮', '盒'],
+		children: [
+			{ label: '储物篮', keywords: ['篮', '储物篮', '收纳篮'] },
+			{ label: '收纳盒', keywords: ['盒', '收纳盒', '整理盒'] },
+			{ label: '墙面收纳', keywords: ['墙面收纳', '挂架', '层架'] },
+			{ label: '清洁用品', keywords: ['清洁', '清扫'] },
+		],
+	},
+	{
+		key: 'smart',
+		label: '智能家居',
+		keywords: ['智能', '控制', '设备', '传感', '系统'],
+		children: [
+			{ label: '智能照明', keywords: ['智能照明', '灯光控制'] },
+			{ label: '控制面板', keywords: ['控制面板', '开关', '系统'] },
+			{ label: '传感设备', keywords: ['传感', '感应'] },
+			{ label: '影音设备', keywords: ['影音', '音响', '投影'] },
+		],
+	},
+	{
+		key: 'outdoor',
+		label: '户外产品',
+		keywords: ['户外', '庭院', '露台', '阳台', '景观', '花园'],
+		children: [
+			{ label: '庭院家具', keywords: ['庭院家具', '户外家具'] },
+			{ label: '露台', keywords: ['露台', '阳台'] },
+			{ label: '景观灯', keywords: ['景观灯', '户外灯'] },
+			{ label: '遮阳', keywords: ['遮阳', '廊架'] },
+		],
+	},
+	{
+		key: 'plants',
+		label: '花盆和植物',
+		keywords: ['植物', '绿植', '花盆', '花艺', '盆栽'],
+		children: [
+			{ label: '植物和花', keywords: ['植物', '绿植', '花'] },
+			{ label: '花盆', keywords: ['花盆', '盆栽'] },
+			{ label: '花艺', keywords: ['花艺', '插花'] },
+			{ label: '景观植物', keywords: ['景观植物', '庭院植物'] },
+		],
+	},
+	{
+		key: 'materials',
+		label: '材料和工艺',
+		keywords: ['材料', '工艺', '木作', '石材', '金属', '玻璃', '收口', '饰面'],
+		children: [
+			{ label: '木作', keywords: ['木作', '木饰面', '木色'] },
+			{ label: '石材', keywords: ['石材', '岩板', '水磨石'] },
+			{ label: '金属', keywords: ['金属', '不锈钢', '铜'] },
+			{ label: '收口工艺', keywords: ['收口', '节点', '工艺'] },
+		],
+	},
+	{
+		key: 'scene',
+		label: '空间场景',
+		keywords: ['场景', '空间', '大堂', '餐厅', '客房', '公区', '连廊', '参考'],
+		children: [
+			{ label: '大堂', keywords: ['大堂', '入口', '接待'] },
+			{ label: '餐厅', keywords: ['餐厅', '餐饮'] },
+			{ label: '客房', keywords: ['客房', '卧室'] },
+			{ label: '公区', keywords: ['公区', '公共区', '社交'] },
+		],
+	},
+];
+const getBoardLibrarySearchText = (item: BoardSourceItem) =>
+	[
+		item.title,
+		item.desc,
+		item.meta,
+		item.anchorSummary,
+		item.referenceControl?.label,
+		item.referenceControl?.scope,
+		item.referenceControl?.structuredSummary,
+		item.referenceControl?.mustHave.join(' '),
+		item.referenceControl?.negative.join(' '),
+	].filter(Boolean).join(' ').toLowerCase();
+const boardLibraryItemMatchesKeywords = (item: BoardSourceItem, keywords: string[]) => {
+	if (keywords.length === 0) return true;
+	const text = getBoardLibrarySearchText(item);
+	return keywords.some((keyword) => text.includes(keyword.toLowerCase()));
+};
 const VIEW_MODES: FileViewMode[] = ['统一视图', '思维参谋'];
 const FILE_VIEW_PREFS_KEY = 'ipa.files.view.prefs.v1';
 const INSPIRATION_LIBRARY_STORAGE_KEY = 'ipa.inspiration.library.v1';
@@ -729,7 +915,7 @@ const BOARD_CANVAS_MODES: BoardCanvasMode[] = ['综合', '色彩', '材料', '�
 const DEFAULT_BOARD_CANVAS_VIEW = { x: 180, y: 110, zoom: 1 };
 const BOARD_GENERATION_EVENT = 'cockpit:board-generated-image';
 const MAX_BOARD_CANVAS_HISTORY_STEPS = 5;
-const KNOWLEDGE_ENTRY_TYPES: KnowledgeEntryType[] = ['习惯', '经验', '方法', '模板', '禁忌', '案例复盘'];
+const KNOWLEDGE_ENTRY_TYPES: KnowledgeEntryType[] = ['待分类', '习惯', '经验', '方法', '模板', '禁忌', '案例复盘'];
 const KNOWLEDGE_ENTRY_STATUS: KnowledgeEntryStatus[] = ['草稿', '已整理', '已验证', '可复用'];
 
 const PORTFOLIO_SPACE_TYPES = ['民宿', '酒店', '办公', '商业', '展陈', '餐饮', '住宅', '文旅'] as const;
@@ -764,12 +950,12 @@ const createInitialKnowledgeEntries = (): PersonalKnowledgeEntry[] => {
 		},
 		{
 			id: 'knowledge-demo-02',
-			title: '山地民宿常见风险提醒',
+			title: '民宿酒店类项目常见风险提醒',
 			type: '经验',
 			status: '草稿',
-			summary: '高湿维护与后勤流线常被忽略，前期需先预警。',
-			content: '高湿区域需提前做材料替代表和维护周期，不要在后期才修补。',
-			tags: ['风险', '山地', '后勤流线'],
+			summary: '后勤流线与维护周期常被忽略，前期需先预警。',
+			content: '需提前做材料替代表和维护周期规划，不要在后期才修补。',
+			tags: ['风险', '项目类型', '后勤流线'],
 			sourceContext: '我的硅基分身 Demo',
 			updatedAt: now,
 		},
@@ -896,12 +1082,12 @@ const createInitialKnowledgeEntries = (): PersonalKnowledgeEntry[] => {
 		},
 		{
 			id: 'knowledge-demo-14',
-			title: '某山地民宿动线复盘',
+			title: '某民宿动线复盘',
 			type: '案例复盘',
 			status: '草稿',
 			summary: '后勤动线与住客动线交叉导致清洁效率下降 40%。',
 			content: '项目交付后运营 3 个月发现：因后勤通道与客房走廊共用一段，清扫车与住客在 8:00-10:00 高频交叉。教训：后勤流线必须在平面阶段独立验证，不能只看"能走通"。',
-			tags: ['动线', '复盘', '山地民宿', '后勤'],
+			tags: ['动线', '复盘', '民宿', '后勤'],
 			sourceContext: '我的硅基分身 Demo',
 			updatedAt: now,
 		},
@@ -1517,7 +1703,7 @@ const DxfPlanCanvas = ({ src, zoom, className, onWheel, children }: DxfPlanCanva
 	const height = Math.max(360, (geometry?.height ?? 780) * zoom);
 
 	return (
-		<div className={`relative mx-auto w-fit bg-[#050505] ${className ?? ''}`} onWheel={onWheel}>
+		<div className={`relative mx-auto w-fit bg-[var(--canvas-bg)] ${className ?? ''}`} onWheel={onWheel}>
 			<svg
 				className="block"
 				width={width}
@@ -1526,7 +1712,7 @@ const DxfPlanCanvas = ({ src, zoom, className, onWheel, children }: DxfPlanCanva
 				role="img"
 				aria-label="DXF 图纸预览"
 			>
-				<rect x="0" y="0" width={geometry?.width ?? 1400} height={geometry?.height ?? 780} fill="#050505" />
+				<rect x="0" y="0" width={geometry?.width ?? 1400} height={geometry?.height ?? 780} fill="#020403" />
 				{geometry?.lines.map((line, index) => (
 					<line
 						key={`dxf-line-${index}`}
@@ -1591,7 +1777,7 @@ const DxfPlanCanvas = ({ src, zoom, className, onWheel, children }: DxfPlanCanva
 const PROJECT_FILE_CARDS: ProjectFileCard[] = [
 	{
 		title: '用户需求',
-		desc: '围绕丹麦家居品牌 HAY 的年轻、克制、功能主义气质，梳理项目目标客群、预算区间、空间优先级与体验期待。重点关注山地民宿在自然景观、轻度度假属性与品牌识别度之间的平衡关系。',
+		desc: '围绕品牌定位气质，梳理项目目标客群、预算区间、空间优先级与体验期待。重点关注在自然景观、度假属性与品牌识别度之间的平衡关系。',
 		badge: '核心输入',
 		legacyCategory: '分析项目',
 		objectAnchor: 'AlignedBrief',
@@ -1606,7 +1792,7 @@ const PROJECT_FILE_CARDS: ProjectFileCard[] = [
 	},
 	{
 		title: '市场分析',
-		desc: '分析峨眉山周边山地民宿市场的客群画像、消费价格带与审美变化趋势，校准项目在区域中的价值锚点。同步比较本地度假型住宿与城市型精品酒店在社交属性和停留时长上的差异。',
+		desc: '分析项目周边同类业态的客群画像、消费价格带与审美变化趋势，校准项目在区域中的价值锚点。同步比较本地度假型住宿与城市型精品酒店在社交属性和停留时长上的差异。',
 		badge: '外部环境',
 		legacyCategory: '分析项目',
 		objectAnchor: 'AlignedBrief',
@@ -1636,7 +1822,7 @@ const PROJECT_FILE_CARDS: ProjectFileCard[] = [
 	},
 	{
 		title: '色彩策略',
-		desc: '定义主辅色、材质映射与情绪目标，构建适合山地民宿的低饱和色彩体系。通过山地灰绿、低饱和木色与暖感金属细节建立统一语气，避免空间在自然语境中显得过度商业化。',
+		desc: '定义主辅色、材质映射与情绪目标，构建符合项目定位的色彩体系。通过自然色调与材质细节建立统一语气，避免空间在自然语境中显得过度商业化。',
 		badge: '氛围语言',
 		legacyCategory: '分析项目',
 		objectAnchor: 'InitialDesignPack',
@@ -1666,7 +1852,7 @@ const PROJECT_FILE_CARDS: ProjectFileCard[] = [
 	},
 	{
 		title: '动线组织草案',
-		desc: '建立主人、住客、服务与补给四类动线的基础组织逻辑，确保抵达体验、入住效率与后勤流线互不干扰。特别关注山地场地中入口高差、景观面朝向与夜间照明对动线选择的影响。',
+		desc: '建立主人、住客、服务与补给四类动线的基础组织逻辑，确保抵达体验、入住效率与后勤流线互不干扰。特别关注场地中入口高差、景观面朝向与夜间照明对动线选择的影响。',
 		badge: '流线',
 		legacyCategory: '规划文件',
 		objectAnchor: 'SPG',
@@ -1681,7 +1867,7 @@ const PROJECT_FILE_CARDS: ProjectFileCard[] = [
 	},
 	{
 		title: '场地约束条件',
-		desc: '归纳山地高差、采光朝向、消防疏散、结构限制和雨雾气候对空间组织的影响，为概念方案建立现实边界。优先识别需要在早期就锁定的限制条件，避免后期出现大规模推翻。',
+		desc: '归纳场地高差、采光朝向、消防疏散、结构限制和气候条件对空间组织的影响，为概念方案建立现实边界。优先识别需要在早期就锁定的限制条件，避免后期出现大规模推翻。',
 		badge: '约束',
 		legacyCategory: '规划文件',
 		objectAnchor: 'AlignedBrief',
@@ -1711,7 +1897,7 @@ const PROJECT_FILE_CARDS: ProjectFileCard[] = [
 	},
 	{
 		title: '品牌语义板',
-		desc: '围绕 HAY 的年轻、克制、功能主义气质提炼可转译为空间语言的关键词与反关键词。通过情绪语义、品牌语境与消费心理交叉校准，避免“像北欧但没有品牌辨识”的模糊表达。',
+		desc: '围绕项目品牌气质提炼可转译为空间语言的关键词与反关键词。通过情绪语义、品牌语境与消费心理交叉校准，避免气质模糊的表达。',
 		badge: '品牌',
 		legacyCategory: '指导文件',
 		objectAnchor: 'InitialDesignPack',
@@ -1726,7 +1912,7 @@ const PROJECT_FILE_CARDS: ProjectFileCard[] = [
 	},
 	{
 		title: '材料样本册',
-		desc: '收录墙、地、顶及家具触感材料的搭配方向、耐用等级与替代层级，明确概念表达与运营维护之间的平衡。优先筛选适合潮湿山地环境、但不失细腻触感和品牌质感的材料组合。',
+		desc: '收录墙、地、顶及家具触感材料的搭配方向、耐用等级与替代层级，明确概念表达与运营维护之间的平衡。优先筛选适合项目环境条件、但不失细腻触感和品牌质感的材料组合。',
 		badge: '材料',
 		legacyCategory: '指导文件',
 		objectAnchor: 'InitialDesignPack',
@@ -1861,7 +2047,7 @@ const PROJECT_FILE_CARDS: ProjectFileCard[] = [
 	},
 	{
 		title: '目标客群入住画像与停留时段',
-		desc: '将周末短住情侣、轻商务结伴、山地度假家庭三类核心客群拆成入住动机、到店时段、停留强度和社交偏好，明确大堂、公区、餐厅与客房在不同时间段承担的情绪任务和服务重点。',
+		desc: '将周末短住情侣、轻商务结伴、度假家庭三类核心客群拆成入住动机、到店时段、停留强度和社交偏好，明确大堂、公区、餐厅与客房在不同时间段承担的情绪任务和服务重点。',
 		badge: '用户研究',
 		legacyCategory: '分析项目',
 		objectAnchor: 'AlignedBrief',
@@ -1891,7 +2077,7 @@ const PROJECT_FILE_CARDS: ProjectFileCard[] = [
 	},
 	{
 		title: '竞品房价带与公区配置对照表',
-		desc: '对比周边山地民宿与目的地酒店的房价带、房间面积、公区座位数、到店体验配置和餐饮模式，识别高感知价值但低投入的配置项，避免在错误环节投入过高成本。',
+		desc: '对比周边同类项目的房价带、房间面积、公区座位数、到店体验配置和餐饮模式，识别高感知价值但低投入的配置项，避免在错误环节投入过高成本。',
 		badge: '竞品对照',
 		legacyCategory: '分析项目',
 		objectAnchor: 'EvidenceOnly',
@@ -2040,15 +2226,15 @@ const SPACE_VISUAL_BRIEF_PRESETS: Record<
 	Pick<BoardVisualBrief, 'mustKeep' | 'styleKeywords' | 'materialKeywords' | 'lightingKeywords' | 'negativeConstraints'>
 > = {
 	大堂: {
-		mustKeep: ['抵达首屏', '服务台关系', '等候落点', '庭院或山景联系', '低密度停留'],
-		styleKeywords: ['克制', '自然', '山地湿润感', '轻度度假', '非网红'],
+		mustKeep: ['抵达首屏', '服务台关系', '等候落点', '自然景观联系', '低密度停留'],
+		styleKeywords: ['克制', '自然', '自然质感', '轻松感', '非过度商业'],
 		materialKeywords: ['木质顶面', '石材地面', '深色体块', '低饱和织物'],
 		lightingKeywords: ['低照度暖光', '傍晚迎宾', '层次照明', '控制眩光'],
 		negativeConstraints: ['商务酒店感', '奢华金色', '网红打卡感', '拥挤排队', '前台过强'],
 	},
 	餐厅: {
 		mustKeep: ['早餐与晚间切换', '服务动线边界', '住客停留舒适度', '统一空间气质'],
-		styleKeywords: ['松弛', '清爽', '山地度假', '运营友好'],
+		styleKeywords: ['松弛', '清爽', '度假', '运营友好'],
 		materialKeywords: ['耐用桌面', '温润木色', '易维护软装', '局部绿植'],
 		lightingKeywords: ['早餐自然光', '晚间暖光', '餐桌重点照明', '场景切换'],
 		negativeConstraints: ['餐饮卖场感', '过度拥挤', '冷白强光', '服务流线暴露'],
@@ -2061,15 +2247,15 @@ const SPACE_VISUAL_BRIEF_PRESETS: Record<
 		negativeConstraints: ['样板房空壳感', '过度装饰', '冷硬商务感', '插座不可达'],
 	},
 	公区: {
-		mustKeep: ['自由社交', '通行效率', '家具组合秩序', '品牌识别补位'],
+		mustKeep: ['自由社交', '通行效率', '家具组合秩序', '空间识别感'],
 		styleKeywords: ['开放', '低密度社交', '轻度度假', '功能明确'],
 		materialKeywords: ['可移动家具', '织物软装', '落地灯', '绿植'],
 		lightingKeywords: ['分区照明', '停留角落暖光', '自然漫射光'],
 		negativeConstraints: ['会所感过强', '家具堆砌', '动线堵塞', '杂乱陈列'],
 	},
 	连廊: {
-		mustKeep: ['归房路径', '导视清晰', '脚下安全', '雨雾可识别'],
-		styleKeywords: ['连续', '安定', '山地湿润感', '低干扰'],
+		mustKeep: ['归房路径', '导视清晰', '脚下安全', '低光可识别'],
+		styleKeywords: ['连续', '安定', '自然质感', '低干扰'],
 		materialKeywords: ['防滑地面', '耐候墙面', '门牌节点', '压低屋檐'],
 		lightingKeywords: ['低位引导光', '门牌显隐', '夜间安全阈值', '无眩光'],
 		negativeConstraints: ['迷失感', '过暗死角', '冷白走廊感', '设备暴露'],
@@ -2093,7 +2279,7 @@ const SPACE_PLAN_VIEW_PRESETS: Record<Exclude<BoardCanvasSpace, '全部'>, Space
 		overallPlanRef: {
 			title: '1F 总平关系视图',
 			highlightZoneIds: ['z_lobby'],
-			adjacentZoneIds: ['z_entry', 'z_courtyard', 'z_guest_corridor', 'z_service'],
+			adjacentZoneIds: ['z_entry', 'z_outdoor', 'z_guest_corridor', 'z_service'],
 		},
 		detailPlanRef: {
 			title: '大堂分平焦点视图',
@@ -2102,20 +2288,20 @@ const SPACE_PLAN_VIEW_PRESETS: Record<Exclude<BoardCanvasSpace, '全部'>, Space
 		},
 		planBrief: {
 			spatialRole: '到达、迎宾、停留、转场。',
-			adjacency: ['入口', '庭院', '客房通道', '服务后台'],
-			entrances: ['西南侧主入口', '东侧庭院转场口'],
+			adjacency: ['入口', '室外连接', '客房通道', '服务后台'],
+			entrances: ['主入口', '室外通道侧入口'],
 			mainCirculation: ['入口至前台保持清晰通行', '前台后侧服务动线与住客动线分离'],
-			viewDirection: ['入口进入后视线引向庭院绿景', '等候区面向窗景和服务台'],
-			fixedConstraints: ['入口开口不可改变', '北侧深色墙体作为稳定背景', '主通道不可被大体量家具阻断'],
+			viewDirection: ['入口进入后视线引向室外景观', '等候区面向窗景和服务台'],
+			fixedConstraints: ['入口开口不可改变', '现有结构主墙体位置不可改变', '主通道不可被大体量家具阻断'],
 			flexibleZones: ['等候家具', '低位灯光', '软装陈设', '艺术摆件'],
-			cameraSuggestions: ['入口看向庭院', '前台斜向视角', '窗边停留区视角'],
+			cameraSuggestions: ['入口看向室外连接', '前台斜向视角', '窗边停留区视角'],
 			negativeConstraints: ['堵塞主通道', '改变门窗位置', '把大堂做成纯摆拍空间'],
 		},
 		features: [
 			{ id: 'lobby-entry', label: '主入口', kind: 'entrance', x: 0.1, y: 0.72, description: '主入口和抵达首屏，生成时保留进入感。' },
-			{ id: 'lobby-route', label: '主通道', kind: 'circulation', x: 0.36, y: 0.68, w: 0.5, h: 0.12, description: '入口到前台和庭院的清晰通行带。' },
-			{ id: 'lobby-view', label: '庭院视线', kind: 'view', x: 0.72, y: 0.3, description: '入口视线应被引导到庭院绿景。' },
-			{ id: 'lobby-fixed', label: '固定墙体', kind: 'fixed', x: 0.48, y: 0.18, w: 0.36, h: 0.1, description: '深色背景墙体不作为可拆软装处理。' },
+			{ id: 'lobby-route', label: '主通道', kind: 'circulation', x: 0.36, y: 0.68, w: 0.5, h: 0.12, description: '入口到前台的清晰通行带。' },
+			{ id: 'lobby-view', label: '室外景观视线', kind: 'view', x: 0.72, y: 0.3, description: '入口视线引导到室外景观方向。' },
+			{ id: 'lobby-fixed', label: '固定墙体', kind: 'fixed', x: 0.48, y: 0.18, w: 0.36, h: 0.1, description: '结构主墙体不作为可拆软装处理。' },
 			{ id: 'lobby-flex', label: '等候区', kind: 'flexible', x: 0.58, y: 0.58, w: 0.24, h: 0.18, description: '家具、地毯、落地灯可作为本轮方案变量。' },
 		],
 	},
@@ -2125,14 +2311,14 @@ const SPACE_PLAN_VIEW_PRESETS: Record<Exclude<BoardCanvasSpace, '全部'>, Space
 		spgVersion: 'SPG v1.2',
 		irVersion: 'FloorPlanIR v0.1',
 		status: 'auto',
-		overallPlanRef: { title: '1F 总平关系视图', highlightZoneIds: ['z_dining'], adjacentZoneIds: ['z_lobby', 'z_kitchen', 'z_courtyard'] },
+		overallPlanRef: { title: '1F 总平关系视图', highlightZoneIds: ['z_dining'], adjacentZoneIds: ['z_lobby', 'z_kitchen', 'z_outdoor'] },
 		detailPlanRef: { title: '餐厅分平焦点视图', zoneIds: ['z_dining'], moduleIds: ['m_breakfast', 'm_service', 'm_window_tables'] },
 		planBrief: {
 			spatialRole: '早餐、晚间轻餐、社交停留。',
-			adjacency: ['大堂', '厨房后场', '庭院'],
+			adjacency: ['大堂', '厨房后场', '室外'],
 			entrances: ['大堂侧入口', '服务侧入口'],
 			mainCirculation: ['住客动线与上菜动线错开', '餐桌之间保持运营通行宽度'],
-			viewDirection: ['优先面向庭院或窗景', '避免视线直冲后场'],
+			viewDirection: ['优先面向室外景观或窗景', '避免视线直冲后场'],
 			fixedConstraints: ['后场入口不可暴露为主视觉', '主要服务路径不可被卡座阻断'],
 			flexibleZones: ['餐桌组合', '早餐台', '局部绿植', '吊灯节奏'],
 			cameraSuggestions: ['窗边餐桌视角', '早餐台看向就餐区', '晚间暖光版本'],
@@ -2159,7 +2345,7 @@ const SPACE_PLAN_VIEW_PRESETS: Record<Exclude<BoardCanvasSpace, '全部'>, Space
 			adjacency: ['连廊', '阳台或窗景面', '卫浴入口'],
 			entrances: ['连廊侧入户门'],
 			mainCirculation: ['入户至床侧和卫浴入口保持夜间可达', '行李落点不阻塞通行'],
-			viewDirection: ['床侧和窗边停留区优先面向山景或绿景'],
+			viewDirection: ['床侧和窗边停留区优先面向自然景观或窗景'],
 			fixedConstraints: ['卫生间湿区位置不可被视觉改写', '入户门和窗洞位置保留'],
 			flexibleZones: ['床头背景', '窗边坐榻', '行李架', '阅读灯'],
 			cameraSuggestions: ['入户看向窗景', '床头斜向', '窗边停留区'],
@@ -2293,7 +2479,7 @@ const createDefaultFloorPlanReconstruction = (
 	},
 	elements: [],
 	pendingIssues: ['待校准比例', '待确认北向', '待补充高度'],
-	updatedAt: '2026-04-12',
+	updatedAt: new Date().toISOString().slice(0, 10),
 });
 
 const createDefaultSpacePlanTopicStates = (): Record<Exclude<BoardCanvasSpace, '全部'>, SpacePlanTopicState> =>
@@ -2303,8 +2489,8 @@ const createDefaultSpacePlanTopicStates = (): Record<Exclude<BoardCanvasSpace, '
 			space,
 			status: 'synced',
 			sourceType: 'manual',
-			uploadedFileName: `${space}_PlanBase_${planView.irVersion.replace(/\s+/g, '_')}`,
-			updatedAt: '2026-04-12',
+			uploadedFileName: undefined,
+			updatedAt: new Date().toISOString().slice(0, 10),
 			viewChain: space === '客房' || space === '连廊'
 				? ['project', 'floor', 'space']
 				: ['floor', 'space'],
@@ -2339,15 +2525,12 @@ const createSystemVisualBrief = (space: Exclude<BoardCanvasSpace, '全部'>): Bo
 	], 8);
 	const styleKeywords = uniqueList([
 		...preset.styleKeywords,
-		'HAY气质',
 		'功能主义',
-		'品牌识别',
 		...globalCards.flatMap((card) => card.domainTags),
 	], 8);
 	const negativeConstraints = uniqueList([
 		...preset.negativeConstraints,
 		'过度商业化',
-		'脱离山地民宿语境',
 	], 8);
 	const sourceRefs = sourceCards.map((card) => ({
 		title: card.title,
@@ -2356,17 +2539,17 @@ const createSystemVisualBrief = (space: Exclude<BoardCanvasSpace, '全部'>): Bo
 		excerpt: card.desc,
 	}));
 	const visualPrompt = [
-		`场景主题：${space}空间的建筑室内效果图，服务于山地民宿项目的方案画布生图。`,
-		`项目总调性：年轻、克制、自然、功能主义，带有 HAY 品牌的轻盈家具气质；整体应保持山地湿润感、轻度度假感和非网红化表达。`,
+		`场景主题：${space}空间的建筑室内效果图，服务于本项目的方案画布生图。`,
+		`项目总调性：克制、自然、功能主义；整体应保持真实感和非过度商业化表达。`,
 		`当前空间命题：${designIntent}`,
 		`画面必须体现：${mustKeep.join('、')}。这些内容是空间分析底稿中的方向约束，不应被参考图或临时对话轻易冲掉。`,
 		`空间与构成：采用真实人尺度视角，画面需要有清晰的空间层次、主次关系和可停留区域；避免只生成漂亮材质拼贴，必须能看出人在空间中如何抵达、停留、转向或被引导。`,
-		`材料与细部：重点表达 ${preset.materialKeywords.join('、')}；材料需要真实可落地，表面质感细腻但不过度奢华，适合潮湿山地民宿的长期运营和维护。`,
+		`材料与细部：重点表达 ${preset.materialKeywords.join('、')}；材料需要真实可落地，表面质感细腻但不过度奢华，适合项目的长期运营和维护。`,
 		`光线与时间：重点表达 ${preset.lightingKeywords.join('、')}；光线应有层次，避免全场均质打亮，保留阴影、漫反射和局部重点照明。`,
-		`人物与活动：画面可出现少量住客或服务人员，密度低，动作自然，服务于空间尺度判断；人物不能成为商业广告主体。`,
+		`人物与活动：画面可出现少量使用者或服务人员，密度低，动作自然，服务于空间尺度判断；人物不能成为商业广告主体。`,
 		`镜头建议：建筑摄影感，24-35mm 人眼高度视角，构图稳定，展示入口关系、停留节点、材料转折和景观联系；不要夸张广角、不要舞台化灯效。`,
 		`参考图使用原则：参考图只作为视觉证据，优先借用构图、灯光、材质、家具比例或局部氛围；不得覆盖本空间的项目基线和负向约束。`,
-		`负向提示：避免 ${negativeConstraints.join('、')}；不要科幻感、不要样板间空壳感、不要过度商业酒店大堂感、不要拥挤人群、不要失真的文字标识。`,
+		`负向提示：避免 ${negativeConstraints.join('、')}；不要科幻感、不要样板间空壳感、不要拥挤人群、不要失真的文字标识。`,
 	].join('\n');
 
 	return {
@@ -2825,14 +3008,14 @@ const RESOURCE_ITEMS: ResourceItem[] = [
 		title: '家具 1 参考组',
 		brand: '方案高参',
 		series: '家具1',
-		category: '家具' as ResourceCategory,
+		category: '家具',
 		imageSrc: '',
 		fallbackImageSrc: '/resource-images/public-furniture.svg',
 		desc: '来自 D:\\1 方案高参\\家具1 的家具参考图组，适合在资源雷达中做家具方向筛选与连续比对。',
-		space: '全局' as ResourceSpace,
-		budgetBand: '均衡型' as ResourceBudgetBand,
+		space: '全局',
+		budgetBand: '均衡型',
 		leadTimeDays: 1,
-		risk: '低' as ResourceRisk,
+		risk: '低',
 		tags: ['家具', '参考组', '资源扩充'],
 		alternatives: ['furniture-reference-set-2'],
 		imageCollection: 'furniture-1',
@@ -2849,14 +3032,14 @@ const RESOURCE_ITEMS: ResourceItem[] = [
 		title: '家具 2 参考组',
 		brand: '方案高参',
 		series: '家具2',
-		category: '家具' as ResourceCategory,
+		category: '家具',
 		imageSrc: '',
 		fallbackImageSrc: '/resource-images/public-furniture.svg',
 		desc: '来自 D:\\1 方案高参\\家具2 的家具参考图组，用于补充资源雷达中的家具备选与风格比较。',
-		space: '全局' as ResourceSpace,
-		budgetBand: '均衡型' as ResourceBudgetBand,
+		space: '全局',
+		budgetBand: '均衡型',
 		leadTimeDays: 1,
-		risk: '低' as ResourceRisk,
+		risk: '低',
 		tags: ['家具', '方案参考', '资源扩充'],
 		alternatives: ['furniture-reference-set-1'],
 		imageCollection: 'furniture-2',
@@ -2879,6 +3062,7 @@ const buildPublicPictureUrl = (name: string, collection: PublicPictureCollection
 		: `/api/public-pictures?collection=${encodeURIComponent(collection)}&name=${encodeURIComponent(name)}`;
 const buildAdvisorAvatarUrl = (name: string) =>
 	`/api/public-pictures?collection=advisor-avatar&name=${encodeURIComponent(name)}`;
+const isExternalImageSrc = (src?: string) => Boolean(src && /^https?:\/\//i.test(src));
 const isSystemManagedResourceSrc = (src?: string) =>
 	Boolean(src && (src.startsWith('/resource-images/') || src.startsWith('/api/public-pictures?collection=')));
 const isResourceRadarSourceLabel = (label?: string) => typeof label === 'string' && label.startsWith('资源雷达');
@@ -2920,196 +3104,9 @@ const MOCK_BOARD_GENERATION_SEEDS: Array<{
 	title: string;
 	promptSummary: string;
 	sourceContext: string;
-}> = [
-	{
-		space: '大堂',
-		topicScope: '氛围',
-		generationRound: 3,
-		status: 'generated',
-		title: '大堂 · AI候选 01',
-		promptSummary: '暖木天花 + 低饱和绿植 + 到店首屏的松弛感入口透视。',
-		sourceContext: '方案高参 / 大堂 / 氛围 / 到店体验首因',
-	},
-	{
-		space: '大堂',
-		topicScope: '色彩',
-		generationRound: 2,
-		status: 'shortlisted',
-		title: '大堂 · AI候选 02',
-		promptSummary: '傍晚迎宾灯光替代组，强调暖感照度和落客停留节点。',
-		sourceContext: '方案高参 / 大堂 / 灯光 / 傍晚迎宾',
-	},
-	{
-		space: '大堂',
-		topicScope: '综合',
-		generationRound: 3,
-		status: 'collaged',
-		title: '大堂 · AI候选 03',
-		promptSummary: '接待台与背景墙一体化，强调品牌识别与到店停留秩序。',
-		sourceContext: '方案高参 / 大堂 / 综合 / 接待首屏',
-	},
-	{
-		space: '大堂',
-		topicScope: '材料',
-		generationRound: 2,
-		status: 'generated',
-		title: '大堂 · AI候选 04',
-		promptSummary: '深木皮 + 石材地坪 + 金属反光顶面的高级感收束方案。',
-		sourceContext: '方案高参 / 大堂 / 材料 / 到店高级感',
-	},
-	{
-		space: '大堂',
-		topicScope: '反例',
-		generationRound: 1,
-		status: 'adopted',
-		title: '大堂 · AI候选 05',
-		promptSummary: '过度奢华和网红金色堆叠的反例，用于压住品牌边界。',
-		sourceContext: '方案高参 / 大堂 / 反例 / 风格边界',
-	},
-	{
-		space: '餐厅',
-		topicScope: '材料',
-		generationRound: 2,
-		status: 'generated',
-		title: '餐厅 · AI候选 01',
-		promptSummary: '木皮 + 浅矿物墙面 + 温暖吊灯的山地餐叙氛围。',
-		sourceContext: '方案高参 / 餐厅 / 材料 / 峰谷运营切换',
-	},
-	{
-		space: '餐厅',
-		topicScope: '家具',
-		generationRound: 1,
-		status: 'collaged',
-		title: '餐厅 · AI候选 02',
-		promptSummary: '轻移动桌椅与长桌混编，适配早餐和晚餐两种场景。',
-		sourceContext: '方案高参 / 餐厅 / 家具 / 可变编排',
-	},
-	{
-		space: '客房',
-		topicScope: '色彩',
-		generationRound: 3,
-		status: 'shortlisted',
-		title: '客房 · AI候选 01',
-		promptSummary: '奶油灰 + 亚麻白 + 暖木色，强化安静休息感。',
-		sourceContext: '方案高参 / 客房 / 色彩 / 睡眠情绪',
-	},
-	{
-		space: '客房',
-		topicScope: '综合',
-		generationRound: 2,
-		status: 'generated',
-		title: '客房 · AI候选 02',
-		promptSummary: '床头体块与窗边坐榻一体化，控制视线与收纳秩序。',
-		sourceContext: '方案高参 / 客房 / 综合 / 高级感收束',
-	},
-	{
-		space: '公区',
-		topicScope: '氛围',
-		generationRound: 2,
-		status: 'generated',
-		title: '公区 · AI候选 01',
-		promptSummary: '阅读角 + 火炉壁龛 + 夜间低照度社交场景。',
-		sourceContext: '方案高参 / 公区 / 氛围 / 社交与独处并存',
-	},
-	{
-		space: '公区',
-		topicScope: '反例',
-		generationRound: 1,
-		status: 'adopted',
-		title: '公区 · AI候选 02',
-		promptSummary: '过度网红化陈设反例，用于提醒项目边界和品牌克制。',
-		sourceContext: '方案高参 / 公区 / 反例 / 风格边界',
-	},
-	{
-		space: '连廊',
-		topicScope: '材料',
-		generationRound: 2,
-		status: 'generated',
-		title: '连廊 · AI候选 01',
-		promptSummary: '防滑石材 + 深色金属立柱 + 雨天反射的过渡界面。',
-		sourceContext: '方案高参 / 连廊 / 材料 / 山地气候适配',
-	},
-	{
-		space: '连廊',
-		topicScope: '综合',
-		generationRound: 1,
-		status: 'collaged',
-		title: '连廊 · AI候选 02',
-		promptSummary: '从大堂转入客房区的光线递进和视线收束。',
-		sourceContext: '方案高参 / 连廊 / 综合 / 转场体验',
-	},
-	{
-		space: '后勤',
-		topicScope: '综合',
-		generationRound: 2,
-		status: 'generated',
-		title: '后勤 · AI候选 01',
-		promptSummary: '隐蔽服务入口与整洁木作界面的一体化处理。',
-		sourceContext: '方案高参 / 后勤 / 综合 / 服务动线隐藏',
-	},
-	{
-		space: '后勤',
-		topicScope: '材料',
-		generationRound: 1,
-		status: 'shortlisted',
-		title: '后勤 · AI候选 02',
-		promptSummary: '耐脏涂层 + 木纹柜体 + 易维护收纳界面方案。',
-		sourceContext: '方案高参 / 后勤 / 材料 / 维护效率',
-	},
-	/*
-	{
-		id: 'furniture-reference-set-1',
-		title: '家具 1 参考组',
-		brand: '方案高参',
-		series: '家具1',
-		category: '瀹跺叿',
-		imageSrc: '',
-		fallbackImageSrc: '/resource-images/public-furniture.svg',
-		desc: '来自 D:\\1 方案高参\\家具1 的家具参考图组，适合在资源雷达中做家具方向筛选与连续比对。',
-		space: '鍏ㄥ眬',
-		budgetBand: '鍧囪　鍨?,
-		leadTimeDays: 1,
-		risk: '浣?,
-		tags: ['家具', '参考组', '资源扩充'],
-		alternatives: ['furniture-reference-set-2'],
-		imageCollection: 'furniture-1',
-		imageNames: [
-			'2ee6ca242090981.69663230da048.webp',
-			'6f53af242090981.696632321200d.webp',
-			'93c534242090981.6966323210f41.webp',
-			'acfbe6242090981.696632320fc5e.webp',
-			'ed4c53242090981.6966302a9fc52.webp',
-		],
-	},
-	{
-		id: 'furniture-reference-set-2',
-		title: '家具 2 参考组',
-		brand: '方案高参',
-		series: '家具2',
-		category: '瀹跺叿',
-		imageSrc: '',
-		fallbackImageSrc: '/resource-images/public-furniture.svg',
-		desc: '来自 D:\\1 方案高参\\家具2 的家具参考图组，用于补充资源雷达中的家具备选与风格比较。',
-		space: '鍏ㄥ眬',
-		budgetBand: '鍧囪　鍨?,
-		leadTimeDays: 1,
-		risk: '浣?,
-		tags: ['家具', '方案参考', '资源扩充'],
-		alternatives: ['furniture-reference-set-1'],
-		imageCollection: 'furniture-2',
-		imageNames: [
-			'46d461239484557.692afeaf51408.webp',
-			'5a672d239484557.6929f6fa03d17.webp',
-			'88889b239484557.692afdf42baaf.webp',
-			'c1a5cb239484557.692b015a920df.webp',
-			'c7fb3f239484557.6929f92f18018.webp',
-			'd9f0a9239484557.6929f6fa04bba.webp',
-			'dfc036239484557.6929f6fa05293.webp',
-			'e2bb89239484557.692afdf42ce73.webp',
-		],
-	},
-	*/
-];
+}> = [];
+
+
 
 const getPublicPictureSeries = (pictureNames: string[], startIndex: number, desiredCount = 5) => {
 	if (pictureNames.length === 0) return [];
@@ -3289,11 +3286,11 @@ const EXPERT_TEAM_SECTIONS: Array<{ id: string; label: string; eyebrow: string; 
 		eyebrow: '当前激活',
 		items: [
 			{
-				id: 'role-hay-research',
-				title: 'HAY 品牌研究专家',
-				shortName: 'HAY研究',
+				id: 'role-brand-research',
+				title: '品牌语法研究专家',
+				shortName: '品牌研究',
 				avatarName: '未标题-7.png',
-				summary: '把 HAY 语法转成方法，不做表面贴皮。',
+				summary: '把品牌气质转成方法，不做表面贴皮。',
 				status: '当前激活',
 				duty: '绑定任务 3 / 6，负责品牌语义、色彩入口与关键触点识别。',
 				trigger: '品牌与在地依据建立时优先激活。',
@@ -3314,11 +3311,11 @@ const EXPERT_TEAM_SECTIONS: Array<{ id: string; label: string; eyebrow: string; 
 				tags: ['总体气质', '功能主义', '日常使用'],
 			},
 			{
-				id: 'role-mountain-lifestyle',
-				title: '山地生活方式研究员',
-				shortName: '山地方式',
+				id: 'role-local-lifestyle',
+				title: '在地生活方式研究员',
+				shortName: '在地方式',
 				avatarName: '未标题-9.png',
-				summary: '把在地山地节律转成色彩、节奏和停留感。',
+				summary: '把在地节律转成色彩、节奏和停留感。',
 				status: '当前激活',
 				duty: '绑定任务 3 / 6，负责场地提取色、四季氛围和专题 1 主提。',
 				trigger: '色彩专题定义与专题汇报阶段持续激活。',
@@ -3417,8 +3414,8 @@ const EXPERT_TEAM_SECTIONS: Array<{ id: string; label: string; eyebrow: string; 
 			},
 			{
 				id: 'role-soundscape',
-				title: '山地声景编辑',
-				shortName: '山地声景',
+				title: '户外声景编辑',
+				shortName: '户外声景',
 				avatarName: '未标题-2.png',
 				summary: '在晚间与户外节点补强声环境体验。',
 				status: '储备位',
@@ -3475,9 +3472,9 @@ const EXPERT_TASK_SECTIONS: Array<{ id: string; label: string; eyebrow: string; 
 				id: 'task-3',
 				order: 3,
 				title: '品牌与在地依据建立',
-				mission: '把 HAY 语法和山地在地依据同时站稳，避免风格贴皮。',
+				mission: '把品牌语法和在地依据同时站稳，避免风格贴皮。',
 				status: '已完成',
-				team: ['HAY 品牌研究专家', '北欧生活方式研究员', '山地生活方式研究员'],
+				team: ['品牌语法研究专家', '北欧生活方式研究员', '在地生活方式研究员'],
 				outputs: ['品牌依据卡', '在地依据卡', '冲突项说明'],
 				checks: ['是否是方法语法而非样式拼贴', '是否形成在地提取规则', '是否可回写到四专题'],
 			},
@@ -3516,7 +3513,7 @@ const EXPERT_TASK_SECTIONS: Array<{ id: string; label: string; eyebrow: string; 
 				title: '色彩专题任务卡',
 				mission: '定义色彩系统的输入依据、输出格式、启动条件与校验标准。',
 				status: '执行中',
-				team: ['色彩情绪与光环境系统专家', 'HAY 品牌研究专家', '运营时序顾问'],
+				team: ['色彩情绪与光环境系统专家', '品牌语法研究专家', '运营时序顾问'],
 				outputs: ['基础底色', '场地提取色规则', '日夜色温管理', '季节调节策略'],
 				checks: ['是否同时响应品牌语法与在地色', '是否处理白天 / 夜间双方案', '是否避免淡季冷清负向情绪'],
 				featured: true,
@@ -3579,8 +3576,8 @@ const EXPERT_REPORT_ITEMS: ExpertReportItem[] = [
 		id: 'report-color',
 		title: '专题 1 · 色彩系统',
 		summary: '底色克制，提取色唯一，日夜与冬季情绪要能切换。',
-		lead: '山地生活方式研究员',
-		partners: ['HAY 品牌研究专家', '运营时序顾问'],
+		lead: '在地生活方式研究员',
+		partners: ['品牌语法研究专家', '运营时序顾问'],
 		sourceTask: '来自任务 6 · 色彩专题任务卡',
 		points: ['暖白 / 浅灰 / 深炭为底', '苔藓绿为唯一场地提取色', '夜间以暖光激活深炭与苔藓绿对比', '冬季可引入暖米色调辅助暖场', '避免淡季冷白造成空旷凉意'],
 		featured: true,
@@ -3661,6 +3658,8 @@ export function CockpitPanel({
 	preferredFileViewMode,
 	sessionId,
 	projectLabel,
+	onProjectLabelChange,
+	projectOverview,
 	activeBoardSpace,
 	onActiveBoardSpaceChange,
 	onEnterBoardSpace,
@@ -3674,6 +3673,7 @@ export function CockpitPanel({
 	onNodeClick,
 	onCardClick,
 	onSwitchModule,
+	onOpenGeoWorkspace,
 	className = '',
 }: CockpitPanelProps) {
 	const [decisionActiveView, setDecisionActiveView] = useState<ViewKey>('overview');
@@ -3705,6 +3705,10 @@ export function CockpitPanel({
 	const [boardCollections, setBoardCollections] = useState<BoardCollectionItem[]>([]);
 	const [boardQuery, setBoardQuery] = useState('');
 	const [boardSourceTab, setBoardSourceTab] = useState<BoardSourceTab>('radar');
+	const [boardDeepBrowseTab, setBoardDeepBrowseTab] = useState<BoardDeepBrowseTab | null>(null);
+	const [boardLibraryNavKey, setBoardLibraryNavKey] = useState<BoardLibraryNavKey | null>(null);
+	const [boardLibrarySubcategory, setBoardLibrarySubcategory] = useState(ALL_BOARD_LIBRARY_SUBCATEGORY);
+	const [boardDeepBrowseSizeLevel, setBoardDeepBrowseSizeLevel] = useState(3);
 	const [boardCanvasItems, setBoardCanvasItems] = useState<BoardCanvasItem[]>([]);
 	const [boardCanvasView, setBoardCanvasView] = useState(DEFAULT_BOARD_CANVAS_VIEW);
 	const [boardCanvasBrightImageMap, setBoardCanvasBrightImageMap] = useState<Record<string, boolean>>({});
@@ -3713,6 +3717,9 @@ export function CockpitPanel({
 	const [boardGeneratedUnseenCount, setBoardGeneratedUnseenCount] = useState(0);
 	const [boardGeneratedRoundFilter, setBoardGeneratedRoundFilter] = useState<BoardGeneratedRoundFilter>('全部');
 	const [boardGeneratedTopicFilter, setBoardGeneratedTopicFilter] = useState<'全部专题' | BoardCanvasMode>('全部专题');
+	const [boardSourceDetailItemId, setBoardSourceDetailItemId] = useState<string | null>(null);
+	const [boardSourceDetailImageAspect, setBoardSourceDetailImageAspect] = useState<number | null>(null);
+	const [boardSourceDetailImageBackdrop, setBoardSourceDetailImageBackdrop] = useState('#020617');
 	const [boardVisualBriefs, setBoardVisualBriefs] = useState<Record<Exclude<BoardCanvasSpace, '全部'>, BoardVisualBrief>>(() =>
 		SPACE_VIEW_ORDER.reduce<Record<Exclude<BoardCanvasSpace, '全部'>, BoardVisualBrief>>((acc, space) => {
 			acc[space] = createSystemVisualBrief(space);
@@ -3767,8 +3774,7 @@ export function CockpitPanel({
 	const [portfolioChartWidth, setPortfolioChartWidth] = useState(0);
 	const [designerProfile, setDesignerProfile] = useState<DesignerProfile | null>(null);
 	const [dssProfileOpen, setDssProfileOpen] = useState(false);
-	const [dssPage, setDssPage] = useState<'sediment' | 'portfolio' | 'profile'>('portfolio');
-	const [dssQuickType, setDssQuickType] = useState<KnowledgeEntryType>('经验');
+	const [dssPage, setDssPage] = useState<DssPage>('sediment');
 	const [dssQuickText, setDssQuickText] = useState('');
 	const [dssQuickNewId, setDssQuickNewId] = useState<string | null>(null);
 	const [boardCollectModalOpen, setBoardCollectModalOpen] = useState(false);
@@ -4430,6 +4436,30 @@ export function CockpitPanel({
 		setSelectedKnowledgeEntryId(next.id);
 		setKnowledgeDetailOpen(true);
 	}, []);
+
+	const handleCaptureSedimentQuickNote = useCallback(() => {
+		const title = dssQuickText.trim();
+		if (!title) return;
+		const id = `knowledge-${Date.now()}`;
+		const entry: PersonalKnowledgeEntry = {
+			id,
+			title,
+			type: '待分类',
+			status: '草稿',
+			summary: '',
+			content: title,
+			tags: [],
+			sourceContext: '沉淀速记',
+			updatedAt: new Date().toISOString(),
+			scope: 'personal',
+			publishLevel: '草稿',
+			evidenceLinks: [],
+		};
+		setKnowledgeEntries((prev) => [entry, ...prev]);
+		setDssQuickNewId(id);
+		setDssQuickText('');
+		setTimeout(() => setDssQuickNewId(null), 3000);
+	}, [dssQuickText]);
 
 	const handleDeleteKnowledgeEntry = useCallback(() => {
 		if (!selectedKnowledgeEntryId) return;
@@ -5816,7 +5846,7 @@ export function CockpitPanel({
 		setBoardCollections((prev) => prev.filter((item) => item.imageId !== imageId));
 	};
 
-	const clampBoardCanvasZoom = useCallback((zoom: number) => Math.min(4, Math.max(0.3, zoom)), []);
+	const clampBoardCanvasZoom = useCallback((zoom: number) => clampCanvasZoom(zoom, 0.3, 4), []);
 	const clampBoardCanvasItemWidth = useCallback((width: number) => Math.min(960, Math.max(MIN_BOARD_ITEM_WIDTH, width)), []);
 
 	const toBoardCanvasPoint = useCallback((clientX: number, clientY: number) => {
@@ -5835,20 +5865,10 @@ export function CockpitPanel({
 			if (!rect) return;
 
 			setBoardCanvasView((prev) => {
-				const nextZoom = clampBoardCanvasZoom(prev.zoom * factor);
-				const pointerX = clientX - rect.left;
-				const pointerY = clientY - rect.top;
-				const worldX = (pointerX - prev.x) / prev.zoom;
-				const worldY = (pointerY - prev.y) / prev.zoom;
-
-				return {
-					x: pointerX - worldX * nextZoom,
-					y: pointerY - worldY * nextZoom,
-					zoom: nextZoom,
-				};
+				return zoomSharedCanvasViewAt(prev, rect, clientX, clientY, factor, { minZoom: 0.3, maxZoom: 4 });
 			});
 		},
-		[clampBoardCanvasZoom]
+		[]
 	);
 
 	const updateBoardGeneratedItemStatus = useCallback((itemId: string, status: BoardGeneratedStatus) => {
@@ -6123,7 +6143,7 @@ export function CockpitPanel({
 	const handleBoardCanvasWheel = useCallback(
 		(event: React.WheelEvent<HTMLDivElement>) => {
 			event.preventDefault();
-			const factor = Math.exp(-event.deltaY * 0.0012);
+			const factor = getWheelZoomFactor(event.deltaY);
 			zoomBoardCanvasAt(event.clientX, event.clientY, factor);
 		},
 		[zoomBoardCanvasAt]
@@ -6366,7 +6386,7 @@ export function CockpitPanel({
 		}
 		if (task === '空间搭配') {
 			setAssetQuery('');
-			setAssetSpace('大堂');
+			setAssetSpace(currentBoardSpace === '全部' ? '全部空间' : currentBoardSpace);
 			setAssetBudget('均衡型');
 			return;
 		}
@@ -6690,10 +6710,16 @@ export function CockpitPanel({
 	);
 
 	const radarBoardSourceItems = useMemo<BoardSourceItem[]>(
-		() =>
-			resourceItems
-				.filter((resource) => (isBoardOverview ? false : resource.space === '全局' || resource.space === currentBoardSpace))
-				.flatMap((resource) =>
+		() => {
+			const scopedResources = resourceItems.filter(
+				(resource) => !isBoardOverview && (resource.space === '全局' || resource.space === currentBoardSpace)
+			);
+			const resourcesForBoard =
+				isBoardOverview || boardCanvasItems.length === 0 || scopedResources.length === 0
+					? resourceItems
+					: scopedResources;
+
+			return resourcesForBoard.flatMap((resource) =>
 				resource.imageSeries.map((image) => {
 					const source = {
 						id: `board-source-radar-${image.id}`,
@@ -6715,13 +6741,27 @@ export function CockpitPanel({
 						}),
 					};
 				})
-			),
-		[currentBoardSpace, isBoardOverview, resourceItems]
+			);
+		},
+		[boardCanvasItems.length, currentBoardSpace, isBoardOverview, resourceItems]
 	);
+
+	const radarBoardSourceMode = useMemo<'matched' | 'empty_canvas' | 'no_space_match' | 'browse_all'>(() => {
+		if (isBoardOverview) return 'browse_all';
+		if (boardCanvasItems.length === 0) return 'empty_canvas';
+		const hasScopedResources = resourceItems.some((resource) => resource.space === '全局' || resource.space === currentBoardSpace);
+		return hasScopedResources ? 'matched' : 'no_space_match';
+	}, [boardCanvasItems.length, currentBoardSpace, isBoardOverview, resourceItems]);
 
 	const inspirationBoardSourceItems = useMemo<BoardSourceItem[]>(
 		() =>
 			inspirationLibraryItems.map((item) => {
+				const curatedImageSrc = isExternalImageSrc(item.imageSrc)
+					? (isExternalImageSrc(item.fallbackImageSrc) ? fallbackPublicPictureSrc : item.fallbackImageSrc)
+					: item.imageSrc;
+				const curatedFallbackImageSrc = isExternalImageSrc(item.fallbackImageSrc)
+					? (fallbackPublicPictureSrc || curatedImageSrc)
+					: item.fallbackImageSrc;
 				const source = {
 					id: `board-source-inspiration-${item.id}`,
 					sourceType: 'inspiration' as const,
@@ -6733,8 +6773,8 @@ export function CockpitPanel({
 					anchorY: item.anchorY,
 					anchorSummary: item.anchorSummary,
 					title: item.title,
-					imageSrc: item.imageSrc,
-					fallbackImageSrc: item.fallbackImageSrc,
+					imageSrc: curatedImageSrc || fallbackPublicPictureSrc,
+					fallbackImageSrc: curatedFallbackImageSrc || fallbackPublicPictureSrc,
 					desc: item.desc || item.anchorSummary || item.insightSummary || '来自灵感仓库的可复用素材。',
 					meta:
 						item.itemType === 'insight'
@@ -6752,7 +6792,7 @@ export function CockpitPanel({
 					}),
 				};
 			}),
-		[currentBoardSpace, inspirationLibraryItems]
+		[currentBoardSpace, fallbackPublicPictureSrc, inspirationLibraryItems]
 	);
 
 	const historyBoardSourceItems = useMemo<BoardSourceItem[]>(
@@ -6848,6 +6888,54 @@ export function CockpitPanel({
 		return radarBoardSourceItems;
 	}, [boardSourceTab, generatedBoardSourceItems, historyBoardSourceItems, inspirationBoardSourceItems, radarBoardSourceItems]);
 
+	const boardDeepBrowseColumnCount = 9 - boardDeepBrowseSizeLevel;
+
+	const boardDeepBrowseSourceItems = useMemo(() => {
+		if (!boardDeepBrowseTab) return [];
+		if (boardDeepBrowseTab === 'inspiration') return inspirationBoardSourceItems;
+		if (boardDeepBrowseTab === 'history') return historyBoardSourceItems;
+		return radarBoardSourceItems;
+	}, [boardDeepBrowseTab, historyBoardSourceItems, inspirationBoardSourceItems, radarBoardSourceItems]);
+
+	const visibleBoardLibraryNavItems = useMemo<BoardLibraryNavItem[]>(() => {
+		if (!boardDeepBrowseTab || boardDeepBrowseTab === 'history') return [];
+		return BOARD_LIBRARY_NAV_ITEMS.reduce<BoardLibraryNavItem[]>((acc, item) => {
+			const children = item.children.filter((child) =>
+				boardDeepBrowseSourceItems.some((source) => boardLibraryItemMatchesKeywords(source, child.keywords))
+			);
+			const categoryKeywords = [
+				...item.keywords,
+				...item.children.flatMap((child) => child.keywords),
+			];
+			const hasContent = boardDeepBrowseSourceItems.some((source) =>
+				boardLibraryItemMatchesKeywords(source, categoryKeywords)
+			);
+			if (hasContent) acc.push({ ...item, children });
+			return acc;
+		}, []);
+	}, [boardDeepBrowseSourceItems, boardDeepBrowseTab]);
+
+	const currentBoardLibraryNav = useMemo(
+		() => visibleBoardLibraryNavItems.find((item) => item.key === boardLibraryNavKey) ?? null,
+		[boardLibraryNavKey, visibleBoardLibraryNavItems]
+	);
+
+	useEffect(() => {
+		if (!boardDeepBrowseTab || boardDeepBrowseTab === 'history') return;
+		if (boardLibraryNavKey && !currentBoardLibraryNav) {
+			setBoardLibraryNavKey(null);
+			setBoardLibrarySubcategory(ALL_BOARD_LIBRARY_SUBCATEGORY);
+			return;
+		}
+		if (
+			currentBoardLibraryNav &&
+			boardLibrarySubcategory !== ALL_BOARD_LIBRARY_SUBCATEGORY &&
+			!currentBoardLibraryNav.children.some((child) => child.label === boardLibrarySubcategory)
+		) {
+			setBoardLibrarySubcategory(ALL_BOARD_LIBRARY_SUBCATEGORY);
+		}
+	}, [boardDeepBrowseTab, boardLibraryNavKey, boardLibrarySubcategory, currentBoardLibraryNav]);
+
 	const boardSpaceOverviewCards = useMemo(
 		() =>
 			BOARD_CANVAS_SPACE_OPTIONS.filter((space): space is Exclude<BoardCanvasSpace, '全部'> => space !== '全部').map((space) => ({
@@ -6866,12 +6954,137 @@ export function CockpitPanel({
 		);
 	}, [boardActiveSourceItems, boardQuery, boardSourceTab]);
 
+	const boardSourceDetailItems = useMemo(() => {
+		const items = new Map<string, BoardSourceItem>();
+		[
+			...radarBoardSourceItems,
+			...inspirationBoardSourceItems,
+			...historyBoardSourceItems,
+			...generatedBoardSourceItems,
+		].forEach((item) => items.set(item.id, item));
+		return Array.from(items.values());
+	}, [generatedBoardSourceItems, historyBoardSourceItems, inspirationBoardSourceItems, radarBoardSourceItems]);
+
+	const boardSourceDetailItem = useMemo(
+		() => boardSourceDetailItems.find((item) => item.id === boardSourceDetailItemId) ?? null,
+		[boardSourceDetailItems, boardSourceDetailItemId]
+	);
+
+	const boardSourceDetailShellStyle = useMemo<React.CSSProperties>(() => {
+		const aspect = boardSourceDetailImageAspect && Number.isFinite(boardSourceDetailImageAspect)
+			? Math.min(1.35, Math.max(0.34, boardSourceDetailImageAspect))
+			: 1.08;
+		return {
+			gridTemplateColumns: `clamp(240px, calc(max(76vh, 560px) * ${aspect}), 752px) minmax(560px, 664px)`,
+		};
+	}, [boardSourceDetailImageAspect]);
+
+	const boardSourceDetailImageStyle = useMemo<React.CSSProperties>(
+		() => ({ backgroundColor: boardSourceDetailImageBackdrop }),
+		[boardSourceDetailImageBackdrop]
+	);
+
+	const updateBoardSourceDetailImageMetrics = useCallback((image: HTMLImageElement) => {
+		if (image.naturalWidth > 0 && image.naturalHeight > 0) {
+			setBoardSourceDetailImageAspect(image.naturalWidth / image.naturalHeight);
+		}
+
+		try {
+			const sampleSize = 32;
+			const canvas = document.createElement('canvas');
+			canvas.width = sampleSize;
+			canvas.height = sampleSize;
+			const context = canvas.getContext('2d', { willReadFrequently: true });
+			if (!context) throw new Error('Canvas context unavailable');
+
+			context.drawImage(image, 0, 0, sampleSize, sampleSize);
+			const pixels = context.getImageData(0, 0, sampleSize, sampleSize).data;
+			let red = 0;
+			let green = 0;
+			let blue = 0;
+			let count = 0;
+
+			for (let index = 0; index < pixels.length; index += 4) {
+				const alpha = pixels[index + 3];
+				if (alpha < 128) continue;
+				const r = pixels[index];
+				const g = pixels[index + 1];
+				const b = pixels[index + 2];
+				red += r;
+				green += g;
+				blue += b;
+				count += 1;
+			}
+
+			if (count === 0) {
+				setBoardSourceDetailImageBackdrop('#020617');
+				return;
+			}
+
+			const nextRed = Math.round(red / count);
+			const nextGreen = Math.round(green / count);
+			const nextBlue = Math.round(blue / count);
+			setBoardSourceDetailImageBackdrop(`rgb(${nextRed}, ${nextGreen}, ${nextBlue})`);
+		} catch {
+			setBoardSourceDetailImageBackdrop('#020617');
+		}
+	}, []);
+
+	useEffect(() => {
+		if (!boardSourceDetailItem) return;
+
+		const handleKeyDown = (event: KeyboardEvent) => {
+			if (event.key !== 'Escape') return;
+			event.preventDefault();
+			setBoardSourceDetailItemId(null);
+		};
+
+		window.addEventListener('keydown', handleKeyDown);
+		return () => window.removeEventListener('keydown', handleKeyDown);
+	}, [boardSourceDetailItem]);
+
+	const boardDeepBrowseItems = useMemo(() => {
+		if (!boardDeepBrowseTab) return [];
+		const categoryFilteredItems =
+			boardDeepBrowseTab === 'history' || !currentBoardLibraryNav
+				? boardDeepBrowseSourceItems
+				: boardDeepBrowseSourceItems.filter((item) => {
+						if (boardLibrarySubcategory === ALL_BOARD_LIBRARY_SUBCATEGORY) {
+							const categoryKeywords = [
+								...currentBoardLibraryNav.keywords,
+								...currentBoardLibraryNav.children.flatMap((child) => child.keywords),
+							];
+							return boardLibraryItemMatchesKeywords(item, categoryKeywords);
+						}
+						const activeChild = currentBoardLibraryNav.children.find((child) => child.label === boardLibrarySubcategory);
+						return activeChild ? boardLibraryItemMatchesKeywords(item, activeChild.keywords) : true;
+				  });
+		const query = boardQuery.trim().toLowerCase();
+		if (!query) return categoryFilteredItems;
+		return categoryFilteredItems.filter((item) =>
+			getBoardLibrarySearchText(item).includes(query)
+		);
+	}, [
+		boardDeepBrowseTab,
+		boardDeepBrowseSourceItems,
+		boardLibrarySubcategory,
+		boardQuery,
+		currentBoardLibraryNav,
+	]);
+
 	useEffect(() => {
 		if (!expandedBoardSourceItemId) return;
 		if (!filteredBoardSourceItems.some((item) => item.id === expandedBoardSourceItemId)) {
 			setExpandedBoardSourceItemId(null);
 		}
 	}, [expandedBoardSourceItemId, filteredBoardSourceItems]);
+
+	useEffect(() => {
+		if (!boardSourceDetailItemId) return;
+		setBoardSourceDetailImageAspect(null);
+		setBoardSourceDetailImageBackdrop('#020617');
+		if (!boardSourceDetailItem) setBoardSourceDetailItemId(null);
+	}, [boardSourceDetailItem, boardSourceDetailItemId]);
 
 	const saveReferenceEditDraft = useCallback(() => {
 		if (!referenceEditDraft) return;
@@ -7211,6 +7424,125 @@ export function CockpitPanel({
 			status: brief.status === 'locked' ? 'edited' : 'locked',
 		}));
 	}, [updateActiveBoardVisualBrief]);
+
+	const renderBoardInformationWhiteboard = () => {
+		if (!activeBoardVisualBrief) return null;
+
+		const disabledTags = new Set(activeBoardVisualBrief.disabledTags);
+		const visibleTags = activeBoardVisualBriefTags.filter((tag) => !disabledTags.has(tag));
+		const statusLabel: Record<BoardVisualBriefStatus, string> = {
+			auto: '自动综合',
+			edited: '已编辑',
+			locked: '已锁定',
+			stale: '待刷新',
+		};
+
+		return (
+			<section className="shrink-0 border-b border-slate-200 bg-white px-4 py-4">
+				<div className="flex items-start justify-between gap-3">
+					<div className="min-w-0">
+						<div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Information Board</div>
+						<h3 className="mt-1 text-base font-semibold text-slate-950">信息白板 · {activeBoardVisualBrief.space}</h3>
+						<p className="mt-1 text-[12px] leading-5 text-slate-500">{activeBoardVisualBrief.summary}</p>
+					</div>
+					<span
+						className={`shrink-0 rounded-full border px-2.5 py-1 text-[11px] font-medium ${
+							activeBoardVisualBrief.status === 'locked'
+								? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+								: activeBoardVisualBrief.status === 'stale'
+									? 'border-amber-200 bg-amber-50 text-amber-700'
+									: 'border-slate-200 bg-slate-50 text-slate-600'
+						}`}
+					>
+						{statusLabel[activeBoardVisualBrief.status]}
+					</span>
+				</div>
+
+				<div className="mt-3 border-l-2 border-slate-200 pl-3 text-[13px] leading-6 text-slate-700">
+					{activeBoardVisualBrief.designIntent}
+				</div>
+
+				<div className="mt-3 flex flex-wrap gap-1.5">
+					{activeBoardVisualBriefTags.slice(0, expandedBoardVisualBrief ? 32 : 12).map((tag) => {
+						const disabled = disabledTags.has(tag);
+						const locked = activeBoardVisualBrief.lockedTags.includes(tag);
+						return (
+							<button
+								key={`board-visual-brief-tag-${tag}`}
+								type="button"
+								onClick={() => toggleVisualBriefTag(tag)}
+								onDoubleClick={() => toggleVisualBriefTagLock(tag)}
+								className={`rounded-full border px-2.5 py-1 text-[11px] font-medium transition ${
+									disabled
+										? 'border-slate-200 bg-slate-50 text-slate-300 line-through'
+										: locked
+											? 'border-sky-200 bg-sky-50 text-sky-700'
+											: tag.startsWith('避免:')
+												? 'border-rose-200 bg-rose-50 text-rose-700'
+												: 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
+								}`}
+								title={locked ? '已锁定，双击可解除锁定' : '点击启用/停用，双击锁定'}
+							>
+								{locked ? '锁 ' : ''}{tag}
+							</button>
+						);
+					})}
+				</div>
+
+				<div className="mt-3 grid grid-cols-3 gap-2">
+					<button onClick={toggleActiveVisualBriefLock} className="rounded-full border border-slate-200 px-3 py-1.5 text-[12px] font-medium text-slate-600 hover:bg-slate-50">
+						{activeBoardVisualBrief.status === 'locked' ? '解除锁定' : '锁定白板'}
+					</button>
+					<button onClick={() => setExpandedBoardVisualBrief((prev) => !prev)} className="rounded-full border border-slate-200 px-3 py-1.5 text-[12px] font-medium text-slate-600 hover:bg-slate-50">
+						{expandedBoardVisualBrief ? '收起详情' : '展开详情'}
+					</button>
+					<button onClick={resetActiveVisualBrief} className="rounded-full border border-slate-200 px-3 py-1.5 text-[12px] font-medium text-slate-600 hover:bg-slate-50">
+						重置
+					</button>
+				</div>
+
+				<label className="mt-3 block">
+					<div className="mb-1 text-[11px] font-medium text-slate-400">本空间备注</div>
+					<textarea
+						value={activeBoardVisualBrief.customNote}
+						onChange={(event) => updateVisualBriefCustomNote(event.target.value)}
+						placeholder="补充这个空间的气质、材料或出图注意事项"
+						rows={2}
+						className="w-full resize-none rounded-none border border-slate-200 bg-slate-50 px-3 py-2 text-[12px] leading-5 text-slate-700 outline-none focus:border-sky-300 focus:bg-white"
+					/>
+				</label>
+
+				{expandedBoardVisualBrief && (
+					<div className="mt-3 space-y-3">
+						<label className="block">
+							<div className="mb-1 text-[11px] font-medium text-slate-400">生图基线提示词</div>
+							<textarea
+								value={activeBoardVisualBrief.visualPrompt}
+								onChange={(event) => updateVisualBriefPrompt(event.target.value)}
+								rows={5}
+								className="w-full resize-y rounded-none border border-slate-200 bg-white px-3 py-2 text-[12px] leading-5 text-slate-700 outline-none focus:border-sky-300"
+							/>
+						</label>
+						<div>
+							<div className="mb-1 text-[11px] font-medium text-slate-400">来源绑定</div>
+							<div className="space-y-1.5">
+								{activeBoardVisualBrief.sourceRefs.slice(0, 4).map((ref) => (
+									<div key={`board-visual-brief-source-${ref.title}`} className="border border-slate-200 bg-slate-50 px-3 py-2">
+										<div className="truncate text-[12px] font-medium text-slate-800">{ref.title}</div>
+										<div className="mt-0.5 truncate text-[11px] text-slate-400">{ref.section} · {ref.status}</div>
+									</div>
+								))}
+							</div>
+						</div>
+					</div>
+				)}
+
+				{visibleTags.length === 0 && (
+					<div className="mt-2 text-[12px] text-amber-600">当前标签都被停用，建议恢复至少一个风格或材料约束。</div>
+				)}
+			</section>
+		);
+	};
 
 	const stageOptions: string[] = [
 		ALL_STAGE,
@@ -9758,7 +10090,7 @@ export function CockpitPanel({
 			case 'knowledge':
 				return (
 					<div className="cockpit-panel-root w-full h-full flex flex-col overflow-hidden bg-[#f6f7fa]">
-						<div className="border-b border-slate-200 bg-white/90 backdrop-blur pl-20 pr-6 py-4">
+						<div className="cockpit-content-inset border-b border-slate-200 bg-white/90 backdrop-blur py-4">
 							<div className="flex items-center gap-3">
 								<h3 className="cockpit-panel-title text-slate-800">我的硅基分身</h3>
 								<div className="ml-2 flex items-center gap-2">
@@ -9793,8 +10125,6 @@ export function CockpitPanel({
 								))}
 							</div>
 						</div>
-
-						<QuickNoteInbox />
 
 						{/* 可滚动内容区：上方气泡图 + 下方左列表/右洞察 */}
 						<div className="flex-1 min-h-0 overflow-y-auto">
@@ -9999,7 +10329,7 @@ export function CockpitPanel({
 							const portfolioChartStableWidth = Math.max(portfolioChartWidth, portfolioChartShellRef.current?.clientWidth ?? 0, 1120);
 
 							return (
-								<div className="space-y-5 pl-20 pr-6 py-5">
+								<div className="cockpit-content-inset space-y-5 py-5">
 									<div ref={portfolioChartShellRef} className="cockpit-card cockpit-card-interactive cockpit-card-accent-files bg-white p-5">
 										{(() => {
 											const chart = renderPortfolioBubbleChart(
@@ -10118,7 +10448,7 @@ export function CockpitPanel({
 						})() : null}
 
 						{/* ── 下部：左侧案例列表 + 右侧职业生涯洞察卡片（图2尺寸） ── */}
-						<div className="pl-20 pr-6 py-2">
+						<div className="cockpit-content-inset py-2">
 						<div className={dssPage === 'profile' ? '' : 'hidden'}>
 						{/* DSS: 职业生涯总结分析洞察卡片（右侧） */}
 						{designerProfile ? (() => {
@@ -10401,50 +10731,25 @@ export function CockpitPanel({
 
 						<div className={`${dssPage === 'sediment' ? '' : 'hidden'}`}>
 							{/* ── 快录区 ── */}
-							<div className="sticky top-0 z-10 bg-[#f6f7fa] pl-20 pr-6 pt-5 pb-3 border-b border-slate-100">
-								<div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 shadow-sm">
-									<div className="flex items-center gap-1 shrink-0">
-										{(['习惯', '经验', '方法', '模板', '禁忌', '案例复盘'] as KnowledgeEntryType[]).map((t) => (
-											<button
-												key={t}
-												onClick={() => setDssQuickType(t)}
-												className={`h-7 rounded-lg px-2.5 text-[11px] font-medium transition ${
-													dssQuickType === t
-														? ({'习惯':'bg-blue-100 text-blue-700','经验':'bg-emerald-100 text-emerald-700','方法':'bg-violet-100 text-violet-700','模板':'bg-amber-100 text-amber-700','禁忌':'bg-rose-100 text-rose-700','案例复盘':'bg-orange-100 text-orange-700'} as Record<string,string>)[t] ?? 'bg-slate-100 text-slate-700'
-														: 'text-slate-400 hover:text-slate-600 hover:bg-slate-50'
-												}`}
-											>{t}</button>
-										))}
-									</div>
+							<div className="sticky top-0 z-10 bg-[#f6f7fa] pt-5 pb-3 border-b border-slate-100">
+								<div className="flex min-h-[64px] items-center gap-3 rounded-xl border border-slate-300 bg-white px-4 py-3 shadow-[0_10px_28px_rgba(15,23,42,0.08)] ring-1 ring-white">
+									<span className="shrink-0 rounded-lg bg-slate-900 px-3 py-2 text-xs font-semibold text-white">速记</span>
 									<input
 										value={dssQuickText}
 										onChange={(e) => setDssQuickText(e.target.value)}
 										onKeyDown={(e) => {
 											if (e.key === 'Enter' && dssQuickText.trim()) {
-												const id = `knowledge-${Date.now()}`;
-												const entry: PersonalKnowledgeEntry = { id, title: dssQuickText.trim(), type: dssQuickType, status: '草稿', summary: '', content: '', tags: [], updatedAt: new Date().toISOString() };
-												setKnowledgeEntries((prev) => [entry, ...prev]);
-												setDssQuickNewId(id);
-												setDssQuickText('');
-												setTimeout(() => setDssQuickNewId(null), 3000);
+												handleCaptureSedimentQuickNote();
 											}
 										}}
-										placeholder="快录一条经验（回车保存）——习惯、方法、禁忌、复盘……"
-										className="flex-1 min-w-0 bg-transparent text-sm text-slate-800 placeholder:text-slate-400 outline-none"
+										placeholder="随手记一条想法，回车先保存原文，稍后再分类"
+										className="h-10 flex-1 min-w-0 bg-transparent text-base text-slate-900 placeholder:text-slate-400 outline-none"
 									/>
 									<button
-										onClick={() => {
-											if (!dssQuickText.trim()) return;
-											const id = `knowledge-${Date.now()}`;
-											const entry: PersonalKnowledgeEntry = { id, title: dssQuickText.trim(), type: dssQuickType, status: '草稿', summary: '', content: '', tags: [], updatedAt: new Date().toISOString() };
-											setKnowledgeEntries((prev) => [entry, ...prev]);
-											setDssQuickNewId(id);
-											setDssQuickText('');
-											setTimeout(() => setDssQuickNewId(null), 3000);
-										}}
+										onClick={handleCaptureSedimentQuickNote}
 										disabled={!dssQuickText.trim()}
-										className="h-7 shrink-0 rounded-lg bg-slate-900 px-3 text-[11px] font-medium text-white transition hover:bg-slate-700 disabled:opacity-30"
-									>存入</button>
+										className="h-10 shrink-0 rounded-lg bg-slate-900 px-5 text-sm font-semibold text-white transition hover:bg-slate-700 disabled:opacity-30"
+									>保存</button>
 								</div>
 							</div>
 							{/* ── 卡片区（分组渲染）── */}
@@ -10452,14 +10757,17 @@ export function CockpitPanel({
 								const sedimentEntries = filteredKnowledgeEntries.filter(e => e.type !== '作品');
 								if (sedimentEntries.length === 0) {
 									return (
-										<div className="flex flex-col items-center justify-center py-20 text-slate-400 gap-2">
-											<span className="text-3xl">◎</span>
-											<span className="text-sm">快录你的第一条经验资产</span>
-											<span className="text-xs text-slate-300">习惯、方法、禁忌……任何值得记下来的都算</span>
+										<div>
+											<div className="flex flex-col items-center justify-center py-20 text-slate-400 gap-2">
+												<span className="text-3xl">◎</span>
+												<span className="text-sm">速记你的第一条经验资产</span>
+												<span className="text-xs text-slate-300">先原样保存，稍后再归入习惯、方法、禁忌或复盘</span>
+											</div>
 										</div>
 									);
 								}
 								const typeColorMap: Record<string, { bg: string; chip: string }> = {
+									'待分类': { bg: 'bg-white border-b border-slate-100', chip: 'bg-slate-100 text-slate-400' },
 									'习惯': { bg: 'bg-white border-b border-slate-100', chip: 'bg-slate-100 text-slate-600' },
 									'经验': { bg: 'bg-white border-b border-slate-100', chip: 'bg-slate-100 text-slate-600' },
 									'方法': { bg: 'bg-white border-b border-slate-100', chip: 'bg-slate-100 text-slate-600' },
@@ -10505,7 +10813,7 @@ export function CockpitPanel({
 									);
 								};
 								return (
-									<div className="pl-20 pr-6 pb-6">
+									<div className="pb-6">
 										{draftEntries.length > 0 && (
 											<div className="mb-5 pt-4">
 												<p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-slate-400">待完善 · {draftEntries.length}</p>
@@ -11073,10 +11381,15 @@ export function CockpitPanel({
 					</div>
 				);
 
+			case 'geo':
+				return <GeoIntelligencePanel />;
+
 			case 'files':
 				return (
 					<DecisionView
-						overview={MOCK_PROJECT_OVERVIEW}
+						overview={projectOverview ?? EMPTY_PROJECT_OVERVIEW}
+						projectLabel={resolvedProjectLabel}
+						onProjectLabelChange={onProjectLabelChange}
 						stages={MOCK_STAGES}
 						activeView={decisionActiveView}
 						onViewChange={setDecisionActiveView}
@@ -11084,6 +11397,8 @@ export function CockpitPanel({
 						onCapabilityClick={(key) => onSwitchModule?.(key)}
 						onAdvisorPrefill={(text) => onCardClick?.(text)}
 						onSwitchModule={onSwitchModule}
+						sessionId={sessionId}
+						onOpenGeoWorkspace={onOpenGeoWorkspace}
 					/>
 				);
 
@@ -12386,41 +12701,35 @@ export function CockpitPanel({
 
 			case 'board':
 				return (
-					<div className="cockpit-panel-root relative h-full w-full overflow-hidden bg-[#1f1f1f]">
-						<div className="absolute inset-0">
-							<div className={`pointer-events-none absolute top-6 z-20 text-white ${boardLeftInsetClass}`} style={{ maxWidth: 'calc(100% - 472px)' }}>
+					<div className="cockpit-panel-root cockpit-immersive-canvas-root">
+						<div className="absolute inset-0 flex overflow-hidden">
+							<div className="cockpit-immersive-canvas-header">
 								<div
-									className="pointer-events-auto inline-flex flex-col gap-3"
+									className="cockpit-immersive-canvas-header-inner"
 									onMouseEnter={() => setBoardHeaderHovered(true)}
 									onMouseLeave={() => setBoardHeaderHovered(false)}
 								>
-									<div className="text-[17px] font-semibold tracking-[0.02em] text-white">
-										{resolvedProjectLabel} / {currentBoardSpace}
+									<div className="cockpit-immersive-canvas-title">
+										{resolvedProjectLabel}
 									</div>
-									{boardHeaderHovered && (
-										<div className="flex flex-wrap gap-2">
-											{BOARD_CANVAS_SPACE_OPTIONS.map((space) => {
-												const active = currentBoardSpace === space;
-												return (
-													<button
-														key={`board-space-${space}`}
-														onClick={() => onActiveBoardSpaceChange?.(space)}
-														className={`inline-flex items-center rounded-full border px-4 py-[0.3rem] text-[12px] font-medium transition ${
-															active
-																? 'border-white/55 bg-[rgba(255,255,255,0.24)] text-white backdrop-blur-xl shadow-[inset_0_1px_0_rgba(255,255,255,0.26)]'
-																: 'border-white/20 bg-[rgba(255,255,255,0.12)] text-white/86 backdrop-blur-lg hover:border-white/30 hover:bg-[rgba(255,255,255,0.18)] hover:text-white'
-														}`}
-													>
-														<span>{space}</span>
-													</button>
-												);
-											})}
-										</div>
-									)}
+									<div className={`cockpit-immersive-canvas-pills transition-opacity ${boardHeaderHovered ? 'opacity-100' : 'opacity-88'}`}>
+										{BOARD_CANVAS_SPACE_OPTIONS.map((space) => {
+											const active = currentBoardSpace === space;
+											return (
+												<button
+													key={`board-space-${space}`}
+													onClick={() => onActiveBoardSpaceChange?.(space)}
+													className={`cockpit-immersive-canvas-pill ${active ? 'cockpit-immersive-canvas-pill-active' : ''}`}
+												>
+													<span>{space}</span>
+												</button>
+											);
+										})}
+									</div>
 								</div>
 							</div>
 
-							<div className="relative h-full w-full overflow-hidden">
+							<div className="relative flex h-full min-w-0 flex-1 overflow-hidden">
 								{isBoardOverview ? (
 									<div className={`h-full overflow-y-auto pr-6 pb-6 pt-24 text-white ${boardLeftInsetClass}`}>
 										<div className="grid gap-4 lg:grid-cols-[minmax(300px,420px)_1fr]">
@@ -12490,13 +12799,7 @@ export function CockpitPanel({
 									event.preventDefault();
 									event.stopPropagation();
 								}}
-								className="relative h-full w-full overflow-hidden cursor-grab active:cursor-grabbing"
-								style={{
-									backgroundImage:
-										'radial-gradient(circle at 1px 1px, rgba(255,255,255,0.05) 1px, transparent 0)',
-									backgroundSize: '22px 22px',
-									backgroundPosition: 'center center',
-								}}
+									className="project-workspace-main-column project-workspace-canvas-column cockpit-canvas-viewport relative h-full min-w-0 flex-1 overflow-hidden cursor-grab active:cursor-grabbing"
 							>
 								<div
 									className="absolute inset-0"
@@ -12848,8 +13151,7 @@ export function CockpitPanel({
 
 								{boardCanvasItems.length === 0 && (
 									<div
-										className={`absolute inset-y-0 left-0 flex items-center justify-center p-8 text-center ${boardLeftInsetClass}`}
-										style={{ right: 'min(420px, calc(100% - 2rem))' }}
+										className={`absolute inset-0 flex items-center justify-center p-8 text-center ${boardLeftInsetClass}`}
 									>
 										<div className="max-w-md rounded-none border border-white/8 bg-black/20 px-8 py-7 text-white/70 backdrop-blur-sm">
 											<div className="text-base font-semibold text-white">{currentBoardSpace}空白画布</div>
@@ -12876,7 +13178,7 @@ export function CockpitPanel({
 												{activeSpacePlanTopic ? getPlanTopicStatusLabel(activeSpacePlanTopic.status) : '已同步'}
 											</span>
 										</div>
-										<div className="mt-3 grid grid-cols-[112px_1fr] gap-3">
+										<div className="mt-3 grid grid-cols-1 gap-3">
 											<div className="relative h-[88px] overflow-hidden border border-white/10 bg-white/[0.04]">
 												<div className="absolute left-[15%] top-[20%] h-[22%] w-[28%] border border-white/18 bg-white/8" />
 												<div className="absolute left-[48%] top-[20%] h-[22%] w-[30%] border border-white/18 bg-white/8" />
@@ -12939,7 +13241,7 @@ export function CockpitPanel({
 												<div>{activeSpacePlanView.planBrief.adjacency.join(' / ')}</div>
 												<div className="mt-2 font-semibold text-white/86">主通行</div>
 												<div>{activeSpacePlanView.planBrief.mainCirculation.join('；')}</div>
-												<div className="mt-2 font-semibold text-white/86">硬约束</div>
+												<div className="mt-2 font-semibold text-white/86">不可突破条件</div>
 												<div>{activeSpacePlanView.planBrief.fixedConstraints.join('；')}</div>
 												<div className="mt-2 font-semibold text-white/86">镜头建议</div>
 												<div>{activeSpacePlanView.planBrief.cameraSuggestions.join(' / ')}</div>
@@ -13035,24 +13337,25 @@ export function CockpitPanel({
 								)}
 							</div>
 
-							<div className="pointer-events-none absolute bottom-4 right-4 top-6 z-20 w-[min(420px,calc(100%-2rem))]">
+							<div className="cockpit-canvas-side-panel-wrap cockpit-board-canvas-side-panel-wrap project-workspace-middle-column cursor-default">
 								<div
-									className={`pointer-events-auto flex h-full flex-col overflow-hidden rounded-none border backdrop-blur-xl ${
+									className={`workspace-info-panel cockpit-canvas-side-panel cursor-default ${
 										boardSourceTab === 'generated'
-											? 'border-sky-200/60 bg-[#1fa2df] text-white'
-											: 'border-white/50 bg-white text-slate-900'
+											? 'border-sky-200/60 !bg-[#1fa2df] !text-white'
+											: ''
 									}`}
 								>
-									<div className={`p-4 ${boardSourceTab === 'generated' ? 'border-b border-white/18' : 'border-b border-slate-200/80'}`}>
+									{renderBoardInformationWhiteboard()}
+									<div className={`cockpit-canvas-side-panel-header ${boardSourceTab === 'generated' ? '!border-white/18' : ''}`}>
 										{boardSourceTab !== 'generated' && (
 											<input
 												value={boardQuery}
 												onChange={(e) => setBoardQuery(e.target.value)}
 												placeholder={`搜索${currentBoardSpace}输入源（例：木作、灯光、历史项目）`}
-												className="h-11 w-full rounded-full border border-slate-200/90 bg-white/72 px-4 text-sm text-slate-900 outline-none placeholder:text-slate-400 focus:border-slate-300"
+												className="cockpit-canvas-search"
 											/>
 										)}
-										<div className={`${boardSourceTab === 'generated' ? '' : 'mt-3'} flex flex-wrap gap-2`}>
+										<div className={`${boardSourceTab === 'generated' ? '!mt-0' : ''} cockpit-canvas-source-tabs`}>
 											{([
 												{ key: 'radar', label: '资源雷达' },
 												{ key: 'inspiration', label: '灵感收藏' },
@@ -13068,19 +13371,35 @@ export function CockpitPanel({
 												<button
 													key={`board-source-tab-${tab.key}`}
 													onClick={() => setBoardSourceTab(tab.key)}
-													className={`rounded-full px-4 py-2 text-[12px] font-medium transition ${
+													className={`cockpit-canvas-source-tab ${
 														boardSourceTab === tab.key
 															? boardSourceTab === 'generated'
 																? 'bg-white/84 text-sky-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.6)] backdrop-blur-sm'
-																: 'bg-slate-900 text-white'
+																: 'cockpit-canvas-source-tab-active'
 															: boardSourceTab === 'generated'
 																? 'border border-white/18 bg-white/10 text-white/82 hover:bg-white/18 hover:text-white'
-																: 'bg-slate-100/90 text-slate-600 hover:bg-slate-200/90 hover:text-slate-900'
+																: ''
 													}`}
 												>
 													{tab.label}
 												</button>
 											))}
+											{boardSourceTab !== 'generated' && (
+												<button
+													onClick={() => {
+														setBoardDeepBrowseTab(boardSourceTab as BoardDeepBrowseTab);
+														if (boardSourceTab === 'history') {
+															setBoardLibraryNavKey(null);
+															setBoardLibrarySubcategory(ALL_BOARD_LIBRARY_SUBCATEGORY);
+														}
+													}}
+													className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-slate-500 transition hover:border-slate-300 hover:bg-white hover:text-slate-900"
+													aria-label="全屏浏览当前素材来源"
+													title="全屏浏览当前素材来源"
+												>
+													<LayoutGrid className="h-3.5 w-3.5" />
+												</button>
+											)}
 										</div>
 										{boardSourceTab === 'generated' && (
 											<div className="mt-3 flex flex-nowrap gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
@@ -13114,7 +13433,16 @@ export function CockpitPanel({
 										)}
 									</div>
 
-									<div className="flex-1 overflow-y-auto p-4">
+									<div className="cockpit-canvas-side-panel-body">
+										{boardSourceTab === 'radar' && radarBoardSourceMode !== 'matched' && (
+											<div className="mb-3 rounded-none border border-slate-200/80 bg-slate-50 px-4 py-3 text-[12px] leading-5 text-slate-500">
+												{radarBoardSourceMode === 'empty_canvas'
+													? '左侧画布暂无方案内容，当前没有匹配输出；下面先展示资源库，方便先逛街收藏。'
+													: radarBoardSourceMode === 'no_space_match'
+														? '当前空间暂无匹配输出；下面展示资源库全部素材。'
+														: '全部空间总览模式：展示资源库全部素材。'}
+											</div>
+										)}
 										<div className={boardSourceTab === 'generated' ? 'space-y-3' : 'columns-2 gap-3 [column-fill:_balance]'}>
 											{filteredBoardSourceItems.length === 0 ? (
 												<div
@@ -13138,137 +13466,24 @@ export function CockpitPanel({
 													return (
 													<div key={item.id} className="mb-3 break-inside-avoid">
 														<div
-															onClick={() => setExpandedBoardSourceItemId((prev) => (prev === item.id ? null : item.id))}
-															className={`cockpit-card cockpit-card-interactive cockpit-card-accent-assets cockpit-asset-card group block cursor-pointer overflow-hidden text-left border-white/8 ${
-																expanded ? 'bg-white/[0.1] ring-1 ring-white/18' : 'bg-white/[0.04]'
-															}`}
+															onClick={() => setBoardSourceDetailItemId(item.id)}
+															className="group block cursor-pointer overflow-hidden bg-transparent text-left"
 														>
 															<div className="relative overflow-hidden">
 																<img
 																	src={item.imageSrc}
 																	alt={item.title}
-																	className="block h-auto w-full transition-[filter] duration-300 group-hover:brightness-[0.76]"
+																	className="block h-auto w-full transition-[filter] duration-300 group-hover:brightness-[0.72]"
 																	data-fallback-src={item.fallbackImageSrc}
 																	onError={handleResourceImageError}
 																/>
-																<div className={`absolute inset-0 z-[2] ${assetHoverTone()} opacity-0 transition-opacity duration-300 group-hover:opacity-100`} />
-																<div className="absolute inset-x-0 bottom-0 z-[3] p-3 text-white">
-																	<div className="flex flex-wrap gap-1.5">
-																		{referenceControl ? (
-																			<span className="cockpit-asset-pill">
-																				{referenceControl.label}
-																			</span>
-																		) : item.entityType && (
-																			<span className="cockpit-asset-pill">
-																				{item.entityType === 'insight' ? '解读' : item.entityType === 'anchor' ? '锚点' : item.entityType === 'project' ? '项目包' : '单图'}
-																			</span>
-																		)}
-																		{referenceControl && <span className="cockpit-asset-pill">主参考 {referenceControl.primaryRole}</span>}
-																		<span className="cockpit-asset-pill">{item.meta}</span>
-																	</div>
-																</div>
+																<div className="absolute inset-0 bg-black/0 transition-colors duration-300 group-hover:bg-black/34" />
 																<div className="absolute inset-x-0 top-0 z-[3] p-3 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
-																	<div className="w-full text-white">
-																		<div className="cockpit-card-title line-clamp-3 max-w-[92%] text-white">
-																			{item.desc}
-																		</div>
-																		<div className="mt-3 flex items-center gap-2">
-																			<button
-																				onClick={(event) => {
-																					event.stopPropagation();
-																					addBoardCanvasItem(item);
-																				}}
-																				className="rounded-full bg-white px-3 py-1.5 text-[11px] font-medium text-slate-900 hover:bg-white/92"
-																			>
-																				加入画布
-																			</button>
-																			{referenceControl && (
-																				<button
-																					onClick={(event) => {
-																						event.stopPropagation();
-																						openReferenceEditModal('source', referenceControl, { sourceId: item.id });
-																					}}
-																					className="rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-[11px] font-medium text-white hover:bg-white/18"
-																				>
-																					引用详情
-																				</button>
-																			)}
-																			<button
-																				onClick={(event) => {
-																					event.stopPropagation();
-																					onCardClick?.(item.title);
-																				}}
-																				className="rounded-full border border-white/20 px-3 py-1.5 text-[11px] font-medium text-white hover:bg-white/10"
-																			>
-																				引用
-																			</button>
-																		</div>
+																	<div className="line-clamp-3 text-sm font-semibold leading-5 text-white [text-shadow:0_1px_4px_rgba(0,0,0,0.58)]">
+																		{item.title}
 																	</div>
 																</div>
 															</div>
-															<div className="px-3 pb-3 pt-2">
-																<div className="cockpit-card-title line-clamp-2 text-white">{item.title}</div>
-															</div>
-															{expanded && (
-																<div className="border-t border-white/8 bg-black/20 px-4 py-4 text-white">
-																	<div className="flex items-start justify-between gap-3">
-																		<div>
-																			<div className="text-sm font-semibold text-white">{item.title}</div>
-																			<div className="mt-1 text-[11px] uppercase tracking-[0.16em] text-white/42">{item.meta}</div>
-																		</div>
-																		<button
-																			onClick={(event) => {
-																				event.stopPropagation();
-																				setExpandedBoardSourceItemId(null);
-																			}}
-																			className="rounded-full border border-white/12 px-2.5 py-1 text-[11px] text-white/72 hover:bg-white/8"
-																		>
-																			收起
-																		</button>
-																	</div>
-																	<p className="mt-3 text-sm leading-6 text-white/72">{item.desc}</p>
-																	{referenceControl && (
-																		<div className="mt-3 rounded-none border border-white/10 bg-white/6 p-3">
-																			<div className="text-[11px] uppercase tracking-[0.16em] text-white/42">结构化引用</div>
-																				<div className="mt-2 space-y-1.5 text-xs leading-5 text-white/72">
-																				<div>作用域：{referenceControl.scope} · 权重：{referenceControl.weight}</div>
-																				<div>{referenceControl.structuredSummary}</div>
-																				<div>必须保留：{referenceControl.mustHave.join('、')}</div>
-																				<div>禁止带入：{referenceControl.negative.join('、')}</div>
-																			</div>
-																			<button
-																				onClick={(event) => {
-																					event.stopPropagation();
-																					openReferenceEditModal('source', referenceControl, { sourceId: item.id });
-																				}}
-																				className="mt-3 rounded-full border border-white/16 px-3 py-1.5 text-[11px] font-medium text-white/76 hover:bg-white/10"
-																			>
-																				查看/编辑后加入
-																			</button>
-																		</div>
-																	)}
-																	<div className="mt-4 flex flex-wrap gap-2">
-																		<button
-																			onClick={(event) => {
-																				event.stopPropagation();
-																				addBoardCanvasItem(item);
-																			}}
-																			className="rounded-full bg-white px-3 py-1.5 text-[11px] font-medium text-slate-900 hover:bg-white/92"
-																		>
-																			加入画布
-																		</button>
-																		<button
-																			onClick={(event) => {
-																				event.stopPropagation();
-																				onCardClick?.(item.title);
-																			}}
-																			className="rounded-full border border-white/20 px-3 py-1.5 text-[11px] font-medium text-white hover:bg-white/10"
-																		>
-																			引用
-																		</button>
-																	</div>
-																</div>
-															)}
 														</div>
 													</div>
 													);
@@ -13278,6 +13493,313 @@ export function CockpitPanel({
 									</div>
 								</div>
 							</div>
+
+							{isClient && boardSourceDetailItem && createPortal(
+									<div
+										className="fixed inset-0 z-[2147483647] flex items-center justify-center overflow-hidden bg-[var(--cockpit-overlay-backdrop)] px-6 py-8 text-slate-100 backdrop-blur-xl"
+										onClick={() => setBoardSourceDetailItemId(null)}
+									>
+									<div
+										className="grid h-[76vh] min-h-[560px] w-fit max-w-[calc(100vw-3rem)] overflow-hidden bg-white text-slate-950 shadow-[0_30px_90px_rgba(0,0,0,0.42)]"
+										style={boardSourceDetailShellStyle}
+										onClick={(event) => event.stopPropagation()}
+									>
+										<div className="min-h-0 overflow-hidden transition-colors duration-300" style={boardSourceDetailImageStyle}>
+											<img
+												src={boardSourceDetailItem.imageSrc}
+												alt={boardSourceDetailItem.title}
+												className="block h-full w-full object-contain object-left"
+												data-fallback-src={boardSourceDetailItem.fallbackImageSrc}
+												onLoad={(event) => updateBoardSourceDetailImageMetrics(event.currentTarget)}
+												onError={handleResourceImageError}
+											/>
+										</div>
+										<div className="min-h-0 min-w-0 overflow-x-hidden overflow-y-auto p-8 [overflow-wrap:anywhere] [word-break:break-word]">
+											<div className="flex items-start justify-between gap-6">
+												<div className="min-w-0">
+													<div className="text-[11px] uppercase tracking-[0.16em] text-slate-400">{boardSourceDetailItem.meta}</div>
+													<h3 className="mt-3 break-words text-2xl font-semibold leading-tight text-slate-950 [overflow-wrap:anywhere]">{boardSourceDetailItem.title}</h3>
+												</div>
+												<button
+													onClick={() => setBoardSourceDetailItemId(null)}
+													className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-500 transition hover:bg-slate-200 hover:text-slate-900"
+													aria-label="关闭素材详情"
+												>
+													<X className="h-4 w-4" />
+												</button>
+											</div>
+											<p className="mt-5 text-sm leading-7 text-slate-600">{boardSourceDetailItem.desc}</p>
+											{boardSourceDetailItem.referenceControl && (
+												<div className="mt-6 rounded-none bg-slate-50 p-5 text-sm leading-6 text-slate-600">
+													<div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">结构化引用</div>
+													<div className="mt-3 font-medium text-slate-950">{boardSourceDetailItem.referenceControl.label}</div>
+													<div className="mt-2">{boardSourceDetailItem.referenceControl.structuredSummary}</div>
+													<div className="mt-3 grid gap-2 text-xs text-slate-500">
+														<div>作用域：{boardSourceDetailItem.referenceControl.scope} · 权重：{boardSourceDetailItem.referenceControl.weight}</div>
+														<div>必须保留：{boardSourceDetailItem.referenceControl.mustHave.join('、')}</div>
+														<div>禁止带入：{boardSourceDetailItem.referenceControl.negative.join('、')}</div>
+													</div>
+												</div>
+											)}
+											<div className="mt-8 flex flex-wrap gap-3">
+												<button
+													onClick={() => {
+														addBoardCanvasItem(boardSourceDetailItem);
+														setBoardSourceDetailItemId(null);
+													}}
+													className="rounded-full bg-slate-950 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800"
+												>
+													加入画布
+												</button>
+												{boardSourceDetailItem.referenceControl && (
+													<button
+														onClick={() => {
+															const referenceControl = boardSourceDetailItem.referenceControl;
+															if (!referenceControl) return;
+															setBoardSourceDetailItemId(null);
+															openReferenceEditModal('source', referenceControl, { sourceId: boardSourceDetailItem.id });
+														}}
+														className="rounded-full bg-slate-100 px-5 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-200 hover:text-slate-950"
+													>
+														引用详情
+													</button>
+												)}
+												<button
+													onClick={() => onCardClick?.(boardSourceDetailItem.title)}
+													className="rounded-full bg-slate-100 px-5 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-200 hover:text-slate-950"
+												>
+													引用
+												</button>
+											</div>
+										</div>
+									</div>
+								</div>,
+								document.body
+							)}
+
+							{isClient && boardDeepBrowseTab && createPortal(
+								<div
+									className="fixed inset-0 z-[2147483646] bg-[var(--cockpit-overlay-backdrop)] text-slate-100 backdrop-blur-xl"
+									onClick={() => setBoardDeepBrowseTab(null)}
+								>
+									<div
+										className="flex h-full flex-col"
+										onClick={(event) => event.stopPropagation()}
+									>
+										<div className="group/boardBrowseHeader shrink-0 border-b border-white/10 bg-slate-950/88 px-6 py-4 lg:px-10">
+											<div className="mx-auto flex max-w-[1680px] flex-col gap-3">
+												<div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+													<div className="flex shrink-0 flex-wrap gap-2">
+														{BOARD_DEEP_BROWSE_TABS.map((tab) => (
+															<button
+																key={`board-deep-tab-${tab.key}`}
+																onClick={() => {
+																	setBoardSourceTab(tab.key);
+																	setBoardDeepBrowseTab(tab.key);
+																	if (tab.key === 'history') {
+																		setBoardLibraryNavKey(null);
+																		setBoardLibrarySubcategory(ALL_BOARD_LIBRARY_SUBCATEGORY);
+																	}
+																}}
+																className={`h-9 rounded-full px-4 text-[12px] font-medium transition ${
+																	boardDeepBrowseTab === tab.key
+																		? 'bg-white text-slate-950'
+																		: 'bg-[rgba(255,255,255,0.14)] text-white/78 hover:bg-[rgba(255,255,255,0.22)] hover:text-white [text-shadow:0_1px_4px_rgba(0,0,0,0.48)]'
+																}`}
+															>
+																{tab.label}
+															</button>
+														))}
+													</div>
+													<div className="ml-10 flex shrink-0 select-none items-center gap-2 text-white/62 [caret-color:transparent] lg:ml-16">
+														<button
+															onMouseDown={(event) => event.preventDefault()}
+															onClick={() => setBoardDeepBrowseSizeLevel((prev) => Math.max(0, prev - 1))}
+															onPointerUp={(event) => event.currentTarget.blur()}
+															className="inline-flex h-7 w-5 items-center justify-center text-lg leading-none transition hover:text-white [text-shadow:0_1px_4px_rgba(0,0,0,0.48)]"
+															aria-label="缩小卡片，显示更多列"
+															title="缩小卡片，显示更多列"
+														>
+															-
+														</button>
+														<input
+															type="range"
+															min={0}
+															max={6}
+															step={1}
+															value={boardDeepBrowseSizeLevel}
+															onChange={(event) => setBoardDeepBrowseSizeLevel(Number(event.target.value))}
+															onPointerUp={(event) => {
+																event.currentTarget.blur();
+																window.getSelection()?.removeAllRanges();
+															}}
+															onTouchEnd={(event) => {
+																event.currentTarget.blur();
+																window.getSelection()?.removeAllRanges();
+															}}
+															className="cockpit-density-range w-36 cursor-pointer"
+															aria-label="调整素材卡片大小"
+															title={`${boardDeepBrowseColumnCount} 列`}
+															style={{
+																'--density-track': `linear-gradient(to right, rgba(255,255,255,0.96) 0%, rgba(255,255,255,0.96) ${(boardDeepBrowseSizeLevel / 6) * 100}%, rgba(72,72,78,0.78) ${(boardDeepBrowseSizeLevel / 6) * 100}%, rgba(72,72,78,0.78) 100%)`,
+															} as React.CSSProperties}
+														/>
+														<button
+															onMouseDown={(event) => event.preventDefault()}
+															onClick={() => setBoardDeepBrowseSizeLevel((prev) => Math.min(6, prev + 1))}
+															onPointerUp={(event) => event.currentTarget.blur()}
+															className="inline-flex h-7 w-5 items-center justify-center text-lg leading-none transition hover:text-white [text-shadow:0_1px_4px_rgba(0,0,0,0.48)]"
+															aria-label="放大卡片，显示更少列"
+															title="放大卡片，显示更少列"
+														>
+															+
+														</button>
+													</div>
+													<div className="flex min-w-0 flex-1 items-center gap-3 lg:justify-end">
+														<input
+															value={boardQuery}
+															onChange={(event) => setBoardQuery(event.target.value)}
+															placeholder="搜索素材、空间、材料、灯光或项目关键词"
+															className="h-11 min-w-0 flex-1 rounded-full border border-white/12 bg-white/8 px-4 text-sm text-white outline-none placeholder:text-white/32 focus:border-white/28 lg:max-w-xl"
+														/>
+														<div className="shrink-0 text-sm text-white/45">{boardDeepBrowseItems.length} 项</div>
+														<button
+															onClick={() => setBoardDeepBrowseTab(null)}
+															className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/12 text-white/76 transition hover:bg-white/20 hover:text-white"
+															aria-label="关闭全屏浏览"
+														>
+															<X className="h-5 w-5" />
+														</button>
+													</div>
+												</div>
+												<div className="max-h-0 overflow-hidden opacity-0 transition-all duration-300 ease-out group-hover/boardBrowseHeader:max-h-64 group-hover/boardBrowseHeader:opacity-100">
+													<div className="space-y-3 pt-1">
+														{(boardDeepBrowseTab === 'radar' || boardDeepBrowseTab === 'inspiration') && (
+															<div className="flex flex-wrap gap-2">
+																{visibleBoardLibraryNavItems.map((item) => {
+																	const isActive = boardLibraryNavKey === item.key;
+																	return (
+																		<button
+																			key={`board-library-nav-${item.key}`}
+																			onClick={() => {
+																				setBoardLibraryNavKey((prev) => (prev === item.key ? null : item.key));
+																				setBoardLibrarySubcategory(ALL_BOARD_LIBRARY_SUBCATEGORY);
+																			}}
+																			className={`h-8 rounded-full px-3 text-[11px] font-medium transition ${
+																				isActive
+																					? 'bg-white text-slate-950'
+																					: 'bg-[rgba(255,255,255,0.14)] text-white/78 hover:bg-[rgba(255,255,255,0.22)] hover:text-white [text-shadow:0_1px_4px_rgba(0,0,0,0.48)]'
+																			}`}
+																		>
+																			{item.label}
+																		</button>
+																	);
+																})}
+															</div>
+														)}
+														{currentBoardLibraryNav && (
+															<div className="rounded-none bg-white/10 px-4 py-3 shadow-[0_12px_28px_rgba(0,0,0,0.18)]">
+																<div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+																	{[
+																		{ label: ALL_BOARD_LIBRARY_SUBCATEGORY, keywords: currentBoardLibraryNav.keywords },
+																		...currentBoardLibraryNav.children,
+																	].map((child) => {
+																		const isActive = boardLibrarySubcategory === child.label;
+																		return (
+																			<button
+																				key={`board-library-subnav-${currentBoardLibraryNav.key}-${child.label}`}
+																				onClick={() => setBoardLibrarySubcategory(child.label)}
+																				className={`px-1 py-1 text-[12px] font-medium transition ${
+																					isActive
+																						? 'text-white underline underline-offset-4 [text-shadow:0_1px_4px_rgba(0,0,0,0.54)]'
+																						: 'text-white/62 hover:text-white [text-shadow:0_1px_4px_rgba(0,0,0,0.48)]'
+																				}`}
+																			>
+																				{child.label === ALL_BOARD_LIBRARY_SUBCATEGORY ? '全部' : child.label}
+																			</button>
+																		);
+																	})}
+																</div>
+															</div>
+														)}
+														{boardDeepBrowseTab === 'radar' && radarBoardSourceMode !== 'matched' && (
+															<div className="rounded-none bg-white/6 px-4 py-2 text-sm leading-6 text-white/58 [text-shadow:0_1px_4px_rgba(0,0,0,0.45)]">
+																{radarBoardSourceMode === 'empty_canvas'
+																	? '左侧画布暂无方案内容，当前没有匹配输出；这里展示资源库，方便先逛街收藏。'
+																	: radarBoardSourceMode === 'no_space_match'
+																		? '当前空间暂无匹配输出；这里展示资源库全部素材。'
+																		: '全部空间总览模式：展示资源库全部素材。'}
+															</div>
+														)}
+													</div>
+												</div>
+											</div>
+										</div>
+
+										<div className="min-h-0 flex-1 overflow-y-auto px-6 py-6 lg:px-10">
+											<div className="mx-auto max-w-[1680px]">
+												{boardDeepBrowseItems.length === 0 ? (
+													<div className="rounded-none border border-white/10 bg-white/6 px-6 py-10 text-center text-sm text-white/55">
+														当前筛选下没有素材，试试清空搜索词或切换页面。
+													</div>
+												) : (
+													<div
+														className="[column-fill:_balance]"
+														style={{
+															columnCount: boardDeepBrowseColumnCount,
+															columnGap: boardDeepBrowseColumnCount >= 7 ? 12 : 20,
+														}}
+													>
+														{boardDeepBrowseItems.map((item) => {
+															const isCompactDeepCard = boardDeepBrowseColumnCount >= 7;
+															return (
+																<div
+																	key={`board-deep-${item.id}`}
+																	role="button"
+																	tabIndex={0}
+																	aria-label={`查看 ${item.title} 详情`}
+																	onClick={() => setBoardSourceDetailItemId(item.id)}
+																	onKeyDown={(event) => {
+																		if (event.key !== 'Enter' && event.key !== ' ') return;
+																		event.preventDefault();
+																		setBoardSourceDetailItemId(item.id);
+																	}}
+																	className={`mb-5 break-inside-avoid cursor-pointer overflow-hidden bg-white text-slate-900 shadow-[0_22px_60px_rgba(0,0,0,0.24)] transition hover:shadow-[0_26px_72px_rgba(0,0,0,0.32)] ${boardDeepBrowseColumnCount >= 7 ? 'mb-3' : 'mb-5'}`}
+																>
+																	<div className="bg-slate-100">
+																		<img
+																			src={item.imageSrc}
+																			alt={item.title}
+																			className="block h-auto w-full"
+																			data-fallback-src={item.fallbackImageSrc}
+																			onError={handleResourceImageError}
+																		/>
+																	</div>
+																	<div className={isCompactDeepCard ? 'p-2' : 'p-3'}>
+																		<div
+																			className={`font-semibold text-slate-950 ${
+																				isCompactDeepCard
+																					? 'overflow-hidden text-[12px] leading-4 [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2]'
+																					: 'text-[15px] leading-6'
+																			}`}
+																		>
+																			{item.title}
+																		</div>
+																		{!isCompactDeepCard && (
+																			<div className="mt-1 line-clamp-1 text-[11px] leading-4 text-slate-400">{item.meta}</div>
+																		)}
+																	</div>
+																</div>
+															);
+														})}
+													</div>
+												)}
+											</div>
+										</div>
+									</div>
+								</div>,
+								document.body
+							)}
 
 							{selectedBoardCanvasItem && (
 								<div className="pointer-events-none absolute z-30" style={{
@@ -13348,7 +13870,7 @@ export function CockpitPanel({
 											</button>
 										</div>
 										<div className="grid min-h-0 flex-1" style={{ gridTemplateColumns: 'minmax(0, 1fr) 380px' }}>
-											<div ref={planViewerCanvasRef} className="min-w-0 overflow-auto bg-black/55 p-4" onWheel={handlePlanViewerWheel}>
+											<div ref={planViewerCanvasRef} className="min-w-0 overflow-auto bg-[var(--canvas-bg)] p-4" onWheel={handlePlanViewerWheel}>
 												<div className={`relative mx-auto min-h-[calc(100vh-32px)] w-fit ${planViewerTool === 'select' ? 'cursor-default' : 'cursor-crosshair'}`}>
 													<div className="relative mx-auto w-fit transition-[width,height]">
 												{planViewerTopic.uploadedFileUrl && planViewerTopic.mimeType?.startsWith('image/') ? (
@@ -13628,7 +14150,7 @@ export function CockpitPanel({
 									<div className="space-y-3 overflow-hidden pt-2">
 										<div className="max-w-3xl">
 											<p className="ui-type-body text-white/60">
-												根据 HAY × 七里坪旅程脚本，把高参过程收成四段：团队组建、任务安排、专题汇报、成果审阅。
+												根据项目高参旅程脚本，把高参过程收成四段：团队组建、任务安排、专题汇报、成果审阅。
 											</p>
 										</div>
 

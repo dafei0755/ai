@@ -246,15 +246,16 @@ from intelligent_project_analyzer.services.redis_session_manager import RedisSes
 #  v3.6新增: 会话归档管理器
 from intelligent_project_analyzer.services.session_archive_manager import SessionArchiveManager
 
-#  v7.10新增: WordPress JWT 认证服务
-from intelligent_project_analyzer.services.wordpress_jwt_service import get_jwt_service
+# Internal auth service for the standalone account system.
+from intelligent_project_analyzer.services.internal_auth_service import get_internal_auth_service
 
 #  使用新的统一配置 - 不再需要load_dotenv()
 from intelligent_project_analyzer.settings import settings
 # MainWorkflow 懒加载，移至 create_workflow() 内部，避免导入时加载所有 Agent 模块拖慢启动
 
-# 初始化 JWT 服务（使用单例，避免与 auth_routes.py 重复初始化）
-jwt_service = get_jwt_service()
+# Keep the legacy variable name so older tests and route helpers that monkeypatch
+# token verification continue to work while the provider is now application-owned.
+jwt_service = get_internal_auth_service()
 
 
 # � v7.145: Checkpoint 到 Redis 数据同步函数
@@ -398,7 +399,7 @@ DEV_MODE = (
 #  认证依赖函数
 async def get_current_user(request: Request) -> dict:
     """
-    FastAPI 依赖函数：从请求头验证 JWT Token 并返回用户信息
+    FastAPI 依赖函数：从请求头验证内部应用 Token 并返回用户信息
 
     用于保护需要认证的端点
 
@@ -518,7 +519,7 @@ def get_possible_user_identifiers(current_user: dict) -> List[str]:
 #  v7.130: 可选认证依赖函数（Token存在则验证，不存在也允许访问）
 async def optional_auth(request: Request) -> Optional[dict]:
     """
-    可选认证依赖函数：如果有JWT Token则验证，没有也不报错
+    可选认证依赖函数：如果有内部应用 Token 则验证，没有也不报错
 
     用于支持登录和未登录用户都能访问的端点
     """
@@ -749,30 +750,10 @@ async def lifespan(app: FastAPI):
         logger.warning(f"️ LearningScheduler 启动失败: {e}")
         _boot_log("️ LearningScheduler 启动失败（自学习任务需手动触发）")
 
-    #  爬虫定时调度（APScheduler BackgroundScheduler，运行于进程内）
-    _job_scheduler = None
-    try:
-        from intelligent_project_analyzer.external_data_system.job_scheduler_service import JobSchedulerService
-
-        _job_scheduler = JobSchedulerService.get_instance()
-        _job_scheduler.start()
-        _boot_log("爬虫定时调度器已启动（APScheduler BackgroundScheduler）")
-    except Exception as e:
-        logger.warning(f"️ 爬虫定时调度器启动失败: {e}")
-        _boot_log("️ 爬虫定时调度器启动失败（定时爬取任务不可用）")
-
     yield
 
     # 关闭时
     print("\n 服务器关闭中...")
-
-    #  关闭爬虫定时调度器
-    if _job_scheduler:
-        try:
-            _job_scheduler.shutdown(wait=False)
-            print(" 爬虫定时调度器已关闭")
-        except Exception as e:
-            logger.warning(f"️ 爬虫定时调度器关闭失败: {e}")
 
     #  P0-1: 关闭 LearningScheduler
     if _learning_scheduler:
@@ -861,24 +842,6 @@ try:
 except Exception as e:
     logger.warning(f"️ 静态文件服务挂载失败: {e}")
 
-#  v7.10新增: 注册 WordPress JWT 认证路由
-try:
-    from intelligent_project_analyzer.api.auth_routes import router as auth_router
-
-    app.include_router(auth_router)
-    logger.info(" WordPress JWT 认证路由已注册")
-except Exception as e:
-    logger.warning(f"️ WordPress JWT 认证路由加载失败: {e}")
-
-#  v7.10.1新增: 注册 WPCOM Member 会员信息路由
-try:
-    from intelligent_project_analyzer.api.member_routes import router as member_router
-
-    app.include_router(member_router)
-    logger.info(" WPCOM Member 会员信息路由已注册")
-except Exception as e:
-    logger.warning(f"️ WPCOM Member 会员信息路由加载失败: {e}")
-
 #  v7.11新增: 注册性能和告警统计API路由
 try:
     from intelligent_project_analyzer.api.metrics_routes import router as metrics_router
@@ -906,15 +869,6 @@ try:
 except Exception as e:
     logger.warning(f"️ Milvus 知识库管理路由加载失败: {e}")
 
-#  v7.141.3: 知识库配额管理路由
-try:
-    from intelligent_project_analyzer.api.quota_routes import router as quota_router
-
-    app.include_router(quota_router)
-    logger.info(" 知识库配额管理路由已注册")
-except Exception as e:
-    logger.warning(f"️ 知识库配额管理路由加载失败: {e}")
-
 #  v7.160: 搜索模式路由（博查AI Search + DeepSeek-R1）
 try:
     from intelligent_project_analyzer.api.search_routes import router as search_router
@@ -932,19 +886,6 @@ try:
     logger.info("✅ 搜索质量监控路由已注册")
 except Exception as e:
     logger.warning(f"⚠️ 搜索质量监控路由加载失败: {e}")
-
-#  v8.120: 外部数据采集监控路由
-try:
-    from intelligent_project_analyzer.external_data_system.api import router as external_data_router
-    app.include_router(external_data_router)
-    logger.info("✅ 外部数据采集监控路由已注册")
-    
-    # v8.130: 外部数据搜索和推荐路由
-    from intelligent_project_analyzer.external_data_system.api.search_routes import router as search_router
-    app.include_router(search_router)
-    logger.info("✅ 外部数据搜索推荐路由已注册")
-except Exception as e:
-    logger.warning(f"⚠️ 外部数据采集监控路由加载失败: {e}")
 
 #  v3.9新增: 注册 Celery 路由（可选）
 try:
@@ -966,19 +907,6 @@ try:
     logger.info(" 维度学习系统路由已注册")
 except Exception as e:
     logger.warning(f"️ 维度学习系统路由加载失败: {e}")
-
-#  v8.200: 爬虫监控管理路由
-try:
-    from intelligent_project_analyzer.api.routes.crawler_monitor_routes import router as crawler_monitor_router
-    
-    app.include_router(
-        crawler_monitor_router,
-        prefix="/api/crawler",
-        tags=["Crawler Monitor"]
-    )
-    logger.info("✅ 爬虫监控管理路由已注册")
-except Exception as e:
-    logger.warning(f"⚠️ 爬虫监控管理路由加载失败: {e}")
 
 #  v2.0: 双态架构 API 路由（新增，不影响现有端点）
 try:
@@ -2997,7 +2925,7 @@ async def start_analysis(
     - normal: 深度思考模式，集中生成1张概念图
     - deep_thinking: 深度思考pro模式，每个专家都生成对应的概念图
 
-     v7.130: 支持JWT认证获取真实WordPress用户信息
+     v7.130: 支持 Token 认证获取真实用户信息
      v7.158: 强制登录才能使用分析功能
     """
     print("\n 收到分析请求")
@@ -3005,7 +2933,7 @@ async def start_analysis(
     print(f"分析模式: {analysis_request.analysis_mode}")  #  v7.39
 
     #  v7.158: 强制认证，current_user 必定存在
-    # 从JWT中提取用户信息
+    # 从内部应用 Token 中提取用户信息
     username = None
     display_name = None
 
@@ -8861,7 +8789,22 @@ async def observe_session(
         }
 
 
+def _get_server_host() -> str:
+    return os.getenv("SERVER_STARTUP_BACKEND_HOST") or os.getenv("BACKEND_HOST", "0.0.0.0").strip() or "0.0.0.0"
+
+
+def _get_server_port() -> int:
+    raw_value = (os.getenv("SERVER_STARTUP_BACKEND_PORT") or os.getenv("BACKEND_PORT", "8000")).strip()
+    try:
+        port = int(raw_value)
+    except ValueError as exc:
+        raise RuntimeError(f"BACKEND_PORT must be an integer from 1 to 65535, got {raw_value!r}") from exc
+    if port < 1 or port > 65535:
+        raise RuntimeError(f"BACKEND_PORT must be an integer from 1 to 65535, got {raw_value!r}")
+    return port
+
+
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run(app, host="0.0.0.0", port=8000, reload=False, log_level="info")
+    uvicorn.run(app, host=_get_server_host(), port=_get_server_port(), reload=False, log_level="info")

@@ -132,8 +132,6 @@ class RedisSessionManager:
             if url not in candidates:
                 candidates.append(url)
 
-        _add(self.redis_url)
-
         if sys.platform == "win32" and isinstance(self.redis_url, str) and "localhost" in self.redis_url:
             try:
                 parsed = urlparse(self.redis_url)
@@ -144,6 +142,8 @@ class RedisSessionManager:
             except Exception:
                 # 解析失败时保守回退到字符串替换
                 _add(self.redis_url.replace("localhost", "127.0.0.1", 1))
+
+        _add(self.redis_url)
 
         return candidates
 

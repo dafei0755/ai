@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useEffect, useState, useRef, useCallback, useMemo, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import {
 	Loader2,
 	WifiOff,
@@ -11,12 +11,14 @@ import {
 	CheckCircle2,
 	AlertCircle,
 	PanelLeft,
+	PanelRight,
 	Edit2,
 	Pin,
 	Share2,
 	Trash2,
 	ArrowLeft,
-	SendHorizontal
+	SendHorizontal,
+	Sparkles
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { WebSocketClient, type WebSocketMessage } from '@/lib/websocket';
@@ -39,8 +41,24 @@ import type { NodeStatus } from '@/types/workflow';
 import ConversationChat, { type ChatMessage } from '@/components/ConversationMode/ConversationChat';
 import UpgradePromptBanner from '@/components/ConversationMode/UpgradePromptBanner';
 import { KnowledgeGraphCanvas } from '@/components/KnowledgeGraphCanvas';
-import { CockpitPanel, formatBoardVisualBriefForPrompt, type BoardCanvasSpace, type BoardVisualBrief } from '@/components/CockpitPanel';
+import { CockpitPanel, formatBoardVisualBriefForPrompt, type BoardCanvasSpace, type BoardVisualBrief, type DssPage } from '@/components/CockpitPanel';
+import { AdvisorPanel } from '@/components/project-cockpit/AdvisorPanel';
+import {
+	MOCK_ADVISOR_VIEW_MODEL,
+	MOCK_ADVISOR_VIEW_MODEL_FLOOR_PLAN,
+	MOCK_ADVISOR_VIEW_MODEL_SCHEME_CANVAS,
+	MOCK_ADVISOR_VIEW_MODEL_RESOURCE_RADAR,
+	MOCK_ADVISOR_VIEW_MODEL_SILICON_AVATAR,
+	MOCK_ADVISOR_VIEW_MODEL_SILICON_PORTFOLIO,
+	MOCK_ADVISOR_VIEW_MODEL_SILICON_SEDIMENT,
+	MOCK_ADVISOR_VIEW_MODEL_SILICON_PROFILE,
+} from '@/components/project-cockpit/mock/mockData';
+import type { ProjectOverview } from '@/components/project-cockpit/mock/mockData';
+import type { ActionChip, AdvisorViewModel } from '@/types/advisor';
 import { PlanSandboxPanel } from '@/components/PlanSandboxPanel';
+import { GeoCanvasView } from '@/components/geo/GeoCanvasView';
+import { useGeoStore } from '@/store/useGeoStore';
+import { deriveSessionTitle, resolveSessionTitle } from '@/lib/sessionTitle';
 // v7.290: 分析页面改为独立体验，移除侧边栏组件
 
 // 节点名称中文映射
@@ -169,11 +187,25 @@ const formatNodeName = (nodeName: string | undefined): string => {
 	return NODE_NAME_MAP[nodeName] || nodeName;
 };
 
-type CockpitModuleKey = 'files' | 'assets' | 'inspiration' | 'board' | 'experts' | 'insight' | 'knowledge';
+type CockpitModuleKey = 'files' | 'assets' | 'inspiration' | 'board' | 'experts' | 'insight' | 'knowledge' | 'geo';
 type PrimaryNavKey = 'project' | 'assets' | 'knowledge';
 type ProjectSectionKey = 'space' | 'sandbox' | 'board';
 type InsightViewKey = 'main' | 'space' | 'flow' | 'emotion' | 'time';
 type LayoutMode = 'split' | 'left-focus' | 'right-focus';
+type AnalysisModuleQuery = 'project_base' | 'floor_plan' | 'scheme_canvas' | 'geo' | 'silicon_avatar';
+
+const ANALYSIS_MODULE_QUERY_VALUES = new Set<string>([
+	'project_base',
+	'floor_plan',
+	'scheme_canvas',
+	'geo',
+	'silicon_avatar',
+]);
+
+const parseAnalysisModuleQuery = (value: string | null): AnalysisModuleQuery | null => {
+	if (!value || !ANALYSIS_MODULE_QUERY_VALUES.has(value)) return null;
+	return value as AnalysisModuleQuery;
+};
 type CockpitCard = {
 	title: string;
 	desc: string;
@@ -193,12 +225,114 @@ type AdvisorHistoryRecord = {
 
 const EMPTY_CHAT_MESSAGES: ChatMessage[] = [];
 
+type ConversationHistoryEntry = {
+	role?: string;
+	content?: string;
+	timestamp?: string;
+	guidance_card?: ChatMessage['guidance_card'];
+	in_response_to_card_id?: string;
+	selected_option_id?: string;
+};
+
+const resolveGuidanceSelectionLabel = (
+	card: ChatMessage['guidance_card'] | undefined,
+	optionId?: string,
+	freetext?: string,
+) => {
+	if (freetext && !freetext.startsWith('[card:')) return freetext;
+	if (!card || !optionId) return undefined;
+	const allOptions = [
+		...(card.options ?? []),
+		...(card.pages ?? []).flatMap((page) => page.options ?? []),
+		...(card.version_cards ?? []).map((version) => ({
+			id: version.id,
+			label: version.name,
+			description: version.subtitle,
+		})),
+	];
+	const opt = allOptions.find((item) => item.id === optionId);
+	if (!opt) return optionId;
+	return opt.description ? `${opt.label}：${opt.description}` : opt.label;
+};
+
+const buildConversationMessagesFromHistory = (history?: ConversationHistoryEntry[]): ChatMessage[] => {
+	const messages: ChatMessage[] = [];
+	for (const entry of history ?? []) {
+		const role = entry.role === 'assistant' ? 'assistant' : entry.role === 'user' ? 'user' : null;
+		if (!role) continue;
+
+		const legacyCardMatch = role === 'user' ? entry.content?.match(/^\[card:([^\]]+)\]$/) : null;
+		const responseCardId = entry.in_response_to_card_id;
+		const previousCardMessage = [...messages]
+			.reverse()
+			.find((message) => message.role === 'assistant' && message.guidance_card && !message.card_responded);
+		if (role === 'user' && (responseCardId || (legacyCardMatch && previousCardMessage))) {
+			const targetCardId = responseCardId || previousCardMessage?.guidance_card?.card_id;
+			const selectedOptionId = entry.selected_option_id || legacyCardMatch?.[1];
+			const targetIndex = messages.findIndex(
+				(message) => message.guidance_card?.card_id === targetCardId,
+			);
+			if (targetIndex >= 0) {
+				const target = messages[targetIndex];
+				messages[targetIndex] = {
+					...target,
+					card_responded: true,
+					card_selection_label: resolveGuidanceSelectionLabel(
+						target.guidance_card,
+						selectedOptionId,
+						entry.content,
+					),
+				};
+			}
+			continue;
+		}
+
+		if (!entry.content) continue;
+		messages.push({
+			id: `history-${messages.length}-${entry.timestamp ?? Date.now()}`,
+			role,
+			content: entry.content,
+			timestamp: entry.timestamp ?? new Date().toISOString(),
+			guidance_card: role === 'assistant' ? entry.guidance_card : undefined,
+		});
+	}
+	return messages;
+};
+
+const hydrateMissingGuidanceCards = (
+	restoredMessages: ChatMessage[],
+	initialMessages: ChatMessage[],
+): ChatMessage[] => {
+	if (restoredMessages.length === 0 || initialMessages.length === 0) return restoredMessages;
+	const initialAssistantCards = initialMessages
+		.filter((message) => message.role === 'assistant' && message.guidance_card)
+		.map((message) => message.guidance_card);
+	if (initialAssistantCards.length === 0) return restoredMessages;
+
+	let assistantIndex = 0;
+	return restoredMessages.map((message) => {
+		if (message.role !== 'assistant') return message;
+		const fallbackCard = initialAssistantCards[assistantIndex];
+		assistantIndex += 1;
+		if (message.guidance_card || !fallbackCard) return message;
+		return { ...message, guidance_card: fallbackCard };
+	});
+};
+
 const ADVISOR_HISTORY_STORAGE_KEY = 'analysis.advisor.history.v1';
 const ADVISOR_CONVERSATION_STORAGE_KEY = 'analysis.advisor.conversations.v1';
+const WORKSPACE_LAYOUT_STORAGE_KEY = 'analysis.workspace.layout.v2';
+const WORKSPACE_PANEL_MIN_RATIO = 0.18;
+const WORKSPACE_PANEL_DEFAULT_RATIO = 0.22;
+const WORKSPACE_PANEL_MAX_RATIO = 0.32;
+
+type WorkspaceResizePanel = 'middle' | 'advisor';
+
+const clampWorkspacePanelRatio = (value: number) =>
+	Math.min(WORKSPACE_PANEL_MAX_RATIO, Math.max(WORKSPACE_PANEL_MIN_RATIO, value));
 
 const PRIMARY_NAV_ITEMS: Array<{ key: PrimaryNavKey; title: string }> = [
 	{ key: 'project', title: '项目底盘' },
-	{ key: 'assets', title: '资源雷达' },
 	{ key: 'knowledge', title: '我的硅基分身' },
 ];
 
@@ -225,7 +359,7 @@ const getScenePerspectiveOptions = (params: {
 	activeCockpitModule: CockpitModuleKey;
 	activeProjectSection: ProjectSectionKey;
 	activeBoardSpace: BoardCanvasSpace;
-	activeDssPage: 'sediment' | 'portfolio' | 'profile';
+	activeDssPage: DssPage;
 	activeInsightView: InsightViewKey;
 }): readonly ExpertPerspectiveOption[] => {
 	const {
@@ -278,7 +412,52 @@ const PROJECT_SECTION_ITEMS: Array<{ key: ProjectSectionKey; title: string }> = 
 	{ key: 'board', title: '方案画布' },
 ];
 
-const PLAN_SANDBOX_SPACE_OPTIONS: Exclude<BoardCanvasSpace, '全部'>[] = ['大堂', '餐厅', '客房', '公区', '连廊', '后勤'];
+type ConcreteBoardCanvasSpace = Exclude<BoardCanvasSpace, '全部'>;
+
+const PLAN_SANDBOX_SPACE_OPTIONS: ConcreteBoardCanvasSpace[] = ['大堂', '餐厅', '客房', '公区', '连廊', '后勤'];
+
+const PROJECT_SPACE_INFERENCE_KEYWORDS: Record<ConcreteBoardCanvasSpace, string[]> = {
+	大堂: ['大堂', '前厅', '前台', '接待', '迎宾', '酒店入口', '到达'],
+	餐厅: ['餐厅', '餐饮', '厨房', '早餐', '茶饮', '咖啡', '用餐'],
+	客房: ['客房', '住宿', '房型', '睡眠', '卫浴', '行李'],
+	公区: ['公区', '公共', '入口', '市场', '街区', '商业', '社区', '广场', '更新', '改造', '文旅', '游客', '茶市街'],
+	连廊: ['连廊', '走廊', '通道', '动线', '路径', '廊', '导视'],
+	后勤: ['后勤', '仓储', '补给', '设备', '清洁', '垃圾', '服务后台'],
+};
+
+const collectProjectOverviewText = (overview: ProjectOverview | null): string =>
+	[
+		overview?.name,
+		overview?.oneLiner,
+		...(overview?.confirmedItems ?? []),
+		...(overview?.gapItems ?? []),
+		...(overview?.mainContradiction?.sides ?? []),
+		overview?.mainContradiction?.advisorNote,
+	]
+		.filter((item): item is string => Boolean(item && item.trim()))
+		.join(' ');
+
+const getFirstUserMessage = (history: Array<{ role?: string; content?: string }> | undefined): string =>
+	history?.find((entry) => entry.role === 'user' && entry.content?.trim())?.content?.trim() ?? '';
+
+const inferProjectDefaultSpace = (overview: ProjectOverview | null): ConcreteBoardCanvasSpace | null => {
+	const text = collectProjectOverviewText(overview);
+	if (!text) return null;
+
+	let bestSpace: ConcreteBoardCanvasSpace | null = null;
+	let bestScore = 0;
+	for (const space of PLAN_SANDBOX_SPACE_OPTIONS) {
+		let score = text.includes(space) ? 12 : 0;
+		for (const keyword of PROJECT_SPACE_INFERENCE_KEYWORDS[space]) {
+			if (text.includes(keyword)) score += keyword.length >= 3 ? 3 : 2;
+		}
+		if (score > bestScore) {
+			bestScore = score;
+			bestSpace = space;
+		}
+	}
+	return bestScore > 0 ? bestSpace : null;
+};
 
 const COCKPIT_CARDS: Record<Exclude<CockpitModuleKey, 'insight' | 'knowledge'>, CockpitCard[]> = {
 	files: [
@@ -426,6 +605,11 @@ const COCKPIT_CARDS: Record<Exclude<CockpitModuleKey, 'insight' | 'knowledge'>, 
 		{ title: '意向图组 B', desc: '材质对比、点状暖光。', badge: '参考' },
 		{ title: '构图参考组', desc: '入口-中景-终景镜头节奏。', badge: '参考' },
 	],
+	geo: [
+		{ title: '地理坐标锚点', desc: '项目经纬度、行政区划、地址和场地边界的统一入口。', badge: 'Geo' },
+		{ title: '规划图层', desc: '承载地块红线、用地性质、容积率、限高和退线等规划证据。', badge: '图层' },
+		{ title: '市场圈层', desc: '围绕项目场地汇总竞品、POI、交通可达和客源洞察。', badge: '洞察' },
+	],
 	experts: [
 		{ title: '成本顾问', desc: '预算可落地评分与风险提示。', badge: '顾问' },
 		{ title: '灯光顾问', desc: '情绪曲线与照明分层校准。', badge: '顾问' },
@@ -470,7 +654,7 @@ const buildAdvisorSceneContext = (params: {
 	activeCockpitModule: CockpitModuleKey;
 	activeProjectSection: ProjectSectionKey;
 	activeBoardSpace: BoardCanvasSpace;
-	activeDssPage: 'sediment' | 'portfolio' | 'profile';
+	activeDssPage: DssPage;
 	activeInsightView: InsightViewKey;
 }): { key: string; label: string; suggestion: string; sceneRef: string } => {
 	const {
@@ -504,6 +688,27 @@ const buildAdvisorSceneContext = (params: {
 		};
 	}
 
+	if (activePrimaryNav === 'project' && activeCockpitModule === 'files') {
+		const label = '项目底盘 · 智能决策中枢';
+		return {
+			key: sceneRef,
+			label,
+			sceneRef,
+			suggestion: [
+				'已同步左侧场景：项目底盘。',
+				'',
+				'当前判断：品牌气质和地点约束已明确；主要缺口是面积分布、房间数量和平面图。补齐后平面推演可正式启动。',
+				'',
+				'深度思考建议：',
+				'1. 先识别主矛盾（HAY 克制感 vs 山地在地性 vs 运营效率），确认哪个是当前设计决策的优先约束。',
+				'2. 再建立先决条件清单：补齐面积 / 房型 / 平面图这三个缺口，才能推进空间推演。',
+				'3. 最后保存项目方向草案，冻结当前判断，为下一步平面推演提供稳定基线。',
+				'',
+				'补充面积 / 房间数量 / 平面图，或先保存项目方向草案。',
+			].join('\n'),
+		};
+	}
+
 	if (activePrimaryNav === 'project' && activeCockpitModule === 'board') {
 		const label = `项目底盘 · 方案画布 · ${currentSpace}`;
 		return {
@@ -519,6 +724,30 @@ const buildAdvisorSceneContext = (params: {
 				'3. 同步建立反例边界：明确哪些元素会削弱项目识别度，提前排除。',
 				'',
 				'我可以继续输出该空间的 VisualBrief 增强版（关键词、负面约束、出图优先级）。',
+			].join('\n'),
+		};
+	}
+
+	if (activeCockpitModule === 'geo') {
+		const label = '地理工作台 · L1 场所分析';
+		return {
+			key: sceneRef,
+			label,
+			sceneRef,
+			suggestion: [
+				'已同步地理工作台。',
+				'',
+				'当前左侧为地理坐标工作台，正在加载地块周边数据。',
+				'',
+				'L1 场所分析建议：',
+				'1. 识别地块自然禀赋（地形 / 气候 / 景观面 / 生态边界）',
+				'2. 分析在地文化与历史脉络',
+				'3. 研究市场机会与竞品格局',
+				'4. 评估交通可达性与客源结构',
+				'5. 梳理约束性条件（政策 / 地质 / 基础设施）',
+				'6. 推导业态选型与经营模型',
+				'',
+				'点击左侧面板的「注入高参·生成 L1 场所清单」，或直接告诉我项目地点，我将为你生成完整的 L1 场所要素清单。',
 			].join('\n'),
 		};
 	}
@@ -543,7 +772,12 @@ const buildAdvisorSceneContext = (params: {
 	}
 
 	if (activePrimaryNav === 'knowledge') {
-		const pageLabel = activeDssPage === 'profile' ? '我的画像' : activeDssPage === 'portfolio' ? '作品' : '沉淀';
+		const pageLabel =
+			activeDssPage === 'profile'
+				? '我的画像'
+				: activeDssPage === 'portfolio'
+				? '作品'
+				: '沉淀';
 		const label = `我的硅基分身 · ${pageLabel}`;
 		return {
 			key: sceneRef,
@@ -553,9 +787,9 @@ const buildAdvisorSceneContext = (params: {
 				`已同步左侧场景：${label}。`,
 				'',
 				'深度思考建议：',
-				'1. 从“个人偏好”提炼为“可复用判断规则”，用于约束当前项目决策。',
-				'2. 识别经验盲区：哪些结论来自惯性而非证据，哪些需要反例验证。',
-				'3. 建立迁移路径：把过往成功经验转译为本项目可执行动作与检查点。',
+				'1. 先快速保存原文，不在输入瞬间强迫分类。',
+				'2. 再把速记分流为习惯、方法、模板、禁忌或案例复盘。',
+				'3. 最后把可复用内容转译为当前项目可执行动作与检查点。',
 				'',
 				'我可以基于你的硅基分身，给出当前项目的个性化决策清单。',
 			].join('\n'),
@@ -578,16 +812,39 @@ const buildAdvisorSceneContext = (params: {
 	};
 };
 
+const getAdvisorViewModel = (
+	primaryNav: PrimaryNavKey,
+	cockpitModule: CockpitModuleKey,
+	isSandbox: boolean,
+	dssPage: DssPage,
+): AdvisorViewModel => {
+	if (primaryNav === 'assets') return MOCK_ADVISOR_VIEW_MODEL_RESOURCE_RADAR;
+	if (primaryNav === 'knowledge') {
+		if (dssPage === 'portfolio') return MOCK_ADVISOR_VIEW_MODEL_SILICON_PORTFOLIO;
+		if (dssPage === 'sediment') return MOCK_ADVISOR_VIEW_MODEL_SILICON_SEDIMENT;
+		if (dssPage === 'profile')  return MOCK_ADVISOR_VIEW_MODEL_SILICON_PROFILE;
+		return MOCK_ADVISOR_VIEW_MODEL_SILICON_AVATAR;
+	}
+	if (cockpitModule === 'board') return MOCK_ADVISOR_VIEW_MODEL_SCHEME_CANVAS;
+	if (isSandbox) return MOCK_ADVISOR_VIEW_MODEL_FLOOR_PLAN;
+	return MOCK_ADVISOR_VIEW_MODEL;
+};
+
 export default function AnalysisPage() {
 	const params = useParams();
 	const router = useRouter();
+	const searchParams = useSearchParams();
 	const sessionId = params.sessionId as string;
-	const advisorRightTargetRatio = 0.32;
-	const splitLeftFixedRatio = 1 - advisorRightTargetRatio;
+	const isDemoSession = sessionId === 'demo';
+	const appliedInitialModuleRef = useRef<string | null>(null);
 	const adaptiveLeftDockGutter = 'clamp(44px, 3.2vw, 72px)';
 	const adaptiveLeftCardPadding = 'clamp(10px, 1.2vw, 20px)';
 	const adaptiveRightContentGutter = 'clamp(12px, 2vw, 32px)';
 	const [viewportWidth, setViewportWidth] = useState(1440);
+	const [workspaceMiddleTargetRatio, setWorkspaceMiddleTargetRatio] = useState(WORKSPACE_PANEL_DEFAULT_RATIO);
+	const [advisorRightTargetRatio, setAdvisorRightTargetRatio] = useState(WORKSPACE_PANEL_DEFAULT_RATIO);
+	const [workspaceLayoutPrefsLoaded, setWorkspaceLayoutPrefsLoaded] = useState(false);
+	const [resizingWorkspacePanel, setResizingWorkspacePanel] = useState<WorkspaceResizePanel | null>(null);
 
 	const [status, setStatus] = useState<AnalysisStatus | null>(null);
 	const [error, setError] = useState<string | null>(null);
@@ -637,11 +894,15 @@ export default function AnalysisPage() {
 	const [activeBoardSpace, setActiveBoardSpace] = useState<BoardCanvasSpace>('全部');
 	const [activeBoardVisualBrief, setActiveBoardVisualBrief] = useState<BoardVisualBrief | null>(null);
 	const [boardCanvasZoom, setBoardCanvasZoom] = useState(1);
-	const [activeDssPage, setActiveDssPage] = useState<'sediment' | 'portfolio' | 'profile'>('portfolio');
+	const [activeDssPage, setActiveDssPage] = useState<DssPage>('sediment');
 	const [portfolioYearHeightScale, setPortfolioYearHeightScale] = useState(1);
 	const [activeInsightView, setActiveInsightView] = useState<InsightViewKey>('main');
 	const [cockpitContextRefs, setCockpitContextRefs] = useState<string[]>([]);
 	const [conversationPrefill, setConversationPrefill] = useState<{ id: number; text: string } | null>(null);
+	const [graphViewMode, setGraphViewMode] = useState<'grouped' | 'free'>('grouped');
+
+	// 地理工作台
+	const geoAnchor = useGeoStore((s) => s.geoAnchor);
 
 	// 🔄 v10.2 Path B: 输出意图由 step1 payload 的 output_intent 子字段携带，Modal 内部管理
 
@@ -682,6 +943,131 @@ export default function AnalysisPage() {
 	// session 切换时重置图谱（保证各 session 图谱隔离，不跨会话混入）
 	useEffect(() => { resetForSession(sessionId); }, [sessionId, resetForSession]);
 
+	// 项目底盘真实数据（来自 /api/sessions/{id}/project-definition）
+	const [projectOverview, setProjectOverview] = useState<ProjectOverview | null>(null);
+	const [projectTitleSource, setProjectTitleSource] = useState('');
+	const [projectDisplayName, setProjectDisplayName] = useState('');
+
+	useEffect(() => {
+		if (!sessionId || isDemoSession) return;
+		let cancelled = false;
+		api.getSession(sessionId)
+			.then((session) => {
+				if (cancelled) return;
+				const rawTitleSource = session.user_input?.trim() || getFirstUserMessage(session.conversation_history_v2) || '';
+				const resolvedTitle = resolveSessionTitle(rawTitleSource, session.display_name);
+				setProjectTitleSource(rawTitleSource);
+				setProjectDisplayName(resolvedTitle);
+				if (resolvedTitle && session.display_name !== resolvedTitle) {
+					void api.updateSession(sessionId, { display_name: resolvedTitle }).catch((error) => {
+						console.warn('[analysis] persist normalized project title failed:', error);
+					});
+				}
+			})
+			.catch((error) => {
+				console.warn('[analysis] load session title failed:', error);
+			});
+		return () => {
+			cancelled = true;
+		};
+	}, [isDemoSession, sessionId]);
+
+	useEffect(() => {
+		if (!sessionId || isDemoSession) return;
+		fetch(`/api/sessions/${sessionId}/project-definition`)
+			.then((r) => r.ok ? r.json() : null)
+			.then((data) => {
+				if (!data) return;
+				// 将后端返回数据映射为前端 ProjectOverview 结构
+				const overview: ProjectOverview = {
+					name: data.project_name || sessionId,
+					oneLiner: data.one_liner || '',
+					stage: {
+						key: data.stage_key || 'project_definition',
+						label: data.stage_key === 'space_inference' ? '空间推演' : '项目定义',
+						status: 'active',
+						hint: data.stage_key === 'space_inference' ? '' : '补充面积与平面图后可进入空间推演',
+					},
+					confirmedItems: data.confirmed_items || [],
+					gapItems: data.gap_items || [],
+					mainContradiction: {
+						sides: data.main_contradiction?.sides || [],
+						advisorNote: data.main_contradiction?.advisor_note || '',
+					},
+					readiness: [
+						{
+							label: '项目方向草案',
+							systemName: 'AlignedBrief / ProjectBasePatch',
+							level: (data.confirmed_items?.length >= 3 ? 'sufficient' : data.confirmed_items?.length >= 1 ? 'concept_only' : 'not_started') as 'sufficient' | 'concept_only' | 'not_started',
+							progressPct: Math.min(100, (data.confirmed_items?.length || 0) * 20),
+							statusLabel: data.one_liner ? '可以形成项目方向建议' : '待补充信息',
+							upgradeHint: '补充预算档位 → 提升可执行性',
+						},
+						{
+							label: '空间结构框架',
+							systemName: 'SPG',
+							level: 'not_started' as const,
+							progressPct: 0,
+							statusLabel: '还缺平面和面积',
+							upgradeHint: '补充面积 / 平面图 → 提升准确度',
+						},
+						{
+							label: '执行任务书',
+							systemName: 'ExecutionPlan',
+							level: 'not_started' as const,
+							progressPct: 0,
+							statusLabel: '尚不具备启动条件',
+							upgradeHint: '需先完成空间结构框架',
+						},
+					],
+					recommendedActions: data.gap_items?.length
+						? [
+							{
+								label: `补充 ${data.gap_items.length} 个关键信息`,
+								benefit: '我可以把当前判断从"初步方向"推进到"可形成草案"',
+								isPrimary: true,
+							},
+							{
+								label: '保存为项目方向草案',
+								benefit: '保存为可编辑草案，不会冻结正式任务书',
+								isPrimary: false,
+							},
+						]
+						: [
+							{
+								label: '预览平面推演',
+								benefit: '当前信息已足够生成初步平面逻辑',
+								isPrimary: true,
+							},
+						],
+					capabilities: [
+						{
+							key: 'project_base',
+							label: '项目底盘',
+							statusLabel: '进行中',
+							state: 'active',
+						},
+						{
+							key: 'floor_plan',
+							label: '平面推演',
+							statusLabel: '可先预览，有图更准',
+							state: 'preview_only',
+							actionLabel: '预览平面推演',
+						},
+						{
+							key: 'scheme_canvas',
+							label: '方案画布',
+							statusLabel: '概念可用，落位待条件',
+							state: 'concept_available',
+							actionLabel: '生成概念画布',
+						},
+					],
+				};
+				setProjectOverview(overview);
+			})
+			.catch(() => {/* 网络异常：保持 null，CockpitPanel 内部 fallback 到 mock */});
+	}, [isDemoSession, sessionId]); // eslint-disable-line react-hooks/exhaustive-deps
+
 	// 节点详情面板状态
 	const [selectedNode, setSelectedNode] = useState<string | null>(null);
 	const [layoutMode, setLayoutMode] = useState<LayoutMode>('split');
@@ -702,13 +1088,272 @@ export default function AnalysisPage() {
 			: activeCockpitModule === 'knowledge'
 			? 'knowledge'
 			: 'project';
+	const isKnowledgeTwoColumnLayout = activePrimaryNav === 'knowledge';
+	const effectiveWorkspaceMiddleTargetRatio = isKnowledgeTwoColumnLayout ? 0 : workspaceMiddleTargetRatio;
+	const splitLeftFixedRatio = 1 - advisorRightTargetRatio;
+	const workspaceMainTargetRatio = 1 - advisorRightTargetRatio - effectiveWorkspaceMiddleTargetRatio;
 	const preferredFileViewMode = '统一视图';
 	const isSandboxSectionActive = activeProjectSection === 'sandbox';
-	const activeSandboxSpace: Exclude<BoardCanvasSpace, '全部'> = activeBoardSpace === '全部' ? '大堂' : activeBoardSpace;
+	const isProjectGraphShellActive =
+		activePrimaryNav === 'project' &&
+		activeCockpitModule === 'files' &&
+		!isSandboxSectionActive;
+	const projectGraphColumnRatio = useMemo(() => {
+		if (!isProjectGraphShellActive) return 1;
+		if (splitLeftFixedRatio <= 0) return 0.72;
+		return Math.max(0.6, Math.min(0.85, workspaceMainTargetRatio / splitLeftFixedRatio));
+	}, [isProjectGraphShellActive, splitLeftFixedRatio, workspaceMainTargetRatio]);
+	const projectWhiteboardColumnRatio = 1 - projectGraphColumnRatio;
+	const advisorPanelViewModel = useMemo((): AdvisorViewModel => {
+		const base = getAdvisorViewModel(activePrimaryNav, activeCockpitModule, isSandboxSectionActive, activeDssPage);
+		// 无真实数据时直接返回 mock（资源雷达、硅基分身模块不覆盖）
+		if (!projectOverview || activePrimaryNav !== 'project') return base;
+
+		const projectName = projectDisplayName || projectOverview.name;
+		const gapCount = projectOverview.gapItems?.length ?? 0;
+		const confirmedCount = projectOverview.confirmedItems?.length ?? 0;
+		const oneLiner = projectOverview.oneLiner;
+
+		// 方案画布
+		if (activeCockpitModule === 'board') {
+			const boardJudgment = oneLiner
+				? `概念方向已有基础。${oneLiner}。建议先完成空间排布后再深化方案表达。`
+				: `概念画布已可启动。落位精度依赖平面推演完成，建议先完成空间排布后再推进方案表达。`;
+			return {
+				...base,
+				sceneContext: { ...base.sceneContext, sessionId },
+				boundObjectLabel: `${projectName} · 概念画布`,
+				judgment: { ...base.judgment, content: boardJudgment },
+				actionChips: [
+					{
+						type: 'ask',
+						label: '生成概念方向草案',
+						isPrimary: true,
+						payload: { question: `基于"${projectName}"的定位，帮我生成 3 个概念方向草案，各附一句设计主张。` },
+					},
+					{
+						type: 'navigate',
+						label: '先完成平面推演',
+						isPrimary: false,
+						payload: { target: 'floor_plan' },
+					},
+				] as ActionChip[],
+			};
+		}
+
+		// 平面推演
+		if (isSandboxSectionActive) {
+			let sandboxJudgment: string;
+			if (gapCount > 0) {
+				sandboxJudgment = `平面推演处于预览模式。${projectName} 还有 ${gapCount} 个关键信息待补充，推演精度偏低。补齐项目底盘后可生成更准确的空间方案。`;
+			} else if (confirmedCount > 0) {
+				sandboxJudgment = `项目信息已基本完整，可以生成平面推演草案。上传底图后精度将大幅提升。`;
+			} else {
+				sandboxJudgment = `平面推演处于预览模式。补充面积、功能分区等信息后可生成更准确的空间排布方案。`;
+			}
+			return {
+				...base,
+				sceneContext: { ...base.sceneContext, sessionId },
+				boundObjectLabel: `${projectName} · 平面推演`,
+				judgment: { ...base.judgment, content: sandboxJudgment },
+				actionChips: [
+					{
+						type: 'ask',
+						label: gapCount > 0 ? `补充 ${gapCount} 个关键信息` : '告诉我建筑面积和功能分区',
+						isPrimary: true,
+						payload: {
+							question: gapCount > 0
+								? `请补充以下关键信息：${projectOverview.gapItems.slice(0, 3).join('、')}`
+								: `请提供"${projectName}"的总建筑面积（㎡）和主要功能分区？`,
+						},
+					},
+					{
+						type: 'navigate',
+						label: '返回项目底盘补充',
+						isPrimary: false,
+						payload: { target: 'project_base' },
+					},
+				] as ActionChip[],
+			};
+		}
+
+		// 项目底盘（默认）
+		let judgmentContent = base.judgment.content;
+		if (gapCount > 0) {
+			judgmentContent = `已确认 ${confirmedCount} 条信息；还有 ${gapCount} 个关键缺口待补充。补齐后可推进到下一阶段。`;
+		} else if (confirmedCount > 0) {
+			judgmentContent = `项目信息已基本完整（${confirmedCount} 条已确认），可以推进到空间推演阶段。`;
+		} else if (oneLiner) {
+			judgmentContent = oneLiner;
+		}
+
+		const actionChips: ActionChip[] = gapCount > 0
+			? [
+				{
+					type: 'ask',
+					label: `补充 ${gapCount} 个关键信息`,
+					isPrimary: true,
+					payload: { question: `请补充以下关键信息：${projectOverview.gapItems.slice(0, 3).join('、')}` },
+				},
+				{
+					type: 'navigate',
+					label: '预览平面推演',
+					isPrimary: false,
+					payload: { target: 'floor_plan' },
+				},
+				{
+					type: 'fill',
+					label: '保存项目方向草案',
+					isPrimary: false,
+					payload: { formId: 'project-base-draft' },
+				},
+			]
+			: [
+				{
+					type: 'navigate',
+					label: '预览平面推演',
+					isPrimary: true,
+					payload: { target: 'floor_plan' },
+				},
+			];
+
+		return {
+			...base,
+			sceneContext: { ...base.sceneContext, sessionId },
+			boundObjectLabel: projectName,
+			judgment: { ...base.judgment, content: judgmentContent },
+			actionChips,
+		};
+	}, [activePrimaryNav, activeCockpitModule, isSandboxSectionActive, activeDssPage, projectDisplayName, projectOverview, sessionId]);
+	const inferredProjectSpace = useMemo(() => inferProjectDefaultSpace(projectOverview), [projectOverview]);
+	const projectDefaultSpace = inferredProjectSpace ?? (activeBoardSpace !== '全部' ? activeBoardSpace : PLAN_SANDBOX_SPACE_OPTIONS[0]);
+	const activeSandboxSpace: ConcreteBoardCanvasSpace = activeBoardSpace === '全部' ? projectDefaultSpace : activeBoardSpace;
+	const fallbackProjectTitleSource = useMemo(
+		() => projectTitleSource || collectProjectOverviewText(projectOverview) || sessionId,
+		[projectOverview, projectTitleSource, sessionId]
+	);
+	const displayProjectTitle = useMemo(
+		() => projectDisplayName || deriveSessionTitle(fallbackProjectTitleSource),
+		[fallbackProjectTitleSource, projectDisplayName]
+	);
+	useEffect(() => {
+		if (projectDisplayName || !fallbackProjectTitleSource || fallbackProjectTitleSource === sessionId) return;
+		const resolvedTitle = deriveSessionTitle(fallbackProjectTitleSource);
+		setProjectDisplayName(resolvedTitle);
+		void api.updateSession(sessionId, { display_name: resolvedTitle }).catch((error) => {
+			console.warn('[analysis] persist derived project title failed:', error);
+		});
+	}, [fallbackProjectTitleSource, projectDisplayName, sessionId]);
+
+	const handleProjectLabelChange = useCallback((currentTitle: string) => {
+		const nextRawTitle = window.prompt('修改项目摘要标题（显示前14字，超出自动省略）:', currentTitle);
+		if (!nextRawTitle?.trim()) return;
+		const nextTitle = deriveSessionTitle(nextRawTitle);
+		setProjectTitleSource(nextRawTitle.trim());
+		setProjectDisplayName(nextTitle);
+		void api.updateSession(sessionId, { display_name: nextTitle }).catch((error) => {
+			console.error('[analysis] update project title failed:', error);
+			window.alert('项目摘要更新失败，请重试');
+		});
+	}, [sessionId]);
+
+	useEffect(() => {
+		if (typeof window === 'undefined') return;
+		try {
+			const raw = window.localStorage.getItem(WORKSPACE_LAYOUT_STORAGE_KEY);
+			if (raw) {
+				const parsed = JSON.parse(raw) as Partial<{ middleRatio: number; advisorRatio: number }>;
+				if (Number.isFinite(parsed.middleRatio)) {
+					setWorkspaceMiddleTargetRatio(clampWorkspacePanelRatio(Number(parsed.middleRatio)));
+				}
+				if (Number.isFinite(parsed.advisorRatio)) {
+					setAdvisorRightTargetRatio(clampWorkspacePanelRatio(Number(parsed.advisorRatio)));
+				}
+			}
+		} catch (error) {
+			console.warn('[analysis] load workspace layout failed:', error);
+		} finally {
+			setWorkspaceLayoutPrefsLoaded(true);
+		}
+	}, []);
+
+	useEffect(() => {
+		if (!workspaceLayoutPrefsLoaded || typeof window === 'undefined') return;
+		try {
+			window.localStorage.setItem(
+				WORKSPACE_LAYOUT_STORAGE_KEY,
+				JSON.stringify({
+					middleRatio: workspaceMiddleTargetRatio,
+					advisorRatio: advisorRightTargetRatio,
+				}),
+			);
+		} catch (error) {
+			console.warn('[analysis] persist workspace layout failed:', error);
+		}
+	}, [advisorRightTargetRatio, workspaceLayoutPrefsLoaded, workspaceMiddleTargetRatio]);
+
+	useEffect(() => {
+		if (!resizingWorkspacePanel || typeof window === 'undefined') return;
+		if (isKnowledgeTwoColumnLayout && resizingWorkspacePanel === 'middle') {
+			setResizingWorkspacePanel(null);
+			return;
+		}
+
+		const previousCursor = document.body.style.cursor;
+		const previousUserSelect = document.body.style.userSelect;
+		document.body.style.cursor = 'col-resize';
+		document.body.style.userSelect = 'none';
+
+		const handlePointerMove = (event: PointerEvent) => {
+			const width = window.innerWidth || viewportWidth || 1440;
+			if (resizingWorkspacePanel === 'middle') {
+				const nextMiddleRatio = 1 - advisorRightTargetRatio - event.clientX / width;
+				setWorkspaceMiddleTargetRatio(clampWorkspacePanelRatio(nextMiddleRatio));
+				return;
+			}
+
+			const nextAdvisorRatio = (width - event.clientX) / width;
+			setAdvisorRightTargetRatio(clampWorkspacePanelRatio(nextAdvisorRatio));
+		};
+
+		const handlePointerUp = () => {
+			setResizingWorkspacePanel(null);
+		};
+
+		window.addEventListener('pointermove', handlePointerMove);
+		window.addEventListener('pointerup', handlePointerUp);
+		window.addEventListener('pointercancel', handlePointerUp);
+
+		return () => {
+			window.removeEventListener('pointermove', handlePointerMove);
+			window.removeEventListener('pointerup', handlePointerUp);
+			window.removeEventListener('pointercancel', handlePointerUp);
+			document.body.style.cursor = previousCursor;
+			document.body.style.userSelect = previousUserSelect;
+		};
+	}, [advisorRightTargetRatio, isKnowledgeTwoColumnLayout, resizingWorkspacePanel, viewportWidth]);
+
+	const handleWorkspaceResizeStart = useCallback((panel: WorkspaceResizePanel) => (event: ReactPointerEvent<HTMLDivElement>) => {
+		if (layoutMode !== 'split') return;
+		if (isKnowledgeTwoColumnLayout && panel === 'middle') return;
+		event.preventDefault();
+		event.stopPropagation();
+		setResizingWorkspacePanel(panel);
+	}, [isKnowledgeTwoColumnLayout, layoutMode]);
+
 	const activeSplitLeftPanelWidth = useMemo(() => {
 		const width = Number.isFinite(viewportWidth) ? viewportWidth : 1440;
 		return `${Math.round(width * splitLeftFixedRatio)}px`;
 	}, [splitLeftFixedRatio, viewportWidth]);
+	const workspaceColumnVars = useMemo(
+		() => ({
+			'--workspace-main-column-width': `${workspaceMainTargetRatio * 100}vw`,
+			'--workspace-middle-column-width': `${effectiveWorkspaceMiddleTargetRatio * 100}vw`,
+			'--workspace-advisor-column-width': `${advisorRightTargetRatio * 100}vw`,
+			'--workspace-left-compound-width': `${splitLeftFixedRatio * 100}vw`,
+		}) as CSSProperties,
+		[advisorRightTargetRatio, effectiveWorkspaceMiddleTargetRatio, splitLeftFixedRatio, workspaceMainTargetRatio],
+	);
 	const advisorSceneContext = useMemo(
 		() =>
 			buildAdvisorSceneContext({
@@ -772,7 +1417,7 @@ export default function AnalysisPage() {
 	const leftPanelWidth = isLeftCollapsed
 		? '0px'
 		: isRightCollapsed
-		? '100%'
+		? 'calc(100% - 32px)'
 		: activeSplitLeftPanelWidth;
 	const advisorHistoryGroups = useMemo(() => {
 		const now = new Date();
@@ -1008,7 +1653,46 @@ export default function AnalysisPage() {
 
 	// 使用 WebSocket 实时更新状态
 	useEffect(() => {
+		if (isDemoSession) {
+			setSystemMode('project');
+			setStatus(null);
+			setError(null);
+			setWsConnected(false);
+			return;
+		}
+
 		const fetchInitialStatus = async (retryCount = 0) => {
+			if (sessionId.startsWith('conv-')) {
+				setSystemMode('conversation');
+				setStatus(null);
+				let initialConversationMessages: ChatMessage[] = [];
+				const initRaw = sessionStorage.getItem(`conv_init_${sessionId}`);
+				if (initRaw) {
+					try {
+						const { userMessage, aiReply, guidance_card } = JSON.parse(initRaw);
+						initialConversationMessages = [
+							{ id: 'user-init', role: 'user', content: userMessage, timestamp: new Date().toISOString() },
+							{ id: 'ai-init', role: 'assistant', content: aiReply, timestamp: new Date().toISOString(), guidance_card: guidance_card ?? undefined },
+						];
+						setConversationMessages(initialConversationMessages);
+					} catch (_) { /* ignore parse errors */ }
+					sessionStorage.removeItem(`conv_init_${sessionId}`);
+				}
+				try {
+					const data = await api.getStatus(sessionId);
+					const restoredMessages = hydrateMissingGuidanceCards(
+						buildConversationMessagesFromHistory(data.conversation_history_v2),
+						initialConversationMessages,
+					);
+					if (restoredMessages.length > 0) {
+						setConversationMessages(restoredMessages);
+					}
+				} catch (err) {
+					console.warn('[analysis] restore conversation history failed:', err);
+				}
+				return;
+			}
+
 			try {
 				console.log(`🔍 开始获取初始状态 (尝试 ${retryCount + 1}/3), sessionId:`, sessionId);
 				const data = await api.getStatus(sessionId);
@@ -1460,7 +2144,7 @@ export default function AnalysisPage() {
 		return () => {
 			wsClientRef.current?.close();
 		};
-	}, [navigateToReport, sessionId]);
+	}, [isDemoSession, navigateToReport, sessionId]);
 
 	const handleNodeClick = (nodeId: string) => {
 		setSelectedNode(nodeId);
@@ -1471,11 +2155,7 @@ export default function AnalysisPage() {
 	};
 
 	const handleCycleLayoutMode = useCallback(() => {
-		setLayoutMode((prev) => {
-			if (prev === 'split') return 'left-focus';
-			if (prev === 'left-focus') return 'right-focus';
-			return 'split';
-		});
+		setLayoutMode((prev) => (prev === 'split' ? 'left-focus' : 'split'));
 	}, []);
 
 	const handlePrimaryNavChange = useCallback((nav: PrimaryNavKey) => {
@@ -1493,11 +2173,16 @@ export default function AnalysisPage() {
 		setActiveCockpitModule('files');
 	}, []);
 
+	const handleOpenGeoWorkspace = useCallback(() => {
+		setActiveProjectSection('space');
+		setActiveCockpitModule('geo');
+	}, []);
+
 	const handleProjectSectionChange = useCallback((section: ProjectSectionKey) => {
 		setActiveProjectSection(section);
 		if (section === 'sandbox') {
 			if (activeBoardSpace === '全部') {
-				setActiveBoardSpace('大堂');
+				setActiveBoardSpace(projectDefaultSpace);
 			}
 			setActiveCockpitModule('files');
 			return;
@@ -1507,7 +2192,7 @@ export default function AnalysisPage() {
 			return;
 		}
 		setActiveCockpitModule('files');
-	}, [activeBoardSpace]);
+	}, [activeBoardSpace, projectDefaultSpace]);
 
 	const handleEnterBoardSpace = useCallback((space: Exclude<BoardCanvasSpace, '全部'>) => {
 		setActiveProjectSection('board');
@@ -1524,6 +2209,46 @@ export default function AnalysisPage() {
 	const handleSandboxSpaceChange = useCallback((space: Exclude<BoardCanvasSpace, '全部'>) => {
 		setActiveBoardSpace(space);
 	}, []);
+
+	useEffect(() => {
+		const moduleParam = searchParams.get('module') ?? '';
+		const requestedModule = parseAnalysisModuleQuery(moduleParam);
+		if (!requestedModule || appliedInitialModuleRef.current === moduleParam) return;
+
+		appliedInitialModuleRef.current = moduleParam;
+		setSystemMode('project');
+
+		if (requestedModule === 'project_base') {
+			setActiveProjectSection('space');
+			setActiveCockpitModule('files');
+			return;
+		}
+
+		if (requestedModule === 'floor_plan') {
+			handleEnterSandboxSpace(projectDefaultSpace);
+			return;
+		}
+
+		if (requestedModule === 'scheme_canvas') {
+			handleEnterBoardSpace(projectDefaultSpace);
+			return;
+		}
+
+		if (requestedModule === 'geo') {
+			handleOpenGeoWorkspace();
+			return;
+		}
+
+		setActiveProjectSection('space');
+		setActiveCockpitModule('knowledge');
+		setActiveDssPage('sediment');
+	}, [
+		handleEnterBoardSpace,
+		handleEnterSandboxSpace,
+		handleOpenGeoWorkspace,
+		projectDefaultSpace,
+		searchParams,
+	]);
 
 	const injectReferenceToRight = useCallback((label: string) => {
 		const token = `@${label}`;
@@ -2024,11 +2749,15 @@ export default function AnalysisPage() {
 		const msg: ChatMessage = { id: `user-${Date.now()}`, role: 'user', content: text, timestamp: new Date().toISOString() };
 		setConversationMessages(prev => [...prev, msg]);
 		try {
-			const perspectivePrefix = `[专家视角设定]\n当前场景：${advisorSceneContext.label}\n当前指定视角：${activeExpertPerspective}\n回答时请围绕该视角深挖关键判断、风险取舍与执行动作。\n\n`;
-			const briefPrefix = shouldShowBoardVisualBrief && activeBoardVisualBrief
+			const perspectivePrefix = systemMode === 'conversation'
+				? ''
+				: `[专家视角设定]\n当前场景：${advisorSceneContext.label}\n当前指定视角：${activeExpertPerspective}\n回答时请围绕该视角深挖关键判断、风险取舍与执行动作。\n\n`;
+			const briefPrefix = systemMode !== 'conversation' && shouldShowBoardVisualBrief && activeBoardVisualBrief
 				? `[方案画布空间 VisualBrief]\n${formatBoardVisualBriefForPrompt(activeBoardVisualBrief)}\n\n[用户本轮指令]\n`
 				: '';
-			const scenePrefix = `[当前左侧场景]\n场景：${advisorSceneContext.label}\n引用：${advisorSceneContext.sceneRef}\n系统上下文判断：\n${advisorSceneContext.suggestion}\n\n[用户本轮指令]\n`;
+			const scenePrefix = systemMode === 'conversation'
+				? ''
+				: `[当前左侧场景]\n场景：${advisorSceneContext.label}\n引用：${advisorSceneContext.sceneRef}\n系统上下文判断：\n${advisorSceneContext.suggestion}\n\n[用户本轮指令]\n`;
 			const res = await api.sendConversationMessage(
 				sessionId,
 				`${perspectivePrefix}${scenePrefix}${briefPrefix}${text}`,
@@ -2056,7 +2785,7 @@ export default function AnalysisPage() {
 		} catch (err) {
 			console.error('[conv] send failed:', err);
 		}
-	}, [activeBoardVisualBrief, activeExpertPerspective, advisorSceneContext, sessionId, shouldShowBoardVisualBrief, setConversationMessages]);
+	}, [activeBoardVisualBrief, activeExpertPerspective, advisorSceneContext, sessionId, shouldShowBoardVisualBrief, systemMode, setConversationMessages]);
 
 	// v2.0 引导卡片响应 handler
 	const handleConvCardResponse = useCallback(async (cardId: string, optionId?: string, freetext?: string) => {
@@ -2070,6 +2799,11 @@ export default function AnalysisPage() {
 					const allOptions = [
 						...(m.guidance_card.options ?? []),
 						...(m.guidance_card.pages ?? []).flatMap(p => p.options ?? []),
+						...(m.guidance_card.version_cards ?? []).map(v => ({
+							id: v.id,
+							label: v.name,
+							description: v.subtitle,
+						})),
 					];
 					const opt = allOptions.find(o => o.id === optionId);
 					if (opt) {
@@ -2086,7 +2820,9 @@ export default function AnalysisPage() {
 		// 发送卡片响应（freetext 作为 message，携带 in_response_to_card_id + selected_option_id）
 		const text = freetext || (optionId ? `[card:${optionId}]` : '[skip]');
 		try {
-			const perspectivePrefix = `[专家视角设定]\n当前场景：${advisorSceneContext.label}\n当前指定视角：${activeExpertPerspective}\n回答时请围绕该视角深挖关键判断、风险取舍与执行动作。\n\n`;
+			const perspectivePrefix = systemMode === 'conversation'
+				? ''
+				: `[专家视角设定]\n当前场景：${advisorSceneContext.label}\n当前指定视角：${activeExpertPerspective}\n回答时请围绕该视角深挖关键判断、风险取舍与执行动作。\n\n`;
 			const res = await api.sendConversationMessage(
 				sessionId,
 				`${perspectivePrefix}${text}`,
@@ -2109,7 +2845,7 @@ export default function AnalysisPage() {
 		} catch (err) {
 			console.error('[conv] card response failed:', err);
 		}
-	}, [activeExpertPerspective, advisorSceneContext.label, sessionId]);
+	}, [activeExpertPerspective, advisorSceneContext.label, sessionId, systemMode]);
 
 	const handleUpgradeConfirm = useCallback(async () => {
 		try {
@@ -2122,6 +2858,16 @@ export default function AnalysisPage() {
 		}
 	}, [sessionId]);
 
+	const handleAdvisorChipAction = useCallback((chip: ActionChip) => {
+		if (chip.type === 'navigate') {
+			console.log('[advisor] navigate chip:', chip.label);
+		}
+	}, []);
+
+	const handleAdvisorAsk = useCallback((text: string) => {
+		handleConvSendMessage(text);
+	}, [handleConvSendMessage]);
+
 	const collapsedReadableWidth = 'min(1180px, calc(100vw - 64px))';
 	const rightPanelReadableWidth = isLeftCollapsed ? collapsedReadableWidth : '100%';
 	const shellToggleButtonClass =
@@ -2129,34 +2875,108 @@ export default function AnalysisPage() {
 	const shellToggleIconClass = 'h-[14px] w-[14px] shrink-0 translate-y-px';
 	const layoutCycleMeta =
 		layoutMode === 'split'
-			? { label: '切换到驾驶舱全屏', title: '切换到驾驶舱全屏' }
-			: layoutMode === 'left-focus'
-			? { label: '切换到方案高参全屏', title: '切换到方案高参全屏' }
-			: { label: '恢复分栏布局', title: '恢复分栏布局' };
+			? { label: '折叠方案高参', title: '折叠方案高参' }
+			: { label: '展开方案高参', title: '展开方案高参' };
+
+	if (systemMode === 'conversation') {
+		return (
+			<div className="flex h-screen overflow-hidden bg-[var(--background)] text-[var(--foreground)]">
+				<div className="flex h-full w-full flex-col">
+					<div className="flex items-center justify-between border-b border-[var(--border-color)] px-5 py-3">
+						<button
+							onClick={() => router.push('/')}
+							className="flex items-center gap-2 text-sm font-semibold text-[var(--foreground)]"
+							title="返回首页"
+						>
+							<span className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#2e67ff] text-white">
+								<Sparkles className="h-4 w-4" />
+							</span>
+							方案高参
+						</button>
+						<div className="text-xs text-[var(--foreground-secondary)]">
+							首轮入口 · 任务书预成型
+						</div>
+					</div>
+					<div className="min-h-0 flex-1">
+						<ConversationChat
+							sessionId={sessionId}
+							messages={conversationMessages}
+							activeExpertPerspective={activeExpertPerspective}
+							expertPerspectiveOptions={sceneExpertPerspectiveOptions}
+							onExpertPerspectiveChange={(next) => setActiveExpertPerspective(next as ExpertPerspectiveOption)}
+							summonOptions={EXPERT_SUMMON_OPTIONS}
+							onSummonExpert={(target) => handleSummonExpert(target as (typeof EXPERT_SUMMON_OPTIONS)[number])}
+							advisorSceneContext={null}
+							onSendMessage={handleConvSendMessage}
+							loading={false}
+							placeholder="继续补充项目目标、约束或取舍..."
+							showUpgradeBanner={showUpgradeBanner}
+							onUpgradeConfirm={handleUpgradeConfirm}
+							onUpgradeDismiss={() => setShowUpgradeBanner(false)}
+							onCardResponse={handleConvCardResponse}
+							prefillHint={conversationPrefill}
+							className="w-full"
+						/>
+					</div>
+				</div>
+			</div>
+		);
+	}
 
 	return (
-		<div className="flex h-screen bg-[var(--background)] text-[var(--foreground)] overflow-hidden">
-			<div className="pointer-events-none absolute right-4 top-3 z-30">
-				<button
-					onClick={handleCycleLayoutMode}
-					className={shellToggleButtonClass}
-					title={layoutCycleMeta.title}
-					aria-label={layoutCycleMeta.label}
-				>
-					<PanelLeft className={shellToggleIconClass} strokeWidth={2} />
-				</button>
-			</div>
+		<div
+			className="relative flex h-screen overflow-hidden bg-[var(--background)] text-[var(--foreground)]"
+			style={workspaceColumnVars}
+		>
+			{!isRightCollapsed && (
+				<div className="pointer-events-none absolute right-4 top-3 z-30">
+					<button
+						onClick={handleCycleLayoutMode}
+						className={shellToggleButtonClass}
+						title={layoutCycleMeta.title}
+						aria-label={layoutCycleMeta.label}
+					>
+						<PanelLeft className={shellToggleIconClass} strokeWidth={2} />
+					</button>
+				</div>
+			)}
+			{layoutMode === 'split' && (
+				<>
+					{!isKnowledgeTwoColumnLayout && (
+					<div
+						role="separator"
+						aria-orientation="vertical"
+						aria-label="调整信息白板宽度"
+						title="拖动调整信息白板宽度"
+						className={`workspace-resize-divider ${resizingWorkspacePanel === 'middle' ? 'workspace-resize-divider-active' : ''}`}
+						style={{ left: 'var(--workspace-main-column-width)' }}
+						onPointerDown={handleWorkspaceResizeStart('middle')}
+					/>
+					)}
+					<div
+						role="separator"
+						aria-orientation="vertical"
+						aria-label="调整方案高参宽度"
+						title="拖动调整方案高参宽度"
+						className={`workspace-resize-divider ${resizingWorkspacePanel === 'advisor' ? 'workspace-resize-divider-active' : ''}`}
+						style={{ left: 'var(--workspace-left-compound-width)' }}
+						onPointerDown={handleWorkspaceResizeStart('advisor')}
+					/>
+				</>
+			)}
 			{/* 左侧：驾驶舱面板 */}
 			<div
-				className="shrink-0 overflow-hidden border-r border-[var(--border-color)]"
+				className={`shrink-0 overflow-hidden border-r border-[var(--border-color)] ${resizingWorkspacePanel ? '' : 'transition-[width] duration-300 ease-in-out'}`}
 				style={{ width: leftPanelWidth }}
 			>
-				<div className={`h-full w-full flex overflow-hidden relative ${activeCockpitModule === 'files' && !isSandboxSectionActive ? 'bg-[#f5f5f7]' : 'bg-[var(--sidebar-bg)]'}`}>
+				<div className={`h-full w-full flex overflow-hidden relative ${isProjectGraphShellActive ? 'bg-[#11161f]' : activeCockpitModule === 'files' && !isSandboxSectionActive ? 'bg-[#f5f5f7]' : activeCockpitModule === 'geo' ? 'bg-[#f0f4f0]' : 'bg-[var(--sidebar-bg)]'}`}>
 					{/* 多页面内容面板 - 铺满整个左侧区域 */}
-					<div className={`flex-1 min-w-0 min-h-0 overflow-hidden w-full ${isRightCollapsed ? 'pr-16' : ''}`}>
+					<div className="flex-1 min-w-0 min-h-0 overflow-hidden w-full">
 						{isSandboxSectionActive ? (
 							<PlanSandboxPanel
 								sessionId={sessionId}
+								projectLabel={displayProjectTitle}
+								projectOverview={projectOverview ?? undefined}
 								activeSpace={activeSandboxSpace}
 								spaceOptions={PLAN_SANDBOX_SPACE_OPTIONS}
 								onActiveSpaceChange={handleSandboxSpaceChange}
@@ -2164,13 +2984,110 @@ export default function AnalysisPage() {
 								onInjectReference={injectReferenceToRight}
 								className="w-full h-full"
 							/>
+						) : activeCockpitModule === 'geo' ? (
+							<GeoCanvasView
+								onInjectToAdvisor={(text) => {
+									setConversationPrefill({ id: Date.now(), text });
+									handleAdvisorAsk(text);
+								}}
+								className="w-full h-full"
+							/>
+						) : isProjectGraphShellActive ? (
+							<div className="flex h-full w-full">
+								<div
+									className="min-w-0 h-full border-r border-[#1f2733] relative"
+									style={{ width: `${projectGraphColumnRatio * 100}%` }}
+								>
+									<div className="absolute right-3 top-3 z-10">
+										<button
+											onClick={() => setGraphViewMode((prev) => (prev === 'grouped' ? 'free' : 'grouped'))}
+											className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-[#2d3748] bg-[rgba(17,24,39,0.78)] text-[#cbd5e1] backdrop-blur-sm transition hover:bg-[rgba(30,41,59,0.92)] hover:text-white"
+											title={graphViewMode === 'grouped' ? '当前分组网络态，点击切换为自由网络态' : '当前自由网络态，点击切换为分组网络态'}
+											aria-label={graphViewMode === 'grouped' ? '切换到自由网络态' : '切换到分组网络态'}
+										>
+											<Network className="h-4 w-4" strokeWidth={2} />
+										</button>
+									</div>
+									<KnowledgeGraphCanvas
+										className="w-full h-full"
+										onNodeClick={(nodeId, _label) => {
+											handleNodeClick(nodeId);
+										}}
+									/>
+								</div>
+								<div
+									className="h-full overflow-y-auto bg-[#f4f5f7] text-[#1f2937]"
+									style={{ width: `${projectWhiteboardColumnRatio * 100}%` }}
+								>
+									<div className="h-full p-4">
+										<div className="rounded-xl border border-[#dde1e7] bg-white p-4 shadow-sm">
+											<div className="text-[12px] font-semibold tracking-[0.08em] text-[#6b7280]">项目图谱</div>
+											<div className="mt-2 text-[18px] font-semibold text-[#111827]">{displayProjectTitle}</div>
+											{projectOverview?.oneLiner ? (
+												<div className="mt-2 text-[13px] leading-6 text-[#4b5563]">{projectOverview.oneLiner}</div>
+											) : (
+												<div className="mt-2 text-[13px] leading-6 text-[#6b7280]">当前处于项目图谱工作面。左侧浏览认知关系，右侧白栏承接节点详情与操作。</div>
+											)}
+										</div>
+
+										<div className="mt-4 rounded-xl border border-[#dde1e7] bg-white p-4 shadow-sm">
+											<div className="flex items-center justify-between">
+												<div className="text-[12px] font-semibold tracking-[0.08em] text-[#6b7280]">节点白板</div>
+												{selectedNode && (
+													<button
+														onClick={closeNodeDetail}
+														className="rounded-md border border-[#d1d5db] px-2 py-1 text-[12px] text-[#4b5563] hover:bg-[#f8fafc]"
+													>
+														清除焦点
+													</button>
+												)}
+											</div>
+											{selectedNode ? (
+												<div className="mt-2 text-[13px] leading-6 text-[#111827]">
+													<div className="font-medium">节点 ID: {selectedNode}</div>
+													<div className="mt-1 text-[#4b5563]">当前状态: {nodeDetails[selectedNode]?.status ?? 'pending'}</div>
+													{selectedNodeData.length > 0 ? (
+														<div className="mt-3 space-y-2">
+															<div className="text-[12px] font-semibold tracking-[0.08em] text-[#6b7280]">执行记录</div>
+															{selectedNodeData.slice(-5).reverse().map((record, index) => (
+																<div key={`${record.time}-${index}`} className="rounded-md bg-[#f8fafc] px-3 py-2">
+																	<div className="text-[11px] text-[#6b7280]">{record.time}</div>
+																	<div className="mt-1 text-[12px] text-[#374151]">{record.detail || '无详细信息'}</div>
+																</div>
+															))}
+														</div>
+													) : (
+														<div className="mt-2 text-[12px] text-[#6b7280]">暂无执行记录</div>
+													)}
+												</div>
+											) : (
+												<div className="mt-2 text-[13px] leading-6 text-[#6b7280]">点击图谱节点后，这里展示节点详情（不再使用独立详情抽屉）。</div>
+											)}
+										</div>
+
+										<div className="mt-4 rounded-xl border border-[#dde1e7] bg-white p-4 shadow-sm">
+											<div className="text-[12px] font-semibold tracking-[0.08em] text-[#6b7280]">待补信息</div>
+											<ul className="mt-2 space-y-2 text-[13px] leading-5 text-[#374151]">
+												{(projectOverview?.gapItems?.slice(0, 3) ?? []).map((item) => (
+													<li key={item} className="rounded-md bg-[#f8fafc] px-3 py-2">{item}</li>
+												))}
+												{!(projectOverview?.gapItems?.length) && (
+													<li className="rounded-md bg-[#f8fafc] px-3 py-2 text-[#6b7280]">暂无缺口项</li>
+												)}
+											</ul>
+										</div>
+									</div>
+								</div>
+							</div>
 						) : (
 							<CockpitPanel
 								key={`cockpit-${activeProjectSection}`}
 								moduleKey={activeCockpitModule}
 								preferredFileViewMode={preferredFileViewMode}
 								sessionId={sessionId}
-								projectLabel={sessionId}
+								projectLabel={displayProjectTitle}
+								onProjectLabelChange={handleProjectLabelChange}
+								projectOverview={projectOverview ?? undefined}
 								activeBoardSpace={activeBoardSpace}
 								onActiveBoardSpaceChange={setActiveBoardSpace}
 								onEnterBoardSpace={handleEnterBoardSpace}
@@ -2181,6 +3098,11 @@ export default function AnalysisPage() {
 								onDssPageChange={setActiveDssPage}
 								onOpenInspirationLibrary={() => setActiveCockpitModule('inspiration')}
 								onBackToAssets={() => setActiveCockpitModule('assets')}
+								onSwitchModule={(target) => {
+									if (target === 'floor_plan') handleEnterSandboxSpace(projectDefaultSpace);
+									else handleEnterBoardSpace(projectDefaultSpace);
+								}}
+								onOpenGeoWorkspace={handleOpenGeoWorkspace}
 								onNodeClick={(nodeId, label) => {
 									console.log('📊 模块点击:', label);
 								}}
@@ -2203,10 +3125,10 @@ export default function AnalysisPage() {
 								<button
 									onClick={() => handlePrimaryNavChange('project')}
 								className="flex w-full min-h-[112px] items-center justify-center px-0 py-5 text-center"
-								title="项目底盘"
+								title="项目图谱"
 							>
 								<div className="flex flex-col items-center leading-none text-[13px] font-semibold tracking-0">
-									{'项目底盘'.split('').map((char, index) => (
+									{'项目图谱'.split('').map((char, index) => (
 										<span key={`project-nav-${index}`}>{char}</span>
 									))}
 								</div>
@@ -2242,6 +3164,23 @@ export default function AnalysisPage() {
 							)}
 						</div>
 
+						{/* 地理工作台入口 */}
+						<button
+							onClick={handleOpenGeoWorkspace}
+							className={`w-[32px] rounded-[18px] border px-0 py-5 text-center text-[13px] font-semibold tracking-0 shadow-[0_12px_26px_rgba(15,23,42,0.18)] backdrop-blur-md transition-all duration-300 ${
+								activeCockpitModule === 'geo'
+									? `border-teal-300/75 ${geoAnchor ? 'bg-emerald-500/95 text-white' : 'bg-orange-400/95 text-white'}`
+									: 'border-slate-300 bg-[rgba(204,209,216,0.94)] text-slate-800 hover:bg-[rgba(194,200,208,0.98)]'
+							}`}
+							title={`地理工作台${geoAnchor ? '' : '（未设置坐标锚点）'}`}
+						>
+							<div className="flex flex-col items-center leading-none">
+								{'地理'.split('').map((char, index) => (
+									<span key={`geo-nav-${index}`}>{char}</span>
+								))}
+							</div>
+						</button>
+
 						{PRIMARY_NAV_ITEMS.filter((item) => item.key !== 'project').map((item) => {
 							const active = activePrimaryNav === item.key;
 							const activeClass =
@@ -2274,7 +3213,6 @@ export default function AnalysisPage() {
 						{activeCockpitModule === 'knowledge' && activeDssPage === 'portfolio' && (
 							<div className="mt-6 flex w-[32px] justify-center">
 								<div className="relative h-[126px] w-[24px]">
-									<div className="absolute left-1/2 top-3 bottom-3 w-px -translate-x-1/2 bg-slate-400/60" />
 									<input
 										type="range"
 										min={1}
@@ -2284,6 +3222,9 @@ export default function AnalysisPage() {
 										onChange={(e) => setPortfolioYearHeightScale(Number(e.target.value))}
 										aria-label="年度高度"
 										className="portfolio-height-slider absolute left-1/2 top-1/2 h-[126px] w-[24px] -translate-x-1/2 -translate-y-1/2 cursor-pointer appearance-none bg-transparent"
+										style={{
+											'--portfolio-height-track': `linear-gradient(to top, rgba(72,72,78,0.39) 0%, rgba(72,72,78,0.39) ${((portfolioYearHeightScale - 1) / 2) * 100}%, rgba(72,72,78,0.78) ${((portfolioYearHeightScale - 1) / 2) * 100}%, rgba(72,72,78,0.78) 100%)`,
+										} as CSSProperties}
 									/>
 								</div>
 							</div>
@@ -2298,508 +3239,28 @@ export default function AnalysisPage() {
 				</div>
 			</div>
 			{/* 右侧：生产窗口 */}
-			{!isRightCollapsed && (
-			<div
-				className="relative flex-1 overflow-hidden border-l border-[var(--border-color)]"
-			>
-				<aside
-					className={`absolute inset-y-0 left-0 z-20 w-[280px] border-r border-[var(--border-color)] bg-[#232323] transition-transform duration-300 ${
-						advisorHistoryOpen ? 'translate-x-0' : '-translate-x-full'
-					}`}
-				>
-					<div className="flex h-full flex-col">
-						<div className="flex items-center gap-3 border-b border-white/10 px-4 py-4">
-							<div className="flex items-center gap-3">
-								<div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#2e67ff] text-white">
-									<Network className="h-5 w-5" />
-								</div>
-								<div className="ui-type-subtitle font-semibold text-white">方案高参</div>
-							</div>
-						</div>
-						<div className="px-4 pt-4">
-							<button
-								onClick={() => {
-									setAdvisorHistoryOpen(false);
-									router.push('/');
-								}}
-								className="flex w-full items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/8 px-4 py-3 text-sm font-medium text-white transition hover:bg-white/12"
-							>
-								<Plus className="h-4 w-4" />
-								<span>开启新对话</span>
-							</button>
-						</div>
-						<div className="flex-1 overflow-y-auto px-4 py-5 text-white/78">
-							{[
-								{ label: '今天', items: advisorHistoryGroups.today },
-								{ label: '7天内', items: advisorHistoryGroups.last7Days },
-								{ label: '30天内', items: advisorHistoryGroups.last30Days },
-							].map((group) =>
-								group.items.length > 0 ? (
-									<div key={group.label} className="mb-8">
-										<div className="ui-type-meta mb-4 text-white/42">{group.label}</div>
-										<div className="space-y-3">
-											{group.items.map((record) => (
-												<button
-													key={record.sessionId}
-													onClick={() => {
-														setAdvisorHistoryOpen(false);
-														if (record.sessionId !== sessionId) {
-															router.push(`/analysis/${record.sessionId}`);
-														}
-													}}
-													className={`block w-full text-left transition ${
-														record.sessionId === sessionId ? 'text-white' : 'text-white/72 hover:text-white'
-													}`}
-												>
-													<div className="ui-type-body line-clamp-2 font-medium">{record.title}</div>
-													<div className="ui-type-meta mt-1 flex items-center gap-2 text-white/38">
-														<span>
-															{new Date(record.updatedAt).toLocaleString('zh-CN', {
-																month: 'numeric',
-																day: 'numeric',
-																hour: '2-digit',
-																minute: '2-digit',
-															})}
-														</span>
-														<span className="text-[#4d8dff]">[{record.modeLabel}]</span>
-													</div>
-												</button>
-											))}
-										</div>
-									</div>
-								) : null
-							)}
-						</div>
-					</div>
-				</aside>
-
+			{isRightCollapsed ? (
 				<div
-					className={`absolute inset-0 flex flex-col transition-transform duration-300 ${
-						advisorHistoryOpen ? 'translate-x-[280px]' : 'translate-x-0'
-					}`}
+					className="shrink-0 cursor-pointer relative bg-[#161616] transition-colors"
+					style={{ width: '32px' }}
+					onClick={handleCycleLayoutMode}
+					title="展开方案高参"
 				>
-		<header className="absolute top-0 left-0 right-0 z-20 pointer-events-none">
-			<div className="flex flex-wrap items-start justify-between gap-y-2 px-4 py-3 pr-16 pointer-events-auto">
-				<div className="flex items-start gap-3">
-					<button
-						onClick={() => setAdvisorHistoryOpen((prev) => !prev)}
-						className={`${shellToggleButtonClass} self-start`}
-						aria-label={advisorHistoryOpen ? '折叠历史记录' : '展开历史记录'}
-						title={advisorHistoryOpen ? '折叠历史记录' : '展开历史记录'}
-					>
-						<ArrowLeft className={`${shellToggleIconClass} transition-transform duration-300 ${advisorHistoryOpen ? 'rotate-180' : ''}`} strokeWidth={2} />
-					</button>
-					<h1 className="ui-type-title self-start pt-0.5 font-semibold">
-						{sessionId.includes('-followup-') ? '💬 追问分析中...' : '方案高参'}
-					</h1>
-				</div>
-				<div className="flex w-full justify-end sm:w-auto">
-					{!wsConnected && (
-						<div className="ui-type-meta flex items-center gap-2 rounded-full border border-red-900/30 bg-red-900/20 px-3 py-1.5 text-red-400 backdrop-blur-sm">
-							<WifiOff className="h-3 w-3" />
-							<span>网络异常，正在重连...</span>
-						</div>
-					)}
-				</div>
-			</div>
-		</header>
-
-				{/* 统一对话布局（对话态 + 项目态） */}
-				<div className="flex flex-1 overflow-hidden min-h-0 pt-14">
-					{/* 主对话区 */}
-					<div
-						className="flex-1 flex flex-col overflow-hidden min-h-0 relative"
-					>
-						{/* 升级横幅（仅对话态） */}
-						{systemMode === 'conversation' && showUpgradeBanner && (
-							<div className="border-b border-[var(--border-color)] flex-shrink-0 px-6 lg:px-10 xl:px-14 py-3">
-								<div className="w-full h-full max-w-[95%] lg:max-w-[1200px] mx-auto xl:max-w-none px-0 xl:px-8">
-									<UpgradePromptBanner
-										triggered={showUpgradeBanner}
-										indicators={upgradeIndicators}
-										suggestion_text={upgradeSuggestionText}
-										onConfirm={handleUpgradeConfirm}
-										onDismiss={() => setShowUpgradeBanner(false)}
-									/>
-								</div>
-							</div>
-						)}
-
-						{systemMode === 'conversation' ? (
-							/* ── 对话态：使用 ConversationChat 组件 ── */
-							<div
-								className={`flex-1 min-h-0 overflow-hidden ${isLeftCollapsed ? 'mx-auto pr-16' : 'w-full'}`}
-								style={isLeftCollapsed ? { width: collapsedReadableWidth } : undefined}
-							>
-								<ConversationChat
-									sessionId={sessionId}
-									messages={conversationMessages}
-									activeExpertPerspective={activeExpertPerspective}
-									expertPerspectiveOptions={sceneExpertPerspectiveOptions}
-									onExpertPerspectiveChange={(nextPerspective) => {
-										setActiveExpertPerspective(nextPerspective as ExpertPerspectiveOption);
-									}}
-									summonOptions={EXPERT_SUMMON_OPTIONS}
-									onSummonExpert={(target) => handleSummonExpert(target as (typeof EXPERT_SUMMON_OPTIONS)[number])}
-									visualBriefContext={visualBriefChatContext}
-									onVisualBriefPromptChange={updateActiveBoardVisualBriefPrompt}
-									onVisualBriefNoteChange={updateActiveBoardVisualBriefNote}
-									advisorSceneContext={advisorSceneContext}
-									placeholder={`围绕 ${advisorSceneContext.label} 提问，或让方案高参继续深挖…`}
-									prefillHint={conversationPrefill}
-									onSendMessage={handleConvSendMessage}
-									onCardResponse={handleConvCardResponse}
-									loading={!status}
-									showUpgradeBanner={false}
-									onUpgradeConfirm={handleUpgradeConfirm}
-									onUpgradeDismiss={() => setShowUpgradeBanner(false)}
-									className="w-full h-full"
-								/>
-							</div>
-						) : (
-							/* ── 项目态：ChatGPT 风格滚动对话流 ── */
-							<div
-								className="flex-1 overflow-y-auto p-0"
-								style={{
-									paddingInline: adaptiveRightContentGutter,
-									paddingRight: isLeftCollapsed
-										? `calc(${adaptiveRightContentGutter} + 56px)`
-										: adaptiveRightContentGutter,
-								}}
-							>
-								<div className="w-full py-6 flex flex-col gap-4 mx-auto" style={{ width: rightPanelReadableWidth, paddingBottom: '8px' }}>
-									{/* 用户原始问题 */}
-									{userInput && (
-										<div className="flex justify-end items-end gap-2">
-											<div className="ui-type-body max-w-[75%] px-5 py-3.5 rounded-none bg-[var(--primary)] text-white">
-												<p className="whitespace-pre-wrap">{userInput}</p>
-											</div>
-											<div className="w-7 h-7 rounded-full bg-[var(--card-bg)] border border-[var(--border-color)] flex items-center justify-center text-xs flex-shrink-0 text-[var(--foreground-secondary)]">
-												我
-											</div>
-										</div>
-									)}
-
-									{/* 加载中 */}
-									{!status && !error && (
-										<div className="flex items-end gap-2">
-											<div className="w-7 h-7 rounded-full bg-[var(--primary)] flex items-center justify-center text-white text-xs flex-shrink-0">AI</div>
-											<div className="ui-card-shell bg-[var(--card-bg)] rounded-none px-4 py-3">
-												<div className="flex gap-1.5 items-center">
-													<span className="w-2 h-2 rounded-full bg-[var(--foreground-secondary)] animate-bounce [animation-delay:-0.3s]" />
-													<span className="w-2 h-2 rounded-full bg-[var(--foreground-secondary)] animate-bounce [animation-delay:-0.15s]" />
-													<span className="w-2 h-2 rounded-full bg-[var(--foreground-secondary)] animate-bounce" />
-												</div>
-											</div>
-										</div>
-									)}
-
-									{/* 错误 */}
-									{error && (
-										<div className="flex items-start gap-2">
-											<div className="w-7 h-7 rounded-full bg-[var(--primary)] flex items-center justify-center text-white text-xs flex-shrink-0 mt-1">AI</div>
-											<div className="ui-card-shell flex-1 bg-[var(--card-bg)] rounded-none p-4">
-												<p className="ui-type-body text-red-400 mb-3">
-													{error.includes('LLM服务连接异常')
-														? 'AI分析服务暂时不可用，请刷新页面后继续，您的进度已自动保存。'
-														: error}
-												</p>
-												<div className="flex gap-2 flex-wrap">
-													<button onClick={() => router.push('/')} className="ui-type-meta px-3 py-1.5 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-lg transition-colors">返回首页</button>
-													<button onClick={() => { sessionStorage.setItem(`force_resume_${sessionId}`, '1'); window.location.reload(); }} className="ui-type-meta px-3 py-1.5 bg-[var(--card-bg)] border border-[var(--border-color)] text-[var(--foreground)] rounded-lg hover:bg-[var(--sidebar-bg)] transition-colors">
-														{error.includes('LLM服务连接异常') ? '刷新后继续' : error.includes('已中断') ? '尝试继续执行' : '重新加载'}
-													</button>
-												</div>
-											</div>
-										</div>
-									)}
-
-									{/* 被拒绝 */}
-									{!error && status?.status === 'rejected' && (
-										<div className="flex items-start gap-2">
-											<div className="w-7 h-7 rounded-full bg-[var(--primary)] flex items-center justify-center text-white text-xs flex-shrink-0 mt-1">AI</div>
-											<div className="ui-card-shell flex-1 bg-[var(--card-bg)] rounded-none p-4">
-												<p className="text-red-400 font-medium mb-2">该需求暂时无法受理</p>
-												{status.rejection_reason && (
-													<p className="ui-type-meta text-[var(--foreground-secondary)] mb-2">
-														原因：{status.rejection_reason === 'content_safety_violation' ? '内容安全违规' : status.rejection_reason === 'not_design_related' ? '非设计领域问题' : status.rejection_reason}
-													</p>
-												)}
-												{status.rejection_message && (
-													<p className="ui-type-body text-[var(--foreground)] mb-3 whitespace-pre-wrap">{status.rejection_message}</p>
-												)}
-												<button onClick={() => router.push('/')} className="ui-type-meta px-3 py-1.5 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-lg transition-colors">返回首页</button>
-											</div>
-										</div>
-									)}
-
-									{/* 执行进度气泡 */}
-									{!error && status && status.status !== 'rejected' && status.status !== 'completed' && (
-										<div className="flex items-start gap-2">
-											<div className="w-7 h-7 rounded-full bg-[var(--primary)] flex items-center justify-center text-white text-xs flex-shrink-0 mt-1">AI</div>
-											<div className="ui-card-shell flex-1 bg-[var(--card-bg)] rounded-none px-4 py-3">
-												<div className="flex items-center gap-2 mb-2">
-													<span className="ui-type-subtitle font-medium text-[var(--foreground)]">
-														{(() => {
-															const stageName = formatNodeName(status.current_stage);
-															const detailName = status.detail ? formatNodeName(status.detail) : null;
-															if (detailName && detailName !== '准备中...' && detailName !== status.detail) return detailName;
-															return stageName;
-														})()}
-													</span>
-													{status.status === 'running' && <Loader2 className="w-3.5 h-3.5 animate-spin text-[var(--primary)]" />}
-												</div>
-												{status.progress !== undefined && (
-													<div className="space-y-1 mb-2">
-														<div className="ui-type-meta flex justify-between text-[var(--foreground-secondary)]">
-															<span>进度</span>
-															<span>{Math.round(status.progress * 100)}%</span>
-														</div>
-														<div className="w-full bg-[var(--sidebar-bg)] rounded-full h-1.5 overflow-hidden">
-															<div className="bg-[var(--primary)] h-full rounded-full transition-all duration-500 ease-out" style={{ width: `${status.progress * 100}%` }} />
-														</div>
-													</div>
-												)}
-												{nodeHistory.length > 0 && (
-													<details className="group">
-														<summary className="ui-type-meta text-[var(--foreground-secondary)] cursor-pointer select-none hover:text-[var(--foreground)] transition-colors list-none flex items-center gap-1">
-															<span className="group-open:rotate-90 transition-transform inline-block">▶</span>
-															执行步骤（{nodeHistory.length} 条）
-														</summary>
-														<div className="mt-2 space-y-1 max-h-36 overflow-y-auto pr-1">
-															{nodeHistory.slice(-30).map((entry, idx) => (
-																<div key={idx} className="ui-type-meta flex items-center gap-2 text-[var(--foreground-secondary)]">
-																	<span className="w-1.5 h-1.5 rounded-full bg-[var(--primary)] flex-shrink-0" />
-																	<span className="flex-1">{formatNodeName(entry.node)}</span>
-																	<span className="font-mono flex-shrink-0">{entry.time}</span>
-																</div>
-															))}
-														</div>
-													</details>
-												)}
-											</div>
-										</div>
-									)}
-
-									{/* 意图确认气泡（step 1）*/}
-									{currentProgressiveStep === 1 && (
-												<div className="flex items-start gap-2">
-													<div className="w-7 h-7 rounded-full bg-[var(--primary)] flex items-center justify-center text-white text-xs flex-shrink-0 mt-1">AI</div>
-													<div className="ui-card-shell flex-1 bg-[var(--card-bg)] rounded-none p-4 space-y-3">
-														{progressiveStepData?.requirements_review?.breakthrough_insight && (
-															<p className="ui-type-body text-[var(--foreground)] italic">
-																&ldquo;{progressiveStepData.requirements_review.breakthrough_insight}&rdquo;
-															</p>
-														)}
-														{(() => {
-															const deliveries: any[] = (progressiveStepData?.delivery_types?.options ?? []).filter((o: any) => o.recommended);
-															if (!deliveries.length) return null;
-															return (
-																<div>
-																	<p className="ui-type-meta text-[var(--foreground-secondary)] mb-1.5">建议输出：</p>
-																	<div className="flex flex-wrap gap-1.5">
-																		{deliveries.map((o: any) => (
-																			<span key={o.id} className="ui-type-meta px-2.5 py-1 rounded-full bg-[var(--primary)]/15 text-[var(--primary)] border border-[var(--primary)]/30">{o.label}</span>
-																		))}
-																	</div>
-																</div>
-															);
-														})()}
-														<div className="flex gap-2 pt-1">
-															<button
-																onClick={() => {
-																	const dOpts: any[] = progressiveStepData?.delivery_types?.options ?? [];
-																	const mOpts: any[] = progressiveStepData?.identity_modes?.options ?? [];
-																	const cOpts: any[] = progressiveStepData?.recommended_constraints?.options ?? [];
-																	handleProgressiveStepConfirm({
-																		selected_deliveries: dOpts.filter((o: any) => o.recommended).map((o: any) => o.id),
-																		selected_modes: mOpts.filter((o: any) => o.recommended).map((o: any) => o.id),
-																		confirmed_constraints: cOpts.filter((o: any) => o.recommended).map((o: any) => ({ id: o.id, label: o.label, desc: o.desc, source: 'ai_recommended' })),
-																	});
-																}}
-																className="ui-type-meta px-4 py-2 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-lg transition-colors font-medium flex items-center gap-1.5"
-															>
-																<CheckCircle2 className="w-4 h-4" />
-																确认，开始分析
-															</button>
-														</div>
-													</div>
-												</div>
-									)}
-
-									{/* 已完成 */}
-									{!error && status?.status === 'completed' && (
-										<div className="flex items-start gap-2">
-											<div className="w-7 h-7 rounded-full bg-[var(--primary)] flex items-center justify-center text-white text-xs flex-shrink-0 mt-1">AI</div>
-											<div className="ui-card-shell flex-1 bg-[var(--card-bg)] rounded-none p-4">
-												<div className="flex items-center gap-2 mb-3">
-													<CheckCircle2 className="w-5 h-5 text-green-500 flex-shrink-0" />
-													<span className="font-medium text-[var(--foreground)]">分析已完成</span>
-												</div>
-												<div className="flex gap-2 flex-wrap">
-													<button onClick={() => router.push(`/report/${sessionId}`)} className="ui-type-meta px-4 py-2 bg-[var(--primary)] hover:bg-[var(--primary-hover)] text-white rounded-lg transition-colors font-medium">查看分析报告</button>
-													<button onClick={() => router.push('/')} className="ui-type-meta px-4 py-2 bg-[var(--card-bg)] border border-[var(--border-color)] text-[var(--foreground)] rounded-lg hover:bg-[var(--sidebar-bg)] transition-colors">返回首页</button>
-												</div>
-											</div>
-										</div>
-									)}
-
-									{/* 滚动锚点 */}
-									<div ref={projectChatEndRef} />
-								</div>
-							</div>
-						)}
-
-						{/* 项目态浮窗交互（步骤2+/确认/预检，悬浮于输入栏上方） */}
-						{systemMode === 'project' && (currentProgressiveStep > 1 || showRoleTaskReview || showQualityPreflight || showQuestionnaire || (showConfirmation && confirmationData?.interaction_type !== 'role_and_task_unified_review')) && (
-							<div className="absolute bottom-[72px] left-0 right-0 z-20 pb-2 flex justify-center pointer-events-none">
-								<div className="w-full pointer-events-auto">
-									<div className="ui-card-shell ui-card-shell-strong bg-[var(--card-bg)] rounded-none overflow-auto max-h-[60vh]">
-										{currentProgressiveStep > 1 ? (
-											<UnifiedProgressiveQuestionnaireModal inline={true} isOpen={true} currentStep={currentProgressiveStep} stepData={progressiveStepData} onConfirm={handleProgressiveStepConfirm} onSkip={handleProgressiveStepSkip} sessionId={sessionId as string} userInput={userInput} />
-										) : showRoleTaskReview ? (
-											<RoleTaskReviewModal inline={true} isOpen={true} data={roleTaskReviewData} onConfirm={handleRoleTaskReview} />
-										) : showQualityPreflight ? (
-											<QualityPreflightModal inline={true} isOpen={true} data={qualityPreflightData} onConfirm={handleQualityPreflightConfirm} onCancel={handleQualityPreflightCancel} />
-										) : showQuestionnaire ? (
-											<QuestionnaireModal inline={true} isOpen={true} questionnaire={questionnaireData} onSubmit={handleQuestionnaireSubmit} />
-										) : (
-											<ConfirmationModal inline={true} isOpen={true} title={'确认'} message={confirmationData?.message || '请确认以下信息'} summary={confirmationData?.requirements_summary || confirmationData} onConfirm={handleConfirmation} />
-										)}
-									</div>
-								</div>
-							</div>
-						)}
-
-						{/* UserQuestion 追问提示卡 */}
-						{systemMode === 'project' && showUserQuestion && userQuestionData && (
-							<div className="absolute bottom-[72px] left-0 right-0 z-20 pb-2 flex justify-center pointer-events-none">
-								<div className="w-full pointer-events-auto">
-									<div className="ui-card-shell ui-card-shell-strong bg-[var(--card-bg)] rounded-none px-5 py-4">
-										<p className="ui-type-meta font-semibold text-[var(--primary)] mb-1.5">AI 追问</p>
-										<p className="ui-type-body text-[var(--foreground)]">{userQuestionData.question || '请补充说明'}</p>
-									</div>
-								</div>
-							</div>
-						)}
-
-						{/* 项目态常驻底部输入栏 */}
-						{systemMode === 'project' && (
-							<div
-								className="flex-shrink-0 border-t border-[var(--border-color)] bg-[color:rgba(24,24,27,0.96)] backdrop-blur-md shadow-[0_-14px_32px_rgba(0,0,0,0.28)]"
-								style={{ paddingInline: adaptiveRightContentGutter, paddingTop: '8px', paddingBottom: '8px' }}
-							>
-								<div className="flex gap-2 items-end w-full mx-auto" style={{ width: rightPanelReadableWidth }}>
-									<textarea
-										value={projectInputValue}
-										onChange={(e) => setProjectInputValue(e.target.value)}
-										onKeyDown={(e) => {
-											if (e.key === 'Enter' && !e.shiftKey && showUserQuestion) {
-												e.preventDefault();
-												if (projectInputValue.trim()) {
-													handleUserQuestionSubmit({ question: projectInputValue.trim(), requiresAnalysis: false });
-													setProjectInputValue('');
-												}
-											}
-										}}
-										disabled={!showUserQuestion || userQuestionSubmitting}
-										placeholder={
-											showUserQuestion
-												? '回复 AI 的追问...'
-												: status?.status === 'running' ? '正在分析中，请稍候...'
-												: status?.status === 'waiting_for_input' ? '请在上方弹窗中操作'
-												: status?.status === 'completed' ? '分析已完成'
-												: '等待响应...'
-										}
-										rows={1}
-										className="ui-type-body flex-1 min-h-[46px] bg-[var(--card-bg)] border border-[var(--border-color)] rounded-xl px-4 py-2.5 text-[var(--foreground)] resize-none focus:outline-none focus:border-[var(--primary)] disabled:opacity-50 disabled:cursor-not-allowed placeholder:text-[var(--foreground-secondary)]"
-									/>
-									<button
-										disabled={!showUserQuestion || !projectInputValue.trim() || userQuestionSubmitting}
-										onClick={() => {
-											if (!projectInputValue.trim() || !showUserQuestion) return;
-											handleUserQuestionSubmit({ question: projectInputValue.trim(), requiresAnalysis: false });
-											setProjectInputValue('');
-										}}
-										className="p-2.5 bg-[var(--primary)] hover:bg-[var(--primary-hover)] disabled:opacity-30 disabled:cursor-not-allowed text-white rounded-xl transition-colors flex-shrink-0"
-									>
-										<SendHorizontal className="w-4 h-4" />
-									</button>
-								</div>
-							</div>
-						)}
-
+					<div className="absolute top-3 inset-x-0 h-8 flex items-center justify-center">
+						<PanelRight className="h-[14px] w-[14px] text-white" strokeWidth={2} />
 					</div>
 				</div>
-			</div>
+			) : (
+			<div
+				className="project-workspace-advisor-column relative shrink-0 border-l border-[var(--border-color)]"
+			>
+				<AdvisorPanel
+					viewModel={advisorPanelViewModel}
+					onChipAction={handleAdvisorChipAction}
+					onAsk={handleAdvisorAsk}
+				/>
 			</div>
 			)}
-			<div
-					className={`fixed inset-y-0 right-0 w-96 bg-[var(--card-bg)] border-l border-[var(--border-color)] shadow-2xl transform transition-transform duration-300 ease-in-out z-50 ${
-						selectedNode ? 'translate-x-0' : 'translate-x-full'
-					}`}
-				>
-					<div className="h-full flex flex-col">
-						<div className="p-4 border-b border-[var(--border-color)] flex items-center justify-between">
-							<h3 className="ui-type-subtitle font-semibold">节点详情</h3>
-							<button
-								onClick={closeNodeDetail}
-								className="p-2 text-gray-400 hover:text-white hover:bg-[var(--sidebar-bg)] rounded-lg"
-							>
-								<X className="w-5 h-5" />
-							</button>
-						</div>
-
-						<div className="flex-1 overflow-y-auto p-4 space-y-6">
-							<div>
-								<div className="ui-type-meta text-gray-500 uppercase tracking-wider mb-1">节点 ID</div>
-								<div className="ui-type-meta font-mono bg-[var(--sidebar-bg)] p-2 rounded border border-[var(--border-color)]">
-									{selectedNode}
-								</div>
-							</div>
-
-							{selectedNode && nodeDetails[selectedNode] && (
-								<div>
-									<div className="ui-type-meta text-gray-500 uppercase tracking-wider mb-1">当前状态</div>
-									<div
-										className={`ui-type-meta inline-flex px-2 py-1 rounded font-medium border ${
-											nodeDetails[selectedNode].status === 'completed'
-												? 'bg-green-900/20 text-green-400 border-green-900/30'
-												: nodeDetails[selectedNode].status === 'running'
-												? 'bg-blue-900/20 text-blue-400 border-blue-900/30'
-												: nodeDetails[selectedNode].status === 'error'
-												? 'bg-red-900/20 text-red-400 border-red-900/30'
-												: 'bg-gray-800 text-gray-400 border-gray-700'
-										}`}
-									>
-										{nodeDetails[selectedNode].status}
-									</div>
-								</div>
-							)}
-
-							{selectedNodeData.length > 0 && (
-								<div>
-									<div className="ui-type-meta text-gray-500 uppercase tracking-wider mb-2">执行记录</div>
-									<div className="space-y-3">
-										{selectedNodeData.map((record, index) => (
-											<div key={index} className="bg-[var(--sidebar-bg)] rounded-lg p-3 border border-[var(--border-color)]">
-												<div className="ui-type-meta text-gray-500 mb-1 font-mono">{record.time}</div>
-												<div className="ui-type-body text-gray-300">{record.detail || '无详细信息'}</div>
-											</div>
-										))}
-									</div>
-								</div>
-							)}
-						</div>
-					</div>
-				</div>
-
-				{selectedNode && (
-					<div
-						className="fixed inset-0 bg-black/50 z-40 backdrop-blur-sm"
-						onClick={closeNodeDetail}
-					/>
-				)}
 		</div>
 	);
 }

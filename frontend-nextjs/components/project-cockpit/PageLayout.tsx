@@ -3,28 +3,35 @@
 import type { ReactNode } from 'react';
 
 interface PageLayoutProps {
-  leftNav: ReactNode;     // 浮动胶囊导航（内部绝对定位）
-  mainContent: ReactNode; // 含 header + body 的完整面板
+  leftNav: ReactNode;
+  mainContent: ReactNode;
+  middlePanel?: ReactNode;
   advisorPanel: ReactNode;
 }
 
-export function PageLayout({ leftNav, mainContent, advisorPanel }: PageLayoutProps) {
+export function PageLayout({ leftNav, mainContent, middlePanel, advisorPanel }: PageLayoutProps) {
   return (
-    <div className="flex h-screen bg-[var(--background)] text-[var(--foreground)] overflow-hidden">
-      {/* 左侧内容区 */}
-      <div className="flex-1 overflow-hidden relative flex flex-col min-w-0">
-        {/* 浮动胶囊导航 — 绝对定位叠在内容上方 */}
+    <div
+      className={`project-workspace-three-column-shell h-screen bg-[var(--background)] text-[var(--foreground)] ${
+        middlePanel ? 'project-workspace-three-column-shell-with-middle' : 'project-workspace-three-column-shell-two-column'
+      }`}
+    >
+      <div className="project-workspace-main-column project-workspace-canvas-column relative flex min-w-0 flex-col overflow-hidden">
         <div className="absolute top-4 left-3 z-20 flex flex-col items-start gap-3">
           {leftNav}
         </div>
-        {/* 主内容面板（含 sticky header + scroll body） */}
         <div className="flex flex-col h-full min-h-0 cockpit-panel-root">
           {mainContent}
         </div>
       </div>
 
-      {/* 右侧方案高参 */}
-      <div className="w-[30rem] shrink-0 border-l border-black/10 bg-[#161616] text-white flex flex-col overflow-hidden">
+      {middlePanel && (
+        <div className="project-workspace-middle-column cursor-default border-l border-black/10 bg-white text-slate-900">
+          {middlePanel}
+        </div>
+      )}
+
+      <div className="project-workspace-advisor-column border-l border-black/10 bg-[#161616] text-white">
         {advisorPanel}
       </div>
     </div>

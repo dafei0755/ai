@@ -1,0 +1,2181 @@
+{
+  "schema_version": "scheme_advisor_pressure_optimization_backlog.v1",
+  "generated_at": "2026-06-15T18:56:46",
+  "source_summary": {
+    "total": 190,
+    "passed": 190,
+    "failed": 0,
+    "with_warnings": 0,
+    "with_governance_signals": 183,
+    "governance_signal_counts": {
+      "activation_pack_candidate": 131,
+      "coverage_gap": 102,
+      "knowledge_gap_ticket": 102,
+      "knowledge_coverage_watch": 51
+    },
+    "space_axis_counts": {
+      "sports_wellness_social": 3,
+      "private_residential_identity_legacy": 1,
+      "hospitality_culture_operation": 6,
+      "brand_cultural_narrative": 10,
+      "private_residential_life_order": 20,
+      "residential_conflict_lifestyle_balance": 4,
+      "urban_renewal_public_regeneration": 12,
+      "methodology_not_project": 7,
+      "retail_brand_conversion": 15,
+      "complex_mixed_use_layering": 1,
+      "workplace_identity_productivity": 15,
+      "technical_performance_environment": 10,
+      "healthcare_wellness_support": 17,
+      "public_service_inclusive_reuse": 14,
+      "cultural_public_experience": 13,
+      "healthcare_culture_experience": 2,
+      "material_sustainability_value": 4,
+      "public_learning_visitor_experience": 1,
+      "mission_critical_resilience": 10,
+      "public_resilience_modular_support": 3,
+      "spiritual_ritual_order": 2,
+      "commercial_operation_roi": 1,
+      "climate_resilience_construction": 1,
+      "education_growth_safety": 3,
+      "sustainable_energy_prototype": 2,
+      "immersive_experience_conversion": 1,
+      "experimental_public_experience": 3,
+      "rural_living_regeneration": 3,
+      "urban_public_value_cluster": 3,
+      "landscape_public_value": 3
+    },
+    "output_depth_counts": {
+      "conditional_design_framework": 183,
+      "methodology_framework": 7
+    },
+    "coverage_ceiling_counts": {
+      "conditional_framework": 183,
+      "not_applicable": 7
+    },
+    "round_2_generic_fallback_count": 0
+  },
+  "summary": {
+    "low_confidence_samples": 0,
+    "coverage_gap_types": 22,
+    "knowledge_gap_types": 22,
+    "activation_pack_candidate_types": 13,
+    "activation_pack_ready_clusters": 7,
+    "activation_pack_candidate_clusters": 7,
+    "activation_pack_observe_clusters": 23,
+    "knowledge_coverage_watch_types": 22,
+    "warning_counts": {},
+    "governance_signal_counts": {
+      "activation_pack_candidate": 131,
+      "coverage_gap": 102,
+      "knowledge_gap_ticket": 102,
+      "knowledge_coverage_watch": 51
+    }
+  },
+  "governance_boundary": {
+    "allowed_here": [
+      "生成候选清单",
+      "补回归测试",
+      "补 Type Alias 候选",
+      "补 Registry 候选",
+      "生成知识卡草稿"
+    ],
+    "requires_human_review": [
+      "正式新增项目类型或子域",
+      "正式批准知识卡",
+      "正式上线 Activation Pack",
+      "将模型推断写入运行时事实"
+    ],
+    "rule": "不得自动写入正式 Registry 或知识库；候选必须人工复核后沉淀。"
+  },
+  "low_confidence_samples": [],
+  "coverage_gap_by_type": [
+    {
+      "project_type": "personal_residential",
+      "count": 24,
+      "sample_ids": [
+        2,
+        6,
+        7,
+        8,
+        12,
+        20,
+        22,
+        28,
+        31,
+        33,
+        37,
+        38
+      ],
+      "recommended_action": "补 Registry 覆盖、Type Alias 和边界样本",
+      "requires_human_review": true,
+      "candidate_kind": "registry_boundary_candidate",
+      "governance_mode": "registry_governed",
+      "review_queue": "space_registry_review",
+      "promotion_rule": "human_review_required",
+      "verification_gate": "补充候选后必须跑 190 条回归压测，不得新增低置信或错误路由。"
+    },
+    {
+      "project_type": "community_public",
+      "count": 10,
+      "sample_ids": [
+        35,
+        69,
+        96,
+        109,
+        114,
+        121,
+        132,
+        159,
+        160,
+        167
+      ],
+      "recommended_action": "补 Registry 覆盖、Type Alias 和边界样本",
+      "requires_human_review": true,
+      "candidate_kind": "registry_boundary_candidate",
+      "governance_mode": "registry_governed",
+      "review_queue": "space_registry_review",
+      "promotion_rule": "human_review_required",
+      "verification_gate": "补充候选后必须跑 190 条回归压测，不得新增低置信或错误路由。"
+    },
+    {
+      "project_type": "special_function",
+      "count": 9,
+      "sample_ids": [
+        27,
+        34,
+        46,
+        120,
+        126,
+        142,
+        147,
+        182,
+        190
+      ],
+      "recommended_action": "补 Registry 覆盖、Type Alias 和边界样本",
+      "requires_human_review": true,
+      "candidate_kind": "registry_boundary_candidate",
+      "governance_mode": "registry_governed",
+      "review_queue": "space_registry_review",
+      "promotion_rule": "human_review_required",
+      "verification_gate": "补充候选后必须跑 190 条回归压测，不得新增低置信或错误路由。"
+    },
+    {
+      "project_type": "commercial_retail",
+      "count": 8,
+      "sample_ids": [
+        18,
+        51,
+        61,
+        87,
+        156,
+        157,
+        162,
+        183
+      ],
+      "recommended_action": "补 Registry 覆盖、Type Alias 和边界样本",
+      "requires_human_review": true,
+      "candidate_kind": "registry_boundary_candidate",
+      "governance_mode": "registry_governed",
+      "review_queue": "space_registry_review",
+      "promotion_rule": "human_review_required",
+      "verification_gate": "补充候选后必须跑 190 条回归压测，不得新增低置信或错误路由。"
+    },
+    {
+      "project_type": "commercial_office",
+      "count": 6,
+      "sample_ids": [
+        25,
+        48,
+        88,
+        105,
+        140,
+        179
+      ],
+      "recommended_action": "补 Registry 覆盖、Type Alias 和边界样本",
+      "requires_human_review": true,
+      "candidate_kind": "registry_boundary_candidate",
+      "governance_mode": "registry_governed",
+      "review_queue": "space_registry_review",
+      "promotion_rule": "human_review_required",
+      "verification_gate": "补充候选后必须跑 190 条回归压测，不得新增低置信或错误路由。"
+    },
+    {
+      "project_type": "urban_renewal_heritage",
+      "count": 6,
+      "sample_ids": [
+        30,
+        77,
+        93,
+        151,
+        152,
+        178
+      ],
+      "recommended_action": "补 Registry 覆盖、Type Alias 和边界样本",
+      "requires_human_review": true,
+      "candidate_kind": "registry_boundary_candidate",
+      "governance_mode": "registry_governed",
+      "review_queue": "space_registry_review",
+      "promotion_rule": "human_review_required",
+      "verification_gate": "补充候选后必须跑 190 条回归压测，不得新增低置信或错误路由。"
+    },
+    {
+      "project_type": "commercial_hospitality",
+      "count": 5,
+      "sample_ids": [
+        4,
+        42,
+        76,
+        85,
+        92
+      ],
+      "recommended_action": "补 Registry 覆盖、Type Alias 和边界样本",
+      "requires_human_review": true,
+      "candidate_kind": "registry_boundary_candidate",
+      "governance_mode": "registry_governed",
+      "review_queue": "space_registry_review",
+      "promotion_rule": "human_review_required",
+      "verification_gate": "补充候选后必须跑 190 条回归压测，不得新增低置信或错误路由。"
+    },
+    {
+      "project_type": "public_cultural",
+      "count": 5,
+      "sample_ids": [
+        70,
+        143,
+        148,
+        170,
+        188
+      ],
+      "recommended_action": "补 Registry 覆盖、Type Alias 和边界样本",
+      "requires_human_review": true,
+      "candidate_kind": "registry_boundary_candidate",
+      "governance_mode": "registry_governed",
+      "review_queue": "space_registry_review",
+      "promotion_rule": "human_review_required",
+      "verification_gate": "补充候选后必须跑 190 条回归压测，不得新增低置信或错误路由。"
+    },
+    {
+      "project_type": "rural_construction",
+      "count": 5,
+      "sample_ids": [
+        3,
+        16,
+        153,
+        158,
+        165
+      ],
+      "recommended_action": "补 Registry 覆盖、Type Alias 和边界样本",
+      "requires_human_review": true,
+      "candidate_kind": "registry_boundary_candidate",
+      "governance_mode": "registry_governed",
+      "review_queue": "space_registry_review",
+      "promotion_rule": "human_review_required",
+      "verification_gate": "补充候选后必须跑 190 条回归压测，不得新增低置信或错误路由。"
+    },
+    {
+      "project_type": "commercial_dining",
+      "count": 4,
+      "sample_ids": [
+        24,
+        79,
+        86,
+        168
+      ],
+      "recommended_action": "补 Registry 覆盖、Type Alias 和边界样本",
+      "requires_human_review": true,
+      "candidate_kind": "registry_boundary_candidate",
+      "governance_mode": "registry_governed",
+      "review_queue": "space_registry_review",
+      "promotion_rule": "human_review_required",
+      "verification_gate": "补充候选后必须跑 190 条回归压测，不得新增低置信或错误路由。"
+    },
+    {
+      "project_type": "commercial_enterprise",
+      "count": 3,
+      "sample_ids": [
+        94,
+        99,
+        116
+      ],
+      "recommended_action": "补 Registry 覆盖、Type Alias 和边界样本",
+      "requires_human_review": true,
+      "candidate_kind": "registry_boundary_candidate",
+      "governance_mode": "registry_governed",
+      "review_queue": "space_registry_review",
+      "promotion_rule": "human_review_required",
+      "verification_gate": "补充候选后必须跑 190 条回归压测，不得新增低置信或错误路由。"
+    },
+    {
+      "project_type": "healthcare_wellness",
+      "count": 3,
+      "sample_ids": [
+        44,
+        80,
+        115
+      ],
+      "recommended_action": "补 Registry 覆盖、Type Alias 和边界样本",
+      "requires_human_review": true,
+      "candidate_kind": "registry_boundary_candidate",
+      "governance_mode": "registry_governed",
+      "review_queue": "space_registry_review",
+      "promotion_rule": "human_review_required",
+      "verification_gate": "补充候选后必须跑 190 条回归压测，不得新增低置信或错误路由。"
+    },
+    {
+      "project_type": "digital_media_studio",
+      "count": 2,
+      "sample_ids": [
+        55,
+        62
+      ],
+      "recommended_action": "补 Registry 覆盖、Type Alias 和边界样本",
+      "requires_human_review": true,
+      "candidate_kind": "registry_boundary_candidate",
+      "governance_mode": "registry_governed",
+      "review_queue": "space_registry_review",
+      "promotion_rule": "human_review_required",
+      "verification_gate": "补充候选后必须跑 190 条回归压测，不得新增低置信或错误路由。"
+    },
+    {
+      "project_type": "landscape_outdoor",
+      "count": 2,
+      "sample_ids": [
+        172,
+        176
+      ],
+      "recommended_action": "补 Registry 覆盖、Type Alias 和边界样本",
+      "requires_human_review": true,
+      "candidate_kind": "registry_boundary_candidate",
+      "governance_mode": "registry_governed",
+      "review_queue": "space_registry_review",
+      "promotion_rule": "human_review_required",
+      "verification_gate": "补充候选后必须跑 190 条回归压测，不得新增低置信或错误路由。"
+    },
+    {
+      "project_type": "religious_spiritual",
+      "count": 2,
+      "sample_ids": [
+        75,
+        186
+      ],
+      "recommended_action": "补 Registry 覆盖、Type Alias 和边界样本",
+      "requires_human_review": true,
+      "candidate_kind": "registry_boundary_candidate",
+      "governance_mode": "registry_governed",
+      "review_queue": "space_registry_review",
+      "promotion_rule": "human_review_required",
+      "verification_gate": "补充候选后必须跑 190 条回归压测，不得新增低置信或错误路由。"
+    },
+    {
+      "project_type": "urban_renewal_market",
+      "count": 2,
+      "sample_ids": [
+        9,
+        174
+      ],
+      "recommended_action": "补 Registry 覆盖、Type Alias 和边界样本",
+      "requires_human_review": true,
+      "candidate_kind": "registry_boundary_candidate",
+      "governance_mode": "registry_governed",
+      "review_queue": "space_registry_review",
+      "promotion_rule": "human_review_required",
+      "verification_gate": "补充候选后必须跑 190 条回归压测，不得新增低置信或错误路由。"
+    },
+    {
+      "project_type": "brand_experience",
+      "count": 1,
+      "sample_ids": [
+        181
+      ],
+      "recommended_action": "补 Registry 覆盖、Type Alias 和边界样本",
+      "requires_human_review": true,
+      "candidate_kind": "registry_boundary_candidate",
+      "governance_mode": "registry_governed",
+      "review_queue": "space_registry_review",
+      "promotion_rule": "human_review_required",
+      "verification_gate": "补充候选后必须跑 190 条回归压测，不得新增低置信或错误路由。"
+    },
+    {
+      "project_type": "children_family",
+      "count": 1,
+      "sample_ids": [
+        72
+      ],
+      "recommended_action": "补 Registry 覆盖、Type Alias 和边界样本",
+      "requires_human_review": true,
+      "candidate_kind": "registry_boundary_candidate",
+      "governance_mode": "registry_governed",
+      "review_queue": "space_registry_review",
+      "promotion_rule": "human_review_required",
+      "verification_gate": "补充候选后必须跑 190 条回归压测，不得新增低置信或错误路由。"
+    },
+    {
+      "project_type": "educational_facility",
+      "count": 1,
+      "sample_ids": [
+        106
+      ],
+      "recommended_action": "补 Registry 覆盖、Type Alias 和边界样本",
+      "requires_human_review": true,
+      "candidate_kind": "registry_boundary_candidate",
+      "governance_mode": "registry_governed",
+      "review_queue": "space_registry_review",
+      "promotion_rule": "human_review_required",
+      "verification_gate": "补充候选后必须跑 190 条回归压测，不得新增低置信或错误路由。"
+    },
+    {
+      "project_type": "popup_temporary",
+      "count": 1,
+      "sample_ids": [
+        56
+      ],
+      "recommended_action": "补 Registry 覆盖、Type Alias 和边界样本",
+      "requires_human_review": true,
+      "candidate_kind": "registry_boundary_candidate",
+      "governance_mode": "registry_governed",
+      "review_queue": "space_registry_review",
+      "promotion_rule": "human_review_required",
+      "verification_gate": "补充候选后必须跑 190 条回归压测，不得新增低置信或错误路由。"
+    },
+    {
+      "project_type": "real_estate_showcase",
+      "count": 1,
+      "sample_ids": [
+        97
+      ],
+      "recommended_action": "补 Registry 覆盖、Type Alias 和边界样本",
+      "requires_human_review": true,
+      "candidate_kind": "registry_boundary_candidate",
+      "governance_mode": "registry_governed",
+      "review_queue": "space_registry_review",
+      "promotion_rule": "human_review_required",
+      "verification_gate": "补充候选后必须跑 190 条回归压测，不得新增低置信或错误路由。"
+    },
+    {
+      "project_type": "residential_collective",
+      "count": 1,
+      "sample_ids": [
+        73
+      ],
+      "recommended_action": "补 Registry 覆盖、Type Alias 和边界样本",
+      "requires_human_review": true,
+      "candidate_kind": "registry_boundary_candidate",
+      "governance_mode": "registry_governed",
+      "review_queue": "space_registry_review",
+      "promotion_rule": "human_review_required",
+      "verification_gate": "补充候选后必须跑 190 条回归压测，不得新增低置信或错误路由。"
+    }
+  ],
+  "knowledge_gap_by_type": [
+    {
+      "project_type": "personal_residential",
+      "count": 24,
+      "sample_ids": [
+        2,
+        6,
+        7,
+        8,
+        12,
+        20,
+        22,
+        28,
+        31,
+        33,
+        37,
+        38
+      ],
+      "recommended_action": "生成候选知识卡，进入人工审核后再批准入库",
+      "requires_human_review": true,
+      "candidate_kind": "knowledge_card_candidate",
+      "governance_mode": "knowledge_governed",
+      "review_queue": "knowledge_asset_review",
+      "promotion_rule": "human_review_required",
+      "verification_gate": "候选卡必须有来源、适用边界和不可使用边界；审核通过前不得进入 runtime recall。"
+    },
+    {
+      "project_type": "community_public",
+      "count": 10,
+      "sample_ids": [
+        35,
+        69,
+        96,
+        109,
+        114,
+        121,
+        132,
+        159,
+        160,
+        167
+      ],
+      "recommended_action": "生成候选知识卡，进入人工审核后再批准入库",
+      "requires_human_review": true,
+      "candidate_kind": "knowledge_card_candidate",
+      "governance_mode": "knowledge_governed",
+      "review_queue": "knowledge_asset_review",
+      "promotion_rule": "human_review_required",
+      "verification_gate": "候选卡必须有来源、适用边界和不可使用边界；审核通过前不得进入 runtime recall。"
+    },
+    {
+      "project_type": "special_function",
+      "count": 9,
+      "sample_ids": [
+        27,
+        34,
+        46,
+        120,
+        126,
+        142,
+        147,
+        182,
+        190
+      ],
+      "recommended_action": "生成候选知识卡，进入人工审核后再批准入库",
+      "requires_human_review": true,
+      "candidate_kind": "knowledge_card_candidate",
+      "governance_mode": "knowledge_governed",
+      "review_queue": "knowledge_asset_review",
+      "promotion_rule": "human_review_required",
+      "verification_gate": "候选卡必须有来源、适用边界和不可使用边界；审核通过前不得进入 runtime recall。"
+    },
+    {
+      "project_type": "commercial_retail",
+      "count": 8,
+      "sample_ids": [
+        18,
+        51,
+        61,
+        87,
+        156,
+        157,
+        162,
+        183
+      ],
+      "recommended_action": "生成候选知识卡，进入人工审核后再批准入库",
+      "requires_human_review": true,
+      "candidate_kind": "knowledge_card_candidate",
+      "governance_mode": "knowledge_governed",
+      "review_queue": "knowledge_asset_review",
+      "promotion_rule": "human_review_required",
+      "verification_gate": "候选卡必须有来源、适用边界和不可使用边界；审核通过前不得进入 runtime recall。"
+    },
+    {
+      "project_type": "commercial_office",
+      "count": 6,
+      "sample_ids": [
+        25,
+        48,
+        88,
+        105,
+        140,
+        179
+      ],
+      "recommended_action": "生成候选知识卡，进入人工审核后再批准入库",
+      "requires_human_review": true,
+      "candidate_kind": "knowledge_card_candidate",
+      "governance_mode": "knowledge_governed",
+      "review_queue": "knowledge_asset_review",
+      "promotion_rule": "human_review_required",
+      "verification_gate": "候选卡必须有来源、适用边界和不可使用边界；审核通过前不得进入 runtime recall。"
+    },
+    {
+      "project_type": "urban_renewal_heritage",
+      "count": 6,
+      "sample_ids": [
+        30,
+        77,
+        93,
+        151,
+        152,
+        178
+      ],
+      "recommended_action": "生成候选知识卡，进入人工审核后再批准入库",
+      "requires_human_review": true,
+      "candidate_kind": "knowledge_card_candidate",
+      "governance_mode": "knowledge_governed",
+      "review_queue": "knowledge_asset_review",
+      "promotion_rule": "human_review_required",
+      "verification_gate": "候选卡必须有来源、适用边界和不可使用边界；审核通过前不得进入 runtime recall。"
+    },
+    {
+      "project_type": "commercial_hospitality",
+      "count": 5,
+      "sample_ids": [
+        4,
+        42,
+        76,
+        85,
+        92
+      ],
+      "recommended_action": "生成候选知识卡，进入人工审核后再批准入库",
+      "requires_human_review": true,
+      "candidate_kind": "knowledge_card_candidate",
+      "governance_mode": "knowledge_governed",
+      "review_queue": "knowledge_asset_review",
+      "promotion_rule": "human_review_required",
+      "verification_gate": "候选卡必须有来源、适用边界和不可使用边界；审核通过前不得进入 runtime recall。"
+    },
+    {
+      "project_type": "public_cultural",
+      "count": 5,
+      "sample_ids": [
+        70,
+        143,
+        148,
+        170,
+        188
+      ],
+      "recommended_action": "生成候选知识卡，进入人工审核后再批准入库",
+      "requires_human_review": true,
+      "candidate_kind": "knowledge_card_candidate",
+      "governance_mode": "knowledge_governed",
+      "review_queue": "knowledge_asset_review",
+      "promotion_rule": "human_review_required",
+      "verification_gate": "候选卡必须有来源、适用边界和不可使用边界；审核通过前不得进入 runtime recall。"
+    },
+    {
+      "project_type": "rural_construction",
+      "count": 5,
+      "sample_ids": [
+        3,
+        16,
+        153,
+        158,
+        165
+      ],
+      "recommended_action": "生成候选知识卡，进入人工审核后再批准入库",
+      "requires_human_review": true,
+      "candidate_kind": "knowledge_card_candidate",
+      "governance_mode": "knowledge_governed",
+      "review_queue": "knowledge_asset_review",
+      "promotion_rule": "human_review_required",
+      "verification_gate": "候选卡必须有来源、适用边界和不可使用边界；审核通过前不得进入 runtime recall。"
+    },
+    {
+      "project_type": "commercial_dining",
+      "count": 4,
+      "sample_ids": [
+        24,
+        79,
+        86,
+        168
+      ],
+      "recommended_action": "生成候选知识卡，进入人工审核后再批准入库",
+      "requires_human_review": true,
+      "candidate_kind": "knowledge_card_candidate",
+      "governance_mode": "knowledge_governed",
+      "review_queue": "knowledge_asset_review",
+      "promotion_rule": "human_review_required",
+      "verification_gate": "候选卡必须有来源、适用边界和不可使用边界；审核通过前不得进入 runtime recall。"
+    },
+    {
+      "project_type": "commercial_enterprise",
+      "count": 3,
+      "sample_ids": [
+        94,
+        99,
+        116
+      ],
+      "recommended_action": "生成候选知识卡，进入人工审核后再批准入库",
+      "requires_human_review": true,
+      "candidate_kind": "knowledge_card_candidate",
+      "governance_mode": "knowledge_governed",
+      "review_queue": "knowledge_asset_review",
+      "promotion_rule": "human_review_required",
+      "verification_gate": "候选卡必须有来源、适用边界和不可使用边界；审核通过前不得进入 runtime recall。"
+    },
+    {
+      "project_type": "healthcare_wellness",
+      "count": 3,
+      "sample_ids": [
+        44,
+        80,
+        115
+      ],
+      "recommended_action": "生成候选知识卡，进入人工审核后再批准入库",
+      "requires_human_review": true,
+      "candidate_kind": "knowledge_card_candidate",
+      "governance_mode": "knowledge_governed",
+      "review_queue": "knowledge_asset_review",
+      "promotion_rule": "human_review_required",
+      "verification_gate": "候选卡必须有来源、适用边界和不可使用边界；审核通过前不得进入 runtime recall。"
+    },
+    {
+      "project_type": "digital_media_studio",
+      "count": 2,
+      "sample_ids": [
+        55,
+        62
+      ],
+      "recommended_action": "生成候选知识卡，进入人工审核后再批准入库",
+      "requires_human_review": true,
+      "candidate_kind": "knowledge_card_candidate",
+      "governance_mode": "knowledge_governed",
+      "review_queue": "knowledge_asset_review",
+      "promotion_rule": "human_review_required",
+      "verification_gate": "候选卡必须有来源、适用边界和不可使用边界；审核通过前不得进入 runtime recall。"
+    },
+    {
+      "project_type": "landscape_outdoor",
+      "count": 2,
+      "sample_ids": [
+        172,
+        176
+      ],
+      "recommended_action": "生成候选知识卡，进入人工审核后再批准入库",
+      "requires_human_review": true,
+      "candidate_kind": "knowledge_card_candidate",
+      "governance_mode": "knowledge_governed",
+      "review_queue": "knowledge_asset_review",
+      "promotion_rule": "human_review_required",
+      "verification_gate": "候选卡必须有来源、适用边界和不可使用边界；审核通过前不得进入 runtime recall。"
+    },
+    {
+      "project_type": "religious_spiritual",
+      "count": 2,
+      "sample_ids": [
+        75,
+        186
+      ],
+      "recommended_action": "生成候选知识卡，进入人工审核后再批准入库",
+      "requires_human_review": true,
+      "candidate_kind": "knowledge_card_candidate",
+      "governance_mode": "knowledge_governed",
+      "review_queue": "knowledge_asset_review",
+      "promotion_rule": "human_review_required",
+      "verification_gate": "候选卡必须有来源、适用边界和不可使用边界；审核通过前不得进入 runtime recall。"
+    },
+    {
+      "project_type": "urban_renewal_market",
+      "count": 2,
+      "sample_ids": [
+        9,
+        174
+      ],
+      "recommended_action": "生成候选知识卡，进入人工审核后再批准入库",
+      "requires_human_review": true,
+      "candidate_kind": "knowledge_card_candidate",
+      "governance_mode": "knowledge_governed",
+      "review_queue": "knowledge_asset_review",
+      "promotion_rule": "human_review_required",
+      "verification_gate": "候选卡必须有来源、适用边界和不可使用边界；审核通过前不得进入 runtime recall。"
+    },
+    {
+      "project_type": "brand_experience",
+      "count": 1,
+      "sample_ids": [
+        181
+      ],
+      "recommended_action": "生成候选知识卡，进入人工审核后再批准入库",
+      "requires_human_review": true,
+      "candidate_kind": "knowledge_card_candidate",
+      "governance_mode": "knowledge_governed",
+      "review_queue": "knowledge_asset_review",
+      "promotion_rule": "human_review_required",
+      "verification_gate": "候选卡必须有来源、适用边界和不可使用边界；审核通过前不得进入 runtime recall。"
+    },
+    {
+      "project_type": "children_family",
+      "count": 1,
+      "sample_ids": [
+        72
+      ],
+      "recommended_action": "生成候选知识卡，进入人工审核后再批准入库",
+      "requires_human_review": true,
+      "candidate_kind": "knowledge_card_candidate",
+      "governance_mode": "knowledge_governed",
+      "review_queue": "knowledge_asset_review",
+      "promotion_rule": "human_review_required",
+      "verification_gate": "候选卡必须有来源、适用边界和不可使用边界；审核通过前不得进入 runtime recall。"
+    },
+    {
+      "project_type": "educational_facility",
+      "count": 1,
+      "sample_ids": [
+        106
+      ],
+      "recommended_action": "生成候选知识卡，进入人工审核后再批准入库",
+      "requires_human_review": true,
+      "candidate_kind": "knowledge_card_candidate",
+      "governance_mode": "knowledge_governed",
+      "review_queue": "knowledge_asset_review",
+      "promotion_rule": "human_review_required",
+      "verification_gate": "候选卡必须有来源、适用边界和不可使用边界；审核通过前不得进入 runtime recall。"
+    },
+    {
+      "project_type": "popup_temporary",
+      "count": 1,
+      "sample_ids": [
+        56
+      ],
+      "recommended_action": "生成候选知识卡，进入人工审核后再批准入库",
+      "requires_human_review": true,
+      "candidate_kind": "knowledge_card_candidate",
+      "governance_mode": "knowledge_governed",
+      "review_queue": "knowledge_asset_review",
+      "promotion_rule": "human_review_required",
+      "verification_gate": "候选卡必须有来源、适用边界和不可使用边界；审核通过前不得进入 runtime recall。"
+    },
+    {
+      "project_type": "real_estate_showcase",
+      "count": 1,
+      "sample_ids": [
+        97
+      ],
+      "recommended_action": "生成候选知识卡，进入人工审核后再批准入库",
+      "requires_human_review": true,
+      "candidate_kind": "knowledge_card_candidate",
+      "governance_mode": "knowledge_governed",
+      "review_queue": "knowledge_asset_review",
+      "promotion_rule": "human_review_required",
+      "verification_gate": "候选卡必须有来源、适用边界和不可使用边界；审核通过前不得进入 runtime recall。"
+    },
+    {
+      "project_type": "residential_collective",
+      "count": 1,
+      "sample_ids": [
+        73
+      ],
+      "recommended_action": "生成候选知识卡，进入人工审核后再批准入库",
+      "requires_human_review": true,
+      "candidate_kind": "knowledge_card_candidate",
+      "governance_mode": "knowledge_governed",
+      "review_queue": "knowledge_asset_review",
+      "promotion_rule": "human_review_required",
+      "verification_gate": "候选卡必须有来源、适用边界和不可使用边界；审核通过前不得进入 runtime recall。"
+    }
+  ],
+  "activation_pack_priority_queue": [
+    {
+      "project_type": "public_cultural",
+      "space_axis_id": "cultural_public_experience",
+      "space_axis_label": "文化公共空间：叙事体验、展陈秩序与公众使用",
+      "sample_count": 12,
+      "sample_ids": [
+        45,
+        54,
+        70,
+        103,
+        107,
+        122,
+        125,
+        127,
+        134,
+        149,
+        170,
+        189
+      ],
+      "average_confidence": 0.823,
+      "priority_score": 136,
+      "readiness_band": "ready_for_scope",
+      "readiness_label": "优先定义包范围",
+      "recommended_action": "先做激活包范围定义、适用边界、核心追问和最小知识卡清单。",
+      "requires_human_review": true,
+      "promotion_rule": "frequency_confidence_axis_then_human_review",
+      "verification_gate": "先定义包边界、适用/不适用条件和回归样本；人工批准前不得上线运行时激活包。"
+    },
+    {
+      "project_type": "personal_residential",
+      "space_axis_id": "private_residential_life_order",
+      "space_axis_label": "私人住宅：家庭秩序、生活方式与精神需求",
+      "sample_count": 17,
+      "sample_ids": [
+        6,
+        7,
+        10,
+        11,
+        12,
+        20,
+        31,
+        33,
+        37,
+        38,
+        41,
+        66
+      ],
+      "average_confidence": 0.768,
+      "priority_score": 135,
+      "readiness_band": "ready_for_scope",
+      "readiness_label": "优先定义包范围",
+      "recommended_action": "先做激活包范围定义、适用边界、核心追问和最小知识卡清单。",
+      "requires_human_review": true,
+      "promotion_rule": "frequency_confidence_axis_then_human_review",
+      "verification_gate": "先定义包边界、适用/不适用条件和回归样本；人工批准前不得上线运行时激活包。"
+    },
+    {
+      "project_type": "commercial_retail",
+      "space_axis_id": "retail_brand_conversion",
+      "space_axis_label": "商业零售：客群转化、品牌差异与消费动线",
+      "sample_count": 10,
+      "sample_ids": [
+        18,
+        61,
+        84,
+        87,
+        155,
+        156,
+        157,
+        162,
+        164,
+        183
+      ],
+      "average_confidence": 0.848,
+      "priority_score": 117,
+      "readiness_band": "ready_for_scope",
+      "readiness_label": "优先定义包范围",
+      "recommended_action": "先做激活包范围定义、适用边界、核心追问和最小知识卡清单。",
+      "requires_human_review": true,
+      "promotion_rule": "frequency_confidence_axis_then_human_review",
+      "verification_gate": "先定义包边界、适用/不适用条件和回归样本；人工批准前不得上线运行时激活包。"
+    },
+    {
+      "project_type": "community_public",
+      "space_axis_id": "public_service_inclusive_reuse",
+      "space_axis_label": "公共服务：多群体共享、分时复用与安全监管",
+      "sample_count": 10,
+      "sample_ids": [
+        109,
+        112,
+        114,
+        121,
+        128,
+        132,
+        133,
+        135,
+        159,
+        160
+      ],
+      "average_confidence": 0.741,
+      "priority_score": 115,
+      "readiness_band": "ready_for_scope",
+      "readiness_label": "优先定义包范围",
+      "recommended_action": "先做激活包范围定义、适用边界、核心追问和最小知识卡清单。",
+      "requires_human_review": true,
+      "promotion_rule": "frequency_confidence_axis_then_human_review",
+      "verification_gate": "先定义包边界、适用/不适用条件和回归样本；人工批准前不得上线运行时激活包。"
+    },
+    {
+      "project_type": "urban_renewal_heritage",
+      "space_axis_id": "urban_renewal_public_regeneration",
+      "space_axis_label": "城市更新：历史连续、公众使用与商业再生",
+      "sample_count": 10,
+      "sample_ids": [
+        30,
+        40,
+        57,
+        77,
+        93,
+        151,
+        152,
+        161,
+        166,
+        178
+      ],
+      "average_confidence": 0.745,
+      "priority_score": 115,
+      "readiness_band": "ready_for_scope",
+      "readiness_label": "优先定义包范围",
+      "recommended_action": "先做激活包范围定义、适用边界、核心追问和最小知识卡清单。",
+      "requires_human_review": true,
+      "promotion_rule": "frequency_confidence_axis_then_human_review",
+      "verification_gate": "先定义包边界、适用/不适用条件和回归样本；人工批准前不得上线运行时激活包。"
+    },
+    {
+      "project_type": "commercial_office",
+      "space_axis_id": "workplace_identity_productivity",
+      "space_axis_label": "办公企业：组织效率、专业形象与协作秩序",
+      "sample_count": 9,
+      "sample_ids": [
+        25,
+        48,
+        64,
+        74,
+        88,
+        105,
+        140,
+        185,
+        187
+      ],
+      "average_confidence": 0.807,
+      "priority_score": 106,
+      "readiness_band": "ready_for_scope",
+      "readiness_label": "优先定义包范围",
+      "recommended_action": "先做激活包范围定义、适用边界、核心追问和最小知识卡清单。",
+      "requires_human_review": true,
+      "promotion_rule": "frequency_confidence_axis_then_human_review",
+      "verification_gate": "先定义包边界、适用/不适用条件和回归样本；人工批准前不得上线运行时激活包。"
+    },
+    {
+      "project_type": "healthcare_wellness",
+      "space_axis_id": "healthcare_wellness_support",
+      "space_axis_label": "医疗康养：身心支持、安全边界与长期照护",
+      "sample_count": 7,
+      "sample_ids": [
+        44,
+        47,
+        58,
+        80,
+        110,
+        119,
+        175
+      ],
+      "average_confidence": 0.842,
+      "priority_score": 87,
+      "readiness_band": "ready_for_scope",
+      "readiness_label": "优先定义包范围",
+      "recommended_action": "先做激活包范围定义、适用边界、核心追问和最小知识卡清单。",
+      "requires_human_review": true,
+      "promotion_rule": "frequency_confidence_axis_then_human_review",
+      "verification_gate": "先定义包边界、适用/不适用条件和回归样本；人工批准前不得上线运行时激活包。"
+    },
+    {
+      "project_type": "personal_residential",
+      "space_axis_id": "healthcare_wellness_support",
+      "space_axis_label": "医疗康养：身心支持、安全边界与长期照护",
+      "sample_count": 5,
+      "sample_ids": [
+        39,
+        63,
+        65,
+        102,
+        145
+      ],
+      "average_confidence": 0.844,
+      "priority_score": 67,
+      "readiness_band": "candidate_pool",
+      "readiness_label": "候选池继续补证",
+      "recommended_action": "继续补同类样本、边界样本和知识卡证据，暂不直接上线。",
+      "requires_human_review": true,
+      "promotion_rule": "frequency_confidence_axis_then_human_review",
+      "verification_gate": "先定义包边界、适用/不适用条件和回归样本；人工批准前不得上线运行时激活包。"
+    },
+    {
+      "project_type": "commercial_hospitality",
+      "space_axis_id": "hospitality_culture_operation",
+      "space_axis_label": "文旅酒店：品牌文化、客群体验与运营模型",
+      "sample_count": 5,
+      "sample_ids": [
+        4,
+        17,
+        26,
+        42,
+        173
+      ],
+      "average_confidence": 0.71,
+      "priority_score": 64,
+      "readiness_band": "candidate_pool",
+      "readiness_label": "候选池继续补证",
+      "recommended_action": "继续补同类样本、边界样本和知识卡证据，暂不直接上线。",
+      "requires_human_review": true,
+      "promotion_rule": "frequency_confidence_axis_then_human_review",
+      "verification_gate": "先定义包边界、适用/不适用条件和回归样本；人工批准前不得上线运行时激活包。"
+    },
+    {
+      "project_type": "personal_residential",
+      "space_axis_id": "brand_cultural_narrative",
+      "space_axis_label": "文化叙事：命名、象征转译与空间气质",
+      "sample_count": 4,
+      "sample_ids": [
+        5,
+        28,
+        59,
+        111
+      ],
+      "average_confidence": 0.69,
+      "priority_score": 54,
+      "readiness_band": "candidate_pool",
+      "readiness_label": "候选池继续补证",
+      "recommended_action": "继续补同类样本、边界样本和知识卡证据，暂不直接上线。",
+      "requires_human_review": true,
+      "promotion_rule": "frequency_confidence_axis_then_human_review",
+      "verification_gate": "先定义包边界、适用/不适用条件和回归样本；人工批准前不得上线运行时激活包。"
+    },
+    {
+      "project_type": "commercial_enterprise",
+      "space_axis_id": "workplace_identity_productivity",
+      "space_axis_label": "办公企业：组织效率、专业形象与协作秩序",
+      "sample_count": 3,
+      "sample_ids": [
+        89,
+        99,
+        113
+      ],
+      "average_confidence": 0.793,
+      "priority_score": 46,
+      "readiness_band": "candidate_pool",
+      "readiness_label": "候选池继续补证",
+      "recommended_action": "继续补同类样本、边界样本和知识卡证据，暂不直接上线。",
+      "requires_human_review": true,
+      "promotion_rule": "frequency_confidence_axis_then_human_review",
+      "verification_gate": "先定义包边界、适用/不适用条件和回归样本；人工批准前不得上线运行时激活包。"
+    },
+    {
+      "project_type": "rural_construction",
+      "space_axis_id": "rural_living_regeneration",
+      "space_axis_label": "乡村建设：公共更新、产业嵌入与生活品质升级",
+      "sample_count": 3,
+      "sample_ids": [
+        153,
+        158,
+        165
+      ],
+      "average_confidence": 0.82,
+      "priority_score": 46,
+      "readiness_band": "candidate_pool",
+      "readiness_label": "候选池继续补证",
+      "recommended_action": "继续补同类样本、边界样本和知识卡证据，暂不直接上线。",
+      "requires_human_review": true,
+      "promotion_rule": "frequency_confidence_axis_then_human_review",
+      "verification_gate": "先定义包边界、适用/不适用条件和回归样本；人工批准前不得上线运行时激活包。"
+    },
+    {
+      "project_type": "educational_facility",
+      "space_axis_id": "education_growth_safety",
+      "space_axis_label": "教育成长：学习行为、安全监管与弹性使用",
+      "sample_count": 3,
+      "sample_ids": [
+        91,
+        106,
+        163
+      ],
+      "average_confidence": 0.763,
+      "priority_score": 45,
+      "readiness_band": "candidate_pool",
+      "readiness_label": "候选池继续补证",
+      "recommended_action": "继续补同类样本、边界样本和知识卡证据，暂不直接上线。",
+      "requires_human_review": true,
+      "promotion_rule": "frequency_confidence_axis_then_human_review",
+      "verification_gate": "先定义包边界、适用/不适用条件和回归样本；人工批准前不得上线运行时激活包。"
+    },
+    {
+      "project_type": "personal_residential",
+      "space_axis_id": "residential_conflict_lifestyle_balance",
+      "space_axis_label": "共居住宅冲突：隐私边界、动静分区与日常共处",
+      "sample_count": 3,
+      "sample_ids": [
+        8,
+        22,
+        50
+      ],
+      "average_confidence": 0.742,
+      "priority_score": 45,
+      "readiness_band": "candidate_pool",
+      "readiness_label": "候选池继续补证",
+      "recommended_action": "继续补同类样本、边界样本和知识卡证据，暂不直接上线。",
+      "requires_human_review": true,
+      "promotion_rule": "frequency_confidence_axis_then_human_review",
+      "verification_gate": "先定义包边界、适用/不适用条件和回归样本；人工批准前不得上线运行时激活包。"
+    },
+    {
+      "project_type": "landscape_outdoor",
+      "space_axis_id": "landscape_public_value",
+      "space_axis_label": "景观规划：公共价值、视线组织与开发带动",
+      "sample_count": 3,
+      "sample_ids": [
+        172,
+        176,
+        180
+      ],
+      "average_confidence": 0.58,
+      "priority_score": 42,
+      "readiness_band": "observe_only",
+      "readiness_label": "继续观察",
+      "recommended_action": "只保留为观察信号，等待更多同类样本或更稳定分类证据。",
+      "requires_human_review": true,
+      "promotion_rule": "frequency_confidence_axis_then_human_review",
+      "verification_gate": "先定义包边界、适用/不适用条件和回归样本；人工批准前不得上线运行时激活包。"
+    },
+    {
+      "project_type": "commercial_hospitality",
+      "space_axis_id": "sports_wellness_social",
+      "space_axis_label": "运动康养：身体体验、私密训练与社交转化",
+      "sample_count": 2,
+      "sample_ids": [
+        1,
+        92
+      ],
+      "average_confidence": 0.745,
+      "priority_score": 35,
+      "readiness_band": "observe_only",
+      "readiness_label": "继续观察",
+      "recommended_action": "只保留为观察信号，等待更多同类样本或更稳定分类证据。",
+      "requires_human_review": true,
+      "promotion_rule": "frequency_confidence_axis_then_human_review",
+      "verification_gate": "先定义包边界、适用/不适用条件和回归样本；人工批准前不得上线运行时激活包。"
+    },
+    {
+      "project_type": "public_cultural",
+      "space_axis_id": "mission_critical_resilience",
+      "space_axis_label": "任务关键空间：安全冗余、极端环境与长期运行",
+      "sample_count": 2,
+      "sample_ids": [
+        136,
+        138
+      ],
+      "average_confidence": 0.71,
+      "priority_score": 34,
+      "readiness_band": "observe_only",
+      "readiness_label": "继续观察",
+      "recommended_action": "只保留为观察信号，等待更多同类样本或更稳定分类证据。",
+      "requires_human_review": true,
+      "promotion_rule": "frequency_confidence_axis_then_human_review",
+      "verification_gate": "先定义包边界、适用/不适用条件和回归样本；人工批准前不得上线运行时激活包。"
+    },
+    {
+      "project_type": "public_cultural",
+      "space_axis_id": "experimental_public_experience",
+      "space_axis_label": "实验型公共体验：行为测试、变量控制与转化验证",
+      "sample_count": 2,
+      "sample_ids": [
+        148,
+        188
+      ],
+      "average_confidence": 0.65,
+      "priority_score": 33,
+      "readiness_band": "observe_only",
+      "readiness_label": "继续观察",
+      "recommended_action": "只保留为观察信号，等待更多同类样本或更稳定分类证据。",
+      "requires_human_review": true,
+      "promotion_rule": "frequency_confidence_axis_then_human_review",
+      "verification_gate": "先定义包边界、适用/不适用条件和回归样本；人工批准前不得上线运行时激活包。"
+    },
+    {
+      "project_type": "commercial_enterprise",
+      "space_axis_id": "brand_cultural_narrative",
+      "space_axis_label": "文化叙事：命名、象征转译与空间气质",
+      "sample_count": 2,
+      "sample_ids": [
+        116,
+        124
+      ],
+      "average_confidence": 0.62,
+      "priority_score": 32,
+      "readiness_band": "observe_only",
+      "readiness_label": "继续观察",
+      "recommended_action": "只保留为观察信号，等待更多同类样本或更稳定分类证据。",
+      "requires_human_review": true,
+      "promotion_rule": "frequency_confidence_axis_then_human_review",
+      "verification_gate": "先定义包边界、适用/不适用条件和回归样本；人工批准前不得上线运行时激活包。"
+    },
+    {
+      "project_type": "community_public",
+      "space_axis_id": "public_resilience_modular_support",
+      "space_axis_label": "公共韧性支持：低成本、模块化与长期可用",
+      "sample_count": 2,
+      "sample_ids": [
+        69,
+        117
+      ],
+      "average_confidence": 0.59,
+      "priority_score": 32,
+      "readiness_band": "observe_only",
+      "readiness_label": "继续观察",
+      "recommended_action": "只保留为观察信号，等待更多同类样本或更稳定分类证据。",
+      "requires_human_review": true,
+      "promotion_rule": "frequency_confidence_axis_then_human_review",
+      "verification_gate": "先定义包边界、适用/不适用条件和回归样本；人工批准前不得上线运行时激活包。"
+    },
+    {
+      "project_type": "commercial_dining",
+      "space_axis_id": "brand_cultural_narrative",
+      "space_axis_label": "文化叙事：命名、象征转译与空间气质",
+      "sample_count": 1,
+      "sample_ids": [
+        24
+      ],
+      "average_confidence": 0.9,
+      "priority_score": 28,
+      "readiness_band": "observe_only",
+      "readiness_label": "继续观察",
+      "recommended_action": "只保留为观察信号，等待更多同类样本或更稳定分类证据。",
+      "requires_human_review": true,
+      "promotion_rule": "frequency_confidence_axis_then_human_review",
+      "verification_gate": "先定义包边界、适用/不适用条件和回归样本；人工批准前不得上线运行时激活包。"
+    },
+    {
+      "project_type": "commercial_dining",
+      "space_axis_id": "urban_public_value_cluster",
+      "space_axis_label": "城市公共价值集群：业态协同、公共界面与长期带动",
+      "sample_count": 1,
+      "sample_ids": [
+        168
+      ],
+      "average_confidence": 0.9,
+      "priority_score": 28,
+      "readiness_band": "observe_only",
+      "readiness_label": "继续观察",
+      "recommended_action": "只保留为观察信号，等待更多同类样本或更稳定分类证据。",
+      "requires_human_review": true,
+      "promotion_rule": "frequency_confidence_axis_then_human_review",
+      "verification_gate": "先定义包边界、适用/不适用条件和回归样本；人工批准前不得上线运行时激活包。"
+    },
+    {
+      "project_type": "personal_residential",
+      "space_axis_id": "private_residential_identity_legacy",
+      "space_axis_label": "私人住宅：身份表达、家族传承与日常安住",
+      "sample_count": 1,
+      "sample_ids": [
+        2
+      ],
+      "average_confidence": 0.9,
+      "priority_score": 28,
+      "readiness_band": "observe_only",
+      "readiness_label": "继续观察",
+      "recommended_action": "只保留为观察信号，等待更多同类样本或更稳定分类证据。",
+      "requires_human_review": true,
+      "promotion_rule": "frequency_confidence_axis_then_human_review",
+      "verification_gate": "先定义包边界、适用/不适用条件和回归样本；人工批准前不得上线运行时激活包。"
+    },
+    {
+      "project_type": "rural_construction",
+      "space_axis_id": "hospitality_culture_operation",
+      "space_axis_label": "文旅酒店：品牌文化、客群体验与运营模型",
+      "sample_count": 1,
+      "sample_ids": [
+        3
+      ],
+      "average_confidence": 0.9,
+      "priority_score": 28,
+      "readiness_band": "observe_only",
+      "readiness_label": "继续观察",
+      "recommended_action": "只保留为观察信号，等待更多同类样本或更稳定分类证据。",
+      "requires_human_review": true,
+      "promotion_rule": "frequency_confidence_axis_then_human_review",
+      "verification_gate": "先定义包边界、适用/不适用条件和回归样本；人工批准前不得上线运行时激活包。"
+    },
+    {
+      "project_type": "commercial_dining",
+      "space_axis_id": "climate_resilience_construction",
+      "space_axis_label": "气候构造：耐久、安全与环境韧性",
+      "sample_count": 1,
+      "sample_ids": [
+        86
+      ],
+      "average_confidence": 0.83,
+      "priority_score": 27,
+      "readiness_band": "observe_only",
+      "readiness_label": "继续观察",
+      "recommended_action": "只保留为观察信号，等待更多同类样本或更稳定分类证据。",
+      "requires_human_review": true,
+      "promotion_rule": "frequency_confidence_axis_then_human_review",
+      "verification_gate": "先定义包边界、适用/不适用条件和回归样本；人工批准前不得上线运行时激活包。"
+    },
+    {
+      "project_type": "community_public",
+      "space_axis_id": "material_sustainability_value",
+      "space_axis_label": "材料可持续：成本、证据链与长期价值",
+      "sample_count": 1,
+      "sample_ids": [
+        167
+      ],
+      "average_confidence": 0.83,
+      "priority_score": 27,
+      "readiness_band": "observe_only",
+      "readiness_label": "继续观察",
+      "recommended_action": "只保留为观察信号，等待更多同类样本或更稳定分类证据。",
+      "requires_human_review": true,
+      "promotion_rule": "frequency_confidence_axis_then_human_review",
+      "verification_gate": "先定义包边界、适用/不适用条件和回归样本；人工批准前不得上线运行时激活包。"
+    },
+    {
+      "project_type": "healthcare_wellness",
+      "space_axis_id": "healthcare_culture_experience",
+      "space_axis_label": "康养文化体验：传统专业、年轻客群与私密服务",
+      "sample_count": 1,
+      "sample_ids": [
+        98
+      ],
+      "average_confidence": 0.732,
+      "priority_score": 25,
+      "readiness_band": "observe_only",
+      "readiness_label": "继续观察",
+      "recommended_action": "只保留为观察信号，等待更多同类样本或更稳定分类证据。",
+      "requires_human_review": true,
+      "promotion_rule": "frequency_confidence_axis_then_human_review",
+      "verification_gate": "先定义包边界、适用/不适用条件和回归样本；人工批准前不得上线运行时激活包。"
+    },
+    {
+      "project_type": "commercial_hospitality",
+      "space_axis_id": "material_sustainability_value",
+      "space_axis_label": "材料可持续：成本、证据链与长期价值",
+      "sample_count": 1,
+      "sample_ids": [
+        76
+      ],
+      "average_confidence": 0.71,
+      "priority_score": 24,
+      "readiness_band": "observe_only",
+      "readiness_label": "继续观察",
+      "recommended_action": "只保留为观察信号，等待更多同类样本或更稳定分类证据。",
+      "requires_human_review": true,
+      "promotion_rule": "frequency_confidence_axis_then_human_review",
+      "verification_gate": "先定义包边界、适用/不适用条件和回归样本；人工批准前不得上线运行时激活包。"
+    },
+    {
+      "project_type": "community_public",
+      "space_axis_id": "urban_public_value_cluster",
+      "space_axis_label": "城市公共价值集群：业态协同、公共界面与长期带动",
+      "sample_count": 1,
+      "sample_ids": [
+        171
+      ],
+      "average_confidence": 0.63,
+      "priority_score": 23,
+      "readiness_band": "observe_only",
+      "readiness_label": "继续观察",
+      "recommended_action": "只保留为观察信号，等待更多同类样本或更稳定分类证据。",
+      "requires_human_review": true,
+      "promotion_rule": "frequency_confidence_axis_then_human_review",
+      "verification_gate": "先定义包边界、适用/不适用条件和回归样本；人工批准前不得上线运行时激活包。"
+    },
+    {
+      "project_type": "public_cultural",
+      "space_axis_id": "public_learning_visitor_experience",
+      "space_axis_label": "公共学习参访：知识传播、到访体验与可持续运营",
+      "sample_count": 1,
+      "sample_ids": [
+        60
+      ],
+      "average_confidence": 0.636,
+      "priority_score": 23,
+      "readiness_band": "observe_only",
+      "readiness_label": "继续观察",
+      "recommended_action": "只保留为观察信号，等待更多同类样本或更稳定分类证据。",
+      "requires_human_review": true,
+      "promotion_rule": "frequency_confidence_axis_then_human_review",
+      "verification_gate": "先定义包边界、适用/不适用条件和回归样本；人工批准前不得上线运行时激活包。"
+    },
+    {
+      "project_type": "commercial_enterprise",
+      "space_axis_id": "mission_critical_resilience",
+      "space_axis_label": "任务关键空间：安全冗余、极端环境与长期运行",
+      "sample_count": 1,
+      "sample_ids": [
+        130
+      ],
+      "average_confidence": 0.59,
+      "priority_score": 22,
+      "readiness_band": "observe_only",
+      "readiness_label": "继续观察",
+      "recommended_action": "只保留为观察信号，等待更多同类样本或更稳定分类证据。",
+      "requires_human_review": true,
+      "promotion_rule": "frequency_confidence_axis_then_human_review",
+      "verification_gate": "先定义包边界、适用/不适用条件和回归样本；人工批准前不得上线运行时激活包。"
+    },
+    {
+      "project_type": "commercial_hospitality",
+      "space_axis_id": "mission_critical_resilience",
+      "space_axis_label": "任务关键空间：安全冗余、极端环境与长期运行",
+      "sample_count": 1,
+      "sample_ids": [
+        123
+      ],
+      "average_confidence": 0.58,
+      "priority_score": 22,
+      "readiness_band": "observe_only",
+      "readiness_label": "继续观察",
+      "recommended_action": "只保留为观察信号，等待更多同类样本或更稳定分类证据。",
+      "requires_human_review": true,
+      "promotion_rule": "frequency_confidence_axis_then_human_review",
+      "verification_gate": "先定义包边界、适用/不适用条件和回归样本；人工批准前不得上线运行时激活包。"
+    },
+    {
+      "project_type": "commercial_office",
+      "space_axis_id": "urban_public_value_cluster",
+      "space_axis_label": "城市公共价值集群：业态协同、公共界面与长期带动",
+      "sample_count": 1,
+      "sample_ids": [
+        179
+      ],
+      "average_confidence": 0.59,
+      "priority_score": 22,
+      "readiness_band": "observe_only",
+      "readiness_label": "继续观察",
+      "recommended_action": "只保留为观察信号，等待更多同类样本或更稳定分类证据。",
+      "requires_human_review": true,
+      "promotion_rule": "frequency_confidence_axis_then_human_review",
+      "verification_gate": "先定义包边界、适用/不适用条件和回归样本；人工批准前不得上线运行时激活包。"
+    },
+    {
+      "project_type": "public_cultural",
+      "space_axis_id": "public_resilience_modular_support",
+      "space_axis_label": "公共韧性支持：低成本、模块化与长期可用",
+      "sample_count": 1,
+      "sample_ids": [
+        139
+      ],
+      "average_confidence": 0.59,
+      "priority_score": 22,
+      "readiness_band": "observe_only",
+      "readiness_label": "继续观察",
+      "recommended_action": "只保留为观察信号，等待更多同类样本或更稳定分类证据。",
+      "requires_human_review": true,
+      "promotion_rule": "frequency_confidence_axis_then_human_review",
+      "verification_gate": "先定义包边界、适用/不适用条件和回归样本；人工批准前不得上线运行时激活包。"
+    },
+    {
+      "project_type": "public_cultural",
+      "space_axis_id": "sustainable_energy_prototype",
+      "space_axis_label": "可持续能源样板：脱碳系统、材料证据与可视化教育",
+      "sample_count": 1,
+      "sample_ids": [
+        143
+      ],
+      "average_confidence": 0.58,
+      "priority_score": 22,
+      "readiness_band": "observe_only",
+      "readiness_label": "继续观察",
+      "recommended_action": "只保留为观察信号，等待更多同类样本或更稳定分类证据。",
+      "requires_human_review": true,
+      "promotion_rule": "frequency_confidence_axis_then_human_review",
+      "verification_gate": "先定义包边界、适用/不适用条件和回归样本；人工批准前不得上线运行时激活包。"
+    },
+    {
+      "project_type": "public_cultural",
+      "space_axis_id": "retail_brand_conversion",
+      "space_axis_label": "商业零售：客群转化、品牌差异与消费动线",
+      "sample_count": 1,
+      "sample_ids": [
+        169
+      ],
+      "average_confidence": 0.56,
+      "priority_score": 21,
+      "readiness_band": "observe_only",
+      "readiness_label": "继续观察",
+      "recommended_action": "只保留为观察信号，等待更多同类样本或更稳定分类证据。",
+      "requires_human_review": true,
+      "promotion_rule": "frequency_confidence_axis_then_human_review",
+      "verification_gate": "先定义包边界、适用/不适用条件和回归样本；人工批准前不得上线运行时激活包。"
+    },
+    {
+      "project_type": "rural_construction",
+      "space_axis_id": "private_residential_life_order",
+      "space_axis_label": "私人住宅：家庭秩序、生活方式与精神需求",
+      "sample_count": 1,
+      "sample_ids": [
+        16
+      ],
+      "average_confidence": 0.56,
+      "priority_score": 21,
+      "readiness_band": "observe_only",
+      "readiness_label": "继续观察",
+      "recommended_action": "只保留为观察信号，等待更多同类样本或更稳定分类证据。",
+      "requires_human_review": true,
+      "promotion_rule": "frequency_confidence_axis_then_human_review",
+      "verification_gate": "先定义包边界、适用/不适用条件和回归样本；人工批准前不得上线运行时激活包。"
+    }
+  ],
+  "activation_pack_candidates": [
+    {
+      "project_type": "personal_residential",
+      "count": 30,
+      "sample_ids": [
+        2,
+        5,
+        6,
+        7,
+        8,
+        10,
+        11,
+        12,
+        20,
+        22,
+        28,
+        31
+      ],
+      "recommended_action": "进入激活包候选池，按高频和业务价值排期",
+      "requires_human_review": true,
+      "candidate_kind": "activation_pack_candidate",
+      "governance_mode": "knowledge_governed",
+      "review_queue": "activation_pack_review",
+      "promotion_rule": "frequency_and_value_then_human_review",
+      "verification_gate": "激活包候选必须先证明高频、商业价值和知识成熟度，再由人工批准上线。"
+    },
+    {
+      "project_type": "public_cultural",
+      "count": 20,
+      "sample_ids": [
+        45,
+        54,
+        60,
+        70,
+        103,
+        107,
+        122,
+        125,
+        127,
+        134,
+        136,
+        138
+      ],
+      "recommended_action": "进入激活包候选池，按高频和业务价值排期",
+      "requires_human_review": true,
+      "candidate_kind": "activation_pack_candidate",
+      "governance_mode": "knowledge_governed",
+      "review_queue": "activation_pack_review",
+      "promotion_rule": "frequency_and_value_then_human_review",
+      "verification_gate": "激活包候选必须先证明高频、商业价值和知识成熟度，再由人工批准上线。"
+    },
+    {
+      "project_type": "community_public",
+      "count": 14,
+      "sample_ids": [
+        69,
+        109,
+        112,
+        114,
+        117,
+        121,
+        128,
+        132,
+        133,
+        135,
+        159,
+        160
+      ],
+      "recommended_action": "进入激活包候选池，按高频和业务价值排期",
+      "requires_human_review": true,
+      "candidate_kind": "activation_pack_candidate",
+      "governance_mode": "knowledge_governed",
+      "review_queue": "activation_pack_review",
+      "promotion_rule": "frequency_and_value_then_human_review",
+      "verification_gate": "激活包候选必须先证明高频、商业价值和知识成熟度，再由人工批准上线。"
+    },
+    {
+      "project_type": "commercial_office",
+      "count": 10,
+      "sample_ids": [
+        25,
+        48,
+        64,
+        74,
+        88,
+        105,
+        140,
+        179,
+        185,
+        187
+      ],
+      "recommended_action": "进入激活包候选池，按高频和业务价值排期",
+      "requires_human_review": true,
+      "candidate_kind": "activation_pack_candidate",
+      "governance_mode": "knowledge_governed",
+      "review_queue": "activation_pack_review",
+      "promotion_rule": "frequency_and_value_then_human_review",
+      "verification_gate": "激活包候选必须先证明高频、商业价值和知识成熟度，再由人工批准上线。"
+    },
+    {
+      "project_type": "commercial_retail",
+      "count": 10,
+      "sample_ids": [
+        18,
+        61,
+        84,
+        87,
+        155,
+        156,
+        157,
+        162,
+        164,
+        183
+      ],
+      "recommended_action": "进入激活包候选池，按高频和业务价值排期",
+      "requires_human_review": true,
+      "candidate_kind": "activation_pack_candidate",
+      "governance_mode": "knowledge_governed",
+      "review_queue": "activation_pack_review",
+      "promotion_rule": "frequency_and_value_then_human_review",
+      "verification_gate": "激活包候选必须先证明高频、商业价值和知识成熟度，再由人工批准上线。"
+    },
+    {
+      "project_type": "urban_renewal_heritage",
+      "count": 10,
+      "sample_ids": [
+        30,
+        40,
+        57,
+        77,
+        93,
+        151,
+        152,
+        161,
+        166,
+        178
+      ],
+      "recommended_action": "进入激活包候选池，按高频和业务价值排期",
+      "requires_human_review": true,
+      "candidate_kind": "activation_pack_candidate",
+      "governance_mode": "knowledge_governed",
+      "review_queue": "activation_pack_review",
+      "promotion_rule": "frequency_and_value_then_human_review",
+      "verification_gate": "激活包候选必须先证明高频、商业价值和知识成熟度，再由人工批准上线。"
+    },
+    {
+      "project_type": "commercial_hospitality",
+      "count": 9,
+      "sample_ids": [
+        1,
+        4,
+        17,
+        26,
+        42,
+        76,
+        92,
+        123,
+        173
+      ],
+      "recommended_action": "进入激活包候选池，按高频和业务价值排期",
+      "requires_human_review": true,
+      "candidate_kind": "activation_pack_candidate",
+      "governance_mode": "knowledge_governed",
+      "review_queue": "activation_pack_review",
+      "promotion_rule": "frequency_and_value_then_human_review",
+      "verification_gate": "激活包候选必须先证明高频、商业价值和知识成熟度，再由人工批准上线。"
+    },
+    {
+      "project_type": "healthcare_wellness",
+      "count": 8,
+      "sample_ids": [
+        44,
+        47,
+        58,
+        80,
+        98,
+        110,
+        119,
+        175
+      ],
+      "recommended_action": "进入激活包候选池，按高频和业务价值排期",
+      "requires_human_review": true,
+      "candidate_kind": "activation_pack_candidate",
+      "governance_mode": "knowledge_governed",
+      "review_queue": "activation_pack_review",
+      "promotion_rule": "frequency_and_value_then_human_review",
+      "verification_gate": "激活包候选必须先证明高频、商业价值和知识成熟度，再由人工批准上线。"
+    },
+    {
+      "project_type": "commercial_enterprise",
+      "count": 6,
+      "sample_ids": [
+        89,
+        99,
+        113,
+        116,
+        124,
+        130
+      ],
+      "recommended_action": "进入激活包候选池，按高频和业务价值排期",
+      "requires_human_review": true,
+      "candidate_kind": "activation_pack_candidate",
+      "governance_mode": "knowledge_governed",
+      "review_queue": "activation_pack_review",
+      "promotion_rule": "frequency_and_value_then_human_review",
+      "verification_gate": "激活包候选必须先证明高频、商业价值和知识成熟度，再由人工批准上线。"
+    },
+    {
+      "project_type": "rural_construction",
+      "count": 5,
+      "sample_ids": [
+        3,
+        16,
+        153,
+        158,
+        165
+      ],
+      "recommended_action": "进入激活包候选池，按高频和业务价值排期",
+      "requires_human_review": true,
+      "candidate_kind": "activation_pack_candidate",
+      "governance_mode": "knowledge_governed",
+      "review_queue": "activation_pack_review",
+      "promotion_rule": "frequency_and_value_then_human_review",
+      "verification_gate": "激活包候选必须先证明高频、商业价值和知识成熟度，再由人工批准上线。"
+    },
+    {
+      "project_type": "commercial_dining",
+      "count": 3,
+      "sample_ids": [
+        24,
+        86,
+        168
+      ],
+      "recommended_action": "进入激活包候选池，按高频和业务价值排期",
+      "requires_human_review": true,
+      "candidate_kind": "activation_pack_candidate",
+      "governance_mode": "knowledge_governed",
+      "review_queue": "activation_pack_review",
+      "promotion_rule": "frequency_and_value_then_human_review",
+      "verification_gate": "激活包候选必须先证明高频、商业价值和知识成熟度，再由人工批准上线。"
+    },
+    {
+      "project_type": "educational_facility",
+      "count": 3,
+      "sample_ids": [
+        91,
+        106,
+        163
+      ],
+      "recommended_action": "进入激活包候选池，按高频和业务价值排期",
+      "requires_human_review": true,
+      "candidate_kind": "activation_pack_candidate",
+      "governance_mode": "knowledge_governed",
+      "review_queue": "activation_pack_review",
+      "promotion_rule": "frequency_and_value_then_human_review",
+      "verification_gate": "激活包候选必须先证明高频、商业价值和知识成熟度，再由人工批准上线。"
+    },
+    {
+      "project_type": "landscape_outdoor",
+      "count": 3,
+      "sample_ids": [
+        172,
+        176,
+        180
+      ],
+      "recommended_action": "进入激活包候选池，按高频和业务价值排期",
+      "requires_human_review": true,
+      "candidate_kind": "activation_pack_candidate",
+      "governance_mode": "knowledge_governed",
+      "review_queue": "activation_pack_review",
+      "promotion_rule": "frequency_and_value_then_human_review",
+      "verification_gate": "激活包候选必须先证明高频、商业价值和知识成熟度，再由人工批准上线。"
+    }
+  ],
+  "knowledge_coverage_watch": [
+    {
+      "project_type": "special_function",
+      "count": 12,
+      "sample_ids": [
+        27,
+        34,
+        36,
+        46,
+        120,
+        126,
+        142,
+        147,
+        150,
+        182,
+        184,
+        190
+      ],
+      "recommended_action": "保留在基础空间推理框架观察池，继续累计样本；暂不直接立项建设专科激活包。",
+      "requires_human_review": true,
+      "candidate_kind": "coverage_watch_signal",
+      "governance_mode": "runtime_rule",
+      "review_queue": "coverage_watch_pool",
+      "promotion_rule": "aggregate_before_candidate",
+      "verification_gate": "观察池只累计信号；达到频次和风险阈值后才生成 Registry 或知识候选。"
+    },
+    {
+      "project_type": "personal_residential",
+      "count": 5,
+      "sample_ids": [
+        32,
+        49,
+        82,
+        131,
+        141
+      ],
+      "recommended_action": "保留在基础空间推理框架观察池，继续累计样本；暂不直接立项建设专科激活包。",
+      "requires_human_review": true,
+      "candidate_kind": "coverage_watch_signal",
+      "governance_mode": "runtime_rule",
+      "review_queue": "coverage_watch_pool",
+      "promotion_rule": "aggregate_before_candidate",
+      "verification_gate": "观察池只累计信号；达到频次和风险阈值后才生成 Registry 或知识候选。"
+    },
+    {
+      "project_type": "digital_media_studio",
+      "count": 4,
+      "sample_ids": [
+        55,
+        62,
+        90,
+        108
+      ],
+      "recommended_action": "保留在基础空间推理框架观察池，继续累计样本；暂不直接立项建设专科激活包。",
+      "requires_human_review": true,
+      "candidate_kind": "coverage_watch_signal",
+      "governance_mode": "runtime_rule",
+      "review_queue": "coverage_watch_pool",
+      "promotion_rule": "aggregate_before_candidate",
+      "verification_gate": "观察池只累计信号；达到频次和风险阈值后才生成 Registry 或知识候选。"
+    },
+    {
+      "project_type": "brand_experience",
+      "count": 3,
+      "sample_ids": [
+        29,
+        118,
+        181
+      ],
+      "recommended_action": "保留在基础空间推理框架观察池，继续累计样本；暂不直接立项建设专科激活包。",
+      "requires_human_review": true,
+      "candidate_kind": "coverage_watch_signal",
+      "governance_mode": "runtime_rule",
+      "review_queue": "coverage_watch_pool",
+      "promotion_rule": "aggregate_before_candidate",
+      "verification_gate": "观察池只累计信号；达到频次和风险阈值后才生成 Registry 或知识候选。"
+    },
+    {
+      "project_type": "community_public",
+      "count": 3,
+      "sample_ids": [
+        35,
+        96,
+        101
+      ],
+      "recommended_action": "保留在基础空间推理框架观察池，继续累计样本；暂不直接立项建设专科激活包。",
+      "requires_human_review": true,
+      "candidate_kind": "coverage_watch_signal",
+      "governance_mode": "runtime_rule",
+      "review_queue": "coverage_watch_pool",
+      "promotion_rule": "aggregate_before_candidate",
+      "verification_gate": "观察池只累计信号；达到频次和风险阈值后才生成 Registry 或知识候选。"
+    },
+    {
+      "project_type": "healthcare_wellness",
+      "count": 3,
+      "sample_ids": [
+        53,
+        115,
+        146
+      ],
+      "recommended_action": "保留在基础空间推理框架观察池，继续累计样本；暂不直接立项建设专科激活包。",
+      "requires_human_review": true,
+      "candidate_kind": "coverage_watch_signal",
+      "governance_mode": "runtime_rule",
+      "review_queue": "coverage_watch_pool",
+      "promotion_rule": "aggregate_before_candidate",
+      "verification_gate": "观察池只累计信号；达到频次和风险阈值后才生成 Registry 或知识候选。"
+    },
+    {
+      "project_type": "commercial_office",
+      "count": 2,
+      "sample_ids": [
+        81,
+        100
+      ],
+      "recommended_action": "保留在基础空间推理框架观察池，继续累计样本；暂不直接立项建设专科激活包。",
+      "requires_human_review": true,
+      "candidate_kind": "coverage_watch_signal",
+      "governance_mode": "runtime_rule",
+      "review_queue": "coverage_watch_pool",
+      "promotion_rule": "aggregate_before_candidate",
+      "verification_gate": "观察池只累计信号；达到频次和风险阈值后才生成 Registry 或知识候选。"
+    },
+    {
+      "project_type": "popup_temporary",
+      "count": 2,
+      "sample_ids": [
+        56,
+        144
+      ],
+      "recommended_action": "保留在基础空间推理框架观察池，继续累计样本；暂不直接立项建设专科激活包。",
+      "requires_human_review": true,
+      "candidate_kind": "coverage_watch_signal",
+      "governance_mode": "runtime_rule",
+      "review_queue": "coverage_watch_pool",
+      "promotion_rule": "aggregate_before_candidate",
+      "verification_gate": "观察池只累计信号；达到频次和风险阈值后才生成 Registry 或知识候选。"
+    },
+    {
+      "project_type": "real_estate_showcase",
+      "count": 2,
+      "sample_ids": [
+        19,
+        97
+      ],
+      "recommended_action": "保留在基础空间推理框架观察池，继续累计样本；暂不直接立项建设专科激活包。",
+      "requires_human_review": true,
+      "candidate_kind": "coverage_watch_signal",
+      "governance_mode": "runtime_rule",
+      "review_queue": "coverage_watch_pool",
+      "promotion_rule": "aggregate_before_candidate",
+      "verification_gate": "观察池只累计信号；达到频次和风险阈值后才生成 Registry 或知识候选。"
+    },
+    {
+      "project_type": "religious_spiritual",
+      "count": 2,
+      "sample_ids": [
+        75,
+        186
+      ],
+      "recommended_action": "保留在基础空间推理框架观察池，继续累计样本；暂不直接立项建设专科激活包。",
+      "requires_human_review": true,
+      "candidate_kind": "coverage_watch_signal",
+      "governance_mode": "runtime_rule",
+      "review_queue": "coverage_watch_pool",
+      "promotion_rule": "aggregate_before_candidate",
+      "verification_gate": "观察池只累计信号；达到频次和风险阈值后才生成 Registry 或知识候选。"
+    },
+    {
+      "project_type": "urban_renewal_market",
+      "count": 2,
+      "sample_ids": [
+        9,
+        174
+      ],
+      "recommended_action": "保留在基础空间推理框架观察池，继续累计样本；暂不直接立项建设专科激活包。",
+      "requires_human_review": true,
+      "candidate_kind": "coverage_watch_signal",
+      "governance_mode": "runtime_rule",
+      "review_queue": "coverage_watch_pool",
+      "promotion_rule": "aggregate_before_candidate",
+      "verification_gate": "观察池只累计信号；达到频次和风险阈值后才生成 Registry 或知识候选。"
+    },
+    {
+      "project_type": "automotive_showroom",
+      "count": 1,
+      "sample_ids": [
+        43
+      ],
+      "recommended_action": "保留在基础空间推理框架观察池，继续累计样本；暂不直接立项建设专科激活包。",
+      "requires_human_review": true,
+      "candidate_kind": "coverage_watch_signal",
+      "governance_mode": "runtime_rule",
+      "review_queue": "coverage_watch_pool",
+      "promotion_rule": "aggregate_before_candidate",
+      "verification_gate": "观察池只累计信号；达到频次和风险阈值后才生成 Registry 或知识候选。"
+    },
+    {
+      "project_type": "children_family",
+      "count": 1,
+      "sample_ids": [
+        72
+      ],
+      "recommended_action": "保留在基础空间推理框架观察池，继续累计样本；暂不直接立项建设专科激活包。",
+      "requires_human_review": true,
+      "candidate_kind": "coverage_watch_signal",
+      "governance_mode": "runtime_rule",
+      "review_queue": "coverage_watch_pool",
+      "promotion_rule": "aggregate_before_candidate",
+      "verification_gate": "观察池只累计信号；达到频次和风险阈值后才生成 Registry 或知识候选。"
+    },
+    {
+      "project_type": "commercial_enterprise",
+      "count": 1,
+      "sample_ids": [
+        94
+      ],
+      "recommended_action": "保留在基础空间推理框架观察池，继续累计样本；暂不直接立项建设专科激活包。",
+      "requires_human_review": true,
+      "candidate_kind": "coverage_watch_signal",
+      "governance_mode": "runtime_rule",
+      "review_queue": "coverage_watch_pool",
+      "promotion_rule": "aggregate_before_candidate",
+      "verification_gate": "观察池只累计信号；达到频次和风险阈值后才生成 Registry 或知识候选。"
+    },
+    {
+      "project_type": "commercial_hospitality",
+      "count": 1,
+      "sample_ids": [
+        85
+      ],
+      "recommended_action": "保留在基础空间推理框架观察池，继续累计样本；暂不直接立项建设专科激活包。",
+      "requires_human_review": true,
+      "candidate_kind": "coverage_watch_signal",
+      "governance_mode": "runtime_rule",
+      "review_queue": "coverage_watch_pool",
+      "promotion_rule": "aggregate_before_candidate",
+      "verification_gate": "观察池只累计信号；达到频次和风险阈值后才生成 Registry 或知识候选。"
+    },
+    {
+      "project_type": "commercial_retail",
+      "count": 1,
+      "sample_ids": [
+        51
+      ],
+      "recommended_action": "保留在基础空间推理框架观察池，继续累计样本；暂不直接立项建设专科激活包。",
+      "requires_human_review": true,
+      "candidate_kind": "coverage_watch_signal",
+      "governance_mode": "runtime_rule",
+      "review_queue": "coverage_watch_pool",
+      "promotion_rule": "aggregate_before_candidate",
+      "verification_gate": "观察池只累计信号；达到频次和风险阈值后才生成 Registry 或知识候选。"
+    },
+    {
+      "project_type": "hybrid_residential_commercial",
+      "count": 1,
+      "sample_ids": [
+        23
+      ],
+      "recommended_action": "保留在基础空间推理框架观察池，继续累计样本；暂不直接立项建设专科激活包。",
+      "requires_human_review": true,
+      "candidate_kind": "coverage_watch_signal",
+      "governance_mode": "runtime_rule",
+      "review_queue": "coverage_watch_pool",
+      "promotion_rule": "aggregate_before_candidate",
+      "verification_gate": "观察池只累计信号；达到频次和风险阈值后才生成 Registry 或知识候选。"
+    },
+    {
+      "project_type": "leisure_entertainment",
+      "count": 1,
+      "sample_ids": [
+        104
+      ],
+      "recommended_action": "保留在基础空间推理框架观察池，继续累计样本；暂不直接立项建设专科激活包。",
+      "requires_human_review": true,
+      "candidate_kind": "coverage_watch_signal",
+      "governance_mode": "runtime_rule",
+      "review_queue": "coverage_watch_pool",
+      "promotion_rule": "aggregate_before_candidate",
+      "verification_gate": "观察池只累计信号；达到频次和风险阈值后才生成 Registry 或知识候选。"
+    },
+    {
+      "project_type": "public_cultural",
+      "count": 1,
+      "sample_ids": [
+        52
+      ],
+      "recommended_action": "保留在基础空间推理框架观察池，继续累计样本；暂不直接立项建设专科激活包。",
+      "requires_human_review": true,
+      "candidate_kind": "coverage_watch_signal",
+      "governance_mode": "runtime_rule",
+      "review_queue": "coverage_watch_pool",
+      "promotion_rule": "aggregate_before_candidate",
+      "verification_gate": "观察池只累计信号；达到频次和风险阈值后才生成 Registry 或知识候选。"
+    },
+    {
+      "project_type": "residential_collective",
+      "count": 1,
+      "sample_ids": [
+        73
+      ],
+      "recommended_action": "保留在基础空间推理框架观察池，继续累计样本；暂不直接立项建设专科激活包。",
+      "requires_human_review": true,
+      "candidate_kind": "coverage_watch_signal",
+      "governance_mode": "runtime_rule",
+      "review_queue": "coverage_watch_pool",
+      "promotion_rule": "aggregate_before_candidate",
+      "verification_gate": "观察池只累计信号；达到频次和风险阈值后才生成 Registry 或知识候选。"
+    },
+    {
+      "project_type": "sports_entertainment_arts",
+      "count": 1,
+      "sample_ids": [
+        95
+      ],
+      "recommended_action": "保留在基础空间推理框架观察池，继续累计样本；暂不直接立项建设专科激活包。",
+      "requires_human_review": true,
+      "candidate_kind": "coverage_watch_signal",
+      "governance_mode": "runtime_rule",
+      "review_queue": "coverage_watch_pool",
+      "promotion_rule": "aggregate_before_candidate",
+      "verification_gate": "观察池只累计信号；达到频次和风险阈值后才生成 Registry 或知识候选。"
+    },
+    {
+      "project_type": "urban_renewal_heritage",
+      "count": 1,
+      "sample_ids": [
+        68
+      ],
+      "recommended_action": "保留在基础空间推理框架观察池，继续累计样本；暂不直接立项建设专科激活包。",
+      "requires_human_review": true,
+      "candidate_kind": "coverage_watch_signal",
+      "governance_mode": "runtime_rule",
+      "review_queue": "coverage_watch_pool",
+      "promotion_rule": "aggregate_before_candidate",
+      "verification_gate": "观察池只累计信号；达到频次和风险阈值后才生成 Registry 或知识候选。"
+    }
+  ]
+}

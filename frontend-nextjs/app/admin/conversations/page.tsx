@@ -1,6 +1,6 @@
-'use client';
+﻿'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
 
 interface TrendData {
@@ -46,12 +46,12 @@ export default function ConversationsPage() {
   const [timeRange, setTimeRange] = useState<number>(30);
   const [trendView, setTrendView] = useState<'daily' | 'weekly' | 'monthly' | 'yearly'>('daily');
 
-  const fetchStats = async () => {
+  const fetchStats = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
 
-      const token = localStorage.getItem('wp_jwt_token');
+      const token = localStorage.getItem('app_auth_token');
       if (!token) {
         setError('未登录，请先登录管理员账号');
         setLoading(false);
@@ -59,7 +59,7 @@ export default function ConversationsPage() {
       }
 
       const response = await axios.get<ConversationsAnalyticsResponse>(
-        `http://localhost:8000/api/admin/conversations/analytics?days=${timeRange}`,
+        `/api/admin/conversations/analytics?days=${timeRange}`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -74,7 +74,7 @@ export default function ConversationsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [timeRange]);
 
   useEffect(() => {
     fetchStats();
@@ -82,7 +82,7 @@ export default function ConversationsPage() {
     // 每60秒自动刷新
     const interval = setInterval(fetchStats, 60000);
     return () => clearInterval(interval);
-  }, [timeRange]);
+  }, [fetchStats]);
 
   // 状态显示名称映射
   const statusDisplayNames: Record<string, string> = {

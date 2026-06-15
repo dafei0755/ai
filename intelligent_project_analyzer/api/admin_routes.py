@@ -18,7 +18,8 @@ from fastapi import APIRouter, Body, Depends, HTTPException, Query
 from loguru import logger
 
 from ..utils.config_manager import config_manager
-from .auth_middleware import require_admin
+from ..services.knowledge_asset_review_service import get_knowledge_asset_review_service
+from .internal_auth_dependencies import require_admin
 from .performance_monitor import performance_monitor
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
@@ -3059,6 +3060,315 @@ async def validate_ontology_syntax(_: dict = Depends(require_admin)):
     return {
         "valid": is_valid,
         "message": "语法正确" if is_valid else "语法错误，请检查日志"
+    }
+
+
+# ============================================================================
+# 知识资产审核 API (Knowledge Asset Review) - 2026-06-12
+# ============================================================================
+
+@router.get("/knowledge-assets/stats")
+async def get_knowledge_asset_review_stats(admin: dict = Depends(require_admin)):
+    """获取知识资产审核系统统计。"""
+    service = get_knowledge_asset_review_service()
+    return {
+        "status": "success",
+        "statistics": service.get_stats(),
+    }
+
+
+def _load_system_audit_json(filename: str) -> Dict[str, Any]:
+    """Read a generated system audit artifact for admin read-only views."""
+    audit_path = Path(__file__).resolve().parents[2] / "docs" / "system-completeness-audit" / filename
+    if not audit_path.exists():
+        raise HTTPException(status_code=404, detail=f"系统审计产物不存在: {filename}")
+    try:
+        return json.loads(audit_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        raise HTTPException(status_code=500, detail=f"系统审计产物格式错误: {filename}") from exc
+
+
+@router.get("/knowledge-assets/golden-review/status")
+async def get_scheme_advisor_golden_review_status(admin: dict = Depends(require_admin)):
+    """
+    获取方案高参 golden 人工复核状态。
+
+    这是管理后台只读入口，只暴露机器建议和质量闸状态，不写入
+    `gold_expected_*` 字段，也不自动批准任何 Registry 或知识资产。
+    """
+    status_report = _load_system_audit_json("scheme-advisor-golden-review-status-2026-03-22.json")
+    suggestions_report = _load_system_audit_json(
+        "scheme-advisor-golden-review-batch-01-p0-suggestions-2026-03-22.json"
+    )
+    systemic_remediation_report = _load_system_audit_json(
+        "scheme-advisor-systemic-remediation-backlog-2026-03-22.json"
+    )
+
+    return {
+        "status": "success",
+        "review_status": status_report.get("review_status"),
+        "next_action": status_report.get("next_action"),
+        "completion": status_report.get("completion", {}),
+        "apply_report": status_report.get("apply_report", {}),
+        "quality_gate": status_report.get("quality_gate", {}),
+        "terminal_copy_guardrail": status_report.get("terminal_copy_guardrail", {}),
+        "suggestions": {
+            "summary": suggestions_report.get("summary", {}),
+            "items": suggestions_report.get("items", []),
+        },
+        "systemic_remediation": {
+            "summary": systemic_remediation_report.get("summary", {}),
+            "principles": systemic_remediation_report.get("principles", []),
+            "items": systemic_remediation_report.get("items", []),
+        },
+    }
+
+
+@router.post("/knowledge-assets/candidates")
+async def submit_knowledge_asset_candidate(
+    data: dict = Body(...),
+    admin: dict = Depends(require_admin),
+):
+    """
+    提交知识资产候选。
+
+    外部生成链只能提交 candidate，内部自学习链只能提交 proposal。
+    两者都进入同一审核队列，不能直接写入 approved assets。
+    """
+    service = get_knowledge_asset_review_service()
+    try:
+        item = service.submit_candidate(data)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    logger.info(
+        f"管理员 {admin.get('username', 'admin')} 提交知识资产候选 "
+        f"{item.get('asset_id')} ({item.get('source_type')}/{item.get('asset_type')})"
+    )
+    return {
+        "status": "success",
+        "item": item,
+    }
+
+
+@router.get("/knowledge-assets/candidates")
+async def list_knowledge_asset_candidates(
+    status: str = Query("needs_review", description="needs_review/approved/rejected/needs_revision"),
+    source_type: Optional[str] = Query(None),
+    asset_type: Optional[str] = Query(None),
+    admin: dict = Depends(require_admin),
+):
+    """获取知识资产候选审核队列。"""
+    service = get_knowledge_asset_review_service()
+    items = service.list_candidates(
+        status=status,
+        source_type=source_type,
+        asset_type=asset_type,
+    )
+    return {
+        "status": "success",
+        "items": items,
+        "total": len(items),
+        "statistics": service.get_stats(),
+    }
+
+
+@router.get("/knowledge-assets/candidates/{asset_id}")
+async def get_knowledge_asset_candidate(
+    asset_id: str,
+    admin: dict = Depends(require_admin),
+):
+    """获取单个知识资产候选详情。"""
+    service = get_knowledge_asset_review_service()
+    try:
+        item = service.get_candidate(asset_id)
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail=f"候选资产不存在: {asset_id}")
+    return item
+
+
+@router.post("/knowledge-assets/candidates/{asset_id}/approve")
+async def approve_knowledge_asset_candidate(
+    asset_id: str,
+    data: dict = Body(default_factory=dict),
+    admin: dict = Depends(require_admin),
+):
+    """批准知识资产候选，写入 approved assets。"""
+    service = get_knowledge_asset_review_service()
+    try:
+        item = service.approve_candidate(
+            asset_id,
+            reviewer_id=admin.get("username", "admin"),
+            reviewer_note=data.get("reviewer_note", ""),
+            approved_overrides=data.get("approved_overrides"),
+        )
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail=f"候选资产不存在: {asset_id}")
+
+    logger.info(f"管理员 {admin.get('username', 'admin')} 批准知识资产候选 {asset_id}")
+    return {
+        "status": "success",
+        "item": item,
+    }
+
+
+@router.post("/knowledge-assets/candidates/{asset_id}/reject")
+async def reject_knowledge_asset_candidate(
+    asset_id: str,
+    data: dict = Body(default_factory=dict),
+    admin: dict = Depends(require_admin),
+):
+    """拒绝知识资产候选。"""
+    service = get_knowledge_asset_review_service()
+    try:
+        item = service.reject_candidate(
+            asset_id,
+            reviewer_id=admin.get("username", "admin"),
+            reason=data.get("reason", ""),
+        )
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail=f"候选资产不存在: {asset_id}")
+
+    logger.info(f"管理员 {admin.get('username', 'admin')} 拒绝知识资产候选 {asset_id}")
+    return {
+        "status": "success",
+        "item": item,
+    }
+
+
+@router.post("/knowledge-assets/candidates/{asset_id}/needs-revision")
+async def mark_knowledge_asset_candidate_needs_revision(
+    asset_id: str,
+    data: dict = Body(default_factory=dict),
+    admin: dict = Depends(require_admin),
+):
+    """退回知识资产候选，要求修改后再审。"""
+    service = get_knowledge_asset_review_service()
+    try:
+        item = service.mark_needs_revision(
+            asset_id,
+            reviewer_id=admin.get("username", "admin"),
+            reason=data.get("reason", ""),
+        )
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail=f"候选资产不存在: {asset_id}")
+
+    logger.info(f"管理员 {admin.get('username', 'admin')} 退回知识资产候选 {asset_id}")
+    return {
+        "status": "success",
+        "item": item,
+    }
+
+
+@router.get("/knowledge-assets/approved")
+async def list_approved_knowledge_assets(
+    package_id: Optional[str] = Query(None),
+    asset_type: Optional[str] = Query(None),
+    tag: Optional[str] = Query(None),
+    admin: dict = Depends(require_admin),
+):
+    """获取运行时可读取的 approved assets。"""
+    service = get_knowledge_asset_review_service()
+    items = service.find_approved_assets(
+        package_ids=[package_id] if package_id else None,
+        asset_type=asset_type,
+        tags=[tag] if tag else None,
+    )
+    return {
+        "status": "success",
+        "items": items,
+        "total": len(items),
+    }
+
+
+@router.post("/knowledge-assets/consumption-events")
+async def record_knowledge_asset_consumption_event(
+    data: dict = Body(...),
+    admin: dict = Depends(require_admin),
+):
+    """记录方案输出实际消费了哪些 approved assets。"""
+    service = get_knowledge_asset_review_service()
+    item = service.record_consumption_event(data)
+    logger.info(
+        f"管理员 {admin.get('username', 'admin')} 记录知识资产消费台账 "
+        f"{item.get('consumption_id')}"
+    )
+    return {
+        "status": "success",
+        "item": item,
+    }
+
+
+@router.get("/knowledge-assets/consumption-events")
+async def list_knowledge_asset_consumption_events(
+    project_id: Optional[str] = Query(None),
+    asset_id: Optional[str] = Query(None),
+    admin: dict = Depends(require_admin),
+):
+    """查询知识资产消费台账。"""
+    service = get_knowledge_asset_review_service()
+    items = service.list_consumption_events(project_id=project_id, asset_id=asset_id)
+    return {
+        "status": "success",
+        "items": items,
+        "total": len(items),
+    }
+
+
+@router.post("/knowledge-assets/settlement-events")
+async def submit_knowledge_asset_settlement_event(
+    data: dict = Body(...),
+    admin: dict = Depends(require_admin),
+):
+    """
+    提交知识资产结算事件。
+
+    结算事件只负责记录真实反馈。只有 attribution 说明卡片本身
+    需要修正或被验证时，才会派生 internal_settlement 候选进入审核队列。
+    """
+    service = get_knowledge_asset_review_service()
+    try:
+        item = service.submit_settlement_event(data)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    promotion_candidate = None
+    promotion_candidate_id = item.get("promotion_candidate_asset_id")
+    if promotion_candidate_id:
+        try:
+            promotion_candidate = service.get_candidate(promotion_candidate_id)
+        except FileNotFoundError:
+            promotion_candidate = None
+
+    logger.info(
+        f"管理员 {admin.get('username', 'admin')} 提交知识资产结算事件 "
+        f"{item.get('settlement_event_id')} ({item.get('attribution')})"
+    )
+    return {
+        "status": "success",
+        "item": item,
+        "promotion_candidate": promotion_candidate,
+    }
+
+
+@router.get("/knowledge-assets/settlement-events")
+async def list_knowledge_asset_settlement_events(
+    attribution: Optional[str] = Query(None),
+    outcome: Optional[str] = Query(None),
+    asset_id: Optional[str] = Query(None),
+    admin: dict = Depends(require_admin),
+):
+    """查询知识资产结算事件。"""
+    service = get_knowledge_asset_review_service()
+    items = service.list_settlement_events(
+        attribution=attribution,
+        outcome=outcome,
+        asset_id=asset_id,
+    )
+    return {
+        "status": "success",
+        "items": items,
+        "total": len(items),
     }
 
 

@@ -1,0 +1,31 @@
+schema_version: subdomain_registry.v1.8
+owner: core_team
+review_status: approved
+last_updated: '2026-06-14'
+items:
+  tea_drink_store:
+    name: 茶饮店
+    parent_project_type_id: commercial_dining
+    activation_pack_id: tea_drink_store_pack
+    signal_keywords:
+    - 茶饮店
+    - 茶饮
+    - 奶茶店
+    - 奶茶
+    - 新茶饮
+    - 茶饮品牌
+    - 果茶
+    - 鲜果茶
+    status: active_mvp
+    name_cn: 茶饮店
+  coffee_shop:
+    name: 咖啡馆
+    parent_project_type_id: commercial_dining
+    activation_pack_id: coffee_shop_pack
+    signal_keywords:
+    - 咖啡馆
+    - 咖啡店
+    - 精品咖啡
+    - 咖啡品牌
+    status: reserved_light
+    name_cn: 咖啡馆

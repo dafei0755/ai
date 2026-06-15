@@ -7233,6 +7233,9 @@ export async function POST(request: NextRequest) {
 				? Math.max(1000, Math.min(80000, medianDimension / Math.max(0.001, medianLength)))
 				// LLM 比例优于默认 21000 猜测
 				: (llmDerivedMmPerNorm ?? 21000));
+		const sourceContentBox = contentBox ?? { x: 0, y: 0, w: 1, h: 1 };
+		const mainPlanBox = source === 'pdf' ? regionFromContentToPage(contentSpaceMainPlanBox, sourceContentBox) : contentSpaceMainPlanBox;
+		const recognitionBoxOnPage = source === 'pdf' ? regionFromContentToPage(recognitionRegion, sourceContentBox) : recognitionRegion;
 		const earlyScaleGate = buildScaleGate({
 			scaleEvidenceSource,
 			scaleEvidenceDimensions,
@@ -7266,6 +7269,18 @@ export async function POST(request: NextRequest) {
 					mmPerNormalized,
 					source: scaleEvidenceSource,
 					samples: scaleEvidenceDimensions.length,
+				},
+				normalization: {
+					contentBox: sourceContentBox,
+					recognitionRegion,
+					recognitionBoxOnPage,
+					mainPlanBox,
+					mainPlanBoxInContent: contentSpaceMainPlanBox,
+					mainPlanBoxSource,
+					focusBounds: focusCandidateBoxInContent ? (source === 'pdf' ? regionFromContentToPage(focusCandidateBoxInContent, sourceContentBox) : focusCandidateBoxInContent) : undefined,
+					focusBoundsInContent: focusCandidateBoxInContent,
+					focusUsedAsMainPlanBox,
+					coordinateSpace: 'main_plan_box',
 				},
 				diagnostics: {
 					rawSegments: segments.length,
@@ -7624,7 +7639,6 @@ export async function POST(request: NextRequest) {
 
 		const rawElements = [...assembledWallElements, ...spaceElements, ...columnElementsFinal, ...doorElements, ...windowElements, ...curtainWallElements];
 		const contentCoordinateBox = { x: 0, y: 0, w: 1, h: 1 };
-		const sourceContentBox = contentBox ?? { x: 0, y: 0, w: 1, h: 1 };
 		const elements = attachPageCoordinateProvenance(
 			rebaseElementsToMainPlan(rawElements, contentCoordinateBox, contentSpaceMainPlanBox),
 			sourceContentBox
@@ -7644,8 +7658,6 @@ export async function POST(request: NextRequest) {
 		const issues = buildIssues(elements, rebasedDimensions.length);
 		const quality = buildQualityScore(elements, rebasedDimensions.length, issues);
 		const floorPlanIR = buildFloorPlanIR(safeName, source, { x: 0, y: 0, w: 1, h: 1 }, elements, scaleEvidenceDimensions, mmPerNormalized, issues, zonePipeline.coreZones);
-		const mainPlanBox = source === 'pdf' ? regionFromContentToPage(contentSpaceMainPlanBox, sourceContentBox) : contentSpaceMainPlanBox;
-		const recognitionBoxOnPage = source === 'pdf' ? regionFromContentToPage(recognitionRegion, sourceContentBox) : recognitionRegion;
 		// 门禁几何判定使用重映射前的内容坐标，避免 main_plan_box 各轴独立归一化带来的横竖尺度漂移。
 		const gateElements = rawElements;
 		const wallGraph = buildWallGraphDraft(gateElements, mmPerNormalized);

@@ -145,8 +145,9 @@ class TaskOrientedExpertFactory:
         "default": {"temperature": 0.6, "description": "默认-稳定输出"},
     }
 
-    def __init__(self):
-        self.llm_factory = LLMFactory()
+    def __init__(self, llm_factory: Any = None, prompt_manager: Any = None):
+        self.llm_factory = llm_factory or LLMFactory()
+        self.prompt_manager = prompt_manager
 
     def _get_llm(self, role_type: str = "default", deliverable_count: int = 0):
         """
@@ -1821,6 +1822,7 @@ class TaskOrientedExpertFactory:
 
         # 4. 遍历检测到的模式，查找匹配的注入规则
         injected_prompts = []
+        targeted_mode_ids = set()
 
         for mode_info in detected_modes:
             mode_id = mode_info.get("mode", "")
@@ -1843,6 +1845,8 @@ class TaskOrientedExpertFactory:
 
             if not is_target:
                 continue
+
+            targeted_mode_ids.add(mode_id)
 
             # 5. 获取注入提示词
             prompt_injection = rule.get("prompt_injection", "").strip()
@@ -1867,6 +1871,8 @@ class TaskOrientedExpertFactory:
                 for mode_info in detected_modes:
                     mode_id = mode_info.get("mode", "")
                     confidence = mode_info.get("confidence", 0.0)
+                    if mode_id not in targeted_mode_ids:
+                        continue
                     if confidence < 0.5:
                         continue
                     mode_entry = activation_config.get(mode_id)

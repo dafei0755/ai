@@ -20,7 +20,7 @@ v1.0
 from __future__ import annotations
 
 import re
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from loguru import logger
 
@@ -165,9 +165,8 @@ NORMALIZATION_MAP: Dict[str, str] = {
     "老龄化":       "适老化",
     "中医诊所":     "中医馆",
     "中药房":       "中医馆",
-    "口腔诊所":     "牙科",
-    "牙科诊所":     "牙科",
-    "牙医诊室":     "牙科",
+    "口腔诊所":     "牙科诊所",
+    "牙医诊室":     "牙科诊所",
 
     # ── §I 文化/体育 ─────────────────────────────────────────────────────────
     "博物馆设计":   "博物馆",     # → public_cultural
@@ -210,12 +209,52 @@ NORMALIZATION_MAP: Dict[str, str] = {
 # 运行时动态别名（由 alias_learning_service 学习后追加，重启前有效）
 # =============================================================================
 _DYNAMIC_ALIASES: Dict[str, str] = {}
+_PENDING_ALIAS_CANDIDATES: List[Dict[str, Any]] = []
 
 
 def add_dynamic_alias(alias: str, canonical: str) -> None:
     """运行时追加别名（由 alias_learning_service 调用）"""
     _DYNAMIC_ALIASES[alias.strip()] = canonical.strip()
     logger.debug(f"[AliasNorm] 动态别名已注册: {alias!r} → {canonical!r}")
+
+
+def add_pending_alias_candidate(
+    alias: str,
+    canonical: str,
+    source: str = "runtime_learning",
+    metadata: Optional[Dict[str, Any]] = None,
+) -> None:
+    """记录待复核别名候选，不进入运行时生效别名表。"""
+    alias = alias.strip()
+    canonical = canonical.strip()
+    if not alias or not canonical:
+        return
+
+    _PENDING_ALIAS_CANDIDATES.append({
+        "alias": alias,
+        "canonical": canonical,
+        "source": source,
+        "review_status": "pending",
+        "metadata": dict(metadata or {}),
+    })
+    logger.debug(f"[AliasNorm] 待复核别名候选已记录: {alias!r} → {canonical!r}")
+
+
+def get_pending_alias_candidates() -> List[Dict[str, Any]]:
+    """返回待复核别名候选，供管理后台/治理流程读取。"""
+    return [
+        {
+            **item,
+            "metadata": dict(item.get("metadata") or {}),
+        }
+        for item in _PENDING_ALIAS_CANDIDATES
+    ]
+
+
+def clear_alias_governance_for_tests() -> None:
+    """清理运行时别名状态，仅供测试隔离使用。"""
+    _DYNAMIC_ALIASES.clear()
+    _PENDING_ALIAS_CANDIDATES.clear()
 
 
 def get_all_aliases() -> Dict[str, str]:
@@ -230,7 +269,9 @@ def get_all_aliases() -> Dict[str, str]:
 
 NEGATION_PATTERNS: List[str] = [
     r"不(要|做|是|想|需要|改|建|含|包括|属于)",
-    r"非(?!常|凡|常的)",         # "非常" 不是否定
+    # "非" 既可能是否定，也可能是地名/专名/行业表达的一部分。
+    # 避免"非洲/非遗/非标/非营利"误伤后续空间关键词。
+    r"非(?!常|凡|常的|洲|洲地区|洲大陆|遗|标|营利|传统|典型)",
     r"无需",
     r"排除",
     r"避免",
@@ -297,6 +338,63 @@ def is_negated(keyword: str, text: str, negated_spans: Optional[List[Tuple[int, 
 # 主函数
 # =============================================================================
 
+def normalize_input_with_trace(text: str) -> Dict[str, Any]:
+    """
+    标准化用户输入并返回可审计 trace。
+
+    人话: 管理后台需要知道"哪个用户词被替换成了哪个系统词"。
+    这个函数保留 normalize_input() 的替换行为，同时输出替换明细。
+    """
+    static_aliases = {alias: (canonical, "static") for alias, canonical in NORMALIZATION_MAP.items()}
+    dynamic_aliases = {
+        alias: (canonical, "dynamic") for alias, canonical in _DYNAMIC_ALIASES.items()
+    }
+    merged_map = {**static_aliases, **dynamic_aliases}
+
+    sorted_aliases = sorted(merged_map.items(), key=lambda x: len(x[0]), reverse=True)
+
+    result = text
+    replacements: List[Dict[str, Any]] = []
+    for alias, (canonical, source) in sorted_aliases:
+        if not alias or alias == canonical:
+            continue
+
+        search_from = 0
+        while True:
+            idx = result.find(alias, search_from)
+            if idx < 0:
+                break
+            end = idx + len(alias)
+            result = result[:idx] + canonical + result[end:]
+            replacements.append({
+                "alias": alias,
+                "canonical": canonical,
+                "source": source,
+                "start": idx,
+                "end": end,
+            })
+            search_from = idx + len(canonical)
+
+    before_fullwidth = result
+    result = _fullwidth_to_halfwidth(result)
+    fullwidth_converted = result != before_fullwidth
+
+    trace = {
+        "schema_version": "type_alias_normalization_trace.v1",
+        "original_text": text,
+        "normalized_text": result,
+        "changed": result != text,
+        "fullwidth_converted": fullwidth_converted,
+        "replacement_count": len(replacements),
+        "replacements": replacements,
+    }
+
+    if result != text:
+        logger.debug(f"[AliasNorm] 别名替换: {text!r} → {result!r}")
+
+    return trace
+
+
 def normalize_input(text: str) -> str:
     """
     标准化用户输入：
@@ -310,23 +408,7 @@ def normalize_input(text: str) -> str:
     Returns:
         标准化后的文本（别名已替换，不修改原词序）
     """
-    merged_map = {**NORMALIZATION_MAP, **_DYNAMIC_ALIASES}
-
-    # 按别名长度降序排列，优先替换更长的匹配（避免子串替换冲突）
-    sorted_aliases = sorted(merged_map.items(), key=lambda x: len(x[0]), reverse=True)
-
-    result = text
-    for alias, canonical in sorted_aliases:
-        if alias in result:
-            result = result.replace(alias, canonical)
-
-    # 全角→半角
-    result = _fullwidth_to_halfwidth(result)
-
-    if result != text:
-        logger.debug(f"[AliasNorm] 别名替换: {text!r} → {result!r}")
-
-    return result
+    return normalize_input_with_trace(text)["normalized_text"]
 
 
 def _fullwidth_to_halfwidth(text: str) -> str:

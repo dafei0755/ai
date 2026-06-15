@@ -33,7 +33,7 @@ DEV_MODE = (
 
 async def optional_auth(request: Request) -> Optional[dict]:
     """
-    可选认证依赖函数：如果有JWT Token则验证，没有也不报错
+    可选认证依赖函数：如果有内部应用 Token 则验证，没有也不报错
 
     用于支持登录和未登录用户都能访问的端点
     """
@@ -54,12 +54,12 @@ async def optional_auth(request: Request) -> Optional[dict]:
             "roles": ["administrator"],
         }
 
-    # 验证 JWT Token
+    # 验证内部应用 Token
     try:
-        from intelligent_project_analyzer.services.wordpress_jwt_service import get_jwt_service
+        from intelligent_project_analyzer.services.internal_auth_service import get_internal_auth_service
 
-        jwt_service = get_jwt_service()
-        payload = jwt_service.verify_token(token)
+        auth_service = get_internal_auth_service()
+        payload = auth_service.verify_jwt_token(token)
 
         if not payload:
             return None  # Token 无效，返回 None（不报错）

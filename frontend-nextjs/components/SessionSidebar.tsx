@@ -21,17 +21,20 @@ import {
   Trash2,
   Sparkles
 } from 'lucide-react';
+import { resolveSessionTitle } from '@/lib/sessionTitle';
 
 export interface Session {
   session_id: string;
   status: string;
   created_at: string;
   user_input: string;
+  display_name?: string;
   progress?: number;
   analysis_mode?: string;
   isTemporary?: boolean;
   session_type?: 'analysis' | 'search';  // 🆕 v7.180: 区分会话类型
   pinned?: boolean;  // 🆕 置顶标记
+  is_demo?: boolean; // 🎭 演示样例会话标记
 }
 
 interface SessionSidebarProps {
@@ -139,11 +142,15 @@ export function SessionSidebar({
   // 渲染单个会话项
   const renderSessionItem = (session: Session) => {
     const isCurrentSession = session.session_id === currentSessionId;
+    const displayTitle = resolveSessionTitle(session.user_input || '', session.display_name);
 
     return (
       <div key={`sidebar-${session.session_id}`} className="relative group">
       <button
         onClick={(e) => {
+          // 🎭 Demo 会话不可点击，仅作为展示参考
+          if (session.is_demo) return;
+
           // v7.290: 默认在新标签页打开历史记录
           let targetUrl = '';
           if (session.session_type === 'search') {
@@ -158,6 +165,7 @@ export function SessionSidebar({
           window.open(targetUrl, '_blank');
         }}
         onAuxClick={(e) => {
+          if (session.is_demo) return;
           // v7.290: 中键点击在新标签页打开
           if (e.button === 1) {
             e.preventDefault();
@@ -172,14 +180,22 @@ export function SessionSidebar({
             window.open(targetUrl, '_blank');
           }
         }}
+        title={session.is_demo ? '演示样例，不可点击' : (session.display_name || session.user_input)}
         className={`w-full text-sm px-3 py-2 rounded-lg transition-colors text-left ${
-          isCurrentSession
-            ? 'bg-[var(--card-bg)] text-[var(--foreground)] border border-blue-500/30'
-            : 'text-[var(--foreground-secondary)] hover:bg-[var(--card-bg)] hover:text-[var(--foreground)]'
+          session.is_demo
+            ? 'opacity-60 cursor-default text-[var(--foreground-secondary)]'
+            : isCurrentSession
+              ? 'bg-[var(--card-bg)] text-[var(--foreground)] border border-blue-500/30'
+              : 'text-[var(--foreground-secondary)] hover:bg-[var(--card-bg)] hover:text-[var(--foreground)]'
         }`}
       >
         <div className="flex items-center gap-2">
-          <div className="flex-1 pr-6 line-clamp-2">{session.user_input || '未命名会话'}</div>
+          {session.is_demo && (
+            <span className="shrink-0 text-[10px] px-1 py-0.5 rounded bg-purple-500/20 text-purple-400 border border-purple-500/30 leading-none">
+              示例
+            </span>
+          )}
+          <div className="flex-1 pr-6 line-clamp-1">{displayTitle || '未命名会话'}</div>
         </div>
 
         <div className="flex items-center gap-1.5 mt-1">

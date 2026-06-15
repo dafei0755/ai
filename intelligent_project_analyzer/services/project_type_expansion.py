@@ -3,13 +3,11 @@
 
 功能：
 1. 监听用户输入，识别未被现有类型覆盖的场景 → 产生候选类型
-2. 扫描爬虫知识库（sf_knowledge），发现高频新类型模式
-3. 将候选写入 project_type_candidates 表，等待管理员审核
-4. 审核通过后写入 data/project_type_extensions.json，热重载生效
+2. 将候选写入 project_type_candidates 表，等待管理员审核
+3. 审核通过后写入 data/project_type_extensions.json，热重载生效
 
 触发点：
   - requirements_analyst._infer_project_type() 返回 None 时
-  - 爬虫采集到大量某类词汇时，由外部调度器调用 scan_crawler_data()
 """
 
 from __future__ import annotations
@@ -104,7 +102,6 @@ class ProjectTypeCandidateCollector:
 
     职责：
     - 从用户会话文本提取「可能是新类型」的信号词
-    - 对爬虫数据做频率分析，发现高频未覆盖模式
     - 生成候选条目并写入数据库（待管理员审核）
     """
 
@@ -167,60 +164,6 @@ class ProjectTypeCandidateCollector:
                 f"suggestion={candidate['type_id_suggestion']})"
             )
         return candidate_id
-
-    # ── 从爬虫知识库收集 ──────────────────────────────────────────────────────
-
-    def scan_crawler_data(
-        self, limit: int = 200
-    ) -> List[Dict[str, Any]]:
-        """
-        扫描爬虫采集的项目数据，统计未覆盖类型模式。
-
-        Returns:
-            候选类型列表（不直接保存，由调用方决定是否入库）
-        """
-        try:
-            from .sf_knowledge_loader import SFKnowledgeLoader
-            loader = SFKnowledgeLoader()
-            projects = loader.load_projects(limit=limit)
-        except Exception as e:
-            logger.warning(f"[TypeExpansion] 无法加载爬虫数据: {e}")
-            return []
-
-        # 统计每个项目的未识别情况
-        unmatched: Dict[str, List[str]] = {}
-        for proj in projects:
-            text = " ".join([
-                proj.get("title", ""),
-                proj.get("description", ""),
-                proj.get("category", ""),
-            ])
-            project_type, confidence, _ = self.detector.detect(text)
-            if project_type is None or confidence < 0.5:
-                kws = self._extract_keywords(text)
-                cluster = kws[0] if kws else "unknown"
-                unmatched.setdefault(cluster, []).append(text[:100])
-
-        # 筛选高频未覆盖模式
-        candidates = []
-        for cluster, samples in unmatched.items():
-            if len(samples) >= self.MIN_KEYWORD_FREQ:
-                candidates.append({
-                    "type_id_suggestion": f"crawler_{cluster}",
-                    "name_zh": cluster,
-                    "name_en": "",
-                    "description": f"爬虫数据中高频出现（{len(samples)}次）",
-                    "source": "crawler",
-                    "source_session_id": None,
-                    "sample_inputs": samples[:5],
-                    "suggested_keywords": [cluster],
-                    "suggested_secondary_keywords": [],
-                    "confidence_score": min(0.9, 0.3 + len(samples) * 0.05),
-                    "occurrence_count": len(samples),
-                })
-
-        logger.info(f"[TypeExpansion] 爬虫扫描完成: {len(candidates)} 个候选模式")
-        return candidates
 
     # ── 合并候选（去重 + 频次累加）─────────────────────────────────────────────
 

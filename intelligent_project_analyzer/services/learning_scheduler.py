@@ -86,14 +86,6 @@ class LearningScheduler:
             description="自动审批高置信度维度候选",
         )
 
-        # 4. 项目类型扩展扫描（每 3 天一次）
-        self.register_task(
-            name="type_expansion_scan",
-            func=self._run_type_expansion_scan,
-            interval_seconds=3 * 24 * 3600,
-            description="扫描爬虫知识库，发现未覆盖类型模式，生成候选待管理员审核",
-        )
-
     def register_task(
         self,
         name: str,
@@ -229,39 +221,6 @@ class LearningScheduler:
     # ========================================================================
     # 具体任务实现
     # ========================================================================
-
-    @staticmethod
-    async def _run_type_expansion_scan() -> Dict[str, Any]:
-        """
-        Step 3: 扫描爬虫知识库，发现未覆盖类型模式，自动入库候选待管理员审核。
-
-        触发时机：每 3 天由调度器自动执行
-        手动触发：管理员 API POST /admin/scheduling/run {"task":"type_expansion_scan"}
-        """
-        try:
-            from .project_type_expansion import ProjectTypeCandidateCollector
-
-            collector = ProjectTypeCandidateCollector()
-            candidates = collector.scan_crawler_data(limit=200)
-
-            saved = 0
-            for cand in candidates:
-                cid = collector.merge_or_save_candidate(cand)
-                if cid:
-                    saved += 1
-
-            logger.info(
-                f"✅ [Scheduler] 类型扩展扫描完成: 发现 {len(candidates)} 个模式，"
-                f"入库 {saved} 条候选"
-            )
-            return {
-                "status": "success",
-                "patterns_found": len(candidates),
-                "candidates_saved": saved,
-            }
-        except Exception as e:
-            logger.error(f"❌ [Scheduler] 类型扩展扫描失败: {e}")
-            return {"status": "error", "error": str(e)}
 
     @staticmethod
     async def _run_motivation_analysis() -> Dict[str, Any]:

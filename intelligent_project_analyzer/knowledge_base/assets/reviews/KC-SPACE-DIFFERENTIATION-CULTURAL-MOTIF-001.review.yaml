@@ -1,0 +1,7 @@
+schema_version: knowledge_asset_review.v1
+card_id: KC-SPACE-DIFFERENTIATION-CULTURAL-MOTIF-001
+review:
+  reviewer_id: codex
+  reviewed_at: '2026-06-08T03:55:44.509937+00:00'
+  decision: approved
+  note: initial approved MVP asset from HEYTEA cultural motif source

@@ -1,12 +1,12 @@
-"""
-execution/skills/review_skills.py — 审查核查技能
+﻿"""
+execution/skills/review_skills.py 鈥?瀹℃煡鏍告煡鎶€鑳?
 
-Copilot 生成（2026-03-22）
+Copilot 鐢熸垚锛?026-03-22锛?
 
-技能列表：
-  - quality_preflight   (A 类门控)：交付前质量预检
-  - consistency_check   (A 类门控)：多版本、多节点产物一致性校验
-  - redline_detection   (A 类门控)：识别当前产物是否触碰红线
+鎶€鑳藉垪琛細
+  - quality_preflight   (A 绫婚棬鎺?锛氫氦浠樺墠璐ㄩ噺棰勬
+  - consistency_check   (A 绫婚棬鎺?锛氬鐗堟湰銆佸鑺傜偣浜х墿涓€鑷存€ф牎楠?
+  - redline_detection   (A 绫婚棬鎺?锛氳瘑鍒綋鍓嶄骇鐗╂槸鍚﹁Е纰扮孩绾?
 """
 
 from __future__ import annotations
@@ -22,7 +22,7 @@ from intelligent_project_analyzer.workflow.execution.risk_gates import (
 
 
 # ---------------------------------------------------------------------------
-# 结果结构
+# 缁撴灉缁撴瀯
 # ---------------------------------------------------------------------------
 
 
@@ -35,7 +35,7 @@ class PreflightResult:
     ) -> None:
         self.passed = passed
         self.issues = issues   # [{"level": "error"|"warn", "message": ...}]
-        self.score = score     # 0.0–1.0 综合评分
+        self.score = score     # 0.0鈥?.0 缁煎悎璇勫垎
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -75,13 +75,13 @@ class RedlineDetectionResult:
 
 
 # ---------------------------------------------------------------------------
-# 审查技能
+# 瀹℃煡鎶€鑳?
 # ---------------------------------------------------------------------------
 
-# 交付物必需字段
+# 浜や粯鐗╁繀闇€瀛楁
 _REQUIRED_DELIVERABLE_KEYS = ("id", "type", "content")
 
-# 红线典型标记词（与 delta_router 共享语义）
+# 绾㈢嚎鍏稿瀷鏍囪璇嶏紙涓?delta_router 鍏变韩璇箟锛?
 _REDLINE_MARKERS = (
     "容积率", "退红线", "消防", "日照", "限高",
     "结构体系", "地基", "选址重选",
@@ -95,20 +95,16 @@ def quality_preflight(
     call_counts: Optional[Dict[str, int]] = None,
 ) -> PreflightResult:
     """
-    A 类门控 — 交付前质量预检。
+    A 绫婚棬鎺?鈥?浜や粯鍓嶈川閲忛妫€銆?
 
-    检查每个交付物的必需字段是否完整，内容是否非空。
+    妫€鏌ユ瘡涓氦浠樼墿鐨勫繀闇€瀛楁鏄惁瀹屾暣锛屽唴瀹规槸鍚﹂潪绌恒€?
     """
     request = ActionRequest(
         action_name="validate_constraints",
         context={"session_id": session_id, "task": "preflight"},
-        description=f"质量预检: {len(deliverables)} 项交付物",
+        description=f"璐ㄩ噺棰勬: {len(deliverables)} 椤逛氦浠樼墿",
     )
-    outcome = gate_engine.check(
-        request.action_name,
-        context=request.context,
-        call_counts=call_counts or {},
-    )
+    outcome = gate_engine.check(request, call_counts=call_counts or {})
 
     if not outcome.can_proceed:
         return PreflightResult(passed=False, issues=[{"level": "error", "message": "gate_blocked"}])
@@ -119,7 +115,7 @@ def quality_preflight(
             if key not in item or not item[key]:
                 issues.append({
                     "level": "error",
-                    "message": f"交付物[{idx}] 缺少必需字段: {key}",
+                    "message": f"浜や粯鐗{idx}] 缂哄皯蹇呴渶瀛楁: {key}",
                 })
 
     passed = all(i["level"] != "error" for i in issues)
@@ -140,22 +136,18 @@ def consistency_check(
     call_counts: Optional[Dict[str, int]] = None,
 ) -> ConsistencyResult:
     """
-    A 类门控 — 比较两个 DeliveryBundle 快照的指定字段是否一致。
+    A 绫婚棬鎺?鈥?姣旇緝涓や釜 DeliveryBundle 蹇収鐨勬寚瀹氬瓧娈垫槸鍚︿竴鑷淬€?
 
-    参数:
-      bundle_a, bundle_b — 两个 DeliveryBundle.model_dump() 结果
-      key_fields         — 需要比较的顶层字段名列表
+    鍙傛暟:
+      bundle_a, bundle_b 鈥?涓や釜 DeliveryBundle.model_dump() 缁撴灉
+      key_fields         鈥?闇€瑕佹瘮杈冪殑椤跺眰瀛楁鍚嶅垪琛?
     """
     request = ActionRequest(
         action_name="baseline_compare",
         context={"session_id": session_id},
-        description=f"一致性校验: fields={key_fields}",
+        description=f"涓€鑷存€ф牎楠? fields={key_fields}",
     )
-    outcome = gate_engine.check(
-        request.action_name,
-        context=request.context,
-        call_counts=call_counts or {},
-    )
+    outcome = gate_engine.check(request, call_counts=call_counts or {})
 
     if not outcome.can_proceed:
         return ConsistencyResult(consistent=False, conflicts=[{"field": "gate_blocked", "versions": [], "detail": ""}])
@@ -168,7 +160,7 @@ def consistency_check(
             conflicts.append({
                 "field": field,
                 "versions": [str(val_a)[:80], str(val_b)[:80]],
-                "detail": f"{field} 在两个版本间不一致",
+                "detail": f"{field} is inconsistent between versions",
             })
 
     consistent = len(conflicts) == 0
@@ -187,39 +179,35 @@ def redline_detection(
     call_counts: Optional[Dict[str, int]] = None,
 ) -> RedlineDetectionResult:
     """
-    A 类门控 — 检测文本内容是否触碰项目红线或系统级红线标记词。
+    A 绫婚棬鎺?鈥?妫€娴嬫枃鏈唴瀹规槸鍚﹁Е纰伴」鐩孩绾挎垨绯荤粺绾х孩绾挎爣璁拌瘝銆?
 
-    参数:
-      content                 — 待检测的文字内容（用户输入或交付物摘要）
-      boundaries_and_redlines — 来自 DesignTaskBook 的项目级红线约束
+    鍙傛暟:
+      content                 鈥?寰呮娴嬬殑鏂囧瓧鍐呭锛堢敤鎴疯緭鍏ユ垨浜や粯鐗╂憳瑕侊級
+      boundaries_and_redlines 鈥?鏉ヨ嚜 DesignTaskBook 鐨勯」鐩骇绾㈢嚎绾︽潫
     """
     request = ActionRequest(
         action_name="validate_constraints",
         context={"session_id": session_id, "task": "redline_detection"},
-        description="红线检测",
+        description="redline detection",
     )
-    outcome = gate_engine.check(
-        request.action_name,
-        context=request.context,
-        call_counts=call_counts or {},
-    )
+    outcome = gate_engine.check(request, call_counts=call_counts or {})
 
     if not outcome.can_proceed:
         return RedlineDetectionResult(alerts=["gate_blocked"], requires_derived_project=False)
 
     alerts: List[str] = []
 
-    # 系统级红线
+    # 绯荤粺绾х孩绾?
     for marker in _REDLINE_MARKERS:
         if marker in content:
-            alerts.append(f"触碰系统级红线标记: {marker}")
+            alerts.append(f"瑙︾绯荤粺绾х孩绾挎爣璁? {marker}")
 
-    # 项目级红线
+    # 椤圭洰绾х孩绾?
     for redline in boundaries_and_redlines:
         keywords = [w for w in redline.split() if len(w) >= 2]
         for kw in keywords:
             if kw in content:
-                alerts.append(f"触碰项目红线: {redline[:60]}")
+                alerts.append(f"瑙︾椤圭洰绾㈢嚎: {redline[:60]}")
                 break
 
     requires_derived = len(alerts) > 0

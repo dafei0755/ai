@@ -1,0 +1,75 @@
+card_id: KC-TEA-EQUIPMENT-MEP-PRECHECK-001
+title: 茶饮门店设备与机电容量前置预检机制
+status: approved
+source_role: risk_precheck
+species:
+- RiskCard
+- OperationFlowCard
+production_method: CL
+layer: SpaceType
+source_refs:
+- TEA_DRINK_STORE_OPERATION_MVP
+grid_coordinate:
+  primary_lens: E9_constraint_risk
+  secondary_lens:
+  - E6_operation_system
+  - E2_body_movement
+  layer: SpaceType
+time_validity:
+  variable_type: fast
+  review_cycle: 6 months
+transferability:
+  level: SpaceType
+  limitation: 只能作为方案前置风险清单，不能替代机电、消防、设备厂商和物业条件确认。
+output_usage:
+- DesignBrief_2_0
+- RiskChecklist
+- OperationFlowMap
+task_brief_chapter:
+- risk_precheck
+- operation_flow
+- implementation_constraints
+judgment_bet:
+  is_verifiable: true
+  judgment: 茶饮门店若不先确认设备和机电容量，后期方案大概率被设备条件推翻。
+  why_this_judgment: 茶饮设备、制冰冷藏、给排水、电力和排风补风对吧台和后场布局约束强。
+  what_would_prove_it_right: 后续深化中因容量、点位或设备尺寸导致平面和界面大改。
+  what_would_prove_it_wrong: 设备和机电条件无需调整即可承接方案。
+  expected_observation: 深化设计、物业交底或施工图阶段的条件变更记录。
+  review_time: after technical coordination
+primary_domain: food_beverage
+secondary_domains:
+- retail
+knowledge_status: processed_insight
+evidence_level: supporting_evidence
+evidence_strength: B
+ontology_dimension_ids:
+- E6_operation_system
+- E9_constraint_risk
+- E2_body_movement
+package_ids:
+- kp.tea_drink_store
+- kp.kitchen_design
+- kp.mep_retrofit
+- kp.commercial_dining
+allowed_use:
+- theme_generation
+- concept_inspiration
+- motif_recall
+- operation_flow_strategy
+- risk_precheck
+not_allowed_use:
+- business_performance_claim
+- construction_standard
+- compliance_basis
+- confirmed_user_preference
+- verified_store_status
+evidence_case_ids:
+- TEA_DRINK_STORE_OPERATION_MVP
+summary: 茶饮项目在方案前期应先确认给排水、电力容量、排风补风、制冰冷藏和吧台设备位置，否则风格方案容易被后期设备条件推翻。
+review_required: true
+review:
+  reviewer_id: codex
+  reviewed_at: '2026-06-09T00:00:00+00:00'
+  decision: approved
+  note: seed approved MVP card for tea drink equipment and MEP precheck

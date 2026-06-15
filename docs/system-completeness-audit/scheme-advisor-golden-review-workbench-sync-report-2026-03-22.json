@@ -1,0 +1,18 @@
+{
+  "schema_version": "scheme_advisor_golden_review_workbench_sync.v1",
+  "generated_at": "2026-06-15T23:50:20",
+  "summary": {
+    "review_rows": 29,
+    "workbench_rows": 28,
+    "updated_rows": 0,
+    "copied_fields": 0,
+    "skipped_empty_fields": 196,
+    "missing_workbench_rows": 1
+  },
+  "missing_workbench_ids": [
+    "2"
+  ],
+  "source_review_csv_path": "D:\\11-20\\2026.2.25\\langgraph-design\\docs\\system-completeness-audit\\scheme-advisor-golden-review-batch-01-p0-2026-03-22.csv",
+  "source_workbench_csv_path": "D:\\11-20\\2026.2.25\\langgraph-design\\docs\\system-completeness-audit\\scheme-advisor-missing-gold-review-workbench-2026-03-22.csv",
+  "output_csv_path": "D:\\11-20\\2026.2.25\\langgraph-design\\docs\\system-completeness-audit\\scheme-advisor-golden-review-batch-01-p0-synced-2026-03-22.csv"
+}

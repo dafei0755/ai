@@ -3,12 +3,18 @@
 import { useState, useEffect } from 'react';
 
 export default function MonitoringPage() {
-  const grafanaUrl = process.env.NEXT_PUBLIC_GRAFANA_URL || 'http://localhost:3200';
+  const grafanaUrl = process.env.NEXT_PUBLIC_GRAFANA_URL || '';
   const [isGrafanaAvailable, setIsGrafanaAvailable] = useState<boolean | null>(null);
   const [isChecking, setIsChecking] = useState(true);
 
   // 检测 Grafana 服务是否可用
   useEffect(() => {
+    if (!grafanaUrl) {
+      setIsGrafanaAvailable(false);
+      setIsChecking(false);
+      return;
+    }
+
     const checkGrafana = async () => {
       try {
         const response = await fetch(`${grafanaUrl}/api/health`, {

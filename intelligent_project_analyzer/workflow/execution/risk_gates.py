@@ -353,6 +353,8 @@ class RiskGateEngine:
             "blocked": outcome.blocked,
             "needs_confirm": outcome.needs_confirm,
             "block_reason": outcome.block_reason,
+            "description": request.description,
+            "context": request.context,
             "notes": notes,
             "recorded_at": datetime.now().isoformat(),
         })

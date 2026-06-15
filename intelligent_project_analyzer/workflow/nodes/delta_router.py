@@ -46,7 +46,8 @@ _DELTA_KEYWORDS = (
 
 _DERIVED_KEYWORDS = (
     "从零", "推翻", "改风格", "加层", "减层", "加两层", "重做",
-    "全部重来", "换方向", "平行版本", "大胆版本",
+    "重新设计", "整个方案", "全部重来", "换方向", "改变核心", "核心功能定位",
+    "平行版本", "大胆版本",
 )
 
 _REDLINE_MARKERS = (
@@ -84,6 +85,17 @@ class DeltaRouter:
         archive_raw: Optional[Dict[str, Any]] = state.get("project_archive") or {}
 
         logger.info(f"[{session_id}] DeltaRouter 判断: {user_input[:60]}")
+
+        if not self._is_project_frozen(state):
+            logger.info(f"[{session_id}] DeltaRouter → conversation_engine（项目尚未冻结）")
+            return Command(
+                goto="conversation_engine",
+                update={
+                    "system_mode": "conversation",
+                    "delta_router_status": "not_frozen",
+                    "updated_at": datetime.now().isoformat(),
+                },
+            )
 
         # ── 计算影响图谱 ─────────────────────────────────────────────
         impact = self._compute_impact(user_input, taskbook_raw)
@@ -198,6 +210,8 @@ class DeltaRouter:
         requires_derived = any(m in user_input for m in _REDLINE_MARKERS)
         if not requires_derived and any(kw in user_input for kw in _DERIVED_KEYWORDS):
             requires_derived = True
+        if not requires_derived and redline_alerts:
+            requires_derived = True
 
         return ImpactGraph(
             changed_field=changed_field or user_input[:30],
@@ -210,6 +224,28 @@ class DeltaRouter:
     # ------------------------------------------------------------------
     # 辅助
     # ------------------------------------------------------------------
+
+    def _is_project_frozen(self, state: ProjectAnalysisState) -> bool:
+        if state.get("requirements_frozen") is True:
+            return True
+
+        taskbook = state.get("design_task_book") or {}
+        if isinstance(taskbook, dict) and taskbook.get("frozen") is True:
+            return True
+
+        archive = state.get("project_archive") or {}
+        if isinstance(archive, dict):
+            if archive.get("design_task_book_snapshot") or archive.get("delivery_bundle"):
+                return True
+
+            archived_taskbook = archive.get("design_task_book") or {}
+            if (
+                isinstance(archived_taskbook, dict)
+                and archived_taskbook.get("frozen") is True
+            ):
+                return True
+
+        return False
 
     def _is_clear_delta(self, text: str, impact: ImpactGraph) -> bool:
         return (

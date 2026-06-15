@@ -101,15 +101,12 @@ class TaxonomyLearningCollector:
             return  # 无需学习
 
         try:
-            from .type_alias_normalizer import add_dynamic_alias
+            from .type_alias_normalizer import add_pending_alias_candidate
             from .project_type_detector import PROJECT_TYPE_REGISTRY
 
             # 找到 confirmed_type 对应的规范中文名
-            canonical_name: Optional[str] = None
-            for entry in PROJECT_TYPE_REGISTRY:
-                if entry.get("type_id") == confirmed_type:
-                    canonical_name = entry.get("name_zh") or entry.get("name")
-                    break
+            entry = PROJECT_TYPE_REGISTRY.get(confirmed_type) or {}
+            canonical_name: Optional[str] = entry.get("name_zh") or entry.get("name")
 
             if canonical_name is None:
                 logger.warning(
@@ -121,9 +118,17 @@ class TaxonomyLearningCollector:
             # 简单策略：直接将截断后的 user_text 作为别名（不超过 10 字）
             alias_candidate = user_text.strip()[:10]
             if alias_candidate:
-                add_dynamic_alias(alias_candidate, canonical_name)
+                add_pending_alias_candidate(
+                    alias_candidate,
+                    canonical_name,
+                    source="taxonomy_learning_correction",
+                    metadata={
+                        "detected_type": detected_type,
+                        "confirmed_type": confirmed_type,
+                    },
+                )
                 logger.info(
-                    f"[TaxonomyLearning] 别名学习: '{alias_candidate}' → '{canonical_name}' "
+                    f"[TaxonomyLearning] 别名候选已记录: '{alias_candidate}' → '{canonical_name}' "
                     f"(detected={detected_type}, confirmed={confirmed_type})"
                 )
 

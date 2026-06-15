@@ -1,6 +1,6 @@
-"use client";
+﻿"use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { toast } from "sonner";
 import { Loader2, Check, X, Save, AlertCircle } from "lucide-react";
 import axios from "axios";
@@ -45,17 +45,14 @@ export default function ShowcaseConfigPage() {
   const [validations, setValidations] = useState<Record<number, ValidationResult>>({});
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const validateSessionIdRef = useRef<(index: number, sessionId: string) => Promise<void>>(async () => {});
 
   // 加载配置
-  useEffect(() => {
-    loadConfig();
-  }, []);
-
-  const loadConfig = async () => {
+  const loadConfig = useCallback(async () => {
     setLoading(true);
     try {
       // 获取管理员token
-      const token = localStorage.getItem('wp_jwt_token');
+      const token = localStorage.getItem('app_auth_token');
       const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
 
       const response = await axios.get("/api/admin/showcase/config", { headers });
@@ -67,18 +64,18 @@ export default function ShowcaseConfigPage() {
         sessionIds.push("");
       }
 
-      setConfig({
-        ...config,
+      setConfig(prev => ({
+        ...prev,
         ...loadedConfig,
         session_ids: sessionIds,
-      });
+      }));
 
       console.log("配置加载成功:", loadedConfig);
 
       // 自动验证已存在的会话ID
       sessionIds.forEach((sessionId: string, index: number) => {
         if (sessionId && sessionId.trim()) {
-          validateSessionId(index, sessionId);
+          validateSessionIdRef.current(index, sessionId);
         }
       });
     } catch (error) {
@@ -87,10 +84,10 @@ export default function ShowcaseConfigPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   // 验证单个会话ID
-  const validateSessionId = async (index: number, sessionId: string) => {
+  const validateSessionId = useCallback(async (index: number, sessionId: string) => {
     if (!sessionId.trim()) {
       setValidations(prev => ({
         ...prev,
@@ -170,9 +167,15 @@ export default function ShowcaseConfigPage() {
         }));
       }
     }
-  };
+  }, []);
 
   // 处理输入变化
+  validateSessionIdRef.current = validateSessionId;
+
+  useEffect(() => {
+    loadConfig();
+  }, [loadConfig]);
+
   const handleSessionIdChange = (index: number, value: string) => {
     const newSessionIds = [...config.session_ids];
     newSessionIds[index] = value;
@@ -234,7 +237,7 @@ export default function ShowcaseConfigPage() {
       }
 
       // 获取管理员token
-      const token = localStorage.getItem('wp_jwt_token');
+      const token = localStorage.getItem('app_auth_token');
       const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
 
       console.log("保存配置:", {

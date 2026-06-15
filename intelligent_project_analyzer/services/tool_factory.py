@@ -94,7 +94,7 @@ class ToolFactory:
     #     raise NotImplementedError("RAGFlow 已被 Milvus 替代，请使用 create_milvus_tool()")
 
     @staticmethod
-    def create_milvus_tool(config: Optional["MilvusConfig"] = None):
+    def create_milvus_tool(config: Optional["MilvusConfig"] = None, knowledge_context: Optional[dict] = None):
         """
         创建 Milvus 向量数据库知识库工具 (v7.141+)
 
@@ -125,6 +125,7 @@ class ToolFactory:
             embedding_model_name=cfg.embedding_model,
             reranker_model_name=cfg.reranker_model,
             config=tool_config,
+            default_context=knowledge_context,
         )
 
         # 包装为 LangChain Tool
@@ -189,7 +190,7 @@ class ToolFactory:
         return langchain_tool
 
     @staticmethod
-    def create_all_tools():
+    def create_all_tools(state: Optional[dict] = None):
         """
         创建所有可用的工具
 
@@ -243,7 +244,23 @@ class ToolFactory:
         #  v7.141: Milvus向量数据库知识库 (替代 RAGFlow)
         try:
             if settings.milvus.enabled:
-                tools["milvus"] = ToolFactory.create_milvus_tool()
+                knowledge_context = None
+                if state:
+                    try:
+                        from intelligent_project_analyzer.services.knowledge_package_registry import (
+                            get_knowledge_context_from_state,
+                        )
+
+                        knowledge_context = get_knowledge_context_from_state(state)
+                        logger.info(
+                            " Milvus知识上下文: packages={}, tags={}".format(
+                                knowledge_context.get("knowledge_packages", []),
+                                knowledge_context.get("search_tags", [])[:8],
+                            )
+                        )
+                    except Exception as context_error:
+                        logger.warning(f"️ Milvus知识上下文构建失败: {context_error}")
+                tools["milvus"] = ToolFactory.create_milvus_tool(knowledge_context=knowledge_context)
                 logger.info(" Milvus知识库工具已启用 (6-Stage Deep Pipeline)")
         except Exception as e:
             logger.warning(f"️ Milvus工具创建失败: {e}")

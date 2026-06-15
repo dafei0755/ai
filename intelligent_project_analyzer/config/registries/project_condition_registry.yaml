@@ -1,0 +1,225 @@
+# =============================================================================
+# Project Condition Registry  (v1.8 §6.1 项目条件全局词表)
+# =============================================================================
+# 职责: project_conditions 受控词表 + 互斥规则
+# 唯一维护入口: 本文件
+# 消费者:
+#   - SpaceClassificationService validator: 校验输入条件合法性
+#   - 知识召回 / 风险卡 / 任务书渲染
+#
+# 关于 runtime_modifiers.yaml:
+#   - runtime_modifiers.yaml 的 geo_scene / audience / operation_mode /
+#     experience_focus 是 v1.5 运行时修饰轴, 与本文件**职责不同**:
+#     · runtime_modifiers = 关键词→修饰标签 (检测层)
+#     · project_condition_registry = 条件枚举受控词表 (输出层)
+#   - 切换期: runtime_modifiers 继续输出修饰标签,
+#             SpaceClassificationService 在装配时将修饰标签映射到本文件条目
+# =============================================================================
+
+schema_version: project_condition_registry.v1.8
+owner: core_team
+review_status: approved
+last_updated: 2026-05-20
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 互斥组 (mutex_groups)
+# 同一互斥组内的条件不能同时出现; 装配器会触发 ClarificationRequest
+# ─────────────────────────────────────────────────────────────────────────────
+mutex_groups:
+  area_size:
+    name_cn: 面积规模
+    members:
+      - small_area
+      - medium_area
+      - large_area
+      - xlarge_area
+  budget_level:
+    name_cn: 预算水平
+    members:
+      - limited_budget
+      - mid_budget
+      - high_budget
+      - flagship_budget
+  brand_lifecycle_stage:
+    name_cn: 品牌生命周期
+    members:
+      - new_brand
+      - mature_brand
+      - brand_renovation_stage
+  location_type:
+    name_cn: 选址类型
+    members:
+      - mall_store
+      - street_store
+      - standalone_store
+      - mixed_use_complex
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 条件枚举
+# ─────────────────────────────────────────────────────────────────────────────
+items:
+  transit_connection:
+    name_cn: 地铁/交通连接口
+    description: 位于地铁通道、交通连廊或商场连接口，门头截流、排队外溢和导视压力更高。
+    status: active_mvp
+    aliases: [metro_connection, transit_node, mall_transit_connector]
+  payback_pressure:
+    name_cn: 明确投资回收压力
+    description: 用户提出回本、收回成本或明确投资回收周期，需要转成经营测算与成本边界。
+    status: active_mvp
+    aliases: [roi_pressure, payback_target, investment_return_pressure]
+
+  # ── 面积规模 ──
+  small_area:
+    name_cn: 小面积
+    description: "小于 50 ㎡"
+    mutex_group: area_size
+    status: active_mvp
+  medium_area:
+    name_cn: 中等面积
+    description: "50-150 ㎡"
+    mutex_group: area_size
+    status: active_mvp
+  large_area:
+    name_cn: 大面积
+    description: "150-500 ㎡"
+    mutex_group: area_size
+    status: active_mvp
+  xlarge_area:
+    name_cn: 超大面积
+    description: "大于 500 ㎡"
+    mutex_group: area_size
+    status: active_light
+
+  # ── 选址类型 ──
+  mall_store:
+    name_cn: 购物中心店
+    mutex_group: location_type
+    status: active_mvp
+  street_store:
+    name_cn: 临街店
+    mutex_group: location_type
+    status: active_mvp
+  standalone_store:
+    name_cn: 独立门店
+    mutex_group: location_type
+    status: active_mvp
+  mixed_use_complex:
+    name_cn: 综合体店
+    mutex_group: location_type
+    status: active_light
+
+  # ── 运营特征 ──
+  takeaway_priority:
+    name_cn: 外带优先
+    status: active_mvp
+  dine_in_priority:
+    name_cn: 堂食优先
+    status: active_mvp
+  delivery_heavy:
+    name_cn: 外卖密集
+    status: active_mvp
+  high_turnover:
+    name_cn: 高翻台
+    status: active_mvp
+  slow_dining:
+    name_cn: 慢食慢享
+    status: active_light
+
+  # ── 品牌阶段 (v1.9: 从 founding_type_registry 迁入) ──
+  # 五份参考意见交叉校验后确认:
+  #   "新品牌""品牌升级"是项目阶段, 不是成立方式
+  #   v1.8 §4 示例本身就把 new_brand 放在 project_conditions 数组
+  new_brand:
+    name_cn: 新品牌
+    description: "新品牌从 0 启动阶段 (来自 founding_type_registry v1.8 → v1.9 迁移)"
+    mutex_group: brand_lifecycle_stage
+    status: active_mvp
+    aliases: [brand_launch, startup_brand]
+    keywords:
+      - 新品牌
+      - 新创品牌
+      - 品牌孵化
+      - 从零开始
+      - 首店
+      - 首家门店
+      - 品牌首店
+      - 0 到 1
+      - 0到1
+      - 概念店
+      - 种子门店
+      - 试水门店
+      - 品牌验证
+  mature_brand:
+    name_cn: 成熟品牌
+    description: "已建立市场认知的成熟品牌"
+    mutex_group: brand_lifecycle_stage
+    status: active_mvp
+  brand_renovation_stage:
+    name_cn: 品牌焕新阶段
+    description: "品牌升级 / 形象迭代 / 门店焕新 (来自 founding_type_registry v1.8 → v1.9 迁移)"
+    mutex_group: brand_lifecycle_stage
+    status: active_mvp
+    aliases: [brand_refresh, brand_upgrade]
+    keywords:
+      - 品牌升级
+      - 品牌焕新
+      - 品牌迭代
+      - 形象升级
+      - 门店焕新
+      - 品牌重塑
+      - 空间升级
+      - 产品迭代
+      - 新形象
+      - 老店改造
+      - 客房升级
+      - 品牌吸引力
+
+  # ── 预算 ──
+  limited_budget:
+    name_cn: 有限预算
+    mutex_group: budget_level
+    status: active_mvp
+  mid_budget:
+    name_cn: 中等预算
+    mutex_group: budget_level
+    status: active_mvp
+  high_budget:
+    name_cn: 高预算
+    mutex_group: budget_level
+    status: active_mvp
+  flagship_budget:
+    name_cn: 旗舰级预算
+    mutex_group: budget_level
+    status: active_light
+
+  # ── 地理 / 场景 (来自 v1.5 runtime_modifiers 收编) ──
+  mountain_context:
+    name_cn: 山地语境
+    status: active_light
+  waterfront_context:
+    name_cn: 临水语境
+    status: active_light
+  rural_context:
+    name_cn: 乡村语境
+    status: active_light
+  urban_context:
+    name_cn: 城市语境
+    status: active_mvp
+
+  # ── 体验定位 ──
+  vacation_stay:
+    name_cn: 度假停留
+    status: active_light
+  indoor_outdoor_continuity:
+    name_cn: 室内外连续
+    status: active_light
+  local_culture:
+    name_cn: 在地文化
+    status: active_light
+  brand_memory:
+    name_cn: 品牌记忆点
+    status: active_mvp
+  social_experience:
+    name_cn: 社交体验
+    status: active_mvp

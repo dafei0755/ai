@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
@@ -29,7 +29,7 @@ export default function SessionDetailPage() {
   useEffect(() => {
     const fetchSession = async () => {
       try {
-        const token = localStorage.getItem('wp_jwt_token');
+        const token = localStorage.getItem('app_auth_token');
         if (!token) {
           setError('未登录，请先登录');
           setLoading(false);

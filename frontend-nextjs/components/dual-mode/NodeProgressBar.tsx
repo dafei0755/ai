@@ -32,7 +32,7 @@ interface NodeProgressBarProps {
 
 const DEFAULT_STEPS: AnalysisStep[] = [
   { id: 's1_input_decompose',     label: 'S1 输入解构',   description: '六维切片拆解用户输入',      status: 'pending' },
-  { id: 's2_goal_locking',        label: 'S2 目标锁定',   description: '冲突检测 + 硬约束提取',    status: 'pending' },
+  { id: 's2_goal_locking',        label: 'S2 目标锁定',   description: '冲突检测 + 边界条件提取',  status: 'pending' },
   { id: 's3_strategy_framework',  label: 'S3 策略框架',   description: '四区 StrategyZone 构建', status: 'pending' },
   { id: 's4_tactics_decompose',   label: 'S4 战术分解',   description: 'DAG + ReviewGate 插入',  status: 'pending' },
   { id: 's5_compile_taskbook',    label: 'S5 任务书编译', description: '冻结需求 → DesignTaskBook', status: 'pending' },

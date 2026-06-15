@@ -5,22 +5,29 @@ import { useParams, useRouter } from 'next/navigation';
 import { PageLayout } from '@/components/project-cockpit/PageLayout';
 import { EmptyStateInvitation, type EntryType } from '@/components/project-cockpit/EmptyStateInvitation';
 import { DecisionView } from '@/components/project-cockpit/DecisionView';
-import { LeftNavWithStatus } from '@/components/project-cockpit/LeftNavWithStatus';
+import { LeftNavWithStatus, type LeftNavKey } from '@/components/project-cockpit/LeftNavWithStatus';
 import { AdvisorPanel } from '@/components/project-cockpit/AdvisorPanel';
 import {
   MOCK_PROJECT_OVERVIEW,
   MOCK_STAGES,
   MOCK_ADVISOR_VIEW_MODEL,
   type ViewKey,
-  type CapabilityStatus,
 } from '@/components/project-cockpit/mock/mockData';
-import type { AdvisorViewModel, SceneRef, ActionChip, AdvisorModule } from '@/types/advisor';
+import type { SceneRef, ActionChip, AdvisorModule } from '@/types/advisor';
 
 const COCKPIT_MODULES = new Set<AdvisorModule>([
   'project_base',
   'floor_plan',
   'scheme_canvas',
 ]);
+
+const ANALYSIS_MODULE_BY_CAPABILITY: Record<LeftNavKey, string> = {
+  project_base: 'project_base',
+  floor_plan: 'floor_plan',
+  scheme_canvas: 'scheme_canvas',
+  geo: 'geo',
+  silicon_avatar: 'silicon_avatar',
+};
 
 export default function ProjectCockpitPage() {
   const params    = useParams();
@@ -29,7 +36,7 @@ export default function ProjectCockpitPage() {
 
   const [isActivated, setIsActivated]           = useState(projectId !== 'new');
   const [activeView, setActiveView]             = useState<ViewKey>('overview');
-  const [activeCapability, setActiveCapability] = useState<CapabilityStatus['key']>('project_base');
+  const [activeCapability, setActiveCapability] = useState<LeftNavKey>('project_base');
   const [prefillMessage, setPrefillMessage]     = useState<string | undefined>(undefined);
   const [sceneRef, setSceneRef]                 = useState<SceneRef>({
     projectId,
@@ -38,7 +45,7 @@ export default function ProjectCockpitPage() {
     userAction: 'view',
     dispatchLevel: 'L1',
   });
-  const [viewModel, setViewModel] = useState<AdvisorViewModel>(MOCK_ADVISOR_VIEW_MODEL);
+  const viewModel = MOCK_ADVISOR_VIEW_MODEL;
 
   const handleEntry = (type: EntryType) => {
     console.log('[mock] activation entry:', type);
@@ -52,21 +59,21 @@ export default function ProjectCockpitPage() {
     console.log('[mock] action:', actionLabel);
   };
 
-  const handleCapabilityClick = (key: CapabilityStatus['key']) => {
+  const handleCapabilityClick = (key: LeftNavKey) => {
     setActiveCapability(key);
+    router.push(`/analysis/${projectId}?module=${ANALYSIS_MODULE_BY_CAPABILITY[key]}`);
+  };
+
+  const handleViewChange = (view: ViewKey) => {
+    setActiveView(view);
+    setSceneRef(prev => ({ ...prev, view, userAction: 'view', dispatchLevel: 'L2' }));
   };
 
   const handleChipAction = (chip: ActionChip) => {
     if (chip.type === 'navigate') {
       const { target } = chip.payload;
       if (COCKPIT_MODULES.has(target)) {
-        setActiveCapability(target as CapabilityStatus['key']);
-        setSceneRef(prev => ({
-          ...prev,
-          module: target,
-          userAction: 'navigate_in',
-          dispatchLevel: 'L2',
-        }));
+        router.push(`/analysis/${projectId}?module=${target}`);
       } else {
         router.push(`/analysis/${projectId}?module=${target}`);
       }
@@ -100,7 +107,7 @@ export default function ProjectCockpitPage() {
       overview={MOCK_PROJECT_OVERVIEW}
       stages={MOCK_STAGES}
       activeView={activeView}
-      onViewChange={setActiveView}
+      onViewChange={handleViewChange}
       onAction={handleAction}
       onCapabilityClick={handleCapabilityClick}
       onAdvisorPrefill={handleAdvisorPrefill}

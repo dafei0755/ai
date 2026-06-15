@@ -880,10 +880,54 @@ class ProgressiveQuestionnaireNode:
         analyzer = TaskCompletenessAnalyzer()
         active_projections = state.get("active_projections", [])
         project_type = state.get("project_type", "")
+
+        # v8.4: 从 project_definition_activation_pack.domain_framework 取类型专属维度 ID
+        activation_pack = state.get("project_definition_activation_pack") or {}
+        domain_required_dimensions = (
+            (activation_pack.get("domain_framework") or {}).get("required_dimensions") or []
+        )
+        if domain_required_dimensions:
+            logger.info(
+                f"[v8.4] Step3 获取到 domain_framework 专属维度 {len(domain_required_dimensions)} 个: "
+                f"{domain_required_dimensions[:5]}"
+            )
+
+        # v8.5: 从 type_method_profile 读取类型推进顺序，驱动问卷补问优先级
+        type_method_profile = activation_pack.get("type_method_profile") or {}
+        type_priority_sequence = type_method_profile.get("priority_sequence") or []
+        if type_priority_sequence:
+            logger.info(
+                f"[v8.5] Step3 获取到 type_method_profile.priority_sequence "
+                f"({len(type_priority_sequence)} 步): {type_priority_sequence}"
+            )
+
+        # v9.2: 执行通用方法论检查（general_method_profile）
+        general_method_profile = activation_pack.get("general_method_profile") or {}
+        general_method_check_result: dict = {}
+        if general_method_profile:
+            try:
+                from ...services.general_method_checker import run_general_method_checks
+                general_method_check_result = run_general_method_checks(
+                    state=state,
+                    general_method_profile=general_method_profile,
+                    structured_data=structured_data,
+                )
+                logger.info(
+                    f"[v9.2] 通用方法论检查完成: profile={general_method_profile.get('profile_id')} | "
+                    f"errors={len(general_method_check_result.get('errors', []))} | "
+                    f"warnings={len(general_method_check_result.get('warnings', []))}"
+                )
+                # 将通用方法论发现的 clarify 类缺口合并进 critical_gaps（在 completeness 分析后注入）
+            except Exception as _gmc_err:
+                logger.warning(f"[v9.2] 通用方法论检查异常，跳过: {_gmc_err}")
+        else:
+            logger.debug("[v9.2] activation_pack 中无 general_method_profile，跳过通用方法论检查")
+
         completeness = analyzer.analyze(
             confirmed_tasks, user_input, structured_data,
             active_projections=active_projections,
             project_type=project_type,
+            domain_required_dimensions=domain_required_dimensions or None,
         )
 
         # v8.0: 若 active_projections 非空（Step0已确认输出意向），则"交付要求"维度视为已覆盖
@@ -909,6 +953,26 @@ class ProgressiveQuestionnaireNode:
             completeness['critical_gaps'] = original_gaps + uncertainty_gaps
             completeness['uncertainty_map'] = uncertainty_map
             logger.info(f"🔍 [v7.900] 合并不确定性缺口: 原{len(original_gaps)}项 + 新{len(uncertainty_gaps)}项")
+
+        # v9.2: 将通用方法论 error/blocker 级检查结果注入 critical_gaps
+        if general_method_check_result:
+            gmc_errors = general_method_check_result.get("errors", [])
+            if gmc_errors:
+                gmc_gaps = [
+                    {
+                        "dimension": r["check_id"],
+                        "reason": r["message"],
+                        "priority": "high" if r["severity"] == "blocker" else "medium",
+                        "source": "general_method_checker",
+                        "clarification_hint": r.get("clarification_hint"),
+                    }
+                    for r in gmc_errors
+                ]
+                original_gaps = completeness.get('critical_gaps', [])
+                completeness['critical_gaps'] = original_gaps + gmc_gaps
+                logger.info(
+                    f"[v9.2] 通用方法论注入 {len(gmc_gaps)} 个 error/blocker 缺口到 critical_gaps"
+                )
 
         logger.info(f" 任务信息完整性评分: {completeness.get('completeness_score', 0):.2f}")
         logger.info(f"   已覆盖维度: {completeness.get('covered_dimensions', [])}")
@@ -1001,6 +1065,8 @@ class ProgressiveQuestionnaireNode:
                     active_projections=state.get("active_projections", []),
                     detected_identity_modes=state.get("detected_identity_modes", []),
                     output_framework_signals=state.get("output_framework_signals", {}),
+                    # v8.5: 透传类型推进顺序
+                    type_priority_sequence=type_priority_sequence or None,
                 )
 
                 gap_meta = getattr(generator, "last_generation_metadata", {}) or {}
@@ -1198,6 +1264,8 @@ class ProgressiveQuestionnaireNode:
             "progressive_questionnaire_step": 2,  #  这是 UI 的 Step 2
             # "questionnaire_summary": questionnaire_summary,  #  删除，改为在雷达图后生成
             "calibration_processed": False,  #  改为 False，雷达图完成后才算完成
+            # v9.2: 写入通用方法论检查结果
+            "general_method_check_result": general_method_check_result or {},
         }
         # ⚠️ v9.1 G5: 如果gap回流产生了补充任务，更新 confirmed_core_tasks
         if gap_supplement_tasks:

@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 /**
  * 用户信息分析页面
@@ -9,7 +9,7 @@
  * 3. 用户对话数量排行榜（可筛选时间）
  */
 
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
 
 // 数据类型定义
@@ -41,12 +41,12 @@ export default function UsersAnalyticsPage() {
   const [trendView, setTrendView] = useState<'daily' | 'weekly' | 'monthly' | 'yearly'>('daily');
 
   // 获取用户分析数据
-  const fetchStats = async () => {
+  const fetchStats = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
 
-      const token = localStorage.getItem('wp_jwt_token');
+      const token = localStorage.getItem('app_auth_token');
       const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
 
       const response = await axios.get<UserAnalyticsResponse>(
@@ -65,7 +65,7 @@ export default function UsersAnalyticsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [timeRange]);
 
   useEffect(() => {
     fetchStats();
@@ -73,7 +73,7 @@ export default function UsersAnalyticsPage() {
     // 每60秒自动刷新
     const interval = setInterval(fetchStats, 60000);
     return () => clearInterval(interval);
-  }, [timeRange]);
+  }, [fetchStats]);
 
   if (loading && !stats) {
     return (

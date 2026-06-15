@@ -1,0 +1,58 @@
+schema_version: lifecycle_registry.v1.8
+owner: core_team
+review_status: approved
+last_updated: '2026-06-14'
+items:
+  fitout:
+    name_cn: fitout
+    keywords:
+    - 装修
+    - 开店
+    - 新店
+    - 首店
+    - 硬装
+    - 软装
+    - 精装
+    - 整装
+    status: active_mvp
+  renovation:
+    name_cn: renovation
+    keywords:
+    - 改造
+    - 翻新
+    - 重装
+    - 拆改
+    - 格局改造
+    - 二次装修
+    - 二手房改造
+    status: active_mvp
+  adaptive_reuse:
+    name_cn: adaptive_reuse
+    keywords:
+    - 活化
+    - 再生
+    - 适应性改造
+    - 老建筑改造
+    - 工业遗存
+    - 历史建筑活化
+    status: active_mvp
+  newbuild:
+    name_cn: newbuild
+    keywords:
+    - 新建
+    - 新建建筑
+    - 拿地
+    - 从零开始建
+    - 新楼盘
+    status: active_mvp
+  temporary:
+    name_cn: temporary
+    keywords:
+    - 快闪
+    - 临时
+    - 短期
+    - 限时
+    - 拆除
+    - 可拆卸
+    - 模块化搭建
+    status: active_mvp

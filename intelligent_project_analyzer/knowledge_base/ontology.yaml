@@ -1,3 +1,76 @@
+# =============================================================================
+# ontology.yaml — 空间设计的"通识教材"
+# =============================================================================
+#
+# ⭐ 本文件的定位 (核心):
+#   - 写"该想什么问题" (跨业态共通的设计议题)
+#   - 17 个 ontology_frameworks: 按项目类型组织设计议题
+#   - 16 个 activation_profiles: 推荐激活的本体维度 (粗粒度推荐)
+#   - 14 个 expert_extensions: 不同专家视角的补充
+#
+# ⭐ 不写什么 (避免和激活包重叠):
+#   - 不写"具体怎么做" (这是 activation_packs/*_pack.yaml 的事)
+#   - 不写可量化参数 (通道宽 1100mm / 出杯 60-90 杯) → 激活包
+#   - 不写设备清单 / 模拟模型 / 场景预设 → 激活包
+#   - 不写业态专属参数 → 激活包
+#
+# ⭐ 与激活包的关系:
+#   - 激活包通过 routing_binding.parent_project_type_id 挂在本文件
+#     的某个 framework 下 (单向继承)
+#   - 没有激活包时, 系统用 ontology framework 兜底 (规则 6, 70 分回答)
+#   - 有激活包时, 系统在 ontology 基础上叠加激活包专属内容 (90 分回答)
+#
+# ⭐ 边界规则详见:
+#   👉 knowledge_base/activation_packs/ACTIVATION_PACK_BOUNDARY_RULES.md
+#
+# -----------------------------------------------------------------------------
+# v1.8 维度引用块 (Dimension References)
+# -----------------------------------------------------------------------------
+# E1-E9 维度的事实源已迁移到 knowledge_base/ontology_dimension_registry.yaml
+# (v1.8 §12 + v1.7 §3.2)。
+#
+# 本文件内的 meta_framework.ontological_foundations 内嵌定义保留为
+# deprecated_compat, OntologyLoader 仍可读取以维持向后兼容,
+# 但新代码应通过 dimension_resolver 从 registry 加载。
+#
+# Framework 引用 E 维度的推荐方式 (示范, 见 commercial_dining_v18_example):
+#   framework_xxx:
+#     ontology_dimension_ids:
+#       - E2_body_movement
+#       - E6_operation_system
+#       - E9_constraint_risk
+#     ...
+# =============================================================================
+dimension_registry_source: knowledge_base/ontology_dimension_registry.yaml
+dimension_loading_policy:
+  primary: ontology_dimension_registry  # 新协议: 从 registry 加载
+  fallback: ontological_foundations     # 旧协议: 从本文件 meta_framework 加载
+  migration_status: phase_2_dual_run     # 双跑期
+
+# =============================================================================
+# v1.8 示范 framework — 用 ontology_dimension_ids 引用维度
+# 仅为示范, 未替代下方 ontology_frameworks.commercial_dining
+# OntologyLoader 改造后可优先读此节
+# =============================================================================
+ontology_framework_v18_examples:
+  commercial_dining_v18:
+    parent_framework: commercial_dining
+    activation_pack_id: tea_drink_store_pack
+    activation_pack_file: activation_packs/tea_drink_store_pack.yaml
+    ontology_dimension_ids:
+      - E2_body_movement
+      - E3_light_material
+      - E5_time_sequence
+      - E6_operation_system
+      - E7_social_relation
+      - E8_symbol_narrative
+      - E9_constraint_risk
+    note: |
+      此节由 OntologyLoader Layer 4 消费, 与下方 ontology_frameworks
+      内的 commercial_dining 框架共存。
+      内嵌字段已迁移到 ontology_dimension_registry.yaml,
+      此处只引用 id。
+
 ontology_frameworks:
   # 🆕 通用元框架 (Meta Framework) - 项目类型未识别时的回退框架
   meta_framework:
@@ -79,6 +152,16 @@ ontology_frameworks:
         description: "空间的第四维度：日内节律（晨-昼-暮-夜的使用模式变化）、季节循环（光照角度、温湿度、景观状态）、生命周期（从新建到老化到再生）、使用节奏（工作日vs周末、淡季vs旺季）。时间不是设计之外的变量，而是需要被主动编排的设计材料。"
         ask_yourself: "这个空间在凌晨5点和下午5点分别是什么状态？夏至和冬至的光线入射角如何改变空间体验？五年内哪些元素会先老化？使用高峰与低谷如何转换？空间能否支持'分时复用'？有没有为未来的功能变化预留弹性？这个设计如何优雅地老去而非过时？"
         examples: "落叶树在夏遮阳冬透光 (Deciduous trees shading in summer, transmitting light in winter), 可翻转的季节性家具布局 (Reversible seasonal furniture layout), 预留管线通道支持未来技术升级 (Reserved service channels for future tech upgrades), 材料选择考虑20年老化轨迹 (Material selection considering 20-year aging trajectory), 分时照明场景对应昼夜使用模式 (Time-based lighting scenes matching day-night use patterns), 模块化隔墙支持家庭结构变化 (Modular partitions supporting family structure changes)"
+      - name: "场所精神与叙事建构 (Place Spirit & Narrative Construction) [E6]"
+        issue_id: E6
+        description: "空间的记忆性、身份认同与故事层：场地历史如何沉淀为可被感知的氛围？设计如何在无需文字说明的情况下'讲述'一个地方的故事？场所精神（Genius Loci）不是抽象概念，而是材料选择、空间序列、光线节奏共同构成的叙事系统。E6是E4（材料时间性）和E5（时序动态）的意义升华——物质和时间叠加后产生的场所认同感。"
+        ask_yourself: "这个地方原来是什么？那段历史如何在当下设计中留下可被感知的痕迹而非博物馆式的展陈？如果拆掉所有标牌，人们还能从空间本身'读出'这是什么地方、发生过什么吗？设计是在强化场所记忆还是在擦除它？'文脉'是表面的形式借用（贴传统符号）还是深层的空间逻辑传承？如何区分'在地性表达'与'地域风情的表演'？"
+        examples: "保留工厂锯齿屋顶成为展览空间的光源叙事 (Sawtooth roof retained as narrative light source in gallery), 旧码头木桩暴露于新楼板之下讲述港口历史 (Old dock piles exposed beneath new floor narrating harbor history), 古树位置决定庭院中心而非被移走 (Ancient tree location determining courtyard center instead of removal), 夯土层中夹入不同年代的碎片作为时间截面 (Rammed earth layers embedding era-specific fragments as temporal cross-sections), 原有建筑的柱网韵律延续进新加建 (Original column grid rhythm extended into new addition), 本土方言词汇转化为空间命名系统 (Local dialect terms transformed into spatial naming system)"
+      - name: "社会关系与共同性 (Social Relations & Collectivity) [E7]"
+        issue_id: E7
+        description: "空间如何塑造和回应人与人之间的关系：公共性与私密性的梯度、权力关系的空间化表达、陌生人之间的偶遇机制、群体认同的物质基础。这不是'功能分区'的社交区/私密区划分，而是从社会学视角追问：空间在强化还是弱化社会联结？是在包容差异还是在制造隔离？E7与E2（身体体验）交叉：空间距离和身体姿态共同编码了社会关系。"
+        ask_yourself: "这个空间对'陌生人相遇'持什么态度——是鼓励、容忍还是回避？'公共性'是真实的（所有人都能舒适使用）还是表演性的（看起来公共但实际设有隐性门槛）？权力关系如何在平面布局中体现——谁占据空间中心，谁被推到边缘？空间是否在无意中排斥了某些群体（老人、残障人士、低收入者、儿童）？能否识别出'反公共空间'的设计特征——驱逐长时停留者的防坐设计、让人无处停留的光滑无遮挡广场？"
+        examples: "阶梯看台在非演出时成为非正式社交空间 (Amphitheater steps as informal social space between performances), 走廊加宽创造自然的停留与对话 (Widened corridor creating natural pause-and-talk moments), 共享厨房作为社区凝聚力的物质核心 (Shared kitchen as material core of community cohesion), 可见的内部工作台让顾客感到被邀请参与 (Visible work counter inviting customers into the making process), 不同收入群体共用同一门厅避免社会隔离 (Mixed-income groups sharing same lobby avoiding social segregation), 婴儿车/轮椅坡道与台阶并置而非隐藏于角落 (Pram/wheelchair ramp placed alongside steps rather than hidden in corner)"
       - name: "技术系统作为设计驱动 (Technical Systems as Design Drivers) [E8]"
         issue_id: E8
         description: "结构、机电、围护系统不是设计完成后的'填空题'，而是从概念阶段就参与塑造空间品质的核心力量：结构体系定义空间跨度与节奏，暖通决定天花空间与气流体验，围护系统平衡内外关系。技术约束往往是创意的最佳催化剂。"
@@ -148,11 +231,39 @@ ontology_frameworks:
       - name: "角色切换成本 (Role-Switching Cost)"
         description: "从'居住者'到'经营者'的角色转换频率与心理成本。影响动线、隔音和视线设计。"
         ask_yourself: "能否在30秒内从'睡衣状态'切换到'接待状态'？家人是否会意外闯入营业区？"
-        examples: "高频切换 (每天多次), 中频切换 (每天1-2次), 低频切换 (每天1-2次), 零切换 (完全分离)"
+        examples: "高频切换 (每天多次), 中频切换 (每天1-2次), 低频切换 (每周1-2次), 零切换 (完全分离)"
       - name: "家庭成员参与度 (Family Involvement)"
         description: "家庭其他成员在商业活动中的角色定位。决定了空间的共享程度与功能整合度。"
         ask_yourself: "孩子/配偶是否参与经营？他们需要独立的生活空间吗？"
         examples: "全员参与 (家族企业), 部分协助 (配偶帮忙), 完全独立 (互不干扰), 冲突共存 (抱怨营业影响生活)"
+
+    financial_operational: # 财务与运营逻辑 (Financial & Operational Logic)
+      - name: "双重成本结构 (Dual Cost Structure)"
+        description: "居住成本与运营成本共用同一物理容器时的财务分摊逻辑。房租/折旧/水电如何在'家用'与'商用'之间合理分配。"
+        ask_yourself: "哪些费用能计入经营成本抵税？居住与运营的用电/用水如何分表计量？装修投资的商业回报周期是多少？"
+        examples: "商用水电分计 (Separate commercial utility metering), 空间折旧摊销 (Space depreciation allocation), 家用/商用面积比例登记 (Residential/commercial area ratio registration)"
+      - name: "坪效与居住品质平衡 (Revenue-per-SQM vs Living Quality)"
+        description: "商业区域扩张与居住舒适度之间的根本张力。每多出一平米'营业面积'就少一平米'家的空间'。"
+        ask_yourself: "目前的商住面积比例是家庭满意的吗？当生意扩张时，谁的空间先被压缩？有没有未来增减的弹性预留？"
+        examples: "商业优先型（经营面积>50%）, 居住优先型（经营面积<30%）, 均衡型（各占约一半）, 弹性转换型（旺季扩商/淡季收商）"
+      - name: "生命周期演变规划 (Life Cycle Evolution Planning)"
+        description: "随家庭结构和事业阶段变化，空间功能比例的长期动态调整能力。"
+        ask_yourself: "孩子出生/长大后商业区域如何收缩？老人入住后空间如何适应？事业成功后是否会独立选址迁出商业？"
+        examples: "模块化隔断支持比例调整 (Modular partition for ratio change), 商业区域独立结构（未来可整体出租）, 居住区域独立卫浴（商业区退出后仍完整）"
+
+    regulatory_livability: # 法规与宜居性 (Regulatory & Livability)
+      - name: "规划法规合规性 (Zoning & Regulatory Compliance)"
+        description: "混合用途在当地规划法规中的合法性边界。商业活动是否需要营业执照、消防分区、无障碍出口等。"
+        ask_yourself: "目前的用地性质允许经营吗？营业时噪音扰民的法律边界在哪？消防分区要求是否已满足？有没有被投诉或整改的风险？"
+        examples: "住改商申报 (Residential-to-commercial application), 消防独立分区 (Fire zone separation), 无障碍出入口要求 (Accessible entrance requirement), 噪音时段限制 (Noise curfew compliance)"
+      - name: "安全与隐私保护 (Security & Privacy Protection)"
+        description: "对外开放的商业属性带来的安全隐患，以及客户/访客与家庭私密生活的物理隔离。"
+        ask_yourself: "陌生顾客能轻易进入家庭生活区吗？监控摄像如何避开家庭空间？儿童活动区与对外营业区如何隔离？"
+        examples: "门禁系统区分商住入口 (Access control for dual entrance), 单向玻璃隔断 (One-way mirror partition), 独立监控系统 (Independent CCTV system), 儿童安全区隔离 (Child safe zone isolation)"
+      - name: "邻里关系与社区影响 (Neighborhood Relations & Community Impact)"
+        description: "商业活动对周边住户和社区环境的影响，以及由此产生的社会关系管理需求。"
+        ask_yourself: "营业带来的人流/噪音/气味对邻居影响程度如何？是否需要与物业/邻居提前沟通？有没有共同利益（如带动周边人气）？"
+        examples: "错峰营业降低扰邻 (Off-peak business hours reducing disturbance), 气味管理（排烟/香氛方向）, 停车占用协商 (Parking usage negotiation), 社区共建合作 (Community partnership)"
 
   # 商业/企业项目框架 (Commercial/Enterprise Framework)
   commercial_enterprise:
@@ -697,6 +808,52 @@ ontology_frameworks:
         examples: "耐旱植物配置 (Drought-tolerant Planting), 洪水缓冲带 (Flood Buffer Zone), 热岛缓解 (Heat Island Mitigation), 碳汇林 (Carbon Sink Forest)"
 
   # ====================================
+  # 餐饮/夜生活空间项目框架
+  # ====================================
+  commercial_dining:
+    dining_experience: # 用餐体验 (Dining Experience)
+      - name: "用餐场景定义 (Dining Scene Definition)"
+        description: "用餐的核心情感属性与社交语境：是快速交易、商务宴请、家庭聚会、独处享受还是打卡体验？不同场景决定了空间节奏、光线调性、声学设计和座位配置的一切选择。"
+        ask_yourself: "顾客为什么来这里吃饭而不是回家或去竞品？用餐是目的还是途径（谈生意、庆生、约会）？如何在'吃饭'的功能之上叠加不可被外卖替代的空间体验？"
+        examples: "快餐效率型（翻台>3次/天）, 慢食体验型（翻台<1.5次/天）, 商务宴请型（包间主导）, 网红打卡型（拍照场景驱动）, 深夜独食型（个人庇护所氛围）"
+      - name: "声学氛围与噪音控制 (Acoustic Atmosphere & Noise Control)"
+        description: "餐厅声学是体验设计中最常被忽视却最直接影响顾客感受的变量。嘈杂的环境会加速翻台（快餐优势），但会损害高端用餐（对话隐私）。声学不是'吸音处理'的技术问题，而是定义餐厅社交氛围的设计语言。"
+        ask_yourself: "这家餐厅应该是嘈杂热闹的（信号：活跃好生意）还是私语低沉的（信号：高端私密）？什么声音是品牌体验的一部分（厨师的备餐声、音乐选曲）？什么声音是需要被吸收的噪音？"
+        examples: "硬面材料回声创造热闹感（砖墙+混凝土）, 织物与绿植降低混响（地毯+吸音板）, 半开放包间提供视觉参与感+对话私密性, 背景音乐覆盖掩盖邻桌对话, 开放厨房白噪音作为氛围背景"
+      - name: "灯光情境与食欲激发 (Lighting Mood & Appetite Stimulation)"
+        description: "餐饮空间的灯光同时承担食欲激发、社交场景塑造和品牌调性传达三重任务。色温、显色指数、照度层级的选择在科学（食品的视觉吸引力）和美学（空间情绪）之间寻找平衡。"
+        ask_yourself: "灯光让食物看起来好吃吗（色温2700-3000K+高显色指数）？桌面照度够充分阅读菜单但不刺眼吗？昼夜场景切换是否有照明脚本（午餐明亮→晚餐暧昧）？"
+        examples: "烛光氛围灯（3000K以下+点状重点照明）, 北欧自然光风格（漫射光+大面积窗）, 强烈戏剧性对比（深色背景+聚光照射桌面）, 霓虹灯签名墙（打卡驱动的视觉锚点）, 户外延伸区的暖色串灯"
+
+    operational_efficiency: # 运营效率 (Operational Efficiency)
+      - name: "翻台率与动线设计 (Table Turnover & Circulation Design)"
+        description: "翻台率是餐饮坪效的核心驱动。快餐追求最大翻台（座位间距小、无隐蔽角落、音乐节奏快），精品餐厅则刻意降低翻台（宽敞间距、深座位、无催离暗示）。动线设计直接影响顾客的用餐节奏感和离店意愿。"
+        ask_yourself: "目标翻台率是多少？桌间距是否给顾客'被催走'的压迫感？等位区是否设计成让等待者看到座位而产生'快了快了'的心理？收银台位置是否暗示了结账离场的动作？"
+        examples: "等位区可视化座位（心理加速）, 窄桌距+高亮度（快餐催离策略）, 宽敞弧形卡座（精品餐厅留客策略）, 动态预订系统对应空间灵活拼桌, 备餐动线与顾客动线完全分离"
+      - name: "厨房与前厅关系 (Kitchen-Front-of-House Relationship)"
+        description: "厨房的可见度与前厅体验的关联：全开放明档厨房（表演性强、卫生可见）、半开放（食物出口可见）、全封闭（神秘感、专注用餐）。厨房效率直接决定出餐速度，进而决定翻台率和顾客等待体验。"
+        ask_yourself: "开放厨房的备餐噪音和气味是品牌加分还是减分？备餐区的视觉形象（厨师工装、操作台整洁度）是否愿意被顾客审视？传菜动线是否与用餐动线交叉产生碰撞？"
+        examples: "寿司吧台直面顾客（食材新鲜度的视觉背书）, 玻璃隔断开放烘焙区（香气+可视化）, 明档烤鸭炉作为餐厅中央视觉焦点, 传菜口设计隐蔽但传菜效率高, 厨师操作台与顾客桌面同高（互动感）"
+      - name: "包间与弹性空间配置 (Private Room & Flexible Space)"
+        description: "包间是中高档餐厅的核心收入单元，但固定包间牺牲了平日散台利用率。弹性分区（可开合隔断、移动屏风）是平衡高峰/平日、散座/包厢需求的空间策略。"
+        ask_yourself: "包间在周一到周五的使用率如何？散台区如何在旺季快速转化为包间区？包间是否有独立的卫生间和出入口（高端客群的基本需求）？"
+        examples: "折叠隔断实现散台/包厢快速转换, 半透明屏风创造'半包'的视觉半私密感, 小包间套大包间可合并使用, VIP包间独立入口（与大厅平行的单独通道）, 宴会厅可分割为多独立包间"
+
+    brand_culinary_identity: # 品牌与餐饮特性 (Brand & Culinary Identity)
+      - name: "菜系与文化语境转译 (Cuisine & Cultural Context Translation)"
+        description: "餐饮空间是菜系文化的三维载体：日料的'间'（留白与精准）、川菜的火辣红黑、法式的精致序列。空间必须与菜品建立一致的感官语境，否则会产生认知错位。但这种转译应是深层的（空间逻辑）而非表面的（堆砌文化符号）。"
+        ask_yourself: "如果摘掉菜单，空间本身能传达出是什么菜系/文化吗？材料、比例、色彩、光线是否与菜品的'味觉气质'一致？'中式'空间是贴窗花、摆瓷器，还是理解了中式空间的'含蓄层次感'？"
+        examples: "日料空间的桧木台面+无影漫射光+极简器物陈列, 粤菜茶楼的轻巧通透+竹影光斑+茶具展示, 新疆菜的暖土色+柔软织物+丰盛视觉堆叠, 新中式融合菜的竹钢结构+哑光黑+当代艺术插件, 分子料理实验室美学（白色+精密工具可见性）"
+      - name: "品牌辨识度与打卡吸引力 (Brand Signature & Instagrammability)"
+        description: "在社交媒体时代，餐厅空间的视觉传播力是核心营销资产。'签名元素'不是装饰，而是成为顾客主动传播的内容节点。但打卡设计应服务于品牌叙事而非仅仅制造网红效果。"
+        ask_yourself: "空间中有没有一个让顾客不拍就走不了的'视觉时刻'？这个时刻是否真实传达了品牌的核心主张？当打卡照片在社交媒体传播时，能清晰识别这是哪家餐厅吗？"
+        examples: "标志性植物墙（大量绿植=自然健康）, 定制霓虹灯品牌语句, 精心策划的厨师工作台视角, 季节性装置（每季更换的视觉记忆点）, 门头序列作为进入仪式（排队拍照机会）, 甜品区的专属灯光场景"
+      - name: "时段运营与场景切换 (Time Slot Operation & Scene Switching)"
+        description: "从早餐/咖啡→午餐→下午茶→晚餐→夜宵/酒吧的多时段运营模式，要求空间能支持不同时段的情绪转换——而不是靠同一套布置应付所有时段。"
+        ask_yourself: "是否有多时段运营计划？各时段的客群、消费水平和停留时长差异多大？家具可以重新配置吗？灯光能切换吗？背景音乐系统支持场景编程吗？"
+        examples: "全日餐厅的午间快速翻台模式→晚间精品慢食模式, 咖啡馆下午茶区域=晚间鸡尾酒吧（增设调酒台）, 日式居酒屋日间拉面→夜间下酒菜+烧酒（氛围完全不同）, 周末早午餐（brunch）的专属布置与平日差异化"
+
+  # ====================================
   # 商业零售/品牌体验项目框架
   # ====================================
   commercial_retail:
@@ -986,13 +1143,24 @@ activation_profiles:
       - "个人审美表达 vs 家庭成员共识——夫妻审美不一致、代际偏好差异时，空间如何成为'协商的产物'而非'一方的独裁'(E9×E2)"
 
   hybrid_residential_commercial:
-    elevated_topics: [E1, E5, E8, E9]
+    elevated_topics: [E1, E5, E7, E8, E9]
     typical_depth: "L1-L4"
-    guidance: "混合型项目的核心矛盾是'两种生活逻辑共用一个物理容器'。E1(空间体量)决定了边界的物理可能性，E5(时间)决定了分时共用的可行性。必须在L4层面直面'居住品质 vs 经营效率'的根本张力。"
+    guidance: "混合型项目的核心矛盾是'两种生活逻辑共用一个物理容器'。E1(空间体量)决定了边界的物理可能性，E5(时间)决定了分时共用的可行性。E7(社会关系)在这里体现为家庭成员与客户之间的界面管理。必须在L4层面直面'居住品质 vs 经营效率'的根本张力，并认真评估法规合规性。"
     key_tensions:
       - "居住隐私 vs 商业可达——顾客的便捷入口意味着家庭空间被侵蚀(E1×E9)"
       - "角色切换成本 vs 空间效率——完全分离保护心理边界但浪费面积(E1×E5)"
       - "家庭参与 vs 专业运营——家人帮忙有温度但可能缺乏专业边界(E8×E9)"
+      - "商业扩张欲望 vs 居住底线——每次改建都在蚕食生活空间，底线在哪(E7×E9)"
+
+  commercial_dining:
+    elevated_topics: [E2, E3, E5, E7]
+    typical_depth: "L1-L3"
+    guidance: "餐饮空间E3(灯光与食欲)和E2(座位的身体舒适度)是最直接影响顾客感受的变量。E7(社会关系)在餐厅中以'社交密度与私密性'的张力呈现。E5(时间)体现为翻台节奏和多时段运营切换。分析需超越L1(坪效/翻台)推进到L2(用餐场景体验)——外卖无法替代的'在这里吃饭'的独特价值是设计的核心命题。"
+    key_tensions:
+      - "翻台率 vs 停留舒适——快餐的催离设计vs精品的挽留设计，哪种更符合定位(E5×E9)"
+      - "声学嘈杂活力 vs 对话私密——热闹氛围制造'生意好'信号，但高端用餐需要私语(E3×E7)"
+      - "开放厨房表演性 vs 厨房效率私密——让顾客看到美好制作过程 vs 不想让人看到'后台'(E2×E8)"
+      - "本地文化深度表达 vs 网红打卡包装——菜系文化的严肃转译 vs 视觉驱动的传播性设计(E4×E6)"
 
   commercial_enterprise:
     elevated_topics: [E1, E3, E9]

@@ -1,0 +1,85 @@
+{
+  "schema_version": "activation_pack_scope_review_checklist.v1",
+  "generated_at": "2026-06-15T13:03:10",
+  "source_scope_draft_report": "D:\\11-20\\2026.2.25\\langgraph-design\\docs\\system-completeness-audit\\scheme-advisor-activation-pack-scope-drafts-2026-03-22.json",
+  "governance_boundary": {
+    "runtime_load_allowed": false,
+    "formal_pack_write_allowed": false,
+    "human_review_required": true,
+    "rule": "本清单只服务人工裁决，不得自动写入正式激活包、Registry 或知识库。"
+  },
+  "allowed_decisions": [
+    "approve_for_formal_pack_authoring",
+    "request_more_evidence",
+    "keep_observing",
+    "reject_scope"
+  ],
+  "review_items": [
+    {
+      "draft_id": "activation_scope_draft.public_cultural.cultural_public_experience",
+      "project_type": "public_cultural",
+      "space_axis_id": "cultural_public_experience",
+      "space_axis_label": "文化公共空间：叙事体验、展陈秩序与公众使用",
+      "sample_count": 12,
+      "average_confidence": 0.823,
+      "priority_score": 136,
+      "default_decision": "request_more_evidence",
+      "required_review_roles": [
+        "domain_expert",
+        "knowledge_architect",
+        "product_owner"
+      ],
+      "promotion_blockers": [],
+      "checkpoints": [
+        "适用边界是否足够窄，是否能说明哪些项目可以使用这个激活包。",
+        "不适用边界是否明确，是否能防止相邻空间被误激活。",
+        "父级项目类型、空间主轴和样本证据是否一致。",
+        "必须补齐的定义是否完整：routing_boundary, assumptions, non_goals, required_slots, type_method_profile, risk_control, knowledge_recall_plan, regression_samples。",
+        "required_slots 是否能支持首轮问诊，不会暴露内部术语给终端用户。",
+        "risk_control 是否覆盖安全、法规、机电、运营或知识覆盖封顶风险。",
+        "knowledge_recall_plan 是否只调用审核通过的知识卡，不直接召回原始研究长文。",
+        "最小复核门槛是否可执行：确认是否确实需要正式激活包，而不是继续使用基础空间推理框架。；确认适用边界、不适用边界和父级项目类型，不得扩大到所有相邻空间。；补齐 required_slots、risk_control 和最小知识卡清单后，才能转写正式激活包。；正式激活包上线前必须通过激活包校验器、190 条压力测试和用户侧文案守门。。"
+      ],
+      "decision_record_template": {
+        "decision": null,
+        "reviewer": null,
+        "reviewed_at": null,
+        "reason": null,
+        "required_changes": []
+      }
+    },
+    {
+      "draft_id": "activation_scope_draft.personal_residential.private_residential_life_order",
+      "project_type": "personal_residential",
+      "space_axis_id": "private_residential_life_order",
+      "space_axis_label": "私人住宅：家庭秩序、生活方式与精神需求",
+      "sample_count": 17,
+      "average_confidence": 0.768,
+      "priority_score": 135,
+      "default_decision": "request_more_evidence",
+      "required_review_roles": [
+        "domain_expert",
+        "knowledge_architect",
+        "product_owner"
+      ],
+      "promotion_blockers": [],
+      "checkpoints": [
+        "适用边界是否足够窄，是否能说明哪些项目可以使用这个激活包。",
+        "不适用边界是否明确，是否能防止相邻空间被误激活。",
+        "父级项目类型、空间主轴和样本证据是否一致。",
+        "必须补齐的定义是否完整：routing_boundary, assumptions, non_goals, required_slots, type_method_profile, risk_control, knowledge_recall_plan, regression_samples。",
+        "required_slots 是否能支持首轮问诊，不会暴露内部术语给终端用户。",
+        "risk_control 是否覆盖安全、法规、机电、运营或知识覆盖封顶风险。",
+        "knowledge_recall_plan 是否只调用审核通过的知识卡，不直接召回原始研究长文。",
+        "最小复核门槛是否可执行：确认是否确实需要正式激活包，而不是继续使用基础空间推理框架。；确认适用边界、不适用边界和父级项目类型，不得扩大到所有相邻空间。；补齐 required_slots、risk_control 和最小知识卡清单后，才能转写正式激活包。；正式激活包上线前必须通过激活包校验器、190 条压力测试和用户侧文案守门。。"
+      ],
+      "decision_record_template": {
+        "decision": null,
+        "reviewer": null,
+        "reviewed_at": null,
+        "reason": null,
+        "required_changes": []
+      }
+    }
+  ]
+}

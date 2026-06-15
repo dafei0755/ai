@@ -10,7 +10,7 @@ import logging
 from sqlalchemy import create_engine, func
 from sqlalchemy.orm import sessionmaker
 
-from ..auth_middleware import require_admin
+from ..internal_auth_dependencies import require_admin
 from ...models.taxonomy_models import (
     TaxonomyExtendedType,
     TaxonomyEmergingType,

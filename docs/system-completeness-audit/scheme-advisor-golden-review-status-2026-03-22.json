@@ -1,0 +1,62 @@
+{
+  "schema_version": "scheme_advisor_golden_review_status.v1",
+  "generated_at": "2026-06-16T00:55:51",
+  "review_status": "needs_human_review",
+  "next_action": "fill_required_gold_fields",
+  "completion": {
+    "total_rows": 29,
+    "complete_rows": 0,
+    "incomplete_rows": 29,
+    "missing_by_field": {
+      "gold_expected_project_type": 29,
+      "gold_expected_core_tension": 29,
+      "gold_expected_output_depth": 29
+    }
+  },
+  "apply_report": {
+    "review_rows": 29,
+    "updated_items": 0,
+    "updated_fields": 0,
+    "unknown_review_rows": 0
+  },
+  "quality_gate": {
+    "gate_status": "fail",
+    "required_items": 28,
+    "required_items_with_complete_gold": 0,
+    "failed_checks": 0,
+    "failure_count": 28,
+    "terminal_copy_violation_count": 0
+  },
+  "terminal_copy_guardrail": {
+    "guardrail_scope": "terminal_user_visible_copy",
+    "violation_policy": "fail_review",
+    "summary": {
+      "forbidden_term_count": 19,
+      "violation_count": 0
+    },
+    "violations": []
+  },
+  "review_workbench": {
+    "summary": {
+      "total": 28,
+      "project_items": 27,
+      "non_project_items": 1,
+      "policy": "human_review_only_never_auto_fill_gold"
+    },
+    "source_review_batch_path": "",
+    "source_suggestions_path": ""
+  },
+  "workbench_sync": {
+    "summary": {
+      "review_rows": 29,
+      "workbench_rows": 28,
+      "updated_rows": 0,
+      "copied_fields": 0,
+      "skipped_empty_fields": 196,
+      "missing_workbench_rows": 1
+    },
+    "source_review_csv_path": "D:\\11-20\\2026.2.25\\langgraph-design\\docs\\system-completeness-audit\\scheme-advisor-golden-review-batch-01-p0-2026-03-22.csv",
+    "source_workbench_csv_path": "D:\\11-20\\2026.2.25\\langgraph-design\\docs\\system-completeness-audit\\scheme-advisor-missing-gold-review-workbench-2026-03-22.csv",
+    "output_csv_path": "D:\\11-20\\2026.2.25\\langgraph-design\\docs\\system-completeness-audit\\scheme-advisor-golden-review-batch-01-p0-synced-2026-03-22.csv"
+  }
+}

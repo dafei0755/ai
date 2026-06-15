@@ -123,6 +123,23 @@ class GateNode:
         # ── Step 2: 合法性与边界校验 ──────────────────────────────────
         boundary_notes = self._check_boundary(user_input)
 
+        entry_gate = self._evaluate_scheme_advisor_entry_gate(state, boundary_notes)
+        if entry_gate is not None:
+            decision, goto_node, next_mode, extra_update = entry_gate
+            logger.info(
+                f"[{session_id}] Scheme Advisor entry gate -> {goto_node} | "
+                f"status={decision.status.value}"
+            )
+            return Command(
+                update={
+                    "gate_decision": decision.model_dump(),
+                    "system_mode": next_mode,
+                    "current_stage": AnalysisStage.REQUIREMENT_COLLECTION.value,
+                    **extra_update,
+                },
+                goto=goto_node,
+            )
+
         # ── Step 3: 可行性初判 ────────────────────────────────────────
         feasibility = self._check_feasibility(user_input)
         if not feasibility["viable"]:
@@ -203,6 +220,77 @@ class GateNode:
         if len(text) > 8000:
             notes.append("输入超过 8000 字，系统将截取前 8000 字处理。")
         return notes
+
+    def _evaluate_scheme_advisor_entry_gate(
+        self, state: ProjectAnalysisState, boundary_notes: list[str]
+    ) -> Optional[tuple[GateDecision, str, str, Dict[str, Any]]]:
+        entry_state = state.get("scheme_advisor_entry_v2") or {}
+        if not isinstance(entry_state, dict) or not entry_state:
+            return None
+
+        step = entry_state.get("step")
+        if step != "version_selected":
+            decision = GateDecision(
+                status=GateStatus.NEED_MORE_PREREQUISITE,
+                reason="Scheme Advisor entry has not completed version selection.",
+                required_preconditions=["scheme_advisor_version_selection"],
+                boundary_notes=[
+                    *boundary_notes,
+                    "Complete Scheme Advisor version selection before entering the formal project gate.",
+                ],
+                interaction_state=InteractionState.CONVERSATION,
+            )
+            return decision, "conversation_engine", "conversation", {
+                "formal_gate_status": "entry_not_ready",
+            }
+
+        pending_assets = self._extract_pending_formal_assets(state, entry_state)
+        if not pending_assets:
+            return None
+
+        decision = GateDecision(
+            status=GateStatus.CONDITIONAL_CONTINUE,
+            reason="Scheme Advisor entry is selected, but formal project assets still need calibration.",
+            required_preconditions=pending_assets,
+            boundary_notes=[
+                *boundary_notes,
+                "Missing formal assets are calibration items, not entry blockers.",
+            ],
+            interaction_state=InteractionState.PROJECT,
+        )
+        return decision, "requirements_s1", "project", {
+            "formal_gate_status": "calibration_required",
+            "pending_formal_assets": pending_assets,
+        }
+
+    def _extract_pending_formal_assets(
+        self, state: ProjectAnalysisState, entry_state: Dict[str, Any]
+    ) -> list[str]:
+        candidates = [
+            state.get("pending_formal_assets"),
+            entry_state.get("pending_formal_assets"),
+            (entry_state.get("profile") or {}).get("pending_formal_assets"),
+            ((entry_state.get("profile") or {}).get("maturity") or {}).get("pending"),
+        ]
+
+        raw_brief = state.get("raw_brief_packet") or {}
+        if isinstance(raw_brief, dict):
+            prefill = raw_brief.get("prefill_from_drafts") or {}
+            if isinstance(prefill, dict):
+                candidates.append(prefill.get("pending_formal_assets"))
+
+        pending: list[str] = []
+        for candidate in candidates:
+            if isinstance(candidate, str):
+                values = [candidate]
+            elif isinstance(candidate, list):
+                values = candidate
+            else:
+                continue
+            for value in values:
+                if isinstance(value, str) and value and value not in pending:
+                    pending.append(value)
+        return pending
 
     # ------------------------------------------------------------------
     # Step 3: 可行性初判

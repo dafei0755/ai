@@ -1,12 +1,12 @@
-"""
-execution/skills/execution_control_skills.py — 执行控制技能
+﻿"""
+execution/skills/execution_control_skills.py 鈥?鎵ц鎺у埗鎶€鑳?
 
-Copilot 生成（2026-03-22）
+Copilot 鐢熸垚锛?026-03-22锛?
 
-技能列表：
-  - schedule_batch         (C 类门控)：批量调度多个生成任务
-  - route_delta            (A 类门控)：在执行阶段内触发增量路由
-  - assemble_incremental   (C 类门控)：将增量结果与基线版本拼装成新产物
+鎶€鑳藉垪琛細
+  - schedule_batch         (C 绫婚棬鎺?锛氭壒閲忚皟搴﹀涓敓鎴愪换鍔?
+  - route_delta            (A 绫婚棬鎺?锛氬湪鎵ц闃舵鍐呰Е鍙戝閲忚矾鐢?
+  - assemble_incremental   (C 绫婚棬鎺?锛氬皢澧為噺缁撴灉涓庡熀绾跨増鏈嫾瑁呮垚鏂颁骇鐗?
 """
 
 from __future__ import annotations
@@ -23,7 +23,7 @@ from intelligent_project_analyzer.workflow.execution.risk_gates import (
 
 
 # ---------------------------------------------------------------------------
-# 结果结构
+# 缁撴灉缁撴瀯
 # ---------------------------------------------------------------------------
 
 
@@ -90,7 +90,7 @@ class IncrementalAssemblyResult:
 
 
 # ---------------------------------------------------------------------------
-# 执行控制技能
+# 鎵ц鎺у埗鎶€鑳?
 # ---------------------------------------------------------------------------
 
 
@@ -102,26 +102,22 @@ def schedule_batch(
     call_counts: Optional[Dict[str, int]] = None,
 ) -> BatchScheduleResult:
     """
-    C 类门控 — 批量调度生成任务。
+    C 绫婚棬鎺?鈥?鎵归噺璋冨害鐢熸垚浠诲姟銆?
 
-    参数:
-      tasks         — 任务描述列表，每条含 {"task_id", "action_name", "params"}
-      task_executor — 同步执行单个任务的回调（可替换为异步实现）
+    鍙傛暟:
+      tasks         鈥?浠诲姟鎻忚堪鍒楄〃锛屾瘡鏉″惈 {"task_id", "action_name", "params"}
+      task_executor 鈥?鍚屾鎵ц鍗曚釜浠诲姟鐨勫洖璋冿紙鍙浛鎹负寮傛瀹炵幇锛?
     """
     request = ActionRequest(
         action_name="regenerate_delta",
         context={"session_id": session_id, "task": "batch_schedule"},
-        description=f"批量调度 {len(tasks)} 个任务",
+        description=f"batch schedule {len(tasks)} tasks",
     )
-    outcome = gate_engine.check(
-        request.action_name,
-        context=request.context,
-        call_counts=call_counts or {},
-    )
+    outcome = gate_engine.check(request, call_counts=call_counts or {})
 
     if not outcome.can_proceed:
-        reason = outcome.block_reason or "C 类超配额"
-        logger.warning(f"[{session_id}] schedule_batch 被门控阻断: {reason}")
+        reason = outcome.block_reason or "C 绫昏秴閰嶉"
+        logger.warning(f"[{session_id}] schedule_batch 琚棬鎺ч樆鏂? {reason}")
         return BatchScheduleResult(
             task_ids=[t.get("task_id", "") for t in tasks],
             scheduled=0,
@@ -161,26 +157,22 @@ def route_delta(
     call_counts: Optional[Dict[str, int]] = None,
 ) -> DeltaRouteResult:
     """
-    A 类门控 — 执行阶段内的增量路由判断（不经过 LangGraph，仅返回决策信号）。
+    A 绫婚棬鎺?鈥?鎵ц闃舵鍐呯殑澧為噺璺敱鍒ゆ柇锛堜笉缁忚繃 LangGraph锛屼粎杩斿洖鍐崇瓥淇″彿锛夈€?
 
-    由 ExecutionOrchestrator 在发现需要增量修改时调用；
-    更复杂的路由仍由 DeltaRouter 节点处理。
+    鐢?ExecutionOrchestrator 鍦ㄥ彂鐜伴渶瑕佸閲忎慨鏀规椂璋冪敤锛?
+    鏇村鏉傜殑璺敱浠嶇敱 DeltaRouter 鑺傜偣澶勭悊銆?
     """
     request = ActionRequest(
         action_name="reasoning_evaluate",
         context={"session_id": session_id, "task": "route_delta"},
-        description=f"执行层路由判断: {user_input[:60]}",
+        description=f"鎵ц灞傝矾鐢卞垽鏂? {user_input[:60]}",
     )
-    outcome = gate_engine.check(
-        request.action_name,
-        context=request.context,
-        call_counts=call_counts or {},
-    )
+    outcome = gate_engine.check(request, call_counts=call_counts or {})
 
     if not outcome.can_proceed:
         return DeltaRouteResult(route_decision="conversation", impact_summary={})
 
-    # 轻量路由逻辑（不经过 DeltaRouter 节点）
+    # 杞婚噺璺敱閫昏緫锛堜笉缁忚繃 DeltaRouter 鑺傜偣锛?
     from intelligent_project_analyzer.workflow.nodes.delta_router import DeltaRouter
     router = DeltaRouter()
     impact = router._compute_impact(user_input, taskbook_raw)
@@ -208,23 +200,19 @@ def assemble_incremental(
     call_counts: Optional[Dict[str, int]] = None,
 ) -> IncrementalAssemblyResult:
     """
-    C 类门控 — 将增量结果与基线版本拼装成新的 DeliveryBundle。
+    C 绫婚棬鎺?鈥?灏嗗閲忕粨鏋滀笌鍩虹嚎鐗堟湰鎷艰鎴愭柊鐨?DeliveryBundle銆?
 
-    参数:
-      base_bundle_raw — 基线 DeliveryBundle.model_dump()
-      delta_result    — 增量执行结果字典
-      modified_fields — 本次修改的字段列表
+    鍙傛暟:
+      base_bundle_raw 鈥?鍩虹嚎 DeliveryBundle.model_dump()
+      delta_result    鈥?澧為噺鎵ц缁撴灉瀛楀吀
+      modified_fields 鈥?鏈淇敼鐨勫瓧娈靛垪琛?
     """
     request = ActionRequest(
         action_name="regenerate_delta",
         context={"session_id": session_id, "task": "assemble_incremental"},
-        description=f"增量拼装: modified={modified_fields}",
+        description=f"澧為噺鎷艰: modified={modified_fields}",
     )
-    outcome = gate_engine.check(
-        request.action_name,
-        context=request.context,
-        call_counts=call_counts or {},
-    )
+    outcome = gate_engine.check(request, call_counts=call_counts or {})
 
     if not outcome.can_proceed:
         return IncrementalAssemblyResult(
@@ -238,7 +226,7 @@ def assemble_incremental(
     base_version = version_lineage[-1] if version_lineage else "v1"
     new_version = f"{base_version}.delta"
 
-    # 将 delta_result 合并到 base_bundle 的 stage_deliverables
+    # 灏?delta_result 鍚堝苟鍒?base_bundle 鐨?stage_deliverables
     merged_bundle = dict(base_bundle_raw)
     stage = list(merged_bundle.get("stage_deliverables", []))
     stage.append({
@@ -250,7 +238,7 @@ def assemble_incremental(
     merged_bundle["version_lineage"] = version_lineage + [new_version]
 
     logger.info(
-        f"[{session_id}] assemble_incremental: {base_version} → {new_version}, "
+        f"[{session_id}] assemble_incremental: {base_version} 鈫?{new_version}, "
         f"fields={modified_fields}"
     )
     return IncrementalAssemblyResult(

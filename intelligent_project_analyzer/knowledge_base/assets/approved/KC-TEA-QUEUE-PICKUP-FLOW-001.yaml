@@ -1,0 +1,76 @@
+card_id: KC-TEA-QUEUE-PICKUP-FLOW-001
+title: 茶饮门店点单等候取餐三线解耦机制
+status: approved
+source_role: operation_method
+species:
+- MechanismCard
+- OperationFlowCard
+production_method: CL
+layer: SpaceType
+source_refs:
+- TEA_DRINK_STORE_OPERATION_MVP
+grid_coordinate:
+  primary_lens: E2_body_movement
+  secondary_lens:
+  - E6_operation_system
+  - E5_time_sequence
+  - E9_constraint_risk
+  layer: SpaceType
+time_validity:
+  variable_type: medium
+  review_cycle: 12 months
+transferability:
+  level: SpaceType
+  limitation: 适用于高峰外带和取餐压力场景，需结合面积、骑手比例和商场管理规则复核。
+output_usage:
+- DesignBrief_2_0
+- OperationFlowMap
+- RiskChecklist
+task_brief_chapter:
+- operation_flow
+- customer_journey
+- risk_precheck
+judgment_bet:
+  is_verifiable: true
+  judgment: 点单、等候、取餐三线解耦能降低高峰交叉和回头流线。
+  why_this_judgment: 茶饮高峰同时存在顾客、骑手和店员三类行为路径。
+  what_would_prove_it_right: 高峰观察中人群停留点分散，取餐不阻塞点单和出入口。
+  what_would_prove_it_wrong: 即使三线分离，仍因叫号、骑手停靠或吧台位置造成拥堵。
+  expected_observation: 高峰时段动线录像、排队长度、骑手停靠和取餐等待记录。
+  review_time: after peak-hour observation
+primary_domain: food_beverage
+secondary_domains:
+- retail
+knowledge_status: processed_insight
+evidence_level: supporting_evidence
+evidence_strength: B
+ontology_dimension_ids:
+- E2_body_movement
+- E6_operation_system
+- E5_time_sequence
+- E9_constraint_risk
+package_ids:
+- kp.tea_drink_store
+- kp.customer_flow
+- kp.commercial_dining
+allowed_use:
+- theme_generation
+- concept_inspiration
+- motif_recall
+- spatial_narrative_design
+- operation_flow_strategy
+not_allowed_use:
+- business_performance_claim
+- construction_standard
+- compliance_basis
+- confirmed_user_preference
+- verified_store_status
+evidence_case_ids:
+- TEA_DRINK_STORE_OPERATION_MVP
+summary: 茶饮门店应优先把点单、等候、取餐三类人流拆开，避免顾客、骑手与店员在高峰时段互相回头和交叉。
+review_required: true
+review:
+  reviewer_id: codex
+  reviewed_at: '2026-06-09T00:00:00+00:00'
+  decision: approved
+  note: seed approved MVP card for tea drink queue and pickup strategy

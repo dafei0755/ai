@@ -231,8 +231,8 @@ class ProgressiveInteractionService:
             进度更新对象
         """
         if not self.enabled:
-            result = await task_func(*args, **kwargs)
-            return result
+            await task_func(*args, **kwargs)
+            return
 
         # 发送阶段开始
         start_update = await self.emit_progress(stage=stage)
@@ -267,7 +267,7 @@ class ProgressiveInteractionService:
                 if complete_update:
                     yield complete_update
 
-                return result
+                return
 
             except Exception as e:
                 # 取消进度流

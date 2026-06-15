@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useState, useRef, useEffect } from 'react';
 import { Send, Loader2 } from 'lucide-react';
 import type { AdvisorViewModel, ActionChip } from '@/types/advisor';
@@ -30,6 +31,12 @@ const MODULE_LABELS: Record<string, string> = {
   resource_radar: '资源雷达',
   silicon_avatar: '硅基分身',
   knowledge_hub:  '知识中枢',
+};
+
+const VIEW_LABELS: Record<string, string> = {
+  portfolio: '作品',
+  sediment:  '沉淀',
+  profile:   '我',
 };
 
 const OBJECT_STATE_LABELS: Record<string, string> = {
@@ -96,20 +103,20 @@ export function AdvisorPanel({
     <div className="flex flex-col h-full bg-[#161616] text-white">
 
       {/* ① 标题栏 + 场景绑定 */}
-      <div className="flex items-center gap-3 border-b border-white/8 px-4 py-3.5 shrink-0">
-        <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#2e67ff] text-white shrink-0">
+      <div className="flex items-center gap-3 border-b border-white/8 info-panel-px py-3.5 shrink-0">
+        <Link href="/" target="_blank" rel="noopener noreferrer" className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#2e67ff] text-white shrink-0 hover:bg-[#2558e0] transition-colors" title="返回首页">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
             <path d="M12 2L2 7l10 5 10-5-10-5z"/>
             <path d="M2 17l10 5 10-5"/>
             <path d="M2 12l10 5 10-5"/>
           </svg>
-        </div>
+        </Link>
         <div className="flex-1 min-w-0">
           <span className="text-sm font-semibold text-white">方案高参</span>
           <div className="flex items-center gap-1.5 mt-0.5">
             <span className="text-[10px] text-white/40">
               {MODULE_LABELS[viewModel.sceneContext.module] ?? viewModel.sceneContext.module}
-              {viewModel.objectState && ` · ${OBJECT_STATE_LABELS[viewModel.objectState] ?? viewModel.objectState}`}
+              {viewModel.sceneContext.view && ` / ${VIEW_LABELS[viewModel.sceneContext.view] ?? viewModel.sceneContext.view}`}
             </span>
             <span className={`inline-block w-1.5 h-1.5 rounded-full ${evidenceConfig.dot}`} />
             <span className="text-[10px] text-white/40">{evidenceConfig.label}</span>
@@ -118,7 +125,7 @@ export function AdvisorPanel({
       </div>
 
       {/* ② 判断区 */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
+      <div className="flex-1 overflow-y-auto info-panel-px py-4 space-y-4">
         {!hasChatHistory ? (
           <>
             <section>
@@ -126,7 +133,12 @@ export function AdvisorPanel({
                 我正在看
               </p>
               <p className="text-sm text-white/80 leading-relaxed">
-                {viewModel.boundObjectId ?? viewModel.sceneContext.objectId ?? viewModel.sceneContext.sessionId}
+                {viewModel.boundObjectLabel ?? (
+                  [
+                    MODULE_LABELS[viewModel.sceneContext.module] ?? viewModel.sceneContext.module,
+                    viewModel.sceneContext.view ? (VIEW_LABELS[viewModel.sceneContext.view] ?? viewModel.sceneContext.view) : null,
+                  ].filter(Boolean).join(' / ')
+                )}
               </p>
             </section>
             <section>
@@ -191,7 +203,7 @@ export function AdvisorPanel({
       </div>
 
       {/* ③ ActionChip 区 */}
-      <div className="px-3 pb-2 shrink-0 space-y-1.5">
+      <div className="info-panel-px pb-2 shrink-0 space-y-1.5">
         {primaryChips.map((chip, i) => (
           <button
             key={i}
@@ -222,7 +234,7 @@ export function AdvisorPanel({
       </div>
 
       {/* ④ 已激活能力（Phase A1 占位，纯展示） */}
-      <div className="px-3 pb-2 shrink-0">
+      <div className="info-panel-px pb-2 shrink-0">
         <div className="rounded-lg bg-white/3 border border-white/8 px-3 py-2">
           <p className="text-[10px] font-semibold text-white/30 uppercase tracking-widest mb-1.5">
             已激活能力
@@ -245,13 +257,13 @@ export function AdvisorPanel({
       </div>
 
       {/* ⑤ 输入框 */}
-      <div className="px-3 pb-3 pt-1 border-t border-white/8 shrink-0">
+      <div className="info-panel-px pb-6 pt-4 border-t border-white/8 shrink-0">
         <div className="flex items-end gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2 focus-within:border-white/20 transition-colors">
           <textarea
             value={inputValue}
             onChange={e => setInputValue(e.target.value)}
             placeholder="问我任何关于这个项目的问题..."
-            rows={2}
+            rows={4}
             className="flex-1 bg-transparent text-sm text-white placeholder:text-white/30 resize-none outline-none leading-relaxed"
             onKeyDown={e => {
               if (e.key === 'Enter' && !e.shiftKey) {

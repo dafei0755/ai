@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useEffect } from 'react';
 import axios from 'axios';
@@ -63,7 +63,7 @@ export default function DimensionLearningDashboard() {
 
   const fetchData = async () => {
     try {
-      const token = localStorage.getItem('wp_jwt_token');
+      const token = localStorage.getItem('app_auth_token');
       const headers = { 'Authorization': `Bearer ${token}` };
 
       // 并行获取所有数据

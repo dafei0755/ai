@@ -1,6 +1,6 @@
-'use client';
+﻿'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 
 // ── 类型定义 ──────────────────────────────────────────────────────────────────
@@ -56,7 +56,7 @@ interface ApproveFormData {
 // ── 工具函数 ──────────────────────────────────────────────────────────────────
 
 function getAuthHeaders() {
-  const token = localStorage.getItem('wp_jwt_token');
+  const token = localStorage.getItem('app_auth_token');
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
@@ -69,7 +69,7 @@ function confidenceColor(score: number) {
 function sourceLabel(source: string) {
   const map: Record<string, string> = {
     user_input: '用户输入',
-    crawler: '爬虫数据',
+    crawler: '历史外部导入',
     manual: '手动录入',
   };
   return map[source] || source;
@@ -389,7 +389,7 @@ export default function ProjectTypesPage() {
   } | null>(null);
   const [coverageLoading, setCoverageLoading] = useState(false);
 
-  const fetchCoverage = async () => {
+  const fetchCoverage = useCallback(async () => {
     setCoverageLoading(true);
     try {
       const res = await axios.get('/api/admin/project-types/coverage-audit', { headers: getAuthHeaders() });
@@ -399,9 +399,9 @@ export default function ProjectTypesPage() {
     } finally {
       setCoverageLoading(false);
     }
-  };
+  }, []);
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true);
     try {
       const headers = getAuthHeaders();
@@ -417,12 +417,12 @@ export default function ProjectTypesPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [statusFilter]);
 
   useEffect(() => {
     fetchData();
     fetchCoverage();
-  }, [statusFilter]);
+  }, [fetchData, fetchCoverage]);
 
   const handleReject = async (id: number) => {
     if (!confirm('确认拒绝该候选类型？')) return;

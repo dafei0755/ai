@@ -141,6 +141,7 @@ class TaskCompletenessAnalyzer:
         active_projections: Optional[List[str]] = None,
         space_type: Optional[str] = None,
         project_type: Optional[str] = None,
+        domain_required_dimensions: Optional[List[str]] = None,
     ) -> Dict[str, Any]:
         """
         分析任务信息完整性
@@ -154,6 +155,8 @@ class TaskCompletenessAnalyzer:
                        (如 'residential_premium' / 'rural' / 'commercial' 等)
             project_type: v8.2 新增，项目类型标识符（如 'luxury_villa'）
                          当 space_type 为空时，自动通过 PARENT_TYPE_MAP 解析
+            domain_required_dimensions: v8.4 新增，来自 type_operating_profiles.domain_framework.required_dimensions
+                         的类型专属维度 ID 列表，未覆盖时追加为 critical_gaps
 
         Returns:
             {
@@ -204,6 +207,29 @@ class TaskCompletenessAnalyzer:
                 missing_dimensions = [d for d in missing_dimensions if d != "交付要求"]
             critical_gaps = [g for g in critical_gaps if g.get("dimension") != "交付要求"]
             logger.info("✅ [v8.0] active_projections 非空 → '交付要求'标记已覆盖，从 critical_gaps 移除")
+
+        # v8.4: domain_framework 类型专属维度补充检查
+        # 将未在 all_text 中出现的类型专属维度 ID 追加为 critical_gaps（低优先级）
+        if domain_required_dimensions:
+            existing_gap_dims = {g.get("dimension") for g in critical_gaps}
+            domain_gaps_added = 0
+            for dim_id in domain_required_dimensions:
+                if dim_id in existing_gap_dims:
+                    continue
+                # 用下划线替换和关键词简单匹配，避免误报
+                dim_keyword = dim_id.replace("_", " ").lower()
+                if dim_keyword not in all_text.lower():
+                    critical_gaps.append({
+                        "dimension": dim_id,
+                        "reason": f"类型专属维度未覆盖（来自 domain_framework）",
+                        "priority": "low",
+                        "source": "domain_framework",
+                    })
+                    domain_gaps_added += 1
+            if domain_gaps_added:
+                logger.info(
+                    f"[v8.4] domain_framework 补充 {domain_gaps_added} 个类型专属缺口"
+                )
 
         # 5. 计算整体完整性评分
         task_density_score = self._calculate_task_density(confirmed_tasks)

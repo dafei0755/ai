@@ -1,6 +1,7 @@
-'use client';
+﻿'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { KnowledgeGovernanceDatabasePanel } from './KnowledgeGovernanceDatabasePanel';
 
 interface DatabaseStats {
   file_size_mb: number;
@@ -60,7 +61,7 @@ export default function DatabaseMonitoringPage() {
 
   // 获取认证头
   const getAuthHeaders = () => {
-    const token = localStorage.getItem('wp_jwt_token');
+    const token = localStorage.getItem('app_auth_token');
     return {
       'Content-Type': 'application/json',
       ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
@@ -560,6 +561,8 @@ export default function DatabaseMonitoringPage() {
           </div>
         </div>
       </div>
+
+      <KnowledgeGovernanceDatabasePanel apiBase={API_BASE} />
 
       {/* 帮助信息 */}
       <div className="bg-gray-50 rounded-xl border border-gray-200 p-6">

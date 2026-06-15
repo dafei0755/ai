@@ -1,0 +1,76 @@
+card_id: KC-TEA-BRAND-DISPLAY-MEMORY-001
+title: 茶饮门店品牌展示与出杯记忆点机制
+status: approved
+source_role: experience_method
+species:
+- MeaningExpressionCard
+- MechanismCard
+production_method: CL
+layer: SpaceType
+source_refs:
+- TEA_DRINK_STORE_OPERATION_MVP
+grid_coordinate:
+  primary_lens: E8_symbol_narrative
+  secondary_lens:
+  - E7_social_relation
+  - E3_light_material
+  layer: SpaceType
+time_validity:
+  variable_type: medium
+  review_cycle: 12 months
+transferability:
+  level: SpaceType
+  limitation: 适用于茶饮和轻餐零售的品牌展示策略，不可替代具体品牌调研。
+output_usage:
+- DesignBrief_2_0
+- ConceptMatrix
+- BrandMemoryMap
+task_brief_chapter:
+- brand_memory
+- customer_journey
+- spatial_narrative
+judgment_bet:
+  is_verifiable: true
+  judgment: 品牌展示与出杯节点连续组织，可提高顾客对门店体验的记忆清晰度。
+  why_this_judgment: 茶饮门店高频触点集中在点单、等待、取餐和拍照传播节点。
+  what_would_prove_it_right: 用户复盘能明确说出门店记忆点来自展示、出杯或拍照节点。
+  what_would_prove_it_wrong: 用户只记住产品、价格或门头，不记得空间触点。
+  expected_observation: 开业后访谈、社媒内容和现场行为记录中出现稳定触点记忆。
+  review_time: after opening review
+primary_domain: food_beverage
+secondary_domains:
+- retail
+- brand_experience
+knowledge_status: processed_insight
+evidence_level: supporting_evidence
+evidence_strength: B
+ontology_dimension_ids:
+- E8_symbol_narrative
+- E7_social_relation
+- E3_light_material
+package_ids:
+- kp.tea_drink_store
+- kp.brand_display
+- kp.customer_flow
+- kp.spatial_narrative
+allowed_use:
+- theme_generation
+- concept_inspiration
+- motif_recall
+- spatial_narrative_design
+- chain_store_differentiation_strategy
+not_allowed_use:
+- business_performance_claim
+- construction_standard
+- compliance_basis
+- confirmed_user_preference
+- verified_store_status
+evidence_case_ids:
+- TEA_DRINK_STORE_OPERATION_MVP
+summary: 茶饮门店的品牌记忆点不应只停留在门头，应与点单、等待、出杯可见性和拍照传播节点形成连续体验。
+review_required: true
+review:
+  reviewer_id: codex
+  reviewed_at: '2026-06-09T00:00:00+00:00'
+  decision: approved
+  note: seed approved MVP card for tea drink brand display and memory point

@@ -65,6 +65,7 @@ from ..report.result_aggregator import ResultAggregatorAgent
 from ..workflow.nodes.search_query_generator_node import search_query_generator_node  # v7.109
 from ..security import ReportGuardNode  # 内容安全与领域过滤
 from ..services.projection_dispatcher import dispatch_projections_sync, load_projections_config
+from ..services.space_classification_service import SpaceClassificationService
 from ..security.unified_input_validator_node import InputRejectedNode, UnifiedInputValidatorNode
 from ..utils.ontology_loader import OntologyLoader
 
@@ -639,6 +640,29 @@ class MainWorkflow:
                 result.structured_data.get("detected_design_modes", []) if result.structured_data else []
             )
 
+            # v2026.04: 空间分类旁路 + 项目定义激活包。
+            # 该结果不替代 project_type，只为后续本体绑定、方法路由、知识包调用提供结构化入口。
+            space_classification = None
+            project_definition_activation_pack = None
+            try:
+                activation_result = SpaceClassificationService().classify_and_activate(
+                    user_input=state.get("user_input", ""),
+                    structured_requirements=result.structured_data or {},
+                )
+                space_classification = activation_result.get("space_classification")
+                project_definition_activation_pack = activation_result.get("project_definition_activation_pack")
+                if not project_type and isinstance(space_classification, dict):
+                    project_type = space_classification.get("project_type")
+                logger.info(
+                    "[SpaceClassification] project_type={}, status={}, profile={}".format(
+                        (space_classification or {}).get("project_type"),
+                        (space_classification or {}).get("status"),
+                        (project_definition_activation_pack or {}).get("ontology_profile", {}).get("profile_id"),
+                    )
+                )
+            except Exception as exc:
+                logger.warning(f"[SpaceClassification] 旁路分类失败，保留旧 project_type 流程: {exc}")
+
             #  v7.0: 从 primary_deliverables 中提取交付物元数据和责任者映射
             deliverable_owner_map = {}
             deliverable_metadata = {}
@@ -695,6 +719,8 @@ class MainWorkflow:
                 "structured_requirements": result.structured_data,
                 "project_type": project_type,  # 添加项目类型字段
                 "detected_design_modes": detected_design_modes,  # BUG2修复：同步到 top-level
+                "space_classification": space_classification,
+                "project_definition_activation_pack": project_definition_activation_pack,
                 # ⚠️ v9.1: project_classification 已移除（死代码清理，零下游读取）
                 "deliverable_owner_map": deliverable_owner_map,  # v7.0: 交付物责任者映射
                 "deliverable_metadata": deliverable_metadata,  # v7.0: 交付物完整元数据
@@ -1564,7 +1590,7 @@ class MainWorkflow:
             from intelligent_project_analyzer.services.tool_factory import ToolFactory
 
             # 创建所有可用工具
-            all_tools = ToolFactory.create_all_tools()
+            all_tools = ToolFactory.create_all_tools(state=state)
 
             #  v7.105: 根据角色类型筛选工具
             role_tools = self._filter_tools_for_role(role_id, all_tools, role_config)

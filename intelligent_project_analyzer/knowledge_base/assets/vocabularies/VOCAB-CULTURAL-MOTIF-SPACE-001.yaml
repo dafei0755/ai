@@ -1,0 +1,52 @@
+vocabulary_id: VOCAB-CULTURAL-MOTIF-SPACE-001
+title: 东方文化母题空间转译词表
+status: approved_mvp
+motif_families:
+  architectural_component:
+    name_cn: 建筑构件母题
+    motifs:
+    - 檐
+    - 亭
+    - 窗
+    - 柱
+    - 馆
+    - 山房
+  landscape_garden:
+    name_cn: 山水园林母题
+    motifs:
+    - 石
+    - 岩
+    - 园
+    - 峦
+    - 泉
+    - 流
+    - 水境
+    - 江海
+  literati_object:
+    name_cn: 文人器物母题
+    motifs:
+    - 茶
+    - 扇
+    - 弦
+    - 陶
+    - 炉
+    - 纸
+    - 书
+  celestial_color:
+    name_cn: 天象色彩母题
+    motifs:
+    - 天青
+    - 月轮
+    - 清辉
+    - 烟云
+    - 日月星
+    - 氤氲
+  social_gathering:
+    name_cn: 雅集社交母题
+    motifs:
+    - 知音
+    - 友来
+    - 雅集
+    - 家友
+    - 围炉
+    - 品茗

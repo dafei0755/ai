@@ -1,0 +1,112 @@
+# =============================================================================
+# Industry Registry  (v1.10 行业语境独立轴)
+# =============================================================================
+# 职责: 提供行业语境受控枚举, 与 project_type / founding_type 正交。
+# 设计原则:
+#   - project_type 回答"这是什么空间机制"
+#   - industry_domain 回答"服务于哪个行业语境"
+#   - 未命中行业时允许 unspecified, 不阻断主流程
+# 消费者:
+#   - project_type_detector._detect_industry_candidates()
+#   - SpaceClassificationService (后续装配 industry_profile)
+# =============================================================================
+
+schema_version: industry_registry.v1.10
+owner: core_team
+review_status: approved
+last_updated: 2026-05-21
+
+defaults:
+  maturity_level: L1_tagged
+  status: active_light
+
+items:
+  legal_service:
+    name_cn: 法律服务
+    keywords: [律师事务所, 律所, 律师, 法律咨询, 合规, 法务, 仲裁]
+    secondary_keywords: [卷宗, 案卷, 签约室, 会客保密, 证据, 尽调]
+    preferred_project_types: [commercial_office]
+    priority: 9
+    maturity_level: L2_profiled
+    status: active_light
+
+  technology_ai:
+    name_cn: 科技/AI/互联网
+    keywords: [AI, 人工智能, 算法, 互联网, SaaS, 数据平台, 研发中心]
+    secondary_keywords: [工程师, 算力, 数据安全, 产品研发, 敏捷, 协作]
+    preferred_project_types: [commercial_office, commercial_enterprise]
+    priority: 9
+    maturity_level: L2_profiled
+    status: active_light
+
+  financial_service:
+    name_cn: 金融服务
+    keywords: [投行, 证券, 基金, 私募, 财富管理, 银行, 金融科技]
+    secondary_keywords: [风控, 审计, 合规审查, 高净值, 路演, 交易]
+    preferred_project_types: [commercial_office, commercial_enterprise]
+    priority: 8
+    maturity_level: L1_tagged
+    status: active_light
+
+  healthcare_medical:
+    name_cn: 医疗健康
+    keywords: [医院, 诊所, 牙科, 医疗, 体检, 康复, 月子中心]
+    secondary_keywords: [护理, 医生, 治疗, 诊疗, 无菌, 隐私]
+    preferred_project_types: [healthcare_wellness, community_public]
+    priority: 9
+    maturity_level: L2_profiled
+    status: active_mvp
+
+  education_training:
+    name_cn: 教育培训
+    keywords: [学校, 教育, 培训, 研学, 课堂, 教学, 托育]
+    secondary_keywords: [教研, 课程, 师生, 学习路径, 公教]
+    preferred_project_types: [educational_facility, public_cultural]
+    priority: 8
+    maturity_level: L1_tagged
+    status: active_light
+
+  culture_art:
+    name_cn: 文化艺术
+    keywords: [博物馆, 美术馆, 艺术, 策展, 画廊, 非遗, 文化机构]
+    secondary_keywords: [馆藏, 展陈, 公教活动, 文化记忆, 叙事]
+    preferred_project_types: [public_cultural, urban_renewal_heritage]
+    priority: 8
+    maturity_level: L1_tagged
+    status: active_light
+
+  automotive:
+    name_cn: 汽车行业
+    keywords: [汽车, 4S, 试驾, 新能源车, 车展, 改装]
+    secondary_keywords: [交车, 展车, 售后, 车主, 品牌体验]
+    preferred_project_types: [automotive_showroom, brand_experience, commercial_retail]
+    priority: 7
+    maturity_level: L1_tagged
+    status: active_light
+
+  retail_apparel_luxury:
+    name_cn: 时尚/奢侈品零售
+    keywords: [奢侈品, 精品店, 时尚, 服饰, 珠宝, 高定, 买手]
+    secondary_keywords: [试戴, VIP, 陈列, 品牌叙事, 限量]
+    preferred_project_types: [commercial_retail, brand_experience]
+    priority: 7
+    maturity_level: L1_tagged
+    status: active_light
+
+  eyewear_optical:
+    name_cn: 眼镜视光
+    keywords: [眼镜店, 视光, 验光, 镜架, 镜片, 配镜]
+    secondary_keywords: [试戴, 视力检查, 验配, 咨询, 镜面]
+    preferred_project_types: [commercial_retail, healthcare_wellness, brand_experience]
+    priority: 8
+    maturity_level: L1_tagged
+    status: active_light
+
+  pet_service:
+    name_cn: 宠物服务
+    keywords: [宠物, 宠物医院, 宠物店, 宠物护理, 宠物殡葬, 宠物纪念]
+    secondary_keywords: [告别, 宠物家属, 寄养, 洗护, 纪念]
+    preferred_project_types: [healthcare_wellness, special_function, community_public]
+    priority: 6
+    maturity_level: L1_tagged
+    status: reserved_light

@@ -3,12 +3,14 @@
 import { createContext, useContext, useState, useEffect, useRef, useCallback, ReactNode } from 'react';
 import { api } from '@/lib/api';
 import { useAuth } from './AuthContext';
+import { deriveSessionTitle } from '@/lib/sessionTitle';
 
 export interface Session {
   session_id: string;
   status: string;
   created_at: string;
   user_input: string;
+  display_name?: string;
   progress?: number;
   analysis_mode?: string;
   isTemporary?: boolean;
@@ -104,14 +106,16 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   // 重命名会话
   const handleRenameSession = useCallback(async (sessionId: string) => {
-    const newName = prompt('请输入新的会话名称:');
+    const targetSession = sessions.find(s => s.session_id === sessionId);
+    const newName = prompt('请输入新的会话摘要（显示前14字，超出自动省略）:', targetSession?.display_name ?? targetSession?.user_input ?? '');
     if (newName && newName.trim()) {
+      const displayName = deriveSessionTitle(newName);
       try {
-        await api.updateSession(sessionId, { display_name: newName.trim() });
+        await api.updateSession(sessionId, { display_name: displayName });
         setSessions(prev =>
           dedupeSessions(
             prev.map(s =>
-              s.session_id === sessionId ? { ...s, user_input: newName.trim() } : s
+              s.session_id === sessionId ? { ...s, user_input: displayName, display_name: displayName } : s
             )
           )
         );
@@ -121,7 +125,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         alert('重命名失败，请重试');
       }
     }
-  }, [dedupeSessions]);
+  }, [dedupeSessions, sessions]);
 
   // 置顶会话（toggle逻辑）
   const handlePinSession = useCallback(async (sessionId: string) => {

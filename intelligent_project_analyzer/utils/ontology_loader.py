@@ -7,6 +7,12 @@ from loguru import logger
 # Detector 输出 ID → Ontology 框架 ID 映射
 # 当 detector 输出的类型 ID 在 ontology_frameworks 中没有直接匹配时，
 # 通过此表找到最近邻框架。已有直接匹配的类型无需列入。
+#
+# v1.8 改造 (双跑期):
+#   事实源已迁移到 config/registries/classification_master_index.yaml
+#     ::axis_mappings.project_type_to_framework
+#   _resolve_detector_to_ontology() 优先读 master_index, fallback 到本常量
+#   本常量保留以防 yaml 缺失 / 解析失败 (零运行时风险)
 # =============================================================================
 DETECTOR_TO_ONTOLOGY: Dict[str, str] = {
     # 多对一：3 个 detector 类型共享 1 个 ontology 框架
@@ -14,7 +20,7 @@ DETECTOR_TO_ONTOLOGY: Dict[str, str] = {
     "urban_renewal_market": "rural_regeneration_urban_renewal",
     "urban_renewal_heritage": "rural_regeneration_urban_renewal",
     # 近邻归类：detector 类型归入最近邻的 ontology 框架
-    "commercial_dining": "commercial_hospitality",
+    "commercial_dining": "commercial_dining",            # 餐饮→独立框架（直接匹配）
     "performing_arts": "public_cultural",
     "community_public": "public_cultural",
     "brand_experience": "commercial_retail",
@@ -30,7 +36,68 @@ DETECTOR_TO_ONTOLOGY: Dict[str, str] = {
     "automotive_showroom": "commercial_retail",             # 汽车展厅→商业零售/品牌框架
     "digital_media_studio": "commercial_office",            # 直播基地→办公框架
     "popup_temporary": "commercial_retail",                 # 快闪临时→零售/品牌框架
+    # special_function: 无明确项目类型时，以 commercial_enterprise 作为通用兜底
+    # （meta_framework 已作为 Layer1 全局注入，此映射补充 Layer2 业务视角）
+    "special_function": "commercial_enterprise",
 }
+
+
+# =============================================================================
+# v1.8 master_index 加载器 (双跑期: 优先 yaml, 失败回退内联常量)
+# =============================================================================
+_MASTER_INDEX_PATH = (
+    Path(__file__).resolve().parent.parent
+    / "config" / "registries" / "classification_master_index.yaml"
+)
+
+_master_index_cache: Optional[Dict[str, Any]] = None
+
+
+def _load_master_index() -> Dict[str, Any]:
+    """加载 classification_master_index.yaml (带进程级缓存)"""
+    global _master_index_cache
+    if _master_index_cache is not None:
+        return _master_index_cache
+    if not _MASTER_INDEX_PATH.exists():
+        logger.debug(f"[OntologyLoader] master_index 不存在, 使用内联 DETECTOR_TO_ONTOLOGY")
+        _master_index_cache = {}
+        return _master_index_cache
+    try:
+        with open(_MASTER_INDEX_PATH, "r", encoding="utf-8") as f:
+            _master_index_cache = yaml.safe_load(f) or {}
+        logger.info(f"[OntologyLoader] master_index 已加载: {len(_master_index_cache.get('classification_axes', {}))} 个轴")
+    except Exception as exc:
+        logger.warning(f"[OntologyLoader] master_index 解析失败, 回退内联常量: {exc}")
+        _master_index_cache = {}
+    return _master_index_cache
+
+
+def reload_master_index() -> None:
+    """清空 master_index 缓存 (admin / 测试用)"""
+    global _master_index_cache
+    _master_index_cache = None
+
+
+def _resolve_detector_to_ontology(detector_type_id: str) -> Optional[str]:
+    """
+    detector type_id → ontology framework id 的统一解析入口。
+
+    优先级:
+      1. master_index.axis_mappings.project_type_to_framework
+      2. 内联常量 DETECTOR_TO_ONTOLOGY (fallback)
+
+    Returns:
+        ontology framework id, 或 None 表示无映射
+    """
+    mi = _load_master_index()
+    yaml_map = (
+        ((mi.get("axis_mappings") or {}).get("project_type_to_framework") or {}).get("mappings")
+        or {}
+    )
+    if detector_type_id in yaml_map:
+        return yaml_map[detector_type_id]
+    # fallback 到内联常量
+    return DETECTOR_TO_ONTOLOGY.get(detector_type_id)
 
 
 class OntologyLoader:
@@ -123,13 +190,15 @@ class OntologyLoader:
         
         # 第2层：项目类型层——支持 detector ID 自动映射到 ontology 框架
         if project_type and project_type != 'meta_framework':
-            # 优先直接匹配，否则通过 DETECTOR_TO_ONTOLOGY 映射
+            # 优先直接匹配，否则通过 _resolve_detector_to_ontology() (master_index 优先) 映射
             resolved_type = project_type
             type_framework = frameworks.get(project_type, {})
-            if not type_framework and project_type in DETECTOR_TO_ONTOLOGY:
-                resolved_type = DETECTOR_TO_ONTOLOGY[project_type]
-                type_framework = frameworks.get(resolved_type, {})
-                logger.info(f" Detector映射: {project_type} → {resolved_type}")
+            if not type_framework:
+                mapped = _resolve_detector_to_ontology(project_type)
+                if mapped:
+                    resolved_type = mapped
+                    type_framework = frameworks.get(resolved_type, {})
+                    logger.info(f" Detector映射: {project_type} → {resolved_type}")
             
             if type_framework:
                 self._merge_framework(merged_ontology, type_framework)
@@ -320,19 +389,179 @@ class OntologyLoader:
         """
         profiles = self.ontology_data.get('activation_profiles', {})
         result = profiles.get(project_type, {})
-        # 如果直接查找未命中，尝试通过 DETECTOR_TO_ONTOLOGY 映射
-        if not result and project_type in DETECTOR_TO_ONTOLOGY:
-            resolved = DETECTOR_TO_ONTOLOGY[project_type]
-            result = profiles.get(resolved, {})
+        # 如果直接查找未命中，通过 _resolve_detector_to_ontology() (master_index 优先) 映射
+        if not result:
+            resolved = _resolve_detector_to_ontology(project_type)
+            if resolved:
+                result = profiles.get(resolved, {})
         return result
 
     def get_available_activation_profiles(self) -> List[str]:
         """
         获取所有已定义激活图谱的项目类型列表
-        
+
         Returns:
             项目类型ID列表
         """
         profiles = self.ontology_data.get('activation_profiles', {})
         return [k for k in profiles.keys() if k != 'description']
+
+    # =========================================================================
+    # v1.8 Layer 4: activation_pack injector
+    # (本体激活的第 4 层, 在 meta_framework / project_type / expert 之上)
+    # =========================================================================
+    def inject_activation_pack(
+        self,
+        merged_ontology: Dict[str, Any],
+        subdomain_id: Optional[str] = None,
+        spatial_layer_ids: Optional[List[str]] = None,
+        active_ontology_dimension_ids: Optional[List[str]] = None,
+    ) -> Dict[str, Any]:
+        """
+        Layer 4: 按 subdomain / spatial_layer / dimension_ids 增量注入激活包内容。
+
+        本方法是 v1.8 §11.3 Layer 4 的实现:
+          1. 按 subdomain_id 加载对象 / 属性 / 关系 / 约束 (activation pack yaml)
+          2. 按 spatial_layer_ids 过滤空间层对象
+          3. 按 active_ontology_dimension_ids 关联 E 维度
+
+        设计原则:
+          - 不破坏已合并的 ontology dict (1-3 层结果)
+          - 激活包 yaml 缺失时静默跳过, 不抛异常
+          - 输出额外字段挂在 merged_ontology 顶层的 _activation_pack key 下,
+            既能被 format_as_prompt 间接消费, 也方便下游单独读取
+
+        Args:
+            merged_ontology: get_layered_ontology() 的返回值 (1-3 层结果)
+            subdomain_id: 子域 ID (如 tea_drink_store)
+            spatial_layer_ids: 空间层 ID 数组 (如 [interior_layer])
+            active_ontology_dimension_ids: 激活的 E 维度 (如 [E2_body_movement])
+
+        Returns:
+            扩展后的 ontology dict (含 _activation_pack 字段)
+        """
+        if not subdomain_id and not spatial_layer_ids and not active_ontology_dimension_ids:
+            return merged_ontology  # 无任何 Layer 4 输入, 直接返回
+
+        pack_info: Dict[str, Any] = {
+            "subdomain_id": subdomain_id,
+            "spatial_layer_ids": spatial_layer_ids or [],
+            "active_ontology_dimension_ids": active_ontology_dimension_ids or [],
+        }
+
+        # 1. 按 subdomain_id 加载激活包 yaml
+        if subdomain_id:
+            pack_yaml = self._load_activation_pack_yaml(subdomain_id)
+            if pack_yaml:
+                pack_info["activation_pack"] = pack_yaml
+                logger.info(f"[Layer4] 加载激活包: {subdomain_id}")
+            else:
+                pack_info["activation_pack"] = None
+                logger.debug(f"[Layer4] 激活包未找到或未建立: {subdomain_id}")
+
+        # 2. 按 spatial_layer_ids 关联本体维度 (从 master_index.spatial_layer_to_dimensions)
+        if spatial_layer_ids:
+            mi = _load_master_index()
+            sl_map = (
+                ((mi.get("axis_mappings") or {})
+                 .get("spatial_layer_to_dimensions") or {})
+                .get("mappings") or {}
+            )
+            inferred_dims: List[str] = []
+            priority_dims: List[str] = []
+            for layer_id in spatial_layer_ids:
+                layer_info = sl_map.get(layer_id, {})
+                inferred_dims.extend(layer_info.get("active_dimensions", []))
+                priority_dims.extend(layer_info.get("priority_dimensions", []))
+            pack_info["inferred_dimensions_from_layers"] = list(dict.fromkeys(inferred_dims))
+            pack_info["priority_dimensions_from_layers"] = list(dict.fromkeys(priority_dims))
+
+        # 3. 解析 E 维度 (从 ontology_dimension_registry.yaml)
+        if active_ontology_dimension_ids:
+            resolved_dims = self._resolve_ontology_dimensions(active_ontology_dimension_ids)
+            pack_info["resolved_dimensions"] = resolved_dims
+
+        merged_ontology["_activation_pack"] = pack_info
+        return merged_ontology
+
+    def _load_activation_pack_yaml(self, subdomain_id: str) -> Optional[Dict[str, Any]]:
+        """加载 activation_packs/<subdomain_id>_pack.yaml (容错)"""
+        # 激活包按 v1.8 约定存放路径
+        candidates = [
+            self.ontology_path.parent / "activation_packs" / f"{subdomain_id}_pack.yaml",
+            self.ontology_path.parent / "activation_packs" / f"{subdomain_id}.yaml",
+        ]
+        for path in candidates:
+            if path.exists():
+                try:
+                    with open(path, "r", encoding="utf-8") as f:
+                        return yaml.safe_load(f) or {}
+                except Exception as exc:
+                    logger.warning(f"[Layer4] 激活包加载失败 {path}: {exc}")
+                    return None
+        return None
+
+    def _resolve_ontology_dimensions(self, dimension_ids: List[str]) -> Dict[str, Any]:
+        """
+        从 ontology_dimension_registry.yaml 解析 E 维度完整定义。
+        若 registry 不存在, 回退到 ontology.yaml::meta_framework.ontological_foundations。
+        """
+        # 优先 registry
+        reg_path = self.ontology_path.parent / "ontology_dimension_registry.yaml"
+        if reg_path.exists():
+            try:
+                with open(reg_path, "r", encoding="utf-8") as f:
+                    reg = yaml.safe_load(f) or {}
+                all_dims = reg.get("ontology_dimensions", {})
+                return {did: all_dims[did] for did in dimension_ids if did in all_dims}
+            except Exception as exc:
+                logger.warning(f"[Layer4] dimension_registry 加载失败: {exc}")
+
+        # fallback: ontology.yaml 内嵌
+        meta = self.ontology_data.get("ontology_frameworks", {}).get("meta_framework", {})
+        legacy = meta.get("ontological_foundations", [])
+        result: Dict[str, Any] = {}
+        for dim_entry in legacy:
+            issue_id = dim_entry.get("issue_id", "")
+            # 旧 issue_id 是 E1/E2 形式; 需匹配新 id (E1_xxx) 前缀
+            for did in dimension_ids:
+                if did.startswith(issue_id + "_") or did == issue_id:
+                    result[did] = dim_entry
+                    break
+        return result
+
+    def get_layered_ontology_v18(
+        self,
+        project_type: Optional[str] = None,
+        subdomain_id: Optional[str] = None,
+        spatial_layer_ids: Optional[List[str]] = None,
+        active_ontology_dimension_ids: Optional[List[str]] = None,
+        expert_role: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """
+        v1.8 一站式入口: 1-3 层 + Layer 4 一次完成。
+
+        Args:
+            project_type: 项目类型 ID (Layer 2)
+            subdomain_id: 子域 ID (Layer 4)
+            spatial_layer_ids: 空间层 (Layer 4)
+            active_ontology_dimension_ids: 激活维度 (Layer 4)
+            expert_role: 专家角色 (Layer 3)
+
+        Returns:
+            完整 ontology dict, 含 _activation_pack 字段
+        """
+        # 1-3 层走旧方法 (向后兼容, 零回归风险)
+        merged = self.get_layered_ontology(
+            project_type=project_type or "meta_framework",
+            expert_role=expert_role,
+            include_base=True,
+        )
+        # Layer 4 增量注入
+        return self.inject_activation_pack(
+            merged,
+            subdomain_id=subdomain_id,
+            spatial_layer_ids=spatial_layer_ids,
+            active_ontology_dimension_ids=active_ontology_dimension_ids,
+        )
 

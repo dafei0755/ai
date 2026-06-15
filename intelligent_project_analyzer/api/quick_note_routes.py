@@ -32,7 +32,12 @@ async def create_quick_note(req: CreateQuickNoteRequest):
     )
     with get_session(_engine) as session:
         session.add(row)
-    return {"quicknote_id": note_id, "created_at": now.isoformat() + "Z", "status": "raw"}
+    return {
+        "quicknote_id": note_id,
+        "created_at": now.isoformat() + "Z",
+        "status": "raw",
+        "original_preserved": True,
+    }
 
 
 @router.get("/v1/quick-notes")
@@ -53,6 +58,7 @@ async def list_quick_notes(hours: int = 24, limit: int = 20):
                 "created_at": r.created_at.isoformat() + "Z",
                 "source": r.source,
                 "status": r.status,
+                "original_preserved": r.original_preserved,
             }
             for r in rows
         ]

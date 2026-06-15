@@ -1,0 +1,308 @@
+schema_version: case_object_group.v1
+case_group_id: HEYTEA_2_0_chinese_inspiration_theme_stores
+card_id: KC-SPACE-DIFFERENTIATION-CULTURAL-MOTIF-001
+cases:
+- case_id: CASE-HEYTEA-2-0-01
+  brand: 喜茶 HEYTEA
+  city: 重庆
+  store_name: 南坪协信店
+  theme_name: 观·檐
+  poetic_expression: 小窗坐地，侧听檐声
+  motif_tags:
+  - 檐
+  - 窗
+  - 听觉
+  - 静观
+  case_group_id: HEYTEA_2_0_chinese_inspiration_theme_stores
+  verification_status: not_individually_verified
+- case_id: CASE-HEYTEA-2-0-02
+  brand: 喜茶 HEYTEA
+  city: 重庆
+  store_name: 龙湖源著天街店
+  theme_name: 茶·扇
+  poetic_expression: 茶水悠煮香茗，折扇轻来往间
+  motif_tags:
+  - 茶
+  - 扇
+  - 器物
+  - 文人日常
+  case_group_id: HEYTEA_2_0_chinese_inspiration_theme_stores
+  verification_status: not_individually_verified
+- case_id: CASE-HEYTEA-2-0-03
+  brand: 喜茶 HEYTEA
+  city: 天津
+  store_name: 南开大悦城店
+  theme_name: 悠·弦
+  poetic_expression: 转轴拨弦三两声，未成曲调先有情
+  motif_tags:
+  - 弦
+  - 乐
+  - 情绪铺陈
+  case_group_id: HEYTEA_2_0_chinese_inspiration_theme_stores
+  verification_status: not_individually_verified
+- case_id: CASE-HEYTEA-2-0-04
+  brand: 喜茶 HEYTEA
+  city: 成都
+  store_name: 龙湖滨江天街店
+  theme_name: 石·栖
+  poetic_expression: 倚山石而栖，啜品一盏茶
+  motif_tags:
+  - 山石
+  - 栖居
+  - 茶
+  case_group_id: HEYTEA_2_0_chinese_inspiration_theme_stores
+  verification_status: not_individually_verified
+- case_id: CASE-HEYTEA-2-0-05
+  brand: 喜茶 HEYTEA
+  city: 成都
+  store_name: 总府王府井店
+  theme_name: 檐·间
+  poetic_expression: 香茗古馆静，蝉影拂窗前
+  motif_tags:
+  - 檐
+  - 馆
+  - 窗
+  - 蝉影
+  case_group_id: HEYTEA_2_0_chinese_inspiration_theme_stores
+  verification_status: not_individually_verified
+- case_id: CASE-HEYTEA-2-0-06
+  brand: 喜茶 HEYTEA
+  city: 杭州
+  store_name: 万象城店
+  theme_name: 天·青
+  poetic_expression: 雨过天青云破处，这般颜色做将来
+  motif_tags:
+  - 天青
+  - 雨后
+  - 色彩
+  case_group_id: HEYTEA_2_0_chinese_inspiration_theme_stores
+  verification_status: not_individually_verified
+- case_id: CASE-HEYTEA-2-0-07
+  brand: 喜茶 HEYTEA
+  city: 南京
+  store_name: 金茂览秀城店
+  theme_name: 月·轮
+  poetic_expression: 素月分辉，明河共影，表里俱澄澈
+  motif_tags:
+  - 月
+  - 轮
+  - 澄澈
+  - 水光
+  case_group_id: HEYTEA_2_0_chinese_inspiration_theme_stores
+  verification_status: not_individually_verified
+- case_id: CASE-HEYTEA-2-0-08
+  brand: 喜茶 HEYTEA
+  city: 苏州
+  store_name: 永旺梦乐城工业园店
+  theme_name: 岩·园
+  poetic_expression: 一亭尽揽山中趣，幽室能观室外天
+  motif_tags:
+  - 岩
+  - 园
+  - 亭
+  - 内外关系
+  case_group_id: HEYTEA_2_0_chinese_inspiration_theme_stores
+  verification_status: not_individually_verified
+- case_id: CASE-HEYTEA-2-0-09
+  brand: 喜茶 HEYTEA
+  city: 无锡
+  store_name: 苏宁广场店
+  theme_name: 陶所·围炉
+  poetic_expression: 寒夜客来茶当酒，竹炉汤沸火初红
+  motif_tags:
+  - 陶
+  - 炉
+  - 围坐
+  - 待客
+  case_group_id: HEYTEA_2_0_chinese_inspiration_theme_stores
+  verification_status: not_individually_verified
+- case_id: CASE-HEYTEA-2-0-10
+  brand: 喜茶 HEYTEA
+  city: 无锡
+  store_name: 海岸城店
+  theme_name: 檐·岩
+  poetic_expression: 半壁山房待明月，一盏清茗酬知音
+  motif_tags:
+  - 檐
+  - 岩
+  - 山房
+  - 知音
+  case_group_id: HEYTEA_2_0_chinese_inspiration_theme_stores
+  verification_status: not_individually_verified
+- case_id: CASE-HEYTEA-2-0-11
+  brand: 喜茶 HEYTEA
+  city: 南通
+  store_name: 万象城店
+  theme_name: 尺·檐
+  poetic_expression: 几时友来映尺檐，风花诗茗共我闲
+  motif_tags:
+  - 尺度
+  - 檐
+  - 友聚
+  - 闲适
+  case_group_id: HEYTEA_2_0_chinese_inspiration_theme_stores
+  verification_status: not_individually_verified
+- case_id: CASE-HEYTEA-2-0-12
+  brand: 喜茶 HEYTEA
+  city: 金华
+  store_name: 永盛店
+  theme_name: 岩·流
+  poetic_expression: 日月星天外，品茗山雨间
+  motif_tags:
+  - 岩
+  - 流
+  - 山雨
+  - 天象
+  case_group_id: HEYTEA_2_0_chinese_inspiration_theme_stores
+  verification_status: not_individually_verified
+- case_id: CASE-HEYTEA-2-0-13
+  brand: 喜茶 HEYTEA
+  city: 武汉
+  store_name: 光谷 K11 店
+  theme_name: 园·韵
+  poetic_expression: 雅集茗韵满园春，小庭苍苔一片青
+  motif_tags:
+  - 园
+  - 雅集
+  - 庭
+  - 苔
+  case_group_id: HEYTEA_2_0_chinese_inspiration_theme_stores
+  verification_status: not_individually_verified
+- case_id: CASE-HEYTEA-2-0-14
+  brand: 喜茶 HEYTEA
+  city: 济南
+  store_name: 万象城店
+  theme_name: 玄箔·茶行
+  poetic_expression: 冷冷流泉引玄山，丝金箔缎绣茶行
+  motif_tags:
+  - 玄色
+  - 金箔
+  - 流泉
+  - 茶行
+  case_group_id: HEYTEA_2_0_chinese_inspiration_theme_stores
+  verification_status: not_individually_verified
+- case_id: CASE-HEYTEA-2-0-15
+  brand: 喜茶 HEYTEA
+  city: 济南
+  store_name: 和谐广场店
+  theme_name: 亭·泊
+  poetic_expression: 高下亭台山水境。两畔清辉，中有垂杨径
+  motif_tags:
+  - 亭台
+  - 水境
+  - 垂杨
+  case_group_id: HEYTEA_2_0_chinese_inspiration_theme_stores
+  verification_status: not_individually_verified
+- case_id: CASE-HEYTEA-2-0-16
+  brand: 喜茶 HEYTEA
+  city: 青岛
+  store_name: 万象城店
+  theme_name: 纸·境
+  poetic_expression: 久在樊笼里，复得返自然
+  motif_tags:
+  - 纸
+  - 自然
+  - 返璞
+  case_group_id: HEYTEA_2_0_chinese_inspiration_theme_stores
+  verification_status: not_individually_verified
+- case_id: CASE-HEYTEA-2-0-17
+  brand: 喜茶 HEYTEA
+  city: 沈阳
+  store_name: 万象城食通天店
+  theme_name: 柱·间
+  poetic_expression: 倚柱品茗，茶韵映阳
+  motif_tags:
+  - 柱
+  - 光
+  - 品茗
+  case_group_id: HEYTEA_2_0_chinese_inspiration_theme_stores
+  verification_status: not_individually_verified
+- case_id: CASE-HEYTEA-2-0-18
+  brand: 喜茶 HEYTEA
+  city: 沈阳
+  store_name: 大悦城店
+  theme_name: 流·茗
+  poetic_expression: 流华净肌骨，疏瀹涤心原
+  motif_tags:
+  - 流
+  - 净
+  - 茶性
+  - 身体感
+  case_group_id: HEYTEA_2_0_chinese_inspiration_theme_stores
+  verification_status: not_individually_verified
+- case_id: CASE-HEYTEA-2-0-19
+  brand: 喜茶 HEYTEA
+  city: 西安
+  store_name: 大悦城店
+  theme_name: 雅·宴
+  poetic_expression: 烹茶雅聚宴家友，曲江烟水杏园花
+  motif_tags:
+  - 雅宴
+  - 友聚
+  - 曲江
+  case_group_id: HEYTEA_2_0_chinese_inspiration_theme_stores
+  verification_status: not_individually_verified
+- case_id: CASE-HEYTEA-2-0-20
+  brand: 喜茶 HEYTEA
+  city: 西安
+  store_name: 万象城店
+  theme_name: 烟·云
+  poetic_expression: 听万物氤氲，从来形色，每向静中觑
+  motif_tags:
+  - 烟云
+  - 氤氲
+  - 静观
+  case_group_id: HEYTEA_2_0_chinese_inspiration_theme_stores
+  verification_status: not_individually_verified
+- case_id: CASE-HEYTEA-2-0-21
+  brand: 喜茶 HEYTEA
+  city: 合肥
+  store_name: 百盛店
+  theme_name: 竹·逸
+  poetic_expression: 痴竹客忘俗，有禅者醉茶
+  motif_tags:
+  - 竹
+  - 逸
+  - 禅
+  - 茶
+  case_group_id: HEYTEA_2_0_chinese_inspiration_theme_stores
+  verification_status: not_individually_verified
+- case_id: CASE-HEYTEA-2-0-22
+  brand: 喜茶 HEYTEA
+  city: 南昌
+  store_name: 王府井店
+  theme_name: 亭·居
+  poetic_expression: 倚亭居山月，披书坐落花
+  motif_tags:
+  - 亭
+  - 居
+  - 山月
+  - 读书
+  case_group_id: HEYTEA_2_0_chinese_inspiration_theme_stores
+  verification_status: not_individually_verified
+- case_id: CASE-HEYTEA-2-0-23
+  brand: 喜茶 HEYTEA
+  city: 昆明
+  store_name: 恒隆广场店
+  theme_name: 峦·间
+  poetic_expression: 野泉烟火白云间，坐饮香茶爱此山
+  motif_tags:
+  - 山峦
+  - 野泉
+  - 烟火
+  - 白云
+  case_group_id: HEYTEA_2_0_chinese_inspiration_theme_stores
+  verification_status: not_individually_verified
+- case_id: CASE-HEYTEA-2-0-24
+  brand: 喜茶 HEYTEA
+  city: 三亚
+  store_name: 国际免税城二期店
+  theme_name: 海·耕
+  poetic_expression: 以舟为室，视水为路，浮生江海，舟楫为家
+  motif_tags:
+  - 海
+  - 舟
+  - 水路
+  - 漂居
+  case_group_id: HEYTEA_2_0_chinese_inspiration_theme_stores
+  verification_status: not_individually_verified

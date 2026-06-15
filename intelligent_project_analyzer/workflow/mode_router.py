@@ -35,6 +35,7 @@ from loguru import logger
 from intelligent_project_analyzer.core.domain_objects import (
     GateDecision,
     GateStatus,
+    InteractionState,
     RawBriefPacket,
 )
 from intelligent_project_analyzer.core.state import ProjectAnalysisState
@@ -183,11 +184,11 @@ class ModeRouter:
         if gate_raw:
             interaction_state = gate_raw.get("interaction_state", "")
 
-            if interaction_state == GateStatus.REJECTED.value:
+            if interaction_state in {GateStatus.REJECT.value, "rejected"}:
                 logger.info(f"[{session_id}] 路由 → input_rejected")
                 return Command(goto="input_rejected")
 
-            if interaction_state == GateStatus.PROJECT.value:
+            if interaction_state == InteractionState.PROJECT.value:
                 logger.info(f"[{session_id}] 路由 → requirements_s1（项目态）")
                 return Command(
                     goto="requirements_s1",
@@ -215,13 +216,13 @@ class ModeRouter:
         gate_raw = state.get("gate_decision") or {}
         gate_raw = {
             **gate_raw,
-            "interaction_state": GateStatus.PROJECT.value,
+            "interaction_state": InteractionState.PROJECT.value,
             "upgraded_at": datetime.now().isoformat(),
         }
 
         logger.info(
             f"[{session_id}] 升级编译完成 — "
-            f"raw_text={packet.raw_text[:60]}..."
+            f"raw_text={packet.raw_user_prompt[:60]}..."
         )
 
         return {

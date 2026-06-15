@@ -1,12 +1,12 @@
-"""
-execution/skills/generation_skills.py — 生成类技能
+﻿"""
+execution/skills/generation_skills.py 鈥?鐢熸垚绫绘妧鑳?
 
-Copilot 生成（2026-03-22）
+Copilot 鐢熸垚锛?026-03-22锛?
 
-技能列表：
-  - generate_image         (C 类门控)：生成效果图 / 平面图
-  - assemble_text_package  (C 类门控)：组装文字交付物包
-  - build_chart            (C 类门控)：生成数据图表
+鎶€鑳藉垪琛細
+  - generate_image         (C 绫婚棬鎺?锛氱敓鎴愭晥鏋滃浘 / 骞抽潰鍥?
+  - assemble_text_package  (C 绫婚棬鎺?锛氱粍瑁呮枃瀛椾氦浠樼墿鍖?
+  - build_chart            (C 绫婚棬鎺?锛氱敓鎴愭暟鎹浘琛?
 """
 
 from __future__ import annotations
@@ -23,7 +23,7 @@ from intelligent_project_analyzer.workflow.execution.risk_gates import (
 
 
 # ---------------------------------------------------------------------------
-# 结果结构
+# 缁撴灉缁撴瀯
 # ---------------------------------------------------------------------------
 
 
@@ -95,7 +95,7 @@ class ChartResult:
 
 
 # ---------------------------------------------------------------------------
-# 生成技能
+# 鐢熸垚鎶€鑳?
 # ---------------------------------------------------------------------------
 
 
@@ -107,30 +107,26 @@ def generate_image(
     call_counts: Optional[Dict[str, int]] = None,
 ) -> ImageResult:
     """
-    C 类门控 — 生成效果图 / 平面图。
+    C 绫婚棬鎺?鈥?鐢熸垚鏁堟灉鍥?/ 骞抽潰鍥俱€?
 
-    params: {"style": "写实", "resolution": "1024x768", "count": 2}
+    params: {"style": "鍐欏疄", "resolution": "1024x768", "count": 2}
     """
     request = ActionRequest(
         action_name="generate_image",
         context={"session_id": session_id},
-        description=f"生成图像: {prompt[:80]}",
+        description=f"鐢熸垚鍥惧儚: {prompt[:80]}",
     )
-    outcome = gate_engine.check(
-        request.action_name,
-        context=request.context,
-        call_counts=call_counts or {},
-    )
+    outcome = gate_engine.check(request, call_counts=call_counts or {})
 
     if not outcome.can_proceed:
         reason = outcome.block_reason or (
-            "等待用户确认" if outcome.needs_confirm else "超过生成配额"
+            "绛夊緟鐢ㄦ埛纭" if outcome.needs_confirm else "瓒呰繃鐢熸垚閰嶉"
         )
-        logger.warning(f"[{session_id}] generate_image 被门控阻断: {reason}")
+        logger.warning(f"[{session_id}] generate_image 琚棬鎺ч樆鏂? {reason}")
         return ImageResult(prompt=prompt, image_urls=[], blocked=True, block_reason=reason)
 
     logger.info(f"[{session_id}] generate_image: {prompt[:80]}, params={params}")
-    # 实际图像生成委托 actions 层（generate_image_action）完成
+    # 瀹為檯鍥惧儚鐢熸垚濮旀墭 actions 灞傦紙generate_image_action锛夊畬鎴?
     image_urls: List[str] = []
     return ImageResult(prompt=prompt, image_urls=image_urls)
 
@@ -143,18 +139,14 @@ def assemble_text_package(
     call_counts: Optional[Dict[str, int]] = None,
 ) -> TextPackageResult:
     """
-    C 类门控 — 组装文字交付物包（设计说明书、评审报告等）。
+    C 绫婚棬鎺?鈥?缁勮鏂囧瓧浜や粯鐗╁寘锛堣璁¤鏄庝功銆佽瘎瀹℃姤鍛婄瓑锛夈€?
     """
     request = ActionRequest(
         action_name="generate_text_package",
         context={"session_id": session_id},
-        description=f"文字包组装: template={template}",
+        description=f"鏂囧瓧鍖呯粍瑁? template={template}",
     )
-    outcome = gate_engine.check(
-        request.action_name,
-        context=request.context,
-        call_counts=call_counts or {},
-    )
+    outcome = gate_engine.check(request, call_counts=call_counts or {})
 
     if not outcome.can_proceed:
         return TextPackageResult(template_id=template, sections=[], blocked=True)
@@ -172,18 +164,14 @@ def build_chart(
     call_counts: Optional[Dict[str, int]] = None,
 ) -> ChartResult:
     """
-    C 类门控 — 生成数据图表（预算对比、进度甘特图等）。
+    C 绫婚棬鎺?鈥?鐢熸垚鏁版嵁鍥捐〃锛堥绠楀姣斻€佽繘搴︾敇鐗瑰浘绛夛級銆?
     """
     request = ActionRequest(
         action_name="assemble_chart",
         context={"session_id": session_id},
-        description=f"图表生成: type={chart_type}",
+        description=f"鍥捐〃鐢熸垚: type={chart_type}",
     )
-    outcome = gate_engine.check(
-        request.action_name,
-        context=request.context,
-        call_counts=call_counts or {},
-    )
+    outcome = gate_engine.check(request, call_counts=call_counts or {})
 
     if not outcome.can_proceed:
         return ChartResult(chart_type=chart_type, data=data, blocked=True)

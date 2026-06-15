@@ -1,81 +1,51 @@
 'use client';
 
-/**
- * 登录页面（自动跳转到 WPCOM 用户中心 SSO）
- * 直接重定向到 WPCOM 用户中心登录，无需额外操作
- *
- * 🆕 v7.277: 开发模式跳过 SSO，直接使用测试用户
- */
-
-import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 
-// 🆕 v7.277: 开发模式配置
-const DEV_MODE = process.env.NEXT_PUBLIC_DEV_MODE === 'true';
-const DEV_SKIP_AUTH = process.env.NEXT_PUBLIC_DEV_SKIP_AUTH === 'true';
+const APP_AUTH_TOKEN_KEY = 'app_auth_token';
+const APP_AUTH_USER_KEY = 'app_auth_user';
+
+const DEV_USER = {
+  user_id: 9999,
+  username: 'dev_user',
+  name: '开发测试用户',
+  display_name: '开发测试用户',
+  email: 'dev@localhost',
+  roles: ['administrator'],
+  tier: 'enterprise',
+};
 
 export default function LoginPage() {
   const router = useRouter();
 
-  // 页面加载时自动跳转到 WordPress 嵌入页面
-  useEffect(() => {
-    // 🆕 v7.277: 开发模式跳过 SSO
-    if (DEV_MODE && DEV_SKIP_AUTH) {
-      console.log('[LoginPage v7.277] 🔧 开发模式：跳过 SSO，直接进入首页');
-      router.push('/');
-      return;
-    }
-
-    const wordpressEmbedUrl = 'https://www.ucppt.com/nextjs';
-
-    // 立即跳转
-    window.location.href = wordpressEmbedUrl;
-  }, [router]);
-
-  // 🆕 v7.277: 开发模式显示不同的内容
-  if (DEV_MODE && DEV_SKIP_AUTH) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-orange-400 to-red-500 flex items-center justify-center p-4">
-        <div className="bg-white rounded-lg shadow-2xl p-8 w-full max-w-md text-center">
-          <div className="mb-6">
-            <div className="text-5xl mb-4">🔧</div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">
-              开发模式
-            </h1>
-            <p className="text-gray-600">
-              正在跳过登录验证...
-            </p>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  const handleDevelopmentLogin = () => {
+    localStorage.setItem(APP_AUTH_TOKEN_KEY, 'dev-token-mock');
+    localStorage.setItem(APP_AUTH_USER_KEY, JSON.stringify(DEV_USER));
+    window.dispatchEvent(new Event('app-auth-updated'));
+    router.push('/');
+  };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center p-4">
-      <div className="bg-white rounded-lg shadow-2xl p-8 w-full max-w-md text-center">
-        {/* 跳转提示 */}
-        <div className="mb-6">
-          <div className="inline-block h-12 w-12 animate-spin rounded-full border-4 border-solid border-blue-500 border-r-transparent mb-4"></div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">
-            正在跳转到登录页面...
-          </h1>
-          <p className="text-gray-600">
-            请稍候，即将跳转到 WPCOM 用户中心登录
+    <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center p-4">
+      <div className="w-full max-w-md rounded-xl border border-white/10 bg-white/5 p-8 shadow-2xl">
+        <div className="mb-8">
+          <h1 className="text-2xl font-semibold mb-2">方案高参登录</h1>
+          <p className="text-sm text-slate-300">
+            独立账号、会员、付费和权限系统正在建设中。当前本地环境可使用开发账号进入系统。
           </p>
         </div>
-
-        {/* 备用链接 */}
-        <div className="pt-6 border-t border-gray-200">
-          <p className="text-sm text-gray-500 mb-2">如果没有自动跳转：</p>
-          <Link
-            href="/auth/login/manual"
-            className="text-blue-600 hover:text-blue-700 font-medium text-sm"
-          >
-            使用密码登录 →
-          </Link>
-        </div>
+        <button
+          onClick={handleDevelopmentLogin}
+          className="w-full rounded-lg bg-blue-600 px-4 py-3 text-sm font-medium text-white hover:bg-blue-500 transition-colors"
+        >
+          使用开发账号进入
+        </button>
+        <button
+          onClick={() => router.push('/')}
+          className="mt-3 w-full rounded-lg border border-white/10 px-4 py-3 text-sm text-slate-200 hover:bg-white/10 transition-colors"
+        >
+          返回首页
+        </button>
       </div>
     </div>
   );

@@ -317,57 +317,96 @@ async def post_conversation_message(
             "role": "user",
             "content": req.message,
             "context_hint": req.context_hint,
+            "in_response_to_card_id": req.in_response_to_card_id,
+            "selected_option_id": req.selected_option_id,
             "timestamp": datetime.now().isoformat(),
         }
     )
 
-    # ── 3. 同步调用 ConversationEngine ──
+    # ── 3. 可选：方案高参入口 V2（Feature Flag 灰度） ──
     result: Dict[str, Any] = {}
+    scheme_entry_state: Optional[Dict[str, Any]] = None
+    scheme_entry_handled = False
     try:
-        from intelligent_project_analyzer.workflow.conversation_engine import ConversationEngine
-        from langchain_core.messages import HumanMessage as _HM, AIMessage as _AM
-
-        # 把会话历史转换为 LangChain messages，让 LLM 保持上下文
-        _role_map = {"user": _HM, "assistant": _AM}
-        lc_history = [
-            _role_map[h["role"]](content=h.get("content", ""))
-            for h in session.get("conversation_history_v2", [])
-            if h.get("role") in _role_map
-        ]
-
-        engine = ConversationEngine(llm=_get_conv_llm())
-        state_patch = {
-            "user_input": req.message,
-            "session_id": session_id,
-            "system_mode": session.get("system_mode", "conversation"),
-            "conversation_drafts": session.get("conversation_drafts", []),
-            "cognition_indicators": session.get("cognition_indicators"),
-            "upgrade_signal": session.get("upgrade_signal"),
-            "metadata": session.get("metadata", {}),
-            # 历史消息（LangChain 格式，供 _handle_knowledge_qa 传给 LLM）
-            "conversation_history": lc_history,
-            # 引导卡片交互字段
-            "in_response_to_card_id": req.in_response_to_card_id,
-            "selected_option_id": req.selected_option_id,
-            "pending_guidance_card": session.get("pending_guidance_card"),
-            # S-step 流水线状态（跨轮次持久化）
-            "conv_s_step": session.get("conv_s_step", "dialogue"),
-            "asked_gaps": session.get("asked_gaps", []),
-        }
-        # engine.execute() 是同步阻塞调用（内含 LLM HTTP 请求），
-        # 必须在线程池中运行，否则会卡死 asyncio event loop
-        loop = asyncio.get_event_loop()
-        result = await loop.run_in_executor(None, engine.execute, state_patch)
-
-        reply = result.get("conversation_reply", "收到，继续告诉我更多。")
-        intent = result.get("conversation_intent", "knowledge_qa")
-        drafts = result.get("conversation_drafts", session.get("conversation_drafts", []))
-        upgrade_sig = result.get("upgrade_signal")
-        cognition = result.get("cognition_indicators")
-        upgrade_suggested = bool(upgrade_sig) or (
-            isinstance(cognition, dict) and cognition.get("should_trigger_upgrade", False)
+        from intelligent_project_analyzer.services.scheme_advisor_entry_service import (  # noqa: PLC0415
+            SchemeAdvisorEntryService,
+            is_scheme_advisor_entry_enabled,
+            is_scheme_advisor_entry_llm_enabled,
         )
-        guidance_card = result.get("pending_guidance_card")
+
+        if is_scheme_advisor_entry_enabled():
+            scheme_llm = _get_conv_llm() if is_scheme_advisor_entry_llm_enabled() else None
+            scheme_service = SchemeAdvisorEntryService(llm=scheme_llm)
+            loop = asyncio.get_event_loop()
+            scheme_result = await loop.run_in_executor(
+                None,
+                lambda: scheme_service.handle_message(
+                    session=session,
+                    user_message=req.message,
+                    in_response_to_card_id=req.in_response_to_card_id,
+                    selected_option_id=req.selected_option_id,
+                ),
+            )
+            if scheme_result:
+                scheme_entry_handled = True
+                reply = scheme_result.get("reply", "收到，继续告诉我更多。")
+                intent = scheme_result.get("intent", "scheme_advisor_entry")
+                drafts = session.get("conversation_drafts", [])
+                upgrade_sig = None
+                upgrade_suggested = False
+                guidance_card = scheme_result.get("guidance_card")
+                scheme_entry_state = scheme_result.get("scheme_entry_state")
+                logger.info(
+                    f"[dual_mode] SchemeAdvisorEntryV2 handled: session={session_id}, "
+                    f"step={(scheme_entry_state or {}).get('step')}, card={guidance_card and guidance_card.get('card_type')}"
+                )
+
+        # ── 4. 默认：同步调用 ConversationEngine ──
+        if not scheme_entry_handled:
+            from intelligent_project_analyzer.workflow.conversation_engine import ConversationEngine
+            from langchain_core.messages import AIMessage as _AM, HumanMessage as _HM
+
+            # 把会话历史转换为 LangChain messages，让 LLM 保持上下文
+            _role_map = {"user": _HM, "assistant": _AM}
+            lc_history = [
+                _role_map[h["role"]](content=h.get("content", ""))
+                for h in session.get("conversation_history_v2", [])
+                if h.get("role") in _role_map
+            ]
+
+            engine = ConversationEngine(llm=_get_conv_llm())
+            state_patch = {
+                "user_input": req.message,
+                "session_id": session_id,
+                "system_mode": session.get("system_mode", "conversation"),
+                "conversation_drafts": session.get("conversation_drafts", []),
+                "cognition_indicators": session.get("cognition_indicators"),
+                "upgrade_signal": session.get("upgrade_signal"),
+                "metadata": session.get("metadata", {}),
+                # 历史消息（LangChain 格式，供 _handle_knowledge_qa 传给 LLM）
+                "conversation_history": lc_history,
+                # 引导卡片交互字段
+                "in_response_to_card_id": req.in_response_to_card_id,
+                "selected_option_id": req.selected_option_id,
+                "pending_guidance_card": session.get("pending_guidance_card"),
+                # S-step 流水线状态（跨轮次持久化）
+                "conv_s_step": session.get("conv_s_step", "dialogue"),
+                "asked_gaps": session.get("asked_gaps", []),
+            }
+            # engine.execute() 是同步阻塞调用（内含 LLM HTTP 请求），
+            # 必须在线程池中运行，否则会卡死 asyncio event loop
+            loop = asyncio.get_event_loop()
+            result = await loop.run_in_executor(None, engine.execute, state_patch)
+
+            reply = result.get("conversation_reply", "收到，继续告诉我更多。")
+            intent = result.get("conversation_intent", "knowledge_qa")
+            drafts = result.get("conversation_drafts", session.get("conversation_drafts", []))
+            upgrade_sig = result.get("upgrade_signal")
+            cognition = result.get("cognition_indicators")
+            upgrade_suggested = bool(upgrade_sig) or (
+                isinstance(cognition, dict) and cognition.get("should_trigger_upgrade", False)
+            )
+            guidance_card = result.get("pending_guidance_card")
 
     except Exception as exc:
         logger.error(
@@ -382,7 +421,13 @@ async def post_conversation_message(
 
     # ── 4. 回写会话 ──
     conversation_history.append(
-        {"role": "assistant", "content": reply, "intent": intent, "timestamp": datetime.now().isoformat()}
+        {
+            "role": "assistant",
+            "content": reply,
+            "intent": intent,
+            "guidance_card": guidance_card,
+            "timestamp": datetime.now().isoformat(),
+        }
     )
     session_update = {
         "conversation_history_v2": conversation_history,
@@ -396,6 +441,8 @@ async def post_conversation_message(
         "conv_s_step": result.get("conv_s_step", session.get("conv_s_step", "dialogue")),
         "asked_gaps": result.get("asked_gaps", session.get("asked_gaps", [])),
     }
+    if scheme_entry_state is not None:
+        session_update["scheme_advisor_entry_v2"] = scheme_entry_state
     await sm.update(
         session_id,
         session_update,
@@ -556,6 +603,9 @@ async def run_gate(req: GateRequest) -> GateResponse:
             "system_mode": session.get("system_mode", "project"),
             "gate_decision": None,
             "metadata": session.get("metadata", {}),
+            "scheme_advisor_entry_v2": session.get("scheme_advisor_entry_v2"),
+            "raw_brief_packet": session.get("raw_brief_packet"),
+            "pending_formal_assets": session.get("pending_formal_assets"),
         }
         # GateNode.execute 返回 Command；提取 update 字段中的 gate_decision
         result = gate.execute(state_patch)  # type: ignore[arg-type]
@@ -568,18 +618,31 @@ async def run_gate(req: GateRequest) -> GateResponse:
 
     gate_status = gate_decision_dict.get("status", "CONVERSATION")
     interaction_state = gate_decision_dict.get("interaction_state")
-    gap_questions = gate_decision_dict.get("gap_questions", [])
+    gap_questions = (
+        gate_decision_dict.get("gap_questions")
+        or gate_decision_dict.get("required_preconditions")
+        or [gap.get("description") for gap in gate_decision_dict.get("gap_diagnosis", []) if isinstance(gap, dict)]
+    )
 
     # 将门禁结果写回会话
     sm = await _get_sm()
-    await sm.update(req.session_id, {"gate_decision": gate_decision_dict})
+    session_patch = {"gate_decision": gate_decision_dict}
+    for key in ("formal_gate_status", "pending_formal_assets", "system_mode", "current_stage"):
+        if key in update:
+            session_patch[key] = update[key]
+    await sm.update(req.session_id, session_patch)
 
     msg_map = {
         "CONTINUE": "门禁通过，请求可以进入需求分析流程。",
+        "continue": "门禁通过，请求可以进入需求分析流程。",
         "CONVERSATION": "需要补充更多信息，请参照 gap_questions。",
+        "conversation": "需要补充更多信息，请参照 gap_questions。",
         "CONDITIONAL_CONTINUE": "条件满足后可继续，请参照 gap_questions。",
+        "conditional_continue": "条件满足后可继续，请参照 gap_questions。",
         "REJECT": "请求不符合要求，已拒绝。",
+        "reject": "请求不符合要求，已拒绝。",
         "NEED_MORE_PREREQUISITE": "前置条件不足，需要先满足基础要求。",
+        "need_more_prerequisite": "前置条件不足，需要先满足基础要求。",
     }
 
     return GateResponse(

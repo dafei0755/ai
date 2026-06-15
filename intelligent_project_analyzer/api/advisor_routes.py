@@ -34,6 +34,8 @@ class SceneContextIn(BaseModel):
     module: str
     user_action: str
     dispatch_level: str
+    view: Optional[str] = None
+    object_id: Optional[str] = None
 
 
 class AdvisorIntentRequest(BaseModel):
@@ -77,6 +79,8 @@ async def post_advisor_intents(req: AdvisorIntentRequest, request: Request):
         session_id=f"{req.project_id}-{trace_id}",
         user_message=req.message,
         module=req.scene_context.module,
+        view=req.scene_context.view,
+        object_id=req.scene_context.object_id,
     )
     return {
         "trace_id": trace_id,

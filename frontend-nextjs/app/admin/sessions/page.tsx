@@ -1,6 +1,6 @@
-'use client';
+﻿'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { useRouter } from 'next/navigation';
 
@@ -19,9 +19,9 @@ export default function SessionsPage() {
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
 
-  const fetchSessions = async () => {
+  const fetchSessions = useCallback(async () => {
     try {
-      const token = localStorage.getItem('wp_jwt_token');
+      const token = localStorage.getItem('app_auth_token');
       const response = await axios.get(`/api/admin/sessions?page=${page}&page_size=20`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -32,11 +32,11 @@ export default function SessionsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [page]);
 
   useEffect(() => {
     fetchSessions();
-  }, [page]);
+  }, [fetchSessions]);
 
   const handleViewSession = (sessionId: string) => {
     // 直接跳转到报告页面

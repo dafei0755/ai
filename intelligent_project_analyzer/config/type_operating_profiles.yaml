@@ -1,0 +1,2015 @@
+version: "2026.04.v1"
+description: >
+  Type Operating Profiles connect project type classification to ontology,
+  methodology, reusable capabilities, case retrieval, and downstream delivery.
+  This file is intentionally small: it covers high-frequency/high-risk types
+  first and falls back to the default profile for everything else.
+
+defaults:
+  profile_id: general_project_profile
+  primary_bucket: general
+  display_label: 项目
+  ontology_framework: meta_framework
+  questionnaire_profile: general
+  deliverable_profile: general_deliverable_profile
+  floorplan_profile: general_floorplan_reasoning
+  visual_prompt_profile: general_visual_profile
+  domain_framework:
+    required_dimensions:
+      - project_goal
+      - users
+      - spatial_scope
+      - constraints
+      - risk_validation
+    required_min_coverage: 0.60
+  ontology_profile:
+    profile_id: general_ontology
+    activated_objects:
+      - user
+      - space
+      - constraint
+      - goal
+    activated_relations:
+      - goal_constrains_space
+      - user_uses_space
+    activated_constraints:
+      - scope_clarity
+      - feasibility_boundary
+    key_tensions:
+      - ambition_vs_feasibility
+      - function_vs_experience
+  type_method_profile:
+    profile_id: method.type.general_project.v1
+    priority_sequence:
+      - project_goal
+      - users
+      - constraints
+      - success_metrics
+  general_method_profile:
+    profile_id: general_gap_and_tension_check.v2
+    active_checks:
+      - check_id: missing_goal
+        severity: error
+      - check_id: missing_user
+        severity: error
+      - check_id: missing_constraints
+        severity: warning
+      - check_id: goal_user_mismatch
+        severity: warning
+      - check_id: scope_overload
+        severity: warning
+      - check_id: ambiguity_blocker
+        severity: blocker
+  knowledge_base_binding:
+    search_tags:
+      - general_project
+    knowledge_packages:
+      - kp.general_project
+  system_binding:
+    target_objects:
+      - AlignedBrief
+      - ExecutionPlan
+    required_freeze:
+      - UseIntentBaseline
+
+profiles:
+  commercial_hospitality:
+    profile_id: hospitality_homestay_profile
+    primary_bucket: hospitality
+    display_label: 民宿/酒店旅居项目
+    ontology_framework: commercial_hospitality
+    questionnaire_profile: hospitality
+    deliverable_profile: homestay_deliverable_profile
+    floorplan_profile: hospitality_floorplan_reasoning
+    visual_prompt_profile: hospitality_visual_profile
+    domain_framework:
+      required_dimensions:
+        - target_guest
+        - operation_model
+        - room_public_ratio
+        - arrival_journey
+        - public_private_boundary
+        - service_backstage
+        - landscape_resource
+        - implementation_constraints
+        - risk_validation
+      required_min_coverage: 0.80
+    ontology_profile:
+      profile_id: ontology.hospitality.homestay.v1
+      activated_objects:
+        - guest_room
+        - public_area
+        - reception_lobby
+        - service_backstage
+        - operator
+        - guest_segment
+        - landscape_node
+        - outdoor_transition
+      activated_relations:
+        - public_area_may_conflict_with_guest_room_quietness
+        - service_backstage_supports_guest_journey
+        - landscape_node_amplifies_stay_experience
+        - operation_model_constrains_public_area_ratio
+      activated_constraints:
+        - fire_safety_precheck
+        - guest_service_flow_separation
+        - acoustic_boundary_between_public_and_private
+        - seasonal_operation
+        - maintenance_cost
+      key_tensions:
+        - privacy_vs_social
+        - scenery_vs_operation_efficiency
+        - local_character_vs_standard_management
+        - peak_season_capacity_vs_off_season_survival
+    type_method_profile:
+      profile_id: method.type.hospitality.homestay.v1
+      priority_sequence:
+        - target_guest
+        - operation_model
+        - room_public_ratio
+        - budget_schedule
+        - experience_strategy
+        - validation_metrics
+    general_method_profile:
+      profile_id: method.general.tension_check.v1
+      active_checks:
+        - check_id: public_private_conflict
+          severity: error
+        - check_id: mixed_audience_conflict
+          severity: warning
+        - check_id: seasonal_operation_gap
+          severity: warning
+        - check_id: budget_schedule_overload
+          severity: warning
+    knowledge_base_binding:
+      search_tags:
+        - homestay
+        - hospitality
+        - seasonal_operation
+        - public_private_boundary
+      knowledge_packages:
+        - kp.hospitality.homestay
+        - kp.seasonal_operation
+        - kp.public_private_gradient
+    system_binding:
+      target_objects:
+        - AlignedBrief
+        - SPG
+        - ExecutionPlan
+        - FloorPlanPack
+      required_freeze:
+        - UseIntentBaseline
+        - OperationModelBaseline
+
+  healthcare_wellness:
+    profile_id: healthcare_wellness_profile
+    primary_bucket: healthcare
+    display_label: 医疗/康养项目
+    ontology_framework: healthcare_wellness
+    questionnaire_profile: healthcare
+    deliverable_profile: healthcare_deliverable_profile
+    floorplan_profile: healthcare_floorplan_reasoning
+    visual_prompt_profile: healthcare_visual_profile
+    domain_framework:
+      required_dimensions:
+        - care_or_treatment_goal
+        - user_body_condition
+        - process_safety
+        - privacy_boundary
+        - accessibility
+        - equipment_integration
+        - compliance_constraints
+        - psychological_pressure
+      required_min_coverage: 0.85
+    ontology_profile:
+      profile_id: ontology.healthcare_wellness.v1
+      activated_objects:
+        - patient_or_care_receiver
+        - waiting_area
+        - treatment_room
+        - care_staff
+        - clean_dirty_flow
+        - equipment_zone
+      activated_relations:
+        - treatment_flow_requires_safety_sequence
+        - privacy_boundary_protects_vulnerable_user
+        - accessibility_constrains_spatial_clearance
+      activated_constraints:
+        - infection_control
+        - accessibility_safety
+        - emergency_flow
+        - equipment_installation
+      key_tensions:
+        - safety_process_vs_spatial_warmth
+        - privacy_vs_operational_visibility
+        - clinical_efficiency_vs_anxiety_reduction
+    type_method_profile:
+      profile_id: method.type.healthcare_wellness.v1
+      priority_sequence:
+        - care_or_treatment_goal
+        - user_body_condition
+        - process_safety
+        - compliance_constraints
+        - psychological_environment
+    general_method_profile:
+      profile_id: method.general.safety_first_check.v1
+      active_checks:
+        - check_id: missing_safety_process
+          severity: error
+        - check_id: privacy_risk
+          severity: warning
+        - check_id: accessibility_gap
+          severity: warning
+    knowledge_base_binding:
+      search_tags:
+        - healthcare_wellness
+        - accessibility
+        - process_safety
+      knowledge_packages:
+        - kp.healthcare_wellness
+        - kp.accessibility
+        - kp.anxiety_reduction
+    system_binding:
+      target_objects:
+        - AlignedBrief
+        - ExecutionPlan
+        - SafetyConstraintEnvelope
+      required_freeze:
+        - CareProcessBaseline
+        - ComplianceBoundary
+
+  brand_experience:
+    profile_id: brand_experience_profile
+    primary_bucket: retail
+    display_label: 品牌体验项目
+    ontology_framework: commercial_retail
+    questionnaire_profile: brand_experience
+    deliverable_profile: brand_experience_deliverable_profile
+    floorplan_profile: brand_experience_floorplan_reasoning
+    visual_prompt_profile: brand_experience_visual_profile
+    domain_framework:
+      required_dimensions:
+        - brand_goal
+        - visitor_journey
+        - narrative_sequence
+        - interaction_mechanism
+        - conversion_or_awareness_metric
+        - display_and_operation
+      required_min_coverage: 0.80
+    ontology_profile:
+      profile_id: ontology.brand_experience.v1
+      activated_objects:
+        - visitor
+        - brand_story
+        - product_display
+        - interaction_node
+        - memory_point
+        - conversion_touchpoint
+      activated_relations:
+        - visitor_journey_sequences_brand_story
+        - interaction_node_amplifies_memory_point
+        - conversion_touchpoint_supports_business_goal
+      activated_constraints:
+        - brand_consistency
+        - visitor_flow_clarity
+        - display_maintenance
+      key_tensions:
+        - brand_narrative_vs_sales_conversion
+        - immersive_experience_vs_operational_efficiency
+        - memorability_vs_product_clarity
+    type_method_profile:
+      profile_id: method.type.brand_experience.v1
+      priority_sequence:
+        - brand_goal
+        - target_visitor
+        - narrative_sequence
+        - interaction_mechanism
+        - conversion_or_awareness_metric
+    general_method_profile:
+      profile_id: method.general.brand_route_check.v1
+      active_checks:
+        - check_id: retail_vs_brand_experience_boundary
+          severity: warning
+        - check_id: weak_memory_point
+          severity: warning
+        - check_id: missing_business_metric
+          severity: warning
+    knowledge_base_binding:
+      search_tags:
+        - brand_experience
+        - visitor_journey
+        - interaction_node
+      knowledge_packages:
+        - kp.brand_experience
+        - kp.retail_conversion
+        - kp.spatial_narrative
+    system_binding:
+      target_objects:
+        - AlignedBrief
+        - ConceptPack
+        - ExecutionPlan
+      required_freeze:
+        - BrandGoalBaseline
+        - VisitorJourneyBaseline
+
+  commercial_enterprise:
+    profile_id: commercial_enterprise_profile
+    primary_bucket: office
+    display_label: 企业空间 / 品牌展厅项目
+    ontology_framework: commercial_enterprise
+    questionnaire_profile: enterprise_reception
+    deliverable_profile: enterprise_deliverable_profile
+    floorplan_profile: enterprise_reception_reasoning
+    visual_prompt_profile: enterprise_visual_profile
+    active_discipline_ids:
+      - interior
+      - architecture
+      - brand_strategy
+      - operations
+      - mep
+      - fire_safety
+    domain_framework:
+      required_dimensions:
+        - institutional_identity
+        - stakeholder_reception_journey
+        - brand_and_public_narrative
+        - exhibition_office_boundary
+        - cultural_translation_boundary
+        - operation_security_and_privacy
+        - implementation_constraints
+      required_min_coverage: 0.80
+    ontology_profile:
+      profile_id: ontology.commercial_enterprise.v1
+      activated_objects:
+        - enterprise_host
+        - visitor
+        - reception_hall
+        - exhibition_node
+        - meeting_room
+        - brand_story
+        - security_boundary
+      activated_relations:
+        - institutional_identity_guides_public_narrative
+        - reception_journey_mediates_trust_and_brand_perception
+        - exhibition_node_requires_clear_story_sequence
+        - security_boundary_protects_private_operation
+        - cultural_translation_prevents_symbolic_flattening
+      activated_constraints:
+        - visitor_workflow_separation
+        - brand_expression_boundary
+        - acoustic_privacy
+        - security_and_confidentiality
+        - operation_maintenance_feasibility
+      key_tensions:
+        - brand_symbolism_vs_daily_operation
+        - public_reception_vs_internal_confidentiality
+        - cultural_expression_vs_political_or_decorative_overcoding
+        - hospitality_warmth_vs_enterprise_authority
+    type_method_profile:
+      profile_id: method.type.commercial_enterprise.v1
+      priority_sequence:
+        - institutional_identity
+        - stakeholder_reception_journey
+        - brand_and_public_narrative
+        - exhibition_office_boundary
+        - operation_security_and_privacy
+        - cultural_translation_boundary
+    general_method_profile:
+      profile_id: method.general.enterprise_reception_check.v1
+      active_checks:
+        - check_id: brand_operation_mismatch
+          severity: warning
+        - check_id: reception_privacy_conflict
+          severity: error
+        - check_id: symbolic_overcoding
+          severity: warning
+        - check_id: visitor_journey_gap
+          severity: warning
+    knowledge_base_binding:
+      search_tags:
+        - commercial_enterprise
+        - enterprise_reception
+        - brand_narrative
+        - cultural_translation
+        - visitor_journey
+      knowledge_packages:
+        - kp.office_workplace
+        - kp.organization_behavior
+        - kp.spatial_narrative
+        - kp.cultural_motif_translation
+    system_binding:
+      target_objects:
+        - AlignedBrief
+        - ContextPacket
+        - ConceptPack
+        - ExecutionPlan
+      required_freeze:
+        - InstitutionalIdentityBaseline
+        - ReceptionJourneyBaseline
+        - PublicPrivateBoundary
+
+  commercial_office:
+    profile_id: office_workplace_profile
+    primary_bucket: office
+    display_label: 办公/总部项目
+    ontology_framework: commercial_office
+    questionnaire_profile: office
+    deliverable_profile: office_deliverable_profile
+    floorplan_profile: office_floorplan_reasoning
+    visual_prompt_profile: office_visual_profile
+    domain_framework:
+      required_dimensions:
+        - organization_structure
+        - work_mode
+        - focus_collaboration_ratio
+        - visitor_reception_boundary
+        - meeting_system
+        - growth_flexibility
+      required_min_coverage: 0.75
+    ontology_profile:
+      profile_id: ontology.office_workplace.v1
+      activated_objects:
+        - employee
+        - team
+        - workstation
+        - meeting_room
+        - focus_zone
+        - collaboration_zone
+        - reception_area
+      activated_relations:
+        - organization_structure_constrains_spatial_hierarchy
+        - collaboration_zone_supports_team_work
+        - reception_area_mediates_external_brand_perception
+      activated_constraints:
+        - acoustic_privacy
+        - meeting_capacity
+        - network_infrastructure
+      key_tensions:
+        - collaboration_vs_focus
+        - brand_display_vs_daily_efficiency
+        - flexibility_vs_management_order
+    type_method_profile:
+      profile_id: method.type.office_workplace.v1
+      priority_sequence:
+        - organization_structure
+        - work_mode
+        - focus_collaboration_ratio
+        - visitor_reception_boundary
+        - growth_flexibility
+    general_method_profile:
+      profile_id: method.general.organization_check.v1
+      active_checks:
+        - check_id: display_vs_work_efficiency
+          severity: warning
+        - check_id: collaboration_focus_conflict
+          severity: warning
+    knowledge_base_binding:
+      search_tags:
+        - office
+        - workplace
+        - organization_structure
+      knowledge_packages:
+        - kp.office_workplace
+        - kp.organization_behavior
+    system_binding:
+      target_objects:
+        - AlignedBrief
+        - FloorPlanPack
+        - ExecutionPlan
+      required_freeze:
+        - OrganizationBaseline
+        - WorkModeBaseline
+
+  personal_residential:
+    profile_id: residential_profile
+    primary_bucket: residential
+    display_label: 居住项目
+    ontology_framework: personal_residential
+    questionnaire_profile: residential
+    deliverable_profile: residential_deliverable_profile
+    floorplan_profile: residential_floorplan_reasoning
+    visual_prompt_profile: residential_visual_profile
+    domain_framework:
+      required_dimensions:
+        - household_structure
+        - life_stage
+        - daily_routine
+        - privacy_boundary
+        - storage_and_service
+        - renovation_or_new_build_constraints
+      required_min_coverage: 0.75
+    ontology_profile:
+      profile_id: ontology.residential.v1
+      activated_objects:
+        - household_member
+        - living_room
+        - bedroom
+        - kitchen
+        - storage
+        - circulation
+      activated_relations:
+        - household_structure_shapes_privacy_boundary
+        - daily_routine_constrains_circulation
+        - storage_supports_long_term_living
+      activated_constraints:
+        - long_term_comfort
+        - privacy_gradient
+        - maintenance_feasibility
+      key_tensions:
+        - individual_privacy_vs_family_togetherness
+        - ideal_lifestyle_vs_existing_constraints
+        - aesthetics_vs_daily_maintenance
+    type_method_profile:
+      profile_id: method.type.residential_life.v1
+      priority_sequence:
+        - household_structure
+        - daily_routine
+        - privacy_boundary
+        - constraints
+        - comfort_metrics
+    general_method_profile:
+      profile_id: method.general.life_pattern_check.v1
+      active_checks:
+        - check_id: missing_household_member
+          severity: error
+        - check_id: privacy_conflict
+          severity: warning
+        - check_id: maintenance_gap
+          severity: warning
+    knowledge_base_binding:
+      search_tags:
+        - residential
+        - daily_life
+        - privacy_gradient
+      knowledge_packages:
+        - kp.residential
+        - kp.life_pattern
+    system_binding:
+      target_objects:
+        - AlignedBrief
+        - FloorPlanPack
+        - ExecutionPlan
+      required_freeze:
+        - HouseholdBaseline
+        - LifePatternBaseline
+
+  rural_construction:
+    profile_id: rural_construction_profile
+    primary_bucket: public
+    display_label: 乡建/乡村更新项目
+    ontology_framework: rural_regeneration_urban_renewal
+    questionnaire_profile: rural_construction
+    deliverable_profile: rural_construction_deliverable_profile
+    floorplan_profile: rural_floorplan_reasoning
+    visual_prompt_profile: rural_visual_profile
+    domain_framework:
+      required_dimensions:
+        - community_actor
+        - public_value
+        - operation_governance
+        - local_resources
+        - policy_constraints
+        - tourism_or_industry_linkage
+      required_min_coverage: 0.80
+    ontology_profile:
+      profile_id: ontology.rural_construction.v1
+      activated_objects:
+        - village_collective
+        - resident
+        - visitor
+        - public_space
+        - local_industry
+        - operation_actor
+      activated_relations:
+        - public_space_supports_community_daily_life
+        - local_industry_links_tourism_operation
+        - operation_governance_constrains_spatial_program
+      activated_constraints:
+        - land_policy_boundary
+        - community_participation
+        - phased_operation
+      key_tensions:
+        - public_value_vs_commercial_return
+        - local_identity_vs_external_consumption
+        - community_daily_life_vs_tourism_operation
+    type_method_profile:
+      profile_id: method.type.rural_construction.v1
+      priority_sequence:
+        - public_value
+        - community_actor
+        - operation_governance
+        - local_resources
+        - phased_implementation
+    general_method_profile:
+      profile_id: method.general.public_value_check.v1
+      active_checks:
+        - check_id: hospitality_vs_rural_construction_boundary
+          severity: warning
+        - check_id: stakeholder_conflict
+          severity: warning
+        - check_id: governance_gap
+          severity: warning
+    knowledge_base_binding:
+      search_tags:
+        - rural_construction
+        - village_regeneration
+        - public_value
+      knowledge_packages:
+        - kp.rural_construction
+        - kp.community_governance
+    system_binding:
+      target_objects:
+        - AlignedBrief
+        - StakeholderMap
+        - ExecutionPlan
+      required_freeze:
+        - PublicValueBaseline
+        - GovernanceBaseline
+
+  religious_spiritual:
+    profile_id: religious_spiritual_profile
+    primary_bucket: special
+    display_label: 精神/仪式/静修项目
+    ontology_framework: religious_spiritual
+    questionnaire_profile: religious_spiritual
+    deliverable_profile: religious_spiritual_deliverable_profile
+    floorplan_profile: contemplative_floorplan_reasoning
+    visual_prompt_profile: contemplative_visual_profile
+    domain_framework:
+      required_dimensions:
+        - ritual_purpose
+        - sacred_boundary
+        - user_group_and_taboo
+        - procession_sequence
+        - silence_and_gathering_ratio
+        - secular_support_spaces
+        - maintenance_and_operation_boundary
+      required_min_coverage: 0.85
+    ontology_profile:
+      profile_id: ontology.religious_spiritual.v1
+      activated_objects:
+        - practitioner_or_visitor
+        - ritual_core
+        - threshold_space
+        - contemplation_area
+        - gathering_area
+        - support_space
+        - taboo_boundary
+      activated_relations:
+        - threshold_space_mediates_secular_to_sacred
+        - procession_sequence_orders_body_and_attention
+        - taboo_boundary_constrains_spatial_access
+        - contemplation_area_requires_acoustic_and_visual_restraint
+      activated_constraints:
+        - sacred_secular_boundary
+        - ritual_sequence_integrity
+        - taboo_and_access_control
+        - silence_acoustic_boundary
+        - maintenance_without_symbolic_disruption
+      key_tensions:
+        - sacredness_vs_daily_operation
+        - ritual_order_vs_open_access
+        - silence_vs_gathering
+        - symbolic_depth_vs_surface_style
+    type_method_profile:
+      profile_id: method.type.religious_spiritual.v1
+      priority_sequence:
+        - ritual_purpose
+        - taboo_and_boundary
+        - procession_sequence
+        - sacred_secular_zoning
+        - silence_gathering_ratio
+        - support_operation
+    general_method_profile:
+      profile_id: method.general.boundary_and_taboo_check.v1
+      active_checks:
+        - check_id: sacred_boundary_blur
+          severity: error
+        - check_id: surface_style_replacing_ritual_logic
+          severity: warning
+        - check_id: access_taboo_conflict
+          severity: error
+        - check_id: silence_gathering_conflict
+          severity: warning
+    knowledge_base_binding:
+      search_tags:
+        - religious_spiritual
+        - contemplative_space
+        - ritual_sequence
+        - sacred_boundary
+      knowledge_packages:
+        - kp.religious_spiritual
+        - kp.ritual_sequence
+        - kp.contemplative_environment
+    system_binding:
+      target_objects:
+        - AlignedBrief
+        - RitualSequenceMap
+        - ExecutionPlan
+      required_freeze:
+        - RitualPurposeBaseline
+        - SacredBoundaryBaseline
+
+  commercial_retail:
+    profile_id: commercial_retail_profile
+    primary_bucket: retail_dining
+    display_label: 商业零售/综合体项目
+    ontology_framework: commercial_retail
+    questionnaire_profile: retail
+    deliverable_profile: retail_deliverable_profile
+    floorplan_profile: retail_floorplan_reasoning
+    visual_prompt_profile: retail_visual_profile
+    domain_framework:
+      required_dimensions:
+        - customer_flow_and_footfall
+        - product_category_and_display
+        - sales_conversion_logic
+        - space_efficiency_and_GFA
+        - brand_identity_integration
+        - operation_and_maintenance
+        - tenant_mix_or_sku_strategy
+        - logistics_and_backstage
+      required_min_coverage: 0.75
+    ontology_profile:
+      profile_id: ontology.commercial_retail.v1
+      activated_objects:
+        - customer
+        - product
+        - display_zone
+        - cashier_area
+        - storage_backstage
+        - brand_visual_anchor
+        - circulation_path
+      activated_relations:
+        - customer_flow_sequencing_display_zones
+        - brand_visual_anchor_elevates_perception
+        - storage_backstage_supports_replenishment
+        - display_density_constrains_customer_comfort
+      activated_constraints:
+        - fire_egress_clearance
+        - GFA_efficiency_threshold
+        - loading_dock_access
+        - anti-theft_and_shrinkage
+      key_tensions:
+        - visual_richness_vs_navigation_clarity
+        - sales_density_vs_experience_comfort
+        - brand_narrative_vs_conversion_efficiency
+        - flexibility_vs_brand_consistency
+    type_method_profile:
+      profile_id: method.type.commercial_retail.v1
+      priority_sequence:
+        - customer_flow_and_footfall
+        - product_category_and_display
+        - sales_conversion_logic
+        - space_efficiency_and_GFA
+        - brand_identity_integration
+        - operation_and_maintenance
+    general_method_profile:
+      profile_id: method.general.retail_check.v1
+      active_checks:
+        - check_id: missing_conversion_metric
+          severity: warning
+        - check_id: display_vs_navigation_conflict
+          severity: warning
+        - check_id: backstage_underestimated
+          severity: warning
+    knowledge_base_binding:
+      search_tags:
+        - commercial_retail
+        - customer_journey
+        - display_strategy
+        - space_efficiency
+      knowledge_packages:
+        - kp.commercial_retail
+        - kp.customer_flow
+        - kp.brand_display
+    system_binding:
+      target_objects:
+        - AlignedBrief
+        - FloorPlanPack
+        - ExecutionPlan
+      required_freeze:
+        - ProductCategoryBaseline
+        - CustomerFlowBaseline
+
+  educational_facility:
+    profile_id: educational_facility_profile
+    primary_bucket: culture_education
+    display_label: 教育/科研建筑项目
+    ontology_framework: educational_facility
+    questionnaire_profile: education
+    deliverable_profile: educational_deliverable_profile
+    floorplan_profile: educational_floorplan_reasoning
+    visual_prompt_profile: educational_visual_profile
+    domain_framework:
+      required_dimensions:
+        - learning_model_and_pedagogy
+        - learner_age_and_group
+        - knowledge_and_lab_infrastructure
+        - collaboration_vs_focus_balance
+        - safety_and_supervision
+        - community_and_campus_life
+        - flexibility_and_future_curriculum
+      required_min_coverage: 0.75
+    ontology_profile:
+      profile_id: ontology.educational_facility.v1
+      activated_objects:
+        - learner
+        - educator
+        - classroom_or_studio
+        - lab_or_workshop
+        - library_or_resource_center
+        - common_and_social_space
+        - administration_and_support
+      activated_relations:
+        - pedagogy_shapes_classroom_arrangement
+        - safety_supervision_constrains_spatial_openness
+        - lab_infrastructure_determines_service_zone
+        - social_space_supports_informal_learning
+      activated_constraints:
+        - child_safety_standards
+        - fire_and_evacuation
+        - accessibility
+        - acoustic_separation
+      key_tensions:
+        - structured_teaching_vs_open_exploration
+        - safety_supervision_vs_student_autonomy
+        - specialist_lab_vs_flexible_multi_use
+        - institutional_identity_vs_welcoming_atmosphere
+    type_method_profile:
+      profile_id: method.type.educational_facility.v1
+      priority_sequence:
+        - learning_model_and_pedagogy
+        - learner_age_and_group
+        - safety_and_supervision
+        - knowledge_and_lab_infrastructure
+        - collaboration_vs_focus_balance
+    general_method_profile:
+      profile_id: method.general.educational_check.v1
+      active_checks:
+        - check_id: missing_pedagogy_model
+          severity: error
+        - check_id: safety_constraint_gap
+          severity: error
+        - check_id: acoustic_conflict
+          severity: warning
+    knowledge_base_binding:
+      search_tags:
+        - educational_facility
+        - learning_environment
+        - pedagogy
+        - campus_life
+      knowledge_packages:
+        - kp.educational_facility
+        - kp.learning_space
+        - kp.child_safety
+    system_binding:
+      target_objects:
+        - AlignedBrief
+        - FloorPlanPack
+        - ExecutionPlan
+      required_freeze:
+        - PedagogyBaseline
+        - SafetyConstraintBaseline
+
+  public_cultural:
+    profile_id: public_cultural_profile
+    primary_bucket: public_civic
+    display_label: 文化展陈/科教场馆项目
+    ontology_framework: public_cultural
+    questionnaire_profile: public_cultural
+    deliverable_profile: public_cultural_deliverable_profile
+    floorplan_profile: public_cultural_floorplan_reasoning
+    visual_prompt_profile: public_cultural_visual_profile
+    domain_framework:
+      required_dimensions:
+        - mission_and_public_value
+        - audience_spectrum
+        - content_or_collection_strategy
+        - visitor_journey_and_sequence
+        - accessibility_and_inclusion
+        - operational_sustainability
+        - civic_identity_and_place
+      required_min_coverage: 0.80
+    ontology_profile:
+      profile_id: ontology.public_cultural.v1
+      activated_objects:
+        - visitor
+        - curated_content_or_collection
+        - exhibition_zone
+        - learning_or_activity_space
+        - public_gathering_area
+        - service_and_support
+      activated_relations:
+        - visitor_journey_sequences_exhibition_zones
+        - content_strategy_drives_spatial_program
+        - accessibility_constrains_route_design
+        - civic_identity_shapes_architectural_expression
+      activated_constraints:
+        - universal_accessibility
+        - conservation_or_display_environment
+        - public_safety_and_egress
+        - operational_budget_constraints
+      key_tensions:
+        - civic_mission_vs_visitor_entertainment
+        - accessibility_vs_curatorial_control
+        - collection_preservation_vs_visitor_engagement
+        - public_openness_vs_institutional_authority
+    type_method_profile:
+      profile_id: method.type.public_cultural.v1
+      priority_sequence:
+        - mission_and_public_value
+        - audience_spectrum
+        - content_or_collection_strategy
+        - visitor_journey_and_sequence
+        - accessibility_and_inclusion
+    general_method_profile:
+      profile_id: method.general.public_cultural_check.v1
+      active_checks:
+        - check_id: missing_public_mission
+          severity: warning
+        - check_id: accessibility_gap
+          severity: warning
+        - check_id: content_strategy_undefined
+          severity: error
+    knowledge_base_binding:
+      search_tags:
+        - public_cultural
+        - museum
+        - exhibition
+        - visitor_journey
+        - civic_space
+      knowledge_packages:
+        - kp.public_cultural
+        - kp.exhibition_design
+        - kp.universal_accessibility
+    system_binding:
+      target_objects:
+        - AlignedBrief
+        - ExecutionPlan
+      required_freeze:
+        - MissionBaseline
+        - ContentStrategyBaseline
+
+  industrial_conversion:
+    profile_id: industrial_conversion_profile
+    primary_bucket: industrial_production
+    display_label: 工业/厂房改造项目
+    ontology_framework: industrial_conversion
+    questionnaire_profile: industrial
+    deliverable_profile: industrial_deliverable_profile
+    floorplan_profile: industrial_floorplan_reasoning
+    visual_prompt_profile: industrial_visual_profile
+    domain_framework:
+      required_dimensions:
+        - existing_structure_and_constraints
+        - new_program_and_target_use
+        - heritage_or_character_retention
+        - structural_and_MEP_retrofit
+        - logistics_and_service_access
+        - environmental_compliance
+        - phased_operation_strategy
+      required_min_coverage: 0.80
+    ontology_profile:
+      profile_id: ontology.industrial_conversion.v1
+      activated_objects:
+        - existing_structure
+        - new_program_user
+        - production_or_utility_remnant
+        - loading_and_logistics_zone
+        - adaptive_reuse_space
+        - environmental_remediation
+      activated_relations:
+        - existing_structure_constrains_new_program
+        - heritage_character_informs_spatial_identity
+        - logistics_access_determines_operational_efficiency
+        - environmental_compliance_gates_occupation
+      activated_constraints:
+        - structural_integrity_assessment
+        - environmental_remediation_clearance
+        - fire_and_life_safety_upgrade
+        - logistics_access_and_turning_radius
+      key_tensions:
+        - heritage_authenticity_vs_new_program_requirements
+        - structural_retention_vs_spatial_flexibility
+        - industrial_character_vs_new_occupant_comfort
+        - phased_delivery_vs_full_operation_continuity
+    type_method_profile:
+      profile_id: method.type.industrial_conversion.v1
+      priority_sequence:
+        - existing_structure_and_constraints
+        - new_program_and_target_use
+        - environmental_compliance
+        - heritage_or_character_retention
+        - structural_and_MEP_retrofit
+    general_method_profile:
+      profile_id: method.general.retrofit_check.v1
+      active_checks:
+        - check_id: structural_assessment_missing
+          severity: error
+        - check_id: environmental_clearance_gap
+          severity: warning
+        - check_id: heritage_vs_program_conflict
+          severity: warning
+    knowledge_base_binding:
+      search_tags:
+        - industrial_conversion
+        - adaptive_reuse
+        - heritage_structure
+        - retrofit
+      knowledge_packages:
+        - kp.industrial_conversion
+        - kp.adaptive_reuse
+        - kp.environmental_compliance
+    system_binding:
+      target_objects:
+        - AlignedBrief
+        - StructuralConstraintEnvelope
+        - ExecutionPlan
+      required_freeze:
+        - ExistingStructureBaseline
+        - EnvironmentalComplianceBaseline
+
+  residential_renovation:
+    profile_id: residential_renovation_profile
+    primary_bucket: residential
+    display_label: 住宅改造项目
+    ontology_framework: personal_residential
+    questionnaire_profile: residential
+    deliverable_profile: residential_deliverable_profile
+    floorplan_profile: residential_floorplan_reasoning
+    visual_prompt_profile: residential_visual_profile
+    domain_framework:
+      required_dimensions:
+        - existing_structure_and_constraints
+        - household_structure
+        - renovation_scope
+        - mep_relocation_plan
+        - budget_and_timeline
+        - construction_livability
+        - material_and_finish
+      required_min_coverage: 0.75
+    ontology_profile:
+      profile_id: ontology.residential_renovation.v1
+      activated_objects:
+        - household_member
+        - existing_structure
+        - load_bearing_wall
+        - mep_system
+        - renovation_zone
+        - living_area
+      activated_relations:
+        - existing_structure_constrains_renovation_scope
+        - household_member_defines_space_priority
+        - mep_relocation_determines_wet_zone_layout
+      activated_constraints:
+        - structural_integrity
+        - construction_noise_schedule
+        - mep_upgrade_feasibility
+        - budget_realism
+      key_tensions:
+        - ideal_layout_vs_structural_constraints
+        - comprehensive_renovation_vs_budget_limit
+        - construction_speed_vs_living_continuity
+        - aesthetic_aspiration_vs_maintenance_reality
+    type_method_profile:
+      profile_id: method.type.residential_renovation.v1
+      priority_sequence:
+        - existing_structure_and_constraints
+        - household_structure
+        - renovation_scope
+        - mep_relocation_plan
+        - budget_and_timeline
+    general_method_profile:
+      profile_id: method.general.renovation_check.v1
+      active_checks:
+        - check_id: existing_structure_constraint
+          severity: error
+        - check_id: mep_relocation_gap
+          severity: warning
+        - check_id: no_interruption_construction
+          severity: warning
+        - check_id: maintenance_gap
+          severity: warning
+    knowledge_base_binding:
+      search_tags:
+        - residential_renovation
+        - existing_structure
+        - mep_retrofit
+        - interior_renovation
+      knowledge_packages:
+        - kp.residential
+        - kp.renovation
+        - kp.mep_retrofit
+    system_binding:
+      target_objects:
+        - AlignedBrief
+        - FloorPlanPack
+        - ExecutionPlan
+
+  hybrid_residential_commercial:
+    profile_id: hybrid_residential_commercial_profile
+    primary_bucket: renewal_mixed_use
+    display_label: 住商混合 / 垂直复合项目
+    ontology_framework: hybrid_residential_commercial
+    questionnaire_profile: hybrid_mixed_use
+    deliverable_profile: hybrid_mixed_use_deliverable_profile
+    floorplan_profile: hybrid_vertical_stack_reasoning
+    visual_prompt_profile: hybrid_mixed_use_visual_profile
+    active_discipline_ids:
+      - interior
+      - architecture
+      - structure
+      - mep
+      - fire_safety
+      - operations
+    domain_framework:
+      required_dimensions:
+        - program_role_hierarchy
+        - public_private_vertical_gradient
+        - access_control_and_time_sharing
+        - existing_structure_and_constraints
+        - mep_and_fire_boundary
+        - household_business_boundary
+        - spiritual_or_symbolic_layer
+        - material_restraint_and_reuse
+      required_min_coverage: 0.82
+    ontology_profile:
+      profile_id: ontology.hybrid_residential_commercial.v1
+      activated_objects:
+        - public_program
+        - private_residence
+        - business_workplace
+        - clubhouse_program
+        - spiritual_room
+        - vertical_circulation
+        - service_backstage
+        - existing_structure
+      activated_relations:
+        - public_program_requires_access_control_from_private_residence
+        - vertical_circulation_mediates_privacy_gradient
+        - existing_structure_constrains_program_stack
+        - spiritual_room_requires_acoustic_and_symbolic_boundary
+        - business_workplace_requires_guest_and_family_boundary
+      activated_constraints:
+        - structural_integrity
+        - fire_safety_precheck
+        - mep_capacity_and_shaft_boundary
+        - acoustic_privacy
+        - access_control
+        - operation_time_sharing
+      key_tensions:
+        - public_reception_vs_private_family_life
+        - business_identity_vs_domestic_belonging
+        - spiritual_quietness_vs_clubhouse_activity
+        - old_structure_memory_vs_minimal_new_intervention
+        - complete_program_stack_vs_code_and_operations_boundary
+    type_method_profile:
+      profile_id: method.type.hybrid_residential_commercial.v1
+      priority_sequence:
+        - program_role_hierarchy
+        - public_private_vertical_gradient
+        - existing_structure_and_constraints
+        - access_control_and_time_sharing
+        - mep_and_fire_boundary
+        - material_restraint_and_reuse
+        - spiritual_or_symbolic_layer
+    general_method_profile:
+      profile_id: method.general.hybrid_mixed_use_check.v1
+      active_checks:
+        - check_id: public_private_conflict
+          severity: error
+        - check_id: structural_assessment_missing
+          severity: error
+        - check_id: mep_fire_boundary_gap
+          severity: error
+        - check_id: operation_time_sharing_gap
+          severity: warning
+        - check_id: symbolic_layer_overdecorated
+          severity: warning
+    knowledge_base_binding:
+      search_tags:
+        - hybrid_residential_commercial
+        - public_private_boundary
+        - vertical_stack
+        - adaptive_reuse
+        - spiritual_room
+        - material_restraint
+      knowledge_packages:
+        - kp.residential
+        - kp.renovation
+        - kp.public_private_gradient
+        - kp.adaptive_reuse
+        - kp.mep_retrofit
+        - kp.religious_spiritual
+    system_binding:
+      target_objects:
+        - AlignedBrief
+        - ContextPacket
+        - StructuralConstraintEnvelope
+        - FloorPlanPack
+        - ExecutionPlan
+      required_freeze:
+        - ProgramRoleHierarchy
+        - PublicPrivateBoundary
+        - ExistingStructureBaseline
+        - MepFireBoundary
+
+  special_function:
+    profile_id: special_function_profile
+    primary_bucket: special
+    display_label: 专项功能 / 研究复合项目
+    ontology_framework: commercial_enterprise
+    questionnaire_profile: special_function
+    deliverable_profile: special_function_deliverable_profile
+    floorplan_profile: special_function_reasoning
+    visual_prompt_profile: special_function_visual_profile
+    active_discipline_ids:
+      - interior
+      - architecture
+      - specialist_programming
+      - mep
+      - fire_safety
+      - operations
+    domain_framework:
+      required_dimensions:
+        - research_or_special_mission
+        - expert_user_flow
+        - technical_environment_constraints
+        - psychological_stability
+        - safety_and_resilience
+        - public_private_research_boundary
+        - narrative_translation_boundary
+      required_min_coverage: 0.82
+    ontology_profile:
+      profile_id: ontology.special_function.v1
+      activated_objects:
+        - expert_user
+        - special_equipment
+        - lab_or_focus_room
+        - living_support_zone
+        - reflection_space
+        - environmental_control_system
+      activated_relations:
+        - special_mission_constrains_spatial_sequence
+        - technical_environment_requires_mep_and_safety_boundary
+        - expert_user_flow_requires_focus_and_recovery_gradient
+        - narrative_translation_makes_special_function_legible
+      activated_constraints:
+        - technical_environment_boundary
+        - acoustic_or_light_control
+        - safety_resilience_precheck
+        - equipment_and_maintenance_access
+        - psychological_stability
+      key_tensions:
+        - technical_precision_vs_human_reflection
+        - focus_isolation_vs_collaborative_exchange
+        - symbolic_depth_vs_specialized_functionality
+        - environmental_extreme_vs_daily_psychological_stability
+    type_method_profile:
+      profile_id: method.type.special_function.v1
+      priority_sequence:
+        - research_or_special_mission
+        - expert_user_flow
+        - technical_environment_constraints
+        - safety_and_resilience
+        - psychological_stability
+        - narrative_translation_boundary
+    general_method_profile:
+      profile_id: method.general.special_function_check.v1
+      active_checks:
+        - check_id: mission_program_mismatch
+          severity: error
+        - check_id: technical_environment_gap
+          severity: error
+        - check_id: psychological_stability_gap
+          severity: warning
+        - check_id: safety_resilience_gap
+          severity: warning
+    knowledge_base_binding:
+      search_tags:
+        - special_function
+        - research_space
+        - technical_environment
+        - psychological_stability
+        - spatial_narrative
+      knowledge_packages:
+        - kp.office_workplace
+        - kp.organization_behavior
+        - kp.spatial_narrative
+        - kp.cultural_motif_translation
+        - kp.adaptive_reuse
+        - kp.mep_retrofit
+    system_binding:
+      target_objects:
+        - AlignedBrief
+        - ContextPacket
+        - TechnicalConstraintEnvelope
+        - ExecutionPlan
+      required_freeze:
+        - SpecialMissionBaseline
+        - TechnicalEnvironmentBoundary
+        - SafetyResilienceBoundary
+
+  automotive_showroom:
+    profile_id: automotive_showroom_profile
+    primary_bucket: retail
+    display_label: 汽车展厅 / 试驾体验项目
+    ontology_framework: commercial_retail
+    questionnaire_profile: automotive_showroom
+    deliverable_profile: retail_deliverable_profile
+    floorplan_profile: automotive_showroom_reasoning
+    visual_prompt_profile: automotive_showroom_visual_profile
+    active_discipline_ids: [interior, architecture, brand_strategy, operations, mep, fire_safety]
+    domain_framework:
+      required_dimensions: [brand_positioning, vehicle_display_sequence, customer_journey, test_drive_and_delivery_flow, service_backstage, safety_clearance, implementation_constraints]
+      required_min_coverage: 0.78
+    ontology_profile:
+      profile_id: ontology.automotive_showroom.v1
+      activated_objects: [vehicle_display, reception_area, consultation_room, delivery_zone, test_drive_link, service_backstage]
+      activated_relations: [vehicle_display_drives_circulation, delivery_zone_marks_brand_memory, test_drive_link_requires_clear_transition, service_backstage_supports_customer_flow]
+      activated_constraints: [vehicle_movement_clearance, fire_safety_precheck, lighting_glare_control, operation_maintenance_feasibility]
+      key_tensions: [display_impact_vs_vehicle_clearance, brand_emotion_vs_transaction_efficiency, showroom_openness_vs_security_control]
+    type_method_profile:
+      profile_id: method.type.automotive_showroom.v1
+      priority_sequence: [brand_positioning, vehicle_display_sequence, customer_journey, test_drive_and_delivery_flow, service_backstage]
+    general_method_profile:
+      profile_id: method.general.retail_showroom_check.v1
+      active_checks:
+        - check_id: customer_flow_gap
+          severity: warning
+        - check_id: display_operation_conflict
+          severity: warning
+        - check_id: safety_clearance_gap
+          severity: error
+    knowledge_base_binding:
+      search_tags: [automotive_showroom, vehicle_display, customer_journey, brand_display]
+      knowledge_packages: [kp.commercial_retail, kp.brand_display, kp.customer_flow, kp.brand_experience]
+    system_binding:
+      target_objects: [AlignedBrief, ContextPacket, ConceptPack, ExecutionPlan]
+
+  beauty_personal_care:
+    profile_id: beauty_personal_care_profile
+    primary_bucket: retail
+    display_label: 美容美发 / 生活美学门店
+    ontology_framework: commercial_retail
+    questionnaire_profile: beauty_personal_care
+    deliverable_profile: retail_deliverable_profile
+    floorplan_profile: beauty_service_reasoning
+    visual_prompt_profile: beauty_service_visual_profile
+    active_discipline_ids: [interior, brand_strategy, operations, mep, fire_safety]
+    domain_framework:
+      required_dimensions: [service_positioning, appointment_and_walk_in_flow, operation_station_layout, privacy_and_comfort_boundary, hygiene_and_storage, brand_atmosphere]
+      required_min_coverage: 0.76
+    ontology_profile:
+      profile_id: ontology.beauty_personal_care.v1
+      activated_objects: [customer, stylist_or_therapist, service_station, waiting_area, wash_or_treatment_zone, storage_backstage]
+      activated_relations: [service_station_shapes_staff_efficiency, privacy_boundary_protects_customer_comfort, brand_atmosphere_guides_repeat_visit_memory]
+      activated_constraints: [water_drainage_and_power, ventilation_and_hygiene, acoustic_privacy, storage_cleanliness]
+      key_tensions: [high_density_station_vs_customer_comfort, visible_brand_style_vs_hygiene_backstage, privacy_vs_social_display]
+    type_method_profile:
+      profile_id: method.type.beauty_personal_care.v1
+      priority_sequence: [service_positioning, operation_station_layout, customer_flow, privacy_and_comfort_boundary, hygiene_and_storage]
+    general_method_profile:
+      profile_id: method.general.service_retail_check.v1
+      active_checks:
+        - check_id: service_flow_bottleneck
+          severity: warning
+        - check_id: hygiene_backstage_gap
+          severity: error
+    knowledge_base_binding:
+      search_tags: [beauty_service, service_retail, customer_comfort, brand_atmosphere]
+      knowledge_packages: [kp.commercial_retail, kp.customer_flow, kp.brand_experience, kp.anxiety_reduction]
+    system_binding:
+      target_objects: [AlignedBrief, ContextPacket, ExecutionPlan]
+
+  children_family:
+    profile_id: children_family_profile
+    primary_bucket: education
+    display_label: 亲子 / 早教 / 儿童空间
+    ontology_framework: educational_facility
+    questionnaire_profile: children_family
+    deliverable_profile: education_deliverable_profile
+    floorplan_profile: child_family_reasoning
+    visual_prompt_profile: child_family_visual_profile
+    active_discipline_ids: [interior, education_programming, operations, mep, fire_safety]
+    domain_framework:
+      required_dimensions: [age_group, learning_or_play_goal, supervision_visibility, child_safety, parent_waiting_boundary, hygiene_and_material_safety]
+      required_min_coverage: 0.84
+    ontology_profile:
+      profile_id: ontology.children_family.v1
+      activated_objects: [child, parent, teacher_or_caregiver, play_zone, learning_zone, supervision_node, hygiene_station]
+      activated_relations: [supervision_node_controls_child_safety, age_group_shapes_scale_and_materials, parent_boundary_supports_operation]
+      activated_constraints: [child_safety, non_toxic_materials, rounded_edges, evacuation_visibility, hygiene_control]
+      key_tensions: [play_freedom_vs_safety_control, parent_visibility_vs_child_independence, brand_playfulness_vs_maintenance]
+    type_method_profile:
+      profile_id: method.type.children_family.v1
+      priority_sequence: [age_group, child_safety, learning_or_play_goal, supervision_visibility, parent_waiting_boundary]
+    general_method_profile:
+      profile_id: method.general.child_safety_check.v1
+      active_checks:
+        - check_id: missing_age_group
+          severity: error
+        - check_id: supervision_gap
+          severity: error
+        - check_id: material_safety_gap
+          severity: error
+    knowledge_base_binding:
+      search_tags: [children_family, early_education, child_safety, supervision]
+      knowledge_packages: [kp.educational_facility, kp.learning_space, kp.child_safety, kp.universal_accessibility]
+    system_binding:
+      target_objects: [AlignedBrief, ContextPacket, SafetyConstraintEnvelope, ExecutionPlan]
+
+  community_public:
+    profile_id: community_public_profile
+    primary_bucket: public
+    display_label: 社区 / 公共服务空间
+    ontology_framework: public_cultural
+    questionnaire_profile: community_public
+    deliverable_profile: public_service_deliverable_profile
+    floorplan_profile: community_public_reasoning
+    visual_prompt_profile: community_public_visual_profile
+    active_discipline_ids: [interior, architecture, operations, accessibility, public_policy]
+    domain_framework:
+      required_dimensions: [public_mission, stakeholder_groups, service_program_mix, openness_and_control, accessibility, long_term_operation]
+      required_min_coverage: 0.80
+    ontology_profile:
+      profile_id: ontology.community_public.v1
+      activated_objects: [resident, service_staff, shared_hall, activity_room, consultation_node, public_threshold]
+      activated_relations: [public_mission_guides_program_mix, stakeholder_groups_shape_accessibility, openness_requires_management_boundary]
+      activated_constraints: [universal_accessibility, public_safety, maintenance_resilience, inclusive_wayfinding]
+      key_tensions: [open_publicness_vs_management_order, multi_group_sharing_vs_clear_ownership, public_value_vs_daily_operation_cost]
+    type_method_profile:
+      profile_id: method.type.community_public.v1
+      priority_sequence: [public_mission, stakeholder_groups, service_program_mix, openness_and_control, long_term_operation]
+    general_method_profile:
+      profile_id: method.general.public_service_check.v1
+      active_checks:
+        - check_id: stakeholder_coverage_gap
+          severity: warning
+        - check_id: accessibility_gap
+          severity: error
+        - check_id: operation_owner_gap
+          severity: warning
+    knowledge_base_binding:
+      search_tags: [community_public, public_value, stakeholder, accessibility]
+      knowledge_packages: [kp.public_cultural, kp.universal_accessibility, kp.community_governance, kp.spatial_narrative]
+    system_binding:
+      target_objects: [AlignedBrief, ContextPacket, ExecutionPlan]
+
+  digital_media_studio:
+    profile_id: digital_media_studio_profile
+    primary_bucket: office
+    display_label: 直播 / 拍摄 / 媒体基地
+    ontology_framework: commercial_office
+    questionnaire_profile: digital_media_studio
+    deliverable_profile: office_deliverable_profile
+    floorplan_profile: media_studio_reasoning
+    visual_prompt_profile: media_studio_visual_profile
+    active_discipline_ids: [interior, specialist_programming, lighting, acoustics, mep, operations]
+    domain_framework:
+      required_dimensions: [content_production_model, set_and_background_system, lighting_and_acoustic_control, equipment_flow, storage_and_backstage, operation_schedule]
+      required_min_coverage: 0.82
+    ontology_profile:
+      profile_id: ontology.digital_media_studio.v1
+      activated_objects: [creator, camera_position, set_zone, lighting_grid, acoustic_boundary, equipment_storage, backstage]
+      activated_relations: [camera_position_defines_spatial_depth, lighting_grid_constrains_ceiling_and_power, backstage_supports_content_cycle]
+      activated_constraints: [acoustic_control, lighting_power_capacity, cable_and_equipment_safety, flexible_set_change]
+      key_tensions: [visual_variety_vs_operational_efficiency, acoustic_isolation_vs_spatial_openness, equipment_density_vs_user_safety]
+    type_method_profile:
+      profile_id: method.type.digital_media_studio.v1
+      priority_sequence: [content_production_model, set_and_background_system, lighting_and_acoustic_control, equipment_flow, storage_and_backstage]
+    general_method_profile:
+      profile_id: method.general.media_studio_check.v1
+      active_checks:
+        - check_id: lighting_acoustic_gap
+          severity: error
+        - check_id: equipment_storage_gap
+          severity: warning
+    knowledge_base_binding:
+      search_tags: [digital_media_studio, content_creation, lighting_control, acoustic_control]
+      knowledge_packages: [kp.office_workplace, kp.organization_behavior, kp.mep_retrofit, kp.spatial_narrative]
+    system_binding:
+      target_objects: [AlignedBrief, ContextPacket, TechnicalConstraintEnvelope, ExecutionPlan]
+
+  leisure_entertainment:
+    profile_id: leisure_entertainment_profile
+    primary_bucket: hospitality
+    display_label: 休闲娱乐 / 水会棋牌 KTV
+    ontology_framework: commercial_hospitality
+    questionnaire_profile: leisure_entertainment
+    deliverable_profile: hospitality_deliverable_profile
+    floorplan_profile: leisure_entertainment_reasoning
+    visual_prompt_profile: leisure_entertainment_visual_profile
+    active_discipline_ids: [interior, operations, acoustics, mep, fire_safety]
+    domain_framework:
+      required_dimensions: [entertainment_program_mix, customer_flow_and_membership, room_or_booth_system, acoustic_and_privacy_boundary, fire_and_mep_boundary, operation_time_control]
+      required_min_coverage: 0.82
+    ontology_profile:
+      profile_id: ontology.leisure_entertainment.v1
+      activated_objects: [guest, private_room, public_lounge, service_backstage, acoustic_boundary, cashier_or_member_node]
+      activated_relations: [private_room_requires_acoustic_boundary, service_backstage_supports_room_turnover, operation_time_controls_public_disturbance]
+      activated_constraints: [fire_safety_precheck, acoustic_isolation, ventilation_and_smoke_control, evacuation_visibility]
+      key_tensions: [privacy_vs_supervision, entertainment_density_vs_fire_safety, atmosphere_intensity_vs_maintenance]
+    type_method_profile:
+      profile_id: method.type.leisure_entertainment.v1
+      priority_sequence: [entertainment_program_mix, room_or_booth_system, acoustic_and_privacy_boundary, fire_and_mep_boundary, operation_time_control]
+    general_method_profile:
+      profile_id: method.general.entertainment_safety_check.v1
+      active_checks:
+        - check_id: acoustic_privacy_gap
+          severity: warning
+        - check_id: fire_safety_gap
+          severity: error
+    knowledge_base_binding:
+      search_tags: [leisure_entertainment, acoustic_privacy, hospitality_operation, customer_flow]
+      knowledge_packages: [kp.general_project, kp.customer_flow, kp.mep_retrofit, kp.spatial_narrative]
+    system_binding:
+      target_objects: [AlignedBrief, ContextPacket, SafetyConstraintEnvelope, ExecutionPlan]
+
+  performing_arts:
+    profile_id: performing_arts_profile
+    primary_bucket: public
+    display_label: 演艺 / 剧场空间
+    ontology_framework: public_cultural
+    questionnaire_profile: performing_arts
+    deliverable_profile: public_cultural_deliverable_profile
+    floorplan_profile: performing_arts_reasoning
+    visual_prompt_profile: performing_arts_visual_profile
+    active_discipline_ids: [interior, architecture, specialist_programming, acoustics, lighting, fire_safety]
+    domain_framework:
+      required_dimensions: [performance_format, audience_capacity, stage_backstage_relation, sightline_and_acoustic_quality, evacuation_and_accessibility, operation_schedule]
+      required_min_coverage: 0.86
+    ontology_profile:
+      profile_id: ontology.performing_arts.v1
+      activated_objects: [audience, stage, backstage, foyer, control_room, acoustic_volume, evacuation_path]
+      activated_relations: [stage_defines_sightline_geometry, acoustic_volume_shapes_spatial_form, backstage_supports_performance_sequence, evacuation_path_constrains_capacity]
+      activated_constraints: [sightline_quality, acoustic_performance, fire_safety_precheck, universal_accessibility, technical_rigging_boundary]
+      key_tensions: [performance_quality_vs_capacity, public_foyer_vs_ticket_control, technical_black_box_vs_civic_expression]
+    type_method_profile:
+      profile_id: method.type.performing_arts.v1
+      priority_sequence: [performance_format, audience_capacity, stage_backstage_relation, sightline_and_acoustic_quality, evacuation_and_accessibility]
+    general_method_profile:
+      profile_id: method.general.performance_space_check.v1
+      active_checks:
+        - check_id: sightline_gap
+          severity: error
+        - check_id: acoustic_gap
+          severity: error
+        - check_id: evacuation_gap
+          severity: error
+    knowledge_base_binding:
+      search_tags: [performing_arts, theater, acoustic_quality, public_cultural]
+      knowledge_packages: [kp.public_cultural, kp.exhibition_design, kp.spatial_narrative, kp.universal_accessibility]
+    system_binding:
+      target_objects: [AlignedBrief, ContextPacket, TechnicalConstraintEnvelope, ExecutionPlan]
+
+  popup_temporary:
+    profile_id: popup_temporary_profile
+    primary_bucket: retail
+    display_label: 快闪 / 临时装置空间
+    ontology_framework: commercial_retail
+    questionnaire_profile: popup_temporary
+    deliverable_profile: temporary_retail_deliverable_profile
+    floorplan_profile: popup_temporary_reasoning
+    visual_prompt_profile: popup_temporary_visual_profile
+    active_discipline_ids: [interior, brand_strategy, operations, cost_construction, fire_safety]
+    domain_framework:
+      required_dimensions: [campaign_goal, temporary_duration, assembly_and_disassembly, brand_memory_point, crowd_flow, material_reuse_and_safety]
+      required_min_coverage: 0.78
+    ontology_profile:
+      profile_id: ontology.popup_temporary.v1
+      activated_objects: [visitor, temporary_installation, brand_touchpoint, queue_area, modular_component, site_boundary]
+      activated_relations: [temporary_duration_constrains_material_strategy, brand_touchpoint_guides_memory_sequence, modular_component_controls_installation_speed]
+      activated_constraints: [fire_safety_precheck, fast_assembly, material_reuse, site_operation_limit]
+      key_tensions: [visual_impact_vs_fast_installation, temporary_budget_vs_brand_precision, crowd_attraction_vs_site_control]
+    type_method_profile:
+      profile_id: method.type.popup_temporary.v1
+      priority_sequence: [campaign_goal, temporary_duration, brand_memory_point, assembly_and_disassembly, crowd_flow]
+    general_method_profile:
+      profile_id: method.general.temporary_installation_check.v1
+      active_checks:
+        - check_id: installation_timeline_gap
+          severity: error
+        - check_id: material_reuse_gap
+          severity: warning
+    knowledge_base_binding:
+      search_tags: [popup_temporary, brand_activation, modular_installation, customer_flow]
+      knowledge_packages: [kp.commercial_retail, kp.brand_experience, kp.customer_flow, kp.brand_display]
+    system_binding:
+      target_objects: [AlignedBrief, ContextPacket, ConceptPack, ExecutionPlan]
+
+  real_estate_showcase:
+    profile_id: real_estate_showcase_profile
+    primary_bucket: residential
+    display_label: 地产样板房 / 售楼展示项目
+    ontology_framework: personal_residential
+    questionnaire_profile: real_estate_showcase
+    deliverable_profile: residential_showcase_deliverable_profile
+    floorplan_profile: real_estate_showcase_reasoning
+    visual_prompt_profile: real_estate_showcase_visual_profile
+    active_discipline_ids: [interior, brand_strategy, sales_strategy, operations, mep]
+    domain_framework:
+      required_dimensions: [target_buyer_profile, product_positioning, life_scene_narrative, sales_journey, model_room_boundary, maintainability]
+      required_min_coverage: 0.78
+    ontology_profile:
+      profile_id: ontology.real_estate_showcase.v1
+      activated_objects: [target_buyer, sales_consultant, model_room, reception_path, lifestyle_scene, material_sample]
+      activated_relations: [target_buyer_guides_life_scene, sales_journey_structures_reception_path, model_room_translates_product_value]
+      activated_constraints: [sales_conversion_boundary, maintainability, cost_control, truthful_product_representation]
+      key_tensions: [aspirational_lifestyle_vs_actual_delivery, sales_efficiency_vs_emotional_depth, decorative_memory_vs_residential_practicality]
+    type_method_profile:
+      profile_id: method.type.real_estate_showcase.v1
+      priority_sequence: [target_buyer_profile, product_positioning, life_scene_narrative, sales_journey, maintainability]
+    general_method_profile:
+      profile_id: method.general.sales_showcase_check.v1
+      active_checks:
+        - check_id: target_buyer_gap
+          severity: warning
+        - check_id: product_story_gap
+          severity: warning
+    knowledge_base_binding:
+      search_tags: [real_estate_showcase, model_room, sales_journey, lifestyle_scene]
+      knowledge_packages: [kp.residential, kp.brand_experience, kp.spatial_narrative, kp.customer_flow]
+    system_binding:
+      target_objects: [AlignedBrief, ContextPacket, ConceptPack, ExecutionPlan]
+
+  residential_collective:
+    profile_id: residential_collective_profile
+    primary_bucket: residential
+    display_label: 集合住宅 / 公共住房项目
+    ontology_framework: hybrid_residential_commercial
+    questionnaire_profile: residential_collective
+    deliverable_profile: residential_collective_deliverable_profile
+    floorplan_profile: residential_collective_reasoning
+    visual_prompt_profile: residential_collective_visual_profile
+    active_discipline_ids: [architecture, interior, landscape, operations, accessibility, fire_safety]
+    domain_framework:
+      required_dimensions: [resident_group_profile, unit_and_shared_space_ratio, public_private_gradient, long_term_operation, accessibility_and_safety, community_support]
+      required_min_coverage: 0.82
+    ontology_profile:
+      profile_id: ontology.residential_collective.v1
+      activated_objects: [resident_group, housing_unit, shared_lounge, circulation_core, community_service_node, outdoor_shared_space]
+      activated_relations: [unit_mix_shapes_resident_diversity, shared_space_supports_community_life, circulation_core_controls_public_private_gradient]
+      activated_constraints: [fire_safety_precheck, universal_accessibility, long_term_maintenance, acoustic_privacy]
+      key_tensions: [individual_privacy_vs_collective_belonging, affordability_vs_long_term_quality, management_order_vs_self_organization]
+    type_method_profile:
+      profile_id: method.type.residential_collective.v1
+      priority_sequence: [resident_group_profile, unit_and_shared_space_ratio, public_private_gradient, long_term_operation, accessibility_and_safety]
+    general_method_profile:
+      profile_id: method.general.collective_residential_check.v1
+      active_checks:
+        - check_id: shared_space_operation_gap
+          severity: warning
+        - check_id: accessibility_gap
+          severity: error
+    knowledge_base_binding:
+      search_tags: [residential_collective, shared_space, public_private_gradient, community_life]
+      knowledge_packages: [kp.residential, kp.public_private_gradient, kp.life_pattern, kp.universal_accessibility]
+    system_binding:
+      target_objects: [AlignedBrief, ContextPacket, FloorPlanPack, ExecutionPlan]
+
+  sports_entertainment_arts:
+    profile_id: sports_entertainment_arts_profile
+    primary_bucket: hospitality
+    display_label: 体育 / 健身 / 运动场馆
+    ontology_framework: commercial_hospitality
+    questionnaire_profile: sports_entertainment
+    deliverable_profile: sports_deliverable_profile
+    floorplan_profile: sports_entertainment_reasoning
+    visual_prompt_profile: sports_entertainment_visual_profile
+    active_discipline_ids: [architecture, interior, specialist_programming, mep, fire_safety, operations]
+    domain_framework:
+      required_dimensions: [sport_or_activity_type, user_capacity, movement_and_safety_clearance, equipment_and_storage, locker_and_service_flow, operation_model]
+      required_min_coverage: 0.84
+    ontology_profile:
+      profile_id: ontology.sports_entertainment_arts.v1
+      activated_objects: [athlete_or_member, training_zone, equipment_zone, locker_room, spectator_or_waiting_area, safety_buffer]
+      activated_relations: [activity_type_defines_clearance, equipment_zone_supports_training_sequence, locker_flow_separates_clean_dirty_use]
+      activated_constraints: [movement_safety_clearance, ventilation_and_humidity_control, equipment_load, fire_safety_precheck]
+      key_tensions: [high_intensity_use_vs_safety_buffer, community_atmosphere_vs_clean_operation, equipment_density_vs_movement_quality]
+    type_method_profile:
+      profile_id: method.type.sports_entertainment_arts.v1
+      priority_sequence: [sport_or_activity_type, movement_and_safety_clearance, user_capacity, equipment_and_storage, operation_model]
+    general_method_profile:
+      profile_id: method.general.sports_safety_check.v1
+      active_checks:
+        - check_id: movement_clearance_gap
+          severity: error
+        - check_id: equipment_storage_gap
+          severity: warning
+    knowledge_base_binding:
+      search_tags: [sports_space, fitness_operation, movement_safety, customer_flow]
+      knowledge_packages: [kp.general_project, kp.customer_flow, kp.mep_retrofit, kp.universal_accessibility]
+    system_binding:
+      target_objects: [AlignedBrief, ContextPacket, SafetyConstraintEnvelope, ExecutionPlan]
+
+  transportation_civic:
+    profile_id: transportation_civic_profile
+    primary_bucket: civic
+    display_label: 交通 / 市政 / 公共行政项目
+    ontology_framework: transportation_civic
+    questionnaire_profile: transportation_civic
+    deliverable_profile: civic_deliverable_profile
+    floorplan_profile: transportation_civic_reasoning
+    visual_prompt_profile: transportation_civic_visual_profile
+    active_discipline_ids: [architecture, urban_planning, interior, wayfinding, accessibility, fire_safety]
+    domain_framework:
+      required_dimensions: [public_mission, passenger_or_citizen_flow, security_and_control_boundary, wayfinding_system, accessibility, resilience_and_operation]
+      required_min_coverage: 0.86
+    ontology_profile:
+      profile_id: ontology.transportation_civic.v1
+      activated_objects: [passenger_or_citizen, service_counter, security_checkpoint, waiting_area, wayfinding_node, evacuation_path]
+      activated_relations: [flow_volume_shapes_spatial_hierarchy, wayfinding_node_reduces_cognitive_load, security_boundary_controls_public_access]
+      activated_constraints: [public_safety, universal_accessibility, crowd_management, emergency_evacuation, operational_resilience]
+      key_tensions: [public_openness_vs_security_control, flow_efficiency_vs_civic_dignity, clarity_vs_complex_program_mix]
+    type_method_profile:
+      profile_id: method.type.transportation_civic.v1
+      priority_sequence: [public_mission, passenger_or_citizen_flow, security_and_control_boundary, wayfinding_system, accessibility]
+    general_method_profile:
+      profile_id: method.general.civic_flow_check.v1
+      active_checks:
+        - check_id: wayfinding_gap
+          severity: error
+        - check_id: accessibility_gap
+          severity: error
+        - check_id: security_flow_conflict
+          severity: warning
+    knowledge_base_binding:
+      search_tags: [transportation_civic, civic_space, wayfinding, public_flow]
+      knowledge_packages: [kp.public_cultural, kp.universal_accessibility, kp.customer_flow, kp.general_project]
+    system_binding:
+      target_objects: [AlignedBrief, ContextPacket, SafetyConstraintEnvelope, ExecutionPlan]
+
+  urban_renewal_heritage:
+    profile_id: urban_renewal_heritage_profile
+    primary_bucket: renewal
+    display_label: 城市更新 / 历史建筑活化
+    ontology_framework: rural_regeneration_urban_renewal
+    questionnaire_profile: urban_renewal_heritage
+    deliverable_profile: renewal_deliverable_profile
+    floorplan_profile: heritage_renewal_reasoning
+    visual_prompt_profile: heritage_renewal_visual_profile
+    active_discipline_ids: [architecture, interior, structure, heritage_conservation, landscape, operations]
+    domain_framework:
+      required_dimensions: [heritage_value, preservation_grade, adaptive_reuse_program, structural_condition, public_access_boundary, material_intervention_principle]
+      required_min_coverage: 0.88
+    ontology_profile:
+      profile_id: ontology.urban_renewal_heritage.v1
+      activated_objects: [heritage_structure, retained_facade, new_intervention, public_route, interpretation_node, structural_constraint]
+      activated_relations: [heritage_value_constrains_intervention, adaptive_reuse_program_requires_public_access_boundary, structural_condition_limits_program_load]
+      activated_constraints: [heritage_preservation_boundary, structural_integrity, reversible_intervention, fire_safety_precheck]
+      key_tensions: [preservation_authenticity_vs_new_operation, public_activation_vs_conservation_risk, new_material_vs_historic_memory]
+    type_method_profile:
+      profile_id: method.type.urban_renewal_heritage.v1
+      priority_sequence: [heritage_value, preservation_grade, structural_condition, adaptive_reuse_program, material_intervention_principle]
+    general_method_profile:
+      profile_id: method.general.heritage_renewal_check.v1
+      active_checks:
+        - check_id: heritage_boundary_gap
+          severity: error
+        - check_id: structural_assessment_missing
+          severity: error
+    knowledge_base_binding:
+      search_tags: [urban_renewal_heritage, adaptive_reuse, heritage_structure, cultural_translation]
+      knowledge_packages: [kp.renovation, kp.adaptive_reuse, kp.public_cultural, kp.cultural_motif_translation]
+    system_binding:
+      target_objects: [AlignedBrief, ContextPacket, StructuralConstraintEnvelope, ExecutionPlan]
+
+  urban_renewal_market:
+    profile_id: urban_renewal_market_profile
+    primary_bucket: renewal
+    display_label: 城市更新 / 公共市场项目
+    ontology_framework: rural_regeneration_urban_renewal
+    questionnaire_profile: urban_renewal_market
+    deliverable_profile: renewal_market_deliverable_profile
+    floorplan_profile: renewal_market_reasoning
+    visual_prompt_profile: renewal_market_visual_profile
+    active_discipline_ids: [architecture, interior, landscape, operations, mep, public_policy]
+    domain_framework:
+      required_dimensions: [market_role, vendor_and_customer_flow, sanitation_and_logistics, neighborhood_public_value, renovation_boundary, long_term_operation]
+      required_min_coverage: 0.84
+    ontology_profile:
+      profile_id: ontology.urban_renewal_market.v1
+      activated_objects: [vendor, customer, stall_module, logistics_route, sanitation_node, public_space_edge]
+      activated_relations: [vendor_flow_requires_logistics_route, sanitation_node_controls_daily_operation, public_space_edge_connects_neighborhood_value]
+      activated_constraints: [sanitation_and_drainage, fire_safety_precheck, logistics_separation, maintenance_cost]
+      key_tensions: [livelihood_practicality_vs_place_branding, vendor_efficiency_vs_public_experience, renovation_activation_vs_daily_affordability]
+    type_method_profile:
+      profile_id: method.type.urban_renewal_market.v1
+      priority_sequence: [market_role, vendor_and_customer_flow, sanitation_and_logistics, neighborhood_public_value, long_term_operation]
+    general_method_profile:
+      profile_id: method.general.market_renewal_check.v1
+      active_checks:
+        - check_id: sanitation_logistics_gap
+          severity: error
+        - check_id: vendor_operation_gap
+          severity: warning
+    knowledge_base_binding:
+      search_tags: [urban_renewal_market, public_market, vendor_flow, community_governance]
+      knowledge_packages: [kp.renovation, kp.public_cultural, kp.customer_flow, kp.community_governance]
+    system_binding:
+      target_objects: [AlignedBrief, ContextPacket, ExecutionPlan]
+
+  wedding_banquet:
+    profile_id: wedding_banquet_profile
+    primary_bucket: hospitality
+    display_label: 婚庆宴会 / 庆典空间
+    ontology_framework: commercial_hospitality
+    questionnaire_profile: wedding_banquet
+    deliverable_profile: banquet_deliverable_profile
+    floorplan_profile: wedding_banquet_reasoning
+    visual_prompt_profile: wedding_banquet_visual_profile
+    active_discipline_ids: [interior, operations, lighting, acoustics, mep, fire_safety]
+    domain_framework:
+      required_dimensions: [event_format, ceremony_sequence, banquet_capacity, stage_and_audiovisual_system, service_backstage, turnover_and_operation]
+      required_min_coverage: 0.82
+    ontology_profile:
+      profile_id: ontology.wedding_banquet.v1
+      activated_objects: [guest, couple_or_host, ceremony_stage, banquet_hall, service_backstage, photo_memory_node]
+      activated_relations: [ceremony_sequence_guides_spatial_narrative, banquet_capacity_constrains_service_flow, photo_memory_node_supports_event_value]
+      activated_constraints: [fire_safety_precheck, acoustic_and_lighting_control, kitchen_or_service_flow, turnover_efficiency]
+      key_tensions: [ritual_memory_vs_table_turnover, dramatic_atmosphere_vs_operation_reliability, customization_vs_standardized_service]
+    type_method_profile:
+      profile_id: method.type.wedding_banquet.v1
+      priority_sequence: [event_format, ceremony_sequence, banquet_capacity, stage_and_audiovisual_system, service_backstage]
+    general_method_profile:
+      profile_id: method.general.banquet_event_check.v1
+      active_checks:
+        - check_id: ceremony_sequence_gap
+          severity: warning
+        - check_id: service_flow_gap
+          severity: error
+    knowledge_base_binding:
+      search_tags: [wedding_banquet, ceremony_sequence, event_operation, spatial_narrative]
+      knowledge_packages: [kp.commercial_dining, kp.spatial_narrative, kp.customer_flow, kp.theme_naming_system]
+    system_binding:
+      target_objects: [AlignedBrief, ContextPacket, ConceptPack, ExecutionPlan]
+
+  commercial_dining:
+    profile_id: commercial_dining_profile
+    primary_bucket: commercial
+    display_label: 餐饮/食饮空间项目
+    ontology_framework: commercial_dining
+    questionnaire_profile: commercial
+    deliverable_profile: commercial_deliverable_profile
+    floorplan_profile: commercial_floorplan_reasoning
+    visual_prompt_profile: commercial_visual_profile
+    domain_framework:
+      required_dimensions:
+        - dining_concept_and_positioning
+        - customer_flow_and_seating_capacity
+        - front_of_house_vs_back_of_house
+        - noise_zoning_and_acoustic_comfort
+        - table_turnover_and_peak_efficiency
+        - brand_atmosphere_and_theme
+        - staff_circulation_and_service_flow
+      required_min_coverage: 0.75
+    ontology_profile:
+      profile_id: ontology.commercial_dining.v1
+      activated_objects:
+        - diner
+        - front_of_house
+        - back_of_house
+        - kitchen
+        - bar_or_counter
+        - service_zone
+        - entrance_and_waiting
+      activated_relations:
+        - kitchen_workflow_constrains_service_flow
+        - seating_density_determines_turnover_rate
+        - noise_level_shapes_zone_separation
+        - brand_concept_drives_atmosphere_design
+      activated_constraints:
+        - fire_egress_clearance
+        - kitchen_ventilation_and_exhaust
+        - health_and_food_safety_code
+        - acoustic_comfort_threshold
+      key_tensions:
+        - seating_density_vs_diner_comfort
+        - turnover_efficiency_vs_brand_experience
+        - kitchen_scale_vs_front_of_house_area
+        - noise_management_vs_vibrant_atmosphere
+    type_method_profile:
+      profile_id: method.type.commercial_dining.v1
+      priority_sequence:
+        - dining_concept_and_positioning
+        - seating_capacity_and_layout
+        - front_back_ratio
+        - service_flow_and_kitchen_workflow
+        - noise_zoning
+        - brand_atmosphere
+        - operation_and_maintenance
+    general_method_profile:
+      profile_id: method.general.dining_check.v1
+      active_checks:
+        - check_id: front_back_ratio_imbalance
+          severity: error
+        - check_id: turnover_conflict
+          severity: error
+        - check_id: kitchen_flow_vs_service_conflict
+          severity: warning
+        - check_id: noise_zone_missing
+          severity: warning
+    knowledge_base_binding:
+      search_tags:
+        - commercial_dining
+        - restaurant_design
+        - kitchen_workflow
+        - table_turnover
+      knowledge_packages:
+        - kp.commercial_dining
+        - kp.customer_flow
+        - kp.kitchen_design
+    system_binding:
+      target_objects:
+        - AlignedBrief
+        - FloorPlanPack
+        - ExecutionPlan
+      required_freeze:
+        - SeatingCapacityBaseline
+        - KitchenWorkflowBaseline
+
+  landscape_outdoor:
+    profile_id: landscape_outdoor_profile
+    primary_bucket: public_outdoor
+    display_label: 景观/户外空间项目
+    ontology_framework: landscape_outdoor
+    questionnaire_profile: landscape
+    deliverable_profile: landscape_deliverable_profile
+    floorplan_profile: landscape_floorplan_reasoning
+    visual_prompt_profile: landscape_visual_profile
+    domain_framework:
+      required_dimensions:
+        - site_ecology_and_microclimate
+        - seasonal_performance_and_adaptability
+        - user_activity_and_program
+        - safety_and_barrier_design
+        - maintenance_and_lifecycle_cost
+        - water_and_drainage_strategy
+        - material_durability_and_climate_fit
+      required_min_coverage: 0.75
+    ontology_profile:
+      profile_id: ontology.landscape_outdoor.v1
+      activated_objects:
+        - site_ecology
+        - planting_zone
+        - hardscape_zone
+        - water_feature
+        - circulation_path
+        - safety_barrier
+        - maintenance_infrastructure
+      activated_relations:
+        - microclimate_shapes_planting_selection
+        - seasonal_load_determines_surface_durability
+        - user_activity_constrains_barrier_design
+        - drainage_strategy_constrains_grading
+      activated_constraints:
+        - climate_zone_compliance
+        - accessibility_and_safety_code
+        - water_runoff_and_drainage
+        - maintenance_feasibility
+      key_tensions:
+        - aesthetic_aspiration_vs_maintenance_cost
+        - seasonal_vitality_vs_off_season_desolation
+        - open_access_vs_safety_barrier_requirement
+        - ecology_restoration_vs_program_intensity
+    type_method_profile:
+      profile_id: method.type.landscape_outdoor.v1
+      priority_sequence:
+        - site_ecology_and_microclimate
+        - program_and_user_activity
+        - seasonal_adaptability_strategy
+        - safety_and_barrier_design
+        - water_and_drainage
+        - planting_and_material_selection
+        - maintenance_plan
+    general_method_profile:
+      profile_id: method.general.landscape_check.v1
+      active_checks:
+        - check_id: seasonal_performance_gap
+          severity: error
+        - check_id: maintenance_cost_underestimated
+          severity: warning
+        - check_id: safety_barrier_missing
+          severity: error
+        - check_id: climate_material_mismatch
+          severity: warning
+    knowledge_base_binding:
+      search_tags:
+        - landscape_design
+        - outdoor_space
+        - ecology
+        - seasonal_planting
+      knowledge_packages:
+        - kp.landscape_outdoor
+        - kp.ecology_design
+        - kp.outdoor_material
+    system_binding:
+      target_objects:
+        - AlignedBrief
+        - SitePlan
+        - ExecutionPlan
+      required_freeze:
+        - SiteEcologyBaseline
+        - SeasonalStrategyBaseline

@@ -4,28 +4,29 @@ __pycache__/
 *$py.class
 *.so
 .Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
+/build/
+/develop-eggs/
+/dist/
+/downloads/
+/eggs/
+/.eggs/
+/lib/
+/lib64/
+/parts/
+/sdist/
+/var/
+/wheels/
 *.egg-info/
 .installed.cfg
 *.egg
 MANIFEST
 
 # Virtual Environment
-venv/
-ENV/
-env/
-.venv
+/venv/
+/ENV/
+/env/
+/.venv
+/.conda/
 
 # IDEs
 .vscode/
@@ -44,15 +45,19 @@ nul
 .env.local
 .env.*.local
 *.log
-logs/
-data/
-backup/
-reports/
-htmlcov/
+/logs/
+/data/
+/backup/
+/reports/
+/htmlcov/
 .coverage
-.pytest_cache/
-.cache/
-.git-backup/
+/.pytest_cache/
+/.cache/
+/.git-backup/
+
+# Backend runtime state. Keep source fixtures/config outside this directory
+# unless an explicit tracked exception is added.
+intelligent_project_analyzer/data/
 
 # Frontend
 frontend-nextjs/node_modules/
@@ -63,19 +68,19 @@ frontend-nextjs/.env.local
 frontend-nextjs/.env.*.local
 
 # Test
-e2e-tests/
-.tox/
+/e2e-tests/
+/.tox/
 .coverage.*
 coverage.xml
 *.cover
-.hypothesis/
+/.hypothesis/
 
 # Backup files
 *.bak
 *.backup
 
 # Archive directory (local cleanup area - not tracked)
-_archive/
+/_archive/
 
 # Root-level temp/debug output files
 _*.txt
@@ -94,6 +99,9 @@ _*.txt
 *.sqlite3
 /node_modules/
 /.playwright-cli/
+/tmp/
+/.tmp/
+/pytest-of-SF/
 /.pytest_tmp*/
 /output/
 /security-baseline-report.json
@@ -105,7 +113,13 @@ frontend-nextjs/frontend-nextjs/
 
 # Crawler credentials and cookies
 intelligent_project_analyzer/config/crawler_credentials.py
-data/cookies/
+/data/cookies/
 *.pkl
-external_layer2_cache.json
-.worktrees/
+/external_layer2_cache.json
+/.worktrees/
+
+# These are source/type-contract directories, not local artifacts.
+!frontend-nextjs/lib/
+!frontend-nextjs/lib/**
+!frontend-nextjs/types/
+!frontend-nextjs/types/**

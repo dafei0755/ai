@@ -1,6 +1,6 @@
-'use client';
+﻿'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { CheckCircle, XCircle, AlertCircle, Eye, RefreshCw } from 'lucide-react';
 
@@ -30,17 +30,15 @@ export default function ReviewCandidatesPage() {
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [rejectReason, setRejectReason] = useState('');
 
-  const token = typeof window !== 'undefined' ? localStorage.getItem('wp_jwt_token') : null;
-  const headers = { 'Authorization': `Bearer ${token}` };
-
-  useEffect(() => {
-    fetchCandidates();
+  const getAuthHeaders = useCallback(() => {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('app_auth_token') : null;
+    return token ? { Authorization: `Bearer ${token}` } : {};
   }, []);
 
-  const fetchCandidates = async () => {
+  const fetchCandidates = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await axios.get('/api/admin/dimension-learning/candidates?limit=100', { headers });
+      const res = await axios.get('/api/admin/dimension-learning/candidates?limit=100', { headers: getAuthHeaders() });
       setCandidates(res.data.items || []);
       setStatistics(res.data.statistics || null);
     } catch (error) {
@@ -48,11 +46,15 @@ export default function ReviewCandidatesPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [getAuthHeaders]);
+
+  useEffect(() => {
+    fetchCandidates();
+  }, [fetchCandidates]);
 
   const handleApprove = async (candidateId: number) => {
     try {
-      await axios.post(`/api/admin/dimension-learning/candidates/${candidateId}/approve`, {}, { headers });
+      await axios.post(`/api/admin/dimension-learning/candidates/${candidateId}/approve`, {}, { headers: getAuthHeaders() });
       alert('候选维度已批准并写入本体论');
       await fetchCandidates();
       setShowModal(false);
@@ -67,7 +69,7 @@ export default function ReviewCandidatesPage() {
       await axios.post(
         `/api/admin/dimension-learning/candidates/${candidateId}/reject`,
         { reason },
-        { headers }
+        { headers: getAuthHeaders() }
       );
       alert('候选维度已拒绝');
       await fetchCandidates();
@@ -97,7 +99,7 @@ export default function ReviewCandidatesPage() {
           candidate_ids: Array.from(selectedIds),
           reason: ''
         },
-        { headers }
+        { headers: getAuthHeaders() }
       );
       
       alert(`批量批准完成: 成功 ${res.data.result.success.length}, 失败 ${res.data.result.failed.length}`);

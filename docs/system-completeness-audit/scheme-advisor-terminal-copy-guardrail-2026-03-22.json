@@ -1,0 +1,10 @@
+{
+  "schema_version": "terminal_user_copy_guardrail_report.v1",
+  "guardrail_scope": "terminal_user_visible_copy",
+  "violation_policy": "fail_review",
+  "summary": {
+    "forbidden_term_count": 19,
+    "violation_count": 0
+  },
+  "violations": []
+}

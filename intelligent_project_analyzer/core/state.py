@@ -196,6 +196,18 @@ class ProjectAnalysisState(TypedDict):
     所有下游组件应优先读取此字段，而非各自独立分类。
     """
 
+    # 空间分类旁路结果（v2026.04）
+    # 不替代 project_type；用于承载分类、边界风险、运行时变量和下游 routing hints。
+    space_classification: Optional[Dict[str, Any]]
+
+    # 项目定义激活包（v2026.04）
+    # 由 space_classification 进一步装配本体画像、方法路由、知识绑定与系统承接对象。
+    project_definition_activation_pack: Optional[Dict[str, Any]]
+
+    # 通用方法论检查结果（v9.2）
+    # 由 Step3 执行 general_method_checker.run_general_method_checks() 后写入。
+    general_method_check_result: Optional[Dict[str, Any]]
+
     # 分析策略和任务分派
     # 使用Annotated和reducer函数来处理并发更新
     strategic_analysis: Annotated[Optional[Dict[str, Any]], merge_agent_results]
@@ -753,6 +765,9 @@ class StateManager:
             info_status=None,
             detected_design_modes=None,     #  阶段2: 统一分类出口初始化
             project_classification=None,    #  阶段2: 统一分类出口初始化
+            space_classification=None,      #  空间分类旁路结果初始化
+            project_definition_activation_pack=None,  #  项目定义激活包初始化
+            general_method_check_result=None,  # v9.2: 通用方法论检查结果初始化
             # 🆕 v15.0: DWP 架构初始化
             deliverable_work_packages=None,
             dwp_completion_map=None,

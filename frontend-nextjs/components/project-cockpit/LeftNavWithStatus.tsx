@@ -2,14 +2,16 @@
 
 import type { CapabilityStatus } from './mock/mockData';
 
+export type LeftNavKey = CapabilityStatus['key'] | 'geo' | 'silicon_avatar';
+
 interface LeftNavWithStatusProps {
   capabilities: CapabilityStatus[];
-  activeKey?: CapabilityStatus['key'];
-  onCapabilityClick: (key: CapabilityStatus['key']) => void;
+  activeKey?: LeftNavKey;
+  onCapabilityClick: (key: LeftNavKey) => void;
 }
 
 const AUXILIARY_ITEMS = [
-  { key: 'resource_radar', label: '资源达达' },
+  { key: 'geo', label: '地理工作台' },
   { key: 'silicon_avatar', label: '我的硅基分身' },
 ] as const;
 

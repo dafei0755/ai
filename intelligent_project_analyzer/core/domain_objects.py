@@ -113,11 +113,17 @@ class StrategyZone(BaseModel):
 class DesignTaskBook(BaseModel):
     """需求分析 S5 产出——设计任务书（冻结对象）"""
 
+    schema_version: str = "design_task_book.v1"
     project_intent: str
     core_proposition: str
+    selected_version_id: Optional[str] = None
+    version_depth: Dict[str, Any] = Field(default_factory=dict)
     strategy_zones: StrategyZone = Field(default_factory=StrategyZone)
     boundaries_and_redlines: List[str] = Field(default_factory=list)
+    pending_formal_assets: List[str] = Field(default_factory=list)
+    formal_calibration_items: List[Dict[str, Any]] = Field(default_factory=list)
     risk_and_rationale: Dict[str, Any] = Field(default_factory=dict)
+    source_trace: Dict[str, Any] = Field(default_factory=dict)
     frozen: bool = False  # True 后不可原址覆写
 
 
@@ -361,7 +367,7 @@ class CognitionIndicators(BaseModel):
             and self.diverge_fatigue >= 0.6
         )
         # 直接简报路径：首条消息即为完整项目 brief（富集度极高）
-        direct_brief = self.freeze_readiness >= 0.85
+        direct_brief = self.freeze_readiness >= 0.95 and self.cognitive_debt >= 0.8
         return gradual or direct_brief
 
 

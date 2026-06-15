@@ -1,0 +1,2572 @@
+{
+  "schema_version": "scheme_advisor_baseline_drift_review.v1",
+  "generated_at": "2026-06-15T10:03:00",
+  "summary": {
+    "drift_items": 4,
+    "requires_human_review": true,
+    "policy": "report_only_never_auto_sync",
+    "will_auto_update_golden": false,
+    "sample_review_items": 65
+  },
+  "items": [
+    {
+      "id": 1,
+      "field": "warning_counts.coverage_gap",
+      "golden_value": 110,
+      "latest_pressure_value": 107,
+      "golden_ids": [
+        2,
+        3,
+        4,
+        6,
+        7,
+        8,
+        9,
+        12,
+        16,
+        18,
+        20,
+        22,
+        24,
+        25,
+        27,
+        28,
+        30,
+        31,
+        33,
+        34,
+        35,
+        37,
+        38,
+        42,
+        44,
+        46,
+        48,
+        49,
+        50,
+        51,
+        55,
+        56,
+        59,
+        61,
+        62,
+        63,
+        65,
+        66,
+        67,
+        69,
+        70,
+        72,
+        73,
+        75,
+        76,
+        77,
+        78,
+        79,
+        80,
+        82,
+        83,
+        85,
+        86,
+        87,
+        88,
+        92,
+        93,
+        94,
+        96,
+        97,
+        99,
+        105,
+        106,
+        108,
+        109,
+        114,
+        115,
+        116,
+        120,
+        121,
+        123,
+        126,
+        129,
+        132,
+        135,
+        137,
+        140,
+        141,
+        142,
+        143,
+        145,
+        147,
+        148,
+        151,
+        152,
+        153,
+        156,
+        157,
+        158,
+        159,
+        160,
+        161,
+        162,
+        165,
+        167,
+        168,
+        169,
+        170,
+        172,
+        174,
+        176,
+        178,
+        179,
+        180,
+        181,
+        182,
+        183,
+        186,
+        188,
+        190
+      ],
+      "latest_pressure_ids": [
+        2,
+        3,
+        4,
+        6,
+        7,
+        8,
+        9,
+        12,
+        16,
+        20,
+        22,
+        24,
+        25,
+        27,
+        28,
+        30,
+        31,
+        33,
+        34,
+        35,
+        37,
+        38,
+        42,
+        44,
+        46,
+        48,
+        49,
+        51,
+        55,
+        56,
+        59,
+        61,
+        62,
+        63,
+        65,
+        66,
+        67,
+        69,
+        70,
+        72,
+        73,
+        75,
+        76,
+        77,
+        78,
+        79,
+        80,
+        82,
+        85,
+        86,
+        87,
+        88,
+        92,
+        93,
+        94,
+        96,
+        97,
+        99,
+        105,
+        106,
+        108,
+        109,
+        114,
+        115,
+        116,
+        120,
+        121,
+        126,
+        129,
+        132,
+        137,
+        140,
+        141,
+        142,
+        143,
+        145,
+        147,
+        148,
+        151,
+        152,
+        153,
+        156,
+        157,
+        158,
+        159,
+        160,
+        162,
+        165,
+        167,
+        168,
+        169,
+        170,
+        172,
+        174,
+        176,
+        178,
+        179,
+        181,
+        182,
+        183,
+        186,
+        188,
+        190
+      ],
+      "golden_only_ids": [
+        18,
+        50,
+        83,
+        123,
+        135,
+        161,
+        180
+      ],
+      "latest_pressure_only_ids": [],
+      "status": "needs_human_review",
+      "allowed_decisions": [
+        "keep_golden",
+        "accept_latest_pressure",
+        "split_review_needed"
+      ],
+      "selected_decision": "",
+      "review_note": ""
+    },
+    {
+      "id": 2,
+      "field": "warning_counts.knowledge_gap_ticket",
+      "golden_value": 110,
+      "latest_pressure_value": 107,
+      "golden_ids": [
+        2,
+        3,
+        4,
+        6,
+        7,
+        8,
+        9,
+        12,
+        16,
+        18,
+        20,
+        22,
+        24,
+        25,
+        27,
+        28,
+        30,
+        31,
+        33,
+        34,
+        35,
+        37,
+        38,
+        42,
+        44,
+        46,
+        48,
+        49,
+        50,
+        51,
+        55,
+        56,
+        59,
+        61,
+        62,
+        63,
+        65,
+        66,
+        67,
+        69,
+        70,
+        72,
+        73,
+        75,
+        76,
+        77,
+        78,
+        79,
+        80,
+        82,
+        83,
+        85,
+        86,
+        87,
+        88,
+        92,
+        93,
+        94,
+        96,
+        97,
+        99,
+        105,
+        106,
+        108,
+        109,
+        114,
+        115,
+        116,
+        120,
+        121,
+        123,
+        126,
+        129,
+        132,
+        135,
+        137,
+        140,
+        141,
+        142,
+        143,
+        145,
+        147,
+        148,
+        151,
+        152,
+        153,
+        156,
+        157,
+        158,
+        159,
+        160,
+        161,
+        162,
+        165,
+        167,
+        168,
+        169,
+        170,
+        172,
+        174,
+        176,
+        178,
+        179,
+        180,
+        181,
+        182,
+        183,
+        186,
+        188,
+        190
+      ],
+      "latest_pressure_ids": [
+        2,
+        3,
+        4,
+        6,
+        7,
+        8,
+        9,
+        12,
+        16,
+        20,
+        22,
+        24,
+        25,
+        27,
+        28,
+        30,
+        31,
+        33,
+        34,
+        35,
+        37,
+        38,
+        42,
+        44,
+        46,
+        48,
+        49,
+        51,
+        55,
+        56,
+        59,
+        61,
+        62,
+        63,
+        65,
+        66,
+        67,
+        69,
+        70,
+        72,
+        73,
+        75,
+        76,
+        77,
+        78,
+        79,
+        80,
+        82,
+        85,
+        86,
+        87,
+        88,
+        92,
+        93,
+        94,
+        96,
+        97,
+        99,
+        105,
+        106,
+        108,
+        109,
+        114,
+        115,
+        116,
+        120,
+        121,
+        126,
+        129,
+        132,
+        137,
+        140,
+        141,
+        142,
+        143,
+        145,
+        147,
+        148,
+        151,
+        152,
+        153,
+        156,
+        157,
+        158,
+        159,
+        160,
+        162,
+        165,
+        167,
+        168,
+        169,
+        170,
+        172,
+        174,
+        176,
+        178,
+        179,
+        181,
+        182,
+        183,
+        186,
+        188,
+        190
+      ],
+      "golden_only_ids": [
+        18,
+        50,
+        83,
+        123,
+        135,
+        161,
+        180
+      ],
+      "latest_pressure_only_ids": [],
+      "status": "needs_human_review",
+      "allowed_decisions": [
+        "keep_golden",
+        "accept_latest_pressure",
+        "split_review_needed"
+      ],
+      "selected_decision": "",
+      "review_note": ""
+    },
+    {
+      "id": 3,
+      "field": "warning_counts.low_classification_confidence",
+      "golden_value": 20,
+      "latest_pressure_value": 16,
+      "golden_ids": [
+        28,
+        50,
+        83,
+        97,
+        106,
+        108,
+        123,
+        126,
+        135,
+        143,
+        145,
+        147,
+        152,
+        159,
+        161,
+        169,
+        172,
+        174,
+        176,
+        180
+      ],
+      "latest_pressure_ids": [
+        28,
+        106,
+        108,
+        169
+      ],
+      "golden_only_ids": [
+        50,
+        83,
+        97,
+        123,
+        126,
+        135,
+        143,
+        145,
+        147,
+        152,
+        159,
+        161,
+        172,
+        174,
+        176,
+        180
+      ],
+      "latest_pressure_only_ids": [],
+      "status": "needs_human_review",
+      "allowed_decisions": [
+        "keep_golden",
+        "accept_latest_pressure",
+        "split_review_needed"
+      ],
+      "selected_decision": "",
+      "review_note": ""
+    },
+    {
+      "id": 4,
+      "field": "governance_signal_counts.activation_pack_candidate",
+      "golden_value": 183,
+      "latest_pressure_value": 181,
+      "golden_ids": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        16,
+        17,
+        18,
+        19,
+        20,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32,
+        33,
+        34,
+        35,
+        36,
+        37,
+        38,
+        39,
+        40,
+        41,
+        42,
+        43,
+        44,
+        45,
+        46,
+        47,
+        48,
+        49,
+        50,
+        51,
+        52,
+        53,
+        54,
+        55,
+        56,
+        57,
+        58,
+        59,
+        60,
+        61,
+        62,
+        63,
+        64,
+        65,
+        66,
+        67,
+        68,
+        69,
+        70,
+        71,
+        72,
+        73,
+        74,
+        75,
+        76,
+        77,
+        78,
+        80,
+        81,
+        82,
+        83,
+        84,
+        85,
+        86,
+        87,
+        88,
+        89,
+        90,
+        91,
+        92,
+        93,
+        94,
+        95,
+        96,
+        97,
+        98,
+        99,
+        100,
+        101,
+        102,
+        103,
+        104,
+        105,
+        106,
+        107,
+        108,
+        109,
+        110,
+        111,
+        112,
+        113,
+        114,
+        115,
+        116,
+        117,
+        118,
+        119,
+        120,
+        121,
+        122,
+        123,
+        124,
+        125,
+        126,
+        127,
+        128,
+        129,
+        130,
+        131,
+        132,
+        133,
+        134,
+        135,
+        136,
+        137,
+        138,
+        139,
+        140,
+        141,
+        142,
+        143,
+        144,
+        145,
+        146,
+        147,
+        148,
+        149,
+        150,
+        151,
+        152,
+        153,
+        155,
+        156,
+        157,
+        158,
+        159,
+        160,
+        161,
+        162,
+        163,
+        164,
+        165,
+        166,
+        167,
+        168,
+        169,
+        170,
+        171,
+        172,
+        173,
+        174,
+        175,
+        176,
+        178,
+        179,
+        180,
+        181,
+        182,
+        183,
+        184,
+        185,
+        186,
+        187,
+        188,
+        189,
+        190
+      ],
+      "latest_pressure_ids": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        10,
+        11,
+        12,
+        16,
+        17,
+        20,
+        22,
+        24,
+        25,
+        26,
+        30,
+        31,
+        33,
+        37,
+        38,
+        39,
+        40,
+        41,
+        42,
+        44,
+        45,
+        47,
+        48,
+        50,
+        54,
+        57,
+        58,
+        59,
+        60,
+        61,
+        63,
+        64,
+        65,
+        66,
+        67,
+        69,
+        70,
+        71,
+        74,
+        75,
+        76,
+        77,
+        78,
+        80,
+        84,
+        86,
+        87,
+        88,
+        89,
+        92,
+        93,
+        98,
+        99,
+        102,
+        103,
+        105,
+        107,
+        109,
+        110,
+        111,
+        112,
+        113,
+        114,
+        116,
+        117,
+        119,
+        121,
+        122,
+        123,
+        124,
+        125,
+        127,
+        128,
+        129,
+        130,
+        132,
+        133,
+        134,
+        135,
+        136,
+        137,
+        138,
+        139,
+        140,
+        143,
+        145,
+        148,
+        149,
+        150,
+        151,
+        152,
+        153,
+        155,
+        156,
+        157,
+        158,
+        159,
+        160,
+        161,
+        162,
+        164,
+        165,
+        166,
+        167,
+        168,
+        170,
+        171,
+        172,
+        173,
+        175,
+        176,
+        178,
+        179,
+        180,
+        181,
+        183,
+        185,
+        186,
+        187,
+        188,
+        189
+      ],
+      "golden_only_ids": [
+        9,
+        18,
+        19,
+        23,
+        27,
+        28,
+        29,
+        32,
+        34,
+        35,
+        36,
+        43,
+        46,
+        49,
+        51,
+        52,
+        53,
+        55,
+        56,
+        62,
+        68,
+        72,
+        73,
+        81,
+        82,
+        83,
+        85,
+        90,
+        91,
+        94,
+        95,
+        96,
+        97,
+        100,
+        101,
+        104,
+        106,
+        108,
+        115,
+        118,
+        120,
+        126,
+        131,
+        141,
+        142,
+        144,
+        146,
+        147,
+        163,
+        169,
+        174,
+        182,
+        184,
+        190
+      ],
+      "latest_pressure_only_ids": [],
+      "status": "needs_human_review",
+      "allowed_decisions": [
+        "keep_golden",
+        "accept_latest_pressure",
+        "split_review_needed"
+      ],
+      "selected_decision": "",
+      "review_note": ""
+    }
+  ],
+  "sample_review_items": [
+    {
+      "id": 9,
+      "status": "needs_human_review",
+      "delta_fields": [
+        "governance_signal_counts.activation_pack_candidate"
+      ],
+      "golden_codes": [
+        "activation_pack_candidate",
+        "coverage_gap",
+        "knowledge_gap_ticket"
+      ],
+      "latest_pressure_codes": [
+        "coverage_gap",
+        "knowledge_coverage_watch",
+        "knowledge_gap_ticket"
+      ],
+      "project_type": "urban_renewal_market",
+      "prompt_excerpt": "深圳蛇口20000㎡菜市场更新改造项目，希望对标苏州黄桥菜市场，同时融入蛇口渔村传统文化。需兼顾老居民、香港访客、外籍客群与社区居民，成为城市更新标杆。请提出整体改造框架，包括动线组织、冷链系统、文化展示策略、社交空间植入与商业可持续模型。",
+      "allowed_decisions": [
+        "keep_golden",
+        "accept_latest_pressure",
+        "split_review_needed"
+      ],
+      "selected_decision": "",
+      "review_note": ""
+    },
+    {
+      "id": 18,
+      "status": "needs_human_review",
+      "delta_fields": [
+        "governance_signal_counts.activation_pack_candidate",
+        "warning_counts.coverage_gap",
+        "warning_counts.knowledge_gap_ticket"
+      ],
+      "golden_codes": [
+        "activation_pack_candidate",
+        "coverage_gap",
+        "knowledge_gap_ticket"
+      ],
+      "latest_pressure_codes": [],
+      "project_type": "commercial_retail",
+      "prompt_excerpt": "南充嘉陵区铜锣湾广场，50000㎡两层商业街区，面临300米内王府井商场竞争。请提出完整商业空间升级框架，包括客群分层定位、主力店与次主力动线组织、社交场景植入、夜经济激活策略、材料成本控制与品牌差异化形象塑造。",
+      "allowed_decisions": [
+        "keep_golden",
+        "accept_latest_pressure",
+        "split_review_needed"
+      ],
+      "selected_decision": "",
+      "review_note": ""
+    },
+    {
+      "id": 19,
+      "status": "needs_human_review",
+      "delta_fields": [
+        "governance_signal_counts.activation_pack_candidate"
+      ],
+      "golden_codes": [
+        "activation_pack_candidate"
+      ],
+      "latest_pressure_codes": [
+        "knowledge_coverage_watch"
+      ],
+      "project_type": "real_estate_showcase",
+      "prompt_excerpt": "成都麓湖片区地产样板房，需要提出10个具有市场穿透力与精神辨识度的概念主题。请不仅给出概念名称，还需阐述对应目标客群画像、生活方式结构、空间比例控制逻辑、软装叙事系统以及可复制性策略。",
+      "allowed_decisions": [
+        "keep_golden",
+        "accept_latest_pressure",
+        "split_review_needed"
+      ],
+      "selected_decision": "",
+      "review_note": ""
+    },
+    {
+      "id": 23,
+      "status": "needs_human_review",
+      "delta_fields": [
+        "governance_signal_counts.activation_pack_candidate"
+      ],
+      "golden_codes": [
+        "activation_pack_candidate"
+      ],
+      "latest_pressure_codes": [
+        "knowledge_coverage_watch"
+      ],
+      "project_type": "hybrid_residential_commercial",
+      "prompt_excerpt": "南昌四层复合型总部建筑：1楼艺术展厅，2楼办公室，3楼家庭住宅，4楼带高尔夫练习场露台会所。风格要求纯粹、极简、禅意、新旧对撞。请提出完整室内设计框架，阐述公共与私密的分层逻辑、结构改造策略、材料克制体系以及事业与家庭精神融合路径。",
+      "allowed_decisions": [
+        "keep_golden",
+        "accept_latest_pressure",
+        "split_review_needed"
+      ],
+      "selected_decision": "",
+      "review_note": ""
+    },
+    {
+      "id": 27,
+      "status": "needs_human_review",
+      "delta_fields": [
+        "governance_signal_counts.activation_pack_candidate"
+      ],
+      "golden_codes": [
+        "activation_pack_candidate",
+        "coverage_gap",
+        "knowledge_gap_ticket"
+      ],
+      "latest_pressure_codes": [
+        "coverage_gap",
+        "knowledge_coverage_watch",
+        "knowledge_gap_ticket"
+      ],
+      "project_type": "special_function",
+      "prompt_excerpt": "职业电竞选手需要将15㎡卧室改造为顶级直播与训练空间，要求绝对隔音、专业灯光与人体工学支持。请提出完整设计方案，包括声学构造、设备布局、散热系统、休息区转换机制与视觉品牌表达。",
+      "allowed_decisions": [
+        "keep_golden",
+        "accept_latest_pressure",
+        "split_review_needed"
+      ],
+      "selected_decision": "",
+      "review_note": ""
+    },
+    {
+      "id": 28,
+      "status": "needs_human_review",
+      "delta_fields": [
+        "governance_signal_counts.activation_pack_candidate"
+      ],
+      "golden_codes": [
+        "activation_pack_candidate",
+        "coverage_gap",
+        "knowledge_gap_ticket",
+        "low_classification_confidence"
+      ],
+      "latest_pressure_codes": [
+        "coverage_gap",
+        "knowledge_coverage_watch",
+        "knowledge_gap_ticket",
+        "low_classification_confidence"
+      ],
+      "project_type": "personal_residential",
+      "prompt_excerpt": "一对经历婚姻危机后决定复合的夫妻，希望重新设计主卧室，象征“重新开始”，预算有限。请提出完整室内设计概念，包括情绪修复机制、材料选择策略、灯光氛围与低成本实施路径。",
+      "allowed_decisions": [
+        "keep_golden",
+        "accept_latest_pressure",
+        "split_review_needed"
+      ],
+      "selected_decision": "",
+      "review_note": ""
+    },
+    {
+      "id": 29,
+      "status": "needs_human_review",
+      "delta_fields": [
+        "governance_signal_counts.activation_pack_candidate"
+      ],
+      "golden_codes": [
+        "activation_pack_candidate"
+      ],
+      "latest_pressure_codes": [
+        "knowledge_coverage_watch"
+      ],
+      "project_type": "brand_experience",
+      "prompt_excerpt": "上海新天地一处香薰品牌旗舰店，业主为化学博士，希望空间“可视化气味分子结构”，并与对面Aesop形成差异化。请提出完整设计概念，包括空间叙事路径、材料透明度运用、互动装置植入与品牌记忆构建。",
+      "allowed_decisions": [
+        "keep_golden",
+        "accept_latest_pressure",
+        "split_review_needed"
+      ],
+      "selected_decision": "",
+      "review_note": ""
+    },
+    {
+      "id": 32,
+      "status": "needs_human_review",
+      "delta_fields": [
+        "governance_signal_counts.activation_pack_candidate"
+      ],
+      "golden_codes": [
+        "activation_pack_candidate"
+      ],
+      "latest_pressure_codes": [
+        "knowledge_coverage_watch"
+      ],
+      "project_type": "healthcare_wellness",
+      "prompt_excerpt": "为一位患有严重花粉与粉尘过敏症的儿童设计卧室，要求所有材料低敏或无敏，并集成医疗级新风与空气净化系统，同时空间不能显得像“病房”。请提出完整设计方案，涵盖材料筛选逻辑、软装控制策略、空气系统隐形整合、照明温度控制与心理舒缓机制。",
+      "allowed_decisions": [
+        "keep_golden",
+        "accept_latest_pressure",
+        "split_review_needed"
+      ],
+      "selected_decision": "",
+      "review_note": ""
+    },
+    {
+      "id": 34,
+      "status": "needs_human_review",
+      "delta_fields": [
+        "governance_signal_counts.activation_pack_candidate"
+      ],
+      "golden_codes": [
+        "activation_pack_candidate",
+        "coverage_gap",
+        "knowledge_gap_ticket"
+      ],
+      "latest_pressure_codes": [
+        "coverage_gap",
+        "knowledge_coverage_watch",
+        "knowledge_gap_ticket"
+      ],
+      "project_type": "special_function",
+      "prompt_excerpt": "一位诗人客户要求书房设计概念为“月亮落在结冰的湖面上”。请从意象转译角度出发，提出完整室内设计概念，包括光影控制、材料选择、色彩冷暖对比、声音控制与空间比例的诗性表达。",
+      "allowed_decisions": [
+        "keep_golden",
+        "accept_latest_pressure",
+        "split_review_needed"
+      ],
+      "selected_decision": "",
+      "review_note": ""
+    },
+    {
+      "id": 35,
+      "status": "needs_human_review",
+      "delta_fields": [
+        "governance_signal_counts.activation_pack_candidate"
+      ],
+      "golden_codes": [
+        "activation_pack_candidate",
+        "coverage_gap",
+        "knowledge_gap_ticket"
+      ],
+      "latest_pressure_codes": [
+        "coverage_gap",
+        "knowledge_coverage_watch",
+        "knowledge_gap_ticket"
+      ],
+      "project_type": "community_public",
+      "prompt_excerpt": "广州老旧小区200㎡社区活动中心改造，主要使用者为老年人与放学后小学生，需要实现棋牌、阅读、书法与儿童托管“分时复用”。请提出完整设计框架，包括可变家具系统、声学分区策略、安全监管动线与低成本施工模型。",
+      "allowed_decisions": [
+        "keep_golden",
+        "accept_latest_pressure",
+        "split_review_needed"
+      ],
+      "selected_decision": "",
+      "review_note": ""
+    },
+    {
+      "id": 36,
+      "status": "needs_human_review",
+      "delta_fields": [
+        "governance_signal_counts.activation_pack_candidate"
+      ],
+      "golden_codes": [
+        "activation_pack_candidate"
+      ],
+      "latest_pressure_codes": [
+        "knowledge_coverage_watch"
+      ],
+      "project_type": "special_function",
+      "prompt_excerpt": "一位算法工程师希望在120㎡毛坯房内为同为程序员的女友设计求婚场景，通过代码、光影与简单装置艺术创造“数字时代的浪漫花园”。请提出完整设计方案，包含技术实现路径、视觉叙事结构、互动装置逻辑与情绪节奏安排。",
+      "allowed_decisions": [
+        "keep_golden",
+        "accept_latest_pressure",
+        "split_review_needed"
+      ],
+      "selected_decision": "",
+      "review_note": ""
+    },
+    {
+      "id": 43,
+      "status": "needs_human_review",
+      "delta_fields": [
+        "governance_signal_counts.activation_pack_candidate"
+      ],
+      "golden_codes": [
+        "activation_pack_candidate"
+      ],
+      "latest_pressure_codes": [
+        "knowledge_coverage_watch"
+      ],
+      "project_type": "automotive_showroom",
+      "prompt_excerpt": "为蔚来汽车设计西安大唐不夜城NIO House概念，需将智能电动车未来感与盛唐历史文脉深度融合，而非简单拼贴。请提出完整室内设计框架，包括科技表达语言、历史文化转译逻辑、会员社交场景构建与材料系统整合。",
+      "allowed_decisions": [
+        "keep_golden",
+        "accept_latest_pressure",
+        "split_review_needed"
+      ],
+      "selected_decision": "",
+      "review_note": ""
+    },
+    {
+      "id": 46,
+      "status": "needs_human_review",
+      "delta_fields": [
+        "governance_signal_counts.activation_pack_candidate"
+      ],
+      "golden_codes": [
+        "activation_pack_candidate",
+        "coverage_gap",
+        "knowledge_gap_ticket"
+      ],
+      "latest_pressure_codes": [
+        "coverage_gap",
+        "knowledge_coverage_watch",
+        "knowledge_gap_ticket"
+      ],
+      "project_type": "digital_media_studio",
+      "prompt_excerpt": "一位电影混音师希望在住宅中打造符合杜比全景声（Dolby Atmos）标准的家庭影院与工作室，首要目标是声学效果完美，美学次之。请提出完整设计方案，包括空间比例优化、吸音与扩散材料布置、结构隔振体系、设备隐藏逻辑以及如何在保证声学标准的前提下维持居住舒适度。",
+      "allowed_decisions": [
+        "keep_golden",
+        "accept_latest_pressure",
+        "split_review_needed"
+      ],
+      "selected_decision": "",
+      "review_note": ""
+    },
+    {
+      "id": 49,
+      "status": "needs_human_review",
+      "delta_fields": [
+        "governance_signal_counts.activation_pack_candidate"
+      ],
+      "golden_codes": [
+        "activation_pack_candidate",
+        "coverage_gap",
+        "knowledge_gap_ticket"
+      ],
+      "latest_pressure_codes": [
+        "coverage_gap",
+        "knowledge_coverage_watch",
+        "knowledge_gap_ticket"
+      ],
+      "project_type": "religious_spiritual",
+      "prompt_excerpt": "一位国际记者每年只在家中居住4个月，需要一个“锁上门就能走”的住宅，易维护、安防性强，并在回归时迅速恢复温馨感。请提出完整设计策略，包括材料耐久度、智能安防系统、远程监控机制与归家仪式感构建。",
+      "allowed_decisions": [
+        "keep_golden",
+        "accept_latest_pressure",
+        "split_review_needed"
+      ],
+      "selected_decision": "",
+      "review_note": ""
+    },
+    {
+      "id": 50,
+      "status": "needs_human_review",
+      "delta_fields": [
+        "warning_counts.coverage_gap",
+        "warning_counts.knowledge_gap_ticket",
+        "warning_counts.low_classification_confidence"
+      ],
+      "golden_codes": [
+        "activation_pack_candidate",
+        "coverage_gap",
+        "knowledge_gap_ticket",
+        "low_classification_confidence"
+      ],
+      "latest_pressure_codes": [
+        "activation_pack_candidate"
+      ],
+      "project_type": "personal_residential",
+      "prompt_excerpt": "一个再婚家庭，男方带16岁儿子，女方带10岁女儿，需要在同一屋檐下为两个无血缘、处于不同青春期阶段的孩子创造既有公共交流区，又有绝对隐私与独立性的空间。请提出完整设计方案，包括冲突缓冲机制、公共空间组织与心理安全边界设定。",
+      "allowed_decisions": [
+        "keep_golden",
+        "accept_latest_pressure",
+        "split_review_needed"
+      ],
+      "selected_decision": "",
+      "review_note": ""
+    },
+    {
+      "id": 51,
+      "status": "needs_human_review",
+      "delta_fields": [
+        "governance_signal_counts.activation_pack_candidate"
+      ],
+      "golden_codes": [
+        "activation_pack_candidate",
+        "coverage_gap",
+        "knowledge_gap_ticket"
+      ],
+      "latest_pressure_codes": [
+        "coverage_gap",
+        "knowledge_coverage_watch",
+        "knowledge_gap_ticket"
+      ],
+      "project_type": "commercial_retail",
+      "prompt_excerpt": "设计一个24小时营业的“无人花店”，需引导顾客自助完成挑选、包装与付款，同时通过氛围营造传递品牌情感价值。请提出完整室内设计框架，包括自助动线设计、智能设备嵌入策略、视觉引导系统与情绪光环境控制。",
+      "allowed_decisions": [
+        "keep_golden",
+        "accept_latest_pressure",
+        "split_review_needed"
+      ],
+      "selected_decision": "",
+      "review_note": ""
+    },
+    {
+      "id": 52,
+      "status": "needs_human_review",
+      "delta_fields": [
+        "governance_signal_counts.activation_pack_candidate"
+      ],
+      "golden_codes": [
+        "activation_pack_candidate"
+      ],
+      "latest_pressure_codes": [
+        "knowledge_coverage_watch"
+      ],
+      "project_type": "public_cultural",
+      "prompt_excerpt": "苏州一位昆曲老艺术家希望将故居改造为小型私人博物馆与教学空间，向年轻一代传授昆曲艺术。请提出完整设计概念，围绕“雅”与“慢”的精神，构建展陈路径、教学空间比例、材料克制体系与声学处理方式。",
+      "allowed_decisions": [
+        "keep_golden",
+        "accept_latest_pressure",
+        "split_review_needed"
+      ],
+      "selected_decision": "",
+      "review_note": ""
+    },
+    {
+      "id": 53,
+      "status": "needs_human_review",
+      "delta_fields": [
+        "governance_signal_counts.activation_pack_candidate"
+      ],
+      "golden_codes": [
+        "activation_pack_candidate"
+      ],
+      "latest_pressure_codes": [
+        "knowledge_coverage_watch"
+      ],
+      "project_type": "healthcare_wellness",
+      "prompt_excerpt": "为一家高端私立牙科诊所设计室内空间，核心目标是消除患者恐惧感。从业主（牙医）与患者双重视角出发，优化等待、问诊与治疗每个空间节点。请提出完整设计方案，包括灯光色温控制、气味管理、声学隔离与动线心理节奏。",
+      "allowed_decisions": [
+        "keep_golden",
+        "accept_latest_pressure",
+        "split_review_needed"
+      ],
+      "selected_decision": "",
+      "review_note": ""
+    },
+    {
+      "id": 55,
+      "status": "needs_human_review",
+      "delta_fields": [
+        "governance_signal_counts.activation_pack_candidate"
+      ],
+      "golden_codes": [
+        "activation_pack_candidate",
+        "coverage_gap",
+        "knowledge_gap_ticket"
+      ],
+      "latest_pressure_codes": [
+        "coverage_gap",
+        "knowledge_coverage_watch",
+        "knowledge_gap_ticket"
+      ],
+      "project_type": "digital_media_studio",
+      "prompt_excerpt": "一位美食作家兼KOL希望将厨房设计为“美食实验室”，既满足日常烹饪，也适合高质量拍摄与视频录制。请提出完整设计方案，包括操作动线优化、灯光布置系统、背景可替换模块与油烟控制机制。",
+      "allowed_decisions": [
+        "keep_golden",
+        "accept_latest_pressure",
+        "split_review_needed"
+      ],
+      "selected_decision": "",
+      "review_note": ""
+    },
+    {
+      "id": 56,
+      "status": "needs_human_review",
+      "delta_fields": [
+        "governance_signal_counts.activation_pack_candidate"
+      ],
+      "golden_codes": [
+        "activation_pack_candidate",
+        "coverage_gap",
+        "knowledge_gap_ticket"
+      ],
+      "latest_pressure_codes": [
+        "coverage_gap",
+        "knowledge_coverage_watch",
+        "knowledge_gap_ticket"
+      ],
+      "project_type": "popup_temporary",
+      "prompt_excerpt": "为期三个月的户外音乐节，需要设计可快速搭建与拆卸的VIP休息区，材料环保可回收，概念符合“乌托邦”主题。请提出完整设计策略，包括模块化结构、运输拆装逻辑、材料循环利用路径与品牌表达方式。",
+      "allowed_decisions": [
+        "keep_golden",
+        "accept_latest_pressure",
+        "split_review_needed"
+      ],
+      "selected_decision": "",
+      "review_note": ""
+    },
+    {
+      "id": 62,
+      "status": "needs_human_review",
+      "delta_fields": [
+        "governance_signal_counts.activation_pack_candidate"
+      ],
+      "golden_codes": [
+        "activation_pack_candidate",
+        "coverage_gap",
+        "knowledge_gap_ticket"
+      ],
+      "latest_pressure_codes": [
+        "coverage_gap",
+        "knowledge_coverage_watch",
+        "knowledge_gap_ticket"
+      ],
+      "project_type": "digital_media_studio",
+      "prompt_excerpt": "为一位B站知名UP主设计个人工作室，他是动漫与手办收藏爱好者，空间需以收藏品为核心展示，同时营造强烈“二次元”沉浸感，并支持拍摄直播。请提出完整设计方案，包括展示墙结构、灯光控制系统、背景可替换模块与视觉层次管理。",
+      "allowed_decisions": [
+        "keep_golden",
+        "accept_latest_pressure",
+        "split_review_needed"
+      ],
+      "selected_decision": "",
+      "review_note": ""
+    },
+    {
+      "id": 68,
+      "status": "needs_human_review",
+      "delta_fields": [
+        "governance_signal_counts.activation_pack_candidate"
+      ],
+      "golden_codes": [
+        "activation_pack_candidate"
+      ],
+      "latest_pressure_codes": [
+        "knowledge_coverage_watch"
+      ],
+      "project_type": "urban_renewal_heritage",
+      "prompt_excerpt": "改造重庆山城步道旁废弃防空洞为社区美术馆与小型音乐现场，需解决潮湿、通风与消防问题。请提出完整设计策略，包括防水系统、空气循环路径、声学处理与安全疏散动线。",
+      "allowed_decisions": [
+        "keep_golden",
+        "accept_latest_pressure",
+        "split_review_needed"
+      ],
+      "selected_decision": "",
+      "review_note": ""
+    },
+    {
+      "id": 72,
+      "status": "needs_human_review",
+      "delta_fields": [
+        "governance_signal_counts.activation_pack_candidate"
+      ],
+      "golden_codes": [
+        "activation_pack_candidate",
+        "coverage_gap",
+        "knowledge_gap_ticket"
+      ],
+      "latest_pressure_codes": [
+        "coverage_gap",
+        "knowledge_coverage_watch",
+        "knowledge_gap_ticket"
+      ],
+      "project_type": "children_family",
+      "prompt_excerpt": "为3–6岁儿童设计幼儿园活动室，完全从儿童尺度与认知模式出发，创造激发探索与社交的小宇宙。请提出完整设计框架，包括家具比例、安全材料、颜色心理学与互动区域组织。",
+      "allowed_decisions": [
+        "keep_golden",
+        "accept_latest_pressure",
+        "split_review_needed"
+      ],
+      "selected_decision": "",
+      "review_note": ""
+    },
+    {
+      "id": 73,
+      "status": "needs_human_review",
+      "delta_fields": [
+        "governance_signal_counts.activation_pack_candidate"
+      ],
+      "golden_codes": [
+        "activation_pack_candidate",
+        "coverage_gap",
+        "knowledge_gap_ticket"
+      ],
+      "latest_pressure_codes": [
+        "coverage_gap",
+        "knowledge_coverage_watch",
+        "knowledge_gap_ticket"
+      ],
+      "project_type": "residential_collective",
+      "prompt_excerpt": "健身教练与作家夫妻共居公寓，一人需要高强度CrossFit训练空间，另一人需要绝对安静写作环境。请提出完整设计方案，包括动静分区策略、结构隔音系统与空间视觉分隔机制。",
+      "allowed_decisions": [
+        "keep_golden",
+        "accept_latest_pressure",
+        "split_review_needed"
+      ],
+      "selected_decision": "",
+      "review_note": ""
+    },
+    {
+      "id": 81,
+      "status": "needs_human_review",
+      "delta_fields": [
+        "governance_signal_counts.activation_pack_candidate"
+      ],
+      "golden_codes": [
+        "activation_pack_candidate"
+      ],
+      "latest_pressure_codes": [
+        "knowledge_coverage_watch"
+      ],
+      "project_type": "commercial_office",
+      "prompt_excerpt": "为一家AI算法独角兽公司设计研发中心，要求空间具备“可迭代”属性，即能够像软件一样根据员工行为热力图与数据反馈低成本重组。请提出完整模块化设计系统，包括传感器布局、可移动结构单元与数据驱动调整机制。",
+      "allowed_decisions": [
+        "keep_golden",
+        "accept_latest_pressure",
+        "split_review_needed"
+      ],
+      "selected_decision": "",
+      "review_note": ""
+    },
+    {
+      "id": 82,
+      "status": "needs_human_review",
+      "delta_fields": [
+        "governance_signal_counts.activation_pack_candidate"
+      ],
+      "golden_codes": [
+        "activation_pack_candidate",
+        "coverage_gap",
+        "knowledge_gap_ticket"
+      ],
+      "latest_pressure_codes": [
+        "coverage_gap",
+        "knowledge_coverage_watch",
+        "knowledge_gap_ticket"
+      ],
+      "project_type": "personal_residential",
+      "prompt_excerpt": "华为全屋智能（鸿蒙系统）深度植入500㎡极简别墅，业主痛点是讨厌密集开关面板与外露传感器。请提出完整“隐形智能”设计方案，在保证全功能覆盖前提下实现视觉极简与技术整合。",
+      "allowed_decisions": [
+        "keep_golden",
+        "accept_latest_pressure",
+        "split_review_needed"
+      ],
+      "selected_decision": "",
+      "review_note": ""
+    },
+    {
+      "id": 83,
+      "status": "needs_human_review",
+      "delta_fields": [
+        "governance_signal_counts.activation_pack_candidate",
+        "warning_counts.coverage_gap",
+        "warning_counts.knowledge_gap_ticket",
+        "warning_counts.low_classification_confidence"
+      ],
+      "golden_codes": [
+        "activation_pack_candidate",
+        "coverage_gap",
+        "knowledge_gap_ticket",
+        "low_classification_confidence"
+      ],
+      "latest_pressure_codes": [],
+      "project_type": "-",
+      "prompt_excerpt": "施工图深化阶段，设计师提出将进口天然大理石替换为新型环保回收材料（水磨石基底），造价反而高出20%。业主注重成本控制。请提出完整论证逻辑，说明该替换如何带来长期运营价值、品牌溢价与可持续形象提升。",
+      "allowed_decisions": [
+        "keep_golden",
+        "accept_latest_pressure",
+        "split_review_needed"
+      ],
+      "selected_decision": "",
+      "review_note": ""
+    },
+    {
+      "id": 85,
+      "status": "needs_human_review",
+      "delta_fields": [
+        "governance_signal_counts.activation_pack_candidate"
+      ],
+      "golden_codes": [
+        "activation_pack_candidate",
+        "coverage_gap",
+        "knowledge_gap_ticket"
+      ],
+      "latest_pressure_codes": [
+        "coverage_gap",
+        "knowledge_coverage_watch",
+        "knowledge_gap_ticket"
+      ],
+      "project_type": "commercial_hospitality",
+      "prompt_excerpt": "西藏林芝海拔3800米悬崖边精品民宿，需解决极寒低能耗供暖、弥散式供氧系统隐藏与噪音控制、强紫外线对家具织物老化三大问题。请提出完整技术与室内整合方案，包括设备布置、材料选型与能耗平衡策略。",
+      "allowed_decisions": [
+        "keep_golden",
+        "accept_latest_pressure",
+        "split_review_needed"
+      ],
+      "selected_decision": "",
+      "review_note": ""
+    },
+    {
+      "id": 90,
+      "status": "needs_human_review",
+      "delta_fields": [
+        "governance_signal_counts.activation_pack_candidate"
+      ],
+      "golden_codes": [
+        "activation_pack_candidate"
+      ],
+      "latest_pressure_codes": [
+        "knowledge_coverage_watch"
+      ],
+      "project_type": "digital_media_studio",
+      "prompt_excerpt": "一个位于深圳前海的跨境电商直播基地，需要整合直播间、选品仓储、培训教室与数据监控中心。项目目标是“7×24小时高效率运转”。请提出完整空间设计框架，包括动线系统、声学控制、灯光系统与数据中心嵌入策略。",
+      "allowed_decisions": [
+        "keep_golden",
+        "accept_latest_pressure",
+        "split_review_needed"
+      ],
+      "selected_decision": "",
+      "review_note": ""
+    },
+    {
+      "id": 91,
+      "status": "needs_human_review",
+      "delta_fields": [
+        "governance_signal_counts.activation_pack_candidate"
+      ],
+      "golden_codes": [
+        "activation_pack_candidate"
+      ],
+      "latest_pressure_codes": [
+        "knowledge_coverage_watch"
+      ],
+      "project_type": "educational_facility",
+      "prompt_excerpt": "某国际学校计划升级校园图书馆，希望打造“未来学习中心”，融合纸质阅读、VR沉浸教学与跨学科研讨。请提出完整室内设计概念，包括学习场景分区、技术接口隐藏、儿童尺度控制与空间可成长性。",
+      "allowed_decisions": [
+        "keep_golden",
+        "accept_latest_pressure",
+        "split_review_needed"
+      ],
+      "selected_decision": "",
+      "review_note": ""
+    },
+    {
+      "id": 94,
+      "status": "needs_human_review",
+      "delta_fields": [
+        "governance_signal_counts.activation_pack_candidate"
+      ],
+      "golden_codes": [
+        "activation_pack_candidate",
+        "coverage_gap",
+        "knowledge_gap_ticket"
+      ],
+      "latest_pressure_codes": [
+        "coverage_gap",
+        "knowledge_coverage_watch",
+        "knowledge_gap_ticket"
+      ],
+      "project_type": "commercial_enterprise",
+      "prompt_excerpt": "一家生物科技公司希望打造“未来实验室展示中心”，既展示研发能力，又接待投资人。请提出完整空间设计概念，包括透明实验界面、洁净区与展示区分隔、品牌科技感表达与安全规范整合。",
+      "allowed_decisions": [
+        "keep_golden",
+        "accept_latest_pressure",
+        "split_review_needed"
+      ],
+      "selected_decision": "",
+      "review_note": ""
+    },
+    {
+      "id": 95,
+      "status": "needs_human_review",
+      "delta_fields": [
+        "governance_signal_counts.activation_pack_candidate"
+      ],
+      "golden_codes": [
+        "activation_pack_candidate"
+      ],
+      "latest_pressure_codes": [
+        "knowledge_coverage_watch"
+      ],
+      "project_type": "sports_entertainment_arts",
+      "prompt_excerpt": "一个位于广州的高端健身俱乐部，希望通过空间升级吸引女性高净值会员。请提出完整设计策略，包括私密训练空间、灯光心理学、香氛系统与社交休息区结构。",
+      "allowed_decisions": [
+        "keep_golden",
+        "accept_latest_pressure",
+        "split_review_needed"
+      ],
+      "selected_decision": "",
+      "review_note": ""
+    },
+    {
+      "id": 96,
+      "status": "needs_human_review",
+      "delta_fields": [
+        "governance_signal_counts.activation_pack_candidate"
+      ],
+      "golden_codes": [
+        "activation_pack_candidate",
+        "coverage_gap",
+        "knowledge_gap_ticket"
+      ],
+      "latest_pressure_codes": [
+        "coverage_gap",
+        "knowledge_coverage_watch",
+        "knowledge_gap_ticket"
+      ],
+      "project_type": "community_public",
+      "prompt_excerpt": "某沿海城市计划建设“城市应急避难空间示范中心”，要求平时为社区文化中心，灾时可快速转化为避难所。请提出完整室内设计方案，包括可转换家具系统、能源自循环机制与心理稳定环境设计。",
+      "allowed_decisions": [
+        "keep_golden",
+        "accept_latest_pressure",
+        "split_review_needed"
+      ],
+      "selected_decision": "",
+      "review_note": ""
+    },
+    {
+      "id": 97,
+      "status": "needs_human_review",
+      "delta_fields": [
+        "governance_signal_counts.activation_pack_candidate",
+        "warning_counts.low_classification_confidence"
+      ],
+      "golden_codes": [
+        "activation_pack_candidate",
+        "coverage_gap",
+        "knowledge_gap_ticket",
+        "low_classification_confidence"
+      ],
+      "latest_pressure_codes": [
+        "coverage_gap",
+        "knowledge_coverage_watch",
+        "knowledge_gap_ticket"
+      ],
+      "project_type": "real_estate_showcase",
+      "prompt_excerpt": "一个定位“零碳生活方式”的住宅样板房，希望所有材料来源可追溯且可回收。请提出完整设计框架，包括材料数据库选择逻辑、施工节点优化与碳足迹展示策略。",
+      "allowed_decisions": [
+        "keep_golden",
+        "accept_latest_pressure",
+        "split_review_needed"
+      ],
+      "selected_decision": "",
+      "review_note": ""
+    },
+    {
+      "id": 100,
+      "status": "needs_human_review",
+      "delta_fields": [
+        "governance_signal_counts.activation_pack_candidate"
+      ],
+      "golden_codes": [
+        "activation_pack_candidate"
+      ],
+      "latest_pressure_codes": [
+        "knowledge_coverage_watch"
+      ],
+      "project_type": "commercial_office",
+      "prompt_excerpt": "一家AI生成内容公司希望办公室呈现“无边界创作场”，空间需激发灵感并支持快速协作。请提出完整设计框架，包括可移动创作单元、数字投影系统与灵感展示墙逻辑。",
+      "allowed_decisions": [
+        "keep_golden",
+        "accept_latest_pressure",
+        "split_review_needed"
+      ],
+      "selected_decision": "",
+      "review_note": ""
+    },
+    {
+      "id": 101,
+      "status": "needs_human_review",
+      "delta_fields": [
+        "governance_signal_counts.activation_pack_candidate"
+      ],
+      "golden_codes": [
+        "activation_pack_candidate"
+      ],
+      "latest_pressure_codes": [
+        "knowledge_coverage_watch"
+      ],
+      "project_type": "community_public",
+      "prompt_excerpt": "某城市准备建设“青少年心理干预中心”，希望空间能降低羞耻感与压迫感。请提出完整室内设计策略，包括色彩心理学应用、等候空间隐私保护与咨询室声学处理。",
+      "allowed_decisions": [
+        "keep_golden",
+        "accept_latest_pressure",
+        "split_review_needed"
+      ],
+      "selected_decision": "",
+      "review_note": ""
+    },
+    {
+      "id": 104,
+      "status": "needs_human_review",
+      "delta_fields": [
+        "governance_signal_counts.activation_pack_candidate"
+      ],
+      "golden_codes": [
+        "activation_pack_candidate"
+      ],
+      "latest_pressure_codes": [
+        "knowledge_coverage_watch"
+      ],
+      "project_type": "leisure_entertainment",
+      "prompt_excerpt": "一个国际品牌准备在海南开设“沉浸式体验中心”，结合度假、品牌展示与销售。请提出完整空间策略，包括动线叙事结构、情绪高潮点设置与销售转化机制。",
+      "allowed_decisions": [
+        "keep_golden",
+        "accept_latest_pressure",
+        "split_review_needed"
+      ],
+      "selected_decision": "",
+      "review_note": ""
+    },
+    {
+      "id": 106,
+      "status": "needs_human_review",
+      "delta_fields": [
+        "governance_signal_counts.activation_pack_candidate"
+      ],
+      "golden_codes": [
+        "activation_pack_candidate",
+        "coverage_gap",
+        "knowledge_gap_ticket",
+        "low_classification_confidence"
+      ],
+      "latest_pressure_codes": [
+        "coverage_gap",
+        "knowledge_coverage_watch",
+        "knowledge_gap_ticket",
+        "low_classification_confidence"
+      ],
+      "project_type": "educational_facility",
+      "prompt_excerpt": "一所大学准备改造老旧宿舍为“创新社区公寓”，鼓励跨专业交流。请提出完整室内设计概念，包括公共厨房系统、讨论区组织与宿舍单元可变性。",
+      "allowed_decisions": [
+        "keep_golden",
+        "accept_latest_pressure",
+        "split_review_needed"
+      ],
+      "selected_decision": "",
+      "review_note": ""
+    },
+    {
+      "id": 108,
+      "status": "needs_human_review",
+      "delta_fields": [
+        "governance_signal_counts.activation_pack_candidate"
+      ],
+      "golden_codes": [
+        "activation_pack_candidate",
+        "coverage_gap",
+        "knowledge_gap_ticket",
+        "low_classification_confidence"
+      ],
+      "latest_pressure_codes": [
+        "coverage_gap",
+        "knowledge_coverage_watch",
+        "knowledge_gap_ticket",
+        "low_classification_confidence"
+      ],
+      "project_type": "digital_media_studio",
+      "prompt_excerpt": "一位跨国时尚博主希望在上海打造“流动式生活空间”，可快速调整用于派对、拍摄与居住。请提出完整设计方案，包括可移动家具系统、灯光模块化与社交展示逻辑。",
+      "allowed_decisions": [
+        "keep_golden",
+        "accept_latest_pressure",
+        "split_review_needed"
+      ],
+      "selected_decision": "",
+      "review_note": ""
+    },
+    {
+      "id": 115,
+      "status": "needs_human_review",
+      "delta_fields": [
+        "governance_signal_counts.activation_pack_candidate"
+      ],
+      "golden_codes": [
+        "activation_pack_candidate",
+        "coverage_gap",
+        "knowledge_gap_ticket"
+      ],
+      "latest_pressure_codes": [
+        "coverage_gap",
+        "knowledge_coverage_watch",
+        "knowledge_gap_ticket"
+      ],
+      "project_type": "healthcare_wellness",
+      "prompt_excerpt": "一家高端生物安全实验室需要设计科研人员休息区，希望缓解高压环境带来的心理疲劳，同时不影响安全等级。请提出完整设计策略，包括材料控制逻辑、心理恢复空间组织与洁净区界面处理。",
+      "allowed_decisions": [
+        "keep_golden",
+        "accept_latest_pressure",
+        "split_review_needed"
+      ],
+      "selected_decision": "",
+      "review_note": ""
+    },
+    {
+      "id": 118,
+      "status": "needs_human_review",
+      "delta_fields": [
+        "governance_signal_counts.activation_pack_candidate"
+      ],
+      "golden_codes": [
+        "activation_pack_candidate"
+      ],
+      "latest_pressure_codes": [
+        "knowledge_coverage_watch"
+      ],
+      "project_type": "brand_experience",
+      "prompt_excerpt": "一家全球奢侈品牌准备在中国打造“工艺体验实验室”，邀请客户参与制作过程。请提出完整设计方案，包括工艺展示路径、参与式操作空间与品牌历史叙事系统。",
+      "allowed_decisions": [
+        "keep_golden",
+        "accept_latest_pressure",
+        "split_review_needed"
+      ],
+      "selected_decision": "",
+      "review_note": ""
+    },
+    {
+      "id": 120,
+      "status": "needs_human_review",
+      "delta_fields": [
+        "governance_signal_counts.activation_pack_candidate"
+      ],
+      "golden_codes": [
+        "activation_pack_candidate",
+        "coverage_gap",
+        "knowledge_gap_ticket"
+      ],
+      "latest_pressure_codes": [
+        "coverage_gap",
+        "knowledge_coverage_watch",
+        "knowledge_gap_ticket"
+      ],
+      "project_type": "special_function",
+      "prompt_excerpt": "一家跨国科技公司准备打造“AI伦理研究中心”，希望空间本身体现对技术克制与人文反思。请提出完整设计概念，包括材料冷暖平衡、空间留白比例与沉思路径组织。",
+      "allowed_decisions": [
+        "keep_golden",
+        "accept_latest_pressure",
+        "split_review_needed"
+      ],
+      "selected_decision": "",
+      "review_note": ""
+    },
+    {
+      "id": 123,
+      "status": "needs_human_review",
+      "delta_fields": [
+        "warning_counts.coverage_gap",
+        "warning_counts.knowledge_gap_ticket",
+        "warning_counts.low_classification_confidence"
+      ],
+      "golden_codes": [
+        "activation_pack_candidate",
+        "coverage_gap",
+        "knowledge_gap_ticket",
+        "low_classification_confidence"
+      ],
+      "latest_pressure_codes": [
+        "activation_pack_candidate"
+      ],
+      "project_type": "commercial_hospitality",
+      "prompt_excerpt": "一座位于冰岛的极寒艺术驻留中心，需要在严酷自然环境中提供创作与生活空间。请提出完整室内设计策略，包括保温系统、光照补偿机制与艺术家心理支持空间。",
+      "allowed_decisions": [
+        "keep_golden",
+        "accept_latest_pressure",
+        "split_review_needed"
+      ],
+      "selected_decision": "",
+      "review_note": ""
+    },
+    {
+      "id": 126,
+      "status": "needs_human_review",
+      "delta_fields": [
+        "governance_signal_counts.activation_pack_candidate",
+        "warning_counts.low_classification_confidence"
+      ],
+      "golden_codes": [
+        "activation_pack_candidate",
+        "coverage_gap",
+        "knowledge_gap_ticket",
+        "low_classification_confidence"
+      ],
+      "latest_pressure_codes": [
+        "coverage_gap",
+        "knowledge_coverage_watch",
+        "knowledge_gap_ticket"
+      ],
+      "project_type": "special_function",
+      "prompt_excerpt": "某未来城市规划“地下居住单元”，应对人口过密与极端气候问题。请提出完整室内设计框架，包括光井系统、空气循环模型与心理舒适度控制。",
+      "allowed_decisions": [
+        "keep_golden",
+        "accept_latest_pressure",
+        "split_review_needed"
+      ],
+      "selected_decision": "",
+      "review_note": ""
+    },
+    {
+      "id": 131,
+      "status": "needs_human_review",
+      "delta_fields": [
+        "governance_signal_counts.activation_pack_candidate"
+      ],
+      "golden_codes": [
+        "activation_pack_candidate"
+      ],
+      "latest_pressure_codes": [
+        "knowledge_coverage_watch"
+      ],
+      "project_type": "personal_residential",
+      "prompt_excerpt": "一位人工智能科学家希望打造“人机共居住宅”，家中长期运行多套本地AI服务器与机器人系统。空间需支持高算力设备散热、电力冗余与噪音隔离，同时保持居住舒适与情感温度。请提出完整室内设计框架，包括技术区与生活区分层策略、能源管理系统与“机器存在感”的视觉控制。",
+      "allowed_decisions": [
+        "keep_golden",
+        "accept_latest_pressure",
+        "split_review_needed"
+      ],
+      "selected_decision": "",
+      "review_note": ""
+    },
+    {
+      "id": 135,
+      "status": "needs_human_review",
+      "delta_fields": [
+        "warning_counts.coverage_gap",
+        "warning_counts.knowledge_gap_ticket",
+        "warning_counts.low_classification_confidence"
+      ],
+      "golden_codes": [
+        "activation_pack_candidate",
+        "coverage_gap",
+        "knowledge_gap_ticket",
+        "low_classification_confidence"
+      ],
+      "latest_pressure_codes": [
+        "activation_pack_candidate"
+      ],
+      "project_type": "community_public",
+      "prompt_excerpt": "一座位于撒哈拉边缘的极端干旱实验社区，需要打造“水资源教育与生活示范中心”。请提出完整室内设计概念，包括水循环可视化系统、材料耐热选择与公众互动空间组织。",
+      "allowed_decisions": [
+        "keep_golden",
+        "accept_latest_pressure",
+        "split_review_needed"
+      ],
+      "selected_decision": "",
+      "review_note": ""
+    },
+    {
+      "id": 141,
+      "status": "needs_human_review",
+      "delta_fields": [
+        "governance_signal_counts.activation_pack_candidate"
+      ],
+      "golden_codes": [
+        "activation_pack_candidate",
+        "coverage_gap",
+        "knowledge_gap_ticket"
+      ],
+      "latest_pressure_codes": [
+        "coverage_gap",
+        "knowledge_coverage_watch",
+        "knowledge_gap_ticket"
+      ],
+      "project_type": "religious_spiritual",
+      "prompt_excerpt": "一位哲学家与神经科学家夫妻希望打造“意识研究住宅实验室”，融合生活与研究。请提出完整设计概念，包括实验区域安全隔离、冥想空间组织与数据采集设备整合。",
+      "allowed_decisions": [
+        "keep_golden",
+        "accept_latest_pressure",
+        "split_review_needed"
+      ],
+      "selected_decision": "",
+      "review_note": ""
+    },
+    {
+      "id": 142,
+      "status": "needs_human_review",
+      "delta_fields": [
+        "governance_signal_counts.activation_pack_candidate"
+      ],
+      "golden_codes": [
+        "activation_pack_candidate",
+        "coverage_gap",
+        "knowledge_gap_ticket"
+      ],
+      "latest_pressure_codes": [
+        "coverage_gap",
+        "knowledge_coverage_watch",
+        "knowledge_gap_ticket"
+      ],
+      "project_type": "special_function",
+      "prompt_excerpt": "某跨国集团计划在北极圈内建设“极地研究与生活中心”，空间需应对极昼极夜环境。请提出完整室内设计框架，包括人工光节律系统、保温构造与心理稳定策略。",
+      "allowed_decisions": [
+        "keep_golden",
+        "accept_latest_pressure",
+        "split_review_needed"
+      ],
+      "selected_decision": "",
+      "review_note": ""
+    },
+    {
+      "id": 143,
+      "status": "needs_human_review",
+      "delta_fields": [
+        "warning_counts.low_classification_confidence"
+      ],
+      "golden_codes": [
+        "activation_pack_candidate",
+        "coverage_gap",
+        "knowledge_gap_ticket",
+        "low_classification_confidence"
+      ],
+      "latest_pressure_codes": [
+        "activation_pack_candidate",
+        "coverage_gap",
+        "knowledge_gap_ticket"
+      ],
+      "project_type": "public_cultural",
+      "prompt_excerpt": "一家面向未来世代的“后碳城市样板屋”，要求完全脱离化石能源供应。请提出完整室内设计概念，包括储能系统嵌入、可持续材料数据库与能源使用可视化展示。",
+      "allowed_decisions": [
+        "keep_golden",
+        "accept_latest_pressure",
+        "split_review_needed"
+      ],
+      "selected_decision": "",
+      "review_note": ""
+    },
+    {
+      "id": 144,
+      "status": "needs_human_review",
+      "delta_fields": [
+        "governance_signal_counts.activation_pack_candidate"
+      ],
+      "golden_codes": [
+        "activation_pack_candidate"
+      ],
+      "latest_pressure_codes": [
+        "knowledge_coverage_watch"
+      ],
+      "project_type": "popup_temporary",
+      "prompt_excerpt": "某国际艺术双年展希望打造“临时城市展馆”，三个月后必须全部拆除并回收材料。请提出完整室内设计策略，包括可拆装结构系统、循环材料逻辑与观众动线组织。",
+      "allowed_decisions": [
+        "keep_golden",
+        "accept_latest_pressure",
+        "split_review_needed"
+      ],
+      "selected_decision": "",
+      "review_note": ""
+    },
+    {
+      "id": 145,
+      "status": "needs_human_review",
+      "delta_fields": [
+        "warning_counts.low_classification_confidence"
+      ],
+      "golden_codes": [
+        "activation_pack_candidate",
+        "coverage_gap",
+        "knowledge_gap_ticket",
+        "low_classification_confidence"
+      ],
+      "latest_pressure_codes": [
+        "activation_pack_candidate",
+        "coverage_gap",
+        "knowledge_gap_ticket"
+      ],
+      "project_type": "personal_residential",
+      "prompt_excerpt": "一位跨国政治人物希望在私人住宅中建立“危机决策室”，可在紧急状态下转化为指挥中心。请提出完整设计框架，包括通讯系统整合、隐蔽安全设计与居住空间平衡。",
+      "allowed_decisions": [
+        "keep_golden",
+        "accept_latest_pressure",
+        "split_review_needed"
+      ],
+      "selected_decision": "",
+      "review_note": ""
+    },
+    {
+      "id": 146,
+      "status": "needs_human_review",
+      "delta_fields": [
+        "governance_signal_counts.activation_pack_candidate"
+      ],
+      "golden_codes": [
+        "activation_pack_candidate"
+      ],
+      "latest_pressure_codes": [
+        "knowledge_coverage_watch"
+      ],
+      "project_type": "healthcare_wellness",
+      "prompt_excerpt": "某国际科技公司计划建设“AI陪伴养老社区”，机器人将承担部分护理职责。请提出完整室内设计概念，包括机器人动线规划、人机交互区域与情绪支持系统。",
+      "allowed_decisions": [
+        "keep_golden",
+        "accept_latest_pressure",
+        "split_review_needed"
+      ],
+      "selected_decision": "",
+      "review_note": ""
+    },
+    {
+      "id": 147,
+      "status": "needs_human_review",
+      "delta_fields": [
+        "governance_signal_counts.activation_pack_candidate",
+        "warning_counts.low_classification_confidence"
+      ],
+      "golden_codes": [
+        "activation_pack_candidate",
+        "coverage_gap",
+        "knowledge_gap_ticket",
+        "low_classification_confidence"
+      ],
+      "latest_pressure_codes": [
+        "coverage_gap",
+        "knowledge_coverage_watch",
+        "knowledge_gap_ticket"
+      ],
+      "project_type": "special_function",
+      "prompt_excerpt": "一座位于火山活跃带的城市准备建设“地下生活社区示范单元”，以应对未来极端地质风险。请提出完整室内设计策略，包括空气净化系统、光井结构与心理缓解空间。",
+      "allowed_decisions": [
+        "keep_golden",
+        "accept_latest_pressure",
+        "split_review_needed"
+      ],
+      "selected_decision": "",
+      "review_note": ""
+    },
+    {
+      "id": 152,
+      "status": "needs_human_review",
+      "delta_fields": [
+        "warning_counts.low_classification_confidence"
+      ],
+      "golden_codes": [
+        "activation_pack_candidate",
+        "coverage_gap",
+        "knowledge_gap_ticket",
+        "low_classification_confidence"
+      ],
+      "latest_pressure_codes": [
+        "activation_pack_candidate",
+        "coverage_gap",
+        "knowledge_gap_ticket"
+      ],
+      "project_type": "urban_renewal_heritage",
+      "prompt_excerpt": "一座拥有百年历史的工业厂区准备转型为“创意产业园”，但周边客流有限、交通不便利。请提出完整改造框架，包括功能组合策略（办公+展览+餐饮）、标志性空间打造、首店品牌引入逻辑与租金梯度设计，并分析如何通过空间塑造形成区域新地标。",
+      "allowed_decisions": [
+        "keep_golden",
+        "accept_latest_pressure",
+        "split_review_needed"
+      ],
+      "selected_decision": "",
+      "review_note": ""
+    },
+    {
+      "id": 159,
+      "status": "needs_human_review",
+      "delta_fields": [
+        "warning_counts.low_classification_confidence"
+      ],
+      "golden_codes": [
+        "activation_pack_candidate",
+        "coverage_gap",
+        "knowledge_gap_ticket",
+        "low_classification_confidence"
+      ],
+      "latest_pressure_codes": [
+        "activation_pack_candidate",
+        "coverage_gap",
+        "knowledge_gap_ticket"
+      ],
+      "project_type": "community_public",
+      "prompt_excerpt": "一处位于城市边缘的城中村准备整体改造为“青年创业社区”，预算有限但希望保留原有街巷肌理。请提出完整室内与公共空间设计策略，包括模块化居住单元、共享厨房系统与街区品牌重塑逻辑。",
+      "allowed_decisions": [
+        "keep_golden",
+        "accept_latest_pressure",
+        "split_review_needed"
+      ],
+      "selected_decision": "",
+      "review_note": ""
+    },
+    {
+      "id": 161,
+      "status": "needs_human_review",
+      "delta_fields": [
+        "warning_counts.coverage_gap",
+        "warning_counts.knowledge_gap_ticket",
+        "warning_counts.low_classification_confidence"
+      ],
+      "golden_codes": [
+        "activation_pack_candidate",
+        "coverage_gap",
+        "knowledge_gap_ticket",
+        "low_classification_confidence"
+      ],
+      "latest_pressure_codes": [
+        "activation_pack_candidate"
+      ],
+      "project_type": "urban_renewal_heritage",
+      "prompt_excerpt": "一个以陶瓷、木雕或刺绣等传统手工艺为特色的乡镇，准备建设“非遗工坊聚落”。请提出完整空间设计策略，包括工坊展示界面、游客体验路径、销售转化空间与产业孵化机制。",
+      "allowed_decisions": [
+        "keep_golden",
+        "accept_latest_pressure",
+        "split_review_needed"
+      ],
+      "selected_decision": "",
+      "review_note": ""
+    },
+    {
+      "id": 163,
+      "status": "needs_human_review",
+      "delta_fields": [
+        "governance_signal_counts.activation_pack_candidate"
+      ],
+      "golden_codes": [
+        "activation_pack_candidate"
+      ],
+      "latest_pressure_codes": [
+        "knowledge_coverage_watch"
+      ],
+      "project_type": "educational_facility",
+      "prompt_excerpt": "一个山地乡村计划打造“生态研学基地”，面向城市家庭与学校团体。请提出完整空间设计框架，包括住宿单元模块、户外课堂系统、农事体验空间与安全管理动线。",
+      "allowed_decisions": [
+        "keep_golden",
+        "accept_latest_pressure",
+        "split_review_needed"
+      ],
+      "selected_decision": "",
+      "review_note": ""
+    },
+    {
+      "id": 169,
+      "status": "needs_human_review",
+      "delta_fields": [
+        "governance_signal_counts.activation_pack_candidate"
+      ],
+      "golden_codes": [
+        "activation_pack_candidate",
+        "coverage_gap",
+        "knowledge_gap_ticket",
+        "low_classification_confidence"
+      ],
+      "latest_pressure_codes": [
+        "coverage_gap",
+        "knowledge_coverage_watch",
+        "knowledge_gap_ticket",
+        "low_classification_confidence"
+      ],
+      "project_type": "public_cultural",
+      "prompt_excerpt": "某农业大县计划建设“农产品品牌体验馆”，将线上销售与线下展示结合。请提出完整室内设计框架，包括品牌故事叙事路径、产品陈列逻辑与直播空间整合。",
+      "allowed_decisions": [
+        "keep_golden",
+        "accept_latest_pressure",
+        "split_review_needed"
+      ],
+      "selected_decision": "",
+      "review_note": ""
+    },
+    {
+      "id": 172,
+      "status": "needs_human_review",
+      "delta_fields": [
+        "warning_counts.low_classification_confidence"
+      ],
+      "golden_codes": [
+        "activation_pack_candidate",
+        "coverage_gap",
+        "knowledge_gap_ticket",
+        "low_classification_confidence"
+      ],
+      "latest_pressure_codes": [
+        "activation_pack_candidate",
+        "coverage_gap",
+        "knowledge_gap_ticket"
+      ],
+      "project_type": "landscape_outdoor",
+      "prompt_excerpt": "一个滨海新区准备开发“未来生活示范社区”，规划阶段尚未确定建筑形式。请提出完整的前期定位与空间策略框架，包括客群画像推演、产品线分级逻辑、景观资源利用、公共空间组织与长期品牌IP塑造机制。",
+      "allowed_decisions": [
+        "keep_golden",
+        "accept_latest_pressure",
+        "split_review_needed"
+      ],
+      "selected_decision": "",
+      "review_note": ""
+    },
+    {
+      "id": 174,
+      "status": "needs_human_review",
+      "delta_fields": [
+        "governance_signal_counts.activation_pack_candidate",
+        "warning_counts.low_classification_confidence"
+      ],
+      "golden_codes": [
+        "activation_pack_candidate",
+        "coverage_gap",
+        "knowledge_gap_ticket",
+        "low_classification_confidence"
+      ],
+      "latest_pressure_codes": [
+        "coverage_gap",
+        "knowledge_coverage_watch",
+        "knowledge_gap_ticket"
+      ],
+      "project_type": "urban_renewal_market",
+      "prompt_excerpt": "一块位于城市核心区的旧厂房地块准备整体更新为复合型社区，需兼顾商业、办公与居住。请提出完整城市更新策略，包括土地价值重构逻辑、功能混合比例、公共开放空间布局与景观系统连续性。",
+      "allowed_decisions": [
+        "keep_golden",
+        "accept_latest_pressure",
+        "split_review_needed"
+      ],
+      "selected_decision": "",
+      "review_note": ""
+    },
+    {
+      "id": 176,
+      "status": "needs_human_review",
+      "delta_fields": [
+        "warning_counts.low_classification_confidence"
+      ],
+      "golden_codes": [
+        "activation_pack_candidate",
+        "coverage_gap",
+        "knowledge_gap_ticket",
+        "low_classification_confidence"
+      ],
+      "latest_pressure_codes": [
+        "activation_pack_candidate",
+        "coverage_gap",
+        "knowledge_gap_ticket"
+      ],
+      "project_type": "landscape_outdoor",
+      "prompt_excerpt": "一个位于河岸线的城市新区准备打造“滨水文化长廊”，希望通过景观与公共建筑带动周边地产溢价。请提出完整建筑与景观整合框架，包括视线轴线组织、公共节点设置与室内商业导入策略。",
+      "allowed_decisions": [
+        "keep_golden",
+        "accept_latest_pressure",
+        "split_review_needed"
+      ],
+      "selected_decision": "",
+      "review_note": ""
+    },
+    {
+      "id": 180,
+      "status": "needs_human_review",
+      "delta_fields": [
+        "warning_counts.coverage_gap",
+        "warning_counts.knowledge_gap_ticket",
+        "warning_counts.low_classification_confidence"
+      ],
+      "golden_codes": [
+        "activation_pack_candidate",
+        "coverage_gap",
+        "knowledge_gap_ticket",
+        "low_classification_confidence"
+      ],
+      "latest_pressure_codes": [
+        "activation_pack_candidate"
+      ],
+      "project_type": "landscape_outdoor",
+      "prompt_excerpt": "一处城郊农业用地计划转型为“农业+艺术+居住”复合示范区，尚处概念阶段。请提出完整战略定位框架，包括产业结构推演、建筑密度控制、景观系统分层与室内空间叙事逻辑，并说明如何形成可持续的开发模型。",
+      "allowed_decisions": [
+        "keep_golden",
+        "accept_latest_pressure",
+        "split_review_needed"
+      ],
+      "selected_decision": "",
+      "review_note": ""
+    },
+    {
+      "id": 182,
+      "status": "needs_human_review",
+      "delta_fields": [
+        "governance_signal_counts.activation_pack_candidate"
+      ],
+      "golden_codes": [
+        "activation_pack_candidate",
+        "coverage_gap",
+        "knowledge_gap_ticket"
+      ],
+      "latest_pressure_codes": [
+        "coverage_gap",
+        "knowledge_coverage_watch",
+        "knowledge_gap_ticket"
+      ],
+      "project_type": "special_function",
+      "prompt_excerpt": "一所大学准备建设“神经科学与感知研究实验空间”，希望通过建筑与室内设计本身成为研究对象。请提出完整空间设计概念，包括光照对昼夜节律影响的控制、声音与认知关系的实验模块、材料触感与情绪反应测试机制。",
+      "allowed_decisions": [
+        "keep_golden",
+        "accept_latest_pressure",
+        "split_review_needed"
+      ],
+      "selected_decision": "",
+      "review_note": ""
+    },
+    {
+      "id": 184,
+      "status": "needs_human_review",
+      "delta_fields": [
+        "governance_signal_counts.activation_pack_candidate"
+      ],
+      "golden_codes": [
+        "activation_pack_candidate"
+      ],
+      "latest_pressure_codes": [
+        "knowledge_coverage_watch"
+      ],
+      "project_type": "special_function",
+      "prompt_excerpt": "某城市计划打造“人类迁徙与身份认同研究中心”，融合人类学、历史与当代艺术。请提出完整空间叙事结构，包括展陈节奏组织、文化冲突表达方式与多语种互动系统设计。",
+      "allowed_decisions": [
+        "keep_golden",
+        "accept_latest_pressure",
+        "split_review_needed"
+      ],
+      "selected_decision": "",
+      "review_note": ""
+    },
+    {
+      "id": 190,
+      "status": "needs_human_review",
+      "delta_fields": [
+        "governance_signal_counts.activation_pack_candidate"
+      ],
+      "golden_codes": [
+        "activation_pack_candidate",
+        "coverage_gap",
+        "knowledge_gap_ticket"
+      ],
+      "latest_pressure_codes": [
+        "coverage_gap",
+        "knowledge_coverage_watch",
+        "knowledge_gap_ticket"
+      ],
+      "project_type": "special_function",
+      "prompt_excerpt": "某未来研究机构希望打造“后人类伦理实验室”，探讨AI、基因编辑与意识上传等议题。请提出完整空间设计框架，包括沉思空间比例控制、技术展示界面设计与哲学反思路径组织。",
+      "allowed_decisions": [
+        "keep_golden",
+        "accept_latest_pressure",
+        "split_review_needed"
+      ],
+      "selected_decision": "",
+      "review_note": ""
+    }
+  ]
+}

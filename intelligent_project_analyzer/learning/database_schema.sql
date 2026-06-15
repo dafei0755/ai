@@ -248,7 +248,7 @@ CREATE TABLE IF NOT EXISTS project_type_candidates (
     description        TEXT DEFAULT '',      -- 类型说明
 
     -- 来源信息
-    source             TEXT NOT NULL,        -- user_input / crawler / manual
+    source             TEXT NOT NULL,        -- user_input / research_import / manual
     source_session_id  TEXT,                 -- 来源会话ID
     sample_inputs      TEXT DEFAULT '[]',    -- JSON：触发此候选的原始输入样例（最多5条）
     occurrence_count   INTEGER DEFAULT 1,    -- 累计出现次数

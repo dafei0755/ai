@@ -1,0 +1,514 @@
+# =============================================================================
+# 茶饮店激活包（探索版）
+# =============================================================================
+#
+# ⭐ 阅读前先看边界规则 (避免和 ontology.yaml 重叠):
+#    👉 knowledge_base/activation_packs/ACTIVATION_PACK_BOUNDARY_RULES.md
+#
+# 文件角色:
+#   - 被 OntologyLoader Layer 4 按 subdomain_id 加载
+#   - 作为"茶饮项目"的领域推进说明书，补足通用框架在业态细节上的缺口
+#
+# 与 ontology.yaml 的关系 (核心):
+#   - ontology.yaml 是"教科书" — 写所有 commercial_dining 共通的设计议题
+#     (用餐场景 / 声学氛围 / 翻台动线 / 厨房关系 ... 共 12 个抽象议题)
+#   - 本激活包是"开店手册" — 写茶饮店专属的可量化参数
+#     (通道净宽 1100mm / 出杯速率 60-90 杯/小时 / 必备设备 / 排队模拟 ...)
+#   - 本包**继承** ontology::commercial_dining 的所有议题, **不重写**
+#   - 本包**通过 routing_binding 明示继承关系** (规则 5)
+#
+# 维护策略:
+#   - 先保证可消费，再逐步提高精度
+#   - 任何新字段都尽量向后兼容（现有消费者读不到也不应报错）
+#   - ⚠️ 改本文件前跑校验器:
+#       python -m intelligent_project_analyzer.services.validate_activation_pack \
+#           intelligent_project_analyzer/knowledge_base/activation_packs/tea_drink_store_pack.yaml
+# =============================================================================
+
+schema_version: activation_pack.v1
+pack_id: tea_drink_store_pack
+status: active_mvp
+maturity: exploratory  # exploratory -> profiled -> validated
+owner: core_team
+last_updated: 2026-05-21
+
+meta:
+  display_name: 茶饮店激活包
+  description: >
+    面向茶饮门店（含新茶饮/奶茶/果茶）项目，聚焦高峰时段效率、
+    前后场协同、外带/堂食冲突管理与品牌识别。
+  assumptions:
+    - 以室内层为主，不覆盖建筑结构改造的深层论证
+    - 运营模型以高频、短停留、多批次出杯为常见场景
+    - 优先支持中小体量门店的快速决策
+  non_goals:
+    - 不替代消防规范、机电顾问、设备厂家专项设计
+    - 不直接输出施工图，仅输出约束与方法优先级
+
+# 路由绑定: 项目被识别为 tea_drink_store 时应激活本包
+routing_binding:
+  parent_project_type_id: commercial_dining
+  subdomain_id: tea_drink_store
+  industry_hints:
+    - food_beverage
+    - retail_apparel_luxury
+  confidence_gate:
+    preferred_min_confidence: 0.55
+    fallback_policy: keep_general_pack  # 低于阈值时回退通用包而不是强拉茶饮
+
+# 支持的项目尺度与默认条件
+supported_project_scales:
+  - interior_fitout
+  - interior_renovation
+
+default_project_conditions:
+  - small_area
+  - high_turnover
+  - takeaway_priority
+
+# 典型店型画像（用于问卷分流与策略差异化）
+store_archetypes:
+  - id: quick_pickup
+    name: 快取店
+    traits:
+      - 外带优先
+      - 停留时间短
+      - 门头识别要求高
+    default_targets:
+      takeaway_ratio_min: 0.75
+      seat_ratio_max: 0.15
+  - id: social_dwell
+    name: 社交停留店
+    traits:
+      - 堂食与社交需求明显
+      - 对噪声与座位体验敏感
+      - 高峰时易出现排队与占座冲突
+    default_targets:
+      takeaway_ratio_min: 0.40
+      seat_ratio_range: [0.25, 0.45]
+  - id: mall_standard
+    name: 商场标准店
+    traits:
+      - 受商场机电与消防边界约束
+      - 对排队外溢和门前界面敏感
+    default_targets:
+      queue_overflow_tolerance: low
+
+# 空间层与专业层激活
+active_spatial_layer_ids:
+  - interior_layer
+
+active_discipline_ids:
+  - interior
+  - mep
+  - fire_life_safety
+  - signage_wayfinding
+  - equipment
+  - cost_construction
+  - operation
+
+# 领域方法框架（progressive_questionnaire 会读取 required_dimensions）
+domain_framework:
+  profile_id: tea_drink_store.domain_framework.v1
+  required_dimensions:
+    - E2_body_movement
+    - E6_operation_system
+    - E9_constraint_risk
+  recommended_dimensions:
+    - E3_light_material
+    - E5_time_sequence
+    - E7_social_relation
+    - E8_symbol_narrative
+  dimension_intent_notes:
+    E2_body_movement: 顾客、店员、骑手三线动线避免交叉回头
+    E6_operation_system: 出杯节拍、备料路径、前后场协作稳定
+    E9_constraint_risk: 消防疏散、机电容量、设备净距等红线先行
+
+# 类型方法论推进顺序（progressive_questionnaire 会读取 priority_sequence）
+type_method_profile:
+  profile_id: tea_drink_store.type_method.v1
+  priority_sequence:
+    - operate_model_alignment
+    - queue_and_pickup_decoupling
+    - front_back_house_boundary
+    - safety_and_mep_feasibility
+    - brand_memory_point
+  stage_notes:
+    operate_model_alignment: 先确认店型与营收逻辑，再谈空间风格
+    queue_and_pickup_decoupling: 点单/等候/取餐最容易互相卡死，优先拆解
+    front_back_house_boundary: 前后场界面决定效率与卫生风险
+    safety_and_mep_feasibility: 先过红线，再做美学增强
+    brand_memory_point: 在不破坏效率前提下建立可识别体验
+
+# 通用方法论检查（v9.2 通用检查器读取）
+general_method_profile:
+  profile_id: general_method.tea_drink_store.v1
+  must_check:
+    - objective_clarity
+    - hard_constraint_completeness
+    - contradiction_scan
+    - delivery_alignment
+  warn_thresholds:
+    missing_required_slots: 2
+    contradiction_count: 1
+
+# 运营机制模型
+operation_model:
+  core_nodes:
+    - queue
+    - order
+    - prepare
+    - pickup
+    - dine_in
+    - takeaway
+  key_conflicts:
+    - flow_conflict
+    - queue_conflict
+    - fire_compliance
+    - mep_feasibility
+    - equipment_clearance
+    - cost_risk
+  service_sla_targets:
+    peak_order_to_pickup_mins: 8
+    avg_queue_wait_mins: 6
+    queue_spillover_allowed: false
+
+# 区域与面积建议（探索阈值，非硬编码规范）
+zoning_heuristics:
+  note: 以下为经验阈值，最终以现场条件和运营模型为准
+  area_ratio_guideline:
+    front_of_house: [0.45, 0.62]
+    back_of_house: [0.30, 0.45]
+    storage_and_misc: [0.08, 0.15]
+  min_clear_width_mm:
+    customer_main_path: 1200
+    queue_path: 1100
+    staff_prepare_path: 900
+  critical_adjacency:
+    - order_counter -> pickup_counter
+    - ice_maker -> prepare_zone
+    - cup_lid_straw -> pickup_counter
+    - waste_collection -> exit_or_cleaning_node
+
+# 设备前置清单（用于需求阶段避免后期返工）
+equipment_precheck:
+  required_items:
+    - water_supply_and_drain
+    - power_capacity_3phase_or_equivalent
+    - exhaust_and_makeup_air
+    - ice_maker_location
+    - refrigeration_cluster
+  risk_if_missing:
+    water_supply_and_drain: 无法保证清洗与食品安全节拍
+    power_capacity_3phase_or_equivalent: 高峰设备同时运行可能跳闸
+    exhaust_and_makeup_air: 热湿环境与异味导致体验下降
+    ice_maker_location: 备料动线绕行，显著拖慢出杯
+    refrigeration_cluster: 冷链断点增加损耗与卫生风险
+
+# 词表对象集
+object_sets:
+  - tea_zone_vocabulary
+  - tea_object_vocabulary
+  - tea_operation_node_vocabulary
+  - tea_behavior_node_vocabulary
+  - tea_property_vocabulary
+
+# 追问卡（供交互层优先提问）
+ask_yourself:
+  - id: tea_queue_001
+    priority: P0
+    question: 高峰 15 分钟内，点单/等候/取餐的队列如何不交叉？
+    why: 队列交叉会直接拖慢出杯节拍并拉高顾客流失
+  - id: tea_pickup_001
+    priority: P0
+    question: 外卖取餐与堂食停留如何分层，不互相打架？
+    why: 骑手聚集与堂食停留冲突是茶饮店常见投诉源
+  - id: tea_visibility_001
+    priority: P1
+    question: 门头识别、出杯可见性与品牌记忆点如何形成闭环？
+    why: 快速识别与可见等待可降低决策焦虑，提升复购概率
+  - id: tea_noise_001
+    priority: P2
+    question: 制冰机、封口机、点单播报噪声如何控制在可接受范围？
+    why: 噪声失控会显著影响堂食停留与社交体验
+
+# 问卷画像（required_slots 会影响关键信息收集完整度）
+questionnaire_profile:
+  profile_id: tea_drink_store_minimal_intake
+  required_slots:
+    - store_model
+    - seat_ratio
+    - estimated_peak_orders_per_hour
+    - takeaway_ratio
+    - back_of_house_equipment_scope
+    - existing_mep_capacity
+    - fire_boundary_conditions
+  optional_slots:
+    - brand_memory_keywords
+    - target_customer_mix
+    - night_operation_ratio
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 知识召回配置 (v1.9 协议)
+# -----------------------------------------------------------------------------
+# ⭐ 事实源 (v1.9 主协议): knowledge_recall_profile
+#     由 knowledge_package_registry 直接消费
+# 兼容字段 (deprecated, 等下游迁移完成后删除):
+#     knowledge_base_binding / knowledge_binding
+#
+# 三处内容用 YAML anchor 保持同步, 避免维护漂移:
+#   - 改 knowledge_recall_profile 内容时, 另两个自动同步
+#   - 新代码统一读 knowledge_recall_profile
+# ─────────────────────────────────────────────────────────────────────────────
+knowledge_recall_profile:
+  package_ids: &kr_package_ids
+    - kp.tea_drink_store
+    - kp.commercial_dining
+    - kp.commercial_retail
+    - kp.customer_flow
+    - kp.brand_display
+    - kp.kitchen_design
+    - kp.mep_retrofit
+    - kp.cultural_motif_translation
+    - kp.theme_naming_system
+    - kp.chain_store_differentiation
+  search_tags: &kr_search_tags
+    - tea_drink_store
+    - queue_management
+    - pickup_counter
+    - high_turnover
+    - takeaway_experience
+    - front_back_house
+    - beverage_operation
+    - cultural_motif
+    - theme_naming
+    - spatial_narrative
+    - brand_memory_point
+    - chain_store_differentiation
+
+# DEPRECATED_COMPAT (v1.9): 内容引用 knowledge_recall_profile
+# 新代码请读 knowledge_recall_profile, 此字段仅保留向后兼容
+knowledge_base_binding:
+  _deprecated_in_favor_of: knowledge_recall_profile
+  knowledge_packages: *kr_package_ids
+  search_tags: *kr_search_tags
+
+# DEPRECATED_COMPAT (v1.9): 同上
+knowledge_binding:
+  _deprecated_in_favor_of: knowledge_recall_profile
+  knowledge_packages: *kr_package_ids
+  search_tags: *kr_search_tags
+
+# 交付约束建议（用于后续任务拆解和结果验收）
+deliverable_hints:
+  must_have:
+    - zoning_and_flow_diagram
+    - queue_pickup_strategy_note
+    - mep_and_equipment_precheck_sheet
+    - fire_and_egress_constraint_summary
+  should_have:
+    - peak_hour_operation_walkthrough
+    - brand_memory_point_map
+
+# 风险分级（项目管理可按此设告警）
+risk_control:
+  p0_blockers:
+    - fire_compliance
+    - mep_feasibility
+  p1_high:
+    - queue_conflict
+    - equipment_clearance
+  p2_watchlist:
+    - cost_risk
+    - acoustic_discomfort
+  escalation_rules:
+    - if: "missing(existing_mep_capacity)"
+      then: "raise_to_p0"
+      note: 未知机电容量时，任何设备方案都不应冻结
+    - if: "estimated_peak_orders_per_hour > 120 and takeaway_ratio > 0.7"
+      then: "force_queue_simulation"
+      note: 高峰高外带组合必须做队列压测
+
+# 队列仿真输入模板（v0.3 新增）
+# 用途:
+#   - 给后续仿真/压测节点提供统一输入结构
+#   - 在早期判断“排队是否会外溢、出杯是否会失速”
+# 注意:
+#   - 这是运营侧启发模型，不替代真实门店经营数据
+queue_simulation_profile:
+  profile_id: tea_queue_simulation.v1
+  enabled_when:
+    - condition: "estimated_peak_orders_per_hour >= 80"
+      reason: 中高峰订单强度下，动线冲突会被放大
+    - condition: "takeaway_ratio >= 0.6"
+      reason: 外卖/堂食双流并发，需要做窗口压力评估
+    - condition: "store_archetype in [quick_pickup, mall_standard]"
+      reason: 快取和商场店对排队外溢更敏感
+  required_inputs:
+    - estimated_peak_orders_per_hour
+    - avg_items_per_order
+    - avg_prepare_time_secs
+    - payment_time_secs
+    - pickup_handover_time_secs
+    - pickup_window_count
+    - order_counter_count
+    - takeaway_ratio
+    - dine_in_ratio
+    - rider_arrival_burst_factor
+  optional_inputs:
+    - pre_order_ratio
+    - self_service_kiosk_ratio
+    - batch_prepare_capability
+    - queue_lane_count
+  default_values:
+    estimated_peak_orders_per_hour: 90
+    avg_items_per_order: 1.6
+    avg_prepare_time_secs: 95
+    payment_time_secs: 22
+    pickup_handover_time_secs: 12
+    pickup_window_count: 1
+    order_counter_count: 1
+    takeaway_ratio: 0.7
+    dine_in_ratio: 0.3
+    rider_arrival_burst_factor: 1.25
+    pre_order_ratio: 0.18
+    self_service_kiosk_ratio: 0.0
+    batch_prepare_capability: medium
+    queue_lane_count: 1
+  derived_metrics:
+    - name: throughput_per_hour
+      formula_hint: "3600 / (avg_prepare_time_secs + pickup_handover_time_secs) * pickup_window_count"
+      interpretation: 出杯窗口理论吞吐上限
+    - name: order_front_capacity
+      formula_hint: "3600 / payment_time_secs * order_counter_count"
+      interpretation: 点单前场理论吞吐上限
+    - name: effective_peak_load
+      formula_hint: "estimated_peak_orders_per_hour * rider_arrival_burst_factor"
+      interpretation: 考虑骑手批量到达后的峰值负荷
+    - name: bottleneck_stage
+      formula_hint: "min(order_front_capacity, throughput_per_hour)"
+      interpretation: 判断瓶颈在点单还是出杯
+  pass_fail_gates:
+    - id: qg_001
+      rule: "effective_peak_load <= throughput_per_hour * 0.88"
+      severity: P1
+      failure_message: 高峰负荷逼近出杯上限，需增开取餐窗口或缩短制备节拍
+    - id: qg_002
+      rule: "effective_peak_load <= order_front_capacity * 0.90"
+      severity: P1
+      failure_message: 点单端吞吐不足，需优化点单流程或增加前场接单能力
+    - id: qg_003
+      rule: "queue_lane_count >= 2 when takeaway_ratio >= 0.7"
+      severity: P2
+      failure_message: 外带占比高但排队分道不足，易形成门前拥堵
+
+# 常见场景预设（可直接复用）
+scenario_presets:
+  - id: weekday_evening_standard
+    name: 工作日晚高峰标准场景
+    inputs:
+      estimated_peak_orders_per_hour: 85
+      avg_items_per_order: 1.5
+      avg_prepare_time_secs: 92
+      payment_time_secs: 20
+      pickup_handover_time_secs: 12
+      pickup_window_count: 1
+      order_counter_count: 1
+      takeaway_ratio: 0.68
+      dine_in_ratio: 0.32
+      rider_arrival_burst_factor: 1.2
+      queue_lane_count: 1
+    expected_risk_level: medium
+  - id: mall_weekend_burst
+    name: 商场周末爆发场景
+    inputs:
+      estimated_peak_orders_per_hour: 130
+      avg_items_per_order: 1.7
+      avg_prepare_time_secs: 110
+      payment_time_secs: 23
+      pickup_handover_time_secs: 14
+      pickup_window_count: 1
+      order_counter_count: 1
+      takeaway_ratio: 0.74
+      dine_in_ratio: 0.26
+      rider_arrival_burst_factor: 1.4
+      queue_lane_count: 1
+    expected_risk_level: high
+    recommended_actions:
+      - 增设第二取餐窗口或时段性专窗
+      - 点单和取餐分道，降低交叉回头
+      - 上线预点单引导，削峰填谷
+  - id: community_dwell_balanced
+    name: 社区停留平衡场景
+    inputs:
+      estimated_peak_orders_per_hour: 70
+      avg_items_per_order: 1.4
+      avg_prepare_time_secs: 88
+      payment_time_secs: 24
+      pickup_handover_time_secs: 11
+      pickup_window_count: 1
+      order_counter_count: 1
+      takeaway_ratio: 0.52
+      dine_in_ratio: 0.48
+      rider_arrival_burst_factor: 1.1
+      queue_lane_count: 1
+    expected_risk_level: low_to_medium
+
+# 参数质量校验（采集阶段先过滤异常值）
+input_validation_rules:
+  - field: estimated_peak_orders_per_hour
+    type: integer
+    min: 20
+    max: 300
+    on_fail: clamp_and_warn
+  - field: avg_prepare_time_secs
+    type: integer
+    min: 30
+    max: 300
+    on_fail: clamp_and_warn
+  - field: payment_time_secs
+    type: integer
+    min: 8
+    max: 120
+    on_fail: clamp_and_warn
+  - field: takeaway_ratio
+    type: float
+    min: 0.0
+    max: 1.0
+    on_fail: reject_and_reask
+  - field: dine_in_ratio
+    type: float
+    min: 0.0
+    max: 1.0
+    on_fail: reject_and_reask
+  - field: ratio_sum
+    expression: "takeaway_ratio + dine_in_ratio"
+    expected: 1.0
+    tolerance: 0.08
+    on_fail: normalize_and_warn
+
+# 迭代里程碑（便于后续持续完善）
+roadmap:
+  v0_2_exploratory:
+    done:
+      - 补齐类型方法序列与通用方法检查入口
+      - 增加设备前置与风险阈值
+      - 增加问卷必填项和兼容知识绑定
+    next:
+      - 补充不同面积段平面原型
+      - 补充设备功率/给排水参数模板
+      - 引入队列仿真输入参数结构
+
+  v0_3_simulation_ready:
+    done:
+      - 新增 queue_simulation_profile 及 pass/fail gate
+      - 新增 3 组常见场景预设
+      - 新增输入参数质量校验规则
+    next:
+      - 连接真实门店时段订单数据做阈值回标
+      - 将瓶颈诊断输出接入任务拆解节点
+
+notes:
+  - 本包为探索版，优先保证“可加载 + 可消费 + 可迭代”。
+  - 当前阈值为启发式，不等于法规或施工图标准。
+  - 后续建议通过真实项目复盘对 SLA 与面积配比做数据化回标。

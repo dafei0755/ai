@@ -1,0 +1,597 @@
+{
+  "schema_version": "scheme_advisor_golden_quality_gate.v1",
+  "generated_at": "2026-06-16T00:55:51",
+  "summary": {
+    "gate_status": "fail",
+    "required_items": 28,
+    "required_items_with_complete_gold": 0,
+    "active_gold_items": 0,
+    "required_fields": [
+      "gold_expected_project_type",
+      "gold_expected_core_tension",
+      "gold_expected_output_depth"
+    ],
+    "missing_required_gold_items": 28,
+    "missing_required_gold_fields": 83,
+    "missing_required_gold_by_field": {
+      "gold_expected_project_type": 27,
+      "gold_expected_core_tension": 28,
+      "gold_expected_output_depth": 28
+    },
+    "passed_checks": 0,
+    "failed_checks": 0,
+    "skipped_checks": 0
+  },
+  "failures": [
+    {
+      "code": "required_gold_fields_missing",
+      "id": 50,
+      "missing_fields": [
+        "gold_expected_project_type",
+        "gold_expected_core_tension",
+        "gold_expected_output_depth"
+      ],
+      "message": "Required golden fields are not filled."
+    },
+    {
+      "code": "required_gold_fields_missing",
+      "id": 28,
+      "missing_fields": [
+        "gold_expected_project_type",
+        "gold_expected_core_tension",
+        "gold_expected_output_depth"
+      ],
+      "message": "Required golden fields are not filled."
+    },
+    {
+      "code": "required_gold_fields_missing",
+      "id": 145,
+      "missing_fields": [
+        "gold_expected_project_type",
+        "gold_expected_core_tension",
+        "gold_expected_output_depth"
+      ],
+      "message": "Required golden fields are not filled."
+    },
+    {
+      "code": "required_gold_fields_missing",
+      "id": 16,
+      "missing_fields": [
+        "gold_expected_project_type",
+        "gold_expected_core_tension",
+        "gold_expected_output_depth"
+      ],
+      "message": "Required golden fields are not filled."
+    },
+    {
+      "code": "required_gold_fields_missing",
+      "id": 26,
+      "missing_fields": [
+        "gold_expected_project_type",
+        "gold_expected_core_tension",
+        "gold_expected_output_depth"
+      ],
+      "message": "Required golden fields are not filled."
+    },
+    {
+      "code": "required_gold_fields_missing",
+      "id": 42,
+      "missing_fields": [
+        "gold_expected_project_type",
+        "gold_expected_core_tension",
+        "gold_expected_output_depth"
+      ],
+      "message": "Required golden fields are not filled."
+    },
+    {
+      "code": "required_gold_fields_missing",
+      "id": 104,
+      "missing_fields": [
+        "gold_expected_project_type",
+        "gold_expected_core_tension",
+        "gold_expected_output_depth"
+      ],
+      "message": "Required golden fields are not filled."
+    },
+    {
+      "code": "required_gold_fields_missing",
+      "id": 118,
+      "missing_fields": [
+        "gold_expected_project_type",
+        "gold_expected_core_tension",
+        "gold_expected_output_depth"
+      ],
+      "message": "Required golden fields are not filled."
+    },
+    {
+      "code": "required_gold_fields_missing",
+      "id": 161,
+      "missing_fields": [
+        "gold_expected_project_type",
+        "gold_expected_core_tension",
+        "gold_expected_output_depth"
+      ],
+      "message": "Required golden fields are not filled."
+    },
+    {
+      "code": "required_gold_fields_missing",
+      "id": 123,
+      "missing_fields": [
+        "gold_expected_project_type",
+        "gold_expected_core_tension",
+        "gold_expected_output_depth"
+      ],
+      "message": "Required golden fields are not filled."
+    },
+    {
+      "code": "required_gold_fields_missing",
+      "id": 152,
+      "missing_fields": [
+        "gold_expected_project_type",
+        "gold_expected_core_tension",
+        "gold_expected_output_depth"
+      ],
+      "message": "Required golden fields are not filled."
+    },
+    {
+      "code": "required_gold_fields_missing",
+      "id": 169,
+      "missing_fields": [
+        "gold_expected_project_type",
+        "gold_expected_core_tension",
+        "gold_expected_output_depth"
+      ],
+      "message": "Required golden fields are not filled."
+    },
+    {
+      "code": "required_gold_fields_missing",
+      "id": 126,
+      "missing_fields": [
+        "gold_expected_project_type",
+        "gold_expected_core_tension",
+        "gold_expected_output_depth"
+      ],
+      "message": "Required golden fields are not filled."
+    },
+    {
+      "code": "required_gold_fields_missing",
+      "id": 143,
+      "missing_fields": [
+        "gold_expected_project_type",
+        "gold_expected_core_tension",
+        "gold_expected_output_depth"
+      ],
+      "message": "Required golden fields are not filled."
+    },
+    {
+      "code": "required_gold_fields_missing",
+      "id": 97,
+      "missing_fields": [
+        "gold_expected_project_type",
+        "gold_expected_core_tension",
+        "gold_expected_output_depth"
+      ],
+      "message": "Required golden fields are not filled."
+    },
+    {
+      "code": "required_gold_fields_missing",
+      "id": 43,
+      "missing_fields": [
+        "gold_expected_project_type",
+        "gold_expected_core_tension",
+        "gold_expected_output_depth"
+      ],
+      "message": "Required golden fields are not filled."
+    },
+    {
+      "code": "required_gold_fields_missing",
+      "id": 135,
+      "missing_fields": [
+        "gold_expected_project_type",
+        "gold_expected_core_tension",
+        "gold_expected_output_depth"
+      ],
+      "message": "Required golden fields are not filled."
+    },
+    {
+      "code": "required_gold_fields_missing",
+      "id": 172,
+      "missing_fields": [
+        "gold_expected_project_type",
+        "gold_expected_core_tension",
+        "gold_expected_output_depth"
+      ],
+      "message": "Required golden fields are not filled."
+    },
+    {
+      "code": "required_gold_fields_missing",
+      "id": 147,
+      "missing_fields": [
+        "gold_expected_project_type",
+        "gold_expected_core_tension",
+        "gold_expected_output_depth"
+      ],
+      "message": "Required golden fields are not filled."
+    },
+    {
+      "code": "required_gold_fields_missing",
+      "id": 180,
+      "missing_fields": [
+        "gold_expected_project_type",
+        "gold_expected_core_tension",
+        "gold_expected_output_depth"
+      ],
+      "message": "Required golden fields are not filled."
+    },
+    {
+      "code": "required_gold_fields_missing",
+      "id": 108,
+      "missing_fields": [
+        "gold_expected_project_type",
+        "gold_expected_core_tension",
+        "gold_expected_output_depth"
+      ],
+      "message": "Required golden fields are not filled."
+    },
+    {
+      "code": "required_gold_fields_missing",
+      "id": 187,
+      "missing_fields": [
+        "gold_expected_project_type",
+        "gold_expected_core_tension",
+        "gold_expected_output_depth"
+      ],
+      "message": "Required golden fields are not filled."
+    },
+    {
+      "code": "required_gold_fields_missing",
+      "id": 54,
+      "missing_fields": [
+        "gold_expected_project_type",
+        "gold_expected_core_tension",
+        "gold_expected_output_depth"
+      ],
+      "message": "Required golden fields are not filled."
+    },
+    {
+      "code": "required_gold_fields_missing",
+      "id": 101,
+      "missing_fields": [
+        "gold_expected_project_type",
+        "gold_expected_core_tension",
+        "gold_expected_output_depth"
+      ],
+      "message": "Required golden fields are not filled."
+    },
+    {
+      "code": "required_gold_fields_missing",
+      "id": 83,
+      "missing_fields": [
+        "gold_expected_core_tension",
+        "gold_expected_output_depth"
+      ],
+      "message": "Required golden fields are not filled."
+    },
+    {
+      "code": "required_gold_fields_missing",
+      "id": 69,
+      "missing_fields": [
+        "gold_expected_project_type",
+        "gold_expected_core_tension",
+        "gold_expected_output_depth"
+      ],
+      "message": "Required golden fields are not filled."
+    },
+    {
+      "code": "required_gold_fields_missing",
+      "id": 76,
+      "missing_fields": [
+        "gold_expected_project_type",
+        "gold_expected_core_tension",
+        "gold_expected_output_depth"
+      ],
+      "message": "Required golden fields are not filled."
+    },
+    {
+      "code": "required_gold_fields_missing",
+      "id": 167,
+      "missing_fields": [
+        "gold_expected_project_type",
+        "gold_expected_core_tension",
+        "gold_expected_output_depth"
+      ],
+      "message": "Required golden fields are not filled."
+    }
+  ],
+  "missing_gold_summary": [
+    {
+      "id": "50",
+      "input_mode": "project",
+      "missing_fields": [
+        "gold_expected_project_type",
+        "gold_expected_core_tension",
+        "gold_expected_output_depth"
+      ],
+      "next_action": "人工复核并填写缺失的黄金字段；不要直接采用系统建议值。"
+    },
+    {
+      "id": "28",
+      "input_mode": "project",
+      "missing_fields": [
+        "gold_expected_project_type",
+        "gold_expected_core_tension",
+        "gold_expected_output_depth"
+      ],
+      "next_action": "人工复核并填写缺失的黄金字段；不要直接采用系统建议值。"
+    },
+    {
+      "id": "145",
+      "input_mode": "project",
+      "missing_fields": [
+        "gold_expected_project_type",
+        "gold_expected_core_tension",
+        "gold_expected_output_depth"
+      ],
+      "next_action": "人工复核并填写缺失的黄金字段；不要直接采用系统建议值。"
+    },
+    {
+      "id": "16",
+      "input_mode": "project",
+      "missing_fields": [
+        "gold_expected_project_type",
+        "gold_expected_core_tension",
+        "gold_expected_output_depth"
+      ],
+      "next_action": "人工复核并填写缺失的黄金字段；不要直接采用系统建议值。"
+    },
+    {
+      "id": "26",
+      "input_mode": "project",
+      "missing_fields": [
+        "gold_expected_project_type",
+        "gold_expected_core_tension",
+        "gold_expected_output_depth"
+      ],
+      "next_action": "人工复核并填写缺失的黄金字段；不要直接采用系统建议值。"
+    },
+    {
+      "id": "42",
+      "input_mode": "project",
+      "missing_fields": [
+        "gold_expected_project_type",
+        "gold_expected_core_tension",
+        "gold_expected_output_depth"
+      ],
+      "next_action": "人工复核并填写缺失的黄金字段；不要直接采用系统建议值。"
+    },
+    {
+      "id": "104",
+      "input_mode": "project",
+      "missing_fields": [
+        "gold_expected_project_type",
+        "gold_expected_core_tension",
+        "gold_expected_output_depth"
+      ],
+      "next_action": "人工复核并填写缺失的黄金字段；不要直接采用系统建议值。"
+    },
+    {
+      "id": "118",
+      "input_mode": "project",
+      "missing_fields": [
+        "gold_expected_project_type",
+        "gold_expected_core_tension",
+        "gold_expected_output_depth"
+      ],
+      "next_action": "人工复核并填写缺失的黄金字段；不要直接采用系统建议值。"
+    },
+    {
+      "id": "161",
+      "input_mode": "project",
+      "missing_fields": [
+        "gold_expected_project_type",
+        "gold_expected_core_tension",
+        "gold_expected_output_depth"
+      ],
+      "next_action": "人工复核并填写缺失的黄金字段；不要直接采用系统建议值。"
+    },
+    {
+      "id": "123",
+      "input_mode": "project",
+      "missing_fields": [
+        "gold_expected_project_type",
+        "gold_expected_core_tension",
+        "gold_expected_output_depth"
+      ],
+      "next_action": "人工复核并填写缺失的黄金字段；不要直接采用系统建议值。"
+    },
+    {
+      "id": "152",
+      "input_mode": "project",
+      "missing_fields": [
+        "gold_expected_project_type",
+        "gold_expected_core_tension",
+        "gold_expected_output_depth"
+      ],
+      "next_action": "人工复核并填写缺失的黄金字段；不要直接采用系统建议值。"
+    },
+    {
+      "id": "169",
+      "input_mode": "project",
+      "missing_fields": [
+        "gold_expected_project_type",
+        "gold_expected_core_tension",
+        "gold_expected_output_depth"
+      ],
+      "next_action": "人工复核并填写缺失的黄金字段；不要直接采用系统建议值。"
+    },
+    {
+      "id": "126",
+      "input_mode": "project",
+      "missing_fields": [
+        "gold_expected_project_type",
+        "gold_expected_core_tension",
+        "gold_expected_output_depth"
+      ],
+      "next_action": "人工复核并填写缺失的黄金字段；不要直接采用系统建议值。"
+    },
+    {
+      "id": "143",
+      "input_mode": "project",
+      "missing_fields": [
+        "gold_expected_project_type",
+        "gold_expected_core_tension",
+        "gold_expected_output_depth"
+      ],
+      "next_action": "人工复核并填写缺失的黄金字段；不要直接采用系统建议值。"
+    },
+    {
+      "id": "97",
+      "input_mode": "project",
+      "missing_fields": [
+        "gold_expected_project_type",
+        "gold_expected_core_tension",
+        "gold_expected_output_depth"
+      ],
+      "next_action": "人工复核并填写缺失的黄金字段；不要直接采用系统建议值。"
+    },
+    {
+      "id": "43",
+      "input_mode": "project",
+      "missing_fields": [
+        "gold_expected_project_type",
+        "gold_expected_core_tension",
+        "gold_expected_output_depth"
+      ],
+      "next_action": "人工复核并填写缺失的黄金字段；不要直接采用系统建议值。"
+    },
+    {
+      "id": "135",
+      "input_mode": "project",
+      "missing_fields": [
+        "gold_expected_project_type",
+        "gold_expected_core_tension",
+        "gold_expected_output_depth"
+      ],
+      "next_action": "人工复核并填写缺失的黄金字段；不要直接采用系统建议值。"
+    },
+    {
+      "id": "172",
+      "input_mode": "project",
+      "missing_fields": [
+        "gold_expected_project_type",
+        "gold_expected_core_tension",
+        "gold_expected_output_depth"
+      ],
+      "next_action": "人工复核并填写缺失的黄金字段；不要直接采用系统建议值。"
+    },
+    {
+      "id": "147",
+      "input_mode": "project",
+      "missing_fields": [
+        "gold_expected_project_type",
+        "gold_expected_core_tension",
+        "gold_expected_output_depth"
+      ],
+      "next_action": "人工复核并填写缺失的黄金字段；不要直接采用系统建议值。"
+    },
+    {
+      "id": "180",
+      "input_mode": "project",
+      "missing_fields": [
+        "gold_expected_project_type",
+        "gold_expected_core_tension",
+        "gold_expected_output_depth"
+      ],
+      "next_action": "人工复核并填写缺失的黄金字段；不要直接采用系统建议值。"
+    },
+    {
+      "id": "108",
+      "input_mode": "project",
+      "missing_fields": [
+        "gold_expected_project_type",
+        "gold_expected_core_tension",
+        "gold_expected_output_depth"
+      ],
+      "next_action": "人工复核并填写缺失的黄金字段；不要直接采用系统建议值。"
+    },
+    {
+      "id": "187",
+      "input_mode": "project",
+      "missing_fields": [
+        "gold_expected_project_type",
+        "gold_expected_core_tension",
+        "gold_expected_output_depth"
+      ],
+      "next_action": "人工复核并填写缺失的黄金字段；不要直接采用系统建议值。"
+    },
+    {
+      "id": "54",
+      "input_mode": "project",
+      "missing_fields": [
+        "gold_expected_project_type",
+        "gold_expected_core_tension",
+        "gold_expected_output_depth"
+      ],
+      "next_action": "人工复核并填写缺失的黄金字段；不要直接采用系统建议值。"
+    },
+    {
+      "id": "101",
+      "input_mode": "project",
+      "missing_fields": [
+        "gold_expected_project_type",
+        "gold_expected_core_tension",
+        "gold_expected_output_depth"
+      ],
+      "next_action": "人工复核并填写缺失的黄金字段；不要直接采用系统建议值。"
+    },
+    {
+      "id": "83",
+      "input_mode": "decision_argument",
+      "missing_fields": [
+        "gold_expected_core_tension",
+        "gold_expected_output_depth"
+      ],
+      "next_action": "人工复核并填写缺失的黄金字段；不要直接采用系统建议值。"
+    },
+    {
+      "id": "69",
+      "input_mode": "project",
+      "missing_fields": [
+        "gold_expected_project_type",
+        "gold_expected_core_tension",
+        "gold_expected_output_depth"
+      ],
+      "next_action": "人工复核并填写缺失的黄金字段；不要直接采用系统建议值。"
+    },
+    {
+      "id": "76",
+      "input_mode": "project",
+      "missing_fields": [
+        "gold_expected_project_type",
+        "gold_expected_core_tension",
+        "gold_expected_output_depth"
+      ],
+      "next_action": "人工复核并填写缺失的黄金字段；不要直接采用系统建议值。"
+    },
+    {
+      "id": "167",
+      "input_mode": "project",
+      "missing_fields": [
+        "gold_expected_project_type",
+        "gold_expected_core_tension",
+        "gold_expected_output_depth"
+      ],
+      "next_action": "人工复核并填写缺失的黄金字段；不要直接采用系统建议值。"
+    }
+  ],
+  "verification_summary": {
+    "golden_items": 190,
+    "active_gold_items": 0,
+    "checks": 0,
+    "passed": 0,
+    "failed": 0,
+    "skipped": 0
+  },
+  "source_pressure_path": "D:\\11-20\\2026.2.25\\langgraph-design\\docs\\system-completeness-audit\\scheme-advisor-pressure-test-2026-03-22.json",
+  "source_golden_path": "D:\\11-20\\2026.2.25\\langgraph-design\\docs\\system-completeness-audit\\scheme-advisor-190-golden-annotation-updated-2026-03-22.json"
+}

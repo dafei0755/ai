@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
@@ -49,7 +49,7 @@ interface LearningData {
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
 
 function getHeaders() {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('wp_jwt_token') : null;
+  const token = typeof window !== 'undefined' ? localStorage.getItem('app_auth_token') : null;
   return { Authorization: `Bearer ${token}` };
 }
 

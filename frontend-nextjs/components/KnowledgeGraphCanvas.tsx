@@ -352,7 +352,7 @@ export function KnowledgeGraphCanvas({
 		});
 
 		// 清空背景
-		ctx.fillStyle = '#0a0a0a';
+		ctx.fillStyle = '#020403';
 		ctx.fillRect(0, 0, width, height);
 
 		const selectedSet = new Set(selectedNodeIds);
@@ -658,8 +658,8 @@ export function KnowledgeGraphCanvas({
 	return (
 		<div
 			ref={containerRef}
-			className={`w-full h-full bg-black relative overflow-hidden ${className}`}
-			style={{ backgroundColor: '#0a0a0a' }}
+			className={`w-full h-full bg-[var(--canvas-bg)] relative overflow-hidden ${className}`}
+			style={{ backgroundColor: 'var(--canvas-bg)' }}
 		>
 			<canvas
 				ref={canvasRef}

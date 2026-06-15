@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ChangeEvent, SyntheticEvent } from 'react';
+import { clampCanvasZoom, getWheelZoomFactor, zoomCanvasViewAt as zoomSharedCanvasViewAt } from '@/lib/canvasViewport';
 import { describeArcPath, getDxfFill, getDxfStroke, getDxfTextFill, parseDxfPreviewGeometry } from '@/lib/dxfPreview';
 import type { DxfPreviewGeometry } from '@/lib/dxfPreview';
 import {
@@ -19,6 +20,7 @@ import {
 	ZoomIn,
 	ZoomOut,
 } from 'lucide-react';
+import type { ProjectOverview } from './project-cockpit/mock/mockData';
 
 type PlanSandboxSpace = '大堂' | '餐厅' | '客房' | '公区' | '连廊' | '后勤';
 
@@ -360,6 +362,8 @@ type FloorPlanReconstruction = {
 
 interface PlanSandboxPanelProps {
 	sessionId: string;
+	projectLabel?: string;
+	projectOverview?: ProjectOverview;
 	activeSpace: PlanSandboxSpace;
 	spaceOptions: PlanSandboxSpace[];
 	onActiveSpaceChange?: (space: PlanSandboxSpace) => void;
@@ -434,53 +438,131 @@ const buildInitialVersion = (activeSpace: string): PlanVersion => ({
 	basedOnBriefVersion: 'AlignedBrief/SPG draft',
 });
 
-const SPACE_STRATEGY_MAP: Record<string, PlanStrategy[]> = {
-	大堂: [
-		{ id: 'A', title: '低干预更', summary: '保留空间秩序，优化接待、等候与导视关系', tradeoff: '展示冲击力较弱，但底盘匹配度最高', score: 91 },
-		{ id: 'B', title: '到达体验强化', summary: '强化入口识别和第一停留节点，适合对外展示', tradeoff: '材料和灯光介入增加，改造强度升高', score: 84 },
-		{ id: 'C', title: '运营效率优先', summary: '前置服务台并隐藏后勤动线，提升管理效率', tradeoff: '公共区松弛感略降，需要家具尺度缓冲', score: 87 },
-	],
-	餐厅: [
-		{ id: 'A', title: '高翻台效', summary: '压缩服务路径，优化桌型组合与出餐半径', tradeoff: '社交停留感较弱，适合高峰运营', score: 88 },
-		{ id: 'B', title: '社交停留优先', summary: '扩大共享餐桌和景观停留面，强化度假情绪', tradeoff: '坪效略降，需要控制桌距', score: 86 },
-		{ id: 'C', title: '前后场分', summary: '分离客流、服务流和补给流，降低交叉干扰', tradeoff: '后场占比上升，需校核面积效率', score: 90 },
-	],
-	客房: [
-		{ id: 'A', title: '景观面优', summary: '把停留、睡眠和泡浴节点尽量转向最佳景观面', tradeoff: '收纳与后勤补给路径需额外校核', score: 89 },
-		{ id: 'B', title: '房效优先', summary: '稳定房型模块，提高复制效率和可施工性', tradeoff: '个性化体验较弱', score: 86 },
-		{ id: 'C', title: '私密梯度强化', summary: '拉开入口、起居、睡眠、卫浴之间的私密层级', tradeoff: '动线略增长，但体验更完整', score: 92 },
-	],
-};
-
 const DEFAULT_STRATEGIES: PlanStrategy[] = [
 	{ id: 'A', title: '效率优先', summary: '压缩无效路径，强化核心功能邻接', tradeoff: '体验层次略少，但执行稳定', score: 86 },
 	{ id: 'B', title: '体验优先', summary: '增加停留节点和空间节奏，提升使用舒适度', tradeoff: '面积效率下降，需要控制成本', score: 84 },
 	{ id: 'C', title: '弹性优', summary: '保留可变模块，为后续运营和深化留余量', tradeoff: '初版表达不如单一策略强', score: 88 },
 ];
 
-const buildParameters = (space: string): SandboxParameter[] => {
-	if (space === '大堂') {
+const buildDefaultStrategies = (space: PlanSandboxSpace, projectOverview?: ProjectOverview): PlanStrategy[] => {
+	const text = collectProjectOverviewText(projectOverview);
+	if (/市场|街区|茶市街|更新|改造|入口|文旅|游客/.test(text)) {
 		return [
-			{ label: '到达识别', value: 72, left: '克制', right: '强化' },
-			{ label: '等候舒', value: 66, left: '基础', right: '舒' },
-			{ label: '服务可达', value: 78, left: '隐藏', right: '高效' },
-			{ label: '改造强', value: 38, left: '低干', right: '重构' },
+			{ id: 'A', title: '入口更新优先', summary: `先理顺${space}的入口识别、公共动线与首个停留节点`, tradeoff: '展示性会增强，需要控制过度商业化表达', score: 87 },
+			{ id: 'B', title: '在地体验优先', summary: `把传统文化线索转成可停留、可讲述、可运营的${space}场景`, tradeoff: '叙事节点变多，需要压住材料和陈设成本', score: 86 },
+			{ id: 'C', title: '渐进改造优先', summary: `保留既有肌理，优先处理低成本可实施的${space}动线和界面`, tradeoff: '首版视觉冲击较弱，但施工扰动更小', score: 89 },
 		];
 	}
-	if (space === '餐厅') {
+	if (/客房|住宿|睡眠|房型/.test(text)) {
 		return [
-			{ label: '翻台效率', value: 76, left: '舒缓', right: '高效' },
-			{ label: '社交停留', value: 64, left: '短停', right: '强停' },
-			{ label: '前后场分', value: 82, left: '混合', right: '清晰' },
-			{ label: '坪效强度', value: 70, left: '体验', right: '坪效' },
+			{ id: 'A', title: '房效优先', summary: `稳定${space}模块，提高复制效率和可施工性`, tradeoff: '个性化体验较弱', score: 86 },
+			{ id: 'B', title: '体验优先', summary: `强化睡眠、窗景、收纳和夜间路径的体验完整度`, tradeoff: '动线略增长，需要校核面积效率', score: 88 },
+			{ id: 'C', title: '私密梯度优先', summary: `拉开入口、停留、睡眠、卫浴之间的层级`, tradeoff: '局部隔断和灯光介入增加', score: 87 },
 		];
 	}
-	return [
-		{ label: '空间开放度', value: 62, left: '独立', right: '开' },
+	return DEFAULT_STRATEGIES.map((strategy) => ({
+		...strategy,
+		summary: `${space}：${strategy.summary}`,
+	}));
+};
+
+const PARAMETER_BASE_BY_SPACE: Record<PlanSandboxSpace, Pick<SandboxParameter, 'label' | 'value' | 'left' | 'right'>[]> = {
+	大堂: [
+		{ label: '空间开放度', value: 72, left: '独立', right: '开放' },
+		{ label: '功能密度', value: 52, left: '舒展', right: '紧凑' },
+		{ label: '动线效率', value: 78, left: '分散', right: '高效' },
+		{ label: '成本控制', value: 46, left: '弹性', right: '严格' },
+	],
+	餐厅: [
+		{ label: '空间开放度', value: 62, left: '独立', right: '开放' },
 		{ label: '功能密度', value: 68, left: '舒展', right: '紧凑' },
-		{ label: '动线效率', value: 74, left: '弱组', right: '高效' },
-		{ label: '成本控制', value: 58, left: '弹', right: '严格' },
-	];
+		{ label: '动线效率', value: 74, left: '分散', right: '高效' },
+		{ label: '成本控制', value: 58, left: '弹性', right: '严格' },
+	],
+	客房: [
+		{ label: '空间开放度', value: 34, left: '独立', right: '开放' },
+		{ label: '功能密度', value: 56, left: '舒展', right: '紧凑' },
+		{ label: '动线效率', value: 60, left: '分散', right: '高效' },
+		{ label: '成本控制', value: 54, left: '弹性', right: '严格' },
+	],
+	公区: [
+		{ label: '空间开放度', value: 80, left: '独立', right: '开放' },
+		{ label: '功能密度', value: 64, left: '舒展', right: '紧凑' },
+		{ label: '动线效率', value: 76, left: '分散', right: '高效' },
+		{ label: '成本控制', value: 52, left: '弹性', right: '严格' },
+	],
+	连廊: [
+		{ label: '空间开放度', value: 48, left: '独立', right: '开放' },
+		{ label: '功能密度', value: 42, left: '舒展', right: '紧凑' },
+		{ label: '动线效率', value: 84, left: '分散', right: '高效' },
+		{ label: '成本控制', value: 56, left: '弹性', right: '严格' },
+	],
+	后勤: [
+		{ label: '空间开放度', value: 28, left: '独立', right: '开放' },
+		{ label: '功能密度', value: 72, left: '舒展', right: '紧凑' },
+		{ label: '动线效率', value: 82, left: '分散', right: '高效' },
+		{ label: '成本控制', value: 70, left: '弹性', right: '严格' },
+	],
+};
+
+const collectProjectOverviewText = (overview?: ProjectOverview): string =>
+	[
+		overview?.name,
+		overview?.oneLiner,
+		...(overview?.confirmedItems ?? []),
+		...(overview?.gapItems ?? []),
+		...(overview?.mainContradiction?.sides ?? []),
+		overview?.mainContradiction?.advisorNote,
+	]
+		.filter((item): item is string => Boolean(item && item.trim()))
+		.join(' ');
+
+const clampParameterValue = (value: number) => Math.max(12, Math.min(92, Math.round(value)));
+
+const buildParameters = (
+	space: PlanSandboxSpace,
+	projectOverview?: ProjectOverview,
+	activeVariant?: LayoutVariant
+): SandboxParameter[] => {
+	const text = collectProjectOverviewText(projectOverview);
+	const offsets = { openness: 0, density: 0, circulation: 0, cost: 0 };
+
+	if (/市场|街区|商业|公共|入口|广场|更新|改造|社区|文旅|游客|茶市街/.test(text)) {
+		offsets.openness += 8;
+		offsets.density += 6;
+		offsets.circulation += 8;
+	}
+	if (/传统|文化|历史|保护|在地|老街|村/.test(text)) {
+		offsets.openness -= 4;
+		offsets.cost += 6;
+	}
+	if (/低预算|预算|成本|经济|压缩/.test(text)) {
+		offsets.cost += 12;
+		offsets.density += 4;
+	}
+	if (/高端|奢华|体验|品牌|外籍|游客/.test(text)) {
+		offsets.openness += 4;
+		offsets.density -= 4;
+	}
+
+	const score = activeVariant?.layout.score;
+	const scoreOverrides: Partial<Record<string, number>> = {
+		动线效率: score?.functional_efficiency,
+		空间开放度: score?.view_resource,
+		成本控制: score?.renovation_cost ? 100 - score.renovation_cost / 2 : undefined,
+	};
+
+	return PARAMETER_BASE_BY_SPACE[space].map((param) => {
+		const offset =
+			param.label === '空间开放度' ? offsets.openness :
+			param.label === '功能密度' ? offsets.density :
+			param.label === '动线效率' ? offsets.circulation :
+			offsets.cost;
+		return {
+			...param,
+			value: clampParameterValue(scoreOverrides[param.label] ?? param.value + offset),
+		};
+	});
 };
 
 const buildMetrics = (activeStrategy: PlanStrategy, activeVariant?: LayoutVariant): SandboxMetric[] => {
@@ -496,11 +578,11 @@ const buildMetrics = (activeStrategy: PlanStrategy, activeVariant?: LayoutVarian
 		];
 	}
 	return [
-		{ label: '底盘匹配', value: `${activeStrategy.score}`, tone: activeStrategy.score >= 88 ? 'good' : 'normal' },
-		{ label: '动线效率', value: activeStrategy.id === 'C' ? '90' : '84', tone: 'good' },
-		{ label: '空间识别', value: activeStrategy.id === 'B' ? '92' : '78', tone: activeStrategy.id === 'B' ? 'good' : 'normal' },
-		{ label: '改造强度', value: activeStrategy.id === 'B' ? '高' : '低', tone: activeStrategy.id === 'B' ? 'risk' : 'good' },
-		{ label: '实施风险', value: activeStrategy.id === 'B' ? '中低' : '低', tone: activeStrategy.id === 'B' ? 'normal' : 'good' },
+		{ label: '底盘匹配', value: '--', tone: 'normal' },
+		{ label: '动线效率', value: '--', tone: 'normal' },
+		{ label: '空间秩序', value: '--', tone: 'normal' },
+		{ label: '改造友好', value: '--', tone: 'normal' },
+		{ label: '实施风险', value: '--', tone: 'normal' },
 	];
 };
 
@@ -514,6 +596,8 @@ const mapVariantToStrategy = (variant: LayoutVariant, index: number): PlanStrate
 
 export function PlanSandboxPanel({
 	sessionId,
+	projectLabel,
+	projectOverview,
 	activeSpace,
 	spaceOptions,
 	onActiveSpaceChange,
@@ -575,7 +659,11 @@ export function PlanSandboxPanel({
 		startX: number;
 		startY: number;
 	} | null>(null);
-	const baseStrategies = useMemo(() => SPACE_STRATEGY_MAP[activeSpace] ?? DEFAULT_STRATEGIES, [activeSpace]);
+	const baseStrategies = useMemo(
+		() => buildDefaultStrategies(activeSpace, projectOverview),
+		[activeSpace, projectOverview]
+	);
+	const previousActiveSpaceRef = useRef(activeSpace);
 	const [activeStrategyId, setActiveStrategyId] = useState<string>(baseStrategies[0]?.id ?? 'A');
 	const generatedStrategies = useMemo(
 		() => layoutPackage?.variants?.map(mapVariantToStrategy) ?? [],
@@ -595,9 +683,11 @@ export function PlanSandboxPanel({
 	}, [sessionId]);
 
 	useEffect(() => {
-		setActiveStrategyId((SPACE_STRATEGY_MAP[activeSpace] ?? DEFAULT_STRATEGIES)[0].id);
+		if (previousActiveSpaceRef.current === activeSpace) return;
+		previousActiveSpaceRef.current = activeSpace;
+		setActiveStrategyId(baseStrategies[0]?.id ?? 'A');
 		setLayoutPackage(null);
-	}, [activeSpace]);
+	}, [activeSpace, baseStrategies]);
 
 	useEffect(() => {
 		if (typeof window === 'undefined') return;
@@ -720,7 +810,10 @@ export function PlanSandboxPanel({
 		() => strategies.find((strategy) => strategy.id === activeStrategyId) ?? strategies[0],
 		[activeStrategyId, strategies]
 	);
-	const parameters = useMemo(() => buildParameters(activeSpace), [activeSpace]);
+	const parameters = useMemo(
+		() => buildParameters(activeSpace, projectOverview, activeLayoutVariant),
+		[activeLayoutVariant, activeSpace, projectOverview]
+	);
 	const metrics = useMemo(() => buildMetrics(activeStrategy, activeLayoutVariant), [activeLayoutVariant, activeStrategy]);
 	const activePlanTopic = planTopics[activeSpace];
 	const hasRealPlan = Boolean(activePlanTopic?.uploadedFileUrl);
@@ -782,17 +875,39 @@ export function PlanSandboxPanel({
 		'90deg': '#22c55e',
 	};
 	const tintPdfSvg = (svgMarkup: string, tintKey: string) => {
+		// 始终将白色/浅色背景 fill 改为透明
+		const isWhite = (value: string) => {
+			const v = value.trim().toLowerCase();
+			return v === '#fff' || v === '#ffffff' || v === 'white' || v === 'rgb(255,255,255)' || v === 'rgb(100%,100%,100%)';
+		};
+		// 去除 SVG 根元素上的 background 内联样式（pdfjs 常常注入 background:white/background:#fff）
+		let processed = svgMarkup
+			.replace(/(background\s*:\s*)(white|#fff|#ffffff|rgb\(255,\s*255,\s*255\))(\s*;?)/gi, '$1transparent$3')
+			.replace(/fill="([^"]+)"/gi, (full, raw) =>
+				isWhite(String(raw)) ? 'fill="none"' : full
+			);
 		const tintColor = PDF_TINT_COLOR_MAP[tintKey];
-		if (!tintColor) return svgMarkup;
+		if (!tintColor) {
+			// 无色调：将黑色/深色线条改为白色，在深色背景上可见
+			const isDark = (value: string) => {
+				const v = value.trim().toLowerCase();
+				return v === '#000' || v === '#000000' || v === 'black' || v === 'rgb(0,0,0)' || v === 'rgb(0%,0%,0%)';
+			};
+			processed = processed
+				.replace(/stroke="([^"]+)"/gi, (full, raw) => isDark(String(raw)) ? 'stroke="#ffffff"' : full)
+				.replace(/fill="([^"]+)"/gi, (full, raw) => isDark(String(raw)) ? 'fill="#ffffff"' : full);
+			return processed;
+		}
+		// 有色调：将非透明/非 none 颜色替换为色调色
 		const isNeutral = (value: string) => {
 			const v = value.trim().toLowerCase();
-			return v === 'none' || v === 'transparent' || v === '#fff' || v === '#ffffff' || v === 'white' || v === 'rgb(255,255,255)' || v === 'rgb(100%,100%,100%)';
+			return v === 'none' || v === 'transparent';
 		};
 		const recolorAttr = (attr: 'stroke' | 'fill', svg: string) =>
 			svg.replace(new RegExp(`${attr}="([^"]+)"`, 'gi'), (full, raw) => {
 				return isNeutral(String(raw)) ? full : `${attr}="${tintColor}"`;
 			});
-		return recolorAttr('fill', recolorAttr('stroke', svgMarkup));
+		return recolorAttr('fill', recolorAttr('stroke', processed));
 	};
 	// 校准态只认“用户手动确认”的比例尺，自动检测值仅作提示，不作为已校准状态
 	const calibratedMmPerNorm = manualScaleMmPerNorm;
@@ -904,22 +1019,15 @@ export function PlanSandboxPanel({
 		{ key: 'door', label: '门洞', tone: 'bg-amber-500', items: floorPlanDoors },
 		{ key: 'window', label: '窗洞', tone: 'bg-sky-500', items: floorPlanWindows },
 	], [floorPlanColumns, floorPlanDoors, floorPlanWalls, floorPlanWindows]);
-	const clampZoom = (value: number) => Math.min(10, Math.max(0.55, Number(value.toFixed(3))));
+	const clampZoom = (value: number) => clampCanvasZoom(Number(value.toFixed(3)), 0.55, 10);
 	const zoomCanvasAt = (clientX: number, clientY: number, scaleFactor: number) => {
 		const viewport = canvasViewportRef.current;
 		if (!viewport) return;
 		const rect = viewport.getBoundingClientRect();
-		const localX = clientX - rect.left;
-		const localY = clientY - rect.top;
 		setCanvasTransform((current) => {
-			const nextZoom = clampZoom(current.zoom * scaleFactor);
-			if (nextZoom === current.zoom) return current;
-			const ratio = nextZoom / current.zoom;
-			return {
-				zoom: nextZoom,
-				x: localX - (localX - current.x) * ratio,
-				y: localY - (localY - current.y) * ratio,
-			};
+			const next = zoomSharedCanvasViewAt(current, rect, clientX, clientY, scaleFactor, { minZoom: 0.55, maxZoom: 10 });
+			if (next.zoom === current.zoom) return current;
+			return next;
 		});
 	};
 	const zoomCanvasAtViewportCenter = (scaleFactor: number) => {
@@ -1660,7 +1768,7 @@ export function PlanSandboxPanel({
 					const hovered = !selected && element.id === hoveredCandidateId;
 					const highlight = getHighlightStroke(selected, hovered);
 					return (
-					<g key={`real-wall-${element.id}`} style={{ pointerEvents: 'auto', cursor: 'pointer' }}
+					<g key={`real-wall-${element.id}-${index}`} style={{ pointerEvents: 'auto', cursor: 'pointer' }}
 						onClick={(e) => { e.stopPropagation(); handleSelectCandidate(element); }}
 						onMouseEnter={() => setHoveredCandidateId(element.id)}
 						onMouseLeave={() => setHoveredCandidateId('')}>
@@ -1796,7 +1904,7 @@ export function PlanSandboxPanel({
 	};
 
 	return (
-		<div className={`relative h-full w-full overflow-hidden bg-[#1f1f1f] text-white ${className ?? ''}`}>
+		<div className={`relative flex h-full w-full overflow-hidden bg-[var(--canvas-bg)] text-white ${className ?? ''}`}>
 			<input
 				ref={planUploadInputRef}
 				type="file"
@@ -1804,6 +1912,7 @@ export function PlanSandboxPanel({
 				className="hidden"
 				onChange={handlePlanUploadChange}
 			/>
+			<div className="project-workspace-main-column project-workspace-canvas-column relative flex-1 min-w-0 overflow-hidden">
 			<div
 				className="absolute inset-0"
 				style={{
@@ -1813,41 +1922,39 @@ export function PlanSandboxPanel({
 				}}
 			/>
 
-			<div className="pointer-events-none absolute inset-x-0 top-0 z-30 pl-[108px] pr-[460px] pt-7">
+			<div className="cockpit-immersive-canvas-header">
 				<div
-					className="pointer-events-auto inline-flex max-w-full flex-col gap-3"
+					className="cockpit-immersive-canvas-header-inner"
 					onMouseEnter={() => setHeaderHovered(true)}
 					onMouseLeave={() => setHeaderHovered(false)}
 				>
-					<div className="text-[17px] font-semibold tracking-[0.02em] text-white">
-						{sessionId} / {activeSpace}
+					<div className="cockpit-immersive-canvas-title">
+						{projectLabel || sessionId}
 					</div>
-					{headerHovered && (
-						<div className="flex flex-wrap gap-2">
-							{spaceOptions.map((space) => {
-								const active = space === activeSpace;
-								return (
-									<button
-										key={`sandbox-space-${space}`}
-										onClick={() => onActiveSpaceChange?.(space)}
-										className={`inline-flex items-center rounded-full border px-4 py-[0.3rem] text-[12px] font-medium transition ${
-											active
-												? 'border-white/55 bg-white/24 text-white backdrop-blur-xl shadow-[inset_0_1px_0_rgba(255,255,255,0.26)]'
-												: 'border-white/20 bg-white/12 text-white/86 backdrop-blur-lg hover:border-white/30 hover:bg-white/18 hover:text-white'
-										}`}
-									>
-										{space}
-									</button>
-								);
-							})}
-						</div>
-					)}
+					<div className={`flex min-w-0 flex-wrap items-center gap-1.5 transition-opacity ${headerHovered ? 'opacity-100' : 'opacity-88'}`}>
+						{spaceOptions.map((space) => {
+							const active = space === activeSpace;
+							return (
+								<button
+									key={`sandbox-space-${space}`}
+									onClick={() => onActiveSpaceChange?.(space)}
+									className={`inline-flex h-7 items-center rounded-full border px-3 text-[12px] font-medium tracking-normal transition ${
+										active
+											? 'border-white/55 bg-white/24 text-white backdrop-blur-xl shadow-[inset_0_1px_0_rgba(255,255,255,0.26)]'
+											: 'border-white/20 bg-white/12 text-white/82 backdrop-blur-lg hover:border-white/30 hover:bg-white/18 hover:text-white'
+									}`}
+								>
+									{space}
+								</button>
+							);
+						})}
+					</div>
 				</div>
 			</div>
 
 			<div
 				ref={canvasViewportRef}
-				className={`absolute inset-y-0 left-0 right-[420px] z-10 overflow-hidden overscroll-none select-none touch-none ${isCanvasPanning ? 'cursor-grabbing' : 'cursor-default'}`}
+				className={`cockpit-canvas-viewport absolute inset-0 z-10 overflow-hidden overscroll-none select-none touch-none ${isCanvasPanning ? 'cursor-grabbing' : 'cursor-default'}`}
 				onClick={() => {
 					if (selectedCandidateId) {
 						setSelectedCandidateId('');
@@ -1857,7 +1964,7 @@ export function PlanSandboxPanel({
 				onWheel={(event) => {
 					event.preventDefault();
 					event.stopPropagation();
-					zoomCanvasAt(event.clientX, event.clientY, event.deltaY > 0 ? 0.92 : 1.087);
+					zoomCanvasAt(event.clientX, event.clientY, getWheelZoomFactor(event.deltaY));
 				}}
 				onPointerDown={(event) => {
 					if (isSelectingAnalysisRegion && event.button === 0) {
@@ -1933,7 +2040,7 @@ export function PlanSandboxPanel({
 							transformOrigin: 'left top',
 						}}
 					>
-						<div className="absolute overflow-hidden bg-white" style={mediaFrameStyle}>
+						<div className="absolute overflow-hidden" style={mediaFrameStyle}>
 							{hasRealPlan && showBaseMap && layerVisibility.baseMap && activePlanTopic?.mimeType?.startsWith('image/') && (
 								<img
 									src={activePlanTopic.uploadedFileUrl}
@@ -1953,7 +2060,7 @@ export function PlanSandboxPanel({
 								/>
 							)}
 							{hasRealPlan && showBaseMap && layerVisibility.baseMap && activePlanTopic?.mimeType === 'application/pdf' && !pdfPreviewDataUrl && (
-								<div className="absolute inset-0 flex items-center justify-center bg-white text-sm text-slate-500">
+								<div className="absolute inset-0 flex items-center justify-center text-sm text-white/40">
 									正在渲染 PDF 平面...
 								</div>
 							)}
@@ -1964,10 +2071,10 @@ export function PlanSandboxPanel({
 											className="pointer-events-none absolute inset-0 h-full w-full"
 											viewBox={`0 0 ${dxfGeometry.width} ${dxfGeometry.height}`}
 											preserveAspectRatio="xMidYMid meet"
-											style={{ background: '#050505', filter: baseMapTintFilter }}
+											style={{ background: '#020403', filter: baseMapTintFilter }}
 											aria-label="DXF 图纸预览"
 										>
-											<rect x="0" y="0" width={dxfGeometry.width} height={dxfGeometry.height} fill="#050505" />
+											<rect x="0" y="0" width={dxfGeometry.width} height={dxfGeometry.height} fill="#020403" />
 											{dxfGeometry.fills.filter((fill) => fill.source !== 'solid').map((fill, index) => (
 												<polygon
 													key={`dxf-fill-${index}`}
@@ -2452,10 +2559,11 @@ export function PlanSandboxPanel({
 					<Plus className="h-3.5 w-3.5" />
 				</button>
 			</div>
+			</div>
 
-			<div className="pointer-events-none absolute bottom-4 right-4 top-6 z-20 w-[420px]">
-				<div className="pointer-events-auto flex h-full flex-col overflow-hidden rounded-none border border-white/50 bg-white text-slate-900 backdrop-blur-xl">
-					<div className="border-b border-slate-200/80 p-4">
+			<div className="project-workspace-middle-column pointer-events-none h-full cursor-default overflow-hidden">
+				<div className="workspace-info-panel pointer-events-auto flex h-full cursor-default flex-col overflow-hidden rounded-none border border-white/50 bg-white text-slate-900 backdrop-blur-xl">
+					<div className="border-b border-slate-200/80 info-panel-px py-4">
 						<input
 							readOnly
 							value=""
@@ -2483,7 +2591,7 @@ export function PlanSandboxPanel({
 						</div>
 					</div>
 
-					<div className="flex-1 overflow-y-auto p-4">
+					<div className="flex-1 overflow-y-auto info-panel-px py-4">
 						{activeTab === 'properties' && selectedCandidate && (
 							// 属性编辑面板
 							<div className="space-y-4">
@@ -2637,7 +2745,7 @@ export function PlanSandboxPanel({
 										{isSpaceSyncing ? '同步中' : '已同步'}
 									</span>
 								</div>
-								<div className="mt-3 grid grid-cols-[112px_1fr] gap-3">
+								<div className="mt-3 grid grid-cols-1 gap-3">
 									<div className="relative h-[88px] overflow-hidden border border-slate-200 bg-white">
 										<div className="absolute inset-0 bg-[linear-gradient(rgba(15,23,42,0.05)_1px,transparent_1px),linear-gradient(90deg,rgba(15,23,42,0.05)_1px,transparent_1px)] bg-[size:12px_12px]" />
 										<div className="absolute left-[12%] top-[18%] h-[62%] w-[76%] border-[3px] border-slate-900" />
@@ -3096,7 +3204,7 @@ export function PlanSandboxPanel({
 										<p className="text-sm font-semibold">驾驶舱继承信息</p>
 									</div>
 									<div className="space-y-1 text-xs leading-5 text-slate-600">
-										<p>项目：{sessionId}</p>
+										<p>项目：{projectLabel || sessionId}</p>
 										<p>输入：AlignedBrief + SPG + 图纸 / 参考素材</p>
 										<p>目标：轻量推演、可解释、可回写，不在沙盘内重复填写驾驶舱信息</p>
 									</div>

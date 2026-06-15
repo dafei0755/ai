@@ -1,0 +1,308 @@
+version: "2026.05.v1"
+description: >
+  Knowledge package registry. It resolves ProjectDefinitionActivationPack
+  knowledge_packages (kp.xxx) to physical Milvus metadata filters and sample
+  seed data. A package is intentionally a logical unit; the current physical
+  backend is one Milvus collection with package_id filtering.
+
+defaults:
+  collection_name: design_knowledge_base
+  backend: milvus
+  owner_type: system
+  owner_id: public
+  visibility: public
+
+packages:
+  kp.general_project:
+    title: 通用项目知识包
+    project_types: [general]
+    search_tags: [general_project, scope_clarity, feasibility_boundary]
+    document_types: [方法论, 案例库]
+    status: active
+
+  kp.hospitality.homestay:
+    title: 民宿/酒店旅居知识包
+    project_types: [commercial_hospitality]
+    search_tags: [homestay, hospitality, guest_journey, public_private_boundary]
+    document_types: [类型知识, 案例库]
+    status: active
+
+  kp.seasonal_operation:
+    title: 季节性运营知识包
+    project_types: [commercial_hospitality, rural_construction]
+    search_tags: [seasonal_operation, peak_season, off_season, operation_model]
+    document_types: [运营知识, 案例库]
+    status: active
+
+  kp.public_private_gradient:
+    title: 公私梯度知识包
+    project_types: [commercial_hospitality, personal_residential]
+    search_tags: [public_private_boundary, privacy_gradient, acoustic_boundary]
+    document_types: [空间策略, 方法论]
+    status: active
+
+  kp.healthcare_wellness:
+    title: 医疗/康养知识包
+    project_types: [healthcare_wellness]
+    search_tags: [healthcare_wellness, care_process, process_safety]
+    document_types: [类型知识, 规范知识]
+    status: active
+
+  kp.accessibility:
+    title: 无障碍与适老知识包
+    project_types: [healthcare_wellness, public_cultural, educational_facility]
+    search_tags: [accessibility, universal_accessibility, elderly_care]
+    document_types: [规范知识, 技术知识]
+    status: active
+
+  kp.anxiety_reduction:
+    title: 焦虑缓解环境知识包
+    project_types: [healthcare_wellness]
+    search_tags: [anxiety_reduction, psychological_pressure, healing_environment]
+    document_types: [设计策略, 研究摘要]
+    status: active
+
+  kp.brand_experience:
+    title: 品牌体验知识包
+    project_types: [brand_experience]
+    search_tags: [brand_experience, visitor_journey, memory_point]
+    document_types: [类型知识, 案例库]
+    status: active
+
+  kp.retail_conversion:
+    title: 零售转化知识包
+    project_types: [brand_experience, commercial_retail]
+    search_tags: [retail_conversion, sales_conversion_logic, conversion_touchpoint]
+    document_types: [商业策略, 案例库]
+    status: active
+
+  kp.spatial_narrative:
+    title: 空间叙事知识包
+    project_types: [brand_experience, public_cultural, religious_spiritual]
+    search_tags: [spatial_narrative, narrative_sequence, ritual_sequence]
+    document_types: [方法论, 案例库]
+    status: active
+
+  kp.cultural_motif_translation:
+    title: 文化母题空间转译知识包
+    project_types: [commercial_dining, commercial_retail, brand_experience, public_cultural]
+    search_tags: [cultural_motif, motif_translation, eastern_aesthetic, spatial_narrative]
+    document_types: [转译方法, 意义表达卡, 案例库]
+    status: active
+
+  kp.theme_naming_system:
+    title: 空间主题命名系统知识包
+    project_types: [commercial_dining, commercial_retail, brand_experience, hospitality]
+    search_tags: [theme_naming, poetic_expression, brand_memory_point, social_media_collectability]
+    document_types: [命名方法, 传播策略, 案例库]
+    status: active
+
+  kp.chain_store_differentiation:
+    title: 连锁空间去同质化知识包
+    project_types: [commercial_dining, commercial_retail, brand_experience, hospitality]
+    search_tags: [chain_store_differentiation, store_identity, local_identity, brand_standardization]
+    document_types: [机制卡, 空间策略, 案例库]
+    status: active
+
+  kp.office_workplace:
+    title: 办公/总部知识包
+    project_types: [commercial_office]
+    search_tags: [office, workplace, work_mode, meeting_system]
+    document_types: [类型知识, 案例库]
+    status: active
+
+  kp.organization_behavior:
+    title: 组织行为知识包
+    project_types: [commercial_office]
+    search_tags: [organization_structure, collaboration_focus, growth_flexibility]
+    document_types: [组织策略, 方法论]
+    status: active
+
+  kp.residential:
+    title: 居住空间知识包
+    project_types: [personal_residential]
+    search_tags: [residential, daily_life, household_structure]
+    document_types: [类型知识, 案例库]
+    status: active
+
+  kp.renovation:
+    title: 改造项目知识包
+    project_types: [residential_renovation, industrial_conversion]
+    search_tags: [renovation, existing_structure, demolition_rebuild_boundary]
+    document_types: [改造策略, 风险卡]
+    status: active
+
+  kp.mep_retrofit:
+    title: 机电改造知识包
+    project_types: [residential_renovation, commercial_dining, industrial_conversion]
+    search_tags: [mep_retrofit, power_capacity, water_drainage, ventilation]
+    document_types: [技术知识, 风险卡]
+    status: active
+
+  kp.life_pattern:
+    title: 生活模式知识包
+    project_types: [personal_residential]
+    search_tags: [life_pattern, daily_routine, storage_and_service]
+    document_types: [方法论, 设计策略]
+    status: active
+
+  kp.rural_construction:
+    title: 乡建/乡村更新知识包
+    project_types: [rural_construction]
+    search_tags: [rural_construction, village_regeneration, local_resources]
+    document_types: [类型知识, 案例库]
+    status: active
+
+  kp.community_governance:
+    title: 社区治理知识包
+    project_types: [rural_construction]
+    search_tags: [community_governance, public_value, stakeholder]
+    document_types: [治理策略, 方法论]
+    status: active
+
+  kp.religious_spiritual:
+    title: 精神/仪式空间知识包
+    project_types: [religious_spiritual]
+    search_tags: [religious_spiritual, sacred_boundary, contemplative_space]
+    document_types: [类型知识, 案例库]
+    status: active
+
+  kp.ritual_sequence:
+    title: 仪式序列知识包
+    project_types: [religious_spiritual]
+    search_tags: [ritual_sequence, procession_sequence, threshold_space]
+    document_types: [方法论, 空间策略]
+    status: active
+
+  kp.contemplative_environment:
+    title: 静观环境知识包
+    project_types: [religious_spiritual]
+    search_tags: [contemplative_environment, silence, acoustic_boundary]
+    document_types: [设计策略, 研究摘要]
+    status: active
+
+  kp.commercial_retail:
+    title: 商业零售知识包
+    project_types: [commercial_retail]
+    search_tags: [commercial_retail, display_strategy, space_efficiency]
+    document_types: [类型知识, 案例库]
+    status: active
+
+  kp.commercial_dining:
+    title: 餐饮/食饮空间知识包
+    project_types: [commercial_dining]
+    search_tags: [commercial_dining, restaurant_design, dining_operation, peak_efficiency]
+    document_types: [类型知识, 运营知识, 案例库]
+    status: active
+
+  kp.kitchen_design:
+    title: 后厨/出品流程知识包
+    project_types: [commercial_dining]
+    search_tags: [kitchen_workflow, bar_counter, production_flow, equipment_layout]
+    document_types: [工艺知识, 空间策略]
+    status: active
+
+  kp.tea_drink_store:
+    title: 茶饮门店知识包
+    project_types: [commercial_dining]
+    search_tags: [tea_drink_store, queue_management, pickup_counter, high_turnover, beverage_operation]
+    document_types: [细分业态知识, 风险卡, 运营策略]
+    status: active
+
+  kp.customer_flow:
+    title: 客流组织知识包
+    project_types: [commercial_retail, brand_experience]
+    search_tags: [customer_flow, customer_journey, circulation_path]
+    document_types: [运营知识, 空间策略]
+    status: active
+
+  kp.brand_display:
+    title: 品牌展示知识包
+    project_types: [commercial_retail, brand_experience]
+    search_tags: [brand_display, product_display, brand_visual_anchor]
+    document_types: [展示策略, 案例库]
+    status: active
+
+  kp.educational_facility:
+    title: 教育/科研建筑知识包
+    project_types: [educational_facility]
+    search_tags: [educational_facility, pedagogy, campus_life]
+    document_types: [类型知识, 案例库]
+    status: active
+
+  kp.learning_space:
+    title: 学习空间知识包
+    project_types: [educational_facility]
+    search_tags: [learning_space, learning_environment, informal_learning]
+    document_types: [教育策略, 方法论]
+    status: active
+
+  kp.child_safety:
+    title: 儿童安全知识包
+    project_types: [educational_facility]
+    search_tags: [child_safety, supervision, safety_constraint]
+    document_types: [规范知识, 技术知识]
+    status: active
+
+  kp.public_cultural:
+    title: 文化展陈/公共场馆知识包
+    project_types: [public_cultural]
+    search_tags: [public_cultural, civic_space, mission_and_public_value]
+    document_types: [类型知识, 案例库]
+    status: active
+
+  kp.exhibition_design:
+    title: 展陈设计知识包
+    project_types: [public_cultural]
+    search_tags: [exhibition, exhibition_design, content_strategy]
+    document_types: [展陈策略, 案例库]
+    status: active
+
+  kp.universal_accessibility:
+    title: 通用无障碍知识包
+    project_types: [public_cultural, healthcare_wellness, educational_facility]
+    search_tags: [universal_accessibility, accessibility, inclusion]
+    document_types: [规范知识, 技术知识]
+    status: active
+
+  kp.industrial_conversion:
+    title: 工业/厂房改造知识包
+    project_types: [industrial_conversion]
+    search_tags: [industrial_conversion, retrofit, existing_structure]
+    document_types: [类型知识, 案例库]
+    status: active
+
+  kp.adaptive_reuse:
+    title: 适应性再利用知识包
+    project_types: [industrial_conversion]
+    search_tags: [adaptive_reuse, heritage_structure, structural_retention]
+    document_types: [改造策略, 案例库]
+    status: active
+
+  kp.environmental_compliance:
+    title: 环境合规知识包
+    project_types: [industrial_conversion]
+    search_tags: [environmental_compliance, remediation, occupation_gate]
+    document_types: [规范知识, 技术知识]
+    status: active
+
+  kp.landscape_outdoor:
+    title: 景观/户外空间知识包
+    project_types: [landscape_outdoor]
+    search_tags: [landscape_design, outdoor_space, site_ecology, microclimate]
+    document_types: [类型知识, 场地策略, 案例库]
+    status: active
+
+  kp.ecology_design:
+    title: 生态设计知识包
+    project_types: [landscape_outdoor]
+    search_tags: [ecology_design, planting_strategy, biodiversity, climate_adaptation]
+    document_types: [生态策略, 研究摘要, 案例库]
+    status: active
+
+  kp.outdoor_material:
+    title: 户外材料知识包
+    project_types: [landscape_outdoor]
+    search_tags: [outdoor_material, durability, drainage, maintenance]
+    document_types: [材料知识, 技术知识, 风险卡]
+    status: active

@@ -1,0 +1,13 @@
+{
+  "schema_version": "scheme_advisor_golden_verification.v1",
+  "generated_at": "2026-06-16T00:55:51",
+  "summary": {
+    "golden_items": 190,
+    "active_gold_items": 0,
+    "checks": 0,
+    "passed": 0,
+    "failed": 0,
+    "skipped": 0
+  },
+  "items": []
+}

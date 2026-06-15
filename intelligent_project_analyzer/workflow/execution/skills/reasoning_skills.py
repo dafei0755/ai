@@ -1,12 +1,12 @@
-"""
-execution/skills/reasoning_skills.py — 推理分析技能
+﻿"""
+execution/skills/reasoning_skills.py 鈥?鎺ㄧ悊鍒嗘瀽鎶€鑳?
 
-Copilot 生成（2026-03-22）
+Copilot 鐢熸垚锛?026-03-22锛?
 
-技能列表：
-  - compare_options       (A 类门控)：对比若干方案选项的权衡取舍
-  - validate_constraints  (A 类门控)：校验字段是否满足规范规则
-  - risk_forecast         (A 类门控)：预测当前方案潜在风险
+鎶€鑳藉垪琛細
+  - compare_options       (A 绫婚棬鎺?锛氬姣旇嫢骞叉柟妗堥€夐」鐨勬潈琛″彇鑸?
+  - validate_constraints  (A 绫婚棬鎺?锛氭牎楠屽瓧娈垫槸鍚︽弧瓒宠鑼冭鍒?
+  - risk_forecast         (A 绫婚棬鎺?锛氶娴嬪綋鍓嶆柟妗堟綔鍦ㄩ闄?
 """
 
 from __future__ import annotations
@@ -22,7 +22,7 @@ from intelligent_project_analyzer.workflow.execution.risk_gates import (
 
 
 # ---------------------------------------------------------------------------
-# 结果结构
+# 缁撴灉缁撴瀯
 # ---------------------------------------------------------------------------
 
 
@@ -64,7 +64,7 @@ class RiskForecastResult:
 
 
 # ---------------------------------------------------------------------------
-# 推理技能
+# 鎺ㄧ悊鎶€鑳?
 # ---------------------------------------------------------------------------
 
 
@@ -76,29 +76,25 @@ def compare_options(
     call_counts: Optional[Dict[str, int]] = None,
 ) -> CompareResult:
     """
-    A 类门控 — 对比若干方案选项，返回权衡分析。
+    A 绫婚棬鎺?鈥?瀵规瘮鑻ュ共鏂规閫夐」锛岃繑鍥炴潈琛″垎鏋愩€?
 
-    参数:
-      options  — 选项名称列表（如 ["极简风", "现代工业风"]）
-      criteria — 评估维度（如 ["成本", "工期", "体验"]）
+    鍙傛暟:
+      options  鈥?閫夐」鍚嶇О鍒楄〃锛堝 ["鏋佺畝椋?, "鐜颁唬宸ヤ笟椋?]锛?
+      criteria 鈥?璇勪及缁村害锛堝 ["鎴愭湰", "宸ユ湡", "浣撻獙"]锛?
     """
     request = ActionRequest(
         action_name="reasoning_evaluate",
         context={"session_id": session_id},
-        description=f"方案对比: {options}",
+        description=f"鏂规瀵规瘮: {options}",
     )
-    outcome = gate_engine.check(
-        request.action_name,
-        context=request.context,
-        call_counts=call_counts or {},
-    )
+    outcome = gate_engine.check(request, call_counts=call_counts or {})
 
     if not outcome.can_proceed:
-        logger.warning(f"[{session_id}] compare_options 被门控阻断")
+        logger.warning(f"[{session_id}] compare_options gate blocked")
         return CompareResult(options=options, analysis={"blocked": True})
 
     logger.info(f"[{session_id}] compare_options: {options}, criteria={criteria}")
-    # 推理分析由 LLM 层在更高层调用；此处返回占位结构供 orchestrator 组装
+    # 鎺ㄧ悊鍒嗘瀽鐢?LLM 灞傚湪鏇撮珮灞傝皟鐢紱姝ゅ杩斿洖鍗犱綅缁撴瀯渚?orchestrator 缁勮
     analysis: Dict[str, Any] = {
         "preferred": options[0] if options else "",
         "trade_offs": {opt: {} for opt in options},
@@ -115,25 +111,21 @@ def validate_constraints(
     call_counts: Optional[Dict[str, int]] = None,
 ) -> ValidationResult:
     """
-    A 类门控 — 校验字段集合是否满足规范规则库。
+    A 绫婚棬鎺?鈥?鏍￠獙瀛楁闆嗗悎鏄惁婊¤冻瑙勮寖瑙勫垯搴撱€?
 
-    参数:
-      fields   — 待校验字段（如 {"floor_area_ratio": 2.8, "height": 25}）
-      rules_db — 规范约束（如 {"max_floor_area_ratio": 2.5, "max_height": 24}）
+    鍙傛暟:
+      fields   鈥?寰呮牎楠屽瓧娈碉紙濡?{"floor_area_ratio": 2.8, "height": 25}锛?
+      rules_db 鈥?瑙勮寖绾︽潫锛堝 {"max_floor_area_ratio": 2.5, "max_height": 24}锛?
     """
     request = ActionRequest(
         action_name="validate_constraints",
         context={"session_id": session_id},
-        description="约束校验",
+        description="绾︽潫鏍￠獙",
     )
-    outcome = gate_engine.check(
-        request.action_name,
-        context=request.context,
-        call_counts=call_counts or {},
-    )
+    outcome = gate_engine.check(request, call_counts=call_counts or {})
 
     if not outcome.can_proceed:
-        logger.warning(f"[{session_id}] validate_constraints 被门控阻断")
+        logger.warning(f"[{session_id}] validate_constraints gate blocked")
         return ValidationResult(fields=fields, violations=["gate_blocked"], passed=False)
 
     violations: List[str] = []
@@ -142,7 +134,7 @@ def validate_constraints(
         if rule_key in rules_db and isinstance(value, (int, float)):
             if value > rules_db[rule_key]:
                 violations.append(
-                    f"{field}={value} 超过限制 {rules_db[rule_key]}"
+                    f"{field}={value} 瓒呰繃闄愬埗 {rules_db[rule_key]}"
                 )
 
     passed = len(violations) == 0
@@ -160,32 +152,28 @@ def risk_forecast(
     call_counts: Optional[Dict[str, int]] = None,
 ) -> RiskForecastResult:
     """
-    A 类门控 — 基于设计任务书和执行蓝图预测潜在风险。
+    A 绫婚棬鎺?鈥?鍩轰簬璁捐浠诲姟涔﹀拰鎵ц钃濆浘棰勬祴娼滃湪椋庨櫓銆?
     """
     request = ActionRequest(
         action_name="reasoning_evaluate",
         context={"session_id": session_id, "task": "risk_forecast"},
-        description="风险预测",
+        description="椋庨櫓棰勬祴",
     )
-    outcome = gate_engine.check(
-        request.action_name,
-        context=request.context,
-        call_counts=call_counts or {},
-    )
+    outcome = gate_engine.check(request, call_counts=call_counts or {})
 
     if not outcome.can_proceed:
         return RiskForecastResult(risks=[], overall_level="unknown")
 
-    # 基于红线和冻结区域评估一级风险
+    # 鍩轰簬绾㈢嚎鍜屽喕缁撳尯鍩熻瘎浼颁竴绾ч闄?
     risks: List[Dict[str, str]] = []
     redlines: List[str] = taskbook_raw.get("boundaries_and_redlines", [])
     frozen: List[str] = (
         taskbook_raw.get("strategy_zones", {}).get("frozen", [])
     )
 
-    for rl in redlines[:3]:  # 最多提取前 3 条
+    for rl in redlines[:3]:  # 鏈€澶氭彁鍙栧墠 3 鏉?
         risks.append({
-            "area": "红线约束",
+            "area": "绾㈢嚎绾︽潫",
             "description": rl[:80],
             "severity": "high",
         })
@@ -194,8 +182,8 @@ def risk_forecast(
     for skill, limit in budget_guard.items():
         if limit < 3:
             risks.append({
-                "area": "预算风险",
-                "description": f"{skill} 配额过低（{limit}）",
+                "area": "棰勭畻椋庨櫓",
+                "description": f"{skill} budget guard is too low ({limit})",
                 "severity": "medium",
             })
 

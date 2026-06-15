@@ -191,6 +191,20 @@ class LLMGapQuestionGenerator:
         logger.info(f"[LLMGapQuestionGenerator] 缺失 {count} 个维度，目标生成 {target} 个问题")
         return target
 
+    @staticmethod
+    def _build_priority_sequence_context(type_priority_sequence: Optional[List[str]]) -> str:
+        """将 type_method_profile.priority_sequence 转换为 Prompt 注入段（v8.5）"""
+        if not type_priority_sequence:
+            return "（当前项目无类型专属推进顺序，按通用维度分析生成问题）"
+        lines = []
+        for i, step in enumerate(type_priority_sequence, 1):
+            lines.append(f"{i}. {step}")
+        return (
+            "当前项目类型有明确的推进顺序，**请严格按以下顺序排列问题优先级**（序号越小越优先）：\n"
+            + "\n".join(lines)
+            + "\n\n> 若用户输入已覆盖某步骤，可跳过；若某步骤完全未提及，必须排在通用维度缺口之前追问。"
+        )
+
     async def generate(
         self,
         user_input: str,
@@ -204,6 +218,8 @@ class LLMGapQuestionGenerator:
         active_projections: Optional[List[str]] = None,
         detected_identity_modes: Optional[List[Dict]] = None,
         output_framework_signals: Optional[Dict] = None,
+        # v8.5: 类型推进顺序（来自 type_method_profile.priority_sequence）
+        type_priority_sequence: Optional[List[str]] = None,
     ) -> List[Dict[str, Any]]:
         """
         生成任务信息补充问题
@@ -219,6 +235,7 @@ class LLMGapQuestionGenerator:
             active_projections: 已确认的输出投射列表（v7.200 新增）
             detected_identity_modes: 检测到的身份模式（v7.200 新增）
             output_framework_signals: 输出框架信号（v7.200 新增）
+            type_priority_sequence: 类型推进顺序列表（v8.5 新增）
 
         Returns:
             问题列表 [{"id": "", "question": "", "type": "", ...}]
@@ -257,11 +274,19 @@ class LLMGapQuestionGenerator:
                 else "（未启用意向驱动模式）"
             )
 
+            # v8.5: 构建类型推进顺序注入段
+            type_priority_sequence_context = self._build_priority_sequence_context(type_priority_sequence)
+            if type_priority_sequence:
+                logger.info(
+                    f"[v8.5] 类型推进顺序注入 Prompt，共 {len(type_priority_sequence)} 步: {type_priority_sequence}"
+                )
+
             # 填充用户 Prompt
             user_prompt = self.user_template.format(
                 user_input=user_input,
                 task_summary=task_summary or "（无已确认任务）",
                 output_intent_context=output_intent_context,
+                type_priority_sequence_context=type_priority_sequence_context,
                 missing_dimensions=", ".join(missing_dimensions) if missing_dimensions else "无",
                 covered_dimensions=", ".join(covered_dimensions) if covered_dimensions else "无",
                 existing_info_summary=existing_info_summary or "（无已有信息）",
@@ -603,6 +628,8 @@ class LLMGapQuestionGenerator:
         active_projections: Optional[List[str]] = None,
         detected_identity_modes: Optional[List[Dict]] = None,
         output_framework_signals: Optional[Dict] = None,
+        # v8.5: 类型推进顺序
+        type_priority_sequence: Optional[List[str]] = None,
     ) -> List[Dict[str, Any]]:
         """
         同步版本的 generate 方法（供非异步环境调用）
@@ -630,6 +657,7 @@ class LLMGapQuestionGenerator:
                     active_projections=active_projections,
                     detected_identity_modes=detected_identity_modes,
                     output_framework_signals=output_framework_signals,
+                    type_priority_sequence=type_priority_sequence,
                 )
             )
         except Exception as e:

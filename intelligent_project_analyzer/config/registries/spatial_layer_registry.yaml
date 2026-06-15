@@ -1,0 +1,72 @@
+schema_version: spatial_layer_registry.v1.8
+owner: core_team
+review_status: approved
+last_updated: 2026-06-14
+
+items:
+  site_layer:
+    name_cn: 场地层
+    name_en: site layer
+    status: active_mvp
+    typical_objects:
+      - 地形
+      - 用地边界
+      - 朝向
+      - 视线
+      - 场地出入口
+      - 交通衔接
+    related_disciplines:
+      - site_planning
+      - landscape
+      - urban_interface
+
+  building_layer:
+    name_cn: 建筑层
+    name_en: building layer
+    status: active_mvp
+    typical_objects:
+      - 体量
+      - 立面
+      - 结构
+      - 入口
+      - 竖向交通
+      - 建筑边界
+    related_disciplines:
+      - architecture
+      - structure
+      - facade
+      - fire_safety
+
+  interior_layer:
+    name_cn: 室内层
+    name_en: interior layer
+    status: active_mvp
+    typical_objects:
+      - 平面
+      - 功能分区
+      - 动线
+      - 家具
+      - 材料
+      - 灯光
+      - 机电点位
+    related_disciplines:
+      - interior_design
+      - operation_flow
+      - mep
+      - material
+
+  landscape_layer:
+    name_cn: 景观层
+    name_en: landscape layer
+    status: active_mvp
+    typical_objects:
+      - 庭院
+      - 路径
+      - 植物
+      - 雨水
+      - 室外停留节点
+      - 景观界面
+    related_disciplines:
+      - landscape
+      - ecology
+      - outdoor_experience

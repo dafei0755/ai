@@ -61,6 +61,7 @@ class OntologyService:
             "personal_residential": "个人/住宅项目",
             "hybrid_residential_commercial": "混合型项目",
             "commercial_enterprise": "商业/企业项目",
+            "commercial_dining": "餐饮/夜生活空间",
             "cultural_educational": "文化/教育项目",
             "healthcare_wellness": "医疗/康养项目",
             "office_coworking": "办公/共享空间",

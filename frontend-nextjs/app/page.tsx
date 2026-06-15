@@ -25,6 +25,7 @@ import { UserPanel } from '@/components/layout/UserPanel';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSession } from '@/contexts/SessionContext';
 import { SessionSidebar } from '@/components/SessionSidebar';
+import { deriveSessionTitle } from '@/lib/sessionTitle';
 // 🔥 v7.109: 进度直接在时间戳后显示，移除了 ProgressBadge 组件
 // 🔥 v7.110: 提取侧边栏为公共组件 SessionSidebar
 // 🆕 v7.283: 使用全局 SessionContext 管理会话状态
@@ -47,6 +48,11 @@ export default function HomePage() {
   } = useSession();
 
   const [userInput, setUserInput] = useState('');
+
+  // 强制清空输入框，防止浏览器 autocomplete 恢复历史内容
+  useEffect(() => {
+    setUserInput('');
+  }, []);
   const [isSidebarOpen, setIsSidebarOpen] = useState(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('homeSidebarOpen');
@@ -62,9 +68,6 @@ export default function HomePage() {
     }
   }, [isSidebarOpen]);
 
-  // 🔥 v7.180: 分析模式状态 - 深度搜索/深度思考/深度思考pro（默认深度搜索）
-  const [analysisMode, setAnalysisMode] = useState<'search' | 'conversation'>('conversation');
-
   // 🔥 检测是否在 iframe 中（用于显示主网站链接）
   const isInIframe = typeof window !== 'undefined' && window.self !== window.top;
 
@@ -74,7 +77,7 @@ export default function HomePage() {
 
   // 🔥 v7.9.3: 日期分组函数 - 按相对时间分组会话
   const groupSessionsByDate = useCallback(
-    (sessions: Array<{ session_id: string; status: string; created_at: string; user_input: string; isTemporary?: boolean; session_type?: 'analysis' | 'search' }>) => {
+    (sessions: Array<{ session_id: string; status: string; created_at: string; user_input: string; display_name?: string; isTemporary?: boolean; session_type?: 'analysis' | 'search' }>) => {
       const now = new Date();
       const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
       const yesterday = new Date(today.getTime() - 24 * 60 * 60 * 1000);
@@ -131,52 +134,6 @@ export default function HomePage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // 🆕 v7.180: 搜索模式 - 在主页创建会话后跳转到结果页（只保留深度搜索）
-    if (analysisMode === 'search') {
-      const trimmedInput = userInput.trim();
-      if (!trimmedInput) {
-        setError('请输入搜索内容');
-        return;
-      }
-
-      setIsLoading(true);
-      setError(null);
-
-      try {
-        // 🆕 v7.189: 使用 apiClient 自动携带 JWT Token，避免创建 guest- 会话
-        const data = await api.createSearchSession(trimmedInput, true);
-
-        if (data.success && data.session_id) {
-          // 🆕 v7.180: 添加到本地会话列表（乐观更新）
-          const newSession = {
-            session_id: data.session_id,
-            status: 'pending',
-            created_at: new Date().toISOString(),
-            user_input: trimmedInput,
-            session_type: 'search' as const
-          };
-          setSessions(prev => [newSession, ...prev]);
-
-          // 🆕 v7.290: 记录会话创建时间到 localStorage，用于区分新旧会话
-          const recentSessionsJson = localStorage.getItem('recent_search_sessions');
-          const recentSessions: Record<string, number> = recentSessionsJson ? JSON.parse(recentSessionsJson) : {};
-          recentSessions[data.session_id] = Date.now();
-          localStorage.setItem('recent_search_sessions', JSON.stringify(recentSessions));
-
-          setUserInput('');
-          router.push(`/search/${data.session_id}`);
-        } else {
-          setError('创建搜索会话失败，请重试');
-        }
-      } catch (error) {
-        console.error('创建搜索会话失败:', error);
-        setError('网络错误，请重试');
-      } finally {
-        setIsLoading(false);
-      }
-      return;
-    }
-
     // 验证逻辑：必须输入文字描述（文件作为辅助材料）
     if (!userInput.trim()) {
       setError('请输入文字描述您的需求');
@@ -189,11 +146,13 @@ export default function HomePage() {
     // 🔥 乐观更新：立即创建临时会话记录
     const tempSessionId = `temp-${Date.now()}`;
     const displayText = userInput.trim();
+    const displayTitle = deriveSessionTitle(displayText);
     const tempSession = {
       session_id: tempSessionId,
       status: 'initializing',
       created_at: new Date().toISOString(),
       user_input: displayText,
+      display_name: displayTitle,
       isTemporary: true // 标记为临时记录
     };
 
@@ -216,11 +175,15 @@ export default function HomePage() {
                 status: 'conversation_active',
                 created_at: new Date().toISOString(),
                 user_input: displayText,
+                display_name: displayTitle,
                 isTemporary: false
               } // 替换为真实数据
             : s
         )
       );
+      void api.updateSession(response.session_id, { display_name: displayTitle }).catch((error) => {
+        console.warn('[home] persist conversation title failed:', error);
+      });
 
       setSessionId(response.session_id);
 
@@ -256,31 +219,7 @@ export default function HomePage() {
 
   // 🔥 v7.283: 移除本地会话操作函数，使用全局 SessionContext
 
-  // 🎯 v7.158: 未登录时直接跳转 WordPress SSO 登录页
-  // 完全禁止未登录访问，自动重定向到登录页
-  // 🔧 [临时修改] 注释掉强制登录逻辑，允许本地测试
-  /*
-  if (!authLoading && !user) {
-    // 🔥 v7.158: 直接跳转到 WordPress SSO 登录页
-    // 登录成功后会自动返回当前页面
-    if (typeof window !== 'undefined') {
-      const currentUrl = window.location.href;
-      const loginUrl = `https://www.ucppt.com/login?redirect_to=${encodeURIComponent(currentUrl)}`;
-      console.log('[HomePage v7.158] 🔒 未登录，跳转到 WordPress SSO 登录页:', loginUrl);
-      window.location.href = loginUrl;
-    }
-
-    // 跳转过程中显示加载状态
-    return (
-      <div className="flex h-screen bg-[var(--background)] text-[var(--foreground)] items-center justify-center">
-        <div className="text-center space-y-4">
-          <Loader2 className="w-8 h-8 animate-spin mx-auto text-gray-500" />
-          <p className="text-[var(--foreground-secondary)]">正在跳转到登录页...</p>
-        </div>
-      </div>
-    );
-  }
-  */
+  // 本地开发阶段允许未登录进入首页；正式独立用户系统上线后再收紧入口权限。
 
   // 🔒 认证加载中，显示加载状态
   if (authLoading) {
@@ -295,7 +234,8 @@ export default function HomePage() {
   }
 
   return (
-    <div className="flex h-screen bg-[var(--background)] text-[var(--foreground)] overflow-hidden relative">
+    <div className="flex flex-col h-screen bg-[var(--background)] text-[var(--foreground)] overflow-hidden relative">
+      <div className="flex flex-1 overflow-hidden relative">
       {/* Mobile Overlay */}
       {isSidebarOpen && (
         <div
@@ -404,67 +344,42 @@ export default function HomePage() {
             </div>
 
             {/* Input Composer - 🆕 v7.351: 强制白色背景（无论主题） */}
-            <form onSubmit={handleSubmit} className="relative rounded-xl border border-gray-200 dark:border-[#3a3a3a] shadow-xl overflow-hidden bg-white">
+            <form onSubmit={handleSubmit} autoComplete="off" className="relative rounded-xl border border-gray-200 dark:border-[#3a3a3a] shadow-xl overflow-hidden bg-white">
               {/* Textarea */}
               <div>
                   <textarea
+                    ref={(el) => {
+                      // 在 DOM 挂载时直接清空 DOM value，防止浏览器 autocomplete 填充
+                      if (el) el.value = userInput;
+                    }}
                     value={userInput}
                     onChange={(e) => setUserInput(e.target.value)}
-                    placeholder={
-                      analysisMode === 'search'
-                        ? "输入您想了解的问题，联网搜索最新资料..."
-                        : "输入你的想法、问题或设计需求..."
-                    }
+                    placeholder="输入你的想法、问题或设计需求，开始生成设计任务书 2.0..."
                     className="w-full bg-inherit text-gray-700 text-base leading-6 px-6 pt-6 pb-6 min-h-[170px] outline-none resize-none placeholder:text-gray-400"
                     disabled={isLoading}
+                    autoComplete="off"
+                    autoCorrect="off"
+                    autoCapitalize="off"
+                    spellCheck={false}
                   />
                 </div>
 
                 <div className="flex items-center justify-between pl-3 pr-5 py-3 border-t border-gray-200 dark:border-gray-300 rounded-b-xl bg-gray-50">
                   <div className="flex gap-2 text-[var(--foreground-secondary)]">
-                    {/* 🆕 v7.180: 分析模式选择器 - 深度搜索/深度思考/深度思考pro（深度搜索优先） */}
-                    <div className="flex items-center gap-1">
-                      {/* 分段按钮组 - 🆕 v7.351: 统一灰色背景 */}
-                      <div className={`
-                        flex items-center gap-1 transition-all duration-300
-                        ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}
-                      `}>
-                        {/* 深度搜索模式 */}
-                        <button
-                          type="button"
-                          onClick={() => !isLoading && setAnalysisMode('search')}
-                          disabled={isLoading}
-                          className={`
-                            px-3 py-1.5 text-xs font-medium rounded-full transition-all duration-300 whitespace-nowrap
-                            ${analysisMode === 'search'
-                              ? 'bg-white dark:bg-gray-600 text-gray-800 dark:text-white shadow-sm'
-                              : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100/50 dark:hover:bg-gray-700/30'}
-                          `}
-                        >
-                          深度搜索
-                        </button>
-
-                        {/* 方案高参对话模式 */}
-                        <button
-                          type="button"
-                          onClick={() => !isLoading && setAnalysisMode('conversation')}
-                          disabled={isLoading}
-                          className={`
-                            px-3 py-1.5 text-xs font-medium rounded-full transition-all duration-300 whitespace-nowrap
-                            ${analysisMode === 'conversation'
-                              ? 'bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-sm'
-                              : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100/50 dark:hover:bg-gray-700/30'}
-                          `}
-                        >
-                          方案高参
-                        </button>
-                      </div>
-                    </div>
+                    <span
+                      className={`px-3 py-1.5 text-xs font-medium rounded-full text-white shadow-sm whitespace-nowrap ${
+                        isLoading ? 'bg-blue-500' : 'bg-gradient-to-r from-blue-500 to-cyan-500'
+                      }`}
+                      aria-live="polite"
+                    >
+                      {isLoading ? '正在创建会话...' : '生成设计任务书 2.0'}
+                    </span>
                   </div>
                   {/* 🆕 v7.158: 发送按钮 - DeepSeek 风格，🆕 v7.351: 统一灰色背景 */}
                   <button
                     type="submit"
                     disabled={isLoading || !userInput.trim()}
+                    aria-label={isLoading ? '正在创建会话' : '发送'}
                     className={`
                       p-2.5 rounded-full transition-all duration-300
                       ${userInput.trim()
@@ -499,6 +414,7 @@ export default function HomePage() {
         </div>
       </div>
 
+      </div>{/* end flex-1 wrapper */}
     </div>
   );
 }
