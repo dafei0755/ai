@@ -1,0 +1,1368 @@
+schema_version: space_axis_registry.v1
+owner: core_team
+review_status: approved
+last_updated: '2026-06-14'
+description: >
+  方案高参空间主轴注册表。它回答“当前问题应该围绕什么主轴追问和组织判断”，
+  不是单题答案模板。新增空间、动因或误判修正应优先调整本文件，再由测试验证。
+
+axes:
+  general_space_design_axis:
+    label: 空间设计：目标、约束与取舍关系
+    decision_focus:
+      - 先明确这个空间最重要的使用目标
+      - 再识别不能突破的现实约束
+      - 最后判断哪些体验或成本需要取舍
+    must_not_route_to: []
+  commercial_operation_roi:
+    label: 商业餐饮：客流、效率与回本路径
+    decision_focus:
+      - 客流来源、排队取餐与出杯效率
+      - 前后场比例、设备制作范围与消防边界
+      - 投入上限、材料克制与半年回本模型
+    must_not_route_to: []
+  tea_hard_constraint_feasibility:
+    label: 茶饮门店：硬件、机电与合规可行性
+    decision_focus:
+      - 先确认上下水、电量、排烟、排污和消防审批是否成立
+      - 再判断设备、梁柱、层高、物业边界会不会卡住出品效率
+      - 最后把替代方案的成本、合法性和运营风险分开判断
+    must_not_route_to:
+      - private_residential_life_order
+      - workplace_identity_productivity
+  tea_product_menu_operation:
+    label: 茶饮门店：产品结构、菜单理解与后场需求
+    decision_focus:
+      - 先确认主打品类、SKU、引流款和利润款是否服务同一经营模型
+      - 再判断菜单、价格、甜度冰量和加料信息能否降低点单焦虑
+      - 最后校准冷区、热区、备料、清洗和储物是否装得下
+    must_not_route_to:
+      - private_residential_life_order
+      - workplace_identity_productivity
+  tea_queue_pickup_flow:
+    label: 茶饮门店：排队、点单、等候与取餐效率
+    decision_focus:
+      - 先拆开排队、点单、等候、取餐、外卖骑手和离店动作
+      - 再判断高峰期队伍是否挡菜单、堵门口或影响隔壁店
+      - 最后校准人员协作、吧台长度、取餐窗口和瓶颈工序
+    must_not_route_to:
+      - private_residential_life_order
+      - workplace_identity_productivity
+  tea_site_business_model:
+    label: 茶饮门店：点位、客群与经营模型匹配
+    decision_focus:
+      - 先判断城市、商圈、街段、人流来向和真实消费理由
+      - 再校准价格带、日杯量、毛利率、租金与回本周期是否匹配
+      - 最后决定平价走量、中端复购、高客单体验或错位模型
+    must_not_route_to:
+      - private_residential_life_order
+      - workplace_identity_productivity
+  tea_visibility_conversion:
+    label: 茶饮门店：可视性、识别效率与进店转化
+    decision_focus:
+      - 先判断主要来向、可视距离、可视角度和门头识别
+      - 再确认顾客能否快速看懂卖什么、贵不贵、怎么点、要等多久
+      - 最后校准招牌、菜单、入口停留和第一眼转化关系
+    must_not_route_to:
+      - private_residential_life_order
+      - workplace_identity_productivity
+  tea_customer_brand_goal:
+    label: 茶饮门店：用户动机、品牌目标与复购传播
+    decision_focus:
+      - 先区分价格、速度、健康感、情绪价值、社交属性和空间氛围
+      - 再判断首次转化、持续复购、社交传播和品牌展示的优先级
+      - 最后把用户障碍、品牌记忆和生意目标放在同一判断里
+    must_not_route_to:
+      - private_residential_life_order
+      - workplace_identity_productivity
+  tea_store_model_scene_strategy:
+    label: 茶饮门店：店型、场景与时段策略
+    decision_focus:
+      - 先确认外带、外卖、档口、小型体验店或复合店型
+      - 再判断午高峰、下午茶、夜间、游客或社区场景对空间比例的影响
+      - 最后校准座位、拍照、即看即买和运营效率之间的取舍
+    must_not_route_to:
+      - private_residential_life_order
+      - workplace_identity_productivity
+  tea_waiting_experience_repurchase:
+    label: 茶饮门店：等待体验、信任感与复购触发
+    decision_focus:
+      - 先判断等待几分钟内顾客看到什么、是否焦虑、是否信任
+      - 再校准制作展示、信息提示、拍照点和动线不互相牺牲
+      - 最后确认体验记忆能否支撑复购而不是只服务开业传播
+    must_not_route_to:
+      - private_residential_life_order
+      - workplace_identity_productivity
+  tea_brand_price_visual_memory:
+    label: 茶饮门店：价格带、视觉调性与品牌记忆
+    decision_focus:
+      - 先判断空间调性、品牌价格带和顾客预期是否一致
+      - 再区分风格跟风、材料耐用、开业拍照和长期维护
+      - 最后形成可记住、可复用、不过度装修的视觉资产
+    must_not_route_to:
+      - private_residential_life_order
+      - workplace_identity_productivity
+  tea_equipment_logistics_maintenance:
+    label: 茶饮门店：设备、物流、存储与维护
+    decision_focus:
+      - 先判断常用设备、冷链、原料、包材、清洁和垃圾暂存位置
+      - 再校准噪音、热量、冷凝水、维修通道和前后场边界
+      - 最后确认高峰运行与日常维护不会挤压前场体验
+    must_not_route_to:
+      - private_residential_life_order
+      - workplace_identity_productivity
+  tea_standard_competition_positioning:
+    label: 茶饮门店：标准图、竞品与错位定位
+    decision_focus:
+      - 先判断品牌标准图与异形铺位、现场条件的冲突
+      - 再识别竞品强弱、可学层级和不能只学视觉表面
+      - 最后确定避开、对打或错位补位的空间与产品策略
+    must_not_route_to:
+      - private_residential_life_order
+      - workplace_identity_productivity
+  tea_opening_validation_review:
+    label: 茶饮门店：开业验证、诊断与迭代
+    decision_focus:
+      - 先明确开业前需要验证的人流、转化、菜单、动线和价格指标
+      - 再区分门头问题、菜单问题、动线问题、等待问题和价格问题
+      - 最后决定局部修正、菜单优化、动线调整或重装之前的判断证据
+    must_not_route_to:
+      - private_residential_life_order
+      - workplace_identity_productivity
+  hospitality_culture_operation:
+    label: 文旅酒店：品牌文化、客群体验与运营模型
+    decision_focus:
+      - 先判断住宿、餐饮、展陈、会议等功能之间的主次关系
+      - 再确认文化表达如何转化为可运营、可维护的住客体验
+      - 最后校准投资强度、房价定位、公共空间和长期运营回报
+    must_not_route_to:
+      - private_residential_life_order
+  retail_brand_conversion:
+    label: 商业零售：客群转化、品牌差异与消费动线
+    decision_focus:
+      - 先确认目标客群、竞争对手和消费转化路径
+      - 再判断门头、主通道、停留点和社交场景如何组织
+      - 最后校准品牌记忆点、材料成本和可复制性
+    must_not_route_to:
+      - private_residential_life_order
+  cultural_public_experience:
+    label: 文化公共空间：叙事体验、展陈秩序与公众使用
+    decision_focus:
+      - 先确认文化主题、教育目标和公众到访路径
+      - 再组织展陈、停留、互动和运营维护的关系
+      - 最后判断精神表达、材料系统和安全疏散边界
+    must_not_route_to: []
+  urban_renewal_public_regeneration:
+    label: 城市更新：历史连续、公众使用与商业再生
+    decision_focus:
+      - 先判断哪些历史、社区或场地记忆必须保留
+      - 再确认新功能如何与原有结构、人群和运营共存
+      - 最后校准改造边界、消防结构和持续经营模型
+    must_not_route_to:
+      - private_residential_identity_legacy
+  public_service_inclusive_reuse:
+    label: 公共服务：多群体共享、分时复用与安全监管
+    decision_focus:
+      - 先确认老人、儿童、居民或公众的核心使用场景
+      - 再判断空间如何分时复用、可看护、可维护
+      - 最后校准无障碍、安全、声学和低成本施工边界
+    must_not_route_to:
+      - commercial_operation_roi
+  healthcare_wellness_support:
+    label: 医疗康养：身心支持、安全边界与长期照护
+    decision_focus:
+      - 先确认身体限制、照护对象和真实风险来源
+      - 再判断材料、空气、声光、动线和情绪缓冲如何配合
+      - 最后校准医疗感、家庭感、维护成本和安全责任
+    must_not_route_to:
+      - retail_brand_conversion
+  workplace_identity_productivity:
+    label: 办公企业：组织效率、专业形象与协作秩序
+    decision_focus:
+      - 先确认组织结构、工作方式和对外接待需求
+      - 再判断办公、展示、会议、研发或协作空间的比例
+      - 最后校准品牌形象、隐私等级、设备条件和扩展弹性
+    must_not_route_to:
+      - private_residential_life_order
+  technical_performance_environment:
+    label: 专项技术空间：设备性能、身体工学与环境控制
+    decision_focus:
+      - 先确认训练、拍摄、实验、直播或特殊功能的性能指标
+      - 再判断声学、灯光、散热、电力、设备和人体工学边界
+      - 最后校准专业性能、日常舒适和预算投入的取舍
+    must_not_route_to:
+      - cultural_public_experience
+  complex_mixed_use_layering:
+    label: 复合空间：垂直分层、公私边界与多功能协同
+    decision_focus:
+      - 先确认不同楼层、功能和人群之间的主从关系
+      - 再判断公共、半公共、私密和后勤动线如何分层
+      - 最后校准结构改造、消防疏散和精神表达的一致性
+    must_not_route_to:
+      - commercial_operation_roi
+  brand_cultural_narrative:
+    label: 文化叙事：命名、象征转译与空间气质
+    decision_focus:
+      - 先确认文化来源、品牌意图和目标情绪
+      - 再判断名字、符号、材料、灯光和空间段落如何互相支撑
+      - 最后避免浅层拼贴，形成可解释、可落地的叙事系统
+    must_not_route_to: []
+  material_sustainability_value:
+    label: 材料可持续：成本、证据链与长期价值
+    decision_focus:
+      - 先确认材料替换的成本、性能和环保依据
+      - 再判断施工节点、维护周期、碳足迹和品牌溢价是否成立
+      - 最后给出能说服业主或甲方的价值论证边界
+    must_not_route_to: []
+  climate_resilience_construction:
+    label: 气候构造：耐久、安全与环境韧性
+    decision_focus:
+      - 先确认盐雾、潮湿、台风、白蚁、冻融或暴晒等环境风险
+      - 再判断材料、防腐、连接件、排水、通风和结构安全策略
+      - 最后校准视觉轻盈、造价、维护和安全责任
+    must_not_route_to: []
+  sports_wellness_social:
+    label: 运动康养：身体体验、私密训练与社交转化
+    decision_focus:
+      - 先确认训练、疗愈或减压社交服务的核心人群
+      - 再判断灯光、声学、香氛、材料触感、休息和社交区域关系
+      - 最后校准身心舒缓、私密边界、会员转化和长期运营维护
+    must_not_route_to: []
+  immersive_experience_conversion:
+    label: 沉浸体验：叙事节奏、情绪高潮与销售转化
+    decision_focus:
+      - 先确认体验中心的品牌目标、游客路径和销售动作
+      - 再判断空间节奏、互动节点、停留点和情绪高潮如何组织
+      - 最后校准传播性、运营效率、商业转化和安全边界
+    must_not_route_to: []
+  landscape_public_value:
+    label: 景观规划：公共价值、视线组织与开发带动
+    decision_focus:
+      - 先确认场地资源、公共节点和周边开发诉求
+      - 再判断景观、建筑、商业导入和慢行系统如何连续
+      - 最后校准公共开放性、运营维护和土地价值提升逻辑
+    must_not_route_to: []
+  rural_living_regeneration:
+    label: 乡村建设：公共更新、产业嵌入与生活品质升级
+    decision_focus:
+      - 先确认村民、游客、返乡人群和乡村公共资源之间的关系
+      - 再判断民居更新、公共会客、农产品展示、民宿经济和产业嵌入如何协同
+      - 最后校准低成本、可成长、可维护和乡村现代生活的边界
+    must_not_route_to:
+      - private_residential_life_order
+  education_growth_safety:
+    label: 教育成长：学习行为、安全监管与弹性使用
+    decision_focus:
+      - 先确认年龄段、学习行为和照护监管方式
+      - 再判断教室、活动、收纳、等候和家长动线如何组织
+      - 最后校准安全、环保、声学、可变家具和运营效率
+    must_not_route_to: []
+  spiritual_ritual_order:
+    label: 精神仪式空间：礼序、情绪安放与边界克制
+    decision_focus:
+      - 先确认仪式对象、参与人群和精神表达尺度
+      - 再判断动线、停留、私密、声光和材料气质
+      - 最后校准庄重感、日常维护和避免符号堆砌的边界
+    must_not_route_to:
+      - commercial_operation_roi
+  private_residential_identity_legacy:
+    label: 私人住宅：身份表达、家族传承与日常安住
+    decision_focus:
+      - 主人精神气质与日常生活如何同时成立
+      - 家族传承、接待场景与私密边界如何分层
+      - 景观资源、材料克制和成就表达如何避免炫耀化
+    must_not_route_to:
+      - urban_renewal_heritage
+      - commercial_enterprise
+  private_residential_life_order:
+    label: 私人住宅：家庭秩序、生活方式与精神需求
+    decision_focus:
+      - 家庭成员和日常生活节奏
+      - 公共接待与私密居住边界
+      - 风格表达、长期维护与预算取舍
+    must_not_route_to:
+      - commercial_operation_roi
+  public_learning_visitor_experience:
+    label: 公共学习参访：知识传播、到访体验与可持续运营
+    decision_focus:
+      - 先确认参访人群、学习目标和运营接待路径
+      - 再判断展示、互动、餐饮和停留节点如何组合
+      - 最后校准可持续材料、教育价值和长期维护边界
+    must_not_route_to:
+      - commercial_operation_roi
+  residential_conflict_lifestyle_balance:
+    label: 共居住宅冲突：隐私边界、动静分区与日常共处
+    decision_focus:
+      - 先确认不同居住者的关系、隐私和高冲突活动
+      - 再判断公共交流、独立边界、声学和视觉隔离如何共存
+      - 最后校准共同生活、心理安全、专业效率和长期舒适度
+    must_not_route_to:
+      - urban_renewal_heritage
+  healthcare_culture_experience:
+    label: 康养文化体验：传统专业、年轻客群与私密服务
+    decision_focus:
+      - 先确认专业服务对象、文化资产和年轻客群的真实需求
+      - 再判断展示、气味、问诊、等待和品牌更新如何协同
+      - 最后校准医疗边界、文化表达和商业体验的可信度
+    must_not_route_to:
+      - retail_brand_conversion
+  public_resilience_modular_support:
+    label: 公共韧性支持：低成本、模块化与长期可用
+    decision_focus:
+      - 先确认服务对象、资源限制和最低安全标准
+      - 再判断模块化建造、本地材料和培训运营如何落地
+      - 最后校准快速部署、长期维护和公共公平性
+    must_not_route_to:
+      - commercial_operation_roi
+  mission_critical_resilience:
+    label: 任务关键空间：安全冗余、极端环境与长期运行
+    decision_focus:
+      - 先确认不可失效的任务、环境风险和安全等级
+      - 再判断能源、通讯、设备、心理缓冲和运维冗余
+      - 最后校准日常使用与紧急状态切换边界
+    must_not_route_to:
+      - retail_brand_conversion
+  sustainable_energy_prototype:
+    label: 可持续能源样板：脱碳系统、材料证据与可视化教育
+    decision_focus:
+      - 先确认能源自给目标、材料证据链和展示对象
+      - 再判断储能、用能、材料数据库和可视化界面如何嵌入
+      - 最后校准实验性、可维护性和真实减碳边界
+    must_not_route_to:
+      - brand_cultural_narrative
+  urban_public_value_cluster:
+    label: 城市公共价值集群：业态协同、公共界面与长期带动
+    decision_focus:
+      - 先确认街区、轴线或综合体的公共价值目标
+      - 再判断业态组合、租金层次、开放空间和夜间界面
+      - 最后校准文化能级、土地价值和运营可持续性
+    must_not_route_to:
+      - private_residential_life_order
+  experimental_public_experience:
+    label: 实验型公共体验：行为测试、变量控制与转化验证
+    decision_focus:
+      - 先确认实验对象、可观察行为和验证指标
+      - 再判断空间变量、互动路径、数据采集和对照机制
+      - 最后校准公众体验、商业转化和伦理安全边界
+    must_not_route_to:
+      - private_residential_life_order
+  methodology_not_project:
+    label: 方法论讨论：通用框架、适用边界与落地验证
+    decision_focus:
+      - 先区分这是方法论问题还是具体项目
+      - 再提炼可迁移的空间判断框架和适用边界
+      - 最后提示如何落到真实项目中验证
+    must_not_route_to: []
+  unclassified_needs_axis:
+    label: 待确认：空间目标和使用边界不足
+    decision_focus:
+      - 这个空间主要服务谁
+      - 最重要的使用目标是什么
+      - 是否存在不能突破的安全、合规或预算边界
+    must_not_route_to: []
+
+rules:
+  - id: private_residential_identity_legacy
+    axis_id: private_residential_identity_legacy
+    priority: 100
+    project_types:
+      - personal_residential
+    any_group:
+      - founding_type_any:
+          - family_legacy
+      - all_group:
+          - founding_type_any:
+              - identity_expression
+          - text_any:
+              - 一代创业者
+              - 第一代创业者
+              - 草根
+              - 资本成功
+              - 成就象征
+              - 家族传承
+              - 精神结构
+              - 内心回归
+  - id: commercial_operation_roi
+    axis_id: commercial_operation_roi
+    priority: 90
+    project_types:
+      - commercial_dining
+    any_group:
+      - subdomain_any:
+          - tea_drink_store
+          - coffee_shop
+      - text_any:
+          - 回本
+          - 收回成本
+          - 成本
+          - 预算
+          - 坪效
+          - 客流
+          - 出杯
+          - 翻台
+          - 外卖
+          - 排队
+          - 门头
+  - id: tea_hard_constraint_feasibility
+    axis_id: tea_hard_constraint_feasibility
+    priority: 116
+    project_types:
+      - commercial_dining
+    any_group:
+      - all_group:
+          - subdomain_any:
+              - tea_drink_store
+          - text_any:
+              - 上下水
+              - 给排水
+              - 电量
+              - 排烟
+              - 排污
+              - 消防
+              - 审批
+              - 物业
+              - 层高
+              - 梁位
+              - 柱位
+              - 设备排布
+              - 制冰机
+              - 萃茶机
+              - 冷藏
+              - 清洗
+              - 排水
+  - id: tea_product_menu_operation
+    axis_id: tea_product_menu_operation
+    priority: 114
+    project_types:
+      - commercial_dining
+    any_group:
+      - all_group:
+          - subdomain_any:
+              - tea_drink_store
+          - text_any:
+              - 主打品类
+              - 鲜果茶
+              - 柠檬茶
+              - 原叶茶
+              - 轻乳茶
+              - 轻食
+              - SKU
+              - 菜单
+              - 引流款
+              - 利润款
+              - 招牌款
+              - 甜度
+              - 冰量
+              - 加料
+              - 冷区
+              - 热区
+              - 备料
+  - id: tea_queue_pickup_flow
+    axis_id: tea_queue_pickup_flow
+    priority: 112
+    project_types:
+      - commercial_dining
+    any_group:
+      - all_group:
+          - subdomain_any:
+              - tea_drink_store
+          - text_any:
+              - 排队
+              - 点单
+              - 等候
+              - 取餐
+              - 离店
+              - 外卖
+              - 骑手
+              - 出杯
+              - 打包
+              - 喊号
+              - 拿错杯
+              - 吧台
+              - 高峰期
+              - 队伍
+  - id: tea_site_business_model
+    axis_id: tea_site_business_model
+    priority: 111
+    project_types:
+      - commercial_dining
+    any_group:
+      - all_group:
+          - subdomain_any:
+              - tea_drink_store
+          - text_any:
+              - 城市
+              - 商圈
+              - 街段
+              - 主力客群
+              - 停留
+              - 经过
+              - 消费的真实原因
+              - 平价走量
+              - 中端复购
+              - 高客单
+              - 日杯量
+              - 毛利率
+              - 回本周期
+              - 最保守的人流
+  - id: tea_visibility_conversion
+    axis_id: tea_visibility_conversion
+    priority: 113
+    project_types:
+      - commercial_dining
+    any_group:
+      - all_group:
+          - subdomain_any:
+              - tea_drink_store
+          - text_any:
+              - 可视距离
+              - 可视角度
+              - 来向关系
+              - 主要来向
+              - 看清品牌名
+              - 5秒内
+              - 一眼看懂
+              - 看懂怎么点
+              - 在哪里排
+              - 要等多久
+              - 门口已经排
+              - 识别这是一家茶饮店
+              - 卖什么
+  - id: tea_customer_brand_goal
+    axis_id: tea_customer_brand_goal
+    priority: 109
+    project_types:
+      - commercial_dining
+    any_group:
+      - all_group:
+          - subdomain_any:
+              - tea_drink_store
+          - text_any:
+              - 目标用户
+              - 情绪价值
+              - 社交属性
+              - 空间氛围
+              - 第一次进店
+              - 选择困难
+              - 怕踩雷
+              - 持续复购
+              - 社交传播
+              - 品牌展示
+              - 四者的排序
+  - id: tea_store_model_scene_strategy
+    axis_id: tea_store_model_scene_strategy
+    priority: 108
+    project_types:
+      - commercial_dining
+    any_group:
+      - all_group:
+          - subdomain_any:
+              - tea_drink_store
+          - text_any:
+              - 外带店
+              - 外卖店
+              - 档口店
+              - 小型体验店
+              - 午高峰
+              - 下午茶
+              - 白天生意
+              - 夜间氛围
+              - 游客多
+              - 停留短
+              - 即看即买
+              - 大量座位
+  - id: tea_waiting_experience_repurchase
+    axis_id: tea_waiting_experience_repurchase
+    priority: 107
+    project_types:
+      - commercial_dining
+    any_group:
+      - all_group:
+          - subdomain_any:
+              - tea_drink_store
+          - text_any:
+              - 第一眼落点
+              - 杂乱
+              - 压迫
+              - 等待3到5分钟
+              - 等待3
+              - 可看的内容
+              - 制作动作
+              - 缓解焦虑
+              - 值得拍照
+              - 拍照但不妨碍动线
+              - 买完就走
+              - 很少拍照
+              - 不复购
+  - id: tea_brand_price_visual_memory
+    axis_id: tea_brand_price_visual_memory
+    priority: 106
+    project_types:
+      - commercial_dining
+    any_group:
+      - all_group:
+          - subdomain_any:
+              - tea_drink_store
+          - text_any:
+              - 空间调性
+              - 品牌价格带
+              - 看起来很贵
+              - 看起来很廉价
+              - 新中式
+              - 极简
+              - 工业风
+              - 自然风
+              - 社区感
+              - 景区感
+              - 风格是否
+              - 材料选择
+              - 耐脏
+              - 耐水
+              - 易维护
+              - 开业拍照
+  - id: tea_equipment_logistics_maintenance
+    axis_id: tea_equipment_logistics_maintenance
+    priority: 115
+    project_types:
+      - commercial_dining
+    any_group:
+      - all_group:
+          - subdomain_any:
+              - tea_drink_store
+          - text_any:
+              - 最常用设备
+              - 次要位置
+              - 设备噪音
+              - 热量
+              - 冷凝水
+              - 维修通道
+              - 前后场交界
+              - 耗材
+              - 原料
+              - 包材
+              - 清洁用品
+              - 存储量
+              - 冷链
+              - 保鲜管理
+              - 垃圾暂存
+              - 异味控制
+  - id: tea_standard_competition_positioning
+    axis_id: tea_standard_competition_positioning
+    priority: 105
+    project_types:
+      - commercial_dining
+    any_group:
+      - all_group:
+          - subdomain_any:
+              - tea_drink_store
+          - text_any:
+              - 品牌总部
+              - 标准图
+              - 异形铺位
+              - 品牌标准
+              - 现场条件冲突
+              - 头部品牌
+              - 视觉表面
+              - 强势竞品
+              - 避开
+              - 对打
+              - 错位补位
+              - 蜜雪冰城
+              - 霸王茶姬
+              - 瑞幸
+  - id: tea_opening_validation_review
+    axis_id: tea_opening_validation_review
+    priority: 104
+    project_types:
+      - commercial_dining
+    any_group:
+      - all_group:
+          - subdomain_any:
+              - tea_drink_store
+          - text_any:
+              - 开业前
+              - 验证哪几个关键指标
+              - 开业后前两周
+              - 门头问题
+              - 菜单问题
+              - 动线问题
+              - 价格问题
+              - 等待投诉
+              - 优先该检查
+              - 营业额只有预期一半
+              - 局部修正
+              - 菜单优化
+              - 动线调整
+              - 考虑重装
+  - id: rural_private_dwelling_life_order
+    axis_id: private_residential_life_order
+    priority: 84
+    project_types:
+      - rural_construction
+    any_group:
+      - text_any:
+          - 田园民居
+          - 农村300㎡民居
+          - 乡村真实生活
+          - 游子
+          - 离家
+          - 心安回归
+          - 乡土
+  - id: rural_return_living_regeneration
+    axis_id: rural_living_regeneration
+    priority: 83
+    project_types:
+      - rural_construction
+    any_group:
+      - text_any:
+          - 乡村人才回流
+          - 青年返乡
+          - 返乡
+          - 自建房
+          - 家庭工作室
+          - 乡村现代生活方式
+          - 可成长住宅
+  - id: rural_public_agritourism_regeneration
+    axis_id: rural_living_regeneration
+    priority: 86
+    project_types:
+      - rural_construction
+    any_group:
+      - all_group:
+          - text_any:
+              - 美丽乡村
+              - 示范村
+              - 农文旅
+              - 乡村旅游
+              - 农产品销售
+              - 农产品展示
+              - 民宿经济
+              - 乡村公共
+              - 乡村整体
+          - text_any:
+              - 公共空间
+              - 公共会客厅
+              - 游客动线
+              - 村民参与
+              - 品牌视觉
+              - 产业
+              - 长期运营
+              - 示范区
+  - id: hospitality_culture_operation
+    axis_id: hospitality_culture_operation
+    priority: 82
+    project_types:
+      - commercial_hospitality
+      - rural_construction
+    any_group:
+      - semantic_axis_any:
+          space_domains:
+            - hospitality
+      - semantic_axis_any:
+          founding_drivers:
+            - business_roi
+            - brand_differentiation
+            - cultural_translation
+            - operational_efficiency
+      - text_any:
+          - 酒店
+          - 民宿
+          - 度假
+          - 客房
+          - 住宿
+  - id: retail_brand_conversion
+    axis_id: retail_brand_conversion
+    priority: 80
+    project_types:
+      - commercial_retail
+      - brand_experience
+      - real_estate_showcase
+      - popup_temporary
+    any_group:
+      - semantic_axis_any:
+          space_domains:
+            - retail_commercial
+      - semantic_axis_any:
+          founding_drivers:
+            - brand_differentiation
+            - operational_efficiency
+            - business_roi
+      - text_any:
+          - 客群
+          - 转化
+          - 品牌
+          - 竞争
+          - 商业街
+          - 旗舰
+          - 体验店
+  - id: retail_brand_live_commerce_conversion
+    axis_id: retail_brand_conversion
+    priority: 79
+    any_group:
+      - all_group:
+          - text_any:
+              - 品牌体验馆
+              - 品牌故事
+              - 产品陈列
+          - text_any:
+              - 线上销售
+              - 线下展示
+              - 直播空间
+              - 消费转化
+  - id: cultural_public_experience
+    axis_id: cultural_public_experience
+    priority: 78
+    project_types:
+      - public_cultural
+    any_group:
+      - semantic_axis_any:
+          space_domains:
+            - cultural_exhibition
+      - semantic_axis_any:
+          founding_drivers:
+            - cultural_translation
+      - text_any:
+          - 展陈
+          - 展览
+          - 博物馆
+          - 科教
+          - 文化
+  - id: urban_renewal_public_regeneration
+    axis_id: urban_renewal_public_regeneration
+    priority: 76
+    project_types:
+      - urban_renewal_heritage
+      - urban_renewal_market
+    any_group:
+      - semantic_axis_any:
+          space_domains:
+            - urban_renewal
+      - semantic_axis_any:
+          site_resources:
+            - heritage_context
+      - text_any:
+          - 更新
+          - 改造
+          - 活化
+          - 老旧
+          - 传统
+          - 历史
+          - 保留
+  - id: public_service_inclusive_reuse
+    axis_id: public_service_inclusive_reuse
+    priority: 74
+    project_types:
+      - community_public
+      - children_family
+    any_group:
+      - semantic_axis_any:
+          subject_profiles:
+            - public_users
+            - elderly
+            - children
+      - semantic_axis_any:
+          critical_constraints:
+            - accessibility_safety
+      - text_any:
+          - 社区
+          - 公共服务
+          - 分时复用
+          - 托管
+          - 老年
+          - 儿童
+          - 居民
+  - id: education_growth_safety
+    axis_id: education_growth_safety
+    priority: 73
+    project_types:
+      - educational_facility
+    any_group:
+      - semantic_axis_any:
+          space_domains:
+            - education_public
+      - semantic_axis_any:
+          subject_profiles:
+            - children
+      - text_any:
+          - 教育
+          - 学校
+          - 校园
+          - 大学
+          - 宿舍
+          - 创新社区公寓
+          - 跨专业交流
+          - 学习
+          - 早教
+  - id: healthcare_wellness_support
+    axis_id: healthcare_wellness_support
+    priority: 72
+    project_types:
+      - healthcare_wellness
+    any_group:
+      - semantic_axis_any:
+          space_domains:
+            - healthcare_wellness
+      - semantic_axis_any:
+          founding_drivers:
+            - healing_support
+      - semantic_axis_any:
+          critical_constraints:
+            - accessibility_safety
+            - mep_climate
+      - text_any:
+          - 康养
+          - 医疗
+          - 照护
+          - 过敏
+          - 感统
+          - 情绪缓冲
+          - 新风
+  - id: workplace_identity_productivity
+    axis_id: workplace_identity_productivity
+    priority: 70
+    project_types:
+      - commercial_office
+      - commercial_enterprise
+    any_group:
+      - semantic_axis_any:
+          space_domains:
+            - workplace
+      - semantic_axis_any:
+          founding_drivers:
+            - operational_efficiency
+            - brand_differentiation
+      - text_any:
+          - 办公
+          - 总部
+          - 企业
+          - 会议
+          - 协作
+          - 接待
+  - id: technical_performance_environment
+    axis_id: technical_performance_environment
+    priority: 68
+    project_types:
+      - special_function
+      - digital_media_studio
+    any_group:
+      - semantic_axis_any:
+          space_domains:
+            - technical_special
+      - semantic_axis_any:
+          critical_constraints:
+            - acoustics
+            - mep_climate
+      - text_any:
+          - 直播
+          - 训练
+          - 隔音
+          - 灯光
+          - 人体工学
+          - 设备
+          - 散热
+  - id: complex_mixed_use_layering
+    axis_id: complex_mixed_use_layering
+    priority: 67
+    any_group:
+      - all_group:
+          - semantic_axis_any:
+              is_complex_project:
+                - 'true'
+          - text_any:
+              - 复合
+              - 多层
+              - 四层
+              - 分层
+              - 公共与私密
+              - 事业与家庭
+      - project_types:
+          - hybrid_residential_commercial
+  - id: brand_cultural_narrative
+    axis_id: brand_cultural_narrative
+    priority: 65
+    any_group:
+      - semantic_axis_any:
+          input_intents:
+            - naming
+      - all_group:
+          - semantic_axis_any:
+              founding_drivers:
+                - cultural_translation
+          - text_any:
+              - 命名
+              - 诗词
+              - 文化转译
+              - 文化隐喻
+              - 空间外交
+              - 一带一路
+              - 多元文化交流
+              - 叙事结构
+              - 象征
+              - 历史文脉
+              - 精神地标
+      - text_any:
+          - 命名
+          - 诗词
+          - 文化转译
+          - 文化隐喻
+          - 空间外交
+          - 一带一路
+          - 多元文化交流
+          - 叙事结构
+          - 象征
+          - 历史文脉
+          - 精神地标
+  - id: material_sustainability_value
+    axis_id: material_sustainability_value
+    priority: 89
+    any_group:
+      - semantic_axis_any:
+          spatial_design_drivers:
+            - material_sustainability_value
+      - all_group:
+          - semantic_axis_any:
+              critical_constraints:
+                - budget
+          - text_any:
+              - 环保
+              - 回收
+              - 可持续
+              - 碳足迹
+              - 材料数据库
+              - 造价
+      - text_any:
+          - 零碳
+          - 可追溯
+          - 可回收
+          - 环保回收材料
+          - 循环材料
+          - 可拆装
+          - 可拆卸
+          - 拆除并回收
+          - 材料回收
+  - id: climate_resilience_construction
+    axis_id: climate_resilience_construction
+    priority: 63
+    any_group:
+      - text_any:
+          - 盐雾
+          - 腐蚀
+          - 防腐
+          - 潮湿
+          - 白蚁
+          - 台风
+          - 抗风
+          - 强风压
+  - id: sports_wellness_social
+    axis_id: sports_wellness_social
+    priority: 88
+    project_types:
+      - sports_entertainment_arts
+      - commercial_hospitality
+    any_group:
+      - all_group:
+          - semantic_axis_any:
+              founding_drivers:
+                - healing_support
+          - text_any:
+              - 会所
+              - 社交
+              - 高压
+              - 抗焦虑
+              - 减压
+              - 呼吸式动线
+              - 声环境调节
+              - 材料触感
+      - text_any:
+          - 健身
+          - 训练
+          - 运动
+          - 私密训练
+          - 会员
+          - 抗焦虑
+          - 减压
+          - 呼吸式动线
+          - 声环境调节
+          - 材料触感
+          - 疗愈社交
+  - id: immersive_experience_conversion
+    axis_id: immersive_experience_conversion
+    priority: 69
+    project_types:
+      - leisure_entertainment
+      - brand_experience
+    any_group:
+      - semantic_axis_any:
+          founding_drivers:
+            - brand_differentiation
+            - operational_efficiency
+      - text_any:
+          - 沉浸式
+          - 体验中心
+          - 情绪高潮
+          - 销售转化
+          - 动线叙事
+  - id: landscape_public_value
+    axis_id: landscape_public_value
+    priority: 60
+    project_types:
+      - landscape_outdoor
+    any_group:
+      - text_any:
+          - 景观
+          - 滨水
+          - 河岸
+          - 公共节点
+          - 开放空间
+          - 慢行
+          - 地产溢价
+  - id: urban_public_value_cluster
+    axis_id: urban_public_value_cluster
+    priority: 91
+    any_group:
+      - all_group:
+          - text_any:
+              - 集群
+              - 综合体
+              - 创新轴线
+              - 文化聚点
+              - 青年文化
+          - text_any:
+              - 租金分层
+              - 公共开放空间
+              - 土地价值
+              - 文化能级
+              - 夜间灯光
+              - 公共界面
+      - text_any:
+          - 城市文化综合体
+          - 科技创新轴线
+  - id: mission_critical_resilience
+    axis_id: mission_critical_resilience
+    priority: 95
+    any_group:
+      - semantic_axis_any:
+          spatial_design_drivers:
+            - extreme_resilience_prototype
+      - text_any:
+          - 指挥中心
+          - 数据安全
+          - 极高安全等级
+          - 长期运行
+          - 冗余能源
+          - 灾害模拟
+          - 极端灾害
+          - 极端灾难
+          - 文明重启
+          - 快速重建
+          - 社会基础生活单元
+          - 模块化扩展
+          - 社区协作
+          - 极寒
+          - 极地研究
+          - 北极圈
+          - 极昼极夜
+          - 危机决策室
+          - 紧急状态
+          - 地下居住
+          - 地下生活社区
+          - 地下生活
+          - 极端气候
+          - 极端地质
+          - 火山活跃带
+          - 光井系统
+          - 空气循环
+          - 空气净化系统
+  - id: experimental_public_experience
+    axis_id: experimental_public_experience
+    priority: 81
+    any_group:
+      - text_any:
+          - 传播学实验
+          - 实验零售空间
+          - A/B空间
+          - 数据采集接口
+          - 消费行为
+          - 行为经济学体验馆
+          - 决策偏差
+          - 太空旅游
+          - 零重力体验
+  - id: public_learning_visitor_experience
+    axis_id: public_learning_visitor_experience
+    priority: 79
+    any_group:
+      - all_group:
+          - semantic_axis_any:
+              space_domains:
+                - education_public
+          - semantic_axis_any:
+              subject_profiles:
+                - public_users
+                - children
+          - text_any:
+              - 认知空间
+              - 互动实验
+              - 观察点
+              - 参观路线
+              - 参观路径
+              - 学习路径
+              - 信息节奏
+      - all_group:
+          - text_any:
+              - 访客中心
+              - 体验馆
+              - 展示
+              - 科普
+          - text_any:
+              - 教育互动
+              - 亲子厨房
+              - 农产品展示
+              - 公众理解
+              - 科普教育
+              - 参访
+  - id: healthcare_culture_experience
+    axis_id: healthcare_culture_experience
+    priority: 79
+    any_group:
+      - text_any:
+          - 百年药铺
+          - 中医生活馆
+          - 药材展示
+          - 问诊私密
+          - 气味管理
+          - 现代中医
+  - id: public_resilience_modular_support
+    axis_id: public_resilience_modular_support
+    priority: 77
+    any_group:
+      - all_group:
+          - text_any:
+              - NGO
+              - 难民营
+              - 保障房
+              - 保障性住房
+              - 公共住房
+              - 医疗支援
+              - 低收入家庭
+              - 室内标准
+          - text_any:
+              - 低成本
+              - 预算有限
+              - 模块化
+              - 标准化模块
+              - 快速搭建
+              - 长期使用
+              - 长期维护
+      - all_group:
+          - text_any:
+              - 培训中心
+              - 学习中心
+          - text_any:
+              - 本地材料
+              - 模块化建造
+              - 心理安全
+              - 长期使用标准
+  - id: residential_conflict_lifestyle_balance
+    axis_id: residential_conflict_lifestyle_balance
+    priority: 105
+    any_group:
+      - all_group:
+          - semantic_axis_any:
+              space_domains:
+                - residential
+          - semantic_axis_any:
+              spatial_design_drivers:
+                - family_privacy_boundary
+      - all_group:
+          - semantic_axis_any:
+              space_domains:
+                - residential
+          - semantic_axis_any:
+              subject_profiles:
+                - family_multi_generation
+                - children
+          - any_group:
+              - semantic_axis_any:
+                  critical_constraints:
+                    - security_privacy
+              - text_any:
+                  - 隐私
+                  - 独立性
+                  - 心理安全边界
+                  - 冲突缓冲
+                  - 无血缘
+                  - 青春期
+      - all_group:
+          - text_any:
+              - 共居
+              - 夫妻
+              - 公寓
+          - text_any:
+              - 动静分区
+              - 绝对安静
+              - CrossFit
+              - 写作环境
+              - 隔音系统
+  - id: residential_healthcare_wellness_support
+    axis_id: healthcare_wellness_support
+    priority: 104
+    project_types:
+      - personal_residential
+    any_group:
+      - all_group:
+          - text_any:
+              - 住宅
+              - 家庭
+              - 卧室
+              - 儿童房
+              - 儿童卧室
+          - text_any:
+              - 过敏
+              - 低敏
+              - 无敏
+              - 感统
+              - 情绪缓冲
+              - 医疗级新风
+              - 空气净化
+              - 新风
+      - all_group:
+          - semantic_axis_any:
+              space_domains:
+                - residential
+          - semantic_axis_any:
+              critical_constraints:
+                - accessibility_safety
+                - mep_climate
+  - id: sustainable_energy_prototype
+    axis_id: sustainable_energy_prototype
+    priority: 94
+    any_group:
+      - text_any:
+          - 后碳
+          - 脱离化石能源
+          - 储能系统
+          - 能源使用可视化
+          - 零碳
+          - 能源自给
+  - id: spiritual_ritual_order
+    axis_id: spiritual_ritual_order
+    priority: 66
+    project_types:
+      - religious_spiritual
+    any_group:
+      - text_any:
+          - 佛堂
+          - 宗教
+          - 仪式
+          - 冥想
+          - 殡葬
+          - 精神
+  - id: private_residential_life_order
+    axis_id: private_residential_life_order
+    priority: 50
+    project_types:
+      - personal_residential
+  - id: unclassified_needs_axis
+    axis_id: unclassified_needs_axis
+    priority: 10
+    project_types: []

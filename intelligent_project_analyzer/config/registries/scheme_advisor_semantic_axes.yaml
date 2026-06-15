@@ -1,0 +1,484 @@
+version: "v1.0"
+description: >
+  方案高参入口与压力测试共用的语义轴注册表。这里定义的是稳定的识别框架，
+  不是单个问题的答案模板；业务新增、术语补充和误判修正应优先改本文件，
+  不应在服务代码里新增一次性分支。
+
+axes:
+  space_domains:
+    residential:
+      terms: [住宅, 别墅, 大平层, 公寓, 主卧, 卧室, 书房, 衣帽间, 家庭, 家中, 新家, 日常居住, 四合院, 民居, 儿童房]
+    hospitality:
+      terms: [酒店, 民宿, 旅舍, 客房, 度假, 公寓品牌, 月子中心]
+    retail_commercial:
+      terms: [商场, 商业街区, 商业综合体, 商业空间, 商铺, 买手店, 旗舰店, 花店, 咖啡店, 茶饮, 奶茶, 餐厅, 门店]
+    workplace:
+      terms: [办公室, 总部, 研发中心, 律所, 工作室, 直播基地, 办公中心]
+    cultural_exhibition:
+      terms: [展厅, 展馆, 美术馆, 博物馆, 记忆馆, 展示中心, 艺术, 书法]
+    healthcare_wellness:
+      terms: [医院, 诊所, 牙科, 病房, 康养, 养老, 心理干预, 医疗]
+    education_public:
+      terms: [学校, 幼儿园, 图书馆, 课堂, 培训中心, 社区活动中心, 服务中心]
+    urban_renewal:
+      terms: [城市更新, 公共再生, 城市公共客厅, 旧厂, 老街, 老码头, 码头区域, 历史建筑, 历史建筑保护, 文保, 活化, 废弃, 老旧, 粮仓, 防空洞, 滨水界面重构]
+    technical_special:
+      terms: [实验室, 声学, 杜比, 洁净, AI, 智能, 供氧, 低能耗, 避难, 零碳, 地下居住, 地下生活, 光井, 空气循环, 极端气候, 极端地质]
+
+  input_intents:
+    complete_design_framework:
+      terms: [完整, 设计框架, 设计概念, 设计方案, 空间策略]
+    methodology:
+      terms: [方法论, 系统分析, 模型, 框架, 启发维度, 应用路径]
+    naming:
+      terms: [命名, 门牌, 候选词, 四字]
+    competition_strategy:
+      terms: [竞标, 赢得竞标, 对手包括, 突破]
+    technical_solution:
+      terms: [构造, 系统, 标准, 声学, 新风, 供氧, 防腐, 结构, 设备]
+
+  problem_modes:
+    methodology_discussion:
+      terms: [方法论, 系统分析, 应用模型, 应用路径, 启发维度, 实践框架, 方法论框架]
+    analogy_translation:
+      terms: [转译, 类比, 定制体系, 流程, 映射, 借鉴]
+    value_argument:
+      terms: [论证逻辑, 价值论证, 长期运营价值, 品牌溢价, 可持续形象, 成本控制, 证明逻辑, 说服业主]
+
+  subject_profiles:
+    founder_owner:
+      terms: [第一代创业者, 创业者, 草根, 资本成功, 企业家, 老板]
+    family_multi_generation:
+      terms: [多代同堂, 长辈, 外公外婆, 再婚家庭, 孩子, 夫妻, 家庭结构]
+    female_owner:
+      terms: [女性, 女主人, 独立女性, 太太, 母亲]
+    children:
+      terms: [儿童, 孩子, 幼儿, 自闭症, 学生, 青少年]
+    elderly:
+      terms: [老人, 退休, 老年, 银发]
+    professional_user:
+      terms: [设计师, 医生, 律师, 记者, 程序员, 工程师, 教授, 作家]
+    high_net_worth:
+      terms: [高净值, 富人区, 豪宅, 奢侈, VIP, 亿万富翁]
+    public_users:
+      terms: [公众, 居民, 访客, 客群, 会员, 员工]
+
+  founding_drivers:
+    identity_expression:
+      terms: [身份, 成就象征, 成就沉淀, 事业成功, 精神结构, 权力, 地位, 体面感, 价值感]
+    family_legacy:
+      terms: [家族传承, 传承, 家族, 代际, 游子, 回归]
+    business_roi:
+      terms: [回本, 坪效, 客流, 入住率, 定价, 租金, 商业成功, 运营效率]
+    brand_differentiation:
+      terms: [品牌, 旗舰, 差异化, 辨识度, 形象店, 品牌精神]
+    cultural_translation:
+      terms: [文化, 在地, 文脉, 诗词, 传统, 民族, 乡愁, 地域]
+    healing_support:
+      terms: [疗愈, 情绪, 焦虑, 恐惧, 修复, 尊严, 心理]
+    operational_efficiency:
+      terms: [运营效率, 高峰, 7×24, 冷链, 自助, 出杯, 点单, 取餐, 翻台, 外卖自提]
+
+  spatial_design_drivers:
+    social_solitude_balance:
+      terms: [社交与独处, 独处, 独立精神, 自律, 轻盈, 空间比例, 动线组织]
+    memory_object_integration:
+      terms: [旧货市场, 老家具, 旧物件, 旧物, 年代风格, 风格整合, 材质过渡, 叙事路径]
+    art_living_balance:
+      terms: [艺术收藏家, 艺术收藏, 白盒子画廊, 日常居住, 隐藏生活系统, 展览级灯光, 艺术安全]
+    material_sustainability_value:
+      terms: [材料替换, 环保回收材料, 回收材料, 天然大理石, 水磨石, 造价, 长期运营价值, 品牌溢价, 可持续形象, 材料数据库, 碳足迹, 维护成本]
+    family_privacy_boundary:
+      terms: [再婚家庭, 同一屋檐, 无血缘, 青春期, 公共交流区, 绝对隐私, 独立性, 冲突缓冲, 心理安全边界, 家庭关系, 共居边界]
+    extreme_resilience_prototype:
+      terms: [地下居住单元, 地下生活社区, 地下生活, 地下居住, 极端气候, 极端地质, 火山活跃带, 光井系统, 光井结构, 空气循环, 空气净化, 人口过密, 生命支持, 灾害冗余]
+    flexible_scene_switching:
+      terms: [流动式生活空间, 可快速调整, 快速调整, 可移动家具, 模块化家具, 灯光模块化, 派对, 拍摄, 居住, 社交展示, 场景切换, 多场景, 可变空间, 灵活切换]
+
+  site_resources:
+    waterfront_view:
+      terms: [海景, 湖景, 江景, 河景, 水景, 深圳湾, 海边, 滨海, 滨水, 一线海景]
+    mountain_nature:
+      terms: [山地, 山景, 乡村, 自然, 森林, 悬崖, 田园]
+    heritage_context:
+      terms: [历史, 传统, 老房, 老街, 旧厂, 老码头, 城市记忆, 场地记忆, 故居, 梁架, 弄堂]
+    transit_node:
+      terms: [地铁, 高铁, 通道, 交通节点, 连接处]
+
+  lifecycle:
+    new_build:
+      terms: [新建, 建设, 打造, 计划建设]
+    renovation:
+      terms: [改造, 更新, 升级, 翻新, 换装, 旧]
+    soft_furnishing:
+      terms: [软装, 陈设, 家具, 艺术陈设]
+    operation_upgrade:
+      terms: [运营多年, 客流下降, 入住率, 空置率, 重新建立]
+    competition:
+      terms: [竞标, 参与竞标]
+
+  critical_constraints:
+    budget:
+      terms: [预算, 成本, 造价, 低成本, 极低, 资金链]
+    fire_structure:
+      terms: [消防, 疏散, 结构改造, 结构保留, 结构加固, 结构限制, 结构安全, 结构现状, 承重结构, 建筑结构, 原结构, 梁柱, 加固, 梁架, 荷载]
+    acoustics:
+      terms: [隔音, 声学, 杜比, 噪音, 声音]
+    accessibility_safety:
+      terms: [无障碍, 轮椅, 安全, 儿童尺度, 医疗级]
+    mep_climate:
+      terms: [给排水, 电力, 新风, 排烟, 潮湿, 供氧, 盐雾, 台风, 极寒, 极端气候, 极端地质, 火山, 光井, 空气循环, 空气净化]
+    security_privacy:
+      terms: [安防, 隐私, 私密, 私密性, 安全机制]
+
+inference_rules:
+  - id: founder_story_private_owner
+    description: 创业经历与私宅/业主语境共现时，推断为创始人业主画像。
+    when:
+      all:
+        - any_terms: [创始人, 白手起家, 一路打拼, 打拼, 小工厂, 行业龙头, 创业经历, 事业沉淀, 事业有成, 从无到有]
+        - any:
+            - any_terms: [私宅, 别墅, 住宅, 大平层, 家宅, 这个家, 新家]
+            - any_terms: [业主, 主人, 男主人, 女主人, 家]
+    append_axes:
+      - axis: subject_profiles
+        id: founder_owner
+  - id: founder_story_identity_expression
+    description: 创业经历与事业/回归/成就语境共现时，推断为空间身份表达。
+    when:
+      all:
+        - any_terms: [创始人, 白手起家, 一路打拼, 打拼, 小工厂, 行业龙头, 创业经历, 事业沉淀, 事业有成, 从无到有]
+        - any_terms: [家族, 传承, 内心, 安定, 回归, 沉淀, 成就, 事业]
+    append_axes:
+      - axis: founding_drivers
+        id: identity_expression
+  - id: private_carrier_family_legacy
+    description: 私宅载体与家族/代际语境共现时，推断为家族传承驱动。
+    when:
+      all:
+        - any_terms: [私宅, 别墅, 住宅, 大平层, 家宅, 这个家, 新家]
+        - any_terms: [家族, 传承, 代际, 家人]
+    append_axes:
+      - axis: founding_drivers
+        id: family_legacy
+  - id: private_carrier_residential_domain
+    description: 私宅载体出现时，补充居住空间领域。
+    when:
+      any_terms: [私宅, 别墅, 住宅, 大平层, 家宅, 这个家, 新家]
+    append_axes:
+      - axis: space_domains
+        id: residential
+  - id: water_edge_view_resource
+    description: 湖畔、水岸等非海景表述出现时，补充滨水景观资源。
+    when:
+      any_terms: [湖畔, 湖边, 湖岸, 湖景, 水岸]
+    append_axes:
+      - axis: site_resources
+        id: waterfront_view
+  - id: commercial_carrier_roi_or_traffic
+    description: 商铺载体与投资或流量压力共现时，推断为商业转化空间。
+    when:
+      all:
+        - any_terms: [小铺, 店铺, 铺位, 商铺, 档口, 门店, 零售项目, 商业项目, 商业空间]
+        - any:
+            - any_terms: [租金, 回本, 回收投资, 收回投资, 收回成本, 投资回报, 低投入, 成本压力]
+            - any_terms: [人流, 人流量, 客流, 快周转, 高周转, 高峰, 排队, 动线, 换乘]
+    append_axes:
+      - axis: space_domains
+        id: retail_commercial
+  - id: investment_pressure_roi
+    description: 投资回收、租金或成本压力出现时，补充商业成立与回报驱动。
+    when:
+      any_terms: [租金, 回本, 回收投资, 收回投资, 收回成本, 投资回报, 低投入, 成本压力]
+    append_axes:
+      - axis: founding_drivers
+        id: business_roi
+  - id: commercial_or_transit_operation_efficiency
+    description: 流量/高峰/动线信号与商业或交通语境共现时，补充运营效率驱动。
+    when:
+      all:
+        - any_terms: [人流, 人流量, 客流, 快周转, 高周转, 高峰, 排队, 动线, 换乘]
+        - any:
+            - any_terms: [小铺, 店铺, 铺位, 商铺, 档口, 门店, 零售项目, 商业项目, 商业空间]
+            - any_terms: [租金, 回本, 回收投资, 收回投资, 收回成本, 投资回报, 低投入, 成本压力]
+            - any_terms: [地铁, 换乘, 通道, 交通节点, 连接处, 站厅, 高铁]
+    append_axes:
+      - axis: founding_drivers
+        id: operational_efficiency
+  - id: transit_node_resource
+    description: 交通节点语境出现时，补充交通节点资源。
+    when:
+      any_terms: [地铁, 换乘, 通道, 交通节点, 连接处, 站厅, 高铁]
+    append_axes:
+      - axis: site_resources
+        id: transit_node
+  - id: public_learning_domain
+    description: 学习/参观/信息节奏与公众或儿童语境共现时，推断为公共教育服务。
+    when:
+      all:
+        - any_terms: [认知空间, 公众学习, 学习路径, 互动实验, 观察点, 参观路线, 参观路径, 参观, 信息节奏]
+        - any:
+            - any_terms: [市民, 公众, 居民, 社区, 参观者, 访客]
+            - any_terms: [中小学生, 学生, 孩子, 儿童, 青少年, 亲子]
+    append_axes:
+      - axis: space_domains
+        id: education_public
+  - id: public_user_profile
+    description: 公众、居民或访客语境出现时，补充公众使用者画像。
+    when:
+      any_terms: [市民, 公众, 居民, 社区, 参观者, 访客]
+    append_axes:
+      - axis: subject_profiles
+        id: public_users
+  - id: child_user_profile
+    description: 儿童、学生或亲子语境出现时，补充儿童使用者画像。
+    when:
+      any_terms: [中小学生, 学生, 孩子, 儿童, 青少年, 亲子]
+    append_axes:
+      - axis: subject_profiles
+        id: children
+
+labels:
+  residential: 居住生活
+  hospitality: 住宿与度假体验
+  retail_commercial: 商业转化
+  workplace: 组织与办公效率
+  cultural_exhibition: 文化展陈
+  healthcare_wellness: 健康照护
+  education_public: 公共教育服务
+  urban_renewal: 更新与再生
+  technical_special: 技术专项
+  complete_design_framework: 完整设计框架
+  methodology: 方法论梳理
+  naming: 命名与语言系统
+  competition_strategy: 竞标突破
+  technical_solution: 技术落地方案
+  methodology_discussion: 方法论讨论
+  analogy_translation: 方法转译
+  value_argument: 价值论证
+  founder_owner: 创始人/业主精神画像
+  family_multi_generation: 家庭与代际关系
+  female_owner: 女性主体与自我认同
+  children: 儿童成长与安全
+  elderly: 长者尊严与照护
+  professional_user: 专业使用者习惯
+  high_net_worth: 高净值生活秩序
+  public_users: 公众与多类客群
+  identity_expression: 身份与精神表达
+  family_legacy: 家族传承
+  business_roi: 商业成立与回报
+  brand_differentiation: 品牌差异化
+  cultural_translation: 文化转译
+  healing_support: 情绪疗愈与支持
+  operational_efficiency: 运营效率
+  social_solitude_balance: 社交与独处平衡
+  memory_object_integration: 旧物与记忆整合
+  art_living_balance: 艺术收藏与日常生活平衡
+  material_sustainability_value: 材料可持续价值
+  family_privacy_boundary: 家庭隐私与共居边界
+  extreme_resilience_prototype: 极端环境韧性原型
+  flexible_scene_switching: 多场景切换
+  waterfront_view: 景观资源
+  mountain_nature: 自然与山地资源
+  heritage_context: 历史与旧物语境
+  transit_node: 交通节点
+  new_build: 新建建设
+  renovation: 改造更新
+  soft_furnishing: 软装陈设
+  operation_upgrade: 运营升级
+  competition: 竞标阶段
+  budget: 预算与成本
+  fire_structure: 结构与消防
+  acoustics: 声学与隔音
+  accessibility_safety: 安全与无障碍
+  mep_climate: 机电与气候条件
+  security_privacy: 安防与隐私
+
+default_description: 会影响方案主轴、追问顺序和后续目录重心。
+
+descriptions:
+  identity_expression: 先判断空间要表达什么身份、精神和价值，而不是先堆风格。
+  family_legacy: 先确认家庭、代际和长期记忆如何被空间承载。
+  business_roi: 先校准商业成立逻辑、投入边界和运营回报。
+  brand_differentiation: 先判断品牌如何形成差异，而不是复制流行符号。
+  cultural_translation: 先把文化线索转成空间秩序，避免符号堆砌。
+  healing_support: 先确认情绪支持、尊严和安全感如何落到空间。
+  operational_efficiency: 先判断动线、效率和使用压力是否成立。
+  social_solitude_balance: 先判断社交、独处、日常节奏和自我表达如何互相支撑。
+  memory_object_integration: 先判断旧物如何从杂乱收藏变成有秩序的生活记忆。
+  art_living_balance: 先判断艺术展陈、收藏保护与日常生活如何共存。
+  methodology_discussion: 先把抽象观点转成可迁移的方法框架、适用边界和验证方式。
+  analogy_translation: 先判断外部体系中哪些原则可转译，哪些只能作为启发。
+  value_argument: 先判断要说服谁、用什么证据证明长期价值，以及哪些成本边界不能被美化。
+  material_sustainability_value: 先把材料替换从审美偏好转成成本、性能、维护、证据链和品牌价值判断。
+  family_privacy_boundary: 先判断家庭成员、隐私、公共交流和心理安全边界如何共存。
+  extreme_resilience_prototype: 先判断极端环境、地下空间、生命支持系统和长期运行冗余是否成立。
+  flexible_scene_switching: 先判断多个使用场景如何快速切换，以及哪些系统必须固定、哪些可以可变。
+
+tension_priority:
+  identity_expression:
+    base_weight: 90
+    title: 先确认空间真正要表达什么
+    prompt: 这个项目的关键不是先选风格，而是先确认空间要承载的身份、精神和分寸。
+  family_legacy:
+    base_weight: 86
+    title: 先确认家人和来客的关系
+    prompt: 需要先判断家庭传承、日常生活和待客场景之间如何分层。
+  founder_owner:
+    base_weight: 85
+    title: 先确认主人真正想被如何看见
+    prompt: 需要先判断创业经历、成就沉淀、内心回归和家庭安住之间的主次关系。
+  family_multi_generation:
+    base_weight: 83
+    title: 先确认一家人如何长期相处
+    prompt: 需要先判断长辈、夫妻、孩子、短住成员和日常照护之间的空间秩序。
+  female_owner:
+    base_weight: 81
+    title: 先确认女性主体的生活重心
+    prompt: 需要先判断自我认同、社交展示、独处修复和日常效率之间如何平衡。
+  children:
+    base_weight: 82
+    title: 先确认孩子的安全和成长边界
+    prompt: 需要先判断儿童尺度、陪伴关系、学习活动和安全照护如何落到空间。
+  elderly:
+    base_weight: 82
+    title: 先确认长辈的尊严和便利
+    prompt: 需要先判断行动便利、照护支持、社交参与和安全感如何共存。
+  professional_user:
+    base_weight: 79
+    title: 先确认专业使用者的工作习惯
+    prompt: 需要先判断专业工作、设备资料、专注状态和生活切换如何组织。
+  high_net_worth:
+    base_weight: 80
+    title: 先确认高净值生活的分寸
+    prompt: 需要先判断价值感、私密性、接待边界和长期维护，而不是堆砌奢华符号。
+  public_users:
+    base_weight: 78
+    title: 先确认公众如何进入和停留
+    prompt: 需要先判断访客、居民、会员或员工的进入路径、停留方式和管理边界。
+  business_roi:
+    base_weight: 88
+    title: 先确认生意是否成立
+    prompt: 需要先判断租金、客流、投入和回本目标能否支撑空间策略。
+  operational_efficiency:
+    base_weight: 84
+    title: 先确认高峰期怎么运转
+    prompt: 需要先判断人流、物流、设备、服务和管理是否互相打架。
+  social_solitude_balance:
+    base_weight: 84
+    title: 先确认社交和独处如何平衡
+    prompt: 需要先判断日常独处、偶发社交、自我表达和生活节奏如何在空间里互不打架。
+  fire_structure:
+    base_weight: 95
+    title: 先确认不能突破的条件
+    prompt: 消防、结构、机电这类条件不清楚时，只能做条件级判断。
+  brand_differentiation:
+    base_weight: 82
+    title: 先确认品牌差异从哪里来
+    prompt: 需要先判断项目靠什么形成差异，而不是先复制流行符号。
+  cultural_translation:
+    base_weight: 80
+    title: 先确认文化如何变成空间秩序
+    prompt: 需要先把文化线索转成动线、材料、尺度和停留方式。
+  healing_support:
+    base_weight: 78
+    title: 先确认空间如何安放情绪
+    prompt: 需要先判断安全感、尊严、疗愈和照护如何落到空间。
+  memory_object_integration:
+    base_weight: 81
+    title: 先确认旧物如何变成生活记忆
+    prompt: 需要先判断旧物、老家具和不同年代风格如何形成秩序，而不是堆成复古符号。
+  art_living_balance:
+    base_weight: 83
+    title: 先确认艺术收藏和日常生活如何共存
+    prompt: 需要先判断展陈、灯光、收藏保护和真实居住之间的切换边界。
+  methodology_discussion:
+    base_weight: 76
+    title: 先确认方法论如何落到空间判断
+    prompt: 这类问题可以讨论方法框架，但需要同时说明适用边界和落地验证方式。
+  analogy_translation:
+    base_weight: 74
+    title: 先确认哪些外部方法可以转译
+    prompt: 需要先拆出外部体系的可迁移原则，再判断如何转成空间流程。
+  value_argument:
+    base_weight: 77
+    title: 先确认这套论证要说服谁
+    prompt: 需要先明确论证对象、证据口径、成本边界和最终验证方式。
+  material_sustainability_value:
+    base_weight: 85
+    title: 先确认材料替换为什么值得
+    prompt: 需要先判断材料替换的成本、性能、维护、证据链和长期价值是否说得通。
+  family_privacy_boundary:
+    base_weight: 87
+    title: 先确认家人之间如何保持亲近和边界
+    prompt: 需要先判断家庭成员的公共交流、绝对隐私、独立性和冲突缓冲如何共存。
+  extreme_resilience_prototype:
+    base_weight: 89
+    title: 先确认极端环境下什么不能失效
+    prompt: 需要先判断地下空间、空气、光照、能源、心理缓冲和运维冗余能否支撑长期使用。
+  flexible_scene_switching:
+    base_weight: 86
+    title: 先确认多场景如何切换
+    prompt: 需要先判断居住、拍摄、派对、展示等场景切换时，家具、灯光、收纳和动线如何互不打架。
+  urban_renewal:
+    base_weight: 86
+    title: 先确认更新再生要保住什么
+    prompt: 需要先判断原有场地记忆、公共价值、新功能导入和后续运营之间如何取舍。
+  heritage_context:
+    base_weight: 82
+    title: 先确认场地记忆如何被保留
+    prompt: 需要先判断哪些历史、社区或旧物线索必须保留，哪些可以转译为新的空间体验。
+  waterfront_view:
+    base_weight: 78
+    title: 先确认景观资源如何服务使用
+    prompt: 需要先判断滨水、海景、山景等资源是用于停留体验、品牌传播，还是日常运营效率。
+  accessibility_safety:
+    base_weight: 90
+    title: 先确认安全和尊严如何同时成立
+    prompt: 需要先判断无障碍、安全、便利、独立性和空间气质如何同时成立，而不是只做功能补丁。
+  workplace:
+    base_weight: 83
+    title: 先确认组织如何工作和协作
+    prompt: 需要先判断办公、协作、专注、展示和技术系统之间如何互相支撑。
+  residential:
+    base_weight: 80
+    title: 先确认居住生活的主次秩序
+    prompt: 需要先判断主人、日常生活、精神表达、私密边界和长期维护之间如何排序。
+  cultural_exhibition:
+    base_weight: 81
+    title: 先确认展陈叙事如何被体验
+    prompt: 需要先判断展陈路径、信息层级、互动方式和情绪节奏如何组织。
+  hospitality:
+    base_weight: 81
+    title: 先确认住客、公共空间和运营如何成立
+    prompt: 需要先判断住客停留、公共社交、在地记忆和持续运营如何形成完整体验。
+  technical_special:
+    base_weight: 76
+    title: 先确认技术系统如何融入空间
+    prompt: 需要先判断设备、环境控制、数据系统或沉浸技术如何服务使用体验，而不是喧宾夺主。
+
+guardrails:
+  commercial_domains: [retail_commercial]
+  commercial_project_types: [commercial_dining, commercial_retail]
+  commercial_template_terms:
+    - 小面积高周转
+    - 出杯
+    - 外卖自提
+    - 点单、制作、取餐
+    - 地铁客流
+    - 高峰订单
+  generic_step_titles:
+    - 选择判断路径
+    - 成立路径
+    - 硬约束
+    - 取舍边界
+  wrong_domain_references:
+    - 城市更新
+    - 历史建筑
+  heritage_or_urban_domains: [urban_renewal]
+  heritage_or_urban_resources: [heritage_context]
+  english_key_pattern: "\\b[a-z]+(?:_[a-z0-9]+)+\\b|\\b(?:household structure|privacy boundary|individual privacy)\\b"
+  core_subject_visible_terms:
+    founder_owner: [创业者, 主人, 业主, 草根]
+  core_driver_visible_terms:
+    family_legacy: [家族, 传承, 家庭]

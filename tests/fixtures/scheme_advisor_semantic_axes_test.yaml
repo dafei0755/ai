@@ -1,0 +1,15 @@
+version: test
+axes:
+  test_axis:
+    test_case:
+      terms:
+        - 独有测试词
+labels:
+  test_case: 外部配置命中
+descriptions:
+  test_case: 由外部配置驱动，不依赖代码分支。
+guardrails:
+  commercial_template_terms: []
+  generic_step_titles: []
+  wrong_domain_references: []
+  english_key_pattern: "\\b[a-z]+(?:_[a-z0-9]+)+\\b"

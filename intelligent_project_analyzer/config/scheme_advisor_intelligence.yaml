@@ -1,0 +1,125 @@
+version: "v1.0"
+description: >
+  Renderer vocabulary and scoring weights for the Scheme Advisor entry
+  intelligence packet. This file is expression-layer configuration only; space
+  type detection, ontology activation, and knowledge binding come from the
+  classification / ontology / knowledge registries.
+
+labels:
+  project_goal: 项目目标
+  users: 使用者
+  spatial_scope: 空间范围
+  constraints: 约束条件
+  risk_validation: 风险验证
+  success_metrics: 成功标准
+  dining_concept_and_positioning: 餐饮定位
+  customer_flow_and_seating_capacity: 客流与容量
+  front_of_house_vs_back_of_house: 前后场比例
+  noise_zoning_and_acoustic_comfort: 噪声与舒适度
+  table_turnover_and_peak_efficiency: 翻台与高峰效率
+  brand_atmosphere_and_theme: 品牌氛围
+  staff_circulation_and_service_flow: 员工服务动线
+  operate_model_alignment: 经营模型对齐
+  queue_and_pickup_decoupling: 排队与取餐解耦
+  front_back_house_boundary: 前后场边界
+  safety_and_mep_feasibility: 安全与机电可行性
+  brand_memory_point: 品牌记忆点
+  fire_compliance: 消防合规
+  mep_feasibility: 机电可行性
+  queue_conflict: 排队冲突
+  equipment_clearance: 设备净距
+  cost_risk: 成本风险
+  acoustic_discomfort: 声学不适
+  flow_conflict: 动线冲突
+  kitchen_workflow: 厨房流程
+  customer_journey: 用户路径
+  conversion_touchpoint: 转化触点
+
+question_templates:
+  round_1:
+    title: 先锁定方向级变量
+    prompt_text: 第一轮只问会改变任务书目录、版本档位和报价口径的关键变量。
+    pages:
+      - id: establishment_path
+        page_title: 先看项目靠什么成立
+        prompt_text: "{space_label}最先要证明哪几件事成立？"
+        response_mode: priority_pick
+        max_select: 2
+        helper_text: 按优先级选择，不是单选。系统会据此调整目录重心。
+      - id: hard_constraints
+        page_title: 先看哪些条件不能含糊
+        prompt_text: "哪些约束一旦不清楚，会直接让后续判断失真？"
+        response_mode: multi_select
+        max_select: 3
+        helper_text: 可以多选。这里判断正式阶段必须先校准的边界。
+      - id: decision_tension
+        page_title: 先看最不能牺牲什么
+        prompt_text: "如果只能先保住两件事，哪两件最不能被牺牲？"
+        response_mode: priority_pick
+        max_select: 2
+        helper_text: 按点击顺序形成优先级，影响版本深度判断。
+  round_2:
+    title: 再确认关键选择
+    prompt_text: 第二轮不再补背景，只确认会改变任务书重心和版本深度的关键选择。
+    pages:
+      - id: risk_threshold
+        page_title: 最不能接受的风险
+        prompt_text: "出现哪类情况，你会认为当前方向必须立刻调整？"
+        response_mode: multi_select
+        max_select: 2
+        helper_text: 选最不能接受的风险，它会直接影响任务书深度。
+      - id: resource_bet
+        page_title: 资源优先级
+        prompt_text: "如果资源不能平均分配，你愿意优先保障哪些环节？"
+        response_mode: multi_select
+        max_select: 3
+        helper_text: 这里决定任务书把钱、时间和注意力放在哪里。
+      - id: formal_calibration
+        page_title: 正式校准
+        prompt_text: "正式工作开始后，哪些资料或边界必须最先校准？"
+        response_mode: multi_select
+        max_select: 3
+        helper_text: 入口阶段不要求上传资料，但要知道正式阶段先校准什么。
+
+version_scoring:
+  basic_max: 2
+  standard_max: 6
+  weights:
+    low_confidence: 2
+    coverage_gap: 1
+    knowledge_gap: 1
+    active_subdomain: 1
+    active_activation_pack: 1
+    high_risk_terms: 2
+    investment_terms: 2
+    collaboration_terms: 2
+    formal_delivery_terms: 1
+  high_risk_terms:
+    - 高风险
+    - 复杂
+    - 审批
+    - 合规
+    - 消防
+    - 机电
+    - 多方案
+    - 首店
+  investment_terms:
+    - 回本
+    - 月租
+    - 租金
+    - 投资
+    - 预算
+    - 成本
+    - 融资
+  collaboration_terms:
+    - 多方
+    - 投资人
+    - 合伙
+    - 决策层
+    - 业主方
+  formal_delivery_terms:
+    - CAD
+    - 平面图
+    - 施工
+    - 设备
+    - 物业

@@ -1,0 +1,1036 @@
+version: "v1.0"
+
+first_confidence:
+  redirect: "这个问题有启发价值，但方案高参当前聚焦的是把具体项目转成设计任务书。要让方法论真正落地，关键是把它映射到项目目标、空间约束和风险取舍里。你给我一个具体项目，我就能把它转成任务书级的行动路径。"
+  default_project: "你给的信息已经足够进入设计任务书预判断。现在最重要的不是继续补表，而是先判断项目目标、空间约束、投入边界和最不能接受的风险之间的关系。我会用两轮短问诊把目录重心和版本深度校准，不要求现在上传 CAD。"
+  tea_retail_space: "这个项目最危险的不是 35 平米小，而是月租 5 万把它逼成一个高频转化机器。如果门头识别、出杯效率、排队秩序和取餐路径没有被同一个空间逻辑统筹，半年回本很可能只是财务愿望，不是设计目标。\n\n我先不让你上传 CAD，也不展开风格建议；先用两轮短问诊判断这家店到底靠什么成立，再把任务书目录和版本深度校准到可执行。"
+
+generic_project:
+  second_confidence: "基于你刚才的补充，{space_label}的主轴已经更清楚了：它不是单一设计问题，而是目标、投入、运营路径和空间边界之间的系统取舍。下一轮我只确认决策优先级，不再问背景，这样目录和报价才能从可聊推进到可执行。"
+  stage_conclusion: "现在已经满足目录预成型条件。初始输入加两轮回答，足够形成阶段判断，不需要继续把你拖进长表单。我会优先用{tier_name}承接，把空间类型、核心目标、投入边界和不能踩的风险放进同一份任务书目录里；CAD、现场照片、品牌资料和设备清单放到正式工作阶段校准。"
+  version_intro: "下面选择的不是三个不同产品，而是同一份设计任务书 2.0 要做到多深。我当前推荐{tier_name}，因为它更能承接这个项目的决策压力；你也可以根据预算和协作强度改选。"
+  version_prompt_text: "基础版解决成型，标准版解决经营约束对齐，高级版解决复杂决策与风险分层。"
+
+  first_confidence_selection_rules:
+    - template_path: generic_project.first_confidence_templates.residential_identity
+      when:
+        profile_contains_any:
+          space_axis_id: ["private_residential_identity", "private_residential_life", "residential_conflict"]
+    - template_path: generic_project.first_confidence_templates.commercial_operation
+      when:
+        profile_contains_any:
+          space_axis_id: ["commercial_operation", "retail_brand_conversion"]
+    - template_path: generic_project.first_confidence_templates.urban_public
+      when:
+        profile_contains_any:
+          space_axis_id: ["urban_renewal", "public_service", "urban_public", "landscape_public"]
+    - template_path: generic_project.first_confidence_templates.workplace_identity
+      when:
+        profile_contains_any:
+          space_axis_id: ["workplace_identity"]
+    - template_path: generic_project.first_confidence_templates.culture_brand
+      when:
+        profile_contains_any:
+          space_axis_id: ["brand_cultural", "cultural_public", "spiritual_ritual"]
+
+  stage_conclusion_selection_rules:
+    - template_path: generic_project.stage_conclusion_templates.residential_identity
+      when:
+        profile_contains_any:
+          space_axis_id: ["private_residential_identity", "private_residential_life", "residential_conflict"]
+    - template_path: generic_project.stage_conclusion_templates.commercial_operation
+      when:
+        profile_contains_any:
+          space_axis_id: ["commercial_operation", "retail_brand_conversion"]
+    - template_path: generic_project.stage_conclusion_templates.urban_public
+      when:
+        profile_contains_any:
+          space_axis_id: ["urban_renewal", "public_service", "urban_public", "landscape_public"]
+    - template_path: generic_project.stage_conclusion_templates.workplace_identity
+      when:
+        profile_contains_any:
+          space_axis_id: ["workplace_identity"]
+    - template_path: generic_project.stage_conclusion_templates.culture_brand
+      when:
+        profile_contains_any:
+          space_axis_id: ["brand_cultural", "cultural_public", "spiritual_ritual"]
+    - template_path: generic_project.stage_conclusion
+      default: true
+
+  version_intro_selection_rules:
+    - template_path: generic_project.version_intro_templates.residential_identity
+      when:
+        profile_contains_any:
+          space_axis_id: ["private_residential_identity", "private_residential_life", "residential_conflict"]
+    - template_path: generic_project.version_intro_templates.commercial_operation
+      when:
+        profile_contains_any:
+          space_axis_id: ["commercial_operation", "retail_brand_conversion"]
+    - template_path: generic_project.version_intro_templates.urban_public
+      when:
+        profile_contains_any:
+          space_axis_id: ["urban_renewal", "public_service", "urban_public", "landscape_public"]
+    - template_path: generic_project.version_intro_templates.workplace_identity
+      when:
+        profile_contains_any:
+          space_axis_id: ["workplace_identity"]
+    - template_path: generic_project.version_intro_templates.culture_brand
+      when:
+        profile_contains_any:
+          space_axis_id: ["brand_cultural", "cultural_public", "spiritual_ritual"]
+    - template_path: generic_project.version_intro
+      default: true
+
+  round_1_card_selection_rules:
+    - card_path: generic_project.round_1_cards.residential_identity
+      when:
+        profile_contains_any:
+          space_axis_id: ["private_residential_identity", "private_residential_life", "residential_conflict"]
+    - card_path: generic_project.round_1_cards.commercial_operation
+      when:
+        profile_contains_any:
+          space_axis_id: ["commercial_operation", "retail_brand_conversion"]
+    - card_path: generic_project.round_1_cards.urban_public
+      when:
+        profile_contains_any:
+          space_axis_id: ["urban_renewal", "public_service", "urban_public", "landscape_public"]
+    - card_path: generic_project.round_1_cards.workplace_identity
+      when:
+        profile_contains_any:
+          space_axis_id: ["workplace_identity"]
+    - card_path: generic_project.round_1_cards.culture_brand
+      when:
+        profile_contains_any:
+          space_axis_id: ["brand_cultural", "cultural_public", "spiritual_ritual"]
+
+  first_confidence_templates:
+    default: "这更像是一个需要先校准目标、使用者和空间边界的项目，不能一上来只谈风格或效果图。\n\n当前最值得先锁定的是{decision_focus}。这些会影响第一版建议先判断什么、哪些内容只能先按假设推进。\n\n下一步先确认真正影响方向的几件事，确认后再进入完整设计建议，不在入口阶段要求 CAD。{coverage_note}"
+    residential_identity: "这更像是一个私人生活、身份表达与长期关系问题，不能只从风格或效果图理解{space_label}。\n\n当前最值得先锁定的是{decision_focus}。这些会影响公共与私密、日常使用、精神表达和家庭关系的优先级。\n\n下一步先确认这个空间最不能跑偏的精神主轴，确认后再进入完整设计建议，不在入口阶段要求 CAD。{coverage_note}"
+    commercial_operation: "这更像是一个商业空间如何站住的问题，不能只从装修风格理解{space_label}。\n\n当前最值得先锁定的是{decision_focus}。这些会影响投入、回本或回收投资、客流、转化、动线和后续运营的优先级。\n\n下一步先确认项目靠什么被看见、被选择、被持续使用，确认后再进入完整设计建议，不在入口阶段要求 CAD。{coverage_note}"
+    urban_public: "这更像是一个公共价值、原有场地和更新秩序之间的关系问题，不能只从形象提升理解{space_label}。\n\n当前最值得先锁定的是{decision_focus}。这些会影响使用者、运营方式、原有记忆和实施边界。\n\n下一步先确认这个更新到底要解决什么真实问题，确认后再进入完整设计建议，不在入口阶段要求 CAD。{coverage_note}"
+    workplace_identity: "这更像是一个组织身份与协作效率问题，不能只把{space_label}做成漂亮办公室。\n\n当前最值得先锁定的是{decision_focus}。这些会影响协作方式、员工体验、品牌气质和管理效率。\n\n下一步先确认组织真正希望空间改变什么，确认后再进入完整设计建议，不在入口阶段要求 CAD。{coverage_note}"
+    culture_brand: "这更像是一个文化内容如何被空间看懂的问题，不能只堆符号或讲概念。\n\n当前最值得先锁定的是{decision_focus}。这些会影响故事线、体验路径、材料表达和运营边界。\n\n下一步先确认哪些文化内容必须被使用者感受到，确认后再进入完整设计建议，不在入口阶段要求 CAD。{coverage_note}"
+
+  stage_conclusion_templates:
+    residential_identity: "现在可以收束。这个项目先按“私人生活与身份表达型空间”进入任务书目录预成型，目录重心放在{decision_focus}。\n\n当前更适合用{tier_name}承接：基础版能整理方向，标准版能把身份表达、家庭关系、精神气质和日常使用放进同一套判断里。{pending}不是入口阶段卡住你的理由，而是正式任务书阶段校准平面、私密边界和落地深度的依据。"
+    commercial_operation: "现在可以收束。这个项目先按“商业成立与运营效率型空间”进入任务书目录预成型，目录重心放在{decision_focus}。\n\n当前更适合用{tier_name}承接：基础版能形成方向骨架，标准版能把回本、投入、客流、转化、动线和不能踩的风险放进同一套判断里。{pending}不是入口阶段卡住你的理由，而是正式任务书阶段校准平面、设备和经营边界的依据。"
+    urban_public: "现在可以收束。这个项目先按“公共价值与更新秩序型空间”进入任务书目录预成型，目录重心放在{decision_focus}。\n\n当前更适合用{tier_name}承接：基础版能建立更新框架，标准版能把公共性、运营、历史或社区关系和实施边界放进同一套判断里。{pending}不是入口阶段卡住你的理由，而是正式任务书阶段校准权属、流线和落地边界的依据。"
+    workplace_identity: "现在可以收束。这个项目先按“组织身份与效率协同型空间”进入任务书目录预成型，目录重心放在{decision_focus}。\n\n当前更适合用{tier_name}承接：基础版能整理办公方向，标准版能把品牌气质、组织协作、效率和员工体验放进同一套判断里。{pending}不是入口阶段卡住你的理由，而是正式任务书阶段校准工位、会议和协作场景的依据。"
+    culture_brand: "现在可以收束。这个项目先按“文化叙事与体验转译型空间”进入任务书目录预成型，目录重心放在{decision_focus}。\n\n当前更适合用{tier_name}承接：基础版能建立叙事方向，标准版能把文化母题、体验路径、材料表达和运营边界放进同一套判断里。{pending}不是入口阶段卡住你的理由，而是正式任务书阶段校准展陈、动线和内容深度的依据。"
+
+  version_intro_templates:
+    residential_identity: "下面不是单纯买文档，而是在选择这份私人生活与身份表达任务书要做到多深。当前推荐{tier_name}，依据是{reason_text}；基础版解决方向骨架，标准版解决身份、家庭、私密和精神表达如何转成空间秩序，高级版解决复杂家庭协同和落地汇报。"
+    commercial_operation: "下面不是单纯买文档，而是在选择这份商业成立与运营效率任务书要做到多深。当前推荐{tier_name}，依据是{reason_text}；基础版解决方向骨架，标准版解决投入、客流、转化和动线如何互相校准，高级版解决多方协作、预算复核和风险汇报。"
+    urban_public: "下面不是单纯买文档，而是在选择这份公共更新任务书要做到多深。当前推荐{tier_name}，依据是{reason_text}；基础版解决更新方向，标准版解决公共性、运营、社区或历史关系的系统校准，高级版解决多主体协同和阶段实施汇报。"
+    workplace_identity: "下面不是单纯买文档，而是在选择这份办公与组织协同任务书要做到多深。当前推荐{tier_name}，依据是{reason_text}；基础版解决方向骨架，标准版解决品牌、效率、协作和员工体验的联动判断，高级版解决组织沟通和落地复核。"
+    culture_brand: "下面不是单纯买文档，而是在选择这份文化叙事与体验转译任务书要做到多深。当前推荐{tier_name}，依据是{reason_text}；基础版解决叙事骨架，标准版解决文化母题、体验路径和空间表达如何落地，高级版解决内容协作、运营和传播复核。"
+
+  round_1_cards:
+    default:
+      title: "先把方向说清楚"
+      prompt_text: "第一轮只确认真正会改变设计建议的几件事。"
+      pages:
+        - page_title: "先看项目目标"
+          prompt_text: "这个项目最想先解决什么？"
+          response_mode: "single_select"
+          max_select: 1
+          allow_freetext: true
+          options:
+            - id: "better_use"
+              label: "先解决使用问题"
+              description: "让空间更顺、更安全、更好用。"
+            - id: "better_image"
+              label: "先解决形象问题"
+              description: "让空间更有识别度和记忆点。"
+            - id: "better_value"
+              label: "先解决价值问题"
+              description: "让投入、回报或长期价值更清楚。"
+        - page_title: "先看不能含糊的边界"
+          prompt_text: "哪些条件如果不清楚，后续建议最容易失真？"
+          response_mode: "multi_select"
+          max_select: 2
+          allow_freetext: true
+          options:
+            - id: "budget"
+              label: "预算和投入"
+              description: "钱花到哪里，决定建议深度。"
+            - id: "site"
+              label: "场地和面积"
+              description: "面积、层高、结构和现场条件会影响落地。"
+            - id: "users"
+              label: "使用者关系"
+              description: "谁最常用、谁最重要、谁不能被忽略。"
+    residential_identity:
+      title: "先把这个空间的精神主轴说清楚"
+      prompt_text: "第一轮只确认身份表达、家庭关系和场地资源，不急着谈风格。"
+      pages:
+        - page_title: "先看主人真正想被空间承载什么"
+          prompt_text: "这个空间最应该先保住哪种感受？"
+          response_mode: "single_select"
+          max_select: 1
+          allow_freetext: true
+          options:
+            - id: "legacy"
+              label: "家族传承"
+              description: "让空间承接长期关系和家族记忆。"
+            - id: "return"
+              label: "内心回归"
+              description: "让成功之后的生活重新变得安定。"
+            - id: "achievement"
+              label: "成就分寸"
+              description: "表达成就，但避免显得用力炫耀。"
+        - page_title: "先看公共与私密怎么分"
+          prompt_text: "客人、家人和主人之间，哪种关系最不能处理错？"
+          response_mode: "single_select"
+          max_select: 1
+          allow_freetext: true
+          options:
+            - id: "host_guest"
+              label: "主人和客人的分寸"
+              description: "接待要有气场，但不能压迫日常。"
+            - id: "family_order"
+              label: "家人之间的秩序"
+              description: "不同家庭成员的生活节奏要能共存。"
+            - id: "private_recovery"
+              label: "独处和恢复"
+              description: "给主人保留真正安静的内在空间。"
+        - page_title: "先看场地资源怎么用"
+          prompt_text: "像海景、山景、庭院这类资源，应该承担什么角色？"
+          response_mode: "single_select"
+          max_select: 1
+          allow_freetext: true
+          options:
+            - id: "daily_background"
+              label: "成为日常背景"
+              description: "不抢戏，但每天都能安定情绪。"
+            - id: "ceremonial_anchor"
+              label: "成为仪式核心"
+              description: "在会客或家庭仪式中形成记忆点。"
+            - id: "quiet_boundary"
+              label: "成为私密边界"
+              description: "用自然资源削弱外界压力。"
+    commercial_operation:
+      title: "先判断这个商业空间靠什么被选择"
+      prompt_text: "第一轮只确认顾客、转化和投入优先级，不急着谈造型。"
+      pages:
+        - page_title: "先看顾客为什么进来"
+          prompt_text: "顾客选择这里，最应该靠什么被打动？"
+          response_mode: "single_select"
+          max_select: 1
+          allow_freetext: true
+          options:
+            - id: "visibility"
+              label: "一眼看见"
+              description: "门头、橱窗和入口先把人截住。"
+            - id: "trust"
+              label: "马上信任"
+              description: "让顾客觉得专业、干净、值得买。"
+            - id: "experience"
+              label: "愿意停留"
+              description: "用体验和氛围提高转化。"
+        - page_title: "先看钱要花在哪里"
+          prompt_text: "如果预算不能平均分，哪一项最值得优先？"
+          response_mode: "single_select"
+          max_select: 1
+          allow_freetext: true
+          options:
+            - id: "front"
+              label: "入口和识别"
+              description: "先解决被看见和被记住。"
+            - id: "flow"
+              label: "动线和效率"
+              description: "先解决接待、购买和交付是否顺。"
+            - id: "brand"
+              label: "品牌记忆"
+              description: "先解决差异化和传播。"
+    urban_public:
+      title: "先判断更新真正解决什么问题"
+      prompt_text: "第一轮只确认公共价值、原有使用者和运营边界。"
+      pages:
+        - page_title: "先看谁最需要被照顾"
+          prompt_text: "这个更新最不能忽略哪一类人？"
+          response_mode: "single_select"
+          max_select: 1
+          allow_freetext: true
+          options:
+            - id: "residents"
+              label: "原有居民"
+              description: "不能让更新把原来的生活挤出去。"
+            - id: "visitors"
+              label: "外来访客"
+              description: "需要更清楚的体验路径和识别系统。"
+            - id: "operators"
+              label: "运营者"
+              description: "要能长期维护，而不是只做开业效果。"
+        - page_title: "先看原有记忆怎么处理"
+          prompt_text: "场地里的旧东西应该怎么进入新空间？"
+          response_mode: "single_select"
+          max_select: 1
+          allow_freetext: true
+          options:
+            - id: "keep_core"
+              label: "保留核心记忆"
+              description: "把最有价值的原有内容留下来。"
+            - id: "translate"
+              label: "转译成新体验"
+              description: "不用复古复制，而是变成新的使用方式。"
+            - id: "balance"
+              label: "新旧并置"
+              description: "让新功能和旧记忆都能被看见。"
+    workplace_identity:
+      title: "先判断组织要空间改变什么"
+      prompt_text: "第一轮只确认组织气质、协作方式和效率痛点。"
+      pages:
+        - page_title: "先看空间要改变哪件事"
+          prompt_text: "这个办公或总部空间最应该先解决什么？"
+          response_mode: "single_select"
+          max_select: 1
+          allow_freetext: true
+          options:
+            - id: "identity"
+              label: "组织气质"
+              description: "让客户和员工一进来就理解这家公司。"
+            - id: "collaboration"
+              label: "协作效率"
+              description: "让会议、沟通和专注更顺。"
+            - id: "growth"
+              label: "未来弹性"
+              description: "为团队变化和业务增长留余地。"
+        - page_title: "先看员工和客户谁更重要"
+          prompt_text: "第一版空间判断应该更偏向哪一端？"
+          response_mode: "single_select"
+          max_select: 1
+          allow_freetext: true
+          options:
+            - id: "staff"
+              label: "员工日常"
+              description: "先让每天使用的人更高效、更舒服。"
+            - id: "client"
+              label: "客户信任"
+              description: "先让对外接待和品牌可信度更强。"
+            - id: "both"
+              label: "两端平衡"
+              description: "对内效率和对外形象都不能偏废。"
+    culture_brand:
+      title: "先判断文化内容怎么被空间看懂"
+      prompt_text: "第一轮只确认文化主线、体验路径和表达分寸。"
+      pages:
+        - page_title: "先看最重要的文化内容"
+          prompt_text: "这个空间最应该让人记住什么？"
+          response_mode: "single_select"
+          max_select: 1
+          allow_freetext: true
+          options:
+            - id: "story"
+              label: "一个核心故事"
+              description: "让体验有清楚的起承转合。"
+            - id: "spirit"
+              label: "一种精神气质"
+              description: "让空间不靠符号堆砌也能成立。"
+            - id: "behavior"
+              label: "一种使用方式"
+              description: "让文化通过人的行动被感知。"
+        - page_title: "先看表达要多克制"
+          prompt_text: "文化表达最怕哪种问题？"
+          response_mode: "single_select"
+          max_select: 1
+          allow_freetext: true
+          options:
+            - id: "too_symbolic"
+              label: "符号太浅"
+              description: "只剩图案、字画或摆件。"
+            - id: "too_abstract"
+              label: "概念太虚"
+              description: "用户听不懂，也感受不到。"
+            - id: "too_heavy"
+              label: "表达太满"
+              description: "文化压过了真实使用。"
+
+tea_retail_space:
+  second_confidence_template: "你刚才的选择把项目主轴压清楚了：{model_sentence}{lever_sentence}下一轮我只问取舍，不再问背景；问完就能把任务书目录重心和版本深度定下来。"
+  stage_conclusion_template: "现在可以收束，不需要继续问卷化。这个项目我会先按“{model_label}”进入任务书目录预成型，目录重心放在{directory_focus}。\n\n当前更适合用{tier_name}承接：基础版能启动，但容易漏掉高租金下的经营联动；标准版能把回本、出杯、门头、取餐和投入节奏放到同一套判断里。CAD、设备、物业和现场资料不是现在卡住你的理由，而是正式任务书阶段校准平面和落地边界的依据。"
+  version_intro_template: "下面不是单纯买文档，而是在选择这份“{model_label}”任务书要做到多深。基础版解决能不能启动，标准版解决经营约束能不能转成可执行设计判断，高级版解决首店验证、多人协作和投资汇报。当前推荐标准版，是因为这个项目的风险不在写目录，而在回本、效率和转化能否被同一套空间逻辑锁住。"
+  version_prompt_text: "基础版解决启动骨架，标准版解决回本、出杯、转化和投入节奏的联动判断，高级版解决首店验证、多人协作与投资汇报。"
+
+  stage_conclusion_selection_rules:
+    - template_path: tea_retail_space.stage_conclusion_templates.hard_boundary
+      when:
+        tags_all: ["hard_boundary"]
+    - template_path: tea_retail_space.stage_conclusion_templates.operational_diagnostic
+      when:
+        tags_all: ["operational_diagnostic"]
+    - template_path: tea_retail_space.stage_conclusion_templates.coffee
+      when:
+        profile_contains_any:
+          subdomain_id: ["coffee_shop"]
+          activation_pack_id: ["coffee_shop_pack"]
+          space_label: ["coffee", "咖啡"]
+    - template_path: tea_retail_space.stage_conclusion_template
+      default: true
+
+  version_intro_selection_rules:
+    - template_path: tea_retail_space.version_intro_templates.hard_boundary
+      when:
+        tags_all: ["hard_boundary"]
+    - template_path: tea_retail_space.version_intro_templates.operational_diagnostic
+      when:
+        tags_all: ["operational_diagnostic"]
+    - template_path: tea_retail_space.version_intro_templates.coffee
+      when:
+        profile_contains_any:
+          subdomain_id: ["coffee_shop"]
+          activation_pack_id: ["coffee_shop_pack"]
+          space_label: ["coffee", "咖啡"]
+    - template_path: tea_retail_space.version_intro_template
+      default: true
+
+  stage_conclusion_templates:
+    hard_boundary: "现在可以收束。这个铺位先按“硬条件待校准型饮品空间”进入任务书目录预成型，目录重心放在{pending}和{directory_focus}。\n\n当前更适合用{tier_name}承接：基础版能启动条件判断，但容易把物业、消防、给排水、电量和设备边界说浅；标准版能把能不能做、能做到多深、哪些只能按假设推进讲清楚。入口阶段不要求你上传 CAD，正式阶段再用物业条件表、平面图和现场照片校准。"
+    operational_diagnostic: "现在可以收束。这个项目先按“运营断点诊断型饮品空间”进入任务书目录预成型，目录重心放在{directory_focus}。\n\n当前更适合用{tier_name}承接：基础版能启动诊断，标准版能把看见、停下、点单、等待、取餐和复购放进同一套低成本验证路径。正式阶段再用现场观察、动线照片和订单数据校准。"
+    coffee: "现在可以收束。这个项目先按“咖啡短停留与品质信任空间”进入任务书目录预成型，目录重心放在{directory_focus}。\n\n当前更适合用{tier_name}承接：基础版能启动方向判断，标准版能把短停留、品质感、出杯效率和投入节奏放进同一套判断里。正式阶段再用平面、设备和客群时段校准。"
+
+  version_intro_templates:
+    hard_boundary: "下面不是单纯买文档，而是在选择这份硬条件待校准型任务书要做到多深。基础版解决能不能启动条件判断，标准版解决物业、消防、给排水、电量、设备和排队边界如何一起校准，高级版解决多方协作和投资风险汇报。当前推荐{tier_name}，因为这类项目的风险不在写目录，而在硬条件是否支撑经营。"
+    operational_diagnostic: "下面不是单纯买文档，而是在选择这份运营断点诊断型任务书要做到多深。基础版解决快速诊断，标准版解决看见、点单、等待、取餐和复购之间的低成本验证，高级版解决首店优化和持续运营复盘。当前推荐{tier_name}，因为这类项目的风险不在装修多少，而在成交链路哪里断。"
+    coffee: "下面不是单纯买文档，而是在选择这份咖啡店任务书要做到多深。基础版解决方向骨架，标准版解决短停留、品质感、出杯效率和投入节奏的联动判断，高级版解决首店验证、多人协作与投资汇报。当前推荐{tier_name}，因为这类项目的风险不在风格，而在购买理由和停留边界是否成立。"
+
+  first_confidence_variants:
+    coffee: "这更像是一个小面积精品咖啡店的经营体验题，重点不是把空间做得更满，而是让高租金、短停留和不被催促的体感同时成立。\n\n初步框架应先看顾客为什么愿意进来、座椅舒适度如何控制停留、点单取餐是否顺、灯光和音乐如何给节奏，以及预算是否花在最影响翻台和品牌质感的位置。\n\n下一步先确认客群、停留节奏和投入边界，再进入完整设计建议。"
+    hard_boundary: "这类茶饮小店先别急着排平面。上下水、电量、排烟、消防和物业限制一旦不成立，后面的吧台、设备和动线都会变成假设。\n\n初步框架应先把能不能做、能做到多深、哪些条件只能先按假设推进说清楚，再讨论门头、出杯效率和投入优先级。\n\n下一步先确认硬条件和资料成熟度，不在入口阶段把不确定条件包装成确定方案。"
+    operational_diagnostic: "这不是在让你补一堆工程资料，而是在查茶饮店从看见、停下、点单、等待、取餐到复购的每一步有没有断点。\n\n初步判断应先按运营漏斗展开：门头能不能被看懂，菜单能不能减少犹豫，排队和取餐会不会互相堵，等待时有没有信任感，最后有没有复购钩子。\n\n下一步先做运营诊断，把最影响成交的环节排出来，再决定是否需要进入完整设计建议。"
+    transit_payback: "这更像是一个地铁连接口的小面积高周转饮品店，半年回本会把设计重点从“好看”推向“截流、出杯、排队和投入上限”。\n\n初步框架可以先按五条线展开：第一，路过的人能不能马上看懂并愿意停下；第二，点单、制作、取餐和外卖自提会不会互相打架；第三，高峰时出杯和排队会不会拖死成交；第四，用低成本但有记忆点的门头、材料和灯光建立信任；第五，用租金、客单价、日单量和投入上限反推半年回本是否成立。\n\n下一步先确认回本路径、门头转化、出杯排队和投入优先级。正式阶段再校准平面图、物业条件和设备落位，不在入口阶段把你拖进工程清单。"
+    community: "这更像是社区复购型茶饮小店，重点不是把店做成网红背景，而是让老人、小孩、宝妈和附近住户觉得顺路、可信、愿意反复买。\n\n初步框架应先看门头亲近感、产品选择难度、等待舒适度、孩子和家庭同行的动线，以及杯套、小票和会员动作能不能形成复购。\n\n下一步先确认社区客群、复购路径和投入边界，再决定空间表达要克制到什么程度。"
+    office: "这更像是办公人群的高峰型茶饮小店，设计重点不是拉长停留，而是把午间、下午茶和外带自提做顺。\n\n初步框架应先看门头识别、菜单决策速度、出杯稳定性、取餐不堵和轻食是否拖慢制作，再用预算反推哪些地方必须优先投入。\n\n下一步先确认人群时段、产品组合和高峰订单压力。"
+    campus: "这更像是学生价格敏感型茶饮小店，先不要追求复杂风格，而要判断低客单、快出杯、排队顺和社交记忆点能否同时成立。\n\n初步框架应先看首单门槛、菜单选择速度、高峰排队、外带比例和预算能不能集中花在最影响下单的位置。\n\n下一步先确认价格带、出杯压力和学生复购方式。"
+    tourism: "这更像是游客快拍快买型茶饮店，空间要同时解决一眼识别、拍照传播和快速成交，不能只做氛围。\n\n初步框架应先看门头是否有地方记忆，购买路径是否足够短，取餐是否不堵，拍照点是否不影响出杯，以及老建筑或景区条件能否被低成本利用。\n\n下一步先确认游客停留时间、拍照点和出品效率的取舍。"
+    competition: "这更像是在强竞品旁边找差异的茶饮小店，不能只靠装修更好看，而要先判断顾客为什么愿意换一家买。\n\n初步框架应先看产品识别、价格带、门头记忆点、排队效率和场景差异，再决定空间是做高质感、快外带还是复购型邻里感。\n\n下一步先确认要避开什么竞品优势，以及自己最能打的成交理由。"
+    payback: "这更像是带明确回本压力的茶饮小店，设计重点要从风格偏好转到投入、坪效、出杯效率和复购能力。\n\n初步框架可以先按四条线展开：顾客为什么停下，点单和取餐是否顺，钱是否花在门头、吧台和高峰效率上，回本目标是否能被客单价和日单量支撑。\n\n下一步先确认赚钱路径和投入边界。"
+    transit: "这更像是交通节点型茶饮小店，核心不是让人久坐，而是让路过的人快速看懂、快速下单、快速取走。\n\n初步框架应先看门头截流、菜单决策、排队外溢、取餐口位置和外卖自提是否互相干扰，再确定材料和灯光要如何服务效率。\n\n下一步先确认客流来向、出杯压力和通道边界。"
+    default: "这更像是一个需要先判断能不能做成的饮品小店，不能一上来只谈风格或效果图。\n\n初步框架应先看目标顾客为什么买、门头菜单能不能降低犹豫、点单制作取餐是否顺、预算是否花在最影响成交的位置，以及有没有复购和传播钩子。\n\n下一步先确认顾客、打法和投入边界，再进入完整设计建议。"
+
+  first_confidence_variant_rules:
+    - variant: coffee
+      when:
+        profile_contains_any:
+          subdomain_id: ["coffee_shop"]
+          activation_pack_id: ["coffee_shop_pack"]
+          project_type: ["coffee"]
+    - variant: hard_boundary
+      when:
+        tags_all: ["hard_boundary"]
+    - variant: operational_diagnostic
+      when:
+        tags_all: ["operational_diagnostic"]
+    - variant: transit_payback
+      when:
+        tags_all: ["transit", "payback"]
+    - variant: community
+      when:
+        tags_all: ["community"]
+    - variant: office
+      when:
+        tags_all: ["office"]
+    - variant: campus
+      when:
+        tags_all: ["campus"]
+    - variant: tourism
+      when:
+        tags_all: ["tourism"]
+    - variant: competition
+      when:
+        tags_all: ["competition"]
+    - variant: payback
+      when:
+        tags_all: ["payback"]
+    - variant: transit
+      when:
+        tags_all: ["transit"]
+    - variant: default
+      default: true
+
+  round_1_card_selection_rules:
+    - card_path: tea_retail_space.hard_boundary_card
+      when:
+        tags_all: ["hard_boundary"]
+    - card_path: tea_retail_space.operational_diagnostic_card
+      when:
+        tags_all: ["operational_diagnostic"]
+    - card_path: tea_retail_space.contextual_round_1_cards.coffee
+      when:
+        profile_contains_any:
+          subdomain_id: ["coffee_shop"]
+          activation_pack_id: ["coffee_shop_pack"]
+          space_label: ["coffee", "咖啡"]
+    - card_path: tea_retail_space.round_1_card
+      when:
+        tags_all: ["transit", "payback"]
+    - card_path: tea_retail_space.contextual_round_1_cards.default
+      default: true
+
+  signals:
+    commuter: ["通勤", "地铁", "快成交", "高频", "transit", "office"]
+    mall_conversion: ["商场", "顺手", "转化", "路过", "门头"]
+    delivery: ["外卖", "自提", "骑手", "取餐", "delivery"]
+    high_ticket: ["高客单", "毛利", "客单"]
+    low_investment: ["低投入", "投入控制", "平衡投入", "投入边界", "预算"]
+    peak_output: ["出杯", "高峰", "吧台", "效率", "peak_output", "operational_diagnostic"]
+    property_order: ["物业", "排队", "通道", "秩序", "外溢", "上下水", "给排水", "电量", "排烟", "消防", "property_order", "hard_boundary"]
+    payback: ["回本", "租金", "月租", "现金回收"]
+    brand_trust: ["品牌", "信任", "灯光", "体验"]
+
+  model_label_rules:
+    - when: ["commuter", "mall_conversion"]
+      text: "地铁通道口高频转化型茶饮空间"
+    - when: ["delivery", "peak_output"]
+      text: "小面积外带与外卖解耦型茶饮空间"
+    - when: ["low_investment", "payback"]
+      text: "高租金快回本压力型茶饮空间"
+    - default: true
+      text: "小面积高频外带型茶饮空间"
+
+  model_sentence_rules:
+    - when: ["mall_conversion", "low_investment"]
+      text: "这不是靠大投入堆体验的店，而是要用有限投入抓住商场通道人流的即时转化。"
+    - when: ["commuter", "peak_output"]
+      text: "这更像通勤客即买即走模型，真正压力在识别够快、出杯够稳、排队不乱。"
+    - when: ["delivery"]
+      text: "这不是单纯到店生意，外卖/自提会把取餐口、等待区和后场组织推到关键位置。"
+    - when: ["high_ticket"]
+      text: "你在尝试用客单和毛利修正小面积模型，但这会反过来要求菜单、设备和品牌信任一起成立。"
+    - default: true
+      text: "它不是普通茶饮装修，而是高租金、小面积、无座外带条件下的回本模型验证。"
+
+  lever_sentence_rules:
+    - when: ["mall_conversion"]
+      text: "真正决定成败的是路过的人能不能在几秒内看懂、相信并停下，不是先讨论风格高级不高级。"
+    - when: ["peak_output"]
+      text: "真正决定成败的是高峰期制作、排队和取餐能不能分开跑，不是吧台做得好不好看。"
+    - when: ["low_investment"]
+      text: "真正决定成败的是钱先花在哪个会影响回本的界面，而不是把预算平均撒到每个部分。"
+    - when: ["property_order"]
+      text: "真正决定成败的是店铺效率不能和商场通道秩序冲突，否则好流量会变成运营风险。"
+    - default: true
+      text: "真正决定成败的是回本目标、菜单效率、通道转化和投入边界能不能被同一套空间逻辑统筹。"
+
+  directory_focus:
+    payback: ["回本支撑逻辑", "投入节奏"]
+    low_investment: ["回本支撑逻辑", "投入节奏"]
+    mall_conversion: ["门头识别与即时转化"]
+    commuter: ["门头识别与即时转化"]
+    peak_output: ["吧台出杯效率"]
+    delivery: ["取餐外卖与排队边界"]
+    property_order: ["取餐外卖与排队边界"]
+    brand_trust: ["小面积品牌信任"]
+    default: ["门头转化", "出杯效率", "排队边界", "投入控制"]
+
+  round_2_card_selection_rules:
+    - card_path: tea_retail_space.round_2_cards.hard_boundary
+      when:
+        tags_all: ["hard_boundary"]
+    - card_path: tea_retail_space.round_2_cards.operational_diagnostic
+      when:
+        tags_all: ["operational_diagnostic"]
+    - card_path: tea_retail_space.round_2_cards.coffee
+      when:
+        profile_contains_any:
+          subdomain_id: ["coffee_shop"]
+          activation_pack_id: ["coffee_shop_pack"]
+          space_label: ["coffee", "咖啡"]
+    - card_path: tea_retail_space.round_2_card
+      default: true
+
+  round_2_cards:
+    hard_boundary:
+      title: "再确认铺位能不能成立"
+      prompt_text: "第二轮只确认会改变能不能推进的底线，不把不确定条件包装成方案。"
+      pages:
+        - page_title: "先保硬条件"
+          prompt_text: "如果只能先确认一组底线，你最担心哪一类条件不成立？"
+          response_mode: "multi_select"
+          max_select: 2
+          helper_text: "这些条件不清楚时，只能做条件判断，不能直接定平面和设备落位。"
+          allow_freetext: true
+          options:
+            - id: "water_power_fire"
+              label: "上下水、电量和消防"
+              description: "先确认铺位能不能合法稳定经营。"
+            - id: "ventilation_smoke"
+              label: "排烟和通风"
+              description: "先确认制作条件不会卡住审批和使用。"
+            - id: "property_queue_limit"
+              label: "物业和通道限制"
+              description: "先确认排队、取餐和外卖不会影响公共通道。"
+            - id: "equipment_capacity"
+              label: "设备承载"
+              description: "先确认设备、用电和后场面积能不能承住菜单。"
+    operational_diagnostic:
+      title: "再确认最该先修哪段体验"
+      prompt_text: "第二轮只确认哪一段最影响成交和复购，避免直接进入重装。"
+      pages:
+        - page_title: "先保关键断点"
+          prompt_text: "如果只能先修一段，哪一段最可能拖垮成交？"
+          response_mode: "single_select"
+          max_select: 1
+          helper_text: "这里决定后续先做低成本验证，还是进入完整空间调整。"
+          allow_freetext: true
+          options:
+            - id: "facade_stop"
+              label: "看见和停下"
+              description: "门头、灯光和菜单让路过的人愿不愿意靠近。"
+            - id: "order_decision"
+              label: "点单决策"
+              description: "顾客能不能快速看懂并完成选择。"
+            - id: "make_pickup_flow"
+              label: "制作和取餐"
+              description: "店员、顾客和骑手会不会互相堵住。"
+            - id: "repurchase_memory"
+              label: "复购记忆"
+              description: "买完以后有没有被记住和再来的理由。"
+    coffee:
+      title: "再确认咖啡店的停留边界"
+      prompt_text: "第二轮只确认精品感、短停留和出杯效率之间的取舍。"
+      pages:
+        - page_title: "先保哪种购买理由"
+          prompt_text: "如果空间只能先讲透一个理由，你更想先保哪一件？"
+          response_mode: "single_select"
+          max_select: 1
+          helper_text: "这里决定任务书先偏向效率、停留、品牌质感还是日常复购。"
+          allow_freetext: true
+          options:
+            - id: "quick_quality"
+              label: "快速但有品质"
+              description: "让短时间购买也能感到专业和值得。"
+            - id: "comfortable_pause"
+              label: "舒服但不拖慢"
+              description: "让人愿意停一下，但不把小店变成长坐空间。"
+            - id: "daily_office"
+              label: "办公日常刚需"
+              description: "服务上班、会面和短时提神的稳定需求。"
+            - id: "brand_memory"
+              label: "品牌记忆"
+              description: "靠气味、杯型、灯光和材料留下识别度。"
+
+  round_1_card:
+    title: "先锁定方向级变量"
+    prompt_text: "第一轮只问会改变任务书目录、版本档位和报价口径的关键变量。"
+    pages:
+      - page_title: "先看回本靠什么撑住"
+        prompt_text: "这个 35 平米店如果要半年回本，主要靠哪几件事撑起来？"
+        response_mode: "multi_select"
+        max_select: 3
+        helper_text: "可以多选。这里不是分类，而是在判断回本模型的主引擎。"
+        allow_freetext: true
+        options:
+          - id: "commuter_fast_turnover"
+            label: "高频通勤快成交"
+            description: "靠地铁口高频客流、低决策成本和快速出杯"
+          - id: "mall_impulse_conversion"
+            label: "商场顺手转化"
+            description: "靠门头识别、第一眼信任和顺路购买"
+          - id: "delivery_pickup_volume"
+            label: "外卖/自提补单量"
+            description: "靠线上订单和取餐效率摊薄租金压力"
+          - id: "high_ticket_margin"
+            label: "高客单拉毛利"
+            description: "靠更高客单或高毛利产品提高单店模型"
+          - id: "low_investment_cycle"
+            label: "低投入缩短回本"
+            description: "靠控制装修、设备和非核心投入压短回收周期"
+      - page_title: "不能失败点"
+        prompt_text: "如果这家店只有两件事绝不能出错，你先保哪两件？"
+        response_mode: "priority_pick"
+        max_select: 2
+        helper_text: "按点击顺序形成优先级。系统会据此调整目录重心和版本建议。"
+        allow_freetext: true
+        options:
+          - id: "payback_must_not_fail"
+            label: "半年回本"
+            description: "模型不能只好看，必须能支撑现金回收"
+          - id: "peak_output_must_not_fail"
+            label: "高峰出杯"
+            description: "高客流时不能卡在制作、排队和取餐"
+          - id: "facade_conversion_must_not_fail"
+            label: "门头转化"
+            description: "地铁通道口不能有流量但没有进店理由"
+          - id: "cost_boundary_must_not_fail"
+            label: "投入边界"
+            description: "不能为了体验把回本周期拉长"
+          - id: "property_order_must_not_fail"
+            label: "物业秩序"
+            description: "排队、取餐和外卖不能干扰商场通道"
+      - page_title: "投入边界"
+        prompt_text: "如果预算只能先解决几个最要命的问题，你希望先押哪里？"
+        response_mode: "multi_select"
+        max_select: 3
+        helper_text: "这不是让你报预算，而是判断设计任务书需要把钱花在哪里。"
+        allow_freetext: true
+        options:
+          - id: "facade_priority_investment"
+            label: "门头识别"
+            description: "先保证通道口能被看见、被理解、被信任"
+          - id: "bar_priority_investment"
+            label: "吧台效率"
+            description: "先保证制作、排队、取餐路径不互相打架"
+          - id: "equipment_priority_investment"
+            label: "设备稳定"
+            description: "先保证菜单复杂度和出品连续性成立"
+          - id: "pickup_priority_investment"
+            label: "取餐外卖"
+            description: "先保证骑手、自提和现场顾客不冲突"
+          - id: "brand_priority_investment"
+            label: "品牌信任"
+            description: "先保证小面积店也有可信任的购买感"
+
+  hard_boundary_card:
+    title: "先判断硬条件能不能成立"
+    prompt_text: "这些条件不清楚时，只能先做条件级判断，不能把布局和设备说死。"
+    pages:
+      - page_title: "先看硬条件"
+        prompt_text: "上下水、电量、排烟、消防、喷淋和明火限制里，哪些已经确定？"
+        response_mode: "multi_select"
+        max_select: 4
+        helper_text: "可多选。没确认的条件会先按风险处理。"
+        allow_freetext: true
+        options:
+          - id: "water_known"
+            label: "上下水已明确"
+            description: "可以判断制作和清洗条件。"
+          - id: "power_known"
+            label: "电量已明确"
+            description: "可以判断设备能否同时运行。"
+          - id: "fire_known"
+            label: "消防边界已明确"
+            description: "可以判断能不能正式落地。"
+          - id: "smoke_known"
+            label: "排烟或明火限制已明确"
+            description: "可以判断是否适合现制热食或设备。"
+      - page_title: "先看制作条件"
+        prompt_text: "制冰、萃茶、开水、冷藏、封口这些制作动作，哪些一定要现场完成？"
+        response_mode: "multi_select"
+        max_select: 3
+        helper_text: "这会决定吧台长度和后场强度。"
+        allow_freetext: true
+        options:
+          - id: "ice_tea"
+            label: "制冰和萃茶"
+            description: "会影响电量、噪音和操作台。"
+          - id: "hot_water"
+            label: "开水和热饮"
+            description: "会影响安全和设备组合。"
+          - id: "cold_storage"
+            label: "冷藏和备料"
+            description: "会影响后场面积。"
+          - id: "sealing_pickup"
+            label: "封口和取餐"
+            description: "会影响高峰出杯速度。"
+      - page_title: "资料现在有多少"
+        prompt_text: "目前能拿到什么资料？"
+        response_mode: "single_select"
+        max_select: 1
+        helper_text: "入口阶段不要求上传资料，但要知道判断能做到多深。"
+        allow_freetext: true
+        options:
+          - id: "condition_ready"
+            label: "条件表或物业要求已拿到"
+            description: "可以进入较明确的布局判断。"
+          - id: "photo_only"
+            label: "只有照片或口头信息"
+            description: "只能先做风险和假设判断。"
+          - id: "unknown"
+            label: "多数条件还不知道"
+            description: "先判断哪些条件会卡死项目。"
+
+  operational_diagnostic_card:
+    title: "先做茶饮空间运营诊断"
+    prompt_text: "先判断哪一步最影响成交，不把自检题误当成完整设计需求。"
+    pages:
+      - page_title: "先看转化卡在哪"
+        prompt_text: "现在最想先查哪一段：看见、停下、点单、等待、取餐还是复购？"
+        response_mode: "multi_select"
+        max_select: 3
+        helper_text: "这里先定位问题段，不进入工程细节。"
+        allow_freetext: true
+        options:
+          - id: "visibility"
+            label: "看见和停下"
+            description: "门头、菜单和第一眼信任是否足够。"
+          - id: "ordering"
+            label: "点单和选择"
+            description: "菜单是否减少犹豫，店员是否好推荐。"
+          - id: "waiting"
+            label: "等待和取餐"
+            description: "排队、等待和取餐是否互相堵。"
+          - id: "repurchase"
+            label: "复购和传播"
+            description: "杯套、小票、包装和记忆点是否能带回头客。"
+      - page_title: "先看现场证据"
+        prompt_text: "你现在掌握哪些可观察数据？"
+        response_mode: "multi_select"
+        max_select: 3
+        helper_text: "没有数据也可以先按假设诊断。"
+        allow_freetext: true
+        options:
+          - id: "traffic_count"
+            label: "路过和停留人数"
+            description: "能判断门头和视线问题。"
+          - id: "queue_observation"
+            label: "排队和拥堵点"
+            description: "能判断动线瓶颈。"
+          - id: "order_time"
+            label: "点单到出杯时间"
+            description: "能判断制作效率。"
+          - id: "photo_repurchase"
+            label: "拍照和复购反馈"
+            description: "能判断记忆点是否有效。"
+      - page_title: "先做低成本验证"
+        prompt_text: "如果只先改一处，你愿意优先验证哪类动作？"
+        response_mode: "single_select"
+        max_select: 1
+        helper_text: "先挑最容易验证的动作，避免直接重装。"
+        allow_freetext: true
+        options:
+          - id: "facade_menu"
+            label: "门头和菜单"
+            description: "先提高看懂和下单速度。"
+          - id: "queue_pickup"
+            label: "排队和取餐"
+            description: "先减少堵点和流失。"
+          - id: "waiting_anchor"
+            label: "等待体验"
+            description: "先让等待不焦躁。"
+          - id: "repurchase_hook"
+            label: "复购钩子"
+            description: "先让顾客愿意再来。"
+
+  contextual_round_1_cards:
+    default:
+      title: "先把这家饮品店怎么做成说清楚"
+      prompt_text: "这一步只确认买单前最关键的判断，不问后期工程细节。"
+      pages:
+        - page_title: "先看顾客为什么买"
+          prompt_text: "这家店最应该靠什么打动顾客？"
+          response_mode: "single_select"
+          max_select: 1
+          helper_text: "先定成交理由，不急着补工程条件。"
+          allow_freetext: true
+          options:
+            - id: "fast_takeaway"
+              label: "快速外带"
+              description: "看懂、下单、取走都要快。"
+            - id: "daily_repurchase"
+              label: "日常复购"
+              description: "靠稳定、亲近和顺路反复买。"
+            - id: "brand_memory"
+              label: "品牌记忆"
+              description: "靠一眼能记住的气质和产品锚点。"
+            - id: "social_photo"
+              label: "拍照传播"
+              description: "靠可拍、可分享、可打卡带流量。"
+        - page_title: "先看第一眼"
+          prompt_text: "入口、菜单和点单区，哪一块最需要先拉开差距？"
+          response_mode: "multi_select"
+          max_select: 2
+          helper_text: "这里先判断第一眼和下单速度。"
+          allow_freetext: true
+          options:
+            - id: "facade"
+              label: "门头识别"
+              description: "让人看见、看懂、愿意靠近。"
+            - id: "menu"
+              label: "菜单决策"
+              description: "让顾客少犹豫、快下单。"
+            - id: "counter"
+              label: "吧台秩序"
+              description: "让点单、制作和取餐不打架。"
+            - id: "memory"
+              label: "记忆点"
+              description: "让小店也有被记住的理由。"
+        - page_title: "先看高峰节奏"
+          prompt_text: "高峰时最怕哪一段拖慢体验和成交？"
+          response_mode: "single_select"
+          max_select: 1
+          helper_text: "这会影响吧台、取餐口和等待区。"
+          allow_freetext: true
+          options:
+            - id: "slow_order"
+              label: "点单慢"
+              description: "菜单和推荐话术不够清楚。"
+            - id: "slow_make"
+              label: "制作慢"
+              description: "设备、备料和操作台不顺。"
+            - id: "pickup_block"
+              label: "取餐堵"
+              description: "现场顾客和外卖自提互相挤。"
+            - id: "waiting_pain"
+              label: "等待烦"
+              description: "等候没有秩序和安抚。"
+        - page_title: "先看投入优先级"
+          prompt_text: "预算不能平均花时，哪类投入最该优先？"
+          response_mode: "multi_select"
+          max_select: 3
+          helper_text: "这里先定投入顺序，不要求报详细预算。"
+          allow_freetext: true
+          options:
+            - id: "facade_priority"
+              label: "门头和菜单"
+              description: "先让人愿意买。"
+            - id: "bar_priority"
+              label: "吧台和设备"
+              description: "先让高峰跑得动。"
+            - id: "material_light"
+              label: "材料和灯光"
+              description: "先建立干净可信的店面感。"
+            - id: "brand_detail"
+              label: "包装和复购"
+              description: "先让顾客记住并回来。"
+    coffee:
+      title: "先把这家咖啡店怎么做成说清楚"
+      prompt_text: "这一步只确认买单前最关键的判断，不问后期工程细节。"
+      pages:
+        - page_title: "先看顾客为什么买"
+          prompt_text: "这家咖啡店最应该靠什么让顾客愿意进来并接受短停留？"
+          response_mode: "single_select"
+          max_select: 1
+          helper_text: "先定成交理由，不急着补工程条件。"
+          allow_freetext: true
+          options:
+            - id: "quick_premium"
+              label: "快速精品感"
+              description: "短时间完成识别、点单、取走和品质信任。"
+            - id: "controlled_pause"
+              label: "克制停留"
+              description: "让人舒服但不无限久坐。"
+            - id: "brand_memory"
+              label: "品牌记忆"
+              description: "靠气味、杯型、灯光和材料形成记忆。"
+            - id: "office_daily"
+              label: "日常刚需"
+              description: "服务上班、会面和短时提神的高频需求。"
+        - page_title: "先看第一眼"
+          prompt_text: "入口、菜单和点单区，哪一块最需要先拉开差距？"
+          response_mode: "multi_select"
+          max_select: 2
+          helper_text: "这里先判断第一眼和下单速度。"
+          allow_freetext: true
+          options:
+            - id: "facade"
+              label: "门头识别"
+              description: "让人看见、看懂、愿意靠近。"
+            - id: "menu"
+              label: "菜单决策"
+              description: "让顾客少犹豫、快下单。"
+            - id: "counter"
+              label: "吧台秩序"
+              description: "让点单、制作和取餐不打架。"
+            - id: "memory"
+              label: "记忆点"
+              description: "让小店也有被记住的理由。"
+        - page_title: "先看高峰节奏"
+          prompt_text: "高峰时最怕哪一段拖慢体验和成交？"
+          response_mode: "single_select"
+          max_select: 1
+          helper_text: "这会影响吧台、取餐口和等待区。"
+          allow_freetext: true
+          options:
+            - id: "slow_order"
+              label: "点单慢"
+              description: "菜单和推荐话术不够清楚。"
+            - id: "slow_make"
+              label: "制作慢"
+              description: "设备、备料和操作台不顺。"
+            - id: "pickup_block"
+              label: "取餐堵"
+              description: "现场顾客和外卖自提互相挤。"
+            - id: "waiting_pain"
+              label: "等待烦"
+              description: "等候没有秩序和安抚。"
+        - page_title: "先看投入优先级"
+          prompt_text: "预算不能平均花时，哪类投入最该优先？"
+          response_mode: "multi_select"
+          max_select: 3
+          helper_text: "这里先定投入顺序，不要求报详细预算。"
+          allow_freetext: true
+          options:
+            - id: "facade_priority"
+              label: "门头和菜单"
+              description: "先让人愿意买。"
+            - id: "bar_priority"
+              label: "吧台和设备"
+              description: "先让高峰跑得动。"
+            - id: "material_light"
+              label: "材料和灯光"
+              description: "先建立干净可信的店面感。"
+            - id: "brand_detail"
+              label: "包装和复购"
+              description: "先让顾客记住并回来。"
+
+  round_2_card:
+    title: "再确认关键选择"
+    prompt_text: "第二轮不再补背景，只确认会改变任务书重心和版本深度的取舍。"
+    pages:
+      - page_title: "优先级冲突"
+        prompt_text: "如果这个店开出来后只能先保住三件事，你要先保什么？"
+        response_mode: "priority_pick"
+        max_select: 3
+        helper_text: "按点击顺序形成优先级，不是单选。"
+        allow_freetext: true
+        options:
+          - id: "payback_model_first"
+            label: "半年回本成立"
+            description: "优先校准日单量、客单价、毛利和租金压力"
+          - id: "opening_speed_first"
+            label: "开业速度"
+            description: "优先减少租金空耗和施工不确定性"
+          - id: "store_conversion_first"
+            label: "到店转化"
+            description: "优先保证门头、菜单和购买路径的转化能力"
+          - id: "brand_experience_first"
+            label: "品牌体验"
+            description: "优先让低面积门店仍有可信任的品牌感"
+          - id: "investment_control_first"
+            label: "投入控制"
+            description: "优先守住现金回收周期和投入边界"
+      - page_title: "投入优先级"
+        prompt_text: "如果预算不能平均花，你愿意先把钱放在哪些会直接影响生死线的地方？"
+        response_mode: "multi_select"
+        max_select: 3
+        helper_text: "这会决定任务书把预算放在转化、效率、设备还是体验上。"
+        allow_freetext: true
+        options:
+          - id: "facade_identification_must"
+            label: "门头识别"
+            description: "地铁通道口第一眼能否被看见、被信任"
+          - id: "bar_efficiency_must"
+            label: "吧台效率"
+            description: "高峰出杯速度、排队控制和店员协同"
+          - id: "equipment_stability_must"
+            label: "设备稳定"
+            description: "菜单复杂度、制冰冷藏、出品连续性"
+          - id: "pickup_delivery_must"
+            label: "取餐外卖"
+            description: "自提、骑手交接、等待区和通道秩序"
+          - id: "light_trust_must"
+            label: "灯光信任"
+            description: "让小店面仍显得干净、可靠、可购买"
+      - page_title: "最不能接受的风险"
+        prompt_text: "出现哪一种情况，你会认为这家店的方向必须立刻调整？"
+        response_mode: "multi_select"
+        max_select: 2
+        helper_text: "选最不能接受的 1-2 个风险，它会直接影响高级版是否必要。"
+        allow_freetext: true
+        options:
+          - id: "daily_orders_fail"
+            label: "日单量撑不起回本"
+            description: "客流、客单价或毛利无法覆盖月租和投入"
+          - id: "property_queue_limit"
+            label: "排队被物业限制"
+            description: "排队/取餐影响商场通道或地铁口秩序"
+          - id: "menu_area_overload"
+            label: "菜单超过面积承载"
+            description: "设备、后场和人员组织压垮 35 平米"
+          - id: "facade_no_conversion"
+            label: "路过不转化"
+            description: "地铁口有流量，但门头和购买理由不成立"
+          - id: "investment_cycle_break"
+            label: "投入超出回收周期"
+            description: "装修和设备投入让半年回本模型失真"
