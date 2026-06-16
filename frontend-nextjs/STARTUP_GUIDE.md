@@ -1,4 +1,4 @@
-# Next.js 前端启动指南
+﻿# Next.js 前端启动指南
 
 ## ✅ 阶段 1 完成情况
 
@@ -42,7 +42,7 @@ python intelligent_project_analyzer\api\server.py
 确认看到：
 ```
 ✅ 服务器启动成功
-📍 API 文档: http://localhost:8000/docs
+📍 API 文档: http://localhost:8001/docs
 ```
 
 ### 3.2 启动前端
@@ -88,7 +88,7 @@ npm run dev
 
 - [ ] Node.js 已安装（node --version 有输出）
 - [ ] npm install 成功完成（无红色错误）
-- [ ] 后端服务已启动（http://localhost:8000/docs 可访问）
+- [ ] 后端服务已启动（http://localhost:8001/docs 可访问）
 - [ ] 前端服务已启动（http://localhost:3000 可访问）
 - [ ] 首页正常显示（标题、输入框、按钮）
 - [ ] 输入需求后可以点击按钮
@@ -129,7 +129,7 @@ npm run dev -- -p 3001
 
 **解决方案**：
 FastAPI 已配置 CORS，如果仍有问题，检查：
-1. 后端是否正常启动（访问 http://localhost:8000/docs）
+1. 后端是否正常启动（访问 http://localhost:8001/docs）
 2. 浏览器控制台的具体错误信息
 
 ### 问题 4：点击按钮无反应

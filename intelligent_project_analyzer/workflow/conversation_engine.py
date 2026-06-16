@@ -134,6 +134,7 @@ class ConversationEngine:
         # 引导卡片响应字段（由 API 层注入 state_patch）
         in_response_to_card_id: Optional[str] = state.get("in_response_to_card_id")  # type: ignore[assignment]
         selected_option_id: Optional[str] = state.get("selected_option_id")  # type: ignore[assignment]
+        card_response: Optional[Dict[str, Any]] = state.get("card_response")  # type: ignore[assignment]
         pending_card_raw: Optional[Dict[str, Any]] = state.get("pending_guidance_card")
 
         logger.info(f"[{session_id}] 对话态引擎接收输入: {user_input[:60]}…")
@@ -159,6 +160,7 @@ class ConversationEngine:
                 in_response_to_card_id,
                 selected_option_id,
                 user_input,
+                card_response,
                 pending_card_raw,
                 session_id,
             )
@@ -183,6 +185,8 @@ class ConversationEngine:
                 label = selected_opt.get("label", "")
                 desc = selected_opt.get("description", "")
                 llm_input = f"我选择了「{label}」{('：' + desc) if desc else ''}。请继续深入这个方向。"
+            elif card_response:
+                llm_input = self._card_response_summary(card_response) or "我已经完成这轮判断，请继续。"
             elif user_input.startswith("["):
                 llm_input = "我已经做出了选择，请继续。"
 
@@ -898,6 +902,7 @@ class ConversationEngine:
         card_id: str,
         option_id: Optional[str],
         freetext: str,
+        card_response: Optional[Dict[str, Any]],
         pending_card_raw: Dict[str, Any],
         session_id: str,
     ) -> Dict[str, Any]:
@@ -915,9 +920,9 @@ class ConversationEngine:
 
         card_type_raw: str = pending_card_raw.get("card_type", "")
         action: Literal["select", "skip", "rewrite", "supplement"] = (
-            "select" if option_id else ("supplement" if freetext else "skip")
+            "select" if option_id or card_response else ("supplement" if freetext else "skip")
         )
-        captured_signal = freetext or option_id or ""
+        captured_signal = self._card_response_summary(card_response) if card_response else (freetext or option_id or "")
         promoted_type: Optional[str] = None
 
         meta = DraftObjectMeta(
@@ -1014,6 +1019,33 @@ class ConversationEngine:
             promoted_to_draft_type=promoted_type,
             timestamp=datetime.now().isoformat(),
         )
+        trace_data = trace.model_dump()
+        if card_response:
+            trace_data["card_response"] = card_response
         updates["conversation_drafts"] = existing_drafts
-        updates["guidance_traces"] = existing_traces + [trace.model_dump()]
+        updates["guidance_traces"] = existing_traces + [trace_data]
         return updates
+
+    @staticmethod
+    def _card_response_summary(card_response: Optional[Dict[str, Any]]) -> str:
+        if not isinstance(card_response, dict):
+            return ""
+        lines: List[str] = []
+        for page in card_response.get("pages") or []:
+            if not isinstance(page, dict):
+                continue
+            title = str(page.get("page_title") or "").strip()
+            selected = []
+            for option in page.get("selected_options") or []:
+                if not isinstance(option, dict):
+                    continue
+                label = str(option.get("label") or option.get("id") or "").strip()
+                if not label:
+                    continue
+                priority = option.get("priority")
+                selected.append(f"{priority}. {label}" if priority else label)
+            if page.get("freetext"):
+                selected.append(str(page.get("freetext")).strip())
+            if selected:
+                lines.append(f"{title}：{'、'.join(selected)}" if title else "、".join(selected))
+        return "；".join(lines)

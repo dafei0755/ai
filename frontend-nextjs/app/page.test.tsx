@@ -68,7 +68,7 @@ describe('HomePage submit behavior', () => {
     render(<HomePage />);
 
     await waitFor(() => {
-      expect(screen.getByPlaceholderText('输入你的想法、问题或设计需求，开始生成设计任务书 2.0...')).toBeInTheDocument();
+      expect(screen.getByPlaceholderText('输入你的想法、问题或设计需求，先做需求重构...')).toBeInTheDocument();
     });
 
     expect(global.fetch).not.toHaveBeenCalledWith(expect.stringContaining('/api/app-config'));
@@ -81,7 +81,7 @@ describe('HomePage submit behavior', () => {
     render(<HomePage />);
 
     await user.type(
-      screen.getByPlaceholderText('输入你的想法、问题或设计需求，开始生成设计任务书 2.0...'),
+      screen.getByPlaceholderText('输入你的想法、问题或设计需求，先做需求重构...'),
       '深圳市南山区来福士广场负一楼30平米奶茶店，半年回本。',
     );
     await user.click(screen.getByRole('button', { name: '发送' }));

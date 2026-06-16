@@ -77,6 +77,7 @@
 - `docs/superpowers/plans/`：较大任务的实施计划。
 - `docs/superpowers/specs/`：较大任务的设计说明。
 - `docs/system-completeness-audit/`：系统完整性、动态治理、模块审计。
+- `docs/development/方案高参需求重构运行时开发纲领.md`：需求重构运行时、字段、路由、测试基线的当前开发入口。
 - `docs/examples/`：可复用样例、标准输入输出样例。
 
 规则：
@@ -93,7 +94,7 @@
 应 Git 跟踪：
 
 - `sf/2026.5.23/` 下的方案高参核心正文。
-- 空间分类、本体论、知识资产、入口机制、任务书、产品定义类 Markdown。
+- 空间分类、本体论、知识资产、需求重构、入口机制、任务书、产品定义类 Markdown。
 - 作为系统定义依据的清单、黄金问题、映射表。
 
 可本地保留但不一定入 Git：
@@ -110,7 +111,29 @@
 3. `sf/` 压缩包如果不入 Git，必须在清单中记录来源、用途、备份位置。
 4. 不允许用全局 clean 或全局 stash 移走 `sf/`。
 
-## 六、临时文件处理规则
+## 六、需求重构相关文件规则
+
+需求重构是当前方案高参入口基线，不再使用旧入口概念命名。
+
+应 Git 跟踪：
+
+- `intelligent_project_analyzer/services/demand_reconstruction_*.py`
+- `tests/services/test_demand_reconstruction_service.py`
+- `tests/api/test_scheme_advisor_entry_route.py`
+- `frontend-nextjs/components/ConversationMode/GuidanceCard.tsx`
+- `frontend-nextjs/components/ConversationMode/ConversationChat.tsx`
+- `frontend-nextjs/lib/api.ts`
+- `docs/development/方案高参需求重构运行时开发纲领.md`
+- `sf/2026.5.23/10 方案高参需求重构到设计任务书升级机制_专题H_v1.0_20260616.md`
+
+规则：
+
+1. 不新增以旧入口概念命名的文件。
+2. 字段统一使用 `demand_reconstruction_context`、`demand_reconstruction_blueprint`、`blueprint`。
+3. 前台统一使用“需求重构”和“行动蓝图”。
+4. 需求重构相关文档修改必须同步检查 `docs/development/` 与 `sf/2026.5.23/`。
+
+## 七、临时文件处理规则
 
 临时文件分三种处理方式。
 
@@ -144,7 +167,7 @@
 - 如果正式保留，移动到 `docs/`、`sf/`、`scripts/` 或对应业务目录
 - 不直接归档或删除
 
-## 七、自动化归档机制
+## 八、自动化归档机制
 
 本项目使用 `scripts/archive_workspace_files.py` 做本地归档。
 
@@ -175,7 +198,7 @@ _archive/local-cleanup/<YYYY-MM-DD>/root-temp/
 5. 不删除文件，只移动归档。
 6. 每次归档生成 manifest，记录原路径、目标路径、大小、时间。
 
-## 八、禁止动作
+## 九、禁止动作
 
 文件整理时禁止执行：
 
@@ -197,7 +220,7 @@ git stash --all
 5. 确认工作区状态。
 6. 再决定是否提交规则、脚本或正式文档。
 
-## 九、整理前检查清单
+## 十、整理前检查清单
 
 每次目录整理前必须确认：
 
@@ -211,7 +234,7 @@ git stash --all
 
 答不清楚，不执行整理。
 
-## 十、当前项目执行口径
+## 十一、当前项目执行口径
 
 当前只自动归档根目录明确临时文件。
 

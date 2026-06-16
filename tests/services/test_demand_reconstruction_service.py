@@ -1,0 +1,119 @@
+﻿from pathlib import Path
+
+from intelligent_project_analyzer.services.demand_reconstruction_service import DemandReconstructionService
+
+
+RURAL_HOME_PROMPT = "50岁男性室内设计师，背井离乡，想在老家建一栋民居，给出建议"
+CAFE_PROMPT = "30㎡社区咖啡店，怎么提高翻台和外带效率，给出建议"
+STYLE_PROMPT = "我想做一个有东方感但不老气的茶空间，给点建议"
+HARD_CONSTRAINT_PROMPT = "小型茶饮店冷藏柜留多大，怎么看"
+DEEP_RESEARCH_PROMPT = "我想研究宋代文人雅集对当代会所空间的启发，给出建议"
+FORMAL_BRIEF_PROMPT = (
+    "四川广元农村300㎡田园民居，业主为50岁男性室内设计师，"
+    "请提出完整室内设计概念框架，围绕光、材料、自然、界面和精神性空间。"
+)
+
+
+def _blueprint(prompt: str) -> dict:
+    result = DemandReconstructionService().handle_message(
+        session={},
+        user_message=prompt,
+        in_response_to_card_id=None,
+        selected_option_id=None,
+    )
+    assert result is not None
+    return result["demand_reconstruction_context"]["blueprint"]
+
+
+def _reply(prompt: str) -> str:
+    result = DemandReconstructionService().handle_message(
+        session={},
+        user_message=prompt,
+        in_response_to_card_id=None,
+        selected_option_id=None,
+    )
+    assert result is not None
+    return result["reply"]
+
+
+def test_rural_home_prompt_uses_reused_context_and_dynamic_sections():
+    plan = _blueprint(RURAL_HOME_PROMPT)
+
+    assert plan["reconstruction_type"] == "demand_reconstruction"
+    assert plan["artifact_name"] == "action_blueprint"
+    assert plan["archetype"]["primary"] == "life_identity"
+    assert plan["context_source"]["context_intelligence"] is True
+    assert plan["context_source"]["semantic_axes"] is True
+    assert plan["context_source"]["space_classification"] is True
+    assert plan["sections"]
+    section_titles = [section["title"] for section in plan["sections"]]
+    assert "真实需求重构" in section_titles
+    assert "四个结构轴" in section_titles
+    assert "路径分流" in section_titles
+    assert any("作品化" in item for section in plan["sections"] for item in section.get("items", []))
+    assert plan["brief_handoff_slots"]["owner_profile"]
+
+
+def test_commercial_prompt_gets_different_structure_than_life_identity_prompt():
+    rural = _blueprint(RURAL_HOME_PROMPT)
+    cafe = _blueprint(CAFE_PROMPT)
+
+    assert cafe["archetype"]["primary"] == "commercial_operation"
+    assert cafe["archetype"]["primary"] != rural["archetype"]["primary"]
+    cafe_titles = [section["title"] for section in cafe["sections"]]
+    rural_titles = [section["title"] for section in rural["sections"]]
+    assert "经营变量" in cafe_titles
+    assert "身份与生活结构" not in cafe_titles
+    assert "经营变量" not in rural_titles
+    assert any("翻台" in item or "外带" in item for section in cafe["sections"] for item in section.get("items", []))
+
+
+def test_style_and_hard_constraint_prompts_select_different_module_sets():
+    style = _blueprint(STYLE_PROMPT)
+    hard_constraint = _blueprint(HARD_CONSTRAINT_PROMPT)
+
+    assert style["archetype"]["primary"] == "style_semantics"
+    assert hard_constraint["archetype"]["primary"] == "hard_constraint"
+    assert "语义边界" in [section["title"] for section in style["sections"]]
+    assert "隐藏开关" in [section["title"] for section in hard_constraint["sections"]]
+
+
+def test_deep_research_prompt_is_routed_without_pretending_to_complete_evidence():
+    plan = _blueprint(DEEP_RESEARCH_PROMPT)
+
+    assert plan["routing"]["target"] == "deep_research"
+    assert "深度研究" in plan["routing"]["label"]
+    assert any("证据" in item for section in plan["sections"] for item in section.get("items", []))
+
+
+def test_formal_brief_prompt_is_not_captured_by_demand_reconstruction_layer():
+    assert DemandReconstructionService().should_handle(FORMAL_BRIEF_PROMPT) is False
+
+
+def test_demand_reconstruction_reply_and_card_use_demand_reconstruction_language():
+    result = DemandReconstructionService().handle_message(
+        session={},
+        user_message=RURAL_HOME_PROMPT,
+        in_response_to_card_id=None,
+        selected_option_id=None,
+    )
+
+    assert result is not None
+    assert "## 需求重构" in result["reply"]
+    assert "我建议先追问一个关键点" in result["reply"]
+    assert "阶段性返乡居所" in result["reply"]
+    assert "行动蓝图" not in result["reply"]
+    assert result["demand_reconstruction_context"]["reconstruction_type"] == "demand_reconstruction"
+    assert result["demand_reconstruction_context"]["artifact_name"] == "action_blueprint"
+    assert result["guidance_card"]["title"] == "需求重构"
+    assert result["guidance_card"]["display_label"] == "需求重构"
+    assert result["guidance_card"]["artifact_name"] == "行动蓝图"
+    option_labels = [option["label"] for option in result["guidance_card"]["options"]]
+    assert "继续需求重构" in option_labels
+
+
+def test_demand_reconstruction_service_source_does_not_keep_specific_rural_home_answer_branch():
+    source = Path("intelligent_project_analyzer/services/demand_reconstruction_service.py").read_text(encoding="utf-8")
+
+    assert 'if "老家" in text and "民居" in text and "设计师" in text' not in source
+    assert "离乡多年的专业设计师，如何重新安放自己与故乡关系" not in source

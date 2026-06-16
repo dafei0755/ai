@@ -12,6 +12,8 @@ axes:
       terms: [酒店, 民宿, 旅舍, 客房, 度假, 公寓品牌, 月子中心]
     retail_commercial:
       terms: [商场, 商业街区, 商业综合体, 商业空间, 商铺, 买手店, 旗舰店, 花店, 咖啡店, 茶饮, 奶茶, 餐厅, 门店]
+    public_market:
+      terms: [菜市场, 公共市场, 农贸市场, 生鲜市场, 摊位, 摊贩, 档口, 买菜, 生鲜, 水产, 冷链, 排污, 排水]
     workplace:
       terms: [办公室, 总部, 研发中心, 律所, 工作室, 直播基地, 办公中心]
     cultural_exhibition:
@@ -41,7 +43,7 @@ axes:
     methodology_discussion:
       terms: [方法论, 系统分析, 应用模型, 应用路径, 启发维度, 实践框架, 方法论框架]
     analogy_translation:
-      terms: [转译, 类比, 定制体系, 流程, 映射, 借鉴]
+      terms: [转译, 类比, 定制体系, 流程, 映射, 借鉴, 对标, 参照, 标杆案例]
     value_argument:
       terms: [论证逻辑, 价值论证, 长期运营价值, 品牌溢价, 可持续形象, 成本控制, 证明逻辑, 说服业主]
 
@@ -62,6 +64,12 @@ axes:
       terms: [高净值, 富人区, 豪宅, 奢侈, VIP, 亿万富翁]
     public_users:
       terms: [公众, 居民, 访客, 客群, 会员, 员工]
+    vendors:
+      terms: [摊贩, 商户, 档主, 菜贩, 经营户]
+    daily_residents:
+      terms: [老居民, 社区居民, 居民, 买菜, 日常消费]
+    visitors_tourists:
+      terms: [游客, 访客, 香港访客, 外籍客群, 外籍, 外地游客]
 
   founding_drivers:
     identity_expression:
@@ -73,7 +81,11 @@ axes:
     brand_differentiation:
       terms: [品牌, 旗舰, 差异化, 辨识度, 形象店, 品牌精神]
     cultural_translation:
-      terms: [文化, 在地, 文脉, 诗词, 传统, 民族, 乡愁, 地域]
+      terms: [文化, 在地, 文脉, 诗词, 传统, 民族, 乡愁, 地域, 渔村]
+    livelihood_practicality:
+      terms: [民生, 买菜, 老居民, 菜价, 生计, 日常消费, 社区居民]
+    place_branding:
+      terms: [城市更新标杆, 标杆, 对标, 游客, 访客, 打卡, 展示策略, 文化展示]
     healing_support:
       terms: [疗愈, 情绪, 焦虑, 恐惧, 修复, 尊严, 心理]
     operational_efficiency:
@@ -94,6 +106,10 @@ axes:
       terms: [地下居住单元, 地下生活社区, 地下生活, 地下居住, 极端气候, 极端地质, 火山活跃带, 光井系统, 光井结构, 空气循环, 空气净化, 人口过密, 生命支持, 灾害冗余]
     flexible_scene_switching:
       terms: [流动式生活空间, 可快速调整, 快速调整, 可移动家具, 模块化家具, 灯光模块化, 派对, 拍摄, 居住, 社交展示, 场景切换, 多场景, 可变空间, 灵活切换]
+    vendor_customer_flow:
+      terms: [摊贩, 商户, 客流, 人流, 动线组织, 采购动线, 买菜动线, 访客动线]
+    public_market_sanitation_logistics:
+      terms: [冷链, 物流, 后勤, 排污, 排水, 垃圾, 卫生, 水产, 生鲜]
 
   site_resources:
     waterfront_view:
@@ -128,6 +144,10 @@ axes:
       terms: [无障碍, 轮椅, 安全, 儿童尺度, 医疗级]
     mep_climate:
       terms: [给排水, 电力, 新风, 排烟, 潮湿, 供氧, 盐雾, 台风, 极寒, 极端气候, 极端地质, 火山, 光井, 空气循环, 空气净化]
+    sanitation_and_drainage:
+      terms: [卫生, 排污, 排水, 地漏, 冲洗, 垃圾, 气味, 水产]
+    cold_chain_logistics:
+      terms: [冷链, 生鲜配送, 后勤物流, 物流分离, 货运, 卸货]
     security_privacy:
       terms: [安防, 隐私, 私密, 私密性, 安全机制]
 
@@ -242,6 +262,7 @@ labels:
   residential: 居住生活
   hospitality: 住宿与度假体验
   retail_commercial: 商业转化
+  public_market: 公共市场更新
   workplace: 组织与办公效率
   cultural_exhibition: 文化展陈
   healthcare_wellness: 健康照护
@@ -264,11 +285,16 @@ labels:
   professional_user: 专业使用者习惯
   high_net_worth: 高净值生活秩序
   public_users: 公众与多类客群
+  vendors: 摊贩与商户经营
+  daily_residents: 老居民日常买菜
+  visitors_tourists: 访客与游客体验
   identity_expression: 身份与精神表达
   family_legacy: 家族传承
   business_roi: 商业成立与回报
   brand_differentiation: 品牌差异化
   cultural_translation: 文化转译
+  livelihood_practicality: 民生日常底盘
+  place_branding: 场所传播与示范价值
   healing_support: 情绪疗愈与支持
   operational_efficiency: 运营效率
   social_solitude_balance: 社交与独处平衡
@@ -278,6 +304,8 @@ labels:
   family_privacy_boundary: 家庭隐私与共居边界
   extreme_resilience_prototype: 极端环境韧性原型
   flexible_scene_switching: 多场景切换
+  vendor_customer_flow: 摊贩、顾客与访客动线
+  public_market_sanitation_logistics: 卫生、冷链与后勤系统
   waterfront_view: 景观资源
   mountain_nature: 自然与山地资源
   heritage_context: 历史与旧物语境
@@ -292,6 +320,8 @@ labels:
   acoustics: 声学与隔音
   accessibility_safety: 安全与无障碍
   mep_climate: 机电与气候条件
+  sanitation_and_drainage: 卫生排水与气味控制
+  cold_chain_logistics: 冷链与后勤分离
   security_privacy: 安防与隐私
 
 default_description: 会影响方案主轴、追问顺序和后续目录重心。
@@ -302,6 +332,8 @@ descriptions:
   business_roi: 先校准商业成立逻辑、投入边界和运营回报。
   brand_differentiation: 先判断品牌如何形成差异，而不是复制流行符号。
   cultural_translation: 先把文化线索转成空间秩序，避免符号堆砌。
+  livelihood_practicality: 先确认老居民日常买菜、摊贩生计和基础菜价感知不能被更新挤掉。
+  place_branding: 先判断示范价值、访客体验和文化展示应到什么程度，避免只做表面打卡。
   healing_support: 先确认情绪支持、尊严和安全感如何落到空间。
   operational_efficiency: 先判断动线、效率和使用压力是否成立。
   social_solitude_balance: 先判断社交、独处、日常节奏和自我表达如何互相支撑。
@@ -314,6 +346,10 @@ descriptions:
   family_privacy_boundary: 先判断家庭成员、隐私、公共交流和心理安全边界如何共存。
   extreme_resilience_prototype: 先判断极端环境、地下空间、生命支持系统和长期运行冗余是否成立。
   flexible_scene_switching: 先判断多个使用场景如何快速切换，以及哪些系统必须固定、哪些可以可变。
+  vendor_customer_flow: 先判断摊贩经营、居民采购、游客停留和服务后勤的动线如何互不冲突。
+  public_market_sanitation_logistics: 先判断冷链、排水排污、垃圾暂存和清洁维护能否支撑高频日常运营。
+  sanitation_and_drainage: 先确认排水排污、冲洗、气味和公共卫生底线，不能把隐蔽工程留成后续风险。
+  cold_chain_logistics: 先确认冷链、卸货、补货和货客分流方式，避免文化展示挤压真实经营。
 
 tension_priority:
   identity_expression:
@@ -356,6 +392,56 @@ tension_priority:
     base_weight: 78
     title: 先确认公众如何进入和停留
     prompt: 需要先判断访客、居民、会员或员工的进入路径、停留方式和管理边界。
+  public_market:
+    base_weight: 112
+    title: 先确认这个市场首先服务谁
+    prompt: 需要先判断老居民买菜、摊贩经营、游客停留和社区公共性之间谁是底盘、谁是增量。
+    related_options: [daily_residents, vendors, visitors_tourists, livelihood_practicality, public_market_sanitation_logistics, place_branding]
+  livelihood_practicality:
+    base_weight: 96
+    title: 先确认民生底盘不能被挤掉
+    prompt: 老居民买菜便利、摊贩生计、基础价格感知和日常效率，是公共市场更新不能被形象工程牺牲的底线。
+    related_options: [daily_residents, vendors, vendor_customer_flow, public_market_sanitation_logistics, place_branding]
+  vendors:
+    base_weight: 90
+    title: 先确认摊贩怎么继续经营
+    prompt: 需要先判断摊位组织、备货补货、排队售卖和后场支持如何让摊贩真正运转。
+    related_options: [vendor_customer_flow, cold_chain_logistics, sanitation_and_drainage, daily_residents, visitors_tourists]
+  daily_residents:
+    base_weight: 89
+    title: 先确认老居民怎么买菜
+    prompt: 需要先判断入口可达、采购路径、菜价感知和日常高频使用是否仍然顺手。
+    related_options: [livelihood_practicality, vendors, vendor_customer_flow, sanitation_and_drainage, visitors_tourists]
+  visitors_tourists:
+    base_weight: 84
+    title: 先确认访客为什么愿意停留
+    prompt: 需要先判断香港访客、外籍客群和城市游客是在看文化、吃东西、社交，还是理解蛇口记忆。
+    related_options: [place_branding, cultural_translation, vendor_customer_flow, daily_residents, public_market_sanitation_logistics]
+  vendor_customer_flow:
+    base_weight: 91
+    title: 先确认摊贩、居民和访客怎么走
+    prompt: 需要先判断采购动线、游客参观、摊贩补货和服务后勤能否分层组织，而不是互相挤占。
+    related_options: [vendors, daily_residents, visitors_tourists, cold_chain_logistics, sanitation_and_drainage]
+  public_market_sanitation_logistics:
+    base_weight: 94
+    title: 先确认卫生、冷链和后勤能不能撑住
+    prompt: 冷链、排水排污、垃圾暂存、冲洗清洁和货客分流如果没有算清，文化展示和社交空间都会失真。
+    related_options: [sanitation_and_drainage, cold_chain_logistics, vendors, daily_residents, visitors_tourists]
+  sanitation_and_drainage:
+    base_weight: 93
+    title: 先确认排水排污和气味底线
+    prompt: 公共市场的卫生、气味、水产冲洗和排污能力会直接决定能否长期运营。
+    related_options: [public_market_sanitation_logistics, cold_chain_logistics, vendors, daily_residents]
+  cold_chain_logistics:
+    base_weight: 88
+    title: 先确认冷链和补货如何进入
+    prompt: 需要先判断冷链、卸货、补货、垃圾清运和顾客动线如何分开，避免后勤拖垮体验。
+    related_options: [public_market_sanitation_logistics, sanitation_and_drainage, vendors, vendor_customer_flow]
+  place_branding:
+    base_weight: 82
+    title: 先确认示范价值靠什么成立
+    prompt: 需要先判断在地文化、访客记忆点和示范形象如何服务真实使用，而不是替代真实使用。
+    related_options: [visitors_tourists, cultural_translation, livelihood_practicality, daily_residents, vendors]
   business_roi:
     base_weight: 88
     title: 先确认生意是否成立

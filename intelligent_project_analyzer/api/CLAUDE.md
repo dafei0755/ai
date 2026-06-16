@@ -1,4 +1,4 @@
-# API 服务模块 - AI 协作文档
+﻿# API 服务模块 - AI 协作文档
 
 > 📍 **路径导航**: [根目录](../../CLAUDE.md) > [intelligent_project_analyzer](../) > **api**
 
@@ -268,12 +268,12 @@ python intelligent_project_analyzer/api/server.py
 ```
 
 **访问 API 文档**:
-- Swagger UI: http://localhost:8000/docs
-- ReDoc: http://localhost:8000/redoc
+- Swagger UI: http://localhost:8001/docs
+- ReDoc: http://localhost:8001/redoc
 
 **测试健康检查**:
 ```bash
-curl http://localhost:8000/health
+curl http://localhost:8001/health
 ```
 
 ---

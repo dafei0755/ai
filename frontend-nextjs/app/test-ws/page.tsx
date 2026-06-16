@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useEffect, useState } from 'react';
 
@@ -19,7 +19,7 @@ export default function TestWebSocket() {
 
   const connectWebSocket = () => {
     try {
-      const wsUrl = `ws://localhost:8000/ws/${sessionId}`;
+      const wsUrl = `ws://localhost:8001/ws/${sessionId}`;
       addLog(`🔌 尝试连接: ${wsUrl}`);
       
       const websocket = new WebSocket(wsUrl);

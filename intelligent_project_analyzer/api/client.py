@@ -1,4 +1,4 @@
-"""
+﻿"""
 API 客户端
 
 用于前端调用后端 API
@@ -11,7 +11,7 @@ from typing import Dict, Any, Optional
 class AnalysisAPIClient:
     """分析 API 客户端"""
     
-    def __init__(self, base_url: str = "http://localhost:8000"):
+    def __init__(self, base_url: str = "http://localhost:8001"):
         """
         初始化客户端
         

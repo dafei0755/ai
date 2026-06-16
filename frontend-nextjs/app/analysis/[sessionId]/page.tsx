@@ -38,7 +38,7 @@ import { UserQuestionCard } from '@/components/UserQuestionCard';
 import type { AnalysisStatus, SessionStatus } from '@/types';
 import type { NodeStatus } from '@/types/workflow';
 // v2.0 双态架构组件
-import ConversationChat, { type ChatMessage } from '@/components/ConversationMode/ConversationChat';
+import ConversationChat, { type ChatMessage, type GuidanceCardStructuredResponse } from '@/components/ConversationMode/ConversationChat';
 import UpgradePromptBanner from '@/components/ConversationMode/UpgradePromptBanner';
 import { KnowledgeGraphCanvas } from '@/components/KnowledgeGraphCanvas';
 import { CockpitPanel, formatBoardVisualBriefForPrompt, type BoardCanvasSpace, type BoardVisualBrief, type DssPage } from '@/components/CockpitPanel';
@@ -1814,7 +1814,7 @@ export default function AnalysisPage() {
 		// 🔥 检测是否为追问会话（用于显示友好文案）
 		const isFollowupSession = sessionId.includes('-followup-');
 
-		const wsUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
+		const wsUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8001';
 		console.log('🔌 准备连接 WebSocket:', { wsUrl, sessionId, isFollowup: isFollowupSession });
 
 		wsClientRef.current = new WebSocketClient({
@@ -2788,7 +2788,7 @@ export default function AnalysisPage() {
 	}, [activeBoardVisualBrief, activeExpertPerspective, advisorSceneContext, sessionId, shouldShowBoardVisualBrief, systemMode, setConversationMessages]);
 
 	// v2.0 引导卡片响应 handler
-	const handleConvCardResponse = useCallback(async (cardId: string, optionId?: string, freetext?: string) => {
+	const handleConvCardResponse = useCallback(async (cardId: string, optionId?: string, freetext?: string, structuredResponse?: GuidanceCardStructuredResponse) => {
 		// 立即标记对应消息的 card_responded = true，并记录选择摘要
 		setConversationMessages(prev =>
 			prev.map(m => {
@@ -2829,6 +2829,7 @@ export default function AnalysisPage() {
 				{
 					in_response_to_card_id: cardId,
 					selected_option_id: optionId,
+					card_response: structuredResponse,
 				},
 				{ expert_perspective: activeExpertPerspective }
 			);

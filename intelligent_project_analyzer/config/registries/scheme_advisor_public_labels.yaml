@@ -93,6 +93,25 @@ exact_labels:
   public_service_inclusive_reuse: 公共服务：多群体共享、分时复用与安全监管
   residential_conflict_lifestyle_balance: 共居住宅冲突：隐私边界、动静分区与日常共处
   retail_brand_conversion: 商业零售：客群转化、品牌差异与消费动线
+  market_role: 市场公共角色
+  vendor_and_customer_flow: 摊贩、顾客与访客动线
+  sanitation_and_logistics: 卫生、冷链与后勤系统
+  neighborhood_public_value: 社区公共价值
+  renovation_boundary: 更新边界
+  long_term_operation: 长期运营维护
+  sanitation_and_drainage: 卫生排水与气味控制
+  fire_safety_precheck: 消防预检
+  logistics_separation: 货客与后勤分流
+  maintenance_cost: 维护成本
+  livelihood_practicality: 民生日常底盘
+  place_branding: 城市标杆与场所传播
+  vendor_efficiency: 摊贩经营效率
+  public_experience: 公众与访客体验
+  renovation_activation: 更新激活
+  daily_affordability: 日常可负担性
+  livelihood_practicality_vs_place_branding: 民生日常底盘与城市标杆表达
+  vendor_efficiency_vs_public_experience: 摊贩效率与公众体验
+  renovation_activation_vs_daily_affordability: 更新激活与日常可负担性
   rural_living_regeneration: 乡村建设：公共更新、产业嵌入与生活品质升级
   spiritual_ritual_order: 精神仪式空间：礼序、情绪安放与边界克制
   sports_wellness_social: 运动康养：身体体验、私密训练与社交转化
@@ -131,6 +150,8 @@ token_labels:
   front: 前场
   grade: 等级
   health: 卫生
+  logistics: 后勤
+  market: 市场
   heritage: 历史
   house: 空间
   kitchen: 厨房
@@ -160,6 +181,7 @@ token_labels:
   threshold: 底线
   turnover: 翻台
   value: 价值
+  vendor: 摊贩
   ventilation: 排风
   vibrant: 活力
   zoning: 分区

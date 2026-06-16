@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from copy import deepcopy
 from pathlib import Path
+import re
 from typing import Any, Dict, Iterable, List, Optional
 
 import yaml
@@ -431,6 +432,106 @@ class SchemeAdvisorContextIntelligence:
         return "当前项目主轴"
 
     @staticmethod
+    def prompt_anchors(user_input: str) -> Dict[str, str]:
+        """Extract explicit user-stated anchors without making a case template."""
+        text = str(user_input or "")
+
+        def _first(patterns: Iterable[str]) -> str:
+            for pattern in patterns:
+                match = re.search(pattern, text)
+                if match:
+                    value = str(match.group(1) or "").strip(" ：:，,。；;、")
+                    if value:
+                        return value
+            return ""
+
+        return {
+            "benchmark": _first([
+                r"(?:对标|参照|借鉴)([^，,。；;\n]{2,40})",
+            ]),
+            "culture": _first([
+                r"(?:融入|结合|转译|表达|保留)([^，,。；;\n]{2,40}?(?:传统文化|文化|文脉|记忆|传统))",
+                r"([^，,。；;\n]{2,40}?(?:传统文化|文化|文脉|记忆|传统))",
+            ]),
+            "stakeholders": _first([
+                r"(?:需兼顾|兼顾|服务|面向)([^。；;\n]{2,80}?)(?:，|,|。|；|;|成为|请|$)",
+            ]),
+            "motive": _first([
+                r"成为([^，,。；;\n]{2,40})",
+                r"目标是([^，,。；;\n]{2,40})",
+            ]),
+        }
+
+    @staticmethod
+    def explicit_prompt_anchor_items(user_input: str) -> List[Dict[str, str]]:
+        """Return ordered, user-visible anchors stated directly in the prompt."""
+        text = str(user_input or "")
+        anchors = SchemeAdvisorContextIntelligence.prompt_anchors(text)
+        items: List[Dict[str, str]] = []
+
+        def _add(label: str, value: str, response: str) -> None:
+            clean_value = str(value or "").strip(" ：:，,。；;、")
+            if not clean_value:
+                return
+            if any(item["label"] == label and item["value"] == clean_value for item in items):
+                return
+            items.append({"label": label, "value": clean_value, "response": response})
+
+        project_match = re.search(r"^([^，,。；;\n]{4,80}?项目)", text)
+        if not project_match:
+            project_match = re.search(
+                r"^([^，,。；;\n]{4,60}?(?:空间|中心|店|馆|大楼|别墅|样板房|民宿|办公室|市场|街区))",
+                text,
+            )
+        if project_match:
+            project = project_match.group(1)
+            _add("项目对象", project, f"{project}是本轮判断的对象，先按它的真实类型和尺度建立问题边界")
+
+        benchmark = anchors.get("benchmark") or ""
+        if benchmark:
+            _add("对标对象", benchmark, f"需要先拆{benchmark}哪些原则可迁移，哪些因为城市、客群或运营条件不同不能照搬")
+
+        culture = anchors.get("culture") or ""
+        if culture:
+            _add("在地文化", culture, f"{culture}要转成空间秩序、展示节奏和日常使用线索，不能停留在符号包装")
+
+        stakeholders = anchors.get("stakeholders") or ""
+        if stakeholders:
+            _add("服务对象", stakeholders, f"{stakeholders}要逐一对应，先确认谁的日常使用和公共体验不能被牺牲")
+
+        motive = anchors.get("motive") or ""
+        if motive:
+            _add("目标动机", motive, f"要重新梳理{motive}到底靠民生运营、公共体验、文化传播还是商业模型成立")
+
+        scope_match = re.search(r"(?:包括|涵盖|说明)([^。；;\n]{4,120})", text)
+        if scope_match:
+            scope = scope_match.group(1)
+            _add("任务范围", scope, f"{scope}会进入正式方案，但第一轮只确认会改变方向的判断")
+
+        extra_match = re.search(r"(?:另需|还需|同时还需|并需)(?:统筹|考虑|处理)?([^。；;\n]{4,120})", text)
+        if extra_match:
+            extra = extra_match.group(1)
+            _add("补充约束", extra, f"{extra}属于后续深化约束，先记录，避免入口阶段展开过细")
+
+        return items
+
+    @staticmethod
+    def _explicit_anchor_prompt(user_input: str, *, fallback: str) -> str:
+        items = SchemeAdvisorContextIntelligence.explicit_prompt_anchor_items(user_input)
+        if not items:
+            return fallback
+        visible = items[:6]
+        lines = [
+            f"{idx}. {item['label']}：{item['value']}。{item['response']}。"
+            for idx, item in enumerate(visible, start=1)
+        ]
+        overflow = items[6:]
+        if overflow:
+            rest = "、".join(item["value"] for item in overflow[:3])
+            lines.append(f"备注：还有{rest}等未追问部分，我会在正式任务中展开，不在第一轮把问题问散。")
+        return "\n".join(lines)
+
+    @staticmethod
     def _semantic_round_one_header(
         user_input: str,
         *,
@@ -446,9 +547,11 @@ class SchemeAdvisorContextIntelligence:
         }
         axis_ids.update(str(item.get("id")) for item in main_tensions if item.get("id"))
         store_terms = ["商铺", "铺位", "门店", "店铺", "档口", "奶茶", "茶饮", "咖啡店", "小店"]
+        market_terms = ["菜市场", "公共市场", "农贸市场", "生鲜市场", "买菜", "摊贩", "档口", "水产", "冷链"]
         is_store_commercial = "retail_commercial" in axis_ids or "transit_node" in axis_ids or any(
             term in text for term in store_terms
         )
+        is_public_market = "public_market" in axis_ids or any(term in text for term in market_terms)
 
         if axis_ids.intersection({"founder_owner", "identity_expression", "family_legacy"}):
             return {
@@ -456,6 +559,17 @@ class SchemeAdvisorContextIntelligence:
                 "prompt_text": (
                     "先判断主人从草根创业到事业成功之后，这个家要优先安放成就感、"
                     "家族传承，还是内心回归。"
+                ),
+            }
+        if is_public_market:
+            return {
+                "title": "先确认这个市场更新最不能牺牲什么",
+                "prompt_text": SchemeAdvisorContextIntelligence._explicit_anchor_prompt(
+                    text,
+                    fallback=(
+                        "先判断老居民买菜、摊贩经营、游客停留、社区公共性、"
+                        "卫生冷链和蛇口文化展示之间，哪些是底盘，哪些是增量。"
+                    ),
                 ),
             }
         if is_store_commercial and axis_ids.intersection(
@@ -523,9 +637,11 @@ class SchemeAdvisorContextIntelligence:
             if option.get("id")
         }
         store_terms = ["商铺", "铺位", "门店", "店铺", "档口", "奶茶", "茶饮", "咖啡店", "小店"]
+        market_terms = ["菜市场", "公共市场", "农贸市场", "生鲜市场", "买菜", "摊贩", "档口", "水产", "冷链"]
         is_store_commercial = "retail_commercial" in axis_ids or "transit_node" in axis_ids or any(
             term in text for term in store_terms
         )
+        is_public_market = "public_market" in axis_ids or any(term in text for term in market_terms)
 
         if axis_ids.intersection({"founder_owner", "identity_expression", "family_legacy"}):
             profile = {
@@ -544,6 +660,27 @@ class SchemeAdvisorContextIntelligence:
                     "waterfront_view",
                     "security_privacy",
                 ],
+            }
+        elif is_public_market:
+            profile = {
+                "title": "再确认背后的真实取舍",
+                "prompt_text": (
+                    "第二轮不重复原题里的对标、文化和功能模块，而是确认背后没有明说、"
+                    "但会决定方案成败的隐含冲突。"
+                ),
+                "page_title": "哪组隐含冲突最容易撕裂项目",
+                "page_prompt": "真正要先面对的是价格感、摊贩生计、访客体验、后勤成本和公共形象之间谁让位给谁。",
+                "helper_text": "这里确认潜在取舍，不把用户已经说出的任务清单再问一遍。",
+                "preferred_ids": [
+                    "livelihood_practicality",
+                    "vendors",
+                    "daily_residents",
+                    "visitors_tourists",
+                    "public_market_sanitation_logistics",
+                    "place_branding",
+                ],
+                "response_mode": "priority_pick",
+                "max_select": 2,
             }
         elif is_store_commercial and axis_ids.intersection({"business_roi", "operational_efficiency", "retail_commercial", "transit_node"}):
             payback_phrase = "半年回本" if "半年" in text and "回" in text else "回本"
@@ -638,8 +775,8 @@ class SchemeAdvisorContextIntelligence:
                 {
                     "page_title": profile["page_title"],
                     "prompt_text": profile["page_prompt"],
-                    "response_mode": "single_select",
-                    "max_select": 1,
+                    "response_mode": profile.get("response_mode", "single_select"),
+                    "max_select": profile.get("max_select", 1),
                     "helper_text": profile["helper_text"],
                     "allow_freetext": True,
                     "options": options[:5],
@@ -743,7 +880,8 @@ class SchemeAdvisorContextIntelligence:
                 fallback_key=tension_id,
             )
             source_axes = [str(axis) for axis in tension.get("source_axes") or [] if axis]
-            option_ids = [tension_id] + source_axes
+            related_options = [str(axis) for axis in tension.get("related_options") or [] if axis]
+            option_ids = related_options + [tension_id] + source_axes if related_options else [tension_id] + source_axes
             options = SchemeAdvisorContextIntelligence._option_subset(
                 option_ids,
                 option_pool,

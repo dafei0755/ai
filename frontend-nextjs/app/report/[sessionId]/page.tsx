@@ -1,4 +1,4 @@
-// app/report/[sessionId]/page.tsx
+﻿// app/report/[sessionId]/page.tsx
 // 报告展示页面：提供报告阅读、下载及追问入口
 
 'use client';
@@ -95,7 +95,7 @@ export default function ReportPage() {
     }
 
     // 对话框打开时，建立WebSocket连接
-    const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
+    const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8001';
 
     wsClientRef.current = new WebSocketClient({
       url: API_BASE_URL,
@@ -602,7 +602,7 @@ export default function ReportPage() {
 
     try {
       // 调用后端 API 下载 PDF
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/analysis/report/${sessionId}/download-pdf`);
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001'}/api/analysis/report/${sessionId}/download-pdf`);
 
       if (!response.ok) {
         throw new Error('下载失败');

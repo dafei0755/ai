@@ -45,6 +45,22 @@ export interface GuidanceCardPage {
   missing_slot_names?: string[];
 }
 
+export interface GuidanceCardStructuredResponse {
+  pages: Array<{
+    page_index: number;
+    page_title: string;
+    response_mode: GuidanceCardPage['response_mode'] | 'single_select';
+    selected_option_id?: string;
+    selected_option_ids?: string[];
+    selected_options?: Array<{
+      id: string;
+      label: string;
+      priority?: number;
+    }>;
+    freetext?: string;
+  }>;
+}
+
 export interface SchemeVersionCardData {
   id: 'basic' | 'standard' | 'professional' | string;
   name: string;
@@ -56,6 +72,13 @@ export interface SchemeVersionCardData {
   directory_preview?: string[];
 }
 
+export interface GuidanceCardSectionData {
+  title: string;
+  body?: string;
+  items?: string[];
+  emphasis?: 'high' | 'medium' | 'low' | string;
+}
+
 /** 引导卡片数据（与后端 GuidanceCard 对应） */
 export interface GuidanceCardData {
   card_id: string;
@@ -65,6 +88,7 @@ export interface GuidanceCardData {
     | 'gap'
     | 'hypothesis'
     | 'candidate'
+    | 'demand_reconstruction_blueprint'
     | 'scheme_round_1'
     | 'scheme_round_2'
     | 'scheme_stage_conclusion'
@@ -82,6 +106,10 @@ export interface GuidanceCardData {
   card_status?: CandidateCardData['card_status'];
   gap_round?: boolean;
   summary?: Record<string, unknown>;
+  display_label?: string;
+  artifact_name?: string;
+  reconstruction_type?: string;
+  sections?: GuidanceCardSectionData[];
   version_cards?: SchemeVersionCardData[];
   recommended_version?: string;
   maturity_note?: string;
@@ -150,7 +178,7 @@ export interface ConversationChatProps {
    * @param optionId 选择的选项 ID（跳过时为 undefined）
    * @param freetext 用户自由输入内容
    */
-  onCardResponse?: (cardId: string, optionId?: string, freetext?: string) => void | Promise<void>;
+  onCardResponse?: (cardId: string, optionId?: string, freetext?: string, structuredResponse?: GuidanceCardStructuredResponse) => void | Promise<void>;
   /**
    * 候选卡（candidate 类型）操作回调。
    * @param response CandidateCardResponse 对象
@@ -169,7 +197,7 @@ function MessageBubble({
   onCandidateCardResponse,
 }: {
   message: ChatMessage;
-  onCardResponse?: (cardId: string, optionId?: string, freetext?: string) => void | Promise<void>;
+  onCardResponse?: (cardId: string, optionId?: string, freetext?: string, structuredResponse?: GuidanceCardStructuredResponse) => void | Promise<void>;
   onCandidateCardResponse?: (response: CandidateCardResponse) => void;
 }) {
   const isUser = message.role === 'user';
@@ -288,8 +316,8 @@ function MessageBubble({
         <div className="mt-4 w-full">
           <GuidanceCardWidget
             card={gc}
-            onRespond={(optionId, freetext) =>
-              onCardResponse(gc.card_id, optionId, freetext)
+            onRespond={(optionId, freetext, structuredResponse) =>
+              onCardResponse(gc.card_id, optionId, freetext, structuredResponse)
             }
           />
         </div>

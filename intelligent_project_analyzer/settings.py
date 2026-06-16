@@ -1,4 +1,4 @@
-"""
+﻿"""
 统一配置管理 - 基于Pydantic Settings 2.x (2025年标准)
 
 使用Pydantic Settings自动加载环境变量,无需手动调用load_dotenv()
@@ -329,7 +329,7 @@ class Settings(BaseSettings):
     redis_url: str = Field(default="redis://127.0.0.1:6379/0", description="Redis URL", alias="REDIS_URL")
 
     # 前端配置
-    api_base_url: str = Field(default="http://localhost:8000", description="API服务地址")
+    api_base_url: str = Field(default="http://localhost:8001", description="API服务地址")
     streamlit_port: int = Field(default=8501, description="Streamlit端口", alias="STREAMLIT_PORT")
     streamlit_host: str = Field(default="localhost", description="Streamlit主机", alias="STREAMLIT_HOST")
 

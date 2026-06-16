@@ -15,6 +15,39 @@
 
 ## 二、线程边界
 
+### 0. 需求重构入口线
+
+需求重构已经成为方案高参入口前置基线。它不属于茶饮专项，也不属于 Golden 复核线；两条线程合并时都必须尊重这一层。
+
+本线只处理：
+
+- 模糊输入到需求重构行动蓝图。
+- `demand_reconstruction_context` 的生成、保存、承接。
+- `demand_reconstruction_blueprint` 前端卡片。
+- 需求重构到正式一二轮追问的 handoff。
+- 需求重构文档、测试、字段命名一致性。
+
+主要文件范围：
+
+- `intelligent_project_analyzer/services/demand_reconstruction_service.py`
+- `intelligent_project_analyzer/services/demand_reconstruction_context_adapter.py`
+- `intelligent_project_analyzer/services/demand_reconstruction_output_planner.py`
+- `intelligent_project_analyzer/services/demand_reconstruction_boundary_guard.py`
+- `tests/services/test_demand_reconstruction_service.py`
+- `tests/api/test_scheme_advisor_entry_route.py`
+- `frontend-nextjs/components/ConversationMode/GuidanceCard.tsx`
+- `frontend-nextjs/components/ConversationMode/ConversationChat.tsx`
+- `frontend-nextjs/lib/api.ts`
+- `docs/development/方案高参需求重构运行时开发纲领.md`
+- `sf/2026.5.23/10 方案高参需求重构到设计任务书升级机制_专题H_v1.0_20260616.md`
+
+红线：
+
+- 不再使用旧入口概念作为阶段名、文件名、字段名或测试名。
+- 不为需求重构新建独立空间分类、本体论或知识库。
+- 不让需求重构替代正式一二轮追问。
+- 不把茶饮专项样例硬编码成需求重构通用逻辑。
+
 ### 1. Golden 复核线
 
 本线程只处理：
@@ -63,6 +96,10 @@
 以下文件两条线程都可能触碰，合并前必须逐项看 diff，不允许自动覆盖：
 
 - `intelligent_project_analyzer/services/scheme_advisor_entry_service.py`
+- `intelligent_project_analyzer/services/demand_reconstruction_service.py`
+- `intelligent_project_analyzer/services/demand_reconstruction_context_adapter.py`
+- `intelligent_project_analyzer/services/demand_reconstruction_output_planner.py`
+- `intelligent_project_analyzer/services/demand_reconstruction_boundary_guard.py`
 - `intelligent_project_analyzer/services/scheme_advisor_semantic_axes.py`
 - `intelligent_project_analyzer/services/scheme_advisor_pressure_runner.py`
 - `intelligent_project_analyzer/services/space_classification_service.py`
@@ -71,6 +108,7 @@
 - `intelligent_project_analyzer/config/scheme_advisor_entry_copy.yaml`
 - `frontend-nextjs/components/ConversationMode/ConversationChat.tsx`
 - `frontend-nextjs/components/ConversationMode/GuidanceCard.tsx`
+- `frontend-nextjs/lib/api.ts`
 - `frontend-nextjs/app/page.tsx`
 
 规则：
@@ -131,6 +169,19 @@ python -m pytest tests\services\test_scheme_advisor_pressure_semantic_axes.py -q
 python -m pytest tests\services\test_scheme_advisor_pressure_semantic_axes.py tests\services\test_scheme_advisor_golden_verifier.py tests\services\test_scheme_advisor_golden_annotation_artifacts.py tests\unit\test_scheme_advisor_sync_golden_review_from_workbench_script.py tests\unit\test_scheme_advisor_apply_golden_review_script.py tests\unit\test_scheme_advisor_golden_review_progress_script.py tests\unit\test_scheme_advisor_golden_review_status_script.py tests\unit\test_scheme_advisor_golden_quality_gate_script.py -q
 ```
 
+需求重构入口线稳定性验证：
+
+```powershell
+python -m pytest tests\services\test_demand_reconstruction_service.py tests\api\test_scheme_advisor_entry_route.py -q
+```
+
+前端卡片验证：
+
+```powershell
+cd frontend-nextjs
+npm test -- ConversationMode/GuidanceCard.test.tsx --runInBand
+```
+
 ## 六、每次问题闭环复盘格式
 
 每解决一个问题，必须输出：
@@ -166,6 +217,10 @@ python -m pytest tests\services\test_scheme_advisor_pressure_semantic_axes.py te
 直接缺失不止三个文件。茶饮专项线程要运行压力测试，至少依赖以下共享基线：
 
 ```text
+intelligent_project_analyzer/services/demand_reconstruction_service.py
+intelligent_project_analyzer/services/demand_reconstruction_context_adapter.py
+intelligent_project_analyzer/services/demand_reconstruction_output_planner.py
+intelligent_project_analyzer/services/demand_reconstruction_boundary_guard.py
 intelligent_project_analyzer/services/scheme_advisor_entry_service.py
 intelligent_project_analyzer/services/scheme_advisor_context_intelligence.py
 intelligent_project_analyzer/services/scheme_advisor_semantic_axes.py
@@ -178,6 +233,8 @@ intelligent_project_analyzer/config/registries/scheme_advisor_semantic_axes.yaml
 intelligent_project_analyzer/config/registries/scheme_advisor_public_labels.yaml
 intelligent_project_analyzer/config/registries/space_axis_registry.yaml
 tests/services/test_scheme_advisor_pressure_semantic_axes.py
+tests/services/test_demand_reconstruction_service.py
+tests/api/test_scheme_advisor_entry_route.py
 tests/fixtures/scheme_advisor_semantic_axes_test.yaml
 ```
 

@@ -13,7 +13,7 @@
 
 import React, { useState } from 'react';
 import { Check, ChevronLeft, ChevronRight } from 'lucide-react';
-import { type GuidanceCardData, type GuidanceCardPage } from './ConversationChat';
+import { type GuidanceCardData, type GuidanceCardPage, type GuidanceCardStructuredResponse } from './ConversationChat';
 
 // ── 卡片类型元信息 ────────────────────────────────────────
 
@@ -55,6 +55,13 @@ const CARD_META: Record<
     borderColor: 'border-cyan-200',
     badgeBg: 'bg-cyan-50 text-cyan-600',
     accentBorder: 'border-cyan-400',
+  },
+  demand_reconstruction_blueprint: {
+    label: '需求重构',
+    color: 'text-emerald-700',
+    borderColor: 'border-emerald-200',
+    badgeBg: 'bg-emerald-50 text-emerald-600',
+    accentBorder: 'border-emerald-400',
   },
   scheme_round_1: {
     label: '关键确认',
@@ -126,8 +133,9 @@ interface GuidanceCardWidgetProps {
    * 用户操作回调。
    * @param optionId  选择的选项 ID；undefined 表示跳过或纯文本输入
    * @param freetext  自由输入内容（多页时为分号拼接的汇总）
+   * @param structuredResponse 多页/多选/排序场景的结构化选择结果
    */
-  onRespond: (optionId?: string, freetext?: string) => void;
+  onRespond: (optionId?: string, freetext?: string, structuredResponse?: GuidanceCardStructuredResponse) => void;
 }
 
 // ── 组件 ─────────────────────────────────────────────────
@@ -169,11 +177,14 @@ export default function GuidanceCardWidget({ card, initialResponded = false, res
       ? MISSING_SLOT_ACTION_META[currentPage.missing_slot_action]
       : undefined;
   const submitLabel =
-    card.card_type === 'scheme_round_1'
+    card.card_type === 'demand_reconstruction_blueprint'
+      ? '确认方向'
+      : card.card_type === 'scheme_round_1'
       ? '提交首轮判断'
       : card.card_type === 'scheme_round_2'
         ? '提交决策判断'
         : '提交';
+  const demandReconstructionSections = card.card_type === 'demand_reconstruction_blueprint' ? (card.sections ?? []) : [];
 
   // 当前页是否可继续（选了选项或填了自由输入）
   const canProceed =
@@ -234,6 +245,37 @@ export default function GuidanceCardWidget({ card, initialResponded = false, res
       finalSelections[pageIdx] = { freetext: ft };
     }
 
+    const structuredResponse: GuidanceCardStructuredResponse = {
+      pages: allPages.map((page, i) => {
+        const sel = finalSelections[i];
+        const responseMode = page.response_mode ?? 'single_select';
+        const selectedOptionIds = sel?.optionId
+          ? [sel.optionId]
+          : sel?.optionIds ?? [];
+        const selectedOptions = selectedOptionIds.map((id, order) => {
+          const opt = page.options.find((option) => option.id === id);
+          return {
+            id,
+            label: opt?.label ?? id,
+            ...(responseMode === 'priority_pick' ? { priority: order + 1 } : {}),
+          };
+        });
+        return {
+          page_index: i,
+          page_title: page.page_title || `问题 ${i + 1}`,
+          response_mode: responseMode,
+          ...(sel?.optionId ? { selected_option_id: sel.optionId } : {}),
+          ...(selectedOptionIds.length ? { selected_option_ids: selectedOptionIds } : {}),
+          ...(selectedOptions.length ? { selected_options: selectedOptions } : {}),
+          ...(sel?.freetext ? { freetext: sel.freetext } : {}),
+        };
+      }).filter((page) =>
+        Boolean(page.selected_option_id) ||
+        Boolean(page.selected_option_ids?.length) ||
+        Boolean(page.freetext)
+      ),
+    };
+
     // 汇总所有页的信号
     const signals: string[] = allPages.map((page, i) => {
       const sel = finalSelections[i];
@@ -256,10 +298,10 @@ export default function GuidanceCardWidget({ card, initialResponded = false, res
     if (totalPages === 1) {
       // 单页：走原来逻辑
       const sel = finalSelections[0];
-      onRespond(sel?.optionId, sel?.freetext);
+      onRespond(sel?.optionId, sel?.freetext, structuredResponse);
     } else {
-      // 多页：freetext 汇总形式传递
-      onRespond(undefined, signals.join('; '));
+      // 多页：保留人类可读摘要，同时传出结构化选择
+      onRespond(undefined, signals.join('; '), structuredResponse);
     }
   };
 
@@ -455,6 +497,43 @@ export default function GuidanceCardWidget({ card, initialResponded = false, res
         <p className="text-[var(--foreground)] leading-relaxed mb-3">
           {currentPage.prompt_text}
         </p>
+        {demandReconstructionSections.length > 0 && (
+          <div className="mb-3 space-y-2">
+            {demandReconstructionSections.map((section, index) => {
+              const emphasisClass =
+                section.emphasis === 'high'
+                  ? 'border-emerald-400/40 bg-emerald-400/10'
+                  : section.emphasis === 'medium'
+                    ? 'border-cyan-400/30 bg-cyan-400/8'
+                    : 'border-[#3a3f4b] bg-black/10';
+              return (
+                <section
+                  key={`${section.title}-${index}`}
+                  className={`rounded-lg border px-3 py-2.5 ${emphasisClass}`}
+                >
+                  <h4 className="text-xs font-semibold text-[var(--foreground)]">
+                    {section.title}
+                  </h4>
+                  {section.body && (
+                    <p className="mt-1 text-xs leading-5 text-[var(--foreground-secondary)]">
+                      {section.body}
+                    </p>
+                  )}
+                  {section.items && section.items.length > 0 && (
+                    <ul className="mt-2 space-y-1 text-xs leading-5 text-[var(--foreground-secondary)]">
+                      {section.items.map((item, itemIndex) => (
+                        <li key={`${section.title}-${itemIndex}`} className="flex gap-2">
+                          <span className="mt-0.5 text-[var(--foreground)] opacity-50">-</span>
+                          <span>{item}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </section>
+              );
+            })}
+          </div>
+        )}
         {currentPage.helper_text && (
           <p className="mb-3 text-xs leading-5 text-[var(--foreground-secondary)]">
             {currentPage.helper_text}

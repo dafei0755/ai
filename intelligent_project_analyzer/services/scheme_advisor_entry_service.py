@@ -214,8 +214,10 @@ class SchemeAdvisorEntryService:
         state = dict(session.get(ENTRY_STATE_KEY) or {})
         pending_card = session.get("pending_guidance_card") or {}
         pending_type = pending_card.get("card_type")
+        demand_reconstruction_handoff_context = session.get("demand_reconstruction_context") or {}
+        has_demand_reconstruction_handoff = bool(demand_reconstruction_handoff_context.get("handoff_requested"))
 
-        if not state and not self._should_enter_flow(user_message):
+        if not state and not self._should_enter_flow(user_message) and not has_demand_reconstruction_handoff:
             return None
 
         if state and not in_response_to_card_id and self._is_fresh_project_restart(user_message):
@@ -223,7 +225,7 @@ class SchemeAdvisorEntryService:
             return self._start_flow(user_message)
 
         if not state:
-            return self._start_flow(user_message)
+            return self._start_flow(user_message, demand_reconstruction_context=demand_reconstruction_handoff_context or None)
 
         tier_ids = {t["id"] for t in self._tiers}
         if in_response_to_card_id and selected_option_id in tier_ids and state.get("step") == "version_selected":
@@ -263,7 +265,7 @@ class SchemeAdvisorEntryService:
             return self._after_version_selected_followup(state, user_message)
         return None
 
-    def _start_flow(self, message: str) -> Dict[str, Any]:
+    def _start_flow(self, message: str, demand_reconstruction_context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         profile = self._classify_input(message)
         if profile["mode"] == "redirect":
             reply = self._copy_text("first_confidence.redirect")
@@ -295,6 +297,9 @@ class SchemeAdvisorEntryService:
             ),
         )
 
+        if demand_reconstruction_context:
+            card = self._apply_demand_reconstruction_handoff_to_round_1_card(card, demand_reconstruction_context)
+
         return self._result(
             reply,
             card,
@@ -302,10 +307,39 @@ class SchemeAdvisorEntryService:
                 "step": "round_1",
                 "initial_input": message,
                 "profile": profile,
+                "demand_reconstruction_handoff": demand_reconstruction_context,
                 "rounds": [],
                 "created_at": datetime.now().isoformat(),
             },
         )
+
+    @staticmethod
+    def _apply_demand_reconstruction_handoff_to_round_1_card(
+        card: Dict[str, Any],
+        demand_reconstruction_context: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        """Mark formal intake as inheriting the demand reconstruction blueprint."""
+        slots = dict(demand_reconstruction_context.get("brief_handoff_slots") or {})
+        if not slots:
+            return card
+        inherited_labels = [
+            label
+            for key, label in (
+                ("project_object", "项目对象"),
+                ("owner_profile", "业主画像"),
+                ("emotional_motive", "目标动机"),
+                ("risk_boundary", "风险边界"),
+                ("core_proposition_candidate", "核心命题"),
+            )
+            if slots.get(key)
+        ]
+        card = dict(card)
+        prefix = "已继承需求重构行动蓝图"
+        if inherited_labels:
+            prefix = f"{prefix}：{'、'.join(inherited_labels)}"
+        card["prompt_text"] = f"{prefix}。这一轮只补正式任务书还缺的边界。{card.get('prompt_text', '')}"
+        card["demand_reconstruction_handoff_slots"] = slots
+        return card
 
     def _after_round_1(self, state: Dict[str, Any], message: str) -> Dict[str, Any]:
         state = self._append_round(state, "round_1", message)
@@ -743,6 +777,7 @@ class SchemeAdvisorEntryService:
             project_type in {"urban_renewal_heritage", "urban_renewal_market"}
             or "urban_renewal" in domains
         )
+        is_public_market = "public_market" in domains
         is_retail = (
             project_type in {"commercial_retail", "commercial_dining"}
             or "retail_commercial" in domains
@@ -764,6 +799,8 @@ class SchemeAdvisorEntryService:
             opening = f"这更像是一个组织效率与品牌气质共同塑造的问题，不能只做漂亮办公室。"
         elif is_cultural:
             opening = f"这更像是一个叙事、展陈与公众理解路径的问题，不能只堆文化符号。"
+        elif is_public_market:
+            opening = f"这更像是一个公共市场更新问题，不能先套网红菜市场模板，也不能只做文化包装。"
         elif is_urban_renewal:
             opening = f"这更像是一个更新再生问题，必须同时看原有场地、使用者和后续运营。"
         elif is_retail:
@@ -788,6 +825,9 @@ class SchemeAdvisorEntryService:
         context_sentence = SchemeAdvisorEntryService._semantic_context_sentence(axes, message)
         if context_sentence:
             middle = f"{middle}{context_sentence}"
+        prompt_anchor_sentence = SchemeAdvisorEntryService._semantic_prompt_anchor_sentence(axes, message)
+        if prompt_anchor_sentence:
+            middle = f"{middle}{prompt_anchor_sentence}"
 
         next_focus = "、".join(tension_labels[:2])
         if not next_focus:
@@ -839,6 +879,37 @@ class SchemeAdvisorEntryService:
         if not details:
             return ""
         return "；".join(details[:2]) + "。"
+
+    @staticmethod
+    def _semantic_prompt_anchor_sentence(axes: Dict[str, Any], message: str) -> str:
+        domains = set(axes.get("space_domains") or [])
+        anchors = SchemeAdvisorContextIntelligence.prompt_anchors(message)
+        benchmark = anchors.get("benchmark")
+        culture = anchors.get("culture")
+        stakeholders = anchors.get("stakeholders")
+        motive = anchors.get("motive")
+        text = str(message or "")
+        details: List[str] = []
+
+        if "public_market" in domains and benchmark:
+            location = "深圳蛇口" if "深圳" in text and "蛇口" in text else ""
+            location_prefix = f"{location}和" if location else ""
+            details.append(
+                f"对标{benchmark}要先拆哪些可迁移，{location_prefix}{benchmark}的城市语境、客群结构和运营后勤不一样，不能照搬"
+            )
+        elif benchmark:
+            details.append(f"对标{benchmark}要先拆可迁移原则和不可照搬的边界")
+
+        if culture:
+            details.append(f"{culture}需要专题转译为空间秩序、展示节奏和日常使用线索，而不是做表皮符号")
+        if stakeholders:
+            details.append(f"题目明确要兼顾{stakeholders}，这会直接改变动线、停留、消费和公共性分配")
+        if motive:
+            details.append(f"最终目标是成为{motive}，需要重新梳理它到底靠民生运营、公共体验还是城市传播成立")
+
+        if not details:
+            return ""
+        return "；".join(details[:4]) + "。"
 
     @staticmethod
     def _build_methodology_first_confidence(profile: Dict[str, Any], message: str) -> str:

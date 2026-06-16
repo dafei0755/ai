@@ -206,7 +206,11 @@ export default function HomePage() {
 
     } catch (error: any) {
       console.error('Start analysis failed:', error);
-      setError(error?.response?.data?.detail || error?.message || '创建对话会话失败，请重试');
+      const networkMessage =
+        error?.message?.includes('Network Error') || error?.code === 'ERR_NETWORK'
+          ? '后端连接失败：请确认 FastAPI 后端已启动。浏览器仍访问 3001，后端端口由启动脚本和 Next 代理管理。'
+          : error?.response?.data?.detail || error?.message || '创建对话会话失败，请重试';
+      setError(networkMessage);
 
       // 失败时移除临时记录
       setSessions(prevSessions =>
@@ -354,7 +358,7 @@ export default function HomePage() {
                     }}
                     value={userInput}
                     onChange={(e) => setUserInput(e.target.value)}
-                    placeholder="输入你的想法、问题或设计需求，开始生成设计任务书 2.0..."
+                    placeholder="输入你的想法、问题或设计需求，先做需求重构..."
                     className="w-full bg-inherit text-gray-700 text-base leading-6 px-6 pt-6 pb-6 min-h-[170px] outline-none resize-none placeholder:text-gray-400"
                     disabled={isLoading}
                     autoComplete="off"
@@ -372,7 +376,7 @@ export default function HomePage() {
                       }`}
                       aria-live="polite"
                     >
-                      {isLoading ? '正在创建会话...' : '生成设计任务书 2.0'}
+                      {isLoading ? '正在创建会话...' : '开始需求重构'}
                     </span>
                   </div>
                   {/* 🆕 v7.158: 发送按钮 - DeepSeek 风格，🆕 v7.351: 统一灰色背景 */}

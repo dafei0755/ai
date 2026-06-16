@@ -25,6 +25,7 @@ Git 管理的不是“文件夹”，而是一组组有明确意图的变更快�
 
 推荐提交单位示例：
 
+- `方案高参需求重构运行时`
 - `方案高参入口运行时基础`
 - `诚实边界机制`
 - `管理后台取消爬虫/日志/配置页面`
@@ -340,7 +341,7 @@ git stash --all
    处理 `.gitignore`、本地数据库、Playwright 输出、临时脚本等噪声。
 
 2. 方案高参入口运行时基础  
-   收敛 entry service、context intelligence、空间分类、知识包、激活包、相关测试。
+   收敛需求重构、entry service、context intelligence、空间分类、知识包、激活包、相关测试。
 
 3. 诚实边界机制  
    如果能从入口运行时基础中拆清楚，则单独提交；如果拆不清楚，应并入入口基础批次说明。
@@ -377,6 +378,7 @@ git stash --all
 推荐格式：
 
 ```text
+feat: add demand reconstruction entry layer
 feat: add scheme advisor entry runtime foundation
 fix: restore admin dashboard route
 docs: update quickstart startup command

@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 /**
  * UCPPT搜索页面集成示例 - v7.270
@@ -27,7 +27,7 @@ export default function SearchPageExample() {
   useEffect(() => {
     // 创建 WebSocket 连接
     const wsClient = new WebSocketClient({
-      url: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000',
+      url: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001',
       sessionId: 'your-session-id', // 替换为实际的 session_id
       onMessage: (message) => {
         console.log('📨 收到消息:', message);

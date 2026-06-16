@@ -56,6 +56,14 @@ docs/
 
 ## 🎯 功能文档
 
+### 方案高参
+
+| 文档 | 说明 |
+|------|------|
+| [development/方案高参需求重构运行时开发纲领.md](development/方案高参需求重构运行时开发纲领.md) | 当前方案高参入口基线：需求重构、行动蓝图、handoff、一二轮追问 |
+| [development/2026.6.11-下阶段开发进度安排.md](development/2026.6.11-下阶段开发进度安排.md) | 方案高参下一阶段产品与开发推进顺序 |
+| [development/2026-06-16-并行线程协作边界-golden-vs-tea.md](development/2026-06-16-并行线程协作边界-golden-vs-tea.md) | Golden、茶饮专项与需求重构入口线的协作边界 |
+
 ### 分析模式
 
 | 文档 | 说明 |
@@ -101,6 +109,7 @@ docs/
 | [../.github/DEVELOPMENT_RULES.md](../.github/DEVELOPMENT_RULES.md) | 完整开发规范 |
 | [../.github/PRE_CHANGE_CHECKLIST.md](../.github/PRE_CHANGE_CHECKLIST.md) | 变更检查清单 |
 | [API.md](API.md) | API 文档 |
+| [development/方案高参需求重构运行时开发纲领.md](development/方案高参需求重构运行时开发纲领.md) | 方案高参需求重构运行时开发纲领 |
 | [development/testing/](development/testing/) | 测试指南 |
 | [../README_TESTING.md](../README_TESTING.md) | 测试概览（根目录） |
 
@@ -186,4 +195,4 @@ docs/
 
 ---
 
-**最后更新**: 2026-01-03 | **文档版本**: v2.1
+**最后更新**: 2026-06-16 | **文档版本**: v2.2

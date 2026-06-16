@@ -46,7 +46,7 @@ interface LearningData {
 // Helpers
 // ============================================================================
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8001';
 
 function getHeaders() {
   const token = typeof window !== 'undefined' ? localStorage.getItem('app_auth_token') : null;

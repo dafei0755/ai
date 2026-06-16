@@ -1,4 +1,4 @@
-"""
+﻿"""
 4步骤搜索流程 API 路由
 
 提供4步骤搜索流程的HTTP API接口
@@ -123,7 +123,7 @@ async def four_step_search_stream(
     ## 示例
 
     ```bash
-    curl -X POST "http://localhost:8000/api/search/four-step/stream" \\
+    curl -X POST "http://localhost:8001/api/search/four-step/stream" \\
       -H "Content-Type: application/json" \\
       -d '{
         "user_input": "深圳南山，38岁独立女性，200平米大平层，Audrey Hepburn风格"
@@ -210,7 +210,7 @@ async def get_four_step_status(
     ## 示例
 
     ```bash
-    curl "http://localhost:8000/api/search/four-step/status/abc-123"
+    curl "http://localhost:8001/api/search/four-step/status/abc-123"
     ```
     """
     # TODO: 实现状态查询（需要状态存储）

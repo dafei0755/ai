@@ -394,6 +394,44 @@ pytest tests/services/test_tea_space_golden_questions_p0.py -q
 当前判断：
 
 - 如果追求版本管理清晰，推荐先把“方案高参入口运行时基础”作为一个大但完整的批次收敛，再把后续 UI、管理后台、资料库分开。
+
+### 2026-06-16 更新口径：入口运行时基础必须包含需求重构
+
+2026-06-16 后，方案高参入口前置概念已统一为“需求重构”。因此，如果继续按本文的“方案高参入口运行时基础”候选批次收敛，必须把需求重构运行时纳入最小边界，而不能只提交 `SchemeAdvisorEntryService`。
+
+新增必须纳入的运行时文件：
+
+- `intelligent_project_analyzer/services/demand_reconstruction_service.py`
+- `intelligent_project_analyzer/services/demand_reconstruction_context_adapter.py`
+- `intelligent_project_analyzer/services/demand_reconstruction_output_planner.py`
+- `intelligent_project_analyzer/services/demand_reconstruction_boundary_guard.py`
+
+新增必须纳入的测试：
+
+- `tests/services/test_demand_reconstruction_service.py`
+- `tests/api/test_scheme_advisor_entry_route.py`
+
+新增必须同步的文档：
+
+- `docs/development/方案高参需求重构运行时开发纲领.md`
+- `sf/2026.5.23/10 方案高参需求重构到设计任务书升级机制_专题H_v1.0_20260616.md`
+
+当前验证命令：
+
+```powershell
+python -m pytest tests\services\test_demand_reconstruction_service.py tests\api\test_scheme_advisor_entry_route.py -q
+```
+
+```powershell
+cd frontend-nextjs
+npm test -- ConversationMode/GuidanceCard.test.tsx --runInBand
+```
+
+边界说明：
+
+- 需求重构不是茶饮专项补丁。
+- 需求重构不是 Golden 复核线。
+- 需求重构必须复用已有语义理解、空间分类、主矛盾、本体论与知识治理，不新建平行算法。
 - 如果追求最小提交，需要先确认这些未跟踪整文件是否都应该正式入库；否则无法可靠拆出一个真正独立的“诚实边界增量”。
 - 本次仍然没有执行 `git add`、提交、删除、回滚。
 

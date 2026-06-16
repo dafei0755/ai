@@ -704,8 +704,10 @@ async def lifespan(app: FastAPI):
         _boot_log("️ 设备会话管理器预初始化失败（设备检查可能较慢）")
 
     _boot_log("服务器启动成功")
-    print("[BOOT] API 文档: http://localhost:8000/docs")
-    print("[BOOT] 健康检查: http://localhost:8000/health")
+    server_host = "127.0.0.1" if _get_server_host() in {"0.0.0.0", "::"} else _get_server_host()
+    server_port = _get_server_port()
+    print(f"[BOOT] API 文档: http://{server_host}:{server_port}/docs")
+    print(f"[BOOT] 健康检查: http://{server_host}:{server_port}/health")
     print()
 
     #  v7.105: 预热会话缓存（消除首次请求延迟）
@@ -8794,7 +8796,7 @@ def _get_server_host() -> str:
 
 
 def _get_server_port() -> int:
-    raw_value = (os.getenv("SERVER_STARTUP_BACKEND_PORT") or os.getenv("BACKEND_PORT", "8000")).strip()
+    raw_value = (os.getenv("SERVER_STARTUP_BACKEND_PORT") or os.getenv("BACKEND_PORT", "8001")).strip()
     try:
         port = int(raw_value)
     except ValueError as exc:

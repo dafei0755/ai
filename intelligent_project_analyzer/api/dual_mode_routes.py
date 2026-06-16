@@ -111,6 +111,40 @@ def _invalidate_sessions_cache(user_id: str) -> None:
         logger.debug(f"[dual_mode] 会话缓存失效失败，可忽略: {exc}")
 
 
+_LEGACY_DEMAND_RECONSTRUCTION_CARD_TYPES = {
+    "shallow_battle_plan",
+    "shallow_dialogue_blueprint",
+}
+
+
+def _normalize_legacy_demand_reconstruction_session(session: Dict[str, Any]) -> Dict[str, Any]:
+    """Normalize pre-rename demand-reconstruction card state so old sessions do not hit legacy engines."""
+    pending_card = session.get("pending_guidance_card")
+    if not isinstance(pending_card, dict):
+        return session
+    if pending_card.get("card_type") not in _LEGACY_DEMAND_RECONSTRUCTION_CARD_TYPES:
+        return session
+
+    migrated_card = {
+        **pending_card,
+        "card_type": "demand_reconstruction_blueprint",
+        "title": pending_card.get("title") or "需求重构",
+        "display_label": "需求重构",
+        "artifact_name": "行动蓝图",
+        "reconstruction_type": "demand_reconstruction",
+    }
+    migrated = {**session, "pending_guidance_card": migrated_card}
+    if "demand_reconstruction_context" not in migrated and "shallow_context" in migrated:
+        migrated["demand_reconstruction_context"] = migrated.get("shallow_context")
+    return migrated
+
+
+def _normalize_legacy_demand_reconstruction_option(option_id: Optional[str]) -> Optional[str]:
+    if option_id == "continue_shallow":
+        return "continue_demand_reconstruction"
+    return option_id
+
+
 async def _archive_conversation_snapshot(session_id: str, session_data: Dict[str, Any]) -> None:
     """对话态也写入归档库，避免 Redis TTL 到期后历史消失。"""
     try:
@@ -137,6 +171,7 @@ class ConversationMessageRequest(BaseModel):
     # 引导卡片交互字段（2026-03-16）
     in_response_to_card_id: Optional[str] = Field(None, description="正在响应的引导卡片 ID")
     selected_option_id: Optional[str] = Field(None, description="用户选择的选项 ID")
+    card_response: Optional[Dict[str, Any]] = Field(None, description="结构化卡片响应，支持多页、多选和排序")
 
 
 class ConversationMessageResponse(BaseModel):
@@ -149,6 +184,11 @@ class ConversationMessageResponse(BaseModel):
     system_mode: str
     # 引导卡片（2026-03-16）：None 表示本轮无引导卡
     guidance_card: Optional[Dict[str, Any]] = None
+    dialogue_layer: str = Field(default="demand_reconstruction", description="demand_reconstruction | brief_intake | project")
+    handoff_available: bool = Field(default=False, description="需求重构行动蓝图是否可转入任务书")
+    demand_reconstruction_context: Optional[Dict[str, Any]] = Field(None, description="需求重构行动蓝图上下文")
+    reconstruction_type: Optional[str] = Field(None, description="需求重构类型，兼容旧需求重构入口")
+    artifact_name: Optional[str] = Field(None, description="需求重构产物名")
 
 
 class DraftItem(BaseModel):
@@ -310,7 +350,8 @@ async def post_conversation_message(
             await sm2.update(session_id, {"user_input": message_title, "user_id": existing.get("user_id") or user_id})
 
     # ── 2. 追加消息事件到会话 ──
-    session = await sm.get(session_id)
+    session = _normalize_legacy_demand_reconstruction_session(await sm.get(session_id))
+    selected_option_id = _normalize_legacy_demand_reconstruction_option(req.selected_option_id)
     conversation_history: List[Dict[str, Any]] = session.get("conversation_history_v2", [])
     conversation_history.append(
         {
@@ -318,7 +359,8 @@ async def post_conversation_message(
             "content": req.message,
             "context_hint": req.context_hint,
             "in_response_to_card_id": req.in_response_to_card_id,
-            "selected_option_id": req.selected_option_id,
+            "selected_option_id": selected_option_id,
+            "card_response": req.card_response,
             "timestamp": datetime.now().isoformat(),
         }
     )
@@ -327,14 +369,73 @@ async def post_conversation_message(
     result: Dict[str, Any] = {}
     scheme_entry_state: Optional[Dict[str, Any]] = None
     scheme_entry_handled = False
+    demand_reconstruction_context: Optional[Dict[str, Any]] = session.get("demand_reconstruction_context")
+    dialogue_layer = "demand_reconstruction"
+    handoff_available = False
     try:
+        # ── 3a. 需求重构：购买前理解力证明，不直接进入正式一二轮 ──
+        from intelligent_project_analyzer.services.demand_reconstruction_service import (  # noqa: PLC0415
+            DemandReconstructionService,
+        )
+
+        demand_reconstruction_service = DemandReconstructionService()
+        pending_card_type = (session.get("pending_guidance_card") or {}).get("card_type")
+        has_formal_intake_state = bool(session.get("scheme_advisor_entry_v2"))
+        allow_demand_reconstruction = (
+            not has_formal_intake_state
+            or pending_card_type == DemandReconstructionService.CARD_TYPE
+        )
+        if pending_card_type and str(pending_card_type).startswith("scheme_"):
+            allow_demand_reconstruction = False
+
+        demand_reconstruction_result = None
+        if allow_demand_reconstruction:
+            demand_reconstruction_result = demand_reconstruction_service.handle_message(
+                session=session,
+                user_message=req.message,
+                in_response_to_card_id=req.in_response_to_card_id,
+                selected_option_id=selected_option_id,
+            )
+        force_brief_intake_from_demand_reconstruction = False
+        scheme_user_message = req.message
+        if demand_reconstruction_result and demand_reconstruction_result.get("handoff_requested"):
+            force_brief_intake_from_demand_reconstruction = True
+            demand_reconstruction_context = demand_reconstruction_result.get("demand_reconstruction_context") or demand_reconstruction_context
+            blueprint = (demand_reconstruction_context or {}).get("blueprint") or {}
+            source_message = (demand_reconstruction_context or {}).get("source_message") or req.message
+            scheme_user_message = (
+                f"{source_message}\n\n"
+                "请把以上需求重构行动蓝图整理成设计任务书草稿，并进入正式任务书问诊。"
+            )
+            session = {**session, "demand_reconstruction_context": demand_reconstruction_context}
+            if blueprint:
+                session["conversation_drafts"] = list(session.get("conversation_drafts") or [])
+        elif demand_reconstruction_result:
+            reply = demand_reconstruction_result.get("reply", "我先为你做一轮需求重构。")
+            intent = demand_reconstruction_result.get("intent", "demand_reconstruction_blueprint")
+            drafts = session.get("conversation_drafts", [])
+            upgrade_sig = None
+            upgrade_suggested = False
+            guidance_card = demand_reconstruction_result.get("guidance_card")
+            demand_reconstruction_context = demand_reconstruction_result.get("demand_reconstruction_context")
+            dialogue_layer = "demand_reconstruction"
+            handoff_available = bool(demand_reconstruction_result.get("handoff_available", True))
+            result = {
+                "conv_s_step": session.get("conv_s_step", "dialogue"),
+                "asked_gaps": session.get("asked_gaps", []),
+            }
+            logger.info(
+                f"[dual_mode] DemandReconstruction handled: session={session_id}, "
+                f"card={guidance_card and guidance_card.get('card_type')}"
+            )
+
         from intelligent_project_analyzer.services.scheme_advisor_entry_service import (  # noqa: PLC0415
             SchemeAdvisorEntryService,
             is_scheme_advisor_entry_enabled,
             is_scheme_advisor_entry_llm_enabled,
         )
 
-        if is_scheme_advisor_entry_enabled():
+        if (not demand_reconstruction_result or force_brief_intake_from_demand_reconstruction) and is_scheme_advisor_entry_enabled():
             scheme_llm = _get_conv_llm() if is_scheme_advisor_entry_llm_enabled() else None
             scheme_service = SchemeAdvisorEntryService(llm=scheme_llm)
             loop = asyncio.get_event_loop()
@@ -342,9 +443,9 @@ async def post_conversation_message(
                 None,
                 lambda: scheme_service.handle_message(
                     session=session,
-                    user_message=req.message,
+                    user_message=scheme_user_message,
                     in_response_to_card_id=req.in_response_to_card_id,
-                    selected_option_id=req.selected_option_id,
+                    selected_option_id=selected_option_id,
                 ),
             )
             if scheme_result:
@@ -356,13 +457,15 @@ async def post_conversation_message(
                 upgrade_suggested = False
                 guidance_card = scheme_result.get("guidance_card")
                 scheme_entry_state = scheme_result.get("scheme_entry_state")
+                dialogue_layer = "brief_intake"
+                handoff_available = False
                 logger.info(
                     f"[dual_mode] SchemeAdvisorEntryV2 handled: session={session_id}, "
                     f"step={(scheme_entry_state or {}).get('step')}, card={guidance_card and guidance_card.get('card_type')}"
                 )
 
         # ── 4. 默认：同步调用 ConversationEngine ──
-        if not scheme_entry_handled:
+        if (not demand_reconstruction_result or force_brief_intake_from_demand_reconstruction) and not scheme_entry_handled:
             from intelligent_project_analyzer.workflow.conversation_engine import ConversationEngine
             from langchain_core.messages import AIMessage as _AM, HumanMessage as _HM
 
@@ -387,7 +490,8 @@ async def post_conversation_message(
                 "conversation_history": lc_history,
                 # 引导卡片交互字段
                 "in_response_to_card_id": req.in_response_to_card_id,
-                "selected_option_id": req.selected_option_id,
+                "selected_option_id": selected_option_id,
+                "card_response": req.card_response,
                 "pending_guidance_card": session.get("pending_guidance_card"),
                 # S-step 流水线状态（跨轮次持久化）
                 "conv_s_step": session.get("conv_s_step", "dialogue"),
@@ -407,6 +511,8 @@ async def post_conversation_message(
                 isinstance(cognition, dict) and cognition.get("should_trigger_upgrade", False)
             )
             guidance_card = result.get("pending_guidance_card")
+            dialogue_layer = "project" if session.get("system_mode") == "project" else "demand_reconstruction"
+            handoff_available = bool(upgrade_suggested)
 
     except Exception as exc:
         logger.error(
@@ -418,6 +524,8 @@ async def post_conversation_message(
         upgrade_sig = None
         upgrade_suggested = False
         guidance_card = None
+        dialogue_layer = "demand_reconstruction"
+        handoff_available = False
 
     # ── 4. 回写会话 ──
     conversation_history.append(
@@ -436,6 +544,8 @@ async def post_conversation_message(
         "conversation_drafts": drafts,
         "upgrade_signal": upgrade_sig,
         "pending_guidance_card": guidance_card,
+        "demand_reconstruction_context": demand_reconstruction_context,
+        "dialogue_layer": dialogue_layer,
         "last_active": datetime.now().isoformat(),
         # 持久化 S-step 流水线状态（engine 可能已推进步骤）
         "conv_s_step": result.get("conv_s_step", session.get("conv_s_step", "dialogue")),
@@ -459,6 +569,11 @@ async def post_conversation_message(
         upgrade_signal=upgrade_sig,
         system_mode=session.get("system_mode", "conversation"),
         guidance_card=guidance_card,
+        dialogue_layer=dialogue_layer,
+        handoff_available=handoff_available,
+        demand_reconstruction_context=demand_reconstruction_context,
+        reconstruction_type=(demand_reconstruction_context or {}).get("reconstruction_type"),
+        artifact_name=(demand_reconstruction_context or {}).get("artifact_name"),
     )
 
 

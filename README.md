@@ -1,4 +1,4 @@
-# 🎨 Intelligent Project Analyzer
+﻿# 🎨 Intelligent Project Analyzer
 
 > 基于 LangGraph 的多智能体设计项目分析系统  
 > 智能化设计项目需求分析 | 多专家协作 | 全流程质量保障
@@ -33,6 +33,20 @@
 ## 🧩 Skills 文档
 
 - [Skills 使用与维护手册](docs/features/skills/SKILLS.md)
+
+## 🎯 方案高参当前入口基线
+
+方案高参第一阶段以“设计任务书 2.0”为核心产品。当前入口链路为：
+
+```text
+需求重构 → 正式一二轮追问 → 设计任务书 2.0
+```
+
+开发与维护优先阅读：
+
+- [方案高参需求重构运行时开发纲领](docs/development/方案高参需求重构运行时开发纲领.md)
+- [专题 H：需求重构到设计任务书升级机制](sf/2026.5.23/10%20方案高参需求重构到设计任务书升级机制_专题H_v1.0_20260616.md)
+- [方案高参下一阶段开发进度安排](docs/development/2026.6.11-下阶段开发进度安排.md)
 
 ### ✨ 核心特性
 
@@ -257,7 +271,7 @@ cd frontend-nextjs && npm run dev
 
 # 访问
 # 前端: http://localhost:3001
-# API: http://localhost:8000/docs
+# API: http://localhost:8001/docs
 ```
 
 ### Docker 部署

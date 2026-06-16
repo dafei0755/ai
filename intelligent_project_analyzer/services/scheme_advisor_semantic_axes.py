@@ -139,6 +139,7 @@ def rank_main_tensions(
                     "label": axis_label(axis_id, registry=source),
                     "title": str(spec.get("title") or axis_label(axis_id, registry=source)),
                     "prompt": str(spec.get("prompt") or axis_description(axis_id, registry=source)),
+                    "related_options": [str(item) for item in (spec.get("related_options") or []) if str(item)],
                     "score": int(spec.get("base_weight") or 50),
                     "source_axes": [],
                 },

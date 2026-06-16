@@ -5,6 +5,88 @@ import GuidanceCardWidget from './GuidanceCard';
 import { type GuidanceCardData } from './ConversationChat';
 
 describe('GuidanceCardWidget', () => {
+  it('renders demand reconstruction cards without formal intake wording', async () => {
+    const user = userEvent.setup();
+    const onRespond = jest.fn();
+    const card: GuidanceCardData = {
+      card_id: 'demand_reconstruction-blueprint-homecoming',
+      card_type: 'demand_reconstruction_blueprint',
+      title: '需求重构',
+      prompt_text: '这不是一个民居风格问题，而是返乡身份与空间关系的问题。',
+      options: [
+        {
+          id: 'continue_demand_reconstruction',
+          label: '继续需求重构',
+          description: '继续把这个问题想清楚，不进入正式任务书。',
+        },
+        {
+          id: 'handoff_to_brief',
+          label: '整理成设计任务书草稿',
+          description: '把当前行动蓝图带入正式任务书问诊。',
+          recommended: true,
+        },
+      ],
+      allow_freetext: true,
+    };
+
+    render(<GuidanceCardWidget card={card} onRespond={onRespond} />);
+
+    expect(screen.getAllByText('需求重构').length).toBeGreaterThanOrEqual(1);
+    expect(screen.queryByText('行动蓝图')).not.toBeInTheDocument();
+    expect(screen.getByText('继续需求重构')).toBeInTheDocument();
+    expect(screen.queryByText('关键确认')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /提交首轮判断/ })).not.toBeInTheDocument();
+
+    await user.click(screen.getByText('整理成设计任务书草稿'));
+    await user.click(screen.getByRole('button', { name: /确认方向/ }));
+
+    expect(onRespond).toHaveBeenCalledWith(
+      'handoff_to_brief',
+      undefined,
+      expect.objectContaining({
+        pages: [
+          expect.objectContaining({
+            selected_option_id: 'handoff_to_brief',
+          }),
+        ],
+      }),
+    );
+  });
+
+  it('renders dynamic demand reconstruction blueprint sections', () => {
+    const onRespond = jest.fn();
+    const card: GuidanceCardData = {
+      card_id: 'demand_reconstruction-blueprint-dynamic',
+      card_type: 'demand_reconstruction_blueprint',
+      title: '需求重构',
+      prompt_text: '这不是直接给方案的问题，而是先判断项目命门。',
+      options: [],
+      sections: [
+        {
+          title: '身份与生活结构',
+          body: '先判断这栋房子要承接哪一种人生位置。',
+          items: ['职业身份会推动设计表达。', '作品化风险会压过真实使用。'],
+          emphasis: 'high',
+        },
+        {
+          title: '路径分流',
+          body: '三条路会导向不同任务书重心。',
+          items: ['生活优先型', '生活+工作混合型', '作品化住宅型'],
+          emphasis: 'medium',
+        },
+      ],
+      allow_freetext: true,
+    };
+
+    render(<GuidanceCardWidget card={card} onRespond={onRespond} />);
+
+    expect(screen.getByText('身份与生活结构')).toBeInTheDocument();
+    expect(screen.getByText('先判断这栋房子要承接哪一种人生位置。')).toBeInTheDocument();
+    expect(screen.getByText('作品化风险会压过真实使用。')).toBeInTheDocument();
+    expect(screen.getByText('路径分流')).toBeInTheDocument();
+    expect(screen.getByText('生活+工作混合型')).toBeInTheDocument();
+  });
+
   it('renders user-facing labels for context packet missing-slot pages', async () => {
     const user = userEvent.setup();
     const onRespond = jest.fn();
@@ -60,5 +142,79 @@ describe('GuidanceCardWidget', () => {
 
     expect(screen.getByText('经营事实缺口')).toBeInTheDocument();
     expect(screen.getByText('店型已明确')).toBeInTheDocument();
+  });
+
+  it('submits multi-page scheme answers as structured selections', async () => {
+    const user = userEvent.setup();
+    const onRespond = jest.fn();
+    const card: GuidanceCardData = {
+      card_id: 'scheme-round-1-market',
+      card_type: 'scheme_round_1',
+      title: '首轮判断',
+      prompt_text: '确认公共市场更新判断。',
+      options: [],
+      pages: [
+        {
+          page_title: '先确认市场更新优先保住什么',
+          prompt_text: '这个项目最不能牺牲哪两件事？',
+          response_mode: 'multi_select',
+          max_select: 2,
+          allow_freetext: true,
+          options: [
+            { id: 'resident_daily_buying', label: '居民日常买菜', description: '保住老居民的可达性和菜价感知。' },
+            { id: 'visitor_experience', label: '访客体验', description: '让游客愿意停留和理解蛇口文化。' },
+          ],
+        },
+        {
+          page_title: '再确认后勤底线',
+          prompt_text: '哪些条件必须先说清？',
+          response_mode: 'priority_pick',
+          max_select: 2,
+          allow_freetext: true,
+          options: [
+            { id: 'cold_chain', label: '冷链', description: '影响生鲜品质和后场组织。' },
+            { id: 'drainage', label: '排水排污', description: '影响卫生、气味和日常维护。' },
+          ],
+        },
+      ],
+    };
+
+    render(<GuidanceCardWidget card={card} onRespond={onRespond} />);
+
+    await user.click(screen.getByText('居民日常买菜'));
+    await user.click(screen.getByText('访客体验'));
+    await user.click(screen.getByRole('button', { name: /下一问/ }));
+    await user.click(screen.getByText('排水排污'));
+    await user.click(screen.getByText('冷链'));
+    await user.click(screen.getByRole('button', { name: /提交首轮判断/ }));
+
+    expect(onRespond).toHaveBeenCalledWith(
+      undefined,
+      '居民日常买菜、访客体验; 优先级：排水排污 > 冷链',
+      {
+        pages: [
+          {
+            page_index: 0,
+            page_title: '先确认市场更新优先保住什么',
+            response_mode: 'multi_select',
+            selected_option_ids: ['resident_daily_buying', 'visitor_experience'],
+            selected_options: [
+              { id: 'resident_daily_buying', label: '居民日常买菜' },
+              { id: 'visitor_experience', label: '访客体验' },
+            ],
+          },
+          {
+            page_index: 1,
+            page_title: '再确认后勤底线',
+            response_mode: 'priority_pick',
+            selected_option_ids: ['drainage', 'cold_chain'],
+            selected_options: [
+              { id: 'drainage', label: '排水排污', priority: 1 },
+              { id: 'cold_chain', label: '冷链', priority: 2 },
+            ],
+          },
+        ],
+      },
+    );
   });
 });

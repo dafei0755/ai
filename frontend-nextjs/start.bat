@@ -1,4 +1,4 @@
-@echo off
+﻿@echo off
 chcp 65001 >nul
 echo ========================================
 echo   Next.js 前端快速启动
@@ -41,7 +41,7 @@ echo.
 echo 📍 前端地址: http://localhost:3000
 echo 📍 按 Ctrl+C 停止服务
 echo.
-echo ⚠️  请确保后端服务已启动 (http://localhost:8000)
+echo ⚠️  请确保后端服务已启动 (http://localhost:8001)
 echo.
 
 call npm run dev

@@ -18,6 +18,11 @@ langgraph-design/
 │   ├── review/                    # 审核流程
 │   ├── security/                  # 内容安全与领域过滤
 │   ├── services/                  # LLM 工厂、工具工厂、能力边界检查 🆕
+│   │   ├── demand_reconstruction_service.py         # 需求重构入口编排
+│   │   ├── demand_reconstruction_context_adapter.py # 复用语义理解/分类/主矛盾生成上下文
+│   │   ├── demand_reconstruction_output_planner.py  # 动态行动蓝图规划
+│   │   ├── demand_reconstruction_boundary_guard.py  # 防止滑入完整任务书或伪研究
+│   │   ├── scheme_advisor_entry_service.py          # 正式设计任务书一二轮追问入口
 │   │   ├── capability_boundary_service.py  # 统一能力边界检查服务 (v7.117)
 │   │   ├── dimension_selector.py           # 维度选择器
 │   │   ├── core_task_decomposer.py         # 任务拆解器
@@ -43,6 +48,7 @@ langgraph-design/
 ├── tests/                         # 测试文件（集中管理）
 ├── scripts/                       # 独立脚本（工具、修复脚本）
 ├── docs/                          # 文档
+│   ├── development/方案高参需求重构运行时开发纲领.md  # 当前方案高参入口开发基线
 │   ├── implementation/            # 实现文档、修复记录、版本报告
 │   └── guides/                    # 用户指南
 ├── logs/                          # 日志文件
@@ -86,12 +92,14 @@ langgraph-design/
 - **LangGraph 工作流**：支持动态批次执行、审核反馈循环、挑战检测
 - **动态角色生成**：YAML 配置驱动的 agent 动态创建
 - **人机交互**：interrupt 机制支持校准问卷、需求确认、审核反馈
+- **方案高参需求重构**：模糊输入先生成行动蓝图，再无损衔接正式一二轮追问和设计任务书 2.0
 - **报告生成**：文本/PDF 双格式输出，支持多轮迭代
 - **内容安全**：输入/输出双重安全检查，领域适配性验证
 
 ## 📚 文档导航
 
 - **实现文档**：`docs/implementation/`（修复记录、版本报告、技术设计）
+- **方案高参入口基线**：`docs/development/方案高参需求重构运行时开发纲领.md`
 - **用户指南**：`docs/guides/`（使用手册、快速入门）
 - **模块说明**：各子模块的 `CLAUDE.md` 文件
 

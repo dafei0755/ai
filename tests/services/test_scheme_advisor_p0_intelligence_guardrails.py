@@ -29,6 +29,14 @@ FOUNDER_LAKE_VILLA = (
 )
 
 
+PUBLIC_MARKET_RENEWAL = (
+    "深圳蛇口20000㎡菜市场更新改造项目，希望对标苏州黄桥菜市场，"
+    "同时融入蛇口渔村传统文化。需兼顾老居民、香港访客、外籍客群与社区居民，"
+    "成为城市更新标杆。请提出整体改造框架，包括动线组织、冷链系统、"
+    "文化展示策略、社交空间植入与商业可持续模型。"
+)
+
+
 def _visible_text(packet: dict) -> str:
     parts = []
     question_plan = packet.get("question_plan") or {}
@@ -50,6 +58,15 @@ def _visible_text(packet: dict) -> str:
                     str(option.get("description") or ""),
                 ])
     return "\n".join(parts)
+
+
+def _all_question_pages(packet: dict) -> list[dict]:
+    question_plan = packet.get("question_plan") or {}
+    pages = []
+    for card_key in ("round_1_card", "round_2_card"):
+        card = question_plan.get(card_key) or {}
+        pages.extend(card.get("pages") or [])
+    return pages
 
 
 def test_founder_seaside_villa_prioritizes_identity_and_family_not_urban_renewal():
@@ -358,6 +375,148 @@ def test_entry_guidance_does_not_expose_internal_english_keys():
         "activation_pack",
     ]
     assert not any(item in visible for item in forbidden)
+
+
+def test_public_market_renewal_questions_are_business_terms_not_internal_keys():
+    packet = SchemeAdvisorContextIntelligence().build(PUBLIC_MARKET_RENEWAL)
+    visible = _visible_text(packet)
+
+    forbidden = [
+        "market role",
+        "vendor and customer flow",
+        "sanitation and logistics",
+        "neighborhood public value",
+        "long term operation",
+        "sanitation and drainage",
+        "fire safety precheck",
+        "logistics separation",
+        "maintenance cost",
+        "livelihood practicality",
+        "place branding",
+        "vendor efficiency",
+        "public experience",
+        "renovation activation",
+        "daily affordability",
+        "选择判断路径",
+    ]
+
+    assert not any(term in visible for term in forbidden)
+    assert "先确认这个市场更新最不能牺牲什么" in visible
+    assert "摊贩" in visible
+    assert "居民" in visible or "社区" in visible
+    assert "游客" in visible or "访客" in visible
+    assert "卫生" in visible or "排水" in visible or "冷链" in visible
+
+
+def test_public_market_renewal_question_pages_express_selection_semantics():
+    packet = SchemeAdvisorContextIntelligence().build(PUBLIC_MARKET_RENEWAL)
+    pages = ((packet.get("question_plan") or {}).get("round_1_card") or {}).get("pages") or []
+    option_labels = [
+        option.get("label", "")
+        for page in pages
+        for option in (page.get("options") or [])
+    ]
+
+    assert pages
+    assert any("公共市场" in (page.get("page_title") or "") or "市场" in (page.get("page_title") or "") for page in pages)
+    assert all(page.get("response_mode") for page in pages)
+    assert any(page.get("response_mode") in {"multi_select", "priority_pick"} for page in pages)
+    assert any(int(page.get("max_select") or 0) >= 2 for page in pages)
+    assert any("摊贩" in label or "商户" in label for label in option_labels)
+    assert any("居民" in label for label in option_labels)
+    assert any("访客" in label or "游客" in label for label in option_labels)
+
+
+def test_public_market_round_one_directly_responds_to_user_prompt_anchors():
+    packet = SchemeAdvisorContextIntelligence().build(PUBLIC_MARKET_RENEWAL)
+    round_1 = ((packet.get("question_plan") or {}).get("round_1_card") or {})
+    header = "\n".join([
+        str(round_1.get("title") or ""),
+        str(round_1.get("prompt_text") or ""),
+    ])
+
+    assert "苏州黄桥菜市场" in header
+    assert "蛇口渔村传统文化" in header or "蛇口渔村" in header
+    assert "老居民" in header
+    assert "香港访客" in header
+    assert "外籍客群" in header
+    assert "城市更新标杆" in header
+    assert "可对标" in header or "对标" in header
+    assert "不能照搬" in header or "误区" in header or "不一样" in header
+
+
+def test_round_one_lists_explicit_prompt_anchors_before_questioning():
+    packet = SchemeAdvisorContextIntelligence().build(PUBLIC_MARKET_RENEWAL)
+    round_1 = ((packet.get("question_plan") or {}).get("round_1_card") or {})
+    prompt = str(round_1.get("prompt_text") or "")
+
+    for index in range(1, 7):
+        assert f"{index}." in prompt
+
+    assert "项目对象" in prompt and "深圳蛇口20000㎡菜市场更新改造" in prompt
+    assert "对标对象" in prompt and "苏州黄桥菜市场" in prompt
+    assert "在地文化" in prompt and "蛇口渔村传统文化" in prompt
+    assert "服务对象" in prompt and "老居民、香港访客、外籍客群与社区居民" in prompt
+    assert "目标动机" in prompt and "城市更新标杆" in prompt
+    assert "任务范围" in prompt and "动线组织、冷链系统、文化展示策略、社交空间植入与商业可持续模型" in prompt
+    assert "备注" not in prompt
+
+
+def test_round_one_caps_visible_anchors_at_six_and_notes_formal_work():
+    prompt = (
+        PUBLIC_MARKET_RENEWAL
+        + "另需统筹消防验收、夜间运营、租户分级、数字化导览与分期施工计划。"
+    )
+
+    packet = SchemeAdvisorContextIntelligence().build(prompt)
+    round_1 = ((packet.get("question_plan") or {}).get("round_1_card") or {})
+    prompt_text = str(round_1.get("prompt_text") or "")
+
+    assert "6." in prompt_text
+    assert "7." not in prompt_text
+    assert "备注" in prompt_text
+    assert "正式任务中展开" in prompt_text
+    assert "夜间运营" in prompt_text or "租户分级" in prompt_text or "数字化导览" in prompt_text
+
+
+def test_round_two_targets_hidden_tradeoffs_not_surface_prompt_repetition():
+    packet = SchemeAdvisorContextIntelligence().build(PUBLIC_MARKET_RENEWAL)
+    round_2 = ((packet.get("question_plan") or {}).get("round_2_card") or {})
+    text = "\n".join([
+        str(round_2.get("title") or ""),
+        str(round_2.get("prompt_text") or ""),
+        *[
+            "\n".join([
+                str(page.get("page_title") or ""),
+                str(page.get("prompt_text") or ""),
+                str(page.get("helper_text") or ""),
+            ])
+            for page in (round_2.get("pages") or [])
+        ],
+    ])
+
+    assert "背后" in text or "隐含" in text
+    assert "取舍" in text or "撕裂" in text or "冲突" in text
+    assert "谁付运营成本" in text or "价格感" in text or "后勤" in text
+    assert "苏州黄桥菜市场" not in text
+    assert "动线组织、冷链系统、文化展示策略、社交空间植入与商业可持续模型" not in text
+
+
+def test_public_market_first_confidence_names_benchmark_culture_and_motive():
+    reply = SchemeAdvisorEntryService._build_semantic_first_confidence(
+        {"space_label": "菜市场更新"},
+        PUBLIC_MARKET_RENEWAL,
+    )
+
+    assert "苏州黄桥菜市场" in reply
+    assert "深圳" in reply
+    assert "蛇口渔村传统文化" in reply or "蛇口渔村" in reply
+    assert "老居民" in reply
+    assert "香港访客" in reply
+    assert "外籍客群" in reply
+    assert "社区居民" in reply
+    assert "城市更新标杆" in reply
+    assert "不能照搬" in reply or "误区" in reply or "不一样" in reply
 
 
 def test_question_titles_are_dynamic_not_fixed_workflow_words():

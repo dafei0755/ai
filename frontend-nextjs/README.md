@@ -1,4 +1,4 @@
-# 智能项目分析系统 - Next.js 前端
+﻿# 智能项目分析系统 - Next.js 前端
 
 这是基于 Next.js + React + TypeScript 的前端项目，用于替代 Streamlit 提供更好的并发支持和用户体验。
 
@@ -58,7 +58,7 @@ frontend-nextjs/
 创建 `.env.local` 文件：
 
 ```env
-NEXT_PUBLIC_API_URL=http://localhost:8000
+NEXT_PUBLIC_API_URL=http://localhost:8001
 ```
 
 ## 注意事项

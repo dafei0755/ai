@@ -1,4 +1,4 @@
-# 📡 API 文档
+﻿# 📡 API 文档
 
 > Intelligent Project Analyzer RESTful API 参考文档
 
@@ -24,15 +24,21 @@
 ### Base URL
 
 ```
-开发环境: http://localhost:8000
+开发环境: http://localhost:8001
 生产环境: https://ai.ucppt.com
 ```
 
 ### API 版本
 
-当前版本: `v1`
+当前主版本仍保留 `v1`，方案高参对话入口使用 `v2`。
 
 所有 API 端点前缀: `/api/v1`
+
+方案高参对话端点前缀：
+
+```text
+/api/v2
+```
 
 ### 响应格式
 
@@ -84,6 +90,87 @@ Cookie: wordpress_logged_in_xxx=...
 ---
 
 ## 📋 端点列表
+
+### 方案高参对话入口
+
+#### 0. 发送对话消息
+
+```http
+POST /api/v2/conversation/message
+```
+
+该端点负责在同一入口中分流：
+
+- 需求重构：模糊输入先生成行动蓝图；
+- 正式任务书入口：明确任务书意向后进入一二轮追问；
+- 项目模式：已进入项目后的继续对话。
+
+**请求体：**
+
+```json
+{
+  "session_id": "conv-optional",
+  "message": "50岁男性室内设计师，背井离乡，想在老家建一栋民居，给出建议",
+  "in_response_to_card_id": null,
+  "selected_option_id": null,
+  "card_response": null
+}
+```
+
+**需求重构响应关键字段：**
+
+```json
+{
+  "intent": "demand_reconstruction_blueprint",
+  "dialogue_layer": "demand_reconstruction",
+  "handoff_available": true,
+  "reconstruction_type": "demand_reconstruction",
+  "artifact_name": "action_blueprint",
+  "guidance_card": {
+    "card_type": "demand_reconstruction_blueprint",
+    "title": "需求重构",
+    "artifact_name": "行动蓝图"
+  },
+  "demand_reconstruction_context": {
+    "schema_version": "demand_reconstruction_context.v1",
+    "blueprint": {
+      "task_reframe": "...",
+      "primary_risk": "...",
+      "brief_handoff_slots": {}
+    }
+  }
+}
+```
+
+**正式任务书响应关键字段：**
+
+```json
+{
+  "intent": "scheme_advisor_entry",
+  "dialogue_layer": "brief_intake",
+  "handoff_available": false,
+  "guidance_card": {
+    "card_type": "scheme_round_1"
+  }
+}
+```
+
+`dialogue_layer` 取值：
+
+| 值 | 含义 |
+|---|---|
+| `demand_reconstruction` | 需求重构阶段，前台展示行动蓝图 |
+| `brief_intake` | 正式设计任务书一二轮追问 |
+| `project` | 已进入项目后的持续对话 |
+
+需求重构 handoff 到正式任务书时，前端提交：
+
+```json
+{
+  "selected_option_id": "handoff_to_brief",
+  "in_response_to_card_id": "demand_reconstruction-xxxx"
+}
+```
 
 ### 会话管理
 
@@ -513,7 +600,7 @@ POST /api/v1/sessions/{session_id}/export
 连接 WebSocket 接收实时进度更新。
 
 ```javascript
-const ws = new WebSocket('ws://localhost:8000/ws/sessions/{session_id}');
+const ws = new WebSocket('ws://localhost:8001/ws/sessions/{session_id}');
 
 ws.onmessage = (event) => {
   const data = JSON.parse(event.data);
@@ -590,7 +677,7 @@ import requests
 
 # 创建会话
 response = requests.post(
-    "http://localhost:8000/api/v1/sessions",
+    "http://localhost:8001/api/v1/sessions",
     json={
         "user_input": "设计一个现代咖啡馆，面积120平米",
         "user_id": "user_001"
@@ -602,7 +689,7 @@ session_id = session_data['session_id']
 
 # 提交问卷回答
 requests.post(
-    f"http://localhost:8000/api/v1/sessions/{session_id}/questionnaire",
+    f"http://localhost:8001/api/v1/sessions/{session_id}/questionnaire",
     json={
         "answers": {
             "q1": "年轻白领",
@@ -613,7 +700,7 @@ requests.post(
 
 # 开始分析
 requests.post(
-    f"http://localhost:8000/api/v1/sessions/{session_id}/analyze",
+    f"http://localhost:8001/api/v1/sessions/{session_id}/analyze",
     json={"confirmed_requirements": True}
 )
 
@@ -621,7 +708,7 @@ requests.post(
 import time
 while True:
     progress = requests.get(
-        f"http://localhost:8000/api/v1/sessions/{session_id}/progress"
+        f"http://localhost:8001/api/v1/sessions/{session_id}/progress"
     ).json()['data']
     
     print(f"进度: {progress['completion_percentage']}%")
@@ -633,7 +720,7 @@ while True:
 
 # 获取结果
 result = requests.get(
-    f"http://localhost:8000/api/v1/sessions/{session_id}",
+    f"http://localhost:8001/api/v1/sessions/{session_id}",
     params={"include_report": True}
 ).json()
 
@@ -646,7 +733,7 @@ print("分析完成！")
 // 使用 Fetch API
 async function createAnalysis() {
   // 创建会话
-  const createResponse = await fetch('http://localhost:8000/api/v1/sessions', {
+  const createResponse = await fetch('http://localhost:8001/api/v1/sessions', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -661,7 +748,7 @@ async function createAnalysis() {
   const sessionId = data.session_id;
 
   // WebSocket 监听进度
-  const ws = new WebSocket(`ws://localhost:8000/ws/sessions/${sessionId}`);
+  const ws = new WebSocket(`ws://localhost:8001/ws/sessions/${sessionId}`);
   
   ws.onmessage = (event) => {
     const update = JSON.parse(event.data);
@@ -674,7 +761,7 @@ async function createAnalysis() {
   };
 
   // 开始分析
-  await fetch(`http://localhost:8000/api/v1/sessions/${sessionId}/analyze`, {
+  await fetch(`http://localhost:8001/api/v1/sessions/${sessionId}/analyze`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -692,7 +779,7 @@ createAnalysis();
 
 ```bash
 # 创建会话
-curl -X POST http://localhost:8000/api/v1/sessions \
+curl -X POST http://localhost:8001/api/v1/sessions \
   -H "Content-Type: application/json" \
   -d '{
     "user_input": "设计一个现代咖啡馆",
@@ -700,10 +787,10 @@ curl -X POST http://localhost:8000/api/v1/sessions \
   }'
 
 # 获取会话详情
-curl -X GET http://localhost:8000/api/v1/sessions/session-001
+curl -X GET http://localhost:8001/api/v1/sessions/session-001
 
 # 导出报告
-curl -X POST http://localhost:8000/api/v1/sessions/session-001/export \
+curl -X POST http://localhost:8001/api/v1/sessions/session-001/export \
   -H "Content-Type: application/json" \
   -d '{"format": "pdf"}' \
   -o report.pdf
@@ -732,7 +819,7 @@ curl -X POST http://localhost:8000/api/v1/sessions/session-001/export \
 
 ## 📞 技术支持
 
-- API 文档：http://localhost:8000/docs
+- API 文档：http://localhost:8001/docs
 - 问题反馈：[GitHub Issues](https://github.com/dafei0755/ai/issues)
 - 讨论区：[GitHub Discussions](https://github.com/dafei0755/ai/discussions)
 

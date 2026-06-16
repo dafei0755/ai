@@ -1,4 +1,4 @@
-﻿// lib/api.ts
+// lib/api.ts
 // 封装所有与 FastAPI 后端的通信
 
 import axios from 'axios';
@@ -9,8 +9,12 @@ import type {
   SuggestedPrompt  // 🔥 v7.41
 } from '@/types';
 
-// API 基础 URL（从环境变量读取，开发环境默认 localhost:8000）
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
+// API 基础 URL：
+// - 本地浏览器默认走 Next.js 同源代理 `/api`，用户只需要访问 3001。
+// - 远程部署可通过 NEXT_PUBLIC_API_URL 指向独立后端。
+const configuredApiUrl = process.env.NEXT_PUBLIC_API_URL?.trim() || '';
+const isLocalBackendUrl = /^https?:\/\/(127\.0\.0\.1|localhost):\d+\/?$/.test(configuredApiUrl);
+const API_BASE_URL = isLocalBackendUrl ? '' : configuredApiUrl;
 
 // 创建 axios 实例,统一配置
 const apiClient = axios.create({
@@ -76,7 +80,7 @@ export const api = {
   async sendConversationMessage(
     sessionId: string | null | undefined,
     message: string,
-    cardResponse?: { in_response_to_card_id?: string; selected_option_id?: string },
+    cardResponse?: { in_response_to_card_id?: string; selected_option_id?: string; card_response?: unknown },
     context?: { expert_perspective?: string },
   ): Promise<{
     session_id: string;
@@ -87,12 +91,16 @@ export const api = {
     upgrade_signal?: Record<string, unknown> | null;
     system_mode: string;
     guidance_card?: Record<string, unknown> | null;
+    dialogue_layer?: 'demand_reconstruction' | 'brief_intake' | 'project' | string;
+    handoff_available?: boolean;
+    demand_reconstruction_context?: Record<string, unknown> | null;
   }> {
     const response = await apiClient.post('/api/v2/conversation/message', {
       session_id: sessionId || '',
       message,
       in_response_to_card_id: cardResponse?.in_response_to_card_id,
       selected_option_id: cardResponse?.selected_option_id,
+      card_response: cardResponse?.card_response,
       expert_perspective: context?.expert_perspective,
     });
     return response.data;

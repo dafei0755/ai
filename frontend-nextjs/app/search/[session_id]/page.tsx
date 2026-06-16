@@ -1676,7 +1676,7 @@ export default function SearchResultPage() {
   // 保存搜索结果到后端数据库（持久化）
   const saveSearchStateToBackend = useCallback(async (state: SearchState, q: string) => {
     try {
-      const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
+      const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8001';
       await fetch(`${backendUrl}/api/search/session/save`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1714,7 +1714,7 @@ export default function SearchResultPage() {
   // 从后端加载搜索会话
   const loadSearchStateFromBackend = useCallback(async (): Promise<{state: SearchState | null; query: string | null; deepMode: boolean; error?: string}> => {
     try {
-      const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
+      const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8001';
       const response = await fetch(`${backendUrl}/api/search/session/${sessionId}`);
 
       // 🔧 v7.283: 处理后端错误响应
@@ -2213,7 +2213,7 @@ export default function SearchResultPage() {
 
     try {
       // 🆕 v7.280: 使用 step1_only 模式，先只执行分析，等用户确认后再搜索
-      const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
+      const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8001';
 
       // 🔧 v7.280: 添加 Authorization header（如果已登录）
       const token = localStorage.getItem('app_auth_token');
@@ -2316,7 +2316,7 @@ export default function SearchResultPage() {
 
     setIsValidatingPlan(true);
     try {
-      const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
+      const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8001';
       const token = localStorage.getItem('app_auth_token');
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
@@ -2368,7 +2368,7 @@ export default function SearchResultPage() {
     }));
 
     try {
-      const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
+      const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8001';
       const token = localStorage.getItem('app_auth_token');
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
@@ -2533,7 +2533,7 @@ export default function SearchResultPage() {
     }));
 
     try {
-      const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
+      const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8001';
 
       // 构建用户编辑后的框架数据
       const frameworkData = {
