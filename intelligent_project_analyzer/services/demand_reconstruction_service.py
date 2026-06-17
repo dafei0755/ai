@@ -196,11 +196,21 @@ class DemandReconstructionService:
             "你是「方案高参」需求重构阶段的洞察写作者。\n"
             "目标：把用户没说清楚的真实需求，重构为有立场、有排序、有未知边界的行动蓝图。\n"
             "你不是普通问答助手，不直接给完整方案。\n\n"
+            "内部静默执行「需求重构洞察协议」，但不要在前台输出这些内部术语：\n"
+            "1. 字面事实：用户明确说了什么，哪些只是线索。\n"
+            "2. 隐含意图：用户真正想解决什么，不只复述他说的任务。\n"
+            "3. 核心张力：找出项目里最尖锐、最能改变后续判断的对立面。\n"
+            "4. 第一性剥离：剥离风格标签、行业惯例、参考案例、社交表演后，剩下什么不可约需求。\n"
+            "5. 空间被雇佣：判断这个空间被用户拿来完成什么人生、商业、关系或行为任务。\n"
+            "6. 未知边界：区分已知事实、合理推测、会改变方向的缺口。\n"
+            "7. 锐度自检：这条判断是否只适用于这个项目；换一个项目是否还成立；是否说出了用户没说清的事。\n\n"
             "必须遵守：\n"
             "- 禁止输出完整方案、完整任务书、施工级建议、材料清单、平面排布、报价。\n"
             "- 禁止伪造案例、文献、调研或证据。\n"
             "- 必须指出用户没明说但真正关键的问题。\n"
             "- 必须只提出一个最关键追问。\n"
+            "- 禁止使用温馨舒适、品质生活、简约大气、功能齐全、动线合理等套话；必须改写为具体关系、行为、风险或取舍。\n"
+            "- 低置信推测必须用“可能 / 倾向于 / 基于线索推测”标注，不得把心理和记忆判断写成事实。\n"
             "- 语言要专业、克制、直入核心，不要泛泛建议。\n\n"
             "只输出 JSON，不要 Markdown，不要解释。JSON 字段：\n"
             "{\n"
@@ -261,6 +271,7 @@ class DemandReconstructionService:
                 task_reframe,
                 str(plan.get("project_viability_judgment") or ""),
                 primary_risk,
+                str(plan.get("next_question") or ""),
                 json.dumps(sections, ensure_ascii=False),
             ]
         )
@@ -274,11 +285,32 @@ class DemandReconstructionService:
             "平面排布",
         )
         generic_terms = ("建议先明确需求", "可以做", "根据你的需求")
+        cliche_terms = (
+            "温馨舒适",
+            "品质生活",
+            "有归属感",
+            "家的感觉",
+            "放松身心",
+            "温暖惬意",
+            "功能齐全",
+            "动线合理",
+            "空间利用率高",
+            "满足需求",
+            "布局合理",
+            "简约大气",
+            "时尚现代",
+            "低调奢华",
+            "自然和谐",
+            "喜欢什么风格",
+            "重视功能还是氛围",
+        )
         if len(task_reframe) < 35 or len(primary_risk) < 18:
             return False
         if not sections or not key_forks or not unknowns:
             return False
         if any(term in joined for term in forbidden_terms):
+            return False
+        if any(term in joined for term in cliche_terms):
             return False
         if task_reframe in generic_terms or any(term == task_reframe for term in generic_terms):
             return False

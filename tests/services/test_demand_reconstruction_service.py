@@ -168,6 +168,11 @@ def test_llm_insight_layer_rewrites_the_rule_blueprint_when_available():
     assert "最后一件作品" in blueprint["primary_risk"]
     assert "当前规则蓝图" in llm.prompts[0]
     assert "禁止输出完整方案" in llm.prompts[0]
+    assert "第一性剥离" in llm.prompts[0]
+    assert "核心张力" in llm.prompts[0]
+    assert "空间被雇佣" in llm.prompts[0]
+    assert "锐度自检" in llm.prompts[0]
+    assert "不要在前台输出这些内部术语" in llm.prompts[0]
 
 
 def test_llm_failure_falls_back_to_rule_blueprint_without_blocking_entry():
@@ -212,3 +217,38 @@ def test_low_quality_or_over_reaching_llm_output_is_rejected():
     blueprint = result["demand_reconstruction_context"]["blueprint"]
     assert blueprint["insight_source"] == "rule_fallback"
     assert "完整方案和施工级建议" not in result["reply"]
+
+
+def test_cliche_llm_output_is_rejected_even_when_structurally_complete():
+    llm = FakeLLM(
+        """
+        {
+          "task_reframe": "这个项目是为用户打造温馨舒适的品质生活空间，满足业主对于现代乡村民居的整体需求。",
+          "project_viability_judgment": "项目整体可以成立，重点是打造简约大气、自然和谐、有归属感的居住环境。",
+          "primary_risk": "主要风险是功能不够齐全、动线不够合理，影响后续空间利用率和居住体验。",
+          "sections": [
+            {
+              "title": "泛化判断",
+              "body": "需要通过合理布局和品质生活氛围营造，让空间更温馨舒适。",
+              "items": ["功能齐全。", "空间利用率高。"],
+              "emphasis": "medium"
+            }
+          ],
+          "key_forks": ["喜欢现代还是传统？", "重视功能还是氛围？"],
+          "unknowns": ["面积未知。", "预算未知。"],
+          "next_question": "你喜欢什么风格"
+        }
+        """
+    )
+
+    result = DemandReconstructionService(llm=llm).handle_message(
+        session={},
+        user_message=RURAL_HOME_PROMPT,
+        in_response_to_card_id=None,
+        selected_option_id=None,
+    )
+
+    assert result is not None
+    blueprint = result["demand_reconstruction_context"]["blueprint"]
+    assert blueprint["insight_source"] == "rule_fallback"
+    assert "温馨舒适的品质生活" not in result["reply"]
