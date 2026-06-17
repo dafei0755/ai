@@ -102,8 +102,20 @@ def test_deep_research_prompt_is_routed_without_pretending_to_complete_evidence(
     assert any("证据" in item for section in plan["sections"] for item in section.get("items", []))
 
 
-def test_formal_brief_prompt_is_not_captured_by_demand_reconstruction_layer():
-    assert DemandReconstructionService().should_handle(FORMAL_BRIEF_PROMPT) is False
+def test_formal_brief_prompt_still_starts_with_demand_reconstruction_layer():
+    service = DemandReconstructionService()
+
+    assert service.should_handle(FORMAL_BRIEF_PROMPT) is True
+    result = service.handle_message(
+        session={},
+        user_message=FORMAL_BRIEF_PROMPT,
+        in_response_to_card_id=None,
+        selected_option_id=None,
+    )
+
+    assert result is not None
+    assert result["dialogue_layer"] == "demand_reconstruction"
+    assert result["guidance_card"]["card_type"] == "demand_reconstruction_blueprint"
 
 
 def test_demand_reconstruction_reply_and_card_use_demand_reconstruction_language():

@@ -7,6 +7,7 @@ intake questionnaire.
 
 from __future__ import annotations
 
+import re
 import uuid
 from datetime import datetime
 from typing import Any, Dict, Optional
@@ -38,6 +39,22 @@ class DemandReconstructionService:
         "输出方案",
     )
     _ADVICE_TERMS = ("给出建议", "给点建议", "怎么建议", "帮我想想", "怎么看", "如何", "怎么")
+    _PROJECT_INTENT_TERMS = (
+        "设计",
+        "设计建议",
+        "室内设计",
+        "概念框架",
+        "方案",
+        "规划",
+        "装修",
+        "改造",
+        "建",
+        "做一个",
+        "打算做",
+        "想做",
+        "需要一份",
+        "请提出",
+    )
     _SPACE_TERMS = (
         "民居",
         "住宅",
@@ -57,6 +74,14 @@ class DemandReconstructionService:
         "会所",
         "空间",
         "冷藏柜",
+        "商铺",
+        "铺位",
+        "门店",
+        "店铺",
+        "奶茶",
+        "饮品",
+        "商场",
+        "地铁",
     )
 
     def __init__(
@@ -101,12 +126,16 @@ class DemandReconstructionService:
         text = str(message or "").strip()
         if not text:
             return False
-        if self.is_formal_brief_request(text):
-            return False
         has_advice_intent = any(term in text for term in self._ADVICE_TERMS)
+        has_project_intent = any(term in text for term in self._PROJECT_INTENT_TERMS)
         has_space_hint = any(term in text for term in self._SPACE_TERMS)
         has_research_hint = any(term in text for term in ("研究", "源流", "历史", "文人", "雅集", "文化", "转译"))
-        return has_advice_intent and (has_space_hint or has_research_hint)
+        has_numeric_project_anchor = bool(
+            re.search(r"\d+(?:\.\d+)?\s*(?:㎡|平米|平方米|m2|m²|万平|层|楼|间)", text, flags=re.IGNORECASE)
+        )
+        has_business_anchor = any(term in text for term in ("回本", "收回成本", "客单", "租金", "营业额", "成本"))
+        has_project_anchor = has_space_hint or has_numeric_project_anchor or has_business_anchor
+        return has_project_anchor and (has_project_intent or has_advice_intent or has_research_hint)
 
     def is_formal_brief_request(self, message: str) -> bool:
         text = str(message or "")

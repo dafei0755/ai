@@ -81,7 +81,7 @@ class FakeDemandReconstructionLLM:
 
 
 @pytest.mark.asyncio
-async def test_conversation_route_prefers_scheme_advisor_entry_v2(monkeypatch):
+async def test_new_project_route_always_starts_with_demand_reconstruction(monkeypatch):
     manager = FakeSessionManager()
 
     async def fake_get_sm():
@@ -101,11 +101,14 @@ async def test_conversation_route_prefers_scheme_advisor_entry_v2(monkeypatch):
         current_user=None,
     )
 
-    assert response.intent == "scheme_advisor_entry"
+    assert response.intent == "demand_reconstruction_blueprint"
+    assert response.dialogue_layer == "demand_reconstruction"
+    assert response.handoff_available is True
     assert response.guidance_card is not None
-    assert response.guidance_card["card_type"] == "scheme_round_1"
+    assert response.guidance_card["card_type"] == "demand_reconstruction_blueprint"
+    assert response.guidance_card["title"] == "需求重构"
     assert response.session_id in manager.sessions
-    assert manager.sessions[response.session_id]["pending_guidance_card"]["card_type"] == "scheme_round_1"
+    assert manager.sessions[response.session_id]["pending_guidance_card"]["card_type"] == "demand_reconstruction_blueprint"
 
 
 @pytest.mark.asyncio
@@ -176,7 +179,7 @@ async def test_demand_reconstruction_route_uses_llm_insight_when_available(monke
 
 
 @pytest.mark.asyncio
-async def test_formal_brief_prompt_enters_scheme_round_with_brief_layer(monkeypatch):
+async def test_formal_brief_prompt_starts_with_demand_reconstruction_layer(monkeypatch):
     manager = FakeSessionManager()
 
     async def fake_get_sm():
@@ -196,11 +199,11 @@ async def test_formal_brief_prompt_enters_scheme_round_with_brief_layer(monkeypa
         current_user=None,
     )
 
-    assert response.intent == "scheme_advisor_entry"
-    assert response.dialogue_layer == "brief_intake"
-    assert response.handoff_available is False
+    assert response.intent == "demand_reconstruction_blueprint"
+    assert response.dialogue_layer == "demand_reconstruction"
+    assert response.handoff_available is True
     assert response.guidance_card is not None
-    assert response.guidance_card["card_type"] == "scheme_round_1"
+    assert response.guidance_card["card_type"] == "demand_reconstruction_blueprint"
 
 
 @pytest.mark.asyncio
