@@ -1,5 +1,8 @@
 ﻿from pathlib import Path
 
+from intelligent_project_analyzer.services.demand_reconstruction_insight_protocol import (
+    DemandReconstructionInsightProtocol,
+)
 from intelligent_project_analyzer.services.demand_reconstruction_service import DemandReconstructionService
 
 
@@ -130,6 +133,39 @@ def test_demand_reconstruction_service_source_does_not_keep_specific_rural_home_
 
     assert 'if "老家" in text and "民居" in text and "设计师" in text' not in source
     assert "离乡多年的专业设计师，如何重新安放自己与故乡关系" not in source
+
+
+def test_insight_protocol_is_centralized_outside_demand_reconstruction_service():
+    source = Path("intelligent_project_analyzer/services/demand_reconstruction_service.py").read_text(encoding="utf-8")
+
+    assert "第一性剥离" not in source
+    assert "空间被雇佣" not in source
+    assert "锐度自检" not in source
+    assert "温馨舒适" not in source
+    assert "品质生活" not in source
+
+
+def test_insight_protocol_owns_prompt_and_quality_gate():
+    protocol = DemandReconstructionInsightProtocol()
+    prompt = protocol.build_prompt(
+        adapter_context={"source_message": RURAL_HOME_PROMPT},
+        rule_plan={"task_reframe": "规则蓝图", "sections": []},
+    )
+
+    assert "第一性剥离" in prompt
+    assert "空间被雇佣" in prompt
+    assert "不要在前台输出这些内部术语" in prompt
+    assert protocol.passes_quality_gate(
+        {
+            "task_reframe": "这个项目是为用户打造温馨舒适的品质生活空间，满足业主对于现代乡村民居的整体需求。",
+            "project_viability_judgment": "项目整体可以成立。",
+            "primary_risk": "主要风险是功能不够齐全、动线不够合理，影响后续空间利用率。",
+            "sections": [{"title": "泛化判断", "body": "品质生活", "items": []}],
+            "key_forks": ["喜欢现代还是传统？"],
+            "unknowns": ["面积未知。"],
+            "next_question": "你喜欢什么风格",
+        }
+    ) is False
 
 
 def test_llm_insight_layer_rewrites_the_rule_blueprint_when_available():
