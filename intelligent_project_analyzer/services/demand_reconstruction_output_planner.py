@@ -30,6 +30,9 @@ class DemandReconstructionOutputPlanner:
         plan.setdefault("routing_recommendation", plan["routing"]["reason"])
         return self._boundary_guard.clamp_plan(plan)
 
+    def clamp_existing_plan(self, plan: Dict[str, Any]) -> Dict[str, Any]:
+        return self._boundary_guard.clamp_plan(plan)
+
     def _life_identity_plan(self, context: Dict[str, Any]) -> Dict[str, Any]:
         subject = self._subject_phrase(context)
         space = context.get("space_label") or "居住空间"

@@ -134,6 +134,7 @@ POST /api/v2/conversation/message
   "demand_reconstruction_context": {
     "schema_version": "demand_reconstruction_context.v1",
     "blueprint": {
+      "insight_source": "llm",
       "task_reframe": "...",
       "primary_risk": "...",
       "brief_handoff_slots": {}
@@ -141,6 +142,14 @@ POST /api/v2/conversation/message
   }
 }
 ```
+
+`blueprint.insight_source` 用于排障与观测：
+
+| 值 | 含义 |
+|---|---|
+| `llm` | 需求重构使用受控 LLM 洞察层增强表达 |
+| `rule` | 未启用 LLM，直接使用规则蓝图 |
+| `rule_fallback` | LLM 不可用、低质或越界，已回退到规则蓝图 |
 
 **正式任务书响应关键字段：**
 

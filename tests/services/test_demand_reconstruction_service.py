@@ -14,6 +14,19 @@ FORMAL_BRIEF_PROMPT = (
 )
 
 
+class FakeLLM:
+    def __init__(self, response: str, *, raises: bool = False) -> None:
+        self.response = response
+        self.raises = raises
+        self.prompts: list[str] = []
+
+    def invoke(self, prompt: str):
+        self.prompts.append(prompt)
+        if self.raises:
+            raise RuntimeError("llm unavailable")
+        return type("FakeResponse", (), {"content": self.response})()
+
+
 def _blueprint(prompt: str) -> dict:
     result = DemandReconstructionService().handle_message(
         session={},
@@ -117,3 +130,85 @@ def test_demand_reconstruction_service_source_does_not_keep_specific_rural_home_
 
     assert 'if "老家" in text and "民居" in text and "设计师" in text' not in source
     assert "离乡多年的专业设计师，如何重新安放自己与故乡关系" not in source
+
+
+def test_llm_insight_layer_rewrites_the_rule_blueprint_when_available():
+    llm = FakeLLM(
+        """
+        {
+          "task_reframe": "这不是建一栋返乡民居的问题，而是一个离乡多年的设计师，如何把职业身份、原乡关系和后半生生活重新放回同一个屋檐下。",
+          "project_viability_judgment": "项目能否成立，先看它是不是愿意从作品冲动退回到真实生活。",
+          "primary_risk": "真正的对手不是乡村环境，而是设计师把自己的家做成最后一件作品的冲动。",
+          "sections": [
+            {
+              "title": "洞察判断",
+              "body": "这栋房子需要先安放人，再安放形式。",
+              "items": ["原乡关系不是背景，而是空间秩序的一部分。", "专业表达必须被生活节奏约束。"],
+              "emphasis": "high"
+            }
+          ],
+          "key_forks": ["长期居住还是阶段性返乡？", "家族关系进入日常还是只进入节庆？"],
+          "unknowns": ["真实居住频率未知。", "家庭成员结构未知。"],
+          "next_question": "这栋房子首先是给自己住，还是给自己与故乡重新建立关系"
+        }
+        """
+    )
+
+    result = DemandReconstructionService(llm=llm).handle_message(
+        session={},
+        user_message=RURAL_HOME_PROMPT,
+        in_response_to_card_id=None,
+        selected_option_id=None,
+    )
+
+    assert result is not None
+    blueprint = result["demand_reconstruction_context"]["blueprint"]
+    assert blueprint["insight_source"] == "llm"
+    assert "真正的对手不是乡村环境" in result["reply"]
+    assert "最后一件作品" in blueprint["primary_risk"]
+    assert "当前规则蓝图" in llm.prompts[0]
+    assert "禁止输出完整方案" in llm.prompts[0]
+
+
+def test_llm_failure_falls_back_to_rule_blueprint_without_blocking_entry():
+    llm = FakeLLM("", raises=True)
+
+    result = DemandReconstructionService(llm=llm).handle_message(
+        session={},
+        user_message=RURAL_HOME_PROMPT,
+        in_response_to_card_id=None,
+        selected_option_id=None,
+    )
+
+    assert result is not None
+    blueprint = result["demand_reconstruction_context"]["blueprint"]
+    assert blueprint["insight_source"] == "rule_fallback"
+    assert "作品化住宅压过真实生活" in result["reply"]
+
+
+def test_low_quality_or_over_reaching_llm_output_is_rejected():
+    llm = FakeLLM(
+        """
+        {
+          "task_reframe": "建议先明确需求。",
+          "project_viability_judgment": "可以做。",
+          "primary_risk": "我可以直接给你完整方案和施工级建议。",
+          "sections": [],
+          "key_forks": [],
+          "unknowns": [],
+          "next_question": "你想怎么做"
+        }
+        """
+    )
+
+    result = DemandReconstructionService(llm=llm).handle_message(
+        session={},
+        user_message=RURAL_HOME_PROMPT,
+        in_response_to_card_id=None,
+        selected_option_id=None,
+    )
+
+    assert result is not None
+    blueprint = result["demand_reconstruction_context"]["blueprint"]
+    assert blueprint["insight_source"] == "rule_fallback"
+    assert "完整方案和施工级建议" not in result["reply"]

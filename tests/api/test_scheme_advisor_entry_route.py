@@ -55,6 +55,31 @@ class FakeSessionManager:
         self.sessions.setdefault(session_id, {}).update(data)
 
 
+class FakeDemandReconstructionLLM:
+    def __init__(self) -> None:
+        self.prompts = []
+
+    def invoke(self, prompt: str):
+        self.prompts.append(prompt)
+        return type(
+            "FakeResponse",
+            (),
+            {
+                "content": """
+                {
+                  "task_reframe": "这不是建一栋返乡民居的问题，而是一个离乡多年的设计师，如何重新处理自己、故乡和后半生生活之间的关系。",
+                  "project_viability_judgment": "项目能否成立，先看它能否把作品冲动压回真实生活。",
+                  "primary_risk": "真正的风险不是乡村条件粗糙，而是设计师把自宅做成一件无法长期生活的作品。",
+                  "sections": [{"title": "洞察判断", "body": "先安放人，再安放形式。", "items": ["原乡关系会改变空间边界。"], "emphasis": "high"}],
+                  "key_forks": ["长期居住还是阶段性返乡？", "设计表达是主角还是背景？"],
+                  "unknowns": ["居住频率未知。", "家庭结构未知。"],
+                  "next_question": "这栋房子首先是长期生活，还是阶段性回乡"
+                }
+                """
+            },
+        )()
+
+
 @pytest.mark.asyncio
 async def test_conversation_route_prefers_scheme_advisor_entry_v2(monkeypatch):
     manager = FakeSessionManager()
@@ -67,6 +92,7 @@ async def test_conversation_route_prefers_scheme_advisor_entry_v2(monkeypatch):
 
     monkeypatch.setenv("SCHEME_ADVISOR_ENTRY_V2_ENABLED", "1")
     monkeypatch.setenv("SCHEME_ADVISOR_ENTRY_V2_USE_LLM", "0")
+    monkeypatch.setenv("DEMAND_RECONSTRUCTION_USE_LLM", "0")
     monkeypatch.setattr(dual_mode_routes, "_get_sm", fake_get_sm)
     monkeypatch.setattr(dual_mode_routes, "_archive_conversation_snapshot", noop_archive)
 
@@ -94,6 +120,7 @@ async def test_demand_reconstruction_prompt_returns_blueprint_without_formal_rou
 
     monkeypatch.setenv("SCHEME_ADVISOR_ENTRY_V2_ENABLED", "1")
     monkeypatch.setenv("SCHEME_ADVISOR_ENTRY_V2_USE_LLM", "0")
+    monkeypatch.setenv("DEMAND_RECONSTRUCTION_USE_LLM", "0")
     monkeypatch.setattr(dual_mode_routes, "_get_sm", fake_get_sm)
     monkeypatch.setattr(dual_mode_routes, "_archive_conversation_snapshot", noop_archive)
     monkeypatch.setattr(dual_mode_routes, "_get_conv_llm", lambda: None)
@@ -119,6 +146,36 @@ async def test_demand_reconstruction_prompt_returns_blueprint_without_formal_rou
 
 
 @pytest.mark.asyncio
+async def test_demand_reconstruction_route_uses_llm_insight_when_available(monkeypatch):
+    manager = FakeSessionManager()
+    llm = FakeDemandReconstructionLLM()
+
+    async def fake_get_sm():
+        return manager
+
+    async def noop_archive(*args, **kwargs):
+        return None
+
+    monkeypatch.setenv("SCHEME_ADVISOR_ENTRY_V2_ENABLED", "1")
+    monkeypatch.setenv("SCHEME_ADVISOR_ENTRY_V2_USE_LLM", "0")
+    monkeypatch.setenv("DEMAND_RECONSTRUCTION_USE_LLM", "1")
+    monkeypatch.setattr(dual_mode_routes, "_get_sm", fake_get_sm)
+    monkeypatch.setattr(dual_mode_routes, "_archive_conversation_snapshot", noop_archive)
+    monkeypatch.setattr(dual_mode_routes, "_get_demand_reconstruction_llm", lambda: llm)
+
+    response = await post_conversation_message(
+        ConversationMessageRequest(message=DEMAND_RECONSTRUCTION_RURAL_HOME_PROMPT),
+        current_user=None,
+    )
+
+    assert response.dialogue_layer == "demand_reconstruction"
+    assert "无法长期生活的作品" in response.reply
+    assert response.demand_reconstruction_context is not None
+    assert response.demand_reconstruction_context["blueprint"]["insight_source"] == "llm"
+    assert llm.prompts
+
+
+@pytest.mark.asyncio
 async def test_formal_brief_prompt_enters_scheme_round_with_brief_layer(monkeypatch):
     manager = FakeSessionManager()
 
@@ -130,6 +187,7 @@ async def test_formal_brief_prompt_enters_scheme_round_with_brief_layer(monkeypa
 
     monkeypatch.setenv("SCHEME_ADVISOR_ENTRY_V2_ENABLED", "1")
     monkeypatch.setenv("SCHEME_ADVISOR_ENTRY_V2_USE_LLM", "0")
+    monkeypatch.setenv("DEMAND_RECONSTRUCTION_USE_LLM", "0")
     monkeypatch.setattr(dual_mode_routes, "_get_sm", fake_get_sm)
     monkeypatch.setattr(dual_mode_routes, "_archive_conversation_snapshot", noop_archive)
 
@@ -157,6 +215,7 @@ async def test_demand_reconstruction_handoff_enters_formal_round_and_preserves_c
 
     monkeypatch.setenv("SCHEME_ADVISOR_ENTRY_V2_ENABLED", "1")
     monkeypatch.setenv("SCHEME_ADVISOR_ENTRY_V2_USE_LLM", "0")
+    monkeypatch.setenv("DEMAND_RECONSTRUCTION_USE_LLM", "0")
     monkeypatch.setattr(dual_mode_routes, "_get_sm", fake_get_sm)
     monkeypatch.setattr(dual_mode_routes, "_archive_conversation_snapshot", noop_archive)
     monkeypatch.setattr(dual_mode_routes, "_get_conv_llm", lambda: None)
@@ -219,6 +278,7 @@ async def test_legacy_shallow_pending_card_is_migrated_to_demand_reconstruction(
 
     monkeypatch.setenv("SCHEME_ADVISOR_ENTRY_V2_ENABLED", "1")
     monkeypatch.setenv("SCHEME_ADVISOR_ENTRY_V2_USE_LLM", "0")
+    monkeypatch.setenv("DEMAND_RECONSTRUCTION_USE_LLM", "0")
     monkeypatch.setattr(dual_mode_routes, "_get_sm", fake_get_sm)
     monkeypatch.setattr(dual_mode_routes, "_archive_conversation_snapshot", noop_archive)
     monkeypatch.setattr(dual_mode_routes, "_get_conv_llm", lambda: None)

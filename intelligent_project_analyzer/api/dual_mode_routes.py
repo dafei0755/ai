@@ -34,6 +34,7 @@ router = APIRouter(prefix="/api/v2", tags=["dual-mode-v2"])
 
 # ── 模块级 LLM 单例（懒加载，避免每次请求重新初始化）──────────────────────
 _conv_llm: Any = None
+_demand_reconstruction_llm: Any = None
 
 
 def _get_conv_llm() -> Any:
@@ -54,6 +55,37 @@ def _get_conv_llm() -> Any:
             logger.warning(f"[dual_mode] LLM 初始化失败，将使用占位回复: {exc}")
             _conv_llm = None
     return _conv_llm
+
+
+def _is_demand_reconstruction_llm_enabled() -> bool:
+    return __import__("os").getenv("DEMAND_RECONSTRUCTION_USE_LLM", "1").strip().lower() not in {
+        "0",
+        "false",
+        "no",
+        "off",
+    }
+
+
+def _get_demand_reconstruction_llm() -> Any:
+    """短超时 LLM：需求重构第一屏要增强洞察，但不能拖住入口。"""
+    global _demand_reconstruction_llm
+    if not _is_demand_reconstruction_llm_enabled():
+        return None
+    if _demand_reconstruction_llm is None:
+        try:
+            from intelligent_project_analyzer.services.llm_factory import LLMFactory
+
+            timeout = int(__import__("os").getenv("DEMAND_RECONSTRUCTION_LLM_TIMEOUT", "8"))
+            max_retries = int(__import__("os").getenv("DEMAND_RECONSTRUCTION_LLM_MAX_RETRIES", "0"))
+            _demand_reconstruction_llm = LLMFactory.create_llm(timeout=timeout, max_retries=max_retries)
+            logger.info(
+                "[dual_mode] 需求重构 LLM 初始化完成 "
+                f"(timeout={timeout}s, max_retries={max_retries})"
+            )
+        except Exception as exc:
+            logger.warning(f"[dual_mode] 需求重构 LLM 初始化失败，将使用规则蓝图: {exc}")
+            _demand_reconstruction_llm = None
+    return _demand_reconstruction_llm
 
 # ─────────────────────────────────────────────
 # 工具函数
@@ -378,7 +410,7 @@ async def post_conversation_message(
             DemandReconstructionService,
         )
 
-        demand_reconstruction_service = DemandReconstructionService()
+        demand_reconstruction_service = DemandReconstructionService(llm=_get_demand_reconstruction_llm())
         pending_card_type = (session.get("pending_guidance_card") or {}).get("card_type")
         has_formal_intake_state = bool(session.get("scheme_advisor_entry_v2"))
         allow_demand_reconstruction = (

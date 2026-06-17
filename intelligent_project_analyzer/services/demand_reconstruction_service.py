@@ -7,9 +7,13 @@ intake questionnaire.
 
 from __future__ import annotations
 
+import json
+import re
 import uuid
 from datetime import datetime
 from typing import Any, Dict, Optional
+
+from loguru import logger
 
 from .demand_reconstruction_context_adapter import DemandReconstructionContextAdapter
 from .demand_reconstruction_output_planner import DemandReconstructionOutputPlanner
@@ -59,9 +63,11 @@ class DemandReconstructionService:
     def __init__(
         self,
         *,
+        llm: Any = None,
         context_adapter: Optional[DemandReconstructionContextAdapter] = None,
         output_planner: Optional[DemandReconstructionOutputPlanner] = None,
     ) -> None:
+        self._llm = llm
         self._context_adapter = context_adapter or DemandReconstructionContextAdapter()
         self._output_planner = output_planner or DemandReconstructionOutputPlanner()
 
@@ -145,7 +151,138 @@ class DemandReconstructionService:
         return bool(str(message or "").strip())
 
     def _build_blueprint(self, adapter_context: Dict[str, Any]) -> Dict[str, Any]:
-        return self._output_planner.build_plan(adapter_context)
+        rule_plan = self._output_planner.build_plan(adapter_context)
+        if self._llm is None:
+            return {**rule_plan, "insight_source": "rule"}
+        llm_plan = self._build_llm_insight_blueprint(adapter_context, rule_plan)
+        if llm_plan is None:
+            return {**rule_plan, "insight_source": "rule_fallback"}
+        return llm_plan
+
+    def _build_llm_insight_blueprint(
+        self,
+        adapter_context: Dict[str, Any],
+        rule_plan: Dict[str, Any],
+    ) -> Optional[Dict[str, Any]]:
+        prompt = self._llm_insight_prompt(adapter_context, rule_plan)
+        try:
+            response = self._llm.invoke(prompt)
+            content = response.content if hasattr(response, "content") else str(response)
+            candidate = self._parse_llm_json(str(content or ""))
+            if not candidate:
+                return None
+            merged = self._merge_llm_blueprint(rule_plan, candidate)
+            if not self._passes_insight_quality_gate(merged):
+                return None
+            merged["insight_source"] = "llm"
+            return self._output_planner.clamp_existing_plan(merged)
+        except Exception as exc:
+            logger.warning(f"[DemandReconstruction] LLM insight failed, fallback used: {exc}")
+            return None
+
+    @staticmethod
+    def _llm_insight_prompt(adapter_context: Dict[str, Any], rule_plan: Dict[str, Any]) -> str:
+        compact_context = {
+            "source_message": adapter_context.get("source_message"),
+            "project_type": adapter_context.get("project_type"),
+            "project_type_name": adapter_context.get("project_type_name"),
+            "space_label": adapter_context.get("space_label"),
+            "semantic_axes": adapter_context.get("semantic_axes"),
+            "main_tensions": adapter_context.get("main_tensions"),
+            "missing_slots": adapter_context.get("missing_slots"),
+            "archetype": adapter_context.get("archetype"),
+        }
+        return (
+            "你是「方案高参」需求重构阶段的洞察写作者。\n"
+            "目标：把用户没说清楚的真实需求，重构为有立场、有排序、有未知边界的行动蓝图。\n"
+            "你不是普通问答助手，不直接给完整方案。\n\n"
+            "必须遵守：\n"
+            "- 禁止输出完整方案、完整任务书、施工级建议、材料清单、平面排布、报价。\n"
+            "- 禁止伪造案例、文献、调研或证据。\n"
+            "- 必须指出用户没明说但真正关键的问题。\n"
+            "- 必须只提出一个最关键追问。\n"
+            "- 语言要专业、克制、直入核心，不要泛泛建议。\n\n"
+            "只输出 JSON，不要 Markdown，不要解释。JSON 字段：\n"
+            "{\n"
+            '  "task_reframe": "一句真实需求重构",\n'
+            '  "project_viability_judgment": "项目成立判断",\n'
+            '  "primary_risk": "头号风险",\n'
+            '  "sections": [{"title": "...", "body": "...", "items": ["..."], "emphasis": "high|medium"}],\n'
+            '  "key_forks": ["2-3个关键分叉"],\n'
+            '  "unknowns": ["2-4个未知边界"],\n'
+            '  "next_question": "一个关键追问，不加问号"\n'
+            "}\n\n"
+            f"结构化上下文：{json.dumps(compact_context, ensure_ascii=False)}\n\n"
+            f"当前规则蓝图：{json.dumps(rule_plan, ensure_ascii=False)}"
+        )
+
+    @staticmethod
+    def _parse_llm_json(content: str) -> Optional[Dict[str, Any]]:
+        text = str(content or "").strip()
+        if not text:
+            return None
+        fenced = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", text, flags=re.S)
+        if fenced:
+            text = fenced.group(1).strip()
+        elif "{" in text and "}" in text:
+            text = text[text.find("{") : text.rfind("}") + 1]
+        try:
+            data = json.loads(text)
+        except Exception:
+            return None
+        return data if isinstance(data, dict) else None
+
+    @staticmethod
+    def _merge_llm_blueprint(rule_plan: Dict[str, Any], candidate: Dict[str, Any]) -> Dict[str, Any]:
+        merged = dict(rule_plan)
+        for field in (
+            "task_reframe",
+            "project_viability_judgment",
+            "primary_risk",
+            "key_forks",
+            "unknowns",
+            "sections",
+            "next_question",
+        ):
+            value = candidate.get(field)
+            if value:
+                merged[field] = value
+        return merged
+
+    @staticmethod
+    def _passes_insight_quality_gate(plan: Dict[str, Any]) -> bool:
+        task_reframe = str(plan.get("task_reframe") or "").strip()
+        primary_risk = str(plan.get("primary_risk") or "").strip()
+        sections = plan.get("sections") or []
+        key_forks = plan.get("key_forks") or []
+        unknowns = plan.get("unknowns") or []
+        joined = "\n".join(
+            [
+                task_reframe,
+                str(plan.get("project_viability_judgment") or ""),
+                primary_risk,
+                json.dumps(sections, ensure_ascii=False),
+            ]
+        )
+        forbidden_terms = (
+            "完整方案",
+            "完整任务书",
+            "施工级",
+            "施工图",
+            "报价",
+            "材料清单",
+            "平面排布",
+        )
+        generic_terms = ("建议先明确需求", "可以做", "根据你的需求")
+        if len(task_reframe) < 35 or len(primary_risk) < 18:
+            return False
+        if not sections or not key_forks or not unknowns:
+            return False
+        if any(term in joined for term in forbidden_terms):
+            return False
+        if task_reframe in generic_terms or any(term == task_reframe for term in generic_terms):
+            return False
+        return True
 
     @staticmethod
     def _render_reply(plan: Dict[str, Any]) -> str:
