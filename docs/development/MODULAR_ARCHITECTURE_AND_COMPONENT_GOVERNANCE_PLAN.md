@@ -320,8 +320,9 @@ frontend-nextjs/app/analysis/[sessionId]/page.tsx
 16. 提取 analysis page conversation send/card-response handlers。（已完成）
 17. 提取 advisor conversation local persistence。（已完成）
 18. 提取 advisor history local persistence。（已完成）
-19. 提取 advisor history record derivation。
-20. 页面只保留 session 加载、布局和 feature 组合。
+19. 提取 advisor history record derivation。（已完成）
+20. 提取 advisor history grouping。
+21. 页面只保留 session 加载、布局和 feature 组合。
 ```
 
 验收：

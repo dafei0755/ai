@@ -12,7 +12,7 @@ describe('conversation-analysis-ui module contract', () => {
   it('registers the governed frontend feature boundary', () => {
     expect(CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT).toMatchObject({
       moduleId: 'conversation-analysis-ui',
-      currentVersion: 'v1.8-advisor-history-persistence-extracted',
+      currentVersion: 'v1.9-advisor-history-derivation-extracted',
     });
 
     for (const ownedPath of CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT.ownedPaths) {
@@ -52,6 +52,9 @@ describe('conversation-analysis-ui module contract', () => {
     const advisorHistoryPersistenceTestSource = readRepoFile(
       'frontend-nextjs/features/conversation/advisorHistoryPersistence.test.ts',
     );
+    const advisorHistoryDerivationTestSource = readRepoFile(
+      'frontend-nextjs/features/conversation/advisorHistoryDerivation.test.ts',
+    );
     const conversationChatTestSource = readRepoFile(
       'frontend-nextjs/components/ConversationMode/ConversationChat.test.tsx',
     );
@@ -80,7 +83,7 @@ describe('conversation-analysis-ui module contract', () => {
       'frontend-nextjs/features/conversation/components/ConversationUpgradeBanner.test.tsx',
     );
     const contractTestSource = readRepoFile('frontend-nextjs/features/conversation/contracts.test.ts');
-    const combinedTestSource = `${guidanceCardTestSource}\n${conversationHistoryAdapterTestSource}\n${conversationSessionBootstrapTestSource}\n${conversationActionHandlersTestSource}\n${conversationLocalPersistenceTestSource}\n${advisorHistoryPersistenceTestSource}\n${conversationChatTestSource}\n${composerHookTestSource}\n${layoutHookTestSource}\n${advisorContextDerivationTestSource}\n${panelTestSource}\n${expertControlsTestSource}\n${composerShellTestSource}\n${messageListShellTestSource}\n${upgradeBannerTestSource}\n${contractTestSource}`;
+    const combinedTestSource = `${guidanceCardTestSource}\n${conversationHistoryAdapterTestSource}\n${conversationSessionBootstrapTestSource}\n${conversationActionHandlersTestSource}\n${conversationLocalPersistenceTestSource}\n${advisorHistoryPersistenceTestSource}\n${advisorHistoryDerivationTestSource}\n${conversationChatTestSource}\n${composerHookTestSource}\n${layoutHookTestSource}\n${advisorContextDerivationTestSource}\n${panelTestSource}\n${expertControlsTestSource}\n${composerShellTestSource}\n${messageListShellTestSource}\n${upgradeBannerTestSource}\n${contractTestSource}`;
 
     for (const testCaseName of CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT.protectedTestCases) {
       expect(combinedTestSource).toContain(testCaseName);
@@ -283,7 +286,7 @@ describe('conversation-analysis-ui module contract', () => {
     ];
 
     expect(CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT.currentVersion).toBe(
-      'v1.8-advisor-history-persistence-extracted',
+      'v1.9-advisor-history-derivation-extracted',
     );
     expect(conversationChatLines.length).toBeLessThanOrEqual(220);
     for (const importPath of requiredCompositionImports) {
@@ -375,5 +378,21 @@ describe('conversation-analysis-ui module contract', () => {
     expect(analysisPageSource).not.toContain('JSON.parse(raw) as AdvisorHistoryRecord[]');
     expect(advisorHistoryPersistenceSource).toContain('export function restoreAdvisorHistoryRecords');
     expect(advisorHistoryPersistenceSource).toContain('export function persistAdvisorHistoryRecords');
+  });
+
+  it('keeps advisor history record derivation in the feature layer', () => {
+    const analysisPageSource = readRepoFile(
+      'frontend-nextjs/app/analysis/[sessionId]/page.tsx',
+    );
+    const advisorHistoryDerivationSource = readRepoFile(
+      'frontend-nextjs/features/conversation/advisorHistoryDerivation.ts',
+    );
+
+    expect(analysisPageSource).toContain("from '@/features/conversation/advisorHistoryDerivation'");
+    expect(analysisPageSource).not.toContain("titleSource.replace(/\\s+/g, ' ').slice(0, 36)");
+    expect(analysisPageSource).not.toContain("const nextModeLabel = systemMode === 'project'");
+    expect(analysisPageSource).not.toContain('createdAt: existing?.createdAt ?? now');
+    expect(advisorHistoryDerivationSource).toContain('export function deriveAdvisorHistoryTitle');
+    expect(advisorHistoryDerivationSource).toContain('export function upsertAdvisorHistoryRecord');
   });
 });

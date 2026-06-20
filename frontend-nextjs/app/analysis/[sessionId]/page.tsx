@@ -75,6 +75,10 @@ import {
 	restoreAdvisorHistoryRecords,
 	type AdvisorHistoryRecord,
 } from '@/features/conversation/advisorHistoryPersistence';
+import {
+	deriveAdvisorHistoryTitle,
+	upsertAdvisorHistoryRecord,
+} from '@/features/conversation/advisorHistoryDerivation';
 // v7.290: 分析页面改为独立体验，移除侧边栏组件
 
 // 节点名称中文映射
@@ -1444,26 +1448,19 @@ export default function AnalysisPage() {
 	}, [conversationMessagesByScene]);
 
 	useEffect(() => {
-		const firstUserMessage = conversationMessages.find((message) => message.role === 'user')?.content?.trim();
-		const titleSource = userInput.trim() || firstUserMessage || '未命名会话';
-		const nextTitle = titleSource.replace(/\s+/g, ' ').slice(0, 36);
+		const nextTitle = deriveAdvisorHistoryTitle({
+			userInput,
+			messages: conversationMessages,
+		});
 		if (!nextTitle) return;
-		const nextModeLabel = systemMode === 'project' ? '方案高参' : '深度思考';
 
 		setAdvisorHistoryRecords((prev) => {
-			const now = new Date().toISOString();
-			const existing = prev.find((item) => item.sessionId === sessionId);
-			if (existing && existing.title === nextTitle && existing.modeLabel === nextModeLabel) {
-				return prev;
-			}
-			const nextRecord: AdvisorHistoryRecord = {
+			return upsertAdvisorHistoryRecord({
+				records: prev,
 				sessionId,
 				title: nextTitle,
-				createdAt: existing?.createdAt ?? now,
-				updatedAt: now,
-				modeLabel: nextModeLabel,
-			};
-			return [nextRecord, ...prev.filter((item) => item.sessionId !== sessionId)].slice(0, 30);
+				systemMode,
+			});
 		});
 	}, [conversationMessages, sessionId, systemMode, userInput]);
 
