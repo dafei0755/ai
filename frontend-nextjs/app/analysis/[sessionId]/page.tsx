@@ -59,11 +59,8 @@ import { PlanSandboxPanel } from '@/components/PlanSandboxPanel';
 import { GeoCanvasView } from '@/components/geo/GeoCanvasView';
 import { useGeoStore } from '@/store/useGeoStore';
 import { deriveSessionTitle, resolveSessionTitle } from '@/lib/sessionTitle';
-import {
-	buildConversationMessagesFromHistory,
-	EMPTY_CHAT_MESSAGES,
-	hydrateMissingGuidanceCards,
-} from '@/features/conversation/conversationHistoryAdapter';
+import { EMPTY_CHAT_MESSAGES } from '@/features/conversation/conversationHistoryAdapter';
+import { bootstrapConversationSession } from '@/features/conversation/conversationSessionBootstrap';
 // v7.290: 分析页面改为独立体验，移除侧边栏组件
 
 // 节点名称中文映射
@@ -1570,37 +1567,20 @@ export default function AnalysisPage() {
 			return;
 		}
 
-		const fetchInitialStatus = async (retryCount = 0) => {
-			if (sessionId.startsWith('conv-')) {
-				setSystemMode('conversation');
-				setStatus(null);
-				let initialConversationMessages: ChatMessage[] = [];
-				const initRaw = sessionStorage.getItem(`conv_init_${sessionId}`);
-				if (initRaw) {
-					try {
-						const { userMessage, aiReply, guidance_card } = JSON.parse(initRaw);
-						initialConversationMessages = [
-							{ id: 'user-init', role: 'user', content: userMessage, timestamp: new Date().toISOString() },
-							{ id: 'ai-init', role: 'assistant', content: aiReply, timestamp: new Date().toISOString(), guidance_card: guidance_card ?? undefined },
-						];
-						setConversationMessages(initialConversationMessages);
-					} catch (_) { /* ignore parse errors */ }
-					sessionStorage.removeItem(`conv_init_${sessionId}`);
+			const fetchInitialStatus = async (retryCount = 0) => {
+				if (sessionId.startsWith('conv-')) {
+					setSystemMode('conversation');
+					setStatus(null);
+					await bootstrapConversationSession({
+						sessionId,
+						storage: sessionStorage,
+						getStatus: api.getStatus,
+						onInitialMessages: setConversationMessages,
+						onRestoredMessages: setConversationMessages,
+						onRestoreError: (err) => console.warn('[analysis] restore conversation history failed:', err),
+					});
+					return;
 				}
-				try {
-					const data = await api.getStatus(sessionId);
-					const restoredMessages = hydrateMissingGuidanceCards(
-						buildConversationMessagesFromHistory(data.conversation_history_v2),
-						initialConversationMessages,
-					);
-					if (restoredMessages.length > 0) {
-						setConversationMessages(restoredMessages);
-					}
-				} catch (err) {
-					console.warn('[analysis] restore conversation history failed:', err);
-				}
-				return;
-			}
 
 			try {
 				console.log(`🔍 开始获取初始状态 (尝试 ${retryCount + 1}/3), sessionId:`, sessionId);
@@ -1628,25 +1608,11 @@ export default function AnalysisPage() {
 				}
 				setStatus(data);
 				// 若会话已在运行/等待/完成，说明是项目分析任务，切到项目态
-				if (data.status === 'running' || data.status === 'waiting_for_input' || data.status === 'completed') {
-					setSystemMode('project');
-				}
-				// 对话态（conv-）：从 sessionStorage 恢复首页提交的初始对话
-				if (sessionId.startsWith('conv-')) {
-					const initRaw = sessionStorage.getItem(`conv_init_${sessionId}`);
-					if (initRaw) {
-						try {
-							const { userMessage, aiReply, guidance_card } = JSON.parse(initRaw);
-							setConversationMessages([
-								{ id: 'user-init', role: 'user', content: userMessage, timestamp: new Date().toISOString() },
-								{ id: 'ai-init', role: 'assistant', content: aiReply, timestamp: new Date().toISOString(), guidance_card: guidance_card ?? undefined },
-							]);
-						} catch (_) { /* ignore parse errors */ }
-						sessionStorage.removeItem(`conv_init_${sessionId}`);
+					if (data.status === 'running' || data.status === 'waiting_for_input' || data.status === 'completed') {
+						setSystemMode('project');
 					}
-				}
 
-				if (data.history && data.history.length > 0) {
+					if (data.history && data.history.length > 0) {
 					console.log('📜 恢复执行历史:', data.history);
 					setNodeHistory(data.history);
 
@@ -1688,23 +1654,20 @@ export default function AnalysisPage() {
 					return;
 				}
 
-				if (err?.response?.status === 404 && sessionId.startsWith('conv-')) {
-					// 对话态会话：保持 conversation 模式，并恢复初始对话（兜底路径）
-					console.log('🗨️ 对话态会话，跳过旧状态接口，保持 conversation 模式');
-					setSystemMode('conversation');
-					const initRaw = sessionStorage.getItem(`conv_init_${sessionId}`);
-					if (initRaw) {
-						try {
-							const { userMessage, aiReply, guidance_card } = JSON.parse(initRaw);
-							setConversationMessages([
-								{ id: 'user-init', role: 'user', content: userMessage, timestamp: new Date().toISOString() },
-								{ id: 'ai-init', role: 'assistant', content: aiReply, timestamp: new Date().toISOString(), guidance_card: guidance_card ?? undefined },
-							]);
-						} catch (_) { /* ignore parse errors */ }
-						sessionStorage.removeItem(`conv_init_${sessionId}`);
-					}
-					return;
-				} else if (err?.response?.status === 404) {
+					if (err?.response?.status === 404 && sessionId.startsWith('conv-')) {
+						// 对话态会话：保持 conversation 模式，并恢复初始对话（兜底路径）
+						console.log('🗨️ 对话态会话，跳过旧状态接口，保持 conversation 模式');
+						setSystemMode('conversation');
+						await bootstrapConversationSession({
+							sessionId,
+							storage: sessionStorage,
+							getStatus: api.getStatus,
+							onInitialMessages: setConversationMessages,
+							onRestoredMessages: setConversationMessages,
+							onRestoreError: (restoreErr) => console.warn('[analysis] restore conversation history failed:', restoreErr),
+						});
+						return;
+					} else if (err?.response?.status === 404) {
 					setError('会话已过期或不存在，请重新开始分析');
 				} else if (err?.response?.status === 410) {
 					setError('工作流已失效，请重新开始分析');

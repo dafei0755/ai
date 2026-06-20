@@ -20,6 +20,11 @@ docs/development/FEATURE_VERSION_LEDGER.md
 implemented: 已有权威版本和守护测试。
 governed: 已登记模块边界，但版本链或测试仍需补齐。
 candidate: 已识别为模块化候选，等待边界确认。
+dormant: 暂停使用，但保留复活价值。
+archived: 已归档，仅作为历史证据。
+orphaned: 有代码或文档，但未被入口、测试或注册表引用。
+backup-only: 只存在于备份目录/备份分支，尚未进入当前基准。
+candidate-for-revival: 历史或备份资产中有明确复用价值，等待提取方案。
 deprecated: 不再作为新开发入口。
 ```
 
@@ -434,7 +439,7 @@ contracts.py 已建立为 LLM runtime 模块合同入口。
 module_id: conversation-analysis-ui
 name: 分析页对话 UI 与引导卡交互
 status: governed
-current_version: v1.4-conversation-history-adapter-extracted
+current_version: v1.5-conversation-session-bootstrap-extracted
 ```
 
 ### owned_paths
@@ -443,6 +448,7 @@ current_version: v1.4-conversation-history-adapter-extracted
 frontend-nextjs/features/conversation/contracts.ts
 frontend-nextjs/features/conversation/types.ts
 frontend-nextjs/features/conversation/conversationHistoryAdapter.ts
+frontend-nextjs/features/conversation/conversationSessionBootstrap.ts
 frontend-nextjs/features/conversation/components/MessageCardRenderer.tsx
 frontend-nextjs/features/conversation/components/VisualBriefPanel.tsx
 frontend-nextjs/features/conversation/components/AdvisorContextPanel.tsx
@@ -491,6 +497,7 @@ frontend api client
 ```text
 frontend-nextjs/features/conversation/contracts.test.ts
 frontend-nextjs/features/conversation/conversationHistoryAdapter.test.ts
+frontend-nextjs/features/conversation/conversationSessionBootstrap.test.ts
 frontend-nextjs/features/conversation/components/ConversationPanels.test.tsx
 frontend-nextjs/features/conversation/components/ConversationExpertControls.test.tsx
 frontend-nextjs/features/conversation/components/ConversationComposerShell.test.tsx
@@ -521,7 +528,8 @@ features/conversation/components/UpgradeBanner.tsx 已承接升级提示横幅�
 features/conversation/hooks/useAdvisorContextDerivation.ts 已承接 advisor suggestion 到 insight lines 的派生逻辑。
 ConversationChat 已审计为最终组合容器：只保留 feature components/hooks 组合、refs/effects 和传参，不再承接业务 UI、卡片实现、文案或字符串解析。
 features/conversation/conversationHistoryAdapter.ts 已承接 conversation history 到 ChatMessage 的适配和 guidance card 补水逻辑。
-下一步提取 analysis page conversation mode session bootstrap。
+features/conversation/conversationSessionBootstrap.ts 已承接 conversation mode session bootstrap、初始消息恢复和后端历史补水编排。
+下一步提取 analysis page conversation send/card-response handlers。
 ```
 
 ## 8. 新模块登记模板
@@ -540,3 +548,19 @@ guard_tests:
 rollback_target:
 next_refactor_target:
 ```
+
+## 9. 历史资产与复活候选
+
+本节不是现役模块入口。它用于防止有效努力停留在备份、历史目录或孤立分支里。
+
+| asset_id | 中文名称 | status | 位置 | 简要说明 | 下一步 |
+| --- | --- | --- | --- | --- | --- |
+| legacy-streamlit-frontend | 旧 Python/Streamlit 前端 | dormant | `intelligent_project_analyzer/frontend/` | 早期 Python 前端入口，可追溯交互和调试方式。 | 不作为新开发入口。 |
+| legacy-frontend | 旧前端目录 | dormant | `frontend/` | 早期前端资产。 | 仅按需提取设计或交互思想。 |
+| external-data-system | 外部数据与爬虫系统 | candidate-for-revival | `intelligent_project_analyzer/external_data_system/`、`intelligent_project_analyzer/scripts/crawl_external_layer2.py` | 外部项目数据、爬取和候选知识生产链路。 | 先做 crawler/governance 边界审计。 |
+| advisor-object-system | 早期 Advisor 对象系统 | dormant | `intelligent_project_analyzer/advisor/` | 早期 command/object/skill/gate 机制。 | 只按需提取模型，不直接恢复入口。 |
+| project-cockpit-ui | 项目驾驶舱 UI | candidate-for-revival | `feat/project-cockpit-p0`、`frontend-nextjs/components/project-cockpit/` | 未合并 UI 功能资产，可能成为独立前端模块。 | 建立模块合同后逐组件吸收。 |
+| space-classification-history | 空间分类历史实现 | candidate-for-revival | `feature/space-classification`、`sf/2026.4.18/` | 空间分类模型、type knowledge、错误样例和产品定义文档。 | 从历史分支逐文件提取，必须服从 demand-reconstruction 入口顺序。 |
+| backup-snapshot-20260620 | 2026.6.20 备份快照 | backup-only | `backup/2026.6.20-worktree-snapshot` | 备份分支含治理协议、LLM smoke、session tests 等候选资产。 | 禁止整分支合并，按文件吸收。 |
+| restore-snapshot-20260614 | 2026.6.14 恢复前快照 | backup-only | `backup/pre_restore_current_20260614_133946/` | tracked/untracked 分离快照，可找回未跟踪有效努力。 | 优先审计 `untracked-files.txt`。 |
+| archive-runtime-evidence | 归档运行证据 | archived | `_archive/` | crawler/debug/test 输出、旧脚本和页面快照。 | 仅作为问题复现证据。 |
