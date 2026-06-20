@@ -12,7 +12,7 @@ describe('conversation-analysis-ui module contract', () => {
   it('registers the governed frontend feature boundary', () => {
     expect(CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT).toMatchObject({
       moduleId: 'conversation-analysis-ui',
-      currentVersion: 'v1.1-legacy-advisor-block-removed',
+      currentVersion: 'v1.2-advisor-context-derivation-hook',
     });
 
     for (const ownedPath of CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT.ownedPaths) {
@@ -46,6 +46,9 @@ describe('conversation-analysis-ui module contract', () => {
     const layoutHookTestSource = readRepoFile(
       'frontend-nextjs/features/conversation/hooks/useConversationLayoutState.test.ts',
     );
+    const advisorContextDerivationTestSource = readRepoFile(
+      'frontend-nextjs/features/conversation/hooks/useAdvisorContextDerivation.test.ts',
+    );
     const panelTestSource = readRepoFile(
       'frontend-nextjs/features/conversation/components/ConversationPanels.test.tsx',
     );
@@ -62,7 +65,7 @@ describe('conversation-analysis-ui module contract', () => {
       'frontend-nextjs/features/conversation/components/ConversationUpgradeBanner.test.tsx',
     );
     const contractTestSource = readRepoFile('frontend-nextjs/features/conversation/contracts.test.ts');
-    const combinedTestSource = `${guidanceCardTestSource}\n${conversationChatTestSource}\n${composerHookTestSource}\n${layoutHookTestSource}\n${panelTestSource}\n${expertControlsTestSource}\n${composerShellTestSource}\n${messageListShellTestSource}\n${upgradeBannerTestSource}\n${contractTestSource}`;
+    const combinedTestSource = `${guidanceCardTestSource}\n${conversationChatTestSource}\n${composerHookTestSource}\n${layoutHookTestSource}\n${advisorContextDerivationTestSource}\n${panelTestSource}\n${expertControlsTestSource}\n${composerShellTestSource}\n${messageListShellTestSource}\n${upgradeBannerTestSource}\n${contractTestSource}`;
 
     for (const testCaseName of CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT.protectedTestCases) {
       expect(combinedTestSource).toContain(testCaseName);
@@ -231,5 +234,20 @@ describe('conversation-analysis-ui module contract', () => {
     expect(conversationChatSource).not.toContain('{false &&');
     expect(conversationChatSource).not.toContain("handleAdvisorPrompt('deep-dive')");
     expect(conversationChatSource).not.toContain('advisorClosingLine');
+  });
+
+  it('keeps advisor context derivation in the feature hook layer', () => {
+    const conversationChatSource = readRepoFile(
+      'frontend-nextjs/components/ConversationMode/ConversationChat.tsx',
+    );
+    const advisorContextDerivationSource = readRepoFile(
+      'frontend-nextjs/features/conversation/hooks/useAdvisorContextDerivation.ts',
+    );
+
+    expect(conversationChatSource).toContain("from '@/features/conversation/hooks/useAdvisorContextDerivation'");
+    expect(conversationChatSource).not.toContain(".split('\\n')");
+    expect(conversationChatSource).not.toContain('advisorSuggestionLines');
+    expect(advisorContextDerivationSource).toContain('export function useAdvisorContextDerivation');
+    expect(advisorContextDerivationSource).toContain('advisorInsightLines');
   });
 });

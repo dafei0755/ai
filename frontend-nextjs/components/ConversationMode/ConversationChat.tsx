@@ -17,6 +17,7 @@ import { ComposerShell } from '@/features/conversation/components/ComposerShell'
 import { MessageListShell } from '@/features/conversation/components/MessageListShell';
 import { UpgradeBanner } from '@/features/conversation/components/UpgradeBanner';
 import { VisualBriefPanel } from '@/features/conversation/components/VisualBriefPanel';
+import { useAdvisorContextDerivation } from '@/features/conversation/hooks/useAdvisorContextDerivation';
 import { useConversationComposer } from '@/features/conversation/hooks/useConversationComposer';
 import { useConversationLayoutState } from '@/features/conversation/hooks/useConversationLayoutState';
 import type {
@@ -98,11 +99,7 @@ export default function ConversationChat({
     splitPaneRef,
   });
   const adaptiveChatGutter = 'clamp(12px, 2vw, 32px)';
-  const advisorSuggestionLines = (advisorSceneContext?.suggestion ?? '')
-    .split('\n')
-    .map((line) => line.trim())
-    .filter(Boolean);
-  const advisorInsightLines = advisorSuggestionLines.filter((line) => /^\d+[.、]/.test(line)).slice(0, 3);
+  const { advisorInsightLines } = useAdvisorContextDerivation({ advisorSceneContext });
   const visibleMessages = messages.filter((message) => !message.id.startsWith('scene-sync-'));
 
   // 自动滚动到底部

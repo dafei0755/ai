@@ -1,6 +1,6 @@
 export const CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT = {
   moduleId: 'conversation-analysis-ui',
-  currentVersion: 'v1.1-legacy-advisor-block-removed',
+  currentVersion: 'v1.2-advisor-context-derivation-hook',
   ownedPaths: [
     'frontend-nextjs/features/conversation/contracts.ts',
     'frontend-nextjs/features/conversation/types.ts',
@@ -11,6 +11,7 @@ export const CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT = {
     'frontend-nextjs/features/conversation/components/ComposerShell.tsx',
     'frontend-nextjs/features/conversation/components/MessageListShell.tsx',
     'frontend-nextjs/features/conversation/components/UpgradeBanner.tsx',
+    'frontend-nextjs/features/conversation/hooks/useAdvisorContextDerivation.ts',
     'frontend-nextjs/features/conversation/hooks/useConversationComposer.ts',
     'frontend-nextjs/features/conversation/hooks/useConversationLayoutState.ts',
     'frontend-nextjs/app/analysis/[sessionId]/page.tsx',
@@ -58,6 +59,9 @@ export const CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT = {
     'keeps upgrade banner in the feature component layer',
     'renders upgrade copy and calls confirm and dismiss actions',
     'keeps ConversationChat free of disabled legacy advisor context blocks',
+    'keeps advisor context derivation in the feature hook layer',
+    'extracts trimmed numbered advisor insight lines from scene context',
+    'returns no insight lines when scene context is missing',
     'renders demand reconstruction cards without formal intake wording',
     'renders dynamic demand reconstruction blueprint sections',
     'renders user-facing labels for context packet missing-slot pages',
@@ -72,7 +76,7 @@ export const CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT = {
     'frontend labels must translate internal backend signals into user-facing language',
   ],
   nextRefactorTargets: [
-    'extract advisor context derivation from ConversationChat',
+    'audit ConversationChat as final composition shell',
   ],
 } as const;
 
