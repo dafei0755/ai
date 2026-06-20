@@ -439,7 +439,7 @@ contracts.py 已建立为 LLM runtime 模块合同入口。
 module_id: conversation-analysis-ui
 name: 分析页对话 UI 与引导卡交互
 status: governed
-current_version: v1.5-conversation-session-bootstrap-extracted
+current_version: v1.6-conversation-action-handlers-extracted
 ```
 
 ### owned_paths
@@ -449,6 +449,7 @@ frontend-nextjs/features/conversation/contracts.ts
 frontend-nextjs/features/conversation/types.ts
 frontend-nextjs/features/conversation/conversationHistoryAdapter.ts
 frontend-nextjs/features/conversation/conversationSessionBootstrap.ts
+frontend-nextjs/features/conversation/conversationActionHandlers.ts
 frontend-nextjs/features/conversation/components/MessageCardRenderer.tsx
 frontend-nextjs/features/conversation/components/VisualBriefPanel.tsx
 frontend-nextjs/features/conversation/components/AdvisorContextPanel.tsx
@@ -498,6 +499,7 @@ frontend api client
 frontend-nextjs/features/conversation/contracts.test.ts
 frontend-nextjs/features/conversation/conversationHistoryAdapter.test.ts
 frontend-nextjs/features/conversation/conversationSessionBootstrap.test.ts
+frontend-nextjs/features/conversation/conversationActionHandlers.test.ts
 frontend-nextjs/features/conversation/components/ConversationPanels.test.tsx
 frontend-nextjs/features/conversation/components/ConversationExpertControls.test.tsx
 frontend-nextjs/features/conversation/components/ConversationComposerShell.test.tsx
@@ -529,7 +531,8 @@ features/conversation/hooks/useAdvisorContextDerivation.ts 已承接 advisor sug
 ConversationChat 已审计为最终组合容器：只保留 feature components/hooks 组合、refs/effects 和传参，不再承接业务 UI、卡片实现、文案或字符串解析。
 features/conversation/conversationHistoryAdapter.ts 已承接 conversation history 到 ChatMessage 的适配和 guidance card 补水逻辑。
 features/conversation/conversationSessionBootstrap.ts 已承接 conversation mode session bootstrap、初始消息恢复和后端历史补水编排。
-下一步提取 analysis page conversation send/card-response handlers。
+features/conversation/conversationActionHandlers.ts 已承接 conversation send、card-response、prompt prefix、assistant reply append 和 upgrade signal 编排。
+下一步提取 advisor conversation local persistence。
 ```
 
 ## 8. 新模块登记模板

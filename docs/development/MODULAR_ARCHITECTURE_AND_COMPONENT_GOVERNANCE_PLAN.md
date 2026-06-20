@@ -317,8 +317,9 @@ frontend-nextjs/app/analysis/[sessionId]/page.tsx
 13. 审计 ConversationChat 是否已满足最终组合容器目标。（已完成）
 14. 提取 conversation history adapter。（已完成）
 15. 提取 analysis page conversation mode session bootstrap。（已完成）
-16. 提取 analysis page conversation send/card-response handlers。
-17. 页面只保留 session 加载、布局和 feature 组合。
+16. 提取 analysis page conversation send/card-response handlers。（已完成）
+17. 提取 advisor conversation local persistence。
+18. 页面只保留 session 加载、布局和 feature 组合。
 ```
 
 验收：

@@ -61,6 +61,10 @@ import { useGeoStore } from '@/store/useGeoStore';
 import { deriveSessionTitle, resolveSessionTitle } from '@/lib/sessionTitle';
 import { EMPTY_CHAT_MESSAGES } from '@/features/conversation/conversationHistoryAdapter';
 import { bootstrapConversationSession } from '@/features/conversation/conversationSessionBootstrap';
+import {
+	respondToGuidanceCardAction,
+	sendConversationMessageAction,
+} from '@/features/conversation/conversationActionHandlers';
 // v7.290: 分析页面改为独立体验，移除侧边栏组件
 
 // 节点名称中文映射
@@ -2618,107 +2622,40 @@ export default function AnalysisPage() {
 
 	// v2.0 对话态 handlers
 	const handleConvSendMessage = useCallback(async (text: string) => {
-		const msg: ChatMessage = { id: `user-${Date.now()}`, role: 'user', content: text, timestamp: new Date().toISOString() };
-		setConversationMessages(prev => [...prev, msg]);
-		try {
-			const perspectivePrefix = systemMode === 'conversation'
-				? ''
-				: `[专家视角设定]\n当前场景：${advisorSceneContext.label}\n当前指定视角：${activeExpertPerspective}\n回答时请围绕该视角深挖关键判断、风险取舍与执行动作。\n\n`;
-			const briefPrefix = systemMode !== 'conversation' && shouldShowBoardVisualBrief && activeBoardVisualBrief
-				? `[方案画布空间 VisualBrief]\n${formatBoardVisualBriefForPrompt(activeBoardVisualBrief)}\n\n[用户本轮指令]\n`
-				: '';
-			const scenePrefix = systemMode === 'conversation'
-				? ''
-				: `[当前左侧场景]\n场景：${advisorSceneContext.label}\n引用：${advisorSceneContext.sceneRef}\n系统上下文判断：\n${advisorSceneContext.suggestion}\n\n[用户本轮指令]\n`;
-			const res = await api.sendConversationMessage(
-				sessionId,
-				`${perspectivePrefix}${scenePrefix}${briefPrefix}${text}`,
-				undefined,
-				{ expert_perspective: activeExpertPerspective }
-			);
-			// AI 回复追加到对话流，携带引导卡片（如有）
-			if (res.reply) {
-				const aiMsg: ChatMessage = {
-					id: `ai-${Date.now()}`,
-					role: 'assistant',
-					content: res.reply,
-					timestamp: new Date().toISOString(),
-					guidance_card: res.guidance_card as ChatMessage['guidance_card'] | undefined,
-				};
-				setConversationMessages(prev => [...prev, aiMsg]);
-			}
-			// 升级建议信号
-			if (res.upgrade_suggested && res.upgrade_signal) {
-				const sig = res.upgrade_signal as any;
-				if (sig?.indicators) setUpgradeIndicators(sig.indicators);
-				if (sig?.suggestion_text) setUpgradeSuggestionText(sig.suggestion_text);
-				setShowUpgradeBanner(true);
-			}
-		} catch (err) {
-			console.error('[conv] send failed:', err);
-		}
+		await sendConversationMessageAction({
+			sessionId,
+			text,
+			systemMode,
+			activeExpertPerspective,
+			advisorSceneContext,
+			boardVisualBriefPrompt: systemMode !== 'conversation' && shouldShowBoardVisualBrief && activeBoardVisualBrief
+				? formatBoardVisualBriefForPrompt(activeBoardVisualBrief)
+				: null,
+			setMessages: setConversationMessages,
+			sendConversationMessage: api.sendConversationMessage,
+			setUpgradeIndicators,
+			setUpgradeSuggestionText,
+			setShowUpgradeBanner,
+			onError: (err) => console.error('[conv] send failed:', err),
+		});
 	}, [activeBoardVisualBrief, activeExpertPerspective, advisorSceneContext, sessionId, shouldShowBoardVisualBrief, systemMode, setConversationMessages]);
 
 	// v2.0 引导卡片响应 handler
 	const handleConvCardResponse = useCallback(async (cardId: string, optionId?: string, freetext?: string, structuredResponse?: GuidanceCardStructuredResponse) => {
-		// 立即标记对应消息的 card_responded = true，并记录选择摘要
-		setConversationMessages(prev =>
-			prev.map(m => {
-				if (m.guidance_card?.card_id !== cardId) return m;
-				// 计算选择摘要文本（含完整描述）
-				let selectionLabel = freetext;
-				if (!selectionLabel && optionId) {
-					const allOptions = [
-						...(m.guidance_card.options ?? []),
-						...(m.guidance_card.pages ?? []).flatMap(p => p.options ?? []),
-						...(m.guidance_card.version_cards ?? []).map(v => ({
-							id: v.id,
-							label: v.name,
-							description: v.subtitle,
-						})),
-					];
-					const opt = allOptions.find(o => o.id === optionId);
-					if (opt) {
-						selectionLabel = opt.description
-							? `${opt.label}：${opt.description}`
-							: opt.label;
-					} else {
-						selectionLabel = optionId;
-					}
-				}
-				return { ...m, card_responded: true, card_selection_label: selectionLabel || undefined };
-			})
-		);
-		// 发送卡片响应（freetext 作为 message，携带 in_response_to_card_id + selected_option_id）
-		const text = freetext || (optionId ? `[card:${optionId}]` : '[skip]');
-		try {
-			const perspectivePrefix = systemMode === 'conversation'
-				? ''
-				: `[专家视角设定]\n当前场景：${advisorSceneContext.label}\n当前指定视角：${activeExpertPerspective}\n回答时请围绕该视角深挖关键判断、风险取舍与执行动作。\n\n`;
-			const res = await api.sendConversationMessage(
-				sessionId,
-				`${perspectivePrefix}${text}`,
-				{
-					in_response_to_card_id: cardId,
-					selected_option_id: optionId,
-					card_response: structuredResponse,
-				},
-				{ expert_perspective: activeExpertPerspective }
-			);
-			if (res.reply) {
-				const aiMsg: ChatMessage = {
-					id: `ai-${Date.now()}`,
-					role: 'assistant',
-					content: res.reply,
-					timestamp: new Date().toISOString(),
-					guidance_card: res.guidance_card as ChatMessage['guidance_card'] | undefined,
-				};
-				setConversationMessages(prev => [...prev, aiMsg]);
-			}
-		} catch (err) {
-			console.error('[conv] card response failed:', err);
-		}
-	}, [activeExpertPerspective, advisorSceneContext.label, sessionId, systemMode]);
+		await respondToGuidanceCardAction({
+			sessionId,
+			cardId,
+			optionId,
+			freetext,
+			structuredResponse,
+			systemMode,
+			activeExpertPerspective,
+			advisorSceneContext,
+			setMessages: setConversationMessages,
+			sendConversationMessage: api.sendConversationMessage,
+			onError: (err) => console.error('[conv] card response failed:', err),
+		});
+	}, [activeExpertPerspective, advisorSceneContext, sessionId, systemMode, setConversationMessages]);
 
 	const handleUpgradeConfirm = useCallback(async () => {
 		try {
