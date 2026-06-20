@@ -1,8 +1,18 @@
-version: "v1.0"
+﻿version: "v1.0"
 description: >
   方案高参入口与压力测试共用的语义轴注册表。这里定义的是稳定的识别框架，
   不是单个问题的答案模板；业务新增、术语补充和误判修正应优先改本文件，
   不应在服务代码里新增一次性分支。
+
+demand_reconstruction_blueprint_overrides:
+  collection_museum:
+    trigger_terms: [博物馆, 美术馆, 收藏馆, 收藏家, 藏品, 限量藏品, 收藏墙, 藏品展示, 常设展, 专题展, 珍藏展厅]
+  urban_renewal:
+    trigger_terms: [城市更新, 街区更新, 老旧街区, 旧城, 老城, 历史街区, 原住民, 存量商户, 分期实施, 社区商业, 片区焕新]
+  workplace_headquarters:
+    trigger_terms: [办公, 总部, 研发团队, 工位, 员工, 会议室, 开放办公, 混合办公, 企业协作枢纽]
+  healthcare_care:
+    trigger_terms: [医院, 病房, 诊所, 康养, 疗愈, 照护, 医护, 患者, 感染控制, 临终关怀, 安宁疗护单元]
 
 axes:
   space_domains:
@@ -17,9 +27,9 @@ axes:
     workplace:
       terms: [办公室, 总部, 研发中心, 律所, 工作室, 直播基地, 办公中心]
     cultural_exhibition:
-      terms: [展厅, 展馆, 美术馆, 博物馆, 记忆馆, 展示中心, 艺术, 书法]
+      terms: [展厅, 展馆, 展示馆, 美术馆, 博物馆, 档案馆, 档案库, 记忆馆, 展示中心, 艺术, 书法]
     healthcare_wellness:
-      terms: [医院, 诊所, 牙科, 病房, 康养, 养老, 心理干预, 医疗]
+      terms: [医院, 诊所, 牙科, 病房, 康养, 养老, 心理干预, 医疗, 护理机构, 产康房, 哺乳指导, 种植牙手术间, 康复科, 步态训练, 作业治疗]
     education_public:
       terms: [学校, 幼儿园, 图书馆, 课堂, 培训中心, 社区活动中心, 服务中心]
     urban_renewal:
@@ -137,13 +147,13 @@ axes:
     budget:
       terms: [预算, 成本, 造价, 低成本, 极低, 资金链]
     fire_structure:
-      terms: [消防, 疏散, 结构改造, 结构保留, 结构加固, 结构限制, 结构安全, 结构现状, 承重结构, 建筑结构, 原结构, 梁柱, 加固, 梁架, 荷载]
+      terms: [消防, 防火, 防火分区, 疏散, 结构改造, 结构保留, 结构加固, 结构限制, 结构安全, 结构现状, 承重结构, 建筑结构, 原结构, 梁柱, 加固, 梁架, 荷载]
     acoustics:
       terms: [隔音, 声学, 杜比, 噪音, 声音]
     accessibility_safety:
       terms: [无障碍, 轮椅, 安全, 儿童尺度, 医疗级]
     mep_climate:
-      terms: [给排水, 电力, 新风, 排烟, 潮湿, 供氧, 盐雾, 台风, 极寒, 极端气候, 极端地质, 火山, 光井, 空气循环, 空气净化]
+      terms: [给排水, 电力, 新风, 排烟, 潮湿, 恒温恒湿, 温湿度, 供氧, 盐雾, 台风, 极寒, 极端气候, 极端地质, 火山, 光井, 空气循环, 空气净化]
     sanitation_and_drainage:
       terms: [卫生, 排污, 排水, 地漏, 冲洗, 垃圾, 气味, 水产]
     cold_chain_logistics:
@@ -392,26 +402,31 @@ tension_priority:
     base_weight: 78
     title: 先确认公众如何进入和停留
     prompt: 需要先判断访客、居民、会员或员工的进入路径、停留方式和管理边界。
+    relevance_terms: [居民, 老居民, 社区, 邻里, 住户, 街坊, 公众, 市民, 访客, 会员]
   public_market:
     base_weight: 112
     title: 先确认这个市场首先服务谁
     prompt: 需要先判断老居民买菜、摊贩经营、游客停留和社区公共性之间谁是底盘、谁是增量。
     related_options: [daily_residents, vendors, visitors_tourists, livelihood_practicality, public_market_sanitation_logistics, place_branding]
+    relevance_terms: [市场, 菜市场, 农贸市场, 农贸, 菜场, 生鲜市场, 公共市场, 摊贩, 摊位, 档口, 档主, 菜贩, 经营户, 摆摊, 市集, 集市, 买菜, 生鲜, 水产, 商户, 居民, 老居民, 社区, 邻里, 住户, 街坊, 民生]
   livelihood_practicality:
     base_weight: 96
     title: 先确认民生底盘不能被挤掉
     prompt: 老居民买菜便利、摊贩生计、基础价格感知和日常效率，是公共市场更新不能被形象工程牺牲的底线。
     related_options: [daily_residents, vendors, vendor_customer_flow, public_market_sanitation_logistics, place_branding]
+    relevance_terms: [市场, 菜市场, 农贸市场, 农贸, 菜场, 生鲜市场, 公共市场, 摊贩, 摊位, 档口, 档主, 菜贩, 经营户, 摆摊, 市集, 集市, 买菜, 生鲜, 水产, 商户, 居民, 老居民, 社区, 邻里, 住户, 街坊, 民生]
   vendors:
     base_weight: 90
     title: 先确认摊贩怎么继续经营
     prompt: 需要先判断摊位组织、备货补货、排队售卖和后场支持如何让摊贩真正运转。
     related_options: [vendor_customer_flow, cold_chain_logistics, sanitation_and_drainage, daily_residents, visitors_tourists]
+    relevance_terms: [市场, 菜市场, 农贸市场, 农贸, 菜场, 生鲜市场, 公共市场, 摊贩, 摊位, 档口, 档主, 菜贩, 经营户, 摆摊, 市集, 集市, 买菜, 生鲜, 水产, 商户]
   daily_residents:
     base_weight: 89
     title: 先确认老居民怎么买菜
     prompt: 需要先判断入口可达、采购路径、菜价感知和日常高频使用是否仍然顺手。
     related_options: [livelihood_practicality, vendors, vendor_customer_flow, sanitation_and_drainage, visitors_tourists]
+    relevance_terms: [市场, 菜市场, 农贸市场, 农贸, 菜场, 生鲜市场, 公共市场, 摊贩, 摊位, 买菜, 生鲜, 居民, 老居民, 社区, 邻里, 住户, 街坊, 民生]
   visitors_tourists:
     base_weight: 84
     title: 先确认访客为什么愿意停留
@@ -422,6 +437,7 @@ tension_priority:
     title: 先确认摊贩、居民和访客怎么走
     prompt: 需要先判断采购动线、游客参观、摊贩补货和服务后勤能否分层组织，而不是互相挤占。
     related_options: [vendors, daily_residents, visitors_tourists, cold_chain_logistics, sanitation_and_drainage]
+    relevance_terms: [市场, 菜市场, 农贸市场, 农贸, 菜场, 生鲜市场, 公共市场, 摊贩, 摊位, 档口, 摆摊, 市集, 集市, 买菜, 生鲜, 商户, 居民, 老居民, 社区, 邻里, 住户, 街坊, 民生]
   public_market_sanitation_logistics:
     base_weight: 94
     title: 先确认卫生、冷链和后勤能不能撑住

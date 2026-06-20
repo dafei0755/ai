@@ -1,4 +1,4 @@
-"""
+﻿"""
 LLM工厂模块 - 2025年工厂模式 + 自动降级 + 系统级语义缓存
 
 提供统一的LLM实例创建接口,支持依赖注入、配置管理、自动降级和透明缓存
@@ -212,40 +212,13 @@ class LLMFactory:
                 return LLMFactory._wrap_with_cache(llm, cache_namespace=primary_provider)
 
             # 尝试使用多LLM工厂创建(支持自动降级)
-            from intelligent_project_analyzer.services.multi_llm_factory import FallbackLLM, MultiLLMFactory
+            from intelligent_project_analyzer.services.multi_llm_factory import (
+                FallbackLLM,
+                MultiLLMFactory,
+                build_fallback_provider_chain,
+            )
 
-            fallback_chain = [primary_provider]
-            if primary_provider == "openai":
-                if (
-                    os.getenv("OPENROUTER_API_KEY")
-                    and os.getenv("OPENROUTER_API_KEY") != "your_openrouter_api_key_here"
-                ):
-                    fallback_chain.append("openrouter")
-                if os.getenv("DEEPSEEK_API_KEY") and os.getenv("DEEPSEEK_API_KEY") != "your_deepseek_api_key_here":
-                    fallback_chain.append("deepseek")
-            elif primary_provider == "openrouter":
-                if os.getenv("OPENAI_API_KEY") and os.getenv("OPENAI_API_KEY") != "your_openai_api_key_here":
-                    fallback_chain.append("openai")
-                if os.getenv("DEEPSEEK_API_KEY") and os.getenv("DEEPSEEK_API_KEY") != "your_deepseek_api_key_here":
-                    fallback_chain.append("deepseek")
-            elif primary_provider == "qwen":
-                if os.getenv("OPENAI_API_KEY") and os.getenv("OPENAI_API_KEY") != "your_openai_api_key_here":
-                    fallback_chain.append("openai")
-                if (
-                    os.getenv("OPENROUTER_API_KEY")
-                    and os.getenv("OPENROUTER_API_KEY") != "your_openrouter_api_key_here"
-                ):
-                    fallback_chain.append("openrouter")
-                if os.getenv("DEEPSEEK_API_KEY") and os.getenv("DEEPSEEK_API_KEY") != "your_deepseek_api_key_here":
-                    fallback_chain.append("deepseek")
-            elif primary_provider == "deepseek":
-                if (
-                    os.getenv("OPENROUTER_API_KEY")
-                    and os.getenv("OPENROUTER_API_KEY") != "your_openrouter_api_key_here"
-                ):
-                    fallback_chain.append("openrouter")
-                if os.getenv("OPENAI_API_KEY") and os.getenv("OPENAI_API_KEY") != "your_openai_api_key_here":
-                    fallback_chain.append("openai")
+            fallback_chain = build_fallback_provider_chain(primary_provider)
             # 使用降级链创建LLM
             if len(fallback_chain) > 1:
                 logger.info(f" 启用自动降级: {' → '.join(fallback_chain)}")

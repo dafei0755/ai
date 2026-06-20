@@ -2300,6 +2300,191 @@ async def test_search_filter(url: str = Query(..., description="测试URL"), _=D
 
 
 # ============================================================================
+# 方案高参治理审核队列 API
+# ============================================================================
+
+
+@router.get("/governance-review-queue")
+async def list_governance_review_queue(
+    tenant_id: str = Query(..., description="租户 ID"),
+    workspace_id: Optional[str] = Query(None, description="工作区 ID"),
+    review_status: str = Query("pending", description="审核状态"),
+    review_queue: Optional[str] = Query(None, description="治理队列名称"),
+    admin=Depends(require_admin),
+):
+    try:
+        store = get_knowledge_governance_store()
+        items = store.list_review_items(
+            tenant_id=tenant_id,
+            workspace_id=workspace_id,
+            review_status=review_status,
+        )
+        if review_queue:
+            items = [
+                item
+                for item in items
+                if (item.get("metadata") or {}).get("review_queue") == review_queue
+            ]
+        return {
+            "status": "success",
+            "items": items,
+            "total": len(items),
+            "review_status": review_status,
+            "review_queue": review_queue,
+        }
+    except Exception as e:
+        logger.error(f" 获取治理审核队列失败: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/governance-review-queue/{item_id}/status")
+async def update_governance_review_queue_item_status(
+    item_id: str,
+    payload: Dict[str, Any] = Body(...),
+    admin=Depends(require_admin),
+):
+    tenant_id = str(payload.get("tenant_id") or "").strip()
+    workspace_id = str(payload.get("workspace_id") or "").strip()
+    review_status = str(payload.get("review_status") or "").strip()
+    note = payload.get("note")
+    if not tenant_id or not workspace_id or not review_status:
+        raise HTTPException(status_code=400, detail="tenant_id, workspace_id and review_status are required")
+    reviewer_id = str((admin or {}).get("username") or payload.get("reviewer_id") or "admin")
+    try:
+        item = get_knowledge_governance_store().update_review_item_status(
+            tenant_id=tenant_id,
+            workspace_id=workspace_id,
+            item_id=item_id,
+            review_status=review_status,
+            reviewer_id=reviewer_id,
+            note=str(note) if note is not None else None,
+        )
+        return {"status": "success", "item": item}
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=f"review item not found: {item_id}") from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as e:
+        logger.error(f" 更新治理审核项失败: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/governance-review-queue/blueprint-fragment-drafts/{draft_id}/approve")
+async def approve_blueprint_fragment_draft(
+    draft_id: str,
+    payload: Dict[str, Any] = Body(...),
+    admin=Depends(require_admin),
+):
+    tenant_id = str(payload.get("tenant_id") or "").strip()
+    workspace_id = str(payload.get("workspace_id") or "").strip()
+    if not tenant_id or not workspace_id:
+        raise HTTPException(status_code=400, detail="tenant_id and workspace_id are required")
+    reviewer_id = str((admin or {}).get("username") or payload.get("reviewer_id") or "admin")
+    try:
+        draft = get_knowledge_governance_store().approve_blueprint_fragment_draft(
+            draft_id=draft_id,
+            tenant_id=tenant_id,
+            workspace_id=workspace_id,
+            reviewer_id=reviewer_id,
+        )
+        return {"status": "success", "draft": draft}
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=f"blueprint fragment draft not found: {draft_id}") from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as e:
+        logger.error(f" 审核蓝图片段草案失败: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/governance-review-queue/blueprint-fragment-drafts/{draft_id}/registry-patch")
+async def export_blueprint_fragment_registry_patch(
+    draft_id: str,
+    tenant_id: str = Query(..., description="租户 ID"),
+    workspace_id: str = Query(..., description="工作区 ID"),
+    admin=Depends(require_admin),
+):
+    try:
+        export = get_knowledge_governance_store().get_blueprint_fragment_registry_patch(
+            draft_id=draft_id,
+            tenant_id=tenant_id,
+            workspace_id=workspace_id,
+        )
+        return {
+            "status": "success",
+            "draft_id": draft_id,
+            "registry_patch": export["registry_patch"],
+            "registry_patch_yaml": export["registry_patch_yaml"],
+        }
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=f"blueprint fragment draft not found: {draft_id}") from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as e:
+        logger.error(f" 导出蓝图片段 registry patch 失败: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/governance-review-queue/blueprint-fragment-drafts/{draft_id}/registry-patch/apply")
+async def apply_blueprint_fragment_registry_patch(
+    draft_id: str,
+    payload: Dict[str, Any] = Body(...),
+    admin=Depends(require_admin),
+):
+    tenant_id = str(payload.get("tenant_id") or "").strip()
+    workspace_id = str(payload.get("workspace_id") or "").strip()
+    if not tenant_id or not workspace_id:
+        raise HTTPException(status_code=400, detail="tenant_id and workspace_id are required")
+    reviewer_id = str((admin or {}).get("username") or payload.get("reviewer_id") or "admin")
+    registry_path = payload.get("registry_path")
+    try:
+        draft = get_knowledge_governance_store().apply_blueprint_fragment_registry_patch(
+            draft_id=draft_id,
+            tenant_id=tenant_id,
+            workspace_id=workspace_id,
+            reviewer_id=reviewer_id,
+            registry_path=registry_path,
+        )
+        return {"status": "success", "draft": draft}
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=f"blueprint fragment draft not found: {draft_id}") from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as e:
+        logger.error(f" 应用蓝图片段 registry patch 失败: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/governance-review-queue/knowledge-asset-drafts/{draft_id}/approve")
+async def approve_knowledge_asset_draft(
+    draft_id: str,
+    payload: Dict[str, Any] = Body(...),
+    admin=Depends(require_admin),
+):
+    tenant_id = str(payload.get("tenant_id") or "").strip()
+    workspace_id = str(payload.get("workspace_id") or "").strip()
+    if not tenant_id or not workspace_id:
+        raise HTTPException(status_code=400, detail="tenant_id and workspace_id are required")
+    reviewer_id = str((admin or {}).get("username") or payload.get("reviewer_id") or "admin")
+    try:
+        draft = get_knowledge_governance_store().approve_asset_draft(
+            draft_id=draft_id,
+            tenant_id=tenant_id,
+            workspace_id=workspace_id,
+            reviewer_id=reviewer_id,
+        )
+        return {"status": "success", "draft": draft}
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=f"knowledge asset draft not found: {draft_id}") from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as e:
+        logger.error(f" 审核知识资产草案失败: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+
+# ============================================================================
 # 域名质量统计与自动审核 API (v7.155)
 # ============================================================================
 

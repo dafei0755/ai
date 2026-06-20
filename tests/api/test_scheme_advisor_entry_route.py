@@ -61,24 +61,50 @@ class FakeDemandReconstructionLLM:
 
     def invoke(self, prompt: str):
         self.prompts.append(prompt)
-        return type(
-            "FakeResponse",
-            (),
+        if prompt.startswith("你是「方案高参」需求重构阶段的 LLM Semantic Router"):
+            content = """
             {
-                "content": """
-                {
-                  "task_reframe": "这不是建一栋返乡民居的问题，而是一个离乡多年的设计师，如何重新处理自己、故乡和后半生生活之间的关系。",
-                  "project_viability_judgment": "项目能否成立，先看它能否把作品冲动压回真实生活。",
-                  "primary_risk": "真正的风险不是乡村条件粗糙，而是设计师把自宅做成一件无法长期生活的作品。",
-                  "sections": [{"title": "洞察判断", "body": "先安放人，再安放形式。", "items": ["原乡关系会改变空间边界。"], "emphasis": "high"}],
-                  "key_forks": ["长期居住还是阶段性返乡？", "设计表达是主角还是背景？"],
-                  "unknowns": ["居住频率未知。", "家庭结构未知。"],
-                  "next_question": "这栋房子首先是长期生活，还是阶段性回乡"
-                }
-                """
-            },
-        )()
-
+              "intent_type": "specific_project_reconstruction",
+              "project_anchor": true,
+              "project_object": "返乡民居",
+              "space_candidates": [
+                {"label": "personal_residential", "confidence": 0.92, "evidence": ["想在老家建一栋民居"]}
+              ],
+              "core_tensions": [
+                {"title": "返乡安放 vs 作品化表达", "confidence": 0.9, "evidence": ["50岁男性室内设计师", "背井离乡", "老家"]}
+              ],
+              "missing_slots": ["长期居住频率", "家庭共同使用者"],
+              "novelty_level": "known",
+              "recommended_scan_targets": ["personal_residential"],
+              "package_ids": [],
+              "ontology_dimension_ids": [],
+              "recommended_fragment_targets": []
+            }
+            """
+        else:
+            content = """
+            {
+              "insight_packet": {
+                "observed_facts": ["用户是50岁男性室内设计师", "背井离乡", "想在老家建一栋民居"],
+                "inferred_intents": [{"claim": "他真正处理的是返乡后的自我位置和长期生活方式", "evidence": "50岁、设计师、背井离乡、老家民居", "confidence": "medium"}],
+                "core_tension": {"a": "返乡安放", "b": "作品化表达", "why_it_matters": "这会决定民居先服务长期生活还是先服务设计表达"},
+                "space_job": "让离乡多年的设计师重新安放自己与故乡和后半生生活的关系",
+                "hypotheses": ["长期返乡生活容器", "职业后半场的自我作品", "家族聚合的故乡节点"],
+                "chosen_hypothesis": "长期返乡生活容器",
+                "disconfirming_risks": ["如果只是短期展示性房子，判断会改变"],
+                "decisive_question": "这栋房子首先是长期生活还是阶段性回乡",
+                "anti_cliche_check": "判断绑定50岁、设计师、背井离乡和老家民居这些证据"
+              },
+              "task_reframe": "这不是建一栋返乡民居的问题，而是一个离乡多年的设计师，如何重新处理自己、故乡和后半生生活之间的关系。",
+              "project_viability_judgment": "项目能否成立，先看它能否把作品冲动压回真实生活。",
+              "primary_risk": "真正的风险不是乡村条件粗糙，而是设计师把自宅做成一件无法长期生活的作品。",
+              "sections": [{"title": "返乡后的自我位置", "body": "先安放人，再安放形式。", "items": ["原乡关系会改变空间边界。"], "emphasis": "high"}],
+              "key_forks": ["长期居住还是阶段性返乡？", "设计表达是主角还是背景？"],
+              "unknowns": ["居住频率未知。", "家庭结构未知。"],
+              "next_question": "这栋房子首先是长期生活，还是阶段性回乡"
+            }
+            """
+        return type("FakeResponse", (), {"content": content})()
 
 @pytest.mark.asyncio
 async def test_new_project_route_always_starts_with_demand_reconstruction(monkeypatch):

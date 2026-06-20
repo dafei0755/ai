@@ -1,4 +1,4 @@
-﻿"""Demand reconstruction orchestration for Scheme Advisor.
+"""Demand reconstruction orchestration for Scheme Advisor.
 
 This layer is the purchase-before-proof shape for Design Brief 2.0:
 it returns an action blueprint that reconstructs vague demand, not a formal
@@ -7,7 +7,8 @@ intake questionnaire.
 
 from __future__ import annotations
 
-import re
+import os
+import time
 import uuid
 from datetime import datetime
 from typing import Any, Dict, Optional
@@ -15,10 +16,30 @@ from typing import Any, Dict, Optional
 from loguru import logger
 
 from .demand_reconstruction_context_adapter import DemandReconstructionContextAdapter
-from .demand_reconstruction_insight_protocol import DemandReconstructionInsightProtocol
 from .demand_reconstruction_insight_quality import DemandReconstructionInsightQualityEvaluator
+from .demand_reconstruction_insight_protocol import DemandReconstructionInsightProtocol
 from .demand_reconstruction_output_planner import DemandReconstructionOutputPlanner
 from .latent_model_adapter import LatentModelAdapter
+from .scheme_advisor_semantic_axes import (
+    evaluate_semantic_alignment,
+    should_enter_demand_reconstruction,
+)
+
+
+class DemandReconstructionUnavailable(RuntimeError):
+    """Raised when the LLM-first demand reconstruction path cannot produce output."""
+
+    def __init__(
+        self,
+        *,
+        error_code: str,
+        diagnostics: Optional[Dict[str, Any]] = None,
+        user_message: str = "智能识别暂不可用，请重试。",
+    ) -> None:
+        super().__init__(user_message)
+        self.error_code = error_code
+        self.user_message = user_message
+        self.diagnostics = dict(diagnostics or {})
 
 
 class DemandReconstructionService:
@@ -26,6 +47,33 @@ class DemandReconstructionService:
 
     CARD_TYPE = "demand_reconstruction_blueprint"
     INTENT = "demand_reconstruction_blueprint"
+    _LLM_SEMANTIC_TARGET_ALIASES = {
+        "life_identity": "life_identity",
+        "personal_residential": "life_identity",
+        "residential": "life_identity",
+        "home": "life_identity",
+        "commercial_operation": "commercial_operation",
+        "commercial": "commercial_operation",
+        "retail_commercial": "commercial_operation",
+        "brand_experience": "commercial_operation",
+        "commercial_dining": "commercial_operation",
+        "public_cultural_experience": "public_cultural_experience",
+        "public_cultural": "public_cultural_experience",
+        "cultural_exhibition": "public_cultural_experience",
+        "education_public": "public_cultural_experience",
+        "media_production": "media_production",
+        "digital_media_studio": "media_production",
+        "content_production": "media_production",
+        "style_semantics": "style_semantics",
+        "hard_constraint": "hard_constraint",
+        "technical_constraint": "hard_constraint",
+        "cultural_research": "cultural_research",
+        "healthcare_care": "healthcare_care",
+        "workplace_headquarters": "workplace_headquarters",
+        "urban_renewal": "urban_renewal",
+        "collection_museum": "collection_museum",
+        "general_project": "general_project",
+    }
 
     _FORMAL_TERMS = (
         "设计任务书",
@@ -40,84 +88,6 @@ class DemandReconstructionService:
         "定稿",
         "输出方案",
     )
-    _ADVICE_TERMS = ("给出建议", "给点建议", "怎么建议", "帮我想想", "怎么看", "如何", "怎么", "提出", "请提出", "分析", "系统分析", "梳理", "给出")
-    _PROJECT_INTENT_TERMS = (
-        "设计",
-        "设计建议",
-        "室内设计",
-        "概念框架",
-        "方案",
-        "规划",
-        "装修",
-        "改造",
-        "建",
-        "做一个",
-        "打算做",
-        "想做",
-        "需要一份",
-        "请提出",
-        "打造",
-        "建设",
-        "构建",
-        "策略",
-        "框架",
-        "概念",
-        "设计一个",
-    )
-    _SPACE_TERMS = (
-        "民居",
-        "住宅",
-        "老家",
-        "乡村",
-        "自宅",
-        "茶饮",
-        "茶空间",
-        "餐厅",
-        "自建房",
-        "木结构",
-        "咖啡",
-        "店",
-        "办公室",
-        "展厅",
-        "民宿",
-        "酒店",
-        "社区",
-        "改造",
-        "会所",
-        "空间",
-        "冷藏柜",
-        "商铺",
-        "铺位",
-        "门店",
-        "店铺",
-        "奶茶",
-        "饮品",
-        "商场",
-        "地铁",
-        "总部",
-        "大堂",
-        "别墅",
-        "大平层",
-        "厨房",
-        "茶室",
-        "幼儿园",
-        "活动室",
-        "休息区",
-        "月子中心",
-        "展示墙",
-        "汽车",
-        "NIO House",
-        "体验馆",
-        "研究中心",
-        "实验室",
-        "展馆",
-        "展陈",
-        "零售",
-        "办公",
-        "用地",
-        "园区",
-        "VIP",
-    )
 
     def __init__(
         self,
@@ -129,14 +99,18 @@ class DemandReconstructionService:
         latent_model_adapter: Optional[LatentModelAdapter] = None,
         insight_quality_evaluator: Optional[DemandReconstructionInsightQualityEvaluator] = None,
         require_llm: bool = False,
+        governance_store: Any = None,
     ) -> None:
         self._llm = llm
         self._require_llm = require_llm
+        self._governance_store = governance_store
         self._context_adapter = context_adapter or DemandReconstructionContextAdapter()
         self._insight_protocol = insight_protocol or DemandReconstructionInsightProtocol()
         self._output_planner = output_planner or DemandReconstructionOutputPlanner()
         self._latent_model_adapter = latent_model_adapter or LatentModelAdapter()
-        self._insight_quality_evaluator = insight_quality_evaluator or DemandReconstructionInsightQualityEvaluator()
+        self._insight_quality_evaluator = (
+            insight_quality_evaluator or DemandReconstructionInsightQualityEvaluator()
+        )
 
     def handle_message(
         self,
@@ -156,30 +130,15 @@ class DemandReconstructionService:
                     "demand_reconstruction_context": context,
                 }
             if selected_option_id == "continue_demand_reconstruction" or self._is_demand_reconstruction_followup(user_message):
-                return self._result(user_message, previous_context=context)
+                return self._result(user_message, previous_context=context, session=session)
             return None
 
         if not self.should_handle(user_message):
             return None
-        return self._result(user_message)
+        return self._result(user_message, session=session)
 
     def should_handle(self, message: str) -> bool:
-        text = str(message or "").strip()
-        if not text:
-            return False
-        has_advice_intent = any(term in text for term in self._ADVICE_TERMS)
-        has_project_intent = any(term in text for term in self._PROJECT_INTENT_TERMS)
-        has_space_hint = any(term in text for term in self._SPACE_TERMS)
-        has_research_hint = any(term in text for term in ("研究", "源流", "历史", "文人", "雅集", "文化", "转译"))
-        has_numeric_project_anchor = bool(
-            re.search(r"\d+(?:\.\d+)?\s*(?:㎡|平米|平方米|m2|m²|万平|层|楼|间)", text, flags=re.IGNORECASE)
-        )
-        has_business_anchor = any(term in text for term in ("回本", "收回成本", "客单", "租金", "营业额", "成本"))
-        has_project_anchor = has_space_hint or has_numeric_project_anchor or has_business_anchor
-        has_design_domain = any(term in text for term in ("室内设计", "空间设计", "建筑", "规划", "软装", "动线", "材料", "灯光", "展陈", "设计概念"))
-        if has_project_anchor and (has_project_intent or has_advice_intent or has_research_hint):
-            return True
-        return has_design_domain and (has_project_intent or has_advice_intent or has_research_hint)
+        return should_enter_demand_reconstruction(message)
 
     def is_formal_brief_request(self, message: str) -> bool:
         text = str(message or "")
@@ -190,8 +149,28 @@ class DemandReconstructionService:
         has_multi_topic = sum(1 for term in ("光", "材料", "动线", "自然", "空间", "界面", "精神性") if term in text) >= 3
         return has_complete and has_framework and has_multi_topic
 
-    def _result(self, message: str, previous_context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    def _result(
+        self,
+        message: str,
+        previous_context: Optional[Dict[str, Any]] = None,
+        session: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        llm_semantic_understanding = (
+            self._build_llm_semantic_understanding(message)
+            if self._require_llm
+            else None
+        )
         adapter_context = self._context_adapter.build(message)
+        if llm_semantic_understanding:
+            self._apply_llm_semantic_understanding_to_adapter_context(
+                adapter_context,
+                llm_semantic_understanding,
+            )
+        self._apply_governed_knowledge_assets(
+            adapter_context=adapter_context,
+            session=session or {},
+            source_message=message,
+        )
         latent_model = self._latent_model_adapter.build(
             source_message=message,
             adapter_context=adapter_context,
@@ -199,12 +178,32 @@ class DemandReconstructionService:
         adapter_context["latent_model"] = latent_model.model_dump(mode="json")
         if previous_context and previous_context.get("blueprint", {}).get("task_reframe"):
             adapter_context["previous_blueprint"] = previous_context["blueprint"]
-
         blueprint = self._build_blueprint(adapter_context)
         reply = self._render_reply(blueprint)
+        card = self._card(blueprint)
+        alignment_shadow = self._evaluate_alignment_shadow(
+            source_message=message,
+            visible_text=reply,
+            adapter_context=adapter_context,
+            card=card,
+        )
+        # Pre-render hard gate. An LLM-fused blueprint that produced a blocking
+        # semantic-alignment violation is dropped in favour of the registry-driven
+        # semantic pack, which is safer than showing a wrong-domain first screen.
+        # Shadow-only mode is available only through an explicit diagnostic env flag.
+        if (
+            self._alignment_hard_gate_enabled()
+            and alignment_shadow.get("blocking_count", 0) > 0
+            and blueprint.get("insight_source") != "semantic_fallback"
+        ):
+            blueprint, reply, card, alignment_shadow = self._reject_to_semantic_fallback(
+                adapter_context=adapter_context,
+                source_message=message,
+                rejected_alignment=alignment_shadow,
+            )
         insight_quality = self._insight_quality_evaluator.evaluate(
             source_message=message,
-            semantic_package={},
+            semantic_package=adapter_context.get("llm_semantic_understanding") or {},
             latent_model=adapter_context.get("latent_model") or {},
             blueprint=blueprint,
             visible_reply=reply,
@@ -214,7 +213,14 @@ class DemandReconstructionService:
             blueprint.get("governance_signals") or [],
             insight_quality,
         )
-
+        blueprint["semantic_alignment_shadow"] = alignment_shadow
+        governance_persistence = self._persist_governance_signals(
+            session=session or {},
+            source_message=message,
+            blueprint=blueprint,
+        )
+        if governance_persistence:
+            blueprint["governance_persistence"] = governance_persistence
         context = {
             "schema_version": "demand_reconstruction_context.v1",
             "reconstruction_type": "demand_reconstruction",
@@ -226,13 +232,14 @@ class DemandReconstructionService:
             "adapter_context": self._public_adapter_context(adapter_context),
             "blueprint": blueprint,
             "brief_handoff_slots": blueprint["brief_handoff_slots"],
+            "semantic_alignment_shadow": alignment_shadow,
         }
         return {
             "reply": reply,
             "intent": self.INTENT,
             "dialogue_layer": "demand_reconstruction",
             "handoff_available": True,
-            "guidance_card": self._card(blueprint),
+            "guidance_card": card,
             "demand_reconstruction_context": context,
             "drafts": [],
             "upgrade_signal": None,
@@ -240,37 +247,1028 @@ class DemandReconstructionService:
         }
 
     @staticmethod
+    def _alignment_hard_gate_enabled() -> bool:
+        """Whether the semantic-alignment gate may reject output (read at call time).
+
+        Defaults to on because demand reconstruction is a user-visible first
+        screen: blocking semantic drift should fall back before rendering. Set
+        ``DEMAND_RECONSTRUCTION_ALIGNMENT_GATE=0`` only for diagnostic shadow
+        runs where we intentionally observe drift without altering output.
+        """
+        flag = os.getenv("DEMAND_RECONSTRUCTION_ALIGNMENT_GATE", "1")
+        return str(flag).strip().lower() not in {"0", "false", "off", "no"}
+
+    def _reject_to_semantic_fallback(
+        self,
+        *,
+        adapter_context: Dict[str, Any],
+        source_message: str,
+        rejected_alignment: Dict[str, Any],
+    ) -> tuple[Dict[str, Any], str, Dict[str, Any], Dict[str, Any]]:
+        """Replace a blocking LLM blueprint with the registry-driven semantic pack.
+
+        Rebuilds the semantic plan, re-renders the reply and card, and
+        re-evaluates the alignment shadow so observability reflects the version
+        the user actually sees.
+        """
+        blocking_codes = [
+            item.get("code")
+            for item in (rejected_alignment.get("issues") or [])
+            if item.get("severity") == "blocking"
+        ]
+        logger.warning(
+            "[DemandReconstruction] alignment hard gate rejected LLM blueprint; "
+            "falling back to semantic pack: "
+            f"blocking={rejected_alignment.get('blocking_count', 0)}, codes={blocking_codes}"
+        )
+        semantic_plan = self._output_planner.build_plan(adapter_context)
+        blueprint = {
+            **semantic_plan,
+            "insight_source": "semantic_fallback",
+            "llm_status": "alignment_gate_rejected",
+            "alignment_gate": {
+                "action": "llm_rejected",
+                "blocking_count": rejected_alignment.get("blocking_count", 0),
+                "codes": blocking_codes,
+            },
+        }
+        blueprint["governance_signals"] = self._append_alignment_rejection_signal(
+            semantic_plan.get("governance_signals") or [],
+            blocking_codes,
+        )
+        reply = self._render_reply(blueprint)
+        card = self._card(blueprint)
+        alignment_shadow = self._evaluate_alignment_shadow(
+            source_message=source_message,
+            visible_text=reply,
+            adapter_context=adapter_context,
+            card=card,
+        )
+        return blueprint, reply, card, alignment_shadow
+
+    @staticmethod
+    def _append_alignment_rejection_signal(
+        existing_signals: Any,
+        blocking_codes: list[Any],
+    ) -> list[Dict[str, Any]]:
+        signals = [dict(signal) for signal in (existing_signals or []) if isinstance(signal, dict)]
+        if any(signal.get("code") == "semantic_alignment_rejection" for signal in signals):
+            return signals
+        source_codes = [str(code) for code in blocking_codes if str(code)]
+        signals.append(
+            {
+                "code": "semantic_alignment_rejection",
+                "track": "semantic_alignment",
+                "review_queue": "wrong_domain_output_review",
+                "severity": "P0",
+                "meaning": "LLM 融合结果被语义一致性硬门拒绝，需要复查错域、模板泄漏或内部步骤名外露。",
+                "source_codes": source_codes,
+                "user_visible": False,
+            }
+        )
+        return signals
+
+    def _persist_governance_signals(
+        self,
+        *,
+        session: Dict[str, Any],
+        source_message: str,
+        blueprint: Dict[str, Any],
+    ) -> Optional[Dict[str, Any]]:
+        if self._governance_store is None:
+            return None
+        signals = [signal for signal in (blueprint.get("governance_signals") or []) if isinstance(signal, dict)]
+        if not signals:
+            return None
+
+        scope = self._governance_scope(session)
+        digest = uuid.uuid5(uuid.NAMESPACE_URL, str(source_message or "")).hex[:12]
+        queued_item_ids: list[str] = []
+        failed: list[Dict[str, Any]] = []
+        for signal in signals:
+            code = str(signal.get("code") or "governance_signal").strip()
+            review_queue = str(signal.get("review_queue") or "manual_governance_triage").strip()
+            object_id = f"{code}:{digest}"
+            try:
+                item = self._governance_store.enqueue_review_item(
+                    tenant_id=scope["tenant_id"],
+                    workspace_id=scope["workspace_id"],
+                    user_id=scope["user_id"],
+                    module="demand_reconstruction",
+                    object_type="governance_signal",
+                    object_id=object_id,
+                    title=str(signal.get("meaning") or signal.get("message") or code),
+                    source=str(signal.get("source") or "demand_reconstruction"),
+                    risk=str(signal.get("severity") or signal.get("risk") or "P2"),
+                    target_admin_path=f"/admin/review-queue?queue={review_queue}",
+                    metadata={
+                        "code": code,
+                        "review_queue": review_queue,
+                        "source_message_digest": digest,
+                        "signal": signal,
+                    },
+                    created_by=scope["created_by"],
+                )
+                queued_item_ids.append(str(item.get("id") or f"demand_reconstruction:{object_id}"))
+            except Exception as exc:  # governance persistence must not break user output
+                logger.warning(
+                    "[DemandReconstruction] governance signal persistence failed: "
+                    f"code={code}, error_type={type(exc).__name__}, error={exc}"
+                )
+                failed.append({"code": code, "error": str(exc), "error_type": type(exc).__name__})
+
+        if queued_item_ids:
+            status = "queued_for_review" if not failed else "partial"
+        else:
+            status = "failed"
+        return {
+            "status": status,
+            "queued_count": len(queued_item_ids),
+            "item_ids": queued_item_ids,
+            "failed": failed,
+        }
+
+    def _apply_governed_knowledge_assets(
+        self,
+        *,
+        adapter_context: Dict[str, Any],
+        session: Dict[str, Any],
+        source_message: str,
+    ) -> None:
+        if self._governance_store is None:
+            return
+        try:
+            scope = self._governance_scope(session)
+            cards = self._governance_store.find_approved_cards(
+                tenant_id=scope["tenant_id"],
+                workspace_id=scope["workspace_id"],
+                user_id=scope["user_id"],
+            )
+        except Exception as exc:
+            logger.warning(
+                "[DemandReconstruction] governed knowledge asset scan failed: "
+                f"error_type={type(exc).__name__}, error={exc}"
+            )
+            return
+        terms = self._governed_knowledge_match_terms(adapter_context, source_message)
+        scored_matches: list[tuple[int, Dict[str, Any]]] = []
+        for card in cards:
+            match_metadata = self._approved_card_match_metadata(card, terms)
+            if match_metadata["decision"] == "accepted":
+                scored_matches.append(
+                    (
+                        int(match_metadata["score"]),
+                        self._compact_governed_knowledge_asset(card, match_metadata=match_metadata),
+                    )
+                )
+        if not scored_matches:
+            return
+        scored_matches.sort(key=lambda item: item[0], reverse=True)
+        adapter_context["governed_knowledge_assets"] = [item[1] for item in scored_matches[:3]]
+        context_source = dict(adapter_context.get("context_source") or {})
+        context_source["governed_knowledge_assets"] = True
+        adapter_context["context_source"] = context_source
+        self._refresh_llm_semantic_asset_scan(adapter_context)
+
+    @staticmethod
+    def _governed_knowledge_match_terms(adapter_context: Dict[str, Any], source_message: str) -> list[str]:
+        terms: list[str] = []
+
+        def add(value: Any) -> None:
+            text = str(value or "").strip()
+            if len(text) >= 2 and text not in terms:
+                terms.append(text)
+
+        add(source_message)
+        package = adapter_context.get("llm_semantic_understanding")
+        if isinstance(package, dict):
+            add(package.get("project_object"))
+            for item in package.get("recommended_scan_targets") or []:
+                add(item)
+            for candidate in package.get("space_candidates") or []:
+                if isinstance(candidate, dict):
+                    add(candidate.get("label"))
+                    for evidence in candidate.get("evidence") or []:
+                        add(evidence)
+            for tension in package.get("core_tensions") or []:
+                if isinstance(tension, dict):
+                    add(tension.get("title"))
+                    for evidence in tension.get("evidence") or []:
+                        add(evidence)
+        for item in adapter_context.get("semantic_candidate_set") or []:
+            if isinstance(item, dict):
+                add(item.get("id"))
+                add(item.get("label"))
+        return terms
+
+    @staticmethod
+    def _approved_card_matches_terms(card: Dict[str, Any], terms: list[str]) -> bool:
+        return DemandReconstructionService._approved_card_match_metadata(card, terms)["decision"] == "accepted"
+
+    @staticmethod
+    def _approved_card_match_metadata(card: Dict[str, Any], terms: list[str]) -> Dict[str, Any]:
+        normalized_terms = [str(term or "").strip().lower() for term in terms if str(term or "").strip()]
+
+        def list_values(key: str) -> list[str]:
+            return [str(item or "").strip() for item in card.get(key) or [] if str(item or "").strip()]
+
+        def hits(values: list[str]) -> list[str]:
+            matched: list[str] = []
+            for value in values:
+                normalized_value = value.lower()
+                if any(normalized_value and (normalized_value in term or term in normalized_value) for term in normalized_terms):
+                    matched.append(value)
+            return matched
+
+        package_ids = list_values("package_ids")
+        dimension_ids = list_values("ontology_dimension_ids")
+        package_hits = hits(package_ids)
+        dimension_hits = hits(dimension_ids)
+        searchable = " ".join(
+            str(value)
+            for value in (
+                card.get("card_id"),
+                card.get("title"),
+                card.get("project_type"),
+                card.get("summary"),
+                card.get("source_gap_type"),
+                " ".join(str(item) for item in card.get("evidence") or []),
+            )
+            if value
+        ).lower()
+        text_match = any(term and (term in searchable or searchable in term) for term in normalized_terms)
+        evidence_level = str(card.get("evidence_level") or "").strip()
+        strong_evidence_levels = {
+            "expert_review",
+            "approved_review",
+            "approved_card",
+            "e2_research",
+            "e3_case",
+            "case_evidence",
+            "research_report",
+            "validated_asset",
+        }
+        evidence_strong = evidence_level.lower() in strong_evidence_levels
+        score = 0
+        if text_match:
+            score += 1
+        score += len(package_hits) * 3
+        score += len(dimension_hits) * 3
+        if evidence_strong:
+            score += 2
+        decision = "accepted" if text_match and (package_hits or dimension_hits or evidence_strong) else "rejected"
+        return {
+            "decision": decision,
+            "score": score,
+            "text_match": text_match,
+            "package_hits": package_hits,
+            "dimension_hits": dimension_hits,
+            "evidence_level": evidence_level,
+            "evidence_strong": evidence_strong,
+        }
+
+    @staticmethod
+    def _compact_governed_knowledge_asset(
+        card: Dict[str, Any],
+        *,
+        match_metadata: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        return {
+            "card_id": card.get("card_id"),
+            "title": card.get("title"),
+            "project_type": card.get("project_type"),
+            "summary": card.get("summary"),
+            "evidence": list(card.get("evidence") or [])[:5],
+            "package_ids": list(card.get("package_ids") or [])[:5],
+            "ontology_dimension_ids": list(card.get("ontology_dimension_ids") or [])[:5],
+            "allowed_use": list(card.get("allowed_use") or [])[:5],
+            "not_allowed_use": list(card.get("not_allowed_use") or [])[:5],
+            "evidence_level": card.get("evidence_level"),
+            "match_metadata": dict(match_metadata or {}),
+            "source": "approved_governance_knowledge_card",
+        }
+
+    @staticmethod
+    def _governance_scope(session: Dict[str, Any]) -> Dict[str, str]:
+        user = session.get("user") if isinstance(session.get("user"), dict) else {}
+        user_id = (
+            session.get("user_id")
+            or session.get("userId")
+            or user.get("id")
+            or user.get("username")
+            or "runtime"
+        )
+        return {
+            "tenant_id": str(session.get("tenant_id") or session.get("tenantId") or "default"),
+            "workspace_id": str(session.get("workspace_id") or session.get("workspaceId") or "default"),
+            "user_id": str(user_id),
+            "created_by": str(session.get("created_by") or user_id or "runtime"),
+        }
+
+    @staticmethod
     def _is_demand_reconstruction_followup(message: str) -> bool:
         return bool(str(message or "").strip())
 
     def _build_blueprint(self, adapter_context: Dict[str, Any]) -> Dict[str, Any]:
-        rule_plan = self._output_planner.build_plan(adapter_context)
+        semantic_plan = self._output_planner.build_plan(adapter_context)
         if self._llm is None:
-            return {**rule_plan, "insight_source": "rule"}
-        llm_plan = self._build_llm_insight_blueprint(adapter_context, rule_plan)
+            if self._require_llm:
+                raise DemandReconstructionUnavailable(
+                    error_code="UNDERSTANDING_UNAVAILABLE",
+                    diagnostics={"status": "not_configured"},
+                )
+            return {**semantic_plan, "insight_source": "semantic_fallback", "llm_status": "not_configured"}
+        llm_plan, llm_diagnostics = self._build_llm_insight_blueprint(adapter_context, semantic_plan)
         if llm_plan is None:
-            return {**rule_plan, "insight_source": "rule_fallback"}
+            if self._require_llm:
+                raise DemandReconstructionUnavailable(
+                    error_code="SYNTHESIS_UNAVAILABLE",
+                    diagnostics=llm_diagnostics,
+                )
+            fallback_plan = {
+                **semantic_plan,
+                "insight_source": "semantic_fallback",
+                "llm_status": llm_diagnostics.get("status", "fallback"),
+            }
+            if llm_diagnostics.get("reason"):
+                fallback_plan["llm_rejection_reason"] = llm_diagnostics["reason"]
+            if llm_diagnostics.get("error"):
+                fallback_plan["llm_error"] = llm_diagnostics["error"]
+            if llm_diagnostics.get("error_type"):
+                fallback_plan["llm_error_type"] = llm_diagnostics["error_type"]
+            return fallback_plan
         return llm_plan
 
     def _build_llm_insight_blueprint(
         self,
         adapter_context: Dict[str, Any],
         rule_plan: Dict[str, Any],
-    ) -> Optional[Dict[str, Any]]:
+    ) -> tuple[Optional[Dict[str, Any]], Dict[str, Any]]:
         prompt = self._insight_protocol.build_prompt(adapter_context, rule_plan)
+        fallback_instances = getattr(self._llm, "llm_instances", None)
+        if isinstance(fallback_instances, dict) and fallback_instances:
+            best_partial: Optional[tuple[Dict[str, Any], Dict[str, Any]]] = None
+            last_diagnostics: Dict[str, Any] = {"status": "fallback_exhausted"}
+            for provider, llm in fallback_instances.items():
+                merged, diagnostics = self._build_llm_insight_blueprint_with_llm(
+                    llm=llm,
+                    prompt=prompt,
+                    rule_plan=rule_plan,
+                    provider=str(provider),
+                )
+                last_diagnostics = diagnostics
+                if merged is not None and diagnostics.get("status") == "used":
+                    return merged, diagnostics
+                if merged is not None and diagnostics.get("status") == "partial" and best_partial is None:
+                    best_partial = (merged, diagnostics)
+                    logger.info(
+                        "[DemandReconstruction] partial LLM insight kept as backup; "
+                        f"provider={provider}"
+                    )
+                    continue
+                logger.info(
+                    "[DemandReconstruction] trying next LLM provider after non-final insight: "
+                    f"provider={provider}, status={diagnostics.get('status')}"
+                )
+            if best_partial is not None:
+                return best_partial
+            return None, last_diagnostics
+
+        return self._build_llm_insight_blueprint_with_llm(
+            llm=self._llm,
+            prompt=prompt,
+            rule_plan=rule_plan,
+            provider="default",
+        )
+
+    def _build_llm_insight_blueprint_with_llm(
+        self,
+        *,
+        llm: Any,
+        prompt: str,
+        rule_plan: Dict[str, Any],
+        provider: str,
+    ) -> tuple[Optional[Dict[str, Any]], Dict[str, Any]]:
+        started_at = time.perf_counter()
         try:
-            response = self._llm.invoke(prompt)
+            response = llm.invoke(prompt)
             content = response.content if hasattr(response, "content") else str(response)
-            merged = self._insight_protocol.build_blueprint_from_response(
+            elapsed_ms = int((time.perf_counter() - started_at) * 1000)
+            logger.info(
+                "[DemandReconstruction] LLM insight response received: "
+                f"provider={provider}, prompt_chars={len(prompt)}, "
+                f"content_chars={len(str(content or ''))}, elapsed_ms={elapsed_ms}"
+            )
+            merged, diagnostics = self._insight_protocol.build_blueprint_from_response_detailed(
                 rule_plan=rule_plan,
                 content=str(content or ""),
             )
+            if merged is None and diagnostics.get("status") in {"quality_rejected", "invalid_json", "empty_response"}:
+                repair_prompt = self._insight_protocol.build_repair_prompt(
+                    original_prompt=prompt,
+                    rejected_content=str(content or ""),
+                    rejection_reason=str(diagnostics.get("reason") or diagnostics.get("status") or "quality_rejected"),
+                )
+                repair_response = llm.invoke(repair_prompt)
+                repair_content = repair_response.content if hasattr(repair_response, "content") else str(repair_response)
+                repaired, repair_diagnostics = self._insight_protocol.build_blueprint_from_response_detailed(
+                    rule_plan=rule_plan,
+                    content=str(repair_content or ""),
+                )
+                if repaired is not None:
+                    return self._output_planner.clamp_existing_plan(repaired), repair_diagnostics
+                return None, repair_diagnostics
             if merged is None:
-                return None
-            return self._output_planner.clamp_existing_plan(merged)
+                return None, diagnostics
+            return self._output_planner.clamp_existing_plan(merged), diagnostics
         except Exception as exc:
-            logger.warning(f"[DemandReconstruction] LLM insight failed, fallback used: {exc}")
+            elapsed_ms = int((time.perf_counter() - started_at) * 1000)
+            logger.warning(
+                "[DemandReconstruction] LLM insight failed, fallback used: "
+                f"provider={provider}, prompt_chars={len(prompt)}, elapsed_ms={elapsed_ms}, "
+                f"error_type={type(exc).__name__}, error={exc}"
+            )
+            return None, {"status": "invoke_failed", "error": str(exc), "error_type": type(exc).__name__}
+
+    def _build_llm_semantic_understanding(self, message: str) -> Dict[str, Any]:
+        if self._llm is None:
+            raise DemandReconstructionUnavailable(
+                error_code="UNDERSTANDING_UNAVAILABLE",
+                diagnostics={"status": "not_configured"},
+            )
+        prompt = self._build_semantic_router_prompt(message)
+        fallback_instances = getattr(self._llm, "llm_instances", None)
+        if isinstance(fallback_instances, dict) and fallback_instances:
+            last_diagnostics: Dict[str, Any] = {"status": "fallback_exhausted"}
+            for provider, llm in fallback_instances.items():
+                package, diagnostics = self._invoke_semantic_router_with_llm(
+                    llm=llm,
+                    prompt=prompt,
+                    provider=str(provider),
+                )
+                last_diagnostics = diagnostics
+                if package is not None:
+                    return package
+                logger.info(
+                    "[DemandReconstruction] trying next LLM provider after semantic router failure: "
+                    f"provider={provider}, status={diagnostics.get('status')}"
+                )
+            raise DemandReconstructionUnavailable(
+                error_code="UNDERSTANDING_UNAVAILABLE",
+                diagnostics=last_diagnostics,
+            )
+
+        package, diagnostics = self._invoke_semantic_router_with_llm(
+            llm=self._llm,
+            prompt=prompt,
+            provider="default",
+        )
+        if package is None:
+            raise DemandReconstructionUnavailable(
+                error_code="UNDERSTANDING_UNAVAILABLE",
+                diagnostics=diagnostics,
+            )
+        return package
+
+    def _apply_llm_semantic_understanding_to_adapter_context(
+        self,
+        adapter_context: Dict[str, Any],
+        package: Dict[str, Any],
+    ) -> None:
+        """Let Stage 1 LLM understanding drive the Stage 2 rule scanner.
+
+        The deterministic context adapter remains the offline/rule fallback.
+        In the LLM-required path, evidence-backed semantic router candidates are
+        promoted before the keyword-derived candidates so blueprint selection
+        follows the first LLM understanding rather than raw keyword hits.
+        """
+        adapter_context["llm_semantic_understanding"] = package
+        llm_candidates = self._llm_semantic_candidates(package)
+        fragment_targets = self._llm_semantic_fragment_targets(package)
+        scan_result = self._llm_semantic_scan_result(package, llm_candidates)
+        adapter_context["llm_semantic_scan"] = scan_result
+        if fragment_targets:
+            adapter_context["llm_semantic_fragment_targets"] = fragment_targets
+        self._refresh_llm_semantic_asset_scan(adapter_context, fragment_targets=fragment_targets)
+        self._apply_llm_semantic_governance_context(adapter_context, package, scan_result)
+        context_source = dict(adapter_context.get("context_source") or {})
+        context_source["llm_semantic_router"] = True
+        context_source["llm_semantic_scan_result"] = scan_result["result"]
+        if fragment_targets:
+            context_source["llm_semantic_fragment_targets"] = True
+        adapter_context["context_source"] = context_source
+        if scan_result["result"] == "no_match":
+            merged = self._merge_llm_and_rule_candidates(
+                [self._llm_no_match_candidate(package)],
+                adapter_context.get("semantic_candidate_set") or [],
+            )
+            adapter_context["semantic_candidate_set"] = merged
+            adapter_context["archetype"] = DemandReconstructionContextAdapter._archetype_from_candidates(merged)
+            return
+        if not llm_candidates:
+            return
+        merged = self._merge_llm_and_rule_candidates(
+            llm_candidates,
+            adapter_context.get("semantic_candidate_set") or [],
+        )
+        adapter_context["semantic_candidate_set"] = merged
+        adapter_context["archetype"] = DemandReconstructionContextAdapter._archetype_from_candidates(merged)
+
+    def _refresh_llm_semantic_asset_scan(
+        self,
+        adapter_context: Dict[str, Any],
+        *,
+        fragment_targets: Optional[list[Dict[str, Any]]] = None,
+    ) -> None:
+        scan = adapter_context.get("llm_semantic_scan")
+        if not isinstance(scan, dict):
+            return
+        asset_scan: Dict[str, Any] = {}
+        targets = fragment_targets
+        if targets is None:
+            targets = adapter_context.get("llm_semantic_fragment_targets") or []
+        rule_fragments = []
+        for target in targets or []:
+            if not isinstance(target, dict):
+                continue
+            item = {
+                key: target.get(key)
+                for key in ("group_id", "fragment_id", "confidence", "source")
+                if target.get(key) not in (None, "", [], {})
+            }
+            evidence = [str(value) for value in (target.get("evidence") or []) if str(value)][:3]
+            if evidence:
+                item["evidence"] = evidence
+            if item:
+                rule_fragments.append(item)
+        if rule_fragments:
+            asset_scan["rule_fragments"] = rule_fragments[:5]
+
+        axes = adapter_context.get("semantic_axes")
+        if isinstance(axes, dict) and axes:
+            asset_scan["semantic_axes"] = {
+                "axis_ids": [str(key) for key in axes.keys() if str(key)][:8],
+            }
+
+        tensions = []
+        for tension in adapter_context.get("main_tensions") or []:
+            if isinstance(tension, dict) and tension.get("title"):
+                tensions.append(str(tension.get("title")))
+            if len(tensions) >= 5:
+                break
+        if tensions:
+            asset_scan["main_tensions"] = {
+                "count": len(adapter_context.get("main_tensions") or []),
+                "titles": tensions,
+            }
+
+        coverage = adapter_context.get("knowledge_coverage_ceiling")
+        if isinstance(coverage, dict) and coverage:
+            asset_scan["knowledge_coverage"] = {
+                key: coverage.get(key)
+                for key in ("level", "coverage_level", "ceiling_level", "source")
+                if coverage.get(key) not in (None, "", [], {})
+            }
+
+        approved_assets = []
+        for asset in adapter_context.get("governed_knowledge_assets") or []:
+            if not isinstance(asset, dict):
+                continue
+            approved_assets.append(
+                {
+                    key: asset.get(key)
+                    for key in ("card_id", "title", "project_type", "evidence_level", "match_metadata")
+                    if asset.get(key) not in (None, "", [], {})
+                }
+            )
+            if len(approved_assets) >= 3:
+                break
+        if approved_assets:
+            asset_scan["approved_knowledge_assets"] = approved_assets
+
+        if asset_scan:
+            scan["asset_scan"] = asset_scan
+            adapter_context["llm_semantic_scan"] = scan
+
+    def _apply_llm_semantic_governance_context(
+        self,
+        adapter_context: Dict[str, Any],
+        package: Dict[str, Any],
+        scan_result: Dict[str, Any],
+    ) -> None:
+        result = str(scan_result.get("result") or "")
+        if result not in {"no_match", "partial_match"}:
+            return
+        classification = dict(adapter_context.get("classification") or {})
+        evidence = self._llm_semantic_package_evidence(package)
+        project_object = str(package.get("project_object") or "").strip() or "未覆盖空间项目"
+        classification["coverage_gap"] = True
+        classification["knowledge_gap"] = True
+        classification["knowledge_gap_ticket"] = {
+            "gap_type": "llm_semantic_no_match" if result == "no_match" else "llm_semantic_partial_match",
+            "project_type": project_object,
+            "summary": f"LLM Semantic Router 判断“{project_object}”缺少稳定专科规则/知识覆盖。",
+            "source": "llm_semantic_router",
+            "evidence": evidence,
+            "scan_result": result,
+            "matched_targets": list(scan_result.get("matched_targets") or []),
+            "package_ids": self._llm_semantic_taxonomy_ids(package, "package_ids", "knowledge_package_ids"),
+            "ontology_dimension_ids": self._llm_semantic_taxonomy_ids(
+                package,
+                "ontology_dimension_ids",
+                "dimension_ids",
+                "semantic_dimension_ids",
+            ),
+        }
+        if result == "no_match":
+            classification["new_fragment_candidate"] = {
+                "fragment_id": self._candidate_fragment_id(project_object),
+                "project_object": project_object,
+                "summary": f"评估是否需要为“{project_object}”沉淀新的需求重构规则碎片。",
+                "source": "llm_semantic_router",
+                "evidence": evidence,
+                "scan_result": result,
+            }
+        adapter_context["knowledge_coverage_ceiling"] = self._llm_semantic_coverage_ceiling(
+            scan_result=result,
+            project_object=project_object,
+            evidence=evidence,
+            matched_targets=list(scan_result.get("matched_targets") or []),
+        )
+        adapter_context["classification"] = classification
+
+    @staticmethod
+    def _llm_semantic_coverage_ceiling(
+        *,
+        scan_result: str,
+        project_object: str,
+        evidence: list[str],
+        matched_targets: list[str],
+    ) -> Dict[str, Any]:
+        if scan_result == "partial_match":
+            return {
+                "level": "partial_specialist",
+                "coverage_level": "partial_specialist",
+                "ceiling_level": "l1_neighbor_transfer",
+                "source": "llm_semantic_router",
+                "must_not_claim_specialist_coverage": True,
+                "matched_targets": matched_targets,
+                "evidence": evidence,
+                "reasons": [
+                    "LLM Semantic Router 判断当前需求只部分命中稳定规则碎片。",
+                    "可使用命中的邻近规则做结构约束，但不能冒充完整专科覆盖。",
+                ],
+                "allowed_outputs": ["邻近迁移判断", "关键未知边界", "需要补充的专科问题"],
+                "forbidden_outputs": ["完整专科结论", "施工级建议", "题面无支撑的专名或案例"],
+                "user_visible_note": f"“{project_object}”只部分命中现有规则蓝图，需要按邻近迁移处理并标注边界。",
+            }
+        return {
+            "level": "general_method_only",
+            "coverage_level": "general_method_only",
+            "ceiling_level": "l0_general",
+            "source": "llm_semantic_router",
+            "must_not_claim_specialist_coverage": True,
+            "matched_targets": matched_targets,
+            "evidence": evidence,
+            "reasons": [
+                "LLM Semantic Router 判断当前需求没有可靠命中稳定规则碎片。",
+                "只能做通用方法论重构，不能伪造专科规则覆盖。",
+            ],
+            "allowed_outputs": ["通用第一性推理", "成立条件", "知识缺口与下一步追问"],
+            "forbidden_outputs": ["套用相近模板", "完整专科结论", "施工级建议"],
+            "user_visible_note": f"“{project_object}”未命中稳定规则蓝图，只能按通用方法论先收束判断。",
+        }
+
+    @staticmethod
+    def _llm_semantic_taxonomy_ids(package: Dict[str, Any], *keys: str) -> list[str]:
+        values: list[str] = []
+        for key in keys:
+            raw_values = package.get(key) if isinstance(package, dict) else None
+            if not isinstance(raw_values, list):
+                continue
+            for value in raw_values:
+                text = str(value or "").strip()
+                if text:
+                    values.append(text)
+        return DemandReconstructionService._dedupe_strings(values)
+
+    @staticmethod
+    def _candidate_fragment_id(project_object: str) -> str:
+        normalized = str(project_object or "").strip().lower()
+        ascii_slug = "".join(char if char.isalnum() and ord(char) < 128 else "_" for char in normalized)
+        ascii_slug = "_".join(part for part in ascii_slug.split("_") if part)
+        return ascii_slug or "llm_semantic_new_fragment"
+
+    def _llm_semantic_package_evidence(self, package: Dict[str, Any]) -> list[str]:
+        evidence: list[str] = []
+        for item in package.get("space_candidates") or []:
+            if isinstance(item, dict):
+                evidence.extend(self._take_evidence(item.get("evidence")))
+        for item in package.get("core_tensions") or []:
+            if isinstance(item, dict):
+                evidence.extend(self._take_evidence(item.get("evidence")))
+        return self._dedupe_strings(evidence)
+
+    def _llm_semantic_candidates(self, package: Dict[str, Any]) -> list[Dict[str, Any]]:
+        recommended = [
+            normalized
+            for value in (package.get("recommended_scan_targets") or [])
+            if (normalized := self._normalize_llm_semantic_target(value))
+        ]
+        recommended_order = {candidate_id: index for index, candidate_id in enumerate(recommended)}
+        candidates_by_id: Dict[str, Dict[str, Any]] = {}
+        for index, item in enumerate(package.get("space_candidates") or []):
+            if not isinstance(item, dict):
+                continue
+            candidate_id = self._normalize_llm_semantic_target(item.get("label"))
+            if not candidate_id:
+                continue
+            evidence = self._take_evidence(item.get("evidence"))
+            if not evidence:
+                continue
+            confidence = self._safe_confidence(item.get("confidence"))
+            if confidence < 0.5:
+                continue
+            score = 120 + int(confidence * 30)
+            if candidate_id in recommended_order:
+                score += max(0, 10 - recommended_order[candidate_id])
+            score -= index
+            existing = candidates_by_id.get(candidate_id)
+            if existing and int(existing.get("score") or 0) >= score:
+                existing["evidence"] = self._dedupe_strings(list(existing.get("evidence") or []) + evidence)
+                existing["confidence"] = max(float(existing.get("confidence") or 0), confidence)
+                continue
+            candidates_by_id[candidate_id] = {
+                "id": candidate_id,
+                "score": score,
+                "role": "secondary",
+                "evidence": evidence,
+                "counter_evidence": [],
+                "routing_target": "demand_reconstruction",
+                "source": "llm_semantic_router",
+                "confidence": confidence,
+            }
+        return sorted(
+            candidates_by_id.values(),
+            key=lambda item: (-int(item.get("score") or 0), str(item.get("id") or "")),
+        )
+
+    def _llm_semantic_fragment_targets(self, package: Dict[str, Any]) -> list[Dict[str, Any]]:
+        targets: list[Dict[str, Any]] = []
+        for item in package.get("recommended_fragment_targets") or []:
+            if not isinstance(item, dict):
+                continue
+            group_id = str(item.get("group_id") or "").strip()
+            fragment_id = str(item.get("fragment_id") or "").strip()
+            if not group_id or not fragment_id:
+                continue
+            confidence = self._safe_confidence(item.get("confidence"))
+            if confidence < 0.5:
+                continue
+            evidence = self._take_evidence(item.get("evidence"))
+            if not evidence:
+                continue
+            targets.append(
+                {
+                    "group_id": group_id,
+                    "fragment_id": fragment_id,
+                    "confidence": confidence,
+                    "evidence": evidence,
+                    "source": "llm_semantic_router",
+                }
+            )
+        return targets
+
+    def _merge_llm_and_rule_candidates(
+        self,
+        llm_candidates: list[Dict[str, Any]],
+        rule_candidates: list[Dict[str, Any]],
+    ) -> list[Dict[str, Any]]:
+        merged_by_id: Dict[str, Dict[str, Any]] = {}
+        for candidate in llm_candidates:
+            merged_by_id[str(candidate.get("id"))] = dict(candidate)
+        for candidate in rule_candidates:
+            if not isinstance(candidate, dict) or not candidate.get("id"):
+                continue
+            candidate_id = str(candidate["id"])
+            if candidate_id in merged_by_id:
+                merged = merged_by_id[candidate_id]
+                merged["score"] = max(int(merged.get("score") or 0), int(candidate.get("score") or 0))
+                merged["evidence"] = self._dedupe_strings(
+                    list(merged.get("evidence") or []) + list(candidate.get("evidence") or [])
+                )
+                merged["counter_evidence"] = self._dedupe_strings(
+                    list(merged.get("counter_evidence") or []) + list(candidate.get("counter_evidence") or [])
+                )
+            else:
+                merged_by_id[candidate_id] = dict(candidate)
+        ranked = sorted(
+            merged_by_id.values(),
+            key=lambda item: (
+                0 if item.get("source") == "llm_semantic_router" else 1,
+                -int(item.get("score") or 0),
+                str(item.get("id") or ""),
+            ),
+        )
+        for index, item in enumerate(ranked):
+            if index == 0:
+                item["role"] = "primary"
+            elif int(item.get("score") or 0) < 50:
+                item["role"] = "downweighted"
+            else:
+                item["role"] = "secondary"
+        return ranked
+
+    def _llm_no_match_candidate(self, package: Dict[str, Any]) -> Dict[str, Any]:
+        evidence = []
+        for item in package.get("space_candidates") or []:
+            if isinstance(item, dict):
+                evidence.extend(self._take_evidence(item.get("evidence")))
+        for item in package.get("core_tensions") or []:
+            if isinstance(item, dict):
+                evidence.extend(self._take_evidence(item.get("evidence")))
+        project_object = str(package.get("project_object") or "").strip()
+        if project_object:
+            evidence.append(project_object)
+        return {
+            "id": "general_project",
+            "score": 150,
+            "role": "primary",
+            "evidence": self._dedupe_strings(evidence) or ["LLM Semantic Router 判断现有规则碎片无可靠命中。"],
+            "counter_evidence": [],
+            "routing_target": "demand_reconstruction",
+            "source": "llm_semantic_router_no_match",
+            "confidence": 1.0,
+        }
+
+    @staticmethod
+    def _llm_semantic_scan_result(package: Dict[str, Any], candidates: list[Dict[str, Any]]) -> Dict[str, Any]:
+        novelty_level = str(package.get("novelty_level") or "").strip() or "unknown"
+        matched_targets = [str(item.get("id")) for item in candidates if item.get("id")]
+        confidences = [
+            DemandReconstructionService._safe_confidence(item.get("confidence"))
+            for item in candidates
+            if item.get("id")
+        ]
+        max_confidence = round(max(confidences), 4) if confidences else 0.0
+        if max_confidence >= 0.75:
+            confidence_band = "high"
+        elif max_confidence >= 0.5:
+            confidence_band = "medium"
+        else:
+            confidence_band = "low"
+        if not matched_targets or novelty_level == "unknown" or confidence_band == "low":
+            result = "no_match"
+        elif novelty_level == "partial_unknown" or confidence_band == "medium":
+            result = "partial_match"
+        else:
+            result = "strong_match"
+        return {
+            "result": result,
+            "matched_targets": matched_targets,
+            "novelty_level": novelty_level,
+            "confidence_band": confidence_band,
+            "max_confidence": max_confidence,
+            "source": "llm_semantic_router",
+        }
+
+    @classmethod
+    def _normalize_llm_semantic_target(cls, value: Any) -> Optional[str]:
+        normalized = str(value or "").strip().lower().replace("-", "_").replace(" ", "_")
+        return cls._LLM_SEMANTIC_TARGET_ALIASES.get(normalized)
+
+    @staticmethod
+    def _safe_confidence(value: Any) -> float:
+        try:
+            confidence = float(value)
+        except (TypeError, ValueError):
+            return 0.0
+        return max(0.0, min(1.0, confidence))
+
+    @staticmethod
+    def _take_evidence(value: Any) -> list[str]:
+        if not isinstance(value, list):
+            return []
+        return DemandReconstructionService._dedupe_strings(
+            [str(item).strip() for item in value if str(item).strip()]
+        )
+
+    @staticmethod
+    def _dedupe_strings(values: list[str]) -> list[str]:
+        result = []
+        seen = set()
+        for value in values:
+            text = str(value or "").strip()
+            if not text or text in seen:
+                continue
+            seen.add(text)
+            result.append(text)
+        return result
+
+    @staticmethod
+    def _build_semantic_router_prompt(message: str) -> str:
+        allowed_targets = ", ".join(
+            sorted(set(DemandReconstructionService._LLM_SEMANTIC_TARGET_ALIASES.values()))
+        )
+        return (
+            "你是「方案高参」需求重构阶段的 LLM Semantic Router。\n"
+            "任务：先理解用户原文，输出内部语义理解包；不要直接回答用户，不要给方案。\n"
+            "所有判断必须有原文证据；没有证据只能省略，不得编造。\n\n"
+            f"Allowed scan targets: {allowed_targets}\n"
+            "recommended_scan_targets must use these ids; do not invent new target ids.\n"
+            "只输出 JSON，不要 Markdown，不要解释。JSON 字段：\n"
+            "{\n"
+            '  "intent_type": "specific_project_reconstruction|methodology|case_reference|data_request|out_of_scope",\n'
+            '  "project_anchor": true,\n'
+            '  "project_object": "用户正在处理的项目对象",\n'
+            '  "space_candidates": [{"label": "受控空间/原型/语义标签", "confidence": 0.0, "evidence": ["原文片段"]}],\n'
+            '  "core_tensions": [{"title": "核心张力", "confidence": 0.0, "evidence": ["原文片段"]}],\n'
+            '  "missing_slots": ["会改变后续判断的信息缺口"],\n'
+            '  "novelty_level": "known|partial_unknown|unknown",\n'
+            '  "recommended_scan_targets": ["建议扫描的规则原型或语义轴"],\n'
+            '  "package_ids": ["knowledge package ids; use [] when absent"],\n'
+            '  "ontology_dimension_ids": ["ontology dimension ids; use [] when absent"],\n'
+            '  "recommended_fragment_targets": [{"group_id": "规则碎片组ID", "fragment_id": "碎片ID", "confidence": 0.0, "evidence": ["原文片段"]}]\n'
+            "}\n\n"
+            f"用户原文：{message}"
+        )
+
+    def _invoke_semantic_router_with_llm(
+        self,
+        *,
+        llm: Any,
+        prompt: str,
+        provider: str,
+    ) -> tuple[Optional[Dict[str, Any]], Dict[str, Any]]:
+        started_at = time.perf_counter()
+        try:
+            response = llm.invoke(prompt)
+            content = response.content if hasattr(response, "content") else str(response)
+            package = self._parse_semantic_understanding(str(content or ""))
+            if package is not None:
+                elapsed_ms = int((time.perf_counter() - started_at) * 1000)
+                logger.info(
+                    "[DemandReconstruction] LLM semantic router response accepted: "
+                    f"provider={provider}, prompt_chars={len(prompt)}, elapsed_ms={elapsed_ms}"
+                )
+                return package, {"status": "used", "provider": provider}
+            repair_prompt = self._build_semantic_router_repair_prompt(
+                original_prompt=prompt,
+                rejected_content=str(content or ""),
+            )
+            repair_response = llm.invoke(repair_prompt)
+            repair_content = repair_response.content if hasattr(repair_response, "content") else str(repair_response)
+            repaired = self._parse_semantic_understanding(str(repair_content or ""))
+            if repaired is not None:
+                return repaired, {"status": "used", "provider": provider, "repair_attempted": True}
+            return None, {"status": "invalid_semantic_router_json", "provider": provider}
+        except Exception as exc:
+            elapsed_ms = int((time.perf_counter() - started_at) * 1000)
+            logger.warning(
+                "[DemandReconstruction] LLM semantic router failed: "
+                f"provider={provider}, prompt_chars={len(prompt)}, elapsed_ms={elapsed_ms}, "
+                f"error_type={type(exc).__name__}, error={exc}"
+            )
+            return None, {"status": "invoke_failed", "provider": provider, "error": str(exc), "error_type": type(exc).__name__}
+
+    @staticmethod
+    def _build_semantic_router_repair_prompt(*, original_prompt: str, rejected_content: str) -> str:
+        return (
+            "上一次 LLM Semantic Router 输出无法通过结构校验。\n"
+            "请严格按原 prompt 的 JSON schema 重写，只输出 JSON，不要解释。\n\n"
+            f"原 prompt：\n{original_prompt}\n\n"
+            f"被拒绝输出：\n{rejected_content}"
+        )
+
+    def _parse_semantic_understanding(self, content: str) -> Optional[Dict[str, Any]]:
+        package = self._insight_protocol.parse_response_json(content)
+        if not isinstance(package, dict):
             return None
+        if not self._semantic_understanding_is_valid(package):
+            return None
+        return package
+
+    @staticmethod
+    def _semantic_understanding_is_valid(package: Dict[str, Any]) -> bool:
+        if not str(package.get("intent_type") or "").strip():
+            return False
+        if "project_anchor" not in package:
+            return False
+        if not str(package.get("project_object") or "").strip():
+            return False
+        candidates = package.get("space_candidates")
+        tensions = package.get("core_tensions")
+        if not isinstance(candidates, list) or not candidates:
+            return False
+        if not isinstance(tensions, list) or not tensions:
+            return False
+        for item in candidates + tensions:
+            if not isinstance(item, dict):
+                return False
+            evidence = item.get("evidence")
+            if not isinstance(evidence, list) or not any(str(value).strip() for value in evidence):
+                return False
+        return True
 
     @staticmethod
     def _render_reply(plan: Dict[str, Any]) -> str:
@@ -295,6 +1293,59 @@ class DemandReconstructionService:
             f"**我建议先追问一个关键点**\n{next_question}？\n\n"
             f"**下一步**\n{plan['routing_recommendation']}"
         )
+
+    @staticmethod
+    def _evaluate_alignment_shadow(
+        *,
+        source_message: str,
+        visible_text: str,
+        adapter_context: Dict[str, Any],
+        card: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        """Shadow-mode semantic alignment gate (observe-only).
+
+        Runs the local semantic alignment guardrails against the rendered
+        output and records the result for observability. Rejection is decided
+        by the caller so the same evaluation result can support either the
+        default hard gate or an explicit shadow-only diagnostic run.
+        """
+        try:
+            card_pages = [
+                str(section.get("body") or "")
+                for section in (card.get("sections") or [])
+            ]
+            issues = evaluate_semantic_alignment(
+                source_message,
+                visible_text,
+                project_type=adapter_context.get("project_type"),
+                card_pages=card_pages,
+            )
+        except Exception as exc:  # never let the shadow gate break rendering
+            logger.warning(
+                "[DemandReconstruction] semantic alignment shadow eval failed: "
+                f"error_type={type(exc).__name__}, error={exc}"
+            )
+            return {"mode": "shadow", "status": "eval_failed", "error": str(exc)}
+
+        blocking = [item for item in issues if item.get("severity") == "blocking"]
+        warning = [item for item in issues if item.get("severity") == "warning"]
+        result = {
+            "mode": "shadow",
+            "status": "evaluated",
+            "issue_count": len(issues),
+            "blocking_count": len(blocking),
+            "warning_count": len(warning),
+            "issues": issues,
+        }
+        if issues:
+            logger.warning(
+                "[DemandReconstruction] semantic alignment evaluation flagged issues: "
+                f"blocking={len(blocking)}, warning={len(warning)}, "
+                f"codes={[item.get('code') for item in issues]}"
+            )
+        else:
+            logger.info("[DemandReconstruction] semantic alignment shadow: clean")
+        return result
 
     @staticmethod
     def _card(plan: Dict[str, Any]) -> Dict[str, Any]:
@@ -326,22 +1377,15 @@ class DemandReconstructionService:
 
     @staticmethod
     def _public_card_summary(plan: Dict[str, Any]) -> Dict[str, Any]:
-        hidden_keys = {"insight_quality"}
+        hidden_keys = {
+            "governance_signals",
+            "governance_persistence",
+            "semantic_alignment_shadow",
+            "alignment_gate",
+            "llm_semantic_scan",
+            "insight_quality",
+        }
         return {key: value for key, value in plan.items() if key not in hidden_keys}
-
-    @staticmethod
-    def _append_insight_quality_signal(signals: Any, insight_quality: Dict[str, Any]) -> list[Dict[str, Any]]:
-        result = [signal for signal in (signals or []) if isinstance(signal, dict)]
-        result.append(
-            {
-                "type": "insight_quality_watch",
-                "level": insight_quality.get("level"),
-                "score": insight_quality.get("score"),
-                "missing_high_value_signals": insight_quality.get("missing_high_value_signals") or [],
-                "warning_count": len(insight_quality.get("warning_issues") or []),
-            }
-        )
-        return result
 
     @staticmethod
     def _public_adapter_context(adapter_context: Dict[str, Any]) -> Dict[str, Any]:
@@ -355,9 +1399,31 @@ class DemandReconstructionService:
             "knowledge_coverage_ceiling": adapter_context.get("knowledge_coverage_ceiling"),
             "semantic_candidate_set": adapter_context.get("semantic_candidate_set"),
             "archetype": adapter_context.get("archetype"),
+            "llm_semantic_understanding": adapter_context.get("llm_semantic_understanding"),
+            "llm_semantic_scan": adapter_context.get("llm_semantic_scan"),
             "latent_model": adapter_context.get("latent_model"),
+            "governed_knowledge_assets": adapter_context.get("governed_knowledge_assets"),
             "context_source": adapter_context.get("context_source"),
         }
 
 
-
+    @staticmethod
+    def _append_insight_quality_signal(
+        signals: Any,
+        insight_quality: Dict[str, Any],
+    ) -> list[Dict[str, Any]]:
+        result = [signal for signal in (signals or []) if isinstance(signal, dict)]
+        result.append(
+            {
+                "type": "insight_quality_watch",
+                "code": "insight_quality_watch",
+                "severity": "P3",
+                "review_queue": "demand_reconstruction_quality",
+                "level": insight_quality.get("level"),
+                "score": insight_quality.get("score"),
+                "missing_high_value_signals": insight_quality.get("missing_high_value_signals") or [],
+                "warning_count": len(insight_quality.get("warning_issues") or []),
+                "user_visible": False,
+            }
+        )
+        return result
