@@ -12,8 +12,9 @@
 'use client';
 
 import { ArrowUp, ChevronDown, Plus } from 'lucide-react';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { MessageCardRenderer } from '@/features/conversation/components/MessageCardRenderer';
+import { useConversationComposer } from '@/features/conversation/hooks/useConversationComposer';
 import type {
   ChatMessage,
   ConversationChatProps,
@@ -69,7 +70,6 @@ export default function ConversationChat({
   prefillHint = null,
   className = '',
 }: ConversationChatProps) {
-  const [inputText, setInputText] = useState('');
   const [briefExpanded, setBriefExpanded] = useState(false);
   const [briefPinnedOpen, setBriefPinnedOpen] = useState(false);
   const [contextExpanded, setContextExpanded] = useState(false);
@@ -90,6 +90,19 @@ export default function ConversationChat({
   const splitPaneRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const summonMenuRef = useRef<HTMLDivElement>(null);
+  const {
+    inputText,
+    setInputText,
+    handleSend,
+    handleAdvisorPrompt,
+    handleKeyDown,
+  } = useConversationComposer({
+    loading,
+    onSendMessage,
+    textareaRef,
+    prefillHint,
+    advisorSceneContext,
+  });
   const adaptiveChatGutter = 'clamp(12px, 2vw, 32px)';
   const advisorSuggestionLines = (advisorSceneContext?.suggestion ?? '')
     .split('\n')
@@ -105,16 +118,6 @@ export default function ConversationChat({
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [messages, loading]);
-
-  // 接收外部引用注入（如 @用户需求）
-  useEffect(() => {
-    if (!prefillHint?.text) return;
-    setInputText((prev) => {
-      if (prev.includes(prefillHint.text)) return prev;
-      return `${prev} ${prefillHint.text}`.trim();
-    });
-    textareaRef.current?.focus();
-  }, [prefillHint?.id, prefillHint?.text]);
 
   useEffect(() => {
     if (!showSummonMenu) return;
@@ -177,37 +180,6 @@ export default function ConversationChat({
       document.removeEventListener('mouseup', handleMouseUp);
     };
   }, [isContextResizing, sessionId, contextPanePercent]);
-
-  const handleSend = useCallback(() => {
-    const trimmed = inputText.trim();
-    if (!trimmed || loading) return;
-    onSendMessage(trimmed);
-    setInputText('');
-    textareaRef.current?.focus();
-  }, [inputText, loading, onSendMessage]);
-
-  const handleAdvisorPrompt = useCallback(
-    (intent: 'deep-dive' | 'action-list') => {
-      if (!advisorSceneContext) return;
-      const prompt =
-        intent === 'deep-dive'
-          ? `@${advisorSceneContext.sceneRef}\n请基于左侧当前场景继续深挖：先指出关键矛盾，再给出风险判断、设计取舍和可验证的下一步。`
-          : `@${advisorSceneContext.sceneRef}\n请把左侧当前场景转成行动清单：按优先级列出今天能推进的判断、资料缺口、方案动作和验证方式。`;
-      setInputText(prompt);
-      textareaRef.current?.focus();
-    },
-    [advisorSceneContext]
-  );
-
-  const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-      if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault();
-        handleSend();
-      }
-    },
-    [handleSend]
-  );
 
   return (
     <div

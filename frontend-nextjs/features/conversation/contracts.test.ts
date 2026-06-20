@@ -12,7 +12,7 @@ describe('conversation-analysis-ui module contract', () => {
   it('registers the governed frontend feature boundary', () => {
     expect(CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT).toMatchObject({
       moduleId: 'conversation-analysis-ui',
-      currentVersion: 'v0.3-card-renderer-extracted',
+      currentVersion: 'v0.4-composer-hook-extracted',
     });
 
     for (const ownedPath of CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT.ownedPaths) {
@@ -40,8 +40,11 @@ describe('conversation-analysis-ui module contract', () => {
     const conversationChatTestSource = readRepoFile(
       'frontend-nextjs/components/ConversationMode/ConversationChat.test.tsx',
     );
+    const composerHookTestSource = readRepoFile(
+      'frontend-nextjs/features/conversation/hooks/useConversationComposer.test.ts',
+    );
     const contractTestSource = readRepoFile('frontend-nextjs/features/conversation/contracts.test.ts');
-    const combinedTestSource = `${guidanceCardTestSource}\n${conversationChatTestSource}\n${contractTestSource}`;
+    const combinedTestSource = `${guidanceCardTestSource}\n${conversationChatTestSource}\n${composerHookTestSource}\n${contractTestSource}`;
 
     for (const testCaseName of CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT.protectedTestCases) {
       expect(combinedTestSource).toContain(testCaseName);
@@ -82,5 +85,20 @@ describe('conversation-analysis-ui module contract', () => {
     expect(rendererSource).toContain('scheme_version_selection');
     expect(rendererSource).toContain('CandidateCard');
     expect(rendererSource).toContain('GuidanceCardWidget');
+  });
+
+  it('keeps conversation composer behavior in the feature hook layer', () => {
+    const conversationChatSource = readRepoFile(
+      'frontend-nextjs/components/ConversationMode/ConversationChat.tsx',
+    );
+    const composerHookSource = readRepoFile(
+      'frontend-nextjs/features/conversation/hooks/useConversationComposer.ts',
+    );
+
+    expect(conversationChatSource).toContain("from '@/features/conversation/hooks/useConversationComposer'");
+    expect(composerHookSource).toContain('export function useConversationComposer');
+    expect(composerHookSource).toContain('handleSend');
+    expect(composerHookSource).toContain('handleAdvisorPrompt');
+    expect(composerHookSource).toContain('prefillHint');
   });
 });

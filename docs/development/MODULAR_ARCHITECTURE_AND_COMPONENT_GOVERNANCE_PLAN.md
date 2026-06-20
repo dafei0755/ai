@@ -305,8 +305,9 @@ frontend-nextjs/app/analysis/[sessionId]/page.tsx
 1. 先建立 conversation-analysis-ui 合同和守护测试。（已完成）
 2. 提取 conversation types。（已完成）
 3. 提取 card rendering 子组件。（已完成）
-4. 提取 conversation hooks。
-5. 页面只保留 session 加载、布局和 feature 组合。
+4. 提取 conversation composer hook。（已完成）
+5. 提取 layout/context panel state。
+6. 页面只保留 session 加载、布局和 feature 组合。
 ```
 
 验收：
