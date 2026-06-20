@@ -21,6 +21,8 @@ This protocol prevents verified mechanism work from being lost through branch sw
 
 A backup branch is only a safety copy. It is not considered implemented until its required changes are merged or cherry-picked into the active work branch and verified there.
 
+For feature or mechanism changes, backup is not a version chain. Use `docs/development/FEATURE_VERSION_CHAIN_PROTOCOL.md` and update `docs/development/FEATURE_VERSION_LEDGER.md` before calling the change implemented.
+
 Before leaving a backup branch or worktree, run:
 
 ```powershell
@@ -85,9 +87,12 @@ Every high-risk task must end with:
 branch:
 base_commit:
 head_commit:
+feature_id:
+feature_version:
 files_changed:
 verification:
 backup_or_checkpoint:
+rollback_target:
 residual_risks:
 ```
 

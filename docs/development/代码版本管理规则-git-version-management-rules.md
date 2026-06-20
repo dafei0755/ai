@@ -47,6 +47,15 @@ Git 管理的不是“文件夹”，而是一组组有明确意图的变更快�
 
 每个较明确的任务都应使用独立分支，不要长期在 `main` 上直接堆积修改。
 
+核心机制、运行时合同、跨模块功能修改必须先进入功能版本链管理：
+
+```text
+docs/development/FEATURE_VERSION_CHAIN_PROTOCOL.md
+docs/development/FEATURE_VERSION_LEDGER.md
+```
+
+这类修改不能只靠备份分支、快照提交或临时文档证明“已实施”。只有进入当前权威分支、通过对应验证、更新功能版本账本，才算形成新版本。
+
 推荐分支命名：
 
 - `feat/scheme-entry-runtime`
@@ -427,3 +436,4 @@ fix
 再进入实际修改。
 
 这份规则作为本项目后续 Git 操作和代码整理的默认准则。
+
