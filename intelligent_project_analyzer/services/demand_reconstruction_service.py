@@ -21,6 +21,9 @@ from intelligent_project_analyzer.modules.demand_reconstruction.insight_quality_
 from intelligent_project_analyzer.modules.demand_reconstruction.response_builder import (
     DemandReconstructionResponseBuilder,
 )
+from intelligent_project_analyzer.modules.demand_reconstruction.blueprint_coordinator import (
+    DemandReconstructionBlueprintCoordinator,
+)
 from intelligent_project_analyzer.modules.demand_reconstruction.semantic_context_applier import (
     DemandReconstructionSemanticContextApplier,
 )
@@ -126,6 +129,7 @@ class DemandReconstructionService:
         insight_quality_gate: Optional[DemandReconstructionInsightQualityGate] = None,
         response_builder: Optional[DemandReconstructionResponseBuilder] = None,
         semantic_context_applier: Optional[DemandReconstructionSemanticContextApplier] = None,
+        blueprint_coordinator: Optional[DemandReconstructionBlueprintCoordinator] = None,
         require_llm: bool = False,
         governance_store: Any = None,
     ) -> None:
@@ -155,6 +159,16 @@ class DemandReconstructionService:
             llm=self._llm,
             insight_protocol=self._insight_protocol,
             output_planner=self._output_planner,
+        )
+        self._blueprint_coordinator = (
+            blueprint_coordinator
+            or DemandReconstructionBlueprintCoordinator(
+                llm=self._llm,
+                output_planner=self._output_planner,
+                synthesis=self._synthesis,
+                require_llm=self._require_llm,
+                unavailable_factory=DemandReconstructionUnavailable,
+            )
         )
         self._response_builder = response_builder or DemandReconstructionResponseBuilder()
         self._alignment_gate = alignment_gate or DemandReconstructionAlignmentGate(
@@ -365,34 +379,7 @@ class DemandReconstructionService:
         return bool(str(message or "").strip())
 
     def _build_blueprint(self, adapter_context: Dict[str, Any]) -> Dict[str, Any]:
-        semantic_plan = self._output_planner.build_plan(adapter_context)
-        if self._llm is None:
-            if self._require_llm:
-                raise DemandReconstructionUnavailable(
-                    error_code=UNDERSTANDING_UNAVAILABLE,
-                    diagnostics={"status": "not_configured"},
-                )
-            return {**semantic_plan, "insight_source": "semantic_fallback", "llm_status": "not_configured"}
-        llm_plan, llm_diagnostics = self._build_llm_insight_blueprint(adapter_context, semantic_plan)
-        if llm_plan is None:
-            if self._require_llm:
-                raise DemandReconstructionUnavailable(
-                    error_code=SYNTHESIS_UNAVAILABLE,
-                    diagnostics=llm_diagnostics,
-                )
-            fallback_plan = {
-                **semantic_plan,
-                "insight_source": "semantic_fallback",
-                "llm_status": llm_diagnostics.get("status", "fallback"),
-            }
-            if llm_diagnostics.get("reason"):
-                fallback_plan["llm_rejection_reason"] = llm_diagnostics["reason"]
-            if llm_diagnostics.get("error"):
-                fallback_plan["llm_error"] = llm_diagnostics["error"]
-            if llm_diagnostics.get("error_type"):
-                fallback_plan["llm_error_type"] = llm_diagnostics["error_type"]
-            return fallback_plan
-        return llm_plan
+        return self._blueprint_coordinator.build_blueprint(adapter_context)
 
     def _build_llm_insight_blueprint(
         self,

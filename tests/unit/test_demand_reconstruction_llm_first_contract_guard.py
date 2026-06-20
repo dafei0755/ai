@@ -12,11 +12,13 @@ ALIGNMENT_GATE = ROOT / "intelligent_project_analyzer/modules/demand_reconstruct
 INSIGHT_QUALITY_GATE = ROOT / "intelligent_project_analyzer/modules/demand_reconstruction/insight_quality_gate.py"
 RESPONSE_BUILDER = ROOT / "intelligent_project_analyzer/modules/demand_reconstruction/response_builder.py"
 SEMANTIC_CONTEXT_APPLIER = ROOT / "intelligent_project_analyzer/modules/demand_reconstruction/semantic_context_applier.py"
+BLUEPRINT_COORDINATOR = ROOT / "intelligent_project_analyzer/modules/demand_reconstruction/blueprint_coordinator.py"
 DOC = ROOT / "docs/development/方案高参需求重构运行时开发纲领.md"
 
 
 def test_demand_reconstruction_service_keeps_llm_first_semantic_router_contract() -> None:
     source = SERVICE.read_text(encoding="utf-8")
+    coordinator_source = BLUEPRINT_COORDINATOR.read_text(encoding="utf-8")
 
     assert "class DemandReconstructionUnavailable" in source
     assert "def _build_llm_semantic_understanding" in source
@@ -24,7 +26,7 @@ def test_demand_reconstruction_service_keeps_llm_first_semantic_router_contract(
     assert "UNDERSTANDING_UNAVAILABLE" in source
     assert "SYNTHESIS_UNAVAILABLE" in source
     assert "DEMAND_RECONSTRUCTION_CARD_TYPE" in source
-    assert "semantic_fallback" in source
+    assert "semantic_fallback" in coordinator_source
 
 
 def test_conversation_route_maps_required_llm_unavailability_to_http_503() -> None:
@@ -151,3 +153,16 @@ def test_demand_reconstruction_semantic_context_applier_is_module_boundary() -> 
     assert "DemandReconstructionSemanticContextApplier" in service_source
     assert "self._semantic_context_applier.apply" in service_source
     assert "self._semantic_context_applier.llm_semantic_candidates" in service_source
+
+
+def test_demand_reconstruction_blueprint_coordinator_is_module_boundary() -> None:
+    coordinator_source = BLUEPRINT_COORDINATOR.read_text(encoding="utf-8")
+    service_source = SERVICE.read_text(encoding="utf-8")
+
+    assert "class DemandReconstructionBlueprintCoordinator" in coordinator_source
+    assert "def build_blueprint" in coordinator_source
+    assert "def _fallback_plan" in coordinator_source
+    assert "SYNTHESIS_UNAVAILABLE" in coordinator_source
+    assert "UNDERSTANDING_UNAVAILABLE" in coordinator_source
+    assert "DemandReconstructionBlueprintCoordinator" in service_source
+    assert "self._blueprint_coordinator.build_blueprint" in service_source

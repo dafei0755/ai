@@ -70,6 +70,7 @@ intelligent_project_analyzer/
       insight_quality_gate.py
       response_builder.py
       semantic_context_applier.py
+      blueprint_coordinator.py
       quality_gate.py
       adapters.py
       version.py
@@ -239,8 +240,9 @@ conversation-analysis-ui
 7. 新建 insight_quality_gate.py，迁移洞察质量评估与质量治理信号逻辑。（已完成）
 8. 新建 response_builder.py，迁移 reply/card/context/result 构建逻辑。（已完成）
 9. 新建 semantic_context_applier.py，迁移 LLM semantic package 到 adapter_context 的应用逻辑。（已完成）
-10. service.py 只保留编排。
-11. 旧 services/demand_reconstruction_service.py 作为兼容 facade 或薄入口。
+10. 新建 blueprint_coordinator.py，迁移规则计划、LLM synthesis 与 required-LLM 失败契约编排。（已完成）
+11. service.py 只保留编排。
+12. 旧 services/demand_reconstruction_service.py 作为兼容 facade 或薄入口。
 ```
 
 验收命令：

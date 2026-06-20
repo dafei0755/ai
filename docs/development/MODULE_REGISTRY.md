@@ -50,6 +50,7 @@ intelligent_project_analyzer/modules/demand_reconstruction/alignment_gate.py
 intelligent_project_analyzer/modules/demand_reconstruction/insight_quality_gate.py
 intelligent_project_analyzer/modules/demand_reconstruction/response_builder.py
 intelligent_project_analyzer/modules/demand_reconstruction/semantic_context_applier.py
+intelligent_project_analyzer/modules/demand_reconstruction/blueprint_coordinator.py
 intelligent_project_analyzer/api/dual_mode_routes.py
 docs/mechanism-reviews/DEMAND_RECONSTRUCTION_LLM_FIRST_ARCHITECTURE.md
 docs/development/方案高参需求重构运行时开发纲领.md
@@ -100,6 +101,7 @@ alignment_gate.py 已提取为语义一致性 shadow/hard gate 与 fallback rebu
 insight_quality_gate.py 已提取为洞察质量评估与质量治理信号入口。
 response_builder.py 已提取为 reply/card/context/result 构建入口。
 semantic_context_applier.py 已提取为 LLM semantic package 到 adapter_context 的应用入口。
+blueprint_coordinator.py 已提取为规则计划、LLM synthesis 与 required-LLM 失败契约的编排入口。
 下一步收敛 service.py 编排层，逐步将旧兼容方法下沉到模块 facade。
 旧 services/demand_reconstruction_service.py 保留兼容 facade。
 ```
