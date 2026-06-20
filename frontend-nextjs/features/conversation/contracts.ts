@@ -1,12 +1,13 @@
 export const CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT = {
   moduleId: 'conversation-analysis-ui',
-  currentVersion: 'v0.6-conversation-panels-extracted',
+  currentVersion: 'v0.7-expert-controls-extracted',
   ownedPaths: [
     'frontend-nextjs/features/conversation/contracts.ts',
     'frontend-nextjs/features/conversation/types.ts',
     'frontend-nextjs/features/conversation/components/MessageCardRenderer.tsx',
     'frontend-nextjs/features/conversation/components/VisualBriefPanel.tsx',
     'frontend-nextjs/features/conversation/components/AdvisorContextPanel.tsx',
+    'frontend-nextjs/features/conversation/components/ExpertControls.tsx',
     'frontend-nextjs/features/conversation/hooks/useConversationComposer.ts',
     'frontend-nextjs/features/conversation/hooks/useConversationLayoutState.ts',
     'frontend-nextjs/app/analysis/[sessionId]/page.tsx',
@@ -42,6 +43,9 @@ export const CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT = {
     'keeps conversation panels in the feature component layer',
     'renders collapsed visual brief summary and toggles pin',
     'renders advisor context insight chips and resize handle',
+    'keeps expert controls in the feature component layer',
+    'renders expert perspective choices and summons an expert once selected',
+    'closes the summon menu on outside click and escape',
     'renders demand reconstruction cards without formal intake wording',
     'renders dynamic demand reconstruction blueprint sections',
     'renders user-facing labels for context packet missing-slot pages',
@@ -56,7 +60,7 @@ export const CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT = {
     'frontend labels must translate internal backend signals into user-facing language',
   ],
   nextRefactorTargets: [
-    'extract expert controls and summon menu from ConversationChat',
+    'extract composer shell from ConversationChat',
   ],
 } as const;
 

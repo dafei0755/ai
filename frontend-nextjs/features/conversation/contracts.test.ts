@@ -12,7 +12,7 @@ describe('conversation-analysis-ui module contract', () => {
   it('registers the governed frontend feature boundary', () => {
     expect(CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT).toMatchObject({
       moduleId: 'conversation-analysis-ui',
-      currentVersion: 'v0.6-conversation-panels-extracted',
+      currentVersion: 'v0.7-expert-controls-extracted',
     });
 
     for (const ownedPath of CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT.ownedPaths) {
@@ -49,8 +49,11 @@ describe('conversation-analysis-ui module contract', () => {
     const panelTestSource = readRepoFile(
       'frontend-nextjs/features/conversation/components/ConversationPanels.test.tsx',
     );
+    const expertControlsTestSource = readRepoFile(
+      'frontend-nextjs/features/conversation/components/ConversationExpertControls.test.tsx',
+    );
     const contractTestSource = readRepoFile('frontend-nextjs/features/conversation/contracts.test.ts');
-    const combinedTestSource = `${guidanceCardTestSource}\n${conversationChatTestSource}\n${composerHookTestSource}\n${layoutHookTestSource}\n${panelTestSource}\n${contractTestSource}`;
+    const combinedTestSource = `${guidanceCardTestSource}\n${conversationChatTestSource}\n${composerHookTestSource}\n${layoutHookTestSource}\n${panelTestSource}\n${expertControlsTestSource}\n${contractTestSource}`;
 
     for (const testCaseName of CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT.protectedTestCases) {
       expect(combinedTestSource).toContain(testCaseName);
@@ -140,5 +143,21 @@ describe('conversation-analysis-ui module contract', () => {
     expect(conversationChatSource).not.toContain('拖动调整上下文和聊天窗口高度');
     expect(visualBriefPanelSource).toContain('export function VisualBriefPanel');
     expect(advisorContextPanelSource).toContain('export function AdvisorContextPanel');
+  });
+
+  it('keeps expert controls in the feature component layer', () => {
+    const conversationChatSource = readRepoFile(
+      'frontend-nextjs/components/ConversationMode/ConversationChat.tsx',
+    );
+    const expertControlsSource = readRepoFile(
+      'frontend-nextjs/features/conversation/components/ExpertControls.tsx',
+    );
+
+    expect(conversationChatSource).toContain("from '@/features/conversation/components/ExpertControls'");
+    expect(conversationChatSource).not.toContain('aria-label="选择专家视角"');
+    expect(conversationChatSource).not.toContain('aria-label="召集团队"');
+    expect(expertControlsSource).toContain('export function ExpertControls');
+    expect(expertControlsSource).toContain('选择专家视角');
+    expect(expertControlsSource).toContain('召集团队');
   });
 });
