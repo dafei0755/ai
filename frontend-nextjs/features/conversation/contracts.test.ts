@@ -12,7 +12,7 @@ describe('conversation-analysis-ui module contract', () => {
   it('registers the governed frontend feature boundary', () => {
     expect(CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT).toMatchObject({
       moduleId: 'conversation-analysis-ui',
-      currentVersion: 'v2.0-advisor-history-grouping-extracted',
+      currentVersion: 'v2.1-active-conversation-accessors-extracted',
     });
 
     for (const ownedPath of CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT.ownedPaths) {
@@ -58,6 +58,9 @@ describe('conversation-analysis-ui module contract', () => {
     const advisorHistoryGroupingTestSource = readRepoFile(
       'frontend-nextjs/features/conversation/advisorHistoryGrouping.test.ts',
     );
+    const advisorConversationAccessorsTestSource = readRepoFile(
+      'frontend-nextjs/features/conversation/advisorConversationAccessors.test.ts',
+    );
     const conversationChatTestSource = readRepoFile(
       'frontend-nextjs/components/ConversationMode/ConversationChat.test.tsx',
     );
@@ -86,7 +89,7 @@ describe('conversation-analysis-ui module contract', () => {
       'frontend-nextjs/features/conversation/components/ConversationUpgradeBanner.test.tsx',
     );
     const contractTestSource = readRepoFile('frontend-nextjs/features/conversation/contracts.test.ts');
-    const combinedTestSource = `${guidanceCardTestSource}\n${conversationHistoryAdapterTestSource}\n${conversationSessionBootstrapTestSource}\n${conversationActionHandlersTestSource}\n${conversationLocalPersistenceTestSource}\n${advisorHistoryPersistenceTestSource}\n${advisorHistoryDerivationTestSource}\n${advisorHistoryGroupingTestSource}\n${conversationChatTestSource}\n${composerHookTestSource}\n${layoutHookTestSource}\n${advisorContextDerivationTestSource}\n${panelTestSource}\n${expertControlsTestSource}\n${composerShellTestSource}\n${messageListShellTestSource}\n${upgradeBannerTestSource}\n${contractTestSource}`;
+    const combinedTestSource = `${guidanceCardTestSource}\n${conversationHistoryAdapterTestSource}\n${conversationSessionBootstrapTestSource}\n${conversationActionHandlersTestSource}\n${conversationLocalPersistenceTestSource}\n${advisorHistoryPersistenceTestSource}\n${advisorHistoryDerivationTestSource}\n${advisorHistoryGroupingTestSource}\n${advisorConversationAccessorsTestSource}\n${conversationChatTestSource}\n${composerHookTestSource}\n${layoutHookTestSource}\n${advisorContextDerivationTestSource}\n${panelTestSource}\n${expertControlsTestSource}\n${composerShellTestSource}\n${messageListShellTestSource}\n${upgradeBannerTestSource}\n${contractTestSource}`;
 
     for (const testCaseName of CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT.protectedTestCases) {
       expect(combinedTestSource).toContain(testCaseName);
@@ -289,7 +292,7 @@ describe('conversation-analysis-ui module contract', () => {
     ];
 
     expect(CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT.currentVersion).toBe(
-      'v2.0-advisor-history-grouping-extracted',
+      'v2.1-active-conversation-accessors-extracted',
     );
     expect(conversationChatLines.length).toBeLessThanOrEqual(220);
     for (const importPath of requiredCompositionImports) {
@@ -412,5 +415,22 @@ describe('conversation-analysis-ui module contract', () => {
     expect(analysisPageSource).not.toContain('new Date(record.updatedAt)');
     expect(analysisPageSource).not.toContain('groups.last30Days.push(record)');
     expect(advisorHistoryGroupingSource).toContain('export function groupAdvisorHistoryRecords');
+  });
+
+  it('keeps active advisor conversation accessors in the feature layer', () => {
+    const analysisPageSource = readRepoFile(
+      'frontend-nextjs/app/analysis/[sessionId]/page.tsx',
+    );
+    const advisorConversationAccessorsSource = readRepoFile(
+      'frontend-nextjs/features/conversation/advisorConversationAccessors.ts',
+    );
+
+    expect(analysisPageSource).toContain("from '@/features/conversation/advisorConversationAccessors'");
+    expect(analysisPageSource).not.toContain('`${sessionId}::${advisorSceneContext.key}`');
+    expect(analysisPageSource).not.toContain('conversationMessagesByScene[activeAdvisorConversationKey] ?? EMPTY_CHAT_MESSAGES');
+    expect(analysisPageSource).not.toContain('[activeAdvisorConversationKey]: nextMessages');
+    expect(advisorConversationAccessorsSource).toContain('export function buildAdvisorConversationKey');
+    expect(advisorConversationAccessorsSource).toContain('export function getAdvisorConversationMessages');
+    expect(advisorConversationAccessorsSource).toContain('export function updateAdvisorConversationMessages');
   });
 });

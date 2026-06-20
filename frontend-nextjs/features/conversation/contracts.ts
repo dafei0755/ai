@@ -1,6 +1,6 @@
 export const CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT = {
   moduleId: 'conversation-analysis-ui',
-  currentVersion: 'v2.0-advisor-history-grouping-extracted',
+  currentVersion: 'v2.1-active-conversation-accessors-extracted',
   ownedPaths: [
     'frontend-nextjs/features/conversation/contracts.ts',
     'frontend-nextjs/features/conversation/types.ts',
@@ -11,6 +11,7 @@ export const CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT = {
     'frontend-nextjs/features/conversation/advisorHistoryPersistence.ts',
     'frontend-nextjs/features/conversation/advisorHistoryDerivation.ts',
     'frontend-nextjs/features/conversation/advisorHistoryGrouping.ts',
+    'frontend-nextjs/features/conversation/advisorConversationAccessors.ts',
     'frontend-nextjs/features/conversation/components/MessageCardRenderer.tsx',
     'frontend-nextjs/features/conversation/components/VisualBriefPanel.tsx',
     'frontend-nextjs/features/conversation/components/AdvisorContextPanel.tsx',
@@ -77,6 +78,7 @@ export const CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT = {
     'keeps advisor history local persistence in the feature layer',
     'keeps advisor history record derivation in the feature layer',
     'keeps advisor history grouping in the feature layer',
+    'keeps active advisor conversation accessors in the feature layer',
     'marks an assistant guidance card as responded from legacy card response history',
     'hydrates missing assistant guidance cards from initial messages in order',
     'restores initial conversation bootstrap messages and hydrated history',
@@ -94,6 +96,9 @@ export const CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT = {
     'upserts a history record, preserves createdAt, and keeps the newest record first',
     'groups advisor history records into today, last 7 days, and last 30 days',
     'keeps boundary-day records in the inclusive 7-day and 30-day groups',
+    'builds the active advisor conversation key from session and scene',
+    'returns active conversation messages or the provided empty fallback',
+    'updates the active conversation with a function updater',
     'renders demand reconstruction cards without formal intake wording',
     'renders dynamic demand reconstruction blueprint sections',
     'renders user-facing labels for context packet missing-slot pages',
@@ -108,7 +113,7 @@ export const CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT = {
     'frontend labels must translate internal backend signals into user-facing language',
   ],
   nextRefactorTargets: [
-    'extract active advisor conversation accessors from analysis page',
+    'audit remaining analysis page conversation-analysis-ui responsibilities',
   ],
 } as const;
 

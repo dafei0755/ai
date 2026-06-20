@@ -80,6 +80,11 @@ import {
 	upsertAdvisorHistoryRecord,
 } from '@/features/conversation/advisorHistoryDerivation';
 import { groupAdvisorHistoryRecords } from '@/features/conversation/advisorHistoryGrouping';
+import {
+	buildAdvisorConversationKey,
+	getAdvisorConversationMessages,
+	updateAdvisorConversationMessages,
+} from '@/features/conversation/advisorConversationAccessors';
 // v7.290: 分析页面改为独立体验，移除侧边栏组件
 
 // 节点名称中文映射
@@ -1312,20 +1317,24 @@ export default function AnalysisPage() {
 		if (sceneExpertPerspectiveOptions.includes(activeExpertPerspective)) return;
 		setActiveExpertPerspective(sceneExpertPerspectiveOptions[0]);
 	}, [sceneExpertPerspectiveOptions, activeExpertPerspective]);
-	const activeAdvisorConversationKey = `${sessionId}::${advisorSceneContext.key}`;
-	const conversationMessages = conversationMessagesByScene[activeAdvisorConversationKey] ?? EMPTY_CHAT_MESSAGES;
+	const activeAdvisorConversationKey = buildAdvisorConversationKey({
+		sessionId,
+		sceneKey: advisorSceneContext.key,
+	});
+	const conversationMessages = getAdvisorConversationMessages({
+		messagesByScene: conversationMessagesByScene,
+		activeKey: activeAdvisorConversationKey,
+		emptyFallback: EMPTY_CHAT_MESSAGES,
+	});
 	const setConversationMessages = useCallback(
 		(updater: React.SetStateAction<ChatMessage[]>) => {
-			setConversationMessagesByScene((prev) => {
-				const current = prev[activeAdvisorConversationKey] ?? [];
-				const nextMessages = typeof updater === 'function'
-					? (updater as (value: ChatMessage[]) => ChatMessage[])(current)
-					: updater;
-				return {
-					...prev,
-					[activeAdvisorConversationKey]: nextMessages,
-				};
-			});
+			setConversationMessagesByScene((prev) =>
+				updateAdvisorConversationMessages({
+					messagesByScene: prev,
+					activeKey: activeAdvisorConversationKey,
+					updater,
+				})
+			);
 		},
 		[activeAdvisorConversationKey]
 	);

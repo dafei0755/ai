@@ -439,7 +439,7 @@ contracts.py 已建立为 LLM runtime 模块合同入口。
 module_id: conversation-analysis-ui
 name: 分析页对话 UI 与引导卡交互
 status: governed
-current_version: v2.0-advisor-history-grouping-extracted
+current_version: v2.1-active-conversation-accessors-extracted
 ```
 
 ### owned_paths
@@ -454,6 +454,7 @@ frontend-nextjs/features/conversation/conversationLocalPersistence.ts
 frontend-nextjs/features/conversation/advisorHistoryPersistence.ts
 frontend-nextjs/features/conversation/advisorHistoryDerivation.ts
 frontend-nextjs/features/conversation/advisorHistoryGrouping.ts
+frontend-nextjs/features/conversation/advisorConversationAccessors.ts
 frontend-nextjs/features/conversation/components/MessageCardRenderer.tsx
 frontend-nextjs/features/conversation/components/VisualBriefPanel.tsx
 frontend-nextjs/features/conversation/components/AdvisorContextPanel.tsx
@@ -508,6 +509,7 @@ frontend-nextjs/features/conversation/conversationLocalPersistence.test.ts
 frontend-nextjs/features/conversation/advisorHistoryPersistence.test.ts
 frontend-nextjs/features/conversation/advisorHistoryDerivation.test.ts
 frontend-nextjs/features/conversation/advisorHistoryGrouping.test.ts
+frontend-nextjs/features/conversation/advisorConversationAccessors.test.ts
 frontend-nextjs/features/conversation/components/ConversationPanels.test.tsx
 frontend-nextjs/features/conversation/components/ConversationExpertControls.test.tsx
 frontend-nextjs/features/conversation/components/ConversationComposerShell.test.tsx
@@ -544,7 +546,8 @@ features/conversation/conversationLocalPersistence.ts 已承接 advisor conversa
 features/conversation/advisorHistoryPersistence.ts 已承接 advisor history records 的 localStorage 读写和类型归属。
 features/conversation/advisorHistoryDerivation.ts 已承接 advisor history title/mode/record upsert 派生逻辑。
 features/conversation/advisorHistoryGrouping.ts 已承接 advisor history today / last7Days / last30Days 分组逻辑。
-下一步提取 active advisor conversation accessors。
+features/conversation/advisorConversationAccessors.ts 已承接 active advisor conversation key、消息读取和消息更新访问器。
+下一步审计 analysis page 中 conversation-analysis-ui 的剩余职责。
 ```
 
 ## 8. 新模块登记模板
