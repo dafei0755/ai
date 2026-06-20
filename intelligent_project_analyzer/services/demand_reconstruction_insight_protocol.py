@@ -1,4 +1,4 @@
-"""LLM insight protocol for demand reconstruction.
+﻿"""LLM insight protocol for demand reconstruction.
 
 This module centralizes the demand-reconstruction insight algorithm so the
 service layer only orchestrates routing, fallback, and rendering.
@@ -54,6 +54,7 @@ class DemandReconstructionInsightProtocol:
             "main_tensions": adapter_context.get("main_tensions"),
             "missing_slots": adapter_context.get("missing_slots"),
             "archetype": adapter_context.get("archetype"),
+            "latent_model": adapter_context.get("latent_model"),
         }
         return (
             "你是「方案高参」需求重构阶段的洞察写作者。\n"
@@ -64,7 +65,7 @@ class DemandReconstructionInsightProtocol:
             "2. 隐含意图：用户真正想解决什么，不只复述他说的任务。\n"
             "3. 核心张力：找出项目里最尖锐、最能改变后续判断的对立面。\n"
             "4. 第一性剥离：剥离风格标签、行业惯例、参考案例、社交表演后，剩下什么不可约需求。\n"
-            "5. 空间被雇佣：判断这个空间被用户拿来完成什么人生、商业、关系或行为任务。\n"
+            "5. 空间被雇佣：先判断这个空间被用户拿来完成什么人生、身份、关系或行为任务；不要把人生任务压缩成功能配比。\n"
             "6. 未知边界：区分已知事实、合理推测、会改变方向的缺口。\n"
             "7. 锐度自检：这条判断是否只适用于这个项目；换一个项目是否还成立；是否说出了用户没说清的事。\n\n"
             "必须遵守：\n"
@@ -72,7 +73,9 @@ class DemandReconstructionInsightProtocol:
             "- 禁止伪造案例、文献、调研或证据。\n"
             "- 必须指出用户没明说但真正关键的问题。\n"
             "- 必须只提出一个最关键追问。\n"
-            "- 禁止使用温馨舒适、品质生活、简约大气、功能齐全、动线合理等套话；必须改写为具体关系、行为、风险或取舍。\n"
+            "- 禁止空洞套话：温馨舒适、品质生活、简约大气、功能齐全、动线合理等没有证据的暖词必须拒绝。\n"
+            "- 允许有证据的情感、身份和人生阶段判断：只有当 latent_model.evidence_bound_affect/person_profile 提供证据引用，且该判断会改变后续任务书分叉时，才可以写返乡、故乡、身心安放、职业后半场等表达。\n"
+            "- 必须优先保留 latent_model.person_profile、evidence_bound_affect、forbidden_capture_paths 中的高价值信号，不能被风格、施工、设备或预算问题覆盖。\n"
             "- 低置信推测必须用“可能 / 倾向于 / 基于线索推测”标注，不得把心理和记忆判断写成事实。\n"
             "- 语言要专业、克制、直入核心，不要泛泛建议。\n\n"
             "只输出 JSON，不要 Markdown，不要解释。JSON 字段：\n"
@@ -163,3 +166,5 @@ class DemandReconstructionInsightProtocol:
         if task_reframe in self._GENERIC_TERMS or any(term == task_reframe for term in self._GENERIC_TERMS):
             return False
         return True
+
+

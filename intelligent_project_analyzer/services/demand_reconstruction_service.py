@@ -16,7 +16,9 @@ from loguru import logger
 
 from .demand_reconstruction_context_adapter import DemandReconstructionContextAdapter
 from .demand_reconstruction_insight_protocol import DemandReconstructionInsightProtocol
+from .demand_reconstruction_insight_quality import DemandReconstructionInsightQualityEvaluator
 from .demand_reconstruction_output_planner import DemandReconstructionOutputPlanner
+from .latent_model_adapter import LatentModelAdapter
 
 
 class DemandReconstructionService:
@@ -38,7 +40,7 @@ class DemandReconstructionService:
         "定稿",
         "输出方案",
     )
-    _ADVICE_TERMS = ("给出建议", "给点建议", "怎么建议", "帮我想想", "怎么看", "如何", "怎么")
+    _ADVICE_TERMS = ("给出建议", "给点建议", "怎么建议", "帮我想想", "怎么看", "如何", "怎么", "提出", "请提出", "分析", "系统分析", "梳理", "给出")
     _PROJECT_INTENT_TERMS = (
         "设计",
         "设计建议",
@@ -54,6 +56,13 @@ class DemandReconstructionService:
         "想做",
         "需要一份",
         "请提出",
+        "打造",
+        "建设",
+        "构建",
+        "策略",
+        "框架",
+        "概念",
+        "设计一个",
     )
     _SPACE_TERMS = (
         "民居",
@@ -63,6 +72,9 @@ class DemandReconstructionService:
         "自宅",
         "茶饮",
         "茶空间",
+        "餐厅",
+        "自建房",
+        "木结构",
         "咖啡",
         "店",
         "办公室",
@@ -82,6 +94,29 @@ class DemandReconstructionService:
         "饮品",
         "商场",
         "地铁",
+        "总部",
+        "大堂",
+        "别墅",
+        "大平层",
+        "厨房",
+        "茶室",
+        "幼儿园",
+        "活动室",
+        "休息区",
+        "月子中心",
+        "展示墙",
+        "汽车",
+        "NIO House",
+        "体验馆",
+        "研究中心",
+        "实验室",
+        "展馆",
+        "展陈",
+        "零售",
+        "办公",
+        "用地",
+        "园区",
+        "VIP",
     )
 
     def __init__(
@@ -91,11 +126,17 @@ class DemandReconstructionService:
         context_adapter: Optional[DemandReconstructionContextAdapter] = None,
         insight_protocol: Optional[DemandReconstructionInsightProtocol] = None,
         output_planner: Optional[DemandReconstructionOutputPlanner] = None,
+        latent_model_adapter: Optional[LatentModelAdapter] = None,
+        insight_quality_evaluator: Optional[DemandReconstructionInsightQualityEvaluator] = None,
+        require_llm: bool = False,
     ) -> None:
         self._llm = llm
+        self._require_llm = require_llm
         self._context_adapter = context_adapter or DemandReconstructionContextAdapter()
         self._insight_protocol = insight_protocol or DemandReconstructionInsightProtocol()
         self._output_planner = output_planner or DemandReconstructionOutputPlanner()
+        self._latent_model_adapter = latent_model_adapter or LatentModelAdapter()
+        self._insight_quality_evaluator = insight_quality_evaluator or DemandReconstructionInsightQualityEvaluator()
 
     def handle_message(
         self,
@@ -135,7 +176,10 @@ class DemandReconstructionService:
         )
         has_business_anchor = any(term in text for term in ("回本", "收回成本", "客单", "租金", "营业额", "成本"))
         has_project_anchor = has_space_hint or has_numeric_project_anchor or has_business_anchor
-        return has_project_anchor and (has_project_intent or has_advice_intent or has_research_hint)
+        has_design_domain = any(term in text for term in ("室内设计", "空间设计", "建筑", "规划", "软装", "动线", "材料", "灯光", "展陈", "设计概念"))
+        if has_project_anchor and (has_project_intent or has_advice_intent or has_research_hint):
+            return True
+        return has_design_domain and (has_project_intent or has_advice_intent or has_research_hint)
 
     def is_formal_brief_request(self, message: str) -> bool:
         text = str(message or "")
@@ -148,9 +192,29 @@ class DemandReconstructionService:
 
     def _result(self, message: str, previous_context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         adapter_context = self._context_adapter.build(message)
+        latent_model = self._latent_model_adapter.build(
+            source_message=message,
+            adapter_context=adapter_context,
+        )
+        adapter_context["latent_model"] = latent_model.model_dump(mode="json")
         if previous_context and previous_context.get("blueprint", {}).get("task_reframe"):
             adapter_context["previous_blueprint"] = previous_context["blueprint"]
+
         blueprint = self._build_blueprint(adapter_context)
+        reply = self._render_reply(blueprint)
+        insight_quality = self._insight_quality_evaluator.evaluate(
+            source_message=message,
+            semantic_package={},
+            latent_model=adapter_context.get("latent_model") or {},
+            blueprint=blueprint,
+            visible_reply=reply,
+        )
+        blueprint["insight_quality"] = insight_quality
+        blueprint["governance_signals"] = self._append_insight_quality_signal(
+            blueprint.get("governance_signals") or [],
+            insight_quality,
+        )
+
         context = {
             "schema_version": "demand_reconstruction_context.v1",
             "reconstruction_type": "demand_reconstruction",
@@ -163,7 +227,6 @@ class DemandReconstructionService:
             "blueprint": blueprint,
             "brief_handoff_slots": blueprint["brief_handoff_slots"],
         }
-        reply = self._render_reply(blueprint)
         return {
             "reply": reply,
             "intent": self.INTENT,
@@ -257,9 +320,28 @@ class DemandReconstructionService:
                 },
             ],
             "allow_freetext": True,
-            "summary": plan,
+            "summary": DemandReconstructionService._public_card_summary(plan),
             "sections": plan.get("sections") or [],
         }
+
+    @staticmethod
+    def _public_card_summary(plan: Dict[str, Any]) -> Dict[str, Any]:
+        hidden_keys = {"insight_quality"}
+        return {key: value for key, value in plan.items() if key not in hidden_keys}
+
+    @staticmethod
+    def _append_insight_quality_signal(signals: Any, insight_quality: Dict[str, Any]) -> list[Dict[str, Any]]:
+        result = [signal for signal in (signals or []) if isinstance(signal, dict)]
+        result.append(
+            {
+                "type": "insight_quality_watch",
+                "level": insight_quality.get("level"),
+                "score": insight_quality.get("score"),
+                "missing_high_value_signals": insight_quality.get("missing_high_value_signals") or [],
+                "warning_count": len(insight_quality.get("warning_issues") or []),
+            }
+        )
+        return result
 
     @staticmethod
     def _public_adapter_context(adapter_context: Dict[str, Any]) -> Dict[str, Any]:
@@ -269,6 +351,13 @@ class DemandReconstructionService:
             "space_label": adapter_context.get("space_label"),
             "semantic_axes": adapter_context.get("semantic_axes"),
             "main_tensions": adapter_context.get("main_tensions"),
+            "missing_slots": adapter_context.get("missing_slots"),
+            "knowledge_coverage_ceiling": adapter_context.get("knowledge_coverage_ceiling"),
+            "semantic_candidate_set": adapter_context.get("semantic_candidate_set"),
             "archetype": adapter_context.get("archetype"),
+            "latent_model": adapter_context.get("latent_model"),
             "context_source": adapter_context.get("context_source"),
         }
+
+
+
