@@ -286,6 +286,7 @@ knowledge_recall 负责运行时引用，不直接改分类或本体。
 6. 新建 modules/project_type/registry_audit.py，让 registry 缺失或 YAML 解析失败在治理验证中显式报错。
 7. 新建 modules/knowledge_governance/contracts.py 与 modules/knowledge_recall/contracts.py，把候选/审核/批准/审计和只读运行时召回拆成两个模块合同。
 8. 新建 modules/llm_runtime/contracts.py，明确 provider/fallback/diagnostics 与 required-mode typed failure 的合同边界。
+9. 新建 modules/scheme_advisor/contracts.py，明确正式 intake 必须由需求重构 handoff 触发，round 卡不得替代需求洞察。
 ```
 
 ### Phase 4：前端 feature 化

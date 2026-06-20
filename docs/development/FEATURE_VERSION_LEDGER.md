@@ -302,3 +302,53 @@ tests/unit/test_demand_reconstruction_llm.py
 ```powershell
 .\.conda\python.exe -m pytest tests/unit/test_llm_runtime_module_contract_guard.py tests/unit/test_llm_fallback_priority.py tests/unit/services/test_multi_llm_fallback_auth_policy.py tests/unit/test_demand_reconstruction_llm.py -q
 ```
+
+## 6. Scheme Advisor Entry
+
+```text
+feature_id: scheme-advisor-entry
+name: 方案高参正式入口与任务书追问
+status: governed
+current_authoritative_version: v0.1-demand-reconstruction-handoff-contract
+authoritative_branch: fix/scheme-advisor-question-root-cause-20260616
+authoritative_commit: current-branch-head-after-checkpoint
+previous_authoritative_commit: unregistered
+rollback_target: branch head before v0.1-demand-reconstruction-handoff-contract checkpoint
+last_promotion: 2026-06-20
+```
+
+### 当前合同
+
+```text
+public conversation message
+-> DemandReconstructionService
+-> demand_reconstruction_context.handoff_requested
+-> SchemeAdvisorEntryService
+-> round_1 / round_2 / stage conclusion / version selection
+```
+
+正式任务书追问必须发生在需求重构之后。round 1 / round 2 问题卡不得替代需求洞察；版本选择卡只负责任务书档位选择，不负责改写需求重构结论。
+
+### 权威文件
+
+```text
+intelligent_project_analyzer/modules/scheme_advisor/contracts.py
+intelligent_project_analyzer/services/scheme_advisor_entry_service.py
+intelligent_project_analyzer/config/scheme_advisor_version_tiers.yaml
+intelligent_project_analyzer/config/scheme_advisor_entry_copy.yaml
+intelligent_project_analyzer/api/dual_mode_routes.py
+```
+
+### 守护测试
+
+```text
+tests/unit/test_scheme_advisor_entry_module_contract_guard.py
+tests/api/test_scheme_advisor_entry_route.py
+tests/services/test_scheme_advisor_entry_v2_restore.py
+```
+
+推荐验证：
+
+```powershell
+.\.conda\python.exe -m pytest tests/unit/test_scheme_advisor_entry_module_contract_guard.py tests/api/test_scheme_advisor_entry_route.py tests/services/test_scheme_advisor_entry_v2_restore.py -q
+```

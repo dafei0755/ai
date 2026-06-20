@@ -192,14 +192,16 @@ strict registry audit 已补，运行时容错和 CI/治理显式失败分层处
 module_id: scheme-advisor-entry
 name: 方案高参正式入口与任务书追问
 status: governed
-current_version: unregistered
+current_version: v0.1-demand-reconstruction-handoff-contract
 ```
 
 ### owned_paths
 
 ```text
+intelligent_project_analyzer/modules/scheme_advisor/contracts.py
 intelligent_project_analyzer/services/scheme_advisor_entry_service.py
-intelligent_project_analyzer/services/scheme_version_selection.py
+intelligent_project_analyzer/config/scheme_advisor_version_tiers.yaml
+intelligent_project_analyzer/config/scheme_advisor_entry_copy.yaml
 intelligent_project_analyzer/interaction/
 ```
 
@@ -209,12 +211,15 @@ intelligent_project_analyzer/interaction/
 正式任务书追问必须发生在需求重构之后。
 round 1 / round 2 问题卡不得替代需求洞察。
 版本选择卡只负责任务书档位选择，不负责改写需求重构结论。
+公共 /conversation/message 路由进入正式 intake 必须先经过 DemandReconstructionService；正式 handoff 由 demand_reconstruction_context.handoff_requested 触发。
+直接调用 SchemeAdvisorEntryService 的 fresh start 只作为内部兼容面，不代表公共产品入口可以绕过需求重构。
 ```
 
 ### entrypoints
 
 ```text
 SchemeAdvisorEntryService
+modules.scheme_advisor.contracts.scheme_advisor_entry_contract
 ```
 
 ### dependencies
@@ -230,14 +235,15 @@ conversation-analysis-ui
 
 ```text
 tests/api/test_scheme_advisor_entry_route.py
-待补齐：需求重构完成前不得进入正式 intake。
+tests/unit/test_scheme_advisor_entry_module_contract_guard.py
+需求重构完成前不得进入正式 intake。
 ```
 
 ### next_refactor_target
 
 ```text
-补 contracts.py，明确 Demand Reconstruction Handoff 输入结构。
-登记 FEATURE_VERSION_LEDGER 版本链。
+contracts.py 已建立，明确 Demand Reconstruction Handoff 输入结构。
+FEATURE_VERSION_LEDGER 已登记 v0.1-demand-reconstruction-handoff-contract。
 ```
 
 ## 4. knowledge-governance
