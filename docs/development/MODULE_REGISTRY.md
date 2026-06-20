@@ -47,6 +47,7 @@ intelligent_project_analyzer/modules/demand_reconstruction/semantic_router.py
 intelligent_project_analyzer/modules/demand_reconstruction/synthesis.py
 intelligent_project_analyzer/modules/demand_reconstruction/governance.py
 intelligent_project_analyzer/modules/demand_reconstruction/alignment_gate.py
+intelligent_project_analyzer/modules/demand_reconstruction/compatibility.py
 intelligent_project_analyzer/modules/demand_reconstruction/insight_quality_gate.py
 intelligent_project_analyzer/modules/demand_reconstruction/response_builder.py
 intelligent_project_analyzer/modules/demand_reconstruction/runtime_factory.py
@@ -104,6 +105,7 @@ semantic_router.py 已提取为 Stage 1 LLM 语义理解入口。
 synthesis.py 已提取为 Stage 5 LLM Final Synthesis 入口。
 governance.py 已提取为治理知识资产注入与治理信号持久化入口。
 alignment_gate.py 已提取为语义一致性 shadow/hard gate 与 fallback rebuild 入口。
+compatibility.py 已提取为旧 DemandReconstructionService 私有兼容方法实现入口。
 insight_quality_gate.py 已提取为洞察质量评估与质量治理信号入口。
 response_builder.py 已提取为 reply/card/context/result 构建入口。
 runtime_factory.py 已提取为需求重构运行时依赖装配入口。
@@ -113,7 +115,7 @@ blueprint_coordinator.py 已提取为规则计划、LLM synthesis 与 required-L
 conversation_handler.py 已提取为 pending guidance card、handoff 与 continue 会话入口处理。
 entry_classifier.py 已提取为需求重构入口判断、正式任务书请求识别与 follow-up 识别入口。
 pipeline.py 已提取为需求重构运行时主流程入口。
-下一步收敛 service.py 编排层，逐步将旧兼容方法下沉到模块 facade。
+下一步继续收敛 service.py 编排层，逐步减少兼容 facade 中的旧方法数量。
 旧 services/demand_reconstruction_service.py 保留兼容 facade。
 ```
 

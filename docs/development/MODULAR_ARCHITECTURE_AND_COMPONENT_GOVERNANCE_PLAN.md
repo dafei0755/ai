@@ -67,6 +67,7 @@ intelligent_project_analyzer/
       synthesis.py
       governance.py
       alignment_gate.py
+      compatibility.py
       insight_quality_gate.py
       response_builder.py
       runtime_factory.py
@@ -251,7 +252,7 @@ conversation-analysis-ui
 13. 新建 conversation_handler.py，迁移 pending guidance card、handoff 与 continue 会话入口处理。（已完成）
 14. 新建 entry_classifier.py，迁移需求重构入口判断、正式任务书请求识别与 follow-up 识别。（已完成）
 15. 新建 pipeline.py，迁移需求重构运行时主流程编排。（已完成）
-16. service.py 只保留依赖注入、入口兼容和旧私有方法兼容包装。
+16. 新建 compatibility.py，迁移旧私有兼容方法实现，service.py 保留方法名薄转发。（进行中）
 17. 旧 services/demand_reconstruction_service.py 作为兼容 facade 或薄入口。
 ```
 

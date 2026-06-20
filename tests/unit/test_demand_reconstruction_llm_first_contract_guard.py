@@ -9,6 +9,7 @@ SEMANTIC_ROUTER = ROOT / "intelligent_project_analyzer/modules/demand_reconstruc
 SYNTHESIS = ROOT / "intelligent_project_analyzer/modules/demand_reconstruction/synthesis.py"
 GOVERNANCE = ROOT / "intelligent_project_analyzer/modules/demand_reconstruction/governance.py"
 ALIGNMENT_GATE = ROOT / "intelligent_project_analyzer/modules/demand_reconstruction/alignment_gate.py"
+COMPATIBILITY = ROOT / "intelligent_project_analyzer/modules/demand_reconstruction/compatibility.py"
 INSIGHT_QUALITY_GATE = ROOT / "intelligent_project_analyzer/modules/demand_reconstruction/insight_quality_gate.py"
 RESPONSE_BUILDER = ROOT / "intelligent_project_analyzer/modules/demand_reconstruction/response_builder.py"
 RUNTIME_FACTORY = ROOT / "intelligent_project_analyzer/modules/demand_reconstruction/runtime_factory.py"
@@ -233,6 +234,19 @@ def test_demand_reconstruction_runtime_factory_is_module_boundary() -> None:
     assert "DemandReconstructionRuntimeFactory.build" in service_source
     assert "DemandReconstructionGovernance(" not in service_source
     assert "DemandReconstructionPipeline(" not in service_source
+
+
+def test_demand_reconstruction_compatibility_is_module_boundary() -> None:
+    compatibility_source = COMPATIBILITY.read_text(encoding="utf-8")
+    service_source = SERVICE.read_text(encoding="utf-8")
+
+    assert "class DemandReconstructionCompatibility" in compatibility_source
+    assert "def build_semantic_router_prompt" in compatibility_source
+    assert "def llm_semantic_scan_result" in compatibility_source
+    assert "def public_adapter_context" in compatibility_source
+    assert "DemandReconstructionCompatibility." in service_source
+    assert "DemandReconstructionResponseBuilder()" not in service_source
+    assert "DemandReconstructionSemanticRouter.build_prompt" not in service_source
 
 
 def test_demand_reconstruction_pipeline_is_module_boundary() -> None:

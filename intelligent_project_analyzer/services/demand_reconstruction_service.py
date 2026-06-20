@@ -12,6 +12,9 @@ from typing import Any, Dict, Optional
 from intelligent_project_analyzer.modules.demand_reconstruction.alignment_gate import (
     DemandReconstructionAlignmentGate,
 )
+from intelligent_project_analyzer.modules.demand_reconstruction.compatibility import (
+    DemandReconstructionCompatibility,
+)
 from intelligent_project_analyzer.modules.demand_reconstruction.insight_quality_gate import (
     DemandReconstructionInsightQualityGate,
 )
@@ -168,7 +171,7 @@ class DemandReconstructionService:
 
     @staticmethod
     def _alignment_hard_gate_enabled() -> bool:
-        return DemandReconstructionAlignmentGate.hard_gate_enabled()
+        return DemandReconstructionCompatibility.alignment_hard_gate_enabled()
 
     def _reject_to_semantic_fallback(
         self,
@@ -188,7 +191,7 @@ class DemandReconstructionService:
         existing_signals: Any,
         blocking_codes: list[Any],
     ) -> list[Dict[str, Any]]:
-        return DemandReconstructionAlignmentGate.append_alignment_rejection_signal(
+        return DemandReconstructionCompatibility.append_alignment_rejection_signal(
             existing_signals,
             blocking_codes,
         )
@@ -222,18 +225,18 @@ class DemandReconstructionService:
 
     @staticmethod
     def _governed_knowledge_match_terms(adapter_context: Dict[str, Any], source_message: str) -> list[str]:
-        return DemandReconstructionGovernance.governed_knowledge_match_terms(
+        return DemandReconstructionCompatibility.governed_knowledge_match_terms(
             adapter_context,
             source_message,
         )
 
     @staticmethod
     def _approved_card_matches_terms(card: Dict[str, Any], terms: list[str]) -> bool:
-        return DemandReconstructionGovernance.approved_card_matches_terms(card, terms)
+        return DemandReconstructionCompatibility.approved_card_matches_terms(card, terms)
 
     @staticmethod
     def _approved_card_match_metadata(card: Dict[str, Any], terms: list[str]) -> Dict[str, Any]:
-        return DemandReconstructionGovernance.approved_card_match_metadata(card, terms)
+        return DemandReconstructionCompatibility.approved_card_match_metadata(card, terms)
 
     @staticmethod
     def _compact_governed_knowledge_asset(
@@ -241,18 +244,18 @@ class DemandReconstructionService:
         *,
         match_metadata: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
-        return DemandReconstructionGovernance.compact_governed_knowledge_asset(
+        return DemandReconstructionCompatibility.compact_governed_knowledge_asset(
             card,
             match_metadata=match_metadata,
         )
 
     @staticmethod
     def _governance_scope(session: Dict[str, Any]) -> Dict[str, str]:
-        return DemandReconstructionGovernance.governance_scope(session)
+        return DemandReconstructionCompatibility.governance_scope(session)
 
     @staticmethod
     def _is_demand_reconstruction_followup(message: str) -> bool:
-        return DemandReconstructionEntryClassifier.is_demand_reconstruction_followup(message)
+        return DemandReconstructionCompatibility.is_demand_reconstruction_followup(message)
 
     def _build_blueprint(self, adapter_context: Dict[str, Any]) -> Dict[str, Any]:
         return self._blueprint_coordinator.build_blueprint(adapter_context)
@@ -306,7 +309,7 @@ class DemandReconstructionService:
         *,
         fragment_targets: Optional[list[Dict[str, Any]]] = None,
     ) -> None:
-        DemandReconstructionSemanticContextApplier.refresh_asset_scan(
+        DemandReconstructionCompatibility.refresh_llm_semantic_asset_scan(
             adapter_context,
             fragment_targets=fragment_targets,
         )
@@ -331,7 +334,7 @@ class DemandReconstructionService:
         evidence: list[str],
         matched_targets: list[str],
     ) -> Dict[str, Any]:
-        return DemandReconstructionSemanticContextApplier.llm_semantic_coverage_ceiling(
+        return DemandReconstructionCompatibility.llm_semantic_coverage_ceiling(
             scan_result=scan_result,
             project_object=project_object,
             evidence=evidence,
@@ -340,65 +343,60 @@ class DemandReconstructionService:
 
     @staticmethod
     def _llm_semantic_taxonomy_ids(package: Dict[str, Any], *keys: str) -> list[str]:
-        return DemandReconstructionSemanticContextApplier.llm_semantic_taxonomy_ids(package, *keys)
+        return DemandReconstructionCompatibility.llm_semantic_taxonomy_ids(package, *keys)
 
     @staticmethod
     def _candidate_fragment_id(project_object: str) -> str:
-        return DemandReconstructionSemanticContextApplier.candidate_fragment_id(project_object)
+        return DemandReconstructionCompatibility.candidate_fragment_id(project_object)
 
     def _llm_semantic_package_evidence(self, package: Dict[str, Any]) -> list[str]:
-        return DemandReconstructionSemanticContextApplier.llm_semantic_package_evidence(package)
+        return DemandReconstructionCompatibility.llm_semantic_package_evidence(package)
 
     def _llm_semantic_candidates(self, package: Dict[str, Any]) -> list[Dict[str, Any]]:
         return self._semantic_context_applier.llm_semantic_candidates(package)
 
     def _llm_semantic_fragment_targets(self, package: Dict[str, Any]) -> list[Dict[str, Any]]:
-        return DemandReconstructionSemanticContextApplier.llm_semantic_fragment_targets(package)
+        return DemandReconstructionCompatibility.llm_semantic_fragment_targets(package)
 
     def _merge_llm_and_rule_candidates(
         self,
         llm_candidates: list[Dict[str, Any]],
         rule_candidates: list[Dict[str, Any]],
     ) -> list[Dict[str, Any]]:
-        return DemandReconstructionSemanticContextApplier.merge_llm_and_rule_candidates(
+        return DemandReconstructionCompatibility.merge_llm_and_rule_candidates(
             llm_candidates,
             rule_candidates,
         )
 
     def _llm_no_match_candidate(self, package: Dict[str, Any]) -> Dict[str, Any]:
-        return DemandReconstructionSemanticContextApplier.llm_no_match_candidate(package)
+        return DemandReconstructionCompatibility.llm_no_match_candidate(package)
 
     @staticmethod
     def _llm_semantic_scan_result(package: Dict[str, Any], candidates: list[Dict[str, Any]]) -> Dict[str, Any]:
-        return DemandReconstructionSemanticContextApplier.llm_semantic_scan_result(
+        return DemandReconstructionCompatibility.llm_semantic_scan_result(
             package,
             candidates,
         )
 
     @classmethod
     def _normalize_llm_semantic_target(cls, value: Any) -> Optional[str]:
-        return DemandReconstructionSemanticContextApplier(
-            target_aliases=cls._LLM_SEMANTIC_TARGET_ALIASES,
-        ).normalize_llm_semantic_target(value)
+        return DemandReconstructionCompatibility.normalize_llm_semantic_target(value)
 
     @staticmethod
     def _safe_confidence(value: Any) -> float:
-        return DemandReconstructionSemanticContextApplier.safe_confidence(value)
+        return DemandReconstructionCompatibility.safe_confidence(value)
 
     @staticmethod
     def _take_evidence(value: Any) -> list[str]:
-        return DemandReconstructionSemanticContextApplier.take_evidence(value)
+        return DemandReconstructionCompatibility.take_evidence(value)
 
     @staticmethod
     def _dedupe_strings(values: list[str]) -> list[str]:
-        return DemandReconstructionSemanticContextApplier.dedupe_strings(values)
+        return DemandReconstructionCompatibility.dedupe_strings(values)
 
     @staticmethod
     def _build_semantic_router_prompt(message: str) -> str:
-        return DemandReconstructionSemanticRouter.build_prompt(
-            message,
-            target_aliases=DemandReconstructionService._LLM_SEMANTIC_TARGET_ALIASES,
-        )
+        return DemandReconstructionCompatibility.build_semantic_router_prompt(message)
 
     def _invoke_semantic_router_with_llm(
         self,
@@ -411,7 +409,7 @@ class DemandReconstructionService:
 
     @staticmethod
     def _build_semantic_router_repair_prompt(*, original_prompt: str, rejected_content: str) -> str:
-        return DemandReconstructionSemanticRouter.build_repair_prompt(
+        return DemandReconstructionCompatibility.build_semantic_router_repair_prompt(
             original_prompt=original_prompt,
             rejected_content=rejected_content,
         )
@@ -421,11 +419,11 @@ class DemandReconstructionService:
 
     @staticmethod
     def _semantic_understanding_is_valid(package: Dict[str, Any]) -> bool:
-        return DemandReconstructionSemanticRouter.is_valid(package)
+        return DemandReconstructionCompatibility.semantic_understanding_is_valid(package)
 
     @staticmethod
     def _render_reply(plan: Dict[str, Any]) -> str:
-        return DemandReconstructionResponseBuilder().render_reply(plan)
+        return DemandReconstructionCompatibility.render_reply(plan)
 
     @staticmethod
     def _evaluate_alignment_shadow(
@@ -435,7 +433,7 @@ class DemandReconstructionService:
         adapter_context: Dict[str, Any],
         card: Dict[str, Any],
     ) -> Dict[str, Any]:
-        return DemandReconstructionAlignmentGate.evaluate_alignment_shadow(
+        return DemandReconstructionCompatibility.evaluate_alignment_shadow(
             source_message=source_message,
             visible_text=visible_text,
             adapter_context=adapter_context,
@@ -444,15 +442,15 @@ class DemandReconstructionService:
 
     @staticmethod
     def _card(plan: Dict[str, Any]) -> Dict[str, Any]:
-        return DemandReconstructionResponseBuilder().build_card(plan)
+        return DemandReconstructionCompatibility.card(plan)
 
     @staticmethod
     def _public_card_summary(plan: Dict[str, Any]) -> Dict[str, Any]:
-        return DemandReconstructionResponseBuilder.public_card_summary(plan)
+        return DemandReconstructionCompatibility.public_card_summary(plan)
 
     @staticmethod
     def _public_adapter_context(adapter_context: Dict[str, Any]) -> Dict[str, Any]:
-        return DemandReconstructionResponseBuilder.public_adapter_context(adapter_context)
+        return DemandReconstructionCompatibility.public_adapter_context(adapter_context)
 
 
     @staticmethod
@@ -460,7 +458,7 @@ class DemandReconstructionService:
         signals: Any,
         insight_quality: Dict[str, Any],
     ) -> list[Dict[str, Any]]:
-        return DemandReconstructionInsightQualityGate.append_insight_quality_signal(
+        return DemandReconstructionCompatibility.append_insight_quality_signal(
             signals,
             insight_quality,
         )
