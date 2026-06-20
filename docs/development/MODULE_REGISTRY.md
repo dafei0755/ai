@@ -36,13 +36,14 @@ feature_ledger: docs/development/FEATURE_VERSION_LEDGER.md#1-demand-reconstructi
 ### owned_paths
 
 ```text
-intelligent_project_analyzer/services/demand_reconstruction_service.py
+intelligent_project_analyzer/services/demand_reconstruction_service.py  # compatibility import path
 intelligent_project_analyzer/services/demand_reconstruction_context_adapter.py
 intelligent_project_analyzer/services/demand_reconstruction_output_planner.py
 intelligent_project_analyzer/services/demand_reconstruction_boundary_guard.py
 intelligent_project_analyzer/services/demand_reconstruction_insight_quality.py
 intelligent_project_analyzer/services/demand_reconstruction_latent_model.py
 intelligent_project_analyzer/modules/demand_reconstruction/contracts.py
+intelligent_project_analyzer/modules/demand_reconstruction/service.py
 intelligent_project_analyzer/modules/demand_reconstruction/semantic_router.py
 intelligent_project_analyzer/modules/demand_reconstruction/synthesis.py
 intelligent_project_analyzer/modules/demand_reconstruction/governance.py
@@ -76,7 +77,8 @@ SYNTHESIS_UNAVAILABLE -> HTTP 503。
 ### entrypoints
 
 ```text
-intelligent_project_analyzer.services.demand_reconstruction_service.DemandReconstructionService
+intelligent_project_analyzer.modules.demand_reconstruction.service.DemandReconstructionService
+intelligent_project_analyzer.services.demand_reconstruction_service.DemandReconstructionService  # compatibility import path
 intelligent_project_analyzer.api.dual_mode_routes.post_conversation_message
 ```
 
@@ -100,6 +102,7 @@ tests/api/test_scheme_advisor_entry_route.py
 ### next_refactor_target
 
 ```text
+service.py 已提取为需求重构 canonical service 入口。
 contracts.py 已提取为模块合同入口。
 semantic_router.py 已提取为 Stage 1 LLM 语义理解入口。
 synthesis.py 已提取为 Stage 5 LLM Final Synthesis 入口。
@@ -115,8 +118,8 @@ blueprint_coordinator.py 已提取为规则计划、LLM synthesis 与 required-L
 conversation_handler.py 已提取为 pending guidance card、handoff 与 continue 会话入口处理。
 entry_classifier.py 已提取为需求重构入口判断、正式任务书请求识别与 follow-up 识别入口。
 pipeline.py 已提取为需求重构运行时主流程入口。
-下一步继续收敛 service.py 编排层，逐步减少兼容 facade 中的旧方法数量。
-旧 services/demand_reconstruction_service.py 保留兼容 facade。
+下一步继续减少 canonical service 中旧私有兼容方法数量。
+旧 services/demand_reconstruction_service.py 已收敛为兼容导出 facade。
 ```
 
 ## 2. project-type-detection

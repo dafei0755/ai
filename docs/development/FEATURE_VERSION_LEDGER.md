@@ -61,6 +61,7 @@ SYNTHESIS_UNAVAILABLE -> HTTP 503
 
 ```text
 intelligent_project_analyzer/modules/demand_reconstruction/contracts.py
+intelligent_project_analyzer/modules/demand_reconstruction/service.py
 intelligent_project_analyzer/modules/demand_reconstruction/semantic_router.py
 intelligent_project_analyzer/modules/demand_reconstruction/synthesis.py
 intelligent_project_analyzer/modules/demand_reconstruction/governance.py
@@ -75,7 +76,7 @@ intelligent_project_analyzer/modules/demand_reconstruction/blueprint_coordinator
 intelligent_project_analyzer/modules/demand_reconstruction/conversation_handler.py
 intelligent_project_analyzer/modules/demand_reconstruction/entry_classifier.py
 intelligent_project_analyzer/modules/demand_reconstruction/pipeline.py
-intelligent_project_analyzer/services/demand_reconstruction_service.py
+intelligent_project_analyzer/services/demand_reconstruction_service.py  # compatibility import path
 intelligent_project_analyzer/api/dual_mode_routes.py
 docs/mechanism-reviews/DEMAND_RECONSTRUCTION_LLM_FIRST_ARCHITECTURE.md
 docs/development/方案高参需求重构运行时开发纲领.md

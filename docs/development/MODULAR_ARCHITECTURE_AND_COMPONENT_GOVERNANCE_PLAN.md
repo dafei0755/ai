@@ -252,8 +252,8 @@ conversation-analysis-ui
 13. 新建 conversation_handler.py，迁移 pending guidance card、handoff 与 continue 会话入口处理。（已完成）
 14. 新建 entry_classifier.py，迁移需求重构入口判断、正式任务书请求识别与 follow-up 识别。（已完成）
 15. 新建 pipeline.py，迁移需求重构运行时主流程编排。（已完成）
-16. 新建 compatibility.py，迁移旧私有兼容方法实现，service.py 保留方法名薄转发。（进行中）
-17. 旧 services/demand_reconstruction_service.py 作为兼容 facade 或薄入口。
+16. 新建 compatibility.py，迁移旧私有兼容方法实现，service.py 保留方法名薄转发。（已完成）
+17. 新建 modules/demand_reconstruction/service.py 作为 canonical service，旧 services/demand_reconstruction_service.py 作为兼容 facade。（已完成）
 ```
 
 验收命令：

@@ -2093,14 +2093,14 @@ def test_demand_reconstruction_reply_and_card_use_demand_reconstruction_language
 
 
 def test_demand_reconstruction_service_source_does_not_keep_specific_rural_home_answer_branch():
-    source = Path("intelligent_project_analyzer/services/demand_reconstruction_service.py").read_text(encoding="utf-8")
+    source = Path("intelligent_project_analyzer/modules/demand_reconstruction/service.py").read_text(encoding="utf-8")
 
     assert 'if "老家" in text and "民居" in text and "设计师" in text' not in source
     assert "离乡多年的专业设计师，如何重新安放自己与故乡关系" not in source
 
 
 def test_insight_protocol_is_centralized_outside_demand_reconstruction_service():
-    source = Path("intelligent_project_analyzer/services/demand_reconstruction_service.py").read_text(encoding="utf-8")
+    source = Path("intelligent_project_analyzer/modules/demand_reconstruction/service.py").read_text(encoding="utf-8")
 
     assert "第一性剥离" not in source
     assert "空间被雇佣" not in source

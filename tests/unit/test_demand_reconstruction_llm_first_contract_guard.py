@@ -2,7 +2,8 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[2]
-SERVICE = ROOT / "intelligent_project_analyzer/services/demand_reconstruction_service.py"
+SERVICE = ROOT / "intelligent_project_analyzer/modules/demand_reconstruction/service.py"
+LEGACY_SERVICE = ROOT / "intelligent_project_analyzer/services/demand_reconstruction_service.py"
 ROUTE = ROOT / "intelligent_project_analyzer/api/dual_mode_routes.py"
 CONTRACTS = ROOT / "intelligent_project_analyzer/modules/demand_reconstruction/contracts.py"
 SEMANTIC_ROUTER = ROOT / "intelligent_project_analyzer/modules/demand_reconstruction/semantic_router.py"
@@ -38,6 +39,15 @@ def test_demand_reconstruction_service_keeps_llm_first_semantic_router_contract(
     assert "SYNTHESIS_UNAVAILABLE" in coordinator_source
     assert "DEMAND_RECONSTRUCTION_CARD_TYPE" in source
     assert "semantic_fallback" in coordinator_source
+
+
+def test_legacy_demand_reconstruction_service_path_is_compatibility_facade() -> None:
+    source = LEGACY_SERVICE.read_text(encoding="utf-8")
+
+    assert "modules.demand_reconstruction.service import" in source
+    assert "DemandReconstructionService" in source
+    assert "class DemandReconstructionService" not in source
+    assert "DemandReconstructionRuntimeFactory.build" not in source
 
 
 def test_conversation_route_maps_required_llm_unavailability_to_http_503() -> None:
