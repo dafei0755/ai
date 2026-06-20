@@ -100,6 +100,9 @@ langgraph-design/
 
 - **实现文档**：`docs/implementation/`（修复记录、版本报告、技术设计）
 - **方案高参入口基线**：`docs/development/方案高参需求重构运行时开发纲领.md`
+- **模块化治理**：`docs/development/MODULAR_ARCHITECTURE_AND_COMPONENT_GOVERNANCE_PLAN.md`
+- **模块注册表**：`docs/development/MODULE_REGISTRY.md`
+- **功能版本账本**：`docs/development/FEATURE_VERSION_LEDGER.md`
 - **用户指南**：`docs/guides/`（使用手册、快速入门）
 - **模块说明**：各子模块的 `CLAUDE.md` 文件
 
