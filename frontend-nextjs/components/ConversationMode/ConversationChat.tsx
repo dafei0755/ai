@@ -14,7 +14,7 @@
 import React, { useEffect, useRef } from 'react';
 import { AdvisorContextPanel } from '@/features/conversation/components/AdvisorContextPanel';
 import { ComposerShell } from '@/features/conversation/components/ComposerShell';
-import { MessageCardRenderer } from '@/features/conversation/components/MessageCardRenderer';
+import { MessageListShell } from '@/features/conversation/components/MessageListShell';
 import { VisualBriefPanel } from '@/features/conversation/components/VisualBriefPanel';
 import { useConversationComposer } from '@/features/conversation/hooks/useConversationComposer';
 import { useConversationLayoutState } from '@/features/conversation/hooks/useConversationLayoutState';
@@ -35,18 +35,6 @@ export type {
   MessageRole,
   SchemeVersionCardData,
 } from '@/features/conversation/types';
-
-// ── 打字指示器 ────────────────────────────────────────────
-
-function TypingIndicator() {
-  return (
-    <div className="mb-6 flex items-center gap-1.5">
-      <span className="w-2 h-2 rounded-full bg-[var(--foreground-secondary)] animate-bounce [animation-delay:-0.3s]" />
-      <span className="w-2 h-2 rounded-full bg-[var(--foreground-secondary)] animate-bounce [animation-delay:-0.15s]" />
-      <span className="w-2 h-2 rounded-full bg-[var(--foreground-secondary)] animate-bounce" />
-    </div>
-  );
-}
 
 // ── 主组件 ────────────────────────────────────────────────
 
@@ -239,23 +227,14 @@ export default function ConversationChat({
           onStartResize={startContextResize}
         />
       )}
-      {/* 消息列表（底部留空间给浮动输入栏） */}
-      <div ref={scrollRef} className="min-h-[140px] flex-1 overflow-y-auto" style={{ paddingInline: adaptiveChatGutter }}>
-        {visibleMessages.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full text-center select-none">
-            <div className="text-4xl mb-3">💬</div>
-            <p className="ui-type-subtitle font-medium text-[var(--foreground)]">随时开始聊</p>
-            <p className="ui-type-meta mt-1 text-[var(--foreground-secondary)]">分享你的想法、灵感或设计需求</p>
-          </div>
-        ) : (
-          <div className="w-full max-w-[960px] mx-auto pt-4 pb-60" style={{ paddingInline: '2px' }}>
-      {visibleMessages.map((msg) => (
-              <MessageCardRenderer key={msg.id} message={msg} onCardResponse={onCardResponse} onCandidateCardResponse={onCandidateCardResponse} />
-            ))}
-            {loading && <TypingIndicator />}
-          </div>
-        )}
-      </div>
+      <MessageListShell
+        scrollRef={scrollRef}
+        visibleMessages={visibleMessages}
+        loading={loading}
+        adaptiveChatGutter={adaptiveChatGutter}
+        onCardResponse={onCardResponse}
+        onCandidateCardResponse={onCandidateCardResponse}
+      />
       </div>
 
       <ComposerShell

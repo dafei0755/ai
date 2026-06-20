@@ -12,7 +12,7 @@ describe('conversation-analysis-ui module contract', () => {
   it('registers the governed frontend feature boundary', () => {
     expect(CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT).toMatchObject({
       moduleId: 'conversation-analysis-ui',
-      currentVersion: 'v0.8-composer-shell-extracted',
+      currentVersion: 'v0.9-message-list-shell-extracted',
     });
 
     for (const ownedPath of CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT.ownedPaths) {
@@ -55,8 +55,11 @@ describe('conversation-analysis-ui module contract', () => {
     const composerShellTestSource = readRepoFile(
       'frontend-nextjs/features/conversation/components/ConversationComposerShell.test.tsx',
     );
+    const messageListShellTestSource = readRepoFile(
+      'frontend-nextjs/features/conversation/components/ConversationMessageListShell.test.tsx',
+    );
     const contractTestSource = readRepoFile('frontend-nextjs/features/conversation/contracts.test.ts');
-    const combinedTestSource = `${guidanceCardTestSource}\n${conversationChatTestSource}\n${composerHookTestSource}\n${layoutHookTestSource}\n${panelTestSource}\n${expertControlsTestSource}\n${composerShellTestSource}\n${contractTestSource}`;
+    const combinedTestSource = `${guidanceCardTestSource}\n${conversationChatTestSource}\n${composerHookTestSource}\n${layoutHookTestSource}\n${panelTestSource}\n${expertControlsTestSource}\n${composerShellTestSource}\n${messageListShellTestSource}\n${contractTestSource}`;
 
     for (const testCaseName of CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT.protectedTestCases) {
       expect(combinedTestSource).toContain(testCaseName);
@@ -87,11 +90,15 @@ describe('conversation-analysis-ui module contract', () => {
     const conversationChatSource = readRepoFile(
       'frontend-nextjs/components/ConversationMode/ConversationChat.tsx',
     );
+    const messageListShellSource = readRepoFile(
+      'frontend-nextjs/features/conversation/components/MessageListShell.tsx',
+    );
     const rendererSource = readRepoFile(
       'frontend-nextjs/features/conversation/components/MessageCardRenderer.tsx',
     );
 
-    expect(conversationChatSource).toContain("from '@/features/conversation/components/MessageCardRenderer'");
+    expect(conversationChatSource).not.toContain("from '@/features/conversation/components/MessageCardRenderer'");
+    expect(messageListShellSource).toContain("from '@/features/conversation/components/MessageCardRenderer'");
     expect(conversationChatSource).not.toContain('function SchemeVersionSelectionCard');
     expect(rendererSource).toContain('export function MessageCardRenderer');
     expect(rendererSource).toContain('scheme_version_selection');
@@ -180,5 +187,21 @@ describe('conversation-analysis-ui module contract', () => {
     expect(conversationChatSource).not.toContain('ui-card-shell ui-card-shell-strong');
     expect(composerShellSource).toContain('export function ComposerShell');
     expect(composerShellSource).toContain('aria-label="发送"');
+  });
+
+  it('keeps message list shell in the feature component layer', () => {
+    const conversationChatSource = readRepoFile(
+      'frontend-nextjs/components/ConversationMode/ConversationChat.tsx',
+    );
+    const messageListShellSource = readRepoFile(
+      'frontend-nextjs/features/conversation/components/MessageListShell.tsx',
+    );
+
+    expect(conversationChatSource).toContain("from '@/features/conversation/components/MessageListShell'");
+    expect(conversationChatSource).not.toContain('随时开始聊');
+    expect(conversationChatSource).not.toContain('function TypingIndicator');
+    expect(messageListShellSource).toContain('export function MessageListShell');
+    expect(messageListShellSource).toContain('随时开始聊');
+    expect(messageListShellSource).toContain('MessageCardRenderer');
   });
 });

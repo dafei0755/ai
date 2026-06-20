@@ -310,8 +310,9 @@ frontend-nextjs/app/analysis/[sessionId]/page.tsx
 6. 提取 visual brief/context panel components。（已完成）
 7. 提取 expert controls and summon menu。（已完成）
 8. 提取 composer shell。（已完成）
-9. 提取 message list shell。
-10. 页面只保留 session 加载、布局和 feature 组合。
+9. 提取 message list shell。（已完成）
+10. 提取 upgrade banner。
+11. 页面只保留 session 加载、布局和 feature 组合。
 ```
 
 验收：

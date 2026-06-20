@@ -434,7 +434,7 @@ contracts.py 已建立为 LLM runtime 模块合同入口。
 module_id: conversation-analysis-ui
 name: 分析页对话 UI 与引导卡交互
 status: governed
-current_version: v0.8-composer-shell-extracted
+current_version: v0.9-message-list-shell-extracted
 ```
 
 ### owned_paths
@@ -447,6 +447,7 @@ frontend-nextjs/features/conversation/components/VisualBriefPanel.tsx
 frontend-nextjs/features/conversation/components/AdvisorContextPanel.tsx
 frontend-nextjs/features/conversation/components/ExpertControls.tsx
 frontend-nextjs/features/conversation/components/ComposerShell.tsx
+frontend-nextjs/features/conversation/components/MessageListShell.tsx
 frontend-nextjs/features/conversation/hooks/useConversationComposer.ts
 frontend-nextjs/features/conversation/hooks/useConversationLayoutState.ts
 frontend-nextjs/app/analysis/[sessionId]/page.tsx
@@ -489,6 +490,7 @@ frontend-nextjs/features/conversation/contracts.test.ts
 frontend-nextjs/features/conversation/components/ConversationPanels.test.tsx
 frontend-nextjs/features/conversation/components/ConversationExpertControls.test.tsx
 frontend-nextjs/features/conversation/components/ConversationComposerShell.test.tsx
+frontend-nextjs/features/conversation/components/ConversationMessageListShell.test.tsx
 frontend-nextjs/features/conversation/hooks/useConversationComposer.test.ts
 frontend-nextjs/features/conversation/hooks/useConversationLayoutState.test.ts
 frontend-nextjs/components/ConversationMode/ConversationChat.test.tsx
@@ -507,7 +509,8 @@ features/conversation/components/VisualBriefPanel.tsx 已承接 VisualBrief 展�
 features/conversation/components/AdvisorContextPanel.tsx 已承接上下文洞察展示、展开、固定和高度拖拽入口。
 features/conversation/components/ExpertControls.tsx 已承接专家视角选择、召集团队菜单、外部点击关闭和 Escape 关闭逻辑。
 features/conversation/components/ComposerShell.tsx 已承接浮动输入容器、专家控件组合、textarea 与发送按钮。
-提取 message list shell。
+features/conversation/components/MessageListShell.tsx 已承接空态、消息列表、typing indicator 和 MessageCardRenderer 组合。
+提取 upgrade banner。
 ConversationChat 保留为组合容器。
 ```
 
