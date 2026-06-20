@@ -12,7 +12,7 @@ describe('conversation-analysis-ui module contract', () => {
   it('registers the governed frontend feature boundary', () => {
     expect(CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT).toMatchObject({
       moduleId: 'conversation-analysis-ui',
-      currentVersion: 'v2.7-advisor-key-types-aligned',
+      currentVersion: 'v2.8-advisor-project-space-inference-extracted',
     });
 
     for (const ownedPath of CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT.ownedPaths) {
@@ -67,6 +67,9 @@ describe('conversation-analysis-ui module contract', () => {
     const advisorNavigationConfigTestSource = readRepoFile(
       'frontend-nextjs/features/conversation/advisorNavigationConfig.test.ts',
     );
+    const advisorProjectSpaceInferenceTestSource = readRepoFile(
+      'frontend-nextjs/features/conversation/advisorProjectSpaceInference.test.ts',
+    );
     const advisorViewModelTestSource = readRepoFile(
       'frontend-nextjs/features/conversation/advisorViewModel.test.ts',
     );
@@ -101,7 +104,7 @@ describe('conversation-analysis-ui module contract', () => {
       'frontend-nextjs/__tests__/AppSessionShell.test.tsx',
     );
     const contractTestSource = readRepoFile('frontend-nextjs/features/conversation/contracts.test.ts');
-    const combinedTestSource = `${guidanceCardTestSource}\n${conversationHistoryAdapterTestSource}\n${conversationSessionBootstrapTestSource}\n${conversationActionHandlersTestSource}\n${conversationLocalPersistenceTestSource}\n${advisorHistoryPersistenceTestSource}\n${advisorHistoryDerivationTestSource}\n${advisorHistoryGroupingTestSource}\n${advisorConversationAccessorsTestSource}\n${advisorSceneContextTestSource}\n${advisorNavigationConfigTestSource}\n${advisorViewModelTestSource}\n${conversationChatTestSource}\n${composerHookTestSource}\n${layoutHookTestSource}\n${advisorContextDerivationTestSource}\n${panelTestSource}\n${expertControlsTestSource}\n${composerShellTestSource}\n${messageListShellTestSource}\n${upgradeBannerTestSource}\n${appSessionShellTestSource}\n${contractTestSource}`;
+    const combinedTestSource = `${guidanceCardTestSource}\n${conversationHistoryAdapterTestSource}\n${conversationSessionBootstrapTestSource}\n${conversationActionHandlersTestSource}\n${conversationLocalPersistenceTestSource}\n${advisorHistoryPersistenceTestSource}\n${advisorHistoryDerivationTestSource}\n${advisorHistoryGroupingTestSource}\n${advisorConversationAccessorsTestSource}\n${advisorSceneContextTestSource}\n${advisorNavigationConfigTestSource}\n${advisorProjectSpaceInferenceTestSource}\n${advisorViewModelTestSource}\n${conversationChatTestSource}\n${composerHookTestSource}\n${layoutHookTestSource}\n${advisorContextDerivationTestSource}\n${panelTestSource}\n${expertControlsTestSource}\n${composerShellTestSource}\n${messageListShellTestSource}\n${upgradeBannerTestSource}\n${appSessionShellTestSource}\n${contractTestSource}`;
 
     for (const testCaseName of CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT.protectedTestCases) {
       expect(combinedTestSource).toContain(testCaseName);
@@ -304,7 +307,7 @@ describe('conversation-analysis-ui module contract', () => {
     ];
 
     expect(CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT.currentVersion).toBe(
-      'v2.7-advisor-key-types-aligned',
+      'v2.8-advisor-project-space-inference-extracted',
     );
     expect(conversationChatLines.length).toBeLessThanOrEqual(220);
     for (const importPath of requiredCompositionImports) {
@@ -547,5 +550,24 @@ describe('conversation-analysis-ui module contract', () => {
     expect(advisorSceneContextSource).toContain('export type AdvisorScenePrimaryNav');
     expect(advisorSceneContextSource).toContain('export type AdvisorSceneProjectSection');
     expect(advisorSceneContextSource).toContain('export type AdvisorSceneInsightView');
+  });
+
+  it('keeps advisor project space inference in the feature layer', () => {
+    const analysisPageSource = readRepoFile(
+      'frontend-nextjs/app/analysis/[sessionId]/page.tsx',
+    );
+    const advisorProjectSpaceInferenceSource = readRepoFile(
+      'frontend-nextjs/features/conversation/advisorProjectSpaceInference.ts',
+    );
+
+    expect(analysisPageSource).toContain("from '@/features/conversation/advisorProjectSpaceInference'");
+    expect(analysisPageSource).not.toContain('const PLAN_SANDBOX_SPACE_OPTIONS');
+    expect(analysisPageSource).not.toContain('const PROJECT_SPACE_INFERENCE_KEYWORDS');
+    expect(analysisPageSource).not.toContain('const collectProjectOverviewText =');
+    expect(analysisPageSource).not.toContain('const inferProjectDefaultSpace =');
+    expect(advisorProjectSpaceInferenceSource).toContain('export const PLAN_SANDBOX_SPACE_OPTIONS');
+    expect(advisorProjectSpaceInferenceSource).toContain('export const PROJECT_SPACE_INFERENCE_KEYWORDS');
+    expect(advisorProjectSpaceInferenceSource).toContain('export const collectProjectOverviewText');
+    expect(advisorProjectSpaceInferenceSource).toContain('export const inferProjectDefaultSpace');
   });
 });
