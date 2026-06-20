@@ -1,6 +1,6 @@
 export const CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT = {
   moduleId: 'conversation-analysis-ui',
-  currentVersion: 'v1.2-advisor-context-derivation-hook',
+  currentVersion: 'v1.3-final-composition-shell-audited',
   ownedPaths: [
     'frontend-nextjs/features/conversation/contracts.ts',
     'frontend-nextjs/features/conversation/types.ts',
@@ -62,6 +62,7 @@ export const CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT = {
     'keeps advisor context derivation in the feature hook layer',
     'extracts trimmed numbered advisor insight lines from scene context',
     'returns no insight lines when scene context is missing',
+    'keeps ConversationChat as the final composition shell',
     'renders demand reconstruction cards without formal intake wording',
     'renders dynamic demand reconstruction blueprint sections',
     'renders user-facing labels for context packet missing-slot pages',
@@ -71,12 +72,12 @@ export const CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT = {
   ],
   publicContractRules: [
     'analysis page composes session loading, layout, and feature entrypoints',
-    'conversation chat remains the composition shell for message interactions',
+    'conversation chat is the final composition shell and delegates business UI to feature components',
     'guidance, candidate, and version cards remain independently testable',
     'frontend labels must translate internal backend signals into user-facing language',
   ],
   nextRefactorTargets: [
-    'audit ConversationChat as final composition shell',
+    'audit analysis page session loading and feature composition boundary',
   ],
 } as const;
 

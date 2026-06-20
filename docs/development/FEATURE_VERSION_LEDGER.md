@@ -359,11 +359,11 @@ tests/services/test_scheme_advisor_entry_v2_restore.py
 feature_id: conversation-analysis-ui
 name: 分析页对话 UI 与引导卡交互
 status: governed
-current_authoritative_version: v1.2-advisor-context-derivation-hook
+current_authoritative_version: v1.3-final-composition-shell-audited
 authoritative_branch: fix/scheme-advisor-question-root-cause-20260616
 authoritative_commit: current-branch-head-after-checkpoint
 previous_authoritative_commit: unregistered
-rollback_target: branch head before v1.2-advisor-context-derivation-hook checkpoint
+rollback_target: branch head before v1.3-final-composition-shell-audited checkpoint
 last_promotion: 2026-06-20
 ```
 
@@ -382,6 +382,7 @@ v0.9: 空态、消息列表、typing indicator 和消息卡片组合从 Conversa
 v1.0: 升级提示横幅从 ConversationChat 抽取到 UpgradeBanner
 v1.1: 移除 disabled legacy advisor context block，并补合同测试防止不可达 UI 回流
 v1.2: advisor suggestion 到 insight lines 的派生逻辑从 ConversationChat 抽取到 useAdvisorContextDerivation
+v1.3: 审计并固化 ConversationChat 为最终组合容器，禁止业务 UI、卡片实现、文案和字符串解析回流
 ```
 
 ### 当前合同
@@ -393,7 +394,7 @@ analysis session page
 -> user-facing response callback
 ```
 
-分析页负责 session 加载、布局和 feature 组合；ConversationChat 保留为对话组合容器；引导卡、候选卡和版本选择卡必须保持可独立测试。后端内部字段和机制信号必须在前端翻译为用户可理解的标签。
+分析页负责 session 加载、布局和 feature 组合；ConversationChat 已收敛为最终对话组合容器，只组合 feature components/hooks、refs/effects 与传参；引导卡、候选卡和版本选择卡必须保持可独立测试。后端内部字段和机制信号必须在前端翻译为用户可理解的标签。
 
 ### 权威文件
 

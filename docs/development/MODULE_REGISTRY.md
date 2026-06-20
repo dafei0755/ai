@@ -434,7 +434,7 @@ contracts.py 已建立为 LLM runtime 模块合同入口。
 module_id: conversation-analysis-ui
 name: 分析页对话 UI 与引导卡交互
 status: governed
-current_version: v1.2-advisor-context-derivation-hook
+current_version: v1.3-final-composition-shell-audited
 ```
 
 ### owned_paths
@@ -517,8 +517,8 @@ features/conversation/components/MessageListShell.tsx 已承接空态、消息�
 features/conversation/components/UpgradeBanner.tsx 已承接升级提示横幅文案和确认/稍后操作。
 已移除 ConversationChat 中 disabled legacy advisor context block，并由合同测试防止回流。
 features/conversation/hooks/useAdvisorContextDerivation.ts 已承接 advisor suggestion 到 insight lines 的派生逻辑。
-审计 ConversationChat 是否已满足最终组合容器目标。
-ConversationChat 保留为组合容器。
+ConversationChat 已审计为最终组合容器：只保留 feature components/hooks 组合、refs/effects 和传参，不再承接业务 UI、卡片实现、文案或字符串解析。
+下一步审计 analysis page session loading and feature composition boundary。
 ```
 
 ## 8. 新模块登记模板

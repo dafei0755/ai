@@ -12,7 +12,7 @@ describe('conversation-analysis-ui module contract', () => {
   it('registers the governed frontend feature boundary', () => {
     expect(CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT).toMatchObject({
       moduleId: 'conversation-analysis-ui',
-      currentVersion: 'v1.2-advisor-context-derivation-hook',
+      currentVersion: 'v1.3-final-composition-shell-audited',
     });
 
     for (const ownedPath of CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT.ownedPaths) {
@@ -249,5 +249,35 @@ describe('conversation-analysis-ui module contract', () => {
     expect(conversationChatSource).not.toContain('advisorSuggestionLines');
     expect(advisorContextDerivationSource).toContain('export function useAdvisorContextDerivation');
     expect(advisorContextDerivationSource).toContain('advisorInsightLines');
+  });
+
+  it('keeps ConversationChat as the final composition shell', () => {
+    const conversationChatSource = readRepoFile(
+      'frontend-nextjs/components/ConversationMode/ConversationChat.tsx',
+    );
+    const conversationChatLines = conversationChatSource.split('\n');
+    const requiredCompositionImports = [
+      "from '@/features/conversation/components/AdvisorContextPanel'",
+      "from '@/features/conversation/components/ComposerShell'",
+      "from '@/features/conversation/components/MessageListShell'",
+      "from '@/features/conversation/components/UpgradeBanner'",
+      "from '@/features/conversation/components/VisualBriefPanel'",
+      "from '@/features/conversation/hooks/useAdvisorContextDerivation'",
+      "from '@/features/conversation/hooks/useConversationComposer'",
+      "from '@/features/conversation/hooks/useConversationLayoutState'",
+    ];
+
+    expect(CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT.currentVersion).toBe(
+      'v1.3-final-composition-shell-audited',
+    );
+    expect(conversationChatLines.length).toBeLessThanOrEqual(220);
+    for (const importPath of requiredCompositionImports) {
+      expect(conversationChatSource).toContain(importPath);
+    }
+    expect(conversationChatSource).not.toContain('function TypingIndicator');
+    expect(conversationChatSource).not.toContain('function SchemeVersionSelectionCard');
+    expect(conversationChatSource).not.toContain('对话已积累足够上下文，可以整理为正式项目');
+    expect(conversationChatSource).not.toContain('随时开始聊');
+    expect(conversationChatSource).not.toContain(".split('\\n')");
   });
 });
