@@ -12,7 +12,7 @@ describe('conversation-analysis-ui module contract', () => {
   it('registers the governed frontend feature boundary', () => {
     expect(CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT).toMatchObject({
       moduleId: 'conversation-analysis-ui',
-      currentVersion: 'v2.9-advisor-expert-summon-options-extracted',
+      currentVersion: 'v3.0-advisor-workspace-layout-config-extracted',
     });
 
     for (const ownedPath of CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT.ownedPaths) {
@@ -64,6 +64,9 @@ describe('conversation-analysis-ui module contract', () => {
     const advisorExpertSummonOptionsTestSource = readRepoFile(
       'frontend-nextjs/features/conversation/advisorExpertSummonOptions.test.ts',
     );
+    const advisorWorkspaceLayoutConfigTestSource = readRepoFile(
+      'frontend-nextjs/features/conversation/advisorWorkspaceLayoutConfig.test.ts',
+    );
     const advisorSceneContextTestSource = readRepoFile(
       'frontend-nextjs/features/conversation/advisorSceneContext.test.ts',
     );
@@ -107,7 +110,7 @@ describe('conversation-analysis-ui module contract', () => {
       'frontend-nextjs/__tests__/AppSessionShell.test.tsx',
     );
     const contractTestSource = readRepoFile('frontend-nextjs/features/conversation/contracts.test.ts');
-    const combinedTestSource = `${guidanceCardTestSource}\n${conversationHistoryAdapterTestSource}\n${conversationSessionBootstrapTestSource}\n${conversationActionHandlersTestSource}\n${conversationLocalPersistenceTestSource}\n${advisorHistoryPersistenceTestSource}\n${advisorHistoryDerivationTestSource}\n${advisorHistoryGroupingTestSource}\n${advisorConversationAccessorsTestSource}\n${advisorExpertSummonOptionsTestSource}\n${advisorSceneContextTestSource}\n${advisorNavigationConfigTestSource}\n${advisorProjectSpaceInferenceTestSource}\n${advisorViewModelTestSource}\n${conversationChatTestSource}\n${composerHookTestSource}\n${layoutHookTestSource}\n${advisorContextDerivationTestSource}\n${panelTestSource}\n${expertControlsTestSource}\n${composerShellTestSource}\n${messageListShellTestSource}\n${upgradeBannerTestSource}\n${appSessionShellTestSource}\n${contractTestSource}`;
+    const combinedTestSource = `${guidanceCardTestSource}\n${conversationHistoryAdapterTestSource}\n${conversationSessionBootstrapTestSource}\n${conversationActionHandlersTestSource}\n${conversationLocalPersistenceTestSource}\n${advisorHistoryPersistenceTestSource}\n${advisorHistoryDerivationTestSource}\n${advisorHistoryGroupingTestSource}\n${advisorConversationAccessorsTestSource}\n${advisorExpertSummonOptionsTestSource}\n${advisorWorkspaceLayoutConfigTestSource}\n${advisorSceneContextTestSource}\n${advisorNavigationConfigTestSource}\n${advisorProjectSpaceInferenceTestSource}\n${advisorViewModelTestSource}\n${conversationChatTestSource}\n${composerHookTestSource}\n${layoutHookTestSource}\n${advisorContextDerivationTestSource}\n${panelTestSource}\n${expertControlsTestSource}\n${composerShellTestSource}\n${messageListShellTestSource}\n${upgradeBannerTestSource}\n${appSessionShellTestSource}\n${contractTestSource}`;
 
     for (const testCaseName of CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT.protectedTestCases) {
       expect(combinedTestSource).toContain(testCaseName);
@@ -152,6 +155,20 @@ describe('conversation-analysis-ui module contract', () => {
     expect(rendererSource).toContain('scheme_version_selection');
     expect(rendererSource).toContain('CandidateCard');
     expect(rendererSource).toContain('GuidanceCardWidget');
+  });
+
+  it('keeps readable sidebar history titles and guidance card body scale', () => {
+    const sessionSidebarSource = readRepoFile('frontend-nextjs/components/SessionSidebar.tsx');
+    const guidanceCardSource = readRepoFile('frontend-nextjs/components/ConversationMode/GuidanceCard.tsx');
+    const globalsSource = readRepoFile('frontend-nextjs/app/globals.css');
+
+    expect(sessionSidebarSource).toContain('line-clamp-1 text-[var(--foreground)]');
+    expect(sessionSidebarSource).toContain('text-xs text-gray-500');
+    expect(guidanceCardSource).toContain('text-sm font-semibold text-[var(--foreground)]');
+    expect(guidanceCardSource).toContain('mt-1 text-sm leading-6 text-[var(--foreground-secondary)]');
+    expect(guidanceCardSource).toContain('mt-2 space-y-1 text-sm leading-6 text-[var(--foreground-secondary)]');
+    expect(globalsSource).toContain('font-size: var(--ui-type-body-size);');
+    expect(globalsSource).not.toContain('font-size: 0.875rem;');
   });
 
   it('keeps conversation composer behavior in the feature hook layer', () => {
@@ -235,6 +252,8 @@ describe('conversation-analysis-ui module contract', () => {
     expect(conversationChatSource).not.toContain('ui-card-shell ui-card-shell-strong');
     expect(composerShellSource).toContain('export function ComposerShell');
     expect(composerShellSource).toContain('aria-label="发送"');
+    expect(composerShellSource).toContain('advisor-composer-shell rounded-[1.6rem] border border-[var(--border-color)] shadow-lg');
+    expect(composerShellSource).not.toContain('ui-card-shell ui-card-shell-strong rounded-[1.6rem]');
   });
 
   it('keeps message list shell in the feature component layer', () => {
@@ -251,6 +270,8 @@ describe('conversation-analysis-ui module contract', () => {
     expect(messageListShellSource).toContain('export function MessageListShell');
     expect(messageListShellSource).toContain('随时开始聊');
     expect(messageListShellSource).toContain('MessageCardRenderer');
+    expect(messageListShellSource).toContain('advisor-chat-column w-full mx-auto pt-4 pb-60');
+    expect(messageListShellSource).not.toContain('max-w-[960px]');
   });
 
   it('keeps upgrade banner in the feature component layer', () => {
@@ -310,7 +331,7 @@ describe('conversation-analysis-ui module contract', () => {
     ];
 
     expect(CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT.currentVersion).toBe(
-      'v2.9-advisor-expert-summon-options-extracted',
+      'v3.0-advisor-workspace-layout-config-extracted',
     );
     expect(conversationChatLines.length).toBeLessThanOrEqual(220);
     for (const importPath of requiredCompositionImports) {
@@ -471,9 +492,62 @@ describe('conversation-analysis-ui module contract', () => {
     expect(analysisPageSource).not.toContain('summonOptions={EXPERT_SUMMON_OPTIONS}');
     expect(appSessionShellSource).toContain('ucppt-advisor-shell');
     expect(appSessionShellSource).toContain('<SessionSidebar');
+    expect(appSessionShellSource).toContain('w-[310px] translate-x-0');
+    expect(appSessionShellSource).toContain('min-w-[310px]');
+    expect(appSessionShellSource).toContain('h-0 min-w-[310px] pt-4');
+    expect(appSessionShellSource).toContain('flex min-h-0 flex-1 flex-col');
+    expect(appSessionShellSource).not.toContain('w-[260px] translate-x-0');
+    expect(appSessionShellSource).not.toContain('min-w-[260px]');
     expect(appSessionShellSource).toContain('data-testid="app-session-topbar"');
     expect(appSessionShellSource).toContain('data-testid="app-session-top-mask"');
     expect(appSessionShellSource).not.toContain('absolute left-4 top-4');
+  });
+
+  it('keeps the stable DeepSeek-style advisor shell palette and dividerless top mask', () => {
+    const globalsSource = readRepoFile('frontend-nextjs/app/globals.css');
+    const appSessionShellSource = readRepoFile(
+      'frontend-nextjs/components/layout/AppSessionShell.tsx',
+    );
+
+    expect(globalsSource).toContain('--background: #151517;');
+    expect(globalsSource).toContain('--canvas-bg: #171717;');
+    expect(globalsSource).toContain('--sidebar-bg: #1B1B1C;');
+    expect(globalsSource).toContain('--card-bg: #2C2C2E;');
+    expect(globalsSource).toContain('--border-color: #2a2a2a;');
+    expect(globalsSource).toContain('.ucppt-advisor-shell');
+    expect(globalsSource).toContain('color-scheme: dark;');
+    expect(globalsSource).toContain('border-radius: 1.6rem !important;');
+    expect(globalsSource).toContain('.workspace-info-panel .advisor-composer-shell');
+    expect(appSessionShellSource).toContain('data-testid="app-session-top-mask"');
+    expect(appSessionShellSource).not.toContain('border-b border-[var(--border-color)] bg-[var(--background)]/95');
+  });
+
+  it('keeps conversation content in a fixed readable advisor column', () => {
+    const globalsSource = readRepoFile('frontend-nextjs/app/globals.css');
+    const composerShellSource = readRepoFile(
+      'frontend-nextjs/features/conversation/components/ComposerShell.tsx',
+    );
+    const messageListShellSource = readRepoFile(
+      'frontend-nextjs/features/conversation/components/MessageListShell.tsx',
+    );
+    const advisorContextPanelSource = readRepoFile(
+      'frontend-nextjs/features/conversation/components/AdvisorContextPanel.tsx',
+    );
+    const visualBriefPanelSource = readRepoFile(
+      'frontend-nextjs/features/conversation/components/VisualBriefPanel.tsx',
+    );
+
+    expect(globalsSource).toContain('--advisor-chat-column-width: 960px;');
+    expect(globalsSource).toContain('.advisor-chat-column');
+    expect(globalsSource).toContain('max-width: var(--advisor-chat-column-width, 960px);');
+    expect(composerShellSource).toContain('advisor-chat-column mx-auto w-full pointer-events-auto');
+    expect(messageListShellSource).toContain('advisor-chat-column w-full mx-auto pt-4 pb-60');
+    expect(advisorContextPanelSource).toContain('advisor-chat-column mx-auto');
+    expect(visualBriefPanelSource).toContain('advisor-chat-column mx-auto');
+    expect(composerShellSource).not.toContain('max-w-[960px]');
+    expect(messageListShellSource).not.toContain('max-w-[960px]');
+    expect(advisorContextPanelSource).not.toContain('max-w-[960px]');
+    expect(visualBriefPanelSource).not.toContain('max-w-[960px]');
   });
 
   it('keeps right-side conversation composer free of expert control wiring', () => {
@@ -586,5 +660,25 @@ describe('conversation-analysis-ui module contract', () => {
     expect(analysisPageSource).not.toContain('const EXPERT_SUMMON_OPTIONS');
     expect(advisorExpertSummonOptionsSource).toContain('export const ADVISOR_EXPERT_SUMMON_OPTIONS');
     expect(advisorExpertSummonOptionsSource).toContain('export type AdvisorExpertSummonOption');
+  });
+
+  it('keeps advisor workspace layout config in the feature layer', () => {
+    const analysisPageSource = readRepoFile(
+      'frontend-nextjs/app/analysis/[sessionId]/page.tsx',
+    );
+    const advisorWorkspaceLayoutConfigSource = readRepoFile(
+      'frontend-nextjs/features/conversation/advisorWorkspaceLayoutConfig.ts',
+    );
+
+    expect(analysisPageSource).toContain("from '@/features/conversation/advisorWorkspaceLayoutConfig'");
+    expect(analysisPageSource).not.toContain('const WORKSPACE_LAYOUT_STORAGE_KEY');
+    expect(analysisPageSource).not.toContain('const WORKSPACE_PANEL_MIN_RATIO');
+    expect(analysisPageSource).not.toContain('const WORKSPACE_PANEL_DEFAULT_RATIO');
+    expect(analysisPageSource).not.toContain('const WORKSPACE_PANEL_MAX_RATIO');
+    expect(analysisPageSource).not.toContain('const clampWorkspacePanelRatio');
+    expect(advisorWorkspaceLayoutConfigSource).toContain('export const ADVISOR_WORKSPACE_LAYOUT_STORAGE_KEY');
+    expect(advisorWorkspaceLayoutConfigSource).toContain('export const clampAdvisorWorkspacePanelRatio');
+    expect(advisorWorkspaceLayoutConfigSource).toContain('export type AdvisorWorkspaceLayoutMode');
+    expect(advisorWorkspaceLayoutConfigSource).toContain('export type AdvisorWorkspaceResizePanel');
   });
 });

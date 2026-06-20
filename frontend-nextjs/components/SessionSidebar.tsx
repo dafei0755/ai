@@ -228,7 +228,7 @@ export function SessionSidebar({
               示例
             </span>
           )}
-          <div className="flex-1 pr-6 line-clamp-1">{displayTitle || '未命名会话'}</div>
+          <div className="flex-1 pr-6 line-clamp-1 text-[var(--foreground)]">{displayTitle || '未命名会话'}</div>
         </div>
 
         <div className="flex items-center gap-1.5 mt-1">
@@ -253,16 +253,6 @@ export function SessionSidebar({
           {/* 🆕 置顶图标 - 放在时间戳后面 */}
           {session.pinned && (
             <Pin size={12} className="text-yellow-500 flex-shrink-0" fill="currentColor" />
-          )}
-          {/* 🆕 v7.180: 会话类型标记 */}
-          {session.session_type === 'search' && (
-            <span className="text-xs text-green-500">[深度搜索]</span>
-          )}
-          {session.session_type !== 'search' && session.analysis_mode === 'deep_thinking' && (
-            <span className="text-xs text-orange-500">[深度思考pro]</span>
-          )}
-          {session.session_type !== 'search' && session.analysis_mode !== 'deep_thinking' && (
-            <span className="text-xs text-blue-500">[深度思考]</span>
           )}
         </div>
       </button>

@@ -36,7 +36,7 @@ export function VisualBriefPanel({
 }: VisualBriefPanelProps) {
   return (
     <div className="flex-shrink-0 border-b border-[var(--border-color)] px-4 pb-3 pt-1">
-      <div className="mx-auto max-w-[960px]">
+      <div className="advisor-chat-column mx-auto">
         <div
           className="rounded-none border border-[var(--border-color)] bg-[var(--card-bg)] px-4 py-3"
           onMouseEnter={onExpand}

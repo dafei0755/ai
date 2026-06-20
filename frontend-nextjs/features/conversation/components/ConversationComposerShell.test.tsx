@@ -81,4 +81,13 @@ describe('conversation composer shell', () => {
 
     expect(screen.getByRole('button', { name: '发送' })).toBeDisabled();
   });
+
+  it('keeps the restored rounded floating input shell', () => {
+    const source = require('fs').readFileSync(composerShellPath, 'utf8') as string;
+
+    expect(source).toContain('advisor-composer-shell rounded-[1.6rem] border border-[var(--border-color)] shadow-lg');
+    expect(source).toContain('advisor-chat-column mx-auto w-full pointer-events-auto');
+    expect(source).not.toContain('ui-card-shell ui-card-shell-strong rounded-[1.6rem]');
+    expect(source).not.toContain('max-w-[960px]');
+  });
 });

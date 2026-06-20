@@ -1,5 +1,7 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { readFileSync } from 'fs';
+import path from 'path';
 
 import HomePage from './page';
 import { api } from '@/lib/api';
@@ -56,6 +58,7 @@ jest.mock('@/lib/api', () => ({
 }));
 
 const mockedApi = api as jest.Mocked<typeof api>;
+const pageSource = readFileSync(path.join(__dirname, 'page.tsx'), 'utf8');
 
 describe('HomePage submit behavior', () => {
   beforeEach(() => {
@@ -65,13 +68,43 @@ describe('HomePage submit behavior', () => {
   });
 
   it('does not request retired demo app config on the home page', async () => {
-    render(<HomePage />);
+    const { container } = render(<HomePage />);
 
     await waitFor(() => {
       expect(screen.getByPlaceholderText('输入你的想法、问题或设计需求，先做需求重构...')).toBeInTheDocument();
     });
 
+    expect(container.firstElementChild).toHaveClass('ucppt-advisor-shell');
     expect(global.fetch).not.toHaveBeenCalledWith(expect.stringContaining('/api/app-config'));
+  });
+
+  it('keeps the home composer centered on the page axis', () => {
+    expect(pageSource).toContain('items-center justify-center');
+    expect(pageSource).not.toContain('items-center justify-start pt-24');
+  });
+
+  it('shares the fixed advisor chat column width on the home composer', () => {
+    expect(pageSource).toContain('advisor-chat-column w-full space-y-8');
+    expect(pageSource).not.toContain('max-w-3xl');
+  });
+
+  it('keeps the stable 310px history sidebar width', () => {
+    expect(pageSource).toContain('w-[310px] translate-x-0');
+    expect(pageSource).toContain('min-w-[310px]');
+    expect(pageSource).not.toContain('w-[260px] translate-x-0');
+    expect(pageSource).not.toContain('min-w-[260px]');
+  });
+
+  it('keeps the DeepSeek-style dark home composer palette', () => {
+    expect(pageSource).toContain('ucppt-advisor-shell flex flex-col h-screen');
+    expect(pageSource).toContain('border border-[var(--border-color)] bg-[var(--card-bg)] shadow-xl');
+    expect(pageSource).toContain('text-[var(--foreground)]');
+    expect(pageSource).toContain('placeholder:text-[var(--foreground-secondary)]');
+    expect(pageSource).toContain('border-t border-[var(--border-color)] rounded-b-xl bg-[var(--card-bg)]');
+    expect(pageSource).toContain('bg-[#3b3b3d] text-[var(--foreground-secondary)] cursor-not-allowed');
+    expect(pageSource).not.toContain('强制白色背景');
+    expect(pageSource).not.toContain('overflow-hidden bg-white');
+    expect(pageSource).not.toContain('bg-gray-50');
   });
 
   it('shows a clear submitting state after the send button is clicked', async () => {

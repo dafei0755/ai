@@ -85,6 +85,10 @@ describe('GuidanceCardWidget', () => {
     expect(screen.getByText('作品化风险会压过真实使用。')).toBeInTheDocument();
     expect(screen.getByText('路径分流')).toBeInTheDocument();
     expect(screen.getByText('生活+工作混合型')).toBeInTheDocument();
+
+    expect(screen.getByText('身份与生活结构')).toHaveClass('text-sm');
+    expect(screen.getByText('先判断这栋房子要承接哪一种人生位置。')).toHaveClass('text-sm');
+    expect(screen.getByText('作品化风险会压过真实使用。').closest('ul')).toHaveClass('text-sm');
   });
 
   it('renders user-facing labels for context packet missing-slot pages', async () => {

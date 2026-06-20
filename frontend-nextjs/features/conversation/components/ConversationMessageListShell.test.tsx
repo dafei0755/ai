@@ -61,4 +61,11 @@ describe('conversation message list shell', () => {
     expect(screen.getByTestId('message-card-renderer')).toHaveTextContent('需求洞察');
     expect(screen.getByTestId('typing-indicator')).toBeInTheDocument();
   });
+
+  it('keeps messages inside the fixed advisor chat column', () => {
+    const source = require('fs').readFileSync(messageListShellPath, 'utf8') as string;
+
+    expect(source).toContain('advisor-chat-column w-full mx-auto pt-4 pb-60');
+    expect(source).not.toContain('max-w-[960px]');
+  });
 });

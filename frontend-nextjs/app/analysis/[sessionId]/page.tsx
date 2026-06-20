@@ -97,6 +97,13 @@ import {
 	type ConcreteBoardCanvasSpace,
 } from '@/features/conversation/advisorProjectSpaceInference';
 import type { AdvisorExpertSummonOption } from '@/features/conversation/advisorExpertSummonOptions';
+import {
+	ADVISOR_WORKSPACE_LAYOUT_STORAGE_KEY,
+	ADVISOR_WORKSPACE_PANEL_DEFAULT_RATIO,
+	clampAdvisorWorkspacePanelRatio,
+	type AdvisorWorkspaceLayoutMode,
+	type AdvisorWorkspaceResizePanel,
+} from '@/features/conversation/advisorWorkspaceLayoutConfig';
 import { getAdvisorViewModel } from '@/features/conversation/advisorViewModel';
 // v7.290: 分析页面改为独立体验，移除侧边栏组件
 
@@ -230,7 +237,7 @@ type CockpitModuleKey = AdvisorSceneCockpitModule;
 type PrimaryNavKey = AdvisorScenePrimaryNav;
 type ProjectSectionKey = AdvisorSceneProjectSection;
 type InsightViewKey = AdvisorSceneInsightView;
-type LayoutMode = 'split' | 'left-focus' | 'right-focus';
+type LayoutMode = AdvisorWorkspaceLayoutMode;
 type AnalysisModuleQuery = 'project_base' | 'floor_plan' | 'scheme_canvas' | 'geo' | 'silicon_avatar';
 
 const ANALYSIS_MODULE_QUERY_VALUES = new Set<string>([
@@ -254,15 +261,7 @@ type CockpitCard = {
 	size?: 'sm' | 'md' | 'lg';
 };
 
-const WORKSPACE_LAYOUT_STORAGE_KEY = 'analysis.workspace.layout.v2';
-const WORKSPACE_PANEL_MIN_RATIO = 0.18;
-const WORKSPACE_PANEL_DEFAULT_RATIO = 0.22;
-const WORKSPACE_PANEL_MAX_RATIO = 0.32;
-
-type WorkspaceResizePanel = 'middle' | 'advisor';
-
-const clampWorkspacePanelRatio = (value: number) =>
-	Math.min(WORKSPACE_PANEL_MAX_RATIO, Math.max(WORKSPACE_PANEL_MIN_RATIO, value));
+type WorkspaceResizePanel = AdvisorWorkspaceResizePanel;
 
 const getFirstUserMessage = (history: Array<{ role?: string; content?: string }> | undefined): string =>
 	history?.find((entry) => entry.role === 'user' && entry.content?.trim())?.content?.trim() ?? '';
@@ -468,8 +467,8 @@ export default function AnalysisPage() {
 	const adaptiveLeftCardPadding = 'clamp(10px, 1.2vw, 20px)';
 	const adaptiveRightContentGutter = 'clamp(12px, 2vw, 32px)';
 	const [viewportWidth, setViewportWidth] = useState(1440);
-	const [workspaceMiddleTargetRatio, setWorkspaceMiddleTargetRatio] = useState(WORKSPACE_PANEL_DEFAULT_RATIO);
-	const [advisorRightTargetRatio, setAdvisorRightTargetRatio] = useState(WORKSPACE_PANEL_DEFAULT_RATIO);
+	const [workspaceMiddleTargetRatio, setWorkspaceMiddleTargetRatio] = useState(ADVISOR_WORKSPACE_PANEL_DEFAULT_RATIO);
+	const [advisorRightTargetRatio, setAdvisorRightTargetRatio] = useState(ADVISOR_WORKSPACE_PANEL_DEFAULT_RATIO);
 	const [workspaceLayoutPrefsLoaded, setWorkspaceLayoutPrefsLoaded] = useState(false);
 	const [resizingWorkspacePanel, setResizingWorkspacePanel] = useState<WorkspaceResizePanel | null>(null);
 	const [isSessionSidebarOpen, setIsSessionSidebarOpen] = useState(true);
@@ -893,14 +892,14 @@ export default function AnalysisPage() {
 	useEffect(() => {
 		if (typeof window === 'undefined') return;
 		try {
-			const raw = window.localStorage.getItem(WORKSPACE_LAYOUT_STORAGE_KEY);
+			const raw = window.localStorage.getItem(ADVISOR_WORKSPACE_LAYOUT_STORAGE_KEY);
 			if (raw) {
 				const parsed = JSON.parse(raw) as Partial<{ middleRatio: number; advisorRatio: number }>;
 				if (Number.isFinite(parsed.middleRatio)) {
-					setWorkspaceMiddleTargetRatio(clampWorkspacePanelRatio(Number(parsed.middleRatio)));
+					setWorkspaceMiddleTargetRatio(clampAdvisorWorkspacePanelRatio(Number(parsed.middleRatio)));
 				}
 				if (Number.isFinite(parsed.advisorRatio)) {
-					setAdvisorRightTargetRatio(clampWorkspacePanelRatio(Number(parsed.advisorRatio)));
+					setAdvisorRightTargetRatio(clampAdvisorWorkspacePanelRatio(Number(parsed.advisorRatio)));
 				}
 			}
 		} catch (error) {
@@ -914,7 +913,7 @@ export default function AnalysisPage() {
 		if (!workspaceLayoutPrefsLoaded || typeof window === 'undefined') return;
 		try {
 			window.localStorage.setItem(
-				WORKSPACE_LAYOUT_STORAGE_KEY,
+				ADVISOR_WORKSPACE_LAYOUT_STORAGE_KEY,
 				JSON.stringify({
 					middleRatio: workspaceMiddleTargetRatio,
 					advisorRatio: advisorRightTargetRatio,
@@ -941,12 +940,12 @@ export default function AnalysisPage() {
 			const width = window.innerWidth || viewportWidth || 1440;
 			if (resizingWorkspacePanel === 'middle') {
 				const nextMiddleRatio = 1 - advisorRightTargetRatio - event.clientX / width;
-				setWorkspaceMiddleTargetRatio(clampWorkspacePanelRatio(nextMiddleRatio));
+				setWorkspaceMiddleTargetRatio(clampAdvisorWorkspacePanelRatio(nextMiddleRatio));
 				return;
 			}
 
 			const nextAdvisorRatio = (width - event.clientX) / width;
-			setAdvisorRightTargetRatio(clampWorkspacePanelRatio(nextAdvisorRatio));
+			setAdvisorRightTargetRatio(clampAdvisorWorkspacePanelRatio(nextAdvisorRatio));
 		};
 
 		const handlePointerUp = () => {

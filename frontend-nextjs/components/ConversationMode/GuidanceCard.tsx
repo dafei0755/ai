@@ -511,16 +511,16 @@ export default function GuidanceCardWidget({ card, initialResponded = false, res
                   key={`${section.title}-${index}`}
                   className={`rounded-lg border px-3 py-2.5 ${emphasisClass}`}
                 >
-                  <h4 className="text-xs font-semibold text-[var(--foreground)]">
+                  <h4 className="text-sm font-semibold text-[var(--foreground)]">
                     {section.title}
                   </h4>
                   {section.body && (
-                    <p className="mt-1 text-xs leading-5 text-[var(--foreground-secondary)]">
+                    <p className="mt-1 text-sm leading-6 text-[var(--foreground-secondary)]">
                       {section.body}
                     </p>
                   )}
                   {section.items && section.items.length > 0 && (
-                    <ul className="mt-2 space-y-1 text-xs leading-5 text-[var(--foreground-secondary)]">
+                    <ul className="mt-2 space-y-1 text-sm leading-6 text-[var(--foreground-secondary)]">
                       {section.items.map((item, itemIndex) => (
                         <li key={`${section.title}-${itemIndex}`} className="flex gap-2">
                           <span className="mt-0.5 text-[var(--foreground)] opacity-50">-</span>

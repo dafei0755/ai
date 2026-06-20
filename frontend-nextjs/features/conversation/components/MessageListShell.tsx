@@ -47,7 +47,7 @@ export function MessageListShell({
           <p className="ui-type-meta mt-1 text-[var(--foreground-secondary)]">分享你的想法、灵感或设计需求</p>
         </div>
       ) : (
-        <div className="w-full max-w-[960px] mx-auto pt-4 pb-60" style={{ paddingInline: '2px' }}>
+        <div className="advisor-chat-column w-full mx-auto pt-4 pb-60" style={{ paddingInline: '2px' }}>
           {visibleMessages.map((message) => (
             <MessageCardRenderer
               key={message.id}

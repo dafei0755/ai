@@ -43,11 +43,6 @@ export type {
 export default function ConversationChat({
   sessionId,
   messages,
-  activeExpertPerspective = '默认综合',
-  expertPerspectiveOptions = [],
-  onExpertPerspectiveChange,
-  summonOptions = [],
-  onSummonExpert,
   visualBriefContext = null,
   onVisualBriefPromptChange,
   onVisualBriefNoteChange,
@@ -185,11 +180,6 @@ export default function ConversationChat({
 
       <ComposerShell
         adaptiveChatGutter={adaptiveChatGutter}
-        activeExpertPerspective={activeExpertPerspective}
-        expertPerspectiveOptions={expertPerspectiveOptions}
-        onExpertPerspectiveChange={onExpertPerspectiveChange}
-        summonOptions={summonOptions}
-        onSummonExpert={onSummonExpert}
         textareaRef={textareaRef}
         inputText={inputText}
         setInputText={setInputText}

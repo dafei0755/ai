@@ -43,7 +43,7 @@ export function ComposerShell({
       className="absolute bottom-0 left-0 right-0 pb-4 pt-8 bg-gradient-to-t from-[var(--background)] via-[var(--background)] to-transparent pointer-events-none"
       style={{ paddingInline: adaptiveChatGutter }}
     >
-      <div className="mx-auto w-full max-w-[960px] pointer-events-auto">
+      <div className="advisor-chat-column mx-auto w-full pointer-events-auto">
         <ExpertControls
           activeExpertPerspective={activeExpertPerspective}
           expertPerspectiveOptions={expertPerspectiveOptions}
@@ -51,7 +51,7 @@ export function ComposerShell({
           summonOptions={summonOptions}
           onSummonExpert={onSummonExpert}
         />
-        <div className="ui-card-shell ui-card-shell-strong rounded-[1.6rem] overflow-hidden bg-[var(--card-bg)]">
+        <div className="advisor-composer-shell rounded-[1.6rem] border border-[var(--border-color)] shadow-lg overflow-hidden bg-[var(--card-bg)]">
           <textarea
             ref={textareaRef}
             value={inputText}

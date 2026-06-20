@@ -61,13 +61,13 @@ export function AppSessionShell({
 
         <aside
           className={`${
-            isSidebarOpen ? 'w-[260px] translate-x-0' : 'w-0 -translate-x-full md:w-0 md:translate-x-0'
+            isSidebarOpen ? 'w-[310px] translate-x-0' : 'w-0 -translate-x-full md:w-0 md:translate-x-0'
           } fixed z-40 flex h-full flex-col overflow-hidden border-r border-[var(--border-color)] bg-[var(--sidebar-bg)] transition-all duration-300 ease-in-out md:relative`}
         >
           {isSidebarOpen && (
             <>
-              <div className="min-w-[260px] pt-4" />
-              <div className="min-h-0 flex-1">
+              <div className="h-0 min-w-[310px] pt-4" />
+              <div className="flex min-h-0 flex-1 flex-col">
                 <SessionSidebar
                   sessions={normalizedSessions}
                   currentSessionId={currentSessionId}
@@ -79,7 +79,7 @@ export function AppSessionShell({
                   loadMoreTriggerRef={loadMoreTriggerRef}
                 />
               </div>
-              <div className="min-w-[260px] flex-shrink-0 border-t border-[var(--border-color)]">
+              <div className="min-w-[310px] flex-shrink-0 border-t border-[var(--border-color)]">
                 <div className="p-3">
                   <UserPanel />
                 </div>
@@ -88,8 +88,11 @@ export function AppSessionShell({
           )}
         </aside>
 
-        <main className="relative flex min-w-0 flex-1 flex-col">
-          <div className="absolute left-4 top-4 z-50 flex items-center gap-2">
+        <main className="relative flex min-w-0 flex-1 flex-col overflow-hidden">
+          <div
+            data-testid="app-session-topbar"
+            className="relative z-50 flex h-14 flex-shrink-0 items-center gap-2 bg-[var(--background)]/95 px-4 backdrop-blur"
+          >
             <button
               type="button"
               onClick={() => onSidebarOpenChange(!isSidebarOpen)}
@@ -111,7 +114,13 @@ export function AppSessionShell({
               </a>
             )}
           </div>
-          {children}
+          <div
+            data-testid="app-session-top-mask"
+            className="pointer-events-none absolute left-0 right-0 top-14 z-40 h-8 bg-gradient-to-b from-[var(--background)] to-transparent"
+          />
+          <div data-testid="app-session-content" className="relative min-h-0 flex-1 flex flex-col">
+            {children}
+          </div>
         </main>
       </div>
     </div>

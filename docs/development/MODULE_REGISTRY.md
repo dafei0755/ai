@@ -439,7 +439,7 @@ contracts.py 已建立为 LLM runtime 模块合同入口。
 module_id: conversation-analysis-ui
 name: 分析页对话 UI 与引导卡交互
 status: governed
-current_version: v2.9-advisor-expert-summon-options-extracted
+current_version: v3.0-advisor-workspace-layout-config-extracted
 ```
 
 ### owned_paths
@@ -459,6 +459,7 @@ frontend-nextjs/features/conversation/advisorSceneContext.ts
 frontend-nextjs/features/conversation/advisorNavigationConfig.ts
 frontend-nextjs/features/conversation/advisorProjectSpaceInference.ts
 frontend-nextjs/features/conversation/advisorExpertSummonOptions.ts
+frontend-nextjs/features/conversation/advisorWorkspaceLayoutConfig.ts
 frontend-nextjs/features/conversation/advisorViewModel.ts
 frontend-nextjs/features/conversation/components/MessageCardRenderer.tsx
 frontend-nextjs/features/conversation/components/VisualBriefPanel.tsx
@@ -521,6 +522,7 @@ frontend-nextjs/features/conversation/advisorSceneContext.test.ts
 frontend-nextjs/features/conversation/advisorNavigationConfig.test.ts
 frontend-nextjs/features/conversation/advisorProjectSpaceInference.test.ts
 frontend-nextjs/features/conversation/advisorExpertSummonOptions.test.ts
+frontend-nextjs/features/conversation/advisorWorkspaceLayoutConfig.test.ts
 frontend-nextjs/features/conversation/advisorViewModel.test.ts
 frontend-nextjs/features/conversation/components/ConversationPanels.test.tsx
 frontend-nextjs/features/conversation/components/ConversationExpertControls.test.tsx
@@ -568,10 +570,83 @@ features/conversation/advisorNavigationConfig.ts 已承接 advisor navigation co
 analysis page 中 advisor key type aliases 已统一到 feature contracts 导出的类型。
 features/conversation/advisorProjectSpaceInference.ts 已承接 project default space options、关键词表、overview 文本收集和默认空间推断。
 features/conversation/advisorExpertSummonOptions.ts 已承接 advisor expert summon options。
-下一步提取 analysis page 中 advisor workspace layout constants。
+features/conversation/advisorWorkspaceLayoutConfig.ts 已承接 advisor workspace layout storage key、panel ratios、layout mode 类型和 clamp 函数。
+下一步提取 analysis page 中 advisor context storage constants。
 ```
 
-## 8. 新模块登记模板
+## 8. frontend-home-conversation-pages
+
+```text
+module_id: frontend-home-conversation-pages
+name: 首页与对话页前端页面基线
+status: implemented
+current_version: 2026.6.20-local-dev-and-remote-release
+feature_ledger: docs/development/FEATURE_VERSION_LEDGER.md#8-frontend-home-and-conversation-pages
+```
+
+### owned_paths
+
+```text
+frontend-nextjs/app/page.tsx
+frontend-nextjs/app/analysis/[sessionId]/page.tsx
+frontend-nextjs/components/layout/AppSessionShell.tsx
+frontend-nextjs/components/SessionSidebar.tsx
+frontend-nextjs/components/ConversationMode/ConversationChat.tsx
+frontend-nextjs/components/ConversationMode/GuidanceCard.tsx
+frontend-nextjs/features/conversation/contracts.ts
+frontend-nextjs/features/conversation/advisorWorkspaceLayoutConfig.ts
+frontend-nextjs/features/conversation/components/AdvisorContextPanel.tsx
+frontend-nextjs/features/conversation/components/ComposerShell.tsx
+frontend-nextjs/features/conversation/components/MessageListShell.tsx
+frontend-nextjs/features/conversation/components/VisualBriefPanel.tsx
+```
+
+### public_contracts
+
+```text
+首页负责承接用户第一条需求并创建/进入分析对话。
+对话页负责会话加载、共享会话壳、对话组合容器、上下文面板、消息列表和输入容器。
+2026.6.20 同时作为当前本地开发版和远程发布版页面基线。
+本地开发版不自动覆盖远程发布版；后续替代该基线必须有人工发布指令、升级说明、验证结果和回退目标。
+```
+
+### entrypoints
+
+```text
+frontend-nextjs/app/page.tsx
+frontend-nextjs/app/analysis/[sessionId]/page.tsx
+AppSessionShell
+ConversationChat
+```
+
+### dependencies
+
+```text
+conversation-analysis-ui
+frontend api client
+session storage / localStorage persistence
+```
+
+### guard_tests
+
+```text
+frontend-nextjs/app/page.test.tsx
+frontend-nextjs/__tests__/AppSessionShell.test.tsx
+frontend-nextjs/components/ConversationMode/ConversationChat.test.tsx
+frontend-nextjs/features/conversation/contracts.test.ts
+frontend-nextjs/features/conversation/advisorWorkspaceLayoutConfig.test.ts
+frontend-nextjs/features/conversation/components/ConversationComposerShell.test.tsx
+frontend-nextjs/features/conversation/components/ConversationMessageListShell.test.tsx
+```
+
+### next_refactor_target
+
+```text
+本模块用于锁定用户可见首页和对话页页面基线，不替代 conversation-analysis-ui 的内部模块拆分账本。
+后续若首页或对话页视觉/交互继续迭代，先登记 target_version，再更新 FEATURE_VERSION_LEDGER。
+```
+
+## 9. 新模块登记模板
 
 ```text
 module_id:
@@ -588,7 +663,7 @@ rollback_target:
 next_refactor_target:
 ```
 
-## 9. 历史资产与复活候选
+## 10. 历史资产与复活候选
 
 本节不是现役模块入口。它用于防止有效努力停留在备份、历史目录或孤立分支里。
 

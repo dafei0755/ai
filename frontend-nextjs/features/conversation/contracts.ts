@@ -1,6 +1,6 @@
 export const CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT = {
   moduleId: 'conversation-analysis-ui',
-  currentVersion: 'v2.9-advisor-expert-summon-options-extracted',
+  currentVersion: 'v3.0-advisor-workspace-layout-config-extracted',
   ownedPaths: [
     'frontend-nextjs/features/conversation/contracts.ts',
     'frontend-nextjs/features/conversation/types.ts',
@@ -16,6 +16,7 @@ export const CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT = {
     'frontend-nextjs/features/conversation/advisorNavigationConfig.ts',
     'frontend-nextjs/features/conversation/advisorProjectSpaceInference.ts',
     'frontend-nextjs/features/conversation/advisorExpertSummonOptions.ts',
+    'frontend-nextjs/features/conversation/advisorWorkspaceLayoutConfig.ts',
     'frontend-nextjs/features/conversation/advisorViewModel.ts',
     'frontend-nextjs/features/conversation/components/MessageCardRenderer.tsx',
     'frontend-nextjs/features/conversation/components/VisualBriefPanel.tsx',
@@ -127,6 +128,10 @@ export const CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT = {
     'keeps advisor expert summon options in the feature layer',
     'keeps the expert summon option order stable',
     'exposes a typed summon option union',
+    'keeps advisor workspace layout config in the feature layer',
+    'keeps workspace layout storage and panel ratios stable',
+    'clamps workspace panel ratios to the supported range',
+    'exposes typed workspace layout modes and resize panels',
     'selects the resource radar model for asset scenes',
     'selects the silicon avatar model variants for knowledge scenes',
     'selects project models by board and sandbox state',
@@ -144,7 +149,7 @@ export const CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT = {
     'frontend labels must translate internal backend signals into user-facing language',
   ],
   nextRefactorTargets: [
-    'extract advisor workspace layout constants from analysis page',
+    'extract advisor context storage constants from analysis page',
   ],
 } as const;
 

@@ -359,11 +359,11 @@ tests/services/test_scheme_advisor_entry_v2_restore.py
 feature_id: conversation-analysis-ui
 name: 分析页对话 UI 与引导卡交互
 status: governed
-current_authoritative_version: v2.9-advisor-expert-summon-options-extracted
+current_authoritative_version: v3.0-advisor-workspace-layout-config-extracted
 authoritative_branch: fix/scheme-advisor-question-root-cause-20260616
 authoritative_commit: current-branch-head-after-checkpoint
-previous_authoritative_commit: 7814fe5e
-rollback_target: 7814fe5e
+previous_authoritative_commit: 5dd462b3
+rollback_target: 5dd462b3
 last_promotion: 2026-06-20
 ```
 
@@ -399,6 +399,7 @@ v2.6: advisor navigation configuration 从 analysis page 抽取到 feature helpe
 v2.7: analysis page 中 advisor key type aliases 统一到 feature contracts 导出的类型
 v2.8: project default space options、关键词表、overview 文本收集和默认空间推断从 analysis page 抽取到 feature helper
 v2.9: advisor expert summon options 从 analysis page 抽取到 feature helper
+v3.0: advisor workspace layout storage key、panel ratios、layout mode 类型和 clamp 函数从 analysis page 抽取到 feature helper
 ```
 
 ### 当前合同
@@ -429,6 +430,7 @@ frontend-nextjs/features/conversation/advisorSceneContext.ts
 frontend-nextjs/features/conversation/advisorNavigationConfig.ts
 frontend-nextjs/features/conversation/advisorProjectSpaceInference.ts
 frontend-nextjs/features/conversation/advisorExpertSummonOptions.ts
+frontend-nextjs/features/conversation/advisorWorkspaceLayoutConfig.ts
 frontend-nextjs/features/conversation/advisorViewModel.ts
 frontend-nextjs/features/conversation/components/MessageCardRenderer.tsx
 frontend-nextjs/features/conversation/components/VisualBriefPanel.tsx
@@ -465,6 +467,7 @@ frontend-nextjs/features/conversation/advisorSceneContext.test.ts
 frontend-nextjs/features/conversation/advisorNavigationConfig.test.ts
 frontend-nextjs/features/conversation/advisorProjectSpaceInference.test.ts
 frontend-nextjs/features/conversation/advisorExpertSummonOptions.test.ts
+frontend-nextjs/features/conversation/advisorWorkspaceLayoutConfig.test.ts
 frontend-nextjs/features/conversation/advisorViewModel.test.ts
 frontend-nextjs/features/conversation/components/ConversationPanels.test.tsx
 frontend-nextjs/features/conversation/components/ConversationExpertControls.test.tsx
@@ -484,5 +487,93 @@ frontend-nextjs/components/ConversationMode/GuidanceCard.test.tsx
 ```powershell
 cd frontend-nextjs
 npm test -- ConversationChat.test.tsx GuidanceCard.test.tsx features/conversation/contracts.test.ts
-npm test -- features/conversation/conversationHistoryAdapter.test.ts features/conversation/conversationSessionBootstrap.test.ts features/conversation/conversationActionHandlers.test.ts features/conversation/conversationLocalPersistence.test.ts features/conversation/advisorHistoryPersistence.test.ts features/conversation/advisorHistoryDerivation.test.ts features/conversation/advisorHistoryGrouping.test.ts features/conversation/advisorConversationAccessors.test.ts features/conversation/advisorSceneContext.test.ts features/conversation/advisorNavigationConfig.test.ts features/conversation/advisorProjectSpaceInference.test.ts features/conversation/advisorExpertSummonOptions.test.ts features/conversation/advisorViewModel.test.ts features/conversation/hooks/useConversationComposer.test.ts features/conversation/hooks/useConversationLayoutState.test.ts features/conversation/hooks/useAdvisorContextDerivation.test.ts features/conversation/components/ConversationPanels.test.tsx features/conversation/components/ConversationExpertControls.test.tsx features/conversation/components/ConversationComposerShell.test.tsx features/conversation/components/ConversationMessageListShell.test.tsx features/conversation/components/ConversationUpgradeBanner.test.tsx __tests__/AppSessionShell.test.tsx
+npm test -- features/conversation/conversationHistoryAdapter.test.ts features/conversation/conversationSessionBootstrap.test.ts features/conversation/conversationActionHandlers.test.ts features/conversation/conversationLocalPersistence.test.ts features/conversation/advisorHistoryPersistence.test.ts features/conversation/advisorHistoryDerivation.test.ts features/conversation/advisorHistoryGrouping.test.ts features/conversation/advisorConversationAccessors.test.ts features/conversation/advisorSceneContext.test.ts features/conversation/advisorNavigationConfig.test.ts features/conversation/advisorProjectSpaceInference.test.ts features/conversation/advisorExpertSummonOptions.test.ts features/conversation/advisorWorkspaceLayoutConfig.test.ts features/conversation/advisorViewModel.test.ts features/conversation/hooks/useConversationComposer.test.ts features/conversation/hooks/useConversationLayoutState.test.ts features/conversation/hooks/useAdvisorContextDerivation.test.ts features/conversation/components/ConversationPanels.test.tsx features/conversation/components/ConversationExpertControls.test.tsx features/conversation/components/ConversationComposerShell.test.tsx features/conversation/components/ConversationMessageListShell.test.tsx features/conversation/components/ConversationUpgradeBanner.test.tsx __tests__/AppSessionShell.test.tsx
+```
+
+## 8. Frontend Home and Conversation Pages
+
+```text
+feature_id: frontend-home-conversation-pages
+name: 首页与对话页前端页面基线
+status: release-baseline
+local_development_version: 2026.6.20-local-dev
+remote_release_version: 2026.6.20-remote-release
+authoritative_branch: fix/scheme-advisor-question-root-cause-20260616
+authoritative_commit: current-worktree-pending-checkpoint
+base_commit: 5dd462b3
+rollback_target: 5dd462b3
+last_promotion: 2026-06-20
+release_instruction: 用户明确要求将当前首页和对话页前端固定为 2026.6.20 的本地开发版和远程发布版
+deployment_action: 本记录只固定版本基线；远程环境覆盖或生产部署仍必须按发布放行 SOP 另行执行
+```
+
+### 版本链
+
+```text
+2026.6.20-local-dev: 当前工作树中的首页与对话页前端开发基线。
+2026.6.20-remote-release: 与当前本地页面基线同源的远程发布版标识；不得由自动脚本或测试通过自动覆盖。
+```
+
+### 当前合同
+
+```text
+home page
+-> user input composer
+-> conversation session creation
+-> analysis conversation page
+-> AppSessionShell
+-> ConversationChat composition shell
+```
+
+首页负责承接用户第一条需求并进入分析对话；对话页负责会话加载、共享会话壳、对话组合容器、上下文面板、消息列表和输入容器。2026.6.20 页面基线必须同时保护首页入口体验和分析页对话体验。
+
+### 权威文件
+
+```text
+frontend-nextjs/app/page.tsx
+frontend-nextjs/app/analysis/[sessionId]/page.tsx
+frontend-nextjs/components/layout/AppSessionShell.tsx
+frontend-nextjs/components/SessionSidebar.tsx
+frontend-nextjs/components/ConversationMode/ConversationChat.tsx
+frontend-nextjs/components/ConversationMode/GuidanceCard.tsx
+frontend-nextjs/features/conversation/contracts.ts
+frontend-nextjs/features/conversation/advisorWorkspaceLayoutConfig.ts
+frontend-nextjs/features/conversation/components/AdvisorContextPanel.tsx
+frontend-nextjs/features/conversation/components/ComposerShell.tsx
+frontend-nextjs/features/conversation/components/MessageListShell.tsx
+frontend-nextjs/features/conversation/components/VisualBriefPanel.tsx
+```
+
+### 守护测试
+
+```text
+frontend-nextjs/app/page.test.tsx
+frontend-nextjs/__tests__/AppSessionShell.test.tsx
+frontend-nextjs/components/ConversationMode/ConversationChat.test.tsx
+frontend-nextjs/features/conversation/contracts.test.ts
+frontend-nextjs/features/conversation/advisorWorkspaceLayoutConfig.test.ts
+frontend-nextjs/features/conversation/components/ConversationComposerShell.test.tsx
+frontend-nextjs/features/conversation/components/ConversationMessageListShell.test.tsx
+```
+
+### 本次固定验证
+
+```powershell
+cd frontend-nextjs
+npm test -- app/page.test.tsx __tests__/AppSessionShell.test.tsx components/ConversationMode/ConversationChat.test.tsx features/conversation/contracts.test.ts features/conversation/advisorWorkspaceLayoutConfig.test.ts features/conversation/components/ConversationComposerShell.test.tsx features/conversation/components/ConversationMessageListShell.test.tsx
+```
+
+结果：
+
+```text
+Test Suites: 7 passed, 7 total
+Tests: 55 passed, 55 total
+```
+
+### 风险备注
+
+```text
+当前基线来自 2026-06-20 工作树，base_commit 为 5dd462b3。
+本记录不等于已经执行远程部署；远程发布版如需实际覆盖线上环境，必须按 docs/deployment/MANUAL_GOVERNANCE_OPERATIONS.md 走人工发布放行。
+后续任何首页或对话页前端改动，若要替代 2026.6.20 远程发布版，必须新增版本记录、说明升级内容、附验证结果和回退目标。
 ```
