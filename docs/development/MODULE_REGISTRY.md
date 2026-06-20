@@ -46,6 +46,7 @@ intelligent_project_analyzer/modules/demand_reconstruction/contracts.py
 intelligent_project_analyzer/modules/demand_reconstruction/semantic_router.py
 intelligent_project_analyzer/modules/demand_reconstruction/synthesis.py
 intelligent_project_analyzer/modules/demand_reconstruction/governance.py
+intelligent_project_analyzer/modules/demand_reconstruction/alignment_gate.py
 intelligent_project_analyzer/api/dual_mode_routes.py
 docs/mechanism-reviews/DEMAND_RECONSTRUCTION_LLM_FIRST_ARCHITECTURE.md
 docs/development/方案高参需求重构运行时开发纲领.md
@@ -92,7 +93,8 @@ contracts.py 已提取为模块合同入口。
 semantic_router.py 已提取为 Stage 1 LLM 语义理解入口。
 synthesis.py 已提取为 Stage 5 LLM Final Synthesis 入口。
 governance.py 已提取为治理知识资产注入与治理信号持久化入口。
-下一步收敛 service.py 编排层，并评估 quality_gate.py / alignment_gate.py 拆分。
+alignment_gate.py 已提取为语义一致性 shadow/hard gate 与 fallback rebuild 入口。
+下一步收敛 service.py 编排层，并评估 insight_quality_gate.py 拆分。
 旧 services/demand_reconstruction_service.py 保留兼容 facade。
 ```
 

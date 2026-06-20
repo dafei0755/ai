@@ -3209,7 +3209,7 @@ _CLEAN_LLM_RESPONSE = """
 
 def _force_blocking_alignment(monkeypatch):
     monkeypatch.setattr(
-        "intelligent_project_analyzer.services.demand_reconstruction_service.evaluate_semantic_alignment",
+        "intelligent_project_analyzer.modules.demand_reconstruction.alignment_gate.evaluate_semantic_alignment",
         lambda *args, **kwargs: [
             {"code": "wrong_domain_reference", "severity": "blocking", "message": "forced"}
         ],

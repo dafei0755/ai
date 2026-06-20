@@ -7,7 +7,6 @@ intake questionnaire.
 
 from __future__ import annotations
 
-import os
 import time
 import uuid
 from datetime import datetime
@@ -15,6 +14,9 @@ from typing import Any, Dict, Optional
 
 from loguru import logger
 
+from intelligent_project_analyzer.modules.demand_reconstruction.alignment_gate import (
+    DemandReconstructionAlignmentGate,
+)
 from intelligent_project_analyzer.modules.demand_reconstruction.synthesis import (
     DemandReconstructionSynthesis,
 )
@@ -35,10 +37,7 @@ from .demand_reconstruction_insight_quality import DemandReconstructionInsightQu
 from .demand_reconstruction_insight_protocol import DemandReconstructionInsightProtocol
 from .demand_reconstruction_output_planner import DemandReconstructionOutputPlanner
 from .latent_model_adapter import LatentModelAdapter
-from .scheme_advisor_semantic_axes import (
-    evaluate_semantic_alignment,
-    should_enter_demand_reconstruction,
-)
+from .scheme_advisor_semantic_axes import should_enter_demand_reconstruction
 
 
 class DemandReconstructionUnavailable(RuntimeError):
@@ -116,6 +115,7 @@ class DemandReconstructionService:
         semantic_router: Optional[DemandReconstructionSemanticRouter] = None,
         synthesis: Optional[DemandReconstructionSynthesis] = None,
         governance: Optional[DemandReconstructionGovernance] = None,
+        alignment_gate: Optional[DemandReconstructionAlignmentGate] = None,
         require_llm: bool = False,
         governance_store: Any = None,
     ) -> None:
@@ -137,6 +137,11 @@ class DemandReconstructionService:
             llm=self._llm,
             insight_protocol=self._insight_protocol,
             output_planner=self._output_planner,
+        )
+        self._alignment_gate = alignment_gate or DemandReconstructionAlignmentGate(
+            output_planner=self._output_planner,
+            render_reply=self._render_reply,
+            build_card=self._card,
         )
         self._latent_model_adapter = latent_model_adapter or LatentModelAdapter()
         self._insight_quality_evaluator = (
@@ -218,20 +223,14 @@ class DemandReconstructionService:
             adapter_context=adapter_context,
             card=card,
         )
-        # Pre-render hard gate. An LLM-fused blueprint that produced a blocking
-        # semantic-alignment violation is dropped in favour of the registry-driven
-        # semantic pack, which is safer than showing a wrong-domain first screen.
-        # Shadow-only mode is available only through an explicit diagnostic env flag.
-        if (
-            self._alignment_hard_gate_enabled()
-            and alignment_shadow.get("blocking_count", 0) > 0
-            and blueprint.get("insight_source") != "semantic_fallback"
-        ):
-            blueprint, reply, card, alignment_shadow = self._reject_to_semantic_fallback(
-                adapter_context=adapter_context,
-                source_message=message,
-                rejected_alignment=alignment_shadow,
-            )
+        blueprint, reply, card, alignment_shadow = self._alignment_gate.maybe_reject_to_semantic_fallback(
+            blueprint=blueprint,
+            reply=reply,
+            card=card,
+            alignment_shadow=alignment_shadow,
+            adapter_context=adapter_context,
+            source_message=message,
+        )
         insight_quality = self._insight_quality_evaluator.evaluate(
             source_message=message,
             semantic_package=adapter_context.get("llm_semantic_understanding") or {},
@@ -279,15 +278,7 @@ class DemandReconstructionService:
 
     @staticmethod
     def _alignment_hard_gate_enabled() -> bool:
-        """Whether the semantic-alignment gate may reject output (read at call time).
-
-        Defaults to on because demand reconstruction is a user-visible first
-        screen: blocking semantic drift should fall back before rendering. Set
-        ``DEMAND_RECONSTRUCTION_ALIGNMENT_GATE=0`` only for diagnostic shadow
-        runs where we intentionally observe drift without altering output.
-        """
-        flag = os.getenv("DEMAND_RECONSTRUCTION_ALIGNMENT_GATE", "1")
-        return str(flag).strip().lower() not in {"0", "false", "off", "no"}
+        return DemandReconstructionAlignmentGate.hard_gate_enabled()
 
     def _reject_to_semantic_fallback(
         self,
@@ -296,68 +287,21 @@ class DemandReconstructionService:
         source_message: str,
         rejected_alignment: Dict[str, Any],
     ) -> tuple[Dict[str, Any], str, Dict[str, Any], Dict[str, Any]]:
-        """Replace a blocking LLM blueprint with the registry-driven semantic pack.
-
-        Rebuilds the semantic plan, re-renders the reply and card, and
-        re-evaluates the alignment shadow so observability reflects the version
-        the user actually sees.
-        """
-        blocking_codes = [
-            item.get("code")
-            for item in (rejected_alignment.get("issues") or [])
-            if item.get("severity") == "blocking"
-        ]
-        logger.warning(
-            "[DemandReconstruction] alignment hard gate rejected LLM blueprint; "
-            "falling back to semantic pack: "
-            f"blocking={rejected_alignment.get('blocking_count', 0)}, codes={blocking_codes}"
-        )
-        semantic_plan = self._output_planner.build_plan(adapter_context)
-        blueprint = {
-            **semantic_plan,
-            "insight_source": "semantic_fallback",
-            "llm_status": "alignment_gate_rejected",
-            "alignment_gate": {
-                "action": "llm_rejected",
-                "blocking_count": rejected_alignment.get("blocking_count", 0),
-                "codes": blocking_codes,
-            },
-        }
-        blueprint["governance_signals"] = self._append_alignment_rejection_signal(
-            semantic_plan.get("governance_signals") or [],
-            blocking_codes,
-        )
-        reply = self._render_reply(blueprint)
-        card = self._card(blueprint)
-        alignment_shadow = self._evaluate_alignment_shadow(
-            source_message=source_message,
-            visible_text=reply,
+        return self._alignment_gate.reject_to_semantic_fallback(
             adapter_context=adapter_context,
-            card=card,
+            source_message=source_message,
+            rejected_alignment=rejected_alignment,
         )
-        return blueprint, reply, card, alignment_shadow
 
     @staticmethod
     def _append_alignment_rejection_signal(
         existing_signals: Any,
         blocking_codes: list[Any],
     ) -> list[Dict[str, Any]]:
-        signals = [dict(signal) for signal in (existing_signals or []) if isinstance(signal, dict)]
-        if any(signal.get("code") == "semantic_alignment_rejection" for signal in signals):
-            return signals
-        source_codes = [str(code) for code in blocking_codes if str(code)]
-        signals.append(
-            {
-                "code": "semantic_alignment_rejection",
-                "track": "semantic_alignment",
-                "review_queue": "wrong_domain_output_review",
-                "severity": "P0",
-                "meaning": "LLM 融合结果被语义一致性硬门拒绝，需要复查错域、模板泄漏或内部步骤名外露。",
-                "source_codes": source_codes,
-                "user_visible": False,
-            }
+        return DemandReconstructionAlignmentGate.append_alignment_rejection_signal(
+            existing_signals,
+            blocking_codes,
         )
-        return signals
 
     def _persist_governance_signals(
         self,
@@ -983,50 +927,12 @@ class DemandReconstructionService:
         adapter_context: Dict[str, Any],
         card: Dict[str, Any],
     ) -> Dict[str, Any]:
-        """Shadow-mode semantic alignment gate (observe-only).
-
-        Runs the local semantic alignment guardrails against the rendered
-        output and records the result for observability. Rejection is decided
-        by the caller so the same evaluation result can support either the
-        default hard gate or an explicit shadow-only diagnostic run.
-        """
-        try:
-            card_pages = [
-                str(section.get("body") or "")
-                for section in (card.get("sections") or [])
-            ]
-            issues = evaluate_semantic_alignment(
-                source_message,
-                visible_text,
-                project_type=adapter_context.get("project_type"),
-                card_pages=card_pages,
-            )
-        except Exception as exc:  # never let the shadow gate break rendering
-            logger.warning(
-                "[DemandReconstruction] semantic alignment shadow eval failed: "
-                f"error_type={type(exc).__name__}, error={exc}"
-            )
-            return {"mode": "shadow", "status": "eval_failed", "error": str(exc)}
-
-        blocking = [item for item in issues if item.get("severity") == "blocking"]
-        warning = [item for item in issues if item.get("severity") == "warning"]
-        result = {
-            "mode": "shadow",
-            "status": "evaluated",
-            "issue_count": len(issues),
-            "blocking_count": len(blocking),
-            "warning_count": len(warning),
-            "issues": issues,
-        }
-        if issues:
-            logger.warning(
-                "[DemandReconstruction] semantic alignment evaluation flagged issues: "
-                f"blocking={len(blocking)}, warning={len(warning)}, "
-                f"codes={[item.get('code') for item in issues]}"
-            )
-        else:
-            logger.info("[DemandReconstruction] semantic alignment shadow: clean")
-        return result
+        return DemandReconstructionAlignmentGate.evaluate_alignment_shadow(
+            source_message=source_message,
+            visible_text=visible_text,
+            adapter_context=adapter_context,
+            card=card,
+        )
 
     @staticmethod
     def _card(plan: Dict[str, Any]) -> Dict[str, Any]:

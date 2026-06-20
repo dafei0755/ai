@@ -8,6 +8,7 @@ CONTRACTS = ROOT / "intelligent_project_analyzer/modules/demand_reconstruction/c
 SEMANTIC_ROUTER = ROOT / "intelligent_project_analyzer/modules/demand_reconstruction/semantic_router.py"
 SYNTHESIS = ROOT / "intelligent_project_analyzer/modules/demand_reconstruction/synthesis.py"
 GOVERNANCE = ROOT / "intelligent_project_analyzer/modules/demand_reconstruction/governance.py"
+ALIGNMENT_GATE = ROOT / "intelligent_project_analyzer/modules/demand_reconstruction/alignment_gate.py"
 DOC = ROOT / "docs/development/方案高参需求重构运行时开发纲领.md"
 
 
@@ -90,3 +91,17 @@ def test_demand_reconstruction_governance_is_module_boundary() -> None:
     assert "DemandReconstructionGovernance" in service_source
     assert "self._governance.apply_governed_knowledge_assets" in service_source
     assert "self._governance.persist_governance_signals" in service_source
+
+
+def test_demand_reconstruction_alignment_gate_is_module_boundary() -> None:
+    gate_source = ALIGNMENT_GATE.read_text(encoding="utf-8")
+    service_source = SERVICE.read_text(encoding="utf-8")
+
+    assert "class DemandReconstructionAlignmentGate" in gate_source
+    assert "def maybe_reject_to_semantic_fallback" in gate_source
+    assert "def reject_to_semantic_fallback" in gate_source
+    assert "def evaluate_alignment_shadow" in gate_source
+    assert "def append_alignment_rejection_signal" in gate_source
+    assert "DemandReconstructionAlignmentGate" in service_source
+    assert "self._alignment_gate.maybe_reject_to_semantic_fallback" in service_source
+    assert "evaluate_semantic_alignment" not in service_source
