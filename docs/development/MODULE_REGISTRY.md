@@ -135,6 +135,7 @@ current_version: v0.1-governed-contract
 
 ```text
 intelligent_project_analyzer/modules/project_type/contracts.py
+intelligent_project_analyzer/modules/project_type/registry_audit.py
 intelligent_project_analyzer/services/project_type_detector.py
 intelligent_project_analyzer/utils/ontology_loader.py
 intelligent_project_analyzer/config/registries/
@@ -156,6 +157,7 @@ intelligent_project_analyzer/config/registries/
 ProjectTypeDetector
 ontology_loader.get_layered_ontology
 modules.project_type.contracts.project_type_detection_contract
+modules.project_type.registry_audit.audit_project_type_registries
 ```
 
 ### dependencies
@@ -171,7 +173,7 @@ llm-runtime
 tests/unit/test_project_type_module_contract_guard.py
 tests/api/test_scheme_advisor_entry_route.py::test_required_llm_route_invokes_semantic_router_before_project_type_detector
 项目类型检测不应抢占 LLM-first 新对话入口。
-待补齐：registry 解析失败必须显式报错，不得静默退化为错误类型。
+strict registry audit 中 registry 缺失或 YAML 解析失败必须显式报错，不得在治理验证中静默退化。
 ```
 
 ### next_refactor_target
@@ -181,6 +183,7 @@ tests/api/test_scheme_advisor_entry_route.py::test_required_llm_route_invokes_se
 contracts.py 已建立为项目类型检测模块合同入口。
 修正不存在的 config/project_type_registry_meta.yaml 权威路径，当前以 PROJECT_TYPE_REGISTRY 与 registries 目录为真实权威。
 route-level guard 已补，证明 required LLM 入口先调用 LLM Semantic Router，再初始化 ProjectTypeDetector。
+strict registry audit 已补，运行时容错和 CI/治理显式失败分层处理。
 ```
 
 ## 3. scheme-advisor-entry

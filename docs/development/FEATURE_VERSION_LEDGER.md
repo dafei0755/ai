@@ -141,6 +141,7 @@ v0.1: 建立模块合同，明确 ProjectTypeDetector 是分类上下文服务�
 
 ```text
 intelligent_project_analyzer/modules/project_type/contracts.py
+intelligent_project_analyzer/modules/project_type/registry_audit.py
 intelligent_project_analyzer/services/project_type_detector.py
 intelligent_project_analyzer/config/registries/
 intelligent_project_analyzer/utils/ontology_loader.py

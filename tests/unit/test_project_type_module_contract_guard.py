@@ -8,6 +8,10 @@ from intelligent_project_analyzer.modules.project_type.contracts import (
     PROJECT_TYPE_VERSION,
     project_type_detection_contract,
 )
+from intelligent_project_analyzer.modules.project_type.registry_audit import (
+    ProjectTypeRegistryAuditError,
+    audit_project_type_registries,
+)
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -65,3 +69,22 @@ def test_project_type_detection_is_documented_as_context_not_entry_mainline() ->
     assert "context_evidence_after_llm_semantic_router" in contracts_text
     assert "project-type-detection" in ledger_text
     assert "v0.1-governed-contract" in ledger_text
+
+
+def test_project_type_registry_strict_audit_passes_current_authorities() -> None:
+    report = audit_project_type_registries()
+
+    assert report["status"] == "ok"
+    assert "intelligent_project_analyzer/services/project_type_detector.py" in report["checked_paths"]
+
+
+def test_project_type_registry_strict_audit_raises_on_yaml_parse_failure(tmp_path) -> None:
+    broken = tmp_path / "broken.yaml"
+    broken.write_text("items: [unterminated", encoding="utf-8")
+
+    try:
+        audit_project_type_registries(root=tmp_path, registry_paths=("broken.yaml",))
+    except ProjectTypeRegistryAuditError as exc:
+        assert "YAML parse failed" in str(exc)
+    else:
+        raise AssertionError("expected strict registry audit to fail on invalid YAML")
