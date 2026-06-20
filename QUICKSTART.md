@@ -8,7 +8,7 @@
 
 - **Python**: 3.10+ （推荐 3.13，暂不建议 3.14+）
 - **Node.js**: 18+
-- **LLM API Key**: OpenAI/Anthropic/Google 任选其一
+- **LLM API Key**: 推荐阿里云百炼 Qwen；也可按需切换 OpenAI/DeepSeek/OpenRouter/Anthropic
 - **Redis**: 推荐本地可用（未启动时系统会回退内存模式，仅适合开发调试）
 
 ---
@@ -22,9 +22,14 @@ cd ai
 
 # 2. 配置环境变量
 copy .env.example .env
-# 编辑 .env 填写 OPENAI_API_KEY
-# 若本机 8000 被 ComfyUI 等程序占用，建议同时设置：
+# 编辑 .env，至少确认以下配置：
 # BACKEND_PORT=8001
+# LLM_PROVIDER=qwen
+# QWEN_API_KEY=sk-xxx
+# DASHSCOPE_API_KEY=sk-xxx
+# QWEN_MODEL=qwen3.7-max
+# QWEN_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
+# QWEN_ENABLE_THINKING=true
 
 # 3. 安装依赖
 pip install -r requirements.txt
@@ -41,7 +46,7 @@ netstat -ano | findstr :6379
 cd frontend-nextjs && npm run dev:safe
 ```
 
-若你使用 `BACKEND_PORT=8001`，请确保 `frontend-nextjs/.env.local` 中为：
+请确保 `frontend-nextjs/.env.local` 中为：
 
 ```env
 NEXT_PUBLIC_API_URL=http://127.0.0.1:8001
@@ -69,8 +74,14 @@ cd frontend-nextjs && npm install
 
 ```bash
 if not exist .env copy .env.example .env
-# 编辑 .env，必填：OPENAI_API_KEY=your_key
-# 若 8000 端口已被占用，补充：BACKEND_PORT=8001
+# 编辑 .env，至少确认：
+# BACKEND_PORT=8001
+# LLM_PROVIDER=qwen
+# QWEN_API_KEY=sk-xxx
+# DASHSCOPE_API_KEY=sk-xxx
+# QWEN_MODEL=qwen3.7-max
+# QWEN_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
+# QWEN_ENABLE_THINKING=true
 ```
 
 ### 3. 启动服务
@@ -87,7 +98,7 @@ netstat -ano | findstr :6379
 cd frontend-nextjs && npm run dev:safe
 ```
 
-若使用 8001，请确认前端 API 地址：
+确认前端 API 地址：
 
 ```env
 # frontend-nextjs/.env.local
@@ -106,23 +117,25 @@ REDIS_URL=redis://127.0.0.1:6379/0
 
 > 不建议先执行 `taskkill /F /IM python.exe`。这会直接结束机器上**所有** Python 进程，容易误伤别的项目、测试或脚本。
 
-💡 若看到 `WinError 10048`（8000 端口被占用）：
+💡 若后端启动提示端口占用或健康检查失败：
 
-- 先访问 `http://localhost:8000/docs`，确认是否其实是当前项目后端已经在运行
-- 若确实需要释放 8000 端口，请按 PID 精确结束对应进程，而不是直接结束全部 `python.exe`
+- 先查看当前后端状态，确认是否已经有健康后端可复用
+- 默认启动会自动重启“识别为本项目且健康检查失败”的旧后端
+- 不会自动清理未知进程，避免误伤其他项目或工具
+- 若确认要强制重启本项目旧后端，可使用 `--restart-owned`
 
 ```bash
-# 查看 8000 端口占用
-netstat -ano | findstr :8000
+# 查看当前后端状态
+%CD%\.conda\python.exe -B scripts\run_server_production.py --status
 
-# 按 PID 精确结束（把 12345 替换成上一步查到的 PID）
-taskkill /PID 12345 /F
+# 强制重启识别为本项目的旧后端
+%CD%\.conda\python.exe -B scripts\run_server_production.py --restart-owned
 ```
 
 ### 4. 访问应用
 
 - **前端**: http://localhost:3001
-- **API 文档**: http://localhost:8000/docs（或你配置的 `BACKEND_PORT`，如 `http://localhost:8001/docs`）
+- **API 文档**: http://localhost:8001/docs（或你配置的 `BACKEND_PORT`）
 
 ---
 
@@ -150,8 +163,8 @@ taskkill /PID 12345 /F
 ### Q: 端口被占用？
 
 ```bash
-# 查看 8000 / 3001 端口占用
-netstat -ano | findstr :8000
+# 查看 8001 / 3001 端口占用
+netstat -ano | findstr :8001
 netstat -ano | findstr :3001
 
 # 按 PID 精确结束对应进程（把 12345 替换成实际 PID）
@@ -161,7 +174,13 @@ taskkill /PID 12345 /F
 npm run dev -- -p 4000
 ```
 
-如果 `http://localhost:8000/docs` 或 `http://localhost:3001` 已可访问，通常说明服务已经在运行，无需重复启动。
+如果 `http://localhost:8001/docs` 或 `http://localhost:3001` 已可访问，通常说明服务已经在运行，无需重复启动。
+
+更推荐先用后端启动脚本检查状态：
+
+```bash
+%CD%\.conda\python.exe -B scripts\run_server_production.py --status
+```
 
 ### Q: Python 3.13 Windows 用户
 
@@ -211,9 +230,24 @@ python -B scripts\run_server_production.py
 ### Q: 切换 LLM 服务商
 
 编辑 `.env` 文件：
+
+推荐配置阿里云百炼 Qwen：
+
 ```env
+LLM_PROVIDER=qwen
+QWEN_API_KEY=sk-xxx
+DASHSCOPE_API_KEY=sk-xxx
+QWEN_MODEL=qwen3.7-max
+QWEN_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
+QWEN_ENABLE_THINKING=true
+```
+
+也可切换到其他提供商：
+
+```env
+LLM_PROVIDER=openai
 OPENAI_API_KEY=sk-xxx
-# 或 ANTHROPIC_API_KEY / GOOGLE_API_KEY
+# 或按 provider 配置 ANTHROPIC_API_KEY / DEEPSEEK_API_KEY / OPENROUTER_API_KEY
 ```
 
 ### Q: 日志提示 `Redis 连接失败: Timeout connecting to server`？
@@ -242,20 +276,18 @@ docker start ipa-redis
 
 若服务确实不依赖 Redis（仅临时调试），可忽略该告警；系统会回退内存模式，但不建议长期使用。
 
-### Q: 需求分析的Fallback模式是什么？
+### Q: 需求重构首屏为什么会先返回规则底稿？
 
-**背景**: 当前Windows环境下OpenAI API存在emoji编码问题，系统采用智能Fallback机制保障服务稳定性。
+**背景**: 当外部 LLM 暂时不可用或响应过慢时，系统会先返回规则底稿，保障首屏稳定；后台 LLM 成功后再增强同一轮需求重构结果。
 
-**性能表现** (v7.620优化版):
-- ✅ **稳定性**: 100%成功率，零崩溃
-- ✅ **智能分析**: 34%场景可直接进入深度分析（跳过问卷）
-- ✅ **隐含推断**: 自动识别高净值用户、特殊需求场景
+**当前机制**:
+- ✅ **首屏稳定**: 先返回 `demand_reconstruction_blueprint`，避免前端等待到 120 秒超时
+- ✅ **LLM 介入**: 首屏结果标记 `rule_pending_llm` / `scheduled`，后台继续调用 LLM 增强
+- ✅ **同卡更新**: LLM 增强完成后通过 WebSocket 更新同一轮需求重构结果，不新开一条割裂回复
 
 **优化建议**:
 - 提供详细输入可提升分析质量（见上方"输入质量提示"）
-- 长期方案：迁移到Claude API或Docker Linux环境
-
-**详细报告**: 参见 [FALLBACK_OPTIMIZATION_REPORT_v7.620.md](FALLBACK_OPTIMIZATION_REPORT_v7.620.md)
+- 若首屏仍超时，优先执行 `scripts\run_server_production.py --status`，确认后端和 LLM 状态
 
 ---
 

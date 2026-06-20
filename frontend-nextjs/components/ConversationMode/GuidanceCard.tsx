@@ -116,6 +116,24 @@ const MISSING_SLOT_ACTION_META: Record<string, { label: string; className: strin
   },
 };
 
+const DEMAND_COMPONENT_INTENT_META: Record<string, { label: string; description: string; className: string }> = {
+  conflict_check: {
+    label: '关键取舍',
+    description: '把主矛盾转成需要先判断的方向分叉。',
+    className: 'border-violet-400/35 bg-violet-400/10 text-violet-100',
+  },
+  data_checklist: {
+    label: '条件清单',
+    description: '把缺失信息转成进入任务书前必须补齐的硬条件。',
+    className: 'border-cyan-400/35 bg-cyan-400/10 text-cyan-100',
+  },
+  insight_panel: {
+    label: '洞察面板',
+    description: '把重构判断收束成当前阶段的核心洞察。',
+    className: 'border-emerald-400/35 bg-emerald-400/10 text-emerald-100',
+  },
+};
+
 // ── Props ────────────────────────────────────────────────
 
 interface GuidanceCardWidgetProps {
@@ -136,6 +154,126 @@ interface GuidanceCardWidgetProps {
    * @param structuredResponse 多页/多选/排序场景的结构化选择结果
    */
   onRespond: (optionId?: string, freetext?: string, structuredResponse?: GuidanceCardStructuredResponse) => void;
+}
+
+function getDemandReconstructionComponentIntents(card: GuidanceCardData) {
+  if (card.card_type !== 'demand_reconstruction_blueprint') return [];
+  const rawIntents = card.summary?.component_intent;
+  if (!Array.isArray(rawIntents)) return [];
+
+  const seen = new Set<string>();
+  return rawIntents
+    .map((item) => {
+      if (!item || typeof item !== 'object') return null;
+      const intent = item as { type?: unknown; title?: unknown; items?: unknown; prompt?: unknown };
+      const type = typeof intent.type === 'string' ? intent.type : '';
+      const meta = DEMAND_COMPONENT_INTENT_META[type];
+      if (!meta || seen.has(type)) return null;
+      seen.add(type);
+      const payloadItems = Array.isArray(intent.items)
+        ? intent.items
+            .filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
+            .map((value) => value.trim())
+            .slice(0, 4)
+        : [];
+      const prompt = typeof intent.prompt === 'string' && intent.prompt.trim() ? intent.prompt.trim() : undefined;
+      const title = typeof intent.title === 'string' && intent.title.trim() ? intent.title.trim() : meta.label;
+      return { type, title, items: payloadItems, prompt, ...meta };
+    })
+    .filter(
+      (item): item is {
+        type: string;
+        title: string;
+        label: string;
+        description: string;
+        className: string;
+        items: string[];
+        prompt?: string;
+      } => Boolean(item),
+    );
+}
+
+function getDemandReconstructionInsightPacket(card: GuidanceCardData): {
+  chosenHypothesis?: string;
+  coreTension?: string;
+  hypotheses: string[];
+} | null {
+  if (card.card_type !== 'demand_reconstruction_blueprint') return null;
+  const rawPacket = card.summary?.insight_packet;
+  if (!rawPacket || typeof rawPacket !== 'object') return null;
+
+  const packet = rawPacket as Record<string, unknown>;
+  const chosenHypothesis =
+    typeof packet.chosen_hypothesis === 'string' && packet.chosen_hypothesis.trim()
+      ? packet.chosen_hypothesis.trim()
+      : undefined;
+  const rawCoreTension = packet.core_tension;
+  let coreTension =
+    typeof rawCoreTension === 'string' && rawCoreTension.trim()
+      ? rawCoreTension.trim()
+      : undefined;
+  if (!coreTension && rawCoreTension && typeof rawCoreTension === 'object') {
+    const tension = rawCoreTension as Record<string, unknown>;
+    const endpointA = typeof tension.a === 'string' && tension.a.trim() ? tension.a.trim() : '';
+    const endpointB = typeof tension.b === 'string' && tension.b.trim() ? tension.b.trim() : '';
+    const whyItMatters =
+      typeof tension.why_it_matters === 'string' && tension.why_it_matters.trim()
+        ? tension.why_it_matters.trim()
+        : '';
+    const pair = endpointA && endpointB ? `${endpointA}与${endpointB}` : endpointA || endpointB;
+    coreTension = [pair, whyItMatters].filter(Boolean).join('：') || undefined;
+  }
+  const hypotheses = Array.isArray(packet.hypotheses)
+    ? packet.hypotheses
+        .filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
+        .map((item) => item.trim())
+        .slice(0, 3)
+    : [];
+
+  if (!chosenHypothesis && !coreTension && hypotheses.length === 0) return null;
+  return { chosenHypothesis, coreTension, hypotheses };
+}
+
+function getDemandReconstructionCoverage(card: GuidanceCardData): {
+  label: string;
+  description: string;
+  className: string;
+} | null {
+  if (card.card_type !== 'demand_reconstruction_blueprint') return null;
+  const summary = card.summary ?? {};
+  const coverageLevel =
+    typeof summary.coverage_level === 'string'
+      ? summary.coverage_level
+      : typeof (summary.knowledge_coverage_ceiling as Record<string, unknown> | undefined)?.coverage_level === 'string'
+        ? ((summary.knowledge_coverage_ceiling as Record<string, unknown>).coverage_level as string)
+        : '';
+
+  switch (coverageLevel) {
+    case 'specialist_covered':
+      return {
+        label: '专科覆盖',
+        description: '当前可按已有专科知识推进需求重构，但仍需补齐项目事实。',
+        className: 'border-emerald-400/35 bg-emerald-400/10 text-emerald-100',
+      };
+    case 'partial_specialist':
+      return {
+        label: '部分专科覆盖',
+        description: '当前只能做邻近迁移判断，专科结论需要后续证据校准。',
+        className: 'border-cyan-400/35 bg-cyan-400/10 text-cyan-100',
+      };
+    case 'general_method_only':
+    case 'methodology_framework':
+    case 'l0':
+    case 'low':
+    case 'limited':
+      return {
+        label: '通用方法论',
+        description: '当前只能先按通用方法论重构，不应伪装成专科判断。',
+        className: 'border-amber-400/35 bg-amber-400/10 text-amber-100',
+      };
+    default:
+      return null;
+  }
 }
 
 // ── 组件 ─────────────────────────────────────────────────
@@ -185,6 +323,9 @@ export default function GuidanceCardWidget({ card, initialResponded = false, res
         ? '提交决策判断'
         : '提交';
   const demandReconstructionSections = card.card_type === 'demand_reconstruction_blueprint' ? (card.sections ?? []) : [];
+  const demandComponentIntents = getDemandReconstructionComponentIntents(card);
+  const demandInsightPacket = getDemandReconstructionInsightPacket(card);
+  const demandCoverage = getDemandReconstructionCoverage(card);
 
   // 当前页是否可继续（选了选项或填了自由输入）
   const canProceed =
@@ -497,6 +638,72 @@ export default function GuidanceCardWidget({ card, initialResponded = false, res
         <p className="text-[var(--foreground)] leading-relaxed mb-3">
           {currentPage.prompt_text}
         </p>
+        {demandComponentIntents.length > 0 && (
+          <div className="mb-3 grid gap-2 sm:grid-cols-3">
+            {demandComponentIntents.map((intent) => (
+              <div
+                key={intent.type}
+                className={`rounded-lg border px-3 py-2 ${intent.className}`}
+              >
+                <div className="text-xs font-semibold">{intent.title}</div>
+                <div className="mt-1 text-[11px] leading-5 opacity-75">{intent.description}</div>
+                {intent.items.length > 0 && (
+                  <ul className="mt-2 space-y-1 text-[11px] leading-5 opacity-85">
+                    {intent.items.map((item) => (
+                      <li key={item} className="flex gap-1.5">
+                        <span aria-hidden="true">-</span>
+                        <span>{item}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {intent.prompt && (
+                  <div className="mt-2 rounded-md border border-current/15 bg-black/10 px-2 py-1 text-[11px] leading-5 opacity-90">
+                    {intent.prompt}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+        {demandInsightPacket && (
+          <section className="mb-3 rounded-lg border border-emerald-400/40 bg-emerald-400/10 px-3 py-2.5">
+            <h4 className="text-xs font-semibold text-[var(--foreground)]">判断依据</h4>
+            {demandInsightPacket.chosenHypothesis && (
+              <p className="mt-1 text-xs leading-5 text-[var(--foreground-secondary)]">
+                {demandInsightPacket.chosenHypothesis}
+              </p>
+            )}
+            {demandInsightPacket.coreTension && (
+              <p className="mt-1 text-xs leading-5 text-[var(--foreground-secondary)]">
+                核心矛盾：{demandInsightPacket.coreTension}
+              </p>
+            )}
+            {demandInsightPacket.hypotheses.length > 0 && (
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {demandInsightPacket.hypotheses.map((hypothesis) => (
+                  <span
+                    key={hypothesis}
+                    className="rounded-full border border-emerald-300/30 bg-black/10 px-2 py-0.5 text-[11px] text-emerald-100"
+                  >
+                    {hypothesis}
+                  </span>
+                ))}
+              </div>
+            )}
+          </section>
+        )}
+        {demandCoverage && (
+          <section className={`mb-3 rounded-lg border px-3 py-2.5 ${demandCoverage.className}`}>
+            <div className="flex flex-wrap items-center gap-2">
+              <h4 className="text-xs font-semibold text-[var(--foreground)]">覆盖边界</h4>
+              <span className="rounded-full border border-current/25 bg-black/10 px-2 py-0.5 text-[11px] font-medium">
+                {demandCoverage.label}
+              </span>
+            </div>
+            <p className="mt-1 text-xs leading-5 opacity-80">{demandCoverage.description}</p>
+          </section>
+        )}
         {demandReconstructionSections.length > 0 && (
           <div className="mb-3 space-y-2">
             {demandReconstructionSections.map((section, index) => {

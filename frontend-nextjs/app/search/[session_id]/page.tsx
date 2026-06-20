@@ -188,7 +188,7 @@ interface SearchState {
   statusMessage: string;
 
   // v7.222: 明确的阶段标识（解决时序混乱问题）
-  // - 'analysis': Phase 0 需求理解与深度分析（DeepSeek推理）
+  // - 'analysis': Phase 0 需求理解与深度分析（深度推理）
   // - 'search': Phase 2 多轮搜索（执行搜索计划）
   // - 'synthesis': Phase 3 答案生成（综合分析生成最终回答）
   currentPhase: 'idle' | 'analysis' | 'search' | 'synthesis' | 'done';
@@ -398,7 +398,7 @@ const TaskUnderstandingCard = ({ content, isExpanded, onToggle, isLoading, isWai
   isExpanded: boolean;
   onToggle: () => void;
   isLoading?: boolean;
-  isWaiting?: boolean;  // v7.220: 等待 DeepSeek 响应中（尚未有流式内容）
+  isWaiting?: boolean;  // v7.220: 等待推理响应中（尚未有流式内容）
 }) => {
   // v7.220: 动态省略号效果 - Hooks 必须在条件判断之前调用
   const [dots, setDots] = useState('');
@@ -447,16 +447,16 @@ const TaskUnderstandingCard = ({ content, isExpanded, onToggle, isLoading, isWai
         </div>
       )}
 
-      {/* v7.220: 等待 DeepSeek 响应时的提示（合并自 AnalysisProgressCard） - 隐藏提示 */}
-      {/* 用户反馈：不希望显示DeepSeek推理引擎启动提示 */}
+      {/* v7.220: 等待推理响应时的提示（合并自 AnalysisProgressCard） - 隐藏提示 */}
+      {/* 用户反馈：不希望显示推理引擎启动提示 */}
       {/* {shouldExpand && isWaiting && !content && (
         <div className="px-4 py-3 border-t border-gray-200 dark:border-gray-700">
           <div className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed">
             <span className="text-indigo-600 dark:text-indigo-400">▋</span>
-            <span className="ml-1">正在启动 DeepSeek 深度推理引擎{dots}</span>
+            <span className="ml-1">正在启动深度推理引擎{dots}</span>
           </div>
           <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-            💡 正在调用 DeepSeek 深度推理引擎，思考内容将实时呈现
+            💡 正在调用深度推理引擎，思考内容将实时呈现
           </p>
         </div>
       )} */}
@@ -880,7 +880,7 @@ const AnalysisProgressCard = ({ progress }: {
               {progress.stageName}
             </span>
             <span className="text-xs text-indigo-600 dark:text-indigo-400">
-              DeepSeek推理
+              深度推理
             </span>
           </div>
           {/* 流式输出提示文字 */}
@@ -889,7 +889,7 @@ const AnalysisProgressCard = ({ progress }: {
             <span className="ml-1">{progress.message}{dots}</span>
           </div>
           <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-            💡 正在调用 DeepSeek 深度推理引擎，思考内容将实时呈现
+            💡 正在调用深度推理引擎，思考内容将实时呈现
           </p>
         </div>
       </div>
@@ -916,7 +916,7 @@ const ThinkingContentCard = ({ content, isExpanded, onToggle }: {
           <Brain className="w-4 h-4 text-purple-600 dark:text-purple-400" />
           <span className="ucppt-title-purple">解题思考过程</span>
           <span className="text-xs text-purple-600 dark:text-purple-400">
-            DeepSeek推理
+            深度推理
           </span>
         </div>
         <ChevronRight
@@ -1640,7 +1640,7 @@ export default function SearchResultPage() {
   const [deepAnalysisExpanded, setDeepAnalysisExpanded] = useState(true);  // 🆕 v7.280: 深度分析展开状态
   const pendingSearchRef = useRef<{query: string; deepMode: boolean} | null>(null);  // 🆕 v7.290: 待启动的搜索参数
 
-  // 🆕 v7.251: 自动滚动控制状态（类似 DeepSeek 流式输出时自动上滚）
+  // 🆕 v7.251: 自动滚动控制状态（流式输出时自动上滚）
   const [isAutoScrollEnabled, setIsAutoScrollEnabled] = useState(true);
   const [isUserScrolling, setIsUserScrolling] = useState(false);
   const lastScrollTopRef = useRef(0);
@@ -2076,7 +2076,7 @@ export default function SearchResultPage() {
     };
   }, [isNearBottom]);
 
-  // 🆕 v7.251: 自动滚动到底部（节流处理，类似 DeepSeek 流式输出时自动上滚）
+  // 🆕 v7.251: 自动滚动到底部（节流处理，流式输出时自动上滚）
   const scrollToBottom = useCallback(() => {
     if (!isAutoScrollEnabled || isUserScrolling) return;
 

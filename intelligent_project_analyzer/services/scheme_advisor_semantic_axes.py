@@ -87,6 +87,70 @@ def has_input_intent(axes: Mapping[str, List[str]]) -> bool:
     return bool(axes.get("input_intents") or [])
 
 
+def is_pure_naming_copy_request(message: str) -> bool:
+    text = str(message or "")
+    has_naming_or_copy = any(term in text for term in ("命名", "取名", "名称", "文案", "slogan", "Slogan"))
+    if not has_naming_or_copy:
+        return False
+    explicit_non_spatial = any(
+        term in text for term in ("不涉及空间设计", "不需要空间设计", "只要名称", "只要命名", "只要文案")
+    )
+    spatial_design_terms = ("空间语言", "空间设计", "动线", "材料", "灯光", "展陈", "功能", "平面", "室内")
+    has_spatial_design_scope = any(term in text for term in spatial_design_terms)
+    return explicit_non_spatial or not has_spatial_design_scope
+
+
+def is_reference_material_request(message: str) -> bool:
+    text = str(message or "")
+    has_reference_target = any(term in text for term in ("案例", "资料", "参考图", "参考图片", "图集", "标杆"))
+    if not has_reference_target:
+        return False
+    has_collection_action = any(
+        term in text for term in ("整理", "推荐", "收集", "列出", "找", "给我参考", "参考方向")
+    )
+    explicit_project_action = any(
+        term in text
+        for term in (
+            "重构需求",
+            "帮我重构",
+            "请先帮我重构需求",
+            "怎么改造",
+            "希望改造",
+            "希望打造",
+            "需要改造",
+            "需要打造",
+            "请提出完整设计",
+            "设计框架",
+            "设计方案",
+        )
+    )
+    return has_collection_action and not explicit_project_action
+
+
+def is_competition_strategy_request(message: str) -> bool:
+    text = str(message or "")
+    has_competition = any(term in text for term in ("竞标", "投标", "竞赛", "评审"))
+    has_strategy = any(term in text for term in ("汇报策略", "评审打动", "PPT", "提案策略", "投标策略", "竞标策略"))
+    return has_competition and has_strategy
+
+
+def is_methodology_discussion_request(message: str) -> bool:
+    text = str(message or "")
+    return any(
+        term in text
+        for term in (
+            "方法论",
+            "分析框架",
+            "判断方法",
+            "研究方法",
+            "如何研究",
+            "怎么研究",
+            "应该怎么研究",
+            "可迁移的方法",
+        )
+    )
+
+
 def semantic_axis_density(
     axes: Mapping[str, List[str]],
     *,
@@ -100,6 +164,159 @@ def semantic_axis_density(
         for axis_name, axis_values in axes.items()
         if axis_name not in excluded and bool(axis_values)
     )
+
+
+def has_concrete_project_anchor(message: str) -> bool:
+    """Authoritative, registry-driven detector for a concrete project anchor.
+
+    Shared by the Scheme Advisor entry triage and the demand reconstruction
+    entry gate so both layers decide "is this a real design/project input"
+    from the same semantic-axis signals instead of divergent word lists.
+    """
+    text = str(message or "")
+    if not text.strip():
+        return False
+
+    semantic_axes = derive_semantic_axes(text)
+    space_domains = set(semantic_axes.get("space_domains") or [])
+    input_intents = set(semantic_axes.get("input_intents") or [])
+    has_methodology_mode = has_problem_mode(semantic_axes)
+    semantic_density = semantic_axis_density(semantic_axes)
+    numeric_anchor = bool(
+        re.search(r"\d+(?:\.\d+)?\s*(?:㎡|平米|平方米|m2|m²|万平|间|层|小时|夜间|个夜间)", text, flags=re.IGNORECASE)
+    )
+    project_anchor_terms = (
+        "项目",
+        "位于",
+        "业主",
+        "总建筑面积",
+        "功能涵盖",
+        "需要在",
+        "希望打造",
+        "计划",
+        "商铺",
+        "门店",
+        "买手店",
+        "酒店",
+        "民宿",
+        "会所",
+        "总部",
+        "中心",
+        "大堂",
+        "多功能厅",
+        "公寓",
+        "别墅",
+        "住宅",
+        "书房",
+        "展厅",
+        "展馆",
+        "体验店",
+        "品牌空间",
+        "历史街区",
+        "社区",
+        "办公",
+    )
+    strong_anchor_terms = (
+        "项目为",
+        "项目位于",
+        "客户希望",
+        "客户要求",
+        "请提出完整室内设计",
+        "请提出完整设计",
+        "请提出基于",
+    )
+    anchor_hits = sum(1 for term in project_anchor_terms if term in text)
+    strong_hits = sum(1 for term in strong_anchor_terms if term in text)
+    concrete_design_request = bool(
+        re.search(r"^为.+设计.+(?:概念|框架|策略|方案)", text)
+    )
+    has_project_specificity = (
+        numeric_anchor
+        or strong_hits >= 1
+        or anchor_hits >= 2
+        or concrete_design_request
+    )
+    semantic_project_anchor = (
+        bool(space_domains)
+        and bool(input_intents)
+        and (
+            not has_methodology_mode
+            or has_project_specificity
+        )
+    )
+
+    return (
+        semantic_project_anchor
+        or (bool(space_domains) and numeric_anchor)
+        or (semantic_density >= 4 and has_project_specificity)
+        or (numeric_anchor and anchor_hits >= 1)
+        or anchor_hits >= 2
+        or (anchor_hits >= 1 and strong_hits >= 1)
+        or concrete_design_request
+    )
+
+
+def should_enter_demand_reconstruction(message: str) -> bool:
+    """Shared pure gate for the demand reconstruction entry stage.
+
+    The Scheme Advisor entry flow and the demand reconstruction service both
+    need one answer to "is this a project-like input that should be reframed
+    before formal intake?". Keep that answer here with the semantic-axis rules,
+    rather than scattering local keyword gates across orchestration services.
+    """
+    text = str(message or "").strip()
+    if not text:
+        return False
+    if is_competition_strategy_request(text):
+        return False
+    if is_pure_naming_copy_request(text):
+        return False
+    if is_reference_material_request(text):
+        return False
+    if is_methodology_discussion_request(text):
+        has_project_reconstruction_intent = any(
+            term in text for term in ("重构需求", "帮我重构", "梳理需求", "重构我的需求", "请提出完整设计")
+        )
+        if not has_project_reconstruction_intent:
+            return False
+    has_project_anchor = has_concrete_project_anchor(text)
+    if has_project_anchor:
+        return True
+
+    axes = derive_semantic_axes(text)
+    has_explicit_request = any(
+        term in text for term in ("重构需求", "帮我重构", "梳理需求", "重构我的需求")
+    )
+    if has_problem_mode(axes) and not has_explicit_request:
+        return False
+
+    if has_explicit_request and semantic_axis_density(axes) >= 1:
+        return True
+
+    if bool(axes.get("space_domains")) and semantic_axis_density(axes) >= 3:
+        return True
+
+    has_spatial_focus = (
+        "空间" in text
+        or bool(axes.get("space_domains"))
+        or bool(axes.get("site_resources"))
+    )
+    has_research_or_advice = any(
+        term in text
+        for term in (
+            "研究",
+            "源流",
+            "历史",
+            "文人",
+            "雅集",
+            "转译",
+            "启发",
+            "给出建议",
+            "给点建议",
+            "怎么看",
+        )
+    )
+    return has_spatial_focus and has_research_or_advice
 
 
 def rank_main_tensions(
@@ -140,6 +357,7 @@ def rank_main_tensions(
                     "title": str(spec.get("title") or axis_label(axis_id, registry=source)),
                     "prompt": str(spec.get("prompt") or axis_description(axis_id, registry=source)),
                     "related_options": [str(item) for item in (spec.get("related_options") or []) if str(item)],
+                    "relevance_terms": [str(item) for item in (spec.get("relevance_terms") or []) if str(item)],
                     "score": int(spec.get("base_weight") or 50),
                     "source_axes": [],
                 },

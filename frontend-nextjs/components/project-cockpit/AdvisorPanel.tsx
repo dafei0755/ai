@@ -9,7 +9,7 @@ interface AdvisorPanelProps {
   viewModel: AdvisorViewModel;
   prefillMessage?: string;
   onChipAction: (chip: ActionChip) => void;
-  onAsk: (text: string) => void;
+  onAsk: (text: string) => void | string | Promise<void | string>;
 }
 
 interface ChatMessage {
@@ -67,20 +67,26 @@ export function AdvisorPanel({
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isThinking]);
 
-  const handleSend = () => {
+  const handleSend = async () => {
     const text = inputValue.trim();
     if (!text || isThinking) return;
     setMessages(prev => [...prev, { id: Date.now().toString(), role: 'user', text }]);
     setInputValue('');
     setIsThinking(true);
-    onAsk(text);
-    setTimeout(() => {
-      setIsThinking(false);
+    try {
+      const reply = await onAsk(text);
       setMessages(prev => [
         ...prev,
-        { id: (Date.now() + 1).toString(), role: 'advisor', text: viewModel.judgment.content },
+        { id: (Date.now() + 1).toString(), role: 'advisor', text: typeof reply === 'string' && reply.trim() ? reply : viewModel.judgment.content },
       ]);
-    }, 1200);
+    } catch (error) {
+      setMessages(prev => [
+        ...prev,
+        { id: (Date.now() + 1).toString(), role: 'advisor', text: error instanceof Error ? error.message : '消息发送失败，请稍后重试。' },
+      ]);
+    } finally {
+      setIsThinking(false);
+    }
   };
 
   const handleChipClick = (chip: ActionChip) => {

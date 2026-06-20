@@ -1154,13 +1154,14 @@
 
 /* 深色主题（默认） */
 :root {
-  --background: #1e1e1e;
-  --canvas-bg: #2a2a2a;
-  --foreground: #e8e8e8;
-  --foreground-secondary: #a0a0a0;
-  --sidebar-bg: #2a2a2a;
-  --card-bg: #3a3a3a;
-  --border-color: #444444;
+  --background: #151517;
+  --canvas-bg: #171717;
+  --foreground: #f5f5f5;
+  --foreground-secondary: #b4b4b4;
+  --sidebar-bg: #1B1B1C;
+  --card-bg: #2C2C2E;
+  --border-color: #2a2a2a;
+  --advisor-chat-column-width: 960px;
   --primary: #4d6bfe;
   --primary-hover: #3b5bdb;
   --ui-card-shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 5px 12px rgba(0, 0, 0, 0.055);
@@ -1213,12 +1214,12 @@
 
 @media (prefers-color-scheme: dark) {
   [data-theme="system"] {
-    --background: #1e1e1e;
-    --foreground: #e8e8e8;
-    --foreground-secondary: #a0a0a0;
-    --sidebar-bg: #2a2a2a;
-    --card-bg: #3a3a3a;
-    --border-color: #444444;
+    --background: #151517;
+    --foreground: #f5f5f5;
+    --foreground-secondary: #b4b4b4;
+    --sidebar-bg: #1B1B1C;
+    --card-bg: #2C2C2E;
+    --border-color: #2a2a2a;
     --primary: #4d6bfe;
     --primary-hover: #3b5bdb;
     --ui-card-shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 5px 12px rgba(0, 0, 0, 0.055);
@@ -1226,6 +1227,18 @@
     --ui-card-shadow-active: 0 6px 14px rgba(0, 0, 0, 0.055), 0 1px 4px rgba(0, 0, 0, 0.035);
     --ui-card-shadow-strong: 0 10px 20px rgba(0, 0, 0, 0.0325), 0 3px 8px rgba(0, 0, 0, 0.02);
   }
+}
+
+.ucppt-advisor-shell {
+  --background: #151517;
+  --canvas-bg: #171717;
+  --foreground: #f5f5f5;
+  --foreground-secondary: #b4b4b4;
+  --sidebar-bg: #1B1B1C;
+  --card-bg: #2C2C2E;
+  --border-color: #2a2a2a;
+  --advisor-chat-column-width: 960px;
+  color-scheme: dark;
 }
 
 body {

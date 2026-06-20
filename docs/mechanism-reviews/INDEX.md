@@ -111,6 +111,23 @@
 
 ### 核心流程机制
 
+#### 0. 潜变量统一数据契约实施计划 (v1.0) ⭐新增
+**文档**: [LATENT_VARIABLE_UNIFIED_CONTRACT_IMPLEMENTATION_PLAN.md](LATENT_VARIABLE_UNIFIED_CONTRACT_IMPLEMENTATION_PLAN.md)
+
+**核心内容**:
+- 🎯 **统一契约**: 将 `semantic_axes / main_tensions / insight_packet` 统一为 `latent_model.v1`
+- 🔀 **多轨路由**: 从布尔门控升级到项目重构/方法论重构等路由模式
+- 🧭 **推理闭环**: 张力（tensions）+ 假设（hypotheses）+ 未知数账本（uncertainty_ledger）
+- ✅ **门禁验证**: 以190条压力集建立结构合法率、漏检率、证据覆盖率等验收指标
+- ♻️ **灰度回滚**: 全链路开关化，支持按会话降级到旧路径
+
+**适用场景**:
+- 开放问题需求重构
+- 高抽象方法论输入
+- 防止规则枚举式硬编码回潮
+
+---
+
 #### 3. 需求分析师机制复盘 (v7.999) ⭐新增
 **文档**: [REQUIREMENTS_ANALYST_MECHANISM_REVIEW.md](REQUIREMENTS_ANALYST_MECHANISM_REVIEW.md)
 

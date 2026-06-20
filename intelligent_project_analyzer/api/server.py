@@ -7633,16 +7633,34 @@ async def get_followup_history(session_id: str):
 
 
 def _session_display_title(session: Dict[str, Any]) -> str:
-    """历史列表标题兜底：优先显式标题，其次对话态首条用户消息。"""
-    explicit_title = session.get("display_name") or session.get("user_input") or ""
-    if explicit_title:
-        return str(explicit_title)
+    """历史列表标题兜底：优先原始输入，其次对话态首条用户消息。"""
+    def compact(value: str) -> str:
+        return "".join(ch for ch in str(value).split() if ch not in "，。！？、；：,.!?;:\"“”'‘’（）()【】[]{}<>《》")
+
+    original_input = " ".join(str(session.get("user_input") or "").split())
+    first_user_message = ""
 
     for entry in session.get("conversation_history_v2", []) or []:
         if entry.get("role") == "user" and entry.get("content"):
-            return " ".join(str(entry.get("content", "")).split())[:200]
+            first_user_message = " ".join(str(entry.get("content", "")).split())[:200]
+            break
 
-    return ""
+    if original_input:
+        compact_original = compact(original_input)
+        compact_first_user_message = compact(first_user_message)
+        if (
+            compact_first_user_message
+            and compact_first_user_message != compact_original
+            and compact_first_user_message.startswith(compact_original)
+        ):
+            return first_user_message
+        return original_input
+
+    if first_user_message:
+        return first_user_message
+
+    explicit_title = session.get("display_name") or ""
+    return str(explicit_title)
 
 
 @app.get("/api/sessions")

@@ -65,12 +65,13 @@ describe('HomePage submit behavior', () => {
   });
 
   it('does not request retired demo app config on the home page', async () => {
-    render(<HomePage />);
+    const { container } = render(<HomePage />);
 
     await waitFor(() => {
       expect(screen.getByPlaceholderText('输入你的想法、问题或设计需求，先做需求重构...')).toBeInTheDocument();
     });
 
+    expect(container.firstElementChild).toHaveClass('ucppt-advisor-shell');
     expect(global.fetch).not.toHaveBeenCalledWith(expect.stringContaining('/api/app-config'));
   });
 

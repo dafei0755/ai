@@ -17,7 +17,7 @@ class _DummyLLM:
         return {"ok": True}
 
 
-def test_fallbackllm_auth_401_should_fail_fast_without_trying_next_provider(monkeypatch):
+def test_fallbackllm_auth_401_should_try_next_provider_for_channel_resilience(monkeypatch):
     auth_error = RuntimeError(
         "AuthenticationError: Error code: 401 - {'error': {'message': 'User not found', 'code': 401}}"
     )
@@ -25,12 +25,13 @@ def test_fallbackllm_auth_401_should_fail_fast_without_trying_next_provider(monk
     first = _DummyLLM(error=auth_error)
     second = _DummyLLM(error=None)
 
-    # 构造对象后覆盖实例映射，避免依赖真实 provider 初始化
-    llm = FallbackLLM(providers=["openai"], max_retries=0)
-    llm.llm_instances = {"openai": first, "deepseek": second}
+    llm = FallbackLLM(
+        providers=["qwen", "deepseek"],
+        max_retries=0,
+        llm_instances={"qwen": first, "deepseek": second},
+    )
 
-    with pytest.raises(RuntimeError, match="LLM_AUTH_401"):
-        llm.invoke("hello")
+    assert llm.invoke("hello") == {"ok": True}
 
     assert first.calls == 1
-    assert second.calls == 0
+    assert second.calls == 1

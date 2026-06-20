@@ -60,6 +60,12 @@ Git 管理的不是“文件夹”，而是一组组有明确意图的变更快�
 
 如果当前工作树已经很脏，先做安全整理报告和分批清单，再决定从哪里开始收敛。
 
+脏工作树的分级、分桶、checkpoint、worktree 和清理规则，统一见：
+
+```text
+docs/development/DIRTY_WORKTREE_GOVERNANCE_PROTOCOL.md
+```
+
 ### 并行线程规则
 
 当两个开发线程同时推进时，不能只靠口头约定隔离，必须建立明确的线程边界文档。
@@ -289,6 +295,14 @@ Git 跟踪，才说明文件进入版本历史，可追溯、可回退、可协�
 提交说明里应能看出验证方式。
 
 ## 九、回退规则
+
+本项目的详细变更安全、checkpoint、未跟踪文件保护和禁止命令规则，统一见：
+
+```text
+docs/development/CHANGE_SAFETY_AND_ROLLBACK_PROTOCOL.md
+```
+
+本节只保留 Git 回退的基本分类；执行时以该专项规范为准。
 
 回退必须区分三种情况。
 

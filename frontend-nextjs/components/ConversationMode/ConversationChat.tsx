@@ -11,7 +11,7 @@
 
 'use client';
 
-import { ArrowRight, ArrowUp, Check, ChevronDown, Plus, RotateCcw, Sparkles, X } from 'lucide-react';
+import { ArrowRight, ArrowUp, Check, ChevronDown, RotateCcw, Sparkles, X } from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -141,11 +141,6 @@ export interface AdvisorSceneContext {
 export interface ConversationChatProps {
   sessionId: string;
   messages: ChatMessage[];
-  activeExpertPerspective?: string;
-  expertPerspectiveOptions?: readonly string[];
-  onExpertPerspectiveChange?: (next: string) => void;
-  summonOptions?: readonly string[];
-  onSummonExpert?: (target: string) => void;
   visualBriefContext?: {
     space: string;
     status: string;
@@ -572,12 +567,32 @@ function getSchemeVersionDifferences(versionId: string): string[] {
 
 // ── 打字指示器 ────────────────────────────────────────────
 
-function TypingIndicator() {
+function isDemandReconstructionLikeMessage(message?: ChatMessage): boolean {
+  if (!message || message.role !== 'user') return false;
+  const text = message.content || '';
   return (
-    <div className="mb-6 flex items-center gap-1.5">
-      <span className="w-2 h-2 rounded-full bg-[var(--foreground-secondary)] animate-bounce [animation-delay:-0.3s]" />
-      <span className="w-2 h-2 rounded-full bg-[var(--foreground-secondary)] animate-bounce [animation-delay:-0.15s]" />
-      <span className="w-2 h-2 rounded-full bg-[var(--foreground-secondary)] animate-bounce" />
+    /重构需求|帮我重构|请先帮我重构|设计需求|完整设计|设计框架|项目简报|任务书/.test(text) ||
+    (/(改造|打造|设计|空间|项目)/.test(text) && /(包含|需要|希望|业主|动线|材料|展陈|运营)/.test(text))
+  );
+}
+
+function TypingIndicator({ mode = 'default' }: { mode?: 'default' | 'demand-reconstruction' }) {
+  const title = mode === 'demand-reconstruction' ? '正在重构需求' : '正在整理回应';
+  const description =
+    mode === 'demand-reconstruction'
+      ? '正在融合项目语义、关键约束和下一步判断。'
+      : '正在根据上下文组织下一步回应。';
+  return (
+    <div className="mb-6 flex items-start gap-3 text-[var(--foreground-secondary)]" role="status" aria-live="polite">
+      <div className="mt-2 flex items-center gap-1.5" aria-hidden="true">
+        <span className="w-2 h-2 rounded-full bg-[var(--foreground-secondary)] animate-bounce [animation-delay:-0.3s]" />
+        <span className="w-2 h-2 rounded-full bg-[var(--foreground-secondary)] animate-bounce [animation-delay:-0.15s]" />
+        <span className="w-2 h-2 rounded-full bg-[var(--foreground-secondary)] animate-bounce" />
+      </div>
+      <div>
+        <div className="ui-type-meta font-semibold text-[var(--foreground)]">{title}</div>
+        <div className="ui-type-meta mt-1">{description}</div>
+      </div>
     </div>
   );
 }
@@ -587,11 +602,6 @@ function TypingIndicator() {
 export default function ConversationChat({
   sessionId,
   messages,
-  activeExpertPerspective = '默认综合',
-  expertPerspectiveOptions = [],
-  onExpertPerspectiveChange,
-  summonOptions = [],
-  onSummonExpert,
   visualBriefContext = null,
   onVisualBriefPromptChange,
   onVisualBriefNoteChange,
@@ -612,7 +622,6 @@ export default function ConversationChat({
   const [briefPinnedOpen, setBriefPinnedOpen] = useState(false);
   const [contextExpanded, setContextExpanded] = useState(false);
   const [contextPinnedOpen, setContextPinnedOpen] = useState(false);
-  const [showSummonMenu, setShowSummonMenu] = useState(false);
   const [contextPanePercent, setContextPanePercent] = useState(() => {
     // 从 sessionStorage 中恢复上次保存的比例（页面会话级别）
     if (typeof window === 'undefined') return 42;
@@ -627,7 +636,6 @@ export default function ConversationChat({
   const scrollRef = useRef<HTMLDivElement>(null);
   const splitPaneRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const summonMenuRef = useRef<HTMLDivElement>(null);
   const adaptiveChatGutter = 'clamp(12px, 2vw, 32px)';
   const advisorSuggestionLines = (advisorSceneContext?.suggestion ?? '')
     .split('\n')
@@ -636,6 +644,9 @@ export default function ConversationChat({
   const advisorInsightLines = advisorSuggestionLines.filter((line) => /^\d+[.、]/.test(line)).slice(0, 3);
   const advisorClosingLine = advisorSuggestionLines[advisorSuggestionLines.length - 1];
   const visibleMessages = messages.filter((message) => !message.id.startsWith('scene-sync-'));
+  const loadingMode = isDemandReconstructionLikeMessage(visibleMessages[visibleMessages.length - 1])
+    ? 'demand-reconstruction'
+    : 'default';
 
   // 自动滚动到底部
   useEffect(() => {
@@ -653,31 +664,6 @@ export default function ConversationChat({
     });
     textareaRef.current?.focus();
   }, [prefillHint?.id, prefillHint?.text]);
-
-  useEffect(() => {
-    if (!showSummonMenu) return;
-
-    const handleClickOutside = (event: MouseEvent) => {
-      if (!summonMenuRef.current) return;
-      if (!summonMenuRef.current.contains(event.target as Node)) {
-        setShowSummonMenu(false);
-      }
-    };
-
-    const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        setShowSummonMenu(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    document.addEventListener('keydown', handleEscape);
-
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-      document.removeEventListener('keydown', handleEscape);
-    };
-  }, [showSummonMenu]);
 
   useEffect(() => {
     if (!isContextResizing) return;
@@ -776,7 +762,7 @@ export default function ConversationChat({
 
       {visualBriefContext && (
         <div className="flex-shrink-0 border-b border-[var(--border-color)] px-4 pb-3 pt-1">
-          <div className="mx-auto max-w-[960px]">
+          <div className="mx-auto max-w-[var(--advisor-chat-column-width)]">
             <div
               className="rounded-none border border-[var(--border-color)] bg-[var(--card-bg)] px-4 py-3"
               onMouseEnter={() => setBriefExpanded(true)}
@@ -878,7 +864,7 @@ export default function ConversationChat({
 
       {false && advisorSceneContext && visibleMessages.length > 0 && (
         <div className="flex-shrink-0 border-b border-white/8 px-4 py-3">
-          <div className="mx-auto max-w-[960px]">
+          <div className="mx-auto max-w-[var(--advisor-chat-column-width)]">
             <div className="rounded-2xl border border-white/10 bg-white/[0.045] px-4 py-3 text-white/82">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="min-w-0">
@@ -920,7 +906,7 @@ export default function ConversationChat({
             className="flex-shrink-0 border-b border-[var(--border-color)] px-4 pb-3 pt-1 overflow-y-auto"
             style={{ height: `${contextPanePercent}%` }}
           >
-            <div className="mx-auto max-w-[960px]">
+            <div className="mx-auto max-w-[var(--advisor-chat-column-width)]">
               <div
                 className="rounded-none border border-[var(--border-color)] bg-[var(--card-bg)] px-4 py-3"
                 onMouseEnter={() => setContextExpanded(true)}
@@ -1007,11 +993,11 @@ export default function ConversationChat({
             <p className="ui-type-meta mt-1 text-[var(--foreground-secondary)]">分享你的想法、灵感或设计需求</p>
           </div>
         ) : (
-          <div className="w-full max-w-[960px] mx-auto pt-4 pb-60" style={{ paddingInline: '2px' }}>
+          <div className="w-full max-w-[var(--advisor-chat-column-width)] mx-auto pt-4 pb-60" style={{ paddingInline: '2px' }}>
             {visibleMessages.map((msg) => (
               <MessageBubble key={msg.id} message={msg} onCardResponse={onCardResponse} onCandidateCardResponse={onCandidateCardResponse} />
             ))}
-            {loading && <TypingIndicator />}
+            {loading && <TypingIndicator mode={loadingMode} />}
           </div>
         )}
       </div>
@@ -1019,51 +1005,7 @@ export default function ConversationChat({
 
       {/* 浮动输入框（ChatGPT 暗色风格） */}
       <div className="absolute bottom-0 left-0 right-0 pb-4 pt-8 bg-gradient-to-t from-[var(--background)] via-[var(--background)] to-transparent pointer-events-none" style={{ paddingInline: adaptiveChatGutter }}>
-      <div className="mx-auto w-full max-w-[960px] pointer-events-auto">
-          <div className="mb-2 flex items-center rounded-[1rem] border border-white/10 bg-black/35 px-3 py-2 text-xs text-white/88 backdrop-blur-sm">
-            <div className="inline-flex items-center gap-2">
-              <select
-                value={activeExpertPerspective}
-                onChange={(event) => onExpertPerspectiveChange?.(event.target.value)}
-                className="ui-type-meta min-w-[132px] rounded-full border border-white/10 bg-black/45 px-2.5 py-1 text-white outline-none"
-                aria-label="选择专家视角"
-              >
-                {expertPerspectiveOptions.map((option) => (
-                  <option key={option} value={option} className="bg-[#1f1f1f] text-white">
-                    {option}
-                  </option>
-                ))}
-              </select>
-              <div ref={summonMenuRef} className="relative">
-                <button
-                  type="button"
-                  onClick={() => setShowSummonMenu((prev) => !prev)}
-                  className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-white/10 bg-black/45 text-white transition hover:border-white/10 hover:bg-black/45"
-                  aria-label="召集团队"
-                  title="召集团队"
-                >
-                  <Plus className="h-3.5 w-3.5" />
-                </button>
-                {showSummonMenu && (
-                  <div className="absolute left-0 bottom-[calc(100%+8px)] min-w-[150px] rounded-2xl border border-white/10 bg-[#1f1f1f]/98 p-1.5 shadow-[0_18px_38px_rgba(0,0,0,0.36)] backdrop-blur-sm">
-                    {summonOptions.map((option) => (
-                      <button
-                        key={option}
-                        type="button"
-                        onClick={() => {
-                          onSummonExpert?.(option);
-                          setShowSummonMenu(false);
-                        }}
-                        className="ui-type-meta flex w-full items-center justify-start rounded-xl px-2.5 py-2 text-white/92 transition hover:bg-white/8"
-                      >
-                        {option}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
+      <div className="mx-auto w-full max-w-[var(--advisor-chat-column-width)] pointer-events-auto">
           <div className="ui-card-shell ui-card-shell-strong rounded-[1.6rem] overflow-hidden bg-[var(--card-bg)]">
             <textarea
               ref={textareaRef}

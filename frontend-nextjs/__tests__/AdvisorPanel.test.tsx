@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { AdvisorPanel } from '@/components/project-cockpit/AdvisorPanel';
 import { MOCK_ADVISOR_VIEW_MODEL } from '@/components/project-cockpit/mock/mockData';
 import type { ActionChip } from '@/types/advisor';
@@ -10,6 +10,7 @@ describe('AdvisorPanel', () => {
   beforeEach(() => {
     mockOnChipAction.mockClear();
     mockOnAsk.mockClear();
+    Element.prototype.scrollIntoView = jest.fn();
   });
 
   it('renders title "方案高参"', () => {
@@ -114,6 +115,24 @@ describe('AdvisorPanel', () => {
     expect(mockOnChipAction).toHaveBeenCalledWith(
       expect.objectContaining({ type: 'fill' })
     );
+  });
+  it('renders async onAsk response in the advisor chat stream', async () => {
+    mockOnAsk.mockResolvedValue('智能识别暂不可用，请重试\n\n没有使用规则蓝图降级生成。');
+    render(
+      <AdvisorPanel
+        viewModel={MOCK_ADVISOR_VIEW_MODEL}
+        onChipAction={mockOnChipAction}
+        onAsk={mockOnAsk}
+      />
+    );
+
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: '测试 503' } });
+    fireEvent.keyDown(screen.getByRole('textbox'), { key: 'Enter', code: 'Enter' });
+
+    await waitFor(() => {
+      expect(screen.getByText(/智能识别暂不可用，请重试/)).toBeInTheDocument();
+    });
+    expect(screen.getByText(/没有使用规则蓝图降级生成/)).toBeInTheDocument();
   });
 
   it('renders 3 activated capabilities as placeholders', () => {

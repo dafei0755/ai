@@ -11,6 +11,7 @@ import time
 import urllib.error
 import urllib.request
 import csv
+import json
 from pathlib import Path
 
 
@@ -111,7 +112,13 @@ def probe_existing_backend_health(host: str, port: int) -> dict:
     try:
         with urllib.request.urlopen(url, timeout=DEFAULT_HEALTH_TIMEOUT_SECONDS) as response:
             status_code = getattr(response, "status", 200)
-            return {"ok": 200 <= status_code < 300, "status": status_code, "url": url}
+            body: dict = {}
+            try:
+                raw_body = response.read().decode("utf-8", errors="replace")
+                body = json.loads(raw_body) if raw_body.strip() else {}
+            except (ValueError, OSError):
+                body = {}
+            return {"ok": 200 <= status_code < 300, "status": status_code, "url": url, "body": body}
     except (OSError, urllib.error.URLError) as exc:
         return {"ok": False, "url": url, "error": str(exc)}
 
@@ -204,14 +211,19 @@ def is_owned_backend_process(process: dict, repo_root: Path) -> bool:
     command_line = (process.get("command_line") or "").lower()
     name = (process.get("name") or "").lower()
     repo_text = str(repo_root).lower()
-    return (
-        "python" in name
-        and repo_text in command_line
-        and (
-            "run_server_production.py" in command_line
-            or "intelligent_project_analyzer.api.server" in command_line
-        )
+    if "python" not in name:
+        return False
+    is_project_server = (
+        "run_server_production.py" in command_line
+        or "intelligent_project_analyzer.api.server" in command_line
     )
+    if not is_project_server:
+        return False
+    if "intelligent_project_analyzer.api.server" in command_line:
+        return True
+    if repo_text in command_line:
+        return True
+    return "scripts/run_server_production.py" in command_line or "scripts\\run_server_production.py" in command_line
 
 
 def stop_process(pid: int) -> None:
@@ -244,11 +256,107 @@ def _format_port_owners(owners: list[dict]) -> str:
     return "\n".join(lines)
 
 
-def handle_backend_port_conflict() -> dict:
+def restart_owned_backend_processes(host: str, port: int, owners: list[dict]) -> dict | None:
+    repo_root = get_repo_root()
+    owned_processes = [owner for owner in owners if is_owned_backend_process(owner, repo_root)]
+    if not owned_processes:
+        return None
+    for owner in owned_processes:
+        stop_process(int(owner["pid"]))
+    if wait_until_port_released(host, port):
+        message = f"已关闭旧后端进程，端口 {port} 已释放，准备重新启动。"
+        print(message)
+        return {"action": "restart-owned", "message": message, "owners": owned_processes}
+    raise SystemExit(f"已尝试关闭旧后端进程，但端口 {port} 仍未释放。")
+
+
+def collect_backend_status() -> dict:
+    host = get_backend_host()
+    port = get_backend_port()
+    port_in_use = is_port_in_use(host, port)
+    health = (
+        probe_existing_backend_health(host, port)
+        if port_in_use
+        else {"ok": False, "url": get_backend_health_url(host, port), "error": "port free"}
+    )
+    owners = find_port_owners(port) if port_in_use else []
+    repo_root = get_repo_root()
+    annotated_owners = [
+        {**owner, "is_owned_backend": is_owned_backend_process(owner, repo_root)}
+        for owner in owners
+    ]
+    return {
+        "host": host,
+        "port": port,
+        "port_in_use": port_in_use,
+        "health": health,
+        "owners": annotated_owners,
+    }
+
+
+def _extract_llm_status(health: dict) -> str:
+    body = health.get("body") if isinstance(health.get("body"), dict) else {}
+    components = body.get("components") if isinstance(body.get("components"), dict) else {}
+    llm = components.get("llm") if isinstance(components.get("llm"), dict) else {}
+    if not llm:
+        return "未知"
+    return f"{llm.get('provider') or 'unknown'}/{llm.get('status') or 'unknown'}"
+
+
+def format_backend_status(status: dict) -> str:
+    host = status.get("host") or get_backend_host()
+    port = int(status.get("port") or get_backend_port())
+    health = status.get("health") or {}
+    lines = [
+        "后端状态:",
+        f"- 地址: {health.get('url') or get_backend_health_url(host, port)}",
+        f"- 端口: {port}",
+        f"- 端口占用: {'是' if status.get('port_in_use') else '否'}",
+        f"- 健康检查: {'通过' if health.get('ok') else '未通过'}",
+        f"- 可复用后端: {'是' if health.get('ok') else '否'}",
+    ]
+    if health.get("status"):
+        lines.append(f"- HTTP状态: {health.get('status')}")
+    if health.get("error"):
+        lines.append(f"- 健康错误: {health.get('error')}")
+    lines.append(f"- LLM: {_extract_llm_status(health)}")
+
+    owners = status.get("owners") or []
+    if not owners:
+        lines.append("- 占用进程: 无")
+        return "\n".join(lines)
+
+    lines.append("- 占用进程:")
+    for owner in owners:
+        command_line = owner.get("command_line") or ""
+        command_hint = f" | {command_line}" if command_line else ""
+        if owner.get("is_owned_backend"):
+            ownership = "是"
+        elif health.get("ok") and not command_line:
+            ownership = "未识别"
+        else:
+            ownership = "否"
+        lines.append(f"  - PID {owner.get('pid')} {owner.get('name') or ''}{command_hint}")
+        lines.append(f"    本项目后端: {ownership}")
+    return "\n".join(lines)
+
+
+def handle_backend_port_conflict(force_restart_owned: bool = False) -> dict:
     host = get_backend_host()
     port = get_backend_port()
     if not is_port_in_use(host, port):
         return {"action": "start", "message": f"后端端口 {port} 可用，准备启动。"}
+
+    owners = find_port_owners(port)
+    if force_restart_owned:
+        restart_result = restart_owned_backend_processes(host, port, owners)
+        if restart_result is not None:
+            return restart_result
+        raise SystemExit(
+            f"已请求重启本项目后端，但未能识别端口 {port} 上的本项目进程。\n"
+            f"占用进程：\n{_format_port_owners(owners)}\n"
+            f"不会关闭未知进程。"
+        )
 
     health = probe_existing_backend_health(host, port)
     if health.get("ok"):
@@ -256,19 +364,11 @@ def handle_backend_port_conflict() -> dict:
         print(message)
         return {"action": "adopted", "message": message, "health": health}
 
-    owners = find_port_owners(port)
-    policy = os.environ.get(BACKEND_PORT_CONFLICT_POLICY, "adopt").strip().lower()
-    repo_root = get_repo_root()
-    if policy == "restart-owned":
-        owned_processes = [owner for owner in owners if is_owned_backend_process(owner, repo_root)]
-        if owned_processes:
-            for owner in owned_processes:
-                stop_process(int(owner["pid"]))
-            if wait_until_port_released(host, port):
-                message = f"已关闭旧后端进程，端口 {port} 已释放，准备重新启动。"
-                print(message)
-                return {"action": "restart-owned", "message": message, "owners": owned_processes}
-            raise SystemExit(f"已尝试关闭旧后端进程，但端口 {port} 仍未释放。")
+    policy = os.environ.get(BACKEND_PORT_CONFLICT_POLICY, "restart-owned").strip().lower()
+    if policy in {"restart-owned", "restart"}:
+        restart_result = restart_owned_backend_processes(host, port, owners)
+        if restart_result is not None:
+            return restart_result
 
     raise SystemExit(
         f"后端端口 {port} 已被占用，但健康检查未通过：{health.get('url')}\n"
@@ -276,7 +376,8 @@ def handle_backend_port_conflict() -> dict:
         f"占用进程：\n{_format_port_owners(owners)}\n\n"
         f"处理方式：\n"
         f"- 如果这是健康后端，请直接使用前端，不要重复启动。\n"
-        f"- 如果这是本项目旧后端，可设置 {BACKEND_PORT_CONFLICT_POLICY}=restart-owned 后重新启动。\n"
+        f"- 默认只会自动重启本项目的非健康后端，不会关闭未知进程。\n"
+        f"- 可通过 {BACKEND_PORT_CONFLICT_POLICY}=adopt 禁用自动重启，只报告占用状态。\n"
         f"- 如果这是其他程序，请关闭该进程，或设置 BACKEND_PORT 为其他可用端口。"
     )
 
@@ -300,7 +401,10 @@ def main() -> None:
     ensure_repo_on_pythonpath()
     load_runtime_env()
     normalize_debug_env()
-    startup_decision = handle_backend_port_conflict()
+    if "--status" in sys.argv:
+        print(format_backend_status(collect_backend_status()))
+        return
+    startup_decision = handle_backend_port_conflict(force_restart_owned="--restart-owned" in sys.argv)
     if startup_decision["action"] == "adopted":
         return
     pin_resolved_backend_address()

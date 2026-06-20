@@ -144,6 +144,79 @@ describe('GovernanceReviewQueuePage', () => {
     });
   });
 
+  it('applies an approved blueprint fragment registry patch and reloads the review queue', async () => {
+    mockedAxios.get
+      .mockResolvedValueOnce({
+        data: {
+          schema_version: 'governance_review_queue.v1',
+          summary: {
+            total_pending: 1,
+            by_module: {
+              demand_reconstruction: 1,
+            },
+          },
+          items: [
+            {
+              id: 'demand_reconstruction:blueprint_fragment_apply_1',
+              module: 'demand_reconstruction',
+              object_type: 'blueprint_fragment_draft',
+              object_id: 'blueprint_fragment_apply_1',
+              title: '电竞直播训练间 蓝图片段候选',
+              review_status: 'approved',
+              source: 'demand_reconstruction_governance_review',
+              risk: 'P1',
+              target_admin_path: '/admin/review-queue?queue=blueprint_fragment_review',
+              tenant_id: 'tenant-a',
+              workspace_id: 'workspace-a',
+              metadata: {
+                governance_followup: { blueprint_fragment_draft_id: 'blueprint_fragment_apply_1' },
+              },
+            },
+          ],
+        },
+      })
+      .mockResolvedValueOnce({
+        data: {
+          schema_version: 'governance_review_queue.v1',
+          summary: {
+            total_pending: 0,
+            by_module: {},
+          },
+          items: [],
+        },
+      });
+    mockedAxios.post.mockResolvedValue({
+      data: {
+        status: 'success',
+        draft: {
+          draft_id: 'blueprint_fragment_apply_1',
+          registry_patch: { operation: 'applied' },
+        },
+      },
+    });
+
+    render(<GovernanceReviewQueuePage />);
+
+    expect(await screen.findByText('电竞直播训练间 蓝图片段候选')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: '应用到蓝图 registry' }));
+
+    await waitFor(() => {
+      expect(mockedAxios.post).toHaveBeenCalledWith(
+        'http://127.0.0.1:8001/api/admin/governance-review-queue/blueprint-fragment-drafts/blueprint_fragment_apply_1/registry-patch/apply',
+        {
+          tenant_id: 'tenant-a',
+          workspace_id: 'workspace-a',
+          reviewer_id: 'admin',
+        },
+        { headers: { Authorization: 'Bearer test-token' } },
+      );
+    });
+    await waitFor(() => {
+      expect(mockedAxios.get).toHaveBeenCalledTimes(2);
+    });
+  });
+
+
   it('loads DB-backed review items for a selected tenant and workspace scope', async () => {
     mockedAxios.get
       .mockResolvedValueOnce({

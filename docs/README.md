@@ -108,6 +108,7 @@ docs/
 | [../.github/DEVELOPMENT_RULES_CORE.md](../.github/DEVELOPMENT_RULES_CORE.md) | 核心开发规范（200行） |
 | [../.github/DEVELOPMENT_RULES.md](../.github/DEVELOPMENT_RULES.md) | 完整开发规范 |
 | [../.github/PRE_CHANGE_CHECKLIST.md](../.github/PRE_CHANGE_CHECKLIST.md) | 变更检查清单 |
+| [development/CODEGRAPH_使用规范.md](development/CODEGRAPH_使用规范.md) | CodeGraph 使用规范（结构分析与执行纪律） |
 | [API.md](API.md) | API 文档 |
 | [development/方案高参需求重构运行时开发纲领.md](development/方案高参需求重构运行时开发纲领.md) | 方案高参需求重构运行时开发纲领 |
 | [development/testing/](development/testing/) | 测试指南 |

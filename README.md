@@ -20,6 +20,7 @@
 - 🔥 **[核心开发规范](.github/DEVELOPMENT_RULES_CORE.md)** - 200行精简版，AI工具优先加载
 - 📚 [完整开发规范](.github/DEVELOPMENT_RULES.md) - 深度查阅特定章节
 - ✅ [变更检查清单](.github/PRE_CHANGE_CHECKLIST.md) - 修改前强制流程
+- 🧭 [CodeGraph 使用规范](docs/development/CODEGRAPH_使用规范.md) - 结构分析与影响面评估纪律（含6条可勾选检查清单）
 - 📖 [历史修复记录](.github/historical_fixes/) - 5+ 精选bug修复案例
 
 **强制流程**：诊断问题 → 查阅历史 → 报告方案 → 获得批准 → 执行修改 → 更新文档

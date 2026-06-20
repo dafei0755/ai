@@ -10,11 +10,10 @@ import type {
 } from '@/types';
 
 // API 基础 URL：
-// - 本地浏览器默认走 Next.js 同源代理 `/api`，用户只需要访问 3001。
-// - 远程部署可通过 NEXT_PUBLIC_API_URL 指向独立后端。
+// - 配置 NEXT_PUBLIC_API_URL 时直接请求后端，避免 Next 开发代理对长 LLM 请求提前 500。
+// - 未配置时才走 Next.js 同源代理 `/api`。
 const configuredApiUrl = process.env.NEXT_PUBLIC_API_URL?.trim() || '';
-const isLocalBackendUrl = /^https?:\/\/(127\.0\.0\.1|localhost):\d+\/?$/.test(configuredApiUrl);
-const API_BASE_URL = isLocalBackendUrl ? '' : configuredApiUrl;
+const API_BASE_URL = configuredApiUrl;
 
 // 创建 axios 实例,统一配置
 const apiClient = axios.create({
@@ -81,7 +80,6 @@ export const api = {
     sessionId: string | null | undefined,
     message: string,
     cardResponse?: { in_response_to_card_id?: string; selected_option_id?: string; card_response?: unknown },
-    context?: { expert_perspective?: string },
   ): Promise<{
     session_id: string;
     reply: string;
@@ -101,7 +99,6 @@ export const api = {
       in_response_to_card_id: cardResponse?.in_response_to_card_id,
       selected_option_id: cardResponse?.selected_option_id,
       card_response: cardResponse?.card_response,
-      expert_perspective: context?.expert_perspective,
     });
     return response.data;
   },

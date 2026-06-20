@@ -3,6 +3,7 @@ import os
 os.environ["DEBUG"] = "false"
 
 import pytest
+from fastapi import HTTPException
 
 from intelligent_project_analyzer.api import dual_mode_routes
 from intelligent_project_analyzer.api.dual_mode_routes import (
@@ -27,6 +28,18 @@ DEMAND_RECONSTRUCTION_RURAL_HOME_PROMPT = (
     "\uff0c\u7ed9\u51fa\u5efa\u8bae"
 )
 
+MEDIA_KITCHEN_PROMPT = (
+    "一位美食作家兼KOL希望将厨房设计为“美食实验室”，既满足日常烹饪，"
+    "也适合高质量拍摄与视频录制。请提出完整设计方案，包括操作动线优化、"
+    "灯光布置系统、背景可替换模块与油烟控制机制。"
+)
+
+CITIZEN_FARM_PROMPT = (
+    "崇明岛“市民农场”访客中心，包含农产品展示、亲子厨房、科普教育与咖啡区，"
+    "需体现有机、自然与可持续理念。请提出完整设计框架，包括材料循环策略、"
+    "动线组织、教育互动模块与品牌视觉系统。"
+)
+
 FORMAL_RURAL_HOME_PROMPT = (
     "\u56db\u5ddd\u5e7f\u5143\u519c\u6751\u0033\u0030\u0030\u33a1\u7530\u56ed\u6c11\u5c45"
     "\uff0c\u4e1a\u4e3b\u4e3a\u0035\u0030\u5c81\u7537\u6027\u5ba4\u5185\u8bbe\u8ba1\u5e08"
@@ -38,6 +51,11 @@ FORMAL_RURAL_HOME_PROMPT = (
     "\uff0c\u7a7a\u95f4\u7684\u6c89\u9ed8\u611f\u3001\u4e0e\u81ea\u7136\u5bf9\u8bdd\u7684\u754c\u9762\u5173\u7cfb"
     "\uff0c\u4ee5\u53ca\u5982\u4f55\u5728\u6734\u7d20\u4e61\u6751\u73af\u5883\u4e2d\u5b9e\u73b0\u7cbe\u795e\u6027\u7a7a\u95f4\u7684\u5efa\u6784"
     "\uff0c\u907f\u514d\u5f62\u5f0f\u5316\u6a21\u4eff\u3002"
+)
+
+COMPETITION_STRATEGY_PROMPT = (
+    "请帮我分析一个商业空间设计竞标的汇报策略、评审打动逻辑和PPT叙事，"
+    "不需要重构项目需求。"
 )
 
 
@@ -61,6 +79,28 @@ class FakeDemandReconstructionLLM:
 
     def invoke(self, prompt: str):
         self.prompts.append(prompt)
+        if "任务：先理解用户原文" in prompt:
+            return type(
+                "FakeResponse",
+                (),
+                {
+                    "content": """
+                    {
+                      "intent_type": "specific_project_reconstruction",
+                      "project_anchor": true,
+                      "project_object": "返乡民居",
+                      "space_candidates": [
+                        {"label": "personal_residential", "confidence": 0.86, "evidence": ["老家建一栋民居"]}
+                      ],
+                      "core_tensions": [
+                        {"title": "职业表达与长期生活之间的张力", "confidence": 0.8, "evidence": ["室内设计师", "老家建一栋民居"]}
+                      ],
+                      "missing_slots": ["真实居住频率未知"],
+                      "novelty_level": "known"
+                    }
+                    """
+                },
+            )()
         return type(
             "FakeResponse",
             (),
@@ -78,6 +118,30 @@ class FakeDemandReconstructionLLM:
                 """
             },
         )()
+
+
+def test_demand_reconstruction_llm_uses_direct_adapter_by_default(monkeypatch):
+    calls = []
+    fake_llm = object()
+
+    def fake_create_demand_reconstruction_llm(**kwargs):
+        calls.append(sorted(kwargs))
+        return fake_llm
+
+    from intelligent_project_analyzer.services import demand_reconstruction_llm
+
+    monkeypatch.setenv("DEMAND_RECONSTRUCTION_USE_LLM", "1")
+    monkeypatch.setattr(dual_mode_routes, "_demand_reconstruction_llm", None)
+    monkeypatch.setattr(
+        demand_reconstruction_llm,
+        "create_demand_reconstruction_llm",
+        fake_create_demand_reconstruction_llm,
+    )
+
+    llm = dual_mode_routes._get_demand_reconstruction_llm()
+
+    assert llm is fake_llm
+    assert calls == [["fallback_factory"]]
 
 
 @pytest.mark.asyncio
@@ -109,6 +173,39 @@ async def test_new_project_route_always_starts_with_demand_reconstruction(monkey
     assert response.guidance_card["title"] == "需求重构"
     assert response.session_id in manager.sessions
     assert manager.sessions[response.session_id]["pending_guidance_card"]["card_type"] == "demand_reconstruction_blueprint"
+
+
+@pytest.mark.asyncio
+async def test_competition_strategy_route_is_not_taken_by_demand_reconstruction(monkeypatch):
+    manager = FakeSessionManager()
+
+    async def fake_get_sm():
+        return manager
+
+    async def noop_archive(*args, **kwargs):
+        return None
+
+    monkeypatch.setenv("SCHEME_ADVISOR_ENTRY_V2_ENABLED", "1")
+    monkeypatch.setenv("SCHEME_ADVISOR_ENTRY_V2_USE_LLM", "0")
+    monkeypatch.setenv("DEMAND_RECONSTRUCTION_USE_LLM", "0")
+    monkeypatch.setattr(dual_mode_routes, "_get_sm", fake_get_sm)
+    monkeypatch.setattr(dual_mode_routes, "_archive_conversation_snapshot", noop_archive)
+    monkeypatch.setattr(dual_mode_routes, "_get_conv_llm", lambda: None)
+
+    response = await post_conversation_message(
+        ConversationMessageRequest(message=COMPETITION_STRATEGY_PROMPT),
+        current_user=None,
+    )
+
+    assert response.intent == "scheme_advisor_entry"
+    assert response.dialogue_layer == "brief_intake"
+    assert response.guidance_card is not None
+    assert response.guidance_card["card_type"] == "scheme_round_1"
+    assert response.guidance_card["title"] == "先把方法论说清楚"
+    assert response.demand_reconstruction_context is None
+    stored = manager.sessions[response.session_id]
+    assert stored.get("demand_reconstruction_context") is None
+    assert stored["pending_guidance_card"]["card_type"] == "scheme_round_1"
 
 
 @pytest.mark.asyncio
@@ -149,6 +246,78 @@ async def test_demand_reconstruction_prompt_returns_blueprint_without_formal_rou
 
 
 @pytest.mark.asyncio
+async def test_media_kitchen_route_starts_with_demand_reconstruction_before_scheme_entry(monkeypatch):
+    manager = FakeSessionManager()
+
+    async def fake_get_sm():
+        return manager
+
+    async def noop_archive(*args, **kwargs):
+        return None
+
+    monkeypatch.setenv("SCHEME_ADVISOR_ENTRY_V2_ENABLED", "1")
+    monkeypatch.setenv("SCHEME_ADVISOR_ENTRY_V2_USE_LLM", "0")
+    monkeypatch.setenv("DEMAND_RECONSTRUCTION_USE_LLM", "0")
+    monkeypatch.setattr(dual_mode_routes, "_get_sm", fake_get_sm)
+    monkeypatch.setattr(dual_mode_routes, "_archive_conversation_snapshot", noop_archive)
+    monkeypatch.setattr(dual_mode_routes, "_get_conv_llm", lambda: None)
+
+    response = await post_conversation_message(
+        ConversationMessageRequest(message=MEDIA_KITCHEN_PROMPT),
+        current_user=None,
+    )
+
+    assert response.intent == "demand_reconstruction_blueprint"
+    assert response.dialogue_layer == "demand_reconstruction"
+    assert response.guidance_card is not None
+    assert response.guidance_card["card_type"] == "demand_reconstruction_blueprint"
+    blueprint = manager.sessions[response.session_id]["demand_reconstruction_context"]["blueprint"]
+    assert blueprint["task_reframe"]
+    assert blueprint["archetype"]["primary"] == "media_production"
+    assert "场景切换机制" in [section["title"] for section in blueprint["sections"]]
+    rendered = response.reply + str(response.guidance_card)
+    assert "老家建房" not in rendered
+    assert "回乡" not in rendered
+    assert "家族" not in rendered
+
+
+@pytest.mark.asyncio
+async def test_citizen_farm_route_starts_with_public_cultural_demand_reconstruction(monkeypatch):
+    manager = FakeSessionManager()
+
+    async def fake_get_sm():
+        return manager
+
+    async def noop_archive(*args, **kwargs):
+        return None
+
+    monkeypatch.setenv("SCHEME_ADVISOR_ENTRY_V2_ENABLED", "1")
+    monkeypatch.setenv("SCHEME_ADVISOR_ENTRY_V2_USE_LLM", "0")
+    monkeypatch.setenv("DEMAND_RECONSTRUCTION_USE_LLM", "0")
+    monkeypatch.setattr(dual_mode_routes, "_get_sm", fake_get_sm)
+    monkeypatch.setattr(dual_mode_routes, "_archive_conversation_snapshot", noop_archive)
+    monkeypatch.setattr(dual_mode_routes, "_get_conv_llm", lambda: None)
+
+    response = await post_conversation_message(
+        ConversationMessageRequest(message=CITIZEN_FARM_PROMPT),
+        current_user=None,
+    )
+
+    assert response.intent == "demand_reconstruction_blueprint"
+    assert response.dialogue_layer == "demand_reconstruction"
+    assert response.guidance_card is not None
+    blueprint = manager.sessions[response.session_id]["demand_reconstruction_context"]["blueprint"]
+    assert blueprint["archetype"]["primary"] == "public_cultural_experience"
+    rendered = response.reply + str(response.guidance_card)
+    assert "亲子" in rendered
+    assert "科普" in rendered
+    assert "材料循环" in rendered
+    assert "翻台" not in rendered
+    assert "外带" not in rendered
+    assert "堂食" not in rendered
+
+
+@pytest.mark.asyncio
 async def test_demand_reconstruction_route_uses_llm_insight_when_available(monkeypatch):
     manager = FakeSessionManager()
     llm = FakeDemandReconstructionLLM()
@@ -162,6 +331,7 @@ async def test_demand_reconstruction_route_uses_llm_insight_when_available(monke
     monkeypatch.setenv("SCHEME_ADVISOR_ENTRY_V2_ENABLED", "1")
     monkeypatch.setenv("SCHEME_ADVISOR_ENTRY_V2_USE_LLM", "0")
     monkeypatch.setenv("DEMAND_RECONSTRUCTION_USE_LLM", "1")
+    monkeypatch.setenv("DEMAND_RECONSTRUCTION_LLM_ASYNC", "0")
     monkeypatch.setattr(dual_mode_routes, "_get_sm", fake_get_sm)
     monkeypatch.setattr(dual_mode_routes, "_archive_conversation_snapshot", noop_archive)
     monkeypatch.setattr(dual_mode_routes, "_get_demand_reconstruction_llm", lambda: llm)
@@ -175,7 +345,170 @@ async def test_demand_reconstruction_route_uses_llm_insight_when_available(monke
     assert "无法长期生活的作品" in response.reply
     assert response.demand_reconstruction_context is not None
     assert response.demand_reconstruction_context["blueprint"]["insight_source"] == "llm"
+    assert response.demand_reconstruction_context["blueprint"]["llm_status"] == "used"
     assert llm.prompts
+
+
+@pytest.mark.asyncio
+async def test_demand_reconstruction_route_returns_explicit_error_when_required_llm_is_unavailable(monkeypatch):
+    manager = FakeSessionManager()
+
+    async def fake_get_sm():
+        return manager
+
+    async def noop_archive(*args, **kwargs):
+        return None
+
+    monkeypatch.setenv("SCHEME_ADVISOR_ENTRY_V2_ENABLED", "1")
+    monkeypatch.setenv("SCHEME_ADVISOR_ENTRY_V2_USE_LLM", "0")
+    monkeypatch.setenv("DEMAND_RECONSTRUCTION_USE_LLM", "1")
+    monkeypatch.setattr(dual_mode_routes, "_get_sm", fake_get_sm)
+    monkeypatch.setattr(dual_mode_routes, "_archive_conversation_snapshot", noop_archive)
+    monkeypatch.setattr(dual_mode_routes, "_get_demand_reconstruction_llm", lambda: None)
+
+    with pytest.raises(HTTPException) as exc_info:
+        await post_conversation_message(
+            ConversationMessageRequest(message=DEMAND_RECONSTRUCTION_RURAL_HOME_PROMPT),
+            current_user=None,
+        )
+
+    assert exc_info.value.status_code == 503
+    assert exc_info.value.detail == {
+        "code": "UNDERSTANDING_UNAVAILABLE",
+        "message": "智能识别暂不可用，请重试。",
+    }
+
+
+@pytest.mark.asyncio
+async def test_demand_reconstruction_route_passes_governance_store_when_enabled(monkeypatch):
+    manager = FakeSessionManager()
+    fake_store = object()
+    captured = {}
+
+    async def fake_get_sm():
+        return manager
+
+    async def noop_archive(*args, **kwargs):
+        return None
+
+    class FakeDemandReconstructionService:
+        CARD_TYPE = "demand_reconstruction_blueprint"
+
+        def __init__(self, **kwargs):
+            captured.update(kwargs)
+
+        def handle_message(self, **kwargs):
+            return {
+                "reply": "需求重构结果",
+                "intent": "demand_reconstruction_blueprint",
+                "dialogue_layer": "demand_reconstruction",
+                "handoff_available": True,
+                "guidance_card": {
+                    "card_id": "demand_reconstruction-test",
+                    "card_type": self.CARD_TYPE,
+                    "options": [],
+                },
+                "demand_reconstruction_context": {
+                    "blueprint": {"insight_source": "llm", "llm_status": "used"},
+                    "brief_handoff_slots": {},
+                },
+                "drafts": [],
+                "upgrade_signal": None,
+                "upgrade_suggested": False,
+            }
+
+    monkeypatch.setenv("SCHEME_ADVISOR_ENTRY_V2_ENABLED", "1")
+    monkeypatch.setenv("SCHEME_ADVISOR_ENTRY_V2_USE_LLM", "0")
+    monkeypatch.setenv("DEMAND_RECONSTRUCTION_USE_LLM", "1")
+    monkeypatch.setenv("DEMAND_RECONSTRUCTION_GOVERNANCE_PERSIST", "1")
+    monkeypatch.setattr(dual_mode_routes, "_get_sm", fake_get_sm)
+    monkeypatch.setattr(dual_mode_routes, "_archive_conversation_snapshot", noop_archive)
+    monkeypatch.setattr(dual_mode_routes, "_get_demand_reconstruction_llm", lambda: object())
+    monkeypatch.setattr(
+        dual_mode_routes,
+        "_get_demand_reconstruction_governance_store",
+        lambda: fake_store,
+        raising=False,
+    )
+    monkeypatch.setattr(dual_mode_routes, "DemandReconstructionService", FakeDemandReconstructionService)
+
+    response = await post_conversation_message(
+        ConversationMessageRequest(message=DEMAND_RECONSTRUCTION_RURAL_HOME_PROMPT),
+        current_user=None,
+    )
+
+    assert response.dialogue_layer == "demand_reconstruction"
+    assert captured["governance_store"] is fake_store
+
+
+@pytest.mark.asyncio
+async def test_demand_reconstruction_route_defaults_to_fused_llm_result_without_async_patch(monkeypatch):
+    manager = FakeSessionManager()
+    llm = FakeDemandReconstructionLLM()
+
+    async def fake_get_sm():
+        return manager
+
+    async def noop_archive(*args, **kwargs):
+        return None
+
+    monkeypatch.setenv("SCHEME_ADVISOR_ENTRY_V2_ENABLED", "1")
+    monkeypatch.setenv("SCHEME_ADVISOR_ENTRY_V2_USE_LLM", "0")
+    monkeypatch.setenv("DEMAND_RECONSTRUCTION_USE_LLM", "1")
+    monkeypatch.delenv("DEMAND_RECONSTRUCTION_LLM_ASYNC", raising=False)
+    monkeypatch.setattr(dual_mode_routes, "_get_sm", fake_get_sm)
+    monkeypatch.setattr(dual_mode_routes, "_archive_conversation_snapshot", noop_archive)
+    monkeypatch.setattr(dual_mode_routes, "_get_demand_reconstruction_llm", lambda: llm)
+
+    response = await post_conversation_message(
+        ConversationMessageRequest(message=DEMAND_RECONSTRUCTION_RURAL_HOME_PROMPT),
+        current_user=None,
+    )
+
+    assert response.dialogue_layer == "demand_reconstruction"
+    assert response.demand_reconstruction_context is not None
+    blueprint = response.demand_reconstruction_context["blueprint"]
+    assert blueprint["insight_source"] == "llm"
+    assert blueprint["llm_status"] == "used"
+    assert "无法长期生活的作品" in response.reply
+    assert len(llm.prompts) == 2
+    assert "LLM Semantic Router" in llm.prompts[0]
+    assert "LLM 语义理解包" in llm.prompts[1]
+
+
+@pytest.mark.asyncio
+async def test_demand_reconstruction_ignores_async_patch_env_and_returns_fused_result(monkeypatch):
+    manager = FakeSessionManager()
+    llm = FakeDemandReconstructionLLM()
+
+    async def fake_get_sm():
+        return manager
+
+    async def noop_archive(*args, **kwargs):
+        return None
+
+    monkeypatch.setenv("SCHEME_ADVISOR_ENTRY_V2_ENABLED", "1")
+    monkeypatch.setenv("SCHEME_ADVISOR_ENTRY_V2_USE_LLM", "0")
+    monkeypatch.setenv("DEMAND_RECONSTRUCTION_USE_LLM", "1")
+    monkeypatch.setenv("DEMAND_RECONSTRUCTION_LLM_ASYNC", "1")
+    monkeypatch.setattr(dual_mode_routes, "_get_sm", fake_get_sm)
+    monkeypatch.setattr(dual_mode_routes, "_archive_conversation_snapshot", noop_archive)
+    monkeypatch.setattr(dual_mode_routes, "_get_demand_reconstruction_llm", lambda: llm)
+
+    response = await post_conversation_message(
+        ConversationMessageRequest(message=DEMAND_RECONSTRUCTION_RURAL_HOME_PROMPT),
+        current_user=None,
+    )
+
+    assert response.dialogue_layer == "demand_reconstruction"
+    assert response.demand_reconstruction_context is not None
+    blueprint = response.demand_reconstruction_context["blueprint"]
+    assert blueprint["insight_source"] == "llm"
+    assert blueprint["llm_status"] == "used"
+    assert "无法长期生活的作品" in response.reply
+    assert len(llm.prompts) == 2
+    assert "LLM Semantic Router" in llm.prompts[0]
+    assert "LLM 语义理解包" in llm.prompts[1]
 
 
 @pytest.mark.asyncio

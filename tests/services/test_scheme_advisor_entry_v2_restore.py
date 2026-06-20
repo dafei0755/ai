@@ -81,6 +81,26 @@ COFFEE_CONTEXTUAL_PROMPT = (
     "\uff0c\u9700\u8981\u5148\u5224\u65ad\u7a7a\u95f4\u8be5\u6293\u4ec0\u4e48\u3002"
 )
 
+COMPETITION_STRATEGY_PROMPT = (
+    "请帮我分析一个商业空间设计竞标的汇报策略、评审打动逻辑和PPT叙事，"
+    "不需要重构项目需求。"
+)
+
+PURE_NAMING_COPY_PROMPT = (
+    "请帮我给中餐厅包房做苏东坡主题命名，不涉及空间设计，只要名称和文案。"
+)
+REFERENCE_CASE_PROMPT = (
+    "请整理10个办公总部设计案例，按动线、材料和品牌表达分类。"
+)
+SPATIAL_RESEARCH_METHOD_PROMPT = (
+    "社区文化空间应该怎么研究在地性、公共性和运营模式，"
+    "请给出分析框架和判断方法。"
+)
+CONCRETE_PROJECT_WITH_METHOD_FRAME_PROMPT = (
+    "一个社区文化中心希望重构公共空间，包含非遗手作、居民活动、临时展览和公共讲座，"
+    "请先帮我重构需求，并说明后续分析框架。"
+)
+
 
 def test_formal_milk_tea_prompt_enters_design_taskbook_entry_flow():
     result = SchemeAdvisorEntryService().handle_message(
@@ -95,6 +115,76 @@ def test_formal_milk_tea_prompt_enters_design_taskbook_entry_flow():
     assert result["guidance_card"]["card_type"] == "scheme_round_1"
     assert result["scheme_entry_state"]["step"] == "round_1"
     assert result["guidance_card"]["pages"]
+
+
+def test_competition_strategy_prompt_enters_methodology_path_not_project_intake():
+    result = SchemeAdvisorEntryService().handle_message(
+        session={},
+        user_message=COMPETITION_STRATEGY_PROMPT,
+        in_response_to_card_id=None,
+        selected_option_id=None,
+    )
+
+    assert result is not None
+    assert result["intent"] == "scheme_advisor_entry"
+    assert result["scheme_entry_state"]["profile"]["mode"] == "methodology"
+    assert result["guidance_card"]["card_type"] == "scheme_round_1"
+    assert result["guidance_card"]["title"] == "先把方法论说清楚"
+
+
+def test_spatial_research_method_prompt_enters_methodology_path_not_project_intake():
+    result = SchemeAdvisorEntryService().handle_message(
+        session={},
+        user_message=SPATIAL_RESEARCH_METHOD_PROMPT,
+        in_response_to_card_id=None,
+        selected_option_id=None,
+    )
+
+    assert result is not None
+    assert result["intent"] == "scheme_advisor_entry"
+    assert result["scheme_entry_state"]["profile"]["mode"] == "methodology"
+    assert result["guidance_card"]["card_type"] == "scheme_round_1"
+    assert result["guidance_card"]["title"] == "先把方法论说清楚"
+
+
+def test_concrete_project_with_method_frame_still_enters_project_intake():
+    result = SchemeAdvisorEntryService().handle_message(
+        session={},
+        user_message=CONCRETE_PROJECT_WITH_METHOD_FRAME_PROMPT,
+        in_response_to_card_id=None,
+        selected_option_id=None,
+    )
+
+    assert result is not None
+    assert result["intent"] == "scheme_advisor_entry"
+    assert result["scheme_entry_state"]["profile"]["mode"] != "methodology"
+    assert result["guidance_card"]["card_type"] == "scheme_round_1"
+
+
+def test_pure_naming_copy_prompt_redirects_to_project_grounding_not_project_intake():
+    result = SchemeAdvisorEntryService().handle_message(
+        session={},
+        user_message=PURE_NAMING_COPY_PROMPT,
+        in_response_to_card_id=None,
+        selected_option_id=None,
+    )
+
+    assert result is not None
+    assert result["intent"] == "scheme_advisor_entry"
+    assert result["scheme_entry_state"]["profile"]["mode"] == "redirect"
+    assert result["guidance_card"]["card_type"] == "scheme_round_1"
+    assert result["guidance_card"]["title"] == "把问题落到项目"
+
+
+def test_reference_case_prompt_does_not_enter_project_intake():
+    result = SchemeAdvisorEntryService().handle_message(
+        session={},
+        user_message=REFERENCE_CASE_PROMPT,
+        in_response_to_card_id=None,
+        selected_option_id=None,
+    )
+
+    assert result is None
 
 
 def test_formal_milk_tea_round_one_card_uses_configured_entry_copy():

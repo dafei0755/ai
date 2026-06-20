@@ -165,6 +165,7 @@ export default function HomePage() {
       const response = await api.sendConversationMessage('', userInput.trim());
 
       console.log('✅ 对话态会话创建成功', response);
+      setError(null);
 
       // 用真实会话替换临时记录
       setSessions(prevSessions =>
@@ -238,7 +239,7 @@ export default function HomePage() {
   }
 
   return (
-    <div className="flex flex-col h-screen bg-[var(--background)] text-[var(--foreground)] overflow-hidden relative">
+    <div className="ucppt-advisor-shell flex flex-col h-screen bg-[var(--background)] text-[var(--foreground)] overflow-hidden relative">
       <div className="flex flex-1 overflow-hidden relative">
       {/* Mobile Overlay */}
       {isSidebarOpen && (
@@ -251,12 +252,12 @@ export default function HomePage() {
       {/* 侧边栏 - 使用公共组件 SessionSidebar */}
       <div
         className={`${
-          isSidebarOpen ? 'w-[260px] translate-x-0' : 'w-0 -translate-x-full md:translate-x-0 md:w-0'
+          isSidebarOpen ? 'w-[310px] translate-x-0' : 'w-0 -translate-x-full md:translate-x-0 md:w-0'
         } bg-[var(--sidebar-bg)] border-r border-[var(--border-color)] transition-all duration-300 ease-in-out flex flex-col fixed md:relative h-full z-40 overflow-hidden`}
       >
         {isSidebarOpen && (
           <>
-            <div className="min-w-[260px] pt-4 h-0" />
+            <div className="min-w-[310px] pt-4 h-0" />
             <div className="flex-1 flex flex-col min-h-0">
               <SessionSidebar
                 sessions={sessions}
@@ -269,7 +270,7 @@ export default function HomePage() {
             </div>
 
             {/* 底部用户面板 - 固定在底部 */}
-            <div className="border-t border-[var(--border-color)] min-w-[260px] flex-shrink-0">
+            <div className="border-t border-[var(--border-color)] min-w-[310px] flex-shrink-0">
               <div className="p-3">
                 <UserPanel />
               </div>
@@ -318,7 +319,7 @@ export default function HomePage() {
         </div>
 
         <div
-          className="flex-1 flex flex-col items-center justify-start pt-24 pb-8 px-4 sm:px-8"
+          className="relative flex-1"
           onMouseDown={(e) => {
             // 🆕 v7.242: 阻止点击空白区域时触发 textarea 焦点
             if (e.target === e.currentTarget) {
@@ -326,18 +327,9 @@ export default function HomePage() {
             }
           }}
         >
-          <div
-            className="w-full max-w-3xl space-y-8"
-            onMouseDown={(e) => {
-              // 🆕 v7.242: 阻止点击空白区域时触发 textarea 焦点
-              if (e.target === e.currentTarget) {
-                e.preventDefault();
-              }
-            }}
-          >
             {/* Hero Section */}
-            <div className="text-center space-y-3">
-              <div className="flex items-center justify-center gap-2 mb-6">
+            <div className="pointer-events-none absolute left-1/2 top-1/2 w-[calc(100%-clamp(24px,4vw,64px))] max-w-[var(--advisor-chat-column-width)] -translate-x-1/2 -translate-y-[calc(100%+10.25rem)] text-center">
+              <div className="flex items-center justify-center gap-2">
                 <div className="w-8 h-8 rounded-lg ucppt-icon-brand">
                   <Sparkles size={20} />
                 </div>
@@ -347,8 +339,8 @@ export default function HomePage() {
               </div>
             </div>
 
-            {/* Input Composer - 🆕 v7.351: 强制白色背景（无论主题） */}
-            <form onSubmit={handleSubmit} autoComplete="off" className="relative rounded-xl border border-gray-200 dark:border-[#3a3a3a] shadow-xl overflow-hidden bg-white">
+            {/* Input Composer */}
+            <form onSubmit={handleSubmit} autoComplete="off" className="absolute left-1/2 top-1/2 w-[calc(100%-clamp(24px,4vw,64px))] max-w-[var(--advisor-chat-column-width)] -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-xl border border-[var(--border-color)] bg-[var(--card-bg)] shadow-xl">
               {/* Textarea */}
               <div>
                   <textarea
@@ -359,7 +351,7 @@ export default function HomePage() {
                     value={userInput}
                     onChange={(e) => setUserInput(e.target.value)}
                     placeholder="输入你的想法、问题或设计需求，先做需求重构..."
-                    className="w-full bg-inherit text-gray-700 text-base leading-6 px-6 pt-6 pb-6 min-h-[170px] outline-none resize-none placeholder:text-gray-400"
+                    className="w-full bg-inherit text-[var(--foreground)] text-base leading-6 px-6 pt-6 pb-6 min-h-[170px] outline-none resize-none placeholder:text-[var(--foreground-secondary)]"
                     disabled={isLoading}
                     autoComplete="off"
                     autoCorrect="off"
@@ -368,7 +360,7 @@ export default function HomePage() {
                   />
                 </div>
 
-                <div className="flex items-center justify-between pl-3 pr-5 py-3 border-t border-gray-200 dark:border-gray-300 rounded-b-xl bg-gray-50">
+                <div className="flex items-center justify-between pl-3 pr-5 py-3 border-t border-[var(--border-color)] rounded-b-xl bg-[var(--card-bg)]">
                   <div className="flex gap-2 text-[var(--foreground-secondary)]">
                     <span
                       className={`px-3 py-1.5 text-xs font-medium rounded-full text-white shadow-sm whitespace-nowrap ${
@@ -379,7 +371,7 @@ export default function HomePage() {
                       {isLoading ? '正在创建会话...' : '开始需求重构'}
                     </span>
                   </div>
-                  {/* 🆕 v7.158: 发送按钮 - DeepSeek 风格，🆕 v7.351: 统一灰色背景 */}
+                  {/* 发送按钮 */}
                   <button
                     type="submit"
                     disabled={isLoading || !userInput.trim()}
@@ -388,7 +380,7 @@ export default function HomePage() {
                       p-2.5 rounded-full transition-all duration-300
                       ${userInput.trim()
                         ? 'bg-blue-500 text-white hover:bg-blue-600 hover:scale-105 shadow-lg'
-                        : 'bg-gray-200 text-gray-400 cursor-not-allowed'}
+                        : 'bg-[#3b3b3d] text-[var(--foreground-secondary)] cursor-not-allowed'}
                     `}
                     title={
                       isLoading 
@@ -408,13 +400,11 @@ export default function HomePage() {
             </form>
 
             {/* Error Message */}
-            {error && (
-              <div className="p-4 bg-red-900/20 border border-red-900/50 rounded-lg text-red-400 text-sm text-center">
+            {!isLoading && error && (
+              <div className="absolute left-1/2 top-[calc(50%+130px)] w-[calc(100%-clamp(24px,4vw,64px))] max-w-[var(--advisor-chat-column-width)] -translate-x-1/2 p-4 bg-red-900/20 border border-red-900/50 rounded-lg text-red-400 text-sm text-center">
                 {error}
               </div>
             )}
-
-          </div>
         </div>
       </div>
 

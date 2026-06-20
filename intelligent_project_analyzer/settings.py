@@ -346,6 +346,7 @@ class Settings(BaseSettings):
         """从扁平环境变量加载配置(兼容旧.env格式)"""
         # 读取LLM配置 - 根据提供商选择正确的API Key
         provider = os.getenv("LLM_PROVIDER", "openai").lower()
+        self.llm.provider = provider
 
         if provider == "openrouter":
             # OpenRouter: 优先使用 OPENROUTER_API_KEY
@@ -359,6 +360,8 @@ class Settings(BaseSettings):
             # Qwen
             if not self.llm.api_key and os.getenv("QWEN_API_KEY"):
                 self.llm.api_key = os.getenv("QWEN_API_KEY", "")
+            elif not self.llm.api_key and os.getenv("DASHSCOPE_API_KEY"):
+                self.llm.api_key = os.getenv("DASHSCOPE_API_KEY", "")
         else:
             # OpenAI (默认)
             if not self.llm.api_key and os.getenv("OPENAI_API_KEY"):

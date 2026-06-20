@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
@@ -49,6 +49,7 @@ export default function GovernanceReviewQueuePage() {
   const [queue, setQueue] = useState<GovernanceReviewQueue | null>(null);
   const [loading, setLoading] = useState(true);
   const [approvingItemId, setApprovingItemId] = useState('');
+  const [applyingRegistryItemId, setApplyingRegistryItemId] = useState('');
   const [tenantId, setTenantId] = useState('');
   const [workspaceId, setWorkspaceId] = useState('');
   const [error, setError] = useState('');
@@ -86,6 +87,14 @@ export default function GovernanceReviewQueuePage() {
     && Boolean(item.workspace_id || workspaceId.trim())
   );
 
+  const canApplyBlueprintRegistryPatch = (item: GovernanceReviewItem) => (
+    item.module === 'demand_reconstruction'
+    && item.object_type === 'blueprint_fragment_draft'
+    && item.review_status === 'approved'
+    && Boolean(item.tenant_id || tenantId.trim())
+    && Boolean(item.workspace_id || workspaceId.trim())
+  );
+
   const approveItem = async (item: GovernanceReviewItem) => {
     if (!canApproveItem(item)) return;
 
@@ -107,6 +116,30 @@ export default function GovernanceReviewQueuePage() {
       setError('批准知识资产草稿失败');
     } finally {
       setApprovingItemId('');
+    }
+  };
+
+  const applyBlueprintRegistryPatch = async (item: GovernanceReviewItem) => {
+    if (!canApplyBlueprintRegistryPatch(item)) return;
+
+    setApplyingRegistryItemId(item.id);
+    setError('');
+    try {
+      await axios.post(
+        adminApi(`/api/admin/governance-review-queue/blueprint-fragment-drafts/${item.object_id}/registry-patch/apply`),
+        {
+          tenant_id: item.tenant_id || tenantId.trim(),
+          workspace_id: item.workspace_id || workspaceId.trim(),
+          reviewer_id: 'admin',
+        },
+        { headers: getAuthHeaders() },
+      );
+      await loadQueue();
+    } catch (err) {
+      console.error('应用蓝图片段 registry patch 失败:', err);
+      setError('应用蓝图片段 registry patch 失败');
+    } finally {
+      setApplyingRegistryItemId('');
     }
   };
 
@@ -252,6 +285,17 @@ export default function GovernanceReviewQueuePage() {
                     >
                       {approvingItemId === item.id && <Loader2 className="h-4 w-4 animate-spin" />}
                       批准入库
+                    </button>
+                  )}
+                  {canApplyBlueprintRegistryPatch(item) && (
+                    <button
+                      type="button"
+                      onClick={() => applyBlueprintRegistryPatch(item)}
+                      disabled={applyingRegistryItemId === item.id}
+                      className="inline-flex items-center gap-2 rounded-md bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {applyingRegistryItemId === item.id && <Loader2 className="h-4 w-4 animate-spin" />}
+                      应用到蓝图 registry
                     </button>
                   )}
                   <Link

@@ -130,3 +130,185 @@ describe('ConversationChat scheme advisor version card', () => {
     expect(window.location.href).toBe(originalHref);
   });
 });
+
+describe('ConversationChat demand reconstruction model status', () => {
+  const baseMessage: ChatMessage = {
+    id: 'assistant-demand-reconstruction',
+    role: 'assistant',
+    content: '## 需求重构',
+    timestamp: '2026-06-18T00:00:00.000Z',
+    guidance_card: {
+      card_id: 'demand-reconstruction-001',
+      card_type: 'demand_reconstruction_blueprint',
+      title: '需求重构',
+      prompt_text: '先判断真实需求。',
+      options: [
+        {
+          id: 'continue_demand_reconstruction',
+          label: '继续需求重构',
+          description: '继续把问题想清楚。',
+        },
+      ],
+      summary: {
+        insight_source: 'semantic_pending_llm',
+        llm_status: 'scheduled',
+      },
+    },
+  };
+
+  it('does not show a running model state for legacy pending demand reconstruction cards', () => {
+    render(
+      <ConversationChat
+        sessionId="test-session"
+        messages={[baseMessage]}
+        onSendMessage={jest.fn()}
+        onCardResponse={jest.fn()}
+      />
+    );
+
+    expect(screen.queryByText('模型洞察中')).not.toBeInTheDocument();
+  });
+
+  it('does not show pending state from legacy semantic pending source', () => {
+    render(
+      <ConversationChat
+        sessionId="test-session"
+        messages={[
+          {
+            ...baseMessage,
+            guidance_card: {
+              ...baseMessage.guidance_card!,
+              summary: {
+                insight_source: 'semantic_pending_llm',
+              },
+            },
+          },
+        ]}
+        onSendMessage={jest.fn()}
+        onCardResponse={jest.fn()}
+      />
+    );
+
+    expect(screen.queryByText('模型洞察中')).not.toBeInTheDocument();
+  });
+
+  it('does not expose model participation status after LLM fusion succeeds', () => {
+    render(
+      <ConversationChat
+        sessionId="test-session"
+        messages={[
+          {
+            ...baseMessage,
+            guidance_card: {
+              ...baseMessage.guidance_card!,
+              summary: {
+                insight_source: 'llm',
+                llm_status: 'used',
+              },
+            },
+          },
+        ]}
+        onSendMessage={jest.fn()}
+        onCardResponse={jest.fn()}
+      />
+    );
+
+    expect(screen.queryByText('模型洞察已介入')).not.toBeInTheDocument();
+    expect(screen.queryByText('模型洞察失败')).not.toBeInTheDocument();
+    expect(screen.queryByText('模型洞察未采纳')).not.toBeInTheDocument();
+  });
+
+  it('shows a user-facing synthesis waiting state while the first demand response is loading', () => {
+    render(
+      <ConversationChat
+        sessionId="test-session"
+        messages={[
+          {
+            id: 'user-project',
+            role: 'user',
+            content: '苏州昆曲老宅改造为教学故居，包含展陈、练声教学和小型交流，请先帮我重构需求。',
+            timestamp: '2026-06-18T00:00:00.000Z',
+          },
+        ]}
+        loading
+        onSendMessage={jest.fn()}
+        onCardResponse={jest.fn()}
+      />
+    );
+
+    expect(screen.getByText('正在重构需求')).toBeInTheDocument();
+    expect(screen.getByText('正在融合项目语义、关键约束和下一步判断。')).toBeInTheDocument();
+    expect(screen.queryByText(/LLM|模型|规则蓝图|semantic|llm_status/i)).not.toBeInTheDocument();
+  });
+
+  it('uses a neutral waiting state for non-demand follow-up loading', () => {
+    render(
+      <ConversationChat
+        sessionId="test-session"
+        messages={[
+          {
+            id: 'user-follow-up',
+            role: 'user',
+            content: '把上面的第二点展开一下。',
+            timestamp: '2026-06-18T00:00:00.000Z',
+          },
+        ]}
+        loading
+        onSendMessage={jest.fn()}
+        onCardResponse={jest.fn()}
+      />
+    );
+
+    expect(screen.getByText('正在整理回应')).toBeInTheDocument();
+    expect(screen.queryByText('正在重构需求')).not.toBeInTheDocument();
+  });
+
+  it('renders demand reconstruction component intents as visible modules', () => {
+    render(
+      <ConversationChat
+        sessionId="test-session"
+        messages={[
+          {
+            ...baseMessage,
+            guidance_card: {
+              ...baseMessage.guidance_card!,
+              summary: {
+                insight_source: 'llm',
+                llm_status: 'used',
+                component_intent: [
+                  {
+                    type: 'conflict_check',
+                    reason: 'main_tensions',
+                    items: ['长期居住还是阶段性返乡'],
+                    prompt: '先确认房子首先为谁服务',
+                  },
+                  {
+                    type: 'data_checklist',
+                    reason: 'missing_slots',
+                    items: ['真实居住频率未知'],
+                  },
+                  {
+                    type: 'insight_panel',
+                    reason: 'default_reframe',
+                    items: ['先收束项目成立条件'],
+                  },
+                ],
+              },
+            },
+          },
+        ]}
+        onSendMessage={jest.fn()}
+        onCardResponse={jest.fn()}
+      />
+    );
+
+    const card = screen.getByTestId('guidance-card');
+    expect(within(card).getByText('关键取舍')).toBeInTheDocument();
+    expect(within(card).getByText('条件清单')).toBeInTheDocument();
+    expect(within(card).getByText('洞察面板')).toBeInTheDocument();
+    expect(within(card).getByText('长期居住还是阶段性返乡')).toBeInTheDocument();
+    expect(within(card).getByText('先确认房子首先为谁服务')).toBeInTheDocument();
+    expect(within(card).getByText('真实居住频率未知')).toBeInTheDocument();
+    expect(within(card).getByText('先收束项目成立条件')).toBeInTheDocument();
+  });
+});

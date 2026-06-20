@@ -28,6 +28,10 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from loguru import logger
 from pydantic import BaseModel, Field
 
+from intelligent_project_analyzer.services.demand_reconstruction_service import (
+    DemandReconstructionService,
+    DemandReconstructionUnavailable,
+)
 from intelligent_project_analyzer.services.redis_session_manager import RedisSessionManager
 
 router = APIRouter(prefix="/api/v2", tags=["dual-mode-v2"])
@@ -35,6 +39,8 @@ router = APIRouter(prefix="/api/v2", tags=["dual-mode-v2"])
 # ── 模块级 LLM 单例（懒加载，避免每次请求重新初始化）──────────────────────
 _conv_llm: Any = None
 _demand_reconstruction_llm: Any = None
+_demand_reconstruction_governance_store: Any = None
+_FALSE_ENV_VALUES = {"0", "false", "no", "off"}
 
 
 def _get_conv_llm() -> Any:
@@ -57,13 +63,29 @@ def _get_conv_llm() -> Any:
     return _conv_llm
 
 
+def _env_flag_enabled(name: str, default: str = "1") -> bool:
+    return __import__("os").getenv(name, default).strip().lower() not in _FALSE_ENV_VALUES
+
+
 def _is_demand_reconstruction_llm_enabled() -> bool:
-    return __import__("os").getenv("DEMAND_RECONSTRUCTION_USE_LLM", "1").strip().lower() not in {
-        "0",
-        "false",
-        "no",
-        "off",
-    }
+    return _env_flag_enabled("DEMAND_RECONSTRUCTION_USE_LLM", "1")
+
+
+def _get_demand_reconstruction_governance_store() -> Any:
+    """Optional governance queue persistence for demand reconstruction signals."""
+    global _demand_reconstruction_governance_store
+    if not _env_flag_enabled("DEMAND_RECONSTRUCTION_GOVERNANCE_PERSIST", "0"):
+        return None
+    if _demand_reconstruction_governance_store is None:
+        from intelligent_project_analyzer.services.knowledge_governance_store import (
+            KnowledgeGovernanceStore,
+        )
+
+        store = KnowledgeGovernanceStore()
+        store.create_all()
+        _demand_reconstruction_governance_store = store
+        logger.info("[dual_mode] 需求重构治理信号持久化已启用")
+    return _demand_reconstruction_governance_store
 
 
 def _get_demand_reconstruction_llm() -> Any:
@@ -73,15 +95,17 @@ def _get_demand_reconstruction_llm() -> Any:
         return None
     if _demand_reconstruction_llm is None:
         try:
+            from intelligent_project_analyzer.services import demand_reconstruction_llm
             from intelligent_project_analyzer.services.llm_factory import LLMFactory
 
-            timeout = int(__import__("os").getenv("DEMAND_RECONSTRUCTION_LLM_TIMEOUT", "8"))
-            max_retries = int(__import__("os").getenv("DEMAND_RECONSTRUCTION_LLM_MAX_RETRIES", "0"))
-            _demand_reconstruction_llm = LLMFactory.create_llm(timeout=timeout, max_retries=max_retries)
-            logger.info(
-                "[dual_mode] 需求重构 LLM 初始化完成 "
-                f"(timeout={timeout}s, max_retries={max_retries})"
+            _demand_reconstruction_llm = demand_reconstruction_llm.create_demand_reconstruction_llm(
+                fallback_factory=LLMFactory.create_llm,
             )
+            if _demand_reconstruction_llm is not None:
+                logger.info(
+                    "[dual_mode] 需求重构 LLM 初始化完成 "
+                    f"(class={_demand_reconstruction_llm.__class__.__name__})"
+                )
         except Exception as exc:
             logger.warning(f"[dual_mode] 需求重构 LLM 初始化失败，将使用规则蓝图: {exc}")
             _demand_reconstruction_llm = None
@@ -406,11 +430,6 @@ async def post_conversation_message(
     handoff_available = False
     try:
         # ── 3a. 需求重构：购买前理解力证明，不直接进入正式一二轮 ──
-        from intelligent_project_analyzer.services.demand_reconstruction_service import (  # noqa: PLC0415
-            DemandReconstructionService,
-        )
-
-        demand_reconstruction_service = DemandReconstructionService(llm=_get_demand_reconstruction_llm())
         pending_card_type = (session.get("pending_guidance_card") or {}).get("card_type")
         has_formal_intake_state = bool(session.get("scheme_advisor_entry_v2"))
         allow_demand_reconstruction = (
@@ -422,11 +441,20 @@ async def post_conversation_message(
 
         demand_reconstruction_result = None
         if allow_demand_reconstruction:
-            demand_reconstruction_result = demand_reconstruction_service.handle_message(
-                session=session,
-                user_message=req.message,
-                in_response_to_card_id=req.in_response_to_card_id,
-                selected_option_id=selected_option_id,
+            demand_reconstruction_service = DemandReconstructionService(
+                llm=_get_demand_reconstruction_llm(),
+                require_llm=_is_demand_reconstruction_llm_enabled(),
+                governance_store=_get_demand_reconstruction_governance_store(),
+            )
+            loop = asyncio.get_event_loop()
+            demand_reconstruction_result = await loop.run_in_executor(
+                None,
+                lambda: demand_reconstruction_service.handle_message(
+                    session=session,
+                    user_message=req.message,
+                    in_response_to_card_id=req.in_response_to_card_id,
+                    selected_option_id=selected_option_id,
+                ),
             )
         force_brief_intake_from_demand_reconstruction = False
         scheme_user_message = req.message
@@ -456,9 +484,11 @@ async def post_conversation_message(
                 "conv_s_step": session.get("conv_s_step", "dialogue"),
                 "asked_gaps": session.get("asked_gaps", []),
             }
+            blueprint = (demand_reconstruction_context or {}).get("blueprint") or {}
             logger.info(
                 f"[dual_mode] DemandReconstruction handled: session={session_id}, "
-                f"card={guidance_card and guidance_card.get('card_type')}"
+                f"card={guidance_card and guidance_card.get('card_type')}, "
+                f"source={blueprint.get('insight_source')}, llm_status={blueprint.get('llm_status')}"
             )
 
         from intelligent_project_analyzer.services.scheme_advisor_entry_service import (  # noqa: PLC0415
@@ -545,6 +575,19 @@ async def post_conversation_message(
             guidance_card = result.get("pending_guidance_card")
             dialogue_layer = "project" if session.get("system_mode") == "project" else "demand_reconstruction"
             handoff_available = bool(upgrade_suggested)
+
+    except DemandReconstructionUnavailable as exc:
+        logger.error(
+            "[dual_mode] DemandReconstruction unavailable: "
+            f"session={session_id}, code={exc.error_code}, diagnostics={exc.diagnostics}"
+        )
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "code": exc.error_code,
+                "message": exc.user_message,
+            },
+        ) from exc
 
     except Exception as exc:
         logger.error(

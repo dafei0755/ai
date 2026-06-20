@@ -9,8 +9,11 @@ from __future__ import annotations
 
 import json
 import os
+import yaml
+import uuid
 from contextlib import contextmanager
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any, Dict, Iterable, Iterator, List, Optional
 
 from sqlalchemy import (
@@ -60,6 +63,26 @@ class KnowledgeAssetDraftRecord(Base):
     owner_type = Column(String(40), nullable=False, default="user")
     owner_id = Column(String(120), nullable=False)
     visibility = Column(String(40), nullable=False, default="private")
+    review_status = Column(String(40), nullable=False, default="pending", index=True)
+    version = Column(Integer, nullable=False, default=1)
+    payload_json = Column(Text, nullable=False)
+    source_ref_json = Column(Text, nullable=False)
+    created_by = Column(String(120), nullable=False)
+    created_at = Column(DateTime, nullable=False, default=_utcnow)
+    updated_at = Column(DateTime, nullable=False, default=_utcnow)
+
+
+class BlueprintFragmentDraftRecord(Base):
+    __tablename__ = "blueprint_fragment_drafts"
+    __table_args__ = (
+        Index("idx_blueprint_fragment_draft_tenant_workspace_status", "tenant_id", "workspace_id", "review_status"),
+        Index("idx_blueprint_fragment_draft_user_created", "user_id", "created_at"),
+    )
+
+    draft_id = Column(String(120), primary_key=True)
+    tenant_id = Column(String(120), primary_key=True, nullable=False, index=True)
+    workspace_id = Column(String(120), primary_key=True, nullable=False, index=True)
+    user_id = Column(String(120), nullable=False, index=True)
     review_status = Column(String(40), nullable=False, default="pending", index=True)
     version = Column(Integer, nullable=False, default=1)
     payload_json = Column(Text, nullable=False)
@@ -686,6 +709,221 @@ class KnowledgeGovernanceStore:
             )
         return {"draft_id": draft_id, "card_id": card_id, "review_status": "approved"}
 
+    def approve_blueprint_fragment_draft(
+        self,
+        *,
+        draft_id: str,
+        tenant_id: str,
+        workspace_id: str,
+        reviewer_id: str,
+    ) -> Dict[str, Any]:
+        with self._session() as session:
+            draft = (
+                session.execute(
+                    select(BlueprintFragmentDraftRecord)
+                    .where(
+                        BlueprintFragmentDraftRecord.draft_id == draft_id,
+                        BlueprintFragmentDraftRecord.tenant_id == tenant_id,
+                        BlueprintFragmentDraftRecord.workspace_id == workspace_id,
+                    )
+                    .with_for_update()
+                )
+                .scalars()
+                .first()
+            )
+            if not draft:
+                raise KeyError(draft_id)
+            payload = dict(_loads(draft.payload_json))
+            registry_patch = payload.get("registry_patch")
+            if draft.review_status == "approved" and registry_patch:
+                return {
+                    "draft_id": draft_id,
+                    "review_status": "approved",
+                    "registry_patch": registry_patch,
+                    "idempotent": True,
+                }
+            if draft.review_status != "pending":
+                raise ValueError(f"blueprint fragment draft is not pending: {draft_id}")
+
+            registry_patch = self._blueprint_fragment_registry_patch(payload)
+            payload["registry_patch"] = registry_patch
+            payload["status"] = "approved_for_registry_patch"
+            draft.payload_json = _dumps(payload)
+            draft.review_status = "approved"
+            draft.version = (draft.version or 0) + 1
+            draft.updated_at = _utcnow()
+
+            review_item = session.get(
+                GovernanceReviewItemRecord,
+                {
+                    "id": f"demand_reconstruction:{draft_id}",
+                    "tenant_id": tenant_id,
+                    "workspace_id": workspace_id,
+                },
+            )
+            if review_item:
+                review_item.review_status = "approved"
+                review_item.version = (review_item.version or 0) + 1
+                review_item.updated_at = _utcnow()
+
+            self._append_audit(
+                session,
+                tenant_id=tenant_id,
+                workspace_id=workspace_id,
+                user_id=draft.user_id,
+                action="approve_blueprint_fragment_draft",
+                object_type="blueprint_fragment_draft",
+                object_id=draft_id,
+                payload={"reviewer_id": reviewer_id, "registry_patch": registry_patch},
+            )
+        return {"draft_id": draft_id, "review_status": "approved", "registry_patch": registry_patch}
+
+    def get_blueprint_fragment_registry_patch(
+        self,
+        *,
+        draft_id: str,
+        tenant_id: str,
+        workspace_id: str,
+    ) -> Dict[str, Any]:
+        with self.SessionLocal() as session:
+            draft = (
+                session.execute(
+                    select(BlueprintFragmentDraftRecord).where(
+                        BlueprintFragmentDraftRecord.draft_id == draft_id,
+                        BlueprintFragmentDraftRecord.tenant_id == tenant_id,
+                        BlueprintFragmentDraftRecord.workspace_id == workspace_id,
+                    )
+                )
+                .scalars()
+                .first()
+            )
+            if not draft:
+                raise KeyError(draft_id)
+            payload = dict(_loads(draft.payload_json))
+            registry_patch = payload.get("registry_patch")
+            if draft.review_status != "approved" or not registry_patch:
+                raise ValueError(f"blueprint fragment draft has no approved registry patch: {draft_id}")
+            return {
+                "draft_id": draft_id,
+                "review_status": draft.review_status,
+                "registry_patch": registry_patch,
+                "registry_patch_yaml": yaml.safe_dump(
+                    registry_patch,
+                    allow_unicode=True,
+                    sort_keys=False,
+                ),
+            }
+
+    def apply_blueprint_fragment_registry_patch(
+        self,
+        *,
+        draft_id: str,
+        tenant_id: str,
+        workspace_id: str,
+        reviewer_id: str,
+        registry_path: Optional[Any] = None,
+    ) -> Dict[str, Any]:
+        with self._session() as session:
+            draft = (
+                session.execute(
+                    select(BlueprintFragmentDraftRecord)
+                    .where(
+                        BlueprintFragmentDraftRecord.draft_id == draft_id,
+                        BlueprintFragmentDraftRecord.tenant_id == tenant_id,
+                        BlueprintFragmentDraftRecord.workspace_id == workspace_id,
+                    )
+                    .with_for_update()
+                )
+                .scalars()
+                .first()
+            )
+            if not draft:
+                raise KeyError(draft_id)
+
+            payload = dict(_loads(draft.payload_json))
+            registry_patch = dict(payload.get("registry_patch") or {})
+            if draft.review_status != "approved" or not registry_patch:
+                raise ValueError(f"blueprint fragment draft has no approved registry patch: {draft_id}")
+
+            fragment = dict(registry_patch.get("fragment") or {})
+            fragment_id = str(fragment.get("fragment_id") or "").strip()
+            if not fragment_id:
+                raise ValueError(f"blueprint fragment registry patch has no fragment_id: {draft_id}")
+
+            resolved_registry_path = Path(
+                registry_path
+                or registry_patch.get("registry_file")
+                or "intelligent_project_analyzer/config/registries/demand_reconstruction_blueprints.yaml"
+            )
+            if not resolved_registry_path.is_absolute():
+                resolved_registry_path = Path.cwd() / resolved_registry_path
+            resolved_registry_path.parent.mkdir(parents=True, exist_ok=True)
+
+            if resolved_registry_path.exists():
+                registry_data = yaml.safe_load(resolved_registry_path.read_text(encoding="utf-8")) or {}
+            else:
+                registry_data = {}
+            if not isinstance(registry_data, dict):
+                raise ValueError(f"blueprint registry file must contain a mapping: {resolved_registry_path}")
+
+            root_key = str(registry_patch.get("target_root") or "demand_reconstruction_blueprint_fragments")
+            root = registry_data.setdefault(root_key, {})
+            if not isinstance(root, dict):
+                raise ValueError(f"blueprint registry root must contain a mapping: {root_key}")
+            governed_candidates = root.setdefault("governed_candidates", {})
+            if not isinstance(governed_candidates, dict):
+                raise ValueError("governed_candidates must contain a mapping")
+
+            governed_candidates[fragment_id] = fragment
+            resolved_registry_path.write_text(
+                yaml.safe_dump(registry_data, allow_unicode=True, sort_keys=False),
+                encoding="utf-8",
+            )
+
+            applied_patch = dict(registry_patch)
+            applied_patch["operation"] = "applied"
+            applied_patch["applied_to"] = str(resolved_registry_path)
+            applied_patch["applied_by"] = reviewer_id
+            applied_patch["applied_at"] = _utcnow().isoformat()
+            payload["registry_patch"] = applied_patch
+            payload["status"] = "applied_to_registry"
+            draft.payload_json = _dumps(payload)
+            draft.version = (draft.version or 0) + 1
+            draft.updated_at = _utcnow()
+
+            self._append_audit(
+                session,
+                tenant_id=tenant_id,
+                workspace_id=workspace_id,
+                user_id=draft.user_id,
+                action="apply_blueprint_fragment_registry_patch",
+                object_type="blueprint_fragment_draft",
+                object_id=draft_id,
+                payload={"reviewer_id": reviewer_id, "registry_patch": applied_patch},
+            )
+
+        return {"draft_id": draft_id, "review_status": "approved", "registry_patch": applied_patch}
+
+
+    @staticmethod
+    def _blueprint_fragment_registry_patch(payload: Dict[str, Any]) -> Dict[str, Any]:
+        fragment_id = str(payload.get("fragment_id") or "untitled_fragment").strip()
+        project_object = str(payload.get("project_object") or "未覆盖空间项目").strip()
+        evidence = list(payload.get("evidence") or [])
+        return {
+            "registry_file": "intelligent_project_analyzer/config/registries/demand_reconstruction_blueprints.yaml",
+            "target_root": "demand_reconstruction_blueprint_fragments",
+            "operation": "manual_merge_required",
+            "fragment": {
+                "fragment_id": fragment_id,
+                "project_object": project_object,
+                "task_reframe": f"先把“{project_object}”的成立条件、使用者与关键约束讲清楚，再判断是否需要沉淀为稳定需求重构蓝图片段。",
+                "primary_risk": "当前仅来自治理审核候选，必须经人工补全 sections/key_forks/unknowns 后才能进入稳定 registry。",
+                "evidence": evidence,
+                "source_summary": payload.get("summary"),
+            },
+        }
+
     def get_database_health(
         self,
         *,
@@ -694,6 +932,7 @@ class KnowledgeGovernanceStore:
     ) -> Dict[str, Any]:
         table_models = {
             "knowledge_asset_drafts": KnowledgeAssetDraftRecord,
+            "blueprint_fragment_drafts": BlueprintFragmentDraftRecord,
             "approved_knowledge_cards": ApprovedKnowledgeCardRecord,
             "approved_knowledge_card_versions": ApprovedKnowledgeCardVersionRecord,
             "governance_review_items": GovernanceReviewItemRecord,
@@ -749,6 +988,303 @@ class KnowledgeGovernanceStore:
                 stmt = stmt.where(GovernanceReviewItemRecord.workspace_id == workspace_id)
             records = session.execute(stmt.order_by(GovernanceReviewItemRecord.created_at)).scalars().all()
             return [self._review_item_to_dict(record) for record in records]
+
+    def enqueue_review_item(
+        self,
+        *,
+        tenant_id: str,
+        workspace_id: str,
+        user_id: str,
+        module: str,
+        object_type: str,
+        object_id: str,
+        title: str,
+        source: str,
+        risk: str,
+        target_admin_path: str,
+        metadata: Optional[Dict[str, Any]] = None,
+        created_by: str,
+    ) -> Dict[str, Any]:
+        with self._session() as session:
+            record = self._enqueue_review_item(
+                session,
+                tenant_id=tenant_id,
+                workspace_id=workspace_id,
+                user_id=user_id,
+                module=module,
+                object_type=object_type,
+                object_id=object_id,
+                title=title,
+                source=source,
+                risk=risk,
+                target_admin_path=target_admin_path,
+                metadata=metadata or {},
+                created_by=created_by,
+            )
+            session.flush()
+            self._append_audit(
+                session,
+                tenant_id=tenant_id,
+                workspace_id=workspace_id,
+                user_id=user_id,
+                action="enqueue_governance_review_item",
+                object_type=object_type,
+                object_id=object_id,
+                payload={"module": module, "source": source, "risk": risk},
+            )
+            return self._review_item_to_dict(record)
+
+    def update_review_item_status(
+        self,
+        *,
+        tenant_id: str,
+        workspace_id: str,
+        item_id: str,
+        review_status: str,
+        reviewer_id: str,
+        note: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        allowed_statuses = {"pending", "approved", "rejected", "ignored"}
+        if review_status not in allowed_statuses:
+            raise ValueError(f"unsupported review_status: {review_status}")
+        with self._session() as session:
+            record = session.get(
+                GovernanceReviewItemRecord,
+                {
+                    "id": item_id,
+                    "tenant_id": tenant_id,
+                    "workspace_id": workspace_id,
+                },
+            )
+            if record is None:
+                raise KeyError(item_id)
+            metadata = _loads(record.metadata_json)
+            if note:
+                metadata["reviewer_note"] = note
+            metadata["reviewed_by"] = reviewer_id
+            followup = None
+            if review_status == "approved":
+                followup = self._governance_followup_for_approval(metadata)
+                if followup and followup.get("type") == "blueprint_fragment_candidate_draft":
+                    self._persist_blueprint_fragment_candidate_draft(
+                        session,
+                        record=record,
+                        followup=followup,
+                        reviewer_id=reviewer_id,
+                    )
+                elif followup and followup.get("type") == "knowledge_asset_candidate_draft":
+                    self._persist_knowledge_asset_candidate_draft(
+                        session,
+                        record=record,
+                        followup=followup,
+                        reviewer_id=reviewer_id,
+                    )
+            if review_status == "approved" and followup:
+                metadata["governance_followup"] = followup
+            record.review_status = review_status
+            record.metadata_json = _dumps(metadata)
+            record.updated_at = _utcnow()
+            self._append_audit(
+                session,
+                tenant_id=tenant_id,
+                workspace_id=workspace_id,
+                user_id=reviewer_id,
+                action="update_governance_review_item_status",
+                object_type=record.object_type,
+                object_id=record.object_id,
+                payload={
+                    "item_id": item_id,
+                    "review_status": review_status,
+                    "note": note,
+                    "governance_followup": followup,
+                },
+            )
+            return self._review_item_to_dict(record)
+
+    @staticmethod
+    def _governance_followup_for_approval(metadata: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        code = str(metadata.get("code") or "").strip()
+        signal = metadata.get("signal") if isinstance(metadata.get("signal"), dict) else {}
+        if code == "new_fragment_candidate":
+            fragment_id = str(signal.get("fragment_id") or "").strip()
+            project_object = str(signal.get("project_object") or "").strip()
+            if not fragment_id and not project_object:
+                return None
+            return {
+                "type": "blueprint_fragment_candidate_draft",
+                "status": "draft",
+                "next_admin_action": "review_blueprint_fragment_draft",
+                "draft": {
+                    "fragment_id": fragment_id,
+                    "project_object": project_object,
+                    "summary": signal.get("summary"),
+                    "source": signal.get("source") or metadata.get("source") or "governance_review",
+                    "evidence": list(signal.get("evidence") or []),
+                    "scan_result": signal.get("scan_result"),
+                },
+            }
+        if code == "knowledge_gap_ticket":
+            project_type = str(signal.get("project_type") or "").strip()
+            gap_type = str(signal.get("gap_type") or "").strip()
+            if not project_type and not gap_type:
+                return None
+            return {
+                "type": "knowledge_asset_candidate_draft",
+                "status": "draft",
+                "next_admin_action": "review_knowledge_asset_draft",
+                "draft": {
+                    "project_type": project_type,
+                    "gap_type": gap_type,
+                    "summary": signal.get("summary"),
+                    "source": signal.get("source") or metadata.get("source") or "governance_review",
+                    "evidence": list(signal.get("evidence") or []),
+                    "scan_result": signal.get("scan_result"),
+                    "matched_targets": list(signal.get("matched_targets") or []),
+                    "package_ids": list(signal.get("package_ids") or []),
+                    "ontology_dimension_ids": list(signal.get("ontology_dimension_ids") or []),
+                },
+            }
+        return None
+
+    def _persist_blueprint_fragment_candidate_draft(
+        self,
+        session: Session,
+        *,
+        record: GovernanceReviewItemRecord,
+        followup: Dict[str, Any],
+        reviewer_id: str,
+    ) -> None:
+        draft = followup.get("draft") if isinstance(followup.get("draft"), dict) else {}
+        fragment_id = str(draft.get("fragment_id") or "untitled_fragment").strip()
+        project_object = str(draft.get("project_object") or "未覆盖空间项目").strip()
+        draft_id = f"blueprint_fragment_{uuid.uuid5(uuid.NAMESPACE_URL, record.id).hex[:12]}"
+        payload = {
+            "fragment_id": fragment_id,
+            "project_object": project_object,
+            "summary": draft.get("summary"),
+            "evidence": list(draft.get("evidence") or []),
+            "scan_result": draft.get("scan_result"),
+            "status": "candidate",
+            "allowed_use": ["仅作为人工复核前的需求重构蓝图片段候选，不可直接进入运行时规则检索。"],
+            "not_allowed_use": ["不得在未审核并迁入 registry 前作为稳定规则蓝图片段使用。"],
+        }
+        source_ref = {
+            "source": "demand_reconstruction_governance_review",
+            "review_item_id": record.id,
+            "review_queue": _loads(record.metadata_json).get("review_queue"),
+            "reviewed_by": reviewer_id,
+        }
+        session.merge(
+            BlueprintFragmentDraftRecord(
+                draft_id=draft_id,
+                tenant_id=record.tenant_id,
+                workspace_id=record.workspace_id,
+                user_id=record.user_id,
+                review_status="pending",
+                payload_json=_dumps(payload),
+                source_ref_json=_dumps(source_ref),
+                created_by=reviewer_id,
+            )
+        )
+        self._enqueue_review_item(
+            session,
+            tenant_id=record.tenant_id,
+            workspace_id=record.workspace_id,
+            user_id=record.user_id,
+            module="demand_reconstruction",
+            object_type="blueprint_fragment_draft",
+            object_id=draft_id,
+            title=f"{project_object} 蓝图片段候选",
+            source="demand_reconstruction_governance_review",
+            risk="P1",
+            target_admin_path="/admin/review-queue?queue=blueprint_fragment_review",
+            metadata={"source_ref": source_ref, "governance_followup": followup},
+            created_by=reviewer_id,
+        )
+        self._append_audit(
+            session,
+            tenant_id=record.tenant_id,
+            workspace_id=record.workspace_id,
+            user_id=record.user_id,
+            action="create_blueprint_fragment_draft_from_governance_followup",
+            object_type="blueprint_fragment_draft",
+            object_id=draft_id,
+            payload={"review_item_id": record.id, "fragment_id": fragment_id},
+        )
+        followup["blueprint_fragment_draft_id"] = draft_id
+
+    def _persist_knowledge_asset_candidate_draft(
+        self,
+        session: Session,
+        *,
+        record: GovernanceReviewItemRecord,
+        followup: Dict[str, Any],
+        reviewer_id: str,
+    ) -> None:
+        draft = followup.get("draft") if isinstance(followup.get("draft"), dict) else {}
+        project_type = str(draft.get("project_type") or "未覆盖空间类型").strip()
+        draft_id = f"demand_gap_{uuid.uuid5(uuid.NAMESPACE_URL, record.id).hex[:12]}"
+        payload = {
+            "title": f"{project_type} 知识缺口候选",
+            "knowledge_status": "candidate",
+            "source_gap_type": draft.get("gap_type"),
+            "project_type": project_type,
+            "summary": draft.get("summary"),
+            "evidence": list(draft.get("evidence") or []),
+            "matched_targets": list(draft.get("matched_targets") or []),
+            "package_ids": list(draft.get("package_ids") or []),
+            "ontology_dimension_ids": list(draft.get("ontology_dimension_ids") or []),
+            "allowed_use": ["仅作为人工复核前的候选知识资产，不可直接进入运行时召回。"],
+            "not_allowed_use": ["不得在未审核通过前作为专科知识结论或规则蓝图片段使用。"],
+            "evidence_level": "governance_signal",
+        }
+        source_ref = {
+            "source": "demand_reconstruction_governance_review",
+            "review_item_id": record.id,
+            "review_queue": _loads(record.metadata_json).get("review_queue"),
+            "reviewed_by": reviewer_id,
+        }
+        session.merge(
+            KnowledgeAssetDraftRecord(
+                draft_id=draft_id,
+                tenant_id=record.tenant_id,
+                workspace_id=record.workspace_id,
+                user_id=record.user_id,
+                owner_type="user",
+                owner_id=record.user_id,
+                visibility="private",
+                review_status="pending",
+                payload_json=_dumps(payload),
+                source_ref_json=_dumps(source_ref),
+                created_by=reviewer_id,
+            )
+        )
+        self._enqueue_review_item(
+            session,
+            tenant_id=record.tenant_id,
+            workspace_id=record.workspace_id,
+            user_id=record.user_id,
+            module="knowledge_asset",
+            object_type="asset_draft",
+            object_id=draft_id,
+            title=payload["title"],
+            source="demand_reconstruction_governance_review",
+            risk="P1",
+            target_admin_path="/admin/knowledge-base",
+            metadata={"source_ref": source_ref, "governance_followup": followup},
+            created_by=reviewer_id,
+        )
+        self._append_audit(
+            session,
+            tenant_id=record.tenant_id,
+            workspace_id=record.workspace_id,
+            user_id=record.user_id,
+            action="create_asset_draft_from_governance_followup",
+            object_type="knowledge_asset_draft",
+            object_id=draft_id,
+            payload={"review_item_id": record.id, "project_type": project_type},
+        )
+        followup["asset_draft_id"] = draft_id
 
     def list_audit_events(
         self,
@@ -858,9 +1394,9 @@ class KnowledgeGovernanceStore:
         finally:
             session.close()
 
-    def _enqueue_review_item(self, session: Session, **kwargs: Any) -> None:
+    def _enqueue_review_item(self, session: Session, **kwargs: Any) -> GovernanceReviewItemRecord:
         review_id = f"{kwargs['module']}:{kwargs['object_id']}"
-        session.merge(
+        return session.merge(
             GovernanceReviewItemRecord(
                 id=review_id,
                 tenant_id=kwargs["tenant_id"],
@@ -970,6 +1506,7 @@ class KnowledgeGovernanceStore:
             "risk": record.risk,
             "target_admin_path": record.target_admin_path,
             "metadata": _loads(record.metadata_json),
+            "reviewer_note": _loads(record.metadata_json).get("reviewer_note"),
             "tenant_id": record.tenant_id,
             "workspace_id": record.workspace_id,
             "user_id": record.user_id,

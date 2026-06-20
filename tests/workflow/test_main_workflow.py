@@ -220,6 +220,52 @@ class TestMainWorkflowRouting:
         # 如果没有特定的路由方法，至少workflow应该可以初始化
         assert workflow is not None
 
+    def test_route_after_analysis_review_approved(self, env_setup, mock_llm):
+        """analysis_approved=True 时应进入结果聚合"""
+        from intelligent_project_analyzer.workflow.main_workflow import MainWorkflow
+
+        workflow = MainWorkflow(llm_model=mock_llm)
+        state = {"analysis_approved": True, "additional_questions": []}
+
+        assert workflow._route_after_analysis_review(state) == "result_aggregator"
+
+    def test_route_after_analysis_review_with_questions(self, env_setup, mock_llm):
+        """未批准且存在追问时应进入用户追问节点"""
+        from intelligent_project_analyzer.workflow.main_workflow import MainWorkflow
+
+        workflow = MainWorkflow(llm_model=mock_llm)
+        state = {"analysis_approved": False, "additional_questions": ["请补充预算假设"]}
+
+        assert workflow._route_after_analysis_review(state) == "user_question"
+
+    def test_route_after_analysis_review_fallback_project_director(self, env_setup, mock_llm):
+        """未批准且无追问时应回到项目总监"""
+        from intelligent_project_analyzer.workflow.main_workflow import MainWorkflow
+
+        workflow = MainWorkflow(llm_model=mock_llm)
+        state = {"analysis_approved": False, "additional_questions": []}
+
+        assert workflow._route_after_analysis_review(state) == "project_director"
+
+    def test_route_after_user_question_with_items(self, env_setup, mock_llm):
+        """存在追问条目时应回到项目总监重新分析"""
+        from intelligent_project_analyzer.workflow.main_workflow import MainWorkflow
+
+        workflow = MainWorkflow(llm_model=mock_llm)
+        state = {"additional_questions": ["进一步解释材料策略"]}
+
+        assert workflow._route_after_user_question(state) == "project_director"
+
+    def test_route_after_user_question_empty_should_end(self, env_setup, mock_llm):
+        """无追问时应结束流程，防止 result_aggregator 循环"""
+        from langgraph.graph import END
+        from intelligent_project_analyzer.workflow.main_workflow import MainWorkflow
+
+        workflow = MainWorkflow(llm_model=mock_llm)
+        state = {"additional_questions": []}
+
+        assert workflow._route_after_user_question(state) == END
+
 
 class TestMainWorkflowHelperMethods:
     """测试工作流辅助方法"""

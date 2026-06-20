@@ -17,6 +17,51 @@ from unittest.mock import AsyncMock
 
 import pytest
 
+from intelligent_project_analyzer.api.server import _session_display_title
+
+
+class TestSessionDisplayTitle:
+    """测试历史列表标题源选择"""
+
+    def test_prefers_original_user_input_over_stale_display_name(self):
+        title = _session_display_title(
+            {
+                "display_name": "深圳市南山区来福士广场",
+                "user_input": "深圳市南山区来福士广场负一楼30平米奶茶店，半年回本。",
+            }
+        )
+
+        assert title == "深圳市南山区来福士广场负一楼30平米奶茶店，半年回本。"
+
+    def test_falls_back_to_first_user_message_before_display_name(self):
+        title = _session_display_title(
+            {
+                "display_name": "设计需求摘要",
+                "conversation_history_v2": [
+                    {"role": "assistant", "content": "先说结论"},
+                    {"role": "user", "content": "50岁男性室内设计师，背井离乡，想在老家建一栋民居"},
+                ],
+            }
+        )
+
+        assert title == "50岁男性室内设计师，背井离乡，想在老家建一栋民居"
+
+    def test_prefers_full_user_message_when_legacy_user_input_is_stale_prefix(self):
+        title = _session_display_title(
+            {
+                "display_name": "深圳市南山区来福士广场",
+                "user_input": "深圳市南山区来福士广场",
+                "conversation_history_v2": [
+                    {
+                        "role": "user",
+                        "content": "深圳市南山区来福士广场，负一楼，30平米商铺，地铁通道与商场连接处，打算做一个奶茶店。",
+                    }
+                ],
+            }
+        )
+
+        assert title == "深圳市南山区来福士广场，负一楼，30平米商铺，地铁通道与商场连接处，打算做一个奶茶店。"
+
 
 class TestSessionListEndpoints:
     """测试会话列表端点"""

@@ -87,6 +87,123 @@ describe('GuidanceCardWidget', () => {
     expect(screen.getByText('生活+工作混合型')).toBeInTheDocument();
   });
 
+  it('renders demand reconstruction insight packets as a visible reasoning module without model wording', () => {
+    const onRespond = jest.fn();
+    const card: GuidanceCardData = {
+      card_id: 'demand_reconstruction-blueprint-insight',
+      card_type: 'demand_reconstruction_blueprint',
+      title: '需求重构',
+      prompt_text: '先判断这是不是一个单纯风格问题。',
+      options: [],
+      summary: {
+        insight_packet: {
+          chosen_hypothesis: '阶段性返乡与身份重建混合型',
+          core_tension: '作品冲动与长期生活之间的冲突',
+          hypotheses: ['作品化住宅', '长期生活基地'],
+        },
+      },
+      allow_freetext: true,
+    };
+
+    render(<GuidanceCardWidget card={card} onRespond={onRespond} />);
+
+    expect(screen.getByText('判断依据')).toBeInTheDocument();
+    expect(screen.queryByText('模型洞察')).not.toBeInTheDocument();
+    expect(screen.getByText('阶段性返乡与身份重建混合型')).toBeInTheDocument();
+    expect(screen.getByText(/作品冲动与长期生活之间的冲突/)).toBeInTheDocument();
+    expect(screen.getByText('作品化住宅')).toBeInTheDocument();
+    expect(screen.getByText('长期生活基地')).toBeInTheDocument();
+  });
+
+  it('renders structured core tension from insight packets without leaking diagnostics', () => {
+    const onRespond = jest.fn();
+    const card: GuidanceCardData = {
+      card_id: 'demand_reconstruction-blueprint-structured-insight',
+      card_type: 'demand_reconstruction_blueprint',
+      title: '需求重构',
+      prompt_text: '先判断这个项目的主矛盾。',
+      options: [],
+      summary: {
+        insight_source: 'llm',
+        llm_status: 'used',
+        quality_report: {
+          accepted_fields: ['insight_packet'],
+        },
+        governance_signals: [
+          { code: 'coverage_gap', review_queue: 'space_registry_review' },
+          { code: 'semantic_alignment_rejection', review_queue: 'wrong_domain_output_review' },
+        ],
+        insight_packet: {
+          chosen_hypothesis: '康复训练与家庭日常混合型',
+          core_tension: {
+            a: '复健训练',
+            b: '家庭日常',
+            why_it_matters: '两者会决定通道尺度、器械停放和照护动线。',
+          },
+          hypotheses: ['康复优先', '日常优先'],
+        },
+      },
+      allow_freetext: true,
+    };
+
+    render(<GuidanceCardWidget card={card} onRespond={onRespond} />);
+
+    expect(screen.getByText('判断依据')).toBeInTheDocument();
+    expect(screen.getByText(/复健训练与家庭日常：两者会决定通道尺度、器械停放和照护动线。/)).toBeInTheDocument();
+    expect(screen.queryByText('llm')).not.toBeInTheDocument();
+    expect(screen.queryByText('used')).not.toBeInTheDocument();
+    expect(screen.queryByText('quality_report')).not.toBeInTheDocument();
+    expect(screen.queryByText('coverage_gap')).not.toBeInTheDocument();
+    expect(screen.queryByText('space_registry_review')).not.toBeInTheDocument();
+    expect(screen.queryByText('semantic_alignment_rejection')).not.toBeInTheDocument();
+    expect(screen.queryByText('wrong_domain_output_review')).not.toBeInTheDocument();
+  });
+
+  it('renders demand reconstruction coverage level as a visible boundary module', () => {
+    const onRespond = jest.fn();
+    const card: GuidanceCardData = {
+      card_id: 'demand_reconstruction-blueprint-coverage',
+      card_type: 'demand_reconstruction_blueprint',
+      title: '需求重构',
+      prompt_text: '这个项目需要先判断知识覆盖边界。',
+      options: [],
+      summary: {
+        coverage_level: 'general_method_only',
+      },
+      allow_freetext: true,
+    };
+
+    render(<GuidanceCardWidget card={card} onRespond={onRespond} />);
+
+    expect(screen.getByText('覆盖边界')).toBeInTheDocument();
+    expect(screen.getByText('通用方法论')).toBeInTheDocument();
+    expect(screen.getByText('当前只能先按通用方法论重构，不应伪装成专科判断。')).toBeInTheDocument();
+  });
+
+  it.each(['methodology_framework', 'l0', 'low', 'limited'])(
+    'renders backend low-coverage level %s as a visible boundary module',
+    (coverageLevel) => {
+      const onRespond = jest.fn();
+      const card: GuidanceCardData = {
+        card_id: `demand_reconstruction-blueprint-${coverageLevel}`,
+        card_type: 'demand_reconstruction_blueprint',
+        title: '需求重构',
+        prompt_text: '这个项目需要先判断知识覆盖边界。',
+        options: [],
+        summary: {
+          coverage_level: coverageLevel,
+        },
+        allow_freetext: true,
+      };
+
+      render(<GuidanceCardWidget card={card} onRespond={onRespond} />);
+
+      expect(screen.getByText('覆盖边界')).toBeInTheDocument();
+      expect(screen.getByText('通用方法论')).toBeInTheDocument();
+      expect(screen.getByText('当前只能先按通用方法论重构，不应伪装成专科判断。')).toBeInTheDocument();
+    },
+  );
+
   it('renders user-facing labels for context packet missing-slot pages', async () => {
     const user = userEvent.setup();
     const onRespond = jest.fn();

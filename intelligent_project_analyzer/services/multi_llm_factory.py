@@ -33,6 +33,42 @@ except ImportError:
     DEFAULT_TIMEOUT = 600       # 10分钟应对长输出
 
 LLMProvider = Literal["openai", "deepseek", "qwen", "anthropic", "azure", "openrouter"]
+DEFAULT_FALLBACK_PROVIDER_ORDER = ("qwen", "deepseek", "openrouter")
+
+
+def is_configured_api_key(value: Optional[str]) -> bool:
+    """Return whether an API key env value looks intentionally configured."""
+    if not value:
+        return False
+    stripped = value.strip()
+    if not stripped:
+        return False
+    lowered = stripped.lower()
+    return not (
+        lowered.startswith("your_")
+        or lowered.startswith("sk-xxx")
+        or lowered in {"none", "null", "placeholder"}
+    )
+
+
+def build_fallback_provider_chain(primary_provider: str | None = None) -> list[str]:
+    """Build the runtime LLM fallback chain in priority order."""
+    configured = os.getenv("LLM_FALLBACK_PROVIDERS", "")
+    if configured.strip():
+        raw_providers = [item.strip().lower() for item in configured.split(",")]
+    else:
+        primary = (primary_provider or os.getenv("LLM_PROVIDER", "") or "").strip().lower()
+        raw_providers = list(DEFAULT_FALLBACK_PROVIDER_ORDER)
+        if primary and primary not in raw_providers:
+            raw_providers.insert(0, primary)
+        elif primary:
+            raw_providers = [primary, *[item for item in raw_providers if item != primary]]
+
+    providers: list[str] = []
+    for provider in raw_providers:
+        if provider and provider in MultiLLMFactory.PROVIDER_CONFIGS and provider not in providers:
+            providers.append(provider)
+    return providers
 
 
 def _is_auth_401_error(error_msg: str) -> bool:
@@ -87,8 +123,10 @@ class MultiLLMFactory:
         },
         "qwen": {
             "api_key_env": "QWEN_API_KEY",  # 阿里云百炼API Key
+            "api_key_env_fallbacks": ["DASHSCOPE_API_KEY"],
             "model_env": "QWEN_MODEL",
             "base_url_env": "QWEN_BASE_URL",
+            "enable_thinking_env": "QWEN_ENABLE_THINKING",
             "default_model": "qwen-max",  # 与.env官方推荐一致
             "default_base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",  # 北京地域
             "class": ChatOpenAI
@@ -193,9 +231,17 @@ class MultiLLMFactory:
         """创建OpenAI兼容的LLM (OpenAI/DeepSeek/Qwen/OpenRouter)"""
         
         # 获取API Key
-        api_key = os.getenv(config["api_key_env"])
-        if not api_key or api_key == "your_xxx_api_key_here":
-            raise ValueError(f" Missing or invalid API key: {config['api_key_env']}")
+        api_key_env = config["api_key_env"]
+        api_key = os.getenv(api_key_env)
+        if not is_configured_api_key(api_key):
+            for fallback_env in config.get("api_key_env_fallbacks", []):
+                fallback_key = os.getenv(fallback_env)
+                if is_configured_api_key(fallback_key):
+                    api_key_env = fallback_env
+                    api_key = fallback_key
+                    break
+        if not is_configured_api_key(api_key):
+            raise ValueError(f" Missing or invalid API key: {api_key_env}")
         
         # 获取模型名称
         model = os.getenv(config["model_env"], config["default_model"])
@@ -216,6 +262,14 @@ class MultiLLMFactory:
             base_url = os.getenv(config["base_url_env"], config.get("default_base_url"))
             if base_url:
                 llm_params["base_url"] = base_url
+
+        # 阿里云百炼的深度思考模型通过 OpenAI 兼容接口使用 extra_body 开启思考。
+        enable_thinking_env = config.get("enable_thinking_env")
+        if enable_thinking_env and os.getenv(enable_thinking_env, "false").lower() == "true":
+            llm_params["extra_body"] = {
+                **dict(llm_params.get("extra_body") or {}),
+                "enable_thinking": True,
+            }
         
         # OpenRouter 需要额外的 headers
         if config.get("extra_headers"):
@@ -244,7 +298,7 @@ class MultiLLMFactory:
         """创建Anthropic Claude LLM"""
         
         api_key = os.getenv(config["api_key_env"])
-        if not api_key or api_key == "your_anthropic_api_key_here":
+        if not is_configured_api_key(api_key):
             raise ValueError(f" Missing or invalid API key: {config['api_key_env']}")
         
         model = os.getenv(config["model_env"], config["default_model"])
@@ -455,10 +509,11 @@ class FallbackLLM:
                 logger.warning(f"️ {provider} 调用失败: {error_msg[:100]}")
                 last_error = e
 
-                # 认证错误（401）为致命错误：立即停止降级
+                # A single provider can have an expired, invalid, or unpaid key.
+                # Keep the product available by trying the next configured channel.
                 if _is_auth_401_error(error_msg):
-                    logger.error(f" 检测到认证错误(401)，停止降级链: {error_msg[:150]}")
-                    raise RuntimeError(f"LLM_AUTH_401: {error_msg}") from e
+                    logger.info(f" 检测到 {provider} 认证错误(401)，切换到下一个提供商...")
+                    continue
                 
                 # 如果是配额问题，立即尝试下一个
                 if "429" in error_msg or "quota" in error_msg.lower():

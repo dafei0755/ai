@@ -249,7 +249,7 @@ def test_entry_service_uses_shared_semantic_axis_density_helper():
     assert "for axis_name in (" not in restart_source
     assert "for axis_name in (" not in anchor_source
     assert "semantic_axis_density(" in restart_source
-    assert "semantic_axis_density(" in anchor_source
+    assert "has_concrete_project_anchor(" in anchor_source
 
 
 def test_semantic_axis_inference_rules_are_registry_driven():

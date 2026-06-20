@@ -23,8 +23,12 @@ from .scheme_advisor_public_labels import public_label
 from .scheme_advisor_semantic_axes import (
     axis_label,
     derive_semantic_axes,
+    has_concrete_project_anchor,
     has_input_intent,
     has_problem_mode,
+    is_methodology_discussion_request,
+    is_pure_naming_copy_request,
+    is_reference_material_request,
     rank_main_tensions,
     semantic_axis_density,
 )
@@ -1819,6 +1823,10 @@ class SchemeAdvisorEntryService:
         text = message.strip()
         if not text:
             return False
+        if is_reference_material_request(text):
+            return False
+        if is_pure_naming_copy_request(text):
+            return True
         if self._is_general_method_question(text):
             return True
         if self._is_tea_entry_context(text):
@@ -1891,6 +1899,12 @@ class SchemeAdvisorEntryService:
 
     def _classify_input(self, message: str) -> Dict[str, Any]:
         axes = derive_semantic_axes(message)
+        if is_pure_naming_copy_request(message):
+            return {"mode": "redirect", "space_label": "待明确项目"}
+        if self._is_competition_strategy_request(message):
+            return self._methodology_profile(axes)
+        if is_methodology_discussion_request(message) and not self._has_project_reconstruction_intent(message):
+            return self._methodology_profile(axes)
         if has_problem_mode(axes) and not self._has_concrete_project_anchor(message):
             return self._methodology_profile(axes)
         if self._is_general_method_question(message):
@@ -1899,85 +1913,31 @@ class SchemeAdvisorEntryService:
         return self._apply_tea_entry_overrides(profile, message)
 
     @staticmethod
-    def _has_concrete_project_anchor(message: str) -> bool:
+    def _is_competition_strategy_request(message: str) -> bool:
         text = str(message or "")
-        if not text.strip():
-            return False
+        has_competition = any(term in text for term in ("竞标", "投标", "竞赛", "评审"))
+        has_strategy = any(term in text for term in ("汇报策略", "评审打动", "PPT", "提案策略", "投标策略", "竞标策略"))
+        return has_competition and has_strategy
 
-        semantic_axes = derive_semantic_axes(text)
-        space_domains = set(semantic_axes.get("space_domains") or [])
-        input_intents = set(semantic_axes.get("input_intents") or [])
-        has_methodology_mode = has_problem_mode(semantic_axes)
-        semantic_density = semantic_axis_density(semantic_axes)
-        numeric_anchor = bool(
-            re.search(r"\d+(?:\.\d+)?\s*(?:㎡|平米|平方米|m2|m²|万平|间|层|小时|夜间|个夜间)", text, flags=re.IGNORECASE)
-        )
-        project_anchor_terms = (
-            "项目",
-            "位于",
-            "业主",
-            "总建筑面积",
-            "功能涵盖",
-            "需要在",
-            "希望打造",
-            "计划",
-            "商铺",
-            "门店",
-            "买手店",
-            "酒店",
-            "民宿",
-            "会所",
-            "总部",
-            "中心",
-            "大堂",
-            "多功能厅",
-            "公寓",
-            "别墅",
-            "住宅",
-            "书房",
-            "展厅",
-            "展馆",
-            "社区",
-            "办公",
-        )
-        strong_anchor_terms = (
-            "项目为",
-            "项目位于",
-            "客户希望",
-            "客户要求",
-            "请提出完整室内设计",
-            "请提出完整设计",
-            "请提出基于",
-        )
-        anchor_hits = sum(1 for term in project_anchor_terms if term in text)
-        strong_hits = sum(1 for term in strong_anchor_terms if term in text)
-        concrete_design_request = bool(
-            re.search(r"^为.+设计.+(?:概念|框架|策略|方案)", text)
-        )
-        has_project_specificity = (
-            numeric_anchor
-            or strong_hits >= 1
-            or anchor_hits >= 2
-            or concrete_design_request
-        )
-        semantic_project_anchor = (
-            bool(space_domains)
-            and bool(input_intents)
-            and (
-                not has_methodology_mode
-                or has_project_specificity
+    @staticmethod
+    def _has_project_reconstruction_intent(message: str) -> bool:
+        text = str(message or "")
+        return any(
+            term in text
+            for term in (
+                "重构需求",
+                "帮我重构",
+                "梳理需求",
+                "重构我的需求",
+                "请提出完整设计",
             )
         )
 
-        return (
-            semantic_project_anchor
-            or (bool(space_domains) and numeric_anchor)
-            or (semantic_density >= 4 and has_project_specificity)
-            or (numeric_anchor and anchor_hits >= 1)
-            or anchor_hits >= 2
-            or (anchor_hits >= 1 and strong_hits >= 1)
-            or concrete_design_request
-        )
+    @staticmethod
+    def _has_concrete_project_anchor(message: str) -> bool:
+        # Delegates to the shared registry-driven detector so entry triage and
+        # demand reconstruction share one authoritative anchor definition.
+        return has_concrete_project_anchor(message)
 
     @staticmethod
     def _methodology_profile(axes: Dict[str, Any]) -> Dict[str, Any]:
