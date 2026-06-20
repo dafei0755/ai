@@ -12,6 +12,7 @@ ALIGNMENT_GATE = ROOT / "intelligent_project_analyzer/modules/demand_reconstruct
 INSIGHT_QUALITY_GATE = ROOT / "intelligent_project_analyzer/modules/demand_reconstruction/insight_quality_gate.py"
 RESPONSE_BUILDER = ROOT / "intelligent_project_analyzer/modules/demand_reconstruction/response_builder.py"
 SEMANTIC_CONTEXT_APPLIER = ROOT / "intelligent_project_analyzer/modules/demand_reconstruction/semantic_context_applier.py"
+SEMANTIC_TARGETS = ROOT / "intelligent_project_analyzer/modules/demand_reconstruction/semantic_targets.py"
 BLUEPRINT_COORDINATOR = ROOT / "intelligent_project_analyzer/modules/demand_reconstruction/blueprint_coordinator.py"
 ENTRY_CLASSIFIER = ROOT / "intelligent_project_analyzer/modules/demand_reconstruction/entry_classifier.py"
 PIPELINE = ROOT / "intelligent_project_analyzer/modules/demand_reconstruction/pipeline.py"
@@ -161,6 +162,17 @@ def test_demand_reconstruction_semantic_context_applier_is_module_boundary() -> 
     assert "DemandReconstructionSemanticContextApplier" in service_source
     assert "self._semantic_context_applier.apply" in service_source
     assert "self._semantic_context_applier.llm_semantic_candidates" in service_source
+
+
+def test_demand_reconstruction_semantic_targets_are_module_config() -> None:
+    targets_source = SEMANTIC_TARGETS.read_text(encoding="utf-8")
+    service_source = SERVICE.read_text(encoding="utf-8")
+
+    assert "LLM_SEMANTIC_TARGET_ALIASES" in targets_source
+    assert '"personal_residential": "life_identity"' in targets_source
+    assert '"commercial_dining": "commercial_operation"' in targets_source
+    assert "from intelligent_project_analyzer.modules.demand_reconstruction.semantic_targets import" in service_source
+    assert "_LLM_SEMANTIC_TARGET_ALIASES = LLM_SEMANTIC_TARGET_ALIASES" in service_source
 
 
 def test_demand_reconstruction_blueprint_coordinator_is_module_boundary() -> None:
