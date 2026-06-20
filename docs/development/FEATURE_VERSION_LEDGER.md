@@ -359,11 +359,11 @@ tests/services/test_scheme_advisor_entry_v2_restore.py
 feature_id: conversation-analysis-ui
 name: 分析页对话 UI 与引导卡交互
 status: governed
-current_authoritative_version: v0.7-expert-controls-extracted
+current_authoritative_version: v0.8-composer-shell-extracted
 authoritative_branch: fix/scheme-advisor-question-root-cause-20260616
 authoritative_commit: current-branch-head-after-checkpoint
 previous_authoritative_commit: unregistered
-rollback_target: branch head before v0.7-expert-controls-extracted checkpoint
+rollback_target: branch head before v0.8-composer-shell-extracted checkpoint
 last_promotion: 2026-06-20
 ```
 
@@ -377,6 +377,7 @@ v0.4: 输入、预填充、发送和场景提示注入逻辑从 ConversationChat
 v0.5: VisualBrief 展开固定、上下文展开固定和上下文高度拖拽状态从 ConversationChat 抽取到 useConversationLayoutState
 v0.6: VisualBrief 面板和上下文洞察面板从 ConversationChat 抽取到 feature components
 v0.7: 专家视角选择和召集团队菜单从 ConversationChat 抽取到 ExpertControls
+v0.8: 浮动输入容器、textarea 和发送按钮从 ConversationChat 抽取到 ComposerShell
 ```
 
 ### 当前合同
@@ -399,6 +400,7 @@ frontend-nextjs/features/conversation/components/MessageCardRenderer.tsx
 frontend-nextjs/features/conversation/components/VisualBriefPanel.tsx
 frontend-nextjs/features/conversation/components/AdvisorContextPanel.tsx
 frontend-nextjs/features/conversation/components/ExpertControls.tsx
+frontend-nextjs/features/conversation/components/ComposerShell.tsx
 frontend-nextjs/features/conversation/hooks/useConversationComposer.ts
 frontend-nextjs/features/conversation/hooks/useConversationLayoutState.ts
 frontend-nextjs/app/analysis/[sessionId]/page.tsx
@@ -414,6 +416,7 @@ frontend-nextjs/types/
 frontend-nextjs/features/conversation/contracts.test.ts
 frontend-nextjs/features/conversation/components/ConversationPanels.test.tsx
 frontend-nextjs/features/conversation/components/ConversationExpertControls.test.tsx
+frontend-nextjs/features/conversation/components/ConversationComposerShell.test.tsx
 frontend-nextjs/features/conversation/hooks/useConversationComposer.test.ts
 frontend-nextjs/features/conversation/hooks/useConversationLayoutState.test.ts
 frontend-nextjs/components/ConversationMode/ConversationChat.test.tsx
@@ -425,5 +428,5 @@ frontend-nextjs/components/ConversationMode/GuidanceCard.test.tsx
 ```powershell
 cd frontend-nextjs
 npm test -- ConversationChat.test.tsx GuidanceCard.test.tsx features/conversation/contracts.test.ts
-npm test -- features/conversation/hooks/useConversationComposer.test.ts features/conversation/hooks/useConversationLayoutState.test.ts features/conversation/components/ConversationPanels.test.tsx features/conversation/components/ConversationExpertControls.test.tsx
+npm test -- features/conversation/hooks/useConversationComposer.test.ts features/conversation/hooks/useConversationLayoutState.test.ts features/conversation/components/ConversationPanels.test.tsx features/conversation/components/ConversationExpertControls.test.tsx features/conversation/components/ConversationComposerShell.test.tsx
 ```

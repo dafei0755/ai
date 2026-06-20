@@ -12,7 +12,7 @@ describe('conversation-analysis-ui module contract', () => {
   it('registers the governed frontend feature boundary', () => {
     expect(CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT).toMatchObject({
       moduleId: 'conversation-analysis-ui',
-      currentVersion: 'v0.7-expert-controls-extracted',
+      currentVersion: 'v0.8-composer-shell-extracted',
     });
 
     for (const ownedPath of CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT.ownedPaths) {
@@ -52,8 +52,11 @@ describe('conversation-analysis-ui module contract', () => {
     const expertControlsTestSource = readRepoFile(
       'frontend-nextjs/features/conversation/components/ConversationExpertControls.test.tsx',
     );
+    const composerShellTestSource = readRepoFile(
+      'frontend-nextjs/features/conversation/components/ConversationComposerShell.test.tsx',
+    );
     const contractTestSource = readRepoFile('frontend-nextjs/features/conversation/contracts.test.ts');
-    const combinedTestSource = `${guidanceCardTestSource}\n${conversationChatTestSource}\n${composerHookTestSource}\n${layoutHookTestSource}\n${panelTestSource}\n${expertControlsTestSource}\n${contractTestSource}`;
+    const combinedTestSource = `${guidanceCardTestSource}\n${conversationChatTestSource}\n${composerHookTestSource}\n${layoutHookTestSource}\n${panelTestSource}\n${expertControlsTestSource}\n${composerShellTestSource}\n${contractTestSource}`;
 
     for (const testCaseName of CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT.protectedTestCases) {
       expect(combinedTestSource).toContain(testCaseName);
@@ -152,12 +155,30 @@ describe('conversation-analysis-ui module contract', () => {
     const expertControlsSource = readRepoFile(
       'frontend-nextjs/features/conversation/components/ExpertControls.tsx',
     );
+    const composerShellSource = readRepoFile(
+      'frontend-nextjs/features/conversation/components/ComposerShell.tsx',
+    );
 
-    expect(conversationChatSource).toContain("from '@/features/conversation/components/ExpertControls'");
     expect(conversationChatSource).not.toContain('aria-label="选择专家视角"');
     expect(conversationChatSource).not.toContain('aria-label="召集团队"');
+    expect(composerShellSource).toContain("from '@/features/conversation/components/ExpertControls'");
     expect(expertControlsSource).toContain('export function ExpertControls');
     expect(expertControlsSource).toContain('选择专家视角');
     expect(expertControlsSource).toContain('召集团队');
+  });
+
+  it('keeps composer shell in the feature component layer', () => {
+    const conversationChatSource = readRepoFile(
+      'frontend-nextjs/components/ConversationMode/ConversationChat.tsx',
+    );
+    const composerShellSource = readRepoFile(
+      'frontend-nextjs/features/conversation/components/ComposerShell.tsx',
+    );
+
+    expect(conversationChatSource).toContain("from '@/features/conversation/components/ComposerShell'");
+    expect(conversationChatSource).not.toContain('aria-label="发送"');
+    expect(conversationChatSource).not.toContain('ui-card-shell ui-card-shell-strong');
+    expect(composerShellSource).toContain('export function ComposerShell');
+    expect(composerShellSource).toContain('aria-label="发送"');
   });
 });

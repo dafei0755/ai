@@ -11,10 +11,9 @@
 
 'use client';
 
-import { ArrowUp } from 'lucide-react';
 import React, { useEffect, useRef } from 'react';
 import { AdvisorContextPanel } from '@/features/conversation/components/AdvisorContextPanel';
-import { ExpertControls } from '@/features/conversation/components/ExpertControls';
+import { ComposerShell } from '@/features/conversation/components/ComposerShell';
 import { MessageCardRenderer } from '@/features/conversation/components/MessageCardRenderer';
 import { VisualBriefPanel } from '@/features/conversation/components/VisualBriefPanel';
 import { useConversationComposer } from '@/features/conversation/hooks/useConversationComposer';
@@ -259,44 +258,21 @@ export default function ConversationChat({
       </div>
       </div>
 
-      {/* 浮动输入框（ChatGPT 暗色风格） */}
-      <div className="absolute bottom-0 left-0 right-0 pb-4 pt-8 bg-gradient-to-t from-[var(--background)] via-[var(--background)] to-transparent pointer-events-none" style={{ paddingInline: adaptiveChatGutter }}>
-      <div className="mx-auto w-full max-w-[960px] pointer-events-auto">
-          <ExpertControls
-            activeExpertPerspective={activeExpertPerspective}
-            expertPerspectiveOptions={expertPerspectiveOptions}
-            onExpertPerspectiveChange={onExpertPerspectiveChange}
-            summonOptions={summonOptions}
-            onSummonExpert={onSummonExpert}
-          />
-          <div className="ui-card-shell ui-card-shell-strong rounded-[1.6rem] overflow-hidden bg-[var(--card-bg)]">
-            <textarea
-              ref={textareaRef}
-              value={inputText}
-              onChange={(e) => setInputText(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder={placeholder}
-              rows={2}
-              className="ui-type-body w-full bg-transparent text-[var(--foreground)] px-5 pt-4 pb-2 outline-none resize-none max-h-32 overflow-y-auto placeholder:text-[var(--foreground-secondary)]"
-              style={{ fieldSizing: 'content' } as React.CSSProperties}
-            />
-            <div className="flex items-center justify-end px-4 pb-3">
-              <button
-                onClick={handleSend}
-                disabled={!inputText.trim() || loading}
-                className={`p-2 rounded-full transition-all duration-300 ${
-                  inputText.trim() && !loading
-                    ? 'bg-[var(--foreground)] text-[var(--background)] hover:opacity-80 hover:scale-105'
-                    : 'bg-[var(--border-color)] text-[var(--foreground-secondary)] cursor-not-allowed opacity-50'
-                }`}
-                aria-label="发送"
-              >
-                <ArrowUp className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
+      <ComposerShell
+        adaptiveChatGutter={adaptiveChatGutter}
+        activeExpertPerspective={activeExpertPerspective}
+        expertPerspectiveOptions={expertPerspectiveOptions}
+        onExpertPerspectiveChange={onExpertPerspectiveChange}
+        summonOptions={summonOptions}
+        onSummonExpert={onSummonExpert}
+        textareaRef={textareaRef}
+        inputText={inputText}
+        setInputText={setInputText}
+        handleKeyDown={handleKeyDown}
+        handleSend={handleSend}
+        placeholder={placeholder}
+        loading={loading}
+      />
     </div>
   );
 }
