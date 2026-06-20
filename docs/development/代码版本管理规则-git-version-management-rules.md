@@ -64,6 +64,12 @@ Git 管理的不是“文件夹”，而是一组组有明确意图的变更快�
 
 当两个开发线程同时推进时，不能只靠口头约定隔离，必须建立明确的线程边界文档。
 
+多 Codex/AI 对话、多人工编辑、多分支同时推进时，统一执行：
+
+```text
+docs/development/PARALLEL_CONVERSATION_GIT_COLLABORATION_PROTOCOL.md
+```
+
 当前 Golden 复核线与茶饮专项线的边界文件：
 
 ```text
