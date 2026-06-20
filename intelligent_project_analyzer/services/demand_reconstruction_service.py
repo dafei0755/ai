@@ -7,10 +7,7 @@ intake questionnaire.
 
 from __future__ import annotations
 
-import time
 from typing import Any, Dict, Optional
-
-from loguru import logger
 
 from intelligent_project_analyzer.modules.demand_reconstruction.alignment_gate import (
     DemandReconstructionAlignmentGate,
@@ -26,6 +23,9 @@ from intelligent_project_analyzer.modules.demand_reconstruction.blueprint_coordi
 )
 from intelligent_project_analyzer.modules.demand_reconstruction.entry_classifier import (
     DemandReconstructionEntryClassifier,
+)
+from intelligent_project_analyzer.modules.demand_reconstruction.pipeline import (
+    DemandReconstructionPipeline,
 )
 from intelligent_project_analyzer.modules.demand_reconstruction.semantic_context_applier import (
     DemandReconstructionSemanticContextApplier,
@@ -119,6 +119,7 @@ class DemandReconstructionService:
         semantic_context_applier: Optional[DemandReconstructionSemanticContextApplier] = None,
         blueprint_coordinator: Optional[DemandReconstructionBlueprintCoordinator] = None,
         entry_classifier: Optional[DemandReconstructionEntryClassifier] = None,
+        pipeline: Optional[DemandReconstructionPipeline] = None,
         require_llm: bool = False,
         governance_store: Any = None,
     ) -> None:
@@ -173,6 +174,20 @@ class DemandReconstructionService:
         self._insight_quality_gate = insight_quality_gate or DemandReconstructionInsightQualityGate(
             evaluator=self._insight_quality_evaluator,
         )
+        self._pipeline = pipeline or DemandReconstructionPipeline(
+            llm=self._llm,
+            require_llm=self._require_llm,
+            unavailable_factory=DemandReconstructionUnavailable,
+            context_adapter=self._context_adapter,
+            semantic_router=self._semantic_router,
+            semantic_context_applier=self._semantic_context_applier,
+            governance=self._governance,
+            latent_model_adapter=self._latent_model_adapter,
+            blueprint_coordinator=self._blueprint_coordinator,
+            response_builder=self._response_builder,
+            alignment_gate=self._alignment_gate,
+            insight_quality_gate=self._insight_quality_gate,
+        )
 
     def handle_message(
         self,
@@ -211,67 +226,10 @@ class DemandReconstructionService:
         previous_context: Optional[Dict[str, Any]] = None,
         session: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
-        llm_semantic_understanding = (
-            self._build_llm_semantic_understanding(message)
-            if self._require_llm
-            else None
-        )
-        adapter_context = self._context_adapter.build(message)
-        if llm_semantic_understanding:
-            self._apply_llm_semantic_understanding_to_adapter_context(
-                adapter_context,
-                llm_semantic_understanding,
-            )
-        self._apply_governed_knowledge_assets(
-            adapter_context=adapter_context,
-            session=session or {},
-            source_message=message,
-        )
-        latent_model = self._latent_model_adapter.build(
-            source_message=message,
-            adapter_context=adapter_context,
-        )
-        adapter_context["latent_model"] = latent_model.model_dump(mode="json")
-        if previous_context and previous_context.get("blueprint", {}).get("task_reframe"):
-            adapter_context["previous_blueprint"] = previous_context["blueprint"]
-        blueprint = self._build_blueprint(adapter_context)
-        reply = self._response_builder.render_reply(blueprint)
-        card = self._response_builder.build_card(blueprint)
-        alignment_shadow = self._evaluate_alignment_shadow(
-            source_message=message,
-            visible_text=reply,
-            adapter_context=adapter_context,
-            card=card,
-        )
-        blueprint, reply, card, alignment_shadow = self._alignment_gate.maybe_reject_to_semantic_fallback(
-            blueprint=blueprint,
-            reply=reply,
-            card=card,
-            alignment_shadow=alignment_shadow,
-            adapter_context=adapter_context,
-            source_message=message,
-        )
-        self._insight_quality_gate.apply(
-            source_message=message,
-            adapter_context=adapter_context,
-            blueprint=blueprint,
-            visible_reply=reply,
-        )
-        blueprint["semantic_alignment_shadow"] = alignment_shadow
-        governance_persistence = self._persist_governance_signals(
-            session=session or {},
-            source_message=message,
-            blueprint=blueprint,
-        )
-        if governance_persistence:
-            blueprint["governance_persistence"] = governance_persistence
-        return self._response_builder.build_result(
-            reply=reply,
-            card=card,
-            source_message=message,
-            adapter_context=adapter_context,
-            blueprint=blueprint,
-            alignment_shadow=alignment_shadow,
+        return self._pipeline.run(
+            message,
+            previous_context=previous_context,
+            session=session,
         )
 
     @staticmethod

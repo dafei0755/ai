@@ -14,6 +14,7 @@ RESPONSE_BUILDER = ROOT / "intelligent_project_analyzer/modules/demand_reconstru
 SEMANTIC_CONTEXT_APPLIER = ROOT / "intelligent_project_analyzer/modules/demand_reconstruction/semantic_context_applier.py"
 BLUEPRINT_COORDINATOR = ROOT / "intelligent_project_analyzer/modules/demand_reconstruction/blueprint_coordinator.py"
 ENTRY_CLASSIFIER = ROOT / "intelligent_project_analyzer/modules/demand_reconstruction/entry_classifier.py"
+PIPELINE = ROOT / "intelligent_project_analyzer/modules/demand_reconstruction/pipeline.py"
 DOC = ROOT / "docs/development/方案高参需求重构运行时开发纲领.md"
 
 
@@ -102,6 +103,7 @@ def test_demand_reconstruction_governance_is_module_boundary() -> None:
 def test_demand_reconstruction_alignment_gate_is_module_boundary() -> None:
     gate_source = ALIGNMENT_GATE.read_text(encoding="utf-8")
     service_source = SERVICE.read_text(encoding="utf-8")
+    pipeline_source = PIPELINE.read_text(encoding="utf-8")
 
     assert "class DemandReconstructionAlignmentGate" in gate_source
     assert "def maybe_reject_to_semantic_fallback" in gate_source
@@ -109,26 +111,28 @@ def test_demand_reconstruction_alignment_gate_is_module_boundary() -> None:
     assert "def evaluate_alignment_shadow" in gate_source
     assert "def append_alignment_rejection_signal" in gate_source
     assert "DemandReconstructionAlignmentGate" in service_source
-    assert "self._alignment_gate.maybe_reject_to_semantic_fallback" in service_source
+    assert "self._alignment_gate.maybe_reject_to_semantic_fallback" in pipeline_source
     assert "evaluate_semantic_alignment" not in service_source
 
 
 def test_demand_reconstruction_insight_quality_gate_is_module_boundary() -> None:
     gate_source = INSIGHT_QUALITY_GATE.read_text(encoding="utf-8")
     service_source = SERVICE.read_text(encoding="utf-8")
+    pipeline_source = PIPELINE.read_text(encoding="utf-8")
 
     assert "class DemandReconstructionInsightQualityGate" in gate_source
     assert "def apply" in gate_source
     assert "def append_insight_quality_signal" in gate_source
     assert "DemandReconstructionInsightQualityEvaluator" in gate_source
     assert "DemandReconstructionInsightQualityGate" in service_source
-    assert "self._insight_quality_gate.apply" in service_source
+    assert "self._insight_quality_gate.apply" in pipeline_source
     assert "self._insight_quality_evaluator.evaluate" not in service_source
 
 
 def test_demand_reconstruction_response_builder_is_module_boundary() -> None:
     builder_source = RESPONSE_BUILDER.read_text(encoding="utf-8")
     service_source = SERVICE.read_text(encoding="utf-8")
+    pipeline_source = PIPELINE.read_text(encoding="utf-8")
 
     assert "class DemandReconstructionResponseBuilder" in builder_source
     assert "def render_reply" in builder_source
@@ -136,8 +140,8 @@ def test_demand_reconstruction_response_builder_is_module_boundary() -> None:
     assert "def build_result" in builder_source
     assert "def public_adapter_context" in builder_source
     assert "DemandReconstructionResponseBuilder" in service_source
-    assert "self._response_builder.render_reply" in service_source
-    assert "self._response_builder.build_result" in service_source
+    assert "self._response_builder.render_reply" in pipeline_source
+    assert "self._response_builder.build_result" in pipeline_source
     assert "datetime.now().isoformat()" not in service_source
 
 
@@ -181,3 +185,17 @@ def test_demand_reconstruction_entry_classifier_is_module_boundary() -> None:
     assert "DemandReconstructionEntryClassifier" in service_source
     assert "self._entry_classifier.should_handle" in service_source
     assert "_FORMAL_TERMS" not in service_source
+
+
+def test_demand_reconstruction_pipeline_is_module_boundary() -> None:
+    pipeline_source = PIPELINE.read_text(encoding="utf-8")
+    service_source = SERVICE.read_text(encoding="utf-8")
+
+    assert "class DemandReconstructionPipeline" in pipeline_source
+    assert "def run" in pipeline_source
+    assert "def _build_llm_semantic_understanding" in pipeline_source
+    assert "semantic_alignment_shadow" in pipeline_source
+    assert "governance_persistence" in pipeline_source
+    assert "DemandReconstructionPipeline" in service_source
+    assert "self._pipeline.run" in service_source
+    assert "self._response_builder.build_result" not in service_source

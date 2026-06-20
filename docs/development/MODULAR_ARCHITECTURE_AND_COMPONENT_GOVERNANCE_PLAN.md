@@ -72,6 +72,7 @@ intelligent_project_analyzer/
       semantic_context_applier.py
       blueprint_coordinator.py
       entry_classifier.py
+      pipeline.py
       quality_gate.py
       adapters.py
       version.py
@@ -243,8 +244,9 @@ conversation-analysis-ui
 9. 新建 semantic_context_applier.py，迁移 LLM semantic package 到 adapter_context 的应用逻辑。（已完成）
 10. 新建 blueprint_coordinator.py，迁移规则计划、LLM synthesis 与 required-LLM 失败契约编排。（已完成）
 11. 新建 entry_classifier.py，迁移需求重构入口判断、正式任务书请求识别与 follow-up 识别。（已完成）
-12. service.py 只保留编排。
-13. 旧 services/demand_reconstruction_service.py 作为兼容 facade 或薄入口。
+12. 新建 pipeline.py，迁移需求重构运行时主流程编排。（已完成）
+13. service.py 只保留依赖注入、入口兼容和旧私有方法兼容包装。
+14. 旧 services/demand_reconstruction_service.py 作为兼容 facade 或薄入口。
 ```
 
 验收命令：
