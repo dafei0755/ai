@@ -17,6 +17,9 @@ from loguru import logger
 from intelligent_project_analyzer.modules.demand_reconstruction.alignment_gate import (
     DemandReconstructionAlignmentGate,
 )
+from intelligent_project_analyzer.modules.demand_reconstruction.insight_quality_gate import (
+    DemandReconstructionInsightQualityGate,
+)
 from intelligent_project_analyzer.modules.demand_reconstruction.synthesis import (
     DemandReconstructionSynthesis,
 )
@@ -116,6 +119,7 @@ class DemandReconstructionService:
         synthesis: Optional[DemandReconstructionSynthesis] = None,
         governance: Optional[DemandReconstructionGovernance] = None,
         alignment_gate: Optional[DemandReconstructionAlignmentGate] = None,
+        insight_quality_gate: Optional[DemandReconstructionInsightQualityGate] = None,
         require_llm: bool = False,
         governance_store: Any = None,
     ) -> None:
@@ -146,6 +150,9 @@ class DemandReconstructionService:
         self._latent_model_adapter = latent_model_adapter or LatentModelAdapter()
         self._insight_quality_evaluator = (
             insight_quality_evaluator or DemandReconstructionInsightQualityEvaluator()
+        )
+        self._insight_quality_gate = insight_quality_gate or DemandReconstructionInsightQualityGate(
+            evaluator=self._insight_quality_evaluator,
         )
 
     def handle_message(
@@ -231,17 +238,11 @@ class DemandReconstructionService:
             adapter_context=adapter_context,
             source_message=message,
         )
-        insight_quality = self._insight_quality_evaluator.evaluate(
+        self._insight_quality_gate.apply(
             source_message=message,
-            semantic_package=adapter_context.get("llm_semantic_understanding") or {},
-            latent_model=adapter_context.get("latent_model") or {},
+            adapter_context=adapter_context,
             blueprint=blueprint,
             visible_reply=reply,
-        )
-        blueprint["insight_quality"] = insight_quality
-        blueprint["governance_signals"] = self._append_insight_quality_signal(
-            blueprint.get("governance_signals") or [],
-            insight_quality,
         )
         blueprint["semantic_alignment_shadow"] = alignment_shadow
         governance_persistence = self._persist_governance_signals(
@@ -999,18 +1000,7 @@ class DemandReconstructionService:
         signals: Any,
         insight_quality: Dict[str, Any],
     ) -> list[Dict[str, Any]]:
-        result = [signal for signal in (signals or []) if isinstance(signal, dict)]
-        result.append(
-            {
-                "type": "insight_quality_watch",
-                "code": "insight_quality_watch",
-                "severity": "P3",
-                "review_queue": "demand_reconstruction_quality",
-                "level": insight_quality.get("level"),
-                "score": insight_quality.get("score"),
-                "missing_high_value_signals": insight_quality.get("missing_high_value_signals") or [],
-                "warning_count": len(insight_quality.get("warning_issues") or []),
-                "user_visible": False,
-            }
+        return DemandReconstructionInsightQualityGate.append_insight_quality_signal(
+            signals,
+            insight_quality,
         )
-        return result

@@ -9,6 +9,7 @@ SEMANTIC_ROUTER = ROOT / "intelligent_project_analyzer/modules/demand_reconstruc
 SYNTHESIS = ROOT / "intelligent_project_analyzer/modules/demand_reconstruction/synthesis.py"
 GOVERNANCE = ROOT / "intelligent_project_analyzer/modules/demand_reconstruction/governance.py"
 ALIGNMENT_GATE = ROOT / "intelligent_project_analyzer/modules/demand_reconstruction/alignment_gate.py"
+INSIGHT_QUALITY_GATE = ROOT / "intelligent_project_analyzer/modules/demand_reconstruction/insight_quality_gate.py"
 DOC = ROOT / "docs/development/方案高参需求重构运行时开发纲领.md"
 
 
@@ -105,3 +106,16 @@ def test_demand_reconstruction_alignment_gate_is_module_boundary() -> None:
     assert "DemandReconstructionAlignmentGate" in service_source
     assert "self._alignment_gate.maybe_reject_to_semantic_fallback" in service_source
     assert "evaluate_semantic_alignment" not in service_source
+
+
+def test_demand_reconstruction_insight_quality_gate_is_module_boundary() -> None:
+    gate_source = INSIGHT_QUALITY_GATE.read_text(encoding="utf-8")
+    service_source = SERVICE.read_text(encoding="utf-8")
+
+    assert "class DemandReconstructionInsightQualityGate" in gate_source
+    assert "def apply" in gate_source
+    assert "def append_insight_quality_signal" in gate_source
+    assert "DemandReconstructionInsightQualityEvaluator" in gate_source
+    assert "DemandReconstructionInsightQualityGate" in service_source
+    assert "self._insight_quality_gate.apply" in service_source
+    assert "self._insight_quality_evaluator.evaluate" not in service_source
