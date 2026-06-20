@@ -12,7 +12,7 @@ describe('conversation-analysis-ui module contract', () => {
   it('registers the governed frontend feature boundary', () => {
     expect(CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT).toMatchObject({
       moduleId: 'conversation-analysis-ui',
-      currentVersion: 'v2.1-active-conversation-accessors-extracted',
+      currentVersion: 'v2.2-shared-session-shell-restored',
     });
 
     for (const ownedPath of CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT.ownedPaths) {
@@ -88,8 +88,11 @@ describe('conversation-analysis-ui module contract', () => {
     const upgradeBannerTestSource = readRepoFile(
       'frontend-nextjs/features/conversation/components/ConversationUpgradeBanner.test.tsx',
     );
+    const appSessionShellTestSource = readRepoFile(
+      'frontend-nextjs/__tests__/AppSessionShell.test.tsx',
+    );
     const contractTestSource = readRepoFile('frontend-nextjs/features/conversation/contracts.test.ts');
-    const combinedTestSource = `${guidanceCardTestSource}\n${conversationHistoryAdapterTestSource}\n${conversationSessionBootstrapTestSource}\n${conversationActionHandlersTestSource}\n${conversationLocalPersistenceTestSource}\n${advisorHistoryPersistenceTestSource}\n${advisorHistoryDerivationTestSource}\n${advisorHistoryGroupingTestSource}\n${advisorConversationAccessorsTestSource}\n${conversationChatTestSource}\n${composerHookTestSource}\n${layoutHookTestSource}\n${advisorContextDerivationTestSource}\n${panelTestSource}\n${expertControlsTestSource}\n${composerShellTestSource}\n${messageListShellTestSource}\n${upgradeBannerTestSource}\n${contractTestSource}`;
+    const combinedTestSource = `${guidanceCardTestSource}\n${conversationHistoryAdapterTestSource}\n${conversationSessionBootstrapTestSource}\n${conversationActionHandlersTestSource}\n${conversationLocalPersistenceTestSource}\n${advisorHistoryPersistenceTestSource}\n${advisorHistoryDerivationTestSource}\n${advisorHistoryGroupingTestSource}\n${advisorConversationAccessorsTestSource}\n${conversationChatTestSource}\n${composerHookTestSource}\n${layoutHookTestSource}\n${advisorContextDerivationTestSource}\n${panelTestSource}\n${expertControlsTestSource}\n${composerShellTestSource}\n${messageListShellTestSource}\n${upgradeBannerTestSource}\n${appSessionShellTestSource}\n${contractTestSource}`;
 
     for (const testCaseName of CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT.protectedTestCases) {
       expect(combinedTestSource).toContain(testCaseName);
@@ -292,7 +295,7 @@ describe('conversation-analysis-ui module contract', () => {
     ];
 
     expect(CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT.currentVersion).toBe(
-      'v2.1-active-conversation-accessors-extracted',
+      'v2.2-shared-session-shell-restored',
     );
     expect(conversationChatLines.length).toBeLessThanOrEqual(220);
     for (const importPath of requiredCompositionImports) {
@@ -432,5 +435,23 @@ describe('conversation-analysis-ui module contract', () => {
     expect(advisorConversationAccessorsSource).toContain('export function buildAdvisorConversationKey');
     expect(advisorConversationAccessorsSource).toContain('export function getAdvisorConversationMessages');
     expect(advisorConversationAccessorsSource).toContain('export function updateAdvisorConversationMessages');
+  });
+
+  it('keeps conversation mode inside the shared session shell', () => {
+    const analysisPageSource = readRepoFile(
+      'frontend-nextjs/app/analysis/[sessionId]/page.tsx',
+    );
+    const appSessionShellSource = readRepoFile(
+      'frontend-nextjs/components/layout/AppSessionShell.tsx',
+    );
+
+    expect(analysisPageSource).toContain("from '@/components/layout/AppSessionShell'");
+    expect(analysisPageSource).toContain('const [isSessionSidebarOpen, setIsSessionSidebarOpen]');
+    expect(analysisPageSource).toContain('<AppSessionShell');
+    expect(analysisPageSource).toContain('sidebarNavigationMode="in-place"');
+    expect(analysisPageSource).toContain('currentSessionId={sessionId}');
+    expect(analysisPageSource).toContain('</AppSessionShell>');
+    expect(appSessionShellSource).toContain('ucppt-advisor-shell');
+    expect(appSessionShellSource).toContain('<SessionSidebar');
   });
 });

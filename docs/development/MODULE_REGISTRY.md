@@ -439,7 +439,7 @@ contracts.py 已建立为 LLM runtime 模块合同入口。
 module_id: conversation-analysis-ui
 name: 分析页对话 UI 与引导卡交互
 status: governed
-current_version: v2.1-active-conversation-accessors-extracted
+current_version: v2.2-shared-session-shell-restored
 ```
 
 ### owned_paths
@@ -466,6 +466,8 @@ frontend-nextjs/features/conversation/hooks/useAdvisorContextDerivation.ts
 frontend-nextjs/features/conversation/hooks/useConversationComposer.ts
 frontend-nextjs/features/conversation/hooks/useConversationLayoutState.ts
 frontend-nextjs/app/analysis/[sessionId]/page.tsx
+frontend-nextjs/components/layout/AppSessionShell.tsx
+frontend-nextjs/components/SessionSidebar.tsx
 frontend-nextjs/components/ConversationMode/ConversationChat.tsx
 frontend-nextjs/components/ConversationMode/GuidanceCard.tsx
 frontend-nextjs/lib/api.ts
@@ -518,6 +520,7 @@ frontend-nextjs/features/conversation/components/ConversationUpgradeBanner.test.
 frontend-nextjs/features/conversation/hooks/useAdvisorContextDerivation.test.ts
 frontend-nextjs/features/conversation/hooks/useConversationComposer.test.ts
 frontend-nextjs/features/conversation/hooks/useConversationLayoutState.test.ts
+frontend-nextjs/__tests__/AppSessionShell.test.tsx
 frontend-nextjs/components/ConversationMode/ConversationChat.test.tsx
 frontend-nextjs/components/ConversationMode/GuidanceCard.test.tsx
 ```
@@ -547,7 +550,8 @@ features/conversation/advisorHistoryPersistence.ts 已承接 advisor history rec
 features/conversation/advisorHistoryDerivation.ts 已承接 advisor history title/mode/record upsert 派生逻辑。
 features/conversation/advisorHistoryGrouping.ts 已承接 advisor history today / last7Days / last30Days 分组逻辑。
 features/conversation/advisorConversationAccessors.ts 已承接 active advisor conversation key、消息读取和消息更新访问器。
-下一步审计 analysis page 中 conversation-analysis-ui 的剩余职责。
+components/layout/AppSessionShell.tsx 已恢复 analysis page 共享会话壳，统一承接 SessionSidebar、用户面板和当前页会话导航。
+下一步提取 analysis page 中 advisor scene context 与 perspective options。
 ```
 
 ## 8. 新模块登记模板

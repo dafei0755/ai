@@ -58,6 +58,8 @@ import type { ActionChip, AdvisorViewModel } from '@/types/advisor';
 import { PlanSandboxPanel } from '@/components/PlanSandboxPanel';
 import { GeoCanvasView } from '@/components/geo/GeoCanvasView';
 import { useGeoStore } from '@/store/useGeoStore';
+import { useSession } from '@/contexts/SessionContext';
+import { AppSessionShell } from '@/components/layout/AppSessionShell';
 import { deriveSessionTitle, resolveSessionTitle } from '@/lib/sessionTitle';
 import { EMPTY_CHAT_MESSAGES } from '@/features/conversation/conversationHistoryAdapter';
 import { bootstrapConversationSession } from '@/features/conversation/conversationSessionBootstrap';
@@ -755,6 +757,14 @@ export default function AnalysisPage() {
 	const router = useRouter();
 	const searchParams = useSearchParams();
 	const sessionId = params.sessionId as string;
+	const {
+		sessions,
+		loadMoreTriggerRef,
+		handleRenameSession,
+		handlePinSession,
+		handleShareSession,
+		handleDeleteSession,
+	} = useSession();
 	const isDemoSession = sessionId === 'demo';
 	const appliedInitialModuleRef = useRef<string | null>(null);
 	const adaptiveLeftDockGutter = 'clamp(44px, 3.2vw, 72px)';
@@ -765,6 +775,7 @@ export default function AnalysisPage() {
 	const [advisorRightTargetRatio, setAdvisorRightTargetRatio] = useState(WORKSPACE_PANEL_DEFAULT_RATIO);
 	const [workspaceLayoutPrefsLoaded, setWorkspaceLayoutPrefsLoaded] = useState(false);
 	const [resizingWorkspacePanel, setResizingWorkspacePanel] = useState<WorkspaceResizePanel | null>(null);
+	const [isSessionSidebarOpen, setIsSessionSidebarOpen] = useState(true);
 
 	const [status, setStatus] = useState<AnalysisStatus | null>(null);
 	const [error, setError] = useState<string | null>(null);
@@ -2664,50 +2675,58 @@ export default function AnalysisPage() {
 
 	if (systemMode === 'conversation') {
 		return (
-			<div className="flex h-screen overflow-hidden bg-[var(--background)] text-[var(--foreground)]">
-				<div className="flex h-full w-full flex-col">
-					<div className="flex items-center justify-between border-b border-[var(--border-color)] px-5 py-3">
-						<button
-							onClick={() => router.push('/')}
-							className="flex items-center gap-2 text-sm font-semibold text-[var(--foreground)]"
-							title="返回首页"
-						>
-							<span className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#2e67ff] text-white">
-								<Sparkles className="h-4 w-4" />
-							</span>
-							方案高参
-						</button>
-						<div className="text-xs text-[var(--foreground-secondary)]">
-							首轮入口 · 任务书预成型
-						</div>
-					</div>
-					<div className="min-h-0 flex-1">
-						<ConversationChat
-							sessionId={sessionId}
-							messages={conversationMessages}
-							activeExpertPerspective={activeExpertPerspective}
-							expertPerspectiveOptions={sceneExpertPerspectiveOptions}
-							onExpertPerspectiveChange={(next) => setActiveExpertPerspective(next as ExpertPerspectiveOption)}
-							summonOptions={EXPERT_SUMMON_OPTIONS}
-							onSummonExpert={(target) => handleSummonExpert(target as (typeof EXPERT_SUMMON_OPTIONS)[number])}
-							advisorSceneContext={null}
-							onSendMessage={handleConvSendMessage}
-							loading={false}
-							placeholder="继续补充项目目标、约束或取舍..."
-							showUpgradeBanner={showUpgradeBanner}
-							onUpgradeConfirm={handleUpgradeConfirm}
-							onUpgradeDismiss={() => setShowUpgradeBanner(false)}
-							onCardResponse={handleConvCardResponse}
-							prefillHint={conversationPrefill}
-							className="w-full"
-						/>
-					</div>
+			<AppSessionShell
+				isSidebarOpen={isSessionSidebarOpen}
+				onSidebarOpenChange={setIsSessionSidebarOpen}
+				sessions={sessions}
+				currentSessionId={sessionId}
+				sidebarNavigationMode="in-place"
+				onRenameSession={handleRenameSession}
+				onPinSession={handlePinSession}
+				onShareSession={handleShareSession}
+				onDeleteSession={handleDeleteSession}
+				loadMoreTriggerRef={loadMoreTriggerRef}
+				showExternalLink
+			>
+				<div className="min-h-0 flex-1">
+					<ConversationChat
+						sessionId={sessionId}
+						messages={conversationMessages}
+						activeExpertPerspective={activeExpertPerspective}
+						expertPerspectiveOptions={sceneExpertPerspectiveOptions}
+						onExpertPerspectiveChange={(next) => setActiveExpertPerspective(next as ExpertPerspectiveOption)}
+						summonOptions={EXPERT_SUMMON_OPTIONS}
+						onSummonExpert={(target) => handleSummonExpert(target as (typeof EXPERT_SUMMON_OPTIONS)[number])}
+						advisorSceneContext={null}
+						onSendMessage={handleConvSendMessage}
+						loading={false}
+						placeholder="继续补充项目目标、约束或取舍..."
+						showUpgradeBanner={showUpgradeBanner}
+						onUpgradeConfirm={handleUpgradeConfirm}
+						onUpgradeDismiss={() => setShowUpgradeBanner(false)}
+						onCardResponse={handleConvCardResponse}
+						prefillHint={conversationPrefill}
+						className="w-full"
+					/>
 				</div>
-			</div>
+			</AppSessionShell>
 		);
 	}
 
 	return (
+		<AppSessionShell
+			isSidebarOpen={isSessionSidebarOpen}
+			onSidebarOpenChange={setIsSessionSidebarOpen}
+			sessions={sessions}
+			currentSessionId={sessionId}
+			sidebarNavigationMode="in-place"
+			onRenameSession={handleRenameSession}
+			onPinSession={handlePinSession}
+			onShareSession={handleShareSession}
+			onDeleteSession={handleDeleteSession}
+			loadMoreTriggerRef={loadMoreTriggerRef}
+			showExternalLink
+		>
 		<div
 			className="relative flex h-screen overflow-hidden bg-[var(--background)] text-[var(--foreground)]"
 			style={workspaceColumnVars}
@@ -3046,5 +3065,6 @@ export default function AnalysisPage() {
 			</div>
 			)}
 		</div>
+		</AppSessionShell>
 	);
 }

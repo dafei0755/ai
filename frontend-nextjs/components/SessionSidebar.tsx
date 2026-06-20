@@ -14,6 +14,9 @@ import { useMemo, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Plus,
+  Search,
+  MessageCircle,
+  X,
   MoreVertical,
   Edit2,
   Pin,
@@ -40,6 +43,7 @@ export interface Session {
 interface SessionSidebarProps {
   sessions: Session[];
   currentSessionId?: string;
+  navigationMode?: 'new-tab' | 'in-place';
   onRenameSession?: (sessionId: string) => void;
   onPinSession?: (sessionId: string) => void;
   onShareSession?: (sessionId: string) => void;
@@ -51,6 +55,7 @@ interface SessionSidebarProps {
 export function SessionSidebar({
   sessions,
   currentSessionId,
+  navigationMode = 'new-tab',
   onRenameSession,
   onPinSession,
   onShareSession,
@@ -59,6 +64,8 @@ export function SessionSidebar({
 }: SessionSidebarProps) {
   const router = useRouter();
   const [menuOpenSessionId, setMenuOpenSessionId] = useState<string | null>(null);
+  const [isHistorySearchOpen, setIsHistorySearchOpen] = useState(false);
+  const [historySearchQuery, setHistorySearchQuery] = useState('');
 
   // 去重工具：避免重复 session_id 导致 React key 警告
   const dedupeSessions = useCallback((items: Session[]) => {
@@ -127,6 +134,48 @@ export function SessionSidebar({
 
   const groupedSessions = useMemo(() => groupSessionsByDate(uniqueSessions), [uniqueSessions, groupSessionsByDate]);
 
+  const getSessionTargetUrl = useCallback((session: Session) => {
+    if (session.session_type === 'search') {
+      return `/search/${session.session_id}`;
+    }
+
+    if (navigationMode === 'in-place') {
+      return `/analysis/${session.session_id}`;
+    }
+
+    if (session.status === 'completed') {
+      return `/report/${session.session_id}`;
+    }
+
+    return `/analysis/${session.session_id}`;
+  }, [navigationMode]);
+
+  const navigateToSession = useCallback((session: Session) => {
+    const targetUrl = getSessionTargetUrl(session);
+    if (navigationMode === 'in-place') {
+      router.push(targetUrl);
+      return;
+    }
+
+    window.open(targetUrl, '_blank');
+  }, [getSessionTargetUrl, navigationMode, router]);
+
+  const historySearchResults = useMemo(() => {
+    const query = historySearchQuery.trim().toLowerCase();
+    const searchableSessions = uniqueSessions.filter(session => !session.is_demo);
+
+    if (!query) {
+      return searchableSessions.slice(0, 30);
+    }
+
+    return searchableSessions
+      .filter(session => {
+        const title = resolveSessionTitle(session.user_input || '', session.display_name);
+        return `${title} ${session.user_input} ${session.display_name ?? ''}`.toLowerCase().includes(query);
+      })
+      .slice(0, 30);
+  }, [historySearchQuery, uniqueSessions]);
+
   // 格式化月份显示（"2025-11" -> "2025年11月" 或 "11月"）
   const formatMonthLabel = (monthKey: string) => {
     const [year, month] = monthKey.split('-');
@@ -138,6 +187,9 @@ export function SessionSidebar({
       return `${year}年${parseInt(month)}月`;
     }
   };
+
+  const quickActionClass =
+    'flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-[var(--foreground-secondary)] transition-colors hover:bg-[var(--card-bg)] hover:text-[var(--foreground)]';
 
   // 渲染单个会话项
   const renderSessionItem = (session: Session) => {
@@ -151,33 +203,14 @@ export function SessionSidebar({
           // 🎭 Demo 会话不可点击，仅作为展示参考
           if (session.is_demo) return;
 
-          // v7.290: 默认在新标签页打开历史记录
-          let targetUrl = '';
-          if (session.session_type === 'search') {
-            targetUrl = `/search/${session.session_id}`;
-          } else if (session.status === 'completed') {
-            targetUrl = `/report/${session.session_id}`;
-          } else {
-            targetUrl = `/analysis/${session.session_id}`;
-          }
-
-          // 始终在新标签页打开
-          window.open(targetUrl, '_blank');
+          navigateToSession(session);
         }}
         onAuxClick={(e) => {
           if (session.is_demo) return;
           // v7.290: 中键点击在新标签页打开
           if (e.button === 1) {
             e.preventDefault();
-            let targetUrl = '';
-            if (session.session_type === 'search') {
-              targetUrl = `/search/${session.session_id}`;
-            } else if (session.status === 'completed') {
-              targetUrl = `/report/${session.session_id}`;
-            } else {
-              targetUrl = `/analysis/${session.session_id}`;
-            }
-            window.open(targetUrl, '_blank');
+            window.open(getSessionTargetUrl(session), '_blank');
           }
         }}
         title={session.is_demo ? '演示样例，不可点击' : (session.display_name || session.user_input)}
@@ -310,6 +343,85 @@ export function SessionSidebar({
 
       {/* 会话列表 */}
       <div className="flex-1 overflow-y-auto p-3 pb-20">
+        <div className="mb-3 space-y-1">
+          <button
+            type="button"
+            onClick={() => router.push('/')}
+            className={quickActionClass}
+          >
+            <Plus size={16} className="shrink-0" />
+            <span>新对话</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setHistorySearchQuery('');
+              setIsHistorySearchOpen(true);
+            }}
+            className={quickActionClass}
+          >
+            <Search size={16} className="shrink-0" />
+            <span>搜索对话</span>
+          </button>
+        </div>
+
+        {isHistorySearchOpen && (
+          <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/30 px-4 pt-[18vh]">
+            <div
+              role="dialog"
+              aria-label="搜索对话"
+              className="w-full max-w-[680px] overflow-hidden rounded-xl border border-[var(--border-color)] bg-[var(--card-bg)] shadow-2xl"
+            >
+              <div className="flex items-center gap-3 border-b border-[var(--border-color)] px-4 py-3">
+                <Search size={18} className="shrink-0 text-[var(--foreground-secondary)]" />
+                <input
+                  value={historySearchQuery}
+                  onChange={(event) => setHistorySearchQuery(event.target.value)}
+                  placeholder="搜索对话..."
+                  autoFocus
+                  className="min-w-0 flex-1 bg-transparent text-sm text-[var(--foreground)] outline-none placeholder:text-[var(--foreground-secondary)]"
+                />
+                <button
+                  type="button"
+                  onClick={() => setIsHistorySearchOpen(false)}
+                  className="rounded-md p-1 text-[var(--foreground-secondary)] transition-colors hover:bg-[var(--sidebar-bg)] hover:text-[var(--foreground)]"
+                  aria-label="关闭搜索对话"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div className="max-h-[420px] overflow-y-auto p-3">
+                {historySearchResults.length > 0 ? (
+                  <div className="space-y-1">
+                    {historySearchResults.map(session => {
+                      const displayTitle = resolveSessionTitle(session.user_input || '', session.display_name);
+                      return (
+                        <button
+                          key={`history-search-${session.session_id}`}
+                          type="button"
+                          onClick={() => {
+                            setIsHistorySearchOpen(false);
+                            navigateToSession(session);
+                          }}
+                          className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm text-[var(--foreground-secondary)] transition-colors hover:bg-[var(--sidebar-bg)] hover:text-[var(--foreground)]"
+                        >
+                          <MessageCircle size={16} className="shrink-0" />
+                          <span className="min-w-0 flex-1 truncate">{displayTitle || '未命名会话'}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="px-3 py-8 text-center text-sm text-[var(--foreground-secondary)]">
+                    未找到匹配的对话
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* 今天 */}
         {groupedSessions.today.length > 0 && (
           <div className="mb-4">

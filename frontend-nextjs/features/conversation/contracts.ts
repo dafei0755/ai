@@ -1,6 +1,6 @@
 export const CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT = {
   moduleId: 'conversation-analysis-ui',
-  currentVersion: 'v2.1-active-conversation-accessors-extracted',
+  currentVersion: 'v2.2-shared-session-shell-restored',
   ownedPaths: [
     'frontend-nextjs/features/conversation/contracts.ts',
     'frontend-nextjs/features/conversation/types.ts',
@@ -24,6 +24,8 @@ export const CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT = {
     'frontend-nextjs/features/conversation/hooks/useConversationLayoutState.ts',
     'frontend-nextjs/app/analysis/[sessionId]/page.tsx',
     'frontend-nextjs/components/ConversationMode/ConversationChat.tsx',
+    'frontend-nextjs/components/layout/AppSessionShell.tsx',
+    'frontend-nextjs/components/SessionSidebar.tsx',
     'frontend-nextjs/components/ConversationMode/GuidanceCard.tsx',
     'frontend-nextjs/lib/api.ts',
     'frontend-nextjs/types/',
@@ -79,6 +81,8 @@ export const CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT = {
     'keeps advisor history record derivation in the feature layer',
     'keeps advisor history grouping in the feature layer',
     'keeps active advisor conversation accessors in the feature layer',
+    'keeps conversation mode inside the shared session shell',
+    'renders the shared session sidebar beside page content',
     'marks an assistant guidance card as responded from legacy card response history',
     'hydrates missing assistant guidance cards from initial messages in order',
     'restores initial conversation bootstrap messages and hydrated history',
@@ -113,7 +117,7 @@ export const CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT = {
     'frontend labels must translate internal backend signals into user-facing language',
   ],
   nextRefactorTargets: [
-    'audit remaining analysis page conversation-analysis-ui responsibilities',
+    'extract advisor scene context and perspective options from analysis page',
   ],
 } as const;
 

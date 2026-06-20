@@ -323,8 +323,9 @@ frontend-nextjs/app/analysis/[sessionId]/page.tsx
 19. 提取 advisor history record derivation。（已完成）
 20. 提取 advisor history grouping。（已完成）
 21. 提取 active advisor conversation accessors。（已完成）
-22. 审计 analysis page 中 conversation-analysis-ui 的剩余职责。
-23. 页面只保留 session 加载、布局和 feature 组合。
+22. 恢复 analysis page 共享会话壳 AppSessionShell，统一承接 SessionSidebar、用户面板和当前页会话导航。（已完成）
+23. 提取 advisor scene context 与 perspective options。
+24. 页面只保留 session 加载、布局和 feature 组合。
 ```
 
 验收：
