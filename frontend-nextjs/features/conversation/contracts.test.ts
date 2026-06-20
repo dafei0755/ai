@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from 'fs';
 import path from 'path';
 
 import { CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT } from './contracts';
+import type { ChatMessage, GuidanceCardData, GuidanceCardStructuredResponse } from './types';
 
 const repoRoot = path.resolve(process.cwd(), '..');
 const readRepoFile = (relativePath: string) =>
@@ -11,7 +12,7 @@ describe('conversation-analysis-ui module contract', () => {
   it('registers the governed frontend feature boundary', () => {
     expect(CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT).toMatchObject({
       moduleId: 'conversation-analysis-ui',
-      currentVersion: 'v0.1-feature-boundary-contract',
+      currentVersion: 'v0.2-conversation-types-extracted',
     });
 
     for (const ownedPath of CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT.ownedPaths) {
@@ -24,14 +25,12 @@ describe('conversation-analysis-ui module contract', () => {
     const conversationChatSource = readRepoFile(
       'frontend-nextjs/components/ConversationMode/ConversationChat.tsx',
     );
-    const guidanceCardSource = readRepoFile(
-      'frontend-nextjs/components/ConversationMode/GuidanceCard.tsx',
-    );
+    const conversationTypesSource = readRepoFile('frontend-nextjs/features/conversation/types.ts');
 
     for (const cardType of CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT.requiredGuidanceCardTypes) {
-      expect(conversationChatSource).toContain(`'${cardType}'`);
-      expect(guidanceCardSource).toContain(cardType);
+      expect(conversationTypesSource).toContain(`'${cardType}'`);
     }
+    expect(conversationChatSource).toContain("from '@/features/conversation/types'");
   });
 
   it('keeps the critical user-facing interaction tests attached to the module', () => {
@@ -41,10 +40,31 @@ describe('conversation-analysis-ui module contract', () => {
     const conversationChatTestSource = readRepoFile(
       'frontend-nextjs/components/ConversationMode/ConversationChat.test.tsx',
     );
-    const combinedTestSource = `${guidanceCardTestSource}\n${conversationChatTestSource}`;
+    const contractTestSource = readRepoFile('frontend-nextjs/features/conversation/contracts.test.ts');
+    const combinedTestSource = `${guidanceCardTestSource}\n${conversationChatTestSource}\n${contractTestSource}`;
 
     for (const testCaseName of CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT.protectedTestCases) {
       expect(combinedTestSource).toContain(testCaseName);
     }
+  });
+
+  it('keeps conversation data types in the feature layer', () => {
+    const message: ChatMessage = {
+      id: 'contract-message',
+      role: 'assistant',
+      content: 'contract',
+      timestamp: '2026-06-20T00:00:00.000Z',
+    };
+    const card: GuidanceCardData = {
+      card_id: 'contract-card',
+      card_type: 'demand_reconstruction_blueprint',
+      prompt_text: 'contract',
+      options: [],
+    };
+    const response: GuidanceCardStructuredResponse = { pages: [] };
+
+    expect(message.role).toBe('assistant');
+    expect(card.card_type).toBe('demand_reconstruction_blueprint');
+    expect(response.pages).toEqual([]);
   });
 });

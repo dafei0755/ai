@@ -359,12 +359,19 @@ tests/services/test_scheme_advisor_entry_v2_restore.py
 feature_id: conversation-analysis-ui
 name: 分析页对话 UI 与引导卡交互
 status: governed
-current_authoritative_version: v0.1-feature-boundary-contract
+current_authoritative_version: v0.2-conversation-types-extracted
 authoritative_branch: fix/scheme-advisor-question-root-cause-20260616
 authoritative_commit: current-branch-head-after-checkpoint
 previous_authoritative_commit: unregistered
-rollback_target: branch head before v0.1-feature-boundary-contract checkpoint
+rollback_target: branch head before v0.2-conversation-types-extracted checkpoint
 last_promotion: 2026-06-20
+```
+
+### 版本链
+
+```text
+v0.1: 前端模块边界合同与守护测试
+v0.2: conversation types 从 ConversationChat 抽取到 feature 层，并保留兼容导出
 ```
 
 ### 当前合同
@@ -382,6 +389,7 @@ analysis session page
 
 ```text
 frontend-nextjs/features/conversation/contracts.ts
+frontend-nextjs/features/conversation/types.ts
 frontend-nextjs/app/analysis/[sessionId]/page.tsx
 frontend-nextjs/components/ConversationMode/ConversationChat.tsx
 frontend-nextjs/components/ConversationMode/GuidanceCard.tsx

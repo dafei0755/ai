@@ -16,178 +16,27 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import GuidanceCardWidget from './GuidanceCard';
-import CandidateCard, { type CandidateCardData, type CandidateCardResponse } from './CandidateCard';
+import CandidateCard, { type CandidateCardResponse } from './CandidateCard';
+import type {
+  ChatMessage,
+  ConversationChatProps,
+  GuidanceCardData,
+  GuidanceCardStructuredResponse,
+  SchemeVersionCardData,
+} from '@/features/conversation/types';
 
-// ── 类型定义 ────────────────────────────────────
-
-export type MessageRole = 'user' | 'assistant' | 'system';
-
-/** 引导卡片选项 */
-export interface GuidanceCardOptionData {
-  id: string;
-  label: string;
-  description: string;
-  consequence_hint?: string;
-  recommended?: boolean;
-}
-
-/** 引导卡片单页（多页模式）*/
-export interface GuidanceCardPage {
-  page_title?: string;
-  prompt_text: string;
-  options: GuidanceCardOptionData[];
-  allow_freetext?: boolean;
-  response_mode?: 'single_select' | 'multi_select' | 'priority_pick' | 'confirmation_status' | 'fact_status';
-  max_select?: number;
-  helper_text?: string;
-  source?: string;
-  missing_slot_action?: 'certainty_ceiling' | 'branch_answer_plus_followup' | 'option_menu' | string;
-  missing_slot_names?: string[];
-}
-
-export interface GuidanceCardStructuredResponse {
-  pages: Array<{
-    page_index: number;
-    page_title: string;
-    response_mode: GuidanceCardPage['response_mode'] | 'single_select';
-    selected_option_id?: string;
-    selected_option_ids?: string[];
-    selected_options?: Array<{
-      id: string;
-      label: string;
-      priority?: number;
-    }>;
-    freetext?: string;
-  }>;
-}
-
-export interface SchemeVersionCardData {
-  id: 'basic' | 'standard' | 'professional' | string;
-  name: string;
-  subtitle: string;
-  price_label?: string;
-  accent?: 'blue' | 'cyan' | 'violet' | string;
-  recommended?: boolean;
-  includes?: string[];
-  directory_preview?: string[];
-}
-
-export interface GuidanceCardSectionData {
-  title: string;
-  body?: string;
-  items?: string[];
-  emphasis?: 'high' | 'medium' | 'low' | string;
-}
-
-/** 引导卡片数据（与后端 GuidanceCard 对应） */
-export interface GuidanceCardData {
-  card_id: string;
-  card_type:
-    | 'mirror'
-    | 'fork'
-    | 'gap'
-    | 'hypothesis'
-    | 'candidate'
-    | 'demand_reconstruction_blueprint'
-    | 'scheme_round_1'
-    | 'scheme_round_2'
-    | 'scheme_stage_conclusion'
-    | 'scheme_version_selection';
-  /** 卡片总标题，显示在 Header */
-  title?: string;
-  prompt_text: string;
-  options: GuidanceCardOptionData[];
-  allow_freetext?: boolean;
-  /** 多页模式：非空时以 pages 为准 */
-  pages?: GuidanceCardPage[];
-  source_turns?: string[];
-  // 候选卡扩展字段（card_type="candidate" 时生效）
-  candidate_fields?: CandidateCardData['candidate_fields'];
-  card_status?: CandidateCardData['card_status'];
-  gap_round?: boolean;
-  summary?: Record<string, unknown>;
-  display_label?: string;
-  artifact_name?: string;
-  reconstruction_type?: string;
-  sections?: GuidanceCardSectionData[];
-  version_cards?: SchemeVersionCardData[];
-  recommended_version?: string;
-  maturity_note?: string;
-}
-
-export interface ChatMessage {
-  id: string;
-  role: MessageRole;
-  content: string;
-  timestamp: string;
-  /** 是否含有草稿对象（如 IntentSeed）*/
-  has_draft?: boolean;
-  draft_type?: string;
-  /** 引导卡片（None 表示本条无卡） */
-  guidance_card?: GuidanceCardData;
-  /** 该条消息的微卧希拟卡片是否已经被操作 */
-  card_responded?: boolean;
-  /** 用户选择结果摘要（用于确认后留痕显示） */
-  card_selection_label?: string;
-}
-
-export interface AdvisorSceneContext {
-  key: string;
-  label: string;
-  suggestion: string;
-  sceneRef: string;
-}
-
-export interface ConversationChatProps {
-  sessionId: string;
-  messages: ChatMessage[];
-  activeExpertPerspective?: string;
-  expertPerspectiveOptions?: readonly string[];
-  onExpertPerspectiveChange?: (next: string) => void;
-  summonOptions?: readonly string[];
-  onSummonExpert?: (target: string) => void;
-  visualBriefContext?: {
-    space: string;
-    status: string;
-    summary: string;
-    visualPrompt: string;
-    appliedTags: string[];
-    lockedTags: string[];
-    negativeConstraints: string[];
-    customNote?: string;
-    sourceTitles: string[];
-  } | null;
-  onVisualBriefPromptChange?: (prompt: string) => void;
-  onVisualBriefNoteChange?: (note: string) => void;
-  advisorSceneContext?: AdvisorSceneContext | null;
-  /** 发送新消息的回调 */
-  onSendMessage: (text: string) => void;
-  /** 是否正在等待 AI 响应 */
-  loading?: boolean;
-  /** 输入框占位文本 */
-  placeholder?: string;
-  /** 是否显示升级提示横幅 */
-  showUpgradeBanner?: boolean;
-  /** 升级横幅「确认升级」回调 */
-  onUpgradeConfirm?: () => void;
-  /** 升级横幅「暂不升级」回调 */
-  onUpgradeDismiss?: () => void;
-  /**
-   * 用户对引导卡片的操作回调。
-   * @param cardId 卡片 ID
-   * @param optionId 选择的选项 ID（跳过时为 undefined）
-   * @param freetext 用户自由输入内容
-   */
-  onCardResponse?: (cardId: string, optionId?: string, freetext?: string, structuredResponse?: GuidanceCardStructuredResponse) => void | Promise<void>;
-  /**
-   * 候选卡（candidate 类型）操作回调。
-   * @param response CandidateCardResponse 对象
-   */
-  onCandidateCardResponse?: (response: CandidateCardResponse) => void;
-  /** 外部预填充输入提示（如 @引用），id 变化时追加一次 */
-  prefillHint?: { id: number; text: string } | null;
-  className?: string;
-}
+export type {
+  AdvisorSceneContext,
+  ChatMessage,
+  ConversationChatProps,
+  GuidanceCardData,
+  GuidanceCardOptionData,
+  GuidanceCardPage,
+  GuidanceCardSectionData,
+  GuidanceCardStructuredResponse,
+  MessageRole,
+  SchemeVersionCardData,
+} from '@/features/conversation/types';
 
 // ── 子组件：单条消息气泡 ────────────────────────────────────
 

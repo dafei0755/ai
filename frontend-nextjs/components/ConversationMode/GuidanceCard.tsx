@@ -13,7 +13,7 @@
 
 import React, { useState } from 'react';
 import { Check, ChevronLeft, ChevronRight } from 'lucide-react';
-import { type GuidanceCardData, type GuidanceCardPage, type GuidanceCardStructuredResponse } from './ConversationChat';
+import { type GuidanceCardData, type GuidanceCardPage, type GuidanceCardStructuredResponse } from '@/features/conversation/types';
 
 // ── 卡片类型元信息 ────────────────────────────────────────
 

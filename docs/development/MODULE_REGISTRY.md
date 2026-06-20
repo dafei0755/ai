@@ -434,13 +434,14 @@ contracts.py 已建立为 LLM runtime 模块合同入口。
 module_id: conversation-analysis-ui
 name: 分析页对话 UI 与引导卡交互
 status: governed
-current_version: v0.1-feature-boundary-contract
+current_version: v0.2-conversation-types-extracted
 ```
 
 ### owned_paths
 
 ```text
 frontend-nextjs/features/conversation/contracts.ts
+frontend-nextjs/features/conversation/types.ts
 frontend-nextjs/app/analysis/[sessionId]/page.tsx
 frontend-nextjs/components/ConversationMode/ConversationChat.tsx
 frontend-nextjs/components/ConversationMode/GuidanceCard.tsx
@@ -486,7 +487,7 @@ frontend-nextjs/components/ConversationMode/GuidanceCard.test.tsx
 
 ```text
 contracts.ts 已建立为 conversation-analysis-ui 模块合同入口。
-提取 features/conversation/types.ts。
+features/conversation/types.ts 已成为对话消息、引导卡和 ConversationChat props 的类型来源。
 提取 card renderer 子组件。
 提取 conversation hooks。
 ConversationChat 保留为组合容器。

@@ -1,8 +1,9 @@
 export const CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT = {
   moduleId: 'conversation-analysis-ui',
-  currentVersion: 'v0.1-feature-boundary-contract',
+  currentVersion: 'v0.2-conversation-types-extracted',
   ownedPaths: [
     'frontend-nextjs/features/conversation/contracts.ts',
+    'frontend-nextjs/features/conversation/types.ts',
     'frontend-nextjs/app/analysis/[sessionId]/page.tsx',
     'frontend-nextjs/components/ConversationMode/ConversationChat.tsx',
     'frontend-nextjs/components/ConversationMode/GuidanceCard.tsx',
@@ -27,6 +28,7 @@ export const CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT = {
     'scheme_version_selection',
   ],
   protectedTestCases: [
+    'keeps conversation data types in the feature layer',
     'renders demand reconstruction cards without formal intake wording',
     'renders dynamic demand reconstruction blueprint sections',
     'renders user-facing labels for context packet missing-slot pages',
@@ -41,7 +43,6 @@ export const CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT = {
     'frontend labels must translate internal backend signals into user-facing language',
   ],
   nextRefactorTargets: [
-    'extract conversation types from ConversationChat',
     'extract card renderer from ConversationChat',
     'extract conversation hooks from analysis page',
   ],
