@@ -104,3 +104,56 @@ tests/api/test_scheme_advisor_entry_route.py
 backup/* 分支中存在过 LLM-first 快照，但 backup 分支不代表已实施。
 需求重构相关修改必须更新本账本，否则不能宣称形成新版本。
 ```
+
+## 2. Project Type Detection
+
+```text
+feature_id: project-type-detection
+name: 项目类型检测与空间分类
+status: governed
+current_authoritative_version: v0.1-governed-contract
+authoritative_branch: fix/scheme-advisor-question-root-cause-20260616
+authoritative_commit: current-branch-head-after-checkpoint
+previous_authoritative_commit: unregistered
+rollback_target: branch head before v0.1-governed-contract checkpoint
+last_promotion: 2026-06-20
+```
+
+### 版本链
+
+```text
+v0.1: 建立模块合同，明确 ProjectTypeDetector 是分类上下文服务，不是新对话第一响应主线。
+```
+
+### 当前合同
+
+```text
+用户输入
+-> DemandReconstructionService
+-> LLM Semantic Router
+-> adapter context build
+-> ProjectTypeDetector / SpaceClassificationService 作为上下文证据
+```
+
+项目类型检测负责识别 `project_type`、`space_type`、`subdomain`、`ontology focus`，不得直接生成最终方案建议，不得绕过需求重构入口成为新对话第一响应主线。
+
+当前可验证权威源：
+
+```text
+intelligent_project_analyzer/modules/project_type/contracts.py
+intelligent_project_analyzer/services/project_type_detector.py
+intelligent_project_analyzer/config/registries/
+intelligent_project_analyzer/utils/ontology_loader.py
+```
+
+### 守护测试
+
+```text
+tests/unit/test_project_type_module_contract_guard.py
+```
+
+推荐验证：
+
+```powershell
+.\.conda\python.exe -m pytest tests/unit/test_project_type_module_contract_guard.py tests/services/test_space_classification_registry_externalization.py -q
+```

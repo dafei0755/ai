@@ -275,6 +275,15 @@ knowledge_governance 负责候选、审核、批准、审计。
 knowledge_recall 负责运行时引用，不直接改分类或本体。
 ```
 
+第一步实施：
+
+```text
+1. 新建 modules/project_type/contracts.py，登记 project-type-detection 合同。
+2. FEATURE_VERSION_LEDGER 登记 v0.1-governed-contract。
+3. MODULE_REGISTRY 修正当前真实权威路径，移除不存在的 project_type_registry_meta.yaml 作为已实施权威。
+4. 补 tests/unit/test_project_type_module_contract_guard.py，守住“分类只能作为 LLM-first 后置上下文证据”的边界。
+```
+
 ### Phase 4：前端 feature 化
 
 优先处理：

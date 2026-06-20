@@ -128,16 +128,16 @@ pipeline.py 已提取为需求重构运行时主流程入口。
 module_id: project-type-detection
 name: 项目类型检测与空间分类
 status: governed
-current_version: unregistered
+current_version: v0.1-governed-contract
 ```
 
 ### owned_paths
 
 ```text
+intelligent_project_analyzer/modules/project_type/contracts.py
 intelligent_project_analyzer/services/project_type_detector.py
 intelligent_project_analyzer/utils/ontology_loader.py
 intelligent_project_analyzer/config/registries/
-config/project_type_registry_meta.yaml
 ```
 
 ### public_contracts
@@ -155,6 +155,7 @@ config/project_type_registry_meta.yaml
 ```text
 ProjectTypeDetector
 ontology_loader.get_layered_ontology
+modules.project_type.contracts.project_type_detection_contract
 ```
 
 ### dependencies
@@ -167,7 +168,8 @@ llm-runtime
 ### guard_tests
 
 ```text
-待补齐：项目类型检测不应抢占 LLM-first 新对话入口。
+tests/unit/test_project_type_module_contract_guard.py
+项目类型检测不应抢占 LLM-first 新对话入口。
 待补齐：registry 解析失败必须显式报错，不得静默退化为错误类型。
 ```
 
@@ -175,7 +177,8 @@ llm-runtime
 
 ```text
 登记 FEATURE_VERSION_LEDGER 版本链。
-建立 contracts.py，明确 classification package 字段。
+contracts.py 已建立为项目类型检测模块合同入口。
+修正不存在的 config/project_type_registry_meta.yaml 权威路径，当前以 PROJECT_TYPE_REGISTRY 与 registries 目录为真实权威。
 补 route-level guard，证明新对话入口不会先产出项目类型检测器响应。
 ```
 
