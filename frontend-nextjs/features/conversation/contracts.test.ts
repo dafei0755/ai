@@ -12,7 +12,7 @@ describe('conversation-analysis-ui module contract', () => {
   it('registers the governed frontend feature boundary', () => {
     expect(CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT).toMatchObject({
       moduleId: 'conversation-analysis-ui',
-      currentVersion: 'v2.6-advisor-navigation-config-extracted',
+      currentVersion: 'v2.7-advisor-key-types-aligned',
     });
 
     for (const ownedPath of CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT.ownedPaths) {
@@ -304,7 +304,7 @@ describe('conversation-analysis-ui module contract', () => {
     ];
 
     expect(CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT.currentVersion).toBe(
-      'v2.6-advisor-navigation-config-extracted',
+      'v2.7-advisor-key-types-aligned',
     );
     expect(conversationChatLines.length).toBeLessThanOrEqual(220);
     for (const importPath of requiredCompositionImports) {
@@ -525,5 +525,27 @@ describe('conversation-analysis-ui module contract', () => {
     expect(advisorNavigationConfigSource).toContain('export const ADVISOR_PRIMARY_NAV_ITEMS');
     expect(advisorNavigationConfigSource).toContain('export const ADVISOR_PROJECT_SECTION_ITEMS');
     expect(advisorNavigationConfigSource).toContain('export const ADVISOR_INSIGHT_VIEWS');
+  });
+
+  it('keeps advisor scene key types in the feature layer', () => {
+    const analysisPageSource = readRepoFile(
+      'frontend-nextjs/app/analysis/[sessionId]/page.tsx',
+    );
+    const advisorSceneContextSource = readRepoFile(
+      'frontend-nextjs/features/conversation/advisorSceneContext.ts',
+    );
+
+    expect(analysisPageSource).toContain('AdvisorSceneCockpitModule');
+    expect(analysisPageSource).toContain('AdvisorScenePrimaryNav');
+    expect(analysisPageSource).toContain('AdvisorSceneProjectSection');
+    expect(analysisPageSource).toContain('AdvisorSceneInsightView');
+    expect(analysisPageSource).not.toContain("type CockpitModuleKey = 'files'");
+    expect(analysisPageSource).not.toContain("type PrimaryNavKey = 'project'");
+    expect(analysisPageSource).not.toContain("type ProjectSectionKey = 'space'");
+    expect(analysisPageSource).not.toContain("type InsightViewKey = 'main'");
+    expect(advisorSceneContextSource).toContain('export type AdvisorSceneCockpitModule');
+    expect(advisorSceneContextSource).toContain('export type AdvisorScenePrimaryNav');
+    expect(advisorSceneContextSource).toContain('export type AdvisorSceneProjectSection');
+    expect(advisorSceneContextSource).toContain('export type AdvisorSceneInsightView');
   });
 });

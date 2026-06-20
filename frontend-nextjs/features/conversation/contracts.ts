@@ -1,6 +1,6 @@
 export const CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT = {
   moduleId: 'conversation-analysis-ui',
-  currentVersion: 'v2.6-advisor-navigation-config-extracted',
+  currentVersion: 'v2.7-advisor-key-types-aligned',
   ownedPaths: [
     'frontend-nextjs/features/conversation/contracts.ts',
     'frontend-nextjs/features/conversation/types.ts',
@@ -87,6 +87,7 @@ export const CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT = {
     'keeps active advisor conversation accessors in the feature layer',
     'keeps advisor scene context and perspective options in the feature layer',
     'keeps advisor navigation configuration in the feature layer',
+    'keeps advisor scene key types in the feature layer',
     'keeps advisor view model selection in the feature layer',
     'keeps conversation mode inside the shared session shell',
     'renders the shared session sidebar beside page content',
@@ -133,7 +134,7 @@ export const CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT = {
     'frontend labels must translate internal backend signals into user-facing language',
   ],
   nextRefactorTargets: [
-    'align advisor key type aliases with feature contracts',
+    'extract remaining advisor static workspace configuration from analysis page',
   ],
 } as const;
 

@@ -80,6 +80,10 @@ import {
 import {
 	buildAdvisorSceneContext,
 	getScenePerspectiveOptions,
+	type AdvisorSceneCockpitModule,
+	type AdvisorSceneInsightView,
+	type AdvisorScenePrimaryNav,
+	type AdvisorSceneProjectSection,
 	type ExpertPerspectiveOption,
 } from '@/features/conversation/advisorSceneContext';
 import {
@@ -215,10 +219,10 @@ const formatNodeName = (nodeName: string | undefined): string => {
 	return NODE_NAME_MAP[nodeName] || nodeName;
 };
 
-type CockpitModuleKey = 'files' | 'assets' | 'inspiration' | 'board' | 'experts' | 'insight' | 'knowledge' | 'geo';
-type PrimaryNavKey = 'project' | 'assets' | 'knowledge';
-type ProjectSectionKey = 'space' | 'sandbox' | 'board';
-type InsightViewKey = 'main' | 'space' | 'flow' | 'emotion' | 'time';
+type CockpitModuleKey = AdvisorSceneCockpitModule;
+type PrimaryNavKey = AdvisorScenePrimaryNav;
+type ProjectSectionKey = AdvisorSceneProjectSection;
+type InsightViewKey = AdvisorSceneInsightView;
 type LayoutMode = 'split' | 'left-focus' | 'right-focus';
 type AnalysisModuleQuery = 'project_base' | 'floor_plan' | 'scheme_canvas' | 'geo' | 'silicon_avatar';
 

@@ -359,11 +359,11 @@ tests/services/test_scheme_advisor_entry_v2_restore.py
 feature_id: conversation-analysis-ui
 name: 分析页对话 UI 与引导卡交互
 status: governed
-current_authoritative_version: v2.6-advisor-navigation-config-extracted
+current_authoritative_version: v2.7-advisor-key-types-aligned
 authoritative_branch: fix/scheme-advisor-question-root-cause-20260616
 authoritative_commit: current-branch-head-after-checkpoint
-previous_authoritative_commit: 0871b777
-rollback_target: 0871b777
+previous_authoritative_commit: b4fde755
+rollback_target: b4fde755
 last_promotion: 2026-06-20
 ```
 
@@ -396,6 +396,7 @@ v2.3: ExpertControls 增加空配置保护，未配置专家视角和召集团�
 v2.4: advisor scene context、场景 key、场景建议文案和 perspective options 从 analysis page 抽取到 feature helper
 v2.5: advisor view model selection 从 analysis page 抽取到 feature helper
 v2.6: advisor navigation configuration 从 analysis page 抽取到 feature helper
+v2.7: analysis page 中 advisor key type aliases 统一到 feature contracts 导出的类型
 ```
 
 ### 当前合同

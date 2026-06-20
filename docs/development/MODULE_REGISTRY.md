@@ -439,7 +439,7 @@ contracts.py 已建立为 LLM runtime 模块合同入口。
 module_id: conversation-analysis-ui
 name: 分析页对话 UI 与引导卡交互
 status: governed
-current_version: v2.6-advisor-navigation-config-extracted
+current_version: v2.7-advisor-key-types-aligned
 ```
 
 ### owned_paths
@@ -561,7 +561,8 @@ features/conversation/components/ExpertControls.tsx 已增加空配置保护，�
 features/conversation/advisorSceneContext.ts 已承接 advisor scene context、场景 key、场景建议文案和 perspective options。
 features/conversation/advisorViewModel.ts 已承接 advisor view model selection。
 features/conversation/advisorNavigationConfig.ts 已承接 advisor navigation configuration。
-下一步统一 analysis page 中 advisor key type aliases 与 feature contracts。
+analysis page 中 advisor key type aliases 已统一到 feature contracts 导出的类型。
+下一步提取 analysis page 中剩余 advisor static workspace configuration。
 ```
 
 ## 8. 新模块登记模板
