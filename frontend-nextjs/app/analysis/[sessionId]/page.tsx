@@ -43,16 +43,6 @@ import UpgradePromptBanner from '@/components/ConversationMode/UpgradePromptBann
 import { KnowledgeGraphCanvas } from '@/components/KnowledgeGraphCanvas';
 import { CockpitPanel, formatBoardVisualBriefForPrompt, type BoardCanvasSpace, type BoardVisualBrief, type DssPage } from '@/components/CockpitPanel';
 import { AdvisorPanel } from '@/components/project-cockpit/AdvisorPanel';
-import {
-	MOCK_ADVISOR_VIEW_MODEL,
-	MOCK_ADVISOR_VIEW_MODEL_FLOOR_PLAN,
-	MOCK_ADVISOR_VIEW_MODEL_SCHEME_CANVAS,
-	MOCK_ADVISOR_VIEW_MODEL_RESOURCE_RADAR,
-	MOCK_ADVISOR_VIEW_MODEL_SILICON_AVATAR,
-	MOCK_ADVISOR_VIEW_MODEL_SILICON_PORTFOLIO,
-	MOCK_ADVISOR_VIEW_MODEL_SILICON_SEDIMENT,
-	MOCK_ADVISOR_VIEW_MODEL_SILICON_PROFILE,
-} from '@/components/project-cockpit/mock/mockData';
 import type { ProjectOverview } from '@/components/project-cockpit/mock/mockData';
 import type { ActionChip, AdvisorViewModel } from '@/types/advisor';
 import { PlanSandboxPanel } from '@/components/PlanSandboxPanel';
@@ -92,6 +82,7 @@ import {
 	getScenePerspectiveOptions,
 	type ExpertPerspectiveOption,
 } from '@/features/conversation/advisorSceneContext';
+import { getAdvisorViewModel } from '@/features/conversation/advisorViewModel';
 // v7.290: 分析页面改为独立体验，移除侧边栏组件
 
 // 节点名称中文映射
@@ -507,24 +498,6 @@ const saveContextPercent = (percent: number) => {
 	}
 };
 
-const getAdvisorViewModel = (
-	primaryNav: PrimaryNavKey,
-	cockpitModule: CockpitModuleKey,
-	isSandbox: boolean,
-	dssPage: DssPage,
-): AdvisorViewModel => {
-	if (primaryNav === 'assets') return MOCK_ADVISOR_VIEW_MODEL_RESOURCE_RADAR;
-	if (primaryNav === 'knowledge') {
-		if (dssPage === 'portfolio') return MOCK_ADVISOR_VIEW_MODEL_SILICON_PORTFOLIO;
-		if (dssPage === 'sediment') return MOCK_ADVISOR_VIEW_MODEL_SILICON_SEDIMENT;
-		if (dssPage === 'profile')  return MOCK_ADVISOR_VIEW_MODEL_SILICON_PROFILE;
-		return MOCK_ADVISOR_VIEW_MODEL_SILICON_AVATAR;
-	}
-	if (cockpitModule === 'board') return MOCK_ADVISOR_VIEW_MODEL_SCHEME_CANVAS;
-	if (isSandbox) return MOCK_ADVISOR_VIEW_MODEL_FLOOR_PLAN;
-	return MOCK_ADVISOR_VIEW_MODEL;
-};
-
 export default function AnalysisPage() {
 	const params = useParams();
 	const router = useRouter();
@@ -809,7 +782,12 @@ export default function AnalysisPage() {
 	}, [isProjectGraphShellActive, splitLeftFixedRatio, workspaceMainTargetRatio]);
 	const projectWhiteboardColumnRatio = 1 - projectGraphColumnRatio;
 	const advisorPanelViewModel = useMemo((): AdvisorViewModel => {
-		const base = getAdvisorViewModel(activePrimaryNav, activeCockpitModule, isSandboxSectionActive, activeDssPage);
+		const base = getAdvisorViewModel({
+			primaryNav: activePrimaryNav,
+			cockpitModule: activeCockpitModule,
+			isSandbox: isSandboxSectionActive,
+			dssPage: activeDssPage,
+		});
 		// 无真实数据时直接返回 mock（资源雷达、硅基分身模块不覆盖）
 		if (!projectOverview || activePrimaryNav !== 'project') return base;
 

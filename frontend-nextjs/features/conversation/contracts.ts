@@ -1,6 +1,6 @@
 export const CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT = {
   moduleId: 'conversation-analysis-ui',
-  currentVersion: 'v2.4-advisor-scene-context-extracted',
+  currentVersion: 'v2.5-advisor-view-model-extracted',
   ownedPaths: [
     'frontend-nextjs/features/conversation/contracts.ts',
     'frontend-nextjs/features/conversation/types.ts',
@@ -13,6 +13,7 @@ export const CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT = {
     'frontend-nextjs/features/conversation/advisorHistoryGrouping.ts',
     'frontend-nextjs/features/conversation/advisorConversationAccessors.ts',
     'frontend-nextjs/features/conversation/advisorSceneContext.ts',
+    'frontend-nextjs/features/conversation/advisorViewModel.ts',
     'frontend-nextjs/features/conversation/components/MessageCardRenderer.tsx',
     'frontend-nextjs/features/conversation/components/VisualBriefPanel.tsx',
     'frontend-nextjs/features/conversation/components/AdvisorContextPanel.tsx',
@@ -84,6 +85,7 @@ export const CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT = {
     'keeps advisor history grouping in the feature layer',
     'keeps active advisor conversation accessors in the feature layer',
     'keeps advisor scene context and perspective options in the feature layer',
+    'keeps advisor view model selection in the feature layer',
     'keeps conversation mode inside the shared session shell',
     'renders the shared session sidebar beside page content',
     'marks an assistant guidance card as responded from legacy card response history',
@@ -109,6 +111,9 @@ export const CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT = {
     'returns implementation-focused perspectives for logistics sandbox scenes',
     'returns room-focused perspectives for guest-room board scenes',
     'builds a stable advisor scene context for insight views',
+    'selects the resource radar model for asset scenes',
+    'selects the silicon avatar model variants for knowledge scenes',
+    'selects project models by board and sandbox state',
     'renders demand reconstruction cards without formal intake wording',
     'renders dynamic demand reconstruction blueprint sections',
     'renders user-facing labels for context packet missing-slot pages',
@@ -123,7 +128,7 @@ export const CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT = {
     'frontend labels must translate internal backend signals into user-facing language',
   ],
   nextRefactorTargets: [
-    'extract advisor view model selection from analysis page',
+    'extract advisor navigation configuration from analysis page',
   ],
 } as const;
 

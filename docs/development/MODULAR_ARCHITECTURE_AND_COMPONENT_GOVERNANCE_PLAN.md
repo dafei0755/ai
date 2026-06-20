@@ -326,8 +326,9 @@ frontend-nextjs/app/analysis/[sessionId]/page.tsx
 22. 恢复 analysis page 共享会话壳 AppSessionShell，统一承接 SessionSidebar、用户面板和当前页会话导航。（已完成）
 23. 增加 ExpertControls 空配置保护，避免未配置专家控件时渲染空壳。（已完成）
 24. 提取 advisor scene context 与 perspective options。（已完成）
-25. 提取 advisor view model selection。
-26. 页面只保留 session 加载、布局和 feature 组合。
+25. 提取 advisor view model selection。（已完成）
+26. 提取 advisor navigation configuration。
+27. 页面只保留 session 加载、布局和 feature 组合。
 ```
 
 验收：
