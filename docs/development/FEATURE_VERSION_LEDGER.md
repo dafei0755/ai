@@ -352,3 +352,54 @@ tests/services/test_scheme_advisor_entry_v2_restore.py
 ```powershell
 .\.conda\python.exe -m pytest tests/unit/test_scheme_advisor_entry_module_contract_guard.py tests/api/test_scheme_advisor_entry_route.py tests/services/test_scheme_advisor_entry_v2_restore.py -q
 ```
+
+## 7. Conversation Analysis UI
+
+```text
+feature_id: conversation-analysis-ui
+name: 分析页对话 UI 与引导卡交互
+status: governed
+current_authoritative_version: v0.1-feature-boundary-contract
+authoritative_branch: fix/scheme-advisor-question-root-cause-20260616
+authoritative_commit: current-branch-head-after-checkpoint
+previous_authoritative_commit: unregistered
+rollback_target: branch head before v0.1-feature-boundary-contract checkpoint
+last_promotion: 2026-06-20
+```
+
+### 当前合同
+
+```text
+analysis session page
+-> ConversationChat composition shell
+-> GuidanceCard / CandidateCard / scheme version card
+-> user-facing response callback
+```
+
+分析页负责 session 加载、布局和 feature 组合；ConversationChat 保留为对话组合容器；引导卡、候选卡和版本选择卡必须保持可独立测试。后端内部字段和机制信号必须在前端翻译为用户可理解的标签。
+
+### 权威文件
+
+```text
+frontend-nextjs/features/conversation/contracts.ts
+frontend-nextjs/app/analysis/[sessionId]/page.tsx
+frontend-nextjs/components/ConversationMode/ConversationChat.tsx
+frontend-nextjs/components/ConversationMode/GuidanceCard.tsx
+frontend-nextjs/lib/api.ts
+frontend-nextjs/types/
+```
+
+### 守护测试
+
+```text
+frontend-nextjs/features/conversation/contracts.test.ts
+frontend-nextjs/components/ConversationMode/ConversationChat.test.tsx
+frontend-nextjs/components/ConversationMode/GuidanceCard.test.tsx
+```
+
+推荐验证：
+
+```powershell
+cd frontend-nextjs
+npm test -- ConversationChat.test.tsx GuidanceCard.test.tsx features/conversation/contracts.test.ts
+```

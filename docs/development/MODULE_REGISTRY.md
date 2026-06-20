@@ -434,12 +434,13 @@ contracts.py 已建立为 LLM runtime 模块合同入口。
 module_id: conversation-analysis-ui
 name: 分析页对话 UI 与引导卡交互
 status: governed
-current_version: unregistered
+current_version: v0.1-feature-boundary-contract
 ```
 
 ### owned_paths
 
 ```text
+frontend-nextjs/features/conversation/contracts.ts
 frontend-nextjs/app/analysis/[sessionId]/page.tsx
 frontend-nextjs/components/ConversationMode/ConversationChat.tsx
 frontend-nextjs/components/ConversationMode/GuidanceCard.tsx
@@ -454,6 +455,7 @@ frontend-nextjs/types/
 ConversationChat 不应无限膨胀为所有卡片类型的唯一实现。
 引导卡、候选卡、版本选择卡需要可独立测试。
 前端展示不得泄露内部机制术语。
+后端内部信号必须翻译为用户可理解的前端标签。
 ```
 
 ### entrypoints
@@ -461,6 +463,7 @@ ConversationChat 不应无限膨胀为所有卡片类型的唯一实现。
 ```text
 frontend-nextjs/app/analysis/[sessionId]/page.tsx
 ConversationChat
+GuidanceCardWidget
 ```
 
 ### dependencies
@@ -474,15 +477,18 @@ frontend api client
 ### guard_tests
 
 ```text
-待补齐：ConversationChat 主交互路径测试。
-待补齐：版本选择卡、GuidanceCard structured response 测试。
+frontend-nextjs/features/conversation/contracts.test.ts
+frontend-nextjs/components/ConversationMode/ConversationChat.test.tsx
+frontend-nextjs/components/ConversationMode/GuidanceCard.test.tsx
 ```
 
 ### next_refactor_target
 
 ```text
+contracts.ts 已建立为 conversation-analysis-ui 模块合同入口。
 提取 features/conversation/types.ts。
 提取 card renderer 子组件。
+提取 conversation hooks。
 ConversationChat 保留为组合容器。
 ```
 

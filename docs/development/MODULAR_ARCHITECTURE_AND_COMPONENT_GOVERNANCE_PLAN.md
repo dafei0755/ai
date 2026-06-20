@@ -287,6 +287,7 @@ knowledge_recall 负责运行时引用，不直接改分类或本体。
 7. 新建 modules/knowledge_governance/contracts.py 与 modules/knowledge_recall/contracts.py，把候选/审核/批准/审计和只读运行时召回拆成两个模块合同。
 8. 新建 modules/llm_runtime/contracts.py，明确 provider/fallback/diagnostics 与 required-mode typed failure 的合同边界。
 9. 新建 modules/scheme_advisor/contracts.py，明确正式 intake 必须由需求重构 handoff 触发，round 卡不得替代需求洞察。
+10. 新建 frontend-nextjs/features/conversation/contracts.ts，明确 conversation-analysis-ui 前端模块边界和守护测试。
 ```
 
 ### Phase 4：前端 feature 化
@@ -301,10 +302,11 @@ frontend-nextjs/app/analysis/[sessionId]/page.tsx
 建议顺序：
 
 ```text
-1. 提取 conversation types。
-2. 提取 card rendering 子组件。
-3. 提取 conversation hooks。
-4. 页面只保留 session 加载、布局和 feature 组合。
+1. 先建立 conversation-analysis-ui 合同和守护测试。（已完成）
+2. 提取 conversation types。
+3. 提取 card rendering 子组件。
+4. 提取 conversation hooks。
+5. 页面只保留 session 加载、布局和 feature 组合。
 ```
 
 验收：
@@ -312,7 +314,7 @@ frontend-nextjs/app/analysis/[sessionId]/page.tsx
 ```text
 现有页面可运行。
 对话消息、引导卡、候选卡、三档版本选择卡行为不变。
-新增前端测试覆盖至少一个主交互路径。
+新增前端测试覆盖至少一个主交互路径，并由合同测试防止被移除。
 ```
 
 ## 6. 每次模块修改的启动模板
