@@ -54,6 +54,8 @@ def test_conversation_route_maps_required_llm_unavailability_to_http_503() -> No
     source = ROUTE.read_text(encoding="utf-8")
 
     assert "DemandReconstructionUnavailable" in source
+    assert "modules.demand_reconstruction.service import" in source
+    assert "services.demand_reconstruction_service import" not in source
     assert "DEMAND_RECONSTRUCTION_USE_LLM" in source
     assert "LLM_FIRST_REQUIRED_HTTP_STATUS" in source
     assert "exc.error_code" in source

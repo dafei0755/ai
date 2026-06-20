@@ -32,7 +32,7 @@ from intelligent_project_analyzer.modules.demand_reconstruction.contracts import
     DemandReconstructionUnavailable,
     LLM_FIRST_REQUIRED_HTTP_STATUS,
 )
-from intelligent_project_analyzer.services.demand_reconstruction_service import (
+from intelligent_project_analyzer.modules.demand_reconstruction.service import (
     DemandReconstructionService,
 )
 from intelligent_project_analyzer.services.redis_session_manager import RedisSessionManager
