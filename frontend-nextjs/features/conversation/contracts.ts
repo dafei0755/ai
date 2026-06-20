@@ -1,11 +1,12 @@
 export const CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT = {
   moduleId: 'conversation-analysis-ui',
-  currentVersion: 'v0.4-composer-hook-extracted',
+  currentVersion: 'v0.5-layout-state-hook-extracted',
   ownedPaths: [
     'frontend-nextjs/features/conversation/contracts.ts',
     'frontend-nextjs/features/conversation/types.ts',
     'frontend-nextjs/features/conversation/components/MessageCardRenderer.tsx',
     'frontend-nextjs/features/conversation/hooks/useConversationComposer.ts',
+    'frontend-nextjs/features/conversation/hooks/useConversationLayoutState.ts',
     'frontend-nextjs/app/analysis/[sessionId]/page.tsx',
     'frontend-nextjs/components/ConversationMode/ConversationChat.tsx',
     'frontend-nextjs/components/ConversationMode/GuidanceCard.tsx',
@@ -33,6 +34,7 @@ export const CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT = {
     'keeps conversation data types in the feature layer',
     'keeps message card rendering in the feature layer',
     'trims sends, clears the composer, and restores focus',
+    'restores context pane percent, clamps drag updates, and persists on resize end',
     'renders demand reconstruction cards without formal intake wording',
     'renders dynamic demand reconstruction blueprint sections',
     'renders user-facing labels for context packet missing-slot pages',
@@ -47,7 +49,7 @@ export const CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT = {
     'frontend labels must translate internal backend signals into user-facing language',
   ],
   nextRefactorTargets: [
-    'extract layout and context panel state from ConversationChat',
+    'extract visual brief and context panel components from ConversationChat',
   ],
 } as const;
 

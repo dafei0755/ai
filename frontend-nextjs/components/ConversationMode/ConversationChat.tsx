@@ -15,6 +15,7 @@ import { ArrowUp, ChevronDown, Plus } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
 import { MessageCardRenderer } from '@/features/conversation/components/MessageCardRenderer';
 import { useConversationComposer } from '@/features/conversation/hooks/useConversationComposer';
+import { useConversationLayoutState } from '@/features/conversation/hooks/useConversationLayoutState';
 import type {
   ChatMessage,
   ConversationChatProps,
@@ -70,22 +71,7 @@ export default function ConversationChat({
   prefillHint = null,
   className = '',
 }: ConversationChatProps) {
-  const [briefExpanded, setBriefExpanded] = useState(false);
-  const [briefPinnedOpen, setBriefPinnedOpen] = useState(false);
-  const [contextExpanded, setContextExpanded] = useState(false);
-  const [contextPinnedOpen, setContextPinnedOpen] = useState(false);
   const [showSummonMenu, setShowSummonMenu] = useState(false);
-  const [contextPanePercent, setContextPanePercent] = useState(() => {
-    // 从 sessionStorage 中恢复上次保存的比例（页面会话级别）
-    if (typeof window === 'undefined') return 42;
-    try {
-      const stored = sessionStorage.getItem(`context_pane_percent_${sessionId}`);
-      return stored ? Math.min(72, Math.max(24, parseInt(stored, 10))) : 42;
-    } catch {
-      return 42;
-    }
-  });
-  const [isContextResizing, setIsContextResizing] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const splitPaneRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -102,6 +88,26 @@ export default function ConversationChat({
     textareaRef,
     prefillHint,
     advisorSceneContext,
+  });
+  const {
+    briefExpanded,
+    setBriefExpanded,
+    briefPinnedOpen,
+    toggleBriefPinnedOpen,
+    collapseBriefAfterHover,
+    contextExpanded,
+    setContextExpanded,
+    contextPinnedOpen,
+    toggleContextPinnedOpen,
+    collapseContextAfterHover,
+    contextPanePercent,
+    isContextResizing,
+    startContextResize,
+    finishContextResize,
+    updateContextPanePercentFromPointer,
+  } = useConversationLayoutState({
+    sessionId,
+    splitPaneRef,
   });
   const adaptiveChatGutter = 'clamp(12px, 2vw, 32px)';
   const advisorSuggestionLines = (advisorSceneContext?.suggestion ?? '')
@@ -148,24 +154,11 @@ export default function ConversationChat({
     if (!isContextResizing) return;
 
     const handleMouseMove = (event: MouseEvent) => {
-      const pane = splitPaneRef.current;
-      if (!pane) return;
-      const rect = pane.getBoundingClientRect();
-      const nextPercent = ((event.clientY - rect.top) / rect.height) * 100;
-      const validPercent = Math.min(72, Math.max(24, nextPercent));
-      setContextPanePercent(validPercent);
+      updateContextPanePercentFromPointer(event.clientY);
     };
 
     const handleMouseUp = () => {
-      setIsContextResizing(false);
-      document.body.style.cursor = '';
-      document.body.style.userSelect = '';
-      // 保存拖动后的比例
-      try {
-        sessionStorage.setItem(`context_pane_percent_${sessionId}`, String(Math.round(contextPanePercent)));
-      } catch (e) {
-        console.warn('Failed to save context pane percent:', e);
-      }
+      finishContextResize();
     };
 
     document.body.style.cursor = 'row-resize';
@@ -179,7 +172,7 @@ export default function ConversationChat({
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [isContextResizing, sessionId, contextPanePercent]);
+  }, [finishContextResize, isContextResizing, updateContextPanePercentFromPointer]);
 
   return (
     <div
@@ -214,9 +207,7 @@ export default function ConversationChat({
             <div
               className="rounded-none border border-[var(--border-color)] bg-[var(--card-bg)] px-4 py-3"
               onMouseEnter={() => setBriefExpanded(true)}
-              onMouseLeave={() => {
-                if (!briefPinnedOpen) setBriefExpanded(false);
-              }}
+              onMouseLeave={collapseBriefAfterHover}
             >
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="min-w-0 flex-1">
@@ -243,13 +234,7 @@ export default function ConversationChat({
                 </div>
                 <button
                   type="button"
-                  onClick={() => {
-                    setBriefPinnedOpen((prev) => {
-                      const nextPinned = !prev;
-                      setBriefExpanded(nextPinned);
-                      return nextPinned;
-                    });
-                  }}
+                  onClick={toggleBriefPinnedOpen}
                   className="shrink-0 inline-flex h-8 w-8 items-center justify-center rounded-full border border-[var(--border-color)] text-[var(--foreground-secondary)] transition hover:text-[var(--foreground)]"
                   aria-label={briefPinnedOpen ? '手动折叠 VisualBrief' : '固定展开 VisualBrief'}
                   title={briefPinnedOpen ? '手动折叠' : briefExpanded ? '固定展开' : '查看详情'}
@@ -358,9 +343,7 @@ export default function ConversationChat({
               <div
                 className="rounded-none border border-[var(--border-color)] bg-[var(--card-bg)] px-4 py-3"
                 onMouseEnter={() => setContextExpanded(true)}
-                onMouseLeave={() => {
-                  if (!contextPinnedOpen) setContextExpanded(false);
-                }}
+                onMouseLeave={collapseContextAfterHover}
               >
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
@@ -375,13 +358,7 @@ export default function ConversationChat({
                   </div>
                   <button
                     type="button"
-                    onClick={() => {
-                      setContextPinnedOpen((prev) => {
-                        const nextPinned = !prev;
-                        setContextExpanded(nextPinned);
-                        return nextPinned;
-                      });
-                    }}
+                    onClick={toggleContextPinnedOpen}
                     className="shrink-0 inline-flex h-8 w-8 items-center justify-center rounded-full border border-[var(--border-color)] text-[var(--foreground-secondary)] transition hover:text-[var(--foreground)]"
                     aria-label={contextPinnedOpen ? '手动折叠上下文' : '固定展开上下文'}
                     title={contextPinnedOpen ? '手动折叠' : contextExpanded ? '固定展开' : '查看详情'}
@@ -422,7 +399,7 @@ export default function ConversationChat({
             type="button"
             onMouseDown={(event) => {
               event.preventDefault();
-              setIsContextResizing(true);
+              startContextResize();
             }}
             className="group flex h-5 flex-shrink-0 cursor-row-resize items-center justify-center border-t border-[var(--border-color)] bg-transparent transition"
             aria-label="拖动调整上下文和聊天窗口高度"

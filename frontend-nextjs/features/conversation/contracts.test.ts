@@ -12,7 +12,7 @@ describe('conversation-analysis-ui module contract', () => {
   it('registers the governed frontend feature boundary', () => {
     expect(CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT).toMatchObject({
       moduleId: 'conversation-analysis-ui',
-      currentVersion: 'v0.4-composer-hook-extracted',
+      currentVersion: 'v0.5-layout-state-hook-extracted',
     });
 
     for (const ownedPath of CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT.ownedPaths) {
@@ -43,8 +43,11 @@ describe('conversation-analysis-ui module contract', () => {
     const composerHookTestSource = readRepoFile(
       'frontend-nextjs/features/conversation/hooks/useConversationComposer.test.ts',
     );
+    const layoutHookTestSource = readRepoFile(
+      'frontend-nextjs/features/conversation/hooks/useConversationLayoutState.test.ts',
+    );
     const contractTestSource = readRepoFile('frontend-nextjs/features/conversation/contracts.test.ts');
-    const combinedTestSource = `${guidanceCardTestSource}\n${conversationChatTestSource}\n${composerHookTestSource}\n${contractTestSource}`;
+    const combinedTestSource = `${guidanceCardTestSource}\n${conversationChatTestSource}\n${composerHookTestSource}\n${layoutHookTestSource}\n${contractTestSource}`;
 
     for (const testCaseName of CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT.protectedTestCases) {
       expect(combinedTestSource).toContain(testCaseName);
@@ -100,5 +103,20 @@ describe('conversation-analysis-ui module contract', () => {
     expect(composerHookSource).toContain('handleSend');
     expect(composerHookSource).toContain('handleAdvisorPrompt');
     expect(composerHookSource).toContain('prefillHint');
+  });
+
+  it('keeps conversation layout state in the feature hook layer', () => {
+    const conversationChatSource = readRepoFile(
+      'frontend-nextjs/components/ConversationMode/ConversationChat.tsx',
+    );
+    const layoutHookSource = readRepoFile(
+      'frontend-nextjs/features/conversation/hooks/useConversationLayoutState.ts',
+    );
+
+    expect(conversationChatSource).toContain("from '@/features/conversation/hooks/useConversationLayoutState'");
+    expect(layoutHookSource).toContain('export function useConversationLayoutState');
+    expect(layoutHookSource).toContain('toggleBriefPinnedOpen');
+    expect(layoutHookSource).toContain('updateContextPanePercentFromPointer');
+    expect(layoutHookSource).toContain('finishContextResize');
   });
 });
