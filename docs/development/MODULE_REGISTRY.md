@@ -439,7 +439,7 @@ contracts.py 已建立为 LLM runtime 模块合同入口。
 module_id: conversation-analysis-ui
 name: 分析页对话 UI 与引导卡交互
 status: governed
-current_version: v1.7-conversation-local-persistence-extracted
+current_version: v1.8-advisor-history-persistence-extracted
 ```
 
 ### owned_paths
@@ -451,6 +451,7 @@ frontend-nextjs/features/conversation/conversationHistoryAdapter.ts
 frontend-nextjs/features/conversation/conversationSessionBootstrap.ts
 frontend-nextjs/features/conversation/conversationActionHandlers.ts
 frontend-nextjs/features/conversation/conversationLocalPersistence.ts
+frontend-nextjs/features/conversation/advisorHistoryPersistence.ts
 frontend-nextjs/features/conversation/components/MessageCardRenderer.tsx
 frontend-nextjs/features/conversation/components/VisualBriefPanel.tsx
 frontend-nextjs/features/conversation/components/AdvisorContextPanel.tsx
@@ -502,6 +503,7 @@ frontend-nextjs/features/conversation/conversationHistoryAdapter.test.ts
 frontend-nextjs/features/conversation/conversationSessionBootstrap.test.ts
 frontend-nextjs/features/conversation/conversationActionHandlers.test.ts
 frontend-nextjs/features/conversation/conversationLocalPersistence.test.ts
+frontend-nextjs/features/conversation/advisorHistoryPersistence.test.ts
 frontend-nextjs/features/conversation/components/ConversationPanels.test.tsx
 frontend-nextjs/features/conversation/components/ConversationExpertControls.test.tsx
 frontend-nextjs/features/conversation/components/ConversationComposerShell.test.tsx
@@ -535,7 +537,8 @@ features/conversation/conversationHistoryAdapter.ts 已承接 conversation histo
 features/conversation/conversationSessionBootstrap.ts 已承接 conversation mode session bootstrap、初始消息恢复和后端历史补水编排。
 features/conversation/conversationActionHandlers.ts 已承接 conversation send、card-response、prompt prefix、assistant reply append 和 upgrade signal 编排。
 features/conversation/conversationLocalPersistence.ts 已承接 advisor conversation messages by scene 的 localStorage 读写。
-下一步提取 advisor history local persistence。
+features/conversation/advisorHistoryPersistence.ts 已承接 advisor history records 的 localStorage 读写和类型归属。
+下一步提取 advisor history record derivation。
 ```
 
 ## 8. 新模块登记模板

@@ -70,6 +70,11 @@ import {
 	restoreAdvisorConversationMessages,
 	type AdvisorConversationMessagesByScene,
 } from '@/features/conversation/conversationLocalPersistence';
+import {
+	persistAdvisorHistoryRecords,
+	restoreAdvisorHistoryRecords,
+	type AdvisorHistoryRecord,
+} from '@/features/conversation/advisorHistoryPersistence';
 // v7.290: 分析页面改为独立体验，移除侧边栏组件
 
 // 节点名称中文映射
@@ -226,15 +231,6 @@ type CockpitCard = {
 	size?: 'sm' | 'md' | 'lg';
 };
 
-type AdvisorHistoryRecord = {
-	sessionId: string;
-	title: string;
-	createdAt: string;
-	updatedAt: string;
-	modeLabel: string;
-};
-
-const ADVISOR_HISTORY_STORAGE_KEY = 'analysis.advisor.history.v1';
 const WORKSPACE_LAYOUT_STORAGE_KEY = 'analysis.workspace.layout.v2';
 const WORKSPACE_PANEL_MIN_RATIO = 0.18;
 const WORKSPACE_PANEL_DEFAULT_RATIO = 0.22;
@@ -1413,14 +1409,11 @@ export default function AnalysisPage() {
 
 	useEffect(() => {
 		if (typeof window === 'undefined') return;
-		try {
-			const raw = window.localStorage.getItem(ADVISOR_HISTORY_STORAGE_KEY);
-			if (!raw) return;
-			const parsed = JSON.parse(raw) as AdvisorHistoryRecord[];
-			setAdvisorHistoryRecords(Array.isArray(parsed) ? parsed : []);
-		} catch (error) {
-			console.error('[analysis] failed to restore advisor history:', error);
-		}
+		const restored = restoreAdvisorHistoryRecords({
+			storage: window.localStorage,
+			onError: (error) => console.error('[analysis] failed to restore advisor history:', error),
+		});
+		if (restored.length > 0) setAdvisorHistoryRecords(restored);
 	}, []);
 
 	useEffect(() => {
@@ -1434,11 +1427,11 @@ export default function AnalysisPage() {
 
 	useEffect(() => {
 		if (typeof window === 'undefined') return;
-		try {
-			window.localStorage.setItem(ADVISOR_HISTORY_STORAGE_KEY, JSON.stringify(advisorHistoryRecords));
-		} catch (error) {
-			console.error('[analysis] failed to persist advisor history:', error);
-		}
+		persistAdvisorHistoryRecords({
+			storage: window.localStorage,
+			records: advisorHistoryRecords,
+			onError: (error) => console.error('[analysis] failed to persist advisor history:', error),
+		});
 	}, [advisorHistoryRecords]);
 
 	useEffect(() => {
