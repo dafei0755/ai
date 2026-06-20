@@ -48,6 +48,7 @@ intelligent_project_analyzer/modules/demand_reconstruction/synthesis.py
 intelligent_project_analyzer/modules/demand_reconstruction/governance.py
 intelligent_project_analyzer/modules/demand_reconstruction/alignment_gate.py
 intelligent_project_analyzer/modules/demand_reconstruction/insight_quality_gate.py
+intelligent_project_analyzer/modules/demand_reconstruction/response_builder.py
 intelligent_project_analyzer/api/dual_mode_routes.py
 docs/mechanism-reviews/DEMAND_RECONSTRUCTION_LLM_FIRST_ARCHITECTURE.md
 docs/development/方案高参需求重构运行时开发纲领.md
@@ -96,6 +97,7 @@ synthesis.py 已提取为 Stage 5 LLM Final Synthesis 入口。
 governance.py 已提取为治理知识资产注入与治理信号持久化入口。
 alignment_gate.py 已提取为语义一致性 shadow/hard gate 与 fallback rebuild 入口。
 insight_quality_gate.py 已提取为洞察质量评估与质量治理信号入口。
+response_builder.py 已提取为 reply/card/context/result 构建入口。
 下一步收敛 service.py 编排层，逐步将旧兼容方法下沉到模块 facade。
 旧 services/demand_reconstruction_service.py 保留兼容 facade。
 ```

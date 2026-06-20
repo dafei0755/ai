@@ -68,6 +68,7 @@ intelligent_project_analyzer/
       governance.py
       alignment_gate.py
       insight_quality_gate.py
+      response_builder.py
       quality_gate.py
       adapters.py
       version.py
@@ -235,8 +236,9 @@ conversation-analysis-ui
 5. 新建 governance.py，迁移治理知识资产注入与治理信号持久化逻辑。（已完成）
 6. 新建 alignment_gate.py，迁移语义一致性 shadow/hard gate 与 fallback rebuild 逻辑。（已完成）
 7. 新建 insight_quality_gate.py，迁移洞察质量评估与质量治理信号逻辑。（已完成）
-8. service.py 只保留编排。
-9. 旧 services/demand_reconstruction_service.py 作为兼容 facade 或薄入口。
+8. 新建 response_builder.py，迁移 reply/card/context/result 构建逻辑。（已完成）
+9. service.py 只保留编排。
+10. 旧 services/demand_reconstruction_service.py 作为兼容 facade 或薄入口。
 ```
 
 验收命令：

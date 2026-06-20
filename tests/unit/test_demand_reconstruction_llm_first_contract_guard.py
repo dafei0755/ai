@@ -10,6 +10,7 @@ SYNTHESIS = ROOT / "intelligent_project_analyzer/modules/demand_reconstruction/s
 GOVERNANCE = ROOT / "intelligent_project_analyzer/modules/demand_reconstruction/governance.py"
 ALIGNMENT_GATE = ROOT / "intelligent_project_analyzer/modules/demand_reconstruction/alignment_gate.py"
 INSIGHT_QUALITY_GATE = ROOT / "intelligent_project_analyzer/modules/demand_reconstruction/insight_quality_gate.py"
+RESPONSE_BUILDER = ROOT / "intelligent_project_analyzer/modules/demand_reconstruction/response_builder.py"
 DOC = ROOT / "docs/development/方案高参需求重构运行时开发纲领.md"
 
 
@@ -119,3 +120,18 @@ def test_demand_reconstruction_insight_quality_gate_is_module_boundary() -> None
     assert "DemandReconstructionInsightQualityGate" in service_source
     assert "self._insight_quality_gate.apply" in service_source
     assert "self._insight_quality_evaluator.evaluate" not in service_source
+
+
+def test_demand_reconstruction_response_builder_is_module_boundary() -> None:
+    builder_source = RESPONSE_BUILDER.read_text(encoding="utf-8")
+    service_source = SERVICE.read_text(encoding="utf-8")
+
+    assert "class DemandReconstructionResponseBuilder" in builder_source
+    assert "def render_reply" in builder_source
+    assert "def build_card" in builder_source
+    assert "def build_result" in builder_source
+    assert "def public_adapter_context" in builder_source
+    assert "DemandReconstructionResponseBuilder" in service_source
+    assert "self._response_builder.render_reply" in service_source
+    assert "self._response_builder.build_result" in service_source
+    assert "datetime.now().isoformat()" not in service_source
