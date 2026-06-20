@@ -315,8 +315,9 @@ frontend-nextjs/app/analysis/[sessionId]/page.tsx
 11. 移除 disabled legacy advisor context block，并审计 ConversationChat 是否已满足组合容器目标。（已完成）
 12. 提取 advisor context derivation。（已完成）
 13. 审计 ConversationChat 是否已满足最终组合容器目标。（已完成）
-14. 审计 analysis page session loading and feature composition boundary。
-15. 页面只保留 session 加载、布局和 feature 组合。
+14. 提取 conversation history adapter。（已完成）
+15. 提取 analysis page conversation mode session bootstrap。
+16. 页面只保留 session 加载、布局和 feature 组合。
 ```
 
 验收：

@@ -359,11 +359,11 @@ tests/services/test_scheme_advisor_entry_v2_restore.py
 feature_id: conversation-analysis-ui
 name: 分析页对话 UI 与引导卡交互
 status: governed
-current_authoritative_version: v1.3-final-composition-shell-audited
+current_authoritative_version: v1.4-conversation-history-adapter-extracted
 authoritative_branch: fix/scheme-advisor-question-root-cause-20260616
 authoritative_commit: current-branch-head-after-checkpoint
 previous_authoritative_commit: unregistered
-rollback_target: branch head before v1.3-final-composition-shell-audited checkpoint
+rollback_target: branch head before v1.4-conversation-history-adapter-extracted checkpoint
 last_promotion: 2026-06-20
 ```
 
@@ -383,6 +383,7 @@ v1.0: 升级提示横幅从 ConversationChat 抽取到 UpgradeBanner
 v1.1: 移除 disabled legacy advisor context block，并补合同测试防止不可达 UI 回流
 v1.2: advisor suggestion 到 insight lines 的派生逻辑从 ConversationChat 抽取到 useAdvisorContextDerivation
 v1.3: 审计并固化 ConversationChat 为最终组合容器，禁止业务 UI、卡片实现、文案和字符串解析回流
+v1.4: conversation history 到 ChatMessage 的适配和 guidance card 补水逻辑从 analysis page 抽取到 feature adapter
 ```
 
 ### 当前合同
@@ -401,6 +402,7 @@ analysis session page
 ```text
 frontend-nextjs/features/conversation/contracts.ts
 frontend-nextjs/features/conversation/types.ts
+frontend-nextjs/features/conversation/conversationHistoryAdapter.ts
 frontend-nextjs/features/conversation/components/MessageCardRenderer.tsx
 frontend-nextjs/features/conversation/components/VisualBriefPanel.tsx
 frontend-nextjs/features/conversation/components/AdvisorContextPanel.tsx
@@ -422,6 +424,7 @@ frontend-nextjs/types/
 
 ```text
 frontend-nextjs/features/conversation/contracts.test.ts
+frontend-nextjs/features/conversation/conversationHistoryAdapter.test.ts
 frontend-nextjs/features/conversation/components/ConversationPanels.test.tsx
 frontend-nextjs/features/conversation/components/ConversationExpertControls.test.tsx
 frontend-nextjs/features/conversation/components/ConversationComposerShell.test.tsx
@@ -439,5 +442,5 @@ frontend-nextjs/components/ConversationMode/GuidanceCard.test.tsx
 ```powershell
 cd frontend-nextjs
 npm test -- ConversationChat.test.tsx GuidanceCard.test.tsx features/conversation/contracts.test.ts
-npm test -- features/conversation/hooks/useConversationComposer.test.ts features/conversation/hooks/useConversationLayoutState.test.ts features/conversation/hooks/useAdvisorContextDerivation.test.ts features/conversation/components/ConversationPanels.test.tsx features/conversation/components/ConversationExpertControls.test.tsx features/conversation/components/ConversationComposerShell.test.tsx features/conversation/components/ConversationMessageListShell.test.tsx features/conversation/components/ConversationUpgradeBanner.test.tsx
+npm test -- features/conversation/conversationHistoryAdapter.test.ts features/conversation/hooks/useConversationComposer.test.ts features/conversation/hooks/useConversationLayoutState.test.ts features/conversation/hooks/useAdvisorContextDerivation.test.ts features/conversation/components/ConversationPanels.test.tsx features/conversation/components/ConversationExpertControls.test.tsx features/conversation/components/ConversationComposerShell.test.tsx features/conversation/components/ConversationMessageListShell.test.tsx features/conversation/components/ConversationUpgradeBanner.test.tsx
 ```

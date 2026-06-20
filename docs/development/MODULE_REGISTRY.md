@@ -434,7 +434,7 @@ contracts.py 已建立为 LLM runtime 模块合同入口。
 module_id: conversation-analysis-ui
 name: 分析页对话 UI 与引导卡交互
 status: governed
-current_version: v1.3-final-composition-shell-audited
+current_version: v1.4-conversation-history-adapter-extracted
 ```
 
 ### owned_paths
@@ -442,6 +442,7 @@ current_version: v1.3-final-composition-shell-audited
 ```text
 frontend-nextjs/features/conversation/contracts.ts
 frontend-nextjs/features/conversation/types.ts
+frontend-nextjs/features/conversation/conversationHistoryAdapter.ts
 frontend-nextjs/features/conversation/components/MessageCardRenderer.tsx
 frontend-nextjs/features/conversation/components/VisualBriefPanel.tsx
 frontend-nextjs/features/conversation/components/AdvisorContextPanel.tsx
@@ -489,6 +490,7 @@ frontend api client
 
 ```text
 frontend-nextjs/features/conversation/contracts.test.ts
+frontend-nextjs/features/conversation/conversationHistoryAdapter.test.ts
 frontend-nextjs/features/conversation/components/ConversationPanels.test.tsx
 frontend-nextjs/features/conversation/components/ConversationExpertControls.test.tsx
 frontend-nextjs/features/conversation/components/ConversationComposerShell.test.tsx
@@ -518,7 +520,8 @@ features/conversation/components/UpgradeBanner.tsx 已承接升级提示横幅�
 已移除 ConversationChat 中 disabled legacy advisor context block，并由合同测试防止回流。
 features/conversation/hooks/useAdvisorContextDerivation.ts 已承接 advisor suggestion 到 insight lines 的派生逻辑。
 ConversationChat 已审计为最终组合容器：只保留 feature components/hooks 组合、refs/effects 和传参，不再承接业务 UI、卡片实现、文案或字符串解析。
-下一步审计 analysis page session loading and feature composition boundary。
+features/conversation/conversationHistoryAdapter.ts 已承接 conversation history 到 ChatMessage 的适配和 guidance card 补水逻辑。
+下一步提取 analysis page conversation mode session bootstrap。
 ```
 
 ## 8. 新模块登记模板

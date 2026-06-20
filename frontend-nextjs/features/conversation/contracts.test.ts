@@ -12,7 +12,7 @@ describe('conversation-analysis-ui module contract', () => {
   it('registers the governed frontend feature boundary', () => {
     expect(CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT).toMatchObject({
       moduleId: 'conversation-analysis-ui',
-      currentVersion: 'v1.3-final-composition-shell-audited',
+      currentVersion: 'v1.4-conversation-history-adapter-extracted',
     });
 
     for (const ownedPath of CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT.ownedPaths) {
@@ -36,6 +36,9 @@ describe('conversation-analysis-ui module contract', () => {
   it('keeps the critical user-facing interaction tests attached to the module', () => {
     const guidanceCardTestSource = readRepoFile(
       'frontend-nextjs/components/ConversationMode/GuidanceCard.test.tsx',
+    );
+    const conversationHistoryAdapterTestSource = readRepoFile(
+      'frontend-nextjs/features/conversation/conversationHistoryAdapter.test.ts',
     );
     const conversationChatTestSource = readRepoFile(
       'frontend-nextjs/components/ConversationMode/ConversationChat.test.tsx',
@@ -65,7 +68,7 @@ describe('conversation-analysis-ui module contract', () => {
       'frontend-nextjs/features/conversation/components/ConversationUpgradeBanner.test.tsx',
     );
     const contractTestSource = readRepoFile('frontend-nextjs/features/conversation/contracts.test.ts');
-    const combinedTestSource = `${guidanceCardTestSource}\n${conversationChatTestSource}\n${composerHookTestSource}\n${layoutHookTestSource}\n${advisorContextDerivationTestSource}\n${panelTestSource}\n${expertControlsTestSource}\n${composerShellTestSource}\n${messageListShellTestSource}\n${upgradeBannerTestSource}\n${contractTestSource}`;
+    const combinedTestSource = `${guidanceCardTestSource}\n${conversationHistoryAdapterTestSource}\n${conversationChatTestSource}\n${composerHookTestSource}\n${layoutHookTestSource}\n${advisorContextDerivationTestSource}\n${panelTestSource}\n${expertControlsTestSource}\n${composerShellTestSource}\n${messageListShellTestSource}\n${upgradeBannerTestSource}\n${contractTestSource}`;
 
     for (const testCaseName of CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT.protectedTestCases) {
       expect(combinedTestSource).toContain(testCaseName);
@@ -268,7 +271,7 @@ describe('conversation-analysis-ui module contract', () => {
     ];
 
     expect(CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT.currentVersion).toBe(
-      'v1.3-final-composition-shell-audited',
+      'v1.4-conversation-history-adapter-extracted',
     );
     expect(conversationChatLines.length).toBeLessThanOrEqual(220);
     for (const importPath of requiredCompositionImports) {
@@ -279,5 +282,22 @@ describe('conversation-analysis-ui module contract', () => {
     expect(conversationChatSource).not.toContain('对话已积累足够上下文，可以整理为正式项目');
     expect(conversationChatSource).not.toContain('随时开始聊');
     expect(conversationChatSource).not.toContain(".split('\\n')");
+  });
+
+  it('keeps analysis page conversation history adaptation in the feature layer', () => {
+    const analysisPageSource = readRepoFile(
+      'frontend-nextjs/app/analysis/[sessionId]/page.tsx',
+    );
+    const historyAdapterSource = readRepoFile(
+      'frontend-nextjs/features/conversation/conversationHistoryAdapter.ts',
+    );
+
+    expect(analysisPageSource).toContain("from '@/features/conversation/conversationHistoryAdapter'");
+    expect(analysisPageSource).not.toContain('const buildConversationMessagesFromHistory =');
+    expect(analysisPageSource).not.toContain('const hydrateMissingGuidanceCards =');
+    expect(analysisPageSource).not.toContain('const resolveGuidanceSelectionLabel =');
+    expect(historyAdapterSource).toContain('export const EMPTY_CHAT_MESSAGES');
+    expect(historyAdapterSource).toContain('export function buildConversationMessagesFromHistory');
+    expect(historyAdapterSource).toContain('export function hydrateMissingGuidanceCards');
   });
 });
