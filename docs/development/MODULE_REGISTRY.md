@@ -244,25 +244,27 @@ tests/api/test_scheme_advisor_entry_route.py
 
 ```text
 module_id: knowledge-governance
-name: 知识资产治理、候选、审核与运行时召回
+name: 知识资产治理、候选、审核、批准与审计
 status: governed
-current_version: unregistered
+current_version: v0.1-governed-contract
 ```
 
 ### owned_paths
 
 ```text
+intelligent_project_analyzer/modules/knowledge_governance/contracts.py
 intelligent_project_analyzer/services/knowledge_governance_store.py
 intelligent_project_analyzer/services/knowledge_asset_draft_generation.py
+intelligent_project_analyzer/services/approved_knowledge_card_service.py
 intelligent_project_analyzer/api/routes/advisor_knowledge_asset_drafts.py
-intelligent_project_analyzer/knowledge_base/
 ```
 
 ### public_contracts
 
 ```text
 上传或生成的知识资产不得直接改写 classification 或 ontology。
-资产进入知识库后，应生成候选、审核、批准、审计，再进入运行时召回。
+资产进入知识库前，应生成候选、审核、批准、审计。
+治理模块不得承担运行时卡片排序和召回结果组装。
 治理队列必须保留 tenant/workspace/user 边界。
 ```
 
@@ -270,6 +272,7 @@ intelligent_project_analyzer/knowledge_base/
 
 ```text
 KnowledgeGovernanceStore
+modules.knowledge_governance.contracts.knowledge_governance_contract
 advisor_knowledge_asset_drafts routes
 ```
 
@@ -286,17 +289,79 @@ llm-runtime
 ```text
 tests/services/test_knowledge_asset_draft_generation.py
 tests/api/test_advisor_knowledge_asset_draft_routes.py
-待补齐：资产不得直接改 classification / ontology 的 contract guard。
+tests/unit/test_knowledge_module_contract_guard.py
+资产不得直接改 classification / ontology 的 contract guard。
 ```
 
 ### next_refactor_target
 
 ```text
+contracts.py 已建立为知识治理模块合同入口。
 拆分 store.py、review_queue.py、audit.py。
-登记 FEATURE_VERSION_LEDGER 版本链。
+FEATURE_VERSION_LEDGER 已登记 v0.1-governed-contract。
 ```
 
-## 5. llm-runtime
+## 5. knowledge-recall
+
+```text
+module_id: knowledge-recall
+name: 知识资产运行时召回
+status: governed
+current_version: v0.1-readonly-runtime-contract
+```
+
+### owned_paths
+
+```text
+intelligent_project_analyzer/modules/knowledge_recall/contracts.py
+intelligent_project_analyzer/services/knowledge_asset_runtime.py
+intelligent_project_analyzer/services/knowledge_asset_registry.py
+intelligent_project_analyzer/services/governed_knowledge_retrieval.py
+intelligent_project_analyzer/services/knowledge_package_registry.py
+intelligent_project_analyzer/knowledge_base/
+```
+
+### public_contracts
+
+```text
+只读取 approved knowledge cards 与 package/dimension indexes。
+运行时召回可以过滤 allowed_use、not_allowed_use、evidence_level，并返回 retrieval_trace。
+不得创建草稿、发布 approved card、写审核队列、改 classification 或 ontology。
+```
+
+### entrypoints
+
+```text
+resolve_governed_knowledge_cards
+GovernedKnowledgeRetrievalService
+KnowledgePackageRegistry.build_search_context
+modules.knowledge_recall.contracts.knowledge_recall_contract
+```
+
+### dependencies
+
+```text
+knowledge-governance
+project-type-detection
+ontology
+```
+
+### guard_tests
+
+```text
+tests/unit/test_knowledge_module_contract_guard.py
+tests/unit/test_demand_reconstruction_governed_knowledge_matching.py
+```
+
+### next_refactor_target
+
+```text
+建立 retrieval policy 类型。
+补 approved-card index 严格审计。
+将 file-backed registry 与 DB-backed approved card 来源统一到只读 repository 接口。
+```
+
+## 6. llm-runtime
 
 ```text
 module_id: llm-runtime
@@ -332,7 +397,7 @@ FallbackLLM / multi provider factory
 ### dependencies
 
 ```text
-无上层依赖；被 demand-reconstruction、project-type-detection、knowledge-governance 调用。
+无上层依赖；被 demand-reconstruction、project-type-detection、knowledge-governance、knowledge-recall 调用。
 ```
 
 ### guard_tests
@@ -351,7 +416,7 @@ tests/unit/test_demand_reconstruction_llm.py
 登记 FEATURE_VERSION_LEDGER 版本链。
 ```
 
-## 6. conversation-analysis-ui
+## 7. conversation-analysis-ui
 
 ```text
 module_id: conversation-analysis-ui
@@ -409,7 +474,7 @@ frontend api client
 ConversationChat 保留为组合容器。
 ```
 
-## 7. 新模块登记模板
+## 8. 新模块登记模板
 
 ```text
 module_id:

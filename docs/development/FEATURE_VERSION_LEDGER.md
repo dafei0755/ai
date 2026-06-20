@@ -159,3 +159,96 @@ tests/api/test_scheme_advisor_entry_route.py::test_required_llm_route_invokes_se
 ```powershell
 .\.conda\python.exe -m pytest tests/unit/test_project_type_module_contract_guard.py tests/services/test_space_classification_registry_externalization.py tests/api/test_scheme_advisor_entry_route.py -q
 ```
+
+## 3. Knowledge Governance
+
+```text
+feature_id: knowledge-governance
+name: 知识资产治理、候选、审核、批准与审计
+status: governed
+current_authoritative_version: v0.1-governed-contract
+authoritative_branch: fix/scheme-advisor-question-root-cause-20260616
+authoritative_commit: current-branch-head-after-checkpoint
+previous_authoritative_commit: unregistered
+rollback_target: branch head before v0.1-governed-contract checkpoint
+last_promotion: 2026-06-20
+```
+
+### 当前合同
+
+```text
+knowledge asset input
+-> draft / learning candidate
+-> review queue
+-> approved card publication
+-> audit event
+```
+
+治理模块不得直接改写 classification、ontology，也不得承担运行时卡片排序和召回结果组装。
+
+### 权威文件
+
+```text
+intelligent_project_analyzer/modules/knowledge_governance/contracts.py
+intelligent_project_analyzer/services/knowledge_governance_store.py
+intelligent_project_analyzer/services/knowledge_asset_draft_generation.py
+intelligent_project_analyzer/services/approved_knowledge_card_service.py
+intelligent_project_analyzer/api/routes/advisor_knowledge_asset_drafts.py
+```
+
+### 守护测试
+
+```text
+tests/unit/test_knowledge_module_contract_guard.py
+tests/unit/services/test_knowledge_governance_store_review_items.py
+tests/unit/services/test_knowledge_asset_review_service.py
+```
+
+## 4. Knowledge Recall
+
+```text
+feature_id: knowledge-recall
+name: 知识资产运行时召回
+status: governed
+current_authoritative_version: v0.1-readonly-runtime-contract
+authoritative_branch: fix/scheme-advisor-question-root-cause-20260616
+authoritative_commit: current-branch-head-after-checkpoint
+previous_authoritative_commit: unregistered
+rollback_target: branch head before v0.1-readonly-runtime-contract checkpoint
+last_promotion: 2026-06-20
+```
+
+### 当前合同
+
+```text
+runtime context / package ids / ontology dimension ids
+-> approved-card lookup
+-> allowed_use / not_allowed_use / evidence filtering
+-> cards + graph_context + retrieval_trace + policy
+```
+
+召回模块只能读取 approved knowledge cards，不得创建草稿、发布 approved card、写审核队列、改 classification 或 ontology。
+
+### 权威文件
+
+```text
+intelligent_project_analyzer/modules/knowledge_recall/contracts.py
+intelligent_project_analyzer/services/knowledge_asset_runtime.py
+intelligent_project_analyzer/services/knowledge_asset_registry.py
+intelligent_project_analyzer/services/governed_knowledge_retrieval.py
+intelligent_project_analyzer/services/knowledge_package_registry.py
+intelligent_project_analyzer/knowledge_base/
+```
+
+### 守护测试
+
+```text
+tests/unit/test_knowledge_module_contract_guard.py
+tests/unit/test_demand_reconstruction_governed_knowledge_matching.py
+```
+
+推荐验证：
+
+```powershell
+.\.conda\python.exe -m pytest tests/unit/test_knowledge_module_contract_guard.py tests/unit/test_demand_reconstruction_governed_knowledge_matching.py tests/unit/services/test_knowledge_governance_store_review_items.py tests/unit/services/test_knowledge_asset_review_service.py -q
+```

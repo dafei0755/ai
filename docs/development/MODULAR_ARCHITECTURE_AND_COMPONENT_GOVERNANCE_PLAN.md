@@ -284,6 +284,7 @@ knowledge_recall 负责运行时引用，不直接改分类或本体。
 4. 补 tests/unit/test_project_type_module_contract_guard.py，守住“分类只能作为 LLM-first 后置上下文证据”的边界。
 5. 补 API 入口顺序测试，证明 required LLM 入口先调用 LLM Semantic Router，再初始化 ProjectTypeDetector。
 6. 新建 modules/project_type/registry_audit.py，让 registry 缺失或 YAML 解析失败在治理验证中显式报错。
+7. 新建 modules/knowledge_governance/contracts.py 与 modules/knowledge_recall/contracts.py，把候选/审核/批准/审计和只读运行时召回拆成两个模块合同。
 ```
 
 ### Phase 4：前端 feature 化
