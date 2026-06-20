@@ -12,7 +12,7 @@ describe('conversation-analysis-ui module contract', () => {
   it('registers the governed frontend feature boundary', () => {
     expect(CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT).toMatchObject({
       moduleId: 'conversation-analysis-ui',
-      currentVersion: 'v2.3-expert-controls-empty-state-guard',
+      currentVersion: 'v2.4-advisor-scene-context-extracted',
     });
 
     for (const ownedPath of CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT.ownedPaths) {
@@ -61,6 +61,9 @@ describe('conversation-analysis-ui module contract', () => {
     const advisorConversationAccessorsTestSource = readRepoFile(
       'frontend-nextjs/features/conversation/advisorConversationAccessors.test.ts',
     );
+    const advisorSceneContextTestSource = readRepoFile(
+      'frontend-nextjs/features/conversation/advisorSceneContext.test.ts',
+    );
     const conversationChatTestSource = readRepoFile(
       'frontend-nextjs/components/ConversationMode/ConversationChat.test.tsx',
     );
@@ -92,7 +95,7 @@ describe('conversation-analysis-ui module contract', () => {
       'frontend-nextjs/__tests__/AppSessionShell.test.tsx',
     );
     const contractTestSource = readRepoFile('frontend-nextjs/features/conversation/contracts.test.ts');
-    const combinedTestSource = `${guidanceCardTestSource}\n${conversationHistoryAdapterTestSource}\n${conversationSessionBootstrapTestSource}\n${conversationActionHandlersTestSource}\n${conversationLocalPersistenceTestSource}\n${advisorHistoryPersistenceTestSource}\n${advisorHistoryDerivationTestSource}\n${advisorHistoryGroupingTestSource}\n${advisorConversationAccessorsTestSource}\n${conversationChatTestSource}\n${composerHookTestSource}\n${layoutHookTestSource}\n${advisorContextDerivationTestSource}\n${panelTestSource}\n${expertControlsTestSource}\n${composerShellTestSource}\n${messageListShellTestSource}\n${upgradeBannerTestSource}\n${appSessionShellTestSource}\n${contractTestSource}`;
+    const combinedTestSource = `${guidanceCardTestSource}\n${conversationHistoryAdapterTestSource}\n${conversationSessionBootstrapTestSource}\n${conversationActionHandlersTestSource}\n${conversationLocalPersistenceTestSource}\n${advisorHistoryPersistenceTestSource}\n${advisorHistoryDerivationTestSource}\n${advisorHistoryGroupingTestSource}\n${advisorConversationAccessorsTestSource}\n${advisorSceneContextTestSource}\n${conversationChatTestSource}\n${composerHookTestSource}\n${layoutHookTestSource}\n${advisorContextDerivationTestSource}\n${panelTestSource}\n${expertControlsTestSource}\n${composerShellTestSource}\n${messageListShellTestSource}\n${upgradeBannerTestSource}\n${appSessionShellTestSource}\n${contractTestSource}`;
 
     for (const testCaseName of CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT.protectedTestCases) {
       expect(combinedTestSource).toContain(testCaseName);
@@ -295,7 +298,7 @@ describe('conversation-analysis-ui module contract', () => {
     ];
 
     expect(CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT.currentVersion).toBe(
-      'v2.3-expert-controls-empty-state-guard',
+      'v2.4-advisor-scene-context-extracted',
     );
     expect(conversationChatLines.length).toBeLessThanOrEqual(220);
     for (const importPath of requiredCompositionImports) {
@@ -456,5 +459,35 @@ describe('conversation-analysis-ui module contract', () => {
     expect(analysisPageSource).not.toContain('summonOptions={EXPERT_SUMMON_OPTIONS}');
     expect(appSessionShellSource).toContain('ucppt-advisor-shell');
     expect(appSessionShellSource).toContain('<SessionSidebar');
+    expect(appSessionShellSource).toContain('data-testid="app-session-topbar"');
+    expect(appSessionShellSource).toContain('data-testid="app-session-top-mask"');
+    expect(appSessionShellSource).not.toContain('absolute left-4 top-4');
+  });
+
+  it('keeps right-side conversation composer free of expert control wiring', () => {
+    const conversationChatSource = readRepoFile(
+      'frontend-nextjs/components/ConversationMode/ConversationChat.tsx',
+    );
+
+    expect(conversationChatSource).not.toContain('activeExpertPerspective={activeExpertPerspective}');
+    expect(conversationChatSource).not.toContain('expertPerspectiveOptions={expertPerspectiveOptions}');
+    expect(conversationChatSource).not.toContain('summonOptions={summonOptions}');
+    expect(conversationChatSource).not.toContain('onSummonExpert={onSummonExpert}');
+  });
+
+  it('keeps advisor scene context and perspective options in the feature layer', () => {
+    const analysisPageSource = readRepoFile(
+      'frontend-nextjs/app/analysis/[sessionId]/page.tsx',
+    );
+    const advisorSceneContextSource = readRepoFile(
+      'frontend-nextjs/features/conversation/advisorSceneContext.ts',
+    );
+
+    expect(analysisPageSource).toContain("from '@/features/conversation/advisorSceneContext'");
+    expect(analysisPageSource).not.toContain('const SCENE_PERSPECTIVE_PRESETS = {');
+    expect(analysisPageSource).not.toContain('const getScenePerspectiveOptions =');
+    expect(analysisPageSource).not.toContain('const buildAdvisorSceneContext =');
+    expect(advisorSceneContextSource).toContain('export function getScenePerspectiveOptions');
+    expect(advisorSceneContextSource).toContain('export function buildAdvisorSceneContext');
   });
 });
