@@ -307,8 +307,9 @@ frontend-nextjs/app/analysis/[sessionId]/page.tsx
 3. 提取 card rendering 子组件。（已完成）
 4. 提取 conversation composer hook。（已完成）
 5. 提取 layout/context panel state。（已完成）
-6. 提取 visual brief/context panel components。
-7. 页面只保留 session 加载、布局和 feature 组合。
+6. 提取 visual brief/context panel components。（已完成）
+7. 提取 expert controls and summon menu。
+8. 页面只保留 session 加载、布局和 feature 组合。
 ```
 
 验收：

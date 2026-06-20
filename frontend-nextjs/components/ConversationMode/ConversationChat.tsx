@@ -11,9 +11,11 @@
 
 'use client';
 
-import { ArrowUp, ChevronDown, Plus } from 'lucide-react';
+import { ArrowUp, Plus } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
+import { AdvisorContextPanel } from '@/features/conversation/components/AdvisorContextPanel';
 import { MessageCardRenderer } from '@/features/conversation/components/MessageCardRenderer';
+import { VisualBriefPanel } from '@/features/conversation/components/VisualBriefPanel';
 import { useConversationComposer } from '@/features/conversation/hooks/useConversationComposer';
 import { useConversationLayoutState } from '@/features/conversation/hooks/useConversationLayoutState';
 import type {
@@ -202,97 +204,16 @@ export default function ConversationChat({
       )}
 
       {visualBriefContext && (
-        <div className="flex-shrink-0 border-b border-[var(--border-color)] px-4 pb-3 pt-1">
-          <div className="mx-auto max-w-[960px]">
-            <div
-              className="rounded-none border border-[var(--border-color)] bg-[var(--card-bg)] px-4 py-3"
-              onMouseEnter={() => setBriefExpanded(true)}
-              onMouseLeave={collapseBriefAfterHover}
-            >
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="ui-type-meta font-semibold text-[#1fa2df]">
-                      空间 VisualBrief · {visualBriefContext.space}
-                    </span>
-                    <span className="ui-type-meta rounded-full border border-[var(--border-color)] px-2.5 py-1 text-[var(--foreground-secondary)]">
-                      {visualBriefContext.status === 'auto'
-                        ? '系统自动'
-                        : visualBriefContext.status === 'locked'
-                          ? '已锁定'
-                          : visualBriefContext.status === 'stale'
-                            ? '待同步'
-                            : '用户已修改'}
-                    </span>
-                  </div>
-                  <div className="ui-type-meta mt-1 line-clamp-1 text-[var(--foreground-secondary)]">
-                    {visualBriefContext.summary}
-                  </div>
-                  <div className="ui-type-meta mt-1 line-clamp-2 text-[var(--foreground-secondary)]">
-                    {visualBriefContext.visualPrompt}
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={toggleBriefPinnedOpen}
-                  className="shrink-0 inline-flex h-8 w-8 items-center justify-center rounded-full border border-[var(--border-color)] text-[var(--foreground-secondary)] transition hover:text-[var(--foreground)]"
-                  aria-label={briefPinnedOpen ? '手动折叠 VisualBrief' : '固定展开 VisualBrief'}
-                  title={briefPinnedOpen ? '手动折叠' : briefExpanded ? '固定展开' : '查看详情'}
-                >
-                  <ChevronDown className={`h-4 w-4 transition-transform ${briefExpanded ? 'rotate-180' : ''}`} />
-                </button>
-              </div>
-
-              {!briefExpanded && (
-                <div className="mt-2 flex flex-wrap gap-1.5">
-                  {visualBriefContext.appliedTags.slice(0, 8).map((tag) => (
-                    <span key={`chat-brief-tag-${tag}`} className="ui-type-meta rounded-full bg-[var(--background)] px-2.5 py-1 text-[var(--foreground-secondary)]">
-                      {tag}
-                    </span>
-                  ))}
-                  {visualBriefContext.lockedTags.slice(0, 3).map((tag) => (
-                    <span key={`chat-brief-locked-${tag}`} className="ui-type-meta rounded-full bg-emerald-500/10 px-2.5 py-1 text-emerald-400">
-                      锁 {tag}
-                    </span>
-                  ))}
-                </div>
-              )}
-
-              {briefExpanded && (
-                <div
-                  className="mt-3 flex flex-col gap-3 overflow-hidden border-t border-[var(--border-color)] pt-3"
-                  style={{ height: '50vh', maxHeight: '50vh' }}
-                >
-                  <label className="block">
-                    <div className="ui-type-meta mb-2 text-[var(--foreground-secondary)]">生图基线提示词</div>
-                    <textarea
-                      value={visualBriefContext.visualPrompt}
-                      onChange={(event) => onVisualBriefPromptChange?.(event.target.value)}
-                      className="ui-type-meta h-[34vh] min-h-[260px] w-full resize-none rounded-none border border-[var(--border-color)] bg-[var(--background)] px-3 py-2 leading-6 text-[var(--foreground)] outline-none focus:border-[var(--foreground-secondary)]"
-                    />
-                  </label>
-                  <label className="block">
-                    <div className="ui-type-meta mb-2 text-[var(--foreground-secondary)]">本轮补充备注</div>
-                    <textarea
-                      value={visualBriefContext.customNote ?? ''}
-                      onChange={(event) => onVisualBriefNoteChange?.(event.target.value)}
-                      rows={3}
-                      placeholder="例如：本轮更强调黄昏抵达感，降低社交密度。"
-                      className="ui-type-meta w-full rounded-none border border-[var(--border-color)] bg-[var(--background)] px-3 py-2 leading-6 text-[var(--foreground)] outline-none placeholder:text-[var(--foreground-secondary)] focus:border-[var(--foreground-secondary)]"
-                    />
-                  </label>
-                  <div className="flex flex-wrap gap-1.5">
-                    {visualBriefContext.sourceTitles.slice(0, 5).map((title) => (
-                      <span key={`chat-brief-source-${title}`} className="ui-type-meta rounded-full bg-[var(--background)] px-2.5 py-1 text-[var(--foreground-secondary)]">
-                        来源：{title}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
+        <VisualBriefPanel
+          visualBriefContext={visualBriefContext}
+          expanded={briefExpanded}
+          pinnedOpen={briefPinnedOpen}
+          onExpand={() => setBriefExpanded(true)}
+          onCollapseAfterHover={collapseBriefAfterHover}
+          onTogglePinnedOpen={toggleBriefPinnedOpen}
+          onVisualBriefPromptChange={onVisualBriefPromptChange}
+          onVisualBriefNoteChange={onVisualBriefNoteChange}
+        />
       )}
 
       {false && advisorSceneContext && visibleMessages.length > 0 && (
@@ -332,82 +253,18 @@ export default function ConversationChat({
       )}
 
       <div ref={splitPaneRef} className="flex-1 min-h-0 pb-28 flex flex-col">
-      {/* 上下文窗口（基于当前页面动态，样式与 VisualBrief 一致） */}
       {advisorSceneContext && (
-        <>
-          <div
-            className="flex-shrink-0 border-b border-[var(--border-color)] px-4 pb-3 pt-1 overflow-y-auto"
-            style={{ height: `${contextPanePercent}%` }}
-          >
-            <div className="mx-auto max-w-[960px]">
-              <div
-                className="rounded-none border border-[var(--border-color)] bg-[var(--card-bg)] px-4 py-3"
-                onMouseEnter={() => setContextExpanded(true)}
-                onMouseLeave={collapseContextAfterHover}
-              >
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="ui-type-meta font-semibold text-[#1fa2df]">
-                        {advisorSceneContext.label}
-                      </span>
-                    </div>
-                    <div className="ui-type-meta mt-1 line-clamp-2 text-[var(--foreground-secondary)]">
-                      {advisorSceneContext.suggestion}
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={toggleContextPinnedOpen}
-                    className="shrink-0 inline-flex h-8 w-8 items-center justify-center rounded-full border border-[var(--border-color)] text-[var(--foreground-secondary)] transition hover:text-[var(--foreground)]"
-                    aria-label={contextPinnedOpen ? '手动折叠上下文' : '固定展开上下文'}
-                    title={contextPinnedOpen ? '手动折叠' : contextExpanded ? '固定展开' : '查看详情'}
-                  >
-                    <ChevronDown className={`h-4 w-4 transition-transform ${contextExpanded ? 'rotate-180' : ''}`} />
-                  </button>
-                </div>
-
-                {!contextExpanded && advisorInsightLines.length > 0 && (
-                  <div className="mt-2 flex flex-wrap gap-1.5">
-                    {advisorInsightLines.slice(0, 5).map((line) => (
-                      <span
-                        key={`advisor-context-${advisorSceneContext.key}-${line}`}
-                        className="ui-type-meta rounded-full bg-[var(--background)] px-2.5 py-1 text-[var(--foreground-secondary)]"
-                      >
-                        {line.replace(/^\d+[.、]\s*/, '')}
-                      </span>
-                    ))}
-                  </div>
-                )}
-
-                {contextExpanded && advisorInsightLines.length > 0 && (
-                  <div className="mt-3 flex flex-col gap-2 border-t border-[var(--border-color)] pt-3">
-                    {advisorInsightLines.map((line) => (
-                      <div
-                        key={`advisor-expanded-${advisorSceneContext.key}-${line}`}
-                        className="ui-type-meta text-[var(--foreground-secondary)] leading-6"
-                      >
-                        {line}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-          <button
-            type="button"
-            onMouseDown={(event) => {
-              event.preventDefault();
-              startContextResize();
-            }}
-            className="group flex h-5 flex-shrink-0 cursor-row-resize items-center justify-center border-t border-[var(--border-color)] bg-transparent transition"
-            aria-label="拖动调整上下文和聊天窗口高度"
-            title="拖动调整高度"
-          >
-            <span className="h-1 w-12 rounded-full bg-slate-300" />
-          </button>
-        </>
+        <AdvisorContextPanel
+          advisorSceneContext={advisorSceneContext}
+          advisorInsightLines={advisorInsightLines}
+          contextExpanded={contextExpanded}
+          contextPinnedOpen={contextPinnedOpen}
+          contextPanePercent={contextPanePercent}
+          onExpand={() => setContextExpanded(true)}
+          onCollapseAfterHover={collapseContextAfterHover}
+          onTogglePinnedOpen={toggleContextPinnedOpen}
+          onStartResize={startContextResize}
+        />
       )}
       {/* 消息列表（底部留空间给浮动输入栏） */}
       <div ref={scrollRef} className="min-h-[140px] flex-1 overflow-y-auto" style={{ paddingInline: adaptiveChatGutter }}>

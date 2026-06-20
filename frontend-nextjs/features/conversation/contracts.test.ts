@@ -12,7 +12,7 @@ describe('conversation-analysis-ui module contract', () => {
   it('registers the governed frontend feature boundary', () => {
     expect(CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT).toMatchObject({
       moduleId: 'conversation-analysis-ui',
-      currentVersion: 'v0.5-layout-state-hook-extracted',
+      currentVersion: 'v0.6-conversation-panels-extracted',
     });
 
     for (const ownedPath of CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT.ownedPaths) {
@@ -46,8 +46,11 @@ describe('conversation-analysis-ui module contract', () => {
     const layoutHookTestSource = readRepoFile(
       'frontend-nextjs/features/conversation/hooks/useConversationLayoutState.test.ts',
     );
+    const panelTestSource = readRepoFile(
+      'frontend-nextjs/features/conversation/components/ConversationPanels.test.tsx',
+    );
     const contractTestSource = readRepoFile('frontend-nextjs/features/conversation/contracts.test.ts');
-    const combinedTestSource = `${guidanceCardTestSource}\n${conversationChatTestSource}\n${composerHookTestSource}\n${layoutHookTestSource}\n${contractTestSource}`;
+    const combinedTestSource = `${guidanceCardTestSource}\n${conversationChatTestSource}\n${composerHookTestSource}\n${layoutHookTestSource}\n${panelTestSource}\n${contractTestSource}`;
 
     for (const testCaseName of CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT.protectedTestCases) {
       expect(combinedTestSource).toContain(testCaseName);
@@ -118,5 +121,24 @@ describe('conversation-analysis-ui module contract', () => {
     expect(layoutHookSource).toContain('toggleBriefPinnedOpen');
     expect(layoutHookSource).toContain('updateContextPanePercentFromPointer');
     expect(layoutHookSource).toContain('finishContextResize');
+  });
+
+  it('keeps conversation panels in the feature component layer', () => {
+    const conversationChatSource = readRepoFile(
+      'frontend-nextjs/components/ConversationMode/ConversationChat.tsx',
+    );
+    const visualBriefPanelSource = readRepoFile(
+      'frontend-nextjs/features/conversation/components/VisualBriefPanel.tsx',
+    );
+    const advisorContextPanelSource = readRepoFile(
+      'frontend-nextjs/features/conversation/components/AdvisorContextPanel.tsx',
+    );
+
+    expect(conversationChatSource).toContain("from '@/features/conversation/components/VisualBriefPanel'");
+    expect(conversationChatSource).toContain("from '@/features/conversation/components/AdvisorContextPanel'");
+    expect(conversationChatSource).not.toContain('空间 VisualBrief ·');
+    expect(conversationChatSource).not.toContain('拖动调整上下文和聊天窗口高度');
+    expect(visualBriefPanelSource).toContain('export function VisualBriefPanel');
+    expect(advisorContextPanelSource).toContain('export function AdvisorContextPanel');
   });
 });

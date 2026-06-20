@@ -1,10 +1,12 @@
 export const CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT = {
   moduleId: 'conversation-analysis-ui',
-  currentVersion: 'v0.5-layout-state-hook-extracted',
+  currentVersion: 'v0.6-conversation-panels-extracted',
   ownedPaths: [
     'frontend-nextjs/features/conversation/contracts.ts',
     'frontend-nextjs/features/conversation/types.ts',
     'frontend-nextjs/features/conversation/components/MessageCardRenderer.tsx',
+    'frontend-nextjs/features/conversation/components/VisualBriefPanel.tsx',
+    'frontend-nextjs/features/conversation/components/AdvisorContextPanel.tsx',
     'frontend-nextjs/features/conversation/hooks/useConversationComposer.ts',
     'frontend-nextjs/features/conversation/hooks/useConversationLayoutState.ts',
     'frontend-nextjs/app/analysis/[sessionId]/page.tsx',
@@ -33,8 +35,13 @@ export const CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT = {
   protectedTestCases: [
     'keeps conversation data types in the feature layer',
     'keeps message card rendering in the feature layer',
+    'keeps conversation composer behavior in the feature hook layer',
     'trims sends, clears the composer, and restores focus',
+    'keeps conversation layout state in the feature hook layer',
     'restores context pane percent, clamps drag updates, and persists on resize end',
+    'keeps conversation panels in the feature component layer',
+    'renders collapsed visual brief summary and toggles pin',
+    'renders advisor context insight chips and resize handle',
     'renders demand reconstruction cards without formal intake wording',
     'renders dynamic demand reconstruction blueprint sections',
     'renders user-facing labels for context packet missing-slot pages',
@@ -49,7 +56,7 @@ export const CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT = {
     'frontend labels must translate internal backend signals into user-facing language',
   ],
   nextRefactorTargets: [
-    'extract visual brief and context panel components from ConversationChat',
+    'extract expert controls and summon menu from ConversationChat',
   ],
 } as const;
 
