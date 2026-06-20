@@ -79,6 +79,7 @@ import {
 	deriveAdvisorHistoryTitle,
 	upsertAdvisorHistoryRecord,
 } from '@/features/conversation/advisorHistoryDerivation';
+import { groupAdvisorHistoryRecords } from '@/features/conversation/advisorHistoryGrouping';
 // v7.290: 分析页面改为独立体验，移除侧边栏组件
 
 // 节点名称中文映射
@@ -1334,33 +1335,7 @@ export default function AnalysisPage() {
 		? 'calc(100% - 32px)'
 		: activeSplitLeftPanelWidth;
 	const advisorHistoryGroups = useMemo(() => {
-		const now = new Date();
-		const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-		const sevenDaysAgo = today - 7 * 24 * 60 * 60 * 1000;
-		const thirtyDaysAgo = today - 30 * 24 * 60 * 60 * 1000;
-		const groups = {
-			today: [] as AdvisorHistoryRecord[],
-			last7Days: [] as AdvisorHistoryRecord[],
-			last30Days: [] as AdvisorHistoryRecord[],
-		};
-
-		advisorHistoryRecords.forEach((record) => {
-			const dayStart = new Date(record.updatedAt);
-			const normalized = new Date(dayStart.getFullYear(), dayStart.getMonth(), dayStart.getDate()).getTime();
-			if (normalized >= today) {
-				groups.today.push(record);
-				return;
-			}
-			if (normalized >= sevenDaysAgo) {
-				groups.last7Days.push(record);
-				return;
-			}
-			if (normalized >= thirtyDaysAgo) {
-				groups.last30Days.push(record);
-			}
-		});
-
-		return groups;
+		return groupAdvisorHistoryRecords({ records: advisorHistoryRecords });
 	}, [advisorHistoryRecords]);
 
 	useEffect(() => {

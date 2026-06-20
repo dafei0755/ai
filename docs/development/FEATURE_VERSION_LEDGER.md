@@ -359,11 +359,11 @@ tests/services/test_scheme_advisor_entry_v2_restore.py
 feature_id: conversation-analysis-ui
 name: 分析页对话 UI 与引导卡交互
 status: governed
-current_authoritative_version: v1.9-advisor-history-derivation-extracted
+current_authoritative_version: v2.0-advisor-history-grouping-extracted
 authoritative_branch: fix/scheme-advisor-question-root-cause-20260616
 authoritative_commit: current-branch-head-after-checkpoint
-previous_authoritative_commit: 8155ad3b
-rollback_target: 8155ad3b
+previous_authoritative_commit: 023948b7
+rollback_target: 023948b7
 last_promotion: 2026-06-20
 ```
 
@@ -389,6 +389,7 @@ v1.6: conversation send、card-response、prompt prefix、assistant reply append
 v1.7: advisor conversation messages by scene 的 localStorage 读写从 analysis page 抽取到 feature persistence helper
 v1.8: advisor history records 的 localStorage 读写和类型归属从 analysis page 抽取到 feature persistence helper
 v1.9: advisor history title/mode/record upsert 派生逻辑从 analysis page 抽取到 feature derivation helper
+v2.0: advisor history today / last7Days / last30Days 分组逻辑从 analysis page 抽取到 feature grouping helper
 ```
 
 ### 当前合同
@@ -413,6 +414,7 @@ frontend-nextjs/features/conversation/conversationActionHandlers.ts
 frontend-nextjs/features/conversation/conversationLocalPersistence.ts
 frontend-nextjs/features/conversation/advisorHistoryPersistence.ts
 frontend-nextjs/features/conversation/advisorHistoryDerivation.ts
+frontend-nextjs/features/conversation/advisorHistoryGrouping.ts
 frontend-nextjs/features/conversation/components/MessageCardRenderer.tsx
 frontend-nextjs/features/conversation/components/VisualBriefPanel.tsx
 frontend-nextjs/features/conversation/components/AdvisorContextPanel.tsx
@@ -440,6 +442,7 @@ frontend-nextjs/features/conversation/conversationActionHandlers.test.ts
 frontend-nextjs/features/conversation/conversationLocalPersistence.test.ts
 frontend-nextjs/features/conversation/advisorHistoryPersistence.test.ts
 frontend-nextjs/features/conversation/advisorHistoryDerivation.test.ts
+frontend-nextjs/features/conversation/advisorHistoryGrouping.test.ts
 frontend-nextjs/features/conversation/components/ConversationPanels.test.tsx
 frontend-nextjs/features/conversation/components/ConversationExpertControls.test.tsx
 frontend-nextjs/features/conversation/components/ConversationComposerShell.test.tsx
@@ -457,5 +460,5 @@ frontend-nextjs/components/ConversationMode/GuidanceCard.test.tsx
 ```powershell
 cd frontend-nextjs
 npm test -- ConversationChat.test.tsx GuidanceCard.test.tsx features/conversation/contracts.test.ts
-npm test -- features/conversation/conversationHistoryAdapter.test.ts features/conversation/conversationSessionBootstrap.test.ts features/conversation/conversationActionHandlers.test.ts features/conversation/conversationLocalPersistence.test.ts features/conversation/advisorHistoryPersistence.test.ts features/conversation/advisorHistoryDerivation.test.ts features/conversation/hooks/useConversationComposer.test.ts features/conversation/hooks/useConversationLayoutState.test.ts features/conversation/hooks/useAdvisorContextDerivation.test.ts features/conversation/components/ConversationPanels.test.tsx features/conversation/components/ConversationExpertControls.test.tsx features/conversation/components/ConversationComposerShell.test.tsx features/conversation/components/ConversationMessageListShell.test.tsx features/conversation/components/ConversationUpgradeBanner.test.tsx
+npm test -- features/conversation/conversationHistoryAdapter.test.ts features/conversation/conversationSessionBootstrap.test.ts features/conversation/conversationActionHandlers.test.ts features/conversation/conversationLocalPersistence.test.ts features/conversation/advisorHistoryPersistence.test.ts features/conversation/advisorHistoryDerivation.test.ts features/conversation/advisorHistoryGrouping.test.ts features/conversation/hooks/useConversationComposer.test.ts features/conversation/hooks/useConversationLayoutState.test.ts features/conversation/hooks/useAdvisorContextDerivation.test.ts features/conversation/components/ConversationPanels.test.tsx features/conversation/components/ConversationExpertControls.test.tsx features/conversation/components/ConversationComposerShell.test.tsx features/conversation/components/ConversationMessageListShell.test.tsx features/conversation/components/ConversationUpgradeBanner.test.tsx
 ```

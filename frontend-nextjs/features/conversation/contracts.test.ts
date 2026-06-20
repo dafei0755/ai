@@ -12,7 +12,7 @@ describe('conversation-analysis-ui module contract', () => {
   it('registers the governed frontend feature boundary', () => {
     expect(CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT).toMatchObject({
       moduleId: 'conversation-analysis-ui',
-      currentVersion: 'v1.9-advisor-history-derivation-extracted',
+      currentVersion: 'v2.0-advisor-history-grouping-extracted',
     });
 
     for (const ownedPath of CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT.ownedPaths) {
@@ -55,6 +55,9 @@ describe('conversation-analysis-ui module contract', () => {
     const advisorHistoryDerivationTestSource = readRepoFile(
       'frontend-nextjs/features/conversation/advisorHistoryDerivation.test.ts',
     );
+    const advisorHistoryGroupingTestSource = readRepoFile(
+      'frontend-nextjs/features/conversation/advisorHistoryGrouping.test.ts',
+    );
     const conversationChatTestSource = readRepoFile(
       'frontend-nextjs/components/ConversationMode/ConversationChat.test.tsx',
     );
@@ -83,7 +86,7 @@ describe('conversation-analysis-ui module contract', () => {
       'frontend-nextjs/features/conversation/components/ConversationUpgradeBanner.test.tsx',
     );
     const contractTestSource = readRepoFile('frontend-nextjs/features/conversation/contracts.test.ts');
-    const combinedTestSource = `${guidanceCardTestSource}\n${conversationHistoryAdapterTestSource}\n${conversationSessionBootstrapTestSource}\n${conversationActionHandlersTestSource}\n${conversationLocalPersistenceTestSource}\n${advisorHistoryPersistenceTestSource}\n${advisorHistoryDerivationTestSource}\n${conversationChatTestSource}\n${composerHookTestSource}\n${layoutHookTestSource}\n${advisorContextDerivationTestSource}\n${panelTestSource}\n${expertControlsTestSource}\n${composerShellTestSource}\n${messageListShellTestSource}\n${upgradeBannerTestSource}\n${contractTestSource}`;
+    const combinedTestSource = `${guidanceCardTestSource}\n${conversationHistoryAdapterTestSource}\n${conversationSessionBootstrapTestSource}\n${conversationActionHandlersTestSource}\n${conversationLocalPersistenceTestSource}\n${advisorHistoryPersistenceTestSource}\n${advisorHistoryDerivationTestSource}\n${advisorHistoryGroupingTestSource}\n${conversationChatTestSource}\n${composerHookTestSource}\n${layoutHookTestSource}\n${advisorContextDerivationTestSource}\n${panelTestSource}\n${expertControlsTestSource}\n${composerShellTestSource}\n${messageListShellTestSource}\n${upgradeBannerTestSource}\n${contractTestSource}`;
 
     for (const testCaseName of CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT.protectedTestCases) {
       expect(combinedTestSource).toContain(testCaseName);
@@ -286,7 +289,7 @@ describe('conversation-analysis-ui module contract', () => {
     ];
 
     expect(CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT.currentVersion).toBe(
-      'v1.9-advisor-history-derivation-extracted',
+      'v2.0-advisor-history-grouping-extracted',
     );
     expect(conversationChatLines.length).toBeLessThanOrEqual(220);
     for (const importPath of requiredCompositionImports) {
@@ -394,5 +397,20 @@ describe('conversation-analysis-ui module contract', () => {
     expect(analysisPageSource).not.toContain('createdAt: existing?.createdAt ?? now');
     expect(advisorHistoryDerivationSource).toContain('export function deriveAdvisorHistoryTitle');
     expect(advisorHistoryDerivationSource).toContain('export function upsertAdvisorHistoryRecord');
+  });
+
+  it('keeps advisor history grouping in the feature layer', () => {
+    const analysisPageSource = readRepoFile(
+      'frontend-nextjs/app/analysis/[sessionId]/page.tsx',
+    );
+    const advisorHistoryGroupingSource = readRepoFile(
+      'frontend-nextjs/features/conversation/advisorHistoryGrouping.ts',
+    );
+
+    expect(analysisPageSource).toContain("from '@/features/conversation/advisorHistoryGrouping'");
+    expect(analysisPageSource).not.toContain('const sevenDaysAgo = today - 7');
+    expect(analysisPageSource).not.toContain('new Date(record.updatedAt)');
+    expect(analysisPageSource).not.toContain('groups.last30Days.push(record)');
+    expect(advisorHistoryGroupingSource).toContain('export function groupAdvisorHistoryRecords');
   });
 });
