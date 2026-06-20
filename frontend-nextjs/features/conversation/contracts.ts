@@ -1,6 +1,6 @@
 export const CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT = {
   moduleId: 'conversation-analysis-ui',
-  currentVersion: 'v2.8-advisor-project-space-inference-extracted',
+  currentVersion: 'v2.9-advisor-expert-summon-options-extracted',
   ownedPaths: [
     'frontend-nextjs/features/conversation/contracts.ts',
     'frontend-nextjs/features/conversation/types.ts',
@@ -15,6 +15,7 @@ export const CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT = {
     'frontend-nextjs/features/conversation/advisorSceneContext.ts',
     'frontend-nextjs/features/conversation/advisorNavigationConfig.ts',
     'frontend-nextjs/features/conversation/advisorProjectSpaceInference.ts',
+    'frontend-nextjs/features/conversation/advisorExpertSummonOptions.ts',
     'frontend-nextjs/features/conversation/advisorViewModel.ts',
     'frontend-nextjs/features/conversation/components/MessageCardRenderer.tsx',
     'frontend-nextjs/features/conversation/components/VisualBriefPanel.tsx',
@@ -123,6 +124,9 @@ export const CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT = {
     'collects project overview text from all inference fields',
     'infers the best matching project default space from overview text',
     'returns null when overview has no useful text',
+    'keeps advisor expert summon options in the feature layer',
+    'keeps the expert summon option order stable',
+    'exposes a typed summon option union',
     'selects the resource radar model for asset scenes',
     'selects the silicon avatar model variants for knowledge scenes',
     'selects project models by board and sandbox state',
@@ -140,7 +144,7 @@ export const CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT = {
     'frontend labels must translate internal backend signals into user-facing language',
   ],
   nextRefactorTargets: [
-    'extract advisor expert summon options from analysis page',
+    'extract advisor workspace layout constants from analysis page',
   ],
 } as const;
 

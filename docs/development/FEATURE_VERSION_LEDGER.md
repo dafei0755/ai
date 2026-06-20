@@ -359,11 +359,11 @@ tests/services/test_scheme_advisor_entry_v2_restore.py
 feature_id: conversation-analysis-ui
 name: 分析页对话 UI 与引导卡交互
 status: governed
-current_authoritative_version: v2.8-advisor-project-space-inference-extracted
+current_authoritative_version: v2.9-advisor-expert-summon-options-extracted
 authoritative_branch: fix/scheme-advisor-question-root-cause-20260616
 authoritative_commit: current-branch-head-after-checkpoint
-previous_authoritative_commit: 74bfe8aa
-rollback_target: 74bfe8aa
+previous_authoritative_commit: 7814fe5e
+rollback_target: 7814fe5e
 last_promotion: 2026-06-20
 ```
 
@@ -398,6 +398,7 @@ v2.5: advisor view model selection 从 analysis page 抽取到 feature helper
 v2.6: advisor navigation configuration 从 analysis page 抽取到 feature helper
 v2.7: analysis page 中 advisor key type aliases 统一到 feature contracts 导出的类型
 v2.8: project default space options、关键词表、overview 文本收集和默认空间推断从 analysis page 抽取到 feature helper
+v2.9: advisor expert summon options 从 analysis page 抽取到 feature helper
 ```
 
 ### 当前合同
@@ -427,6 +428,7 @@ frontend-nextjs/features/conversation/advisorConversationAccessors.ts
 frontend-nextjs/features/conversation/advisorSceneContext.ts
 frontend-nextjs/features/conversation/advisorNavigationConfig.ts
 frontend-nextjs/features/conversation/advisorProjectSpaceInference.ts
+frontend-nextjs/features/conversation/advisorExpertSummonOptions.ts
 frontend-nextjs/features/conversation/advisorViewModel.ts
 frontend-nextjs/features/conversation/components/MessageCardRenderer.tsx
 frontend-nextjs/features/conversation/components/VisualBriefPanel.tsx
@@ -462,6 +464,7 @@ frontend-nextjs/features/conversation/advisorConversationAccessors.test.ts
 frontend-nextjs/features/conversation/advisorSceneContext.test.ts
 frontend-nextjs/features/conversation/advisorNavigationConfig.test.ts
 frontend-nextjs/features/conversation/advisorProjectSpaceInference.test.ts
+frontend-nextjs/features/conversation/advisorExpertSummonOptions.test.ts
 frontend-nextjs/features/conversation/advisorViewModel.test.ts
 frontend-nextjs/features/conversation/components/ConversationPanels.test.tsx
 frontend-nextjs/features/conversation/components/ConversationExpertControls.test.tsx
@@ -481,5 +484,5 @@ frontend-nextjs/components/ConversationMode/GuidanceCard.test.tsx
 ```powershell
 cd frontend-nextjs
 npm test -- ConversationChat.test.tsx GuidanceCard.test.tsx features/conversation/contracts.test.ts
-npm test -- features/conversation/conversationHistoryAdapter.test.ts features/conversation/conversationSessionBootstrap.test.ts features/conversation/conversationActionHandlers.test.ts features/conversation/conversationLocalPersistence.test.ts features/conversation/advisorHistoryPersistence.test.ts features/conversation/advisorHistoryDerivation.test.ts features/conversation/advisorHistoryGrouping.test.ts features/conversation/advisorConversationAccessors.test.ts features/conversation/advisorSceneContext.test.ts features/conversation/advisorNavigationConfig.test.ts features/conversation/advisorProjectSpaceInference.test.ts features/conversation/advisorViewModel.test.ts features/conversation/hooks/useConversationComposer.test.ts features/conversation/hooks/useConversationLayoutState.test.ts features/conversation/hooks/useAdvisorContextDerivation.test.ts features/conversation/components/ConversationPanels.test.tsx features/conversation/components/ConversationExpertControls.test.tsx features/conversation/components/ConversationComposerShell.test.tsx features/conversation/components/ConversationMessageListShell.test.tsx features/conversation/components/ConversationUpgradeBanner.test.tsx __tests__/AppSessionShell.test.tsx
+npm test -- features/conversation/conversationHistoryAdapter.test.ts features/conversation/conversationSessionBootstrap.test.ts features/conversation/conversationActionHandlers.test.ts features/conversation/conversationLocalPersistence.test.ts features/conversation/advisorHistoryPersistence.test.ts features/conversation/advisorHistoryDerivation.test.ts features/conversation/advisorHistoryGrouping.test.ts features/conversation/advisorConversationAccessors.test.ts features/conversation/advisorSceneContext.test.ts features/conversation/advisorNavigationConfig.test.ts features/conversation/advisorProjectSpaceInference.test.ts features/conversation/advisorExpertSummonOptions.test.ts features/conversation/advisorViewModel.test.ts features/conversation/hooks/useConversationComposer.test.ts features/conversation/hooks/useConversationLayoutState.test.ts features/conversation/hooks/useAdvisorContextDerivation.test.ts features/conversation/components/ConversationPanels.test.tsx features/conversation/components/ConversationExpertControls.test.tsx features/conversation/components/ConversationComposerShell.test.tsx features/conversation/components/ConversationMessageListShell.test.tsx features/conversation/components/ConversationUpgradeBanner.test.tsx __tests__/AppSessionShell.test.tsx
 ```

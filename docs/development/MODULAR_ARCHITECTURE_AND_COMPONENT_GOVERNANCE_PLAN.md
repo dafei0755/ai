@@ -330,8 +330,9 @@ frontend-nextjs/app/analysis/[sessionId]/page.tsx
 26. 提取 advisor navigation configuration。（已完成）
 27. 统一 advisor key type aliases 与 feature contracts。（已完成）
 28. 提取 project default space options、关键词表、overview 文本收集和默认空间推断。（已完成）
-29. 提取 advisor expert summon options。
-30. 页面只保留 session 加载、布局和 feature 组合。
+29. 提取 advisor expert summon options。（已完成）
+30. 提取 advisor workspace layout constants。
+31. 页面只保留 session 加载、布局和 feature 组合。
 ```
 
 验收：

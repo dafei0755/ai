@@ -439,7 +439,7 @@ contracts.py 已建立为 LLM runtime 模块合同入口。
 module_id: conversation-analysis-ui
 name: 分析页对话 UI 与引导卡交互
 status: governed
-current_version: v2.8-advisor-project-space-inference-extracted
+current_version: v2.9-advisor-expert-summon-options-extracted
 ```
 
 ### owned_paths
@@ -458,6 +458,7 @@ frontend-nextjs/features/conversation/advisorConversationAccessors.ts
 frontend-nextjs/features/conversation/advisorSceneContext.ts
 frontend-nextjs/features/conversation/advisorNavigationConfig.ts
 frontend-nextjs/features/conversation/advisorProjectSpaceInference.ts
+frontend-nextjs/features/conversation/advisorExpertSummonOptions.ts
 frontend-nextjs/features/conversation/advisorViewModel.ts
 frontend-nextjs/features/conversation/components/MessageCardRenderer.tsx
 frontend-nextjs/features/conversation/components/VisualBriefPanel.tsx
@@ -519,6 +520,7 @@ frontend-nextjs/features/conversation/advisorConversationAccessors.test.ts
 frontend-nextjs/features/conversation/advisorSceneContext.test.ts
 frontend-nextjs/features/conversation/advisorNavigationConfig.test.ts
 frontend-nextjs/features/conversation/advisorProjectSpaceInference.test.ts
+frontend-nextjs/features/conversation/advisorExpertSummonOptions.test.ts
 frontend-nextjs/features/conversation/advisorViewModel.test.ts
 frontend-nextjs/features/conversation/components/ConversationPanels.test.tsx
 frontend-nextjs/features/conversation/components/ConversationExpertControls.test.tsx
@@ -565,7 +567,8 @@ features/conversation/advisorViewModel.ts 已承接 advisor view model selection
 features/conversation/advisorNavigationConfig.ts 已承接 advisor navigation configuration。
 analysis page 中 advisor key type aliases 已统一到 feature contracts 导出的类型。
 features/conversation/advisorProjectSpaceInference.ts 已承接 project default space options、关键词表、overview 文本收集和默认空间推断。
-下一步提取 analysis page 中 advisor expert summon options。
+features/conversation/advisorExpertSummonOptions.ts 已承接 advisor expert summon options。
+下一步提取 analysis page 中 advisor workspace layout constants。
 ```
 
 ## 8. 新模块登记模板

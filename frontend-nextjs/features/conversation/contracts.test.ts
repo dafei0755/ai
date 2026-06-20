@@ -12,7 +12,7 @@ describe('conversation-analysis-ui module contract', () => {
   it('registers the governed frontend feature boundary', () => {
     expect(CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT).toMatchObject({
       moduleId: 'conversation-analysis-ui',
-      currentVersion: 'v2.8-advisor-project-space-inference-extracted',
+      currentVersion: 'v2.9-advisor-expert-summon-options-extracted',
     });
 
     for (const ownedPath of CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT.ownedPaths) {
@@ -61,6 +61,9 @@ describe('conversation-analysis-ui module contract', () => {
     const advisorConversationAccessorsTestSource = readRepoFile(
       'frontend-nextjs/features/conversation/advisorConversationAccessors.test.ts',
     );
+    const advisorExpertSummonOptionsTestSource = readRepoFile(
+      'frontend-nextjs/features/conversation/advisorExpertSummonOptions.test.ts',
+    );
     const advisorSceneContextTestSource = readRepoFile(
       'frontend-nextjs/features/conversation/advisorSceneContext.test.ts',
     );
@@ -104,7 +107,7 @@ describe('conversation-analysis-ui module contract', () => {
       'frontend-nextjs/__tests__/AppSessionShell.test.tsx',
     );
     const contractTestSource = readRepoFile('frontend-nextjs/features/conversation/contracts.test.ts');
-    const combinedTestSource = `${guidanceCardTestSource}\n${conversationHistoryAdapterTestSource}\n${conversationSessionBootstrapTestSource}\n${conversationActionHandlersTestSource}\n${conversationLocalPersistenceTestSource}\n${advisorHistoryPersistenceTestSource}\n${advisorHistoryDerivationTestSource}\n${advisorHistoryGroupingTestSource}\n${advisorConversationAccessorsTestSource}\n${advisorSceneContextTestSource}\n${advisorNavigationConfigTestSource}\n${advisorProjectSpaceInferenceTestSource}\n${advisorViewModelTestSource}\n${conversationChatTestSource}\n${composerHookTestSource}\n${layoutHookTestSource}\n${advisorContextDerivationTestSource}\n${panelTestSource}\n${expertControlsTestSource}\n${composerShellTestSource}\n${messageListShellTestSource}\n${upgradeBannerTestSource}\n${appSessionShellTestSource}\n${contractTestSource}`;
+    const combinedTestSource = `${guidanceCardTestSource}\n${conversationHistoryAdapterTestSource}\n${conversationSessionBootstrapTestSource}\n${conversationActionHandlersTestSource}\n${conversationLocalPersistenceTestSource}\n${advisorHistoryPersistenceTestSource}\n${advisorHistoryDerivationTestSource}\n${advisorHistoryGroupingTestSource}\n${advisorConversationAccessorsTestSource}\n${advisorExpertSummonOptionsTestSource}\n${advisorSceneContextTestSource}\n${advisorNavigationConfigTestSource}\n${advisorProjectSpaceInferenceTestSource}\n${advisorViewModelTestSource}\n${conversationChatTestSource}\n${composerHookTestSource}\n${layoutHookTestSource}\n${advisorContextDerivationTestSource}\n${panelTestSource}\n${expertControlsTestSource}\n${composerShellTestSource}\n${messageListShellTestSource}\n${upgradeBannerTestSource}\n${appSessionShellTestSource}\n${contractTestSource}`;
 
     for (const testCaseName of CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT.protectedTestCases) {
       expect(combinedTestSource).toContain(testCaseName);
@@ -307,7 +310,7 @@ describe('conversation-analysis-ui module contract', () => {
     ];
 
     expect(CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT.currentVersion).toBe(
-      'v2.8-advisor-project-space-inference-extracted',
+      'v2.9-advisor-expert-summon-options-extracted',
     );
     expect(conversationChatLines.length).toBeLessThanOrEqual(220);
     for (const importPath of requiredCompositionImports) {
@@ -569,5 +572,19 @@ describe('conversation-analysis-ui module contract', () => {
     expect(advisorProjectSpaceInferenceSource).toContain('export const PROJECT_SPACE_INFERENCE_KEYWORDS');
     expect(advisorProjectSpaceInferenceSource).toContain('export const collectProjectOverviewText');
     expect(advisorProjectSpaceInferenceSource).toContain('export const inferProjectDefaultSpace');
+  });
+
+  it('keeps advisor expert summon options in the feature layer', () => {
+    const analysisPageSource = readRepoFile(
+      'frontend-nextjs/app/analysis/[sessionId]/page.tsx',
+    );
+    const advisorExpertSummonOptionsSource = readRepoFile(
+      'frontend-nextjs/features/conversation/advisorExpertSummonOptions.ts',
+    );
+
+    expect(analysisPageSource).toContain("from '@/features/conversation/advisorExpertSummonOptions'");
+    expect(analysisPageSource).not.toContain('const EXPERT_SUMMON_OPTIONS');
+    expect(advisorExpertSummonOptionsSource).toContain('export const ADVISOR_EXPERT_SUMMON_OPTIONS');
+    expect(advisorExpertSummonOptionsSource).toContain('export type AdvisorExpertSummonOption');
   });
 });

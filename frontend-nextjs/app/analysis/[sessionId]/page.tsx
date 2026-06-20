@@ -96,6 +96,7 @@ import {
 	inferProjectDefaultSpace,
 	type ConcreteBoardCanvasSpace,
 } from '@/features/conversation/advisorProjectSpaceInference';
+import type { AdvisorExpertSummonOption } from '@/features/conversation/advisorExpertSummonOptions';
 import { getAdvisorViewModel } from '@/features/conversation/advisorViewModel';
 // v7.290: 分析页面改为独立体验，移除侧边栏组件
 
@@ -262,8 +263,6 @@ type WorkspaceResizePanel = 'middle' | 'advisor';
 
 const clampWorkspacePanelRatio = (value: number) =>
 	Math.min(WORKSPACE_PANEL_MAX_RATIO, Math.max(WORKSPACE_PANEL_MIN_RATIO, value));
-
-const EXPERT_SUMMON_OPTIONS = ['召集全部', '空间总控', '用户研究', '商业运营', '实施边界', '风险总控'] as const;
 
 const getFirstUserMessage = (history: Array<{ role?: string; content?: string }> | undefined): string =>
 	history?.find((entry) => entry.role === 'user' && entry.content?.trim())?.content?.trim() ?? '';
@@ -1834,7 +1833,7 @@ export default function AnalysisPage() {
 	}, [systemMode]);
 
 		const handleSummonExpert = useCallback(
-			(target: (typeof EXPERT_SUMMON_OPTIONS)[number]) => {
+			(target: AdvisorExpertSummonOption) => {
 				injectReferenceToRight(target === '召集全部' ? '@召集团队：全体专家' : `@召集团队：${target}`);
 			},
 			[injectReferenceToRight]
