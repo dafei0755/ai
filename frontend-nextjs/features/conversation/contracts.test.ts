@@ -12,7 +12,7 @@ describe('conversation-analysis-ui module contract', () => {
   it('registers the governed frontend feature boundary', () => {
     expect(CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT).toMatchObject({
       moduleId: 'conversation-analysis-ui',
-      currentVersion: 'v1.0-upgrade-banner-extracted',
+      currentVersion: 'v1.1-legacy-advisor-block-removed',
     });
 
     for (const ownedPath of CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT.ownedPaths) {
@@ -221,5 +221,15 @@ describe('conversation-analysis-ui module contract', () => {
     expect(conversationChatSource).not.toContain('立即整理');
     expect(upgradeBannerSource).toContain('export function UpgradeBanner');
     expect(upgradeBannerSource).toContain('对话已积累足够上下文，可以整理为正式项目');
+  });
+
+  it('keeps ConversationChat free of disabled legacy advisor context blocks', () => {
+    const conversationChatSource = readRepoFile(
+      'frontend-nextjs/components/ConversationMode/ConversationChat.tsx',
+    );
+
+    expect(conversationChatSource).not.toContain('{false &&');
+    expect(conversationChatSource).not.toContain("handleAdvisorPrompt('deep-dive')");
+    expect(conversationChatSource).not.toContain('advisorClosingLine');
   });
 });

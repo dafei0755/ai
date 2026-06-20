@@ -69,7 +69,6 @@ export default function ConversationChat({
     inputText,
     setInputText,
     handleSend,
-    handleAdvisorPrompt,
     handleKeyDown,
   } = useConversationComposer({
     loading,
@@ -104,7 +103,6 @@ export default function ConversationChat({
     .map((line) => line.trim())
     .filter(Boolean);
   const advisorInsightLines = advisorSuggestionLines.filter((line) => /^\d+[.、]/.test(line)).slice(0, 3);
-  const advisorClosingLine = advisorSuggestionLines[advisorSuggestionLines.length - 1];
   const visibleMessages = messages.filter((message) => !message.id.startsWith('scene-sync-'));
 
   // 自动滚动到底部
@@ -162,42 +160,6 @@ export default function ConversationChat({
           onVisualBriefPromptChange={onVisualBriefPromptChange}
           onVisualBriefNoteChange={onVisualBriefNoteChange}
         />
-      )}
-
-      {false && advisorSceneContext && visibleMessages.length > 0 && (
-        <div className="flex-shrink-0 border-b border-white/8 px-4 py-3">
-          <div className="mx-auto max-w-[960px]">
-            <div className="rounded-2xl border border-white/10 bg-white/[0.045] px-4 py-3 text-white/82">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div className="min-w-0">
-                  <div className="ui-type-meta mb-1 text-white/46">系统上下文</div>
-                  <div className="ui-type-body truncate font-medium text-white/88">
-                    {advisorSceneContext!.label}
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => handleAdvisorPrompt('deep-dive')}
-                  className="ui-type-meta shrink-0 rounded-full border border-white/12 bg-white/8 px-3 py-1.5 text-white/78 transition hover:bg-white/12"
-                >
-                  继续深挖
-                </button>
-              </div>
-              {advisorInsightLines.length > 0 && (
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {advisorInsightLines.slice(0, 2).map((line) => (
-                    <span
-                      key={`advisor-context-${advisorSceneContext!.key}-${line}`}
-                      className="ui-type-meta rounded-full bg-black/20 px-3 py-1.5 text-white/58"
-                    >
-                      {line.replace(/^\d+[.、]\s*/, '')}
-                    </span>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
       )}
 
       <div ref={splitPaneRef} className="flex-1 min-h-0 pb-28 flex flex-col">

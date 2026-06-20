@@ -1,6 +1,6 @@
 export const CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT = {
   moduleId: 'conversation-analysis-ui',
-  currentVersion: 'v1.0-upgrade-banner-extracted',
+  currentVersion: 'v1.1-legacy-advisor-block-removed',
   ownedPaths: [
     'frontend-nextjs/features/conversation/contracts.ts',
     'frontend-nextjs/features/conversation/types.ts',
@@ -57,6 +57,7 @@ export const CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT = {
     'renders visible messages and typing indicator while loading',
     'keeps upgrade banner in the feature component layer',
     'renders upgrade copy and calls confirm and dismiss actions',
+    'keeps ConversationChat free of disabled legacy advisor context blocks',
     'renders demand reconstruction cards without formal intake wording',
     'renders dynamic demand reconstruction blueprint sections',
     'renders user-facing labels for context packet missing-slot pages',
@@ -71,7 +72,7 @@ export const CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT = {
     'frontend labels must translate internal backend signals into user-facing language',
   ],
   nextRefactorTargets: [
-    'remove disabled legacy advisor context block and audit ConversationChat as composition shell',
+    'extract advisor context derivation from ConversationChat',
   ],
 } as const;
 

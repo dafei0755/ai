@@ -312,8 +312,9 @@ frontend-nextjs/app/analysis/[sessionId]/page.tsx
 8. 提取 composer shell。（已完成）
 9. 提取 message list shell。（已完成）
 10. 提取 upgrade banner。（已完成）
-11. 移除 disabled legacy advisor context block，并审计 ConversationChat 是否已满足组合容器目标。
-12. 页面只保留 session 加载、布局和 feature 组合。
+11. 移除 disabled legacy advisor context block，并审计 ConversationChat 是否已满足组合容器目标。（已完成）
+12. 提取 advisor context derivation。
+13. 页面只保留 session 加载、布局和 feature 组合。
 ```
 
 验收：

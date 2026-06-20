@@ -359,11 +359,11 @@ tests/services/test_scheme_advisor_entry_v2_restore.py
 feature_id: conversation-analysis-ui
 name: 分析页对话 UI 与引导卡交互
 status: governed
-current_authoritative_version: v1.0-upgrade-banner-extracted
+current_authoritative_version: v1.1-legacy-advisor-block-removed
 authoritative_branch: fix/scheme-advisor-question-root-cause-20260616
 authoritative_commit: current-branch-head-after-checkpoint
 previous_authoritative_commit: unregistered
-rollback_target: branch head before v1.0-upgrade-banner-extracted checkpoint
+rollback_target: branch head before v1.1-legacy-advisor-block-removed checkpoint
 last_promotion: 2026-06-20
 ```
 
@@ -380,6 +380,7 @@ v0.7: 专家视角选择和召集团队菜单从 ConversationChat 抽取到 Expe
 v0.8: 浮动输入容器、textarea 和发送按钮从 ConversationChat 抽取到 ComposerShell
 v0.9: 空态、消息列表、typing indicator 和消息卡片组合从 ConversationChat 抽取到 MessageListShell
 v1.0: 升级提示横幅从 ConversationChat 抽取到 UpgradeBanner
+v1.1: 移除 disabled legacy advisor context block，并补合同测试防止不可达 UI 回流
 ```
 
 ### 当前合同

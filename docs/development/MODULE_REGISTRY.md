@@ -434,7 +434,7 @@ contracts.py 已建立为 LLM runtime 模块合同入口。
 module_id: conversation-analysis-ui
 name: 分析页对话 UI 与引导卡交互
 status: governed
-current_version: v1.0-upgrade-banner-extracted
+current_version: v1.1-legacy-advisor-block-removed
 ```
 
 ### owned_paths
@@ -513,7 +513,8 @@ features/conversation/components/ExpertControls.tsx 已承接专家视角选择�
 features/conversation/components/ComposerShell.tsx 已承接浮动输入容器、专家控件组合、textarea 与发送按钮。
 features/conversation/components/MessageListShell.tsx 已承接空态、消息列表、typing indicator 和 MessageCardRenderer 组合。
 features/conversation/components/UpgradeBanner.tsx 已承接升级提示横幅文案和确认/稍后操作。
-移除 disabled legacy advisor context block，并审计 ConversationChat 是否已满足组合容器目标。
+已移除 ConversationChat 中 disabled legacy advisor context block，并由合同测试防止回流。
+提取 advisor context derivation。
 ConversationChat 保留为组合容器。
 ```
 
