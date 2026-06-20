@@ -11,6 +11,7 @@ GOVERNANCE = ROOT / "intelligent_project_analyzer/modules/demand_reconstruction/
 ALIGNMENT_GATE = ROOT / "intelligent_project_analyzer/modules/demand_reconstruction/alignment_gate.py"
 INSIGHT_QUALITY_GATE = ROOT / "intelligent_project_analyzer/modules/demand_reconstruction/insight_quality_gate.py"
 RESPONSE_BUILDER = ROOT / "intelligent_project_analyzer/modules/demand_reconstruction/response_builder.py"
+SEMANTIC_CONTEXT_APPLIER = ROOT / "intelligent_project_analyzer/modules/demand_reconstruction/semantic_context_applier.py"
 DOC = ROOT / "docs/development/方案高参需求重构运行时开发纲领.md"
 
 
@@ -135,3 +136,18 @@ def test_demand_reconstruction_response_builder_is_module_boundary() -> None:
     assert "self._response_builder.render_reply" in service_source
     assert "self._response_builder.build_result" in service_source
     assert "datetime.now().isoformat()" not in service_source
+
+
+def test_demand_reconstruction_semantic_context_applier_is_module_boundary() -> None:
+    applier_source = SEMANTIC_CONTEXT_APPLIER.read_text(encoding="utf-8")
+    service_source = SERVICE.read_text(encoding="utf-8")
+
+    assert "class DemandReconstructionSemanticContextApplier" in applier_source
+    assert "def apply" in applier_source
+    assert "def refresh_asset_scan" in applier_source
+    assert "def apply_governance_context" in applier_source
+    assert "def llm_semantic_candidates" in applier_source
+    assert "def merge_llm_and_rule_candidates" in applier_source
+    assert "DemandReconstructionSemanticContextApplier" in service_source
+    assert "self._semantic_context_applier.apply" in service_source
+    assert "self._semantic_context_applier.llm_semantic_candidates" in service_source
