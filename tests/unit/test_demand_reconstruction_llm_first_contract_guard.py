@@ -5,6 +5,7 @@ ROOT = Path(__file__).resolve().parents[2]
 SERVICE = ROOT / "intelligent_project_analyzer/services/demand_reconstruction_service.py"
 ROUTE = ROOT / "intelligent_project_analyzer/api/dual_mode_routes.py"
 CONTRACTS = ROOT / "intelligent_project_analyzer/modules/demand_reconstruction/contracts.py"
+SEMANTIC_ROUTER = ROOT / "intelligent_project_analyzer/modules/demand_reconstruction/semantic_router.py"
 DOC = ROOT / "docs/development/方案高参需求重构运行时开发纲领.md"
 
 
@@ -37,6 +38,7 @@ def test_runtime_doctrine_does_not_reintroduce_silent_rule_fallback_for_llm_firs
     assert "SYNTHESIS_UNAVAILABLE" in text
     assert "关闭或失败时，系统必须继续返回规则蓝图" not in text
 
+
 def test_demand_reconstruction_contracts_centralize_llm_first_identifiers() -> None:
     text = CONTRACTS.read_text(encoding="utf-8")
 
@@ -46,3 +48,16 @@ def test_demand_reconstruction_contracts_centralize_llm_first_identifiers() -> N
     assert "SYNTHESIS_UNAVAILABLE" in text
     assert "LLM_FIRST_REQUIRED_HTTP_STATUS = 503" in text
     assert "不得静默退回旧规则蓝图" in text
+
+
+def test_demand_reconstruction_semantic_router_is_module_boundary() -> None:
+    router_source = SEMANTIC_ROUTER.read_text(encoding="utf-8")
+    service_source = SERVICE.read_text(encoding="utf-8")
+
+    assert "class DemandReconstructionSemanticRouter" in router_source
+    assert "def build_understanding" in router_source
+    assert "def build_prompt" in router_source
+    assert "def invoke_with_llm" in router_source
+    assert "def parse" in router_source
+    assert "DemandReconstructionSemanticRouter" in service_source
+    assert "self._semantic_router.build_understanding" in service_source

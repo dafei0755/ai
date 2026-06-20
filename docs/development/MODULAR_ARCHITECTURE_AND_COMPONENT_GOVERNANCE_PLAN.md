@@ -227,7 +227,7 @@ conversation-analysis-ui
 ```text
 1. 新建 intelligent_project_analyzer/modules/demand_reconstruction/contracts.py
 2. 提取 typed unavailability、状态码、核心合同常量。
-3. 新建 semantic_router.py，迁移 LLM Semantic Router 的 prompt/parse/invoke 逻辑。
+3. 新建 semantic_router.py，迁移 LLM Semantic Router 的 prompt/parse/invoke 逻辑。（已完成）
 4. 新建 synthesis.py，迁移 Final Synthesis 逻辑。
 5. service.py 只保留编排。
 6. 旧 services/demand_reconstruction_service.py 作为兼容 facade 或薄入口。
