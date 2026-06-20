@@ -169,6 +169,7 @@ llm-runtime
 
 ```text
 tests/unit/test_project_type_module_contract_guard.py
+tests/api/test_scheme_advisor_entry_route.py::test_required_llm_route_invokes_semantic_router_before_project_type_detector
 项目类型检测不应抢占 LLM-first 新对话入口。
 待补齐：registry 解析失败必须显式报错，不得静默退化为错误类型。
 ```
@@ -179,7 +180,7 @@ tests/unit/test_project_type_module_contract_guard.py
 登记 FEATURE_VERSION_LEDGER 版本链。
 contracts.py 已建立为项目类型检测模块合同入口。
 修正不存在的 config/project_type_registry_meta.yaml 权威路径，当前以 PROJECT_TYPE_REGISTRY 与 registries 目录为真实权威。
-补 route-level guard，证明新对话入口不会先产出项目类型检测器响应。
+route-level guard 已补，证明 required LLM 入口先调用 LLM Semantic Router，再初始化 ProjectTypeDetector。
 ```
 
 ## 3. scheme-advisor-entry

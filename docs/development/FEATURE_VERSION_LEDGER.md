@@ -150,10 +150,11 @@ intelligent_project_analyzer/utils/ontology_loader.py
 
 ```text
 tests/unit/test_project_type_module_contract_guard.py
+tests/api/test_scheme_advisor_entry_route.py::test_required_llm_route_invokes_semantic_router_before_project_type_detector
 ```
 
 推荐验证：
 
 ```powershell
-.\.conda\python.exe -m pytest tests/unit/test_project_type_module_contract_guard.py tests/services/test_space_classification_registry_externalization.py -q
+.\.conda\python.exe -m pytest tests/unit/test_project_type_module_contract_guard.py tests/services/test_space_classification_registry_externalization.py tests/api/test_scheme_advisor_entry_route.py -q
 ```

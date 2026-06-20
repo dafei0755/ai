@@ -106,6 +106,20 @@ class FakeDemandReconstructionLLM:
             """
         return type("FakeResponse", (), {"content": content})()
 
+
+class OrderedFakeDemandReconstructionLLM(FakeDemandReconstructionLLM):
+    def __init__(self, events):
+        super().__init__()
+        self.events = events
+
+    def invoke(self, prompt: str):
+        if prompt.startswith("你是「方案高参」需求重构阶段的 LLM Semantic Router"):
+            self.events.append("llm_semantic_router")
+        else:
+            self.events.append("llm_final_synthesis")
+        return super().invoke(prompt)
+
+
 @pytest.mark.asyncio
 async def test_new_project_route_always_starts_with_demand_reconstruction(monkeypatch):
     manager = FakeSessionManager()
@@ -202,6 +216,50 @@ async def test_demand_reconstruction_route_uses_llm_insight_when_available(monke
     assert response.demand_reconstruction_context is not None
     assert response.demand_reconstruction_context["blueprint"]["insight_source"] == "llm"
     assert llm.prompts
+
+
+@pytest.mark.asyncio
+async def test_required_llm_route_invokes_semantic_router_before_project_type_detector(monkeypatch):
+    manager = FakeSessionManager()
+    events = []
+    llm = OrderedFakeDemandReconstructionLLM(events)
+
+    async def fake_get_sm():
+        return manager
+
+    async def noop_archive(*args, **kwargs):
+        return None
+
+    from intelligent_project_analyzer.services import space_classification_service
+
+    original_init = space_classification_service.ProjectTypeDetector.__init__
+
+    def tracking_project_type_detector_init(self, *args, **kwargs):
+        events.append("project_type_detector_init")
+        return original_init(self, *args, **kwargs)
+
+    monkeypatch.setenv("SCHEME_ADVISOR_ENTRY_V2_ENABLED", "1")
+    monkeypatch.setenv("SCHEME_ADVISOR_ENTRY_V2_USE_LLM", "0")
+    monkeypatch.setenv("DEMAND_RECONSTRUCTION_USE_LLM", "1")
+    monkeypatch.setattr(dual_mode_routes, "_get_sm", fake_get_sm)
+    monkeypatch.setattr(dual_mode_routes, "_archive_conversation_snapshot", noop_archive)
+    monkeypatch.setattr(dual_mode_routes, "_get_demand_reconstruction_llm", lambda: llm)
+    monkeypatch.setattr(
+        space_classification_service.ProjectTypeDetector,
+        "__init__",
+        tracking_project_type_detector_init,
+    )
+
+    response = await post_conversation_message(
+        ConversationMessageRequest(message=DEMAND_RECONSTRUCTION_RURAL_HOME_PROMPT),
+        current_user=None,
+    )
+
+    assert response.dialogue_layer == "demand_reconstruction"
+    assert response.intent == "demand_reconstruction_blueprint"
+    assert "llm_semantic_router" in events
+    assert "project_type_detector_init" in events
+    assert events.index("llm_semantic_router") < events.index("project_type_detector_init")
 
 
 @pytest.mark.asyncio
