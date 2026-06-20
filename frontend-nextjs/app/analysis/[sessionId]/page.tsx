@@ -2692,11 +2692,6 @@ export default function AnalysisPage() {
 					<ConversationChat
 						sessionId={sessionId}
 						messages={conversationMessages}
-						activeExpertPerspective={activeExpertPerspective}
-						expertPerspectiveOptions={sceneExpertPerspectiveOptions}
-						onExpertPerspectiveChange={(next) => setActiveExpertPerspective(next as ExpertPerspectiveOption)}
-						summonOptions={EXPERT_SUMMON_OPTIONS}
-						onSummonExpert={(target) => handleSummonExpert(target as (typeof EXPERT_SUMMON_OPTIONS)[number])}
 						advisorSceneContext={null}
 						onSendMessage={handleConvSendMessage}
 						loading={false}

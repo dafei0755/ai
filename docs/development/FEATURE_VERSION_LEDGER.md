@@ -359,11 +359,11 @@ tests/services/test_scheme_advisor_entry_v2_restore.py
 feature_id: conversation-analysis-ui
 name: 分析页对话 UI 与引导卡交互
 status: governed
-current_authoritative_version: v2.2-shared-session-shell-restored
+current_authoritative_version: v2.3-expert-controls-empty-state-guard
 authoritative_branch: fix/scheme-advisor-question-root-cause-20260616
 authoritative_commit: current-branch-head-after-checkpoint
-previous_authoritative_commit: a8f9c267
-rollback_target: a8f9c267
+previous_authoritative_commit: c8dcc24e
+rollback_target: c8dcc24e
 last_promotion: 2026-06-20
 ```
 
@@ -392,6 +392,7 @@ v1.9: advisor history title/mode/record upsert 派生逻辑从 analysis page 抽
 v2.0: advisor history today / last7Days / last30Days 分组逻辑从 analysis page 抽取到 feature grouping helper
 v2.1: active advisor conversation key、消息读取和消息更新访问器从 analysis page 抽取到 feature accessor helper
 v2.2: AppSessionShell 恢复为 analysis page 的共享会话壳，统一承接 SessionSidebar、用户面板和当前页会话导航
+v2.3: ExpertControls 增加空配置保护，未配置专家视角和召集团队时不渲染空控件壳
 ```
 
 ### 当前合同

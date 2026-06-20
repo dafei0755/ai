@@ -14,6 +14,20 @@ const loadExpertControls = () => {
 };
 
 describe('conversation expert controls', () => {
+  it('renders nothing when no expert controls are configured', () => {
+    const ExpertControls = loadExpertControls();
+
+    const { container } = render(
+      <ExpertControls
+        activeExpertPerspective="默认综合"
+        expertPerspectiveOptions={[]}
+        summonOptions={[]}
+      />,
+    );
+
+    expect(container.firstChild).toBeNull();
+  });
+
   it('renders expert perspective choices and summons an expert once selected', async () => {
     const user = userEvent.setup();
     const onExpertPerspectiveChange = jest.fn();

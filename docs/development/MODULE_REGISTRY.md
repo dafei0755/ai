@@ -439,7 +439,7 @@ contracts.py 已建立为 LLM runtime 模块合同入口。
 module_id: conversation-analysis-ui
 name: 分析页对话 UI 与引导卡交互
 status: governed
-current_version: v2.2-shared-session-shell-restored
+current_version: v2.3-expert-controls-empty-state-guard
 ```
 
 ### owned_paths
@@ -551,6 +551,7 @@ features/conversation/advisorHistoryDerivation.ts 已承接 advisor history titl
 features/conversation/advisorHistoryGrouping.ts 已承接 advisor history today / last7Days / last30Days 分组逻辑。
 features/conversation/advisorConversationAccessors.ts 已承接 active advisor conversation key、消息读取和消息更新访问器。
 components/layout/AppSessionShell.tsx 已恢复 analysis page 共享会话壳，统一承接 SessionSidebar、用户面板和当前页会话导航。
+features/conversation/components/ExpertControls.tsx 已增加空配置保护，未配置专家视角和召集团队时不渲染空控件壳。
 下一步提取 analysis page 中 advisor scene context 与 perspective options。
 ```
 

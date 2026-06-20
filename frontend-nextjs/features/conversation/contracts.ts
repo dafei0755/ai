@@ -1,6 +1,6 @@
 export const CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT = {
   moduleId: 'conversation-analysis-ui',
-  currentVersion: 'v2.2-shared-session-shell-restored',
+  currentVersion: 'v2.3-expert-controls-empty-state-guard',
   ownedPaths: [
     'frontend-nextjs/features/conversation/contracts.ts',
     'frontend-nextjs/features/conversation/types.ts',
@@ -58,6 +58,7 @@ export const CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT = {
     'renders collapsed visual brief summary and toggles pin',
     'renders advisor context insight chips and resize handle',
     'keeps expert controls in the feature component layer',
+    'renders nothing when no expert controls are configured',
     'renders expert perspective choices and summons an expert once selected',
     'closes the summon menu on outside click and escape',
     'keeps composer shell in the feature component layer',

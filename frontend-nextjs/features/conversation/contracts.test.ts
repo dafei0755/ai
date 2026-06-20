@@ -12,7 +12,7 @@ describe('conversation-analysis-ui module contract', () => {
   it('registers the governed frontend feature boundary', () => {
     expect(CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT).toMatchObject({
       moduleId: 'conversation-analysis-ui',
-      currentVersion: 'v2.2-shared-session-shell-restored',
+      currentVersion: 'v2.3-expert-controls-empty-state-guard',
     });
 
     for (const ownedPath of CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT.ownedPaths) {
@@ -295,7 +295,7 @@ describe('conversation-analysis-ui module contract', () => {
     ];
 
     expect(CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT.currentVersion).toBe(
-      'v2.2-shared-session-shell-restored',
+      'v2.3-expert-controls-empty-state-guard',
     );
     expect(conversationChatLines.length).toBeLessThanOrEqual(220);
     for (const importPath of requiredCompositionImports) {
@@ -451,6 +451,9 @@ describe('conversation-analysis-ui module contract', () => {
     expect(analysisPageSource).toContain('sidebarNavigationMode="in-place"');
     expect(analysisPageSource).toContain('currentSessionId={sessionId}');
     expect(analysisPageSource).toContain('</AppSessionShell>');
+    expect(analysisPageSource).not.toContain('activeExpertPerspective={activeExpertPerspective}');
+    expect(analysisPageSource).not.toContain('expertPerspectiveOptions={sceneExpertPerspectiveOptions}');
+    expect(analysisPageSource).not.toContain('summonOptions={EXPERT_SUMMON_OPTIONS}');
     expect(appSessionShellSource).toContain('ucppt-advisor-shell');
     expect(appSessionShellSource).toContain('<SessionSidebar');
   });

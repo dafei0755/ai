@@ -20,6 +20,8 @@ export function ExpertControls({
 }: ExpertControlsProps) {
   const [showSummonMenu, setShowSummonMenu] = useState(false);
   const summonMenuRef = useRef<HTMLDivElement>(null);
+  const canChoosePerspective = expertPerspectiveOptions.length > 0;
+  const canSummonExpert = summonOptions.length > 0;
 
   useEffect(() => {
     if (!showSummonMenu) return;
@@ -46,22 +48,29 @@ export function ExpertControls({
     };
   }, [showSummonMenu]);
 
+  if (!canChoosePerspective && !canSummonExpert) {
+    return null;
+  }
+
   return (
     <div className="mb-2 flex items-center rounded-[1rem] border border-white/10 bg-black/35 px-3 py-2 text-xs text-white/88 backdrop-blur-sm">
       <div className="inline-flex items-center gap-2">
-        <select
-          value={activeExpertPerspective}
-          onChange={(event) => onExpertPerspectiveChange?.(event.target.value)}
-          className="ui-type-meta min-w-[132px] rounded-full border border-white/10 bg-black/45 px-2.5 py-1 text-white outline-none"
-          aria-label="选择专家视角"
-        >
-          {expertPerspectiveOptions.map((option) => (
-            <option key={option} value={option} className="bg-[#1f1f1f] text-white">
-              {option}
-            </option>
-          ))}
-        </select>
-        <div ref={summonMenuRef} className="relative">
+        {canChoosePerspective && (
+          <select
+            value={activeExpertPerspective}
+            onChange={(event) => onExpertPerspectiveChange?.(event.target.value)}
+            className="ui-type-meta min-w-[132px] rounded-full border border-white/10 bg-black/45 px-2.5 py-1 text-white outline-none"
+            aria-label="选择专家视角"
+          >
+            {expertPerspectiveOptions.map((option) => (
+              <option key={option} value={option} className="bg-[#1f1f1f] text-white">
+                {option}
+              </option>
+            ))}
+          </select>
+        )}
+        {canSummonExpert && (
+          <div ref={summonMenuRef} className="relative">
           <button
             type="button"
             onClick={() => setShowSummonMenu((prev) => !prev)}
@@ -88,7 +97,8 @@ export function ExpertControls({
               ))}
             </div>
           )}
-        </div>
+          </div>
+        )}
       </div>
     </div>
   );
