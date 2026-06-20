@@ -84,8 +84,8 @@ tests/api/test_scheme_advisor_entry_route.py
 ### next_refactor_target
 
 ```text
-提取 intelligent_project_analyzer/modules/demand_reconstruction/contracts.py。
-提取 semantic_router.py 和 synthesis.py。
+contracts.py 已提取为模块合同入口。
+下一步提取 semantic_router.py 和 synthesis.py。
 旧 services/demand_reconstruction_service.py 保留兼容 facade。
 ```
 

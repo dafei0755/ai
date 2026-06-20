@@ -4,6 +4,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 SERVICE = ROOT / "intelligent_project_analyzer/services/demand_reconstruction_service.py"
 ROUTE = ROOT / "intelligent_project_analyzer/api/dual_mode_routes.py"
+CONTRACTS = ROOT / "intelligent_project_analyzer/modules/demand_reconstruction/contracts.py"
 DOC = ROOT / "docs/development/方案高参需求重构运行时开发纲领.md"
 
 
@@ -15,6 +16,7 @@ def test_demand_reconstruction_service_keeps_llm_first_semantic_router_contract(
     assert "LLM Semantic Router" in source
     assert "UNDERSTANDING_UNAVAILABLE" in source
     assert "SYNTHESIS_UNAVAILABLE" in source
+    assert "DEMAND_RECONSTRUCTION_CARD_TYPE" in source
     assert "semantic_fallback" in source
 
 
@@ -23,7 +25,7 @@ def test_conversation_route_maps_required_llm_unavailability_to_http_503() -> No
 
     assert "DemandReconstructionUnavailable" in source
     assert "DEMAND_RECONSTRUCTION_USE_LLM" in source
-    assert "status_code=503" in source
+    assert "LLM_FIRST_REQUIRED_HTTP_STATUS" in source
     assert "exc.error_code" in source
 
 
@@ -34,3 +36,13 @@ def test_runtime_doctrine_does_not_reintroduce_silent_rule_fallback_for_llm_firs
     assert "UNDERSTANDING_UNAVAILABLE" in text
     assert "SYNTHESIS_UNAVAILABLE" in text
     assert "关闭或失败时，系统必须继续返回规则蓝图" not in text
+
+def test_demand_reconstruction_contracts_centralize_llm_first_identifiers() -> None:
+    text = CONTRACTS.read_text(encoding="utf-8")
+
+    assert "DEMAND_RECONSTRUCTION_MODULE_ID" in text
+    assert "DEMAND_RECONSTRUCTION_VERSION" in text
+    assert "UNDERSTANDING_UNAVAILABLE" in text
+    assert "SYNTHESIS_UNAVAILABLE" in text
+    assert "LLM_FIRST_REQUIRED_HTTP_STATUS = 503" in text
+    assert "不得静默退回旧规则蓝图" in text

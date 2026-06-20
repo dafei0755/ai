@@ -15,6 +15,12 @@ from typing import Any, Dict, Optional
 
 from loguru import logger
 
+from intelligent_project_analyzer.modules.demand_reconstruction.contracts import (
+    DEMAND_RECONSTRUCTION_CARD_TYPE,
+    DEMAND_RECONSTRUCTION_INTENT,
+    SYNTHESIS_UNAVAILABLE,
+    UNDERSTANDING_UNAVAILABLE,
+)
 from .demand_reconstruction_context_adapter import DemandReconstructionContextAdapter
 from .demand_reconstruction_insight_quality import DemandReconstructionInsightQualityEvaluator
 from .demand_reconstruction_insight_protocol import DemandReconstructionInsightProtocol
@@ -45,8 +51,8 @@ class DemandReconstructionUnavailable(RuntimeError):
 class DemandReconstructionService:
     """Generate a non-freezing demand reconstruction for early ambiguous inputs."""
 
-    CARD_TYPE = "demand_reconstruction_blueprint"
-    INTENT = "demand_reconstruction_blueprint"
+    CARD_TYPE = DEMAND_RECONSTRUCTION_CARD_TYPE
+    INTENT = DEMAND_RECONSTRUCTION_INTENT
     _LLM_SEMANTIC_TARGET_ALIASES = {
         "life_identity": "life_identity",
         "personal_residential": "life_identity",
@@ -574,7 +580,7 @@ class DemandReconstructionService:
         if self._llm is None:
             if self._require_llm:
                 raise DemandReconstructionUnavailable(
-                    error_code="UNDERSTANDING_UNAVAILABLE",
+                    error_code=UNDERSTANDING_UNAVAILABLE,
                     diagnostics={"status": "not_configured"},
                 )
             return {**semantic_plan, "insight_source": "semantic_fallback", "llm_status": "not_configured"}
@@ -582,7 +588,7 @@ class DemandReconstructionService:
         if llm_plan is None:
             if self._require_llm:
                 raise DemandReconstructionUnavailable(
-                    error_code="SYNTHESIS_UNAVAILABLE",
+                    error_code=SYNTHESIS_UNAVAILABLE,
                     diagnostics=llm_diagnostics,
                 )
             fallback_plan = {
@@ -693,7 +699,7 @@ class DemandReconstructionService:
     def _build_llm_semantic_understanding(self, message: str) -> Dict[str, Any]:
         if self._llm is None:
             raise DemandReconstructionUnavailable(
-                error_code="UNDERSTANDING_UNAVAILABLE",
+                error_code=UNDERSTANDING_UNAVAILABLE,
                 diagnostics={"status": "not_configured"},
             )
         prompt = self._build_semantic_router_prompt(message)
@@ -714,7 +720,7 @@ class DemandReconstructionService:
                     f"provider={provider}, status={diagnostics.get('status')}"
                 )
             raise DemandReconstructionUnavailable(
-                error_code="UNDERSTANDING_UNAVAILABLE",
+                error_code=UNDERSTANDING_UNAVAILABLE,
                 diagnostics=last_diagnostics,
             )
 
@@ -725,7 +731,7 @@ class DemandReconstructionService:
         )
         if package is None:
             raise DemandReconstructionUnavailable(
-                error_code="UNDERSTANDING_UNAVAILABLE",
+                error_code=UNDERSTANDING_UNAVAILABLE,
                 diagnostics=diagnostics,
             )
         return package

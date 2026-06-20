@@ -1,4 +1,4 @@
-﻿"""
+"""
 dual_mode_routes.py — v2.0 双态架构 API 路由层
 Created by GitHub Copilot · 2026-03-15
 
@@ -28,6 +28,9 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from loguru import logger
 from pydantic import BaseModel, Field
 
+from intelligent_project_analyzer.modules.demand_reconstruction.contracts import (
+    LLM_FIRST_REQUIRED_HTTP_STATUS,
+)
 from intelligent_project_analyzer.services.demand_reconstruction_service import (
     DemandReconstructionService,
     DemandReconstructionUnavailable,
@@ -582,7 +585,7 @@ async def post_conversation_message(
             f"session={session_id}, code={exc.error_code}, diagnostics={exc.diagnostics}"
         )
         raise HTTPException(
-            status_code=503,
+            status_code=LLM_FIRST_REQUIRED_HTTP_STATUS,
             detail={
                 "code": exc.error_code,
                 "message": exc.user_message,
