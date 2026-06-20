@@ -12,7 +12,7 @@ describe('conversation-analysis-ui module contract', () => {
   it('registers the governed frontend feature boundary', () => {
     expect(CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT).toMatchObject({
       moduleId: 'conversation-analysis-ui',
-      currentVersion: 'v0.9-message-list-shell-extracted',
+      currentVersion: 'v1.0-upgrade-banner-extracted',
     });
 
     for (const ownedPath of CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT.ownedPaths) {
@@ -58,8 +58,11 @@ describe('conversation-analysis-ui module contract', () => {
     const messageListShellTestSource = readRepoFile(
       'frontend-nextjs/features/conversation/components/ConversationMessageListShell.test.tsx',
     );
+    const upgradeBannerTestSource = readRepoFile(
+      'frontend-nextjs/features/conversation/components/ConversationUpgradeBanner.test.tsx',
+    );
     const contractTestSource = readRepoFile('frontend-nextjs/features/conversation/contracts.test.ts');
-    const combinedTestSource = `${guidanceCardTestSource}\n${conversationChatTestSource}\n${composerHookTestSource}\n${layoutHookTestSource}\n${panelTestSource}\n${expertControlsTestSource}\n${composerShellTestSource}\n${messageListShellTestSource}\n${contractTestSource}`;
+    const combinedTestSource = `${guidanceCardTestSource}\n${conversationChatTestSource}\n${composerHookTestSource}\n${layoutHookTestSource}\n${panelTestSource}\n${expertControlsTestSource}\n${composerShellTestSource}\n${messageListShellTestSource}\n${upgradeBannerTestSource}\n${contractTestSource}`;
 
     for (const testCaseName of CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT.protectedTestCases) {
       expect(combinedTestSource).toContain(testCaseName);
@@ -203,5 +206,20 @@ describe('conversation-analysis-ui module contract', () => {
     expect(messageListShellSource).toContain('export function MessageListShell');
     expect(messageListShellSource).toContain('随时开始聊');
     expect(messageListShellSource).toContain('MessageCardRenderer');
+  });
+
+  it('keeps upgrade banner in the feature component layer', () => {
+    const conversationChatSource = readRepoFile(
+      'frontend-nextjs/components/ConversationMode/ConversationChat.tsx',
+    );
+    const upgradeBannerSource = readRepoFile(
+      'frontend-nextjs/features/conversation/components/UpgradeBanner.tsx',
+    );
+
+    expect(conversationChatSource).toContain("from '@/features/conversation/components/UpgradeBanner'");
+    expect(conversationChatSource).not.toContain('对话已积累足够上下文，可以整理为正式项目');
+    expect(conversationChatSource).not.toContain('立即整理');
+    expect(upgradeBannerSource).toContain('export function UpgradeBanner');
+    expect(upgradeBannerSource).toContain('对话已积累足够上下文，可以整理为正式项目');
   });
 });

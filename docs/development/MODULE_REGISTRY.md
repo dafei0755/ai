@@ -434,7 +434,7 @@ contracts.py 已建立为 LLM runtime 模块合同入口。
 module_id: conversation-analysis-ui
 name: 分析页对话 UI 与引导卡交互
 status: governed
-current_version: v0.9-message-list-shell-extracted
+current_version: v1.0-upgrade-banner-extracted
 ```
 
 ### owned_paths
@@ -448,6 +448,7 @@ frontend-nextjs/features/conversation/components/AdvisorContextPanel.tsx
 frontend-nextjs/features/conversation/components/ExpertControls.tsx
 frontend-nextjs/features/conversation/components/ComposerShell.tsx
 frontend-nextjs/features/conversation/components/MessageListShell.tsx
+frontend-nextjs/features/conversation/components/UpgradeBanner.tsx
 frontend-nextjs/features/conversation/hooks/useConversationComposer.ts
 frontend-nextjs/features/conversation/hooks/useConversationLayoutState.ts
 frontend-nextjs/app/analysis/[sessionId]/page.tsx
@@ -491,6 +492,7 @@ frontend-nextjs/features/conversation/components/ConversationPanels.test.tsx
 frontend-nextjs/features/conversation/components/ConversationExpertControls.test.tsx
 frontend-nextjs/features/conversation/components/ConversationComposerShell.test.tsx
 frontend-nextjs/features/conversation/components/ConversationMessageListShell.test.tsx
+frontend-nextjs/features/conversation/components/ConversationUpgradeBanner.test.tsx
 frontend-nextjs/features/conversation/hooks/useConversationComposer.test.ts
 frontend-nextjs/features/conversation/hooks/useConversationLayoutState.test.ts
 frontend-nextjs/components/ConversationMode/ConversationChat.test.tsx
@@ -510,7 +512,8 @@ features/conversation/components/AdvisorContextPanel.tsx 已承接上下文洞�
 features/conversation/components/ExpertControls.tsx 已承接专家视角选择、召集团队菜单、外部点击关闭和 Escape 关闭逻辑。
 features/conversation/components/ComposerShell.tsx 已承接浮动输入容器、专家控件组合、textarea 与发送按钮。
 features/conversation/components/MessageListShell.tsx 已承接空态、消息列表、typing indicator 和 MessageCardRenderer 组合。
-提取 upgrade banner。
+features/conversation/components/UpgradeBanner.tsx 已承接升级提示横幅文案和确认/稍后操作。
+移除 disabled legacy advisor context block，并审计 ConversationChat 是否已满足组合容器目标。
 ConversationChat 保留为组合容器。
 ```
 

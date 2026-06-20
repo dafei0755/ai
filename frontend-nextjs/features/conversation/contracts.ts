@@ -1,6 +1,6 @@
 export const CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT = {
   moduleId: 'conversation-analysis-ui',
-  currentVersion: 'v0.9-message-list-shell-extracted',
+  currentVersion: 'v1.0-upgrade-banner-extracted',
   ownedPaths: [
     'frontend-nextjs/features/conversation/contracts.ts',
     'frontend-nextjs/features/conversation/types.ts',
@@ -10,6 +10,7 @@ export const CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT = {
     'frontend-nextjs/features/conversation/components/ExpertControls.tsx',
     'frontend-nextjs/features/conversation/components/ComposerShell.tsx',
     'frontend-nextjs/features/conversation/components/MessageListShell.tsx',
+    'frontend-nextjs/features/conversation/components/UpgradeBanner.tsx',
     'frontend-nextjs/features/conversation/hooks/useConversationComposer.ts',
     'frontend-nextjs/features/conversation/hooks/useConversationLayoutState.ts',
     'frontend-nextjs/app/analysis/[sessionId]/page.tsx',
@@ -54,6 +55,8 @@ export const CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT = {
     'keeps message list shell in the feature component layer',
     'renders the empty conversation state',
     'renders visible messages and typing indicator while loading',
+    'keeps upgrade banner in the feature component layer',
+    'renders upgrade copy and calls confirm and dismiss actions',
     'renders demand reconstruction cards without formal intake wording',
     'renders dynamic demand reconstruction blueprint sections',
     'renders user-facing labels for context packet missing-slot pages',
@@ -68,7 +71,7 @@ export const CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT = {
     'frontend labels must translate internal backend signals into user-facing language',
   ],
   nextRefactorTargets: [
-    'extract upgrade banner from ConversationChat',
+    'remove disabled legacy advisor context block and audit ConversationChat as composition shell',
   ],
 } as const;
 
