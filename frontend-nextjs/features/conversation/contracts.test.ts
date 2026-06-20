@@ -12,7 +12,7 @@ describe('conversation-analysis-ui module contract', () => {
   it('registers the governed frontend feature boundary', () => {
     expect(CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT).toMatchObject({
       moduleId: 'conversation-analysis-ui',
-      currentVersion: 'v1.6-conversation-action-handlers-extracted',
+      currentVersion: 'v1.7-conversation-local-persistence-extracted',
     });
 
     for (const ownedPath of CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT.ownedPaths) {
@@ -46,6 +46,9 @@ describe('conversation-analysis-ui module contract', () => {
     const conversationActionHandlersTestSource = readRepoFile(
       'frontend-nextjs/features/conversation/conversationActionHandlers.test.ts',
     );
+    const conversationLocalPersistenceTestSource = readRepoFile(
+      'frontend-nextjs/features/conversation/conversationLocalPersistence.test.ts',
+    );
     const conversationChatTestSource = readRepoFile(
       'frontend-nextjs/components/ConversationMode/ConversationChat.test.tsx',
     );
@@ -74,7 +77,7 @@ describe('conversation-analysis-ui module contract', () => {
       'frontend-nextjs/features/conversation/components/ConversationUpgradeBanner.test.tsx',
     );
     const contractTestSource = readRepoFile('frontend-nextjs/features/conversation/contracts.test.ts');
-    const combinedTestSource = `${guidanceCardTestSource}\n${conversationHistoryAdapterTestSource}\n${conversationSessionBootstrapTestSource}\n${conversationActionHandlersTestSource}\n${conversationChatTestSource}\n${composerHookTestSource}\n${layoutHookTestSource}\n${advisorContextDerivationTestSource}\n${panelTestSource}\n${expertControlsTestSource}\n${composerShellTestSource}\n${messageListShellTestSource}\n${upgradeBannerTestSource}\n${contractTestSource}`;
+    const combinedTestSource = `${guidanceCardTestSource}\n${conversationHistoryAdapterTestSource}\n${conversationSessionBootstrapTestSource}\n${conversationActionHandlersTestSource}\n${conversationLocalPersistenceTestSource}\n${conversationChatTestSource}\n${composerHookTestSource}\n${layoutHookTestSource}\n${advisorContextDerivationTestSource}\n${panelTestSource}\n${expertControlsTestSource}\n${composerShellTestSource}\n${messageListShellTestSource}\n${upgradeBannerTestSource}\n${contractTestSource}`;
 
     for (const testCaseName of CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT.protectedTestCases) {
       expect(combinedTestSource).toContain(testCaseName);
@@ -277,7 +280,7 @@ describe('conversation-analysis-ui module contract', () => {
     ];
 
     expect(CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT.currentVersion).toBe(
-      'v1.6-conversation-action-handlers-extracted',
+      'v1.7-conversation-local-persistence-extracted',
     );
     expect(conversationChatLines.length).toBeLessThanOrEqual(220);
     for (const importPath of requiredCompositionImports) {
@@ -337,5 +340,21 @@ describe('conversation-analysis-ui module contract', () => {
     expect(analysisPageSource).not.toContain('card_responded: true');
     expect(actionHandlersSource).toContain('export async function sendConversationMessageAction');
     expect(actionHandlersSource).toContain('export async function respondToGuidanceCardAction');
+  });
+
+  it('keeps advisor conversation local persistence in the feature layer', () => {
+    const analysisPageSource = readRepoFile(
+      'frontend-nextjs/app/analysis/[sessionId]/page.tsx',
+    );
+    const localPersistenceSource = readRepoFile(
+      'frontend-nextjs/features/conversation/conversationLocalPersistence.ts',
+    );
+
+    expect(analysisPageSource).toContain("from '@/features/conversation/conversationLocalPersistence'");
+    expect(analysisPageSource).not.toContain('ADVISOR_CONVERSATION_STORAGE_KEY');
+    expect(analysisPageSource).not.toContain('analysis.advisor.conversations.v1');
+    expect(analysisPageSource).not.toContain('setConversationMessagesByScene(parsed)');
+    expect(localPersistenceSource).toContain('export function restoreAdvisorConversationMessages');
+    expect(localPersistenceSource).toContain('export function persistAdvisorConversationMessages');
   });
 });

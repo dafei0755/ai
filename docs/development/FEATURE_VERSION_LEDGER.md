@@ -359,11 +359,11 @@ tests/services/test_scheme_advisor_entry_v2_restore.py
 feature_id: conversation-analysis-ui
 name: 分析页对话 UI 与引导卡交互
 status: governed
-current_authoritative_version: v1.6-conversation-action-handlers-extracted
+current_authoritative_version: v1.7-conversation-local-persistence-extracted
 authoritative_branch: fix/scheme-advisor-question-root-cause-20260616
 authoritative_commit: current-branch-head-after-checkpoint
-previous_authoritative_commit: 46131174
-rollback_target: 46131174
+previous_authoritative_commit: f622f230
+rollback_target: f622f230
 last_promotion: 2026-06-20
 ```
 
@@ -386,6 +386,7 @@ v1.3: 审计并固化 ConversationChat 为最终组合容器，禁止业务 UI�
 v1.4: conversation history 到 ChatMessage 的适配和 guidance card 补水逻辑从 analysis page 抽取到 feature adapter
 v1.5: conversation mode session bootstrap、初始消息恢复和后端历史补水编排从 analysis page 抽取到 feature helper
 v1.6: conversation send、card-response、prompt prefix、assistant reply append 和 upgrade signal 编排从 analysis page 抽取到 feature action helper
+v1.7: advisor conversation messages by scene 的 localStorage 读写从 analysis page 抽取到 feature persistence helper
 ```
 
 ### 当前合同
@@ -407,6 +408,7 @@ frontend-nextjs/features/conversation/types.ts
 frontend-nextjs/features/conversation/conversationHistoryAdapter.ts
 frontend-nextjs/features/conversation/conversationSessionBootstrap.ts
 frontend-nextjs/features/conversation/conversationActionHandlers.ts
+frontend-nextjs/features/conversation/conversationLocalPersistence.ts
 frontend-nextjs/features/conversation/components/MessageCardRenderer.tsx
 frontend-nextjs/features/conversation/components/VisualBriefPanel.tsx
 frontend-nextjs/features/conversation/components/AdvisorContextPanel.tsx
@@ -431,6 +433,7 @@ frontend-nextjs/features/conversation/contracts.test.ts
 frontend-nextjs/features/conversation/conversationHistoryAdapter.test.ts
 frontend-nextjs/features/conversation/conversationSessionBootstrap.test.ts
 frontend-nextjs/features/conversation/conversationActionHandlers.test.ts
+frontend-nextjs/features/conversation/conversationLocalPersistence.test.ts
 frontend-nextjs/features/conversation/components/ConversationPanels.test.tsx
 frontend-nextjs/features/conversation/components/ConversationExpertControls.test.tsx
 frontend-nextjs/features/conversation/components/ConversationComposerShell.test.tsx
@@ -448,5 +451,5 @@ frontend-nextjs/components/ConversationMode/GuidanceCard.test.tsx
 ```powershell
 cd frontend-nextjs
 npm test -- ConversationChat.test.tsx GuidanceCard.test.tsx features/conversation/contracts.test.ts
-npm test -- features/conversation/conversationHistoryAdapter.test.ts features/conversation/conversationSessionBootstrap.test.ts features/conversation/conversationActionHandlers.test.ts features/conversation/hooks/useConversationComposer.test.ts features/conversation/hooks/useConversationLayoutState.test.ts features/conversation/hooks/useAdvisorContextDerivation.test.ts features/conversation/components/ConversationPanels.test.tsx features/conversation/components/ConversationExpertControls.test.tsx features/conversation/components/ConversationComposerShell.test.tsx features/conversation/components/ConversationMessageListShell.test.tsx features/conversation/components/ConversationUpgradeBanner.test.tsx
+npm test -- features/conversation/conversationHistoryAdapter.test.ts features/conversation/conversationSessionBootstrap.test.ts features/conversation/conversationActionHandlers.test.ts features/conversation/conversationLocalPersistence.test.ts features/conversation/hooks/useConversationComposer.test.ts features/conversation/hooks/useConversationLayoutState.test.ts features/conversation/hooks/useAdvisorContextDerivation.test.ts features/conversation/components/ConversationPanels.test.tsx features/conversation/components/ConversationExpertControls.test.tsx features/conversation/components/ConversationComposerShell.test.tsx features/conversation/components/ConversationMessageListShell.test.tsx features/conversation/components/ConversationUpgradeBanner.test.tsx
 ```

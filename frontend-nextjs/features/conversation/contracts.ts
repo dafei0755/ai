@@ -1,12 +1,13 @@
 export const CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT = {
   moduleId: 'conversation-analysis-ui',
-  currentVersion: 'v1.6-conversation-action-handlers-extracted',
+  currentVersion: 'v1.7-conversation-local-persistence-extracted',
   ownedPaths: [
     'frontend-nextjs/features/conversation/contracts.ts',
     'frontend-nextjs/features/conversation/types.ts',
     'frontend-nextjs/features/conversation/conversationHistoryAdapter.ts',
     'frontend-nextjs/features/conversation/conversationSessionBootstrap.ts',
     'frontend-nextjs/features/conversation/conversationActionHandlers.ts',
+    'frontend-nextjs/features/conversation/conversationLocalPersistence.ts',
     'frontend-nextjs/features/conversation/components/MessageCardRenderer.tsx',
     'frontend-nextjs/features/conversation/components/VisualBriefPanel.tsx',
     'frontend-nextjs/features/conversation/components/AdvisorContextPanel.tsx',
@@ -69,12 +70,16 @@ export const CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT = {
     'keeps analysis page conversation history adaptation in the feature layer',
     'keeps analysis page conversation session bootstrap in the feature layer',
     'keeps analysis page conversation send and card response actions in the feature layer',
+    'keeps advisor conversation local persistence in the feature layer',
     'marks an assistant guidance card as responded from legacy card response history',
     'hydrates missing assistant guidance cards from initial messages in order',
     'restores initial conversation bootstrap messages and hydrated history',
     'ignores invalid bootstrap payloads and reports restore errors',
     'sends scene-aware conversation prompts, appends the reply, and surfaces upgrade signals',
     'marks guidance cards responded, sends structured card responses, and appends the reply',
+    'restores advisor conversation messages by scene from local storage',
+    'ignores invalid advisor conversation payloads and reports parse errors',
+    'persists advisor conversation messages by scene to local storage',
     'renders demand reconstruction cards without formal intake wording',
     'renders dynamic demand reconstruction blueprint sections',
     'renders user-facing labels for context packet missing-slot pages',
@@ -89,7 +94,7 @@ export const CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT = {
     'frontend labels must translate internal backend signals into user-facing language',
   ],
   nextRefactorTargets: [
-    'extract advisor conversation local persistence from analysis page',
+    'extract advisor history local persistence from analysis page',
   ],
 } as const;
 

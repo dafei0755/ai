@@ -65,6 +65,11 @@ import {
 	respondToGuidanceCardAction,
 	sendConversationMessageAction,
 } from '@/features/conversation/conversationActionHandlers';
+import {
+	persistAdvisorConversationMessages,
+	restoreAdvisorConversationMessages,
+	type AdvisorConversationMessagesByScene,
+} from '@/features/conversation/conversationLocalPersistence';
 // v7.290: 分析页面改为独立体验，移除侧边栏组件
 
 // 节点名称中文映射
@@ -230,7 +235,6 @@ type AdvisorHistoryRecord = {
 };
 
 const ADVISOR_HISTORY_STORAGE_KEY = 'analysis.advisor.history.v1';
-const ADVISOR_CONVERSATION_STORAGE_KEY = 'analysis.advisor.conversations.v1';
 const WORKSPACE_LAYOUT_STORAGE_KEY = 'analysis.workspace.layout.v2';
 const WORKSPACE_PANEL_MIN_RATIO = 0.18;
 const WORKSPACE_PANEL_DEFAULT_RATIO = 0.22;
@@ -791,7 +795,7 @@ export default function AnalysisPage() {
 
 	// v2.0 双态架构状态
 	const [systemMode, setSystemMode] = useState<'conversation' | 'project'>('conversation');
-	const [conversationMessagesByScene, setConversationMessagesByScene] = useState<Record<string, ChatMessage[]>>({});
+	const [conversationMessagesByScene, setConversationMessagesByScene] = useState<AdvisorConversationMessagesByScene>({});
 	const [upgradeIndicators, setUpgradeIndicators] = useState({ freeze_readiness: 0, cognitive_debt: 0, diverge_fatigue: 0 });
 	const [showUpgradeBanner, setShowUpgradeBanner] = useState(false);
 	const [upgradeSuggestionText, setUpgradeSuggestionText] = useState('');
@@ -1421,15 +1425,11 @@ export default function AnalysisPage() {
 
 	useEffect(() => {
 		if (typeof window === 'undefined') return;
-		try {
-			const raw = window.localStorage.getItem(ADVISOR_CONVERSATION_STORAGE_KEY);
-			if (!raw) return;
-			const parsed = JSON.parse(raw) as Record<string, ChatMessage[]>;
-			if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return;
-			setConversationMessagesByScene(parsed);
-		} catch (error) {
-			console.error('[analysis] failed to restore advisor conversations:', error);
-		}
+		const restored = restoreAdvisorConversationMessages({
+			storage: window.localStorage,
+			onError: (error) => console.error('[analysis] failed to restore advisor conversations:', error),
+		});
+		if (restored) setConversationMessagesByScene(restored);
 	}, []);
 
 	useEffect(() => {
@@ -1443,11 +1443,11 @@ export default function AnalysisPage() {
 
 	useEffect(() => {
 		if (typeof window === 'undefined') return;
-		try {
-			window.localStorage.setItem(ADVISOR_CONVERSATION_STORAGE_KEY, JSON.stringify(conversationMessagesByScene));
-		} catch (error) {
-			console.error('[analysis] failed to persist advisor conversations:', error);
-		}
+		persistAdvisorConversationMessages({
+			storage: window.localStorage,
+			messagesByScene: conversationMessagesByScene,
+			onError: (error) => console.error('[analysis] failed to persist advisor conversations:', error),
+		});
 	}, [conversationMessagesByScene]);
 
 	useEffect(() => {
