@@ -14,6 +14,7 @@ RESPONSE_BUILDER = ROOT / "intelligent_project_analyzer/modules/demand_reconstru
 SEMANTIC_CONTEXT_APPLIER = ROOT / "intelligent_project_analyzer/modules/demand_reconstruction/semantic_context_applier.py"
 SEMANTIC_TARGETS = ROOT / "intelligent_project_analyzer/modules/demand_reconstruction/semantic_targets.py"
 BLUEPRINT_COORDINATOR = ROOT / "intelligent_project_analyzer/modules/demand_reconstruction/blueprint_coordinator.py"
+CONVERSATION_HANDLER = ROOT / "intelligent_project_analyzer/modules/demand_reconstruction/conversation_handler.py"
 ENTRY_CLASSIFIER = ROOT / "intelligent_project_analyzer/modules/demand_reconstruction/entry_classifier.py"
 PIPELINE = ROOT / "intelligent_project_analyzer/modules/demand_reconstruction/pipeline.py"
 DOC = ROOT / "docs/development/方案高参需求重构运行时开发纲领.md"
@@ -200,6 +201,20 @@ def test_demand_reconstruction_entry_classifier_is_module_boundary() -> None:
     assert "DemandReconstructionEntryClassifier" in service_source
     assert "self._entry_classifier.should_handle" in service_source
     assert "_FORMAL_TERMS" not in service_source
+
+
+def test_demand_reconstruction_conversation_handler_is_module_boundary() -> None:
+    handler_source = CONVERSATION_HANDLER.read_text(encoding="utf-8")
+    service_source = SERVICE.read_text(encoding="utf-8")
+
+    assert "class DemandReconstructionConversationHandler" in handler_source
+    assert "def handle_message" in handler_source
+    assert "pending_guidance_card" in handler_source
+    assert "handoff_to_brief" in handler_source
+    assert "continue_demand_reconstruction" in handler_source
+    assert "DemandReconstructionConversationHandler" in service_source
+    assert "self._conversation_handler.handle_message" in service_source
+    assert "pending_guidance_card" not in service_source
 
 
 def test_demand_reconstruction_pipeline_is_module_boundary() -> None:

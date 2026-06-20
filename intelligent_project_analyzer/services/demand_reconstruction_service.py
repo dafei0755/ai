@@ -21,6 +21,9 @@ from intelligent_project_analyzer.modules.demand_reconstruction.response_builder
 from intelligent_project_analyzer.modules.demand_reconstruction.blueprint_coordinator import (
     DemandReconstructionBlueprintCoordinator,
 )
+from intelligent_project_analyzer.modules.demand_reconstruction.conversation_handler import (
+    DemandReconstructionConversationHandler,
+)
 from intelligent_project_analyzer.modules.demand_reconstruction.entry_classifier import (
     DemandReconstructionEntryClassifier,
 )
@@ -79,6 +82,7 @@ class DemandReconstructionService:
         response_builder: Optional[DemandReconstructionResponseBuilder] = None,
         semantic_context_applier: Optional[DemandReconstructionSemanticContextApplier] = None,
         blueprint_coordinator: Optional[DemandReconstructionBlueprintCoordinator] = None,
+        conversation_handler: Optional[DemandReconstructionConversationHandler] = None,
         entry_classifier: Optional[DemandReconstructionEntryClassifier] = None,
         pipeline: Optional[DemandReconstructionPipeline] = None,
         require_llm: bool = False,
@@ -149,6 +153,14 @@ class DemandReconstructionService:
             alignment_gate=self._alignment_gate,
             insight_quality_gate=self._insight_quality_gate,
         )
+        self._conversation_handler = (
+            conversation_handler
+            or DemandReconstructionConversationHandler(
+                card_type=self.CARD_TYPE,
+                entry_classifier=self._entry_classifier,
+                result_builder=self._result,
+            )
+        )
 
     def handle_message(
         self,
@@ -158,22 +170,12 @@ class DemandReconstructionService:
         in_response_to_card_id: Optional[str],
         selected_option_id: Optional[str],
     ) -> Optional[Dict[str, Any]]:
-        pending_card = session.get("pending_guidance_card") or {}
-        if pending_card.get("card_type") == self.CARD_TYPE:
-            context = dict(session.get("demand_reconstruction_context") or {})
-            if selected_option_id == "handoff_to_brief":
-                context["handoff_requested"] = True
-                return {
-                    "handoff_requested": True,
-                    "demand_reconstruction_context": context,
-                }
-            if selected_option_id == "continue_demand_reconstruction" or self._is_demand_reconstruction_followup(user_message):
-                return self._result(user_message, previous_context=context, session=session)
-            return None
-
-        if not self.should_handle(user_message):
-            return None
-        return self._result(user_message, session=session)
+        return self._conversation_handler.handle_message(
+            session=session,
+            user_message=user_message,
+            in_response_to_card_id=in_response_to_card_id,
+            selected_option_id=selected_option_id,
+        )
 
     def should_handle(self, message: str) -> bool:
         return self._entry_classifier.should_handle(message)
