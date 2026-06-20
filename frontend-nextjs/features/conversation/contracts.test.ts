@@ -4,7 +4,7 @@ import path from 'path';
 import { CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT } from './contracts';
 import type { ChatMessage, GuidanceCardData, GuidanceCardStructuredResponse } from './types';
 
-const repoRoot = path.resolve(process.cwd(), '..');
+const repoRoot = path.resolve(__dirname, '../../..');
 const readRepoFile = (relativePath: string) =>
   readFileSync(path.join(repoRoot, relativePath), 'utf8');
 
@@ -12,7 +12,7 @@ describe('conversation-analysis-ui module contract', () => {
   it('registers the governed frontend feature boundary', () => {
     expect(CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT).toMatchObject({
       moduleId: 'conversation-analysis-ui',
-      currentVersion: 'v0.2-conversation-types-extracted',
+      currentVersion: 'v0.3-card-renderer-extracted',
     });
 
     for (const ownedPath of CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT.ownedPaths) {
@@ -66,5 +66,21 @@ describe('conversation-analysis-ui module contract', () => {
     expect(message.role).toBe('assistant');
     expect(card.card_type).toBe('demand_reconstruction_blueprint');
     expect(response.pages).toEqual([]);
+  });
+
+  it('keeps message card rendering in the feature layer', () => {
+    const conversationChatSource = readRepoFile(
+      'frontend-nextjs/components/ConversationMode/ConversationChat.tsx',
+    );
+    const rendererSource = readRepoFile(
+      'frontend-nextjs/features/conversation/components/MessageCardRenderer.tsx',
+    );
+
+    expect(conversationChatSource).toContain("from '@/features/conversation/components/MessageCardRenderer'");
+    expect(conversationChatSource).not.toContain('function SchemeVersionSelectionCard');
+    expect(rendererSource).toContain('export function MessageCardRenderer');
+    expect(rendererSource).toContain('scheme_version_selection');
+    expect(rendererSource).toContain('CandidateCard');
+    expect(rendererSource).toContain('GuidanceCardWidget');
   });
 });
