@@ -21,12 +21,14 @@ DOC = ROOT / "docs/development/方案高参需求重构运行时开发纲领.md"
 def test_demand_reconstruction_service_keeps_llm_first_semantic_router_contract() -> None:
     source = SERVICE.read_text(encoding="utf-8")
     coordinator_source = BLUEPRINT_COORDINATOR.read_text(encoding="utf-8")
+    contracts_source = CONTRACTS.read_text(encoding="utf-8")
 
-    assert "class DemandReconstructionUnavailable" in source
+    assert "DemandReconstructionUnavailable" in source
+    assert "class DemandReconstructionUnavailable" in contracts_source
     assert "def _build_llm_semantic_understanding" in source
     assert "LLM Semantic Router" in source
     assert "UNDERSTANDING_UNAVAILABLE" in source
-    assert "SYNTHESIS_UNAVAILABLE" in source
+    assert "SYNTHESIS_UNAVAILABLE" in coordinator_source
     assert "DEMAND_RECONSTRUCTION_CARD_TYPE" in source
     assert "semantic_fallback" in coordinator_source
 
@@ -54,6 +56,7 @@ def test_demand_reconstruction_contracts_centralize_llm_first_identifiers() -> N
 
     assert "DEMAND_RECONSTRUCTION_MODULE_ID" in text
     assert "DEMAND_RECONSTRUCTION_VERSION" in text
+    assert "class DemandReconstructionUnavailable" in text
     assert "UNDERSTANDING_UNAVAILABLE" in text
     assert "SYNTHESIS_UNAVAILABLE" in text
     assert "LLM_FIRST_REQUIRED_HTTP_STATUS = 503" in text

@@ -42,7 +42,7 @@ from intelligent_project_analyzer.modules.demand_reconstruction.semantic_router 
 from intelligent_project_analyzer.modules.demand_reconstruction.contracts import (
     DEMAND_RECONSTRUCTION_CARD_TYPE,
     DEMAND_RECONSTRUCTION_INTENT,
-    SYNTHESIS_UNAVAILABLE,
+    DemandReconstructionUnavailable,
     UNDERSTANDING_UNAVAILABLE,
 )
 from .demand_reconstruction_context_adapter import DemandReconstructionContextAdapter
@@ -50,22 +50,6 @@ from .demand_reconstruction_insight_quality import DemandReconstructionInsightQu
 from .demand_reconstruction_insight_protocol import DemandReconstructionInsightProtocol
 from .demand_reconstruction_output_planner import DemandReconstructionOutputPlanner
 from .latent_model_adapter import LatentModelAdapter
-
-
-class DemandReconstructionUnavailable(RuntimeError):
-    """Raised when the LLM-first demand reconstruction path cannot produce output."""
-
-    def __init__(
-        self,
-        *,
-        error_code: str,
-        diagnostics: Optional[Dict[str, Any]] = None,
-        user_message: str = "智能识别暂不可用，请重试。",
-    ) -> None:
-        super().__init__(user_message)
-        self.error_code = error_code
-        self.user_message = user_message
-        self.diagnostics = dict(diagnostics or {})
 
 
 class DemandReconstructionService:

@@ -50,6 +50,7 @@ v1.4: typed 503 不可用合同与防回退守护测试
 当 `DEMAND_RECONSTRUCTION_USE_LLM=1` 时：
 
 ```text
+DemandReconstructionUnavailable -> typed unavailability exception
 UNDERSTANDING_UNAVAILABLE -> HTTP 503
 SYNTHESIS_UNAVAILABLE -> HTTP 503
 ```

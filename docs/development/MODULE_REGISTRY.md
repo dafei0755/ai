@@ -63,6 +63,7 @@ docs/development/方案高参需求重构运行时开发纲领.md
 ```text
 用户输入必须先进入需求重构入口。
 当 DEMAND_RECONSTRUCTION_USE_LLM=1 时，采用 LLM-first。
+DemandReconstructionUnavailable 是 typed unavailability 的权威异常类型。
 UNDERSTANDING_UNAVAILABLE -> HTTP 503。
 SYNTHESIS_UNAVAILABLE -> HTTP 503。
 不得静默退回旧规则蓝图。

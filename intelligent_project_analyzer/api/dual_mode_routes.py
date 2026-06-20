@@ -29,11 +29,11 @@ from loguru import logger
 from pydantic import BaseModel, Field
 
 from intelligent_project_analyzer.modules.demand_reconstruction.contracts import (
+    DemandReconstructionUnavailable,
     LLM_FIRST_REQUIRED_HTTP_STATUS,
 )
 from intelligent_project_analyzer.services.demand_reconstruction_service import (
     DemandReconstructionService,
-    DemandReconstructionUnavailable,
 )
 from intelligent_project_analyzer.services.redis_session_manager import RedisSessionManager
 
