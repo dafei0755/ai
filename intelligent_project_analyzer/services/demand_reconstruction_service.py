@@ -24,6 +24,9 @@ from intelligent_project_analyzer.modules.demand_reconstruction.response_builder
 from intelligent_project_analyzer.modules.demand_reconstruction.blueprint_coordinator import (
     DemandReconstructionBlueprintCoordinator,
 )
+from intelligent_project_analyzer.modules.demand_reconstruction.entry_classifier import (
+    DemandReconstructionEntryClassifier,
+)
 from intelligent_project_analyzer.modules.demand_reconstruction.semantic_context_applier import (
     DemandReconstructionSemanticContextApplier,
 )
@@ -47,7 +50,6 @@ from .demand_reconstruction_insight_quality import DemandReconstructionInsightQu
 from .demand_reconstruction_insight_protocol import DemandReconstructionInsightProtocol
 from .demand_reconstruction_output_planner import DemandReconstructionOutputPlanner
 from .latent_model_adapter import LatentModelAdapter
-from .scheme_advisor_semantic_axes import should_enter_demand_reconstruction
 
 
 class DemandReconstructionUnavailable(RuntimeError):
@@ -99,20 +101,6 @@ class DemandReconstructionService:
         "general_project": "general_project",
     }
 
-    _FORMAL_TERMS = (
-        "设计任务书",
-        "任务书",
-        "完整设计",
-        "完整室内设计",
-        "完整室内设计概念框架",
-        "完整概念框架",
-        "完整框架",
-        "可执行版本",
-        "按这个做",
-        "定稿",
-        "输出方案",
-    )
-
     def __init__(
         self,
         *,
@@ -130,6 +118,7 @@ class DemandReconstructionService:
         response_builder: Optional[DemandReconstructionResponseBuilder] = None,
         semantic_context_applier: Optional[DemandReconstructionSemanticContextApplier] = None,
         blueprint_coordinator: Optional[DemandReconstructionBlueprintCoordinator] = None,
+        entry_classifier: Optional[DemandReconstructionEntryClassifier] = None,
         require_llm: bool = False,
         governance_store: Any = None,
     ) -> None:
@@ -139,6 +128,7 @@ class DemandReconstructionService:
         self._governance = governance or DemandReconstructionGovernance(
             governance_store=governance_store,
         )
+        self._entry_classifier = entry_classifier or DemandReconstructionEntryClassifier()
         self._context_adapter = context_adapter or DemandReconstructionContextAdapter()
         self._insight_protocol = insight_protocol or DemandReconstructionInsightProtocol()
         # LLM Semantic Router remains the first understanding boundary; the
@@ -210,16 +200,10 @@ class DemandReconstructionService:
         return self._result(user_message, session=session)
 
     def should_handle(self, message: str) -> bool:
-        return should_enter_demand_reconstruction(message)
+        return self._entry_classifier.should_handle(message)
 
     def is_formal_brief_request(self, message: str) -> bool:
-        text = str(message or "")
-        if any(term in text for term in self._FORMAL_TERMS):
-            return True
-        has_complete = "完整" in text
-        has_framework = any(term in text for term in ("框架", "概念", "方案"))
-        has_multi_topic = sum(1 for term in ("光", "材料", "动线", "自然", "空间", "界面", "精神性") if term in text) >= 3
-        return has_complete and has_framework and has_multi_topic
+        return self._entry_classifier.is_formal_brief_request(message)
 
     def _result(
         self,
@@ -376,7 +360,7 @@ class DemandReconstructionService:
 
     @staticmethod
     def _is_demand_reconstruction_followup(message: str) -> bool:
-        return bool(str(message or "").strip())
+        return DemandReconstructionEntryClassifier.is_demand_reconstruction_followup(message)
 
     def _build_blueprint(self, adapter_context: Dict[str, Any]) -> Dict[str, Any]:
         return self._blueprint_coordinator.build_blueprint(adapter_context)

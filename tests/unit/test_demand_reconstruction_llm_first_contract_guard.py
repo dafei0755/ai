@@ -13,6 +13,7 @@ INSIGHT_QUALITY_GATE = ROOT / "intelligent_project_analyzer/modules/demand_recon
 RESPONSE_BUILDER = ROOT / "intelligent_project_analyzer/modules/demand_reconstruction/response_builder.py"
 SEMANTIC_CONTEXT_APPLIER = ROOT / "intelligent_project_analyzer/modules/demand_reconstruction/semantic_context_applier.py"
 BLUEPRINT_COORDINATOR = ROOT / "intelligent_project_analyzer/modules/demand_reconstruction/blueprint_coordinator.py"
+ENTRY_CLASSIFIER = ROOT / "intelligent_project_analyzer/modules/demand_reconstruction/entry_classifier.py"
 DOC = ROOT / "docs/development/方案高参需求重构运行时开发纲领.md"
 
 
@@ -166,3 +167,17 @@ def test_demand_reconstruction_blueprint_coordinator_is_module_boundary() -> Non
     assert "UNDERSTANDING_UNAVAILABLE" in coordinator_source
     assert "DemandReconstructionBlueprintCoordinator" in service_source
     assert "self._blueprint_coordinator.build_blueprint" in service_source
+
+
+def test_demand_reconstruction_entry_classifier_is_module_boundary() -> None:
+    classifier_source = ENTRY_CLASSIFIER.read_text(encoding="utf-8")
+    service_source = SERVICE.read_text(encoding="utf-8")
+
+    assert "class DemandReconstructionEntryClassifier" in classifier_source
+    assert "def should_handle" in classifier_source
+    assert "def is_formal_brief_request" in classifier_source
+    assert "def is_demand_reconstruction_followup" in classifier_source
+    assert "should_enter_demand_reconstruction" in classifier_source
+    assert "DemandReconstructionEntryClassifier" in service_source
+    assert "self._entry_classifier.should_handle" in service_source
+    assert "_FORMAL_TERMS" not in service_source
