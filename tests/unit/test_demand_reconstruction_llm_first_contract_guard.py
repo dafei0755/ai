@@ -7,6 +7,7 @@ ROUTE = ROOT / "intelligent_project_analyzer/api/dual_mode_routes.py"
 CONTRACTS = ROOT / "intelligent_project_analyzer/modules/demand_reconstruction/contracts.py"
 SEMANTIC_ROUTER = ROOT / "intelligent_project_analyzer/modules/demand_reconstruction/semantic_router.py"
 SYNTHESIS = ROOT / "intelligent_project_analyzer/modules/demand_reconstruction/synthesis.py"
+GOVERNANCE = ROOT / "intelligent_project_analyzer/modules/demand_reconstruction/governance.py"
 DOC = ROOT / "docs/development/方案高参需求重构运行时开发纲领.md"
 
 
@@ -75,3 +76,17 @@ def test_demand_reconstruction_synthesis_is_module_boundary() -> None:
     assert "build_repair_prompt" in synthesis_source
     assert "DemandReconstructionSynthesis" in service_source
     assert "self._synthesis.build_blueprint" in service_source
+
+
+def test_demand_reconstruction_governance_is_module_boundary() -> None:
+    governance_source = GOVERNANCE.read_text(encoding="utf-8")
+    service_source = SERVICE.read_text(encoding="utf-8")
+
+    assert "class DemandReconstructionGovernance" in governance_source
+    assert "def apply_governed_knowledge_assets" in governance_source
+    assert "def persist_governance_signals" in governance_source
+    assert "def approved_card_match_metadata" in governance_source
+    assert "def compact_governed_knowledge_asset" in governance_source
+    assert "DemandReconstructionGovernance" in service_source
+    assert "self._governance.apply_governed_knowledge_assets" in service_source
+    assert "self._governance.persist_governance_signals" in service_source
