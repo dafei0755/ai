@@ -12,7 +12,7 @@ describe('conversation-analysis-ui module contract', () => {
   it('registers the governed frontend feature boundary', () => {
     expect(CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT).toMatchObject({
       moduleId: 'conversation-analysis-ui',
-      currentVersion: 'v2.5-advisor-view-model-extracted',
+      currentVersion: 'v2.6-advisor-navigation-config-extracted',
     });
 
     for (const ownedPath of CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT.ownedPaths) {
@@ -64,6 +64,9 @@ describe('conversation-analysis-ui module contract', () => {
     const advisorSceneContextTestSource = readRepoFile(
       'frontend-nextjs/features/conversation/advisorSceneContext.test.ts',
     );
+    const advisorNavigationConfigTestSource = readRepoFile(
+      'frontend-nextjs/features/conversation/advisorNavigationConfig.test.ts',
+    );
     const advisorViewModelTestSource = readRepoFile(
       'frontend-nextjs/features/conversation/advisorViewModel.test.ts',
     );
@@ -98,7 +101,7 @@ describe('conversation-analysis-ui module contract', () => {
       'frontend-nextjs/__tests__/AppSessionShell.test.tsx',
     );
     const contractTestSource = readRepoFile('frontend-nextjs/features/conversation/contracts.test.ts');
-    const combinedTestSource = `${guidanceCardTestSource}\n${conversationHistoryAdapterTestSource}\n${conversationSessionBootstrapTestSource}\n${conversationActionHandlersTestSource}\n${conversationLocalPersistenceTestSource}\n${advisorHistoryPersistenceTestSource}\n${advisorHistoryDerivationTestSource}\n${advisorHistoryGroupingTestSource}\n${advisorConversationAccessorsTestSource}\n${advisorSceneContextTestSource}\n${advisorViewModelTestSource}\n${conversationChatTestSource}\n${composerHookTestSource}\n${layoutHookTestSource}\n${advisorContextDerivationTestSource}\n${panelTestSource}\n${expertControlsTestSource}\n${composerShellTestSource}\n${messageListShellTestSource}\n${upgradeBannerTestSource}\n${appSessionShellTestSource}\n${contractTestSource}`;
+    const combinedTestSource = `${guidanceCardTestSource}\n${conversationHistoryAdapterTestSource}\n${conversationSessionBootstrapTestSource}\n${conversationActionHandlersTestSource}\n${conversationLocalPersistenceTestSource}\n${advisorHistoryPersistenceTestSource}\n${advisorHistoryDerivationTestSource}\n${advisorHistoryGroupingTestSource}\n${advisorConversationAccessorsTestSource}\n${advisorSceneContextTestSource}\n${advisorNavigationConfigTestSource}\n${advisorViewModelTestSource}\n${conversationChatTestSource}\n${composerHookTestSource}\n${layoutHookTestSource}\n${advisorContextDerivationTestSource}\n${panelTestSource}\n${expertControlsTestSource}\n${composerShellTestSource}\n${messageListShellTestSource}\n${upgradeBannerTestSource}\n${appSessionShellTestSource}\n${contractTestSource}`;
 
     for (const testCaseName of CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT.protectedTestCases) {
       expect(combinedTestSource).toContain(testCaseName);
@@ -301,7 +304,7 @@ describe('conversation-analysis-ui module contract', () => {
     ];
 
     expect(CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT.currentVersion).toBe(
-      'v2.5-advisor-view-model-extracted',
+      'v2.6-advisor-navigation-config-extracted',
     );
     expect(conversationChatLines.length).toBeLessThanOrEqual(220);
     for (const importPath of requiredCompositionImports) {
@@ -505,5 +508,22 @@ describe('conversation-analysis-ui module contract', () => {
     expect(analysisPageSource).toContain("from '@/features/conversation/advisorViewModel'");
     expect(analysisPageSource).not.toContain('const getAdvisorViewModel =');
     expect(advisorViewModelSource).toContain('export function getAdvisorViewModel');
+  });
+
+  it('keeps advisor navigation configuration in the feature layer', () => {
+    const analysisPageSource = readRepoFile(
+      'frontend-nextjs/app/analysis/[sessionId]/page.tsx',
+    );
+    const advisorNavigationConfigSource = readRepoFile(
+      'frontend-nextjs/features/conversation/advisorNavigationConfig.ts',
+    );
+
+    expect(analysisPageSource).toContain("from '@/features/conversation/advisorNavigationConfig'");
+    expect(analysisPageSource).not.toContain('const PRIMARY_NAV_ITEMS =');
+    expect(analysisPageSource).not.toContain('const PROJECT_SECTION_ITEMS =');
+    expect(analysisPageSource).not.toContain('const INSIGHT_VIEWS =');
+    expect(advisorNavigationConfigSource).toContain('export const ADVISOR_PRIMARY_NAV_ITEMS');
+    expect(advisorNavigationConfigSource).toContain('export const ADVISOR_PROJECT_SECTION_ITEMS');
+    expect(advisorNavigationConfigSource).toContain('export const ADVISOR_INSIGHT_VIEWS');
   });
 });

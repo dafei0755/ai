@@ -327,8 +327,9 @@ frontend-nextjs/app/analysis/[sessionId]/page.tsx
 23. 增加 ExpertControls 空配置保护，避免未配置专家控件时渲染空壳。（已完成）
 24. 提取 advisor scene context 与 perspective options。（已完成）
 25. 提取 advisor view model selection。（已完成）
-26. 提取 advisor navigation configuration。
-27. 页面只保留 session 加载、布局和 feature 组合。
+26. 提取 advisor navigation configuration。（已完成）
+27. 统一 advisor key type aliases 与 feature contracts。
+28. 页面只保留 session 加载、布局和 feature 组合。
 ```
 
 验收：

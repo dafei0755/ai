@@ -82,6 +82,10 @@ import {
 	getScenePerspectiveOptions,
 	type ExpertPerspectiveOption,
 } from '@/features/conversation/advisorSceneContext';
+import {
+	ADVISOR_PRIMARY_NAV_ITEMS,
+	ADVISOR_PROJECT_SECTION_ITEMS,
+} from '@/features/conversation/advisorNavigationConfig';
 import { getAdvisorViewModel } from '@/features/conversation/advisorViewModel';
 // v7.290: 分析页面改为独立体验，移除侧边栏组件
 
@@ -249,17 +253,7 @@ type WorkspaceResizePanel = 'middle' | 'advisor';
 const clampWorkspacePanelRatio = (value: number) =>
 	Math.min(WORKSPACE_PANEL_MAX_RATIO, Math.max(WORKSPACE_PANEL_MIN_RATIO, value));
 
-const PRIMARY_NAV_ITEMS: Array<{ key: PrimaryNavKey; title: string }> = [
-	{ key: 'project', title: '项目底盘' },
-	{ key: 'knowledge', title: '我的硅基分身' },
-];
-
 const EXPERT_SUMMON_OPTIONS = ['召集全部', '空间总控', '用户研究', '商业运营', '实施边界', '风险总控'] as const;
-
-const PROJECT_SECTION_ITEMS: Array<{ key: ProjectSectionKey; title: string }> = [
-	{ key: 'sandbox', title: '平面推演' },
-	{ key: 'board', title: '方案画布' },
-];
 
 type ConcreteBoardCanvasSpace = Exclude<BoardCanvasSpace, '全部'>;
 
@@ -465,14 +459,6 @@ const COCKPIT_CARDS: Record<Exclude<CockpitModuleKey, 'insight' | 'knowledge'>, 
 		{ title: '动线顾问', desc: '主客/服务动线冲突扫描。', badge: '顾问' },
 	],
 };
-
-const INSIGHT_VIEWS: Array<{ key: InsightViewKey; label: string; desc: string }> = [
-	{ key: 'main', label: '项目全景关系图', desc: '主图：项目脑图谱（全局关系）。' },
-	{ key: 'space', label: '空间程序结构图', desc: '副图：空间骨架与模块层级。' },
-	{ key: 'flow', label: '动线关系图', desc: '副图：主人/访客/服务动线镜像。' },
-	{ key: 'emotion', label: '情绪体验曲线图', desc: '副图：心理旅程与节奏峰谷。' },
-	{ key: 'time', label: '时间状态图', desc: '副图：时段与季节切片对比。' },
-];
 
 const CONTEXT_STORAGE_KEY = 'advisor_context_by_scene';
 const CONTEXT_PANE_PERCENT_KEY = 'advisor_context_pane_percent';
@@ -2685,7 +2671,7 @@ export default function AnalysisPage() {
 
 							{projectActivated && (
 								<div className="grid border-t border-white/9 bg-transparent">
-									{PROJECT_SECTION_ITEMS.map((item) => {
+									{ADVISOR_PROJECT_SECTION_ITEMS.map((item) => {
 										const active =
 											activePrimaryNav === 'project' &&
 											((item.key === 'sandbox' && activeCockpitModule === 'files' && activeProjectSection === 'sandbox') ||
@@ -2730,7 +2716,7 @@ export default function AnalysisPage() {
 							</div>
 						</button>
 
-						{PRIMARY_NAV_ITEMS.filter((item) => item.key !== 'project').map((item) => {
+						{ADVISOR_PRIMARY_NAV_ITEMS.filter((item) => item.key !== 'project').map((item) => {
 							const active = activePrimaryNav === item.key;
 							const activeClass =
 								item.key === 'assets'

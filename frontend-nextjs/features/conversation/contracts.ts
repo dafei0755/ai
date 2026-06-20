@@ -1,6 +1,6 @@
 export const CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT = {
   moduleId: 'conversation-analysis-ui',
-  currentVersion: 'v2.5-advisor-view-model-extracted',
+  currentVersion: 'v2.6-advisor-navigation-config-extracted',
   ownedPaths: [
     'frontend-nextjs/features/conversation/contracts.ts',
     'frontend-nextjs/features/conversation/types.ts',
@@ -13,6 +13,7 @@ export const CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT = {
     'frontend-nextjs/features/conversation/advisorHistoryGrouping.ts',
     'frontend-nextjs/features/conversation/advisorConversationAccessors.ts',
     'frontend-nextjs/features/conversation/advisorSceneContext.ts',
+    'frontend-nextjs/features/conversation/advisorNavigationConfig.ts',
     'frontend-nextjs/features/conversation/advisorViewModel.ts',
     'frontend-nextjs/features/conversation/components/MessageCardRenderer.tsx',
     'frontend-nextjs/features/conversation/components/VisualBriefPanel.tsx',
@@ -85,6 +86,7 @@ export const CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT = {
     'keeps advisor history grouping in the feature layer',
     'keeps active advisor conversation accessors in the feature layer',
     'keeps advisor scene context and perspective options in the feature layer',
+    'keeps advisor navigation configuration in the feature layer',
     'keeps advisor view model selection in the feature layer',
     'keeps conversation mode inside the shared session shell',
     'renders the shared session sidebar beside page content',
@@ -111,6 +113,9 @@ export const CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT = {
     'returns implementation-focused perspectives for logistics sandbox scenes',
     'returns room-focused perspectives for guest-room board scenes',
     'builds a stable advisor scene context for insight views',
+    'defines the left primary navigation entries',
+    'defines project section navigation entries',
+    'defines advisor insight view tabs',
     'selects the resource radar model for asset scenes',
     'selects the silicon avatar model variants for knowledge scenes',
     'selects project models by board and sandbox state',
@@ -128,7 +133,7 @@ export const CONVERSATION_ANALYSIS_UI_MODULE_CONTRACT = {
     'frontend labels must translate internal backend signals into user-facing language',
   ],
   nextRefactorTargets: [
-    'extract advisor navigation configuration from analysis page',
+    'align advisor key type aliases with feature contracts',
   ],
 } as const;
 

@@ -439,7 +439,7 @@ contracts.py 已建立为 LLM runtime 模块合同入口。
 module_id: conversation-analysis-ui
 name: 分析页对话 UI 与引导卡交互
 status: governed
-current_version: v2.5-advisor-view-model-extracted
+current_version: v2.6-advisor-navigation-config-extracted
 ```
 
 ### owned_paths
@@ -456,6 +456,7 @@ frontend-nextjs/features/conversation/advisorHistoryDerivation.ts
 frontend-nextjs/features/conversation/advisorHistoryGrouping.ts
 frontend-nextjs/features/conversation/advisorConversationAccessors.ts
 frontend-nextjs/features/conversation/advisorSceneContext.ts
+frontend-nextjs/features/conversation/advisorNavigationConfig.ts
 frontend-nextjs/features/conversation/advisorViewModel.ts
 frontend-nextjs/features/conversation/components/MessageCardRenderer.tsx
 frontend-nextjs/features/conversation/components/VisualBriefPanel.tsx
@@ -515,6 +516,7 @@ frontend-nextjs/features/conversation/advisorHistoryDerivation.test.ts
 frontend-nextjs/features/conversation/advisorHistoryGrouping.test.ts
 frontend-nextjs/features/conversation/advisorConversationAccessors.test.ts
 frontend-nextjs/features/conversation/advisorSceneContext.test.ts
+frontend-nextjs/features/conversation/advisorNavigationConfig.test.ts
 frontend-nextjs/features/conversation/advisorViewModel.test.ts
 frontend-nextjs/features/conversation/components/ConversationPanels.test.tsx
 frontend-nextjs/features/conversation/components/ConversationExpertControls.test.tsx
@@ -558,7 +560,8 @@ components/layout/AppSessionShell.tsx 已恢复 analysis page 共享会话壳，
 features/conversation/components/ExpertControls.tsx 已增加空配置保护，未配置专家视角和召集团队时不渲染空控件壳。
 features/conversation/advisorSceneContext.ts 已承接 advisor scene context、场景 key、场景建议文案和 perspective options。
 features/conversation/advisorViewModel.ts 已承接 advisor view model selection。
-下一步提取 analysis page 中 advisor navigation configuration。
+features/conversation/advisorNavigationConfig.ts 已承接 advisor navigation configuration。
+下一步统一 analysis page 中 advisor key type aliases 与 feature contracts。
 ```
 
 ## 8. 新模块登记模板
