@@ -252,3 +252,53 @@ tests/unit/test_demand_reconstruction_governed_knowledge_matching.py
 ```powershell
 .\.conda\python.exe -m pytest tests/unit/test_knowledge_module_contract_guard.py tests/unit/test_demand_reconstruction_governed_knowledge_matching.py tests/unit/services/test_knowledge_governance_store_review_items.py tests/unit/services/test_knowledge_asset_review_service.py -q
 ```
+
+## 5. LLM Runtime
+
+```text
+feature_id: llm-runtime
+name: LLM provider、fallback、diagnostics 与可用性合同
+status: governed
+current_authoritative_version: v0.1-provider-fallback-contract
+authoritative_branch: fix/scheme-advisor-question-root-cause-20260616
+authoritative_commit: current-branch-head-after-checkpoint
+previous_authoritative_commit: unregistered
+rollback_target: branch head before v0.1-provider-fallback-contract checkpoint
+last_promotion: 2026-06-20
+```
+
+### 当前合同
+
+```text
+provider config / fallback chain
+-> provider invocation
+-> diagnostics
+-> success response OR typed required-mode failure
+```
+
+`provider ready` 不等于业务输出成功。`llm_partial`、`semantic_fallback`、`llm_failed` 不得在 required LLM 模式下被当成最终成功；required 模式失败必须由需求重构合同映射到 typed HTTP 503。
+
+### 权威文件
+
+```text
+intelligent_project_analyzer/modules/llm_runtime/contracts.py
+intelligent_project_analyzer/services/llm_factory.py
+intelligent_project_analyzer/services/multi_llm_factory.py
+intelligent_project_analyzer/services/demand_reconstruction_llm.py
+scripts/smoke_demand_reconstruction_llm.py
+```
+
+### 守护测试
+
+```text
+tests/unit/test_llm_runtime_module_contract_guard.py
+tests/unit/test_llm_fallback_priority.py
+tests/unit/services/test_multi_llm_fallback_auth_policy.py
+tests/unit/test_demand_reconstruction_llm.py
+```
+
+推荐验证：
+
+```powershell
+.\.conda\python.exe -m pytest tests/unit/test_llm_runtime_module_contract_guard.py tests/unit/test_llm_fallback_priority.py tests/unit/services/test_multi_llm_fallback_auth_policy.py tests/unit/test_demand_reconstruction_llm.py -q
+```

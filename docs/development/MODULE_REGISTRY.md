@@ -367,15 +367,16 @@ tests/unit/test_demand_reconstruction_governed_knowledge_matching.py
 module_id: llm-runtime
 name: LLM provider、fallback、diagnostics 与可用性合同
 status: governed
-current_version: unregistered
+current_version: v0.1-provider-fallback-contract
 ```
 
 ### owned_paths
 
 ```text
+intelligent_project_analyzer/modules/llm_runtime/contracts.py
 intelligent_project_analyzer/services/llm_factory.py
 intelligent_project_analyzer/services/multi_llm_factory.py
-scripts/smoke_llm_channels.py
+intelligent_project_analyzer/services/demand_reconstruction_llm.py
 scripts/smoke_demand_reconstruction_llm.py
 ```
 
@@ -385,6 +386,7 @@ scripts/smoke_demand_reconstruction_llm.py
 provider 可达不等于输出可用。
 llm_partial 不能在 required 模式下被当成最终成功。
 fallback 必须记录 llm_status、llm_error、llm_rejection_reason。
+required LLM 失败必须交给上层 typed_unavailability_http_503 合同处理，不得静默转规则结果。
 ```
 
 ### entrypoints
@@ -392,6 +394,9 @@ fallback 必须记录 llm_status、llm_error、llm_rejection_reason。
 ```text
 LLMFactory
 FallbackLLM / multi provider factory
+create_demand_reconstruction_llm
+describe_demand_reconstruction_llm_config
+modules.llm_runtime.contracts.llm_runtime_contract
 ```
 
 ### dependencies
@@ -406,12 +411,13 @@ FallbackLLM / multi provider factory
 tests/unit/test_llm_fallback_priority.py
 tests/unit/services/test_multi_llm_fallback_auth_policy.py
 tests/unit/test_demand_reconstruction_llm.py
+tests/unit/test_llm_runtime_module_contract_guard.py
 ```
 
 ### next_refactor_target
 
 ```text
-建立 modules/llm_runtime/contracts.py。
+contracts.py 已建立为 LLM runtime 模块合同入口。
 把 provider diagnostics 统一为结构化类型。
 登记 FEATURE_VERSION_LEDGER 版本链。
 ```
