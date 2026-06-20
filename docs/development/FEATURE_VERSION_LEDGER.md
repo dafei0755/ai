@@ -61,6 +61,7 @@ SYNTHESIS_UNAVAILABLE -> HTTP 503
 ```text
 intelligent_project_analyzer/modules/demand_reconstruction/contracts.py
 intelligent_project_analyzer/modules/demand_reconstruction/semantic_router.py
+intelligent_project_analyzer/modules/demand_reconstruction/synthesis.py
 intelligent_project_analyzer/services/demand_reconstruction_service.py
 intelligent_project_analyzer/api/dual_mode_routes.py
 docs/mechanism-reviews/DEMAND_RECONSTRUCTION_LLM_FIRST_ARCHITECTURE.md

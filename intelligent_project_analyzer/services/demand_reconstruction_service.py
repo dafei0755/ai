@@ -15,6 +15,9 @@ from typing import Any, Dict, Optional
 
 from loguru import logger
 
+from intelligent_project_analyzer.modules.demand_reconstruction.synthesis import (
+    DemandReconstructionSynthesis,
+)
 from intelligent_project_analyzer.modules.demand_reconstruction.semantic_router import (
     DemandReconstructionSemanticRouter,
 )
@@ -108,6 +111,7 @@ class DemandReconstructionService:
         latent_model_adapter: Optional[LatentModelAdapter] = None,
         insight_quality_evaluator: Optional[DemandReconstructionInsightQualityEvaluator] = None,
         semantic_router: Optional[DemandReconstructionSemanticRouter] = None,
+        synthesis: Optional[DemandReconstructionSynthesis] = None,
         require_llm: bool = False,
         governance_store: Any = None,
     ) -> None:
@@ -122,6 +126,11 @@ class DemandReconstructionService:
             target_aliases=self._LLM_SEMANTIC_TARGET_ALIASES,
         )
         self._output_planner = output_planner or DemandReconstructionOutputPlanner()
+        self._synthesis = synthesis or DemandReconstructionSynthesis(
+            llm=self._llm,
+            insight_protocol=self._insight_protocol,
+            output_planner=self._output_planner,
+        )
         self._latent_model_adapter = latent_model_adapter or LatentModelAdapter()
         self._insight_quality_evaluator = (
             insight_quality_evaluator or DemandReconstructionInsightQualityEvaluator()
@@ -619,42 +628,7 @@ class DemandReconstructionService:
         adapter_context: Dict[str, Any],
         rule_plan: Dict[str, Any],
     ) -> tuple[Optional[Dict[str, Any]], Dict[str, Any]]:
-        prompt = self._insight_protocol.build_prompt(adapter_context, rule_plan)
-        fallback_instances = getattr(self._llm, "llm_instances", None)
-        if isinstance(fallback_instances, dict) and fallback_instances:
-            best_partial: Optional[tuple[Dict[str, Any], Dict[str, Any]]] = None
-            last_diagnostics: Dict[str, Any] = {"status": "fallback_exhausted"}
-            for provider, llm in fallback_instances.items():
-                merged, diagnostics = self._build_llm_insight_blueprint_with_llm(
-                    llm=llm,
-                    prompt=prompt,
-                    rule_plan=rule_plan,
-                    provider=str(provider),
-                )
-                last_diagnostics = diagnostics
-                if merged is not None and diagnostics.get("status") == "used":
-                    return merged, diagnostics
-                if merged is not None and diagnostics.get("status") == "partial" and best_partial is None:
-                    best_partial = (merged, diagnostics)
-                    logger.info(
-                        "[DemandReconstruction] partial LLM insight kept as backup; "
-                        f"provider={provider}"
-                    )
-                    continue
-                logger.info(
-                    "[DemandReconstruction] trying next LLM provider after non-final insight: "
-                    f"provider={provider}, status={diagnostics.get('status')}"
-                )
-            if best_partial is not None:
-                return best_partial
-            return None, last_diagnostics
-
-        return self._build_llm_insight_blueprint_with_llm(
-            llm=self._llm,
-            prompt=prompt,
-            rule_plan=rule_plan,
-            provider="default",
-        )
+        return self._synthesis.build_blueprint(adapter_context, rule_plan)
 
     def _build_llm_insight_blueprint_with_llm(
         self,
@@ -664,46 +638,12 @@ class DemandReconstructionService:
         rule_plan: Dict[str, Any],
         provider: str,
     ) -> tuple[Optional[Dict[str, Any]], Dict[str, Any]]:
-        started_at = time.perf_counter()
-        try:
-            response = llm.invoke(prompt)
-            content = response.content if hasattr(response, "content") else str(response)
-            elapsed_ms = int((time.perf_counter() - started_at) * 1000)
-            logger.info(
-                "[DemandReconstruction] LLM insight response received: "
-                f"provider={provider}, prompt_chars={len(prompt)}, "
-                f"content_chars={len(str(content or ''))}, elapsed_ms={elapsed_ms}"
-            )
-            merged, diagnostics = self._insight_protocol.build_blueprint_from_response_detailed(
-                rule_plan=rule_plan,
-                content=str(content or ""),
-            )
-            if merged is None and diagnostics.get("status") in {"quality_rejected", "invalid_json", "empty_response"}:
-                repair_prompt = self._insight_protocol.build_repair_prompt(
-                    original_prompt=prompt,
-                    rejected_content=str(content or ""),
-                    rejection_reason=str(diagnostics.get("reason") or diagnostics.get("status") or "quality_rejected"),
-                )
-                repair_response = llm.invoke(repair_prompt)
-                repair_content = repair_response.content if hasattr(repair_response, "content") else str(repair_response)
-                repaired, repair_diagnostics = self._insight_protocol.build_blueprint_from_response_detailed(
-                    rule_plan=rule_plan,
-                    content=str(repair_content or ""),
-                )
-                if repaired is not None:
-                    return self._output_planner.clamp_existing_plan(repaired), repair_diagnostics
-                return None, repair_diagnostics
-            if merged is None:
-                return None, diagnostics
-            return self._output_planner.clamp_existing_plan(merged), diagnostics
-        except Exception as exc:
-            elapsed_ms = int((time.perf_counter() - started_at) * 1000)
-            logger.warning(
-                "[DemandReconstruction] LLM insight failed, fallback used: "
-                f"provider={provider}, prompt_chars={len(prompt)}, elapsed_ms={elapsed_ms}, "
-                f"error_type={type(exc).__name__}, error={exc}"
-            )
-            return None, {"status": "invoke_failed", "error": str(exc), "error_type": type(exc).__name__}
+        return self._synthesis.build_blueprint_with_llm(
+            llm=llm,
+            prompt=prompt,
+            rule_plan=rule_plan,
+            provider=provider,
+        )
 
     def _build_llm_semantic_understanding(self, message: str) -> Dict[str, Any]:
         if self._llm is None:

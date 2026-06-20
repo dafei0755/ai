@@ -86,7 +86,8 @@ tests/api/test_scheme_advisor_entry_route.py
 ```text
 contracts.py 已提取为模块合同入口。
 semantic_router.py 已提取为 Stage 1 LLM 语义理解入口。
-下一步提取 synthesis.py。
+synthesis.py 已提取为 Stage 5 LLM Final Synthesis 入口。
+下一步收敛 service.py 编排层，并评估 quality_gate.py / governance.py 拆分。
 旧 services/demand_reconstruction_service.py 保留兼容 facade。
 ```
 
