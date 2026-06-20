@@ -49,6 +49,7 @@ intelligent_project_analyzer/modules/demand_reconstruction/governance.py
 intelligent_project_analyzer/modules/demand_reconstruction/alignment_gate.py
 intelligent_project_analyzer/modules/demand_reconstruction/insight_quality_gate.py
 intelligent_project_analyzer/modules/demand_reconstruction/response_builder.py
+intelligent_project_analyzer/modules/demand_reconstruction/runtime_factory.py
 intelligent_project_analyzer/modules/demand_reconstruction/semantic_context_applier.py
 intelligent_project_analyzer/modules/demand_reconstruction/semantic_targets.py
 intelligent_project_analyzer/modules/demand_reconstruction/blueprint_coordinator.py
@@ -105,6 +106,7 @@ governance.py 已提取为治理知识资产注入与治理信号持久化入口
 alignment_gate.py 已提取为语义一致性 shadow/hard gate 与 fallback rebuild 入口。
 insight_quality_gate.py 已提取为洞察质量评估与质量治理信号入口。
 response_builder.py 已提取为 reply/card/context/result 构建入口。
+runtime_factory.py 已提取为需求重构运行时依赖装配入口。
 semantic_context_applier.py 已提取为 LLM semantic package 到 adapter_context 的应用入口。
 semantic_targets.py 已提取为 LLM semantic target alias 配置入口。
 blueprint_coordinator.py 已提取为规则计划、LLM synthesis 与 required-LLM 失败契约的编排入口。

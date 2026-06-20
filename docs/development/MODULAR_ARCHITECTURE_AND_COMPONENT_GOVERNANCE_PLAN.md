@@ -69,6 +69,7 @@ intelligent_project_analyzer/
       alignment_gate.py
       insight_quality_gate.py
       response_builder.py
+      runtime_factory.py
       semantic_context_applier.py
       semantic_targets.py
       blueprint_coordinator.py
@@ -243,14 +244,15 @@ conversation-analysis-ui
 6. 新建 alignment_gate.py，迁移语义一致性 shadow/hard gate 与 fallback rebuild 逻辑。（已完成）
 7. 新建 insight_quality_gate.py，迁移洞察质量评估与质量治理信号逻辑。（已完成）
 8. 新建 response_builder.py，迁移 reply/card/context/result 构建逻辑。（已完成）
-9. 新建 semantic_context_applier.py，迁移 LLM semantic package 到 adapter_context 的应用逻辑。（已完成）
-10. 新建 semantic_targets.py，迁移 LLM semantic target alias 配置。（已完成）
-11. 新建 blueprint_coordinator.py，迁移规则计划、LLM synthesis 与 required-LLM 失败契约编排。（已完成）
-12. 新建 conversation_handler.py，迁移 pending guidance card、handoff 与 continue 会话入口处理。（已完成）
-13. 新建 entry_classifier.py，迁移需求重构入口判断、正式任务书请求识别与 follow-up 识别。（已完成）
-14. 新建 pipeline.py，迁移需求重构运行时主流程编排。（已完成）
-15. service.py 只保留依赖注入、入口兼容和旧私有方法兼容包装。
-16. 旧 services/demand_reconstruction_service.py 作为兼容 facade 或薄入口。
+9. 新建 runtime_factory.py，迁移需求重构运行时依赖装配逻辑。（已完成）
+10. 新建 semantic_context_applier.py，迁移 LLM semantic package 到 adapter_context 的应用逻辑。（已完成）
+11. 新建 semantic_targets.py，迁移 LLM semantic target alias 配置。（已完成）
+12. 新建 blueprint_coordinator.py，迁移规则计划、LLM synthesis 与 required-LLM 失败契约编排。（已完成）
+13. 新建 conversation_handler.py，迁移 pending guidance card、handoff 与 continue 会话入口处理。（已完成）
+14. 新建 entry_classifier.py，迁移需求重构入口判断、正式任务书请求识别与 follow-up 识别。（已完成）
+15. 新建 pipeline.py，迁移需求重构运行时主流程编排。（已完成）
+16. service.py 只保留依赖注入、入口兼容和旧私有方法兼容包装。
+17. 旧 services/demand_reconstruction_service.py 作为兼容 facade 或薄入口。
 ```
 
 验收命令：

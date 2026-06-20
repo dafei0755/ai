@@ -18,6 +18,9 @@ from intelligent_project_analyzer.modules.demand_reconstruction.insight_quality_
 from intelligent_project_analyzer.modules.demand_reconstruction.response_builder import (
     DemandReconstructionResponseBuilder,
 )
+from intelligent_project_analyzer.modules.demand_reconstruction.runtime_factory import (
+    DemandReconstructionRuntimeFactory,
+)
 from intelligent_project_analyzer.modules.demand_reconstruction.blueprint_coordinator import (
     DemandReconstructionBlueprintCoordinator,
 )
@@ -91,76 +94,44 @@ class DemandReconstructionService:
         self._llm = llm
         self._require_llm = require_llm
         self._governance_store = governance_store
-        self._governance = governance or DemandReconstructionGovernance(
+        runtime = DemandReconstructionRuntimeFactory.build(
+            llm=llm,
+            require_llm=require_llm,
             governance_store=governance_store,
+            card_type=self.CARD_TYPE,
+            result_builder=self._result,
+            context_adapter=context_adapter,
+            insight_protocol=insight_protocol,
+            output_planner=output_planner,
+            latent_model_adapter=latent_model_adapter,
+            insight_quality_evaluator=insight_quality_evaluator,
+            semantic_router=semantic_router,
+            synthesis=synthesis,
+            governance=governance,
+            alignment_gate=alignment_gate,
+            insight_quality_gate=insight_quality_gate,
+            response_builder=response_builder,
+            semantic_context_applier=semantic_context_applier,
+            blueprint_coordinator=blueprint_coordinator,
+            conversation_handler=conversation_handler,
+            entry_classifier=entry_classifier,
         )
-        self._entry_classifier = entry_classifier or DemandReconstructionEntryClassifier()
-        self._context_adapter = context_adapter or DemandReconstructionContextAdapter()
-        self._insight_protocol = insight_protocol or DemandReconstructionInsightProtocol()
-        # LLM Semantic Router remains the first understanding boundary; the
-        # implementation lives in modules/demand_reconstruction/semantic_router.py.
-        self._semantic_router = semantic_router or DemandReconstructionSemanticRouter(
-            llm=self._llm,
-            parse_response_json=self._insight_protocol.parse_response_json,
-            target_aliases=self._LLM_SEMANTIC_TARGET_ALIASES,
-        )
-        self._semantic_context_applier = (
-            semantic_context_applier
-            or DemandReconstructionSemanticContextApplier(
-                target_aliases=self._LLM_SEMANTIC_TARGET_ALIASES,
-            )
-        )
-        self._output_planner = output_planner or DemandReconstructionOutputPlanner()
-        self._synthesis = synthesis or DemandReconstructionSynthesis(
-            llm=self._llm,
-            insight_protocol=self._insight_protocol,
-            output_planner=self._output_planner,
-        )
-        self._blueprint_coordinator = (
-            blueprint_coordinator
-            or DemandReconstructionBlueprintCoordinator(
-                llm=self._llm,
-                output_planner=self._output_planner,
-                synthesis=self._synthesis,
-                require_llm=self._require_llm,
-                unavailable_factory=DemandReconstructionUnavailable,
-            )
-        )
-        self._response_builder = response_builder or DemandReconstructionResponseBuilder()
-        self._alignment_gate = alignment_gate or DemandReconstructionAlignmentGate(
-            output_planner=self._output_planner,
-            render_reply=self._response_builder.render_reply,
-            build_card=self._response_builder.build_card,
-        )
-        self._latent_model_adapter = latent_model_adapter or LatentModelAdapter()
-        self._insight_quality_evaluator = (
-            insight_quality_evaluator or DemandReconstructionInsightQualityEvaluator()
-        )
-        self._insight_quality_gate = insight_quality_gate or DemandReconstructionInsightQualityGate(
-            evaluator=self._insight_quality_evaluator,
-        )
-        self._pipeline = pipeline or DemandReconstructionPipeline(
-            llm=self._llm,
-            require_llm=self._require_llm,
-            unavailable_factory=DemandReconstructionUnavailable,
-            context_adapter=self._context_adapter,
-            semantic_router=self._semantic_router,
-            semantic_context_applier=self._semantic_context_applier,
-            governance=self._governance,
-            latent_model_adapter=self._latent_model_adapter,
-            blueprint_coordinator=self._blueprint_coordinator,
-            response_builder=self._response_builder,
-            alignment_gate=self._alignment_gate,
-            insight_quality_gate=self._insight_quality_gate,
-        )
-        self._conversation_handler = (
-            conversation_handler
-            or DemandReconstructionConversationHandler(
-                card_type=self.CARD_TYPE,
-                entry_classifier=self._entry_classifier,
-                result_builder=self._result,
-            )
-        )
+        self._governance = runtime.governance
+        self._entry_classifier = runtime.entry_classifier
+        self._context_adapter = runtime.context_adapter
+        self._insight_protocol = runtime.insight_protocol
+        self._semantic_router = runtime.semantic_router
+        self._semantic_context_applier = runtime.semantic_context_applier
+        self._output_planner = runtime.output_planner
+        self._synthesis = runtime.synthesis
+        self._blueprint_coordinator = runtime.blueprint_coordinator
+        self._response_builder = runtime.response_builder
+        self._alignment_gate = runtime.alignment_gate
+        self._latent_model_adapter = runtime.latent_model_adapter
+        self._insight_quality_evaluator = runtime.insight_quality_evaluator
+        self._insight_quality_gate = runtime.insight_quality_gate
+        self._pipeline = runtime.pipeline
+        self._conversation_handler = runtime.conversation_handler
 
     def handle_message(
         self,

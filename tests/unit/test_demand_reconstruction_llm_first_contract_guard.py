@@ -11,6 +11,7 @@ GOVERNANCE = ROOT / "intelligent_project_analyzer/modules/demand_reconstruction/
 ALIGNMENT_GATE = ROOT / "intelligent_project_analyzer/modules/demand_reconstruction/alignment_gate.py"
 INSIGHT_QUALITY_GATE = ROOT / "intelligent_project_analyzer/modules/demand_reconstruction/insight_quality_gate.py"
 RESPONSE_BUILDER = ROOT / "intelligent_project_analyzer/modules/demand_reconstruction/response_builder.py"
+RUNTIME_FACTORY = ROOT / "intelligent_project_analyzer/modules/demand_reconstruction/runtime_factory.py"
 SEMANTIC_CONTEXT_APPLIER = ROOT / "intelligent_project_analyzer/modules/demand_reconstruction/semantic_context_applier.py"
 SEMANTIC_TARGETS = ROOT / "intelligent_project_analyzer/modules/demand_reconstruction/semantic_targets.py"
 BLUEPRINT_COORDINATOR = ROOT / "intelligent_project_analyzer/modules/demand_reconstruction/blueprint_coordinator.py"
@@ -22,13 +23,16 @@ DOC = ROOT / "docs/development/方案高参需求重构运行时开发纲领.md"
 
 def test_demand_reconstruction_service_keeps_llm_first_semantic_router_contract() -> None:
     source = SERVICE.read_text(encoding="utf-8")
+    semantic_router_source = SEMANTIC_ROUTER.read_text(encoding="utf-8")
+    runtime_factory_source = RUNTIME_FACTORY.read_text(encoding="utf-8")
     coordinator_source = BLUEPRINT_COORDINATOR.read_text(encoding="utf-8")
     contracts_source = CONTRACTS.read_text(encoding="utf-8")
 
     assert "DemandReconstructionUnavailable" in source
     assert "class DemandReconstructionUnavailable" in contracts_source
     assert "def _build_llm_semantic_understanding" in source
-    assert "LLM Semantic Router" in source
+    assert "LLM Semantic Router" in semantic_router_source
+    assert "DemandReconstructionSemanticRouter(" in runtime_factory_source
     assert "UNDERSTANDING_UNAVAILABLE" in source
     assert "SYNTHESIS_UNAVAILABLE" in coordinator_source
     assert "DEMAND_RECONSTRUCTION_CARD_TYPE" in source
@@ -215,6 +219,20 @@ def test_demand_reconstruction_conversation_handler_is_module_boundary() -> None
     assert "DemandReconstructionConversationHandler" in service_source
     assert "self._conversation_handler.handle_message" in service_source
     assert "pending_guidance_card" not in service_source
+
+
+def test_demand_reconstruction_runtime_factory_is_module_boundary() -> None:
+    factory_source = RUNTIME_FACTORY.read_text(encoding="utf-8")
+    service_source = SERVICE.read_text(encoding="utf-8")
+
+    assert "class DemandReconstructionRuntime" in factory_source
+    assert "class DemandReconstructionRuntimeFactory" in factory_source
+    assert "def build" in factory_source
+    assert "DemandReconstructionPipeline(" in factory_source
+    assert "DemandReconstructionConversationHandler(" in factory_source
+    assert "DemandReconstructionRuntimeFactory.build" in service_source
+    assert "DemandReconstructionGovernance(" not in service_source
+    assert "DemandReconstructionPipeline(" not in service_source
 
 
 def test_demand_reconstruction_pipeline_is_module_boundary() -> None:
