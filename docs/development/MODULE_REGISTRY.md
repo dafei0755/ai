@@ -147,6 +147,7 @@ config/project_type_registry_meta.yaml
 不得直接生成最终方案建议。
 不得绕过需求重构入口成为新对话第一响应主线。
 分类结果应作为上下文，不应替代 LLM-first 需求洞察。
+在需求重构 required-LLM 链路中，ProjectTypeDetector 不得通过构造期副作用早于 LLM Semantic Router 初始化或执行；只能在 adapter context build 阶段作为辅助证据。
 ```
 
 ### entrypoints

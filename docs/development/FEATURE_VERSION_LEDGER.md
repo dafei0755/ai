@@ -57,6 +57,8 @@ SYNTHESIS_UNAVAILABLE -> HTTP 503
 
 不得静默退回旧规则蓝图。规则蓝图只允许作为显式资产扫描、非 required 模式或 LLM 关闭时的受控路径。
 
+`DEMAND_RECONSTRUCTION_USE_LLM=1` 时，项目类型检测不得在需求重构构造期抢占链路；ProjectTypeDetector / SpaceClassification 只能在 LLM Semantic Router 之后作为 adapter context 证据进入。
+
 ### 权威文件
 
 ```text

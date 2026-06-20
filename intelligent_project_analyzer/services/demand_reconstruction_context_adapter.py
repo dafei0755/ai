@@ -12,7 +12,7 @@ class DemandReconstructionContextAdapter:
     """Build the demand-reconstruction-layer context without creating a second classifier."""
 
     def __init__(self, context_intelligence: Optional[SchemeAdvisorContextIntelligence] = None) -> None:
-        self._context_intelligence = context_intelligence or SchemeAdvisorContextIntelligence()
+        self._context_intelligence = context_intelligence
 
     def build(self, user_message: str) -> Dict[str, Any]:
         text = str(user_message or "")
@@ -54,9 +54,14 @@ class DemandReconstructionContextAdapter:
 
     def _safe_context_packet(self, text: str) -> Dict[str, Any]:
         try:
-            return self._context_intelligence.build(text)
+            return self._get_context_intelligence().build(text)
         except Exception:
             return {}
+
+    def _get_context_intelligence(self) -> SchemeAdvisorContextIntelligence:
+        if self._context_intelligence is None:
+            self._context_intelligence = SchemeAdvisorContextIntelligence()
+        return self._context_intelligence
 
     @staticmethod
     def _build_semantic_candidate_set(

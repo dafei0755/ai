@@ -1803,6 +1803,33 @@ def test_context_adapter_does_not_let_cultural_research_terms_hijack_concrete_pr
     )
 
 
+def test_context_adapter_defers_context_intelligence_until_build(monkeypatch):
+    from intelligent_project_analyzer.services import demand_reconstruction_context_adapter as adapter_module
+
+    constructed = []
+    built = []
+
+    class FakeContextIntelligence:
+        def __init__(self):
+            constructed.append("init")
+
+        def build(self, text):
+            built.append(text)
+            return {}
+
+    monkeypatch.setattr(adapter_module, "SchemeAdvisorContextIntelligence", FakeContextIntelligence)
+
+    adapter = DemandReconstructionContextAdapter()
+
+    assert constructed == []
+
+    context = adapter.build("50岁男性室内设计师想在老家建民居")
+
+    assert constructed == ["init"]
+    assert built == ["50岁男性室内设计师想在老家建民居"]
+    assert context["context_source"]["semantic_axes"] is True
+
+
 def test_concrete_brand_experience_reconstruction_is_not_routed_to_deep_research():
     plan = _blueprint(BRAND_EXPERIENCE_HISTORIC_DISTRICT_PROMPT)
     rendered = _reply(BRAND_EXPERIENCE_HISTORIC_DISTRICT_PROMPT)

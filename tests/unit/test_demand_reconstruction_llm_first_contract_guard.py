@@ -273,3 +273,12 @@ def test_demand_reconstruction_pipeline_is_module_boundary() -> None:
     assert "DemandReconstructionPipeline" in service_source
     assert "self._pipeline.run" in service_source
     assert "self._response_builder.build_result" not in service_source
+
+
+def test_demand_reconstruction_required_llm_runs_before_adapter_context_build() -> None:
+    pipeline_source = PIPELINE.read_text(encoding="utf-8")
+
+    llm_index = pipeline_source.index("self._build_llm_semantic_understanding(message)")
+    adapter_index = pipeline_source.index("adapter_context = self._context_adapter.build(message)")
+
+    assert llm_index < adapter_index
